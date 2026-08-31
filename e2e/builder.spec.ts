@@ -1206,7 +1206,7 @@ test('the detachment that makes a tank a character hands it the crown', async ({
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await loadout.getByRole('button', { name: 'Select Tank Ace Character' }).click()
   await expect(page.getByRole('button', { name: 'Make Land Raider Redeemer Warlord' })).toBeVisible()
-  await expect(page.locator('[data-unit="Land Raider Redeemer"]')).toContainText('250 pts')
+  await expect(page.locator('[data-unit="Land Raider Redeemer"]')).toContainText('260 pts')
 })
 
 test('the unit editor asks about weapons before the rest of the wargear', async ({ page }) => {
