@@ -10,6 +10,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewNavigation } from 'react-native-webview'
 import {
+  appShellActivityChanged,
   appShellRenderChanged,
   appShellRenderState,
   authDeliveryDeferred,
@@ -79,7 +80,7 @@ function AppShell() {
   const battleAwakeOperation = useRef<Promise<void>>(Promise.resolve())
   const handledAuthTokens = useRef(new Set<string>())
   const lifecycle = useRef(initialAppLifecycle(AppState.currentState))
-  const shellRef = useRef(initialAppShellState())
+  const shellRef = useRef(initialAppShellState(AppState.currentState === 'active'))
   const loadDrainTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadGeneration = useRef(0)
   const [renderedShell, setRenderedShell] = useState(() => appShellRenderState(shellRef.current))
@@ -312,9 +313,12 @@ function AppShell() {
       const changed = appStateChanged(lifecycle.current, status)
       lifecycle.current = changed.lifecycle
       if (changed.shouldResumeWebApp && shellRef.current.ready) webView.current?.injectJavaScript(WEB_RESUME_SCRIPT)
+      const nextShell = appShellActivityChanged(shellRef.current, status === 'active')
+      if (status === 'active') commitAndDrain(nextShell)
+      else commitShell(nextShell)
     })
     return () => subscription.remove()
-  }, [])
+  }, [commitAndDrain, commitShell])
 
   const updateNavigation = useCallback(
     (navigation: WebViewNavigation) => {

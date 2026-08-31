@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   appShellRenderChanged,
   appShellRenderState,
+  appShellActivityChanged,
   authDeliveryDeferred,
   authDeliveryFailed,
   authDeliverySucceeded,
@@ -183,5 +184,25 @@ describe('application shell delivery', () => {
       retry: { kind: 'auth', callback: auth },
       continued: { kind: 'navigation', url: 'https://praetorium.gg/battles/42' },
     })
+  })
+
+  it('waits for the application to become active before delivering authentication', () => {
+    const inactive = appShellActivityChanged(
+      successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg'),
+      false,
+    )
+    const queued = authReceived(inactive, auth)
+
+    expect(drainAppShell(queued).command).toBeNull()
+    expect(drainAppShell(appShellActivityChanged(queued, true)).command).toEqual({ kind: 'auth', callback: auth })
+  })
+
+  it('retries authentication interrupted while the application becomes inactive', () => {
+    const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
+    const delivering = drainAppShell(authReceived(loaded, auth)).state
+    const inactive = appShellActivityChanged(delivering, false)
+
+    expect(inactive).toMatchObject({ active: false, pendingAuth: auth, delivering: null })
+    expect(drainAppShell(appShellActivityChanged(inactive, true)).command).toEqual({ kind: 'auth', callback: auth })
   })
 })
