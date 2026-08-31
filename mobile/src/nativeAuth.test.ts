@@ -105,8 +105,8 @@ describe('native authentication bridge', () => {
     const script = nativeAuthExchangeScript(callback)
     expect(script).toContain("fetch('/api/auth/native-auth-token/exchange'")
     expect(script).toContain('body: JSON.stringify({ id: auth.id, token: auth.token, verifier: auth.verifier })')
-    expect(script).toContain('window.location.replace(exchange.next)')
-    expect(script).not.toContain('window.location.replace(auth.next)')
+    expect(script).toContain('exchange.next !== auth.next')
+    expect(script).not.toContain('window.location.replace')
     expect(script).not.toContain('?token=')
   })
 
