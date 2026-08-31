@@ -159,6 +159,18 @@ describe('account administration', () => {
     })
   })
 
+  it('allows the OAuth state cookie on cross-site provider callbacks', async () => {
+    connection = await openTestDatabase()
+    vi.stubEnv('APP_URL', 'https://praetorium.gg')
+    vi.stubEnv('GOOGLE_CLIENT_ID', 'test-client-id')
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', 'test-client-secret')
+    const auth = createAuth(connection.database, SECRET)
+
+    const started = await auth.api.signInSocial({ body: { provider: 'google', callbackURL: '/' }, returnHeaders: true })
+
+    expect(started.headers.getSetCookie().find((cookie) => cookie.startsWith('__Secure-better-auth.state='))).toContain('SameSite=None')
+  })
+
   it('exchanges a hashed one-time token into a WebView session once', async () => {
     connection = await openTestDatabase()
     const auth = createAuth(connection.database, SECRET)
