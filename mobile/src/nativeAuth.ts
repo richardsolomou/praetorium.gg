@@ -168,7 +168,9 @@ export const NATIVE_AUTH_COMPLETION_SCRIPT = `(() => {
       if (expected.origin !== '${APP_URL}' || expected.href !== current.href) return;
     }
     history.replaceState(history.state, '', current.href);
-    window.ReactNativeWebView.postMessage(JSON.stringify({ version: 2, type: 'native-auth-result', id: pending.id, ok: success, retryable: false }));
+    const report = () => window.ReactNativeWebView.postMessage(JSON.stringify({ version: 2, type: 'native-auth-result', id: pending.id, ok: success, retryable: false }));
+    if (document.readyState === 'complete') report();
+    else addEventListener('load', report, { once: true });
   } catch {}
 })(); true;`
 
@@ -180,5 +182,5 @@ export function nativeAuthConsumeScript(callback: Extract<NativeAuthCallback, { 
     credentials: 'same-origin',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(${payload}),
-  }); true;`
+  }).then(() => location.reload(), () => location.reload()); true;`
 }

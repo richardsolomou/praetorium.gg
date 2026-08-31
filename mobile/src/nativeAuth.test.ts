@@ -118,6 +118,7 @@ describe('native authentication bridge', () => {
     expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain("searchParams.get('__native_auth_error')")
     expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain('expected.href !== current.href')
     expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain('history.replaceState')
+    expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain("addEventListener('load'")
     expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain("type: 'native-auth-result'")
   })
 
@@ -126,6 +127,7 @@ describe('native authentication bridge', () => {
 
     expect(script).toContain("fetch('/api/auth/native-auth-token/consume'")
     expect(script).toContain("sessionStorage.removeItem('praetorium.native-auth.exchange')")
+    expect(script).toContain('then(() => location.reload(), () => location.reload())')
     expect(script).toContain('exchange-id-123456789012345678901')
     expect(script).toContain(proof.verifier)
   })
