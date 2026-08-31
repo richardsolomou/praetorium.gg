@@ -150,6 +150,11 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     setReadOnly(next)
     localStorage.setItem(READ_ONLY_PREFERENCE, String(next))
   }
+  const toggleWaivedRule = useCallback(
+    (rule: FormatRuleId) =>
+      setWaivedRules((current) => (current.includes(rule) ? current.filter((candidate) => candidate !== rule) : [...current, rule])),
+    [],
+  )
   const togglePickerFilter = useCallback(
     (filter: PickerFilter) =>
       setPickerFilters((current) => {
@@ -360,6 +365,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
             room={priced ? limit - priced.points : null}
             battleSize={limit}
             waivedRules={waivedRules}
+            onWaiveToggle={toggleWaivedRule}
             query={pickerQuery}
             onQueryChange={setPickerQuery}
             active={pickerFilters}

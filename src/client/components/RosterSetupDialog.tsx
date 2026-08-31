@@ -11,9 +11,7 @@ import {
   detachmentPointsError,
   detachmentPointBudget,
   enforces,
-  formatRules,
   type FormatRuleId,
-  waivedFormatRules,
   GAME_SIZES,
   isKotcLimit,
   ROSTER_NAME_MAX_LENGTH,
@@ -113,11 +111,9 @@ export function RosterSetupDialog({
   }
 
   const loadingFaction = Boolean(draft.catalogueId && !faction)
-  // A waived rule is not enforced anywhere else either, so the dialog reads the same
-  // helpers the price does rather than keeping its own idea of what the size allows.
-  const rules = formatRules(draft.limit)
-  const waived = new Set(draft.waivedRules)
-  const waivedHere = waivedFormatRules(draft.limit, draft.waivedRules)
+  // The restrictions themselves are switched off from the picker, over the book they
+  // act on. What is waived still shapes this dialog, because a size that no longer
+  // caps detachments or their points is offering the player a different set.
   const singleDetachment = isKotcLimit(draft.limit) && enforces(draft.waivedRules, 'detachments')
   const budgeted = enforces(draft.waivedRules, 'detachment-points')
   const selected = faction?.detachments.filter((detachment) => draft.detachmentIds.includes(detachment.id)) ?? []
@@ -143,14 +139,6 @@ export function RosterSetupDialog({
   const factionChanged = value.catalogueId !== draft.catalogueId
   const detachmentsChanged = value.detachmentIds.toSorted().join() !== draft.detachmentIds.toSorted().join()
   const groups = factionSelectGroups(factionOptions, favourites)
-
-  // Putting a restriction back also puts back what it allows: re-enforcing one
-  // detachment while two are selected would otherwise save a roster the price then
-  // reports as illegal for a reason this dialog could have taken back itself.
-  const toggleRule = (id: FormatRuleId) => {
-    const next = waived.has(id) ? draft.waivedRules.filter((candidate) => candidate !== id) : [...draft.waivedRules, id]
-    changeDraft({ ...draft, waivedRules: next, detachmentIds: draft.detachmentIds.slice(0, detachmentLimit(draft.limit, next)) })
-  }
 
   const toggleDetachment = (id: string) => {
     const ids = draft.detachmentIds.includes(id)
@@ -238,54 +226,6 @@ export function RosterSetupDialog({
                 />
               </div>
             </div>
-
-            <fieldset>
-              <legend className="rubric">Format restrictions</legend>
-              <p className="mt-1 text-xs text-dim">
-                Switch one off to build past it. The picker and the legality check both stop enforcing what is unchecked.
-              </p>
-              {rules.length ? (
-                <>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    {rules.map((rule) => {
-                      const enforced = !waived.has(rule.id)
-                      return (
-                        <button
-                          key={rule.id}
-                          type="button"
-                          aria-pressed={enforced}
-                          onClick={() => toggleRule(rule.id)}
-                          className={`flex min-h-14 items-center justify-between gap-3 border px-3 text-left ${
-                            enforced ? 'border-parchment bg-raised text-bone' : 'border-edge bg-sunken text-dim'
-                          }`}
-                        >
-                          <span className="min-w-0">
-                            <span className="block font-bold uppercase">{rule.label}</span>
-                            <span className="mt-0.5 block text-xs text-dim">{rule.hint}</span>
-                          </span>
-                          <span
-                            className={`grid size-6 shrink-0 place-items-center rounded-full border ${
-                              enforced ? 'border-parchment bg-parchment text-parchment-ink' : 'border-edge-strong'
-                            }`}
-                          >
-                            {enforced ? <Check className="size-4" /> : null}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                  {waivedHere.length ? (
-                    <p className="mt-2 text-xs text-discarded">
-                      {waivedHere.length === 1 ? 'One restriction is' : `${waivedHere.length} restrictions are`} switched off. This roster
-                      is built for a table that agreed to play without {waivedHere.length === 1 ? 'it' : 'them'}, and will not be legal
-                      where the format is enforced.
-                    </p>
-                  ) : null}
-                </>
-              ) : (
-                <p className="mt-2 text-xs text-faint">This battle size adds no restrictions of its own.</p>
-              )}
-            </fieldset>
 
             <fieldset>
               <div className="flex items-end justify-between gap-3">

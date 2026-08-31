@@ -1,12 +1,20 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Heart, ListFilter, Plus } from 'lucide-react'
+import { EllipsisVertical, Heart, ListFilter, Plus } from 'lucide-react'
 import { Fragment, memo, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Toggle } from '@/components/ui/toggle'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import type { FormatRuleId } from '../../../core/battle'
-import { enforces, isKotcLimit } from '../../../core/battle'
+import { enforces, formatRules, isKotcLimit } from '../../../core/battle'
 import type { UnitSummary } from '../../../server/cataloguePicker'
 import { SearchField } from '../SearchField'
 import { DatasheetMatchReasons } from '../DatasheetMatchReasons'
@@ -27,6 +35,7 @@ type Props = {
   battleSize: number
   /** Which of the battle size's restrictions the roster has switched off. */
   waivedRules: readonly FormatRuleId[]
+  onWaiveToggle: (rule: FormatRuleId) => void
   query: string
   onQueryChange: (query: string) => void
   active: ReadonlySet<PickerFilter>
@@ -58,6 +67,7 @@ export const Picker = memo(function Picker({
   room,
   battleSize,
   waivedRules,
+  onWaiveToggle,
   query,
   onQueryChange,
   active,
@@ -87,6 +97,8 @@ export const Picker = memo(function Picker({
       }),
     [found, active, room, inRoster, collection],
   )
+  const rules = formatRules(battleSize)
+  const waived = rules.filter((rule) => !enforces(waivedRules, rule.id))
   const alliedFactions = useMemo(() => [...new Set(shown.flatMap((unit) => (unit.alliedFaction ? [unit.alliedFaction] : [])))], [shown])
   const sections = [
     ...GROUPS.map((group) => ({ ...group, alliedFaction: null })),
@@ -123,6 +135,41 @@ export const Picker = memo(function Picker({
               {filter.label}
             </Toggle>
           ))}
+          {/*
+           * The restrictions the battle size imposes, switched off from the book they
+           * act on. They belong here rather than in roster setup because unchecking one
+           * is what puts the datasheets it was hiding back on this list.
+           */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Format restrictions"
+              className={`ml-auto grid size-6 shrink-0 place-items-center ${waived.length ? 'text-discarded' : 'text-faint hover:text-bone'}`}
+            >
+              <EllipsisVertical className="size-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-w-[min(20rem,calc(100vw-2rem))] min-w-64">
+              <DropdownMenuLabel className="text-[0.6875rem] tracking-[0.06em] uppercase">Format restrictions</DropdownMenuLabel>
+              {rules.length ? (
+                rules.map((rule) => (
+                  <DropdownMenuCheckboxItem
+                    key={rule.id}
+                    className="items-start rounded-none py-1.5"
+                    checked={enforces(waivedRules, rule.id)}
+                    onCheckedChange={() => onWaiveToggle(rule.id)}
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-xs font-semibold uppercase">{rule.label}</span>
+                      <span className="mt-0.5 block text-[0.6875rem] leading-tight text-wrap text-dim">{rule.hint}</span>
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                ))
+              ) : (
+                <DropdownMenuItem disabled className="rounded-none text-xs">
+                  This battle size adds no restrictions.
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:px-2.5">
