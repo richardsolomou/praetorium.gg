@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type BattleAudience, DEFAULT_BATTLE_AUDIENCE } from '../../core/battleAudience'
 import { setBattleAudience } from '../../server/functions'
-import { battleAudienceQuery, friendBattlesQuery, publicBattlesQuery } from '../queries'
+import { battleAudienceQuery, friendBattlesQuery, publicBattlesQuery, standingsQuery } from '../queries'
 import { errorMessage } from '../queryClient'
 import { Choice, type ChoiceOption } from './Choice'
 
@@ -9,13 +9,15 @@ import { Choice, type ChoiceOption } from './Choice'
  * What each answer means, in terms of who can actually reach the battle.
  *
  * Worded as consequences rather than levels, because the choice is only useful if
- * a player can tell what changes: who can find the battle, and who can open it.
+ * a player can tell what changes: what a stranger sees, and what the leaderboard
+ * counts.
  */
 const AUDIENCES: ChoiceOption<BattleAudience>[] = [
   {
     value: 'public',
     name: 'Anyone',
-    detail: 'Your battles appear on the home page. Anyone can watch, and nobody can take a seat or change anything.',
+    detail:
+      'Your battles appear on the home page and count towards the leaderboard. Anyone can watch, and nobody can take a seat or change anything.',
   },
   { value: 'friends', name: 'Friends', detail: 'Only your confirmed friends see your battles listed or can watch one.' },
   { value: 'private', name: 'Only my table', detail: 'Nobody outside the battle sees it, and none of your battles are counted anywhere.' },
@@ -37,10 +39,11 @@ export function BattleSharing() {
     mutationFn: (next: BattleAudience) => setBattleAudience({ data: { audience: next } }),
     onSuccess: (next) => {
       queryClient.setQueryData(battleAudienceQuery().queryKey, next)
-      // The feeds are an answer to "who may see what", so they are now wrong on
-      // this device as well as everyone else's.
+      // The feeds and the standings are answers to "who may see what", so they are
+      // now wrong on this device as well as everyone else's.
       void queryClient.invalidateQueries({ queryKey: publicBattlesQuery().queryKey })
       void queryClient.invalidateQueries({ queryKey: friendBattlesQuery().queryKey })
+      void queryClient.invalidateQueries({ queryKey: standingsQuery().queryKey })
     },
   })
   return (

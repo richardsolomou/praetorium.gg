@@ -36,8 +36,8 @@ const CAPABILITIES = [
  * navigation above them, so under their own live games it would be a second copy
  * of the menu wearing a pitch.
  *
- * Both blocks use the same hairline grid, so the page has one way of laying a
- * small set of boxes out rather than one per section.
+ * Both blocks are the same hairline grid the standings glimpse uses, so the page
+ * has one way of laying a small set of boxes out rather than one per section.
  */
 export function HomeIntro() {
   return (

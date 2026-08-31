@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import type { Command } from '../../core/battle'
 import { app } from '../app'
+import { factionIndexFor } from '../factionReferences'
 import { currentUserId, requireUser, requireUserId } from '../playerSession'
 import { rosterForUse } from '../rosterUsage'
 import { mutationRpc, rpc } from '../rpc'
@@ -73,6 +74,24 @@ export const friendBattles = createServerFn({ method: 'GET' })
       return app().service.friendBattles(id, app().rules(), { limit: FEED_PAGE, before: data.before ?? undefined })
     }),
   )
+
+/**
+ * The standings folded from finished public battles. Signed out too, for the same reason.
+ *
+ * Faction rows are keyed by catalogue id, which is not a name anybody would
+ * recognise, so the instance's own faction index supplies the labels. An instance
+ * with no catalogue synced still answers — those rows keep their ids rather than
+ * the table disappearing.
+ */
+export const standings = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() => {
+    const loaded = app().catalogue()
+    const names = loaded
+      ? new Map(factionIndexFor(loaded, app().rules()).factions.map((faction) => [faction.id, faction.displayName]))
+      : undefined
+    return app().service.standings(names)
+  }),
+)
 
 /** The most recently active battles the viewer shares with one other player. */
 export const sharedBattles = createServerFn({ method: 'GET' })

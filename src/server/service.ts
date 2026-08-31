@@ -28,6 +28,7 @@ import { battleReport } from '../core/battleReport'
 import type { MissionAward } from '../core/scoring'
 import type { RosterPick } from '../core/roster'
 import type { RosterSource } from '../core/savedRoster'
+import { factionsPlayed, type Standing, standings } from '../core/standings'
 import {
   alliedLeagueRosterLimit,
   leagueTableShape,
@@ -69,10 +70,21 @@ type SpectatorScreen = {
  */
 type BattleScreen = SeatedScreen | SpectatorScreen | { kind: 'unavailable' }
 
+/** One faction's table of players, named for a reader. */
+type FactionStandings = { id: string; name: string; standings: Standing[] }
+
+/** The overall table, a table per faction played, and the window they cover. */
+type StandingsAnswer = { since: number; overall: Standing[]; factions: FactionStandings[] }
+
 const SPECTATOR_ID = ''
 
 /** A page of a home-page feed. Small: every row on it costs a folded log. */
 const PUBLIC_BATTLES_PAGE = 10
+
+/** How far back the standings look, and how many battles they will read to do it. */
+const STANDINGS_WINDOW_MS = 90 * 24 * 60 * 60 * 1000
+const STANDINGS_BATTLE_LIMIT = 500
+const STANDINGS_HOLD_MS = 60_000
 
 /**
  * What a command answers: what happened to it, and what the battle now is.
@@ -99,6 +111,9 @@ export class PraetoriumService {
     private readonly events: BattleEvents,
     private readonly randomIndex: (limit: number) => number,
   ) {}
+
+  /** The last standings folded, and when they stop being offered. See `standings`. */
+  private standingsHeld: { until: number; answer: StandingsAnswer } | null = null
 
   adminUsers(input: Parameters<Repository['adminUsers']>[0]) {
     return this.repository.adminUsers(input)
@@ -511,6 +526,52 @@ export class PraetoriumService {
     return { battles: this.battleSummaries(histories, userId, rules), nextCursor }
   }
 
+  /**
+   * The standings, counted from the finished battles anyone may watch.
+   *
+   * A row is always a player. Beside the overall table there is one per faction
+   * anybody has actually played, answering who is best with that army rather than
+   * how the army itself does — a faction has no record, the people fielding it do.
+   * Only factions with a finished battle behind them get a table, because an empty
+   * one answers nothing.
+   *
+   * One read of the battles answers all of them: the logs are the expensive part,
+   * and each table is the same finished games counted through a different filter.
+   *
+   * Held for a minute rather than counted again for every visitor. A standing is
+   * derived, so a copy of it that goes stale costs a reader a minute of accuracy
+   * and nothing else — which is exactly the trade a battle screen may not make,
+   * because a stale battle is a player acting on a board that has moved. It is
+   * kept in the process rather than in Valkey for the same reason: losing it on a
+   * restart costs one recomputation, so it does not need somewhere to survive.
+   *
+   * `factionNames` turns a catalogue id into the name a player would recognise.
+   * It is passed in rather than reached for, the same as `rules`, because the
+   * count itself has no business knowing what a catalogue is.
+   */
+  async standings(factionNames?: ReadonlyMap<string, string>): Promise<StandingsAnswer> {
+    const now = this.clock()
+    const since = now - STANDINGS_WINDOW_MS
+    if (this.standingsHeld && this.standingsHeld.until > now) return this.standingsHeld.answer
+    const [histories, practice] = await Promise.all([
+      this.repository.watchableBattlesSince(since, STANDINGS_BATTLE_LIMIT),
+      this.repository.practiceOpponents(),
+    ])
+    const summaries = this.battleSummaries(histories, null, null)
+    const exclude = practice.map((opponent) => opponent.id)
+    const answer = {
+      since,
+      overall: standings(summaries, { exclude }),
+      factions: factionsPlayed(summaries, exclude).map((faction) => ({
+        id: faction,
+        name: factionNames?.get(faction) ?? faction,
+        standings: standings(summaries, { exclude, faction }),
+      })),
+    }
+    this.standingsHeld = { until: now + STANDINGS_HOLD_MS, answer }
+    return answer
+  }
+
   /** How widely this player's battles may be seen, and their own answer to it. */
   battleAudience(userId: string) {
     return this.repository.battleAudience(userId)
@@ -567,6 +628,9 @@ export class PraetoriumService {
         playerIds: players.map((player) => player.id),
         sides: state.players.map((player) => player.side),
         armies: state.players.map((player) => player.roster?.name ?? null),
+        // The catalogue the army came from, so a battle can also be counted as a
+        // result for the faction that fielded it. A pasted list has none.
+        factions: state.players.map((player) => player.roster?.built?.catalogueId ?? null),
         detachments: state.players.map((player) => player.roster?.built?.detachments?.map((detachment) => detachment.name) ?? []),
         // The painted bonus pays at the end of the battle, so a running score does not
         // carry it yet — and it is the side's one bonus, the same as everywhere else.

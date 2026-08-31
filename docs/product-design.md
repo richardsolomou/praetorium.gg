@@ -14,13 +14,15 @@ Praetorium includes:
 - A home page of live activity: the player's own table, their friends' tables, and the battles anyone may watch.
 - A per-player audience setting covering every battle they sit in: anyone, friends, or nobody outside the table.
 
-It does not include rankings, standings, pairings, brackets, locations, chat, matchmaking, a rules encyclopedia, or model positions.
+It does not include pairings, brackets, locations, chat, matchmaking, a rules encyclopedia, or model positions.
 
 ## Watching a battle
 
 A battle is watchable by default. Anyone may open a public battle's link, and the home page lists public battles so a game can be found without one. Watching is read-only: a spectator sees the score, both armies, the public mission and stratagem state, and the visibility-filtered report, never a face-down Secret Mission and never a control. A read never claims a seat.
 
 The audience belongs to the player rather than the battle, because a player answers it once instead of at every game. A battle takes the narrowest answer of everyone seated in it, so one player choosing to keep their battles private keeps the whole table private. The setting applies to battles already being played, and a player who has never opened it is public.
+
+The leaderboard counts finished public battles over the last 90 days. A row is a player. Beside the overall table there is one per faction anybody has played, ranking the players who fielded it rather than giving the faction a record of its own. A concession is a loss whatever the score said, allies share their side's points, and a battle with a practice opponent in it counts for nobody.
 
 ## Interface
 
