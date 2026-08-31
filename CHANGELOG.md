@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.43.2
+
+### Patch Changes
+
+- c81ee21: Finish native sign-in after returning from the provider.
+
 ## 0.43.1
 
 ### Patch Changes
