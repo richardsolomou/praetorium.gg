@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.44.0
+
+### Minor Changes
+
+- 3333692: Override a battle size's army construction restrictions per roster, so a King of the Colosseum list can be built with Epic Heroes or any other restriction switched off.
+- 3333692: Warn before a roster that has switched off any of its battle size's restrictions is brought to a battle or sealed into a league, and show what it waives to everyone at the table.
+
+### Patch Changes
+
+- 8c2b62e: Show each weapon keyword only once when a detachment grants one it already has.
+- 3333692: Remove the picker's Hide allies filter; allied datasheets already sit at the bottom of the book.
+
 ## 0.43.12
 
 ### Patch Changes
