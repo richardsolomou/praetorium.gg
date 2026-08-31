@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
@@ -148,26 +149,28 @@ export const Picker = memo(function Picker({
               <EllipsisVertical className="size-3.5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="max-w-[min(20rem,calc(100vw-2rem))] min-w-64">
-              <DropdownMenuLabel className="text-[0.6875rem] tracking-[0.06em] uppercase">Format restrictions</DropdownMenuLabel>
-              {rules.length ? (
-                rules.map((rule) => (
-                  <DropdownMenuCheckboxItem
-                    key={rule.id}
-                    className="items-start rounded-none py-1.5"
-                    checked={enforces(waivedRules, rule.id)}
-                    onCheckedChange={() => onWaiveToggle(rule.id)}
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-xs font-semibold uppercase">{rule.label}</span>
-                      <span className="mt-0.5 block text-[0.6875rem] leading-tight text-wrap text-dim">{rule.hint}</span>
-                    </span>
-                  </DropdownMenuCheckboxItem>
-                ))
-              ) : (
-                <DropdownMenuItem disabled className="rounded-none text-xs">
-                  This battle size adds no restrictions.
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[0.6875rem] tracking-[0.06em] uppercase">Format restrictions</DropdownMenuLabel>
+                {rules.length ? (
+                  rules.map((rule) => (
+                    <DropdownMenuCheckboxItem
+                      key={rule.id}
+                      className="items-start rounded-none py-1.5"
+                      checked={enforces(waivedRules, rule.id)}
+                      onCheckedChange={() => onWaiveToggle(rule.id)}
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-xs font-semibold uppercase">{rule.label}</span>
+                        <span className="mt-0.5 block text-[0.6875rem] leading-tight text-wrap text-dim">{rule.hint}</span>
+                      </span>
+                    </DropdownMenuCheckboxItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled className="rounded-none text-xs">
+                    This battle size adds no restrictions.
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

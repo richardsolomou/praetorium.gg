@@ -1095,6 +1095,19 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Incursion/ }).click()
   await setup.getByRole('button', { name: 'Save changes' }).click()
+
+  // The battle size's own restrictions sit beside the filters, because unchecking one
+  // is what puts back what it was keeping out of this book.
+  const restriction = () => page.getByRole('menuitemcheckbox', { name: /Detachment points/ })
+  await page.getByRole('button', { name: 'Format restrictions' }).click()
+  await expect(restriction()).toHaveAttribute('aria-checked', 'true')
+  await waitForRosterSave(page, () => restriction().click())
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Format restrictions' }).click()
+  await expect(restriction()).toHaveAttribute('aria-checked', 'false')
+  await waitForRosterSave(page, () => restriction().click())
+  await page.keyboard.press('Escape')
+
   for (let taken = 0; taken < 6; taken++) await lychguard.click()
   await expect(page.locator('[data-stat="points"]')).toHaveText('720/1000')
 
