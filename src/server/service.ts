@@ -46,6 +46,7 @@ import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
 
 type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
+type BattleFaction = { id: string; slug: string; displayName: string; icon: string | null }
 
 /**
  * `mission` is the viewer's, for the screens that are about them. `missions` is every
@@ -477,9 +478,10 @@ export class PraetoriumService {
     userId: string,
     rules?: Parameters<typeof missionFor>[0] | null,
     page?: { limit: number; before?: BattlesCursor; withUserId?: string },
+    factions?: readonly BattleFaction[],
   ) {
     const { battles: histories, nextCursor } = await this.repository.battlesByUser(userId, page)
-    return { battles: this.battleSummaries(histories, userId, rules), nextCursor }
+    return { battles: this.battleSummaries(histories, userId, rules, factions), nextCursor }
   }
 
   /**
@@ -493,22 +495,28 @@ export class PraetoriumService {
     viewerId: string | null,
     rules?: Parameters<typeof missionFor>[0] | null,
     page?: { limit: number; before?: BattlesCursor },
+    factions?: readonly BattleFaction[],
   ) {
     const { battles: histories, nextCursor } = await this.repository.publicBattles({
       limit: page?.limit ?? PUBLIC_BATTLES_PAGE,
       before: page?.before,
       viewerId,
     })
-    return { battles: this.battleSummaries(histories, viewerId, rules), nextCursor }
+    return { battles: this.battleSummaries(histories, viewerId, rules, factions), nextCursor }
   }
 
   /** The battles this player's friends are in and they are not. */
-  async friendBattles(userId: string, rules?: Parameters<typeof missionFor>[0] | null, page?: { limit: number; before?: BattlesCursor }) {
+  async friendBattles(
+    userId: string,
+    rules?: Parameters<typeof missionFor>[0] | null,
+    page?: { limit: number; before?: BattlesCursor },
+    factions?: readonly BattleFaction[],
+  ) {
     const { battles: histories, nextCursor } = await this.repository.battlesByFriends(userId, {
       limit: page?.limit ?? PUBLIC_BATTLES_PAGE,
       before: page?.before,
     })
-    return { battles: this.battleSummaries(histories, userId, rules), nextCursor }
+    return { battles: this.battleSummaries(histories, userId, rules, factions), nextCursor }
   }
 
   /** How widely this player's battles may be seen, and their own answer to it. */
@@ -541,12 +549,19 @@ export class PraetoriumService {
     eventToken: string,
     page: { limit: number; before?: BattlesCursor },
     rules?: Parameters<typeof missionFor>[0] | null,
+    factions?: readonly BattleFaction[],
   ) {
     const { battles: histories, nextCursor } = await this.repository.battlesByLeagueEvent(leagueToken, eventToken, page)
-    return { battles: this.battleSummaries(histories, null, rules), nextCursor }
+    return { battles: this.battleSummaries(histories, null, rules, factions), nextCursor }
   }
 
-  private battleSummaries(histories: readonly BattleHistory[], viewerId: string | null, rules?: Parameters<typeof missionFor>[0] | null) {
+  private battleSummaries(
+    histories: readonly BattleHistory[],
+    viewerId: string | null,
+    rules?: Parameters<typeof missionFor>[0] | null,
+    factions: readonly BattleFaction[] = [],
+  ) {
+    const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
     return histories.map(({ battle, players, log }) => {
       const state = reduceBattle(
         players.map((player) => player.id),
@@ -564,9 +579,14 @@ export class PraetoriumService {
         round: state.round,
         phase: state.phase,
         players: players.map((player) => player.name),
+        playerDetails: players.map(({ id, name, image, automated }) => ({ id, name, image, automated })),
         playerIds: players.map((player) => player.id),
         sides: state.players.map((player) => player.side),
         armies: state.players.map((player) => player.roster?.name ?? null),
+        factions: state.players.map((player) => {
+          const faction = player.roster?.built?.catalogueId ? factionsById.get(player.roster.built.catalogueId) : undefined
+          return faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon } : null
+        }),
         detachments: state.players.map((player) => player.roster?.built?.detachments?.map((detachment) => detachment.name) ?? []),
         // The painted bonus pays at the end of the battle, so a running score does not
         // carry it yet — and it is the side's one bonus, the same as everywhere else.

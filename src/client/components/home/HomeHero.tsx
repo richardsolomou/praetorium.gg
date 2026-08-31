@@ -2,8 +2,10 @@ import { Link } from '@tanstack/react-router'
 import { Eye } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { battleStage } from '../../battleStage'
-import { summarySides } from '../../battleSummary'
+import { summarySides, type SummarySide } from '../../battleSummary'
 import type { Battle } from '../battles/battle'
+import { FactionMark } from '../FactionMark'
+import { PlayerAvatar } from '../PlayerAvatar'
 
 /**
  * The one full-bleed moment on the page, for somebody who has never been here.
@@ -61,9 +63,9 @@ function HeroBattle({ battle }: { battle: Battle }) {
       <span className={`chip inline-flex items-center gap-1.5 ${stage.tint}`}>
         <Eye className="size-3.5" aria-hidden /> {stage.name}
       </span>
-      <HeroSide players={ours?.players} army={ours?.armies[0]} score={ours?.score ?? 0} side="a" />
+      <HeroSide sideSummary={ours} score={ours?.score ?? 0} side="a" />
       <span className="my-2 block border-t border-edge" />
-      <HeroSide players={theirs?.players} army={theirs?.armies[0]} score={theirs?.score ?? 0} side="b" />
+      <HeroSide sideSummary={theirs} score={theirs?.score ?? 0} side="b" />
       <span className="mt-3 block text-[0.625rem] text-faint">
         {battle.status === 'playing' ? `Round ${battle.round} · ${battle.phase} phase` : (battle.mission?.name ?? 'Casual battle')}
       </span>
@@ -71,12 +73,23 @@ function HeroBattle({ battle }: { battle: Battle }) {
   )
 }
 
-function HeroSide({ players, army, score, side }: { players?: string[]; army?: string; score: number; side: 'a' | 'b' }) {
+function HeroSide({ sideSummary, score, side }: { sideSummary?: SummarySide; score: number; side: 'a' | 'b' }) {
   return (
-    <span className="mt-3 flex items-baseline justify-between gap-3">
-      <span className="min-w-0">
-        <span className="block truncate font-bold uppercase">{players?.join(' & ') ?? 'Unknown'}</span>
-        <span className="block truncate text-xs text-dim">{army ?? 'List not attached'}</span>
+    <span className="mt-3 flex items-start justify-between gap-3">
+      <span className="flex min-w-0 flex-col gap-2">
+        {sideSummary?.seats.map(({ player, faction, detachments }) => (
+          <span key={player.id || player.name} className="flex min-w-0 items-center gap-2">
+            <PlayerAvatar name={player.name} image={player.image} className="size-8 text-[0.625rem]" />
+            <span className="min-w-0">
+              <span className="block truncate font-bold uppercase">{player.name}</span>
+              <span className="flex min-w-0 items-center gap-1.5 text-xs text-dim">
+                {faction ? <FactionMark id={faction.slug} icon={faction.icon} size="sm" /> : null}
+                <span className="truncate">{faction?.displayName ?? 'List not attached'}</span>
+              </span>
+              {detachments.length ? <span className="block truncate text-[0.625rem] text-faint">{detachments.join(' · ')}</span> : null}
+            </span>
+          </span>
+        )) ?? <span className="font-bold uppercase">Unknown</span>}
       </span>
       <span className={`readout shrink-0 text-2xl ${side === 'a' ? 'text-side-a' : 'text-side-b'}`}>{score}</span>
     </span>

@@ -181,7 +181,7 @@ export function CreateBattle() {
               </DialogHeader>
               <div>
                 <Choice
-                  label="Table shape"
+                  label="Game format"
                   value={shape}
                   options={TABLE_SHAPES.map((candidate) => ({ value: candidate, ...TABLE_SHAPE_LABELS[candidate] }))}
                   columns={3}

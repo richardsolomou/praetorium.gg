@@ -6,6 +6,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { battleStage } from '../../battleStage'
 import { summarySides } from '../../battleSummary'
 import { formatDate } from '../../dates'
+import { FactionMark } from '../FactionMark'
+import { PlayerAvatar } from '../PlayerAvatar'
 import type { Battle } from './battle'
 
 /**
@@ -58,13 +60,7 @@ export function BattleShelf({
                   params={{ token: battle.token }}
                   className="grid min-w-0 flex-1 grid-cols-2 items-center gap-x-3 gap-y-2 p-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-3"
                 >
-                  <BattleSide
-                    player={ours?.players.join(' & ')}
-                    army={ours?.armies.join(' & ') || null}
-                    detachments={ours?.detachments ?? []}
-                    score={ours?.score ?? 0}
-                    side="a"
-                  />
+                  <BattleSide seats={ours?.seats ?? []} score={ours?.score ?? 0} side="a" />
                   <span className="col-span-2 row-start-1 border-b border-edge pb-2 text-center sm:col-span-1 sm:col-start-2 sm:row-start-auto sm:border-0 sm:pb-0">
                     <span className={`chip ${battleStage(battle.status).tint}`}>{battleStage(battle.status).name}</span>
                     <span className="mt-1 block text-xs text-dim">
@@ -78,9 +74,7 @@ export function BattleShelf({
                     </span>
                   </span>
                   <BattleSide
-                    player={theirs?.players.join(' & ') || undefined}
-                    army={theirs?.armies.join(' & ') || null}
-                    detachments={theirs?.detachments ?? []}
+                    seats={theirs?.seats ?? []}
                     score={theirs?.score ?? 0}
                     side="b"
                     emptyLabel="Open seat"
@@ -117,29 +111,49 @@ export function BattleShelf({
 }
 
 function BattleSide({
-  player,
-  army,
-  detachments,
+  seats,
   score,
   side,
   emptyLabel = 'Open seat',
   emptyArmy = 'Waiting for an opponent',
 }: {
-  player?: string
-  army?: string | null
-  detachments?: string[]
+  seats: {
+    player: { id: string; name: string; image: string | null }
+    army: string | null
+    faction: { slug: string; displayName: string; icon: string | null } | null
+    detachments: string[]
+  }[]
   score?: number
   side: 'a' | 'b'
   emptyLabel?: string
   emptyArmy?: string
 }) {
-  const waiting = !player
+  const waiting = !seats.length
   return (
     <span className={`min-w-0 ${side === 'b' ? 'text-right' : ''}`}>
       <span className={`readout block text-2xl ${side === 'a' ? 'text-side-a' : 'text-side-b'}`}>{score ?? 0}</span>
-      <span className="block truncate font-bold uppercase">{player ?? emptyLabel}</span>
-      <span className="block truncate text-xs text-dim">{army ?? (waiting ? emptyArmy : 'List not attached')}</span>
-      {detachments?.length ? <span className="block truncate text-[0.625rem] text-faint">{detachments.join(' · ')}</span> : null}
+      {waiting ? (
+        <>
+          <span className="block truncate font-bold uppercase">{emptyLabel}</span>
+          <span className="block truncate text-xs text-dim">{emptyArmy}</span>
+        </>
+      ) : (
+        <span className="mt-1 flex flex-col gap-2">
+          {seats.map(({ player, army, faction, detachments }) => (
+            <span key={player.id || player.name} className={`flex min-w-0 items-center gap-2 ${side === 'b' ? 'flex-row-reverse' : ''}`}>
+              <PlayerAvatar name={player.name} image={player.image} className="size-8 text-[0.625rem]" />
+              <span className="min-w-0">
+                <span className="block truncate font-bold uppercase">{player.name}</span>
+                <span className={`flex min-w-0 items-center gap-1.5 text-xs text-dim ${side === 'b' ? 'justify-end' : ''}`}>
+                  {faction ? <FactionMark id={faction.slug} icon={faction.icon} size="sm" /> : null}
+                  <span className="truncate">{faction?.displayName ?? army ?? 'List not attached'}</span>
+                </span>
+                {detachments.length ? <span className="block truncate text-[0.625rem] text-faint">{detachments.join(' · ')}</span> : null}
+              </span>
+            </span>
+          ))}
+        </span>
+      )}
     </span>
   )
 }

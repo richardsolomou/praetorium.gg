@@ -31,7 +31,7 @@ describe('summarySides', () => {
       sides: [0, 0, 1],
     })
 
-    expect(sides).toEqual([
+    expect(sides.map(({ seats: _seats, ...side }) => side)).toEqual([
       { index: 0, players: ['Alice', 'Carol'], armies: ['Knights', 'Guard'], detachments: ['Gladius', 'Canoptek'], score: 62 },
       { index: 1, players: ['Bob'], armies: ['Marines'], detachments: ['Hypercrypt'], score: 55 },
     ])
@@ -46,6 +46,7 @@ describe('summarySides', () => {
       sides: [0, 1],
     })
 
-    expect(sides[1]).toEqual({ index: 1, players: ['Bob'], armies: [], detachments: [], score: 0 })
+    const { seats: _seats, ...side } = sides[1]!
+    expect(side).toEqual({ index: 1, players: ['Bob'], armies: [], detachments: [], score: 0 })
   })
 })
