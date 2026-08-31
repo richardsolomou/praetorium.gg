@@ -241,6 +241,7 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
     },
     session: standardSessionOptions(),
     advanced: {
+      disableOriginCheck: false,
       useSecureCookies: (process.env.APP_URL ?? '').startsWith('https://'),
       cookies: { state: { attributes: { sameSite: 'none' } } },
       // Behind a reverse proxy, the socket address would put every visitor into
