@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.43.5
+
+### Patch Changes
+
+- e30afa4: Add native analytics, session replay, and error tracking to the mobile app.
+
 ## 0.43.4
 
 ### Patch Changes

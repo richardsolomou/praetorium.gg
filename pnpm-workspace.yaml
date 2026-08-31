@@ -3,6 +3,7 @@ packages:
   - mobile
 
 allowBuilds:
+  '@posthog/cli': true
   core-js: true
   esbuild: true
   # centrifuge pulls it in; we speak Centrifugo's JSON protocol and never protobuf,
@@ -10,5 +11,6 @@ allowBuilds:
   protobufjs: false
 minimumReleaseAgeExclude:
   - ras-stack@0.47.0
+  - expo-file-system@57.0.6
   - expo-haptics@57.0.2
 minimumReleaseAge: 10080
