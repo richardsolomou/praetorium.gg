@@ -223,6 +223,36 @@ describe('King of the Colosseum army construction', () => {
     ).toEqual([])
   })
 
+  it('refuses to pass a Toughness 9 unit whose enhancement could raise it', () => {
+    const errors = kotcViolations(1, [
+      { ...unit('leader', ['Infantry', 'Character'], 4, true), enhanced: true },
+      unit('troops', ['Infantry', 'Battleline'], 4),
+      { ...unit('tank', ['Vehicle'], 9), enhanced: true },
+    ])
+    expect(errors.map((error) => error.message)).toEqual(['is at the Toughness cap and cannot be verified once its enhancement is applied'])
+  })
+
+  it('names an attached leader as the reason a Toughness 9 unit cannot be verified', () => {
+    const errors = kotcViolations(1, [
+      unit('leader', ['Infantry', 'Character'], 4, true),
+      unit('troops', ['Infantry', 'Battleline'], 4),
+      { ...unit('tank', ['Vehicle'], 9), led: true },
+    ])
+    expect(errors.map((error) => error.message)).toEqual([
+      'is at the Toughness cap and cannot be verified once its attached leader is applied',
+    ])
+  })
+
+  it('leaves an unmodified Toughness 9 unit alone', () => {
+    expect(
+      kotcViolations(1, [
+        unit('leader', ['Infantry', 'Character'], 4, true),
+        unit('troops', ['Infantry', 'Battleline'], 4),
+        unit('tank', ['Vehicle'], 9),
+      ]),
+    ).toEqual([])
+  })
+
   it('reports every KOTC-specific restriction without guessing unknown toughness', () => {
     const errors = kotcViolations(2, [
       unit('hero', ['Infantry', 'Epic Hero'], 10),

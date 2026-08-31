@@ -2351,6 +2351,8 @@ describe('saved rosters', () => {
     expect((await service.savedRosterSummaries('alice'))[0]).toEqual({
       id: expect.any(String),
       waivedRules: [],
+      optionalRules: [],
+      borrowedDetachmentId: null,
       name: 'Recon force',
       catalogueId: 'necrons',
       detachmentIds: ['awakened-dynasty'],

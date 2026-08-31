@@ -8,6 +8,8 @@ import {
   FIXED_SECONDARIES,
   FORMAT_RULE_IDS,
   type FormatRuleId,
+  OPTIONAL_RULE_IDS,
+  type OptionalRuleId,
   GAME_SIZES,
   type PlayerId,
   type Roster,
@@ -549,6 +551,8 @@ export class PraetoriumService {
       picks: readonly RosterPick[]
       prep: SavedPrep | null
       waivedRules?: readonly FormatRuleId[]
+      optionalRules?: readonly OptionalRuleId[]
+      borrowedDetachmentId?: string | null
       visibility: 'private' | 'unlisted'
       source: RosterSource
     },
@@ -563,6 +567,8 @@ export class PraetoriumService {
       prep: roster.prep ? JSON.stringify(roster.prep) : null,
       tags: '[]',
       waivedRules: JSON.stringify(roster.waivedRules ?? []),
+      optionalRules: JSON.stringify(roster.optionalRules ?? []),
+      borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
       now: this.clock(),
     })
     if (!saved) throw new Response('you do not own this roster', { status: 403 })
@@ -576,10 +582,11 @@ export class PraetoriumService {
   }
 
   async savedRosterSummaries(userId: string) {
-    return (await this.repository.rosterSummariesByUser(userId)).map(({ detachmentId, waivedRules, ...row }) => ({
+    return (await this.repository.rosterSummariesByUser(userId)).map(({ detachmentId, waivedRules, optionalRules, ...row }) => ({
       ...row,
       detachmentIds: detachmentIds(detachmentId),
       waivedRules: waivedRulesFrom(waivedRules),
+      optionalRules: optionalRulesFrom(optionalRules),
     }))
   }
 
@@ -1072,6 +1079,8 @@ function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>
     picks: picksSchema.parse(JSON.parse(row.picks)),
     prep: includePrep && row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
     waivedRules: waivedRulesFrom(row.waivedRules),
+    optionalRules: optionalRulesFrom(row.optionalRules),
+    borrowedDetachmentId: row.borrowedDetachmentId,
     visibility: row.visibility,
     source: row.source,
   }
@@ -1232,6 +1241,12 @@ function scoringCapError(
  * restriction the roster believes is off while every check still enforces it, so an
  * unrecognised name is dropped and the rule goes on being played.
  */
+function optionalRulesFrom(value: string | null): OptionalRuleId[] {
+  if (!value) return []
+  const parsed: unknown = JSON.parse(value)
+  return Array.isArray(parsed) ? parsed.filter((id): id is OptionalRuleId => OPTIONAL_RULE_IDS.some((known) => known === id)) : []
+}
+
 function waivedRulesFrom(value: string | null): FormatRuleId[] {
   if (!value) return []
   const parsed: unknown = JSON.parse(value)

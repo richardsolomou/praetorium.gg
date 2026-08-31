@@ -36,7 +36,7 @@ describe('NewRecruit text import', () => {
       faction: 'Xenos - Test Faction',
       detachment: 'Test Detachment',
       disposition: 'Purge the Foe',
-      limit: 500,
+      limit: 600,
       units: [
         {
           name: 'Test Leader',

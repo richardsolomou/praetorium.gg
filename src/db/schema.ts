@@ -224,6 +224,14 @@ export const rosters = pgTable(
     tags: text('tags').notNull().default('[]'),
     /** The battle size restrictions this roster has switched off, as a JSON array of rule ids. */
     waivedRules: text('waived_rules').notNull().default('[]'),
+    /** The homebrew this roster picked, as a JSON array of optional rule ids. */
+    optionalRules: text('optional_rules').notNull().default('[]'),
+    /**
+     * The detachment this roster borrows its Force Disposition from under the King of the
+     * Colosseum optional rule, paid for out of the detachment points its own detachment left
+     * unspent. Null is the ordinary roster, which plays a disposition it brought.
+     */
+    borrowedDetachmentId: text('borrowed_detachment_id'),
     /** Private rosters are owner-only; unlisted rosters resolve through their opaque id. */
     visibility: text('visibility', { enum: ['private', 'unlisted'] })
       .notNull()

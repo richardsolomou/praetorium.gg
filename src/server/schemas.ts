@@ -2,6 +2,7 @@ import { z } from 'zod'
 import {
   FORMAT_RULE_IDS,
   GAME_SIZES,
+  OPTIONAL_RULE_IDS,
   MAX_DETACHMENTS,
   PHASES,
   ROSTER_NAME_MAX_LENGTH,
@@ -178,6 +179,7 @@ export const submitSchema = z.object({
  * player believes they turned off.
  */
 export const waivedRules = z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional()
+export const optionalRules = z.array(z.enum(OPTIONAL_RULE_IDS)).max(OPTIONAL_RULE_IDS.length).optional()
 
 export const unitsSchema = z.object({
   catalogueId,
@@ -235,9 +237,11 @@ export const saveRosterSchema = z.object({
   catalogueId,
   detachmentIds: z.array(id).max(MAX_DETACHMENTS),
   disposition: id.nullable(),
+  borrowedDetachmentId: id.nullable().default(null),
   limit: rosterLimit,
   picks: z.array(pickSchema).max(100),
   waivedRules,
+  optionalRules,
   prep: prepSchema.nullable(),
   visibility: z.enum(ROSTER_VISIBILITIES).default('private'),
   source: z.enum(ROSTER_SOURCES).default('editable'),
@@ -271,9 +275,11 @@ export const priceSchema = z.object({
   catalogueId,
   detachmentIds: z.array(id).max(MAX_DETACHMENTS),
   disposition: id.nullable(),
+  borrowedDetachmentId: id.nullable().optional(),
   limit: rosterLimit,
   units: z.array(pickSchema).max(100),
   waivedRules,
+  optionalRules,
 })
 
 export type PriceInput = z.infer<typeof priceSchema>
