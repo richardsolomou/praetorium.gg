@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { OptionalRuleId } from '../core/battle'
 import {
   calculateRosterPrice,
   choiceOptionsForPricing,
@@ -486,8 +487,8 @@ describe('saved roster price input', () => {
     disposition: 'priority-assets',
     limit: 600,
     picks: [],
-    waivedRules: [] as never[],
-    optionalRules: ['kotc-borrowed-disposition'] as const,
+    waivedRules: [],
+    optionalRules: ['kotc-borrowed-disposition'] as OptionalRuleId[],
     borrowedDetachmentId: 'the-phaerons-armoury',
   }
 
