@@ -171,6 +171,66 @@ describe('account administration', () => {
     expect(started.headers.getSetCookie().find((cookie) => cookie.startsWith('__Secure-better-auth.state='))).toContain('SameSite=None')
   })
 
+  it('accepts a native OAuth callback when the provider drops the state cookie', async () => {
+    connection = await openTestDatabase()
+    vi.stubEnv('APP_URL', 'https://praetorium.gg')
+    vi.stubEnv('GOOGLE_CLIENT_ID', 'test-client-id')
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', 'test-client-secret')
+    const avatarUrl = 'https://accounts.google.example/native-avatar.png'
+    mockGoogleCallback(
+      googleIdToken({ sub: 'native-google-user', email: 'native-google@example.com', email_verified: true, name: 'Native Google' }),
+      avatarUrl,
+      Buffer.from('unused'),
+    )
+    const auth = createAuth(connection.database, SECRET)
+    const callbackURL = `/native-auth?action=sign-in&next=%2Frosters&provider=google&bridge=3&challenge=${NATIVE_CHALLENGE}&complete=true`
+    const started = await auth.api.signInSocial({
+      body: { provider: 'google', callbackURL, errorCallbackURL: callbackURL },
+      returnHeaders: true,
+    })
+    const state = new URL(started.response.url!).searchParams.get('state')!
+
+    const callback = await auth.handler(new Request(`https://praetorium.gg/api/auth/callback/google?code=test-code&state=${state}`))
+
+    const authenticated = await auth.api.getSession({ headers: cookieHeaders(callback.headers) })
+    expect({ location: callback.headers.get('location'), email: authenticated?.user.email }).toEqual({
+      location: callbackURL,
+      email: 'native-google@example.com',
+    })
+  })
+
+  it('rejects a web OAuth callback when the state cookie is missing', async () => {
+    connection = await openTestDatabase()
+    vi.stubEnv('APP_URL', 'https://praetorium.gg')
+    vi.stubEnv('GOOGLE_CLIENT_ID', 'test-client-id')
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', 'test-client-secret')
+    const auth = createAuth(connection.database, SECRET)
+    const started = await auth.api.signInSocial({ body: { provider: 'google', callbackURL: '/' }, returnHeaders: true })
+    const state = new URL(started.response.url!).searchParams.get('state')!
+
+    const callback = await auth.handler(new Request(`https://praetorium.gg/api/auth/callback/google?code=test-code&state=${state}`))
+
+    expect(new URL(callback.headers.get('location')!).searchParams.get('error')).toBe('state_mismatch')
+  })
+
+  it('rejects an unbound native OAuth callback when the state cookie is missing', async () => {
+    connection = await openTestDatabase()
+    vi.stubEnv('APP_URL', 'https://praetorium.gg')
+    vi.stubEnv('GOOGLE_CLIENT_ID', 'test-client-id')
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', 'test-client-secret')
+    const auth = createAuth(connection.database, SECRET)
+    const callbackURL = `/native-auth?action=sign-in&next=%2Frosters&provider=apple&bridge=3&challenge=${NATIVE_CHALLENGE}&complete=true`
+    const started = await auth.api.signInSocial({
+      body: { provider: 'google', callbackURL, errorCallbackURL: callbackURL },
+      returnHeaders: true,
+    })
+    const state = new URL(started.response.url!).searchParams.get('state')!
+
+    const callback = await auth.handler(new Request(`https://praetorium.gg/api/auth/callback/google?code=test-code&state=${state}`))
+
+    expect(new URL(callback.headers.get('location')!, 'https://praetorium.gg').searchParams.get('error')).toBe('state_mismatch')
+  })
+
   it('exchanges a hashed one-time token into a WebView session once', async () => {
     connection = await openTestDatabase()
     const auth = createAuth(connection.database, SECRET)
