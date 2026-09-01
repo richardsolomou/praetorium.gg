@@ -11,10 +11,17 @@ import {
   loadDatacards,
 } from './datacards'
 import { type LoadedCards, loadCards, loadDispositions, loadMissions, type Mission, missionForIn, type MissionCard } from './rulesCards'
-import { type ConstructionJoinIssue, type DetachmentReference, type DetachmentRulesDetail, loadFactions } from './rulesFactions'
+import {
+  type ConstructionJoinIssue,
+  type DetachmentReference,
+  type DetachmentRulesDetail,
+  type LoadedFactions,
+  loadFactions,
+} from './rulesFactions'
 import { fixedSecondaryCapsIn, type MissionTwist, twistsIn } from './missionTwists'
 import { readMissionPacks } from './missionPacks'
 import { joinKey, rulesDirectory } from './rulesSource'
+import type { ExternalReferences } from './externalReferences'
 import {
   type Deployment,
   loadDeployments,
@@ -79,8 +86,10 @@ export type LoadedRules = {
   terrainTemplates: TerrainTemplate[]
   /** Whatever the dataset says about how settled these numbers are. */
   dataslate: string | null
-  /** Exact-name construction joins that had no unambiguous Game Datacards answer. */
+  /** Construction overlays with no unambiguous Game Datacards answer. */
   constructionJoinIssues: ConstructionJoinIssue[]
+  sourceJoinFallbacks: LoadedFactions['sourceJoinFallbacks']
+  sourceJoinExacts: LoadedFactions['sourceJoinExacts']
 }
 
 export function loadRules(
@@ -90,11 +99,12 @@ export function loadRules(
   datacardsDirectory = path.join(path.dirname(directory), 'datacards', '11th', 'gdc'),
   /** The cards the catalogue already read, so one snapshot is parsed once. */
   loadedDatacards?: LoadedDatacards,
+  sourceReferences?: ExternalReferences,
 ): LoadedRules | null {
   const core = path.join(directory, 'data', 'core')
   if (!fs.existsSync(core)) return null
   const datacards = loadedDatacards ?? loadDatacards(datacardsDirectory)
-  const factions = loadFactions(core, iconDirectory, datacards)
+  const factions = loadFactions(core, iconDirectory, datacards, sourceReferences)
   // Parsed once and read three ways: what each payout asks for, the twists a pack
   // offers, and the ceiling it puts on a single fixed card.
   const packs = readMissionPacks(datacardsDirectory)
@@ -133,6 +143,8 @@ export function loadRules(
     terrainTemplates: loadTerrainTemplates(core),
     dataslate: factions.dataslate,
     constructionJoinIssues: factions.constructionJoinIssues,
+    sourceJoinFallbacks: factions.sourceJoinFallbacks,
+    sourceJoinExacts: factions.sourceJoinExacts,
   }
 }
 

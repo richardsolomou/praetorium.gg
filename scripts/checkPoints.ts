@@ -191,6 +191,7 @@ const mismatches: string[] = []
 const skipped = { ambiguous: [] as string[], missing: [] as string[], unsupported: [] as string[] }
 const census = new Set<string>()
 let withoutCatalogue = 0
+let nameFallbackUnits = 0
 const unmatchedFactions: string[] = []
 const wantedUnit = process.env.POINTS_UNIT?.toLowerCase()
 const showSkipped = process.env.POINTS_SKIPS === '1'
@@ -224,6 +225,7 @@ for (const faction of factions) {
       skipped.ambiguous.push(`${faction.slug}: ${unit.name} (${owners.join(', ')}, ${tiers.length} tiers)`)
       continue
     }
+    nameFallbackUnits++
 
     const [entry] = candidates
     if (!entry) continue
@@ -278,6 +280,7 @@ console.log(
   `\nskipped: ${tally.missing} not in the catalogue by that name, ${tally.ambiguous} ambiguous names, ${tally.unsupportedShape} unsupported shapes`,
 )
 console.log(`source-absent: ${missingSource.legends} Legends tiers, ${missingSource.active} active tiers`)
+console.log(`unit joins using a name fallback: ${nameFallbackUnits} (the MFM export has no record IDs)`)
 console.log(
   `${withoutCatalogue} of ${factions.length} faction files could not be matched to a catalogue, so their surcharges are unapplied`,
 )

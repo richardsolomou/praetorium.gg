@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { bookOf, card, points, withCards } from './catalogue.fixtures'
 import { datacardJoinReport, datacardOf } from './datasheetJoin'
+import { indexExternalReferences } from './externalReferences'
 
 const book = () =>
   bookOf({
@@ -17,7 +18,7 @@ describe('the join from a datasheet to its card', () => {
     loaded.factionContents.set('test-catalogue', withCards('Test catalogue', new Map([['Transcendent C’tan', card({ baseSize: '80mm' })]])))
     loaded.factionContents.set('other', withCards('Other', new Map([['Transcendent C’tan', card({ baseSize: '60mm' })]])))
 
-    expect(datacardOf(loaded, 'cat', 'ctan')).toEqual({ details: card({ baseSize: '80mm' }), own: true })
+    expect(datacardOf(loaded, 'cat', 'ctan')).toEqual({ details: card({ baseSize: '80mm' }), own: true, method: 'name' })
   })
 
   it('takes another file’s card when every file that prints the name agrees', () => {
@@ -26,7 +27,7 @@ describe('the join from a datasheet to its card', () => {
     loaded.factionContents.set('one', withCards('One', new Map([['Rhino', card({ transport: 'Twelve models.' })]])))
     loaded.factionContents.set('two', withCards('Two', new Map([['Rhino', card({ transport: 'Twelve models.' })]])))
 
-    expect(datacardOf(loaded, 'cat', 'rhino')).toEqual({ details: card({ transport: 'Twelve models.' }), own: false })
+    expect(datacardOf(loaded, 'cat', 'rhino')).toEqual({ details: card({ transport: 'Twelve models.' }), own: false, method: 'name' })
   })
 
   it('leaves a name the files disagree on unjoined', () => {
@@ -44,6 +45,41 @@ describe('the join from a datasheet to its card', () => {
     expect(datacardOf(loaded, 'cat', 'walker')?.own).toBe(true)
   })
 
+  it('prefers an exact reference over a same-named card', () => {
+    const loaded = book()
+    const exact = withCards('Test catalogue', new Map([['Different Card Name', card({ baseSize: '80mm' })]]))
+    exact.datasheetIds = new Map([['card-rhino', card({ baseSize: '80mm' })]])
+    loaded.factionContents.set('test-catalogue', exact)
+    loaded.factionContents.set('other', withCards('Other', new Map([['Rhino', card({ baseSize: '60mm' })]])))
+    loaded.sourceReferences.units = indexExternalReferences([
+      {
+        id: 'semantic-rhino',
+        external_refs: [
+          { namespace: 'bsdata', id: 'rhino' },
+          { namespace: 'game-datacards', id: 'card-rhino' },
+        ],
+      },
+    ])
+
+    expect(datacardOf(loaded, 'cat', 'rhino')).toEqual({ details: card({ baseSize: '80mm' }), own: true, method: 'external-ref' })
+  })
+
+  it('falls back by name when the referenced card is absent', () => {
+    const loaded = book()
+    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Rhino']))
+    loaded.sourceReferences.units = indexExternalReferences([
+      {
+        id: 'semantic-rhino',
+        external_refs: [
+          { namespace: 'bsdata', id: 'rhino' },
+          { namespace: 'game-datacards', id: 'missing-card' },
+        ],
+      },
+    ])
+
+    expect(datacardOf(loaded, 'cat', 'rhino')?.method).toBe('name')
+  })
+
   it('names every datasheet and card the join could not carry across', () => {
     const loaded = book()
     loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Rhino', 'Land Raider']))
@@ -54,6 +90,8 @@ describe('the join from a datasheet to its card', () => {
         { faction: 'Test catalogue', name: 'Plague Walker' },
       ],
       datacardsOnly: [{ faction: 'Test catalogue', name: 'Land Raider' }],
+      exact: 0,
+      fallbacks: [{ faction: 'Test catalogue', name: 'Rhino' }],
     })
   })
 })

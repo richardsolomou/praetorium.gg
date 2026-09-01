@@ -4,6 +4,7 @@ import { buildUnit } from '../core/roster'
 import { wargearOf } from '../core/wargear'
 import { exportRosterFile, importRosterFile } from './rosterFiles'
 import type { LoadedCatalogue } from './catalogueIndex'
+import { emptyExternalReferences } from './externalReferences'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
 const faction: CatalogueFile = {
@@ -177,10 +178,12 @@ const loaded: LoadedCatalogue = {
     detachmentRules: new Map(),
     enhancements: new Map(),
     stratagems: new Map(),
+    stratagemsById: new Map(),
     armyRules: new Map(),
     constructionDetachments: new Map(),
     enhancementPoints: new Map(),
   },
+  sourceReferences: emptyExternalReferences(),
   factions: [{ id: 'necrons', name: 'Xenos - Necrons', references: [] }],
   detachments: new Map([
     [

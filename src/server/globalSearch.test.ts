@@ -236,6 +236,7 @@ describe('global datasheet search', () => {
       name: 'Deathwatch',
       datasheets: new Set(),
       datasheetDetails: new Map(),
+      datasheetIds: new Map(),
       detachments: new Set(['Black Spear Task Force']),
       enhancements: new Map(),
       detachmentRules: new Map(),

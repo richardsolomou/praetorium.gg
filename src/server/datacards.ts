@@ -40,6 +40,7 @@ export type ConstructionDetachment = {
 }
 
 export type ConstructionEnhancement = {
+  ids?: readonly string[]
   name: string
   detachment: string
   points: number | null
@@ -50,6 +51,7 @@ export type FactionContent = {
   name: string
   datasheets: Set<string>
   datasheetDetails: Map<string, DatasheetDetails>
+  datasheetIds: ReadonlyMap<string, DatasheetDetails>
   detachments: Set<string>
   /** Unambiguous cards by their detachment's accent- and spacing-insensitive join key. */
   enhancements: ReadonlyMap<string, readonly ConstructionEnhancement[]>
@@ -68,6 +70,7 @@ export type LoadedDatacards = {
   enhancements: ReadonlyMap<string, string>
   /** By `descriptionKey`, carrying the name as the card prints it: the rules dataset shouts. */
   stratagems: ReadonlyMap<string, RuleCard>
+  stratagemsById: ReadonlyMap<string, RuleCard>
   /** Every army rule by its slug, where the files agree on what it says. */
   armyRules: ReadonlyMap<string, string>
   /** By detachment slug, retaining every exact-name candidate so conflicts fail closed. */
@@ -110,6 +113,7 @@ export function loadDatacards(directory: string): LoadedDatacards {
   const enhancements = new Map<string, Set<string>>()
   const stratagems = new Map<string, Set<string>>()
   const stratagemNames = new Map<string, string>()
+  const stratagemIds = new Map<string, Map<string, RuleCard>>()
   const armyRules = new Map<string, Set<string>>()
   const constructionDetachments = new Map<string, ConstructionDetachment[]>()
   const enhancementPointCandidates = new Map<string, Set<number | null>>()
@@ -124,6 +128,7 @@ export function loadDatacards(directory: string): LoadedDatacards {
       detachmentRules: new Map(),
       enhancements: new Map(),
       stratagems: new Map(),
+      stratagemsById: new Map(),
       armyRules: new Map(),
       constructionDetachments: new Map(),
       enhancementPoints: new Map(),
@@ -195,9 +200,16 @@ export function loadDatacards(directory: string): LoadedDatacards {
       const detachment = stringField(stratagem, 'detachment')
       const description = stratagemText(stratagem)
       if (name && detachment && description) {
+        const card = { name: name === name.toLocaleLowerCase() ? titleCase(name) : name, description }
         remember(stratagems, descriptionKey(detachment, name), description)
         // A card printed entirely in lower case is a slip in the file, not how the name reads.
-        stratagemNames.set(descriptionKey(detachment, name), name === name.toLocaleLowerCase() ? titleCase(name) : name)
+        stratagemNames.set(descriptionKey(detachment, name), card.name)
+        const id = stringField(stratagem, 'id')
+        if (id) {
+          const candidates = stratagemIds.get(id) ?? new Map<string, RuleCard>()
+          candidates.set(JSON.stringify(card), card)
+          stratagemIds.set(id, candidates)
+        }
       }
     }
   }
@@ -211,6 +223,9 @@ export function loadDatacards(directory: string): LoadedDatacards {
     ),
     enhancements: unique(enhancements),
     stratagems: new Map([...unique(stratagems)].map(([key, description]) => [key, { name: stratagemNames.get(key)!, description }])),
+    stratagemsById: new Map(
+      [...stratagemIds].flatMap(([id, candidates]) => (candidates.size === 1 ? [[id, candidates.values().next().value!] as const] : [])),
+    ),
     armyRules: unique(armyRules),
     constructionDetachments,
     enhancementPoints: new Map(
@@ -259,9 +274,16 @@ const unique = (candidates: ReadonlyMap<string, Set<string>>) =>
 function factionContent(name: string, parsed: DatacardsFaction): FactionContent {
   const datasheets = records(parsed, 'datasheets').flatMap((entry) => {
     const datasheetName = localizedField(entry, 'name')
-    return datasheetName ? [{ name: datasheetName, details: datasheetDetails(entry) }] : []
+    return datasheetName ? [{ id: stringField(entry, 'id'), name: datasheetName, details: datasheetDetails(entry) }] : []
   })
   const datasheetDetailsByName = new Map(datasheets.map(({ name: datasheetName, details }) => [datasheetName, details]))
+  const datasheetIdCandidates = new Map<string, Map<string, DatasheetDetails>>()
+  for (const { id, details } of datasheets) {
+    if (!id) continue
+    const candidates = datasheetIdCandidates.get(id) ?? new Map<string, DatasheetDetails>()
+    candidates.set(JSON.stringify(details), details)
+    datasheetIdCandidates.set(id, candidates)
+  }
   for (const { name: sourceName, details } of datasheets) {
     for (const attachment of details.attachesTo) {
       const target = datasheetDetailsByName.get(attachment.name)
@@ -274,11 +296,13 @@ function factionContent(name: string, parsed: DatacardsFaction): FactionContent 
   for (const entry of records(parsed, 'enhancements')) {
     const enhancement = localizedField(entry, 'name')
     const detachment = stringField(entry, 'detachment')
+    const id = stringField(entry, 'id')
     if (!enhancement || !detachment) continue
     const key = `${joinKey(detachment)}|${constructionCardKey(enhancement)}`
     enhancementCandidates.set(key, [
       ...(enhancementCandidates.get(key) ?? []),
       {
+        ...(id ? { ids: [id] } : {}),
         name: enhancement,
         detachment,
         points: integerField(entry, 'cost'),
@@ -293,9 +317,11 @@ function factionContent(name: string, parsed: DatacardsFaction): FactionContent 
     if (names.size !== 1 || detachments.size !== 1) continue
     const points = new Set(candidates.map((candidate) => candidate.points))
     const descriptions = new Set(candidates.map((candidate) => candidate.description))
+    const ids = [...new Set(candidates.flatMap((candidate) => candidate.ids ?? []))]
     const candidate = candidates[0]!
     const resolved = {
       ...candidate,
+      ...(ids.length ? { ids } : {}),
       points: points.size === 1 ? candidate.points : null,
       description: descriptions.size === 1 ? candidate.description : null,
     }
@@ -313,6 +339,11 @@ function factionContent(name: string, parsed: DatacardsFaction): FactionContent 
     name,
     datasheets: new Set(datasheets.map(({ name: datasheetName }) => datasheetName)),
     datasheetDetails: datasheetDetailsByName,
+    datasheetIds: new Map(
+      [...datasheetIdCandidates].flatMap(([id, candidates]) =>
+        candidates.size === 1 ? [[id, candidates.values().next().value!] as const] : [],
+      ),
+    ),
     detachments: new Set(records(parsed, 'detachments').flatMap((entry) => localizedField(entry, 'name') ?? [])),
     enhancements,
     detachmentRules: new Map(

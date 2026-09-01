@@ -14,6 +14,7 @@ import {
   type LoadedDatacards,
 } from './datacards'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
+import { canonicalIdsFor, externalIdsFor, type ExternalReferences, loadExternalReferences } from './externalReferences'
 
 /**
  * Who the factions are, and what each of their detachments brings.
@@ -98,18 +99,31 @@ function semanticSourceNamed(sources: readonly SemanticSource[], name: string) {
   return null
 }
 
-function semanticEnhancementNamed(sources: readonly SemanticSource[], detachment: string, enhancement: string): RawEnhancement | null {
+function semanticEnhancementNamed(
+  sources: readonly SemanticSource[],
+  detachment: string,
+  enhancement: ConstructionEnhancement,
+  references: ExternalReferences,
+): { value: RawEnhancement | null; method: 'external-ref' | 'name' | null } {
+  const exactIds = new Set((enhancement.ids ?? []).flatMap((id) => canonicalIdsFor(references.enhancements, 'game-datacards', id)))
+  if (exactIds.size) {
+    for (const source of sources) {
+      const matches = source.enhancements.filter((candidate) => exactIds.has(candidate.id))
+      if (matches.length) return { value: matches.length === 1 ? matches[0]! : null, method: 'external-ref' }
+    }
+    return { value: null, method: 'external-ref' }
+  }
   for (const source of sources) {
     const detachments = source.detachments.filter((candidate) => joinKey(candidate.name) === joinKey(detachment))
-    if (detachments.length > 1) return null
+    if (detachments.length > 1) return { value: null, method: null }
     const owner = detachments[0]
     if (!owner) continue
     const matches = source.enhancements.filter(
-      (candidate) => candidate.detachment_id === owner.id && constructionCardKey(candidate.name) === constructionCardKey(enhancement),
+      (candidate) => candidate.detachment_id === owner.id && constructionCardKey(candidate.name) === constructionCardKey(enhancement.name),
     )
-    if (matches.length) return matches.length === 1 ? matches[0]! : null
+    if (matches.length) return { value: matches.length === 1 ? matches[0]! : null, method: matches.length === 1 ? 'name' : null }
   }
-  return null
+  return { value: null, method: null }
 }
 
 export type DetachmentReference = {
@@ -164,6 +178,8 @@ export type LoadedFactions = {
   /** Whatever the dataset says about how settled these numbers are. */
   dataslate: string | null
   constructionJoinIssues: ConstructionJoinIssue[]
+  sourceJoinFallbacks: SourceJoinRecord[]
+  sourceJoinExacts: SourceJoinRecord[]
 }
 
 export type ConstructionJoinIssue = {
@@ -173,7 +189,19 @@ export type ConstructionJoinIssue = {
   enhancement?: string
 }
 
-export function loadFactions(core: string, iconDirectory: string, datacards: LoadedDatacards): LoadedFactions {
+export type SourceJoinRecord = {
+  kind: 'detachment' | 'enhancement' | 'stratagem'
+  faction: string
+  detachment: string
+  name?: string
+}
+
+export function loadFactions(
+  core: string,
+  iconDirectory: string,
+  datacards: LoadedDatacards,
+  sourceReferences: ExternalReferences = loadExternalReferences(core),
+): LoadedFactions {
   const byDetachment = new Map<string, Map<string, Stratagem[]>>()
   const detachmentReferences = new Map<string, Map<string, DetachmentReference>>()
   const detachmentDetails = new Map<string, Map<string, DetachmentRulesDetail>>()
@@ -183,6 +211,8 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
   const factionKeys = new Map<string, string>()
   const factionParents = new Map<string, string>()
   const constructionJoinIssues: ConstructionJoinIssue[] = []
+  const sourceJoinFallbacks: SourceJoinRecord[] = []
+  const sourceJoinExacts: SourceJoinRecord[] = []
   let dataslate: string | null = null
 
   const factions = factionDirectories(core)
@@ -238,8 +268,22 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
 
     const rawDetachments = readOptionalList<RawDetachment>(referenceFile)
     const semanticEnhancements = readOptionalList<RawEnhancement>(enhancementFile)
-    const cardOf = (detachment: RawDetachment, stratagem: RawStratagem) =>
-      datacards.stratagems.get(descriptionKey(detachment.name, stratagem.name))
+    const cardOf = (detachment: RawDetachment, stratagem: RawStratagem) => {
+      const ids = externalIdsFor(sourceReferences.stratagems, stratagem.id, 'game-datacards')
+      if (ids.length) {
+        const candidates = new Map(
+          ids.flatMap((id) => {
+            const card = datacards.stratagemsById.get(id)
+            return card ? [[JSON.stringify(card), card] as const] : []
+          }),
+        )
+        if (candidates.size) {
+          return { card: candidates.size === 1 ? candidates.values().next().value! : null, method: 'external-ref' as const }
+        }
+      }
+      const card = datacards.stratagems.get(descriptionKey(detachment.name, stratagem.name)) ?? null
+      return { card, method: card ? ('name' as const) : null }
+    }
 
     const factionName = factionNames.get(faction) ?? faction
     const parentId = factionParents.get(faction) ?? null
@@ -257,7 +301,7 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
     const rawDetachmentById = new Map(rawDetachments.map((detachment) => [detachment.id, detachment]))
     const cardsFor = ({ name, source }: { name: string; source: FactionContent }) => enhancementsNamed(source, name)
     const semanticEnhancementFor = (detachment: string, enhancement: ConstructionEnhancement) =>
-      semanticEnhancementNamed(semanticSources, detachment, enhancement.name)
+      semanticEnhancementNamed(semanticSources, detachment, enhancement, sourceReferences)
     const constructionFields = (name: string) => {
       const construction = constructionDetachment(datacards, factionName, name, parentId)
       return { points: construction?.points ?? null, dispositions: construction ? [construction.disposition] : [] }
@@ -270,11 +314,12 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
     for (const enhancement of semanticEnhancements) {
       const detachment = enhancement.detachment_id ? rawDetachmentById.get(enhancement.detachment_id) : undefined
       const authoritativeDetachment = detachment ? authoritative.get(joinKey(detachment.name)) : undefined
-      const constructionEnhancement = authoritativeDetachment
-        ? cardsFor(authoritativeDetachment).find(
-            (candidate) => constructionCardKey(candidate.name) === constructionCardKey(enhancement.name),
-          )
-        : null
+      const exactIds = new Set(externalIdsFor(sourceReferences.enhancements, enhancement.id, 'game-datacards'))
+      const authoritativeCards = authoritativeDetachment ? cardsFor(authoritativeDetachment) : []
+      const exactEnhancement = authoritativeCards.find((candidate) => candidate.ids?.some((id) => exactIds.has(id)))
+      const constructionEnhancement =
+        exactEnhancement ??
+        authoritativeCards.find((candidate) => constructionCardKey(candidate.name) === constructionCardKey(enhancement.name))
       if (detachment && !constructionEnhancement) {
         constructionJoinIssues.push({
           kind: 'enhancement',
@@ -290,20 +335,38 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
     for (const authoritativeDetachment of authoritative.values()) {
       const { name } = authoritativeDetachment
       const semantic = semanticSourceNamed(semanticSources, name)
+      if (semantic) sourceJoinFallbacks.push({ kind: 'detachment', faction: factionName, detachment: name })
       const id = semantic?.detachment.id ?? routeSlug(name)
       const cards = cardsFor(authoritativeDetachment).map((enhancement) => ({
         enhancement,
-        semantics: semanticEnhancementFor(name, enhancement),
+        overlay: semanticEnhancementFor(name, enhancement),
       }))
       const enhancements = cards.filter(
-        ({ enhancement, semantics }) => !isUnitUpgrade(enhancement.name) && !isUnitUpgrade(semantics?.name ?? ''),
+        ({ enhancement, overlay }) => !isUnitUpgrade(enhancement.name) && !isUnitUpgrade(overlay.value?.name ?? ''),
       )
-      const upgrades = cards.filter(({ enhancement, semantics }) => isUnitUpgrade(enhancement.name) || isUnitUpgrade(semantics?.name ?? ''))
+      const upgrades = cards.filter(
+        ({ enhancement, overlay }) => isUnitUpgrade(enhancement.name) || isUnitUpgrade(overlay.value?.name ?? ''),
+      )
+      for (const { enhancement, overlay } of cards) {
+        if (overlay.method === 'name') {
+          sourceJoinFallbacks.push({ kind: 'enhancement', faction: factionName, detachment: name, name: enhancement.name })
+        } else if (overlay.method === 'external-ref' && overlay.value) {
+          sourceJoinExacts.push({ kind: 'enhancement', faction: factionName, detachment: name, name: enhancement.name })
+        }
+      }
       const stratagems = semantic ? detachmentStratagems(semantic.detachment, semantic.source.stratagems) : []
+      const stratagemCards = stratagems.map((raw) => ({ raw, match: semantic ? cardOf(semantic.detachment, raw) : null }))
+      for (const { raw, match } of stratagemCards) {
+        if (match?.method === 'name') {
+          sourceJoinFallbacks.push({ kind: 'stratagem', faction: factionName, detachment: name, name: raw.name })
+        } else if (match?.method === 'external-ref' && match.card) {
+          sourceJoinExacts.push({ kind: 'stratagem', faction: factionName, detachment: name, name: raw.name })
+        }
+      }
       if (semantic) {
         detachments.set(
           id,
-          stratagems.map((raw) => toStratagem(raw, cardOf(semantic.detachment, raw)?.name)),
+          stratagemCards.map(({ raw, match }) => toStratagem(raw, match?.card?.name)),
         )
       }
       references.set(id, {
@@ -317,26 +380,26 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
         name,
         ...constructionFields(name),
         rules: [...(authoritativeDetachment.source.detachmentRules.get(joinKey(name)) ?? [])],
-        enhancements: enhancements.map(({ enhancement, semantics }) => ({
+        enhancements: enhancements.map(({ enhancement, overlay }) => ({
           name: enhancement.name,
           points: enhancement.points,
           description: enhancement.description,
-          keywordRestrictions: semantics ? (semantics.keyword_restrictions ?? []) : null,
+          keywordRestrictions: overlay.value ? (overlay.value.keyword_restrictions ?? []) : null,
         })),
         upgrades: upgrades.map(({ enhancement }) => ({
           name: enhancement.name.replace(/\s*\(upgrade\)\s*$/i, ''),
           points: enhancement.points,
           description: enhancement.description,
         })),
-        stratagems: stratagems
-          .map((stratagem) => ({
-            id: stratagem.id,
-            name: semantic ? (cardOf(semantic.detachment, stratagem)?.name ?? titleCase(stratagem.name)) : titleCase(stratagem.name),
-            cp: stratagem.cp_cost ?? 0,
-            type: stratagem.type ? titleCase(stratagem.type.replaceAll('-', ' ')) : null,
-            phases: stratagem.phases ?? [],
-            turn: stratagem.player_turn ?? null,
-            description: semantic ? (cardOf(semantic.detachment, stratagem)?.description ?? null) : null,
+        stratagems: stratagemCards
+          .map(({ raw, match }) => ({
+            id: raw.id,
+            name: match?.card?.name ?? titleCase(raw.name),
+            cp: raw.cp_cost ?? 0,
+            type: raw.type ? titleCase(raw.type.replaceAll('-', ' ')) : null,
+            phases: raw.phases ?? [],
+            turn: raw.player_turn ?? null,
+            description: match?.card?.description ?? null,
           }))
           .toSorted(byName),
       })
@@ -363,5 +426,7 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
     byDetachment,
     dataslate,
     constructionJoinIssues,
+    sourceJoinFallbacks,
+    sourceJoinExacts,
   }
 }
