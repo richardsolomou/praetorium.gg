@@ -2,6 +2,12 @@ import type { Datasheet } from '../server/catalogue'
 
 type AbilityKind = Datasheet['abilities'][number]['kind']
 
+export function primaryUnitProfile(sheet: Pick<Datasheet, 'name' | 'profiles'>) {
+  const profiles = sheet.profiles.filter((profile) => profile.type === 'Unit')
+  const name = sheet.name.trim().toLocaleLowerCase()
+  return profiles.find((profile) => profile.name.trim().toLocaleLowerCase() === name) ?? profiles[0]
+}
+
 export const abilitySections = {
   core: 'Core abilities',
   faction: 'Faction abilities',

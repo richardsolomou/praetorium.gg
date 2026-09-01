@@ -129,6 +129,22 @@ test('the whole book is on the shelves, not the first page of it', async ({ page
   await expect(page.getByRole('button', { name: 'Add Whirlwind', exact: true })).toBeVisible()
 })
 
+test('a mixed-model squad shows its own profile instead of an optional model', async ({ page }) => {
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await add(page, 'Outrider Squad')
+  await page.locator('[data-unit="Outrider Squad"]').getByRole('button', { name: 'Outrider Squad', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const profile = loadout.locator('[data-slot="unit-profile"]')
+  await expect(profile).toContainText(/M\s*12"\s*T\s*5\s*Sv\s*3\+\s*W\s*4\s*LD\s*6\+\s*OC\s*2/)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(profile).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/outrider-profile-phone.png', fullPage: true })
+})
+
 test('datasheet metadata is searchable in the picker and global search', async ({ page }) => {
   await openBuilder(page)
   await page.getByLabel('Add a unit').fill('cryptek')

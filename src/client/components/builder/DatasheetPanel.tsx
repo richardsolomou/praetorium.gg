@@ -7,7 +7,7 @@ import { datasheetQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { HoverTooltip } from '../HoverTooltip'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList } from '../Keyword'
-import { abilitySections, addedKeywords, attachmentGroups, referenceAbilities } from '../../datasheet'
+import { abilitySections, addedKeywords, attachmentGroups, primaryUnitProfile, referenceAbilities } from '../../datasheet'
 import { RuleText } from '../RuleText'
 
 type Props = {
@@ -69,7 +69,7 @@ export function DatasheetPanel({
   }
   if (!sheet) return <DatasheetLoading />
 
-  const model = sheet.profiles.find((profile) => profile.type === 'Unit')
+  const model = primaryUnitProfile(sheet)
   const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
   const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
   const content = (
