@@ -3,10 +3,16 @@ import { normalizedName, normalizedNameVariants } from '../core/name'
 
 type AbilityKind = Datasheet['abilities'][number]['kind']
 
-export function primaryUnitProfile(sheet: Pick<Datasheet, 'name' | 'profiles'>) {
+export function primaryUnitProfile(sheet: Pick<Datasheet, 'name' | 'profiles' | 'composition'>) {
   const profiles = sheet.profiles.filter((profile) => profile.type === 'Unit')
   for (const name of normalizedNameVariants(sheet.name)) {
     const profile = profiles.find((candidate) => normalizedName(candidate.name) === name)
+    if (profile) return profile
+  }
+  for (const line of sheet.composition) {
+    if (Number(line.match(/\d+/)?.[0]) === 0) continue
+    const composition = normalizedName(line)
+    const profile = profiles.find((candidate) => normalizedNameVariants(candidate.name).some((name) => composition.includes(name)))
     if (profile) return profile
   }
   return profiles[0]
