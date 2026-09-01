@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: mobile-stable
-  cancel_in_progress: false
+  cancel_in_progress: true
 
 jobs:
   fingerprint:

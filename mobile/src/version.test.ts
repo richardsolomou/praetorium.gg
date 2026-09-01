@@ -14,4 +14,13 @@ describe('native application version', () => {
   it('reports the version embedded in the installed binary', () => {
     expect(NATIVE_USER_AGENT).toBe('PraetoriumNative/9.8.7')
   })
+
+  it('falls back to the configured version outside an installed binary', async () => {
+    vi.resetModules()
+    vi.doMock('expo-application', () => ({ nativeApplicationVersion: null }))
+
+    const { NATIVE_USER_AGENT: fallbackUserAgent } = await import('./version')
+
+    expect(fallbackUserAgent).toBe(`PraetoriumNative/${appConfig.expo.version}`)
+  })
 })
