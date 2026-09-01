@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.49.0
+
+### Minor Changes
+
+- 6521e41: Deliver iOS application updates through automatic canary and stable channels.
+
 ## 0.48.1
 
 ### Patch Changes

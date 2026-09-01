@@ -45,6 +45,7 @@ import {
   parseNativeAuthRequest,
 } from './src/nativeAuth'
 import { completedPendingNativeAuth, parsePendingNativeAuth, pendingNativeAuth, type PendingNativeAuth } from './src/pendingNativeAuth'
+import { NATIVE_USER_AGENT } from './src/version'
 
 const BACKGROUND = '#0b0c0e'
 const PENDING_AUTH_KEY = 'praetorium.native-auth.pending'
@@ -409,7 +410,7 @@ function AppShell() {
           style={styles.webView}
           containerStyle={styles.webView}
           originWhitelist={['*']}
-          applicationNameForUserAgent="PraetoriumNative/1.0.0"
+          applicationNameForUserAgent={NATIVE_USER_AGENT}
           injectedJavaScriptBeforeContentLoaded={`${NATIVE_BRIDGE_SCRIPT}\n${nativeAuthCompletionScript()}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}

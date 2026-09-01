@@ -1,6 +1,6 @@
 # Mobile release
 
-This is the release gate for the `gg.praetorium` iOS and Android applications. Recheck the linked store rules before every submission because their dates and SDK floors change.
+This is the release gate for the `gg.praetorium` iOS and Android applications. Android delivery is disabled until the release gate can be completed on a physical Android device. Recheck the linked store rules before every submission because their dates and SDK floors change.
 
 ## Current platform floor
 
@@ -16,7 +16,7 @@ This is the release gate for the `gg.praetorium` iOS and Android applications. R
 4. Create a Sign in with Apple key for the primary App ID. Configure `APPLE_CLIENT_ID=gg.praetorium.web`, `APPLE_TEAM_ID`, `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY` in production so the server generates current client-secret JWTs. Keep the one-time `.p8` download outside the repository and back it up securely.
 5. Register `https://praetorium.gg/api/apple-notifications` as the primary App ID's server-to-server notification endpoint. Register the SMTP sending domain and addresses with Apple's private email relay before sending to relay addresses.
 6. Create the Android app as `gg.praetorium` in Play Console and enable Play App Signing. Record the Play app-signing certificate SHA-256 fingerprint, not only an upload-key fingerprint.
-7. Link `mobile/` to an Expo project with `pnpm dlx eas-cli@latest init`. Do not commit generated credentials or a review-account password.
+7. Link `mobile/` to an Expo project with `pnpm dlx eas-cli@latest init`. Connect the GitHub repository with `/mobile` as its base directory. Do not commit generated credentials or a review-account password.
 8. Set `ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS` in the production deployment. Keep multiple Android fingerprints comma-separated only during a signing transition.
 
 ## Build and upload
@@ -27,10 +27,12 @@ Run the repository gate first:
 just check
 ```
 
-Create signed production builds from `mobile/`:
+The checked-in GitHub and EAS workflows are the normal iOS delivery path. A mobile change merged to `main` queues both canary and stable delivery; an open pull request only runs validation. GitHub dispatches each merged revision through a temporary tag and waits for EAS to finish before dispatching the next change. Every delivery creates and uploads a new iOS binary, then publishes an over-the-air iOS update for compatible installed builds. Canary jobs use the preview EAS environment, which must not contain private upload credentials, while stable jobs use the production environment. A delivery runs to completion so a later push cannot strand an App Store submission or let an older update finish last. Android builds, updates, and Play uploads remain manual and disabled until the release gate passes on a physical Android device and the Google account requirements are complete.
+
+Use the following commands only to recover or inspect the automated flow. Create a signed iOS production build from `mobile/` with:
 
 ```sh
-pnpm dlx eas-cli@latest build --platform all --profile production
+pnpm dlx eas-cli@latest build --platform ios --profile production
 ```
 
 Upload the iOS build and its checked-in App Store metadata:
@@ -39,13 +41,15 @@ Upload the iOS build and its checked-in App Store metadata:
 pnpm dlx eas-cli@latest submit --platform ios --profile production
 ```
 
-The first Android release must normally be created and its application bundle uploaded in Play Console before API-based submissions work. After that first release, upload with:
+After completing physical-device verification and the Google account requirements, configure a Google Play service account in EAS before enabling Android automation. EAS Submit can create the first internal-testing release after the app exists in Play Console; a manual first upload is optional. Build and upload manually with:
 
 ```sh
+pnpm dlx eas-cli@latest build --platform android --profile production
 pnpm dlx eas-cli@latest submit --platform android --profile production
+pnpm dlx eas-cli@latest update --platform android --channel stable --environment production
 ```
 
-EAS manages `CFBundleVersion` and `versionCode` remotely and increments them for production builds. Change the user-facing `version` in `mobile/app.json`, `mobile/package.json`, and the shell user agent together for each public application release.
+EAS manages `CFBundleVersion` and `versionCode` remotely and increments them for canary and production builds. Change the user-facing version in `mobile/app.json` and `mobile/package.json` together for each public application release. The native shell reads that version from the installed binary. EAS Update uses the native fingerprint as its runtime version, so incompatible binaries never receive the same over-the-air bundle.
 
 ## Production identity checks
 
@@ -135,4 +139,4 @@ Complete this matrix on the exact TestFlight and Play internal-testing builds:
 - Check phone and tablet safe areas, software keyboards, portrait orientation, text scaling, VoiceOver, TalkBack, contrast, and touch targets.
 - Run the current web deployment against the oldest supported installed shell and the release shell against the deployed web application.
 
-Do not submit until the complete cycle passes on physical iOS and Android devices. Record the tested build numbers, devices, operating-system versions, date, and tester beside the release ticket.
+Do not submit either build for public store review until the complete cycle passes on physical iOS and Android devices. Record the tested build numbers, devices, operating-system versions, date, and tester beside the release ticket.

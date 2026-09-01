@@ -37,6 +37,10 @@ After a real background cycle, the shell nudges the WebView's browser lifecycle.
 
 Store builds use `mobile/eas.json`. Apple metadata lives in `mobile/store.config.json`; Google Play metadata and both stores' manual review fields are recorded in [Mobile release](mobile-release.md).
 
+The iOS shell receives over-the-air JavaScript updates through EAS Update. The public application uses the `stable` channel and testers use one shared `canary` channel. Canary installations always receive the latest compatible update merged to `main`; pull-request revisions are never distributed. Each update targets the native fingerprint that produced it, so an incompatible binary cannot receive it.
+
+Checked-in GitHub workflows queue iOS deliveries through temporary tags. Each delivery finishes before the next change starts, including store submission and over-the-air publishing. Every canary and stable delivery creates a new iOS build, uploads it to TestFlight, and publishes the same merged revision over the canary or stable channel for compatible installed builds. A mobile change merged to `main` delivers both channels; an open pull request only runs validation. Android builds, updates, and store uploads remain manual and disabled until the release gate passes on a physical Android device and the Google account requirements are complete.
+
 ## Check it
 
 `just check` formats, lints, type-checks, and tests the mobile source with the web application.
@@ -48,6 +52,8 @@ just e2e-native-auth-ios
 ```
 
 The test builds the Release application and launches it one time. It completes the native Google handoff against an isolated local stack. It checks the proof exchange, authenticated redirect, proof consumption, and authenticated reload. It also checks that the account appears without another application launch.
+
+Run this journey before pushing a change to the native shell, its dependencies, or its configuration. TestFlight submission is automatic, so the pushed commit must already have passed the release-mode journey.
 
 The Simulator build does not have the production keychain entitlement. The test build keeps only its pending callback in memory. Production builds continue to use SecureStore. Signed physical-device builds are the verification surface for SecureStore and the real Apple and Google providers.
 

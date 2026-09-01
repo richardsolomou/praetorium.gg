@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { request as httpRequest, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer as createHttpsServer, request as httpsRequest } from 'node:https'
 import path from 'node:path'
@@ -17,6 +17,9 @@ const publicUrl = `https://localhost:${publicPort}`
 const fixtureName = 'Native Auth Simulator'
 const fixtureEmail = `native-auth-${randomUUID()}@example.test`
 const events: string[] = []
+const nativeAppVersion = (JSON.parse(readFileSync(path.join(root, 'mobile', 'app.json'), 'utf8')) as { expo: { version: string } }).expo
+  .version
+const expectedNativeUserAgent = `PraetoriumNative/${nativeAppVersion}`
 const tlsDirectory = path.join(root, 'mobile', '.simulator-derived', 'native-auth-e2e', 'tls')
 const tlsCertificate = path.join(tlsDirectory, 'localhost.crt')
 const tlsKey = path.join(tlsDirectory, 'localhost.key')
@@ -185,7 +188,8 @@ function startProxy() {
         await nativeAuth(requestUrl, response)
         return
       }
-      if (request.method === 'GET' && requestUrl.pathname === '/' && request.headers['user-agent']?.includes('PraetoriumNative')) {
+      const userAgentProducts = request.headers['user-agent']?.split(/\s+/) ?? []
+      if (request.method === 'GET' && requestUrl.pathname === '/' && userAgentProducts.includes(expectedNativeUserAgent)) {
         if (initialNativeRouteHandled) {
           await forward(request, response)
           return
@@ -262,6 +266,14 @@ function assertFlow() {
   }
 }
 
+function skipLocalPostHogUpload(projectFile: string) {
+  const project = readFileSync(projectFile, 'utf8')
+  const wrapper =
+    /`\\"\$NODE_BINARY\\" --print \\"require\('path'\)\.join\(require\('path'\)\.dirname\(require\.resolve\('posthog-react-native'\)\), '\.\.', 'tooling', 'posthog-xcode\.sh'\)\\"` /
+  if (!wrapper.test(project)) throw new Error('The PostHog Xcode wrapper was not found in the generated project.')
+  writeFileSync(projectFile, project.replace(wrapper, ''))
+}
+
 async function main() {
   await run('sh', ['e2e/stack-down.sh', String(backendPort)])
   await ensureTlsCertificate()
@@ -287,9 +299,10 @@ async function main() {
   const mobile = path.join(root, 'mobile')
   const derived = path.join(mobile, '.simulator-derived', 'native-auth-e2e')
   const app = path.join(derived, 'Build', 'Products', 'Release-iphonesimulator', 'Praetorium.app')
-  const buildEnvironment = { ...process.env, EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL: publicUrl, SKIP_BUNDLING: '1' }
+  const buildEnvironment = { ...process.env, EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL: publicUrl }
   if (process.env.NATIVE_AUTH_REUSE_BUILD !== '1') {
     await run('pnpm', ['exec', 'expo', 'prebuild', '--platform', 'ios', '--clean'], { cwd: mobile, env: buildEnvironment })
+    skipLocalPostHogUpload(path.join(mobile, 'ios', 'Praetorium.xcodeproj', 'project.pbxproj'))
     await run(
       'xcodebuild',
       [
@@ -310,29 +323,6 @@ async function main() {
         'build',
       ],
       { env: buildEnvironment },
-    )
-    await run(
-      'pnpm',
-      [
-        'exec',
-        'expo',
-        'export:embed',
-        '--entry-file',
-        'index.ts',
-        '--platform',
-        'ios',
-        '--dev',
-        'false',
-        '--minify',
-        'true',
-        '--bytecode',
-        '--reset-cache',
-        '--bundle-output',
-        path.join(app, 'main.jsbundle'),
-        '--assets-dest',
-        app,
-      ],
-      { cwd: mobile, env: buildEnvironment },
     )
   }
   await run('codesign', ['--force', '--sign', '-', app])
