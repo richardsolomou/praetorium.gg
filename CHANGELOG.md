@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.49.1
+
+### Patch Changes
+
+- 512b657: Open a link that asks for a new tab in the application itself rather than in a window stacked on top of it.
+- d760b77: Stop iOS zooming the page, and pushing the header and tabs off screen, when you tap a search or text field.
+
 ## 0.49.0
 
 ### Minor Changes
