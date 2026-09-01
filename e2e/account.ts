@@ -35,11 +35,11 @@ export async function retryUntilVisible(outcome: Locator, action: () => Promise<
 }
 
 export async function befriend(requester: Page, recipient: Page) {
-  const requesterName = (await requester.locator('button[aria-label^="Account menu for "]').getAttribute('aria-label'))?.replace(
+  const requesterName = (await requester.getByRole('button', { name: /^Account menu for / }).getAttribute('aria-label'))?.replace(
     'Account menu for ',
     '',
   )
-  const recipientName = (await recipient.locator('button[aria-label^="Account menu for "]').getAttribute('aria-label'))?.replace(
+  const recipientName = (await recipient.getByRole('button', { name: /^Account menu for / }).getAttribute('aria-label'))?.replace(
     'Account menu for ',
     '',
   )

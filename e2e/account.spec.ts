@@ -17,6 +17,7 @@ test('account forms show the server error', async ({ page }) => {
   await page.request.post('/api/auth/sign-up/email', {
     data: { email, password: 'a-long-enough-password', name: 'Auth Error' },
   })
+  await page.context().clearCookies()
 
   await page.goto('/sign-in')
   await page.getByLabel('Email').fill(email)
