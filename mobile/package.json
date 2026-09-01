@@ -1,6 +1,6 @@
 {
   "name": "@praetorium/mobile",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -23,6 +23,7 @@
     "expo-splash-screen": "~57.0.6",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.2",
+    "expo-updates": "57.0.17",
     "expo-web-browser": "~57.0.2",
     "posthog-react-native": "^4.63.5",
     "react": "19.2.3",

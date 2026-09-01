@@ -37,6 +37,10 @@ After a real background cycle, the shell nudges the WebView's browser lifecycle.
 
 Store builds use `mobile/eas.json`. Apple metadata lives in `mobile/store.config.json`; Google Play metadata and both stores' manual review fields are recorded in [Mobile release](mobile-release.md).
 
+The shell receives over-the-air JavaScript updates through EAS Update. The public application uses the `stable` channel and pull-request builds use `canary`. Each update targets the native fingerprint that produced it, so an incompatible binary cannot receive it.
+
+Checked-in EAS workflows fingerprint each platform before delivery. A pull request that changes `mobile/` updates a compatible canary build or creates a new iOS TestFlight build and installable Android APK. A merge to `main` updates compatible stable installations or creates new store binaries. The iOS binary is uploaded to App Store Connect automatically. Android store upload stays disabled until the Play service account and production App Links identity pass the release gate.
+
 ## Check it
 
 `just check` formats, lints, type-checks, and tests the mobile source with the web application.

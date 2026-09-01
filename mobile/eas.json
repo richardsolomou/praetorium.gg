@@ -8,13 +8,36 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "channel": "preview"
+    },
+    "canary-ios": {
+      "autoIncrement": true,
+      "channel": "canary",
+      "environment": "production"
+    },
+    "canary-android": {
+      "autoIncrement": true,
+      "channel": "canary",
+      "distribution": "internal",
+      "environment": "production",
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "channel": "stable",
+      "environment": "production"
     }
   },
   "submit": {
+    "canary": {
+      "ios": {
+        "ascAppId": "6806875244",
+        "appleTeamId": "A3X8464573"
+      }
+    },
     "production": {
       "ios": {
         "ascAppId": "6806875244",

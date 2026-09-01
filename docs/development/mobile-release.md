@@ -27,7 +27,9 @@ Run the repository gate first:
 just check
 ```
 
-Create signed production builds from `mobile/`:
+The checked-in EAS workflows are the normal delivery path. A pull request that changes `mobile/` creates a canary build when no build has the same native fingerprint, or publishes an over-the-air update when a matching build exists. Merging that pull request to `main` does the same for the stable channel. New iOS binaries upload to App Store Connect automatically. New Android release bundles build automatically, but Play upload remains disabled until the Google service account is configured and the production App Links document is verified.
+
+Use the following commands only to recover or inspect the automated flow. Create signed production builds from `mobile/` with:
 
 ```sh
 pnpm dlx eas-cli@latest build --platform all --profile production
@@ -39,13 +41,13 @@ Upload the iOS build and its checked-in App Store metadata:
 pnpm dlx eas-cli@latest submit --platform ios --profile production
 ```
 
-The first Android release must normally be created and its application bundle uploaded in Play Console before API-based submissions work. After that first release, upload with:
+Configure a Google Play service account in EAS before enabling the Android submit job. EAS Submit can create the first internal-testing release after the app exists in Play Console; a manual first upload is optional. Upload with:
 
 ```sh
 pnpm dlx eas-cli@latest submit --platform android --profile production
 ```
 
-EAS manages `CFBundleVersion` and `versionCode` remotely and increments them for production builds. Change the user-facing `version` in `mobile/app.json`, `mobile/package.json`, and the shell user agent together for each public application release.
+EAS manages `CFBundleVersion` and `versionCode` remotely and increments them for canary and production builds. Change the user-facing version in `mobile/app.json`, `mobile/package.json`, and `mobile/src/version.ts` together for each public application release. EAS Update uses the native fingerprint as its runtime version, so incompatible binaries never receive the same over-the-air bundle.
 
 ## Production identity checks
 
@@ -135,4 +137,4 @@ Complete this matrix on the exact TestFlight and Play internal-testing builds:
 - Check phone and tablet safe areas, software keyboards, portrait orientation, text scaling, VoiceOver, TalkBack, contrast, and touch targets.
 - Run the current web deployment against the oldest supported installed shell and the release shell against the deployed web application.
 
-Do not submit until the complete cycle passes on physical iOS and Android devices. Record the tested build numbers, devices, operating-system versions, date, and tester beside the release ticket.
+Do not submit either build for public store review until the complete cycle passes on physical iOS and Android devices. Record the tested build numbers, devices, operating-system versions, date, and tester beside the release ticket.

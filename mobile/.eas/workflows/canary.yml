@@ -1,0 +1,70 @@
+name: Mobile canary
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths: [mobile/**]
+
+concurrency:
+  group: mobile-canary
+  cancel_in_progress: true
+
+jobs:
+  fingerprint:
+    name: Fingerprint native projects
+    type: fingerprint
+    environment: production
+  get_android_build:
+    name: Find matching Android canary
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      profile: canary-android
+  get_ios_build:
+    name: Find matching iOS canary
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      profile: canary-ios
+  build_android:
+    name: Build Android canary
+    needs: [get_android_build]
+    if: ${{ !needs.get_android_build.outputs.build_id }}
+    type: build
+    params:
+      platform: android
+      profile: canary-android
+  build_ios:
+    name: Build iOS canary
+    needs: [get_ios_build]
+    if: ${{ !needs.get_ios_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: canary-ios
+  submit_ios:
+    name: Send iOS canary to TestFlight
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: canary
+  update_android:
+    name: Update Android canary
+    needs: [get_android_build]
+    if: ${{ needs.get_android_build.outputs.build_id }}
+    type: update
+    params:
+      channel: canary
+      platform: android
+  update_ios:
+    name: Update iOS canary
+    needs: [get_ios_build]
+    if: ${{ needs.get_ios_build.outputs.build_id }}
+    type: update
+    params:
+      channel: canary
+      platform: ios
