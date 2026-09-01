@@ -257,7 +257,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   const discardable = active ? discardableSecondaries(active) : []
 
   return (
-    <main className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
+    <main data-battle-tracker className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
       <Scoreboard view={view} sides={table} outcome={finished ? outcome(table, view) : null} />
 
       {/* Nobody across the table yet means neither a tab nor a column for them. */}

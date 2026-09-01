@@ -40,8 +40,20 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
 }
 
 export const NATIVE_BRIDGE_SCRIPT = `(() => {
-  const capabilities = ['battle-active', 'haptic', 'open-window', 'print', 'share'];
+  const capabilities = ['app-navigation', 'battle-active', 'haptic', 'open-window', 'print', 'share'];
   window.PraetoriumNative = Object.freeze({ bridgeVersion: 3, capabilities });
+  const markNativeApp = () => {
+    if (!document.documentElement) return false;
+    document.documentElement.dataset.nativeApp = 'true';
+    return true;
+  };
+  if (!markNativeApp()) {
+    const observer = new MutationObserver(() => {
+      if (!markNativeApp()) return;
+      observer.disconnect();
+    });
+    observer.observe(document, { childList: true });
+  }
   const requestOpenWindow = (value) => {
     try {
       const url = new URL(String(value), document.baseURI).href;

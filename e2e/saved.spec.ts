@@ -212,7 +212,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   expect(await guest.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   expect(await guestLoadout.evaluate((pane) => pane.scrollWidth <= pane.clientWidth)).toBe(true)
   await guest.screenshot({ path: 'test-results/shared-roster-read-only-phone.png', fullPage: true })
-  await guestLoadout.getByRole('button', { name: 'Close' }).click()
+  await guestLoadout.getByRole('button', { name: 'Back to roster' }).click()
   await guest.getByRole('button', { name: 'Roster actions' }).click()
   await expect(guest.getByRole('menuitem', { name: 'Sign in to duplicate' })).toBeVisible()
   expect(await guest.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)

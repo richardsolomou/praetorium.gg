@@ -7,8 +7,11 @@ Praetorium uses a compact, dark interface. See [Product design](../product-desig
 - Use compact, uppercase headings, section counts, points chips, and red or blue player tints consistently.
 - Keep player tints on scores and controls. The tint identifies ownership across the table.
 - Use theme red for attacker deployment zones and theme green for defender zones. Use primary green for a neutral zone.
+- Keep feature screens shared between the website and native applications. Updated native shells replace the website header with a fixed top bar and section tabs. Use bottom tabs below 1024 pixels and a left rail at wider sizes. A native back action opens the route's defined parent. Do not derive that parent from browser history.
 - Edit squad size on the roster card. Do not add a second squad-size control to the loadout pane.
 - Render each picker or loadout pane once. `src/client/components/builder/Pane.tsx` moves the same instance between a desktop sidebar and a mobile sheet. Two instances create duplicate form controls and accessibility labels.
+- Treat the roster workspace as an adaptive master-detail view. Below 1024 pixels, a selected unit occupies the screen, enters browser history, and uses a leading back action to restore the roster. At wider widths it remains the same right-hand pane. The unit picker remains a dismissible drawer below 1300 pixels.
+- Put compact full-screen roster panes above their underlying page in browser history. Back gestures and Android system back dismiss the top pane first, while dialogs and drawers retain explicit close actions.
 - Reserve the desktop picker's grid column in the server-rendered roster workspace. Hydration may replace its mobile drawer with the desktop sidebar, but the roster and loadout panes must not move when it does.
 - Split unit lists into collapsible primary-category shelves and omit empty shelves. Use the same shelf order on rosters, in the picker and on faction datasheet pages.
 - Show allied picker shelves with their short faction name and keep them collapsed until a player needs them.

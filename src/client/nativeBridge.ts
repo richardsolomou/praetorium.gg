@@ -1,4 +1,4 @@
-type NativeCapability = 'battle-active' | 'haptic' | 'open-window' | 'print' | 'share'
+type NativeCapability = 'app-navigation' | 'battle-active' | 'haptic' | 'open-window' | 'print' | 'share'
 
 declare global {
   interface Window {

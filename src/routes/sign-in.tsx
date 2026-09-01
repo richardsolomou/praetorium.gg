@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { classifyAuthCallbackFailure, localRedirectPath } from 'ras-stack/auth/client'
 import { useAuthAction } from 'ras-stack/auth/react'
 import posthog from 'posthog-js'
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { authClient } from '../client/authClient'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES } from '../client/components/AuthMethodIcon'
 import { requestNativeAuth } from '../client/nativeAuth'
+import { signedInDestination } from '../client/signInGuard'
 import { TwoFactorSignIn } from '../client/components/TwoFactorSignIn'
 import { signInOptionsQuery } from '../client/queries'
 import { PASSWORD_MIN_LENGTH } from '../authConfig'
@@ -31,6 +32,10 @@ export const Route = createFileRoute('/sign-in')({
     if (typeof search.error === 'string' && search.error) result.error = search.error
     if (search.reset === true || search.reset === 'true') result.reset = true
     return result
+  },
+  beforeLoad: async ({ context, search }) => {
+    const destination = await signedInDestination(context.queryClient, search.next)
+    if (destination) throw redirect({ href: destination, replace: true })
   },
   loader: ({ context }) => context.queryClient.ensureQueryData(signInOptionsQuery()),
   component: SignIn,
@@ -81,8 +86,8 @@ function SignIn() {
       await queryClient.invalidateQueries()
       // `next` is a pathname rather than a route, so this is a navigation by href
       // rather than by route id.
-      if (next) window.location.assign(next)
-      else await navigate({ to: '/' })
+      if (next) window.location.replace(next)
+      else await navigate({ to: '/', replace: true })
     } else {
       posthog.capture('account_authentication_failed', { method: 'email', action: joining ? 'create' : 'sign_in' })
     }
@@ -124,8 +129,8 @@ function SignIn() {
               onBack={() => setTwoFactorPending(false)}
               onSuccess={() => {
                 posthog.capture('account_signed_in', { method: 'two_factor', redirected: Boolean(next) })
-                if (next) window.location.assign(next)
-                else void navigate({ to: '/' })
+                if (next) window.location.replace(next)
+                else void navigate({ to: '/', replace: true })
               }}
             />
           ) : (
