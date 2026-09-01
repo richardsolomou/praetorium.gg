@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.47.1
+
+### Patch Changes
+
+- 0b4cce9: Keep catalogue datasheets and rules aligned when upstream names differ.
+
 ## 0.47.0
 
 ### Minor Changes
