@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.48.1
+
+### Patch Changes
+
+- 986a8cf: Show the correct characteristics for roster units with optional models.
+
 ## 0.48.0
 
 ### Minor Changes
