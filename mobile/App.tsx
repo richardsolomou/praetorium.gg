@@ -88,10 +88,12 @@ const POSTHOG_OPTIONS = {
     autocapture: { uncaughtExceptions: true, unhandledRejections: true },
   },
 } satisfies PostHogOptions
-const posthog = process.env.EXPO_PUBLIC_POSTHOG_API_KEY ? new PostHog(process.env.EXPO_PUBLIC_POSTHOG_API_KEY, POSTHOG_OPTIONS) : null
+const posthogApiKey = __DEV__ ? undefined : process.env.EXPO_PUBLIC_POSTHOG_API_KEY
+const posthog = posthogApiKey ? new PostHog(posthogApiKey, POSTHOG_OPTIONS) : null
 
-function captureNativeException(operation: string) {
-  posthog?.captureException(new Error(`Praetorium ${operation.replaceAll('_', ' ')} failed`), { operation })
+function captureNativeException(operation: string, cause?: unknown) {
+  const exception = cause instanceof Error ? cause : new Error(`Praetorium ${operation.replaceAll('_', ' ')} failed`, { cause })
+  posthog?.captureException(exception, { operation })
 }
 
 WebBrowser.maybeCompleteAuthSession()
@@ -212,8 +214,8 @@ function AppShell() {
             Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
           }
         }
-      } catch {
-        captureNativeException('native_auth')
+      } catch (error) {
+        captureNativeException('native_auth', error)
         await pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
         Alert.alert('Could not open sign-in', 'The secure system sign-in session could not be opened.')
       } finally {
@@ -226,8 +228,8 @@ function AppShell() {
   const openExternal = useCallback(async (url: string) => {
     try {
       await Linking.openURL(url)
-    } catch {
-      captureNativeException('external_link')
+    } catch (error) {
+      captureNativeException('external_link', error)
       Alert.alert('Could not open link', 'No application on this device can open that link.')
     }
   }, [])
@@ -281,8 +283,8 @@ function AppShell() {
     (message: string) => {
       const action = parseNativeActionRequest(message)
       if (!action) return false
-      void handleNativeAction(action).catch(() => {
-        captureNativeException(`native_${action.kind.replace('-', '_')}`)
+      void handleNativeAction(action).catch((error) => {
+        captureNativeException(`native_${action.kind.replace('-', '_')}`, error)
         if (action.kind === 'print') Alert.alert('Could not print', 'The system print service could not open this roster.')
         if (action.kind === 'share') Alert.alert('Could not share', 'The system share sheet could not open this link.')
       })
@@ -311,8 +313,8 @@ function AppShell() {
   const handleIncomingUrl = useCallback(
     (url: string) => {
       if (url.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
-        void handleAuthCallback(url).catch(() => {
-          captureNativeException('native_auth_callback')
+        void handleAuthCallback(url).catch((error) => {
+          captureNativeException('native_auth_callback', error)
           Alert.alert('Sign-in did not finish', 'The secure sign-in result could not be saved. Try again.')
         })
       } else navigateApplication(url)
@@ -358,8 +360,8 @@ function AppShell() {
           else commitShell(initialUrlReceived(shellRef.current, url))
         }
       })
-      .catch(() => {
-        captureNativeException('native_initialization')
+      .catch((error) => {
+        captureNativeException('native_initialization', error)
         if (active) commitShell(initialUrlReceived(shellRef.current, null))
       })
     const subscription = Linking.addEventListener('url', ({ url }) => {
@@ -436,13 +438,13 @@ function AppShell() {
           onLoad={({ nativeEvent }) => {
             finishWebLoad(nativeEvent.url)
           }}
-          onError={() => {
-            captureNativeException('web_load')
+          onError={({ nativeEvent }) => {
+            captureNativeException('web_load', new Error(`WebView load failed: ${nativeEvent.description} (code ${nativeEvent.code})`))
             cancelScheduledDrain()
             commitShell(webLoadFailed(shellRef.current))
           }}
-          onHttpError={() => {
-            captureNativeException('web_http')
+          onHttpError={({ nativeEvent }) => {
+            captureNativeException('web_http', new Error(`WebView HTTP error ${nativeEvent.statusCode}: ${nativeEvent.description}`))
             cancelScheduledDrain()
             commitShell(webLoadFailed(shellRef.current))
           }}
@@ -470,7 +472,7 @@ function AppShell() {
                 commitShell(authDeliverySucceeded(shellRef.current, result.id))
                 void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY).then(
                   () => webView.current?.injectJavaScript(nativeAuthConsumeScript(delivering.callback)),
-                  () => captureNativeException('native_auth_cleanup'),
+                  (error) => captureNativeException('native_auth_cleanup', error),
                 )
               } else if (result.retryable === true) {
                 const deferred = authDeliveryDeferred(shellRef.current, result.id)
