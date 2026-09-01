@@ -2,4 +2,4 @@
 'praetorium.gg': minor
 ---
 
-Deliver native application updates through automatic canary and stable channels.
+Deliver iOS application updates through automatic canary and stable channels.

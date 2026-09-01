@@ -9,26 +9,6 @@ concurrency:
   cancel_in_progress: false
 
 jobs:
-  fingerprint:
-    name: Fingerprint native projects
-    type: fingerprint
-    environment: preview
-  get_android_build:
-    name: Find matching Android canary
-    needs: [fingerprint]
-    type: get-build
-    params:
-      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
-      profile: canary-android
-      wait_for_in_progress: true
-  build_android:
-    name: Build Android canary
-    needs: [get_android_build]
-    if: ${{ !needs.get_android_build.outputs.build_id }}
-    type: build
-    params:
-      platform: android
-      profile: canary-android
   build_ios:
     name: Build iOS canary
     type: build
@@ -42,15 +22,6 @@ jobs:
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
       profile: canary
-  update_android:
-    name: Update Android canary
-    needs: [get_android_build]
-    if: ${{ needs.get_android_build.outputs.build_id }}
-    type: update
-    environment: preview
-    params:
-      channel: canary
-      platform: android
   update_ios:
     name: Update iOS canary
     needs: [submit_ios]
@@ -61,10 +32,8 @@ jobs:
       platform: ios
   complete:
     name: Delivery complete ${{ github.ref_name }}
-    after: [build_android, update_android, update_ios]
+    after: [update_ios]
     environment: preview
     steps:
       - name: Verify delivery
-        run: |
-          test "${{ after.build_android.status }}" = success || test "${{ after.update_android.status }}" = success
-          test "${{ after.update_ios.status }}" = success
+        run: test "${{ after.update_ios.status }}" = success

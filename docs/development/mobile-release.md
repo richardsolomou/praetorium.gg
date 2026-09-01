@@ -1,6 +1,6 @@
 # Mobile release
 
-This is the release gate for the `gg.praetorium` iOS and Android applications. Recheck the linked store rules before every submission because their dates and SDK floors change.
+This is the release gate for the `gg.praetorium` iOS and Android applications. Android delivery is disabled until the release gate can be completed on a physical Android device. Recheck the linked store rules before every submission because their dates and SDK floors change.
 
 ## Current platform floor
 
@@ -27,12 +27,12 @@ Run the repository gate first:
 just check
 ```
 
-The checked-in GitHub and EAS workflows are the normal delivery path. GitHub queues canary deliveries and stable deliveries, dispatches each current revision through a temporary tag, and waits for EAS to finish before dispatching the next change. A pull request that changes the mobile project or its root workspace inputs updates a matching Android canary or creates a new Android build. Every delivery creates and uploads a new iOS binary, then publishes an over-the-air iOS update for compatible installed builds. Canary jobs use the preview EAS environment, which must not contain private upload credentials. Merging that pull request to `main` delivers the stable channel with the production environment. A delivery runs to completion so a later push cannot strand an App Store submission or let an older update finish last. New Android release bundles build automatically, but Play upload remains disabled until the Google service account is configured and the production App Links document is verified.
+The checked-in GitHub and EAS workflows are the normal iOS delivery path. GitHub queues canary deliveries and stable deliveries, dispatches each current revision through a temporary tag, and waits for EAS to finish before dispatching the next change. Every delivery creates and uploads a new iOS binary, then publishes an over-the-air iOS update for compatible installed builds. Canary jobs use the preview EAS environment, which must not contain private upload credentials. Merging that pull request to `main` delivers the stable channel with the production environment. A delivery runs to completion so a later push cannot strand an App Store submission or let an older update finish last. Android builds, updates, and Play uploads remain manual and disabled until the release gate passes on a physical Android device and the Google account requirements are complete.
 
-Use the following commands only to recover or inspect the automated flow. Create signed production builds from `mobile/` with:
+Use the following commands only to recover or inspect the automated flow. Create a signed iOS production build from `mobile/` with:
 
 ```sh
-pnpm dlx eas-cli@latest build --platform all --profile production
+pnpm dlx eas-cli@latest build --platform ios --profile production
 ```
 
 Upload the iOS build and its checked-in App Store metadata:
@@ -41,10 +41,12 @@ Upload the iOS build and its checked-in App Store metadata:
 pnpm dlx eas-cli@latest submit --platform ios --profile production
 ```
 
-Configure a Google Play service account in EAS before enabling the Android submit job. EAS Submit can create the first internal-testing release after the app exists in Play Console; a manual first upload is optional. Upload with:
+After completing physical-device verification and the Google account requirements, configure a Google Play service account in EAS before enabling Android automation. EAS Submit can create the first internal-testing release after the app exists in Play Console; a manual first upload is optional. Build and upload manually with:
 
 ```sh
+pnpm dlx eas-cli@latest build --platform android --profile production
 pnpm dlx eas-cli@latest submit --platform android --profile production
+pnpm dlx eas-cli@latest update --platform android --channel stable --environment production
 ```
 
 EAS manages `CFBundleVersion` and `versionCode` remotely and increments them for canary and production builds. Change the user-facing version in `mobile/app.json` and `mobile/package.json` together for each public application release. The native shell reads that version from the installed binary. EAS Update uses the native fingerprint as its runtime version, so incompatible binaries never receive the same over-the-air bundle.
