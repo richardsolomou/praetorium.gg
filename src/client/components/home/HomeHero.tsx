@@ -10,24 +10,21 @@ import { PlayerAvatar } from '../PlayerAvatar'
 /**
  * The one full-bleed moment on the page, for somebody who has never been here.
  *
- * Its right-hand slot is a battle actually being played rather than a decorative
- * mark: the sentence on the left claims the app keeps one live record across a
- * table, and the card beside it is that claim happening. When no public battle
- * exists the slot keeps its shape and shows the logo, so the hero does not change
- * size depending on whether anyone is playing.
+ * Its right-hand slot is a recent public battle rather than a decorative mark:
+ * the player sees the product in use alongside the invitation to use it.
+ * When no public battle exists the slot keeps its shape and shows the logo, so
+ * the hero does not change size depending on whether anyone is playing.
  */
-export function HomeHero({ live }: { live?: Battle }) {
+export function HomeHero({ battle }: { battle?: Battle }) {
   return (
     <section className="relative overflow-hidden border-b border-edge bg-panel">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
       <div className="relative mx-auto grid w-full max-w-5xl gap-8 px-3 py-12 sm:px-4 md:grid-cols-[minmax(0,1fr)_19rem] md:items-center md:py-16">
         <div>
-          <p className="eyebrow text-parchment">Free and open source</p>
+          <p className="eyebrow text-parchment">Warhammer 40,000 army builder and battle tracker</p>
           <h1 className="mt-2 text-4xl leading-[0.95] sm:text-5xl">Build the force. Run the battle.</h1>
           <p className="mt-5 max-w-xl text-base text-dim sm:text-lg">
-            Praetorium builds Warhammer 40,000 army lists and keeps one live battle record across every player&apos;s device.{' '}
-            {/* Only promise the feed when there is one: on a new instance the shelf below it is empty. */}
-            {live ? 'Watch a game below before you play one.' : 'Build a list, sit down with a friend, and keep one record between you.'}
+            Build your army, choose a mission and track your game from setup to final score.
           </p>
           {/*
             Both doors, because this page is the way back in as well as the way in.
@@ -43,7 +40,7 @@ export function HomeHero({ live }: { live?: Battle }) {
             </Link>
           </div>
         </div>
-        {live ? <HeroBattle battle={live} /> : <HeroMark />}
+        {battle ? <HeroBattle battle={battle} /> : <HeroMark />}
       </div>
     </section>
   )

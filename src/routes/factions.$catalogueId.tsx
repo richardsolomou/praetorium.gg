@@ -96,7 +96,7 @@ function FactionPage() {
                 headingLevel={2}
                 eyebrow="Detachments"
                 title="No detachments available"
-                explanation="The current structured sources do not define detachments for this faction."
+                explanation="No detachment rules are available for this faction."
                 icon={ShieldQuestion}
                 className="border-0"
               />

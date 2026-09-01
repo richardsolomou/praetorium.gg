@@ -29,10 +29,10 @@ import failures carry only a bounded reason and input kind.
 
 ## Privacy boundary
 
-Never capture names, email addresses, images, battle tokens, roster ids, catalogue
-ids, search text, unit names, list contents, command payloads, rules text, or error
-messages as analytics properties. Safe properties are bounded enums, booleans,
-counts, durations, and non-sensitive outcome labels.
+Analytics properties exclude names, email addresses, images, battle tokens, roster
+ids, catalogue ids, search text, unit names, list contents, command payloads, rules
+text, and error messages. They contain only bounded enums, booleans, counts,
+durations, and non-sensitive outcome labels.
 
 Errors may contain stack traces through PostHog Error Tracking. Manual exception
 captures add only an operation label. Server logs use stable messages and bounded
@@ -41,6 +41,6 @@ request metadata rather than request bodies or URLs containing opaque ids.
 ## Measuring success
 
 The core product funnel is account created → roster created or imported → battle
-created → roster attached → battle started → battle finished. Diagnose drop-off
-with command outcomes, exceptions, replay, and the sampled roster pricing and
-datasheet duration distributions.
+created → roster attached → battle started → battle finished. Command outcomes,
+exceptions, replay, and sampled roster-pricing and datasheet-duration distributions
+explain drop-off between those stages.

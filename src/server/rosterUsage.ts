@@ -22,9 +22,9 @@ export async function rosterForUse(userId: string, rosterId: string) {
   const saved = await app().service.ownRoster(userId, rosterId)
   if (!saved) throw new Response('you do not own this roster', { status: 403 })
   const catalogue = app().catalogue()
-  if (!catalogue) throw new Response('this instance has no catalogue', { status: 409 })
+  if (!catalogue) throw new Response('army data is not available', { status: 409 })
   const priced = calculateRosterPrice(savedRosterPriceInput(saved), catalogue)
-  if (!priced) throw new Response('this instance has no catalogue', { status: 409 })
+  if (!priced) throw new Response('army data is not available', { status: 409 })
   const error = rosterUseError(priced, saved.limit)
   if (error) throw new Response(`fix roster errors before using it: ${error}`, { status: 409 })
   const wounds = unitWoundsIn(

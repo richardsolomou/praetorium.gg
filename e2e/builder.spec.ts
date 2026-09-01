@@ -551,7 +551,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
     .getByRole('group', { name: 'Lokhust Heavy Destroyers Unit upgrades' })
     .getByRole('button', { name: 'Select Deepening Madness' })
     .click()
-  await expect(page.getByText('Could not validate every catalogue rule')).toHaveCount(0)
+  await expect(page.getByText('Could not check every rule')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/shared-deepening-madness.png', fullPage: true })
 
   await page.goto('/factions/necrons/reference/detachments/skyshroud-spearhead')

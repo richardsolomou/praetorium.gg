@@ -1,6 +1,6 @@
 # Contributing to Praetorium
 
-Keep Praetorium small, predictable, and easy to inspect. Check for an existing issue before a substantial change. Open an issue when the product scope needs discussion. Coding-agent rules are in [AGENTS.md](AGENTS.md).
+Praetorium's contribution model favours small, predictable, inspectable changes. Existing issues carry prior discussion, while changes to product scope begin in a new issue. Coding-agent rules are in [AGENTS.md](AGENTS.md).
 
 ## Development setup
 
@@ -30,11 +30,11 @@ Run `just e2e` for rendered behavior or complete user flows. It builds the produ
 
 Run `just points` after changes to points or roster legality. The result is a ratchet. A lower match rate is a regression unless the set of generated checks changed and the new baseline is explained.
 
-Three browser-test details matter:
+Browser tests account for three repository behaviours:
 
-- Battle pages keep a live connection open, so they never reach network idle. Wait for a page element instead.
-- Find unit cards with `data-unit` and roster rows with `data-roster`. CSS changes the displayed case, so visible-text matching is unreliable.
-- Scope an assertion to the row or card it is about. `getByText` matches a substring case-insensitively, so a word on a row also matches the menu item that changes it, and the assertion can pass before the change lands.
+- Battle pages keep a live connection open and never reach network idle; page elements provide the readiness signal.
+- Unit cards expose `data-unit` and roster rows expose `data-roster`. CSS changes displayed case, making visible-text matching unreliable.
+- Assertions are scoped to their row or card. `getByText` matches substrings case-insensitively, so an unscoped word can also match the menu item that changes it and pass before the change lands.
 
 ## Layout
 
@@ -42,28 +42,29 @@ Three browser-test details matter:
 - `src/db` contains the Drizzle repository, Postgres schema, and database connection.
 - `src/server` contains application setup, authentication, server functions, catalogue loading, and realtime publishing.
 - `src/client` contains React components, hooks, and query definitions.
-- `src/routes` contains TanStack Router route files. Keep routes thin.
+- `src/routes` contains thin TanStack Router route files.
 - `catalogue` records community source locations. Snapshot manifests outside Git pin their revisions and checksums; the repository contains no game data.
 - `e2e` contains Playwright coverage against the production container.
 
 ## Conventions
 
-- Implement each decision once, in the lowest layer that can own it. `validate` decides whether a command is legal. `violations` decides whether a roster is legal.
-- Keep derived battle state out of the database. Fold scores, rounds, phases, and missions from the command log and attached lists.
-- Treat unknown catalogue rules as unknown. Report them instead of guessing.
-- Generate schema migrations with `just db-generate`. Do not edit an applied migration.
-- Update `.env.example`, `docker-compose.yml`, and [the deployment guide](docs/deployment.md) together when an operator-facing setting changes.
-- Inspect rendered changes in a browser at desktop and phone widths.
-- Add tests for new behavior and negative paths.
+- Each decision has one implementation in the lowest layer that can own it. `validate` decides whether a command is legal, while `violations` decides whether a roster is legal.
+- Derived battle state stays out of the database. Scores, rounds, phases, and missions fold from the command log and attached lists.
+- Unknown catalogue rules remain unknown and are reported rather than guessed.
+- `just db-generate` creates schema migrations, and an applied migration is immutable.
+- An operator-facing setting appears together in `.env.example`, `docker-compose.yml`, and [the deployment guide](docs/deployment.md).
+- Reference documentation describes current behavior in the present tense. Imperative wording is reserved for procedures, checklists, and required contributor actions.
+- Rendered changes are inspected at desktop and phone widths.
+- New behavior and negative paths have test coverage.
 
 ## Pull requests
 
-Use a conventional commit title and the repository pull request template. Branches in this repository receive a disposable preview linked from the pull request. See [Pull request previews](docs/development/pr-previews.md) for its lifecycle.
+Pull requests use a conventional commit title and the repository template. Branches in this repository receive a disposable preview linked from the pull request. [Pull request previews](docs/development/pr-previews.md) describes its lifecycle.
 
-Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+Vulnerability reports follow the private process in [SECURITY.md](SECURITY.md).
 
 ## Release notes
 
-Run `pnpm changeset` for changes to released application behavior. Use the package name from `package.json` exactly (`praetorium.gg`), choose `minor` for new capabilities and `patch` for fixes, then write one imperative, user-visible sentence. Documentation, tests, refactors, and tooling-only changes do not need a changeset.
+Changes to released application behavior carry a `pnpm changeset` entry for the exact package name from `package.json` (`praetorium.gg`). New capabilities use `minor`, fixes use `patch`, and the note is one imperative, user-visible sentence. Documentation, tests, refactors, and tooling-only changes need no changeset.
 
 When a changeset reaches `main`, CI updates `package.json` and `CHANGELOG.md`, then creates the matching tag and GitHub Release.

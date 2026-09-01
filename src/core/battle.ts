@@ -481,7 +481,7 @@ export function borrowedDispositionError(
   if (!isKotcLimit(limit)) return 'Only a King of the Colosseum roster may borrow another detachment’s Force Disposition.'
   if (!plays(picked, 'kotc-borrowed-disposition')) return 'This roster is not playing the borrowed disposition optional rule.'
   if (!own || own.points === null || borrowed.points === null)
-    return 'This catalogue does not price one of these detachments, so the borrowed disposition cannot be paid for.'
+    return 'One of these detachments has no points value, so the borrowed disposition cannot be paid for.'
   const spent = own.points + borrowed.points
   return spent > BORROWED_DISPOSITION_BUDGET
     ? `This combination costs ${spent} DP; the borrowed disposition rule allows ${BORROWED_DISPOSITION_BUDGET} DP.`

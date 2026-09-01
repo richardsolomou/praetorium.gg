@@ -145,11 +145,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
   }
 
   if (!rules) {
-    return (
-      <p className="text-sm text-dim">
-        No stratagem or mission data on this instance. Run <span className="readout">pnpm catalogue:sync</span> and reload.
-      </p>
-    )
+    return <p className="text-sm text-dim">Mission and stratagem data is unavailable right now. Try again shortly.</p>
   }
 
   return (

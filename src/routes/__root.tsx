@@ -45,7 +45,7 @@ import { POSTHOG_BROWSER_OPTIONS, POSTHOG_INGEST_PATH } from '../posthog'
 import appCss from '../styles.css?url'
 
 const TITLE = 'Praetorium'
-const DESCRIPTION = 'Track a Warhammer 40,000 game with your opponent, live on both phones.'
+const DESCRIPTION = 'Build Warhammer 40,000 armies and track your games from setup to final score.'
 const posthog = postHogEnvironment({
   projectToken: import.meta.env.VITE_POSTHOG_PROJECT_TOKEN,
   host: import.meta.env.VITE_POSTHOG_HOST,
@@ -59,7 +59,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       // Matches `--color-void`; the browser paints this before the stylesheet lands.
       { name: 'theme-color', content: '#0b0c0e' },
-      { title: `${TITLE} — live Warhammer 40,000 battle tracking` },
+      { title: `${TITLE} — Warhammer 40,000 army builder and battle tracker` },
       { name: 'description', content: DESCRIPTION },
       // Battle links get pasted into chats, so they need a real card.
       { property: 'og:title', content: TITLE },

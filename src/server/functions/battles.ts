@@ -54,7 +54,7 @@ export const myBattles = createServerFn({ method: 'GET' })
   )
 
 /**
- * The battles anyone may watch, newest activity first.
+ * The battles anyone may watch, most recently started first.
  *
  * Signed out as well as signed in: this is what the home page shows a visitor who
  * has never played, so it must answer without an account. The viewer, when there

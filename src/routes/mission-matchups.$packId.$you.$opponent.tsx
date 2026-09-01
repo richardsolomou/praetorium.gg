@@ -99,7 +99,7 @@ function MissionMatchupPage() {
               headingLevel={2}
               eyebrow="Terrain layouts"
               title="No layouts available"
-              explanation="The current synced source does not associate terrain geometry with this matchup."
+              explanation="No terrain layout is available for this matchup."
               icon={MapPinned}
             />
           )}

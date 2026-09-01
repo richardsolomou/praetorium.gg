@@ -116,7 +116,7 @@ function RosterLibrary() {
     visibility: roster.visibility,
   })
 
-  if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to build a list and keep it between battles." />
+  if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to build and save army lists." />
 
   return (
     <main className="w-full">

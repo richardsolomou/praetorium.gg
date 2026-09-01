@@ -344,8 +344,8 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center border border-edge bg-sunken p-8 text-center">
         <div>
-          <p className="eyebrow">Catalogue unavailable</p>
-          <p className="mt-2 text-sm text-dim">Catalogue data is syncing. Try this page again shortly.</p>
+          <p className="eyebrow">Army data unavailable</p>
+          <p className="mt-2 text-sm text-dim">Army data is still loading. Try this page again shortly.</p>
         </div>
       </div>
     )
@@ -838,7 +838,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         ) : null}
         {priced?.unhandled.length ? (
           <div className="mt-2 border border-discarded/40 bg-discarded/5 p-2.5 text-xs text-discarded">
-            <p className="font-semibold uppercase">Could not validate every catalogue rule</p>
+            <p className="font-semibold uppercase">Could not check every rule</p>
             <ul className="mt-1 list-inside list-disc">
               {priced.unhandled.slice(0, 8).map((message) => (
                 <li key={message}>{message}</li>

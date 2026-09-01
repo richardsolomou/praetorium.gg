@@ -177,7 +177,7 @@ export function CreateBattle() {
             <>
               <DialogHeader>
                 <DialogTitle className="text-xl uppercase">Start a casual battle</DialogTitle>
-                <DialogDescription>Choose who is playing. A practice opponent needs no friend and no second device.</DialogDescription>
+                <DialogDescription>Choose who is playing. A practice opponent lets you play on your own.</DialogDescription>
               </DialogHeader>
               <div>
                 <Choice
@@ -222,7 +222,9 @@ export function CreateBattle() {
                   }}
                 />
               ) : (
-                <p className="border border-edge bg-sunken p-3 text-sm text-dim">This instance seats nobody you can play yet.</p>
+                <p className="border border-edge bg-sunken p-3 text-sm text-dim">
+                  No opponents are available yet. Add a friend, then try again.
+                </p>
               )}
               {opponents.length ? <SeatMatchup seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, opponents)} /> : null}
               {create.error || opponentQuery.error ? (

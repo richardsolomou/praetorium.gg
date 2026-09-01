@@ -271,8 +271,8 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
               </SetupPanel>
               {isKotcLimit(view.settings.limit) ? (
                 <SetupNote>
-                  The synced rules source does not yet provide the KOTC 2.0 battlefield. Use the prototype pack for setup; Praetorium will
-                  not substitute the older 9-inch deployment.
+                  The KOTC 2.0 battlefield is not available yet. Use the prototype pack for setup; Praetorium will not substitute the older
+                  9-inch deployment.
                 </SetupNote>
               ) : null}
             </>

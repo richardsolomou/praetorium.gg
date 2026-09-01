@@ -76,9 +76,7 @@ function Battles() {
             <Swords className="size-6" aria-hidden />
           </span>
           <h2 className="mt-4 text-xl">No battles yet.</h2>
-          <p className="mt-2 max-w-md text-sm text-dim">
-            Practise against a practice opponent, or add friends and open a shared game. Setup keeps every player on the same step.
-          </p>
+          <p className="mt-2 max-w-md text-sm text-dim">Practise on your own, or add a friend and start a game together.</p>
           <div className="mt-5">
             <CreateBattle />
           </div>
@@ -89,7 +87,7 @@ function Battles() {
           <AlertDialogHeader>
             <AlertDialogTitle className="uppercase">Delete battle?</AlertDialogTitle>
             <AlertDialogDescription className="text-dim">
-              The battle and its full command history will be permanently deleted.
+              This permanently deletes the battle, including its scores and history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="rounded-none border-edge bg-sunken">
