@@ -44,6 +44,18 @@ test('the home page fits a phone at both signed-out and signed-in widths', async
   await page.goto('/')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
 
+  const featuredBattle = page.getByRole('link', { name: /Watch Preview Player/ })
+  for (const [first, second] of [
+    ['Preview Player', 'Preview Ally'],
+    ['Preview Opponent', 'Preview Rival'],
+  ]) {
+    const firstName = featuredBattle.getByText(first, { exact: true })
+    const secondName = featuredBattle.getByText(second, { exact: true })
+    await expect(firstName).toBeVisible()
+    await expect(secondName).toBeVisible()
+    expect((await secondName.boundingBox())!.y).toBeGreaterThan((await firstName.boundingBox())!.y)
+  }
+
   await signUp(page, uniqueName('Narrow'))
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
