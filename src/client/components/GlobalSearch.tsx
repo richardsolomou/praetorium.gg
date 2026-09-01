@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { ChevronRight, Search } from 'lucide-react'
 import posthog from 'posthog-js'
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react'
@@ -22,6 +23,7 @@ type GlobalSearchContextValue = {
 const GlobalSearchContext = createContext<GlobalSearchContextValue | null>(null)
 
 export function GlobalSearchProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [shortcutModifier, setShortcutModifier] = useState('Ctrl')
@@ -43,11 +45,11 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const go = (result: GlobalSearchResult) => {
+  const go = async (result: GlobalSearchResult) => {
     posthog.capture('global_search_result_opened', { group: result.group, result_count: results.length, fuzzy: Boolean(result.fuzzy) })
     setOpen(false)
     setQuery('')
-    window.location.assign(result.href)
+    await navigate({ href: result.href })
   }
 
   return (
@@ -80,7 +82,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
                     <CommandItem
                       key={result.id}
                       value={`${result.label} ${result.detail}`}
-                      onSelect={() => go(result)}
+                      onSelect={() => void go(result)}
                       className="border-l-2 border-transparent data-[selected=true]:border-parchment data-[selected=true]:bg-parchment/15 data-[selected=true]:text-bone data-[selected=true]:[&_.result-detail]:text-dim"
                     >
                       <ChevronRight className="size-4 opacity-0 group-data-[selected=true]/command-item:opacity-100" aria-hidden />

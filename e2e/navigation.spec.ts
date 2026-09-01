@@ -47,6 +47,22 @@ test('primary navigation collapses below 815 pixels', async ({ page }) => {
 })
 
 test('the native application has stable route-aware phone and tablet navigation', async ({ browser }) => {
+  const loadingContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  await loadingContext.addInitScript({
+    content: `window.ReactNativeWebView = { postMessage: () => {} };
+${NATIVE_BRIDGE_SCRIPT}`,
+  })
+  const loadingPage = await loadingContext.newPage()
+  await loadingPage.route('**/*', (route) => (route.request().resourceType() === 'script' ? route.abort() : route.continue()))
+  await loadingPage.goto('/factions/necrons/datasheets/overlord')
+  await expect(loadingPage.locator('[data-web-app-chrome]')).toBeHidden()
+  await expect(loadingPage.locator('[data-native-app-header]')).toBeVisible()
+  await expect(loadingPage.locator('[data-native-app-tabs]')).toBeVisible()
+  expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await loadingPage.setViewportSize({ width: 1024, height: 768 })
+  expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(1024)
+  await loadingContext.close()
+
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
@@ -91,6 +107,25 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await expect(page).toHaveURL('/factions/necrons/datasheets')
   expect(await page.evaluate(() => history.state.__TSR_index)).toBe(0)
 
+  await page.goto('/support')
+  await nativeHeader.getByRole('button', { name: 'Search Praetorium' }).click()
+  await page.getByPlaceholder('Search everything…').fill('Overlord')
+  await page
+    .getByRole('option', { name: /Overlord/ })
+    .first()
+    .click()
+  await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
+  await nativeHeader.getByRole('button', { name: 'Back to datasheets' }).click()
+  await expect(page).toHaveURL('/support')
+
+  await page.goto('/factions/necrons/datasheets/overlord')
+  expect(await page.evaluate(() => history.state.__TSR_index)).toBe(0)
+  await page.evaluate(() => {
+    if (window.PraetoriumNative?.history) window.PraetoriumNative.history.canGoBack = true
+  })
+  await nativeHeader.getByRole('button', { name: 'Back to datasheets' }).click()
+  await expect(page).toHaveURL('/support')
+
   await sections.getByRole('link', { name: 'Rosters' }).click()
   await nativeHeader.getByRole('button', { name: 'Back to home' }).click()
   await expect(page).toHaveURL('/')
@@ -105,7 +140,8 @@ ${NATIVE_BRIDGE_SCRIPT}`,
 })
 
 test('a signed-in player cannot return to the sign-in form', async ({ page }) => {
-  await signUp(page, 'No stale sign in')
+  const name = 'No stale sign in'
+  const credentials = await signUp(page, name)
 
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
@@ -114,6 +150,18 @@ test('a signed-in player cannot return to the sign-in form', async ({ page }) =>
   await page.goto('/sign-in')
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
   await expect(page).not.toHaveURL(/\/sign-in/)
+
+  await page.getByRole('button', { name: `Account menu for ${name}` }).click()
+  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await page.goto('/support')
+  await page.goto('/sign-in?next=%2Ffactions')
+  await page.getByLabel('Email').fill(credentials.email)
+  await page.getByLabel('Password').fill(credentials.password)
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page).toHaveURL('/factions')
+  await page.goBack()
+  await expect(page).toHaveURL('/support')
+  await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
 })
 
 test('public reference data renders without client JavaScript', async ({ browser }) => {

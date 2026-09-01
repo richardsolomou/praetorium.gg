@@ -474,16 +474,18 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     editor.current.edit.join(index, targetKey)
     posthog.capture('roster_attachment_updated', { attached: targetKey !== undefined })
   }, [])
-  const selectUnit = useCallback(
-    (index: number) => {
-      setPreview(null)
-      setSelected(index)
-      setShowing('loadout')
-      const selectedKey = picks[index]?.key
-      if (selectedKey !== undefined) updateLoadoutHistory({ workspace: workspacePath, pane: 'loadout', selectedKey })
-    },
-    [picks, updateLoadoutHistory, workspacePath],
-  )
+  const selection = useRef({ picks, updateLoadoutHistory, workspacePath })
+  useLayoutEffect(() => {
+    selection.current = { picks, updateLoadoutHistory, workspacePath }
+  }, [picks, updateLoadoutHistory, workspacePath])
+  const selectUnit = useCallback((index: number) => {
+    setPreview(null)
+    setSelected(index)
+    setShowing('loadout')
+    const { picks: currentPicks, updateLoadoutHistory: updateHistory, workspacePath: currentWorkspace } = selection.current
+    const selectedKey = currentPicks[index]?.key
+    if (selectedKey !== undefined) updateHistory({ workspace: currentWorkspace, pane: 'loadout', selectedKey })
+  }, [])
   const setUnitOwned = useCallback(
     (entryId: string, nextOwned: boolean) => mutateCollection({ entryId, owned: nextOwned }),
     [mutateCollection],

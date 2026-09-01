@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from './nativeActions'
+import { NATIVE_BRIDGE_SCRIPT, nativeHistoryStateScript, parseNativeActionRequest } from './nativeActions'
 
 describe('parseNativeActionRequest', () => {
   it('accepts an internal share link', () => {
@@ -114,6 +114,11 @@ describe('NATIVE_BRIDGE_SCRIPT', () => {
     const executeBridge = new Function('window', 'document', 'Element', 'URL', NATIVE_BRIDGE_SCRIPT)
     executeBridge(window, document, TestElement, URL)
     expect(document.documentElement.dataset.nativeApp).toBe('true')
+    const nativeWindow = window as typeof window & { PraetoriumNative: { history: { canGoBack: boolean } } }
+    expect(nativeWindow.PraetoriumNative.history.canGoBack).toBe(false)
+    // oxlint-disable-next-line typescript/no-implied-eval -- Execute the constant shell update against the injected bridge state.
+    new Function('window', nativeHistoryStateScript(true))(nativeWindow)
+    expect(nativeWindow.PraetoriumNative.history.canGoBack).toBe(true)
 
     const nativeOpen = window.open as unknown as (url: string, target?: string) => null
     expect(nativeOpen('/rosters/abc?print=true', '_blank')).toBeNull()

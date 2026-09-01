@@ -11,14 +11,17 @@ export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfi
  * per call because the suite shares one database across specs.
  */
 export async function signUp(page: Page, name: string) {
+  const email = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${crypto.randomUUID()}@example.test`
+  const password = 'a-long-enough-password'
   await page.goto('/sign-in')
   await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: 'I need an account' }).click()
   await page.getByLabel('Your name').fill(name)
-  await page.getByLabel('Email').fill(`${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${crypto.randomUUID()}@example.test`)
-  await page.getByLabel('Password').fill('a-long-enough-password')
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Create the account' }).click()
   await page.getByRole('button', { name: `Account menu for ${name}` }).waitFor()
+  return { email, password }
 }
 
 export function uniqueName(base: string) {

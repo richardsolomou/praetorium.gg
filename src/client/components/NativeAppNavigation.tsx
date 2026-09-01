@@ -1,7 +1,8 @@
-import { Link, useNavigate, useRouter } from '@tanstack/react-router'
+import { Link, useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router'
 import { BookOpen, ChevronLeft, ScrollText, Swords, Trophy, UsersRound } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { Button } from '@/components/ui/button'
+import { nativeCanGoBack } from '../nativeBridge'
 import { nativeNavigation, type NativeSection } from '../nativeNavigation'
 import { GlobalSearch } from './GlobalSearch'
 
@@ -18,11 +19,11 @@ const TABS: readonly Tab[] = [
 export function NativeAppHeader({ account, path, search }: { account: React.ReactNode; path: string; search: Record<string, unknown> }) {
   const navigate = useNavigate()
   const router = useRouter()
+  const canGoBack = useCanGoBack()
   const navigation = nativeNavigation(path, search)
 
   const goBack = () => {
-    const index = (window.history.state as { __TSR_index?: unknown } | null)?.__TSR_index
-    if (navigation.back?.preferHistory && typeof index === 'number' && index > 0) {
+    if (navigation.back?.preferHistory && (canGoBack || nativeCanGoBack())) {
       router.history.back()
       return
     }

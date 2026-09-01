@@ -33,7 +33,8 @@ export const Route = createFileRoute('/sign-in')({
     if (search.reset === true || search.reset === 'true') result.reset = true
     return result
   },
-  beforeLoad: async ({ context, search }) => {
+  beforeLoad: async ({ context, preload, search }) => {
+    if (preload) return
     const destination = await signedInDestination(context.queryClient, search.next)
     if (destination) throw redirect({ href: destination, replace: true })
   },

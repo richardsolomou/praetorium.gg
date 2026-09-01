@@ -46,7 +46,7 @@ import {
   type AppShellState,
 } from './src/appShellState'
 import { appStateChanged, initialAppLifecycle, WEB_RESUME_SCRIPT } from './src/lifecycle'
-import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest, type NativeActionRequest } from './src/nativeActions'
+import { NATIVE_BRIDGE_SCRIPT, nativeHistoryStateScript, parseNativeActionRequest, type NativeActionRequest } from './src/nativeActions'
 import { applicationNavigationScript, classifyNavigation } from './src/navigation'
 import {
   NATIVE_AUTH_CALLBACK_URL,
@@ -397,6 +397,7 @@ function AppShell() {
   const updateNavigation = useCallback(
     (navigation: WebViewNavigation) => {
       canGoBack.current = navigation.canGoBack
+      webView.current?.injectJavaScript(nativeHistoryStateScript(navigation.canGoBack))
       commitShell(webNavigationChanged(shellRef.current, navigation.url))
     },
     [commitShell],
