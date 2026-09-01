@@ -138,17 +138,29 @@ function BattleSide({
           <span className="block truncate text-xs text-dim">{emptyArmy}</span>
         </>
       ) : (
-        <span className="mt-1 flex flex-col gap-2">
+        <span className="mt-1 block min-w-0">
+          <span className={`flex min-w-0 items-center gap-2 ${side === 'b' ? 'flex-row-reverse' : ''}`}>
+            <span className="flex shrink-0 -space-x-2">
+              {seats.map(({ player }) => (
+                <PlayerAvatar
+                  key={player.id || player.name}
+                  name={player.name}
+                  image={player.image}
+                  className="size-7 border-2 border-panel text-[0.5625rem]"
+                />
+              ))}
+            </span>
+            <span className="min-w-0 truncate font-bold uppercase">{seats.map(({ player }) => player.name).join(' & ')}</span>
+          </span>
           {seats.map(({ player, army, faction, detachments }) => (
-            <span key={player.id || player.name} className={`flex min-w-0 items-center gap-2 ${side === 'b' ? 'flex-row-reverse' : ''}`}>
-              <PlayerAvatar name={player.name} image={player.image} className="size-8 text-[0.625rem]" />
-              <span className="min-w-0">
-                <span className="block truncate font-bold uppercase">{player.name}</span>
-                <span className={`flex min-w-0 items-center gap-1.5 text-xs text-dim ${side === 'b' ? 'justify-end' : ''}`}>
-                  {faction ? <FactionMark id={faction.slug} icon={faction.icon} size="sm" /> : null}
-                  <span className="truncate">{faction?.displayName ?? army ?? 'List not attached'}</span>
-                </span>
-                {detachments.length ? <span className="block truncate text-[0.625rem] text-faint">{detachments.join(' · ')}</span> : null}
+            <span
+              key={player.id || player.name}
+              className={`mt-1 flex min-w-0 items-center gap-1.5 text-xs text-dim ${side === 'b' ? 'justify-end' : ''}`}
+            >
+              {faction ? <FactionMark id={faction.slug} icon={faction.icon} size="sm" /> : null}
+              <span className="truncate">
+                {faction?.displayName ?? army ?? 'List not attached'}
+                {detachments.length ? <span className="text-faint"> · {detachments.join(' · ')}</span> : null}
               </span>
             </span>
           ))}

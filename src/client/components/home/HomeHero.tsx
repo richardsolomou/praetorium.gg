@@ -74,22 +74,34 @@ function HeroBattle({ battle }: { battle: Battle }) {
 }
 
 function HeroSide({ sideSummary, score, side }: { sideSummary?: SummarySide; score: number; side: 'a' | 'b' }) {
+  const seats = sideSummary?.seats ?? []
   return (
     <span className="mt-3 flex items-start justify-between gap-3">
-      <span className="flex min-w-0 flex-col gap-2">
-        {sideSummary?.seats.map(({ player, faction, detachments }) => (
-          <span key={player.id || player.name} className="flex min-w-0 items-center gap-2">
-            <PlayerAvatar name={player.name} image={player.image} className="size-8 text-[0.625rem]" />
-            <span className="min-w-0">
-              <span className="block truncate font-bold uppercase">{player.name}</span>
-              <span className="flex min-w-0 items-center gap-1.5 text-xs text-dim">
-                {faction ? <FactionMark id={faction.slug} icon={faction.icon} size="sm" /> : null}
-                <span className="truncate">{faction?.displayName ?? 'List not attached'}</span>
-              </span>
-              {detachments.length ? <span className="block truncate text-[0.625rem] text-faint">{detachments.join(' · ')}</span> : null}
+      <span className="min-w-0">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="flex shrink-0 -space-x-2">
+            {seats.map(({ player }) => (
+              <PlayerAvatar
+                key={player.id || player.name}
+                name={player.name}
+                image={player.image}
+                className="size-7 border-2 border-sunken text-[0.5625rem]"
+              />
+            ))}
+          </span>
+          <span className="truncate font-bold uppercase">
+            {seats.length ? seats.map(({ player }) => player.name).join(' & ') : 'Unknown'}
+          </span>
+        </span>
+        {seats.map(({ player, army, faction, detachments }) => (
+          <span key={player.id || player.name} className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-dim">
+            {faction ? <FactionMark id={faction.slug} icon={faction.icon} size="sm" /> : null}
+            <span className="truncate">
+              {faction?.displayName ?? army ?? 'List not attached'}
+              {detachments.length ? <span className="text-faint"> · {detachments.join(' · ')}</span> : null}
             </span>
           </span>
-        )) ?? <span className="font-bold uppercase">Unknown</span>}
+        ))}
       </span>
       <span className={`readout shrink-0 text-2xl ${side === 'a' ? 'text-side-a' : 'text-side-b'}`}>{score}</span>
     </span>
