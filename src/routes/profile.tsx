@@ -128,7 +128,7 @@ function ProfileForm({
           <div>
             <p className="eyebrow text-parchment">Your account</p>
             <h1 className="text-3xl">Profile</h1>
-            <p className="mt-1 text-sm text-dim">Choose how your name and picture appear to the people you play with.</p>
+            <p className="mt-1 text-sm text-dim">Choose how your name and picture appear on Praetorium.</p>
           </div>
         </div>
       </section>

@@ -235,7 +235,7 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
         <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-base">Permanently delete your Praetorium account</h2>
-            <p className="mt-1 text-sm text-dim">This removes your rosters, friendships, leagues and every battle you participated in.</p>
+            <p className="mt-1 text-sm text-dim">This removes your rosters, friendships, leagues and every battle you played.</p>
           </div>
           <Button type="button" variant="destructive" disabled={!methods} onClick={() => setDialog('delete-account')}>
             <Trash2 /> Delete account
@@ -285,7 +285,7 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
       {dialog === 'delete-account' ? (
         <AccountDialog
           title="Delete your account"
-          description="This cannot be undone. Shared battles are deleted too, because their command logs cannot remain valid without every participant."
+          description="This cannot be undone. Your rosters, friendships, league entries and every battle you played will be deleted."
           onClose={() => setDialog(undefined)}
         >
           <DeleteAccountForm hasPassword={hasPassword} />

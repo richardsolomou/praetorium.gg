@@ -33,11 +33,11 @@ export function RosterImport() {
       const imported = await importRoster({ data: { file } })
       if (!imported.catalogueId) {
         posthog.capture('roster_import_failed', { reason: 'catalogue_unmatched', input: typeof source === 'string' ? 'text' : 'file' })
-        throw new Error(`Could not place: ${imported.unknown.join(', ') || imported.catalogueName || 'faction'}`)
+        throw new Error(`Could not match: ${imported.unknown.join(', ') || imported.catalogueName || 'faction'}`)
       }
       if (imported.unknown.length) {
         posthog.capture('roster_import_failed', { reason: 'unit_unmatched', input: typeof source === 'string' ? 'text' : 'file' })
-        throw new Error(`Could not place: ${imported.unknown.join(', ')}`)
+        throw new Error(`Could not match: ${imported.unknown.join(', ')}`)
       }
       const { id } = await saveRoster({
         data: {

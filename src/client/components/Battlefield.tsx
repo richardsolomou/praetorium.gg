@@ -99,7 +99,7 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
                 }}
               >
                 {selected ? <Check /> : null}
-                {selected ? 'Selected' : terrain.geometry ? 'Select' : 'Syncing'}
+                {selected ? 'Selected' : terrain.geometry ? 'Select' : 'Loading'}
               </Button>
               {/*
                * The board itself opens the board, the way the mission pack pages do it.
@@ -130,7 +130,7 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
       </div>
       {options.some((option) => !option.terrain.geometry) ? (
         <p role="alert" className="mt-2 text-xs text-destructive">
-          Exact terrain labels and measurements are still syncing. Those layouts cannot be selected yet.
+          Terrain labels and measurements are still loading. Those layouts cannot be selected yet.
         </p>
       ) : null}
       <Dialog open={Boolean(inspected)} onOpenChange={(open) => !open && setInspecting(null)}>

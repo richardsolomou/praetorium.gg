@@ -33,9 +33,7 @@ describe('storeProfileImage', () => {
 
   it('fails clearly when the instance has no object storage configured', async () => {
     configuredObjectStore.mockReturnValue(null)
-    await expect(storeProfileImage('data:image/webp;base64,YXZhdGFy')).rejects.toThrow(
-      'This instance is not set up to store profile pictures.',
-    )
+    await expect(storeProfileImage('data:image/webp;base64,YXZhdGFy')).rejects.toThrow('Profile picture uploads are not available.')
   })
 
   it('uploads under a content-addressed key and returns its public URL', async () => {

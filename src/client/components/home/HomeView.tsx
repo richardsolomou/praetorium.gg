@@ -22,8 +22,8 @@ export type HomeData = {
  * The home page's composition, given its data.
  *
  * One column width and one vertical rhythm the whole way down, and every block
- * below the top band is a rubric heading over its content — the shelves, the
- * and the two visitor sections included. The page had three widths and
+ * below the top band is a rubric heading over its content — the shelves and the
+ * two visitor sections included. The page had three widths and
  * five kinds of box before, which is what made a stack of individually correct
  * sections read as a pile.
  *
@@ -40,7 +40,7 @@ export function HomeView({ me, mine, friends, open, newBattle, more }: HomeData)
     .filter((battle) => battle.status !== 'finished')
     .slice(0, 4)
   const publicGames = sharedGames(open)
-  // A visitor's hero is the liveliest public battle, so the shelf below must not
+  // A visitor's hero is the most recent public battle, so the shelf below must not
   // print it again two inches further down.
   const hero = me ? undefined : publicGames[0]
   // Named once, for the same reason. A friend's battle is usually public too, and
@@ -58,7 +58,7 @@ export function HomeView({ me, mine, friends, open, newBattle, more }: HomeData)
   const introduce = !me || bare
   return (
     <main className="w-full">
-      {me ? <Welcome name={me.name} newBattle={newBattle} /> : <HomeHero live={hero} />}
+      {me ? <Welcome name={me.name} newBattle={newBattle} /> : <HomeHero battle={hero} />}
       <div className="mx-auto w-full max-w-5xl space-y-8 px-3 py-8 sm:px-4">
         {me ? <MyTable battles={going} viewerId={me.id} /> : null}
         <BattleShelf title="Friends' games" battles={[...shownFriends]} />
@@ -140,7 +140,7 @@ function PublicTables({
       <section data-public-empty>
         <p className="rubric border-b border-edge pb-2">Public games</p>
         <p className="mt-2 border border-edge bg-panel p-5 text-sm text-dim">
-          No battles are being played right now. Create an account and open the first one.
+          No public battles yet. Create an account and start the first one.
         </p>
       </section>
     )

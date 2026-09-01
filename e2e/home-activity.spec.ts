@@ -31,6 +31,14 @@ test('keeps practice battles off the home page', async ({ page, browser }) => {
   }
 })
 
+test('links each homepage capability card as one action', async ({ page }) => {
+  await page.goto('/')
+
+  await expect(page.getByRole('link', { name: /Build your army/ })).toHaveAttribute('href', '/rosters')
+  await expect(page.getByRole('link', { name: /Choose a mission/ })).toHaveAttribute('href', '/mission-packs')
+  await expect(page.getByRole('link', { name: /Track the battle/ })).toHaveAttribute('href', '/battles')
+})
+
 test('the home page fits a phone at both signed-out and signed-in widths', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')

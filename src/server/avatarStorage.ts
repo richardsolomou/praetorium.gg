@@ -30,7 +30,7 @@ export async function storeProfileImage(dataUrl: string): Promise<string> {
   if (!match) throw new Error('Choose a JPEG, PNG or WebP profile picture.')
   const [, format, base64] = match as unknown as [string, string, string]
   const store = configuredObjectStore()
-  if (!store) throw new Error('This instance is not set up to store profile pictures.')
+  if (!store) throw new Error('Profile picture uploads are not available.')
   return storeAvatarBytes(store, Buffer.from(base64, 'base64'), EXTENSION[format] as string, `image/${format}`)
 }
 

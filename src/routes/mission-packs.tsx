@@ -35,11 +35,7 @@ function MissionPacks() {
         loading={!data}
         eyebrow="Mission packs"
         title={data ? 'No mission packs available' : 'Loading mission data'}
-        explanation={
-          data
-            ? 'The current verified rules snapshot does not contain a mission pack.'
-            : 'Missions, deployments, and terrain will appear when the rules snapshot is ready.'
-        }
+        explanation={data ? 'No mission packs are available right now.' : 'Missions, deployments and terrain will be available shortly.'}
       />
     </main>
   )

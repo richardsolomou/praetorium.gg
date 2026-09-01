@@ -75,7 +75,7 @@ export function BattleMenu({ finished, canDelete, pending, onFinishEarly, onConc
               onClick={() =>
                 setConfirming({
                   label: 'Delete battle',
-                  description: 'The battle and its full command history will be permanently deleted.',
+                  description: 'This permanently deletes the battle, including its scores and history.',
                   destructive: true,
                   act: onDelete,
                 })

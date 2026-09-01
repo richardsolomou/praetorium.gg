@@ -90,7 +90,7 @@ export function warm(instance: Pick<App, 'catalogue' | 'rules'>): Promise<void> 
       try {
         prepareGlobalSearch(instance.catalogue(), instance.rules())
       } catch (error) {
-        sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'the catalogue could not be loaded' }
+        sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
       }
       resolve()
     })

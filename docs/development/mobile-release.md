@@ -67,7 +67,7 @@ Install the signed builds on physical devices. Open a battle link, roster link, 
 Use this Google Play listing:
 
 - App name: `Praetorium`
-- Short description: `Build army lists and track tabletop battles live with the players at your table.`
+- Short description: `Build Warhammer 40,000 armies and track games from setup to final score.`
 - Category: Tools
 - Privacy policy: `https://praetorium.gg/privacy`
 - Account deletion: `https://praetorium.gg/delete-account`

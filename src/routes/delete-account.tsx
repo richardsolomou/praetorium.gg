@@ -13,7 +13,7 @@ export const Route = createFileRoute('/delete-account')({
 
 function DeleteAccount() {
   return (
-    <LegalPage title="Delete account" updated="31 August 2026">
+    <LegalPage title="Delete account" updated="1 September 2026">
       <LegalSection title="Delete from Praetorium">
         <p>
           Sign in, open Profile, find Account security, and choose Permanently delete account. The confirmation names everything that will
@@ -39,9 +39,8 @@ function DeleteAccount() {
 
       <LegalSection title="What deletion removes">
         <p>
-          Deletion removes your profile, credentials, sessions, rosters, friendships, league participation, and every battle you
-          participated in. A shared battle is removed in full because its append-only command log cannot remain valid without every
-          participant. The action cannot be undone.
+          Deletion removes your profile, credentials, sessions, rosters, friendships, league participation and every battle you played,
+          including shared battles. The action cannot be undone.
         </p>
       </LegalSection>
     </LegalPage>

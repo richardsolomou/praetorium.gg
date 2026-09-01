@@ -2,7 +2,7 @@
   "expo": {
     "name": "Praetorium",
     "slug": "praetorium",
-    "description": "Build Warhammer 40,000 army lists and track tabletop battles live.",
+    "description": "Build Warhammer 40,000 armies and track games from setup to final score.",
     "scheme": "praetorium",
     "version": "1.0.0",
     "orientation": "portrait",

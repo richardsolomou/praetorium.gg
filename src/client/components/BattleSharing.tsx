@@ -18,7 +18,7 @@ const AUDIENCES: ChoiceOption<BattleAudience>[] = [
     detail: 'Your battles appear on the home page. Anyone can watch, and nobody can take a seat or change anything.',
   },
   { value: 'friends', name: 'Friends', detail: 'Only your confirmed friends see your battles listed or can watch one.' },
-  { value: 'private', name: 'Players only', detail: 'Nobody outside the battle sees it, and none of your battles are counted anywhere.' },
+  { value: 'private', name: 'Players only', detail: 'Only the players seated in a battle can find or watch it.' },
 ]
 
 /**
@@ -48,8 +48,8 @@ export function BattleSharing() {
       <div>
         <p className="rubric border-b border-edge pb-2">Who can watch your battles</p>
         <p className="mt-3 text-xs text-dim">
-          A battle takes the strictest answer of everyone in it, so an opponent who keeps their battles private keeps yours together private
-          too. Watching is read-only either way: a spectator never sees a face-down Secret Mission and cannot act.
+          The most private choice at the table applies to everyone. If one player chooses Players only, that battle stays private.
+          Spectators cannot make changes or see a face-down Secret Mission.
         </p>
       </div>
       <Choice

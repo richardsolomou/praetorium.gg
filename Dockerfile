@@ -22,7 +22,7 @@ RUN VITE_POSTHOG_PROJECT_TOKEN=$VITE_POSTHOG_PROJECT_TOKEN VITE_POSTHOG_HOST=$VI
 
 FROM node:24-alpine
 LABEL org.opencontainers.image.title="Praetorium" \
-      org.opencontainers.image.description="Live Warhammer 40,000 battle tracking for two players." \
+      org.opencontainers.image.description="Build Warhammer 40,000 armies and track games from setup to final score." \
       org.opencontainers.image.licenses="AGPL-3.0-only"
 WORKDIR /app
 RUN mkdir -p /data && chown -R node:node /app /data

@@ -13,11 +13,11 @@ export const Route = createFileRoute('/privacy')({
 
 function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="27 August 2026">
+    <LegalPage title="Privacy policy" updated="1 September 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the hosted
-          service at praetorium.gg. It does not cover self-hosted instances, whose data is controlled by whoever operates them.
+          service at praetorium.gg. It does not cover self-hosted installations, whose data is controlled by whoever operates them.
         </p>
         <p>An account is required to keep rosters or play battles, so everything below is about signed-in use.</p>
       </LegalSection>
@@ -31,17 +31,17 @@ function PrivacyPolicy() {
         </p>
         <h3 className="text-[0.8125rem] tracking-[0.04em] text-bone">Your content</h3>
         <p>
-          Saved rosters — their name, tags, detachment and unit picks — battle records (the append-only log of every command made during a
-          game), friendships, datasheets you mark as owned, favourites, and practice opponents you seat.
+          Saved rosters — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
+          and actions recorded during a game, friendships, datasheets you mark as owned, favourites, and practice opponents you seat.
         </p>
         <h3 className="text-[0.8125rem] tracking-[0.04em] text-bone">Technical data</h3>
         <p>Sessions record your IP address and browser user agent. Rate-limiting counters protect sign-in and other sensitive actions.</p>
         <h3 className="text-[0.8125rem] tracking-[0.04em] text-bone">Usage data</h3>
         <p>
-          We measure how the product is used through PostHog: page views and clicks captured automatically, product events such as a roster
-          being created, error reports with stack traces, and session replays. Event properties carry counts, durations and outcome labels —
-          never names, email addresses, list contents, search text or command payloads. Replay records how pages are used rather than what
-          is typed into them: form inputs are masked. Only signed-in visitors get an identified profile.
+          We measure how the product is used through PostHog: pages visited, buttons used, actions such as creating a roster, errors, and
+          session replays. Measurements include counts, durations and outcomes — never names, email addresses, list contents, search text or
+          the details of actions recorded during a battle. Replays show how pages are used, but form inputs are masked. Only signed-in
+          visitors get an identified profile.
         </p>
       </LegalSection>
 
@@ -58,9 +58,14 @@ function PrivacyPolicy() {
         <LegalLinks>
           <li>Players seated in a battle see that battle's record, including every attached roster.</li>
           <li>A roster is unlisted by default: anyone with its link can read it. Make one private and only you can open it.</li>
-          <li>Your name and profile picture are visible to players you battle with and to confirmed friends.</li>
+          <li>Your name, profile picture and profile page are public.</li>
+          <li>
+            You choose whether anyone, friends, or only the seated players can watch your battles. The most private choice made by anyone at
+            the table applies to the whole battle.
+          </li>
+          <li>Public battles may appear on the home page, whether they are live or finished.</li>
         </LegalLinks>
-        <p>There is no public discovery: no feeds, no searchable profiles, no chat.</p>
+        <p>There is no player directory, chat, social feed, or matchmaking.</p>
       </LegalSection>
 
       <LegalSection title="Third parties">
@@ -80,9 +85,9 @@ function PrivacyPolicy() {
       <LegalSection title="Retention and deletion">
         <p>
           Your content is kept while your account exists. Deleting a saved roster or battle removes it. You can permanently delete your
-          account from your profile. This removes your profile, rosters, friendships, league participation and every battle you participated
-          in; a shared battle is removed in full because its append-only command log cannot remain valid without every participant. Session
-          records expire on their own; usage data is kept by our analytics provider under its retention settings. The{' '}
+          account from your profile. This removes your profile, rosters, friendships, league participation and every battle you played,
+          including shared battles. Session records expire on their own; usage data is kept by our analytics provider under its retention
+          settings. The{' '}
           <a href="/delete-account" className="text-info hover:text-parchment">
             account deletion page
           </a>{' '}

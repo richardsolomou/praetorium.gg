@@ -456,7 +456,7 @@ describe('setup', () => {
 
   it('refuses a borrowed disposition the catalogue cannot price', () => {
     expect(borrowedDispositionError(600, ['kotc-borrowed-disposition'], { points: null }, { points: 2 })).toBe(
-      'This catalogue does not price one of these detachments, so the borrowed disposition cannot be paid for.',
+      'One of these detachments has no points value, so the borrowed disposition cannot be paid for.',
     )
   })
 

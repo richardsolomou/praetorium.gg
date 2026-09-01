@@ -2,11 +2,11 @@
 
 ## Reporting a vulnerability
 
-Do not open a public issue for an unpatched vulnerability.
+Unpatched vulnerabilities are reported privately rather than through a public issue.
 
-Use GitHub private vulnerability reporting. If it is unavailable, request a private contact method in a public issue. Do not include vulnerability details.
+GitHub private vulnerability reporting is the primary channel. When it is unavailable, a public issue can request a private contact method without including vulnerability details.
 
-Include the affected version or commit. Include reproduction steps, impact, and known workarounds.
+A useful report includes the affected version or commit, reproduction steps, impact, and any known workarounds.
 
 ## Supported versions
 
@@ -14,7 +14,7 @@ Security fixes target the current `main` branch and [praetorium.gg](https://prae
 
 ## What is worth reporting
 
-Praetorium stores accounts, army lists, and battle history. Report any way to:
+Praetorium stores accounts, army lists, and battle history. Relevant reports include any way to:
 
 - Act as another player.
 - Read a battle without a seat or invitation.
@@ -22,4 +22,4 @@ Praetorium stores accounts, army lists, and battle history. Report any way to:
 - Submit a command that the domain rules reject.
 - Bypass mutation origin checks, session handling, redirect validation, or event-stream authorization.
 
-Preview deployments run unmerged code and are replaced often. State which preview and commit you tested.
+Preview deployments run unmerged code and are replaced often, so preview reports identify the tested preview and commit.
