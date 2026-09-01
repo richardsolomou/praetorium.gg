@@ -75,7 +75,7 @@ function HeroSide({ sideSummary, score, side }: { sideSummary?: SummarySide; sco
   return (
     <span className="mt-3 flex items-start justify-between gap-3">
       <span className="min-w-0">
-        <span className="flex min-w-0 items-center gap-2">
+        <span className="flex min-w-0 items-start gap-2">
           <span className="flex shrink-0 -space-x-2">
             {seats.map(({ player }) => (
               <PlayerAvatar
@@ -86,8 +86,16 @@ function HeroSide({ sideSummary, score, side }: { sideSummary?: SummarySide; sco
               />
             ))}
           </span>
-          <span className="truncate font-bold uppercase">
-            {seats.length ? seats.map(({ player }) => player.name).join(' & ') : 'Unknown'}
+          <span className="min-w-0 font-bold leading-tight uppercase">
+            {seats.length ? (
+              seats.map(({ player }) => (
+                <span key={player.id || player.name} className="block break-words">
+                  {player.name}
+                </span>
+              ))
+            ) : (
+              <span className="block break-words">Unknown</span>
+            )}
           </span>
         </span>
         {seats.map(({ player, army, faction, detachments }) => (
