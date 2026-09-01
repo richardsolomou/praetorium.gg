@@ -15,12 +15,15 @@ const report = datacardJoinReport(loaded, (catalogueId, entryId) => {
 })
 console.log(`catalogue datasheets without a card in their faction's file: ${report.catalogueOnly.length}`)
 console.log(`cards without a catalogue datasheet in their book: ${report.datacardsOnly.length}`)
+console.log(`datasheet joins using an exact reference: ${report.exact}`)
+console.log(`datasheet joins using a name fallback: ${report.fallbacks.length}`)
 const rules = loadRules(
   path.join(directory, 'rules'),
   path.join(directory, 'battlemaster'),
   path.join(directory, 'faction-icons'),
   path.join(directory, 'datacards', '11th', 'gdc'),
   loaded.datacards,
+  loaded.sourceReferences,
 )
 if (!rules) throw new Error('rules data is unavailable')
 const datacardsOnlyDetachments = new Set(
@@ -52,9 +55,12 @@ console.log(`Game Datacards detachments without 40kdc semantics: ${datacardsOnly
 console.log(`Game Datacards detachments with invalid construction numbers: ${invalidDetachments.length}`)
 console.log(`Game Datacards enhancements with invalid points: ${invalidEnhancements.length}`)
 console.log(`Game Datacards enhancements without 40kdc eligibility semantics: ${enhancementsWithoutSemantics.length}`)
+console.log(`rules joins using an exact reference: ${rules.sourceJoinExacts.length}`)
+console.log(`rules joins using a name fallback: ${rules.sourceJoinFallbacks.length}`)
 if (process.argv.includes('--details')) {
   for (const entry of report.catalogueOnly) console.log(`  catalogue only | ${entry.faction} | ${entry.name}`)
   for (const entry of report.datacardsOnly) console.log(`  cards only     | ${entry.faction} | ${entry.name}`)
+  for (const entry of report.fallbacks) console.log(`  name fallback  | ${entry.faction} | ${entry.name}`)
   for (const issue of rulesOnlyDetachments) console.log(`  rules only     | ${issue.faction} | ${issue.detachment}`)
   for (const issue of rulesOnlyEnhancements) {
     console.log(`  rules only     | ${issue.faction} | ${issue.detachment} | ${issue.enhancement}`)
@@ -66,6 +72,9 @@ if (process.argv.includes('--details')) {
   }
   for (const issue of enhancementsWithoutSemantics) {
     console.log(`  semantics gap  | ${issue.faction} | ${issue.detachment} | ${issue.enhancement}`)
+  }
+  for (const fallback of rules.sourceJoinFallbacks) {
+    console.log(`  name fallback  | ${fallback.faction} | ${fallback.detachment}${fallback.name ? ` | ${fallback.name}` : ''}`)
   }
 }
 

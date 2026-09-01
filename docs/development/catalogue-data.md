@@ -20,11 +20,11 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 
 Server catalogue code is split by responsibility:
 
-- `catalogueIndex.ts` loads files and indexes books, detachments, and datasheet membership.
+- `catalogueIndex.ts` loads files and indexes books, detachments, datasheet membership, and 40kdc's namespaced source references.
 - `catalogue.ts` projects a datasheet for display and applies contextual profile modifiers. `datasheetRecordIn` is that projection made once per snapshot against the default selection — the reference page, the picker, the search index and roster pricing all read it — and a roster's own view is projected from the same code with the list as context.
 - `cataloguePicker.ts` groups, prices, and limits picker results. `datasheetSearch.ts` matches the datasheet record's fields for the picker and global search; an enhancement is a choice, not an ability, so it is not indexed as one.
 - `catalogueDescriptions.ts` resolves detachment and enhancement text without guessing between conflicting matches.
-- `datacards.ts` reads Game Datacards once per snapshot — the catalogue loader hands the result to the rules loader — and `datasheetJoin.ts` is the one join from a catalogue datasheet to its card: the book's own file first, then any file where every file agrees, comparing names with apostrophes folded and a trailing plural forgiven. `just points` reports every name the join cannot carry across.
+- `datacards.ts` reads Game Datacards once per snapshot — the catalogue loader hands the result to the rules loader — and `datasheetJoin.ts` is the one join from a catalogue datasheet to its card. It follows an exact 40kdc BSData↔Game Datacards relationship first. Missing or unresolved references fall back to the book's own file by name, then any file where every copy agrees, with apostrophes folded and a trailing plural forgiven. `just points` reports exact joins, every fallback, and every name the join cannot carry across.
 - `sync.ts` owns downloads and atomic replacement. It does not interpret game data.
 
 The rules dataset is split the same way. `rules.ts` only assembles `LoadedRules`; `rulesSource.ts` reads the files and keys what it finds, and `rulesCards.ts`, `rulesFactions.ts` and `rulesTerrain.ts` each own one part of it. An absent source leaves its part empty rather than guessed.
@@ -119,6 +119,8 @@ Core catalogue code is split by question:
 `just points` builds units with the same `buildUnit` function as the app and compares them with the points reference. Definitions and points can publish at different times, so CI pins one verified snapshot and compares the pull request's match rate with its base revision. It also enforces a lower floor on the number of evaluated entries. Treat the base run against that snapshot as the real baseline; the head may improve it but may not lower it.
 
 Legends reference entries are compared only with catalogue entries explicitly marked as Legends. Active and Legends datasheets with the same name are distinct entries. A lower match rate is a regression unless the generated check set changed and the new baseline is explained.
+
+The MFM YAML does not expose the source IDs carried by 40kdc's `mfm` references, so the points ratchet reports its accepted unit-name joins as fallbacks. Do not treat a 40kdc MFM reference as usable until the paired points record exposes that identity.
 
 Inspect the generated selection before changing evaluator logic. A mismatch can come from the evaluator, the catalogue, or the check harness.
 
