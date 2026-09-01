@@ -1,14 +1,12 @@
-name: Mobile canary
+name: Mobile canary delivery
 
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
-    paths: [mobile/**, package.json, pnpm-lock.yaml, pnpm-workspace.yaml]
+  push:
+    tags: [mobile-canary-*]
 
 concurrency:
-  group: mobile-canary
-  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+  cancel_in_progress: false
 
 jobs:
   fingerprint:
@@ -23,14 +21,6 @@ jobs:
       fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
       profile: canary-android
       wait_for_in_progress: true
-  get_ios_build:
-    name: Find matching iOS canary
-    needs: [fingerprint]
-    type: get-build
-    params:
-      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
-      profile: canary-ios
-      wait_for_in_progress: true
   build_android:
     name: Build Android canary
     needs: [get_android_build]
@@ -41,8 +31,6 @@ jobs:
       profile: canary-android
   build_ios:
     name: Build iOS canary
-    needs: [get_ios_build]
-    if: ${{ !needs.get_ios_build.outputs.build_id }}
     type: build
     params:
       platform: ios
@@ -50,7 +38,7 @@ jobs:
   submit_ios:
     name: Send iOS canary to TestFlight
     needs: [build_ios]
-    type: submit
+    type: testflight
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
       profile: canary
@@ -65,10 +53,18 @@ jobs:
       platform: android
   update_ios:
     name: Update iOS canary
-    needs: [get_ios_build]
-    if: ${{ needs.get_ios_build.outputs.build_id }}
+    needs: [submit_ios]
     type: update
     environment: preview
     params:
       channel: canary
       platform: ios
+  complete:
+    name: Delivery complete ${{ github.ref_name }}
+    after: [build_android, update_android, update_ios]
+    environment: preview
+    steps:
+      - name: Verify delivery
+        run: |
+          test "${{ after.build_android.status }}" = success || test "${{ after.update_android.status }}" = success
+          test "${{ after.update_ios.status }}" = success

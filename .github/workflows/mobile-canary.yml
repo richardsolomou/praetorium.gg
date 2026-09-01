@@ -1,0 +1,65 @@
+name: Mobile canary
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths: [mobile/**, package.json, pnpm-lock.yaml, pnpm-workspace.yaml]
+
+concurrency:
+  group: mobile-canary
+  queue: max
+
+permissions:
+  contents: write
+  statuses: read
+
+jobs:
+  dispatch:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DELIVERY_PR: ${{ github.event.pull_request.number }}
+      DELIVERY_SHA: ${{ github.event.pull_request.head.sha }}
+      DELIVERY_TAG: mobile-canary-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Finish interrupted canary deliveries
+        run: sh scripts/finish-mobile-deliveries.sh "$GITHUB_REPOSITORY" mobile-canary- "Mobile canary delivery"
+      - name: Check canary revision
+        id: revision
+        run: |
+          latest_sha=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$DELIVERY_PR" --jq .head.sha)
+          commit_message=$(gh api "repos/$GITHUB_REPOSITORY/commits/$DELIVERY_SHA" --jq .commit.message)
+          if test "$latest_sha" != "$DELIVERY_SHA"; then
+            echo "Skipping superseded revision $DELIVERY_SHA."
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          elif printf '%s' "$commit_message" | grep -Eq '\[(eas skip|skip eas|no eas)\]'; then
+            echo "Skipping EAS delivery requested by $DELIVERY_SHA."
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Start canary delivery
+        if: steps.revision.outputs.current == 'true'
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$DELIVERY_TAG" -f sha="$DELIVERY_SHA"
+      - name: Wait for canary delivery
+        id: delivery
+        if: steps.revision.outputs.current == 'true'
+        run: |
+          if sh scripts/wait-for-commit-status.sh "$GITHUB_REPOSITORY" "$DELIVERY_SHA" "Mobile canary delivery / Delivery complete $DELIVERY_TAG"; then
+            echo "terminal=true" >> "$GITHUB_OUTPUT"
+          else
+            status=$?
+            if test "$status" -eq 2; then
+              echo "terminal=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "terminal=true" >> "$GITHUB_OUTPUT"
+            fi
+            exit "$status"
+          fi
+      - name: Remove delivery tag
+        if: ${{ !cancelled() && steps.delivery.outputs.terminal == 'true' }}
+        run: gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$DELIVERY_TAG" || true

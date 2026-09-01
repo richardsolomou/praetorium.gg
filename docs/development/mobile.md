@@ -39,7 +39,7 @@ Store builds use `mobile/eas.json`. Apple metadata lives in `mobile/store.config
 
 The shell receives over-the-air JavaScript updates through EAS Update. The public application uses the `stable` channel and pull-request builds use one shared `canary` channel. Canary installations always receive the latest compatible pull-request update. Each update targets the native fingerprint that produced it, so an incompatible binary cannot receive it.
 
-Checked-in EAS workflows fingerprint each platform before delivery. A pull request that changes the mobile project or its root workspace inputs updates a compatible canary build or creates a new iOS TestFlight build and installable Android APK. A merge to `main` updates compatible stable installations or creates new store binaries. The iOS binary is uploaded to App Store Connect automatically. Android store upload stays disabled until the Play service account and production App Links identity pass the release gate.
+Checked-in GitHub workflows queue deliveries through temporary tags, and checked-in EAS workflows fingerprint Android before delivery. Each delivery finishes before the next change starts, including store submission and over-the-air publishing. A pull request that changes the mobile project or its root workspace inputs updates a compatible Android canary or creates an installable Android APK. Every canary and stable delivery creates a new iOS build, uploads it to TestFlight, and publishes the same revision over the canary or stable channel for compatible installed builds. A merge to `main` delivers the stable channel. Android store upload stays disabled until the Play service account and production App Links identity pass the release gate.
 
 ## Check it
 
