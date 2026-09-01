@@ -19,6 +19,29 @@ import {
 } from './account'
 import { postgresPort } from './stackEnv'
 
+test('native battle controls leave the application tabs reachable', async ({ page }) => {
+  await signUp(page, uniqueName('Native controls'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Native battle roster' })
+  await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await startBattle(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.evaluate(() => {
+    document.documentElement.dataset.nativeApp = 'true'
+  })
+
+  const turnControl = page.locator('[data-turn-control]')
+  const applicationTabs = page.getByRole('navigation', { name: 'Application sections' })
+  await expect(turnControl).toBeVisible()
+  await expect(applicationTabs).toBeVisible()
+  const controlBox = await turnControl.boundingBox()
+  const tabsBox = await applicationTabs.boundingBox()
+  expect(controlBox && tabsBox).toBeTruthy()
+  expect(controlBox!.y + controlBox!.height).toBeLessThanOrEqual(tabsBox!.y)
+  await page.screenshot({ path: 'test-results/native-battle-controls-phone.png', fullPage: true })
+})
+
 test('a running battle restores mission prompts when its tactical prep is missing', async ({ page }) => {
   await signUp(page, uniqueName('Repair'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Repair roster' })

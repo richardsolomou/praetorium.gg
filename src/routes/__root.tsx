@@ -36,8 +36,9 @@ import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { useEffect, useRef, useState } from 'react'
 import { authClient } from '../client/authClient'
-import { GlobalSearch } from '../client/components/GlobalSearch'
+import { GlobalSearch, GlobalSearchProvider } from '../client/components/GlobalSearch'
 import { ImpersonationBanner } from '../client/components/ImpersonationBanner'
+import { NativeAppHeader, NativeAppTabs } from '../client/components/NativeAppNavigation'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { PageState } from '../client/components/PageState'
 import { meQuery } from '../client/queries'
@@ -93,7 +94,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   ),
 })
 
-function Account() {
+function Account({ native = false }: { native?: boolean }) {
   const { data: me } = useQuery(meQuery())
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -104,8 +105,8 @@ function Account() {
         render={
           <Button
             variant="ghost"
-            size="icon-sm"
-            className="shrink-0 text-dim hover:bg-raised hover:text-info"
+            size={native ? 'icon' : 'icon-sm'}
+            className={`${native ? 'size-12' : ''} shrink-0 text-dim hover:bg-raised hover:text-info`}
             aria-label={me ? `Account menu for ${me.name}` : 'Account menu'}
           />
         }
@@ -265,10 +266,11 @@ function PrimaryNavigation({ path }: { path: string }) {
 }
 
 function RootComponent() {
-  const path = useLocation({ select: (location) => location.pathname })
+  const location = useLocation()
+  const path = location.pathname
   const immersive = /^\/rosters\/(?:new|import|[^/]+(?:\/edit)?)$/.test(path)
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
@@ -276,56 +278,64 @@ function RootComponent() {
         <PostHogIntegration environment={posthog} ingestPath={POSTHOG_INGEST_PATH} options={POSTHOG_BROWSER_OPTIONS}>
           <TooltipProvider delay={250} closeDelay={100}>
             {posthog && <PostHogBetterAuthIdentity authClient={authClient} />}
-            {/*
-             * The bar spans the window and the page inside it decides its own width,
-             * because a three-column builder and a sign-in form do not want the same
-             * measure. Nothing here is centred on the page's behalf.
-             */}
-            <div className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
-              <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
-                <div className="flex h-12 items-center gap-2 px-2 sm:px-4 min-[815px]:gap-3 min-[900px]:gap-5">
-                  <Link
-                    to="/"
-                    className="group flex shrink-0 items-center gap-1.5 text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-info sm:text-lg"
-                  >
-                    <img src="/logo.svg" alt="" className="size-7 transition-transform group-hover:rotate-180" />
-                    <span className="min-[815px]:hidden min-[900px]:inline">Praetorium</span>
-                  </Link>
-                  <PrimaryNavigation path={path} />
-                  <GlobalSearch />
-                  <Account />
-                </div>
-              </header>
-              <div className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'flex min-h-0 flex-1 flex-col [&>main]:flex-1'}>
-                <Outlet />
-              </div>
-              <Impersonation />
+            <GlobalSearchProvider>
               {/*
-               * Said plainly and on every page, because the name is drawn from Games
-               * Workshop's setting and nothing about this is theirs or endorsed by them.
-               * The community data has its own attribution, which appears where that
-               * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
+               * The bar spans the window and the page inside it decides its own width,
+               * because a three-column builder and a sign-in form do not want the same
+               * measure. Nothing here is centred on the page's behalf.
                */}
-              {immersive ? null : (
-                <footer className="flex flex-col items-center gap-1.5 border-t border-edge px-4 py-4 text-center text-xs text-faint min-[900px]:flex-row min-[900px]:justify-between">
-                  <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
-                  <p className="space-x-3">
-                    <Link to="/support" className="transition-colors hover:text-bone">
-                      Support
+              <div data-native-app-frame className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
+                <header data-web-app-chrome className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
+                  <div className="flex h-12 items-center gap-2 px-2 sm:px-4 min-[815px]:gap-3 min-[900px]:gap-5">
+                    <Link
+                      to="/"
+                      className="group flex shrink-0 items-center gap-1.5 text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-info sm:text-lg"
+                    >
+                      <img src="/logo.svg" alt="" className="size-7 transition-transform group-hover:rotate-180" />
+                      <span className="min-[815px]:hidden min-[900px]:inline">Praetorium</span>
                     </Link>
-                    <Link to="/privacy" className="transition-colors hover:text-bone">
-                      Privacy policy
-                    </Link>
-                    <Link to="/terms" className="transition-colors hover:text-bone">
-                      Terms of service
-                    </Link>
-                    <Link to="/sources" className="transition-colors hover:text-bone">
-                      Data sources
-                    </Link>
-                  </p>
-                </footer>
-              )}
-            </div>
+                    <PrimaryNavigation path={path} />
+                    <GlobalSearch />
+                    <Account />
+                  </div>
+                </header>
+                <NativeAppHeader path={path} search={location.search} account={<Account native />} />
+                <div
+                  data-native-app-content
+                  data-immersive={immersive || undefined}
+                  className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'flex min-h-0 flex-1 flex-col [&>main]:flex-1'}
+                >
+                  <Outlet />
+                </div>
+                <NativeAppTabs path={path} />
+                <Impersonation />
+                {/*
+                 * Said plainly and on every page, because the name is drawn from Games
+                 * Workshop's setting and nothing about this is theirs or endorsed by them.
+                 * The community data has its own attribution, which appears where that
+                 * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
+                 */}
+                {immersive ? null : (
+                  <footer className="flex flex-col items-center gap-1.5 border-t border-edge px-4 py-4 text-center text-xs text-faint min-[900px]:flex-row min-[900px]:justify-between">
+                    <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
+                    <p className="space-x-3">
+                      <Link to="/support" className="transition-colors hover:text-bone">
+                        Support
+                      </Link>
+                      <Link to="/privacy" className="transition-colors hover:text-bone">
+                        Privacy policy
+                      </Link>
+                      <Link to="/terms" className="transition-colors hover:text-bone">
+                        Terms of service
+                      </Link>
+                      <Link to="/sources" className="transition-colors hover:text-bone">
+                        Data sources
+                      </Link>
+                    </p>
+                  </footer>
+                )}
+              </div>
+            </GlobalSearchProvider>
           </TooltipProvider>
         </PostHogIntegration>
         <Scripts />

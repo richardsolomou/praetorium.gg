@@ -10,6 +10,14 @@ Useful status copy explains what is happening and what the player can do next. F
 
 Free and open source is prominent in public documentation but secondary to the player benefit in product marketing. Contributor documentation, operator guidance, legal disclosures, data attribution, and actionable support instructions retain the technical detail their audiences need. Sentences are short and direct, without slogans about one record, one log, every device, or a single source of truth.
 
+## Native application layout
+
+Feature screens stay shared between the website and native applications. The native shell replaces the website header with a fixed top bar and section tabs. Phones use bottom tabs. Layouts that are at least 1024 pixels wide use a left rail.
+
+The top bar keeps the Back action in a fixed location. A detail screen returns to the previous application route. A direct link without application history returns to its mapped parent route. A section root returns to the home page.
+
+Compact roster panes use browser history. A back gesture or Android system Back action dismisses the top pane before it leaves the roster. A datasheet opened from the unit picker returns to that picker. A datasheet opened from a roster unit returns to the roster.
+
 ## Roster layout
 
 Headings are compact and uppercase, section counts and points use small chips, and player ownership uses consistent red and blue tints. Attacker deployment zones use theme red, defender zones use theme green, and neutral zones use primary green.

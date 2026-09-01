@@ -1,8 +1,12 @@
-type NativeCapability = 'battle-active' | 'haptic' | 'open-window' | 'print' | 'share'
+type NativeCapability = 'app-navigation' | 'battle-active' | 'haptic' | 'open-window' | 'print' | 'share'
 
 declare global {
   interface Window {
-    PraetoriumNative?: { bridgeVersion: number; capabilities?: readonly NativeCapability[] }
+    PraetoriumNative?: {
+      bridgeVersion: number
+      capabilities?: readonly NativeCapability[]
+      history?: { canGoBack?: boolean }
+    }
     ReactNativeWebView?: { postMessage(message: string): void }
   }
 }
@@ -31,6 +35,10 @@ export function setNativeBattleActive(active: boolean) {
 
 export function requestNativeHaptic() {
   return send('haptic', { type: 'native-haptic' })
+}
+
+export function nativeCanGoBack() {
+  return supports('app-navigation') && window.PraetoriumNative?.history?.canGoBack === true
 }
 
 export async function shareLink(url: string, title?: string): Promise<'copied' | 'shared'> {

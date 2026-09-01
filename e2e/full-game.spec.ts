@@ -2,8 +2,10 @@ import { expect, test, type Page } from '@playwright/test'
 import { advance, createRoster, setupBattle, signUp, uniqueName } from './account'
 
 test('two phones complete all five rounds in step', async ({ browser }) => {
-  const alice = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage()
-  const bob = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage()
+  const aliceContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const bobContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const alice = await aliceContext.newPage()
+  const bob = await bobContext.newPage()
   const aliceName = uniqueName('Alice')
   const bobName = uniqueName('Bob')
 
@@ -28,6 +30,7 @@ test('two phones complete all five rounds in step', async ({ browser }) => {
   await expect(scoreboard(bob)).toContainText('Result')
   const outcome = await scoreboard(alice).getByRole('heading').textContent()
   await expect(scoreboard(bob).getByRole('heading')).toHaveText(outcome ?? '')
+  await Promise.all([aliceContext.close(), bobContext.close()])
 })
 
 function scoreboard(page: Page) {

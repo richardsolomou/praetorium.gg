@@ -1,7 +1,8 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { ChevronRight, Search } from 'lucide-react'
 import posthog from 'posthog-js'
-import { useEffect, useState } from 'react'
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
@@ -14,7 +15,15 @@ import { isSearchShortcut, searchShortcutModifier } from './globalSearchShortcut
 
 const groups: GlobalSearchResult['group'][] = ['Pages', 'Factions', 'Datasheets', 'Detachments', 'Missions', 'Your rosters', 'Your battles']
 
-export function GlobalSearch() {
+type GlobalSearchContextValue = {
+  open: () => void
+  shortcutModifier: string
+}
+
+const GlobalSearchContext = createContext<GlobalSearchContextValue | null>(null)
+
+export function GlobalSearchProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [shortcutModifier, setShortcutModifier] = useState('Ctrl')
@@ -22,6 +31,8 @@ export function GlobalSearch() {
   const settled = useSettled(trimmed, 75)
   const { data = [], isFetching } = useQuery({ ...globalSearchQuery(settled), placeholderData: keepPreviousData })
   const results = [...matchingPages(trimmed), ...data]
+  const openSearch = useCallback(() => setOpen(true), [])
+  const context = useMemo(() => ({ open: openSearch, shortcutModifier }), [openSearch, shortcutModifier])
 
   useEffect(() => {
     setShortcutModifier(searchShortcutModifier(navigator.userAgent))
@@ -34,29 +45,16 @@ export function GlobalSearch() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const go = (result: GlobalSearchResult) => {
+  const go = async (result: GlobalSearchResult) => {
     posthog.capture('global_search_result_opened', { group: result.group, result_count: results.length, fuzzy: Boolean(result.fuzzy) })
     setOpen(false)
     setQuery('')
-    window.location.assign(result.href)
+    await navigate({ href: result.href })
   }
 
   return (
-    <>
-      <Button
-        variant="outline"
-        size="sm"
-        className="ml-auto h-8 min-w-8 justify-start gap-2 border-edge bg-sunken px-2 text-dim hover:text-bone sm:w-44"
-        aria-label="Search Praetorium"
-        onClick={() => setOpen(true)}
-      >
-        <Search className="size-4" />
-        <span className="hidden flex-1 text-left text-xs sm:inline">Search</span>
-        <KbdGroup className="hidden sm:inline-flex" aria-hidden>
-          <Kbd className="h-4 min-w-4 bg-raised px-0.5 text-[0.625rem] text-faint">{shortcutModifier}</Kbd>
-          <Kbd className="h-4 min-w-4 bg-raised px-0.5 text-[0.625rem] text-faint">K</Kbd>
-        </KbdGroup>
-      </Button>
+    <GlobalSearchContext value={context}>
+      {children}
       <CommandDialog
         open={open}
         onOpenChange={(next) => {
@@ -84,7 +82,7 @@ export function GlobalSearch() {
                     <CommandItem
                       key={result.id}
                       value={`${result.label} ${result.detail}`}
-                      onSelect={() => go(result)}
+                      onSelect={() => void go(result)}
                       className="border-l-2 border-transparent data-[selected=true]:border-parchment data-[selected=true]:bg-parchment/15 data-[selected=true]:text-bone data-[selected=true]:[&_.result-detail]:text-dim"
                     >
                       <ChevronRight className="size-4 opacity-0 group-data-[selected=true]/command-item:opacity-100" aria-hidden />
@@ -112,6 +110,34 @@ export function GlobalSearch() {
           </div>
         </Command>
       </CommandDialog>
-    </>
+    </GlobalSearchContext>
+  )
+}
+
+export function GlobalSearch({ compact = false }: { compact?: boolean }) {
+  const search = useContext(GlobalSearchContext)
+  if (!search) throw new Error('GlobalSearch must be rendered inside GlobalSearchProvider.')
+
+  return (
+    <Button
+      variant={compact ? 'ghost' : 'outline'}
+      size={compact ? 'icon' : 'sm'}
+      className={
+        compact
+          ? 'size-12 shrink-0 text-dim hover:bg-raised hover:text-info'
+          : 'ml-auto h-8 min-w-8 justify-start gap-2 border-edge bg-sunken px-2 text-dim hover:text-bone sm:w-44'
+      }
+      aria-label="Search Praetorium"
+      onClick={search.open}
+    >
+      <Search className="size-4" />
+      {compact ? null : <span className="hidden flex-1 text-left text-xs sm:inline">Search</span>}
+      {compact ? null : (
+        <KbdGroup className="hidden sm:inline-flex" aria-hidden>
+          <Kbd className="h-4 min-w-4 bg-raised px-0.5 text-[0.625rem] text-faint">{search.shortcutModifier}</Kbd>
+          <Kbd className="h-4 min-w-4 bg-raised px-0.5 text-[0.625rem] text-faint">K</Kbd>
+        </KbdGroup>
+      )}
+    </Button>
   )
 }
