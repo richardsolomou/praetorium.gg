@@ -26,6 +26,17 @@ describe('primary unit profile', () => {
     ).toBe(guardian)
   })
 
+  it('prefers an exact profile over an earlier singular profile', () => {
+    const guardians = profile('guardians', 'Storm Guardians')
+
+    expect(
+      primaryUnitProfile({
+        name: 'Storm Guardians',
+        profiles: [profile('guardian', 'Storm Guardian'), guardians],
+      }),
+    ).toBe(guardians)
+  })
+
   it('falls back to the first unit profile when none matches the datasheet name', () => {
     const champion = profile('champion', 'Aspiring Champion')
 
