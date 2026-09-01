@@ -11,8 +11,8 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
 })
 
-function git(repository: string, ...args: string[]) {
-  return execFileSync('git', args, { cwd: repository, encoding: 'utf8' }).trim()
+function git(directory: string, ...args: string[]) {
+  return execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim()
 }
 
 function repository() {
