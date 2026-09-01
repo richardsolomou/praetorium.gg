@@ -38,14 +38,9 @@ export async function retryUntilVisible(outcome: Locator, action: () => Promise<
 }
 
 export async function befriend(requester: Page, recipient: Page) {
-  const requesterName = (await requester.getByRole('button', { name: /^Account menu for / }).getAttribute('aria-label'))?.replace(
-    'Account menu for ',
-    '',
-  )
-  const recipientName = (await recipient.getByRole('button', { name: /^Account menu for / }).getAttribute('aria-label'))?.replace(
-    'Account menu for ',
-    '',
-  )
+  const accountMenu = (page: Page) => page.locator('[data-web-app-chrome] button[aria-label^="Account menu for "]')
+  const requesterName = (await accountMenu(requester).getAttribute('aria-label'))?.replace('Account menu for ', '')
+  const recipientName = (await accountMenu(recipient).getAttribute('aria-label'))?.replace('Account menu for ', '')
   if (!requesterName || !recipientName) throw new Error('Both players must be signed in before becoming friends.')
   await requester.goto('/friends')
   const sent = requester.locator('section').filter({ hasText: 'Sent requests' }).filter({ hasText: recipientName })
