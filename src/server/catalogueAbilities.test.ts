@@ -89,6 +89,7 @@ describe('the abilities and wargear a datasheet lists', () => {
       name: rulesFaction,
       datasheets: new Set(),
       datasheetDetails: new Map(),
+      datasheetIds: new Map(),
       detachments: new Set(),
       enhancements: new Map(),
       detachmentRules: new Map(),

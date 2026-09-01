@@ -20,8 +20,8 @@ import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import type { Secondary, Stratagem } from '../../core/battle'
-import { ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
+import type { FormatRuleId, Secondary, Stratagem } from '../../core/battle'
+import { type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { Datasheet } from '../../server/catalogue'
@@ -43,6 +43,7 @@ import { UnitCard } from './builder/UnitCard'
 import { survivingUnits } from './builder/pricePlaceholder'
 import { attachmentRows, joinableUnits } from './builder/attachments'
 import { pickEditor, usePicks } from './builder/usePicks'
+import { WaiverWarning } from './FormatWaivers'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
@@ -59,6 +60,9 @@ type Props = {
     disposition: string | null
     limit: number
     picks: RosterPick[]
+    waivedRules: FormatRuleId[]
+    optionalRules?: OptionalRuleId[]
+    borrowedDetachmentId?: string | null
     visibility: RosterVisibility
     source: RosterSource
   }
@@ -71,6 +75,8 @@ type Props = {
 }
 
 const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
+/** Which set of waived restrictions this workspace has already been told about. */
+const WAIVERS_DISMISSED = 'waivers-dismissed'
 const NO_UNITS = [] as const
 
 /**
@@ -94,6 +100,9 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const [limit, setLimit] = useState(initial.limit)
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial.detachmentIds)
   const [disposition, setDisposition] = useState<string | null>(initial.disposition)
+  const [waivedRules, setWaivedRules] = useState<FormatRuleId[]>(initial.waivedRules)
+  const [optionalRules, setOptionalRules] = useState<OptionalRuleId[]>(initial.optionalRules ?? [])
+  const [borrowedDetachmentId, setBorrowedDetachmentId] = useState<string | null>(initial.borrowedDetachmentId ?? null)
   const [name, setName] = useState(initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [selected, setSelected] = useState<number | null>(null)
@@ -104,6 +113,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const [exportText, setExportText] = useState<string | null>(null)
   const workspacePath = `/rosters/${initial.id}`
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
+  const [dismissedWaivers, setDismissedWaivers] = useState<string | null>(null)
   const [wideWorkspace, setWideWorkspace] = useState(true)
   const [workspaceMeasured, setWorkspaceMeasured] = useState(false)
   const [pickerQuery, setPickerQuery] = useState('')
@@ -122,6 +132,11 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     writeWorkspaceState(workspacePath, 'roster-setup', draft)
   }
 
+  const dismissWaivers = (key: string) => {
+    setDismissedWaivers(key)
+    writeWorkspaceState(workspacePath, WAIVERS_DISMISSED, key)
+  }
+
   const savedId = initial.id
   const queryClient = useQueryClient()
   const { data: owned } = useQuery({ ...collectionQuery(), enabled: editable && pickerEnabled })
@@ -129,6 +144,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const { mutate: mutateCollection } = useCollectionMutation()
 
   useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
+  useEffect(() => setDismissedWaivers(readWorkspaceState<string>(workspacePath, WAIVERS_DISMISSED)), [workspacePath])
   useLayoutEffect(() => {
     const media = window.matchMedia('(min-width: 1300px)')
     const sync = () => {
@@ -148,6 +164,11 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     setReadOnly(next)
     localStorage.setItem(READ_ONLY_PREFERENCE, String(next))
   }
+  const toggleWaivedRule = useCallback(
+    (rule: FormatRuleId) =>
+      setWaivedRules((current) => (current.includes(rule) ? current.filter((candidate) => candidate !== rule) : [...current, rule])),
+    [],
+  )
   const togglePickerFilter = useCallback(
     (filter: PickerFilter) =>
       setPickerFilters((current) => {
@@ -175,6 +196,9 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           limit,
           picks: positioned,
           prep,
+          waivedRules,
+          optionalRules,
+          borrowedDetachmentId,
           visibility,
           source: initial.source,
         },
@@ -192,13 +216,26 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogueId, detachmentIds, disposition, editable, limit, settledListName, settledPicks, prep, visibility])
+  }, [
+    borrowedDetachmentId,
+    optionalRules,
+    catalogueId,
+    detachmentIds,
+    disposition,
+    editable,
+    limit,
+    settledListName,
+    settledPicks,
+    prep,
+    visibility,
+    waivedRules,
+  ])
 
   /** Hands the list to another tool, in the format every one of them reads. */
   const take = useMutation({
     mutationFn: () =>
       exportRoster({
-        data: { catalogueId, detachmentIds, disposition, limit, name: listName || 'Roster', units: positioned },
+        data: { catalogueId, detachmentIds, disposition, limit, name: listName || 'Roster', units: positioned, waivedRules },
       }),
     onSuccess: ({ text }) => setExportText(text),
   })
@@ -214,6 +251,9 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           limit,
           picks: positioned,
           prep,
+          waivedRules,
+          optionalRules,
+          borrowedDetachmentId,
           visibility: 'private',
           source: initial.source,
         },
@@ -230,7 +270,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     dataUpdatedAt: pricedAt,
     isPlaceholderData: pricePending,
   } = useQuery({
-    ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned),
+    ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned, waivedRules, borrowedDetachmentId, optionalRules),
     /**
      * The last answer, with whatever the list has since let go of taken out of it.
      *
@@ -338,6 +378,13 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           })),
         }
       : selectedUnit
+  const waivers = waivedFormatRules(limit, waivedRules)
+  /*
+   * Dismissing says "I know", not "never tell me": the key is the set of waived
+   * restrictions, so switching another one off says something the player has not
+   * acknowledged yet and the warning comes back.
+   */
+  const waiverKey = waivers.map((rule) => rule.id).join(',')
   const inspectorView = editable && !readOnly ? 'edit' : 'readonly'
   const warlord = optimisticUnit?.toggles.find((toggle) => toggle.name === 'Warlord')
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
@@ -354,6 +401,8 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
             inRoster={held}
             room={priced ? limit - priced.points : null}
             battleSize={limit}
+            waivedRules={waivedRules}
+            onWaiveToggle={toggleWaivedRule}
             query={pickerQuery}
             onQueryChange={setPickerQuery}
             active={pickerFilters}
@@ -427,6 +476,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           return detachment ? [{ id, name: detachment.name }] : []
         })}
         disposition={priced?.disposition}
+        waivers={waivers}
         actions={
           editable ? (
             <>
@@ -436,7 +486,19 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-48">
                   <DropdownMenuItem
-                    onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
+                    onClick={() =>
+                      setSetupDraft({
+                        name: listName,
+                        catalogueId,
+                        detachmentIds,
+                        disposition,
+                        limit,
+                        waivedRules,
+                        optionalRules,
+                        borrowedDetachmentId,
+                        visibility,
+                      })
+                    }
                   >
                     <Pencil /> Edit roster setup
                   </DropdownMenuItem>
@@ -518,7 +580,19 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
               variant="ghost"
               size="xs"
               className="h-auto p-0 text-destructive underline hover:text-destructive"
-              onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
+              onClick={() =>
+                setSetupDraft({
+                  name: listName,
+                  catalogueId,
+                  detachmentIds,
+                  disposition,
+                  limit,
+                  waivedRules,
+                  optionalRules,
+                  borrowedDetachmentId,
+                  visibility,
+                })
+              }
             >
               Choose one
             </Button>
@@ -544,6 +618,9 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
               setDetachmentIds(setup.detachmentIds)
               setDisposition(setup.disposition)
               setLimit(setup.limit)
+              setWaivedRules(setup.waivedRules)
+              setOptionalRules(setup.optionalRules)
+              setBorrowedDetachmentId(setup.borrowedDetachmentId)
               setVisibility(setup.visibility)
               if (changedFaction) {
                 edit.clear()
@@ -769,6 +846,10 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
             </ul>
           </div>
         ) : null}
+        {/* Under the errors, because a restriction switched off is why one of them is not there. */}
+        {dismissedWaivers === waiverKey ? null : (
+          <WaiverWarning rules={waivers} onDismiss={() => dismissWaivers(waiverKey)} editable={editable} />
+        )}
       </footer>
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
     </RosterShell>

@@ -43,6 +43,7 @@ export function useRosterActions(origin: string) {
           limit: roster.limit,
           picks: roster.picks,
           prep: roster.prep,
+          waivedRules: roster.waivedRules,
           visibility: roster.visibility,
           source: roster.source,
         },
@@ -73,6 +74,7 @@ export function useRosterActions(origin: string) {
           limit: roster.limit,
           name: roster.name,
           units: roster.picks,
+          waivedRules: roster.waivedRules,
         },
       })
     },

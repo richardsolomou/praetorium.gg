@@ -30,7 +30,7 @@ async function signIn(page: Page, twoFactor = false, email = ADMIN_EMAIL, passwo
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  if (!twoFactor) await page.waitForURL('/rosters')
+  if (!twoFactor) await page.waitForURL('/')
 }
 
 test('an administrator can secure an account and impersonate a player', async ({ browser, page }) => {
@@ -70,7 +70,7 @@ test('an administrator can secure an account and impersonate a player', async ({
   await expect(page.getByLabel('Authenticator code')).toBeVisible()
   await page.getByLabel('Authenticator code').fill(currentTotp(uri))
   await page.getByRole('button', { name: 'Verify and sign in' }).click()
-  await page.waitForURL('/rosters')
+  await page.waitForURL('/')
   await expect(page.getByRole('button', { name: 'Account menu for Preview Player' })).toBeVisible()
 
   await page.setViewportSize({ width: 1440, height: 900 })

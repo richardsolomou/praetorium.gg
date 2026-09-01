@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Navigate, notFound } from '@tanstack/react-router'
 import { useEffect } from 'react'
-import { Invitation } from '../client/components/Invitation'
+import { BattleUnavailable } from '../client/components/BattleUnavailable'
 import { Setup } from '../client/components/Setup'
 import { Spectator } from '../client/components/Spectator'
 import { Tracker } from '../client/components/Tracker'
@@ -25,8 +25,8 @@ export const Route = createFileRoute('/battles/$token')({
     /*
      * What the instance itself holds does not depend on which battle this is, so
      * it is asked for alongside the battle rather than in a round after it. It is
-     * started but not awaited here: an invitation needs none of it and is not made
-     * to wait, and a seated player joins these promises below. Rejections are
+     * started but not awaited here: a battle nobody may open needs none of it and
+     * is not made to wait, and a seated player joins these promises below. Rejections are
      * swallowed because whatever actually reads one of these will observe its own
      * failure — a page that never looks must not bring down the loader.
      */
@@ -37,7 +37,7 @@ export const Route = createFileRoute('/battles/$token')({
     // Only a loader may throw this: from a render it lands in the error boundary.
     const screen = await context.queryClient.ensureQueryData(battleQuery(params.token))
     if (!screen) throw notFound()
-    if (screen.kind === 'invitation') return
+    if (screen.kind === 'unavailable') return
     const dispositions = [...new Set(screen.view.players.map((player) => player.side))]
       .map((side) => screen.view.players.find((player) => player.side === side)?.disposition)
       .filter((value): value is string => Boolean(value))
@@ -70,7 +70,7 @@ function BattleSession({ token }: { token: string }) {
   const { data: screen } = useQuery(battleQuery(token))
 
   if (!screen) return <Navigate to="/battles" replace />
-  if (screen.kind === 'invitation') return <Invitation token={token} free={screen.free} />
+  if (screen.kind === 'unavailable') return <BattleUnavailable token={token} />
   if (screen.kind === 'spectator') return <Spectator view={screen.view} missions={screen.missions} report={screen.report} />
   return <SeatedBattle token={token} screen={screen} />
 }

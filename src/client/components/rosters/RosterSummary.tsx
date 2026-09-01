@@ -2,6 +2,7 @@ import { GAME_SIZES } from '../../../core/battle'
 import { formatDate } from '../../dates'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FactionLabel, type FactionPresentation } from '../FactionMark'
+import { rosterWaivers, WaiverChip } from '../FormatWaivers'
 import type { SavedRoster } from './rosterLibrary'
 
 export type RosterSummaryFaction = FactionPresentation & { detachments: { id: string; name: string }[] }
@@ -21,6 +22,7 @@ export function RosterSummary({
 }) {
   const detachments = roster.detachmentIds.map((id) => faction?.detachments.find((entry) => entry.id === id)?.name).filter(Boolean)
   const size = GAME_SIZES.find((entry) => entry.limit === roster.limit)
+  const waivers = rosterWaivers(roster)
 
   return (
     <>
@@ -33,6 +35,7 @@ export function RosterSummary({
               {name}
             </span>
           ))}
+          <WaiverChip rules={waivers} />
         </span>
         <span className="mt-1 block text-xs text-dim">
           11th edition · {size?.name ?? `${roster.limit} points`} · {roster.unitCount} units · updated {formatDate(roster.updatedAt)}

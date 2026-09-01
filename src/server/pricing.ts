@@ -1,8 +1,10 @@
 import { attachmentErrors, attachmentOf } from '../core/attach'
 import { routeSlug } from '../core/slug'
 import {
+  borrowedDispositionError,
   detachmentPointBudget,
   detachmentPointsError,
+  enforces,
   formatDatasheetLimit,
   isKotcLimit,
   kotcDatasheetRepeatable,
@@ -152,6 +154,37 @@ export function calculateRosterPoints(data: PriceInput) {
   return evaluateForces([...forceSelections.values()], loaded.index, { primaryCatalogueId: data.catalogueId }).points
 }
 
+/**
+ * What a saved list is priced as, built in one place.
+ *
+ * Every field here changes what the price is allowed to answer, so a caller that
+ * assembles its own literal can silently drop one: a missing borrow leaves the
+ * borrowed disposition out of the allowed set, and `resolveDisposition` then
+ * substitutes the roster's own without reporting anything. Callers pass the saved
+ * list, not a shape they built themselves.
+ */
+export function savedRosterPriceInput(saved: {
+  catalogueId: string
+  detachmentIds: readonly string[]
+  disposition: string | null
+  limit: number
+  picks: PriceInput['units']
+  waivedRules?: PriceInput['waivedRules']
+  optionalRules?: PriceInput['optionalRules']
+  borrowedDetachmentId?: string | null
+}): PriceInput {
+  return {
+    catalogueId: saved.catalogueId,
+    detachmentIds: [...saved.detachmentIds],
+    disposition: saved.disposition,
+    borrowedDetachmentId: saved.borrowedDetachmentId ?? null,
+    limit: saved.limit,
+    units: saved.picks,
+    waivedRules: saved.waivedRules,
+    optionalRules: saved.optionalRules,
+  }
+}
+
 export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(), loadedRules = app().rules()) {
   if (!loaded) return null
 
@@ -171,11 +204,33 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       }),
     ),
   ]
-  const { disposition, error: dispositionError } = resolveDisposition(allowedDispositions, data.disposition)
   const purchased = chosen.map((option) => ({
     name: option.name,
     points: detachmentNamed(references, option.name)?.points ?? null,
   }))
+  // The King of the Colosseum optional rule. The borrowed detachment is never added to the
+  // roster, so it brings no rules, enhancements or stratagems: it sells its Force
+  // Disposition and nothing else, for the detachment points this roster left unspent. An
+  // unaffordable or unpriced borrow grants nothing, so an illegal list cannot quietly
+  // play a mission matchup it did not pay for.
+  const borrowedDetachment = data.borrowedDetachmentId
+    ? (rosterDetachments(loaded, data.catalogueId, [data.borrowedDetachmentId]).chosen[0] ?? null)
+    : null
+  const borrowedReference = borrowedDetachment ? detachmentNamed(references, borrowedDetachment.name) : undefined
+  const ownPoints = purchased.some((option) => option.points === null)
+    ? null
+    : purchased.reduce((total, option) => total + (option.points ?? 0), 0)
+  const borrowedError = borrowedDispositionError(
+    data.limit,
+    data.optionalRules,
+    { points: ownPoints },
+    data.borrowedDetachmentId ? { points: borrowedReference?.points ?? null } : null,
+  )
+  const borrowedDispositions =
+    borrowedError || !borrowedDetachment
+      ? []
+      : (borrowedReference?.dispositions ?? (borrowedDetachment.disposition ? [borrowedDetachment.disposition] : []))
+  const { disposition, error: dispositionError } = resolveDisposition([...allowedDispositions, ...borrowedDispositions], data.disposition)
   const detachmentSpecials = chosen.map((option) => {
     const detail = detachmentNamed(details, option.name)
     return { option, detail, ...describedEnhancements(loaded, data.catalogueId, option, detail) }
@@ -190,7 +245,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       ...(catalogue?.forcedEnhancements.map((enhancement) => routeSlug(enhancement.name)) ?? []),
     ]),
   )
-  const detachmentError = detachmentPointsError(purchased, budget)
+  const detachmentError = detachmentPointsError(purchased, budget, data.waivedRules)
 
   const { picked, forceSelections } = rosterForces(loaded, data, detachmentSelection)
   const options = { primaryCatalogueId: data.catalogueId }
@@ -237,12 +292,18 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
             unitSelectionIndex: selectionIndex.get(unit.selection),
             keywordIds: keywordsFor(catalogueId, selectionIndex.get(unit.selection) ?? -1),
           })
+          const pick = data.units[unit.key]
           return {
             entryId: unit.entryId,
             name: unit.name,
             keywords: sheet?.keywords ?? [],
             toughness: toughnessOf(sheet?.profiles ?? []),
-            warlord: Object.values(data.units[unit.key]?.toggles ?? {}).some((count) => count > 0),
+            warlord: Object.values(pick?.toggles ?? {}).some((count) => count > 0),
+            // What list building could still raise a Toughness by, which the snapshot
+            // never says: enhancements arrive as an ability reference with no text, and
+            // leader attachments record eligibility only.
+            enhanced: Object.values(pick?.choices ?? {}).some((choice) => enhancementNames.has(routeSlug(choice))),
+            led: data.units.some((other) => other.attachedTo === unit.key),
           }
         })
       : []
@@ -294,7 +355,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     ),
     ...attachmentErrors(data.units, loaded.index, pickedSelections),
     ...factionRestrictionViolations(restrictions, constructionUnits),
-    ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit) : []),
+    ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules) : []),
   ]
   // One fact, said once. A limit on a shared entry is broken by each selection of it,
   // and every one of them reports the same sentence about the same count.
@@ -311,8 +372,10 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     detachmentPointsOver: Boolean(detachmentError),
     detachmentError,
     disposition,
-    dispositions: allowedDispositions,
+    dispositions: [...allowedDispositions, ...borrowedDispositions],
     dispositionError,
+    borrowedDetachment: borrowedDetachment?.name ?? null,
+    borrowedError,
     points: whole.points,
     errors,
     unhandled: [
@@ -425,7 +488,15 @@ export function uniqueNames(names: readonly string[]): string[] {
   })
 }
 
-type KotcUnit = { entryId: string; name: string; keywords: readonly string[]; toughness: number | null; warlord: boolean }
+type KotcUnit = {
+  entryId: string
+  name: string
+  keywords: readonly string[]
+  toughness: number | null
+  warlord: boolean
+  enhanced?: boolean
+  led?: boolean
+}
 
 export function factionRestrictionViolations(restrictions: FactionRestrictions | undefined, units: readonly KotcUnit[]) {
   if (!restrictions) return []
@@ -442,28 +513,48 @@ export function factionRestrictionViolations(restrictions: FactionRestrictions |
   })
 }
 
-/** Prototype KOTC 2.0 army-construction changes layered over normal Incursion legality. */
-export function kotcViolations(detachments: number, units: readonly KotcUnit[], limit = 600) {
+/**
+ * Prototype KOTC 2.0 army-construction changes layered over normal Incursion legality.
+ *
+ * Every rule here is named in `formatRules`, and a roster that has waived one is not
+ * told about it: the restriction the player switched off is the restriction they
+ * agreed with their table not to play.
+ */
+export function kotcViolations(detachments: number, units: readonly KotcUnit[], limit = 600, waived: readonly string[] = []) {
   const errors: { entryId: string; entryName: string; message: string }[] = []
   const add = (message: string, unit?: KotcUnit) =>
     errors.push({ entryId: unit?.entryId ?? 'kotc', entryName: unit?.name ?? 'King of the Colosseum', message })
-  if (detachments !== 1) add(`needs exactly 1 detachment, has ${detachments}`)
-  if (units.filter((unit) => hasKeyword(unit, 'infantry')).length < 2) add('needs at least 2 Infantry units')
-  if (!units.some((unit) => unit.warlord)) add('needs a Warlord')
+  if (enforces(waived, 'detachments') && detachments !== 1) add(`needs exactly 1 detachment, has ${detachments}`)
+  if (enforces(waived, 'kotc-infantry') && units.filter((unit) => hasKeyword(unit, 'infantry')).length < 2)
+    add('needs at least 2 Infantry units')
+  if (enforces(waived, 'kotc-warlord') && !units.some((unit) => unit.warlord)) add('needs a Warlord')
   for (const unit of units) {
-    for (const message of kotcUnitExclusions(unit)) add(message, unit)
-    if (unit.toughness === null) add('cannot verify its Toughness from the synced catalogue', unit)
+    for (const message of kotcUnitExclusions(unit, waived)) add(message, unit)
+    // Only worth saying while a Toughness rule is being enforced: with the cap
+    // waived, a Toughness this catalogue cannot state changes no answer.
+    if (enforces(waived, 'kotc-toughness') && unit.toughness === null) add('cannot verify its Toughness from the synced catalogue', unit)
+  }
+  // King of the Colosseum bars a unit that reaches Toughness 10 during list building,
+  // whether from an enhancement or an attached leader. No synced source says what either
+  // does to a Toughness, so a unit already at the cap is reported as unverifiable rather
+  // than passed: the format's own FAQ makes this illegal, and guessing it legal is the
+  // one answer that cannot be corrected at the table.
+  for (const unit of units) {
+    if (enforces(waived, 'kotc-toughness') && unit.toughness === 9 && (unit.enhanced || unit.led))
+      add(`is at the Toughness cap and cannot be verified once its ${unit.enhanced ? 'enhancement' : 'attached leader'} is applied`, unit)
   }
   const toughnessNine = units.filter((unit) => unit.toughness === 9)
-  if (toughnessNine.length > 1) add(`allows at most 1 Toughness 9 unit, has ${toughnessNine.length}`)
+  if (enforces(waived, 'kotc-toughness') && toughnessNine.length > 1) add(`allows at most 1 Toughness 9 unit, has ${toughnessNine.length}`)
   const byDatasheet = new Map<string, KotcUnit[]>()
   for (const unit of units) byDatasheet.set(unit.entryId, [...(byDatasheet.get(unit.entryId) ?? []), unit])
   for (const copies of byDatasheet.values()) {
     const allowance = formatDatasheetLimit(
       limit,
       copies.some((unit) => kotcDatasheetRepeatable(unit.keywords)),
-    )!
-    if (copies.length > allowance) add(`allows at most ${allowance} of this datasheet, has ${copies.length}`, copies[0])
+      waived,
+    )
+    if (allowance !== null && copies.length > allowance)
+      add(`allows at most ${allowance} of this datasheet, has ${copies.length}`, copies[0])
   }
   return errors
 }

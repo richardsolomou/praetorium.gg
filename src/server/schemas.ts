@@ -1,6 +1,10 @@
 import { z } from 'zod'
+import { BATTLE_AUDIENCES } from '../core/battleAudience'
 import {
+  FORMAT_RULE_IDS,
   GAME_SIZES,
+  OPTIONAL_RULE_IDS,
+  MAX_DETACHMENTS,
   PHASES,
   ROSTER_NAME_MAX_LENGTH,
   SECONDARIES_MAX,
@@ -28,7 +32,7 @@ const token = id
 const catalogueId = id
 const slug = z.string().min(1).max(160)
 const rosterLimit = z.number().int().min(0).max(10_000)
-const battlesCursor = z.object({ activity: z.number().int().min(0), id })
+const battlesCursor = z.object({ at: z.number().int().min(0), id })
 
 export const tokenSchema = z.object({ token })
 const leagueFields = {
@@ -145,8 +149,8 @@ export const deleteBattleSchema = z.object({ token })
 export const battlesPageSchema = z.object({
   before: battlesCursor.nullable().default(null),
 })
+export const battleAudienceSchema = z.object({ audience: z.enum(BATTLE_AUDIENCES) })
 export const userSchema = z.object({ userId: id })
-export const userProfileSchema = userSchema.extend({ battle: token.optional() })
 export const friendSchema = z.object({ userId: id })
 export const setOwnPasswordSchema = z.object({ password: z.string().min(PASSWORD_MIN_LENGTH).max(128) })
 export const unlinkOwnAccountSchema = z.object({ provider: z.enum(['credential', ...SOCIAL_PROVIDERS]) })
@@ -167,6 +171,17 @@ export const submitSchema = z.object({
   command: z.union([commandSchema, attachSavedRosterSchema]),
 })
 
+/**
+ * The format restrictions this roster has switched off, by the ids `formatRules` names.
+ *
+ * Sent with every read that a restriction can change the answer of, so the picker and
+ * the price agree about which rules are being played. Unknown ids are rejected rather
+ * than ignored: a waiver this build cannot name would silently enforce a rule the
+ * player believes they turned off.
+ */
+export const waivedRules = z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional()
+export const optionalRules = z.array(z.enum(OPTIONAL_RULE_IDS)).max(OPTIONAL_RULE_IDS.length).optional()
+
 export const unitsSchema = z.object({
   catalogueId,
   query: z.string().max(80).default(''),
@@ -175,6 +190,7 @@ export const unitsSchema = z.object({
     .int()
     .refine((value) => GAME_SIZES.some((size) => size.limit === value))
     .optional(),
+  waivedRules,
 })
 
 export const globalSearchSchema = z.object({ query: z.string().trim().min(2).max(80) })
@@ -220,10 +236,13 @@ export const saveRosterSchema = z.object({
   id: id.optional(),
   name: z.string().trim().min(1, 'name the list').max(ROSTER_NAME_MAX_LENGTH),
   catalogueId,
-  detachmentIds: z.array(id).max(3),
+  detachmentIds: z.array(id).max(MAX_DETACHMENTS),
   disposition: id.nullable(),
+  borrowedDetachmentId: id.nullable().default(null),
   limit: rosterLimit,
   picks: z.array(pickSchema).max(100),
+  waivedRules,
+  optionalRules,
   prep: prepSchema.nullable(),
   visibility: z.enum(ROSTER_VISIBILITIES).default('private'),
   source: z.enum(ROSTER_SOURCES).default('editable'),
@@ -255,10 +274,13 @@ export const savedPrepSchema = prepSchema
 
 export const priceSchema = z.object({
   catalogueId,
-  detachmentIds: z.array(id).max(3),
+  detachmentIds: z.array(id).max(MAX_DETACHMENTS),
   disposition: id.nullable(),
+  borrowedDetachmentId: id.nullable().optional(),
   limit: rosterLimit,
   units: z.array(pickSchema).max(100),
+  waivedRules,
+  optionalRules,
 })
 
 export type PriceInput = z.infer<typeof priceSchema>

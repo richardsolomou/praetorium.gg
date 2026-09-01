@@ -83,6 +83,8 @@ type BuiltRoster = {
   disposition: string | null
   /** Frozen selections let a battle roster open the same applied datasheets as a shared roster. */
   detachmentIds?: string[]
+  /** The format restrictions the list was built without, so it prices in the battle as it did in the builder. */
+  waivedRules?: FormatRuleId[]
   picks?: RosterPick[]
   /**
    * The units as submitted, fixed at the moment the list was attached.
@@ -299,23 +301,68 @@ export function sidePaintedPoints(state: BattleState, side: number): number {
 }
 
 /** The matched-play game sizes, smallest first. */
-const KOTC_LIMITS = [500, 600] as const
+const KOTC_LIMITS = [600] as const
+/**
+ * Sizes King of the Colosseum was offered at before and is no longer built at.
+ *
+ * A size that stops being offered does not stop being played: rosters saved at it and
+ * battles already running on it keep their construction rules, their datasheet caps and
+ * their tactical-only secondaries, because dropping them would quietly rewrite a list
+ * its owner cannot rebuild.
+ */
+const RETIRED_KOTC_LIMITS = [500] as const
 export const DEFAULT_GAME_LIMIT = 2000
 
 export const GAME_SIZES = [
-  ...KOTC_LIMITS.map((limit) => ({ name: `King of the Colosseum (${limit})`, limit, detachmentPoints: null })),
+  ...KOTC_LIMITS.map((limit) => ({ name: 'King of the Colosseum', limit, detachmentPoints: null })),
   { name: 'Incursion', limit: 1000, detachmentPoints: 2 },
   { name: 'Strike Force', limit: 2000, detachmentPoints: 3 },
   { name: 'Onslaught', limit: 3000, detachmentPoints: null },
 ] as const
 
 export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
-export const isKotcLimit = (limit: number | null): boolean => limit !== null && KOTC_LIMITS.some((candidate) => candidate === limit)
-export const detachmentLimit = (limit: number) => (isKotcLimit(limit) ? 1 : 3)
+export const isKotcLimit = (limit: number | null): boolean =>
+  limit !== null && [...KOTC_LIMITS, ...RETIRED_KOTC_LIMITS].some((candidate) => candidate === limit)
 export const battleRoundLimit = (_limit: number | null) => BATTLE_ROUNDS
 
+/**
+ * The army-construction rules a battle size adds, each one a roster may switch off.
+ *
+ * A format's restrictions describe the event most people are building for, not the
+ * game in front of this player: a group agreeing to play King of the Colosseum with
+ * Epic Heroes allowed is playing the game they agreed on, and a builder that refuses
+ * to draw their list is wrong about a table it cannot see. So every restriction the
+ * price enforces is named here, and a roster carries the ids it has waived.
+ *
+ * The names are read in both directions: `kotcViolations` asks before it reports and
+ * the picker asks before it hides, so a waived rule cannot go on quietly filtering
+ * datasheets out of the book while the roster says it is allowed.
+ */
+export const FORMAT_RULE_IDS = [
+  'detachments',
+  'detachment-points',
+  'kotc-infantry',
+  'kotc-warlord',
+  'kotc-epic-heroes',
+  'kotc-toughness',
+  'kotc-datasheet-copies',
+] as const
+
+export type FormatRuleId = (typeof FORMAT_RULE_IDS)[number]
+export type FormatRule = { id: FormatRuleId; label: string; hint: string }
+
+/** The maximum detachments a roster may hold, whatever its size says. */
+export const MAX_DETACHMENTS = 3
+
+/** Whether a rule still applies, given what the roster has waived. */
+export const enforces = (waived: readonly string[] | undefined, rule: FormatRuleId) => !waived?.includes(rule)
+
+export const detachmentLimit = (limit: number, waived: readonly string[] = []) =>
+  isKotcLimit(limit) && enforces(waived, 'detachments') ? 1 : MAX_DETACHMENTS
+
 /** The format-specific cap for copies of one datasheet, before catalogue limits are applied. */
-export const formatDatasheetLimit = (limit: number, repeatable: boolean) => (isKotcLimit(limit) ? (repeatable ? 2 : 1) : null)
+export const formatDatasheetLimit = (limit: number, repeatable: boolean, waived: readonly string[] = []) =>
+  isKotcLimit(limit) && enforces(waived, 'kotc-datasheet-copies') ? (repeatable ? 2 : 1) : null
 
 const hasUnitKeyword = (keywords: readonly string[], wanted: string) =>
   keywords.some((keyword) => keyword.trim().toLocaleLowerCase() === wanted)
@@ -323,15 +370,130 @@ const hasUnitKeyword = (keywords: readonly string[], wanted: string) =>
 export const kotcDatasheetRepeatable = (keywords: readonly string[]) =>
   hasUnitKeyword(keywords, 'battleline') || hasUnitKeyword(keywords, 'dedicated transport')
 
-export function kotcUnitExclusions(unit: { keywords: readonly string[]; toughness: number | null }): string[] {
+/** What this battle size restricts, in the order a player reads it. */
+export function formatRules(limit: number | null): FormatRule[] {
+  if (limit === null) return []
+  if (isKotcLimit(limit)) {
+    return [
+      { id: 'detachments', label: 'One detachment', hint: 'The roster is built from exactly one detachment' },
+      { id: 'kotc-infantry', label: 'Two Infantry units', hint: 'The roster holds at least two Infantry units' },
+      { id: 'kotc-warlord', label: 'A Warlord', hint: 'One unit is named as the Warlord' },
+      { id: 'kotc-epic-heroes', label: 'No Epic Heroes', hint: 'Datasheets with the Epic Hero keyword may not be taken' },
+      { id: 'kotc-toughness', label: 'Toughness cap', hint: 'Nothing above Toughness 9, and at most one Toughness 9 unit' },
+      {
+        id: 'kotc-datasheet-copies',
+        label: 'Datasheet copies',
+        hint: `At most ${formatDatasheetLimit(limit, false)} of each datasheet, or ${formatDatasheetLimit(limit, true)} for Battleline and Dedicated Transports`,
+      },
+    ]
+  }
+  const budget = detachmentPointBudget(limit)
+  return budget === null
+    ? []
+    : [{ id: 'detachment-points', label: 'Detachment points', hint: `Detachments cost at most ${budget} DP together` }]
+}
+
+/**
+ * The restrictions a roster's own battle size imposes that it is not playing.
+ *
+ * The one answer to "is this list built to its format?", so the builder, the roster
+ * chooser, a league's sealing dialog and the opponent's view of an attached army all
+ * say the same thing about the same list. Waivers a size does not impose are not
+ * counted: an id kept from another size restricts nothing here.
+ */
+export const waivedFormatRules = (limit: number | null, waived: readonly string[] | undefined): FormatRule[] =>
+  formatRules(limit).filter((rule) => !enforces(waived, rule.id))
+
+export function kotcUnitExclusions(
+  unit: { keywords: readonly string[]; toughness: number | null },
+  waived: readonly string[] = [],
+): string[] {
   return [
-    ...(hasUnitKeyword(unit.keywords, 'epic hero') ? ['does not allow Epic Heroes'] : []),
-    ...(unit.toughness !== null && unit.toughness > 9 ? [`does not allow Toughness ${unit.toughness}`] : []),
+    ...(enforces(waived, 'kotc-epic-heroes') && hasUnitKeyword(unit.keywords, 'epic hero') ? ['does not allow Epic Heroes'] : []),
+    ...(enforces(waived, 'kotc-toughness') && unit.toughness !== null && unit.toughness > 9
+      ? [`does not allow Toughness ${unit.toughness}`]
+      : []),
   ]
 }
 
-export function detachmentPointsError(detachments: readonly { points: number | null }[], allowance: number | null): string | null {
-  if (detachments.length <= 1 || allowance === null) return null
+/**
+ * The detachment points the borrowed-disposition optional rule gives a roster to spend.
+ *
+ * Homebrew, and deliberately not the format's own economy. King of the Colosseum sets no
+ * detachment point limit at all — a roster takes any one detachment at any cost — and
+ * spends detachment points instead as the bid that decides who picks the twist. This
+ * budget exists only inside the optional rule, so a roster whose detachment already costs
+ * this much has nothing to borrow with and is told so rather than shown an empty choice.
+ */
+export const BORROWED_DISPOSITION_BUDGET = 3
+
+/**
+ * The homebrew a battle size can be played with, and the mirror of `FORMAT_RULE_IDS`.
+ *
+ * A format rule is played until a roster waives it; a optional rule is not played until a
+ * roster picks it. Neither is ever inferred from the list in front of it, so nobody is
+ * handed a rule their group did not agree to play, and a size that offers no homebrew
+ * offers nothing to switch on.
+ */
+export const OPTIONAL_RULE_IDS = ['kotc-borrowed-disposition'] as const
+
+export type OptionalRuleId = (typeof OPTIONAL_RULE_IDS)[number]
+export type OptionalRule = { id: OptionalRuleId; label: string; hint: string }
+
+/** Whether a roster picked a optional rule, which is the only way one is played. */
+export const plays = (picked: readonly string[] | undefined, rule: OptionalRuleId) => Boolean(picked?.includes(rule))
+
+/** What homebrew this battle size offers, in the order a player reads it. */
+export function optionalRules(limit: number | null): OptionalRule[] {
+  if (!isKotcLimit(limit)) return []
+  return [
+    {
+      id: 'kotc-borrowed-disposition',
+      label: 'Borrowed disposition',
+      hint: `Spend what your detachment leaves unspent, out of a house allowance of ${BORROWED_DISPOSITION_BUDGET} DP, to play another detachment's Force Disposition`,
+    },
+  ]
+}
+
+/** The homebrew a roster is playing that its own battle size offers. */
+export const pickedOptionalRules = (limit: number | null, picked: readonly string[] | undefined): OptionalRule[] =>
+  optionalRules(limit).filter((rule) => plays(picked, rule.id))
+
+/**
+ * Whether a roster may play a Force Disposition belonging to a detachment it did not take.
+ *
+ * A optional rule, so no battle size turns it on and nothing offers it unasked: a roster opts
+ * in by naming the detachment it borrows from, and carries that name wherever it is read.
+ * It buys the disposition and nothing else — the borrowed detachment's rules, enhancements
+ * and stratagems stay with the detachment that owns them, and a disposition only ever
+ * decides which primary mission the matchup plays.
+ *
+ * An unpriced detachment refuses the borrow rather than costing it nothing, because a
+ * catalogue that cannot say what something costs has not said that it is free.
+ */
+export function borrowedDispositionError(
+  limit: number | null,
+  picked: readonly string[] | undefined,
+  own: { points: number | null } | null,
+  borrowed: { points: number | null } | null,
+): string | null {
+  if (!borrowed) return null
+  if (!isKotcLimit(limit)) return 'Only a King of the Colosseum roster may borrow another detachment’s Force Disposition.'
+  if (!plays(picked, 'kotc-borrowed-disposition')) return 'This roster is not playing the borrowed disposition optional rule.'
+  if (!own || own.points === null || borrowed.points === null)
+    return 'This catalogue does not price one of these detachments, so the borrowed disposition cannot be paid for.'
+  const spent = own.points + borrowed.points
+  return spent > BORROWED_DISPOSITION_BUDGET
+    ? `This combination costs ${spent} DP; the borrowed disposition rule allows ${BORROWED_DISPOSITION_BUDGET} DP.`
+    : null
+}
+
+export function detachmentPointsError(
+  detachments: readonly { points: number | null }[],
+  allowance: number | null,
+  waived: readonly string[] = [],
+): string | null {
+  if (detachments.length <= 1 || allowance === null || !enforces(waived, 'detachment-points')) return null
   const spent = detachments.reduce((total, detachment) => total + (detachment.points ?? 0), 0)
   return spent > allowance
     ? `This combination costs ${spent} DP; multiple detachments at this battle size may cost at most ${allowance} DP.`

@@ -14,13 +14,15 @@ Build a Warhammer 40,000 army list. Track the battle live from each player's pho
 
 ## Product
 
-Praetorium supports private games between up to four friends: 1v1, 2v1, or 2v2 Doubles. Every instance also seats practice opponents, so you can play a full battle through on your own.
+Praetorium is free and open source. It supports games between up to four friends: 1v1, 2v1, or 2v2 Doubles. Every instance also seats practice opponents, so you can play a full battle through on your own. The home page shows the battles being played right now, so there is something to watch before there is something to play.
 
 Players can:
 
 - Build, import, save, share, print, and export army lists.
 - Run public or private league events with approved entry, sealed roster submission, organizer-controlled reveal, and reusable event history.
-- Follow live or finished league-event battles with their frozen rosters and battle history.
+- Follow live or finished battles with their frozen rosters and battle history, without taking a seat.
+- Choose who can watch their battles: anyone, their friends, or only the players at the table.
+- Watch the battles being played now from the home page, or read back through finished ones.
 - Use faction, detachment, unit, loadout, enhancement, and points data from community catalogues.
 - Configure missions, deployment, terrain, formations, stratagems, and mission cards.
 - Track rounds, phases, command points, victory points, and each unit's models, wounds and losses.
@@ -30,7 +32,7 @@ The app stores one append-only command log for each battle. It derives the curre
 
 ## Scope
 
-Praetorium does not provide matchmaking, chat, public battle discovery, rankings, standings, tournament pairings, or a rules encyclopedia. An account is required to participate.
+Praetorium does not provide matchmaking, chat, rankings, standings, or tournament pairings, nor a rules encyclopedia. An account is required to play, though not to watch a public battle.
 
 This repository contains no game data. Each instance downloads verified snapshots from the configured community sources.
 

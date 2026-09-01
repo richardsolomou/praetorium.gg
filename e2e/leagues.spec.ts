@@ -847,7 +847,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(spectator.getByRole('button', { name: 'Open 1,000-point roster' })).toHaveCount(2)
   await expect(spectator.getByRole('button', { name: 'Begin battle' })).toHaveCount(0)
   const spectatorPlayer = spectator.getByRole('link', { name: ownerName, exact: true })
-  await expect(spectatorPlayer).toHaveAttribute('href', /^\/users\/[^/?]+\?battle=/)
+  await expect(spectatorPlayer).toHaveAttribute('href', /^\/users\/[^/?]+$/)
   const spectatorRosterLink = spectator.getByRole('link', { name: '2,000-point roster', exact: true })
   await expect(spectatorRosterLink).toHaveAttribute('href', /^\/rosters\/[^/?]+\?battle=/)
   await expectNoHorizontalOverflow(spectator)

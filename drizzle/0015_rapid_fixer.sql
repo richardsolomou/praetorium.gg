@@ -1,0 +1,1 @@
+ALTER TABLE "rosters" ADD COLUMN "waived_rules" text DEFAULT '[]' NOT NULL;

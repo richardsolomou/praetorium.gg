@@ -6,7 +6,20 @@ import * as WebBrowser from 'expo-web-browser'
 import * as SecureStore from 'expo-secure-store'
 import PostHog, { PostHogProvider, type PostHogOptions } from 'posthog-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Alert,
+  AppState,
+  BackHandler,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewNavigation } from 'react-native-webview'
@@ -109,6 +122,7 @@ function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
 
 function AppShell() {
   const webView = useRef<WebView>(null)
+  const openedWebView = useRef<WebView>(null)
   const canGoBack = useRef(false)
   const authOpen = useRef(false)
   const battleAwake = useRef(false)
@@ -119,6 +133,7 @@ function AppShell() {
   const loadDrainTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadGeneration = useRef(0)
   const [renderedShell, setRenderedShell] = useState(() => appShellRenderState(shellRef.current))
+  const [openedUrl, setOpenedUrl] = useState<string | null>(null)
 
   const commitShell = useCallback((state: AppShellState) => {
     const shouldRender = appShellRenderChanged(shellRef.current, state)
@@ -247,6 +262,12 @@ function AppShell() {
           if (Platform.OS === 'android') await Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm)
           else await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
           break
+        case 'open-window': {
+          const decision = classifyNavigation(action.url)
+          if (decision.kind === 'internal') setOpenedUrl(decision.url)
+          if (decision.kind === 'external') await openExternal(decision.url)
+          break
+        }
         case 'print':
           await Print.printAsync({ html: action.html })
           break
@@ -255,7 +276,21 @@ function AppShell() {
           break
       }
     },
-    [setBattleActive],
+    [openExternal, setBattleActive],
+  )
+
+  const handleNativeActionMessage = useCallback(
+    (message: string) => {
+      const action = parseNativeActionRequest(message)
+      if (!action) return false
+      void handleNativeAction(action).catch((error) => {
+        captureNativeException(`native_${action.kind.replace('-', '_')}`, error)
+        if (action.kind === 'print') Alert.alert('Could not print', 'The system print service could not open this roster.')
+        if (action.kind === 'share') Alert.alert('Could not share', 'The system share sheet could not open this link.')
+      })
+      return true
+    },
+    [handleNativeAction],
   )
 
   const handleUrl = useCallback(
@@ -416,15 +451,7 @@ function AppShell() {
           onContentProcessDidTerminate={recoverRenderer}
           onRenderProcessGone={recoverRenderer}
           onMessage={({ nativeEvent }) => {
-            const action = parseNativeActionRequest(nativeEvent.data)
-            if (action) {
-              void handleNativeAction(action).catch((error) => {
-                captureNativeException(`native_${action.kind.replace('-', '_')}`, error)
-                if (action.kind === 'print') Alert.alert('Could not print', 'The system print service could not open this roster.')
-                if (action.kind === 'share') Alert.alert('Could not share', 'The system share sheet could not open this link.')
-              })
-              return
-            }
+            if (handleNativeActionMessage(nativeEvent.data)) return
             const result = (() => {
               try {
                 return JSON.parse(nativeEvent.data) as {
@@ -471,14 +498,57 @@ function AppShell() {
           onNavigationStateChange={updateNavigation}
           onShouldStartLoadWithRequest={({ url }) => handleUrl(url)}
           onOpenWindow={({ nativeEvent }) => {
-            const decision = classifyNavigation(nativeEvent.targetUrl)
-            if (decision.kind === 'internal') navigateApplication(decision.url)
-            if (decision.kind === 'external') void openExternal(decision.url)
+            void handleNativeAction({ kind: 'open-window', url: nativeEvent.targetUrl })
           }}
         />
       ) : (
         <StateView />
       )}
+      <Modal animationType="slide" onRequestClose={() => setOpenedUrl(null)} presentationStyle="fullScreen" visible={openedUrl !== null}>
+        <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.safeArea}>
+          <View style={styles.windowBar}>
+            <Text numberOfLines={1} style={styles.windowTitle}>
+              Praetorium
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setOpenedUrl(null)}
+              style={({ pressed }) => [styles.windowClose, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.windowCloseText}>Close</Text>
+            </Pressable>
+          </View>
+          {openedUrl ? (
+            <WebView
+              key={openedUrl}
+              ref={openedWebView}
+              source={{ uri: openedUrl }}
+              style={styles.webView}
+              containerStyle={styles.webView}
+              originWhitelist={['*']}
+              applicationNameForUserAgent="PraetoriumNative/1.0.0"
+              injectedJavaScriptBeforeContentLoaded={NATIVE_BRIDGE_SCRIPT}
+              sharedCookiesEnabled
+              thirdPartyCookiesEnabled={false}
+              allowsBackForwardNavigationGestures
+              allowsLinkPreview={false}
+              setSupportMultipleWindows
+              startInLoadingState
+              renderLoading={() => <StateView />}
+              renderError={() => <StateView error retry={() => openedWebView.current?.reload()} />}
+              onContentProcessDidTerminate={() => openedWebView.current?.reload()}
+              onRenderProcessGone={() => openedWebView.current?.reload()}
+              onMessage={({ nativeEvent }) => {
+                handleNativeActionMessage(nativeEvent.data)
+              }}
+              onShouldStartLoadWithRequest={({ url }) => handleUrl(url)}
+              onOpenWindow={({ nativeEvent }) => {
+                void handleNativeAction({ kind: 'open-window', url: nativeEvent.targetUrl })
+              }}
+            />
+          ) : null}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -506,6 +576,32 @@ const styles = StyleSheet.create({
   webView: {
     flex: 1,
     backgroundColor: BACKGROUND,
+  },
+  windowBar: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#343a40',
+    paddingLeft: 16,
+    backgroundColor: BACKGROUND,
+  },
+  windowTitle: {
+    flex: 1,
+    color: '#eceff1',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  windowClose: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  windowCloseText: {
+    color: '#9fc8bd',
+    fontSize: 15,
+    fontWeight: '600',
   },
   state: {
     position: 'absolute',

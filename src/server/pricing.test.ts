@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { OptionalRuleId } from '../core/battle'
 import {
   calculateRosterPrice,
   choiceOptionsForPricing,
@@ -8,6 +9,7 @@ import {
   factionRestrictionViolations,
   findEnhancementDescription,
   kotcViolations,
+  savedRosterPriceInput,
   resolveDisposition,
   uniqueNames,
 } from './pricing'
@@ -223,6 +225,36 @@ describe('King of the Colosseum army construction', () => {
     ).toEqual([])
   })
 
+  it('refuses to pass a Toughness 9 unit whose enhancement could raise it', () => {
+    const errors = kotcViolations(1, [
+      { ...unit('leader', ['Infantry', 'Character'], 4, true), enhanced: true },
+      unit('troops', ['Infantry', 'Battleline'], 4),
+      { ...unit('tank', ['Vehicle'], 9), enhanced: true },
+    ])
+    expect(errors.map((error) => error.message)).toEqual(['is at the Toughness cap and cannot be verified once its enhancement is applied'])
+  })
+
+  it('names an attached leader as the reason a Toughness 9 unit cannot be verified', () => {
+    const errors = kotcViolations(1, [
+      unit('leader', ['Infantry', 'Character'], 4, true),
+      unit('troops', ['Infantry', 'Battleline'], 4),
+      { ...unit('tank', ['Vehicle'], 9), led: true },
+    ])
+    expect(errors.map((error) => error.message)).toEqual([
+      'is at the Toughness cap and cannot be verified once its attached leader is applied',
+    ])
+  })
+
+  it('leaves an unmodified Toughness 9 unit alone', () => {
+    expect(
+      kotcViolations(1, [
+        unit('leader', ['Infantry', 'Character'], 4, true),
+        unit('troops', ['Infantry', 'Battleline'], 4),
+        unit('tank', ['Vehicle'], 9),
+      ]),
+    ).toEqual([])
+  })
+
   it('reports every KOTC-specific restriction without guessing unknown toughness', () => {
     const errors = kotcViolations(2, [
       unit('hero', ['Infantry', 'Epic Hero'], 10),
@@ -238,6 +270,42 @@ describe('King of the Colosseum army construction', () => {
       'allows at most 1 Toughness 9 unit, has 2',
       'allows at most 1 of this datasheet, has 2',
     ])
+  })
+
+  it('stops enforcing a restriction the roster has waived', () => {
+    const army = [unit('hero', ['Infantry', 'Epic Hero'], 4, true), unit('troops', ['Infantry', 'Battleline'], 4)]
+    expect(kotcViolations(1, army).map((error) => error.message)).toEqual(['does not allow Epic Heroes'])
+    expect(kotcViolations(1, army, 600, ['kotc-epic-heroes'])).toEqual([])
+  })
+
+  it('waives only the rule named, leaving the rest of the format intact', () => {
+    const errors = kotcViolations(2, [unit('hero', ['Infantry', 'Epic Hero'], 10)], 600, ['kotc-toughness'])
+    expect(errors.map((error) => error.message)).toEqual([
+      'needs exactly 1 detachment, has 2',
+      'needs at least 2 Infantry units',
+      'needs a Warlord',
+      'does not allow Epic Heroes',
+    ])
+  })
+
+  it('says nothing about a Toughness the catalogue cannot state once the cap is waived', () => {
+    const army = [
+      { entryId: 'mystery', name: 'mystery', keywords: ['Infantry'], toughness: null, warlord: true },
+      unit('troops', ['Infantry', 'Battleline'], 4),
+    ]
+    expect(kotcViolations(1, army).map((error) => error.message)).toEqual(['cannot verify its Toughness from the synced catalogue'])
+    expect(kotcViolations(1, army, 600, ['kotc-toughness'])).toEqual([])
+  })
+
+  it('lets a waived datasheet cap take as many copies as the catalogue allows', () => {
+    const army = [
+      unit('leader', ['Infantry', 'Character'], 4, true),
+      unit('troops', ['Infantry'], 4),
+      unit('troops', ['Infantry'], 4),
+      unit('troops', ['Infantry'], 4),
+    ]
+    expect(kotcViolations(1, army).map((error) => error.message)).toEqual(['allows at most 1 of this datasheet, has 3'])
+    expect(kotcViolations(1, army, 600, ['kotc-datasheet-copies'])).toEqual([])
   })
 })
 
@@ -409,5 +477,31 @@ describe('what a unit is carrying', () => {
 
   it('falls back to the catalogue for a unit with no kinds at all', () => {
     expect(heldWargear([], [], [{ name: 'Relic blade', count: 1 }])).toEqual([{ name: 'Relic blade', count: 1 }])
+  })
+})
+
+describe('saved roster price input', () => {
+  const saved = {
+    catalogueId: 'necrons',
+    detachmentIds: ['skyshroud-spearhead'],
+    disposition: 'priority-assets',
+    limit: 600,
+    picks: [],
+    waivedRules: [],
+    optionalRules: ['kotc-borrowed-disposition'] as OptionalRuleId[],
+    borrowedDetachmentId: 'the-phaerons-armoury',
+  }
+
+  it('carries the borrow so the borrowed disposition stays allowed', () => {
+    expect(savedRosterPriceInput(saved)).toMatchObject({
+      disposition: 'priority-assets',
+      borrowedDetachmentId: 'the-phaerons-armoury',
+      optionalRules: ['kotc-borrowed-disposition'],
+    })
+  })
+
+  it('defaults a list that borrows nothing to no borrow', () => {
+    const { optionalRules: _rules, borrowedDetachmentId: _borrowed, ...plain } = saved
+    expect(savedRosterPriceInput(plain)).toMatchObject({ borrowedDetachmentId: null, optionalRules: undefined })
   })
 })

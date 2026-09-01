@@ -10,6 +10,7 @@ import { buildIndex, type Catalogue, type CatalogueFile, type Modifier } from '.
 import { characteristicNamesOf, detachmentsOf, factionsIn, type LoadedCatalogue } from './catalogueIndex'
 import { unitsIn } from './cataloguePicker'
 import type { DatasheetDetails, FactionContent, LoadedDatacards } from './datacards'
+import { emptyExternalReferences } from './externalReferences'
 
 export const PTS = 'cost-pts'
 
@@ -28,6 +29,7 @@ export function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
     detachmentRules: new Map(),
     enhancements: new Map(),
     stratagems: new Map(),
+    stratagemsById: new Map(),
     armyRules: new Map(),
     constructionDetachments: new Map(),
     enhancementPoints: new Map(),
@@ -39,6 +41,7 @@ export function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
     detachments: detachmentsOf(files, index),
     factionContents: datacards.factions,
     datacards,
+    sourceReferences: emptyExternalReferences(),
   }
 }
 
@@ -106,6 +109,7 @@ export const withCards = (name: string, cards: readonly string[] | ReadonlyMap<s
     name,
     datasheets: new Set(details.keys()),
     datasheetDetails: details,
+    datasheetIds: new Map(),
     detachments: new Set(),
     enhancements: new Map(),
     detachmentRules: new Map(),

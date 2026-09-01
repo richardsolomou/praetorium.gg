@@ -1,5 +1,60 @@
 # praetorium
 
+## 0.47.1
+
+### Patch Changes
+
+- 0b4cce9: Keep catalogue datasheets and rules aligned when upstream names differ.
+
+## 0.47.0
+
+### Minor Changes
+
+- 9acb549: Show player avatars, factions, faction marks, and detachments on battle cards, and keep practice games off the home page.
+
+## 0.46.0
+
+### Minor Changes
+
+- 0ed0f4e: Show live activity on the home page: your own table, your friends' battles, and every battle anyone may watch, newest first and including finished ones so you can watch a game or read back through it. Choose who can watch your battles from your profile.
+- 0ed0f4e: Every battle now names its whole table when it is created. Battle links no longer offer an open seat to join, so a link only ever opens a battle to read or watch.
+- e256c5c: Colour every battle by the stage it is at, open player profiles to anybody, and land on the home page after signing in.
+
+## 0.45.0
+
+### Minor Changes
+
+- 18344cd: Add optional rules, chosen from their own dialog: homebrew a battle size can be played with, off unless a roster picks it. King of the Colosseum offers a borrowed disposition, which spends the detachment points its own detachment leaves unspent to play another detachment's Force Disposition — the disposition alone, never that detachment's rules, enhancements or stratagems.
+- 18344cd: Offer King of the Colosseum at one 600-point size, named without a size suffix. Lists already saved at 500 points keep their King of the Colosseum construction rules and play as before.
+
+### Patch Changes
+
+- 18344cd: Report a King of the Colosseum unit at the Toughness cap as unverifiable when an enhancement or attached leader could raise it, instead of accepting a list the format forbids.
+
+## 0.44.0
+
+### Minor Changes
+
+- 3333692: Override a battle size's army construction restrictions per roster, so a King of the Colosseum list can be built with Epic Heroes or any other restriction switched off.
+- 3333692: Warn before a roster that has switched off any of its battle size's restrictions is brought to a battle or sealed into a league, and show what it waives to everyone at the table.
+
+### Patch Changes
+
+- 8c2b62e: Show each weapon keyword only once when a detachment grants one it already has.
+- 3333692: Remove the picker's Hide allies filter; allied datasheets already sit at the bottom of the book.
+
+## 0.43.12
+
+### Patch Changes
+
+- ade1c36: Add a public data source and licence notice.
+
+## 0.43.11
+
+### Patch Changes
+
+- d2a94e6: Open datasheets and other new-window actions from the mobile application.
+
 ## 0.43.10
 
 ### Patch Changes

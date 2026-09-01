@@ -268,6 +268,23 @@ describe('the picker', () => {
       Scouts: 1,
       'Troop Carrier': 2,
     })
+
+    // A waived restriction puts the datasheets it was hiding back in the book, and
+    // the caps it was imposing back to whatever the catalogue itself says.
+    expect(
+      Object.fromEntries(
+        unitsIn(book, 'cat', '', {
+          battleSize: 600,
+          waivedRules: ['kotc-epic-heroes', 'kotc-toughness', 'kotc-datasheet-copies'],
+        }).map((unit) => [unit.name, unit.limit]),
+      ),
+    ).toEqual({
+      'Heavy Tank': null,
+      'Line Troops': null,
+      'Named Hero': null,
+      Scouts: null,
+      'Troop Carrier': null,
+    })
   })
 
   it('gives datasheets readable unambiguous route slugs', () => {

@@ -6,7 +6,8 @@ import { useEffect, useMemo, useRef } from 'react'
 import type { Command } from '../../core/battle'
 import type { ReportEntry } from '../../core/battleReport'
 import type { BattleView } from '../../core/battleView'
-import { deploymentsQuery, gameReferencesQuery } from '../queries'
+import { battleStage } from '../battleStage'
+import { deploymentsQuery, gameReferencesQuery, meQuery } from '../queries'
 import { sideName, sides, type Side, type SideMission } from '../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { PlayerName } from './PlayerName'
@@ -28,6 +29,7 @@ const noReference = () => undefined
 
 export function Spectator({ view, missions, report }: Props) {
   const table = useMemo(() => sides(view, missions), [missions, view])
+  const { data: me } = useQuery(meQuery())
   const { data: deployments } = useQuery(deploymentsQuery())
   const { data: references } = useQuery(gameReferencesQuery())
   const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
@@ -42,15 +44,16 @@ export function Spectator({ view, missions, report }: Props) {
   useEffect(() => {
     if (captured.current) return
     captured.current = true
-    posthog.capture('league_battle_spectated', {
+    posthog.capture('battle_spectated', {
       status: view.status,
       format: table
         .map((side) => side.armies.length)
         .toSorted((left, right) => right - left)
         .join('v'),
       player_count: view.players.length,
+      league: Boolean(view.leagueToken),
     })
-  }, [table, view.players.length, view.status, view.token])
+  }, [table, view.leagueToken, view.players.length, view.status, view.token])
 
   return (
     <main className="w-full space-y-3 px-3 pb-8">
@@ -65,9 +68,25 @@ export function Spectator({ view, missions, report }: Props) {
             <ArrowLeft className="size-4" /> Back to league event
           </Link>
         ) : null}
-        <span className="chip inline-flex items-center gap-1.5 text-info">
-          <Eye className="size-3.5" />{' '}
-          {view.status === 'finished' ? 'Battle replay' : view.status === 'playing' ? 'Watching live' : 'Battle setup'}
+        <span className="flex flex-wrap items-center gap-3">
+          {/*
+            A watchable battle opens for anybody, including the two people playing
+            it, so a seated player who has been signed out arrives here rather than
+            at a sign-in gate. Watching their own game with no way back into it is
+            the one thing this screen must not do.
+          */}
+          {me ? null : (
+            <span className="text-xs text-dim">
+              Playing in this battle?{' '}
+              <Link to="/sign-in" search={{ next: `/battles/${view.token}` }} className="text-info hover:text-bone">
+                Sign in
+              </Link>
+            </span>
+          )}
+          <span className={`chip inline-flex items-center gap-1.5 ${battleStage(view.status).tint}`}>
+            <Eye className="size-3.5" />{' '}
+            {view.status === 'finished' ? 'Battle replay' : view.status === 'playing' ? 'Watching live' : 'Battle setup'}
+          </span>
         </span>
       </div>
 
@@ -126,7 +145,7 @@ function SpectatorSide({ view, side, className }: { view: BattleView; side: Side
         {side.armies.map((army) => (
           <div key={army.playerId} className="min-w-0">
             <h2 className={`text-lg leading-tight font-bold uppercase ${colours.text}`}>
-              <PlayerName army={army} battle={view.token} />
+              <PlayerName army={army} />
             </h2>
             <ArmyIdentity army={army} token={view.token} className="mt-0.5" />
             <ArmyRoster army={army} side={side} token={view.token} actionable={false} send={ignoreCommand} />

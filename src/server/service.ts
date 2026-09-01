@@ -6,6 +6,10 @@ import {
   type Command,
   commandArmy,
   FIXED_SECONDARIES,
+  FORMAT_RULE_IDS,
+  type FormatRuleId,
+  OPTIONAL_RULE_IDS,
+  type OptionalRuleId,
   GAME_SIZES,
   type PlayerId,
   type Roster,
@@ -18,6 +22,7 @@ import {
   type Stratagem,
   type SubmitResult,
 } from '../core/battle'
+import { type BattleAudience, battleAudience, maySpectate } from '../core/battleAudience'
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import type { MissionAward } from '../core/scoring'
@@ -36,11 +41,12 @@ import {
 } from '../core/league'
 import type { TableShape } from '../core/tableShape'
 import { commandSchema, parseRosterSnapshot } from '../core/commands'
-import type { BattleHistory, BattleSeats, BattlesCursor, JoinResult, Repository } from '../db/repository'
+import type { BattleHistory, BattleSeats, BattlesCursor, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
 
 type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
+type BattleFaction = { id: string; slug: string; displayName: string; icon: string | null }
 
 /**
  * `mission` is the viewer's, for the screens that are about them. `missions` is every
@@ -56,10 +62,18 @@ type SpectatorScreen = {
   report: ReturnType<typeof battleReport>
 }
 
-/** A link resolves to a seated screen, a revealed league spectator, or an invitation; reads never claim seats. */
-type BattleScreen = SeatedScreen | SpectatorScreen | { kind: 'invitation'; free: boolean }
+/**
+ * A link resolves to a seated screen, a spectator screen, or nothing.
+ *
+ * There is no fourth answer offering a seat. A battle names everyone in it at the
+ * moment it is created, so no chair is ever standing empty for a link to fill.
+ */
+type BattleScreen = SeatedScreen | SpectatorScreen | { kind: 'unavailable' }
 
 const SPECTATOR_ID = ''
+
+/** A page of a home-page feed. Small: every row on it costs a folded log. */
+const PUBLIC_BATTLES_PAGE = 10
 
 /**
  * What a command answers: what happened to it, and what the battle now is.
@@ -464,9 +478,70 @@ export class PraetoriumService {
     userId: string,
     rules?: Parameters<typeof missionFor>[0] | null,
     page?: { limit: number; before?: BattlesCursor; withUserId?: string },
+    factions?: readonly BattleFaction[],
   ) {
     const { battles: histories, nextCursor } = await this.repository.battlesByUser(userId, page)
-    return { battles: this.battleSummaries(histories, userId, rules), nextCursor }
+    return { battles: this.battleSummaries(histories, userId, rules, factions), nextCursor }
+  }
+
+  /**
+   * The battles anyone may watch, for the home page.
+   *
+   * Folded with no viewer, the same as a league event's list: a reader with no
+   * seat is told what a spectator of any one of these would be told, and nothing
+   * in a summary is hidden from a spectator anyway.
+   */
+  async publicBattles(
+    viewerId: string | null,
+    rules?: Parameters<typeof missionFor>[0] | null,
+    page?: { limit: number; before?: BattlesCursor },
+    factions?: readonly BattleFaction[],
+  ) {
+    const { battles: histories, nextCursor } = await this.repository.publicBattles({
+      limit: page?.limit ?? PUBLIC_BATTLES_PAGE,
+      before: page?.before,
+      viewerId,
+    })
+    return { battles: this.battleSummaries(histories, viewerId, rules, factions), nextCursor }
+  }
+
+  /** The battles this player's friends are in and they are not. */
+  async friendBattles(
+    userId: string,
+    rules?: Parameters<typeof missionFor>[0] | null,
+    page?: { limit: number; before?: BattlesCursor },
+    factions?: readonly BattleFaction[],
+  ) {
+    const { battles: histories, nextCursor } = await this.repository.battlesByFriends(userId, {
+      limit: page?.limit ?? PUBLIC_BATTLES_PAGE,
+      before: page?.before,
+    })
+    return { battles: this.battleSummaries(histories, userId, rules, factions), nextCursor }
+  }
+
+  /** How widely this player's battles may be seen, and their own answer to it. */
+  battleAudience(userId: string) {
+    return this.repository.battleAudience(userId)
+  }
+
+  setBattleAudience(userId: string, audience: BattleAudience) {
+    return this.repository.setBattleAudience(userId, audience, this.clock())
+  }
+
+  /**
+   * Whether a viewer holding no seat may read this battle.
+   *
+   * `battleAudience` folds the seats' answers; a friend is only asked about when
+   * the fold says the answer turns on one, so an ordinary public battle costs the
+   * audience read alone.
+   */
+  private async mayWatch(history: BattleHistory, viewerId: string | null) {
+    const audiences = await this.repository.battleAudiences(history.players.map((player) => player.id))
+    const audience = battleAudience(history.players.map((player) => audiences.get(player.id)))
+    if (!viewerId || audience !== 'friends') return maySpectate(audience, { signedIn: Boolean(viewerId), friend: false })
+    const friends = sortedFriends(await this.repository.relationships(viewerId), viewerId).friends
+    const friend = history.players.some((player) => friends.some((known) => known.id === player.id))
+    return maySpectate(audience, { signedIn: true, friend })
   }
 
   async leagueBattles(
@@ -474,12 +549,19 @@ export class PraetoriumService {
     eventToken: string,
     page: { limit: number; before?: BattlesCursor },
     rules?: Parameters<typeof missionFor>[0] | null,
+    factions?: readonly BattleFaction[],
   ) {
     const { battles: histories, nextCursor } = await this.repository.battlesByLeagueEvent(leagueToken, eventToken, page)
-    return { battles: this.battleSummaries(histories, null, rules), nextCursor }
+    return { battles: this.battleSummaries(histories, null, rules, factions), nextCursor }
   }
 
-  private battleSummaries(histories: readonly BattleHistory[], viewerId: string | null, rules?: Parameters<typeof missionFor>[0] | null) {
+  private battleSummaries(
+    histories: readonly BattleHistory[],
+    viewerId: string | null,
+    rules?: Parameters<typeof missionFor>[0] | null,
+    factions: readonly BattleFaction[] = [],
+  ) {
+    const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
     return histories.map(({ battle, players, log }) => {
       const state = reduceBattle(
         players.map((player) => player.id),
@@ -497,9 +579,14 @@ export class PraetoriumService {
         round: state.round,
         phase: state.phase,
         players: players.map((player) => player.name),
+        playerDetails: players.map(({ id, name, image, automated }) => ({ id, name, image, automated })),
         playerIds: players.map((player) => player.id),
         sides: state.players.map((player) => player.side),
         armies: state.players.map((player) => player.roster?.name ?? null),
+        factions: state.players.map((player) => {
+          const faction = player.roster?.built?.catalogueId ? factionsById.get(player.roster.built.catalogueId) : undefined
+          return faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon } : null
+        }),
         detachments: state.players.map((player) => player.roster?.built?.detachments?.map((detachment) => detachment.name) ?? []),
         // The painted bonus pays at the end of the battle, so a running score does not
         // carry it yet — and it is the side's one bonus, the same as everywhere else.
@@ -520,19 +607,18 @@ export class PraetoriumService {
     })
   }
 
-  /** Someone's name and picture, to a viewer allowed to see it. */
-  async userProfile(viewerId: string | null, userId: string, battleToken?: string) {
-    const profile = await this.repository.profileByUserId(userId)
-    if (!profile) return null
-    if (viewerId) {
-      if (viewerId === userId) return profile
-      const friends = sortedFriends(await this.repository.relationships(viewerId), viewerId).friends
-      if (friends.some((friend) => friend.id === userId)) return profile
-      if (await this.repository.shareBattle(viewerId, userId)) return profile
-    }
-    if (!battleToken) return null
-    const screen = await this.screen(battleToken, viewerId)
-    return screen.kind === 'spectator' && screen.view.players.some((player) => player.id === userId) ? profile : null
+  /**
+   * Someone's name and picture.
+   *
+   * Open to anybody, including a reader with no account. A name is already on
+   * every battle a player allows to be watched and on every row of the
+   * leaderboard, so gating the page that shows the same name behind a friendship
+   * only produced links that led nowhere. What a player keeps to themselves is
+   * their battles, which `battleAudience` governs; who they are is not a secret
+   * the product was ever keeping.
+   */
+  async userProfile(userId: string) {
+    return (await this.repository.profileByUserId(userId)) ?? null
   }
 
   async saveRoster(
@@ -546,6 +632,9 @@ export class PraetoriumService {
       limit: number
       picks: readonly RosterPick[]
       prep: SavedPrep | null
+      waivedRules?: readonly FormatRuleId[]
+      optionalRules?: readonly OptionalRuleId[]
+      borrowedDetachmentId?: string | null
       visibility: 'private' | 'unlisted'
       source: RosterSource
     },
@@ -559,6 +648,9 @@ export class PraetoriumService {
       picks: JSON.stringify(roster.picks),
       prep: roster.prep ? JSON.stringify(roster.prep) : null,
       tags: '[]',
+      waivedRules: JSON.stringify(roster.waivedRules ?? []),
+      optionalRules: JSON.stringify(roster.optionalRules ?? []),
+      borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
       now: this.clock(),
     })
     if (!saved) throw new Response('you do not own this roster', { status: 403 })
@@ -572,9 +664,11 @@ export class PraetoriumService {
   }
 
   async savedRosterSummaries(userId: string) {
-    return (await this.repository.rosterSummariesByUser(userId)).map(({ detachmentId, ...row }) => ({
+    return (await this.repository.rosterSummariesByUser(userId)).map(({ detachmentId, waivedRules, optionalRules, ...row }) => ({
       ...row,
       detachmentIds: detachmentIds(detachmentId),
+      waivedRules: waivedRulesFrom(waivedRules),
+      optionalRules: optionalRulesFrom(optionalRules),
     }))
   }
 
@@ -696,12 +790,13 @@ export class PraetoriumService {
   }
 
   /**
-   * Opens a battle and invites the rest of the table.
+   * Opens a battle with its whole table already seated.
    *
-   * The creator says which side each invitation is for: `allyId` joins them and
-   * `opponentIds` face them. Everyone invited is checked once, together — who may be in a battle
-   * is one question, and asking it of the ally and the opponents separately would
-   * be two rules about it.
+   * The creator says which side each player is on: `allyId` sits beside them and
+   * `opponentIds` face them. Everyone named is checked once, together — who may be
+   * in a battle is one question, and asking it of the ally and the opponents
+   * separately would be two rules about it. Every named player takes their seat in
+   * the same transaction, so a battle is never a room with a chair free in it.
    */
   async createBattle(userId: string, input?: string | CreateBattleInput) {
     const settings = typeof input === 'object' && input.limit !== undefined ? { ...input, limit: input.limit } : null
@@ -721,8 +816,9 @@ export class PraetoriumService {
     // How many chairs a battle has is `battleCapacity`'s to say, here as everywhere.
     if (invited.length >= battleCapacity({ teamBattle: true, playerCount: 4 }))
       throw new Response('a battle seats four players at most', { status: 400 })
-    if (allyIds.length && !opponentIds.length) throw new Response('choose an opponent', { status: 400 })
-    if (settings && !opponentIds.length) throw new Response('choose an opponent', { status: 400 })
+    // Every battle names its table. There is no opening a game and waiting to see
+    // who turns up, so a battle without an opponent is not a battle yet.
+    if (!opponentIds.length) throw new Response('choose an opponent', { status: 400 })
     if (invited.length && (typeof input !== 'object' || !input.casual)) {
       const leagueMatches = await this.leagueBattleOptions(userId, input)
       if (leagueMatches.length) {
@@ -821,26 +917,6 @@ export class PraetoriumService {
   }
 
   /**
-   * Takes a seat behind a shared link.
-   *
-   * Only the seats are read here: whether there is a chair free is settled inside
-   * the append, under the lock that stops two people taking the same one, so
-   * reading the history out here as well would fold the same log twice to reach
-   * the same answer.
-   */
-  async join(token: string, userId: string): Promise<JoinResult> {
-    const seats = await this.repository.battleByToken(token)
-    if (!seats) throw new Response('no such battle', { status: 404 })
-    const opener = seats.players.find((player) => player.side === 0)
-    if (!opener || !(await this.opponents(opener.id)).some((friend) => friend.id === userId)) {
-      throw new Response('battle opponents must be friends', { status: 403 })
-    }
-    const result = await this.repository.join({ battleId: seats.battle.id, userId, now: this.clock() })
-    if (result === 'joined') this.events.publish(seats.battle.id, [...seats.players.map((player) => player.id), userId])
-    return result
-  }
-
-  /**
    * `rules` is passed in rather than reached for, so the service stays testable
    * without a synced dataset.
    */
@@ -849,21 +925,22 @@ export class PraetoriumService {
     const viewerId = userId && this.seated(history, userId) ? userId : SPECTATOR_ID
     const screen = this.battleScreen(history, viewerId, rules)
     if (viewerId !== SPECTATOR_ID) return screen
-    if (screen.view.leagueToken) {
-      return {
-        kind: 'spectator',
-        view: screen.view,
-        missions: screen.missions,
-        report: battleReport(
-          history.players,
-          history.log,
-          history.players.map((player) => player.id),
-          SPECTATOR_ID,
-          history.players.map((player) => player.side),
-        ),
-      }
-    }
-    return { kind: 'invitation', free: history.players.length < battleCapacity(screen.view.settings) }
+    const spectator = (): SpectatorScreen => ({
+      kind: 'spectator',
+      view: screen.view,
+      missions: screen.missions,
+      report: battleReport(
+        history.players,
+        history.log,
+        history.players.map((player) => player.id),
+        SPECTATOR_ID,
+        history.players.map((player) => player.side),
+      ),
+    })
+    if (screen.view.leagueToken) return spectator()
+    // Everyone else either watches or is told no. Nobody arrives here to sit down:
+    // the seats were filled when the battle was created.
+    return (await this.mayWatch(history, userId)) ? spectator() : { kind: 'unavailable' }
   }
 
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */
@@ -1066,6 +1143,9 @@ function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>
     updatedAt: row.updatedAt,
     picks: picksSchema.parse(JSON.parse(row.picks)),
     prep: includePrep && row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
+    waivedRules: waivedRulesFrom(row.waivedRules),
+    optionalRules: optionalRulesFrom(row.optionalRules),
+    borrowedDetachmentId: row.borrowedDetachmentId,
     visibility: row.visibility,
     source: row.source,
   }
@@ -1219,6 +1299,25 @@ function scoringCapError(
 }
 
 /** The legacy column held one id; new rows hold the ordered 11e purchase list. */
+/**
+ * The format rules a saved row says it has waived.
+ *
+ * Parsed rather than trusted: a rule id this build does not know would be a
+ * restriction the roster believes is off while every check still enforces it, so an
+ * unrecognised name is dropped and the rule goes on being played.
+ */
+function optionalRulesFrom(value: string | null): OptionalRuleId[] {
+  if (!value) return []
+  const parsed: unknown = JSON.parse(value)
+  return Array.isArray(parsed) ? parsed.filter((id): id is OptionalRuleId => OPTIONAL_RULE_IDS.some((known) => known === id)) : []
+}
+
+function waivedRulesFrom(value: string | null): FormatRuleId[] {
+  if (!value) return []
+  const parsed: unknown = JSON.parse(value)
+  return Array.isArray(parsed) ? parsed.filter((id): id is FormatRuleId => FORMAT_RULE_IDS.some((known) => known === id)) : []
+}
+
 function detachmentIds(value: string | null): string[] {
   if (!value) return []
   if (!value.startsWith('[')) return [value]

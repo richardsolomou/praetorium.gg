@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
   BATTLE_ROUNDS,
+  borrowedDispositionError,
   type Command,
+  optionalRules,
+  pickedOptionalRules,
+  GAME_SIZES,
+  isKotcLimit,
   detachmentLimit,
+  detachmentPointsError,
   formatDatasheetLimit,
+  formatRules,
+  kotcUnitExclusions,
+  waivedFormatRules,
   reduceBattle,
   sideDisposition,
   sideDispositionChoices,
@@ -425,6 +434,96 @@ describe('setup', () => {
     expect(formatDatasheetLimit(600, false)).toBe(1)
     expect(formatDatasheetLimit(600, true)).toBe(2)
     expect(formatDatasheetLimit(2000, false)).toBeNull()
+  })
+
+  it('offers King of the Colosseum at 600 points only', () => {
+    expect(GAME_SIZES.filter((size) => size.name.startsWith('King of the Colosseum')).map((size) => size.limit)).toEqual([600])
+  })
+
+  it('keeps playing a roster saved at a size no longer offered', () => {
+    expect(isKotcLimit(500)).toBe(true)
+  })
+
+  it('lets a King of the Colosseum roster borrow a disposition its leftover points cover', () => {
+    expect(borrowedDispositionError(600, ['kotc-borrowed-disposition'], { points: 1 }, { points: 2 })).toBeNull()
+  })
+
+  it('refuses a borrowed disposition the roster cannot pay for', () => {
+    expect(borrowedDispositionError(600, ['kotc-borrowed-disposition'], { points: 2 }, { points: 2 })).toBe(
+      'This combination costs 4 DP; the borrowed disposition rule allows 3 DP.',
+    )
+  })
+
+  it('refuses a borrowed disposition the catalogue cannot price', () => {
+    expect(borrowedDispositionError(600, ['kotc-borrowed-disposition'], { points: null }, { points: 2 })).toBe(
+      'This catalogue does not price one of these detachments, so the borrowed disposition cannot be paid for.',
+    )
+  })
+
+  it('offers the borrowed disposition optional rule only at King of the Colosseum', () => {
+    expect(borrowedDispositionError(2000, ['kotc-borrowed-disposition'], { points: 1 }, { points: 1 })).toBe(
+      'Only a King of the Colosseum roster may borrow another detachment\u2019s Force Disposition.',
+    )
+  })
+
+  it('charges nothing to a roster that borrows no disposition', () => {
+    expect(borrowedDispositionError(600, ['kotc-borrowed-disposition'], { points: 3 }, null)).toBeNull()
+  })
+
+  it('refuses a borrow the roster never picked the optional rule for', () => {
+    expect(borrowedDispositionError(600, [], { points: 1 }, { points: 1 })).toBe(
+      'This roster is not playing the borrowed disposition optional rule.',
+    )
+  })
+
+  it('offers homebrew only at the sizes that have any', () => {
+    expect(optionalRules(600).map((rule) => rule.id)).toEqual(['kotc-borrowed-disposition'])
+    expect(optionalRules(2000)).toEqual([])
+    expect(optionalRules(null)).toEqual([])
+  })
+
+  it('counts only the homebrew its own battle size offers', () => {
+    expect(pickedOptionalRules(600, ['kotc-borrowed-disposition']).map((rule) => rule.label)).toEqual(['Borrowed disposition'])
+    expect(pickedOptionalRules(600, [])).toEqual([])
+    // The id is kept when a list moves to a size that does not offer it, so moving back
+    // restores the choice — but nothing here is being played with it.
+    expect(pickedOptionalRules(2000, ['kotc-borrowed-disposition'])).toEqual([])
+  })
+
+  it('names the restrictions each battle size adds', () => {
+    expect(formatRules(600).map((rule) => rule.id)).toEqual([
+      'detachments',
+      'kotc-infantry',
+      'kotc-warlord',
+      'kotc-epic-heroes',
+      'kotc-toughness',
+      'kotc-datasheet-copies',
+    ])
+    expect(formatRules(2000).map((rule) => rule.id)).toEqual(['detachment-points'])
+    expect(formatRules(3000)).toEqual([])
+    expect(formatRules(null)).toEqual([])
+  })
+
+  it('counts only the waivers its own battle size imposes', () => {
+    expect(waivedFormatRules(600, ['kotc-epic-heroes']).map((rule) => rule.label)).toEqual(['No Epic Heroes'])
+    // The id is kept when a list moves to a size that does not impose it, so moving
+    // back restores the choice — but nothing here is being played without.
+    expect(waivedFormatRules(2000, ['kotc-epic-heroes'])).toEqual([])
+    expect(waivedFormatRules(2000, ['detachment-points']).map((rule) => rule.id)).toEqual(['detachment-points'])
+    expect(waivedFormatRules(null, ['kotc-epic-heroes'])).toEqual([])
+  })
+
+  it('stops applying a restriction the roster has waived', () => {
+    const epicHero = { keywords: ['Infantry', 'Epic Hero'], toughness: 12 }
+    expect(kotcUnitExclusions(epicHero)).toEqual(['does not allow Epic Heroes', 'does not allow Toughness 12'])
+    expect(kotcUnitExclusions(epicHero, ['kotc-epic-heroes'])).toEqual(['does not allow Toughness 12'])
+    expect(kotcUnitExclusions(epicHero, ['kotc-epic-heroes', 'kotc-toughness'])).toEqual([])
+    expect(detachmentLimit(600, ['detachments'])).toBe(3)
+    expect(formatDatasheetLimit(600, true, ['kotc-datasheet-copies'])).toBeNull()
+    expect(detachmentPointsError([{ points: 3 }, { points: 3 }], 3)).toBe(
+      'This combination costs 6 DP; multiple detachments at this battle size may cost at most 3 DP.',
+    )
+    expect(detachmentPointsError([{ points: 3 }, { points: 3 }], 3, ['detachment-points'])).toBeNull()
   })
 
   it('has no active player before the battle begins', () => {

@@ -441,22 +441,29 @@ describe('the profile modifiers on a datasheet', () => {
               typeName: 'Ranged Weapons',
               characteristics: [{ name: 'Keywords', typeId: 'keywords', $text: 'Blast, Twin-Linked' }],
             },
+            {
+              id: 'bolt-pistol',
+              name: 'Bolt pistol',
+              typeName: 'Ranged Weapons',
+              characteristics: [{ name: 'Keywords', typeId: 'keywords', $text: 'Pistol, Assault' }],
+            },
           ],
         },
       ],
     })
 
-    const keywords = datasheetIn(book, 'cat', 'speeder', {
+    const profiles = datasheetIn(book, 'cat', 'speeder', {
       selections: [{ id: 'company' }, { id: 'speeder' }],
       unitSelectionIndex: 1,
-    })?.profiles[0]?.values[0]
+    })?.profiles
 
-    expect(keywords).toEqual({
+    expect(profiles?.[0]?.values[0]).toEqual({
       name: 'Keywords',
       value: 'Blast, Twin-Linked, Assault',
       baseValue: 'Blast, Twin-Linked',
       modifiers: ['Company of Hunters'],
     })
+    expect(profiles?.[1]?.values[0]).toEqual({ name: 'Keywords', value: 'Pistol, Assault' })
   })
 
   it('adds a leader ability keyword to the melee weapons in its attached unit', () => {

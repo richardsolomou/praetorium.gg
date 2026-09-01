@@ -34,6 +34,7 @@ it('indexes the faction-owned datasheets and detachments', () => {
       name: 'Dark Angels',
       datasheets: [
         {
+          id: 'asmodai',
           name: { en: 'Asmodai' },
           composition: [{ en: '**1 Asmodai**' }],
           loadout: { en: '**This model is equipped with:** Crozius arcanum.' },
@@ -43,7 +44,7 @@ it('indexes the faction-owned datasheets and detachments', () => {
           points: [{ models: '1', cost: '70', keyword: null, faction: null, detachment: null }],
           attachesTo: [{ type: 'leader', target: 'Azrael', targetType: 'datasheet' }],
         },
-        { name: { en: 'Azrael' } },
+        { id: 'azrael', name: { en: 'Azrael' } },
       ],
       detachments: [{ name: { en: 'Inner Circle Task Force' } }, { name: { en: 'Unforgiven Task Force' } }],
     }),
@@ -69,6 +70,36 @@ it('indexes the faction-owned datasheets and detachments', () => {
       ],
       [
         'Azrael',
+        {
+          composition: [],
+          loadout: null,
+          wargear: [],
+          baseSize: null,
+          transport: null,
+          points: [],
+          attachesTo: [],
+          leaders: ['Asmodai'],
+          supporters: [],
+        },
+      ],
+    ]),
+    datasheetIds: new Map([
+      [
+        'asmodai',
+        {
+          composition: ['**1 Asmodai**'],
+          loadout: '**This model is equipped with:** Crozius arcanum.',
+          wargear: ['This model cannot replace its wargear.'],
+          baseSize: '50mm',
+          transport: 'This model has a transport capacity of 6 **INFANTRY** models.',
+          points: [{ models: '1', cost: '70', keyword: null, faction: null, detachment: null }],
+          attachesTo: [{ kind: 'leader', name: 'Azrael' }],
+          leaders: [],
+          supporters: [],
+        },
+      ],
+      [
+        'azrael',
         {
           composition: [],
           loadout: null,

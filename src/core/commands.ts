@@ -3,6 +3,7 @@ import {
   BATTLE_ROUNDS,
   type Command,
   DETACHMENTS_MAX,
+  FORMAT_RULE_IDS,
   ROSTER_MAX_LENGTH,
   ROSTER_NAME_MAX_LENGTH,
   SECONDARIES_MAX,
@@ -112,6 +113,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
           detachmentPointBudget: z.number().int().min(0).max(3).nullable().optional(),
           disposition: z.string().max(64).nullable(),
           detachmentIds: z.array(id).max(3).optional(),
+          waivedRules: z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional(),
           picks: z.array(rosterPickSchema).max(100).optional(),
           units: z
             .array(

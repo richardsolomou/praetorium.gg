@@ -1,11 +1,21 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Heart, ListFilter, Plus } from 'lucide-react'
+import { EllipsisVertical, Heart, ListFilter, Plus } from 'lucide-react'
 import { Fragment, memo, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Toggle } from '@/components/ui/toggle'
-import { isKotcLimit } from '../../../core/battle'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import type { FormatRuleId } from '../../../core/battle'
+import { enforces, formatRules, isKotcLimit } from '../../../core/battle'
 import type { UnitSummary } from '../../../server/cataloguePicker'
 import { SearchField } from '../SearchField'
 import { DatasheetMatchReasons } from '../DatasheetMatchReasons'
@@ -24,19 +34,21 @@ type Props = {
   inRoster: Record<string, number>
   room: number | null
   battleSize: number
+  /** Which of the battle size's restrictions the roster has switched off. */
+  waivedRules: readonly FormatRuleId[]
+  onWaiveToggle: (rule: FormatRuleId) => void
   query: string
   onQueryChange: (query: string) => void
   active: ReadonlySet<PickerFilter>
   onFilterToggle: (filter: PickerFilter) => void
 }
 
-export type PickerFilter = 'fit' | 'limit' | 'owned' | 'allies'
+export type PickerFilter = 'fit' | 'limit' | 'owned'
 
 const FILTERS: { id: PickerFilter; label: string; hint: string }[] = [
   { id: 'fit', label: 'Points fit', hint: 'Hide anything that would not fit in the points left' },
   { id: 'limit', label: 'Unit limit', hint: 'Hide anything the roster already holds as many of as it may' },
   { id: 'owned', label: 'Owned', hint: 'Show only datasheets you own models for' },
-  { id: 'allies', label: 'Hide allies', hint: 'Hide allied datasheets contributed by secondary forces' },
 ]
 
 /**
@@ -55,6 +67,8 @@ export const Picker = memo(function Picker({
   inRoster,
   room,
   battleSize,
+  waivedRules,
+  onWaiveToggle,
   query,
   onQueryChange,
   active,
@@ -62,7 +76,7 @@ export const Picker = memo(function Picker({
 }: Props) {
   const settledQuery = useSettled(query.trim())
   const unitsResult = useQuery({
-    ...unitsQuery(catalogueId, settledQuery, battleSize),
+    ...unitsQuery(catalogueId, settledQuery, battleSize, waivedRules),
     enabled: enabled && Boolean(catalogueId),
     placeholderData: keepPreviousData,
   })
@@ -80,11 +94,12 @@ export const Picker = memo(function Picker({
         if (active.has('fit') && room !== null && unit.points !== null && unit.points > room) return false
         if (active.has('limit') && unit.limit !== null && (inRoster[unit.id] ?? 0) >= unit.limit) return false
         if (active.has('owned') && !collection.has(unit.id)) return false
-        if (active.has('allies') && unit.allied) return false
         return true
       }),
     [found, active, room, inRoster, collection],
   )
+  const rules = formatRules(battleSize)
+  const waived = rules.filter((rule) => !enforces(waivedRules, rule.id))
   const alliedFactions = useMemo(() => [...new Set(shown.flatMap((unit) => (unit.alliedFaction ? [unit.alliedFaction] : [])))], [shown])
   const sections = [
     ...GROUPS.map((group) => ({ ...group, alliedFaction: null })),
@@ -121,6 +136,44 @@ export const Picker = memo(function Picker({
               {filter.label}
             </Toggle>
           ))}
+          {/*
+           * The restrictions the battle size imposes, switched off over the book they
+           * act on: unchecking one is what puts the datasheets it was hiding back in
+           * this list. What a list has switched off is said again under the roster,
+           * where the errors it is no longer being told about would have been.
+           */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Format restrictions"
+              className={`ml-auto grid size-6 shrink-0 place-items-center ${waived.length ? 'text-discarded' : 'text-faint hover:text-bone'}`}
+            >
+              <EllipsisVertical className="size-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-w-[min(20rem,calc(100vw-2rem))] min-w-64">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[0.6875rem] tracking-[0.06em] uppercase">Format restrictions</DropdownMenuLabel>
+                {rules.length ? (
+                  rules.map((rule) => (
+                    <DropdownMenuCheckboxItem
+                      key={rule.id}
+                      className="items-start rounded-none py-1.5"
+                      checked={enforces(waivedRules, rule.id)}
+                      onCheckedChange={() => onWaiveToggle(rule.id)}
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-xs font-semibold uppercase">{rule.label}</span>
+                        <span className="mt-0.5 block text-[0.6875rem] leading-tight text-wrap text-dim">{rule.hint}</span>
+                      </span>
+                    </DropdownMenuCheckboxItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled className="rounded-none text-xs">
+                    This battle size adds no restrictions.
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:px-2.5">
@@ -149,6 +202,7 @@ export const Picker = memo(function Picker({
                         inCollection={collection.has(unit.id)}
                         collectionPending={own.isPending && own.variables?.entryId === unit.id}
                         battleSize={battleSize}
+                        waivedRules={waivedRules}
                         query={settledQuery}
                         onPreview={onPreview}
                         onOwned={setOwned}
@@ -196,6 +250,7 @@ type PickerRowProps = {
   inCollection: boolean
   collectionPending: boolean
   battleSize: number
+  waivedRules: readonly FormatRuleId[]
   query: string
   onPreview: (entryId: string, name: string) => void
   onOwned: (entryId: string, owned: boolean) => void
@@ -209,6 +264,7 @@ const PickerRow = memo(function PickerRow({
   inCollection,
   collectionPending,
   battleSize,
+  waivedRules,
   query,
   onPreview,
   onOwned,
@@ -253,7 +309,7 @@ const PickerRow = memo(function PickerRow({
           size="sm"
           className="h-7 shrink-0 px-2 text-[0.6875rem]"
           aria-label={`Add ${unit.name}`}
-          disabled={isKotcLimit(battleSize) && full}
+          disabled={isKotcLimit(battleSize) && enforces(waivedRules, 'kotc-datasheet-copies') && full}
           onClick={() => onAdd(unit.id)}
         >
           <Plus className="size-3" />

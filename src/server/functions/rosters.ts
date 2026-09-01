@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
-import { calculateRosterPoints, calculateRosterPrice } from '../pricing'
+import { calculateRosterPoints, calculateRosterPrice, savedRosterPriceInput } from '../pricing'
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, importRosterFile } from '../rosterFiles'
 import { factionsFor } from '../factionReferences'
@@ -62,6 +62,7 @@ function cachedRosterPoints(roster: {
   disposition: string | null
   limit: number
   picks: Parameters<typeof calculateRosterPoints>[0]['units']
+  waivedRules: Parameters<typeof calculateRosterPoints>[0]['waivedRules']
 }) {
   const key = rosterRevisionKey(roster)
   const cached = rosterPointsCache.get(key)
@@ -72,6 +73,7 @@ function cachedRosterPoints(roster: {
     disposition: roster.disposition,
     limit: roster.limit,
     units: roster.picks,
+    waivedRules: roster.waivedRules,
   })
   if (rosterPointsCache.size >= ROSTER_POINTS_CACHE_LIMIT) {
     const oldest = rosterPointsCache.keys().next().value
@@ -101,17 +103,14 @@ function cachedRosterPrice(roster: {
   disposition: string | null
   limit: number
   picks: Parameters<typeof calculateRosterPrice>[0]['units']
+  waivedRules: Parameters<typeof calculateRosterPrice>[0]['waivedRules']
+  optionalRules: Parameters<typeof calculateRosterPrice>[0]['optionalRules']
+  borrowedDetachmentId: string | null
 }) {
   const key = rosterRevisionKey(roster)
   const cached = rosterPriceCache.get(key)
   if (cached !== undefined || rosterPriceCache.has(key)) return cached ?? null
-  const price = calculateRosterPrice({
-    catalogueId: roster.catalogueId,
-    detachmentIds: roster.detachmentIds,
-    disposition: roster.disposition,
-    limit: roster.limit,
-    units: roster.picks,
-  })
+  const price = calculateRosterPrice(savedRosterPriceInput(roster))
   if (rosterPriceCache.size >= ROSTER_PRICE_CACHE_LIMIT) {
     const oldest = rosterPriceCache.keys().next().value
     if (oldest !== undefined) rosterPriceCache.delete(oldest)

@@ -1,7 +1,7 @@
 import { rosterSnapshot } from '../core/rosterSnapshot'
 import { app } from './app'
 import { unitWoundsIn } from './catalogue'
-import { calculateRosterPrice } from './pricing'
+import { calculateRosterPrice, savedRosterPriceInput } from './pricing'
 
 type PricedRosterLegality = {
   points: number
@@ -23,16 +23,7 @@ export async function rosterForUse(userId: string, rosterId: string) {
   if (!saved) throw new Response('you do not own this roster', { status: 403 })
   const catalogue = app().catalogue()
   if (!catalogue) throw new Response('this instance has no catalogue', { status: 409 })
-  const priced = calculateRosterPrice(
-    {
-      catalogueId: saved.catalogueId,
-      detachmentIds: saved.detachmentIds,
-      disposition: saved.disposition,
-      limit: saved.limit,
-      units: saved.picks,
-    },
-    catalogue,
-  )
+  const priced = calculateRosterPrice(savedRosterPriceInput(saved), catalogue)
   if (!priced) throw new Response('this instance has no catalogue', { status: 409 })
   const error = rosterUseError(priced, saved.limit)
   if (error) throw new Response(`fix roster errors before using it: ${error}`, { status: 409 })

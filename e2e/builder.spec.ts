@@ -334,9 +334,9 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-  await expect(page.getByRole('option', { name: /King of the Colosseum/ })).toHaveCount(2)
+  await expect(page.getByRole('option', { name: /King of the Colosseum/ })).toHaveCount(1)
   await page.screenshot({ path: 'test-results/kotc-size-options.png', fullPage: true })
-  await page.getByRole('option', { name: /King of the Colosseum \(600\)/ }).click()
+  await page.getByRole('option', { name: /King of the Colosseum/ }).click()
 
   const awakened = dialog.getByRole('button', { name: 'Select Awakened Dynasty' })
   const cryptek = dialog.getByRole('button', { name: 'Select Cryptek Conclave' })
@@ -348,8 +348,8 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
 
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
-  await expect(page.getByText('King of the Colosseum (600)', { exact: true })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'King of the Colosseum (600)' })).toHaveCount(0)
+  await expect(page.getByText('King of the Colosseum', { exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'King of the Colosseum' })).toHaveCount(0)
   for (const excluded of ['Imotekh the Stormlord', 'Monolith']) {
     await page.getByLabel('Add a unit').fill(excluded)
     await expect(page.getByRole('button', { name: `Add ${excluded}`, exact: true })).toHaveCount(0)
@@ -368,6 +368,39 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await expect(page.getByText('2/2 in roster')).toBeVisible()
   await expect(addImmortals).toBeDisabled()
   await page.screenshot({ path: 'test-results/kotc-picker-rules.png', fullPage: true })
+
+  /*
+   * A waived restriction is waived wherever the list is read, including on the next
+   * document request. Switching Epic Heroes off puts Imotekh back in the book, and the
+   * reloaded page does not report the unit the list now allows — the saved roster is
+   * priced through a different path from the editing one, and that path forgot the
+   * waivers once.
+   */
+  await page.getByRole('button', { name: 'Format restrictions' }).click()
+  await waitForRosterSave(page, () => page.getByRole('menuitemcheckbox', { name: /No Epic Heroes/ }).click())
+  await page.keyboard.press('Escape')
+  await page.getByLabel('Add a unit').fill('Imotekh the Stormlord')
+  const addImotekh = page.getByRole('button', { name: 'Add Imotekh the Stormlord', exact: true })
+  await expect(addImotekh).toBeVisible()
+  await waitForRosterSave(page, () => addImotekh.click())
+  await page.reload()
+  await expect(page.locator('[data-unit="Imotekh the Stormlord"]')).toBeVisible()
+  await expect(page.getByText('does not allow Epic Heroes')).toHaveCount(0)
+  const waived = page.getByRole('region', { name: 'Format restrictions switched off' })
+  await expect(waived).toContainText('No Epic Heroes')
+  await page.screenshot({ path: 'test-results/kotc-waived-epic-heroes.png', fullPage: true })
+
+  // Dismissing says "I know", and it stays said for this list until the set changes.
+  await waived.getByRole('button', { name: 'Dismiss the format restriction warning' }).click()
+  await expect(waived).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator('[data-unit="Imotekh the Stormlord"]')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Format restrictions switched off' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Format restrictions' }).click()
+  await waitForRosterSave(page, () => page.getByRole('menuitemcheckbox', { name: /Toughness cap/ }).click())
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('region', { name: 'Format restrictions switched off' })).toContainText('Toughness cap')
+
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   const mobilePicker = page.getByRole('dialog', { name: 'Add units' })
@@ -1095,6 +1128,21 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Incursion/ }).click()
   await setup.getByRole('button', { name: 'Save changes' }).click()
+
+  // The battle size's own restrictions are switched off from the picker's own menu,
+  // over the book they act on.
+  const restriction = () => page.getByRole('menuitemcheckbox', { name: /Detachment points/ })
+  await page.getByRole('button', { name: 'Format restrictions' }).click()
+  await expect(restriction()).toHaveAttribute('aria-checked', 'true')
+  await waitForRosterSave(page, () => restriction().click())
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('region', { name: 'Format restrictions switched off' })).toContainText('Detachment points')
+  await page.getByRole('button', { name: 'Format restrictions' }).click()
+  await expect(restriction()).toHaveAttribute('aria-checked', 'false')
+  await waitForRosterSave(page, () => restriction().click())
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('region', { name: 'Format restrictions switched off' })).toHaveCount(0)
+
   for (let taken = 0; taken < 6; taken++) await lychguard.click()
   await expect(page.locator('[data-stat="points"]')).toHaveText('720/1000')
 

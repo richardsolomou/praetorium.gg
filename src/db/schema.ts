@@ -149,6 +149,24 @@ export const battleUsers = pgTable(
   (table) => [primaryKey({ columns: [table.battleId, table.userId] }), index('battle_users_user_id_index').on(table.userId)],
 )
 
+/**
+ * How widely one player's battles may be seen.
+ *
+ * A row is an override, so the absence of one is the default in
+ * `src/core/battleAudience.ts` rather than a second copy of it here. The setting
+ * belongs to the player rather than the battle because a player answers this
+ * question once, not again every time they open a game — and a battle has two to
+ * four of them, so `battleAudience` folds the seats into the narrowest answer any
+ * of them gave.
+ */
+export const battleSharing = pgTable('battle_sharing', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  audience: text('audience', { enum: ['public', 'friends', 'private'] }).notNull(),
+  at: bigint('at', { mode: 'number' }).notNull(),
+})
+
 /** A mutual connection, beginning as a request from one player to another. */
 export const friendships = pgTable(
   'friendships',
@@ -222,6 +240,16 @@ export const rosters = pgTable(
     prep: text('prep'),
     /** Short player-authored labels as a JSON array. */
     tags: text('tags').notNull().default('[]'),
+    /** The battle size restrictions this roster has switched off, as a JSON array of rule ids. */
+    waivedRules: text('waived_rules').notNull().default('[]'),
+    /** The homebrew this roster picked, as a JSON array of optional rule ids. */
+    optionalRules: text('optional_rules').notNull().default('[]'),
+    /**
+     * The detachment this roster borrows its Force Disposition from under the King of the
+     * Colosseum optional rule, paid for out of the detachment points its own detachment left
+     * unspent. Null is the ordinary roster, which plays a disposition it brought.
+     */
+    borrowedDetachmentId: text('borrowed_detachment_id'),
     /** Private rosters are owner-only; unlisted rosters resolve through their opaque id. */
     visibility: text('visibility', { enum: ['private', 'unlisted'] })
       .notNull()
@@ -389,6 +417,7 @@ export const schema = {
   rateLimit,
   battles,
   battleUsers,
+  battleSharing,
   friendships,
   commands,
   rosters,

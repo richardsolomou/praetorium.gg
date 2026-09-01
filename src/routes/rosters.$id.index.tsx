@@ -25,7 +25,7 @@ export const Route = createFileRoute('/rosters/$id/')({
     }
     if (deps.battle) {
       const screen = await context.queryClient.ensureQueryData(battleQuery(deps.battle))
-      if (!screen || screen.kind === 'invitation') throw notFound()
+      if (!screen || screen.kind === 'unavailable') throw notFound()
       const roster = fieldedRoster(screen.view, params.id)
       if (!roster) throw notFound()
       return { editable: false, snapshot: true }
@@ -43,6 +43,9 @@ export const Route = createFileRoute('/rosters/$id/')({
       roster.limit,
       normalisePicks(roster.picks),
       deps.battle,
+      roster.waivedRules,
+      roster.borrowedDetachmentId,
+      roster.optionalRules,
     )
     context.queryClient.setQueryData(priced.queryKey, price)
     return { editable, snapshot: false }
@@ -67,7 +70,7 @@ function RosterPage() {
   }, [print])
 
   if (leagueSnapshot) return sealed ? <BattleRosterSnapshot roster={sealed} /> : null
-  if (snapshot && battle && screen && screen.kind !== 'invitation') {
+  if (snapshot && battle && screen && screen.kind !== 'unavailable') {
     const fielded = fieldedRoster(screen.view, id)
     return fielded ? <BattleRosterSnapshot roster={fielded} /> : null
   }

@@ -14,6 +14,7 @@ import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
 import { type FactionContent, type LoadedDatacards, loadDatacards } from './datacards'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
+import { type ExternalReferences, loadExternalReferences } from './externalReferences'
 
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
@@ -27,6 +28,7 @@ export type LoadedCatalogue = {
   factionContents: Map<string, FactionContent>
   /** Game Datacards, read once here and handed to the rules loader. */
   datacards: LoadedDatacards
+  sourceReferences: ExternalReferences
 }
 
 const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
@@ -53,6 +55,7 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
   const index = buildIndex(files, revision.definitions)
   const detachments = detachmentsOf(files, index)
   const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'))
+  const sourceReferences = loadExternalReferences(path.join(directory, 'rules', 'data', 'core'))
   return {
     index,
     characteristicNames: characteristicNamesOf(files),
@@ -60,6 +63,7 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
     detachments,
     factionContents: datacards.factions,
     datacards,
+    sourceReferences,
   }
 }
 

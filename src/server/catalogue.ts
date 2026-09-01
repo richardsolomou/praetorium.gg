@@ -1308,11 +1308,11 @@ function applyDisplayModifier(current: string, modifier: DisplayModifier, defaul
     case 'append':
       if (text === null) return current
       if (modifier.skipIfPresent && current.includes(modifier.skipIfPresent)) return current
-      return current ? `${current}${modifier.join ?? defaultJoin}${text}` : text
+      return joinedDisplayText(current ? `${current}${modifier.join ?? defaultJoin}${text}` : text, defaultJoin)
     case 'prepend':
       if (text === null) return current
       if (modifier.skipIfPresent && current.includes(modifier.skipIfPresent)) return current
-      return current ? `${text}${modifier.join ?? defaultJoin}${current}` : text
+      return joinedDisplayText(current ? `${text}${modifier.join ?? defaultJoin}${current}` : text, defaultJoin)
     case 'increment':
       return modifyNumbers(current, modifier, (number) => number + Number(value) * modifier.times)
     case 'decrement':
@@ -1360,6 +1360,21 @@ function applyDisplayModifier(current: string, modifier: DisplayModifier, defaul
     default:
       return current
   }
+}
+
+function joinedDisplayText(value: string, defaultJoin: string) {
+  if (defaultJoin !== ', ') return value
+  const seen = new Set<string>()
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => {
+      const key = part.toLocaleLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .join(defaultJoin)
 }
 
 const modifierText = (value: unknown) =>

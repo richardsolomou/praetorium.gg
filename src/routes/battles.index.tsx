@@ -52,7 +52,7 @@ function Battles() {
           <div>
             <p className="eyebrow text-parchment">Your battles</p>
             <h1 className="mt-1 text-3xl">My battles</h1>
-            <p className="mt-2 max-w-2xl text-sm text-dim">Set up a table, return to active games, and review finished battles.</p>
+            <p className="mt-2 max-w-2xl text-sm text-dim">Start a game, return to one in progress, or review a finished battle.</p>
           </div>
           {battles.length ? <CreateBattle /> : null}
         </div>
