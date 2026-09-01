@@ -3,7 +3,16 @@ name: Mobile stable
 on:
   push:
     branches: [main]
-    paths: [mobile/**, package.json, pnpm-lock.yaml, pnpm-workspace.yaml]
+    paths:
+      - .github/workflows/mobile-canary.yml
+      - .github/workflows/mobile-stable.yml
+      - mobile/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - scripts/check-mobile-delivery-revision.sh
+      - scripts/finish-mobile-deliveries.sh
+      - scripts/wait-for-commit-status.sh
 
 concurrency:
   group: mobile-stable
@@ -37,7 +46,7 @@ jobs:
         id: delivery
         if: steps.revision.outputs.current == 'true'
         run: |
-          if sh scripts/wait-for-commit-status.sh "$GITHUB_REPOSITORY" "$DELIVERY_SHA" "Mobile stable delivery / Delivery complete $DELIVERY_TAG"; then
+          if sh scripts/wait-for-commit-status.sh "$GITHUB_REPOSITORY" "$DELIVERY_SHA" "Mobile stable delivery / Delivery complete"; then
             echo "terminal=true" >> "$GITHUB_OUTPUT"
           else
             status=$?

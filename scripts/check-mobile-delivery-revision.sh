@@ -26,7 +26,7 @@ fi
 
 for candidate_sha in $(git rev-list --first-parent "$delivery_sha..$latest_sha"); do
   parent_sha=$(git rev-parse "$candidate_sha^")
-  if git diff --quiet "$parent_sha" "$candidate_sha" -- mobile package.json pnpm-lock.yaml pnpm-workspace.yaml; then
+  if git diff --quiet "$parent_sha" "$candidate_sha" -- .github/workflows/mobile-canary.yml .github/workflows/mobile-stable.yml mobile package.json pnpm-lock.yaml pnpm-workspace.yaml scripts/check-mobile-delivery-revision.sh scripts/finish-mobile-deliveries.sh scripts/wait-for-commit-status.sh; then
     continue
   fi
 

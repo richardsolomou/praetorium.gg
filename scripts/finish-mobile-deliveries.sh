@@ -10,7 +10,7 @@ gh api --paginate "repos/$repository/git/matching-refs/tags/$tag_prefix" --jq '.
   while IFS="$(printf '\t')" read -r ref commit_sha; do
     tag=${ref#refs/tags/}
     echo "Waiting for interrupted delivery $tag."
-    if sh scripts/wait-for-commit-status.sh "$repository" "$commit_sha" "$workflow_name / Delivery complete $tag"; then
+    if sh scripts/wait-for-commit-status.sh "$repository" "$commit_sha" "$workflow_name / Delivery complete"; then
       :
     else
       status=$?
