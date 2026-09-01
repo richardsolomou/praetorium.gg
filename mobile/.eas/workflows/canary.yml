@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
-    paths: [mobile/**]
+    paths: [mobile/**, package.json, pnpm-lock.yaml, pnpm-workspace.yaml]
 
 concurrency:
   group: mobile-canary
@@ -14,7 +14,7 @@ jobs:
   fingerprint:
     name: Fingerprint native projects
     type: fingerprint
-    environment: production
+    environment: preview
   get_android_build:
     name: Find matching Android canary
     needs: [fingerprint]
@@ -22,6 +22,7 @@ jobs:
     params:
       fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
       profile: canary-android
+      wait_for_in_progress: true
   get_ios_build:
     name: Find matching iOS canary
     needs: [fingerprint]
@@ -29,6 +30,7 @@ jobs:
     params:
       fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
       profile: canary-ios
+      wait_for_in_progress: true
   build_android:
     name: Build Android canary
     needs: [get_android_build]

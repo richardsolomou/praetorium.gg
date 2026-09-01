@@ -14,13 +14,13 @@
     "canary-ios": {
       "autoIncrement": true,
       "channel": "canary",
-      "environment": "production"
+      "environment": "preview"
     },
     "canary-android": {
       "autoIncrement": true,
       "channel": "canary",
       "distribution": "internal",
-      "environment": "production",
+      "environment": "preview",
       "android": {
         "buildType": "apk"
       }

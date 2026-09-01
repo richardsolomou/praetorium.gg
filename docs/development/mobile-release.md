@@ -16,7 +16,7 @@ This is the release gate for the `gg.praetorium` iOS and Android applications. R
 4. Create a Sign in with Apple key for the primary App ID. Configure `APPLE_CLIENT_ID=gg.praetorium.web`, `APPLE_TEAM_ID`, `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY` in production so the server generates current client-secret JWTs. Keep the one-time `.p8` download outside the repository and back it up securely.
 5. Register `https://praetorium.gg/api/apple-notifications` as the primary App ID's server-to-server notification endpoint. Register the SMTP sending domain and addresses with Apple's private email relay before sending to relay addresses.
 6. Create the Android app as `gg.praetorium` in Play Console and enable Play App Signing. Record the Play app-signing certificate SHA-256 fingerprint, not only an upload-key fingerprint.
-7. Link `mobile/` to an Expo project with `pnpm dlx eas-cli@latest init`. Do not commit generated credentials or a review-account password.
+7. Link `mobile/` to an Expo project with `pnpm dlx eas-cli@latest init`. Connect the GitHub repository with `/mobile` as its base directory. Do not commit generated credentials or a review-account password.
 8. Set `ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS` in the production deployment. Keep multiple Android fingerprints comma-separated only during a signing transition.
 
 ## Build and upload
@@ -27,7 +27,7 @@ Run the repository gate first:
 just check
 ```
 
-The checked-in EAS workflows are the normal delivery path. A pull request that changes `mobile/` creates a canary build when no build has the same native fingerprint, or publishes an over-the-air update when a matching build exists. Merging that pull request to `main` does the same for the stable channel. New iOS binaries upload to App Store Connect automatically. New Android release bundles build automatically, but Play upload remains disabled until the Google service account is configured and the production App Links document is verified.
+The checked-in EAS workflows are the normal delivery path. A pull request that changes the mobile project or its root workspace inputs creates a canary build when no build has the same native fingerprint, or publishes an over-the-air update when a matching build exists. Canary jobs use the preview EAS environment, which must not contain private upload credentials. Merging that pull request to `main` does the same for the stable channel with the production environment. New iOS binaries upload to App Store Connect automatically. New Android release bundles build automatically, but Play upload remains disabled until the Google service account is configured and the production App Links document is verified.
 
 Use the following commands only to recover or inspect the automated flow. Create signed production builds from `mobile/` with:
 
@@ -47,7 +47,7 @@ Configure a Google Play service account in EAS before enabling the Android submi
 pnpm dlx eas-cli@latest submit --platform android --profile production
 ```
 
-EAS manages `CFBundleVersion` and `versionCode` remotely and increments them for canary and production builds. Change the user-facing version in `mobile/app.json`, `mobile/package.json`, and `mobile/src/version.ts` together for each public application release. EAS Update uses the native fingerprint as its runtime version, so incompatible binaries never receive the same over-the-air bundle.
+EAS manages `CFBundleVersion` and `versionCode` remotely and increments them for canary and production builds. Change the user-facing version in `mobile/app.json` and `mobile/package.json` together for each public application release. The native shell reads that version from the installed binary. EAS Update uses the native fingerprint as its runtime version, so incompatible binaries never receive the same over-the-air bundle.
 
 ## Production identity checks
 

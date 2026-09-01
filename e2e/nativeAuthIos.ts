@@ -17,6 +17,9 @@ const publicUrl = `https://localhost:${publicPort}`
 const fixtureName = 'Native Auth Simulator'
 const fixtureEmail = `native-auth-${randomUUID()}@example.test`
 const events: string[] = []
+const nativeAppVersion = (JSON.parse(readFileSync(path.join(root, 'mobile', 'app.json'), 'utf8')) as { expo: { version: string } }).expo
+  .version
+const expectedNativeUserAgent = `PraetoriumNative/${nativeAppVersion}`
 const tlsDirectory = path.join(root, 'mobile', '.simulator-derived', 'native-auth-e2e', 'tls')
 const tlsCertificate = path.join(tlsDirectory, 'localhost.crt')
 const tlsKey = path.join(tlsDirectory, 'localhost.key')
@@ -185,7 +188,8 @@ function startProxy() {
         await nativeAuth(requestUrl, response)
         return
       }
-      if (request.method === 'GET' && requestUrl.pathname === '/' && request.headers['user-agent']?.includes('PraetoriumNative')) {
+      const userAgentProducts = request.headers['user-agent']?.split(/\s+/) ?? []
+      if (request.method === 'GET' && requestUrl.pathname === '/' && userAgentProducts.includes(expectedNativeUserAgent)) {
         if (initialNativeRouteHandled) {
           await forward(request, response)
           return

@@ -3,7 +3,7 @@ name: Mobile stable
 on:
   push:
     branches: [main]
-    paths: [mobile/**]
+    paths: [mobile/**, package.json, pnpm-lock.yaml, pnpm-workspace.yaml]
 
 concurrency:
   group: mobile-stable
@@ -21,6 +21,7 @@ jobs:
     params:
       fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
       profile: production
+      wait_for_in_progress: true
   get_ios_build:
     name: Find matching iOS release
     needs: [fingerprint]
@@ -28,6 +29,7 @@ jobs:
     params:
       fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
       profile: production
+      wait_for_in_progress: true
   build_android:
     name: Build Android release
     needs: [get_android_build]

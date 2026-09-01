@@ -37,9 +37,9 @@ After a real background cycle, the shell nudges the WebView's browser lifecycle.
 
 Store builds use `mobile/eas.json`. Apple metadata lives in `mobile/store.config.json`; Google Play metadata and both stores' manual review fields are recorded in [Mobile release](mobile-release.md).
 
-The shell receives over-the-air JavaScript updates through EAS Update. The public application uses the `stable` channel and pull-request builds use `canary`. Each update targets the native fingerprint that produced it, so an incompatible binary cannot receive it.
+The shell receives over-the-air JavaScript updates through EAS Update. The public application uses the `stable` channel and pull-request builds use one shared `canary` channel. Canary installations always receive the latest compatible pull-request update. Each update targets the native fingerprint that produced it, so an incompatible binary cannot receive it.
 
-Checked-in EAS workflows fingerprint each platform before delivery. A pull request that changes `mobile/` updates a compatible canary build or creates a new iOS TestFlight build and installable Android APK. A merge to `main` updates compatible stable installations or creates new store binaries. The iOS binary is uploaded to App Store Connect automatically. Android store upload stays disabled until the Play service account and production App Links identity pass the release gate.
+Checked-in EAS workflows fingerprint each platform before delivery. A pull request that changes the mobile project or its root workspace inputs updates a compatible canary build or creates a new iOS TestFlight build and installable Android APK. A merge to `main` updates compatible stable installations or creates new store binaries. The iOS binary is uploaded to App Store Connect automatically. Android store upload stays disabled until the Play service account and production App Links identity pass the release gate.
 
 ## Check it
 
@@ -52,6 +52,8 @@ just e2e-native-auth-ios
 ```
 
 The test builds the Release application and launches it one time. It completes the native Google handoff against an isolated local stack. It checks the proof exchange, authenticated redirect, proof consumption, and authenticated reload. It also checks that the account appears without another application launch.
+
+Run this journey before pushing a change to the native shell, its dependencies, or its configuration. TestFlight submission is automatic, so the pushed commit must already have passed the release-mode journey.
 
 The Simulator build does not have the production keychain entitlement. The test build keeps only its pending callback in memory. Production builds continue to use SecureStore. Signed physical-device builds are the verification surface for SecureStore and the real Apple and Google providers.
 
