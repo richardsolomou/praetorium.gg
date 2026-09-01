@@ -292,6 +292,20 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
   }
 }
 
+/*
+ * iOS zooms the page when a focused control's text is under 16px, and the zoom
+ * takes the fixed application header and tabs off screen with it. A floor on
+ * touch pointers keeps every field above the threshold; a mouse keeps the denser
+ * `text-sm` controls. Unlayered so it outranks the Tailwind utilities that set them.
+ */
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio']),
+  select,
+  textarea {
+    font-size: max(1rem, 16px);
+  }
+}
+
 /**
  * No bar at all, for a list that is scrolled by what is around it.
  *
