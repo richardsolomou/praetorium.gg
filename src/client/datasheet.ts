@@ -1,11 +1,17 @@
 import type { Datasheet } from '../server/catalogue'
+import { normalizedName } from '../core/attach'
 
 type AbilityKind = Datasheet['abilities'][number]['kind']
 
 export function primaryUnitProfile(sheet: Pick<Datasheet, 'name' | 'profiles'>) {
   const profiles = sheet.profiles.filter((profile) => profile.type === 'Unit')
-  const name = sheet.name.trim().toLocaleLowerCase()
-  return profiles.find((profile) => profile.name.trim().toLocaleLowerCase() === name) ?? profiles[0]
+  const name = normalizedName(sheet.name)
+  const singular = name.endsWith('ies') ? `${name.slice(0, -3)}y` : name.endsWith('s') ? name.slice(0, -1) : name
+  return (
+    profiles.find((profile) => normalizedName(profile.name) === name) ??
+    profiles.find((profile) => normalizedName(profile.name) === singular) ??
+    profiles[0]
+  )
 }
 
 export const abilitySections = {

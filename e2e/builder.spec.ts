@@ -131,6 +131,12 @@ test('the whole book is on the shelves, not the first page of it', async ({ page
 
 test('a mixed-model squad shows its own profile instead of an optional model', async ({ page }) => {
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await page.getByLabel('Add a unit').fill('Outrider Squad')
+  await page.getByRole('button', { name: 'View Outrider Squad datasheet' }).click()
+
+  const datasheet = page.locator('aside[aria-label="Datasheet"]')
+  await expect(datasheet.locator('[data-slot="unit-profile"]')).toContainText(/M\s*12"\s*T\s*5\s*Sv\s*3\+\s*W\s*4\s*LD\s*6\+\s*OC\s*2/)
+
   await add(page, 'Outrider Squad')
   await page.locator('[data-unit="Outrider Squad"]').getByRole('button', { name: 'Outrider Squad', exact: true }).click()
 

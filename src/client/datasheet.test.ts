@@ -15,10 +15,23 @@ describe('primary unit profile', () => {
     ).toBe(outrider)
   })
 
+  it('matches a singular primary model after an optional model', () => {
+    const guardian = profile('guardian', 'Storm Guardian')
+
+    expect(primaryUnitProfile({ name: 'Storm Guardians', profiles: [profile('platform', "Serpent's Scale Platform"), guardian] })).toBe(
+      guardian,
+    )
+  })
+
   it('falls back to the first unit profile when none matches the datasheet name', () => {
     const champion = profile('champion', 'Aspiring Champion')
 
-    expect(primaryUnitProfile({ name: 'Chosen', profiles: [profile('weapon', 'Boltgun', 'Ranged Weapons'), champion] })).toBe(champion)
+    expect(
+      primaryUnitProfile({
+        name: 'Chosen',
+        profiles: [profile('weapon', 'Boltgun', 'Ranged Weapons'), champion, profile('chosen', 'Chosen Warrior')],
+      }),
+    ).toBe(champion)
   })
 })
 
