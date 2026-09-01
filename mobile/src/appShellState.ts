@@ -91,7 +91,8 @@ export function webNavigationChanged(state: AppShellState, url: string): AppShel
   return decision.kind === 'internal' ? { ...state, lastInternalUrl: decision.url } : state
 }
 
-export function webLoadStarted(state: AppShellState): AppShellState {
+export function webLoadStarted(state: AppShellState, loading = true): AppShellState {
+  if (state.ready && !loading) return state
   return { ...state, ready: false, loadStarted: true, loadFailed: false }
 }
 
@@ -110,7 +111,8 @@ export function webLoadFailed(state: AppShellState): AppShellState {
 }
 
 export function webLoadFinished(state: AppShellState, url: string): AppShellState {
-  return { ...webNavigationChanged(state, url), ready: false }
+  const navigated = webNavigationChanged(state, url)
+  return state.ready && !state.loadStarted ? navigated : { ...navigated, ready: false }
 }
 
 export function confirmWebLoadSucceeded(state: AppShellState): AppShellState {

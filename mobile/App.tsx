@@ -432,9 +432,9 @@ function AppShell() {
           startInLoadingState
           renderLoading={() => <StateView />}
           renderError={() => <StateView error retry={() => webView.current?.reload()} />}
-          onLoadStart={() => {
+          onLoadStart={({ nativeEvent }) => {
             cancelScheduledDrain()
-            commitShell(webLoadStarted(shellRef.current))
+            commitShell(webLoadStarted(shellRef.current, nativeEvent.loading))
           }}
           onLoad={({ nativeEvent }) => {
             finishWebLoad(nativeEvent.url)

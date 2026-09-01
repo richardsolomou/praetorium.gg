@@ -169,6 +169,28 @@ describe('application shell delivery', () => {
     })
   })
 
+  it('keeps the shell ready when Android reports a history-only navigation as a load start', () => {
+    const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg/rosters/42/edit')
+    const paneOpened = webNavigationChanged(webLoadStarted(loaded, false), 'https://praetorium.gg/rosters/42/edit?unit=unit-1')
+    const queued = warmUrlReceived(paneOpened, 'https://praetorium.gg/battles/42')
+
+    expect(drainAppShell(queued)).toEqual({
+      state: expect.objectContaining({ ready: true, pendingNavigation: null }),
+      command: { kind: 'navigation', url: 'https://praetorium.gg/battles/42' },
+    })
+  })
+
+  it('keeps the shell ready when iOS reports a history-only navigation as a load finish', () => {
+    const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg/rosters/42/edit')
+    const paneOpened = webLoadFinished(loaded, 'https://praetorium.gg/rosters/42/edit?unit=unit-1')
+    const inactive = appShellActivityChanged(paneOpened, false)
+
+    expect({ paneOpened, inactive }).toMatchObject({
+      paneOpened: { ready: true, loadStarted: false, lastInternalUrl: 'https://praetorium.gg/rosters/42/edit?unit=unit-1' },
+      inactive: { active: false, ready: true },
+    })
+  })
+
   it('does not deliver or discard queued work when Android reports finish before error', () => {
     const loading = webLoadStarted(initialUrlReceived(initialAppShellState(), null))
     const queued = authReceived(warmUrlReceived(loading, 'https://praetorium.gg/battles/42'), auth)
