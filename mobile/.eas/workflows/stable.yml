@@ -1,0 +1,39 @@
+name: Mobile stable delivery
+
+on:
+  push:
+    tags: [mobile-stable-*]
+
+concurrency:
+  group: ${{ workflow.filename }}-${{ github.ref }}
+  cancel_in_progress: false
+
+jobs:
+  build_ios:
+    name: Build iOS release
+    type: build
+    params:
+      platform: ios
+      profile: production
+  submit_ios:
+    name: Send iOS release to App Store Connect
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: production
+  update_ios:
+    name: Update stable iOS installations
+    needs: [submit_ios]
+    type: update
+    environment: production
+    params:
+      channel: stable
+      platform: ios
+  complete:
+    name: Delivery complete ${{ github.ref_name }}
+    after: [update_ios]
+    environment: production
+    steps:
+      - name: Verify delivery
+        run: test "${{ after.update_ios.status }}" = success
