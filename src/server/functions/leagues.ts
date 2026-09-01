@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
+import { factionIndexFor } from '../factionReferences'
 import { currentUserId, requireUser } from '../playerSession'
 import { rosterForUse } from '../rosterUsage'
 import { mutationRpc, rpc } from '../rpc'
@@ -28,7 +29,16 @@ export const openLeague = createServerFn({ method: 'GET' })
 export const listLeagueBattles = createServerFn({ method: 'GET' })
   .validator(leagueBattlesSchema)
   .handler(({ data }) =>
-    rpc(() => app().service.leagueBattles(data.token, data.eventToken, { limit: 25, before: data.before ?? undefined }, app().rules())),
+    rpc(() => {
+      const catalogue = app().catalogue()
+      return app().service.leagueBattles(
+        data.token,
+        data.eventToken,
+        { limit: 25, before: data.before ?? undefined },
+        app().rules(),
+        catalogue ? factionIndexFor(catalogue, app().rules()).factions : [],
+      )
+    }),
   )
 
 export const createLeague = createServerFn({ method: 'POST' })
