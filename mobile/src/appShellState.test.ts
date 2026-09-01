@@ -17,6 +17,7 @@ import {
   webLoadFinished,
   webLoadStarted,
   webNavigationChanged,
+  webNavigationStarted,
 } from './appShellState'
 
 const auth = {
@@ -171,12 +172,26 @@ describe('application shell delivery', () => {
 
   it('keeps the shell ready when Android reports a history-only navigation as a load start', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg/rosters/42/edit')
-    const paneOpened = webNavigationChanged(webLoadStarted(loaded, false), 'https://praetorium.gg/rosters/42/edit?unit=unit-1')
+    const paneOpened = webNavigationChanged(
+      webNavigationStarted(loaded, 'android', false),
+      'https://praetorium.gg/rosters/42/edit?unit=unit-1',
+    )
     const queued = warmUrlReceived(paneOpened, 'https://praetorium.gg/battles/42')
 
     expect(drainAppShell(queued)).toEqual({
       state: expect.objectContaining({ ready: true, pendingNavigation: null }),
       command: { kind: 'navigation', url: 'https://praetorium.gg/battles/42' },
+    })
+  })
+
+  it('marks a real iOS navigation as loading when its start event reports loading false', () => {
+    const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg/rosters/42/edit')
+    const loading = webNavigationStarted(loaded, 'ios', false)
+    const queued = warmUrlReceived(loading, 'https://praetorium.gg/battles/42')
+
+    expect(drainAppShell(queued)).toEqual({
+      state: expect.objectContaining({ ready: false, loadStarted: true, pendingNavigation: 'https://praetorium.gg/battles/42' }),
+      command: null,
     })
   })
 

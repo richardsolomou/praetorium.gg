@@ -40,7 +40,7 @@ import {
   warmUrlReceived,
   webLoadFailed,
   webLoadFinished,
-  webLoadStarted,
+  webNavigationStarted,
   webNavigationChanged,
   type AppShellCommand,
   type AppShellState,
@@ -434,7 +434,7 @@ function AppShell() {
           renderError={() => <StateView error retry={() => webView.current?.reload()} />}
           onLoadStart={({ nativeEvent }) => {
             cancelScheduledDrain()
-            commitShell(webLoadStarted(shellRef.current, nativeEvent.loading))
+            commitShell(webNavigationStarted(shellRef.current, Platform.OS, nativeEvent.loading))
           }}
           onLoad={({ nativeEvent }) => {
             finishWebLoad(nativeEvent.url)

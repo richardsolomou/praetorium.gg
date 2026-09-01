@@ -96,6 +96,10 @@ export function webLoadStarted(state: AppShellState, loading = true): AppShellSt
   return { ...state, ready: false, loadStarted: true, loadFailed: false }
 }
 
+export function webNavigationStarted(state: AppShellState, platform: string, loading: boolean): AppShellState {
+  return webLoadStarted(state, platform !== 'android' || loading)
+}
+
 function restoreDelivery(state: AppShellState): AppShellState {
   if (state.delivering?.kind === 'auth') {
     return { ...state, pendingAuth: state.pendingAuth ?? state.delivering.callback, delivering: null }
