@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.48.0
+
+### Minor Changes
+
+- 9a95d8d: Add native phone and tablet navigation, keep back actions in a stable location, and prevent signed-in players from returning to sign-in.
+
 ## 0.47.3
 
 ### Patch Changes
