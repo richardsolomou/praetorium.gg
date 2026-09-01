@@ -38,7 +38,7 @@ jobs:
   submit_ios:
     name: Send iOS release to App Store Connect
     needs: [build_ios]
-    type: testflight
+    type: submit
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
       profile: production
