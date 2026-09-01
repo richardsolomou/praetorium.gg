@@ -460,16 +460,41 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
   await guest.screenshot({ path: 'test-results/revealed-roster-details.png', fullPage: true })
 
+  const rosterUrl = guest.url()
+  const lokhustButton = guest.locator('[data-unit="Lokhust Destroyers"]').getByRole('button', {
+    name: 'Lokhust Destroyers',
+    exact: true,
+  })
   await guest.setViewportSize({ width: 390, height: 844 })
-  await unit.getByRole('button', { name: 'Close' }).click()
   const rosterUnits = guest.locator('[data-slot="roster-units"]')
   expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   expect(await rosterUnits.evaluate((element) => element.scrollWidth)).toBe(await rosterUnits.evaluate((element) => element.clientWidth))
-  await guest.locator('[data-unit="Lokhust Destroyers"]').getByRole('button', { name: 'Lokhust Destroyers', exact: true }).click()
+  await expect(unit).toHaveCSS('position', 'fixed')
   await expect(unit.getByText('Deepening Madness', { exact: true })).toBeVisible()
   expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   expect(await unit.evaluate((element) => element.scrollWidth)).toBe(await unit.evaluate((element) => element.clientWidth))
   await guest.screenshot({ path: 'test-results/revealed-roster-details-phone.png', fullPage: true })
+
+  await guest.goBack()
+  await expect(guest).toHaveURL(rosterUrl)
+  await expect(unit).toBeHidden()
+  await expect(lokhustButton).toBeFocused()
+
+  await guest.goForward()
+  await expect(unit).toBeVisible()
+  await expect(unit.getByText('Deepening Madness', { exact: true })).toBeVisible()
+
+  await guest.setViewportSize({ width: 1024, height: 768 })
+  await expect(unit).toHaveCSS('position', 'static')
+  await expect(guest).toHaveURL(rosterUrl)
+  await expect(lokhustButton).toBeFocused()
+
+  await guest.setViewportSize({ width: 390, height: 844 })
+  await expect(unit).toHaveCSS('position', 'fixed')
+  await expect(unit.getByRole('button', { name: 'Back to roster' })).toBeFocused()
+  await unit.getByRole('button', { name: 'Back to roster' }).click()
+  await expect(guest).toHaveURL(rosterUrl)
+  await expect(unit).toBeHidden()
 
   await guestContext.close()
   await revealed.close()

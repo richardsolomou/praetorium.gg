@@ -1,6 +1,6 @@
-import { X } from 'lucide-react'
+import { ChevronLeft, X } from 'lucide-react'
 import type { CSSProperties, ReactNode } from 'react'
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 
@@ -9,6 +9,7 @@ type Props = {
   open: boolean
   title: string
   ariaLabel?: string
+  backLabel?: string
   onClose: () => void
   actions?: ReactNode
   children: ReactNode
@@ -22,12 +23,12 @@ const VARIANTS = {
   // Written out rather than composed: Tailwind only sees class names it can read.
   picker:
     'min-[1300px]:static min-[1300px]:z-auto min-[1300px]:inset-auto min-[1300px]:flex min-[1300px]:min-w-0 min-[1300px]:!w-full min-[1300px]:shrink-0 min-[1300px]:border-r min-[1300px]:border-l-0',
-  loadout: 'md:static md:z-auto md:inset-auto md:flex md:min-w-0 md:w-1/2 md:shrink-0 md:border-l min-[1300px]:!w-full',
+  loadout: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:min-w-0 lg:w-1/2 lg:shrink-0 lg:border-l min-[1300px]:!w-full',
 } as const
 
 const TWO_COLUMN_VARIANTS = {
   ...VARIANTS,
-  loadout: 'md:static md:z-auto md:inset-auto md:flex md:min-w-0 md:w-1/2 md:shrink-0 md:border-l',
+  loadout: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:min-w-0 lg:w-1/2 lg:shrink-0 lg:border-l',
 } as const
 
 const CLOSERS = { picker: 'min-[1300px]:hidden', loadout: '' } as const
@@ -41,6 +42,7 @@ export function Pane({
   open,
   title,
   ariaLabel,
+  backLabel,
   onClose,
   actions,
   children,
@@ -48,6 +50,20 @@ export function Pane({
   threeColumn = true,
   hideBelowDesktop = false,
 }: Props) {
+  const pane = useRef<HTMLElement>(null)
+  const closeButton = useRef<HTMLButtonElement>(null)
+  const returnFocus = useRef<HTMLElement>(null)
+  const [compactLoadout, setCompactLoadout] = useState(false)
+
+  useLayoutEffect(() => {
+    if (variant !== 'loadout') return
+    const media = window.matchMedia('(max-width: 1023px)')
+    const sync = () => setCompactLoadout(media.matches)
+    sync()
+    media.addEventListener('change', sync)
+    return () => media.removeEventListener('change', sync)
+  }, [variant])
+
   useEffect(() => {
     if (!open) return
     const escape = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
@@ -55,11 +71,60 @@ export function Pane({
     return () => document.removeEventListener('keydown', escape)
   }, [open, onClose])
 
+  useEffect(() => {
+    const active = document.activeElement
+    if (open && active instanceof HTMLElement && !pane.current?.contains(active)) returnFocus.current = active
+  }, [open])
+
+  useEffect(() => {
+    const paneElement = pane.current
+    const closeElement = closeButton.current
+    if (!open || !compactLoadout || !paneElement) return
+    const active = document.activeElement
+    if (active instanceof HTMLElement && !paneElement.contains(active)) returnFocus.current = active
+    const focusTarget = returnFocus.current
+    const backgrounds: Array<{ element: HTMLElement; inert: boolean }> = []
+    let branch = paneElement
+
+    while (branch.parentElement) {
+      const parent = branch.parentElement
+      for (const sibling of parent.children) {
+        if (sibling === branch || !(sibling instanceof HTMLElement)) continue
+        backgrounds.push({ element: sibling, inert: sibling.inert })
+        sibling.inert = true
+      }
+      if (parent === document.body) break
+      branch = parent
+    }
+
+    const containFocus = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return
+      const focusable = [
+        ...paneElement.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), [tabindex]:not([tabindex="-1"])'),
+      ].filter((element) => element.getClientRects().length > 0)
+      const first = focusable[0]
+      const last = focusable.at(-1)
+      if (!first || !last) return
+      if (event.shiftKey ? document.activeElement === first : document.activeElement === last) {
+        event.preventDefault()
+        const target = event.shiftKey ? last : first
+        target.focus()
+      }
+    }
+    document.addEventListener('keydown', containFocus)
+    closeElement?.focus()
+    return () => {
+      document.removeEventListener('keydown', containFocus)
+      for (const background of backgrounds) background.element.inert = background.inert
+      if (focusTarget?.isConnected) focusTarget.focus()
+    }
+  }, [compactLoadout, open])
+
   const body = (
     <>
       <div
         className={`relative flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-edge px-3 py-2 ${
-          variant === 'loadout' ? 'pr-10 md:pr-3' : 'pr-10'
+          variant === 'loadout' ? 'pl-12 lg:pl-3' : 'pr-12'
         } ${CLOSERS[variant]}`}
       >
         {drawer ? (
@@ -73,13 +138,14 @@ export function Pane({
           </div>
         ) : null}
         <Button
+          ref={closeButton}
           variant="ghost"
-          size="icon-sm"
-          aria-label="Close"
-          className={`absolute top-2 right-3 ${variant === 'loadout' ? 'md:hidden' : ''}`}
+          size="icon"
+          aria-label={variant === 'loadout' ? (backLabel ?? 'Back to roster') : 'Close'}
+          className={`absolute top-0.5 ${variant === 'loadout' ? 'left-0 size-11 lg:hidden' : 'right-2'}`}
           onClick={onClose}
         >
-          <X />
+          {variant === 'loadout' ? <ChevronLeft className="size-5" /> : <X />}
         </Button>
       </div>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
@@ -101,12 +167,15 @@ export function Pane({
 
   return (
     <aside
+      ref={pane}
       data-print-hide
       data-pane={variant}
       className={`min-h-0 flex-col overflow-hidden border-edge bg-panel [container-type:inline-size] ${(threeColumn ? VARIANTS : TWO_COLUMN_VARIANTS)[variant]} ${
         hideBelowDesktop ? 'max-[1299px]:hidden' : ''
       } ${open ? `fixed z-40 flex ${MOBILE_LAYOUT[variant]}` : 'hidden'}`}
       aria-label={ariaLabel ?? title}
+      role={open && compactLoadout ? 'dialog' : undefined}
+      aria-modal={(open && compactLoadout) || undefined}
     >
       {body}
     </aside>

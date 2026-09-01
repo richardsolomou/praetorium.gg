@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from './nativeActions'
+import { NATIVE_BRIDGE_SCRIPT, nativeHistoryStateScript, parseNativeActionRequest } from './nativeActions'
 
 describe('parseNativeActionRequest', () => {
   it('accepts an internal share link', () => {
@@ -49,8 +49,46 @@ describe('parseNativeActionRequest', () => {
 
 describe('NATIVE_BRIDGE_SCRIPT', () => {
   it('publishes only the version 3 capabilities the shell handles', () => {
-    expect(NATIVE_BRIDGE_SCRIPT).toContain("const capabilities = ['battle-active', 'haptic', 'open-window', 'print', 'share']")
+    expect(NATIVE_BRIDGE_SCRIPT).toContain(
+      "const capabilities = ['app-navigation', 'battle-active', 'haptic', 'open-window', 'print', 'share']",
+    )
     expect(NATIVE_BRIDGE_SCRIPT).toContain('bridgeVersion: 3')
+  })
+
+  it('marks documents for the native application layout before they render', () => {
+    expect(NATIVE_BRIDGE_SCRIPT).toContain("document.documentElement.dataset.nativeApp = 'true'")
+  })
+
+  it('waits for the document root when the WebView injects the bridge first', () => {
+    let mutationCallback: (() => void) | undefined
+    const disconnect = vi.fn()
+    class TestMutationObserver {
+      constructor(callback: () => void) {
+        mutationCallback = callback
+      }
+      observe() {}
+      disconnect() {
+        disconnect()
+      }
+    }
+    const window = { open: vi.fn(), ReactNativeWebView: { postMessage: vi.fn() } }
+    const document = {
+      baseURI: 'https://praetorium.gg/',
+      documentElement: null as { dataset: Record<string, string> } | null,
+      addEventListener: vi.fn(),
+    }
+    class TestElement {
+      closest() {
+        return null
+      }
+    }
+    // oxlint-disable-next-line typescript/no-implied-eval -- Execute the fixed injected script before the WebView creates its document root.
+    const executeBridge = new Function('window', 'document', 'Element', 'URL', 'MutationObserver', NATIVE_BRIDGE_SCRIPT)
+    executeBridge(window, document, TestElement, URL, TestMutationObserver)
+    document.documentElement = { dataset: {} }
+    mutationCallback!()
+    expect(document.documentElement.dataset.nativeApp).toBe('true')
+    expect(disconnect).toHaveBeenCalledOnce()
   })
 
   it('routes blank-target links and window.open through the native shell', () => {
@@ -69,11 +107,18 @@ describe('NATIVE_BRIDGE_SCRIPT', () => {
     }
     const document = {
       baseURI: 'https://praetorium.gg/rosters/abc',
+      documentElement: { dataset: {} as Record<string, string> },
       addEventListener: (type: string, listener: (event: Record<string, unknown>) => void) => listeners.set(type, listener),
     }
     // oxlint-disable-next-line typescript/no-implied-eval -- Execute the fixed injected script against a small WebView-shaped test harness.
     const executeBridge = new Function('window', 'document', 'Element', 'URL', NATIVE_BRIDGE_SCRIPT)
     executeBridge(window, document, TestElement, URL)
+    expect(document.documentElement.dataset.nativeApp).toBe('true')
+    const nativeWindow = window as typeof window & { PraetoriumNative: { history: { canGoBack: boolean } } }
+    expect(nativeWindow.PraetoriumNative.history.canGoBack).toBe(false)
+    // oxlint-disable-next-line typescript/no-implied-eval -- Execute the constant shell update against the injected bridge state.
+    new Function('window', nativeHistoryStateScript(true))(nativeWindow)
+    expect(nativeWindow.PraetoriumNative.history.canGoBack).toBe(true)
 
     const nativeOpen = window.open as unknown as (url: string, target?: string) => null
     expect(nativeOpen('/rosters/abc?print=true', '_blank')).toBeNull()

@@ -21,8 +21,20 @@ const tlsDirectory = path.join(root, 'mobile', '.simulator-derived', 'native-aut
 const tlsCertificate = path.join(tlsDirectory, 'localhost.crt')
 const tlsKey = path.join(tlsDirectory, 'localhost.key')
 let fixtureCookie = ''
+let initialNativeRouteHandled = false
+let expectedAuthenticatedDestination: URL | undefined
 let stopStack: (() => void) | undefined
 let proxy: ReturnType<typeof createHttpsServer> | undefined
+
+function isExpectedAuthenticatedDestination(target: URL, withMarker: boolean) {
+  if (!expectedAuthenticatedDestination || target.pathname !== expectedAuthenticatedDestination.pathname) return false
+  const actual = new URLSearchParams(target.search)
+  if (withMarker) actual.delete('__native_auth')
+  const expected = new URLSearchParams(expectedAuthenticatedDestination.search)
+  actual.sort()
+  expected.sort()
+  return actual.toString() === expected.toString()
+}
 
 function run(command: string, args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}) {
   return new Promise<void>((resolve, reject) => {
@@ -119,8 +131,10 @@ function forward(request: IncomingMessage, response: ServerResponse) {
         const pathname = target.pathname
         if (pathname.endsWith('/native-auth-token/exchange')) events.push(`exchange:${status}`)
         if (pathname.endsWith('/native-auth-token/consume')) events.push(`consume:${status}`)
-        if (pathname === '/rosters' && target.searchParams.has('__native_auth')) events.push(`authenticated-redirect:${status}`)
-        if (pathname === '/rosters' && !target.search && request.headers.cookie?.includes('session_token')) {
+        if (target.searchParams.has('__native_auth') && isExpectedAuthenticatedDestination(target, true)) {
+          events.push(`authenticated-redirect:${status}`)
+        }
+        if (isExpectedAuthenticatedDestination(target, false) && request.headers.cookie?.includes('session_token')) {
           events.push(`authenticated-reload:${status}`)
         }
         response.writeHead(status, upstream.headers)
@@ -138,10 +152,12 @@ async function nativeAuth(requestUrl: URL, response: ServerResponse) {
   const challenge = requestUrl.searchParams.get('challenge')
   const next = requestUrl.searchParams.get('next')
   const provider = requestUrl.searchParams.get('provider')
-  if (action !== 'sign-in' || !challenge || !next || provider !== 'google' || !fixtureCookie) {
+  const destination = next ? new URL(next, publicUrl) : null
+  if (action !== 'sign-in' || !challenge || !destination || destination.origin !== publicUrl || provider !== 'google' || !fixtureCookie) {
     response.writeHead(400).end('Invalid native authentication fixture request.')
     return
   }
+  expectedAuthenticatedDestination = destination
   events.push('native-auth-start')
   const generated = await requestPublic(
     '/api/auth/native-auth-token/generate',
@@ -170,6 +186,11 @@ function startProxy() {
         return
       }
       if (request.method === 'GET' && requestUrl.pathname === '/' && request.headers['user-agent']?.includes('PraetoriumNative')) {
+        if (initialNativeRouteHandled) {
+          await forward(request, response)
+          return
+        }
+        initialNativeRouteHandled = true
         response.writeHead(302, { location: '/sign-in' }).end()
         return
       }

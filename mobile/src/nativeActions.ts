@@ -40,8 +40,21 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
 }
 
 export const NATIVE_BRIDGE_SCRIPT = `(() => {
-  const capabilities = ['battle-active', 'haptic', 'open-window', 'print', 'share'];
-  window.PraetoriumNative = Object.freeze({ bridgeVersion: 3, capabilities });
+  const capabilities = ['app-navigation', 'battle-active', 'haptic', 'open-window', 'print', 'share'];
+  const history = { canGoBack: false };
+  window.PraetoriumNative = Object.freeze({ bridgeVersion: 3, capabilities, history });
+  const markNativeApp = () => {
+    if (!document.documentElement) return false;
+    document.documentElement.dataset.nativeApp = 'true';
+    return true;
+  };
+  if (!markNativeApp()) {
+    const observer = new MutationObserver(() => {
+      if (!markNativeApp()) return;
+      observer.disconnect();
+    });
+    observer.observe(document, { childList: true });
+  }
   const requestOpenWindow = (value) => {
     try {
       const url = new URL(String(value), document.baseURI).href;
@@ -77,3 +90,7 @@ export const NATIVE_BRIDGE_SCRIPT = `(() => {
     window.ReactNativeWebView.postMessage(JSON.stringify({ version: 3, type: 'native-print', html: '<!DOCTYPE html>' + root.outerHTML }));
   };
 })(); true;`
+
+export function nativeHistoryStateScript(canGoBack: boolean) {
+  return `if (window.PraetoriumNative?.history) window.PraetoriumNative.history.canGoBack = ${canGoBack}; true;`
+}

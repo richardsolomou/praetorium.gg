@@ -1,0 +1,89 @@
+import { Link, useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router'
+import { BookOpen, ChevronLeft, ScrollText, Swords, Trophy, UsersRound } from 'lucide-react'
+import type { ComponentType } from 'react'
+import { Button } from '@/components/ui/button'
+import { nativeCanGoBack } from '../nativeBridge'
+import { nativeNavigation, type NativeSection } from '../nativeNavigation'
+import { GlobalSearch } from './GlobalSearch'
+
+type Tab = { icon: ComponentType<{ className?: string }>; label: string; section: NativeSection; to: string }
+
+const TABS: readonly Tab[] = [
+  { icon: ScrollText, label: 'Rosters', section: 'rosters', to: '/rosters' },
+  { icon: Swords, label: 'Battles', section: 'battles', to: '/battles' },
+  { icon: Trophy, label: 'Leagues', section: 'leagues', to: '/leagues' },
+  { icon: UsersRound, label: 'Factions', section: 'factions', to: '/factions' },
+  { icon: BookOpen, label: 'Missions', section: 'missions', to: '/mission-packs' },
+]
+
+export function NativeAppHeader({ account, path, search }: { account: React.ReactNode; path: string; search: Record<string, unknown> }) {
+  const navigate = useNavigate()
+  const router = useRouter()
+  const canGoBack = useCanGoBack()
+  const navigation = nativeNavigation(path, search)
+
+  const goBack = () => {
+    if (navigation.back?.preferHistory && (canGoBack || nativeCanGoBack())) {
+      router.history.back()
+      return
+    }
+    if (navigation.back) void navigate({ href: navigation.back.href, replace: true })
+  }
+
+  return (
+    <header
+      data-native-app-chrome
+      data-native-app-header
+      data-print-hide
+      aria-label="Application"
+      className="sticky top-0 z-30 hidden h-12 shrink-0 grid-cols-[7rem_minmax(0,1fr)_7rem] items-center border-b border-edge bg-panel/95 backdrop-blur"
+    >
+      {navigation.back ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-12 shrink-0 text-dim hover:bg-raised hover:text-info"
+          aria-label={navigation.back.label}
+          onClick={goBack}
+        >
+          <ChevronLeft className="size-5" />
+        </Button>
+      ) : (
+        <span className="size-12 shrink-0" aria-hidden />
+      )}
+      <span className="min-w-0 flex-1 truncate text-center text-sm font-bold tracking-[0.04em] uppercase">{navigation.title}</span>
+      <span className="flex w-full items-center justify-end gap-1 pr-2">
+        <GlobalSearch compact />
+        {account}
+      </span>
+    </header>
+  )
+}
+
+export function NativeAppTabs({ path }: { path: string }) {
+  const active = nativeNavigation(path).section
+
+  return (
+    <nav
+      data-native-app-chrome
+      data-native-app-tabs
+      data-print-hide
+      aria-label="Application sections"
+      className="fixed right-0 bottom-0 left-0 z-30 hidden h-16 items-stretch border-t border-edge bg-panel/95 backdrop-blur"
+    >
+      {TABS.map(({ icon: Icon, label, section, to }) => (
+        <Link
+          key={section}
+          to={to}
+          aria-current={active === section ? 'page' : undefined}
+          className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-t-2 text-[0.625rem] font-semibold tracking-[0.04em] uppercase ${
+            active === section ? 'border-parchment bg-raised text-parchment' : 'border-transparent text-dim hover:bg-raised hover:text-info'
+          }`}
+        >
+          <Icon className="size-5" />
+          <span className="truncate">{label}</span>
+        </Link>
+      ))}
+    </nav>
+  )
+}
