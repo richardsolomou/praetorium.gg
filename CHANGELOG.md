@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.47.3
+
+### Patch Changes
+
+- 48417c5: Wrap every featured battle player name onto its own line on narrow screens.
+
 ## 0.47.2
 
 ### Patch Changes
