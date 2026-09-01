@@ -37,9 +37,9 @@ After a real background cycle, the shell nudges the WebView's browser lifecycle.
 
 Store builds use `mobile/eas.json`. Apple metadata lives in `mobile/store.config.json`; Google Play metadata and both stores' manual review fields are recorded in [Mobile release](mobile-release.md).
 
-The iOS shell receives over-the-air JavaScript updates through EAS Update. The public application uses the `stable` channel and pull-request builds use one shared `canary` channel. Canary installations always receive the latest compatible pull-request update. Each update targets the native fingerprint that produced it, so an incompatible binary cannot receive it.
+The iOS shell receives over-the-air JavaScript updates through EAS Update. The public application uses the `stable` channel and testers use one shared `canary` channel. Canary installations always receive the latest compatible update merged to `main`; pull-request revisions are never distributed. Each update targets the native fingerprint that produced it, so an incompatible binary cannot receive it.
 
-Checked-in GitHub workflows queue iOS deliveries through temporary tags. Each delivery finishes before the next change starts, including store submission and over-the-air publishing. Every canary and stable delivery creates a new iOS build, uploads it to TestFlight, and publishes the same revision over the canary or stable channel for compatible installed builds. A merge to `main` delivers the stable channel. Android builds, updates, and store uploads remain manual and disabled until the release gate passes on a physical Android device and the Google account requirements are complete.
+Checked-in GitHub workflows queue iOS deliveries through temporary tags. Each delivery finishes before the next change starts, including store submission and over-the-air publishing. Every canary and stable delivery creates a new iOS build, uploads it to TestFlight, and publishes the same merged revision over the canary or stable channel for compatible installed builds. A mobile change merged to `main` delivers both channels; an open pull request only runs validation. Android builds, updates, and store uploads remain manual and disabled until the release gate passes on a physical Android device and the Google account requirements are complete.
 
 ## Check it
 

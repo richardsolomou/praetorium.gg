@@ -1,9 +1,8 @@
 name: Mobile canary
 
 on:
-  pull_request_target:
+  push:
     branches: [main]
-    types: [opened, synchronize, reopened]
     paths: [mobile/**, package.json, pnpm-lock.yaml, pnpm-workspace.yaml]
 
 concurrency:
@@ -16,32 +15,21 @@ permissions:
 
 jobs:
   dispatch:
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
       GH_TOKEN: ${{ github.token }}
-      DELIVERY_PR: ${{ github.event.pull_request.number }}
-      DELIVERY_SHA: ${{ github.event.pull_request.head.sha }}
-      DELIVERY_TAG: mobile-canary-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+      DELIVERY_SHA: ${{ github.sha }}
+      DELIVERY_TAG: mobile-canary-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Finish interrupted canary deliveries
         run: sh scripts/finish-mobile-deliveries.sh "$GITHUB_REPOSITORY" mobile-canary- "Mobile canary delivery"
       - name: Check canary revision
         id: revision
-        run: |
-          latest_sha=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$DELIVERY_PR" --jq .head.sha)
-          commit_message=$(gh api "repos/$GITHUB_REPOSITORY/commits/$DELIVERY_SHA" --jq .commit.message)
-          if test "$latest_sha" != "$DELIVERY_SHA"; then
-            echo "Skipping superseded revision $DELIVERY_SHA."
-            echo "current=false" >> "$GITHUB_OUTPUT"
-          elif printf '%s' "$commit_message" | grep -Eq '\[(eas skip|skip eas|no eas)\]'; then
-            echo "Skipping EAS delivery requested by $DELIVERY_SHA."
-            echo "current=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "current=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: sh scripts/check-mobile-delivery-revision.sh "$DELIVERY_SHA" "$GITHUB_OUTPUT"
       - name: Start canary delivery
         if: steps.revision.outputs.current == 'true'
         run: gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$DELIVERY_TAG" -f sha="$DELIVERY_SHA"

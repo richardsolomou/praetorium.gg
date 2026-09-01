@@ -23,22 +23,13 @@ jobs:
       DELIVERY_TAG: mobile-stable-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Finish interrupted stable deliveries
         run: sh scripts/finish-mobile-deliveries.sh "$GITHUB_REPOSITORY" mobile-stable- "Mobile stable delivery"
       - name: Check stable revision
         id: revision
-        run: |
-          latest_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
-          commit_message=$(gh api "repos/$GITHUB_REPOSITORY/commits/$DELIVERY_SHA" --jq .commit.message)
-          if test "$latest_sha" != "$DELIVERY_SHA"; then
-            echo "Skipping superseded revision $DELIVERY_SHA."
-            echo "current=false" >> "$GITHUB_OUTPUT"
-          elif printf '%s' "$commit_message" | grep -Eq '\[(eas skip|skip eas|no eas)\]'; then
-            echo "Skipping EAS delivery requested by $DELIVERY_SHA."
-            echo "current=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "current=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: sh scripts/check-mobile-delivery-revision.sh "$DELIVERY_SHA" "$GITHUB_OUTPUT"
       - name: Start stable delivery
         if: steps.revision.outputs.current == 'true'
         run: gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$DELIVERY_TAG" -f sha="$DELIVERY_SHA"
