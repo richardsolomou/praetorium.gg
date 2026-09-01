@@ -31,7 +31,7 @@ jobs:
       channel: canary
       platform: ios
   complete:
-    name: Delivery complete ${{ github.ref_name }}
+    name: Delivery complete
     after: [update_ios]
     environment: preview
     steps:
