@@ -1,5 +1,6 @@
-import { type Attachment, normalizedName } from '../../../core/attach'
+import type { Attachment } from '../../../core/attach'
 export { attachmentRows, type AttachmentRow } from '../../../core/attachmentRows'
+import { normalizedName } from '../../../core/name'
 import type { KeyedPick } from '../../rosterPicks'
 
 /** Only what deciding an attachment needs, so a caller may pass any priced unit. */

@@ -1,4 +1,5 @@
 import { nameOf, targetOf } from '../core/catalogue'
+import { normalizedNameVariants } from '../core/name'
 import { routeSlug } from '../core/slug'
 import { type LoadedCatalogue, datasheetsOf } from './catalogueIndex'
 import type { DatasheetDetails, FactionContent } from './datacards'
@@ -30,8 +31,11 @@ function cardIn(content: FactionContent, name: string): DatasheetDetails | null 
     index = new Map([...content.datasheetDetails].map(([cardName, details]) => [comparable(cardName), details]))
     cardIndexes.set(content, index)
   }
-  const wanted = comparable(name)
-  return index.get(wanted) ?? index.get(`${wanted}s`) ?? (wanted.endsWith('s') ? index.get(wanted.slice(0, -1)) : undefined) ?? null
+  for (const candidate of normalizedNameVariants(comparable(name))) {
+    const card = index.get(candidate)
+    if (card) return card
+  }
+  return null
 }
 
 export function datacardOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string): DatacardJoin | null {

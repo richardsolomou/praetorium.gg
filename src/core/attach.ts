@@ -10,6 +10,7 @@ import {
   targetOf,
 } from './catalogue'
 import type { EvaluationError, Selection } from './evaluate'
+import { normalizedName } from './name'
 
 /**
  * A character joining a unit, as eleventh edition writes it.
@@ -195,9 +196,6 @@ function attachmentSubstitutions(index: CatalogueIndex) {
   substitutionCache.set(index, found)
   return found
 }
-
-/** How an attachment target is written down before it is matched, here and wherever names meet. */
-export const normalizedName = (name: string) => name.toLocaleLowerCase().replaceAll('\u00a0', ' ').replaceAll(/\s+/g, ' ').trim()
 
 function categoryTargets(name: string, index: CatalogueIndex) {
   const required = normalizedName(name).replace('battleliine', 'battleline').split(' ').toSorted()
