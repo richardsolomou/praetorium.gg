@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.49.2
+
+### Patch Changes
+
+- bceccdc: Clean up completed iOS deliveries after their final status succeeds.
+
 ## 0.49.1
 
 ### Patch Changes
