@@ -1,5 +1,23 @@
+import { eq } from 'drizzle-orm'
 import { expect, test } from '@playwright/test'
+import { openDatabase } from '../src/db/connection'
+import { battles } from '../src/db/schema'
 import { createBattle, PRACTICE_OPPONENT, signUp, uniqueName } from './account'
+import { postgresPort } from './stackEnv'
+
+async function makePreviewBattleMostRecent() {
+  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
+  try {
+    const updated = await connection.database
+      .update(battles)
+      .set({ createdAt: Date.now() })
+      .where(eq(battles.token, 'preview-casual-doubles'))
+      .returning({ id: battles.id })
+    if (updated.length !== 1) throw new Error('The preview doubles battle is missing.')
+  } finally {
+    await connection.close()
+  }
+}
 
 /**
  * The home page is the front door for both kinds of visitor.
@@ -41,6 +59,7 @@ test('links each homepage capability card as one action', async ({ page }) => {
 
 test('the home page fits a phone at both signed-out and signed-in widths', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
+  await makePreviewBattleMostRecent()
   await page.goto('/')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
 
