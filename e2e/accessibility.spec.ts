@@ -47,3 +47,23 @@ test('rendered controls do not reuse ids', async ({ page }) => {
   })
   expect(duplicates).toEqual([])
 })
+
+test.describe('a touch device', () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } })
+
+  // Below 16px iOS zooms the page when the field takes focus, and the zoom carries
+  // the fixed application header and tabs off the screen.
+  test('renders no text field small enough to zoom the page', async ({ page }) => {
+    await page.goto('/sign-in')
+    await page.getByRole('button', { name: 'Search Praetorium' }).click()
+    await expect(page.getByPlaceholder('Search everything')).toBeVisible()
+
+    const sizes = await page
+      .locator('input:not([type="checkbox"]):not([type="radio"]), textarea')
+      .evaluateAll((fields) =>
+        fields.filter((field) => field.checkVisibility()).map((field) => Number.parseFloat(getComputedStyle(field).fontSize)),
+      )
+
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(16)
+  })
+})

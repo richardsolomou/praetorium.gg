@@ -6,20 +6,7 @@ import * as WebBrowser from 'expo-web-browser'
 import * as SecureStore from 'expo-secure-store'
 import PostHog, { PostHogProvider, type PostHogOptions } from 'posthog-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  AppState,
-  BackHandler,
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  Share,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewNavigation } from 'react-native-webview'
@@ -123,7 +110,6 @@ function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
 
 function AppShell() {
   const webView = useRef<WebView>(null)
-  const openedWebView = useRef<WebView>(null)
   const canGoBack = useRef(false)
   const authOpen = useRef(false)
   const battleAwake = useRef(false)
@@ -134,7 +120,6 @@ function AppShell() {
   const loadDrainTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadGeneration = useRef(0)
   const [renderedShell, setRenderedShell] = useState(() => appShellRenderState(shellRef.current))
-  const [openedUrl, setOpenedUrl] = useState<string | null>(null)
 
   const commitShell = useCallback((state: AppShellState) => {
     const shouldRender = appShellRenderChanged(shellRef.current, state)
@@ -253,6 +238,13 @@ function AppShell() {
     return operation
   }, [])
 
+  const navigateApplication = useCallback(
+    (url: string) => {
+      commitAndDrain(warmUrlReceived(shellRef.current, url))
+    },
+    [commitAndDrain],
+  )
+
   const handleNativeAction = useCallback(
     async (action: NativeActionRequest) => {
       switch (action.kind) {
@@ -265,7 +257,9 @@ function AppShell() {
           break
         case 'open-window': {
           const decision = classifyNavigation(action.url)
-          if (decision.kind === 'internal') setOpenedUrl(decision.url)
+          // The application is one screen: a second window would stack a separate
+          // web context over the one the player is already in.
+          if (decision.kind === 'internal') navigateApplication(decision.url)
           if (decision.kind === 'external') await openExternal(decision.url)
           break
         }
@@ -277,7 +271,7 @@ function AppShell() {
           break
       }
     },
-    [openExternal, setBattleActive],
+    [navigateApplication, openExternal, setBattleActive],
   )
 
   const handleNativeActionMessage = useCallback(
@@ -302,13 +296,6 @@ function AppShell() {
       return false
     },
     [openExternal],
-  )
-
-  const navigateApplication = useCallback(
-    (url: string) => {
-      commitAndDrain(warmUrlReceived(shellRef.current, url))
-    },
-    [commitAndDrain],
   )
 
   const handleIncomingUrl = useCallback(
@@ -506,51 +493,6 @@ function AppShell() {
       ) : (
         <StateView />
       )}
-      <Modal animationType="slide" onRequestClose={() => setOpenedUrl(null)} presentationStyle="fullScreen" visible={openedUrl !== null}>
-        <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.safeArea}>
-          <View style={styles.windowBar}>
-            <Text numberOfLines={1} style={styles.windowTitle}>
-              Praetorium
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setOpenedUrl(null)}
-              style={({ pressed }) => [styles.windowClose, pressed && styles.buttonPressed]}
-            >
-              <Text style={styles.windowCloseText}>Close</Text>
-            </Pressable>
-          </View>
-          {openedUrl ? (
-            <WebView
-              key={openedUrl}
-              ref={openedWebView}
-              source={{ uri: openedUrl }}
-              style={styles.webView}
-              containerStyle={styles.webView}
-              originWhitelist={['*']}
-              applicationNameForUserAgent={NATIVE_USER_AGENT}
-              injectedJavaScriptBeforeContentLoaded={NATIVE_BRIDGE_SCRIPT}
-              sharedCookiesEnabled
-              thirdPartyCookiesEnabled={false}
-              allowsBackForwardNavigationGestures
-              allowsLinkPreview={false}
-              setSupportMultipleWindows
-              startInLoadingState
-              renderLoading={() => <StateView />}
-              renderError={() => <StateView error retry={() => openedWebView.current?.reload()} />}
-              onContentProcessDidTerminate={() => openedWebView.current?.reload()}
-              onRenderProcessGone={() => openedWebView.current?.reload()}
-              onMessage={({ nativeEvent }) => {
-                handleNativeActionMessage(nativeEvent.data)
-              }}
-              onShouldStartLoadWithRequest={({ url }) => handleUrl(url)}
-              onOpenWindow={({ nativeEvent }) => {
-                void handleNativeAction({ kind: 'open-window', url: nativeEvent.targetUrl })
-              }}
-            />
-          ) : null}
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   )
 }
@@ -578,32 +520,6 @@ const styles = StyleSheet.create({
   webView: {
     flex: 1,
     backgroundColor: BACKGROUND,
-  },
-  windowBar: {
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#343a40',
-    paddingLeft: 16,
-    backgroundColor: BACKGROUND,
-  },
-  windowTitle: {
-    flex: 1,
-    color: '#eceff1',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  windowClose: {
-    minHeight: 48,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  windowCloseText: {
-    color: '#9fc8bd',
-    fontSize: 15,
-    fontWeight: '600',
   },
   state: {
     position: 'absolute',
