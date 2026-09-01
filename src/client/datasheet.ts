@@ -1,6 +1,16 @@
 import type { Datasheet } from '../server/catalogue'
+import { normalizedName, normalizedNameVariants } from '../core/name'
 
 type AbilityKind = Datasheet['abilities'][number]['kind']
+
+export function primaryUnitProfile(sheet: Pick<Datasheet, 'name' | 'profiles'>) {
+  const profiles = sheet.profiles.filter((profile) => profile.type === 'Unit')
+  for (const name of normalizedNameVariants(sheet.name)) {
+    const profile = profiles.find((candidate) => normalizedName(candidate.name) === name)
+    if (profile) return profile
+  }
+  return profiles[0]
+}
 
 export const abilitySections = {
   core: 'Core abilities',

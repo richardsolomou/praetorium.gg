@@ -1,5 +1,53 @@
 import { describe, expect, it } from 'vitest'
-import { addedKeywords, attachmentGroups, compositionCount, referenceAbilities } from './datasheet'
+import { addedKeywords, attachmentGroups, compositionCount, primaryUnitProfile, referenceAbilities } from './datasheet'
+
+describe('primary unit profile', () => {
+  const profile = (id: string, name: string, type = 'Unit') => ({ id, name, type, values: [] })
+
+  it('uses the profile named after the datasheet instead of an optional model listed first', () => {
+    const outrider = profile('outrider', 'Outrider Squad')
+
+    expect(
+      primaryUnitProfile({
+        name: 'Outrider Squad',
+        profiles: [profile('atv', 'Invader ATV'), outrider, profile('sergeant', 'Outrider Sergeant')],
+      }),
+    ).toBe(outrider)
+  })
+
+  it('matches a singular primary model after an optional model', () => {
+    const guardian = profile('guardian', 'Storm Guardian')
+
+    expect(
+      primaryUnitProfile({
+        name: 'Storm Guardians',
+        profiles: [profile('platform', "Serpent's Scale Platform"), guardian],
+      }),
+    ).toBe(guardian)
+  })
+
+  it('prefers an exact profile over an earlier singular profile', () => {
+    const guardians = profile('guardians', 'Storm Guardians')
+
+    expect(
+      primaryUnitProfile({
+        name: 'Storm Guardians',
+        profiles: [profile('guardian', 'Storm Guardian'), guardians],
+      }),
+    ).toBe(guardians)
+  })
+
+  it('falls back to the first unit profile when none matches the datasheet name', () => {
+    const champion = profile('champion', 'Aspiring Champion')
+
+    expect(
+      primaryUnitProfile({
+        name: 'Chosen',
+        profiles: [profile('weapon', 'Boltgun', 'Ranged Weapons'), champion, profile('chosen', 'Chosen Warrior')],
+      }),
+    ).toBe(champion)
+  })
+})
 
 describe('datasheet composition count', () => {
   it('adds fixed and ranged model groups', () => {

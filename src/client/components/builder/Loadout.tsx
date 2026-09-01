@@ -4,6 +4,7 @@ import { cloneElement, type ReactElement, useEffect, useRef } from 'react'
 import type { Datasheet } from '../../../server/catalogue'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../core/roster'
+import { primaryUnitProfile } from '../../datasheet'
 import { loadoutDatasheetsQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { UnitProfile, WeaponSummary } from './DatasheetPanel'
@@ -119,7 +120,7 @@ export function Loadout({
     sheet.profiles.filter((profile) => profile.type === type && (profile.count ?? 1) > controlledProfileCount(unit.choices, profile.name))
   const equippedRanged = equipped('Ranged Weapons')
   const equippedMelee = equipped('Melee Weapons')
-  const profile = sheet.profiles.find((candidate) => candidate.type === 'Unit')
+  const profile = primaryUnitProfile(sheet)
 
   const { models, loose } = divide(unit)
   const visibleLoose = showOptions

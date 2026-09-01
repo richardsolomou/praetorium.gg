@@ -1,4 +1,5 @@
 import { nameOf, targetOf } from '../core/catalogue'
+import { normalizedName, normalizedNameVariants } from '../core/name'
 import { routeSlug } from '../core/slug'
 import { type LoadedCatalogue, datasheetsOf } from './catalogueIndex'
 import type { DatasheetDetails, FactionContent } from './datacards'
@@ -17,12 +18,7 @@ const cardIndexes = new WeakMap<FactionContent, Map<string, DatasheetDetails>>()
 const joins = new WeakMap<LoadedCatalogue, Map<string, DatacardJoin | null>>()
 
 /** Catalogue and datacard sources use different apostrophe glyphs in otherwise identical names. */
-const comparable = (name: string) =>
-  name
-    .normalize('NFKC')
-    .replaceAll(/[‘’ʼ]/g, "'")
-    .trim()
-    .toLocaleLowerCase()
+const comparable = (name: string) => normalizedName(name.normalize('NFKC').replaceAll(/[‘’ʼ]/g, "'"))
 
 function cardIn(content: FactionContent, name: string): DatasheetDetails | null {
   let index = cardIndexes.get(content)
@@ -30,8 +26,11 @@ function cardIn(content: FactionContent, name: string): DatasheetDetails | null 
     index = new Map([...content.datasheetDetails].map(([cardName, details]) => [comparable(cardName), details]))
     cardIndexes.set(content, index)
   }
-  const wanted = comparable(name)
-  return index.get(wanted) ?? index.get(`${wanted}s`) ?? (wanted.endsWith('s') ? index.get(wanted.slice(0, -1)) : undefined) ?? null
+  for (const candidate of normalizedNameVariants(comparable(name))) {
+    const card = index.get(candidate)
+    if (card) return card
+  }
+  return null
 }
 
 export function datacardOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string): DatacardJoin | null {
