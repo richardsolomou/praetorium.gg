@@ -1,72 +1,97 @@
 # Interface
 
-Praetorium uses a compact, dark interface. See [Product design](../product-design.md) for its scope and layout.
+Praetorium uses a compact, dark interface. [Product design](../product-design.md) describes its scope and overall layout.
 
-## Layout
+## Voice and copy
 
-- Use compact, uppercase headings, section counts, points chips, and red or blue player tints consistently.
-- Keep player tints on scores and controls. The tint identifies ownership across the table.
-- Use theme red for attacker deployment zones and theme green for defender zones. Use primary green for a neutral zone.
-- Keep feature screens shared between the website and native applications. Updated native shells replace the website header with a fixed top bar and section tabs. Use bottom tabs below 1024 pixels and a left rail at wider sizes. A native back action opens the route's defined parent. Do not derive that parent from browser history.
-- Edit squad size on the roster card. Do not add a second squad-size control to the loadout pane.
-- Render each picker or loadout pane once. `src/client/components/builder/Pane.tsx` moves the same instance between a desktop sidebar and a mobile sheet. Two instances create duplicate form controls and accessibility labels.
-- Treat the roster workspace as an adaptive master-detail view. Below 1024 pixels, a selected unit occupies the screen, enters browser history, and uses a leading back action to restore the roster. At wider widths it remains the same right-hand pane. The unit picker remains a dismissible drawer below 1300 pixels.
-- Put compact full-screen roster panes above their underlying page in browser history. Back gestures and Android system back dismiss the top pane first, while dialogs and drawers retain explicit close actions.
-- Reserve the desktop picker's grid column in the server-rendered roster workspace. Hydration may replace its mobile drawer with the desktop sidebar, but the roster and loadout panes must not move when it does.
-- Split unit lists into collapsible primary-category shelves and omit empty shelves. Use the same shelf order on rosters, in the picker and on faction datasheet pages.
-- Show allied picker shelves with their short faction name and keep them collapsed until a player needs them.
-- A unit card is one target. Its details open the unit. The menu, detach, and join controls handle their own clicks.
-- Use `data-unit` to find unit cards in tests, `data-roster` to find library rows, and `data-person` to find a player's row. CSS changes the displayed case, so visible-text selectors do not match the source text reliably — and a word like "Unlisted" appears both on a row and in the menu item that changes it, so an unscoped match can pass before the change lands.
-- Keep battle setup in six visible sections: Format, Armies, Battlefield, Defender, Pre-battle, and First turn. The active section is folded from the battle log so every seated device moves together. Show every attached roster, and let anyone at the table set reserves and the battle-ready bonus for any army while the table is being set. List units with Deep Strike before the remaining units eligible for Strategic Reserves, and list a character and the unit they joined as the one unit they arrive as. A roster stays the choice of the player who owns it.
-- Choose saved rosters in a dialog ordered like the roster library. Keep battlefield selection stable while its command saves, and open each battlefield in a full-size dialog without changing the selection.
-- In the live tracker, show only stratagems valid for the current turn and phase. The CP badge spends the printed cost; the overflow menu handles modified costs. A stratagem opens the same text the detachment page prints, from `detachmentRules`.
-- Keep missions and stratagems side by side in a side panel. Both are read constantly, so neither is worth scrolling for, and neither carries a per-round breakdown. Mission references omit flavour text and label grouped payouts as alternatives while ungrouped payouts are additional.
-- Ask for a card's points only as the phase or turn its own data names comes to an end. `src/client/scoring.ts` decides which cards are due and which draws are still owed; the controls exist only in that prompt, never in the panel.
-- Word the prompt as the card does: one row per condition in the mission pack's own words, with what meeting it pays, and a row for scoring nothing. Omit the card's flavour prose. The payout itself is the control, so the number pressed is the number scored. Rows the card puts in one group are tiers, so picking one clears the others; anything ungrouped a card can pay at the same time. A counted payout is a count, bounded by the ceiling the card sets.
-- Open one prompt at a time. What the opponent's turn owed is settled before the hand for this one is dealt, or the two stack and the second covers the first.
-- Show every required live prompt on every seated device. Either player may complete tactical draws, phase and turn scoring, tactical discards, prior-turn scoring, and Secret Mission actions for either side. Name the affected side prominently. Keep only the identity of a face-down Secret Mission hidden until reveal.
-- Open the tactical draw prompt at the top of the player's turn and let the player either draw at random or select the exact missions from the remaining deck. A manual selection must contain every card currently owed and must not replace an earlier choice when its limit is reached. Require a card to be put back before the turn continues where the known parts of `whenDrawn` apply.
-- Record the battle-ready bonus during setup and add it to the score only once the battle is finished.
-- Link a player's name and picture to `/users/$userId` wherever one appears. A profile is open, so the link never needs a token to unlock it. Link their list to `/rosters/$id` with the battle token. The token entitles seated players and revealed-event spectators to read the frozen list and the small profile already visible in the battle. Link each catalogue-backed army's faction mark, faction name, and detachments to their reference pages.
-- Narrow and order the roster library from one Filter button and one Sort button at every width. Four side-by-side comboboxes do not fit a phone, and a second set of them for narrow screens would be a second copy of every control and label.
-- `/rosters/$id` is the one roster surface. Its owner gets the builder controls; every other entitled reader gets the same roster cards and loadout details without mutation controls. A read-only roster keeps an overflow menu for printing and Games Workshop text export. A signed-in reader can duplicate it into a private roster; a signed-out visitor returns through sign-in before doing so.
-- Open a fielded army over the battle, never away from it. The side panel names what is left of the army and opens the same roster cards `/rosters/$id` draws, built from the log rather than the saved list. Each card carries one extra row: where the unit is, and the controls that take a model, a wound, or the whole unit off. A lost unit leaves its shelf for a collapsed `Lost` shelf that can give it back. Either seated player may record either army's losses.
-- Count a unit by what it actually has. A squad shows models, a multi-wound model shows wounds, and a squad of multi-wound models shows both; a unit whose datasheet states no single wounds characteristic shows models alone. Neither counter decides whether a wound takes a model with it — that is `apply`'s, and the control sends one command and redraws from the answer.
-- Lay both setup and the tracker out by side, never by seat. `src/client/sides.ts` folds `BattleView.players` into sides; read command points, victory points, mission cards and stratagems from there. A 2v1 ally is a second army inside one side panel, not a third column.
-- Name a table shape once. `src/core/tableShape.ts` holds the three shapes and the name and count each one reads by, and manual battle creation, a league event's rules, and a league's chips and battle buttons all print from it. A shape's count reads the table from outside it, so a 2v1 is never also shown as a 1v2. What differs by surface is what a shape means there — how it seats the table, or what it asks of an entrant's roster — and that sentence stays with the surface.
-- Present manual battle creation as the three table shapes. Solo vs pair asks whether the opener is solo or on the pair, then shows only that role's seats and a live side preview.
-- Ask a seat once. `src/client/seats.ts` says which seats a shape asks the player being seated to fill, and `components/Seats.tsx` draws them with the live side preview. Manual creation and a league's 2v1 battle chooser use both; each supplies only who may fill a seat, because that is all that differs. Nobody sits in two chairs, and the list heading names the kind of chair rather than badging every row.
-- Lay a small set of options out as cards with `components/Choice.tsx`, pressed one at a time. It is the one option-card style on screen: table shapes, a 2v1 role, visibility, joining and event cadence all use it. Give it `columns` only for a set short enough to sit across a phone.
-- Draw one scoreboard at every width. It carries both sides' scores, the round and phase, and the battle menu that holds finishing, conceding and deleting. Keep destructive actions in that menu and behind a confirmation.
-- Keep both sides' controls and tactical decks available to every seated player, including the phase control, command points, scoring, discards, draws, Secret Mission actions, and stratagems. A player may operate the active side without changing who the log says performed the action. When a Secret Mission is face down, mask its identity and any remaining-deck state that would reveal it.
-- Keep the phase control reachable at every width. One instance moves by CSS between the centre column and a bottom bar on narrow screens, as `builder/Pane.tsx` does for the roster panes, and always advances the active side.
-- Open long card lists in a dialog rather than laying dozens of buttons into a panel, and close the dialog on the pick.
-- Keep the global search panel height stable while typing. Settle the query before the server request, and preserve the prior results while it loads.
-- Give top-level home, account, library, faction, and mission pages a clear introduction, useful summaries, and next actions. Empty states must explain how to add the first item.
-- Give the home page one column width and one section idiom the whole way down. Every block below the top band is a rubric heading over its content, and a small set of boxes is the same hairline grid wherever it appears. Three widths and five kinds of panel is what made a stack of individually correct sections read as a pile.
-- Lead the home page with whichever visitor it has. A signed-in player gets a short welcome band and their own games first, because the mobile shell opens here and they have already accepted the pitch; a visitor gets the hero. Both then read the same shelves, named `Your games`, `Friends' games` and `Public games` rather than tabbed — a shelf heading says where a row came from once, and tabs hide two thirds of the page behind a control. Omit games against practice opponents from every home-page shelf and hero.
-- Put a real battle in the home hero rather than a decorative mark. The sentence beside it claims the app keeps one live record across a table, and the card is that claim happening; the mark is the fallback when nothing is being played, in the same slot so the hero does not change height. Do not print that battle again in the shelf below, and do not promise a feed in hero copy when there is none.
-- Show the pitch only when the page has nothing else to say. A visitor always gets it. A player gets it when their table and everyone else's are empty, which is a new account on a new instance — otherwise it is a second copy of the navigation sitting under their own live games.
-- Keep the home page's data fetching in one container and its composition in a view that takes props. `HomeView` renders from fixtures at every width and state, which is the only way to inspect the page without a database behind it.
-- Load every home-page shelf in the route loader. The feeds are the page, so fetching them after hydration would paint a band over empty space and then move it.
-- Keep Friends in the signed-in account menu rather than global navigation. A confirmed friend may open the other player's profile before they share a battle.
-- Keep leagues about registration, roster reveal, and the battles entrants start. Present the latest event as the current event and put prior numbered events in its archive, so a new league does not introduce unexplained event numbering. Start every event with no entrants. Before reveal, show only whether an accepted entrant submitted; do not load or expose the snapshot to anyone, including the organizer. After reveal, load one snapshot only when its roster viewer opens, and list that event's battles with read-only live and finished views.
-- In a Doubles event, show fixed two-player teams and let the organizer search accepted entrants when pairing them. Starting a battle asks for an opposing team; the server derives the other three seats.
-- Put organizer league actions in one overflow menu on league cards and detail pages. The whole card opens the same menu on right-click, destructive deletion requires confirmation, and the edit dialog reuses the creation controls.
+Player-facing copy is written for somebody building an army or playing Warhammer 40,000. It leads with the game task or outcome and uses words heard at the table: army, list, unit, mission, score, turn, and battle. Implementation terms such as command log, snapshot, catalogue, sync, instance, cache, and server stay in technical documentation rather than product copy.
+
+Useful status copy explains what is happening and what the player can do next. For example, “Army data is still loading. Try again shortly.” is more useful than a description of the source pipeline. Deletion warnings name what will be lost rather than explaining a storage invariant.
+
+Free and open source is prominent in public documentation but secondary to the player benefit in product marketing. Contributor documentation, operator guidance, legal disclosures, data attribution, and actionable support instructions retain the technical detail their audiences need. Sentences are short and direct, without slogans about one record, one log, every device, or a single source of truth.
+
+## Native application layout
+
+Feature screens stay shared between the website and native applications. The native shell replaces the website header with a fixed top bar and section tabs. Phones use bottom tabs. Layouts that are at least 1024 pixels wide use a left rail.
+
+The top bar keeps the Back action in a fixed location. A detail screen returns to the previous application route. A direct link without application history returns to its mapped parent route. A section root returns to the home page.
+
+Compact roster panes use browser history. A back gesture or Android system Back action dismisses the top pane before it leaves the roster. A datasheet opened from the unit picker returns to that picker. A datasheet opened from a roster unit returns to the roster.
+
+## Roster layout
+
+Headings are compact and uppercase, section counts and points use small chips, and player ownership uses consistent red and blue tints. Attacker deployment zones use theme red, defender zones use theme green, and neutral zones use primary green.
+
+The desktop roster builder has picker, roster, and loadout columns. On phones, the roster remains visible while the picker or loadout occupies a sheet. Each picker or loadout pane has one component instance; `src/client/components/builder/Pane.tsx` moves it between desktop and mobile layouts. The server-rendered workspace reserves the desktop picker column so hydration does not shift the roster or loadout.
+
+Squad size is edited on the roster card rather than duplicated in the loadout pane. Unit lists use collapsible primary-category shelves in the same order across rosters, the picker, and faction datasheet pages. Empty shelves are absent, while allied shelves carry their short faction name and begin collapsed.
+
+A unit card is one target whose main action opens its details. Menu, detach, and join controls handle their own clicks. Tests locate cards and rows through `data-unit`, `data-roster`, and `data-person`; visible-text selectors are unreliable because CSS changes case and labels such as “Unlisted” can appear in more than one control.
+
+The roster library uses one Filter button and one Sort button at every width. `/rosters/$id` is its only roster surface: the owner sees builder controls, while other entitled readers see the same cards and loadout details without mutation controls. Read-only rosters retain printing and Games Workshop text export. Signed-in readers can duplicate a roster into a private copy; signed-out readers return through sign-in first.
+
+## Battle setup and tracking
+
+Battle setup has the visible sections Format, Armies, Mission, Battlefield, Defender, Secondaries, Reserves, Deploy, First turn, and Pre-battle rules. The active section comes from the battle log, so every seated screen shows the same point in setup. Every attached roster is visible, while roster selection remains the choice of its owner. Anyone at the table can set reserves and the battle-ready bonus for any army. Deep Strike units precede other Strategic Reserves, and an attached character and bodyguard appear as the one unit they arrive as.
+
+Saved rosters are chosen in a dialog ordered like the roster library. Battlefield selection remains stable while it saves, and each battlefield opens in a full-size dialog without changing the selection.
+
+The live tracker shows only stratagems valid for the current turn and phase. The CP badge spends the printed cost, the overflow menu handles modified costs, and each stratagem opens the same `detachmentRules` text shown on its detachment page. Missions and stratagems sit together in the side panel because both are read throughout play. Mission references omit flavour text; grouped payouts are alternatives and ungrouped payouts are additional.
+
+Scoring controls appear only when a card's own data says its phase or turn has ended. `src/client/scoring.ts` determines which cards are due and which draws remain. A scoring prompt follows the card's wording, with one row per condition, its payout, and an option to score nothing. Grouped rows behave as tiers, ungrouped rows can score together, and counted payouts are bounded by the card's ceiling.
+
+Only one live prompt is open at a time. Anything owed by the opponent's turn is settled before the next hand is dealt. Every seated player can complete tactical draws, scoring, discards, prior-turn scoring, and Secret Mission actions for either side. The affected side is named prominently; only a face-down Secret Mission's identity and revealing deck state remain hidden.
+
+The tactical draw prompt appears at the start of a player's turn and supports either a random draw or an exact choice from the remaining deck. A manual choice contains every card currently owed, cannot replace an earlier choice once its limit is reached, and requires a known `whenDrawn` return before play continues. The battle-ready bonus is recorded during setup and added to the score only after the battle finishes.
+
+A player's name and picture link to `/users/$userId`. Profiles are public and need no access token. A fielded list links to `/rosters/$id` with the battle token, which gives seated players and revealed-event spectators access to its frozen roster. Catalogue-backed faction marks, faction names, and detachments link to their reference pages.
+
+A fielded army opens over the battle rather than replacing it. Its side panel shows the remaining army using the same roster cards as `/rosters/$id`, rebuilt from battle history rather than the saved list. Each card adds unit position and controls for models, wounds, and losses. Lost units move into a collapsed `Lost` shelf and can be restored. Either seated player can record losses for either army.
+
+Unit counters reflect the unit's actual structure: squads show models, single multi-wound models show wounds, and squads of multi-wound models show both. A datasheet without one consistent wounds characteristic shows models alone. `apply` decides whether a wound also removes a model; the control sends one command and redraws from that result.
+
+Setup and the tracker are arranged by side rather than seat. `src/client/sides.ts` folds `BattleView.players` into the two sides that own command points, victory points, mission cards, and stratagems. A 2v1 ally is a second army within one side panel, not a third column.
+
+`src/core/tableShape.ts` defines the three table shapes and their labels and counts. Manual battle creation, league rules, league chips, and battle buttons all read from it. A 2v1 is named from outside the table and never appears as 1v2. Each surface separately explains what the shape means for seating or roster requirements.
+
+Manual battle creation presents those three shapes. Solo vs pair first asks which role the opener has, then shows only that role's seats and a live side preview. `src/client/seats.ts` defines the seats and `components/Seats.tsx` renders them. The same pair serves manual creation and the league 2v1 chooser, with each caller supplying only the eligible people. A person cannot occupy two seats.
+
+Small, exclusive option sets use `components/Choice.tsx`. Table shapes, 2v1 roles, visibility, joining, and event cadence share this card style. Its `columns` layout is reserved for sets short enough to fit across a phone.
+
+One scoreboard appears at every width and contains both scores, round, phase, and the menu for finishing, conceding, and deleting. Destructive actions remain in that menu behind confirmation. Both sides' controls and tactical decks are available to every seated player without changing who the battle history records as the actor.
+
+The phase control also has one component instance. CSS moves it between the centre column and a narrow-screen bottom bar, and it always advances the active side. Long card lists open in a dialog that closes after selection.
+
+## Home, search, and leagues
+
+Global search keeps a stable panel height while typing. The query settles before the server request, and prior results remain visible during loading.
+
+Top-level home, account, library, faction, and mission pages have a clear introduction, useful summaries, and next actions. Empty states explain how the first item is added.
+
+The home page uses one content width and one section pattern. Below the top band, each block is a rubric heading over its content and small option sets use the same hairline grid. A signed-in player sees a short welcome band and their own games first; a visitor sees the hero. Both see shelves named `Your games`, `Friends' games`, and `Public games`. Practice games are absent from every home-page shelf and hero.
+
+The visitor hero contains the most recent public battle, whether it is setting up, live, or finished. The logo occupies the same space when no public battle exists, keeping the hero height stable. The featured battle is omitted from the shelf below. The product introduction is always present for visitors and appears for signed-in players only when every game shelf is empty.
+
+`Home` owns data fetching and `HomeView` composes the page from props and fixtures. Every shelf is loaded by the route loader so the server-rendered frame has its final geometry. Friends remains in the signed-in account menu rather than global navigation.
+
+Leagues cover registration, roster reveal, and entrant-started battles. The latest event appears as the current event, while earlier numbered events form the archive. A new event begins without entrants. Before reveal, only roster-submission status is visible, including to the organizer; after reveal, a roster snapshot loads only when its viewer opens. Event pages list live and finished battles as read-only views.
+
+Doubles events use fixed two-player teams. The organizer pairs accepted entrants through search, and starting a battle asks for the opposing team while the server derives the remaining seats. League cards and detail pages share one organizer menu. Right-click opens that menu, deletion requires confirmation, and editing reuses the creation controls.
 
 ## Components and styles
 
-- Use muted green for primary actions, rule references, success, and selected state; amber for attention; and muted steel blue for navigation and inspectable information such as points. Player-side tints remain separate ownership signals.
-- Tint a battle's stage from `src/client/battleStage.ts`, never per surface: amber for a table still being set, the primary green for one being played on, and receded grey for one that is over, so a reader picks the live games out of a list without reading it. Every list of battles takes the stage's name from there too. The spectator screen keeps its own words, because they say what the reader is doing rather than what the battle is.
-- Use `HoverTooltip` for rule help. It accepts a title, body, and source note. The generated Base UI tooltip controls position, focus, collision handling, and scrolling.
-- Do not disable controls while a command is in flight. `useCommand` sends them in order, so a player's own taps cannot race each other and nothing has to go dead to prevent it.
-- Wait for a run of edits to settle before asking the server about them. `src/client/useSettled.ts` is the one delay: holding a stepper down is one intent, not fifteen requests.
-- The loadout pane is three files. `loadoutModel.ts` holds its shapes and every decision that needs no screen — matching a wargear name to what describes it, ordering a card's rows, and what a step on one option does to its siblings. `LoadoutControls.tsx` holds the controls, `ModelCard.tsx` one kind of model, and `Loadout.tsx` only decides which choices belong to a card and which to the unit.
-- Keep a route file to its loader, its search parameters and its page shell. Anything with state of its own belongs in `src/client/components`.
-- `src/components/ui` contains generated shadcn Base UI components. Add or replace them with the shadcn CLI. Do not edit them by hand.
-- `src/styles.css` maps root tokens to Tailwind color utilities through `@theme inline`. Generated components depend on that mapping.
-- Barlow Semi Condensed handles the compact display hierarchy; regular Barlow handles paragraph-length rules text. Both OFL-licensed faces are registered in the main stylesheet and preloaded by the root route. Do not add a font without its license or hide it behind client-side loading.
+Muted green represents primary actions, rules references, success, and selection. Amber represents attention, muted steel blue represents navigation and inspectable information, and player-side tints remain separate ownership signals.
+
+`src/client/battleStage.ts` supplies each battle stage's name and tint: amber during setup, primary green during play, and receded grey after completion. Every battle list uses that answer. The spectator screen uses separate words because it describes the reader rather than the battle.
+
+`HoverTooltip` provides rule help from a title, body, and source note. The generated Base UI tooltip handles position, focus, collision, and scrolling. Commands remain enabled while saving because `useCommand` serializes a player's taps. `src/client/useSettled.ts` is the single delay for a run of edits before a server request.
+
+The loadout pane is divided by responsibility. `loadoutModel.ts` contains screen-free shapes and decisions, `LoadoutControls.tsx` contains controls, `ModelCard.tsx` renders one model kind, and `Loadout.tsx` assigns choices to model or unit cards.
+
+Route files contain loaders, search parameters, and page shells; stateful interface code lives in `src/client/components`. `src/components/ui` contains generated shadcn Base UI components and changes only through the shadcn CLI. `src/styles.css` maps root tokens to Tailwind utilities through `@theme inline`.
+
+Barlow Semi Condensed provides the display hierarchy and regular Barlow handles paragraph-length rules. Both OFL-licensed fonts are registered in the main stylesheet and preloaded by the root route.
 
 ## Verification
 
-Inspect every rendered change in a browser at desktop and phone widths. Use the same component instances at both sizes. Run the relevant Playwright flow after inspection.
+Rendered changes are inspected at desktop and phone widths before the relevant Playwright flow runs. Both widths use the same component instances.

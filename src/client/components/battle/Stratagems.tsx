@@ -162,7 +162,7 @@ function StratagemCard({
           {written?.description ? (
             <RuleText text={written.description} rules={written.keywordRules} />
           ) : (
-            <p className="mt-2 text-sm text-dim">The synced rules source has no description for this stratagem.</p>
+            <p className="mt-2 text-sm text-dim">No description is available for this stratagem.</p>
           )}
           {refusal ? <p className="mt-2 text-sm text-discarded">{refusal}</p> : null}
         </DialogContent>

@@ -13,11 +13,11 @@ export const Route = createFileRoute('/terms')({
 
 function Terms() {
   return (
-    <LegalPage title="Terms of service" updated="25 August 2026">
+    <LegalPage title="Terms of service" updated="1 September 2026">
       <LegalSection title="The service">
         <p>
           Praetorium at praetorium.gg helps you build Warhammer 40,000 army lists and track games between the players seated at them. Using
-          it requires an account. These terms cover the hosted service; a self-hosted instance is governed by whoever operates it.
+          it requires an account. These terms cover the hosted service; a self-hosted installation is governed by whoever operates it.
         </p>
         <p>By creating an account you agree to these terms. If you do not agree, do not use the service.</p>
       </LegalSection>
@@ -55,8 +55,8 @@ function Terms() {
 
       <LegalSection title="Game data and trademarks">
         <p>
-          Unit, points and rules data comes from community catalogues published by BSData and the Tabletop Developer Consortium under their
-          own licences. Warhammer 40,000 and related marks belong to Games Workshop. Praetorium is unofficial and is not endorsed by or
+          Unit, points and rules data comes from community projects including BSData and the Tabletop Developer Consortium under their own
+          licences. Warhammer 40,000 and related marks belong to Games Workshop. Praetorium is unofficial and is not endorsed by or
           affiliated with Games Workshop; nothing here is an official product or rules reference.
         </p>
       </LegalSection>

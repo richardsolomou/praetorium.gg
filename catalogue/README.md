@@ -11,7 +11,7 @@ No game data is committed to this repository.
 - `rules` uses [40kdc-data](https://github.com/wn-mitch/40kdc-data) for stratagems, missions, and scoring data under [CC BY 4.0](https://github.com/wn-mitch/40kdc-data/blob/main/LICENSE-DATA).
 - `datacards` uses the 11th-edition export from [game-datacards/datasources](https://github.com/game-datacards/datasources) for factions, core rules, missions, and layouts. The repository does not include a licence file.
 
-The points source tests the evaluator. The product does not load it. Inspect all three inputs before you change evaluation logic: the generated selection, definitions, and points source.
+The points source tests the evaluator and is not loaded by the product. Evaluator changes are assessed against all three inputs: the generated selection, definitions, and points source.
 
 ## Commands
 

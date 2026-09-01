@@ -113,7 +113,7 @@ export function DetachmentReference({
         <section>
           <SectionTitle title="Stratagems" count={detachment.stratagems.length} />
           {detachment.stratagems.some((stratagem) => !stratagem.description) ? (
-            <p className="mt-2 text-sm text-dim">Some stratagem descriptions are unavailable from the synced sources.</p>
+            <p className="mt-2 text-sm text-dim">Some stratagem descriptions are not available.</p>
           ) : null}
           <div className="mt-2 grid gap-2 md:grid-cols-2">
             {detachment.stratagems.map((stratagem) => (
@@ -151,7 +151,7 @@ function SectionTitle({ title: label, count }: { title: string; count: number })
 }
 
 function Unavailable() {
-  return <p className="mt-2 text-sm text-dim">No description is available from the synced sources.</p>
+  return <p className="mt-2 text-sm text-dim">No description is available.</p>
 }
 
 const title = (value: string) => value.replaceAll('-', ' ').replaceAll(/\b\w/g, (letter) => letter.toLocaleUpperCase())

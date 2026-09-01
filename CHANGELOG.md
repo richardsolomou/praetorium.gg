@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.47.2
+
+### Patch Changes
+
+- 97299b6: Make homepage capability cards fully clickable and speak directly to players.
+
 ## 0.47.1
 
 ### Patch Changes
