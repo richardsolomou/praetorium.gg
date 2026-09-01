@@ -64,14 +64,11 @@ const pendingAuthStorage = process.env.EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL
 const ACTIVE_BATTLE_KEEP_AWAKE_TAG = 'praetorium-active-battle'
 const POSTHOG_OPTIONS = {
   host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
-  enableSessionReplay: true,
-  sessionReplayConfig: {
-    maskAllTextInputs: true,
-    maskAllImages: true,
-    maskAllSandboxedViews: true,
-    captureLog: false,
-    captureNetworkTelemetry: false,
-  },
+  // The interface is one WKWebView. The native recorder runs that view out of
+  // process, so it masks the whole screen and every native replay is black.
+  // Unmasking it would expose the web DOM the native SDK cannot redact, and
+  // posthog-js in the web app already records the same screen with its masking.
+  enableSessionReplay: false,
   errorTracking: {
     autocapture: { uncaughtExceptions: true, unhandledRejections: true },
   },
