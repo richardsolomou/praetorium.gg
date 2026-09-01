@@ -10,7 +10,6 @@ describe('primary unit profile', () => {
     expect(
       primaryUnitProfile({
         name: 'Outrider Squad',
-        composition: [],
         profiles: [profile('atv', 'Invader ATV'), outrider, profile('sergeant', 'Outrider Sergeant')],
       }),
     ).toBe(outrider)
@@ -22,34 +21,9 @@ describe('primary unit profile', () => {
     expect(
       primaryUnitProfile({
         name: 'Storm Guardians',
-        composition: [],
         profiles: [profile('platform', "Serpent's Scale Platform"), guardian],
       }),
     ).toBe(guardian)
-  })
-
-  it('uses a required model from the composition when the datasheet name is qualified', () => {
-    const sergeant = profile('sergeant', 'Biker Sergeant')
-
-    expect(
-      primaryUnitProfile({
-        name: 'Bike Squad [Legends]',
-        composition: ['**1 Biker Sergeant**', '**2-5 Space Marine Bikers**', '**0-1 Attack Bike**'],
-        profiles: [profile('attack-bike', 'Attack Bike'), sergeant, profile('bikers', 'Space Marine Biker')],
-      }),
-    ).toBe(sergeant)
-  })
-
-  it('ignores an optional model listed before a required composition profile', () => {
-    const biker = profile('biker', 'Space Marine Biker')
-
-    expect(
-      primaryUnitProfile({
-        name: 'Bike Unit',
-        composition: ['**0-1 Attack Bike**', '**3-6 Space Marine Bikers**'],
-        profiles: [profile('attack-bike', 'Attack Bike'), biker],
-      }),
-    ).toBe(biker)
   })
 
   it('falls back to the first unit profile when none matches the datasheet name', () => {
@@ -58,7 +32,6 @@ describe('primary unit profile', () => {
     expect(
       primaryUnitProfile({
         name: 'Chosen',
-        composition: [],
         profiles: [profile('weapon', 'Boltgun', 'Ranged Weapons'), champion, profile('chosen', 'Chosen Warrior')],
       }),
     ).toBe(champion)

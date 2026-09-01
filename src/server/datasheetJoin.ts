@@ -1,5 +1,5 @@
 import { nameOf, targetOf } from '../core/catalogue'
-import { normalizedNameVariants } from '../core/name'
+import { normalizedName, normalizedNameVariants } from '../core/name'
 import { routeSlug } from '../core/slug'
 import { type LoadedCatalogue, datasheetsOf } from './catalogueIndex'
 import type { DatasheetDetails, FactionContent } from './datacards'
@@ -18,12 +18,7 @@ const cardIndexes = new WeakMap<FactionContent, Map<string, DatasheetDetails>>()
 const joins = new WeakMap<LoadedCatalogue, Map<string, DatacardJoin | null>>()
 
 /** Catalogue and datacard sources use different apostrophe glyphs in otherwise identical names. */
-const comparable = (name: string) =>
-  name
-    .normalize('NFKC')
-    .replaceAll(/[‘’ʼ]/g, "'")
-    .trim()
-    .toLocaleLowerCase()
+const comparable = (name: string) => normalizedName(name.normalize('NFKC').replaceAll(/[‘’ʼ]/g, "'"))
 
 function cardIn(content: FactionContent, name: string): DatasheetDetails | null {
   let index = cardIndexes.get(content)

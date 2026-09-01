@@ -45,6 +45,13 @@ describe('the join from a datasheet to its card', () => {
     expect(datacardOf(loaded, 'cat', 'walker')?.own).toBe(true)
   })
 
+  it('normalizes spacing on both sides of a name join', () => {
+    const loaded = bookOf({ selectionEntries: [{ id: 'captain', name: 'Space  Marine Captain', type: 'model' }] })
+    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Space Marine\u00a0Captain']))
+
+    expect(datacardOf(loaded, 'cat', 'captain')?.own).toBe(true)
+  })
+
   it('prefers an exact reference over a same-named card', () => {
     const loaded = book()
     const exact = withCards('Test catalogue', new Map([['Different Card Name', card({ baseSize: '80mm' })]]))
