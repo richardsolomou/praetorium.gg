@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.47.0
+
+### Minor Changes
+
+- 9acb549: Show player avatars, factions, faction marks, and detachments on battle cards, and keep practice games off the home page.
+
 ## 0.46.0
 
 ### Minor Changes
