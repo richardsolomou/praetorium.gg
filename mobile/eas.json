@@ -14,13 +14,19 @@
     "canary-ios": {
       "autoIncrement": true,
       "channel": "canary",
-      "environment": "preview"
+      "environment": "preview",
+      "env": {
+        "POSTHOG_CLI_DRY_RUN": "true"
+      }
     },
     "canary-android": {
       "autoIncrement": true,
       "channel": "canary",
       "distribution": "internal",
       "environment": "preview",
+      "env": {
+        "POSTHOG_CLI_DRY_RUN": "true"
+      },
       "android": {
         "buildType": "apk"
       }
