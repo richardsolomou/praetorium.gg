@@ -79,9 +79,8 @@ if (process.argv.includes('--details')) {
 /*
  * A ratchet, so these only ever come down. The rules dataset picks up new detachments before
  * Game Datacards describes them, so the gap is measured against the pinned snapshot rather
- * than expected to be zero. Five of the enhancements are spelt differently by the two sources
- * (the rules dataset's "Mask of the Nekrosor" is the cards' "Mark of the Nekrosor") and stay
- * blank until one of them is corrected upstream: a near match is a guess.
+ * than expected to be zero. A name only one source spells is left blank rather than resolved
+ * against its near match, because a near match is a guess.
  */
 if (missing.detachmentRules.length > 30 || missing.enhancements.length > 92 || missing.stratagems.length > 116) {
   throw new Error('description coverage fell below the pinned catalogue baseline')

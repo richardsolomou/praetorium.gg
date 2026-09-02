@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.51.0
+
+### Minor Changes
+
+- 21e9c10: Split the signed-in home page into your live games, the games you have played, your friends' games and everybody else's, in that order.
+
 ## 0.50.7
 
 ### Patch Changes

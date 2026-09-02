@@ -70,9 +70,11 @@ Global search keeps a stable panel height while typing. The query settles before
 
 Top-level home, account, library, faction, and mission pages have a clear introduction, useful summaries, and next actions. Empty states explain how the first item is added.
 
-The home page uses one content width and one section pattern. Below the top band, each block is a rubric heading over its content and small option sets use the same hairline grid. A signed-in player sees a short welcome band and their own games first; a visitor sees the hero. Both see shelves named `Your games`, `Friends' games`, and `Public games`. Practice games are absent from every home-page shelf and hero.
+The home page uses one content width and one section pattern. Below the top band, each block is a rubric heading over its content and small option sets use the same hairline grid. A signed-in player sees a short welcome band and their own games first; a visitor sees the hero. The shelves run outwards from the reader in a fixed order: `Your games`, `Games you have played`, `Friends' games`, then `Public games`. `Your games` holds the battles that are setting up or live, and `Games you have played` holds the five most recent finished ones above a link to the battles page. A visitor sees `Friends' games` and `Public games` only. Practice games are absent from every home-page shelf and hero.
 
 The visitor hero contains the most recent public battle, whether it is setting up, live, or finished. The logo occupies the same space when no public battle exists, keeping the hero height stable. The featured battle is omitted from the shelf below. The product introduction is always present for visitors and appears for signed-in players only when every game shelf is empty.
+
+Empty shelves explain rather than disappear. A signed-in player with no live game sees how to start one, and one with no friend games sees where friendships are kept — that shelf's text claims nothing about whether they have friends, because a table of friends who all play together has no friend games either. Both are absent when the page is otherwise empty, where the product introduction says more.
 
 `Home` owns data fetching and `HomeView` composes the page from props and fixtures. Every shelf is loaded by the route loader so the server-rendered frame has its final geometry. Friends remains in the signed-in account menu rather than global navigation.
 

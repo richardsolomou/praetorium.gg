@@ -11,7 +11,7 @@ Praetorium includes:
 - One synchronized 1v1, 2v1, or 2v2 battle between signed-in players, against a friend or a practice opponent. Every player is named when the battle is created; there are no open seats to join.
 - Mutual friendships for choosing private battle opponents, and practice opponents for playing without one.
 - Public or private organized-play registration with reusable events, approved entry, replaceable sealed roster snapshots, simultaneous reveal, and read-only event battle viewing.
-- A home page of shared activity: the player's unfinished games, their friends' recent games, and recent public battles including finished ones. Practice games stay in battle history rather than appearing on the home page.
+- A home page of shared activity, ordered outwards from the reader: the player's unfinished games, the games they have recently finished, their friends' recent games, and recent public battles including finished ones. Practice games stay in battle history rather than appearing on the home page.
 - A per-player audience setting covering every battle they sit in: anyone, friends, or nobody outside the table.
 
 It does not include rankings, standings, pairings, brackets, locations, chat, matchmaking, a rules encyclopedia, or model positions.

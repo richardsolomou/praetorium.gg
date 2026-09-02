@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { expect, test } from '@playwright/test'
 import { openDatabase } from '../src/db/connection'
 import { battles } from '../src/db/schema'
-import { createBattle, PRACTICE_OPPONENT, signUp, uniqueName } from './account'
+import { createBattle, createRoster, PRACTICE_OPPONENT, setupBattle, signUp, uniqueName } from './account'
 import { postgresPort } from './stackEnv'
 
 async function makePreviewBattleMostRecent() {
@@ -79,4 +79,49 @@ test('the home page fits a phone at both signed-out and signed-in widths', async
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+})
+
+/**
+ * The signed-in home page runs outwards from the reader.
+ *
+ * The order is the whole point of the page: the games waiting on the player, then
+ * the ones they have finished, then their friends' tables, then everybody else's.
+ * A finished game in the first shelf would put a game nobody can act on above one
+ * that is live, which is the arrangement this replaces.
+ */
+test('orders the signed-in home page from the player outwards', async ({ browser }) => {
+  const hostContext = await browser.newContext()
+  const guestContext = await browser.newContext()
+  const host = await hostContext.newPage()
+  const guest = await guestContext.newPage()
+  const hostName = uniqueName('Host')
+  const guestName = uniqueName('Guest')
+  try {
+    await signUp(guest, guestName)
+    const guestRoster = await createRoster(guest, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Guest list' })
+    await signUp(host, hostName)
+    const hostRoster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Host list' })
+
+    const played = await setupBattle(host, guest, { opponent: guestName, hostRoster, guestRoster })
+    await host.getByRole('button', { name: 'Battle options' }).click()
+    await host.getByRole('menuitem', { name: 'Finish early' }).click()
+    await host.getByRole('button', { name: 'Finish early' }).click()
+    await expect(host.getByRole('region', { name: 'Battle scoreboard' })).toContainText('Result')
+    // A second table, still being set, so the live shelf and the history shelf are both on the page.
+    const going = await createBattle(host, { opponent: guestName })
+
+    await host.goto('/')
+    await expect(host.getByRole('heading', { name: `Welcome back, ${hostName}` })).toBeVisible()
+    const rubrics = host.locator('main').getByText(/^(Your games|Games you have played|Friends' games|Public games)$/)
+    await expect(rubrics).toHaveText(['Your games', 'Games you have played', "Friends' games", 'Public games'])
+
+    const yours = host.locator('[data-battle-shelf="Your games"]')
+    const history = host.locator('[data-battle-shelf="Games you have played"]')
+    await expect(yours.locator(`a[href="${new URL(going).pathname}"]`)).toHaveCount(1)
+    await expect(yours.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(0)
+    await expect(history.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)
+    await expect(history.locator(`a[href="${new URL(going).pathname}"]`)).toHaveCount(0)
+  } finally {
+    await Promise.all([hostContext.close(), guestContext.close()])
+  }
 })

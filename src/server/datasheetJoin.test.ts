@@ -101,4 +101,16 @@ describe('the join from a datasheet to its card', () => {
       fallbacks: [{ faction: 'Test catalogue', name: 'Rhino' }],
     })
   })
+
+  it('does not report a card that only a Legends datasheet answers to', () => {
+    const loaded = bookOf({
+      selectionEntries: [
+        { id: 'rhino', name: 'Rhino', type: 'model', costs: points(75) },
+        { id: 'trakk', name: 'Big Trakk [Legends]', type: 'model', costs: points(100) },
+      ],
+    })
+    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Rhino', 'Big Trakk']))
+
+    expect(datacardJoinReport(loaded, () => true).datacardsOnly).toEqual([])
+  })
 })
