@@ -153,7 +153,7 @@ export function RosterShell({ children, saving, saveError }: RosterShellProps) {
       data-roster-builder
       data-saving={saving}
       data-save-error={saveError}
-      className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken"
+      className="flex w-full min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden border border-edge bg-sunken"
     >
       {children}
     </div>
@@ -163,7 +163,7 @@ export function RosterShell({ children, saving, saveError }: RosterShellProps) {
 export function RosterBody({ children, threeColumn = false }: { children: ReactNode; threeColumn?: boolean }) {
   return (
     <div
-      className={`flex min-h-0 flex-1 ${
+      className={`flex min-h-0 min-w-0 max-w-full flex-1 overflow-hidden ${
         threeColumn ? 'min-[1300px]:grid min-[1300px]:grid-cols-[minmax(0,1.1fr)_minmax(0,1.45fr)_minmax(0,1.45fr)]' : ''
       }`}
     >
@@ -174,7 +174,10 @@ export function RosterBody({ children, threeColumn = false }: { children: ReactN
 
 export function RosterUnits({ children }: { children: ReactNode }) {
   return (
-    <div data-slot="roster-units" className="min-h-0 min-w-0 flex-1 overflow-y-auto px-3">
+    <div
+      data-slot="roster-units"
+      className="min-h-0 w-full min-w-0 max-w-full flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-x-none px-3"
+    >
       {children}
     </div>
   )

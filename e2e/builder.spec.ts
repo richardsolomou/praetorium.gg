@@ -20,6 +20,14 @@ async function expectNoHorizontalOverflow(element: Locator) {
   expect(width.scroll).toBe(width.client)
 }
 
+async function expectVerticalPanOnly(element: Locator) {
+  const style = await element.evaluate((node) => {
+    const computed = getComputedStyle(node)
+    return { overflowX: computed.overflowX, overscrollX: computed.overscrollBehaviorX, touchAction: computed.touchAction }
+  })
+  expect(style).toEqual({ overflowX: 'hidden', overscrollX: 'none', touchAction: 'pan-y' })
+}
+
 /**
  * The four things a player coming from another builder reaches for: squad size where
  * the roster is, the filters that narrow a book down to today's real options, and
@@ -109,7 +117,9 @@ test('the roster workspace reserves the desktop picker while its book loads', as
   await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
   expect(clientUnitRequests).toHaveLength(0)
   await expectNoHorizontalOverflow(page.locator('html'))
-  await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
+  const roster = page.locator('[data-slot="roster-units"]')
+  await expectNoHorizontalOverflow(roster)
+  await expectVerticalPanOnly(roster)
   await page.screenshot({ path: 'test-results/stable-roster-workspace-phone.png', fullPage: true })
 
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
@@ -123,7 +133,9 @@ test('the roster workspace reserves the desktop picker while its book loads', as
   await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
   await expectNoHorizontalOverflow(page.locator('html'))
   await expectNoHorizontalOverflow(loadout)
-  await expectNoHorizontalOverflow(loadout.locator('[data-slot="scroll-area-viewport"]'))
+  const viewport = loadout.locator('[data-slot="scroll-area-viewport"]')
+  await expectNoHorizontalOverflow(viewport)
+  await expectVerticalPanOnly(viewport)
   await expectNoHorizontalOverflow(loadout.locator('[data-slot="unit-profile"]'))
   await page.screenshot({ path: 'test-results/stable-roster-loadout-phone.png', fullPage: true })
 })
@@ -135,12 +147,14 @@ test('a native unit screen keeps the tab bar beside it', async ({ browser }) => 
 ${NATIVE_BRIDGE_SCRIPT}`,
   })
   const page = await context.newPage()
-  await openBuilder(page)
-  await add(page, 'Immortals')
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await add(page, 'Intercessor Squad')
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
   await expectNoHorizontalOverflow(page.locator('html'))
-  await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
-  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  const roster = page.locator('[data-slot="roster-units"]')
+  await expectNoHorizontalOverflow(roster)
+  await expectVerticalPanOnly(roster)
+  await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
   const sections = page.getByRole('navigation', { name: 'Application sections' })
@@ -153,8 +167,11 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   expect(await sections.evaluate((tabs) => (tabs as HTMLElement).inert)).toBe(false)
   await expectNoHorizontalOverflow(page.locator('html'))
   await expectNoHorizontalOverflow(loadout)
-  await expectNoHorizontalOverflow(loadout.locator('[data-slot="scroll-area-viewport"]'))
+  const viewport = loadout.locator('[data-slot="scroll-area-viewport"]')
+  await expectNoHorizontalOverflow(viewport)
+  await expectVerticalPanOnly(viewport)
   await expectNoHorizontalOverflow(loadout.locator('[data-slot="unit-profile"]'))
+  await page.screenshot({ path: 'test-results/intercessor-native-phone.png', fullPage: true })
 
   await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions')

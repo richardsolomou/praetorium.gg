@@ -97,7 +97,9 @@ export function DatasheetPanel({
   return embedded ? (
     <div className="border-t border-edge pt-4">{content}</div>
   ) : (
-    <ScrollArea className="h-full min-w-0 max-w-full [&_[data-slot=scroll-area-viewport]]:p-3">{content}</ScrollArea>
+    <ScrollArea className="h-full min-w-0 max-w-full overflow-hidden [&_[data-slot=scroll-area-viewport]]:touch-pan-y [&_[data-slot=scroll-area-viewport]]:!overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:overscroll-x-none [&_[data-slot=scroll-area-viewport]]:p-3">
+      {content}
+    </ScrollArea>
   )
 }
 

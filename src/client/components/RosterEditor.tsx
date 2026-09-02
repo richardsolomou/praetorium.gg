@@ -27,7 +27,7 @@ const NO_PREP = { stratagems: [], secondaries: [] }
 
 export function RosterEditor({ roster, faction, editable, battle, resolvePersistedRoster = true }: Props) {
   return (
-    <main className="flex h-full w-full flex-col">
+    <main className="flex h-full w-full min-w-0 max-w-full flex-col overflow-x-hidden">
       <ListBuilder
         key={roster.id}
         prep={roster.prep ?? NO_PREP}
