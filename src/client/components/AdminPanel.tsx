@@ -44,7 +44,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
         </div>
       </section>
 
-      <section className="mx-auto mt-4 max-w-6xl border-y border-edge bg-panel sm:border">
+      <section className="mx-auto mt-4 mb-8 max-w-6xl border-y border-edge bg-panel sm:border">
         <div className="flex flex-wrap items-end justify-between gap-3 border-b border-edge p-4">
           <div className="w-full max-w-sm space-y-2">
             <Label htmlFor="admin-user-search">Search users</Label>

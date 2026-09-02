@@ -47,7 +47,7 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
 
   if (methodsResult.isError) {
     return (
-      <div className="mx-auto mt-6 max-w-5xl px-3 sm:px-0">
+      <div className="mx-auto mt-6 max-w-5xl px-3 pb-8 sm:px-0">
         <PageState
           headingLevel={2}
           eyebrow="Account security"
@@ -64,7 +64,7 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
   }
 
   return (
-    <div className="ph-no-capture mx-auto mt-6 grid max-w-5xl gap-6 px-3 sm:px-0 lg:grid-cols-2">
+    <div className="ph-no-capture mx-auto mt-6 grid max-w-5xl gap-6 px-3 pb-8 sm:px-0 lg:grid-cols-2">
       <section className="border border-edge bg-panel p-5 md:p-7">
         <p className="rubric border-b border-edge pb-2">Two-factor authentication</p>
         <div className="mt-4 flex items-start gap-3">

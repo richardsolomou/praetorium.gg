@@ -58,7 +58,7 @@ function Battles() {
         </div>
       </section>
       {battles.length ? (
-        <div className="mx-auto mt-4 max-w-5xl space-y-6 px-3 sm:px-4">
+        <div className="mx-auto mt-4 max-w-5xl space-y-6 px-3 pb-8 sm:px-4">
           <BattleShelf title="Active" battles={active} viewerId={me.id} onDelete={setDeleting} />
           <BattleShelf title="Setup" battles={setup} viewerId={me.id} onDelete={setDeleting} />
           <BattleShelf title="Finished" battles={finished} viewerId={me.id} onDelete={setDeleting} />

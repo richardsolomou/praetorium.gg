@@ -50,7 +50,7 @@ export function FactionDatasheet() {
           </div>
         </div>
       </header>
-      <div className="mx-auto max-w-5xl space-y-6 px-3 py-4 sm:px-4">
+      <div className="mx-auto max-w-5xl space-y-6 px-3 pt-4 pb-8 sm:px-4">
         <Breadcrumb>
           <BreadcrumbList className="eyebrow gap-1 text-info">
             <BreadcrumbItem>

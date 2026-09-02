@@ -46,7 +46,7 @@ function MissionMatchupPage() {
           </h1>
         </div>
       </section>
-      <div className="mx-auto max-w-5xl px-3 py-4 sm:px-4">
+      <div className="mx-auto max-w-5xl px-3 pt-4 pb-8 sm:px-4">
         <Link to="/mission-packs/$packId" params={{ packId }} className="eyebrow text-info">
           {pack.name}
         </Link>
