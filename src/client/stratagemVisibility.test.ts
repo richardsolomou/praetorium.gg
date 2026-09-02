@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { shouldOpenOverwatchWindow, stratagemVisibleNow } from './stratagemVisibility'
+import { isOverwatchWindowOpen, shouldOpenOverwatchWindow, stratagemVisibleNow } from './stratagemVisibility'
 
 describe('tracker stratagem visibility', () => {
   it('hides opponent-turn stratagems during your turn', () => {
@@ -34,5 +34,7 @@ describe('tracker stratagem visibility', () => {
     expect(shouldOpenOverwatchWindow(stratagems, 'movement', false)).toBe(true)
     expect(shouldOpenOverwatchWindow(stratagems, 'movement', true)).toBe(false)
     expect(shouldOpenOverwatchWindow(stratagems, 'shooting', false)).toBe(false)
+    expect(isOverwatchWindowOpen(stratagems, 'movement', true)).toBe(true)
+    expect(isOverwatchWindowOpen(stratagems, 'movement', false)).toBe(false)
   })
 })

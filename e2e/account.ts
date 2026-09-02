@@ -430,7 +430,8 @@ export async function advance(page: Page) {
         }
         if (await finish.isVisible().catch(() => false)) {
           await finish.click({ timeout: 15_000 })
-          continue
+          await expect.poll(() => phase.textContent()).not.toBe(before)
+          break
         }
         if (await owed.isVisible().catch(() => false)) {
           await owed.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })

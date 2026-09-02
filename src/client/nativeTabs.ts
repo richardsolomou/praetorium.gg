@@ -2,11 +2,21 @@ import { nativeNavigation, type NativeSection } from './nativeNavigation'
 
 const TAB_PREFIX = 'praetorium.native-tab:'
 
+export type NativeTabState = { rosterPane?: unknown; rosterSnapshotPane?: unknown }
+
 export type NativeTabMemory = {
   href: string
   scrollY: number
   regions: Record<string, number>
-  state?: { rosterPane: unknown }
+  state?: NativeTabState
+}
+
+function rememberedState(value: unknown): NativeTabState | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const state: NativeTabState = {}
+  if ('rosterPane' in value) state.rosterPane = value.rosterPane
+  if ('rosterSnapshotPane' in value) state.rosterSnapshotPane = value.rosterSnapshotPane
+  return 'rosterPane' in state || 'rosterSnapshotPane' in state ? state : undefined
 }
 
 export function tabLocation(href: string): { section: NativeSection; href: string } | null {
@@ -22,6 +32,7 @@ function stored(section: NativeSection): NativeTabMemory | null {
     if (!value.startsWith('{')) return { href: value, scrollY: 0, regions: {} }
     const parsed = JSON.parse(value) as Partial<NativeTabMemory>
     if (typeof parsed.href !== 'string') return null
+    const state = rememberedState(parsed.state)
     return {
       href: parsed.href,
       scrollY: typeof parsed.scrollY === 'number' ? parsed.scrollY : 0,
@@ -29,9 +40,7 @@ function stored(section: NativeSection): NativeTabMemory | null {
         parsed.regions && typeof parsed.regions === 'object'
           ? Object.fromEntries(Object.entries(parsed.regions).filter((entry): entry is [string, number] => typeof entry[1] === 'number'))
           : {},
-      ...(parsed.state && typeof parsed.state === 'object' && 'rosterPane' in parsed.state
-        ? { state: { rosterPane: parsed.state.rosterPane } }
-        : {}),
+      ...(state ? { state } : {}),
     }
   } catch {
     return null
@@ -43,14 +52,12 @@ export function rememberTab(href: string, options: { scrollY?: number; regions?:
   if (!location || typeof window === 'undefined') return
   const previous = stored(location.section)
   const sameLocation = previous?.href === location.href
-  const state = options.state
-  const rosterPane =
-    state && typeof state === 'object' && 'rosterPane' in state ? (state as { rosterPane?: unknown }).rosterPane : undefined
+  const state = rememberedState(options.state)
   const memory: NativeTabMemory = {
     href: location.href,
     scrollY: options.scrollY ?? (sameLocation ? previous.scrollY : 0),
     regions: options.regions ?? (sameLocation ? previous.regions : {}),
-    ...(rosterPane ? { state: { rosterPane } } : {}),
+    ...(state ? { state } : {}),
   }
   sessionStorage.setItem(`${TAB_PREFIX}${location.section}`, JSON.stringify(memory))
 }

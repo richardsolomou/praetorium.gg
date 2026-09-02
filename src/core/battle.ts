@@ -1027,6 +1027,12 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       const due = scoringDue(state, player)
       if (due.length && !state.advanceRequested) return 'review mission scoring before ending the phase'
       if (due.length && !state.scoringAcknowledged) return 'finish mission scoring before ending the phase'
+      const opposingStratagems = state.players
+        .filter((candidate) => !sameSide(state, candidate.id, player.id))
+        .flatMap((candidate) => candidate.stratagems)
+      if (shouldOpenOverwatchWindow(opposingStratagems, state.phase, state.advanceRequested)) {
+        return 'offer Fire Overwatch before ending the movement phase'
+      }
       const unresolvedTactical =
         state.phase === 'end' &&
         player.secondaryMode === 'tactical' &&
@@ -1785,8 +1791,16 @@ function limitReached(player: PlayerState, stratagem: Stratagem, state: BattleSt
 export const isNewOrders = (stratagem: Pick<Stratagem, 'name'>) => stratagem.name.trim().toLocaleLowerCase() === 'new orders'
 export const isFireOverwatch = (stratagem: Pick<Stratagem, 'name'>) => stratagem.name.trim().toLocaleLowerCase() === 'fire overwatch'
 
+export function isOverwatchWindowOpen(stratagems: readonly Pick<Stratagem, 'name'>[], phase: Phase, advanceRequested: boolean) {
+  return advanceRequested && phase === 'movement' && stratagems.some(isFireOverwatch)
+}
+
+export function shouldOpenOverwatchWindow(stratagems: readonly Pick<Stratagem, 'name'>[], phase: Phase, advanceRequested: boolean) {
+  return !advanceRequested && phase === 'movement' && stratagems.some(isFireOverwatch)
+}
+
 function stratagemRefusal(state: BattleState, player: PlayerState, stratagem: Stratagem, overriddenCost?: number): string | null {
-  if (isFireOverwatch(stratagem) && (state.phase !== 'movement' || !state.advanceRequested)) {
+  if (isFireOverwatch(stratagem) && !isOverwatchWindowOpen([stratagem], state.phase, state.advanceRequested)) {
     return `${stratagem.name} is used at the end of the movement phase`
   }
   if (stratagem.phases?.length && !stratagem.phases.includes(state.phase)) return `${stratagem.name} cannot be used in this phase`

@@ -4,6 +4,7 @@ import { useLayoutEffect, type ComponentType } from 'react'
 import { Button } from '@/components/ui/button'
 import { nativeCanGoBack } from '../nativeBridge'
 import { nativeNavigation, type NativeSection } from '../nativeNavigation'
+import { restoreNativeTabScroll } from '../nativeTabScroll'
 import { recallTab, rememberTab, tabLocation } from '../nativeTabs'
 import { GlobalSearch } from './GlobalSearch'
 
@@ -76,14 +77,6 @@ function regionScroll() {
   )
 }
 
-function restoreScroll(scrollY: number, regions: Record<string, number>) {
-  window.scrollTo(0, scrollY)
-  for (const [name, top] of Object.entries(regions)) {
-    const selector = SCROLL_REGIONS[name as keyof typeof SCROLL_REGIONS]
-    if (selector) document.querySelector<HTMLElement>(selector)?.scrollTo(0, top)
-  }
-}
-
 export function NativeAppTabs({ href, state }: { href: string; state: unknown }) {
   const navigate = useNavigate()
   const active = tabLocation(href)?.section
@@ -93,9 +86,7 @@ export function NativeAppTabs({ href, state }: { href: string; state: unknown })
     rememberTab(href, { state })
     const memory = active ? recallTab(active) : null
     if (!memory || memory.href !== href) return
-    restoreScroll(memory.scrollY, memory.regions)
-    const retries = [50, 250, 1_000, 3_000].map((delay) => window.setTimeout(() => restoreScroll(memory.scrollY, memory.regions), delay))
-    return () => retries.forEach(window.clearTimeout)
+    return restoreNativeTabScroll(memory.scrollY, memory.regions, SCROLL_REGIONS)
   }, [active, href, state])
 
   return (

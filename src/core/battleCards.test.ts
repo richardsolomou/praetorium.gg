@@ -279,9 +279,11 @@ describe('stratagems', () => {
     const moving = reduceBattle(PLAYERS, log(...prepared))
     const ending = reduceBattle(PLAYERS, log(...prepared, [ALICE, { kind: 'request-advance' }]))
 
+    expect(validate(moving, ALICE, { kind: 'advance' })).toBe('offer Fire Overwatch before ending the movement phase')
     expect(validate(moving, BOB, { kind: 'use-stratagem', key: overwatch.key })).toBe(
       'Fire Overwatch is used at the end of the movement phase',
     )
+    expect(validate(ending, ALICE, { kind: 'advance' })).toBeNull()
     expect(validate(ending, BOB, { kind: 'use-stratagem', key: overwatch.key })).toBeNull()
     expect(
       validate(reduceBattle(PLAYERS, log(...prepared, [ALICE, { kind: 'advance' }])), BOB, { kind: 'use-stratagem', key: overwatch.key }),

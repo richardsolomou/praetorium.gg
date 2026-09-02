@@ -56,6 +56,27 @@ describe('native tab memory', () => {
     expect(recallTab('rosters')).toMatchObject({ href: '/rosters/army-id', scrollY: 0 })
   })
 
+  it('remembers an open snapshot roster pane', () => {
+    stubSessionStorage()
+    const rosterSnapshotPane = { workspace: '/battles/battle-id/rosters/player-id', unitKey: 'unit-id' }
+    rememberTab('/battles/battle-id/rosters/player-id#roster-pane', {
+      state: { rosterSnapshotPane },
+    })
+
+    expect(recallTab('battles')?.state).toEqual({ rosterSnapshotPane })
+  })
+
+  it('keeps both supported pane states and ignores unrelated router state', () => {
+    stubSessionStorage()
+    const rosterPane = { workspace: '/rosters/army-id', pane: 'picker' }
+    const rosterSnapshotPane = { workspace: '/battles/battle-id/rosters/player-id', unitKey: 'unit-id' }
+    rememberTab('/rosters/army-id#roster-pane', {
+      state: { rosterPane, rosterSnapshotPane, unrelated: 'discard me' },
+    })
+
+    expect(recallTab('rosters')?.state).toEqual({ rosterPane, rosterSnapshotPane })
+  })
+
   it('remembers an open roster pane and each scroll region', () => {
     stubSessionStorage()
     const rosterPane = { workspace: '/rosters/army-id', pane: 'loadout', selectedKey: 2 }

@@ -1,5 +1,7 @@
 import { isFireOverwatch, type Phase } from '../core/battle'
 
+export { isOverwatchWindowOpen, shouldOpenOverwatchWindow } from '../core/battle'
+
 export type StratagemTiming = {
   name: string
   phases?: readonly Phase[]
@@ -29,8 +31,4 @@ export function stratagemVisibleNow(
 
 export function hiddenThisPhase(stratagems: readonly StratagemTiming[], phase: Phase, ownTurn: boolean, advanceRequested: boolean) {
   return stratagems.filter((stratagem) => playableOnTurn(stratagem, ownTurn) && !playableIn(stratagem, phase, advanceRequested)).length
-}
-
-export function shouldOpenOverwatchWindow(stratagems: readonly Pick<StratagemTiming, 'name'>[], phase: Phase, advanceRequested: boolean) {
-  return !advanceRequested && phase === 'movement' && stratagems.some(isFireOverwatch)
 }

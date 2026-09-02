@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../server/functions'
+import { shouldRequestAdvance } from '../advance'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
 import { primaryCards, secondaryCards } from '../missionDeck'
 import { appliesInMode } from '../missionText'
@@ -10,9 +11,9 @@ import { automaticAttemptsExhausted, claimAutomaticAttempt } from '../automaticA
 import { errorMessage } from '../queryClient'
 import { armyRulesRequest } from '../sideRules'
 import { type Side, type SideMission, sideName, sides } from '../sides'
-import { isFireOverwatch, type Command } from '../../core/battle'
+import { type Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
-import { shouldOpenOverwatchWindow } from '../stratagemVisibility'
+import { isOverwatchWindowOpen, shouldOpenOverwatchWindow } from '../stratagemVisibility'
 import { BattleMenu } from './battle/BattleMenu'
 import { DrawDialog, type WhenDrawn } from './battle/DrawDialog'
 import { DiscardSecondaryDialog } from './battle/DiscardSecondaryDialog'
@@ -217,14 +218,19 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             : null
   const advanceBlocked = Boolean(blockReason)
   const opposingStratagems = table.flatMap((side) => (side.isActive ? [] : side.stratagems))
-  const hasOverwatch = opposingStratagems.some(isFireOverwatch)
   const opensOverwatch = shouldOpenOverwatchWindow(opposingStratagems, view.phase, view.advanceRequested)
-  const overwatchWindow = view.advanceRequested && view.phase === 'movement' && hasOverwatch
+  const overwatchWindow = isOverwatchWindowOpen(opposingStratagems, view.phase, view.advanceRequested)
   const advance = () => {
     if (advanceBlocked || !active) return
     const discardable = discardableSecondaries(active)
     const activeSecretMissionAction = view.settlementRound === null && view.secretMissionActionPlayerId === active.captain.id
-    if (due.length || activeSecretMissionAction || (view.phase === 'end' && discardable.length) || opensOverwatch) {
+    const requestsPrompt = shouldRequestAdvance(view.advanceRequested, {
+      scoring: due.length > 0,
+      secretMission: activeSecretMissionAction,
+      tacticalDiscard: view.phase === 'end' && discardable.length > 0,
+      fireOverwatch: opensOverwatch,
+    })
+    if (requestsPrompt) {
       send({ kind: 'request-advance', playerId: active.captain.id })
       return
     }
@@ -416,7 +422,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             const unresolved = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
             if (view.phase !== 'end' || !unresolved.length) {
               if (!scored) send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
-              send({ kind: 'advance', playerId: active.captain.id })
+              if (!overwatchWindow) send({ kind: 'advance', playerId: active.captain.id })
             } else if (!scored) {
               send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
             }

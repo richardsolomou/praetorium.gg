@@ -15,6 +15,13 @@ describe('battle query ordering', () => {
 
     expect(newestBattleScreen(current, next)).toEqual(next)
   })
+
+  it('keeps spectator polling monotonic too', () => {
+    const current = { kind: 'spectator', view: { seq: 13, cards: ['a', 'b'] } }
+    const stale = { kind: 'spectator', view: { seq: 12, cards: ['a'] } }
+
+    expect(newestBattleScreen(current, stale)).toBe(current)
+  })
 })
 
 describe('roster datasheet queries', () => {
