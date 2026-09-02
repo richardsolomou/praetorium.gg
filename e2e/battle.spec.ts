@@ -69,7 +69,8 @@ test('a running battle restores mission prompts when its tactical prep is missin
   await page.screenshot({ path: 'test-results/repaired-secondary-draw.png', fullPage: true })
   await takeTheTurn(page)
   for (const phase of ['command', 'movement', 'shooting', 'charge', 'fight']) {
-    await page.getByRole('button', { name: `End the ${phase} phase` }).click()
+    await advance(page)
+    await expect(page.getByRole('heading', { name: `${phase} phase` })).toHaveCount(0)
   }
   await page.getByRole('button', { name: 'Pass the turn' }).click()
   await expect(page.getByRole('dialog', { name: /^Scoring end of turn points/ })).toContainText('Primary mission')
@@ -246,7 +247,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(alice.getByRole('button', { name: /plus \d/ })).toHaveCount(0)
   await expect(alice.getByRole('button', { name: 'Achieve' })).toHaveCount(0)
   for (const phase of ['command', 'movement', 'shooting', 'charge', 'fight']) {
-    await alice.getByRole('button', { name: `End the ${phase} phase` }).click()
+    await advance(alice)
     await expect(alice.getByRole('heading', { name: new RegExp(`${phase} phase`) })).toHaveCount(0)
   }
 

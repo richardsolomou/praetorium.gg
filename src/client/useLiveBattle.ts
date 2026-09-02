@@ -62,11 +62,21 @@ export function useLiveBattle(token: string, enabled: boolean) {
     }
   }, [])
   const client = useConnectedRealtimeClient(createClient, enabled, { configure: configureClient, onError: handleRealtimeError })
-  const refresh = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
-    void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
-    void queryClient.invalidateQueries({ queryKey: ['report', token] })
-  }, [queryClient, token])
+  const refresh = useCallback(
+    (announcedSeq?: number) => {
+      if (announcedSeq !== undefined) {
+        const held = queryClient.getQueryData(battleQuery(token).queryKey) as { kind?: string; view?: { seq?: number } } | undefined
+        if (held?.kind === 'battle' && typeof held.view?.seq === 'number' && held.view.seq >= announcedSeq) {
+          void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+          return
+        }
+      }
+      void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
+      void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+      void queryClient.invalidateQueries({ queryKey: ['report', token] })
+    },
+    [queryClient, token],
+  )
   useEffect(() => {
     if (!enabled || connected) return
     const timer = window.setInterval(refresh, 5_000)
@@ -87,11 +97,15 @@ export function useLiveBattle(token: string, enabled: boolean) {
   )
   const configure = useCallback(
     (subscription: Subscription) => {
+      const publication = (context: { data?: unknown }) => {
+        const seq = (context.data as { seq?: unknown } | undefined)?.seq
+        refresh(typeof seq === 'number' ? seq : undefined)
+      }
       const subscribed = () => refresh()
-      subscription.on('publication', refresh)
+      subscription.on('publication', publication)
       subscription.on('subscribed', subscribed)
       return () => {
-        subscription.off('publication', refresh)
+        subscription.off('publication', publication)
         subscription.off('subscribed', subscribed)
       }
     },
