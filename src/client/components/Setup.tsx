@@ -8,6 +8,7 @@ import type { BattleView } from '../../core/battleView'
 import { FIXED_SECONDARIES, GAME_SIZES, isKotcLimit } from '../../core/battle'
 import { deploymentsQuery, gameReferencesQuery } from '../queries'
 import { missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../sides'
+import type { SendCommand } from '../useCommand'
 import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
 import { Battlefield } from './Battlefield'
 import { ArmiesStep } from './setup/ArmiesStep'
@@ -31,7 +32,7 @@ type Props = {
   mission: { id: string; name: string; deploymentIds: string[] } | null
   /** Every side's matchup, so a side the table plays settles its cards from its own. */
   missions: { side: number; mission: SideMission | null }[]
-  send: (command: Command) => void
+  send: SendCommand
   attachSavedRoster: (rosterId: string, playerId?: string) => Promise<boolean>
   pending: boolean
   problem: string | null
