@@ -1,5 +1,5 @@
 import { nameOf, targetOf } from '../core/catalogue'
-import { normalizedName, normalizedNameVariants } from '../core/name'
+import { isNonMatchedPlayName, matchedPlayName, normalizedName, normalizedNameVariants } from '../core/name'
 import { routeSlug } from '../core/slug'
 import { type LoadedCatalogue, datasheetsOf } from './catalogueIndex'
 import type { DatasheetDetails, FactionContent } from './datacards'
@@ -83,6 +83,11 @@ function join(loaded: LoadedCatalogue, catalogueId: string, entryId: string): Da
  * Every name the join could not carry across, by book with a file of its own: a
  * datasheet the faction page lists with no card in any file, and a card no datasheet
  * in the book answers to. `isReference` narrows the catalogue side to what the page lists.
+ *
+ * A card is only a gap where a datasheet this book offers wanted it. The community data
+ * marks a Legends or Crucible variant by a name suffix the cards do not carry, so a card
+ * those datasheets answer to is skipped rather than reported against a page that will
+ * never list them.
  */
 export function datacardJoinReport(loaded: LoadedCatalogue, isReference: (catalogueId: string, entryId: string) => boolean) {
   const catalogueOnly: { faction: string; name: string }[] = []
@@ -94,21 +99,21 @@ export function datacardJoinReport(loaded: LoadedCatalogue, isReference: (catalo
     const content = loaded.factionContents.get(routeSlug(leaf))
     if (!content) continue
     const matched = new Set<DatasheetDetails>()
+    const nonMatchedPlay = new Set<string>()
     for (const entryId of datasheetsOf(loaded.index, book.id)) {
       const found = datacardOf(loaded, book.id, entryId)
       if (found?.own) matched.add(found.details)
-      if (found?.method === 'external-ref' && isReference(book.id, entryId)) exact++
-      if (found?.method === 'name' && isReference(book.id, entryId)) {
-        const entry = loaded.index.definitions.get(entryId)
-        fallbacks.push({ faction: book.name, name: entry ? nameOf(entry, loaded.index.definitions) : entryId })
-      }
-      if (!found && isReference(book.id, entryId)) {
-        const entry = loaded.index.definitions.get(entryId)
-        catalogueOnly.push({ faction: book.name, name: entry ? nameOf(entry, loaded.index.definitions) : entryId })
-      }
+      const entry = loaded.index.definitions.get(entryId)
+      const name = entry ? nameOf(entry, loaded.index.definitions) : entryId
+      if (isNonMatchedPlayName(name)) nonMatchedPlay.add(comparable(matchedPlayName(name)))
+      if (!isReference(book.id, entryId)) continue
+      if (found?.method === 'external-ref') exact++
+      else if (found?.method === 'name') fallbacks.push({ faction: book.name, name })
+      else if (!found) catalogueOnly.push({ faction: book.name, name })
     }
     for (const [cardName, details] of content.datasheetDetails) {
-      if (!matched.has(details)) datacardsOnly.push({ faction: book.name, name: cardName })
+      if (matched.has(details) || nonMatchedPlay.has(comparable(cardName))) continue
+      datacardsOnly.push({ faction: book.name, name: cardName })
     }
   }
   return { catalogueOnly, datacardsOnly, exact, fallbacks }

@@ -83,14 +83,11 @@ if (process.argv.includes('--details')) {
  * fifteen datasheets the cards do not (each god's Soul Grinder against the cards' one,
  * the Tyranid units another unit spawns, and the four Speed Freeks buggies and the
  * Wurrboy that eleventh edition folded into Warbuggies and the Weirdboy) and the cards
- * file thirty-five where the catalogue does not (Space Marine heroes the cards keep in
+ * file twenty-four where the catalogue does not (Space Marine heroes the cards keep in
  * the Adeptus Astartes file and the catalogue in their chapters' books, Sir Hekhtur, and
- * fourteen Ork cards, eleven of them datasheets the catalogue suffixes `[Legends]` and
- * the join cannot reach under that name). Folding the suffix would let an active
- * datasheet and its Legends namesake claim one another's card, which the points
- * reference already treats as distinct entries, so the gap stays reported.
+ * the Gunwagon, Nazdreg and Runtherd the catalogue has no datasheet for at all).
  */
-if (report.catalogueOnly.length > 15 || report.datacardsOnly.length > 35) {
+if (report.catalogueOnly.length > 15 || report.datacardsOnly.length > 24) {
   throw new Error('datasheet name agreement fell below the pinned catalogue baseline')
 }
 if (rulesOnlyDetachments.length > 30 || rulesOnlyEnhancements.length > 95 || datacardsOnlyDetachments.size > 5) {
