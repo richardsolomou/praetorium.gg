@@ -61,7 +61,7 @@ export function DetachmentReference({
           </div>
         </div>
       </section>
-      <div className="mx-auto max-w-5xl space-y-6 px-3 py-4 sm:px-4">
+      <div className="mx-auto max-w-5xl space-y-6 px-3 pt-4 pb-8 sm:px-4">
         {afterHero}
 
         {detachment.rules.length ? (

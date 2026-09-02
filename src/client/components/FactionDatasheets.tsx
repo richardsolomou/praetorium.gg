@@ -40,7 +40,7 @@ export function FactionDatasheets() {
           </span>
         </div>
       </header>
-      <div className="mx-auto max-w-5xl px-3 py-4 sm:px-4">
+      <div className="mx-auto max-w-5xl px-3 pt-4 pb-8 sm:px-4">
         <Link
           to="/factions/$catalogueId"
           params={{ catalogueId: faction.slug }}

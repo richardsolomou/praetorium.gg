@@ -65,7 +65,7 @@ function FactionIndex() {
           <p className="mt-2 max-w-2xl text-sm text-dim">Browse faction rules, detachments, datasheets, loadouts and points.</p>
         </div>
       </section>
-      <div className="mx-auto max-w-5xl px-3 sm:px-4">
+      <div className="mx-auto max-w-5xl px-3 pb-8 sm:px-4">
         <SearchField
           className="mt-4"
           value={factionQueryText}

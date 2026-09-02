@@ -125,7 +125,7 @@ function MissionPackPage() {
         </div>
       </section>
 
-      <p className="mx-auto mt-6 max-w-5xl border-t border-edge px-3 pt-3 text-xs text-dim sm:px-4">{data.attribution}</p>
+      <p className="mx-auto mt-6 max-w-5xl border-t border-edge px-3 pt-3 pb-8 text-xs text-dim sm:px-4">{data.attribution}</p>
 
       <Dialog open={Boolean(secondary)} onOpenChange={(open) => !open && setSecondaryId(null)}>
         <DialogContent className="rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-2xl">

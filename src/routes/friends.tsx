@@ -97,7 +97,7 @@ function Friends() {
         </div>
       </section>
 
-      <div className="mx-auto mt-7 max-w-5xl px-3 sm:px-4">
+      <div className="mx-auto mt-7 max-w-5xl px-3 pb-8 sm:px-4">
         <People
           title="Sent requests"
           empty="You have no pending requests."
