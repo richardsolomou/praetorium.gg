@@ -80,12 +80,17 @@ if (process.argv.includes('--details')) {
 
 /*
  * A ratchet, so these only ever come down. At the pinned snapshot the catalogue names
- * ten datasheets the cards do not (each god's Soul Grinder against the cards' one, and
- * the Tyranid units another unit spawns) and the cards file twenty-one where the
- * catalogue does not (Space Marine heroes the cards keep in the Adeptus Astartes file
- * and the catalogue in their chapters' books, and Sir Hekhtur).
+ * fifteen datasheets the cards do not (each god's Soul Grinder against the cards' one,
+ * the Tyranid units another unit spawns, and the four Speed Freeks buggies and the
+ * Wurrboy that eleventh edition folded into Warbuggies and the Weirdboy) and the cards
+ * file thirty-five where the catalogue does not (Space Marine heroes the cards keep in
+ * the Adeptus Astartes file and the catalogue in their chapters' books, Sir Hekhtur, and
+ * fourteen Ork datasheets the cards carry ahead of the catalogue). Game Datacards reached
+ * the eleventh-edition Ork range first, so nineteen of these are one source waiting for
+ * the other; a catalogue release that catches up brings both counts back down, and this
+ * baseline follows them.
  */
-if (report.catalogueOnly.length > 10 || report.datacardsOnly.length > 21) {
+if (report.catalogueOnly.length > 15 || report.datacardsOnly.length > 35) {
   throw new Error('datasheet name agreement fell below the pinned catalogue baseline')
 }
 if (rulesOnlyDetachments.length > 30 || rulesOnlyEnhancements.length > 95 || datacardsOnlyDetachments.size > 5) {
