@@ -64,14 +64,9 @@ const pendingAuthStorage = process.env.EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL
 const ACTIVE_BATTLE_KEEP_AWAKE_TAG = 'praetorium-active-battle'
 const POSTHOG_OPTIONS = {
   host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
-  enableSessionReplay: true,
-  sessionReplayConfig: {
-    maskAllTextInputs: true,
-    maskAllImages: true,
-    maskAllSandboxedViews: true,
-    captureLog: false,
-    captureNetworkTelemetry: false,
-  },
+  // Browser replay provides DOM-aware masking; native screenshot replay cannot
+  // redact the WebView's contents without masking the whole view.
+  enableSessionReplay: false,
   errorTracking: {
     autocapture: { uncaughtExceptions: true, unhandledRejections: true },
   },
