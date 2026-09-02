@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.50.5
+
+### Patch Changes
+
+- cc572e7: Keep mobile rosters with switched-off format restrictions inside the screen.
+
 ## 0.50.4
 
 ### Patch Changes
