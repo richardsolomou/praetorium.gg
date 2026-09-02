@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.50.1
+
+### Patch Changes
+
+- 4deba7d: Record iOS app sessions through the privacy-masked web recorder instead of black native frames.
+
 ## 0.50.0
 
 ### Minor Changes
