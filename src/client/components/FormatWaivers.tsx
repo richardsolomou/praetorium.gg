@@ -34,7 +34,7 @@ export function WaiverChip({ rules, className = '' }: { rules: readonly FormatRu
   const summary = `${rules.length} format ${rules.length === 1 ? 'restriction' : 'restrictions'} switched off: ${waiverLabels(rules)}`
   return (
     <Tooltip>
-      <TooltipTrigger render={<span className={`inline-flex shrink-0 items-center text-discarded ${className}`} />}>
+      <TooltipTrigger render={<span className={`relative inline-flex shrink-0 items-center text-discarded ${className}`} />}>
         <TriangleAlert className="size-4" aria-hidden />
         {/* The mark shows on hover and the tooltip is not read aloud, so the sentence travels with it. */}
         <span className="sr-only">{summary}</span>
