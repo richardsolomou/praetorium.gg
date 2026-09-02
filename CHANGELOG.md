@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.50.6
+
+### Patch Changes
+
+- 351694f: Keep shared battle setup stable when both players act together.
+
 ## 0.50.5
 
 ### Patch Changes
