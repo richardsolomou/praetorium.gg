@@ -23,8 +23,8 @@ describe('native tab memory', () => {
     expect(tabLocation('/rosters/army-id?league=spring')?.href).toBe('/rosters/army-id?league=spring')
   })
 
-  it('drops the hash, because the pane it names lives in history state', () => {
-    expect(tabLocation('/rosters/army-id#roster-pane')?.href).toBe('/rosters/army-id')
+  it('keeps the hash that names an open pane', () => {
+    expect(tabLocation('/rosters/army-id#roster-pane')?.href).toBe('/rosters/army-id#roster-pane')
   })
 
   it('refuses a location outside the tabbed sections', () => {
@@ -34,14 +34,14 @@ describe('native tab memory', () => {
   it('returns a tab to where it was left', () => {
     stubSessionStorage()
     rememberTab('/factions/necrons/datasheets/overlord')
-    expect(recallTab('factions')).toBe('/factions/necrons/datasheets/overlord')
+    expect(recallTab('factions')).toMatchObject({ href: '/factions/necrons/datasheets/overlord', scrollY: 0 })
   })
 
   it('keeps one memory per section', () => {
     stubSessionStorage()
     rememberTab('/rosters/army-id')
     rememberTab('/factions/necrons')
-    expect(recallTab('rosters')).toBe('/rosters/army-id')
+    expect(recallTab('rosters')).toMatchObject({ href: '/rosters/army-id', scrollY: 0 })
   })
 
   it('has nothing to recall for a section this session has not visited', () => {
@@ -53,6 +53,23 @@ describe('native tab memory', () => {
     stubSessionStorage()
     rememberTab('/rosters/army-id')
     rememberTab('/profile')
-    expect(recallTab('rosters')).toBe('/rosters/army-id')
+    expect(recallTab('rosters')).toMatchObject({ href: '/rosters/army-id', scrollY: 0 })
+  })
+
+  it('remembers an open roster pane and each scroll region', () => {
+    stubSessionStorage()
+    const rosterPane = { workspace: '/rosters/army-id', pane: 'loadout', selectedKey: 2 }
+    rememberTab('/rosters/army-id#roster-pane', {
+      scrollY: 120,
+      regions: { roster: 240, loadout: 360 },
+      state: { rosterPane },
+    })
+
+    expect(recallTab('rosters')).toEqual({
+      href: '/rosters/army-id#roster-pane',
+      scrollY: 120,
+      regions: { roster: 240, loadout: 360 },
+      state: { rosterPane },
+    })
   })
 })

@@ -264,6 +264,30 @@ describe('stratagems', () => {
     expect(validate(state, ALICE, { kind: 'use-stratagem', key: timed.key })).toBeNull()
   })
 
+  it('allows Fire Overwatch only while the movement phase is ending', () => {
+    const overwatch = {
+      ...STRAT,
+      name: 'Fire Overwatch',
+      phases: ['movement', 'charge'] as ['movement', 'charge'],
+      turn: 'opponent-turn' as const,
+    }
+    const prepared: [string, Command][] = [
+      ...started(),
+      [BOB, { kind: 'set-prep', stratagems: [overwatch], secondaries: [], primary: null, secondaryMode: 'fixed' }],
+      [ALICE, { kind: 'advance' }],
+    ]
+    const moving = reduceBattle(PLAYERS, log(...prepared))
+    const ending = reduceBattle(PLAYERS, log(...prepared, [ALICE, { kind: 'request-advance' }]))
+
+    expect(validate(moving, BOB, { kind: 'use-stratagem', key: overwatch.key })).toBe(
+      'Fire Overwatch is used at the end of the movement phase',
+    )
+    expect(validate(ending, BOB, { kind: 'use-stratagem', key: overwatch.key })).toBeNull()
+    expect(
+      validate(reduceBattle(PLAYERS, log(...prepared, [ALICE, { kind: 'advance' }])), BOB, { kind: 'use-stratagem', key: overwatch.key }),
+    ).toBe('Fire Overwatch is used at the end of the movement phase')
+  })
+
   it('enforces opponent-turn timing independently', () => {
     const timed = { ...STRAT, turn: 'opponent-turn' as const }
     const state = reduceBattle(

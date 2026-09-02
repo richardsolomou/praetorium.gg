@@ -102,7 +102,7 @@ The feeds poll rather than subscribe. A player's own battles are announced over 
 
 ## Realtime updates
 
-- Realtime messages contain only the battle ID, plus the log's new sequence number when one command caused them. The client refetches the battle through the normal read path — never state from the message — and a client whose cached screen already carries the announced sequence skips the refetch it would only repeat, which is how the submitter avoids fetching the screen `submit` just returned. A subscription token carries its subject and its channel and nothing else — nothing on a screen is drawn from a connection, so nothing needs to be.
+- Realtime messages contain only the battle ID, plus the log's new sequence number when one command caused them. Every message refetches the battle through the normal read path — never state from the message. While the realtime connection is unavailable, the open battle polls until it reconnects, so one failed connection cannot leave the table stale. A subscription token carries its subject and its channel and nothing else — nothing on a screen is drawn from a connection, so nothing needs to be.
 - `/api/realtime/token` requires an account and a seat in the requested battle.
 - Realtime channels use the internal battle ID, not the shared token.
 - A second channel is named after a player, so the list of battles hears about a battle the player has not opened yet. The home page listens on it for the same reason.

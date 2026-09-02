@@ -10,8 +10,9 @@ import { automaticAttemptsExhausted, claimAutomaticAttempt } from '../automaticA
 import { errorMessage } from '../queryClient'
 import { armyRulesRequest } from '../sideRules'
 import { type Side, type SideMission, sideName, sides } from '../sides'
-import type { Command } from '../../core/battle'
+import { isFireOverwatch, type Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
+import { shouldOpenOverwatchWindow } from '../stratagemVisibility'
 import { BattleMenu } from './battle/BattleMenu'
 import { DrawDialog, type WhenDrawn } from './battle/DrawDialog'
 import { DiscardSecondaryDialog } from './battle/DiscardSecondaryDialog'
@@ -215,11 +216,15 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             ? 'Loading the active side’s mission cards…'
             : null
   const advanceBlocked = Boolean(blockReason)
+  const opposingStratagems = table.flatMap((side) => (side.isActive ? [] : side.stratagems))
+  const hasOverwatch = opposingStratagems.some(isFireOverwatch)
+  const opensOverwatch = shouldOpenOverwatchWindow(opposingStratagems, view.phase, view.advanceRequested)
+  const overwatchWindow = view.advanceRequested && view.phase === 'movement' && hasOverwatch
   const advance = () => {
     if (advanceBlocked || !active) return
     const discardable = discardableSecondaries(active)
     const activeSecretMissionAction = view.settlementRound === null && view.secretMissionActionPlayerId === active.captain.id
-    if (due.length || activeSecretMissionAction || (view.phase === 'end' && discardable.length)) {
+    if (due.length || activeSecretMissionAction || (view.phase === 'end' && discardable.length) || opensOverwatch) {
       send({ kind: 'request-advance', playerId: active.captain.id })
       return
     }
@@ -305,7 +310,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
               pending={pending}
               onAdvance={advance}
               blockReason={blockReason}
-              note={view.advancePrompt}
+              note={overwatchWindow ? 'Fire Overwatch can be used now. Finish the phase when the table is ready.' : view.advancePrompt}
               /*
                * `mb-0` because the column spaces its children with a bottom margin, and
                * a margin on a fixed box sits between it and the edge it is pinned to —

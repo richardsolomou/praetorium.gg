@@ -1,6 +1,6 @@
 import { Link, useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router'
 import { BookOpen, ChevronLeft, ScrollText, Swords, Trophy, UsersRound } from 'lucide-react'
-import { useEffect, type ComponentType } from 'react'
+import { useLayoutEffect, type ComponentType } from 'react'
 import { Button } from '@/components/ui/button'
 import { nativeCanGoBack } from '../nativeBridge'
 import { nativeNavigation, type NativeSection } from '../nativeNavigation'
@@ -61,19 +61,42 @@ export function NativeAppHeader({ account, path, search }: { account: React.Reac
   )
 }
 
-/**
- * The five sections, each remembering where it was left.
- *
- * Tapping the section you are already in goes to its top, which the link does on its
- * own and the effect below then records.
- */
-export function NativeAppTabs({ href }: { href: string }) {
+const SCROLL_REGIONS = {
+  roster: '[data-slot="roster-units"]',
+  picker: '[data-pane="picker"] [data-slot="scroll-area-viewport"]',
+  loadout: '[data-pane="loadout"] [data-slot="scroll-area-viewport"]',
+} as const
+
+function regionScroll() {
+  return Object.fromEntries(
+    Object.entries(SCROLL_REGIONS).flatMap(([name, selector]) => {
+      const element = document.querySelector<HTMLElement>(selector)
+      return element ? [[name, element.scrollTop]] : []
+    }),
+  )
+}
+
+function restoreScroll(scrollY: number, regions: Record<string, number>) {
+  window.scrollTo(0, scrollY)
+  for (const [name, top] of Object.entries(regions)) {
+    const selector = SCROLL_REGIONS[name as keyof typeof SCROLL_REGIONS]
+    if (selector) document.querySelector<HTMLElement>(selector)?.scrollTo(0, top)
+  }
+}
+
+export function NativeAppTabs({ href, state }: { href: string; state: unknown }) {
   const navigate = useNavigate()
   const active = tabLocation(href)?.section
 
-  useEffect(() => {
-    rememberTab(href)
-  }, [href])
+  useLayoutEffect(() => {
+    if (document.documentElement.dataset.nativeApp !== 'true') return
+    rememberTab(href, { state })
+    const memory = active ? recallTab(active) : null
+    if (!memory || memory.href !== href) return
+    restoreScroll(memory.scrollY, memory.regions)
+    const retries = [50, 250, 1_000, 3_000].map((delay) => window.setTimeout(() => restoreScroll(memory.scrollY, memory.regions), delay))
+    return () => retries.forEach(window.clearTimeout)
+  }, [active, href, state])
 
   return (
     <nav
@@ -88,11 +111,20 @@ export function NativeAppTabs({ href }: { href: string }) {
           key={section}
           to={to}
           onClick={(event) => {
-            if (event.defaultPrevented || section === active) return
+            if (event.defaultPrevented) return
+            rememberTab(href, { scrollY: window.scrollY, regions: regionScroll(), state })
+            if (section === active) {
+              window.scrollTo(0, 0)
+              return
+            }
             const remembered = recallTab(section)
-            if (!remembered || remembered === to) return
+            if (!remembered || remembered.href === to) return
             event.preventDefault()
-            void navigate({ href: remembered })
+            void navigate({
+              href: remembered.href,
+              resetScroll: false,
+              ...(remembered.state ? { state: (current) => ({ ...current, ...remembered.state }) } : {}),
+            })
           }}
           aria-current={active === section ? 'page' : undefined}
           className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-t-2 text-[0.625rem] font-semibold tracking-[0.04em] uppercase ${

@@ -9,6 +9,7 @@ Praetorium reads stratagem and mission data from [40kdc-data](https://github.com
 - Faction army rules come from Game Datacards. A datasheet's faction ability is described by its own faction's card first, then by the one card of that name the files agree on.
 - An unknown stratagem timing maps to `unlimited`, so an absent source limit never becomes an invented product limit.
 - Phase and player-turn restrictions are enforced only when the synced source supplies them. Missing timing remains unrestricted.
+- Fire Overwatch is offered only after the active side ends its Movement phase and before the table confirms the phase is finished.
 - A pasted roster has no structured faction or detachment. It cannot provide catalogue-backed stratagems or mission cards.
 - `set-prep` stores stratagems and secondaries in one command. Splitting the action would make the second command stale.
 - Tactical setup stores the configured deck with the initially drawn cards. Remaining cards are derived from that deck and its history; a replacement cannot name a card outside an authoritative deck.

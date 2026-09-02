@@ -1783,8 +1783,12 @@ function limitReached(player: PlayerState, stratagem: Stratagem, state: BattleSt
 }
 
 export const isNewOrders = (stratagem: Pick<Stratagem, 'name'>) => stratagem.name.trim().toLocaleLowerCase() === 'new orders'
+export const isFireOverwatch = (stratagem: Pick<Stratagem, 'name'>) => stratagem.name.trim().toLocaleLowerCase() === 'fire overwatch'
 
 function stratagemRefusal(state: BattleState, player: PlayerState, stratagem: Stratagem, overriddenCost?: number): string | null {
+  if (isFireOverwatch(stratagem) && (state.phase !== 'movement' || !state.advanceRequested)) {
+    return `${stratagem.name} is used at the end of the movement phase`
+  }
   if (stratagem.phases?.length && !stratagem.phases.includes(state.phase)) return `${stratagem.name} cannot be used in this phase`
   if (stratagem.turn === 'your-turn' && !sameSide(state, state.activePlayerId, player.id)) return `${stratagem.name} is used on your turn`
   if (stratagem.turn === 'opponent-turn' && sameSide(state, state.activePlayerId, player.id)) {

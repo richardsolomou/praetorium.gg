@@ -29,7 +29,13 @@ export function TurnControl({ view, send, pending, blockReason, note, onAdvance,
   const active = view.players.find((player) => player.isActive)
   const activeSide = active?.side ?? 0
   const at = PHASES.indexOf(view.phase)
-  const label = view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`
+  const label = view.advanceRequested
+    ? view.phase === 'end'
+      ? 'Pass the turn'
+      : `Finish the ${view.phase} phase`
+    : view.phase === 'end'
+      ? 'Pass the turn'
+      : `End the ${view.phase} phase`
 
   return (
     <section data-turn-control className={`space-y-2 ${className}`}>
