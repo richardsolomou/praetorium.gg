@@ -16,7 +16,6 @@ type ViewStratagem = BattleView['players'][number]['stratagems'][number]
 type Props = {
   side: Side
   phase: BattleView['phase']
-  advanceRequested: boolean
   coreKeys: ReadonlySet<string>
   actionable: boolean
   pending: boolean
@@ -25,10 +24,10 @@ type Props = {
 }
 
 /** Only what can be played right now, unless the player asks for the rest. */
-export function Stratagems({ side, phase, advanceRequested, coreKeys, actionable, pending, send, writtenFor }: Props) {
+export function Stratagems({ side, phase, coreKeys, actionable, pending, send, writtenFor }: Props) {
   const [allPhases, setAllPhases] = useState(false)
   if (!side.stratagems.length) return null
-  const otherPhases = hiddenThisPhase(side.stratagems, phase, side.isActive, advanceRequested)
+  const otherPhases = hiddenThisPhase(side.stratagems, phase, side.isActive)
 
   return (
     // The rule that separates these from the missions belongs to the layout that
@@ -45,7 +44,7 @@ export function Stratagems({ side, phase, advanceRequested, coreKeys, actionable
         </p>
       ) : null}
       {groups(side.stratagems, coreKeys).map((group) => {
-        const shown = group.items.filter((stratagem) => stratagemVisibleNow(stratagem, phase, side.isActive, advanceRequested, allPhases))
+        const shown = group.items.filter((stratagem) => stratagemVisibleNow(stratagem, phase, side.isActive, allPhases))
         if (!shown.length) return null
         return (
           <div key={group.label} className="space-y-1.5">

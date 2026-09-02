@@ -155,7 +155,6 @@ export const SidePanel = memo(function SidePanel({
           <Stratagems
             side={side}
             phase={view.phase}
-            advanceRequested={view.advanceRequested}
             coreKeys={coreKeys}
             actionable={actionable}
             pending={pending}

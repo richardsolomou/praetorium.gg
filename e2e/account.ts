@@ -283,11 +283,10 @@ export async function chooseBattlefield(page: Page) {
  * Clears the prompts an advance can raise.
  *
  * A tactical hand is dealt as a turn opens, and a card that pays at the end of the
- * phase or turn asks for its points as that moment passes. Fire Overwatch also
- * gets a final window as Movement ends. All can stand between a press of the
- * advance button and the next phase.
+ * phase or turn asks for its points as that moment passes. Both stand between a
+ * press of the advance button and the next phase.
  */
-export const advanceButton = (page: Page) => page.getByRole('button', { name: /^(End|Finish) the .+ phase$|^Pass the turn$/ })
+export const advanceButton = (page: Page) => page.getByRole('button', { name: /^(End the .+ phase|Pass the turn)$/ })
 
 /** The hand being dealt: this table's own, or the practice opponent's it is also playing. */
 const drawPrompt = (page: Page) => page.getByRole('dialog', { name: /secondary missions$/ })
@@ -374,8 +373,9 @@ export async function takeTheTurn(page: Page) {
 /**
  * Ends the current phase, clearing whatever stands in front of it.
  *
- * A tactical hand is dealt as a turn opens, a card can ask for points as its
- * timing passes, and Fire Overwatch gets a final Movement window.
+ * A tactical hand is dealt as a turn opens, and a card that pays at the end of the
+ * phase or turn asks for its points as that moment passes. Both are modal, which
+ * takes the board out of the accessibility tree until they are answered.
  */
 export async function advance(page: Page) {
   for (let guard = 0; guard < 3; guard += 1) {
@@ -400,7 +400,6 @@ export async function advance(page: Page) {
       const scoring = page.getByRole('dialog', { name: /^Scoring end of (turn|command|movement|shooting|charge|fight) / })
       const discard = page.getByRole('dialog', { name: 'Discard tactical secondaries?' })
       const owed = owedPrompt(page)
-      const finish = page.getByRole('button', { name: /^Finish the .+ phase$/ })
       for (let promptGuard = 0; promptGuard < 8; promptGuard += 1) {
         await expect
           .poll(async () =>
@@ -410,11 +409,9 @@ export async function advance(page: Page) {
                 ? 'discard'
                 : (await owed.isVisible().catch(() => false))
                   ? 'owed'
-                  : (await finish.isVisible().catch(() => false))
-                    ? 'overwatch'
-                    : (await phase.textContent()) === before
-                      ? 'waiting'
-                      : 'advanced',
+                  : (await phase.textContent()) === before
+                    ? 'waiting'
+                    : 'advanced',
           )
           .not.toBe('waiting')
         if ((await phase.textContent()) !== before) break
@@ -428,15 +425,8 @@ export async function advance(page: Page) {
           await expect(discard).toBeHidden()
           continue
         }
-        if (await finish.isVisible().catch(() => false)) {
-          await finish.click({ timeout: 15_000 })
-          await expect.poll(() => phase.textContent()).not.toBe(before)
-          break
-        }
-        if (await owed.isVisible().catch(() => false)) {
-          await owed.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
-          await expect(owed).toBeHidden()
-        }
+        await owed.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
+        await expect(owed).toBeHidden()
       }
       await expect.poll(() => phase.textContent()).not.toBe(before)
       break

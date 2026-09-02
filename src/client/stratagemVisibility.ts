@@ -1,15 +1,11 @@
-import { isFireOverwatch, type Phase } from '../core/battle'
-
-export { isOverwatchWindowOpen, shouldOpenOverwatchWindow } from '../core/battle'
+import type { Phase } from '../core/battle'
 
 export type StratagemTiming = {
-  name: string
-  phases?: readonly Phase[]
+  phases?: Phase[]
   turn?: string
 }
 
-function playableIn(stratagem: StratagemTiming, phase: Phase, advanceRequested: boolean) {
-  if (isFireOverwatch(stratagem)) return phase === 'movement' && advanceRequested
+function playableIn(stratagem: StratagemTiming, phase: Phase) {
   return !stratagem.phases?.length || stratagem.phases.includes(phase)
 }
 
@@ -19,16 +15,10 @@ function playableOnTurn(stratagem: StratagemTiming, ownTurn: boolean) {
   return true
 }
 
-export function stratagemVisibleNow(
-  stratagem: StratagemTiming,
-  phase: Phase,
-  ownTurn: boolean,
-  advanceRequested: boolean,
-  includeOtherPhases = false,
-) {
-  return playableOnTurn(stratagem, ownTurn) && (includeOtherPhases || playableIn(stratagem, phase, advanceRequested))
+export function stratagemVisibleNow(stratagem: StratagemTiming, phase: Phase, ownTurn: boolean, includeOtherPhases = false) {
+  return playableOnTurn(stratagem, ownTurn) && (includeOtherPhases || playableIn(stratagem, phase))
 }
 
-export function hiddenThisPhase(stratagems: readonly StratagemTiming[], phase: Phase, ownTurn: boolean, advanceRequested: boolean) {
-  return stratagems.filter((stratagem) => playableOnTurn(stratagem, ownTurn) && !playableIn(stratagem, phase, advanceRequested)).length
+export function hiddenThisPhase(stratagems: readonly StratagemTiming[], phase: Phase, ownTurn: boolean) {
+  return stratagems.filter((stratagem) => playableOnTurn(stratagem, ownTurn) && !playableIn(stratagem, phase)).length
 }
