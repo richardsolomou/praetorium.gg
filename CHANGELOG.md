@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.50.4
+
+### Patch Changes
+
+- ce6d6c3: Show each core stratagem only once when sources punctuate its name differently.
+
 ## 0.50.3
 
 ### Patch Changes
