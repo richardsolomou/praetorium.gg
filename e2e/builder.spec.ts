@@ -20,6 +20,17 @@ async function expectNoHorizontalOverflow(element: Locator) {
   expect(width.scroll).toBe(width.client)
 }
 
+async function expectInsideHorizontalBounds(container: Locator, elements: Locator) {
+  const boundary = await container.boundingBox()
+  expect(boundary).not.toBeNull()
+  for (const element of await elements.all()) {
+    const box = await element.boundingBox()
+    expect(box).not.toBeNull()
+    expect(box!.x).toBeGreaterThanOrEqual(boundary!.x)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(boundary!.x + boundary!.width)
+  }
+}
+
 async function expectVerticalPanOnly(element: Locator) {
   const style = await element.evaluate((node) => {
     const computed = getComputedStyle(node)
@@ -593,6 +604,41 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   const mobilePicker = page.getByRole('dialog', { name: 'Add units' })
   await expect(mobilePicker.getByText('2/2 in roster')).toBeVisible()
   await mobilePicker.screenshot({ path: 'test-results/kotc-picker-rules-mobile.png' })
+})
+
+test('a waived format restriction cannot widen the mobile roster', async ({ page }) => {
+  await signUp(page, 'Richard')
+  await createRoster(page, {
+    faction: 'Necrons',
+    detachment: /Awakened Dynasty/,
+    size: /King of the Colosseum/,
+  })
+
+  await page.getByRole('button', { name: 'Format restrictions' }).click()
+  await page.getByRole('menuitemcheckbox', { name: /No Epic Heroes/ }).click()
+  await page.keyboard.press('Escape')
+  await expect(page.getByText('1 format restriction is switched off', { exact: true })).toBeVisible()
+  await add(page, 'Imotekh the Stormlord')
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  const imotekh = page.locator('[data-unit="Imotekh the Stormlord"]')
+  await expect(imotekh).toBeVisible()
+  await expectNoHorizontalOverflow(page.locator('html'))
+  await page.evaluate(() => window.scrollTo({ left: 100, behavior: 'instant' }))
+  expect(await page.evaluate(() => window.scrollX)).toBe(0)
+  await page.screenshot({ path: 'test-results/waived-roster-mobile.png', fullPage: true })
+
+  await imotekh.getByRole('button', { name: 'Imotekh the Stormlord', exact: true }).click()
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByText('Equipped ranged weapons', { exact: true })).toBeVisible()
+  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectInsideHorizontalBounds(loadout, loadout.locator('[data-slot="unit-profile"] > div:first-child > div'))
+  await expectInsideHorizontalBounds(loadout, loadout.locator('[data-slot="datasheet-content"] [class*="grid-cols-6"] > div'))
+  await page.screenshot({ path: 'test-results/imotekh-mobile-loadout.png', fullPage: true })
+
+  await loadout.getByRole('button', { name: 'Back to roster' }).click()
+  await expectNoHorizontalOverflow(page.locator('html'))
+  await page.screenshot({ path: 'test-results/waived-roster-after-loadout-mobile.png', fullPage: true })
 })
 
 test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
