@@ -42,6 +42,8 @@ Scoring controls appear only when a card's own data says its phase or turn has e
 
 Only one live prompt is open at a time. Anything owed by the opponent's turn is settled before the next hand is dealt. Every seated player can complete tactical draws, scoring, discards, prior-turn scoring, and Secret Mission actions for either side. The affected side is named prominently; only a face-down Secret Mission's identity and revealing deck state remain hidden.
 
+Every live action prompt includes Undo latest action. If undo reopens an earlier prompt, that prompt keeps the same control so the table can continue rewinding without first completing the action again.
+
 The tactical draw prompt appears at the start of a player's turn and supports either a random draw or an exact choice from the remaining deck. A manual choice contains every card currently owed, cannot replace an earlier choice once its limit is reached, and requires a known `whenDrawn` return before play continues. The battle-ready bonus is recorded during setup and added to the score only after the battle finishes.
 
 A player's name and picture link to `/users/$userId`. Profiles are public and need no access token. A fielded list links to `/rosters/$id` with the battle token, which gives seated players and revealed-event spectators access to its frozen roster. Catalogue-backed faction marks, faction names, and detachments link to their reference pages.

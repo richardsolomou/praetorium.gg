@@ -1,10 +1,8 @@
-import { useState } from 'react'
-import { Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PHASES, type Command } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
 import { tint } from './tints'
-import { DrawUndoAlert } from './DrawUndoAlert'
+import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
 
 type Props = {
   view: BattleView
@@ -27,7 +25,7 @@ type Props = {
  * side is taking the turn.
  */
 export function TurnControl({ view, send, pending, blockReason, note, onAdvance, className = '' }: Props) {
-  const [confirmingUndo, setConfirmingUndo] = useState<number | null>(null)
+  const undo = useUndoLatest({ undoable: view.undoable, undoableDraw: view.undoableDraw, send })
   const active = view.players.find((player) => player.isActive)
   const activeSide = active?.side ?? 0
   const at = PHASES.indexOf(view.phase)
@@ -64,36 +62,14 @@ export function TurnControl({ view, send, pending, blockReason, note, onAdvance,
         >
           {label}
         </Button>
-        <Button
-          variant="outline"
-          className="h-11 shrink-0 px-3"
-          aria-label="Undo latest action"
-          title="Undo latest action"
-          disabled={view.undoable === null || pending}
-          onClick={() => {
-            if (view.undoable === null) return
-            if (view.undoableDraw) setConfirmingUndo(view.undoable)
-            else send({ kind: 'undo', target: view.undoable })
-          }}
-        >
-          <Undo2 />
-        </Button>
+        <UndoLatestButton compact className="h-11 shrink-0 px-3" disabled={view.undoable === null || pending} onClick={undo.request} />
       </div>
       {blockReason ? (
         <p className="border border-discarded/50 bg-discarded/10 p-2 text-center text-xs text-discarded">{blockReason}</p>
       ) : note ? (
         <p className="border border-edge bg-sunken p-2 text-center text-xs text-dim">{note}</p>
       ) : null}
-      <DrawUndoAlert
-        open={confirmingUndo !== null}
-        pending={pending}
-        onOpenChange={(open) => !open && setConfirmingUndo(null)}
-        onConfirm={() => {
-          if (confirmingUndo === null) return
-          setConfirmingUndo(null)
-          send({ kind: 'undo', target: confirmingUndo })
-        }}
-      />
+      <UndoLatestConfirmation pending={pending} control={undo} />
     </section>
   )
 }

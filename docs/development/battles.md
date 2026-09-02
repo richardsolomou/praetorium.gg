@@ -21,6 +21,8 @@ What the active side still owes before a turn moves on — cards to draw or revi
 
 Every required live prompt is shared. A phase or turn advance opens the same scoring and tactical-discard sequence on every seated device, and either player may complete it once. Tactical draws and prior-turn scoring work the same way. Prompt requests and acknowledgements are folded from the log so reloads and realtime updates preserve them, but they are not battle report entries or undo targets.
 
+Every required live prompt also carries the latest undo action. Rewinding into an earlier scoring, discard, draw, or Secret Mission prompt therefore leaves undo available to continue through the preceding actions.
+
 After a turn changes, the prior-turn scoring owed to the incoming side is settled before its tactical draw. A helper cannot dismiss an apparently empty settlement because their view may be withholding a hidden mission; only its own side can conclude that no private work remains. A side of practice opponents has no such seat, so the table playing it concludes that instead.
 
 Losing models is a command like any other. `wound-unit` takes models off a unit one at a time, `damage-unit` takes wounds off the model currently taking them, and `set-unit` takes the whole unit. None of the three can disagree with the others, because what a unit has left is one number of wounds and where the model line falls inside it is division: `apply` folds a damage command to `alive` and `damage` together, and losing the last wound is losing the model is losing the unit. All three are in the report and all three are undoable, and either seated player may record either army's losses — nothing about a unit is hidden from anyone.

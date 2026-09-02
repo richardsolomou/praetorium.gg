@@ -404,6 +404,8 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           send={send}
           referenceFor={referenceFor}
           round={view.round}
+          undoable={view.undoable}
+          undoableDraw={view.undoableDraw}
           onCancel={() => send({ kind: 'cancel-advance', playerId: active.captain.id })}
           onDone={(completedSecondaryKeys, scored) => {
             const unresolved = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
@@ -426,6 +428,9 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             activeSecretMissionAction ? () => send({ kind: 'cancel-advance', playerId: secretMissionActionSide.captain.id }) : undefined
           }
           onReveal={() => send({ kind: 'reveal-secret', playerId: secretMissionActionSide.captain.id })}
+          undoable={view.undoable}
+          undoableDraw={view.undoableDraw}
+          send={send}
         />
       ) : null}
 
@@ -439,6 +444,8 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           send={send}
           referenceFor={referenceFor}
           round={settlementRound ?? view.round}
+          undoable={view.undoable}
+          undoableDraw={view.undoableDraw}
           onDone={() => send({ kind: 'settle-opponent-turn' })}
         />
       ) : null}
@@ -454,6 +461,8 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           keys={discardable}
           pending={pending}
           send={send}
+          undoable={view.undoable}
+          undoableDraw={view.undoableDraw}
           onDone={() => {
             send({ kind: 'advance', playerId: active.captain.id })
           }}

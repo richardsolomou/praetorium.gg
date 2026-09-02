@@ -256,6 +256,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   const bobScoring = bob.getByRole('dialog', { name: /^Scoring end of turn points/ })
   await expect(scoring).toBeVisible()
   await expect(bobScoring).toBeVisible()
+  await expect(scoring.getByRole('button', { name: 'Undo latest action' })).toBeEnabled()
   // Whichever cards the matchup dealt, a flat payout is a yes or no rather than
   // something that can be pressed twice for double the points.
   const answer = scoring.getByRole('button', { name: /plus \d+$/ }).first()
@@ -294,10 +295,26 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
     const bobDiscard = bob.getByRole('dialog', { name: 'Discard tactical secondaries?' })
     await expect(discard).toBeVisible()
     await expect(bobDiscard).toBeVisible()
-    await discard.locator('button[aria-pressed]').first().click()
+    const discardedCard = await discard.locator('button[aria-pressed]').first().innerText()
+    await discard.getByRole('button', { name: discardedCard, exact: true }).click()
     await discard.getByRole('button', { name: 'Discard 1 and gain 1 CP' }).click()
-    await expect(alice.getByRole('dialog', { name: `${bobName}’s secondary missions` })).toBeVisible()
+    const nextHand = alice.getByRole('dialog', { name: `${bobName}’s secondary missions` })
+    await expect(nextHand).toBeVisible()
     await expect(alice.getByText(/discards .+ and gains 1 CP/)).toBeVisible()
+
+    await nextHand.getByRole('button', { name: 'Undo latest action' }).click()
+    await expect(discard).toBeVisible()
+    await alice.setViewportSize({ width: 390, height: 844 })
+    expect(await alice.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    expect(await discard.evaluate((dialog) => dialog.scrollWidth <= dialog.clientWidth)).toBe(true)
+    await expect(discard.getByRole('button', { name: discardedCard, exact: true })).toHaveCount(0)
+    await discard.getByRole('button', { name: 'Undo latest action' }).click()
+    await expect(discard.getByRole('button', { name: discardedCard, exact: true })).toBeVisible()
+    await alice.screenshot({ path: 'test-results/undo-discard-phone.png' })
+    await discard.getByRole('button', { name: discardedCard, exact: true }).click()
+    await discard.getByRole('button', { name: 'Discard 1 and gain 1 CP' }).click()
+    await expect(nextHand).toBeVisible()
+    await alice.setViewportSize(desktopContext.viewport)
   } finally {
     releaseBob()
   }
@@ -505,6 +522,7 @@ test('a card names its own condition, and what their turn owed is asked as the t
   const refereeing = bob.getByRole('dialog', { name: /^Scoring end of their turn points/ })
   await expect(owed).toBeVisible()
   await expect(refereeing).toBeVisible()
+  await expect(owed.getByRole('button', { name: 'Undo latest action' })).toBeEnabled()
   await expect(refereeing).toContainText(aliceName)
   await expect(owed.locator('[data-due="assassination"]')).toContainText('For each enemy CHARACTER model destroyed this turn.')
   // The allowance belongs to the round the ended turn was in, which the battle has
@@ -567,6 +585,7 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
   const sharedBobAction = alice.getByRole('dialog', { name: `Secret Mission action · ${bobName}` })
   await expect(bobAction).toBeVisible()
   await expect(sharedBobAction).toBeVisible()
+  await expect(bobAction.getByRole('button', { name: 'Undo latest action' })).toBeEnabled()
   await expect(bob.getByRole('dialog', { name: /^Scoring / })).toHaveCount(0)
   await bobAction.getByRole('button', { name: 'Back' }).click()
   await expect(bobAction).toBeHidden()
