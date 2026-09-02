@@ -307,7 +307,7 @@ function RootComponent() {
                 >
                   <Outlet />
                 </div>
-                <NativeAppTabs path={path} />
+                <NativeAppTabs href={location.href} />
                 <Impersonation />
                 {/*
                  * Said plainly and on every page, because the name is drawn from Games

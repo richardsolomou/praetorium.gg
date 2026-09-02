@@ -1,9 +1,10 @@
 import { Link, useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router'
 import { BookOpen, ChevronLeft, ScrollText, Swords, Trophy, UsersRound } from 'lucide-react'
-import type { ComponentType } from 'react'
+import { useEffect, type ComponentType } from 'react'
 import { Button } from '@/components/ui/button'
 import { nativeCanGoBack } from '../nativeBridge'
 import { nativeNavigation, type NativeSection } from '../nativeNavigation'
+import { recallTab, rememberTab, tabLocation } from '../nativeTabs'
 import { GlobalSearch } from './GlobalSearch'
 
 type Tab = { icon: ComponentType<{ className?: string }>; label: string; section: NativeSection; to: string }
@@ -60,8 +61,19 @@ export function NativeAppHeader({ account, path, search }: { account: React.Reac
   )
 }
 
-export function NativeAppTabs({ path }: { path: string }) {
-  const active = nativeNavigation(path).section
+/**
+ * The five sections, each remembering where it was left.
+ *
+ * Tapping the section you are already in goes to its top, which the link does on its
+ * own and the effect below then records.
+ */
+export function NativeAppTabs({ href }: { href: string }) {
+  const navigate = useNavigate()
+  const active = tabLocation(href)?.section
+
+  useEffect(() => {
+    rememberTab(href)
+  }, [href])
 
   return (
     <nav
@@ -75,6 +87,13 @@ export function NativeAppTabs({ path }: { path: string }) {
         <Link
           key={section}
           to={to}
+          onClick={(event) => {
+            if (event.defaultPrevented || section === active) return
+            const remembered = recallTab(section)
+            if (!remembered || remembered === to) return
+            event.preventDefault()
+            void navigate({ href: remembered })
+          }}
           aria-current={active === section ? 'page' : undefined}
           className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-t-2 text-[0.625rem] font-semibold tracking-[0.04em] uppercase ${
             active === section ? 'border-parchment bg-raised text-parchment' : 'border-transparent text-dim hover:bg-raised hover:text-info'

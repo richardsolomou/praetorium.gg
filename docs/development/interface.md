@@ -12,7 +12,7 @@ Free and open source is prominent in public documentation but secondary to the p
 
 ## Native application layout
 
-Feature screens stay shared between the website and native applications. The native shell replaces the website header with a fixed top bar and section tabs. Phones use bottom tabs. Layouts that are at least 1024 pixels wide use a left rail.
+Feature screens stay shared between the website and native applications. The native shell replaces the website header with a fixed top bar and section tabs. Phones use bottom tabs. Layouts that are at least 1024 pixels wide use a left rail. Each tab returns to the screen it was left on, and tapping the section you are already in goes to its top.
 
 The top bar keeps the Back action in a fixed location. A detail screen returns to the previous application route. A direct link without application history returns to its mapped parent route. A section root returns to the home page.
 
