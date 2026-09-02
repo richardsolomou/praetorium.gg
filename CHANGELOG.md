@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.50.3
+
+### Patch Changes
+
+- de2c4d4: Keep undo available in every live battle action dialog.
+
 ## 0.50.2
 
 ### Patch Changes
