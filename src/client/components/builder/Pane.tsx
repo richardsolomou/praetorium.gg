@@ -54,11 +54,20 @@ export function Pane({
   const closeButton = useRef<HTMLButtonElement>(null)
   const returnFocus = useRef<HTMLElement>(null)
   const [compactLoadout, setCompactLoadout] = useState(false)
+  /*
+   * A compact loadout is a dialog on the website and a screen in the application,
+   * where the tab bar stays beside it. A screen does not take the page hostage:
+   * keeping `aria-modal` and a focus trap here would hide tabs a thumb can reach.
+   */
+  const [screen, setScreen] = useState(false)
 
   useLayoutEffect(() => {
     if (variant !== 'loadout') return
     const media = window.matchMedia('(max-width: 1023px)')
-    const sync = () => setCompactLoadout(media.matches)
+    const sync = () => {
+      setCompactLoadout(media.matches)
+      setScreen(media.matches && document.documentElement.dataset.nativeApp === 'true')
+    }
     sync()
     media.addEventListener('change', sync)
     return () => media.removeEventListener('change', sync)
@@ -90,6 +99,8 @@ export function Pane({
       const parent = branch.parentElement
       for (const sibling of parent.children) {
         if (sibling === branch || !(sibling instanceof HTMLElement)) continue
+        // The tab bar is the one thing beside this pane that stays on screen.
+        if (screen && sibling.hasAttribute('data-native-app-tabs')) continue
         backgrounds.push({ element: sibling, inert: sibling.inert })
         sibling.inert = true
       }
@@ -111,14 +122,14 @@ export function Pane({
         target.focus()
       }
     }
-    document.addEventListener('keydown', containFocus)
+    if (!screen) document.addEventListener('keydown', containFocus)
     closeElement?.focus()
     return () => {
       document.removeEventListener('keydown', containFocus)
       for (const background of backgrounds) background.element.inert = background.inert
       if (focusTarget?.isConnected) focusTarget.focus()
     }
-  }, [compactLoadout, open])
+  }, [compactLoadout, open, screen])
 
   const body = (
     <>
@@ -174,8 +185,8 @@ export function Pane({
         hideBelowDesktop ? 'max-[1299px]:hidden' : ''
       } ${open ? `fixed z-40 flex ${MOBILE_LAYOUT[variant]}` : 'hidden'}`}
       aria-label={ariaLabel ?? title}
-      role={open && compactLoadout ? 'dialog' : undefined}
-      aria-modal={(open && compactLoadout) || undefined}
+      role={open && compactLoadout && !screen ? 'dialog' : undefined}
+      aria-modal={(open && compactLoadout && !screen) || undefined}
     >
       {body}
     </aside>

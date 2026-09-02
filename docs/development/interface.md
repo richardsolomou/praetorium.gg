@@ -12,11 +12,11 @@ Free and open source is prominent in public documentation but secondary to the p
 
 ## Native application layout
 
-Feature screens stay shared between the website and native applications. The native shell replaces the website header with a fixed top bar and section tabs. Phones use bottom tabs. Layouts that are at least 1024 pixels wide use a left rail.
+Feature screens stay shared between the website and native applications. The native shell replaces the website header with a fixed top bar and section tabs. Phones use bottom tabs. Layouts that are at least 1024 pixels wide use a left rail. Each tab returns to the screen it was left on, and tapping the section you are already in goes to its top.
 
 The top bar keeps the Back action in a fixed location. A detail screen returns to the previous application route. A direct link without application history returns to its mapped parent route. A section root returns to the home page.
 
-Compact roster panes use browser history. A back gesture or Android system Back action dismisses the top pane before it leaves the roster. A datasheet opened from the unit picker returns to that picker. A datasheet opened from a roster unit returns to the roster.
+Compact roster panes use browser history. A back gesture or Android system Back action dismisses the top pane before it leaves the roster. A datasheet opened from the unit picker returns to that picker. A datasheet opened from a roster unit returns to the roster. In the native applications a compact unit pane is a screen inside the roster tab: it stops above the tab bar and leaves it reachable, where the website treats the same pane as a modal dialog.
 
 ## Roster layout
 

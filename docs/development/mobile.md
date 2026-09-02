@@ -27,9 +27,13 @@ The shell preserves the full path, query, and fragment when an internal HTTPS li
 
 An updated shell declares the `app-navigation` capability and marks each document as a native application document. The web application then replaces its website header with application navigation. Phones use a fixed top bar and five bottom tabs. Layouts that are at least 1024 pixels wide move the tabs into a left rail.
 
+Each tab returns to the screen it was left on. The session records the last location of every section in `src/client/nativeTabs.ts`, keyed by the section `nativeNavigation` derives from the path. Tapping the section you are already in goes to its top instead. The record holds the path and query but not the hash, because a roster's open pane lives in history state the record cannot carry. The record lives in `sessionStorage`, so a cold start opens every tab at its top.
+
 The top bar keeps the Back action in a fixed location. A detail screen returns to the previous application route. A direct link without application history returns to its mapped parent route. A section root returns to the home page. The website keeps its website header.
 
 Compact roster panes use browser history. An iOS back gesture or Android system Back action dismisses the pane before it leaves the roster. A datasheet opened from the unit picker returns to that picker. A datasheet opened from a roster unit returns to the roster. The visible Back action consumes the same history entry.
+
+A compact unit pane is a screen inside the roster tab rather than a sheet over the application: it stops above the tab bar, and the tab bar stays live beside it. The website keeps the same pane as a modal dialog, because there is no tab bar to reach.
 
 After a real background cycle, the shell nudges the WebView's browser lifecycle. This closes and reconnects Centrifugo, then refetches active TanStack Query data through the web application's existing browser handlers. The shell holds no native battle state or lifecycle-specific fetch path.
 
