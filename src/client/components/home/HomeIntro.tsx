@@ -32,9 +32,9 @@ const CAPABILITIES = [
 /**
  * What the app does, and where the code is — for a visitor only.
  *
- * A signed-in player is not shown any of this. Every link in it is already in the
- * navigation above them, so under their own live games it would be a second copy
- * of the menu wearing a pitch.
+ * A signed-in player with anything on their home page is not shown any of this.
+ * Every link in it is already in the navigation above them, so under their own
+ * live games it would be a second copy of the menu wearing a pitch.
  *
  * Both blocks use the same hairline grid, so the page has one way of laying a
  * small set of boxes out rather than one per section.
