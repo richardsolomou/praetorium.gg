@@ -181,7 +181,7 @@ export function Pane({
       ref={pane}
       data-print-hide
       data-pane={variant}
-      className={`min-h-0 flex-col overflow-hidden border-edge bg-panel [container-type:inline-size] ${(threeColumn ? VARIANTS : TWO_COLUMN_VARIANTS)[variant]} ${
+      className={`min-h-0 min-w-0 max-w-full flex-col overflow-hidden overscroll-x-none border-edge bg-panel [container-type:inline-size] ${(threeColumn ? VARIANTS : TWO_COLUMN_VARIANTS)[variant]} ${
         hideBelowDesktop ? 'max-[1299px]:hidden' : ''
       } ${open ? `fixed z-40 flex ${MOBILE_LAYOUT[variant]}` : 'hidden'}`}
       aria-label={ariaLabel ?? title}
