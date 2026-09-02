@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.50.7
+
+### Patch Changes
+
+- 988fbcc: Keep battle controls reachable, preserve native tabs, enlarge mobile dialog actions, and recover stale live battles.
+
 ## 0.50.6
 
 ### Patch Changes
