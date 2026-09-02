@@ -98,6 +98,7 @@ beforeEach(() => {
   fs.writeFileSync(path.join(icons, 'death-guard.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
   write(path.join(root, 'stratagems.json'), [
     { id: 'command-re-roll', name: 'COMMAND RE-ROLL', cp_cost: 1, timing: 'once-per-battle' },
+    { id: 'counter-offensive', name: 'COUNTER-OFFENSIVE', cp_cost: 2, timing: 'once-per-phase' },
     { id: 'insane-bravery', name: 'INSANE BRAVERY', cp_cost: 1, timing: 'once-per-battle' },
   ])
   const datacards = path.join(directory, 'datacards', '11th', 'gdc')
@@ -209,6 +210,12 @@ beforeEach(() => {
         target: { en: 'That unit or model.' },
         effect: { en: 'Re-roll that roll.' },
         restrictions: { en: 'One re-roll.' },
+      },
+      {
+        name: { en: 'Counteroffensive' },
+        type: 'Core Stratagem',
+        when: { en: 'Fight phase.' },
+        effect: { en: 'Fight next.' },
       },
       {
         id: 'new-orders',
@@ -491,8 +498,9 @@ describe('stratagems', () => {
   })
 
   it('include the ones every army has', () => {
-    // Named as the card prints it where there is one; titled from the dataset's capitals where there is not.
-    expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-roll', 'Insane Bravery', 'New Orders'])
+    // A card supplies its casing when the names agree; the semantic source keeps
+    // punctuation that the card source omitted.
+    expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-roll', 'Counter-Offensive', 'Insane Bravery', 'New Orders'])
   })
 
   it('reads core cards and descriptions from the verified Game Datacards path when the semantic source has a gap', () => {
@@ -502,6 +510,11 @@ describe('stratagems', () => {
         type: 'Core Stratagem',
         description:
           'Bend fate to your will.\n\n**When:** Any phase.\n\n**Target:** That unit or model.\n\n**Effect:** Re-roll that roll.\n\n**Restrictions:** One re-roll.',
+      },
+      {
+        id: 'counter-offensive',
+        type: 'Core Stratagem',
+        description: '**When:** Fight phase.\n\n**Effect:** Fight next.',
       },
       {
         id: 'new-orders',
