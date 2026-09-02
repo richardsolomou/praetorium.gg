@@ -171,4 +171,4 @@ export const submit = createServerFn({ method: 'POST' })
 
 export const battleReport = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(async () => app().service.report(data.token, await requireUserId())))
+  .handler(({ data }) => rpc(async () => app().service.report(data.token, await requireUserId(), app().rules())))
