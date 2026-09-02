@@ -177,7 +177,7 @@ export function newestBattleScreen<T>(oldData: T | undefined, newData: T): T {
 function battleSequence(value: unknown): number | null {
   if (!value || typeof value !== 'object') return null
   const screen = value as { kind?: unknown; view?: { seq?: unknown } }
-  return screen.kind === 'battle' && typeof screen.view?.seq === 'number' ? screen.view.seq : null
+  return (screen.kind === 'battle' || screen.kind === 'spectator') && typeof screen.view?.seq === 'number' ? screen.view.seq : null
 }
 
 /** One faction by route slug or catalogue id, for the pages that render exactly one. */

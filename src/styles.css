@@ -89,6 +89,10 @@ html[data-native-app='true'] [data-native-app-tabs] {
   html[data-native-app='true'] [data-pane='loadout'] {
     bottom: 4rem;
   }
+
+  html[data-native-app='true'] [data-setup-next] {
+    bottom: 4rem;
+  }
 }
 
 html[data-native-app='true'] [data-native-app-frame] {
@@ -308,6 +312,23 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
   select,
   textarea {
     font-size: max(1rem, 16px);
+  }
+}
+
+@media (max-width: 639px) {
+  [data-slot='dialog-footer'],
+  [data-slot='alert-dialog-footer'] {
+    gap: 0.75rem;
+    padding-block: 1rem;
+  }
+
+  [data-slot='dialog-footer'] [data-slot='button'],
+  [data-slot='alert-dialog-footer'] [data-slot='button'],
+  [data-slot='alert-dialog-action'],
+  [data-slot='alert-dialog-cancel'] {
+    min-height: 2.75rem;
+    padding-inline: 1rem;
+    font-size: 1rem;
   }
 }
 
