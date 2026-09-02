@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.50.2
+
+### Patch Changes
+
+- fa61429: Show clear battlefield and replacement-draw names in battle logs, count attached datasheets as one unit, and keep unit panes within phone screens.
+
 ## 0.50.1
 
 ### Patch Changes
