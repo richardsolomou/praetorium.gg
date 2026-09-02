@@ -33,6 +33,8 @@ The top bar keeps the Back action in a fixed location. A detail screen returns t
 
 Compact roster panes use browser history. An iOS back gesture or Android system Back action dismisses the pane before it leaves the roster. A datasheet opened from the unit picker returns to that picker. A datasheet opened from a roster unit returns to the roster. The visible Back action consumes the same history entry.
 
+A compact unit pane is a screen inside the roster tab rather than a sheet over the application: it stops above the tab bar, and the tab bar stays live beside it. The website keeps the same pane as a modal dialog, because there is no tab bar to reach.
+
 After a real background cycle, the shell nudges the WebView's browser lifecycle. This closes and reconnects Centrifugo, then refetches active TanStack Query data through the web application's existing browser handlers. The shell holds no native battle state or lifecycle-specific fetch path.
 
 `praetorium://auth` is reserved for this handoff. Request and callback validation stay in `mobile/src/nativeAuth.ts`. The shell publishes `window.PraetoriumNative.bridgeVersion` before the web application loads. Web features require a supported bridge version and a matching capability. This prevents the deployment from sending messages to older installed shells. Bridge version 2 adds retryable, challenge-bound authentication. The web deployment retains version 1 for installed shells that are not updated. Bridge version 3 adds application navigation, native sharing, printing, battle haptics, and active-battle screen wake locks.

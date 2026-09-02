@@ -84,6 +84,11 @@ html[data-native-app='true'] [data-native-app-tabs] {
   html[data-native-app='true'] [data-battle-tracker] {
     padding-bottom: 12rem;
   }
+
+  /* A unit is a screen inside the roster tab, not a sheet over the application. */
+  html[data-native-app='true'] [data-pane='loadout'] {
+    bottom: 4rem;
+  }
 }
 
 html[data-native-app='true'] [data-native-app-frame] {
