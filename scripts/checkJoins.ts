@@ -85,10 +85,10 @@ if (process.argv.includes('--details')) {
  * Wurrboy that eleventh edition folded into Warbuggies and the Weirdboy) and the cards
  * file thirty-five where the catalogue does not (Space Marine heroes the cards keep in
  * the Adeptus Astartes file and the catalogue in their chapters' books, Sir Hekhtur, and
- * fourteen Ork datasheets the cards carry ahead of the catalogue). Game Datacards reached
- * the eleventh-edition Ork range first, so nineteen of these are one source waiting for
- * the other; a catalogue release that catches up brings both counts back down, and this
- * baseline follows them.
+ * fourteen Ork cards, eleven of them datasheets the catalogue suffixes `[Legends]` and
+ * the join cannot reach under that name). Folding the suffix would let an active
+ * datasheet and its Legends namesake claim one another's card, which the points
+ * reference already treats as distinct entries, so the gap stays reported.
  */
 if (report.catalogueOnly.length > 15 || report.datacardsOnly.length > 35) {
   throw new Error('datasheet name agreement fell below the pinned catalogue baseline')
