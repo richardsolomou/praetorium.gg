@@ -63,7 +63,10 @@ test('battle setup stays in step and shows both players their shared choices', a
   await setupStep(bob, 'Defender')
   const defenderChoice = bob.getByRole('group', { name: 'Defender' })
   const defender = defenderChoice.getByRole('button', { name: new RegExp(aliceName) })
-  await defender.click()
+  const aliceDefender = alice.getByRole('group', { name: 'Defender' }).getByRole('button', { name: new RegExp(aliceName) })
+  await Promise.all([defender.click(), aliceDefender.click()])
+  await expect(alice.getByText('Your opponent got there first. Try that again.')).toBeHidden()
+  await expect(bob.getByText('Your opponent got there first. Try that again.')).toBeHidden()
   await expect(defender).toContainText('Defender · deploys first')
   await expect(defenderChoice.getByRole('button', { name: new RegExp(bobName) })).toContainText('Attacker · deploys second')
   await bob.screenshot({ path: 'test-results/setup-defender.png', fullPage: true })
@@ -86,7 +89,7 @@ test('battle setup stays in step and shows both players their shared choices', a
   await alice.screenshot({ path: 'test-results/setup-armies-phone.png', fullPage: true })
 })
 
-test('one device settles mandatory tactical cards for both sides', async ({ browser }) => {
+test('both devices settle mandatory tactical cards without racing', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext()).newPage()
   const aliceName = uniqueName('Alice')
@@ -139,12 +142,13 @@ test('one device settles mandatory tactical cards for both sides', async ({ brow
   await attachRoster(alice, aliceRoster)
   await attachRoster(bob, bobRoster)
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
-  await bob.close()
-
   await chooseBattlefield(alice)
   await setupStep(alice, 'Secondaries')
   await expect(alice.getByRole('main').getByText(aliceName, { exact: true })).toHaveCount(2)
   await expect(alice.getByRole('main').getByText(bobName, { exact: true })).toHaveCount(2)
   await expect(alice.getByRole('button', { name: 'Next', exact: true })).toBeEnabled()
+  await expect(bob.getByRole('button', { name: 'Next', exact: true })).toBeEnabled()
+  await expect(alice.getByText('Your opponent got there first. Try that again.')).toBeHidden()
+  await expect(bob.getByText('Your opponent got there first. Try that again.')).toBeHidden()
   await alice.screenshot({ path: 'test-results/setup-mandatory-secondaries.png', fullPage: true })
 })
