@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.50.0
+
+### Minor Changes
+
+- 1da2457: Return each application tab to the screen you left it on, so moving between a roster and a datasheet keeps both in place.
+
+### Patch Changes
+
+- fb8d39f: Keep the application tabs reachable while a unit is open in the roster editor, instead of covering them.
+
 ## 0.49.2
 
 ### Patch Changes
