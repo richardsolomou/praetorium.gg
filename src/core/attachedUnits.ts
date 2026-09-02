@@ -49,6 +49,15 @@ export function attachedUnitList<T extends Deployable>(units: readonly T[]): Att
   })
 }
 
+/** Counts the units an army plays after attached datasheets have formed one unit. */
+export function battleUnitCounts<T extends Deployable & { destroyed: boolean; deployed: boolean }>(units: readonly T[]) {
+  return {
+    total: attachedUnitList(units).length,
+    standing: attachedUnitList(units.filter((unit) => !unit.destroyed)).length,
+    deployed: attachedUnitList(units.filter((unit) => unit.deployed && !unit.destroyed)).length,
+  }
+}
+
 /**
  * What the whole unit can do, which is only what every unit in it can do.
  *

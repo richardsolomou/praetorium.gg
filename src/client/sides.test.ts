@@ -26,6 +26,7 @@ function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>
     rounds: [],
     roster: null,
     units: [],
+    unitCount: 0,
     standing: 0,
     deployed: 0,
     stratagems: [],

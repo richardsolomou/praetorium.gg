@@ -52,7 +52,7 @@ export function ArmyRoster({ army, side, token, actionable, send }: Props) {
         {army.units.length ? (
           <span className="readout text-[0.625rem] text-faint">
             <span data-army-units>
-              {army.standing}/{army.units.length}
+              {army.standing}/{army.unitCount}
             </span>{' '}
             units ·{' '}
             <span data-army-models>

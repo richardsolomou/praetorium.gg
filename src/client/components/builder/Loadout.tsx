@@ -130,7 +130,7 @@ export function Loadout({
 
   return (
     <div className="flex h-full min-w-0 flex-col">
-      <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:p-2.5">
+      <ScrollArea className="min-h-0 min-w-0 max-w-full flex-1 [&_[data-slot=scroll-area-viewport]]:p-2.5">
         <div className="w-full min-w-0 space-y-4">
           {profile ? <UnitProfile profile={profile} /> : null}
           {unit.models.length ? (

@@ -26,6 +26,7 @@ import {
   type UnitState,
   validate,
 } from './battle'
+import { battleUnitCounts } from './attachedUnits'
 
 /**
  * The only place visibility is decided.
@@ -103,6 +104,8 @@ export type BattleView = {
     units: UnitState[]
     /** What is still on the table, for the line a player actually glances at. */
     standing: number
+    /** How many units the army plays after attachments are formed. */
+    unitCount: number
     deployed: number
     /** Each stratagem with whether it can be used right now, and why not when it cannot. */
     stratagems: {
@@ -207,6 +210,7 @@ export function battleView(
     result: state.result,
     players: state.players.map((player) => {
       const resources = sideCaptain(state, player.side)
+      const units = battleUnitCounts(player.units)
       return {
         id: player.id,
         side: player.side,
@@ -245,8 +249,9 @@ export function battleView(
         })),
         roster: viewRoster(player.roster),
         units: player.units,
-        standing: player.units.filter((unit) => !unit.destroyed).length,
-        deployed: player.units.filter((unit) => unit.deployed && !unit.destroyed).length,
+        unitCount: units.total,
+        standing: units.standing,
+        deployed: units.deployed,
         stratagems: resources.stratagems.map((stratagem) => ({
           ...stratagem,
           uses: resources.uses.filter((use) => use.key === stratagem.key).length,

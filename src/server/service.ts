@@ -935,6 +935,7 @@ export class PraetoriumService {
         history.players.map((player) => player.id),
         SPECTATOR_ID,
         history.players.map((player) => player.side),
+        rules,
       ),
     })
     if (screen.view.leagueToken) return spectator()
@@ -944,7 +945,7 @@ export class PraetoriumService {
   }
 
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */
-  async report(token: string, userId: string) {
+  async report(token: string, userId: string, rules?: Parameters<typeof missionFor>[0] | null) {
     const history = await this.mustFind(token)
     if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
     return battleReport(
@@ -953,6 +954,7 @@ export class PraetoriumService {
       history.players.map((player) => player.id),
       userId,
       history.players.map((player) => player.side),
+      rules,
     )
   }
 

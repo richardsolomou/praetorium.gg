@@ -13,6 +13,18 @@ describe('the account of the battle', () => {
     expect(text(battleReport(NAMES, history))[0]).toBe('Alice brought Ultramarines (Flyblown Host)')
   })
 
+  it('names a battlefield by its deployment rather than its terrain source id', () => {
+    const history = log([ALICE, { kind: 'set-battlefield', patternId: 'search-and-destroy', terrainLayoutId: 'bm-take-vs-recon-03' }])
+
+    expect(
+      text(
+        battleReport(NAMES, history, undefined, undefined, undefined, {
+          deployments: [{ id: 'search-and-destroy', name: 'Search and Destroy' }],
+        }),
+      ),
+    ).toContain('The battlefield is Search and Destroy')
+  })
+
   it('marks the turn passing over', () => {
     const history = log(...started(), ...turns(6, ALICE))
     expect(text(battleReport(NAMES, history))).toContain('The turn passes to Bob; both sides gain 1 CP')
