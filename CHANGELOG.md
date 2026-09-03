@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.53.1
+
+### Patch Changes
+
+- 1e9dca9: Allow bodyguard units to accept every Leader permitted by their catalogue.
+
 ## 0.53.0
 
 ### Minor Changes

@@ -23,6 +23,9 @@ import { normalizedName } from './name'
  * data does not have one would tell a player something untrue about the game.
  */
 export type Attachment = { kind: 'leader' | 'support'; targets: string[] }
+export type AttachmentLimits = Record<Attachment['kind'], number> & {
+  categories: Record<string, { name: string; maximum: number }>
+}
 
 const CLAIM = /can be attached to the following units?/i
 
@@ -38,6 +41,47 @@ const attachmentCache = new WeakMap<CatalogueIndex, WeakMap<Definition, Attachme
 const substitutionCache = new WeakMap<CatalogueIndex, ReadonlyMap<string, readonly string[]>>()
 const categoryTargetCache = new WeakMap<CatalogueIndex, readonly string[]>()
 const associationCandidateCache = new WeakMap<CatalogueIndex, readonly Definition[]>()
+
+export function attachmentLimitsOf(definition: Definition, index: CatalogueIndex): AttachmentLimits {
+  const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
+  const constraints = sources
+    .flatMap((source) => source.constraints ?? [])
+    .filter((constraint) => {
+      return constraint.field === 'associations' && constraint.scope === 'self' && constraint.type === 'max'
+    })
+  const maximum = (kind: Attachment['kind']) => {
+    const limits = constraints.flatMap((constraint) =>
+      normalizedName(constraintName(constraint, index)) === kind ? [constraint.value] : [],
+    )
+    return limits.length ? Math.min(...limits) : 1
+  }
+  const categories: AttachmentLimits['categories'] = {}
+  for (const constraint of constraints) {
+    const name = constraintName(constraint, index)
+    if (!name || normalizedName(name) === 'leader' || normalizedName(name) === 'support') continue
+    const key = constraint.childId ? `id:${constraint.childId}` : `name:${normalizedName(name)}`
+    const existing = categories[key]
+    categories[key] = { name, maximum: Math.min(existing?.maximum ?? Number.POSITIVE_INFINITY, constraint.value) }
+  }
+  return { leader: maximum('leader'), support: maximum('support'), categories }
+}
+
+export function attachmentCategoriesOf(definition: Definition, index: CatalogueIndex): string[] {
+  const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
+  return [
+    ...new Set(
+      sources.flatMap((source) =>
+        (source.categoryLinks ?? []).flatMap((category) => [
+          `id:${category.targetId}`,
+          ...(category.name ? [`name:${normalizedName(category.name)}`] : []),
+        ]),
+      ),
+    ),
+  ]
+}
+
+const constraintName = (constraint: { childId?: string; childName?: string }, index: CatalogueIndex) =>
+  constraint.childName ?? index.categories.get(constraint.childId ?? '')?.name ?? ''
 
 /**
  * Which units this entry may be attached to, read out of its own ability text.
@@ -251,7 +295,8 @@ export function attachmentErrors(
   selections: readonly (Selection | undefined)[] = [],
 ): EvaluationError[] {
   const errors: EvaluationError[] = []
-  const occupied = { leader: new Map<number, number>(), support: new Map<number, number>() }
+  const occupied = { leader: new Map<number, number[]>(), support: new Map<number, number[]>() }
+  const occupiedCategories = new Map<number, Map<string, number[]>>()
   units.forEach((unit, position) => {
     if (unit.attachedTo === undefined) return
     const definition = index.definitions.get(unit.entryId)
@@ -280,17 +325,37 @@ export function attachmentErrors(
       .map((constraint) => constraint.value)
     if (associationMax?.length && Math.min(...associationMax) < 1) error('allows no attachments')
     if (!attachment) return
-    const already = occupied[attachment.kind].get(unit.attachedTo)
-    if (already === undefined) {
-      occupied[attachment.kind].set(unit.attachedTo, position)
+    const already = occupied[attachment.kind].get(unit.attachedTo) ?? []
+    const hostDefinition = index.definitions.get(host.entryId)
+    const limits = hostDefinition ? attachmentLimitsOf(hostDefinition, index) : { leader: 1, support: 1, categories: {} }
+    const limit = limits[attachment.kind]
+    if (already.length >= limit) {
+      const other = nameOf(index.definitions.get(units[already[0]!]?.entryId ?? '') ?? { id: '' }, index.definitions)
+      error(
+        attachment.kind === 'leader'
+          ? limit === 1
+            ? `cannot lead ${hostName}, which is already led by ${other}`
+            : `cannot lead ${hostName}, which already has ${limit} Leaders`
+          : limit === 1
+            ? `cannot support ${hostName}, which is already supported by ${other}`
+            : `cannot support ${hostName}, which already has ${limit} Support units`,
+      )
       return
     }
-    const other = nameOf(index.definitions.get(units[already]?.entryId ?? '') ?? { id: '' }, index.definitions)
-    error(
-      attachment.kind === 'leader'
-        ? `cannot lead ${hostName}, which is already led by ${other}`
-        : `cannot support ${hostName}, which is already supported by ${other}`,
-    )
+    const categories = attachmentCategoriesOf(definition, index)
+    const categoryCounts = occupiedCategories.get(unit.attachedTo) ?? new Map<string, number[]>()
+    const fullCategory = categories.flatMap((category) => {
+      const categoryLimit = limits.categories[category]
+      const occupants = categoryCounts.get(category) ?? []
+      return categoryLimit && occupants.length >= categoryLimit.maximum ? [categoryLimit] : []
+    })[0]
+    if (fullCategory) {
+      error(`cannot be attached to ${hostName}, which already has ${fullCategory.maximum} ${fullCategory.name}`)
+      return
+    }
+    occupied[attachment.kind].set(unit.attachedTo, [...already, position])
+    for (const category of categories) categoryCounts.set(category, [...(categoryCounts.get(category) ?? []), position])
+    occupiedCategories.set(unit.attachedTo, categoryCounts)
   })
   return errors
 }
