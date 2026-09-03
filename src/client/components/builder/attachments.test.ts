@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Attachment } from '../../../core/attach'
+import type { Attachment, AttachmentLimits } from '../../../core/attach'
 import type { KeyedPick } from '../../rosterPicks'
 import { attachmentRows, joinableUnits } from './attachments'
 
@@ -7,7 +7,12 @@ const leader = (targets: string[]): Attachment => ({ kind: 'leader', targets })
 const support = (targets: string[]): Attachment => ({ kind: 'support', targets })
 
 const pick = (key: number, entryId: string, attachedTo?: number): KeyedPick => ({ key, entryId, attachedTo })
-const unit = (name: string, attachment: Attachment | null = null) => ({ name, attachment })
+const unit = (
+  name: string,
+  attachment: Attachment | null = null,
+  attachmentLimits?: AttachmentLimits,
+  attachmentCategories?: string[],
+) => ({ name, attachment, attachmentLimits, attachmentCategories })
 
 describe('joinableUnits', () => {
   it('offers only the units a leader names', () => {
@@ -40,6 +45,45 @@ describe('joinableUnits', () => {
     ]
 
     expect(joinableUnits(picks, units, 1)).toEqual([])
+  })
+
+  it('offers a second leader when the bodyguard allows two', () => {
+    const picks = [pick(0, 'ursula', 2), pick(1, 'command-squad'), pick(2, 'shock-troops')]
+    const units = [
+      unit('Ursula Creed', leader(['Cadian Shock Troops'])),
+      unit('Cadian Command Squad', leader(['Cadian Shock Troops']), undefined, ['id:command-squad']),
+      unit('Cadian Shock Troops', null, { leader: 2, support: 1, categories: {} }),
+    ]
+
+    expect(joinableUnits(picks, units, 1)).toEqual([{ key: 2, name: 'Cadian Shock Troops' }])
+  })
+
+  it('honours a narrower attachment category limit', () => {
+    const categories = ['id:command-squad']
+    const picks = [pick(0, 'command-squad', 2), pick(1, 'second-command-squad'), pick(2, 'shock-troops')]
+    const units = [
+      unit('Cadian Command Squad', leader(['Cadian Shock Troops']), undefined, categories),
+      unit('Cadian Command Squad', leader(['Cadian Shock Troops']), undefined, categories),
+      unit('Cadian Shock Troops', null, {
+        leader: 2,
+        support: 1,
+        categories: { 'id:command-squad': { name: 'Command Squad', maximum: 1 } },
+      }),
+    ]
+
+    expect(joinableUnits(picks, units, 1)).toEqual([])
+  })
+
+  it('stops offering leaders when the bodyguard limit is reached', () => {
+    const picks = [pick(0, 'ursula', 3), pick(1, 'command-squad', 3), pick(2, 'castellan'), pick(3, 'shock-troops')]
+    const units = [
+      unit('Ursula Creed', leader(['Cadian Shock Troops'])),
+      unit('Cadian Command Squad', leader(['Cadian Shock Troops'])),
+      unit('Cadian Castellan', leader(['Cadian Shock Troops'])),
+      unit('Cadian Shock Troops', null, { leader: 2, support: 1, categories: {} }),
+    ]
+
+    expect(joinableUnits(picks, units, 2)).toEqual([])
   })
 
   it('still offers support to a unit that is already led', () => {

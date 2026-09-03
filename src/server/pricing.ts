@@ -1,4 +1,4 @@
-import { attachmentErrors, attachmentOf } from '../core/attach'
+import { attachmentCategoriesOf, attachmentErrors, attachmentLimitsOf, attachmentOf } from '../core/attach'
 import { routeSlug } from '../core/slug'
 import {
   borrowedDispositionError,
@@ -388,6 +388,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     selections,
     units: picked.map((unit) => {
       const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+      const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
       const unitSelectionIndex = selectionIndex.get(unit.selection)
       const host = data.units[unit.key]?.attachedTo ?? unit.key
       const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
@@ -448,6 +449,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       )
       const specialSelections = new Set([...specialChoices, ...automaticEnhancements.map(routeSlug)])
       const wargear = heldWargear(models, choices, catalogued)
+      const attachment = attachmentOf(definition, loaded.index, unit.selection)
       return {
         key: unit.key,
         entryId: unit.entryId,
@@ -475,7 +477,9 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
           .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
         wargear: wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name))),
         group: groupOfEntry(loaded.index, unit.entryId),
-        attachment: attachmentOf(loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }, loaded.index, unit.selection),
+        attachment,
+        attachmentLimits: attachmentLimitsOf(definition, loaded.index),
+        attachmentCategories: attachment ? attachmentCategoriesOf(definition, loaded.index) : [],
       }
     }),
   }
