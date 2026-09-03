@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.53.0
+
+### Minor Changes
+
+- a9609f9: Let spectators read battle missions, allow seated players to record another player's concession, and keep shared rosters stable while they load.
+
 ## 0.52.1
 
 ### Patch Changes
