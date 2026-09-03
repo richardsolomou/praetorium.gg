@@ -78,13 +78,36 @@ for (const faction of factionDirectories(core)) {
   }
 }
 
-/** A Mark is a keyword the unit takes, not equipment; 40kdc has no entity of that kind yet. */
+/**
+ * A Mark is a keyword granted by the Pactbound Zealots detachment rule, not equipment the
+ * datasheet offers, so it is counted apart from what 40kdc cannot express: the rule is
+ * already carried as a detachment, and no wargear entity is missing.
+ */
 const MARKS = new Set(['khorne', 'nurgle', 'slaanesh', 'tzeentch', 'chaos undivided'])
+
+const edit = (a: string, b: string): number => {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array<number>(b.length).fill(0)])
+  for (let j = 0; j <= b.length; j++) d[0]![j] = j
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      d[i]![j] = Math.min(d[i - 1]![j]! + 1, d[i]![j - 1]! + 1, d[i - 1]![j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1))
+  return d[a.length]![b.length]!
+}
+
+/**
+ * The name 40kdc spells within two characters of this one, if it has one. A miss that
+ * close is the same item under another spelling — "agonizer" against "agoniser" — which
+ * is the sources disagreeing rather than 40kdc being unable to hold the option.
+ */
+const nearest = (offered: Set<string>, name: string): string | null => {
+  const best = [...offered].map((candidate) => [edit(name, candidate), candidate] as const).toSorted((a, b) => a[0] - b[0])[0]
+  return best && best[0] <= 2 ? best[1] : null
+}
 
 /**
  * Whether 40kdc can put this option on the unit. The catalogue writes a count into an
- * option's name and joins a pair with "and", where 40kdc names each item once, so a
- * name is tried whole, then stripped of its count, then split into its parts.
+ * option's name and names a whole loadout in one option, where 40kdc names each item
+ * once, so a name is tried whole, then stripped of its count, then split into its parts.
  */
 const offers = (offered: Set<string>, name: string): boolean => {
   const one = (candidate: string) =>
@@ -95,9 +118,9 @@ const offers = (offered: Set<string>, name: string): boolean => {
         .trim(),
     ).some((variant) => offered.has(variant))
   if (one(name)) return true
-  // The catalogue names a whole loadout in one option — "cyclone missile launcher, storm
-  // bolter & power fist" — where 40kdc names each item once.
-  const parts = name.split(/\s*,\s*|\s+(?:and|&)\s+/).filter((part) => part.trim())
+  // A loadout stated in one option — "cyclone missile launcher, storm bolter & power
+  // fist", "dreadnought combat weapon w/ heavy flamer" — against 40kdc's one name apiece.
+  const parts = name.split(/\s*,\s*|\s+(?:and|&|w\/|with)\s+/).filter((part) => part.trim())
   return parts.length > 1 && parts.every(one)
 }
 
@@ -105,6 +128,7 @@ let units = 0
 let marksTotal = 0
 let optionsTotal = 0
 let optionsCovered = 0
+let optionsRespelled = 0
 let modelsTotal = 0
 let modelsCovered = 0
 const missingByUnit = new Map<string, { faction: string; unit: string; missing: string[]; total: number }>()
@@ -138,29 +162,19 @@ for (const book of loaded.factions) {
     units++
     const named = variantsBy.get(unitId) ?? new Set<string>()
     const missingModels = [...wantedModels].filter((name) => !named.has(name))
+    const missedWargear = [...wanted].filter((name) => !offers(offered, name))
+    const respelled = missedWargear.filter((name) => nearest(offered, name))
     const missing = [
-      ...[...wanted].filter((name) => !offers(offered, name)).map((n) => `wargear:${n}`),
+      ...missedWargear.filter((name) => !nearest(offered, name)).map((n) => `wargear:${n}`),
       ...missingModels.map((n) => `model:${n}`),
     ]
     modelsTotal += wantedModels.size
     modelsCovered += wantedModels.size - missingModels.length
     optionsTotal += wanted.size
-    optionsCovered += wanted.size - [...wanted].filter((name) => !offers(offered, name)).length
+    optionsCovered += wanted.size - missedWargear.length
+    optionsRespelled += respelled.length
     if (process.argv.includes('--near')) {
-      // A miss whose name is one or two characters from something the unit can already
-      // reach is a spelling difference, not an absent option.
-      const edit = (a: string, b: string): number => {
-        const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array<number>(b.length).fill(0)])
-        for (let j = 0; j <= b.length; j++) d[0]![j] = j
-        for (let i = 1; i <= a.length; i++)
-          for (let j = 1; j <= b.length; j++)
-            d[i]![j] = Math.min(d[i - 1]![j]! + 1, d[i]![j - 1]! + 1, d[i - 1]![j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1))
-        return d[a.length]![b.length]!
-      }
-      for (const name of [...wanted].filter((n) => !offers(offered, n))) {
-        const best = [...offered].map((n) => [edit(name, n), n] as const).toSorted((a, b) => a[0] - b[0])[0]
-        if (best && best[0] <= 2) console.log(`  spelling | ${unitId} | catalogue "${name}" vs 40kdc "${best[1]}"`)
-      }
+      for (const name of respelled) console.log(`  spelling | ${unitId} | catalogue "${name}" vs 40kdc "${nearest(offered, name)}"`)
     }
     if (missing.length) {
       const name = nameOf(entry, loaded.index.definitions)
@@ -173,10 +187,11 @@ const pct = (n: number, d: number) => (d ? ((n / d) * 100).toFixed(1) : '—')
 console.log(`units with choices and a 40kdc counterpart: ${units}`)
 console.log(`options the catalogue offers:               ${optionsTotal}`)
 console.log(`  40kdc can express:                        ${optionsCovered} (${pct(optionsCovered, optionsTotal)}%)`)
-console.log(`  missing:                                  ${optionsTotal - optionsCovered}`)
+console.log(`  the same option spelled differently:      ${optionsRespelled}`)
+console.log(`  missing:                                  ${optionsTotal - optionsCovered - optionsRespelled}`)
 console.log(`model variants the catalogue offers:        ${modelsTotal}`)
 console.log(`  40kdc names:                              ${modelsCovered} (${pct(modelsCovered, modelsTotal)}%)`)
-console.log(`Marks of Chaos, which 40kdc has no entity for: ${marksTotal}`)
+console.log(`Marks of Chaos, granted by a detachment rather than offered as wargear: ${marksTotal}`)
 console.log(`units with at least one missing option:     ${missingByUnit.size}`)
 if (process.argv.includes('--details')) {
   const worst = [...missingByUnit.values()].toSorted((a, b) => b.missing.length - a.missing.length)
