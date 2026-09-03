@@ -2,4 +2,4 @@
 'praetorium.gg': minor
 ---
 
-Show the action a mission card asks a unit to perform beside what the card pays.
+Show the action each mission asks a unit to perform, named by the side that may perform it.

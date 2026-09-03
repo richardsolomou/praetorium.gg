@@ -4,14 +4,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import type { Side } from '../../sides'
+import { MissionActions } from '../MissionActions'
 import { MissionCardReference } from '../MissionCardReference'
 import { CARD, CARD_NAME, HEADING } from './tints'
 
+import type { MissionAction } from '../../../server/missionActions'
 import type { MissionAward as Award } from '../../missionText'
 
 export type { MissionAward as Award } from '../../missionText'
 
-export type ReferenceCard = ComponentProps<typeof MissionCardReference>['card']
+/** A card, and the action it names, because the reader prints both. */
+export type ReferenceCard = ComponentProps<typeof MissionCardReference>['card'] & { actions: MissionAction[] }
 export type MissionDetails = { name: string; card: ReferenceCard; type: string; mode?: string }
 
 /** What a stratagem actually says, as the detachment page prints it. */
@@ -204,6 +207,7 @@ function MissionDetailsContent({ details }: { details: MissionDetails }) {
         <DialogDescription className="text-dim">What this mission asks you to do and when it scores.</DialogDescription>
       </DialogHeader>
       <MissionCardReference card={details.card} type={details.type} mode={details.mode} />
+      <MissionActions actions={details.card.actions} />
     </DialogContent>
   )
 }

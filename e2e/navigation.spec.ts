@@ -367,6 +367,15 @@ test('terrain layouts open with measurement guidance', async ({ page }) => {
   await expect(dialog.locator('svg[aria-label]').first()).toBeVisible()
 })
 
+test('a matchup lists the action a side may perform beside the mission that asks for it', async ({ page }) => {
+  await page.goto('/mission-matchups/chapter-approved-2026-2027/priority-assets/take-and-hold')
+  const actions = page.locator('section').filter({ has: page.getByRole('heading', { name: /^Actions/ }) })
+  await expect(actions.getByText('SECURE ASSET', { exact: true })).toBeVisible()
+  await expect(actions.getByText('Priority Assets', { exact: true })).toBeVisible()
+  // Inescapable Dominion asks for no action, so the other side is not listed at all.
+  await expect(actions.getByText('Take and Hold', { exact: true })).toHaveCount(0)
+})
+
 test('a player can enter through the roster library and browse the product', async ({ page }) => {
   // Signed out, the library says what it is and asks for an account.
   await page.goto('/rosters')

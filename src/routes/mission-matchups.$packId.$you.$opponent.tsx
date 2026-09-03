@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { MapPinned } from 'lucide-react'
 import { Dialog, DialogTrigger } from '@/components/ui/dialog'
+import { MissionActions } from '../client/components/MissionActions'
 import { MissionCardReference } from '../client/components/MissionCardReference'
 import { TerrainBoard } from '../client/components/TerrainBoard'
 import { TerrainLayoutDialogContent } from '../client/components/TerrainLayoutDialogContent'
@@ -34,6 +35,12 @@ function MissionMatchupPage() {
   const opponentDisposition = data?.dispositions.find((entry) => entry.id === opponent)
   const layouts = terrain?.layouts ?? []
   if (!data || !pack || !yours || !theirs || !yourDisposition || !opponentDisposition) return null
+  // Named by the side whose mission asks for it: a matchup's two missions can ask for
+  // the same action, and which of the two a player may perform is the whole question.
+  const actions = [
+    { mission: yours, disposition: yourDisposition },
+    { mission: theirs, disposition: opponentDisposition },
+  ].flatMap((side) => (side.mission.card?.actions ?? []).map((action) => ({ disposition: side.disposition, action })))
 
   return (
     <main className="w-full">
@@ -75,6 +82,23 @@ function MissionMatchupPage() {
             </div>
           </div>
         </section>
+
+        {actions.length ? (
+          <section className="mt-7">
+            <h2 className="rubric flex justify-between border-b border-edge pb-2">
+              <span>Actions</span>
+              <span className="readout">{actions.length}</span>
+            </h2>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {actions.map((entry) => (
+                <div key={`${entry.disposition.id}-${entry.action.name}`} className="border border-edge bg-panel p-4">
+                  <span className="chip">{entry.disposition.name}</span>
+                  <MissionActions actions={[entry.action]} className="mt-4" />
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="mt-7">
           <h2 className="rubric flex justify-between border-b border-edge pb-2">
