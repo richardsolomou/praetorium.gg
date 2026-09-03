@@ -100,6 +100,15 @@ export type EvaluateOptions = {
    * roster present hides every one of them.
    */
   roster?: readonly Selection[]
+  /**
+   * Whether an army is being mustered, rather than a datasheet being read.
+   *
+   * A datasheet can offer a choice only while mustering — a Mark of Chaos is granted
+   * by a detachment, not by the datasheet that lists it — and says so with a condition
+   * scoped to the force. A reference page is not an army, so it answers no and keeps
+   * describing everything the datasheet can express.
+   */
+  mustering?: boolean
 }
 
 export type ProfileModifier = {
@@ -565,10 +574,17 @@ export function rosterLimit(definition: Definition, index: CatalogueIndex, optio
   return limit
 }
 
+/**
+ * A candidate judged as a roster would hold it. While mustering, the roster is one force,
+ * so the root answers as that force: a condition scoped to the force otherwise finds
+ * nothing to look at and reads as false, and a datasheet's own "only while mustering an
+ * army" never arrives. Ancestors stop at a force node, so the identity is carried by the
+ * root rather than by a layer beneath it.
+ */
 function candidateContext(definition: Definition, index: CatalogueIndex, options: EvaluateOptions, census: Census) {
   const counter = { next: 0 }
   const root: Node = {
-    target: { id: 'roster' },
+    target: options.mustering ? { id: index.forces[0]?.id ?? 'roster', name: index.forces[0]?.name } : { id: 'roster' },
     order: counter.next++,
     catalogueId: options.primaryCatalogueId,
     link: null,

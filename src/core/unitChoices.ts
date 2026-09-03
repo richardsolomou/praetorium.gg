@@ -26,7 +26,7 @@ import {
   scaleOf,
   UNBOUNDED,
 } from './definitions'
-import { evaluate, hiddenByRules, type Selection } from './evaluate'
+import { evaluate, type EvaluateOptions, hiddenByRules, type Selection } from './evaluate'
 import { allAt, at, countAt, withCounts, withSpread } from './selection'
 import { modelCountOf, sizeOf } from './unitSize'
 
@@ -95,7 +95,7 @@ export type UnitChoice = {
 
 export type UnitToggle = { key: string; name: string; selected: boolean }
 
-export type ChoiceOptions = { primaryCatalogueId?: string; depth?: number; roster?: readonly Selection[] }
+export type ChoiceOptions = EvaluateOptions & { depth?: number }
 
 const MODEL_COUNT = /^\d+\s+models?$/i
 
@@ -114,7 +114,8 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
   // question about its surroundings has nothing to look at.
   const roster = [...(options.roster ?? []), selection]
   const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster })
-  const minimum = (definition: Definition) => requiredCount(definition, index, { primaryCatalogueId: options.primaryCatalogueId, roster })
+  const minimum = (definition: Definition) =>
+    requiredCount(definition, index, { primaryCatalogueId: options.primaryCatalogueId, mustering: options.mustering, roster })
   const entry = index.definitions.get(entryId)
   if (!entry) return []
   const resizingGroup = sizeOf(selection, index).path.slice(0, -1)
@@ -155,7 +156,11 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
       let upper: number | null = null
       if (single) upper = 1
       else if (inner.type === 'upgrade' && lower > 0) {
-        upper = maximumCount(child.definition, index, { primaryCatalogueId: options.primaryCatalogueId, roster })
+        upper = maximumCount(child.definition, index, {
+          primaryCatalogueId: options.primaryCatalogueId,
+          mustering: options.mustering,
+          roster,
+        })
       }
       const boundedUpgrade = single || (inner.type === 'upgrade' && lower > 0 && upper !== null && upper > lower)
       const onRepeatedModel = Boolean(repeatingEntry && repeatingEntry.path.length === trail.length)

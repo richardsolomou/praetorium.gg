@@ -46,9 +46,7 @@ export type RosterPick = {
   attachedTo?: number
 }
 
-type BuildContext = {
-  primaryCatalogueId?: string
-  roster?: readonly Selection[]
+type BuildContext = EvaluateOptions & {
   spreads?: Readonly<Record<string, Record<string, number>>>
   toggles?: Readonly<Record<string, number>>
 }

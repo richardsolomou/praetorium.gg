@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile, type Modifier } from './catalogue'
-import { evaluate, evaluateForces, keywordIds, rosterLimit, type Selection } from './evaluate'
+import { evaluate, evaluateForces, hiddenByRules, keywordIds, rosterLimit, selectionCountBounds, type Selection } from './evaluate'
 
 const PTS = 'cost-pts'
 const ENHANCEMENTS = 'cost-enhancements'
@@ -1040,5 +1040,54 @@ describe('a limit written on the datasheet’s own category', () => {
       ],
     })
     expect(rosterLimit(index.definitions.get('immortals')!, index)).toBe(2)
+  })
+})
+
+describe('a choice the datasheet offers only while an army is being mustered', () => {
+  /** A Mark of Chaos: hidden outside an army roster, and compulsory inside one. */
+  const marked = (): Partial<Catalogue> => ({
+    sharedSelectionEntryGroups: [
+      {
+        id: 'mark',
+        name: 'Mark of Chaos',
+        constraints: [
+          { id: 'mark-min', type: 'min', value: 0, field: 'selections', scope: 'parent' },
+          { id: 'mark-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+        ],
+        modifiers: [
+          {
+            type: 'set',
+            field: 'hidden',
+            value: true,
+            conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'force', childId: 'army-roster' }],
+          },
+          {
+            type: 'set',
+            field: 'mark-min',
+            value: 1,
+            conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'force', childId: 'army-roster' }],
+          },
+        ],
+        selectionEntries: [
+          { id: 'khorne', name: 'Khorne', type: 'upgrade' },
+          { id: 'nurgle', name: 'Nurgle', type: 'upgrade' },
+        ],
+      },
+    ],
+  })
+
+  it('reads its force while an army is mustered, rather than answering as though there were none', () => {
+    const index = indexOf(marked())
+    expect(hiddenByRules(index.definitions.get('mark')!, index, { mustering: true })).toBe(true)
+  })
+
+  it('takes the minimum that mustering imposes on it', () => {
+    const index = indexOf(marked())
+    expect(selectionCountBounds(index.definitions.get('mark')!, index, { mustering: true }).minimum).toBe(1)
+  })
+
+  it('stays on the datasheet being read, which is not an army', () => {
+    const index = indexOf(marked())
+    expect(hiddenByRules(index.definitions.get('mark')!, index)).toBe(false)
   })
 })
