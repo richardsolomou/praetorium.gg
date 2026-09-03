@@ -26,7 +26,7 @@ import {
   scaleOf,
   UNBOUNDED,
 } from './definitions'
-import { evaluate, type EvaluateOptions, hiddenByRules, type Selection } from './evaluate'
+import { evaluate, type EvaluateOptions, hiddenByRules, selectionCountBoundsAt, type Selection } from './evaluate'
 import { allAt, at, countAt, withCounts, withSpread } from './selection'
 import { modelCountOf, sizeOf } from './unitSize'
 
@@ -226,7 +226,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
         const scale = repeating
           ? effectiveCount(selection, repeating.path, repeating.definition, index, options)
           : scaleOf(child.definition, index, carriers)
-        const capacity = maximumCount(child.definition, index)
+        const capacity = selectionCountBoundsAt(selection, here, index, options)?.maximum ?? maximumCount(child.definition, index)
         const room = capacity === null ? occupantRoom(choosable, index) : capacity * scale
         const fixed = choosable.some((option) => minimum(option.definition) > 0)
         const dynamic = choosable.some((option) => minimum(option.definition) === 0 && hasDynamicSelectionLimit(option.definition, index))

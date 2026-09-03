@@ -129,7 +129,7 @@ function assemble(
   const governed = (key: string, optionId: string) => requests.some(([other]) => other.startsWith(`${key}/${optionId}/`))
   const spread = requests.reduce((tree, [key, counts]) => {
     const own = Object.entries(counts).filter(([optionId]) => !governed(key, optionId))
-    return own.length ? withUnitSpread(tree, key, Object.fromEntries(own), index) : tree
+    return own.length ? withUnitSpread(tree, key, Object.fromEntries(own), index, context) : tree
   }, composed)
   const toggled = withCounts(
     spread,
@@ -181,7 +181,7 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
       choice.options.every((candidate) => candidate.count === 0)
     const defaultedComposition = isUnitCompositionChoice(choice) && choice.optional && choice.options.length === 1 && option?.points === 0
     if ((!missingRequired && !defaultedComposition) || !option || context?.spreads?.[choice.key] !== undefined) return tree
-    return withUnitSpread(tree, choice.key, { [option.id]: defaultedComposition ? option.max : 1 }, index)
+    return withUnitSpread(tree, choice.key, { [option.id]: defaultedComposition ? option.max : 1 }, index, context)
   }, selection)
   /**
    * A squad the data keeps identical, not split by the building of it.
@@ -207,6 +207,7 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
       choice.key,
       Object.fromEntries(choice.options.map((option) => [option.id, option.id === chosen.id ? choice.room : 0])),
       index,
+      context,
     )
   }, completed)
 

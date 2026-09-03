@@ -515,6 +515,25 @@ export function selectionCountBounds(
 ): { minimum: number; maximum: number | null } {
   const census = new Census()
   const { root, node } = candidateContext(definition, index, options, census)
+  return selectionCountBoundsFor(node, root, index, census)
+}
+
+/** Selection-count bounds for a definition in the unit where its conditions apply. */
+export function selectionCountBoundsAt(
+  selection: Selection,
+  path: readonly string[],
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+): { minimum: number; maximum: number | null } | null {
+  const census = new Census()
+  const candidate = withPath(selection, path)
+  const { root, forces } = rosterContext([[...(options.roster ?? []), candidate]], index, census, options)
+  let node = forces[0]?.children.at(-1)
+  for (const id of path) node = node?.children.find((child) => child.id === id)
+  return node ? selectionCountBoundsFor(node, root, index, census) : null
+}
+
+function selectionCountBoundsFor(node: Node, root: Node, index: CatalogueIndex, census: Census) {
   let minimum = 0
   let maximum: number | null = null
 
@@ -527,6 +546,18 @@ export function selectionCountBounds(
     if (constraint.type === 'max' && value >= 0) maximum = maximum === null ? value : Math.min(maximum, value)
   }
   return { minimum, maximum }
+}
+
+function withPath(selection: Selection, path: readonly string[]): Selection {
+  const [id, ...rest] = path
+  if (!id) return selection
+  const children = [...(selection.selections ?? [])]
+  const at = children.findIndex((child) => child.id === id)
+  const child = children[at] ?? { id, count: 0 }
+  const placed = withPath(child, rest)
+  if (at >= 0) children[at] = placed
+  else children.push(placed)
+  return { ...selection, selections: children }
 }
 
 /**

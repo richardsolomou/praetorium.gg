@@ -382,6 +382,100 @@ describe('specialists in a separately led squad', () => {
   })
 })
 
+describe('a specialist group whose capacity grows with squad size', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'sergeant',
+            name: 'Sergeant',
+            type: 'model',
+            constraints: [
+              ...mandatory('sergeant-min'),
+              { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: 'Models',
+            defaultSelectionEntryId: 'trooper',
+            constraints: [
+              { id: 'models-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+              { id: 'models-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'trooper',
+                name: 'Trooper',
+                type: 'model',
+                constraints: [{ id: 'trooper-max', type: 'max', value: 9, field: 'selections', scope: 'parent' }],
+              },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'special-weapons',
+                name: 'Special weapons',
+                constraints: [{ id: 'special-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                modifiers: [
+                  {
+                    type: 'set',
+                    field: 'special-max',
+                    value: 4,
+                    conditions: [
+                      {
+                        type: 'atLeast',
+                        value: 10,
+                        field: 'selections',
+                        scope: 'unit',
+                        childId: 'model',
+                        includeChildSelections: true,
+                      },
+                    ],
+                  },
+                ],
+                selectionEntries: [
+                  {
+                    id: 'meltagun',
+                    name: 'Meltagun',
+                    type: 'model',
+                    constraints: [{ id: 'meltagun-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                  },
+                  {
+                    id: 'plasma-gun',
+                    name: 'Plasma gun',
+                    type: 'model',
+                    constraints: [{ id: 'plasma-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers four special weapons to a ten-model squad', () => {
+    const atFive = buildUnit('squad', index, 5)?.choices.find((choice) => choice.name === 'Special weapons')
+    const atTen = buildUnit('squad', index, 10)?.choices.find((choice) => choice.name === 'Special weapons')
+    const armed = buildUnit('squad', index, 10, undefined, {
+      spreads: { 'models/special-weapons': { meltagun: 2, 'plasma-gun': 2 } },
+    })
+
+    expect(atFive?.room).toBe(2)
+    expect(atTen?.room).toBe(4)
+    expect(atTen?.options.map(({ max }) => max)).toEqual([2, 2])
+    expect(armed?.choices.find((choice) => choice.name === 'Special weapons')?.options.map(({ count }) => count)).toEqual([2, 2])
+    expect(evaluate(armed ? [armed.selection] : [], index).errors).toEqual([])
+  })
+})
+
 describe('repeated specialist models', () => {
   const index = indexOf({
     sharedSelectionEntries: [

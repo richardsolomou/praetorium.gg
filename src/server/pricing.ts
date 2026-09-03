@@ -101,7 +101,7 @@ function legalReplacementPairs(
       wanted.set(found.choice.key, counts)
     }
     let candidate = selection
-    for (const [key, counts] of wanted) candidate = withUnitSpread(candidate, key, counts, index)
+    for (const [key, counts] of wanted) candidate = withUnitSpread(candidate, key, counts, index, options)
     const rebuilt = unitChoices(entryId, candidate, index, options)
     const rebuiltCount = (found: Found) =>
       rebuilt.find((choice) => choice.key === found.choice.key)?.options.find((option) => option.id === found.option.id)?.count ?? 0
