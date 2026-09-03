@@ -128,6 +128,12 @@ Evaluator work begins with the generated selection because a mismatch can come f
 
 The `coverage` CI job runs this on every pull request. It syncs the catalogue once, snapshots the base and the head against that one `revision.json`, and fails when the head lost any of what the base could say. Construction-name comparisons first discard stale base names that the current Game Datacards snapshot does not enumerate; rules-source-only names are a reported source gap, not coverage the app preserves. A dropped field on an authoritative card still renders, so this gate is the only signal that catches it.
 
+## 40kdc parity
+
+The rules source carries units, points and compositions of its own, so `just parity` measures how much of what the catalogue lets a player choose 40kdc could also express, counted per option rather than per unit. At the released dataset it reaches most wargear options and almost no model variants, and it has no entity for a Mark of Chaos, so it cannot yet drive a loadout. The script prints the current figures and `--details` names the units furthest behind.
+
+`just variants` is the other direction: where 40kdc generates `loadout_variants` from BSData, it checks every generated name against this app's own reading of the same catalogues, and rejects a variant whose equipment id belongs to another unit. Two extractions of one source only agree if both found the same thing, so this side scans the subtree exhaustively rather than walking the shape the generator walks. No released 40kdc carries those variants yet, so the check needs `KDC_CORE` pointed at a checkout that generates them and fails rather than passing on a snapshot that has none.
+
 ## Picker and attachments
 
 - Picker rows are priced through `buildUnit` with the same inputs as the roster. The whole book is available; capping an alphabetically sorted result would otherwise hide datasheets that search can still find.

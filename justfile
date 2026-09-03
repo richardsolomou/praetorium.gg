@@ -88,6 +88,14 @@ descriptions:
 points:
     pnpm catalogue:points
 
+# How much of what the catalogue offers the released 40kdc dataset can also express
+parity *args:
+    pnpm catalogue:parity {{ args }}
+
+# Cross-check 40kdc's generated loadout variants against this app's reading of BSData. Needs KDC_CORE
+variants:
+    pnpm catalogue:variants
+
 # Write everything the app can say about the synced data. Add --compare before.json to list what a snapshot lost
 coverage *args:
     pnpm catalogue:coverage {{ args }}
