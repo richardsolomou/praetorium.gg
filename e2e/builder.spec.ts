@@ -190,6 +190,76 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await context.close()
 })
 
+test('the roster tab comes back to the unit it was left on', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  await context.addInitScript({
+    content: `window.ReactNativeWebView = { postMessage: () => {} };
+${NATIVE_BRIDGE_SCRIPT}`,
+  })
+  const page = await context.newPage()
+  await openBuilder(page)
+  await waitForRosterSave(page, () => add(page, 'Immortals'))
+  await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
+  const rosterUrl = page.url()
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout).toBeVisible()
+  await expect(page).toHaveURL(`${rosterUrl}#roster-pane`)
+
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
+  await sections.getByRole('link', { name: 'Battles' }).click()
+  await expect(page).toHaveURL('/battles')
+
+  // The tab mounts straight onto the open pane, with nothing of the roster's behind it.
+  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await expect(page).toHaveURL(`${rosterUrl}#roster-pane`)
+  await expect(loadout).toBeVisible()
+
+  // The tablet draws the same unit beside the roster, so the pane entry is replaced
+  // where it stands rather than stepped back over and out of the tab.
+  await sections.getByRole('link', { name: 'Battles' }).click()
+  await expect(page).toHaveURL('/battles')
+  await page.setViewportSize({ width: 1194, height: 834 })
+  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await expect(page).toHaveURL(rosterUrl)
+  await expect(loadout).toBeVisible()
+  await expect(loadout).not.toHaveCSS('position', 'fixed')
+
+  await context.close()
+})
+
+test('a unit that moved while the roster was open does not eject the roster tab', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  await context.addInitScript({
+    content: `window.ReactNativeWebView = { postMessage: () => {} };
+${NATIVE_BRIDGE_SCRIPT}`,
+  })
+  const page = await context.newPage()
+  await openBuilder(page)
+  await waitForRosterSave(page, () => add(page, 'Immortals'))
+  await waitForRosterSave(page, () => add(page, 'Lychguard'))
+  await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
+  const rosterUrl = page.url()
+
+  // Deleting the unit in front of it moves Lychguard, so the pane names a place in the
+  // roster that is no longer its own once the workspace is mounted again.
+  await page.locator('[data-unit="Immortals"]').getByLabel('Unit actions for Immortals').click()
+  await waitForRosterSave(page, () => page.getByRole('menuitem', { name: 'Delete unit' }).click())
+  await page.locator('[data-unit="Lychguard"]').getByRole('button', { name: 'Lychguard', exact: true }).click()
+  await expect(page.locator('aside[aria-label="Loadout"]')).toBeVisible()
+
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
+  await sections.getByRole('link', { name: 'Battles' }).click()
+  await expect(page).toHaveURL('/battles')
+
+  // The unit is unresolvable, so the roster it belongs to is what is left of the tab.
+  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await expect(page).toHaveURL(rosterUrl)
+  await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
+
+  await context.close()
+})
+
 test('native roster details keep back actions in one place and participate in browser history', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
