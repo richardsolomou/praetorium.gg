@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.51.1
+
+### Patch Changes
+
+- 64cf604: Keep long roster names, army rows and battle cards inside the screen on a phone.
+- d28ae30: Return to the roster, not the screen before it, when a tab reopens a unit.
+
 ## 0.51.0
 
 ### Minor Changes
