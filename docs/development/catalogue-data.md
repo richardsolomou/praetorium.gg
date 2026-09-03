@@ -126,6 +126,8 @@ Evaluator work begins with the generated selection because a mismatch can come f
 
 `just coverage out.json` (or `pnpm catalogue:coverage out.json`) writes everything the app can say about the synced data — every datasheet's profiles, abilities, model cards, wargear and choices, every detachment's rules, enhancements and stratagems — and `--compare before.json` lists what an earlier snapshot had that this one does not. Source-reading changes compare a `main` snapshot with the changed snapshot so a missing field appears by name. Both runs use the same `revision.json`, because `app()` otherwise refreshes the snapshot from the shared store at startup.
 
+A change that withdraws a choice on purpose reads the same to this job as a field dropped by accident, so `catalogue/accepted-coverage-losses.json` states the withdrawn lines whole, each group with the reason it was withdrawn, and `--accept` takes them out of the count. A line listed there that has stopped being lost fails the run, so the file empties itself rather than growing quietly.
+
 The `coverage` CI job runs this on every pull request. It syncs the catalogue once, snapshots the base and the head against that one `revision.json`, and fails when the head lost any of what the base could say. Construction-name comparisons first discard stale base names that the current Game Datacards snapshot does not enumerate; rules-source-only names are a reported source gap, not coverage the app preserves. A dropped field on an authoritative card still renders, so this gate is the only signal that catches it.
 
 ## Picker and attachments

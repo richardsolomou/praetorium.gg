@@ -29,7 +29,10 @@ process.env.DATABASE_URL ??= 'postgres://coverage:coverage@localhost/coverage'
 process.env.DATA_DIR ??= path.join(os.tmpdir(), 'praetorium-coverage')
 
 const [output, flag, previous] = process.argv.slice(2)
-if (!output) throw new Error('usage: catalogueCoverage.ts <out.json> [--compare <before.json>]')
+if (!output) throw new Error('usage: catalogueCoverage.ts <out.json> [--compare <before.json>] [--accept <withdrawn.json>]')
+const acceptAt = process.argv[process.argv.indexOf('--accept') + 1]
+const accepted: { reason: string; entries: string[] }[] =
+  process.argv.includes('--accept') && acceptAt ? JSON.parse(fs.readFileSync(acceptAt, 'utf8')) : []
 
 const loaded = loadCatalogue(process.env.CATALOGUE_DIR)
 if (!loaded) throw new Error('catalogue unavailable')
@@ -336,8 +339,30 @@ if (flag === '--compare' && previous) {
       }
     }
   }
-  console.log(`\n## lost (${lost.length})`)
-  for (const line of lost) console.log(`  ${line}`)
+  /*
+   * A choice this change withdrew on purpose reads the same as a field it dropped by
+   * accident, and only the person making the change can tell them apart. Each accepted
+   * line is stated whole and with its reason, and a line that has stopped being lost
+   * fails the run, so the list empties itself rather than growing quietly.
+   */
+  const claimed = new Set(accepted.flatMap((group) => group.entries))
+  const withdrawn = lost.filter((line) => claimed.has(line))
+  const stale = [...claimed].filter((line) => !lost.includes(line))
+  const remaining = lost.filter((line) => !claimed.has(line))
+  if (withdrawn.length) {
+    console.log(`\n## withdrawn on purpose (${withdrawn.length})`)
+    for (const group of accepted) {
+      const held = group.entries.filter((entry) => claimed.has(entry) && lost.includes(entry))
+      if (held.length) console.log(`  ${group.reason} (${held.length})`)
+    }
+  }
+  if (stale.length) {
+    console.log(`\n## no longer lost, so no longer accepted (${stale.length})`)
+    for (const line of stale) console.log(`  ${line}`)
+    throw new Error('accepted coverage losses that are no longer lost; remove them')
+  }
+  console.log(`\n## lost (${remaining.length})`)
+  for (const line of remaining) console.log(`  ${line}`)
   console.log(`\n## gained (${gained.length})`)
   for (const line of gained) console.log(`  ${line}`)
 }

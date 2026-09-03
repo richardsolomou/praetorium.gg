@@ -263,7 +263,7 @@ jobs:
           git checkout --quiet --force ${{ github.sha }}
           pnpm install --frozen-lockfile
           rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
-          pnpm catalogue:coverage head.json --compare base.json | tee coverage.txt
+          pnpm catalogue:coverage head.json --compare base.json --accept catalogue/accepted-coverage-losses.json | tee coverage.txt
       - name: Require no lost coverage
         run: |
           set -euo pipefail
