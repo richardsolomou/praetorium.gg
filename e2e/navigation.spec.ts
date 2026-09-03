@@ -697,6 +697,18 @@ test('a dense squad datasheet remains readable at desktop and phone widths', asy
   await page.screenshot({ path: 'test-results/deathwing-terminator-datasheet-phone.png', fullPage: true })
 })
 
+test('an officer datasheet shows how many orders it can issue', async ({ page }) => {
+  await page.goto('/factions/astra-militarum/datasheets/leman-russ-commander')
+  const orders = page.getByRole('heading', { name: 'Orders', exact: true }).locator('..')
+  await expect(orders).toContainText('This Officer can issue 2 Orders to Squadron units.')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(await page.evaluate(() => window.innerWidth))
+  await page.screenshot({ path: 'test-results/officer-orders-datasheet.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/officer-orders-datasheet-phone.png', fullPage: true })
+})
+
 test('each application tab returns to where it was left', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript({

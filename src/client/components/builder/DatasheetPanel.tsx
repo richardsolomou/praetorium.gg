@@ -9,6 +9,7 @@ import { HoverTooltip } from '../HoverTooltip'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList } from '../Keyword'
 import { abilitySections, addedKeywords, attachmentGroups, primaryUnitProfile, referenceAbilities } from '../../datasheet'
 import { RuleText } from '../RuleText'
+import { ProfileRules } from '../ProfileRules'
 
 type Props = {
   catalogueId: string
@@ -82,6 +83,7 @@ export function DatasheetPanel({
         <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} />
       ) : null}
       <AbilitySummary abilities={referenceAbilities(sheet.abilities, sheet.attachments)} rules={sheet.keywordRules} />
+      <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} compact />
       {sheet.referenceRoute ? (
         <div className="border-t border-edge pt-3">
           <div className="flex min-w-0 flex-wrap gap-1">
