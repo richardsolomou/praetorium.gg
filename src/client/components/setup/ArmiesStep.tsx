@@ -96,7 +96,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                     {army.roster ? <ArmyIdentity army={army} token={view.token} list={false} className="mt-0.5" /> : null}
                     <span className="mt-0.5 block text-xs text-dim">
                       {army.roster?.built && army.units.length
-                        ? `${army.units.length} units · ${army.points} of ${army.roster.built.limit} points`
+                        ? `${army.unitCount} units · ${army.points} of ${army.roster.built.limit} points`
                         : army.roster
                           ? 'Imported army'
                           : army.automated

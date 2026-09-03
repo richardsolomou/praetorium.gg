@@ -7,6 +7,7 @@ import {
   leagueBattleOptionsSchema,
   savedRosterDatasheetSchema,
   submitSchema,
+  unitsSchema,
   updateLeagueSchema,
 } from './schemas'
 
@@ -69,6 +70,16 @@ describe('saved roster datasheet input', () => {
 
   it('rejects out-of-range pick indexes', () => {
     expect(savedRosterDatasheetSchema.safeParse({ id: 'roster', pickIndex: 100 }).success).toBe(false)
+  })
+})
+
+describe('unit picker input', () => {
+  it('accepts the retired Colosseum size used by saved rosters', () => {
+    expect(unitsSchema.safeParse({ catalogueId: 'necrons', battleSize: 500 }).success).toBe(true)
+  })
+
+  it('rejects an unknown battle size', () => {
+    expect(unitsSchema.safeParse({ catalogueId: 'necrons', battleSize: 501 }).success).toBe(false)
   })
 })
 

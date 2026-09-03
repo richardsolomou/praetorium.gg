@@ -3,6 +3,7 @@ import { BATTLE_AUDIENCES } from '../core/battleAudience'
 import {
   FORMAT_RULE_IDS,
   GAME_SIZES,
+  isKotcLimit,
   OPTIONAL_RULE_IDS,
   MAX_DETACHMENTS,
   PHASES,
@@ -188,7 +189,7 @@ export const unitsSchema = z.object({
   battleSize: z
     .number()
     .int()
-    .refine((value) => GAME_SIZES.some((size) => size.limit === value))
+    .refine((value) => GAME_SIZES.some((size) => size.limit === value) || isKotcLimit(value))
     .optional(),
   waivedRules,
 })

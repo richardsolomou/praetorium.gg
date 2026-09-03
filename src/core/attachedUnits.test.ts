@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attachedUnitList, attachedUnits, battleUnitCounts } from './attachedUnits'
+import { attachedUnitCount, attachedUnitList, attachedUnits, battleUnitCounts } from './attachedUnits'
 
 const MARINES = { key: 'marines', formationOptions: ['deep-strike'], prebattleRules: ['infiltrators'] }
 const LORD = { key: 'lord', attachedTo: 'marines', formationOptions: ['deep-strike'], prebattleRules: [] }
@@ -47,6 +47,16 @@ describe('attachedUnitList', () => {
 
   it('leaves a unit standing alone with the abilities of its own datasheet', () => {
     expect(attachedUnitList([MARINES])[0]?.prebattleRules).toEqual(['infiltrators'])
+  })
+})
+
+describe('attachedUnitCount', () => {
+  it('counts saved roster positions by the units they form', () => {
+    expect(attachedUnitCount([{ key: 0 }, { key: 1, attachedTo: 0 }, { key: 2, attachedTo: 0 }, { key: 3 }])).toBe(2)
+  })
+
+  it('keeps an attachment whose target is missing as its own unit', () => {
+    expect(attachedUnitCount([{ key: 0, attachedTo: 1 }])).toBe(1)
   })
 })
 

@@ -2332,7 +2332,7 @@ describe('saved rosters', () => {
       detachmentIds: ['awakened-dynasty'],
       disposition: 'reconnaissance',
       limit: 2000,
-      picks: [{ entryId: 'warriors' }],
+      picks: [{ entryId: 'warriors' }, { entryId: 'overlord', attachedTo: 0 }, { entryId: 'plasmacyte', attachedTo: 0 }],
       prep: null,
       visibility: 'private',
       source: 'editable',

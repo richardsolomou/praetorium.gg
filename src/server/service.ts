@@ -23,6 +23,7 @@ import {
   type SubmitResult,
 } from '../core/battle'
 import { type BattleAudience, battleAudience, maySpectate } from '../core/battleAudience'
+import { attachedUnitCount } from '../core/attachedUnits'
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import type { MissionAward } from '../core/scoring'
@@ -665,12 +666,16 @@ export class PraetoriumService {
   }
 
   async savedRosterSummaries(userId: string) {
-    return (await this.repository.rosterSummariesByUser(userId)).map(({ detachmentId, waivedRules, optionalRules, ...row }) => ({
-      ...row,
-      detachmentIds: detachmentIds(detachmentId),
-      waivedRules: waivedRulesFrom(waivedRules),
-      optionalRules: optionalRulesFrom(optionalRules),
-    }))
+    return (await this.repository.rosterSummariesByUser(userId)).map(({ detachmentId, waivedRules, optionalRules, picks, ...row }) => {
+      const units = picksSchema.parse(JSON.parse(picks))
+      return {
+        ...row,
+        detachmentIds: detachmentIds(detachmentId),
+        waivedRules: waivedRulesFrom(waivedRules),
+        optionalRules: optionalRulesFrom(optionalRules),
+        unitCount: attachedUnitCount(units.map((unit, key) => ({ key, attachedTo: unit.attachedTo }))),
+      }
+    })
   }
 
   /**
