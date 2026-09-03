@@ -13,7 +13,7 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   const option = loaded.detachments.get(catalogueId)?.options.find((candidate) => routeSlug(candidate.name) === detachmentSlug)
   if (!detail || !option || !isReferenceDetachment(loaded, rules, faction, option)) return null
   const { catalogue: catalogueDetail, described } = describedEnhancements(loaded, catalogueId, option, detail)
-  const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rule ?? null, detail.rules)
+  const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rules ?? [], detail.rules)
   const enhancements = [
     ...detail.enhancements.map((enhancement) => ({
       name: enhancement.name,
@@ -46,9 +46,15 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
 }
 
 function mergeDetachmentRules(
-  catalogueRule: { name: string; description: string | null } | null,
+  catalogueRules: readonly { name: string; description: string | null }[],
   rules: readonly { name: string; description: string }[],
 ) {
-  if (rules.length || !catalogueRule) return rules
-  return [catalogueRule]
+  const supplied = new Set(rules.map((rule) => routeSlug(rule.name)))
+  const missing = catalogueRules.filter((rule) => {
+    const name = routeSlug(rule.name)
+    if (supplied.has(name)) return false
+    supplied.add(name)
+    return true
+  })
+  return [...rules, ...missing]
 }
