@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.53.4
+
+### Patch Changes
+
+- 9def47d: Allow squad-size rules to increase the number of special weapons available.
+
 ## 0.53.3
 
 ### Patch Changes
