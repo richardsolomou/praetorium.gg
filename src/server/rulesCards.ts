@@ -3,6 +3,7 @@ import path from 'node:path'
 import type { Stratagem, StratagemLimit } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { localizedField, stratagemText } from './datacards'
+import { actionsIn, type MissionAction } from './missionActions'
 import { criteriaIn, criteriaKey, pairCriteria, type Payout } from './missionCriteria'
 import { type MissionPack, readMissionPacks } from './missionPacks'
 import { byName, readOptionalList, titleCase } from './rulesSource'
@@ -147,7 +148,15 @@ export type WhenDrawn = {
   condition: string | null
 }
 
-export type MissionCard = { key: string; name: string; text: string | null; awards: Award[]; whenDrawn: WhenDrawn | null }
+export type MissionCard = {
+  key: string
+  name: string
+  text: string | null
+  awards: Award[]
+  /** What the card asks a unit to do to earn what it pays. */
+  actions: MissionAction[]
+  whenDrawn: WhenDrawn | null
+}
 
 export type LoadedCards = {
   core: Stratagem[]
@@ -169,7 +178,9 @@ export function loadCards(
   const coreStratagems = readOptionalList<RawStratagem>(path.join(core, 'stratagems.json'))
   // What a payout asks for is the mission pack's to say; when it is due is this file's.
   const criteria = criteriaIn(packs)
-  const card = (raw: RawCard) => toCard(raw, criteria.get(criteriaKey(raw.name)) ?? [])
+  // Only the pack prints the actions its missions turn on, under the same card name.
+  const actions = actionsIn(packs)
+  const card = (raw: RawCard) => toCard(raw, criteria.get(criteriaKey(raw.name)) ?? [], actions.get(criteriaKey(raw.name)) ?? [])
   const coreCards = coreCardsByName(datacardsDirectory)
   const loadedCore = [
     ...coreStratagems.map((raw) => {
@@ -296,7 +307,7 @@ export function missionForIn(
  * counting; one that pays a flat amount does not. Anything with no number at all is
  * dropped: a button that scores nothing is worse than no button.
  */
-function toCard(raw: RawCard, payouts: Payout[]): MissionCard {
+function toCard(raw: RawCard, payouts: Payout[], actions: MissionAction[]): MissionCard {
   const awards = (raw.awards ?? [])
     .map((award) => ({
       vp: award.vp ?? award.vp_per ?? 0,
@@ -319,7 +330,14 @@ function toCard(raw: RawCard, payouts: Payout[]): MissionCard {
   // as printed and a fold would leave the two sides counting different things.
   const criteria = pairCriteria(awards, payouts)
   const described = awards.map((award, at) => ({ ...award, criteria: criteria[at] ?? null }))
-  return { key: raw.id, name: raw.name, text: raw.text ?? null, awards: dedupe(described), whenDrawn: toWhenDrawn(raw.when_drawn) }
+  return {
+    key: raw.id,
+    name: raw.name,
+    text: raw.text ?? null,
+    awards: dedupe(described),
+    actions,
+    whenDrawn: toWhenDrawn(raw.when_drawn),
+  }
 }
 
 function toWhenDrawn(raw: RawCard['when_drawn']): WhenDrawn | null {

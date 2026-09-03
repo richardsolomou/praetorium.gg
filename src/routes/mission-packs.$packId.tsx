@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { MissionActions } from '../client/components/MissionActions'
 import { MissionCardReference } from '../client/components/MissionCardReference'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { gameReferencesQuery } from '../client/queries'
@@ -134,6 +135,7 @@ function MissionPackPage() {
             <DialogDescription>Secondary mission</DialogDescription>
           </DialogHeader>
           {secondary ? <MissionCardReference card={secondary} type="Secondary mission" /> : null}
+          {secondary ? <MissionActions actions={secondary.actions} /> : null}
         </DialogContent>
       </Dialog>
     </main>

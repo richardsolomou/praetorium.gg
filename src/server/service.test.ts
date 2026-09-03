@@ -1756,6 +1756,7 @@ describe('battle setup references', () => {
       name: 'Card',
       text: null,
       awards: [],
+      actions: [],
       whenDrawn: null,
     }
     const battle = await configured({
@@ -1806,7 +1807,7 @@ describe('battle setup references', () => {
       criteria: 'Control an objective marker.',
       trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: 2, roundMax: null },
     }
-    const card = { name: 'Card', text: null, whenDrawn: null }
+    const card = { name: 'Card', text: null, actions: [], whenDrawn: null }
     const loaded = {
       ...rules(),
       primaries: [
@@ -1850,7 +1851,7 @@ describe('battle setup references', () => {
       trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: 1, roundMax: null },
     }
     const timingFixedAward = { ...commandAward, mode: 'fixed', trigger: { ...commandAward.trigger, phase: 'movement' } }
-    const card = { name: 'Card', text: null, whenDrawn: null }
+    const card = { name: 'Card', text: null, actions: [], whenDrawn: null }
     const loaded = {
       ...rules(),
       primaries: [
@@ -1901,7 +1902,7 @@ describe('battle setup references', () => {
   })
 
   it('refuses to begin with a fixed mission outside the server deck', async () => {
-    const card = { name: 'Card', text: null, awards: [fixedAward], whenDrawn: null }
+    const card = { name: 'Card', text: null, awards: [fixedAward], actions: [], whenDrawn: null }
     const loaded = {
       ...rules(),
       primaries: [
@@ -1939,7 +1940,7 @@ describe('battle setup references', () => {
   })
 
   it('refuses to begin with tactical-only cards selected as fixed missions', async () => {
-    const card = { name: 'Card', text: null, whenDrawn: null }
+    const card = { name: 'Card', text: null, actions: [], whenDrawn: null }
     const tacticalAward = {
       vp: 5,
       per: null,
@@ -2016,8 +2017,8 @@ describe('battle setup references', () => {
     const loaded = {
       ...rules(),
       primaries: [
-        { key: 'mission-a', name: 'Mission A', text: null, whenDrawn: null, awards: [commandAward] },
-        { key: 'mission-b', name: 'Mission B', text: null, whenDrawn: null, awards: [movementAward] },
+        { key: 'mission-a', name: 'Mission A', text: null, actions: [], whenDrawn: null, awards: [commandAward] },
+        { key: 'mission-b', name: 'Mission B', text: null, actions: [], whenDrawn: null, awards: [movementAward] },
       ],
     }
     const battle = await configured()
@@ -2052,7 +2053,7 @@ describe('battle setup references', () => {
     if (result.outcome === 'appended') battle.setSeq(result.seq)
     result = await battle.send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })
     if (result.outcome === 'appended') battle.setSeq(result.seq)
-    const card = { name: 'Card', text: null, awards: [], whenDrawn: null }
+    const card = { name: 'Card', text: null, awards: [], actions: [], whenDrawn: null }
     const loadedRules = {
       ...rules(),
       primaries: [
