@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.51.3
+
+### Patch Changes
+
+- 75aa8be: Put stratagems first on stacked battle panels and tuck resolved secondary missions behind a reveal control.
+
 ## 0.51.2
 
 ### Patch Changes
