@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attachedUnit, attachmentErrors, attachmentOf } from './attach'
+import { attachedUnit, attachmentErrors, attachmentLimitsOf, attachmentOf } from './attach'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
@@ -349,6 +349,67 @@ describe('attachment legality', () => {
       ],
     })
     expect(attachmentErrors([{ entryId: 'leader', attachedTo: 1 }, { entryId: 'squad' }], index)).toEqual([])
+  })
+
+  it('allows the number of leaders declared by the bodyguard', () => {
+    const leader = (id: string, name: string) => ({
+      id,
+      name,
+      type: 'model' as const,
+      profiles: [ability('Leader', 'This model can be attached to the following unit: CADIAN SHOCK TROOPS')],
+    })
+    const index = indexOf({
+      entryLinks: [{ id: 'shock-troops-link', name: 'Cadian Shock Troops', type: 'selectionEntry', targetId: 'shock-troops' }],
+      sharedSelectionEntries: [
+        leader('ursula-creed', 'Ursula Creed'),
+        {
+          ...leader('command-squad', 'Cadian Command Squad'),
+          categoryLinks: [{ id: 'command-squad-link', targetId: 'command-squad-category', name: 'Command Squad' }],
+        },
+        leader('castellan', 'Cadian Castellan'),
+        {
+          id: 'shock-troops',
+          name: 'Cadian Shock Troops',
+          type: 'unit',
+          constraints: [
+            {
+              id: 'leader-limit',
+              childName: 'Leader',
+              field: 'associations',
+              scope: 'self',
+              type: 'max',
+              value: 2,
+            },
+            {
+              id: 'command-squad-limit',
+              childId: 'command-squad-category',
+              childName: 'Command Squad',
+              field: 'associations',
+              scope: 'self',
+              type: 'max',
+              value: 1,
+            },
+          ],
+        },
+      ],
+    })
+    const twoLeaders = [
+      { entryId: 'ursula-creed', attachedTo: 2 },
+      { entryId: 'command-squad', attachedTo: 2 },
+      { entryId: 'shock-troops-link' },
+    ]
+
+    expect(attachmentLimitsOf(index.definitions.get('shock-troops-link')!, index).leader).toBe(2)
+    expect(attachmentErrors(twoLeaders, index)).toEqual([])
+    expect(attachmentErrors([...twoLeaders, { entryId: 'castellan', attachedTo: 2 }], index)[0]?.message).toBe(
+      'cannot lead Cadian Shock Troops, which already has 2 Leaders',
+    )
+    expect(
+      attachmentErrors(
+        [{ entryId: 'command-squad', attachedTo: 2 }, { entryId: 'command-squad', attachedTo: 2 }, { entryId: 'shock-troops-link' }],
+        index,
+      )[0]?.message,
+    ).toBe('cannot be attached to Cadian Shock Troops, which already has 1 Command Squad')
   })
 
   it('allows one leader and one support, then refuses another of either kind', () => {

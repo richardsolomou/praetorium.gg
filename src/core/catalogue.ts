@@ -135,6 +135,8 @@ export type Constraint = {
   value: number
   field: string
   scope: string
+  childId?: string
+  childName?: string
   shared?: boolean
   includeChildSelections?: boolean
   percentValue?: boolean
