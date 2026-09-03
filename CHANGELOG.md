@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.51.2
+
+### Patch Changes
+
+- c7e4628: Hold a Wolf Scouts import to the six or twelve models the datasheet offers.
+
 ## 0.51.1
 
 ### Patch Changes
