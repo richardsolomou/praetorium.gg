@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.53.2
+
+### Patch Changes
+
+- 289dd2a: Show each officer's Orders limit and eligible units on its datasheet.
+
 ## 0.53.1
 
 ### Patch Changes
