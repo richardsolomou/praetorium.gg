@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.53.8
+
+### Patch Changes
+
+- 06262a1: Show unconditional weapon abilities granted by a detachment on eligible units.
+
 ## 0.53.7
 
 ### Patch Changes
