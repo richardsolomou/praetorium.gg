@@ -29,3 +29,11 @@ export function primaryCards(references: References) {
   }
   return [...found.values()]
 }
+
+export function missionCardsByKey(references: References) {
+  const found = new Map<string, ReturnType<typeof primaryCards>[number]>()
+  for (const card of [...primaryCards(references), ...secondaryCards(references)]) {
+    if (!found.has(card.key)) found.set(card.key, card)
+  }
+  return found
+}

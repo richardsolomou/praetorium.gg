@@ -196,6 +196,18 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   const drawn = await hand.evaluateAll((cards) => cards.map((card) => card.getAttribute('data-secondary')))
   for (const key of drawn) await expect(bob.locator(`[data-secondary="${key}"]`)).toBeVisible()
 
+  const spectator = await (await browser.newContext(desktopContext)).newPage()
+  await spectator.goto(alice.url())
+  const spectatorMission = spectator
+    .locator('[data-secondary]')
+    .getByRole('button', { name: /^Read / })
+    .first()
+  await expect(spectatorMission).toBeVisible()
+  const missionName = (await spectatorMission.getAttribute('aria-label'))?.replace(/^Read /, '')
+  await spectatorMission.click()
+  await expect(spectator.getByRole('dialog', { name: missionName })).toBeVisible()
+  await expect(spectator.getByText('Spectators can follow the score, armies, and event log without changing the battle.')).toHaveCount(0)
+
   // The side panel is the way out of a battle to whoever is playing it and to what
   // they brought. It is written there once: with both panels on screen at this width
   // the scoreboard is left to the score.

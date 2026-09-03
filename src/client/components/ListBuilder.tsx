@@ -423,6 +423,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     data: priced,
     dataUpdatedAt: pricedAt,
     isPlaceholderData: pricePending,
+    isPending: priceLoading,
   } = useQuery({
     ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned, waivedRules, borrowedDetachmentId, optionalRules),
     /**
@@ -455,6 +456,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   }, [picks, pricePending, priced, pricedAt])
 
   const units = priced?.units ?? NO_UNITS
+  const rosterLoading = priceLoading && picks.length > 0
   const edit = useMemo(() => pickEditor(setPicks, { catalogueId, units }, allocateKey), [allocateKey, catalogueId, setPicks, units])
   const editor = useRef({ edit, pickCount: picks.length })
   useLayoutEffect(() => {
@@ -520,6 +522,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const over = Boolean(priced && priced.points > limit)
   const selectedUnit = selected === null ? null : (units[selected] ?? null)
   const selectedPick = selected === null ? null : (picks[selected] ?? null)
+  const selectedUnitLoading = selected !== null && !selectedUnit
   const evaluatedPick = selectedPick ? (evaluatedPicks.current.get(selectedPick.key) ?? null) : null
   const loadoutConstraintsPending = Boolean(
     selectedUnit && selectedPick?.models !== undefined && selectedPick.models !== selectedUnit.size.models,
@@ -586,6 +589,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     <Loadout
       catalogueId={loadoutCatalogueId}
       unit={optimisticUnit}
+      loading={selectedUnitLoading}
       detachmentIds={detachmentIds}
       picks={positioned}
       pickIndex={selected}
@@ -865,6 +869,16 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                 </Section>
               ) : null
             })
+          ) : rosterLoading ? (
+            <output className="block py-3" aria-label="Loading roster units">
+              <span className="sr-only">Loading roster units…</span>
+              <span className="mb-3 block h-4 w-28 animate-pulse bg-raised" />
+              <span className="grid gap-2">
+                {picks.map((pick) => (
+                  <span key={pick.key} className="block h-24 animate-pulse border border-edge bg-card" />
+                ))}
+              </span>
+            </output>
           ) : faction ? (
             <p className="py-6 text-sm text-faint">{editable ? 'Pick a unit to start building.' : 'This roster has no units.'}</p>
           ) : (
@@ -874,7 +888,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
 
         <Pane
           variant="loadout"
-          open={showing === 'loadout' && Boolean(selectedUnit || preview)}
+          open={showing === 'loadout' && Boolean(selected !== null || preview)}
           threeColumn={editable}
           title={preview?.name ?? selectedUnit?.name ?? 'Unit'}
           ariaLabel={preview ? 'Datasheet' : 'Loadout'}
@@ -957,7 +971,9 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
       <footer className="sticky bottom-0 z-20 border-t border-edge bg-panel px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-2">
-            {over ? (
+            {rosterLoading ? (
+              <span className="size-5 animate-pulse bg-raised" aria-hidden />
+            ) : over ? (
               <TriangleAlert className="size-5 text-destructive" aria-hidden />
             ) : (
               <Check className={`size-5 ${units.length ? 'text-achieved' : 'text-faint'}`} aria-hidden />
@@ -966,9 +982,9 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
              * The mark is the legality statement, and a mark alone says nothing to
              * anyone who cannot see it: it is the whole answer to "can I play this".
              */}
-            <span className="sr-only">{over ? 'Over the points limit' : 'Within the points limit'}</span>
+            {rosterLoading ? null : <span className="sr-only">{over ? 'Over the points limit' : 'Within the points limit'}</span>}
             <span data-stat="points" className={`readout text-xl font-bold ${over ? 'text-destructive' : 'text-info'}`}>
-              {priced?.points ?? 0}/{limit}
+              {rosterLoading ? <span aria-label="Loading roster points">…</span> : (priced?.points ?? 0)}/{limit}
             </span>
             <span className="eyebrow">points</span>
           </span>

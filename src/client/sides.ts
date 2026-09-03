@@ -196,7 +196,7 @@ export function facingSides(view: BattleView): { yours: Side | undefined; theirs
 }
 
 /** What a side is called: every player on it, in seating order. */
-export function sideName(side: Side): string {
+export function sideName(side: { armies: readonly { playerName: string }[] }): string {
   return side.armies.map((army) => army.playerName).join(' & ')
 }
 

@@ -22,6 +22,7 @@ import { ModelCard } from './ModelCard'
 type Props = {
   catalogueId: string
   unit: LoadoutUnit | null
+  loading?: boolean
   detachmentIds: readonly string[]
   picks: readonly RosterPick[]
   pickIndex: number | null
@@ -46,6 +47,7 @@ type Props = {
 export function Loadout({
   catalogueId,
   unit,
+  loading = false,
   detachmentIds,
   picks,
   pickIndex,
@@ -103,6 +105,7 @@ export function Loadout({
   // has to be visible before the choice is made rather than after.
   const availableSheet = sheets?.available
 
+  if (loading) return <LoadoutLoading />
   if (!unit) {
     return (
       <div className="flex h-full items-center justify-center p-6">

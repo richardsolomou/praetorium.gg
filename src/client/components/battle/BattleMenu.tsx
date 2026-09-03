@@ -13,14 +13,15 @@ import {
 } from '@/components/ui/alert-dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
-type Ending = { label: string; description: string; destructive: boolean; act: () => void }
+type Ending = { key: string; label: string; description: string; destructive: boolean; act: () => void }
 
 type Props = {
   finished: boolean
   canDelete: boolean
   pending: boolean
+  players: readonly { id: string; name: string; isViewer: boolean; automated: boolean }[]
   onFinishEarly: () => void
-  onConcede: () => void
+  onConcede: (playerId: string) => void
   onReopen: () => void
   onDelete: () => void
 }
@@ -31,24 +32,30 @@ type Props = {
  * Each is rare, and none is undone by pressing the same button again, so they sit
  * behind a menu and a confirmation rather than in reach of a thumb all game.
  */
-export function BattleMenu({ finished, canDelete, pending, onFinishEarly, onConcede, onReopen, onDelete }: Props) {
+export function BattleMenu({ finished, canDelete, pending, players, onFinishEarly, onConcede, onReopen, onDelete }: Props) {
   const [confirming, setConfirming] = useState<Ending | null>(null)
   // Reopening is undone by finishing again, so it asks for nothing. Ending and deleting cannot be.
   const endings: Ending[] = finished
-    ? [{ label: 'Reopen battle', description: '', destructive: false, act: onReopen }]
+    ? [{ key: 'reopen', label: 'Reopen battle', description: '', destructive: false, act: onReopen }]
     : [
         {
+          key: 'finish',
           label: 'Finish early',
           description: 'This records the current score as final. You can reopen the battle afterward.',
           destructive: true,
           act: onFinishEarly,
         },
-        {
-          label: 'Concede battle',
-          description: 'This records that you conceded and ends the battle for every player.',
-          destructive: true,
-          act: onConcede,
-        },
+        ...players
+          .filter((player) => !player.automated)
+          .map((player) => ({
+            key: `concede:${player.id}`,
+            label: player.isViewer ? 'Concede battle' : `Concede for ${player.name}`,
+            description: player.isViewer
+              ? 'This records that you conceded and ends the battle for every player.'
+              : `This records that ${player.name} conceded and ends the battle for every player.`,
+            destructive: true,
+            act: () => onConcede(player.id),
+          })),
       ]
 
   return (
@@ -62,7 +69,7 @@ export function BattleMenu({ finished, canDelete, pending, onFinishEarly, onConc
         <DropdownMenuContent align="end">
           {endings.map((ending) => (
             <DropdownMenuItem
-              key={ending.label}
+              key={ending.key}
               variant={ending.destructive ? 'destructive' : undefined}
               onClick={() => (ending.destructive ? setConfirming(ending) : ending.act())}
             >
@@ -74,6 +81,7 @@ export function BattleMenu({ finished, canDelete, pending, onFinishEarly, onConc
               variant="destructive"
               onClick={() =>
                 setConfirming({
+                  key: 'delete',
                   label: 'Delete battle',
                   description: 'This permanently deletes the battle, including its scores and history.',
                   destructive: true,

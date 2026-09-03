@@ -4,14 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
-import { primaryCards, secondaryCards } from '../missionDeck'
+import { missionCardsByKey, primaryCards, secondaryCards } from '../missionDeck'
 import { appliesInMode } from '../missionText'
 import { automaticAttemptsExhausted, claimAutomaticAttempt } from '../automaticAttempts'
 import { errorMessage } from '../queryClient'
 import { armyRulesRequest } from '../sideRules'
-import { type Side, type SideMission, sideName, sides } from '../sides'
+import { type Side, type SideMission, sides } from '../sides'
 import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
+import { battleOutcome } from '../battleOutcome'
 import { BattleMenu } from './battle/BattleMenu'
 import { DrawDialog, type WhenDrawn } from './battle/DrawDialog'
 import { DiscardSecondaryDialog } from './battle/DiscardSecondaryDialog'
@@ -96,13 +97,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   // The cards are the instance's, not a side's: one deck, read the same way for both.
   const primaryDeck = useMemo(() => primaryCards(references), [references])
   const secondaryDeck = useMemo(() => secondaryCards(references), [references])
-  const deck = useMemo(() => [...primaryDeck, ...secondaryDeck], [primaryDeck, secondaryDeck])
-  // The first card claiming a key answers for it, the way `find` over the deck did.
-  const cardsByKey = useMemo(() => {
-    const cards = new Map<string, ReferenceCard>()
-    for (const card of deck) if (!cards.has(card.key)) cards.set(card.key, card)
-    return cards
-  }, [deck])
+  const cardsByKey = useMemo(() => missionCardsByKey(references), [references])
   const awardsFor = useCallback(
     (key: string, mode?: string): Award[] => (cardsByKey.get(key)?.awards ?? []).filter((award) => appliesInMode(award, mode)),
     [cardsByKey],
@@ -258,7 +253,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
 
   return (
     <main data-battle-tracker className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
-      <Scoreboard view={view} sides={table} outcome={finished ? outcome(table, view) : null} />
+      <Scoreboard view={view} sides={table} outcome={finished ? battleOutcome(table, view) : null} />
 
       {/* Nobody across the table yet means neither a tab nor a column for them. */}
       <Tabs value={focus} onValueChange={(value) => setFocus(value as Focus)} className="lg:hidden">
@@ -377,8 +372,9 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
                 finished={finished}
                 canDelete={view.creatorId === view.viewerId}
                 pending={pending || remove.isPending}
+                players={view.players}
                 onFinishEarly={() => send({ kind: 'end-battle', reason: 'finished-early' })}
-                onConcede={() => send({ kind: 'end-battle', reason: 'conceded', concededBy: view.viewerId })}
+                onConcede={(playerId) => send({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
                 onReopen={() => send({ kind: 'reopen-battle' })}
                 onDelete={() => remove.mutate()}
               />
@@ -515,18 +511,6 @@ function formatName(table: Side[]) {
     .map((side) => side.armies.length)
     .toSorted((left, right) => right - left)
     .join('v')
-}
-
-function outcome(table: Side[], view: BattleView) {
-  if (view.result?.reason === 'conceded') {
-    const conceded = view.players.find((player) => player.id === view.result?.concededBy)?.side
-    const winner = table.find((side) => side.index !== conceded)
-    return winner ? `${sideName(winner)} win by concession` : 'Battle conceded'
-  }
-  const [first, second] = table.toSorted((left, right) => right.total - left.total)
-  if (!first) return 'No result'
-  if (!second) return `Final score ${first.total}`
-  return first.total === second.total ? `Drawn at ${first.total}` : `${sideName(first)} win ${first.total}–${second.total}`
 }
 
 function resultLabel(view: BattleView) {

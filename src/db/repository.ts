@@ -723,6 +723,7 @@ export class Repository {
         seated.map((player) => player.id),
         log,
         seated.map((player) => player.side),
+        seated.filter((player) => player.automated).map((player) => player.id),
       )
       if (input.expectedSeq !== state.seq) return { result: { outcome: 'stale', seq: state.seq }, log }
       const command = resolveCommand(state, input.command)

@@ -567,6 +567,7 @@ export class PraetoriumService {
         players.map((player) => player.id),
         log,
         players.map((player) => player.side),
+        players.filter((player) => player.automated).map((player) => player.id),
       )
       const viewerSide = state.players.find((player) => player.id === viewerId)?.side ?? 0
       const opposingSide = state.players.find((player) => player.side !== viewerSide)?.side
@@ -1033,6 +1034,7 @@ export class PraetoriumService {
       history.players.map((player) => player.id),
       history.log,
       history.players.map((player) => player.side),
+      history.players.filter((player) => player.automated).map((player) => player.id),
     )
     if (rules) hydrateAuthoritativeAwards(state, rules)
     const view = battleView(history.battle, history.players, state, userId, this.clock())
