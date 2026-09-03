@@ -1,1 +1,6 @@
-[]
+[
+  {
+    "reason": "The Sternguard Veteran Sergeant regains three melee rows that the conditional limit hid, replacing the incomplete two-row model summary.",
+    "entries": ["black-templars / Sternguard Veteran Squad roster models: Sternguard Veteran Sergeant (2 rows, 2 fixed)"]
+  }
+]
