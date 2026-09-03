@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.53.7
+
+### Patch Changes
+
+- cc1cf40: Keep the unit picker available when opening saved 500-point King of the Colosseum rosters.
+- cc1cf40: Count attached datasheets as one unit in roster summaries.
+
 ## 0.53.6
 
 ### Patch Changes

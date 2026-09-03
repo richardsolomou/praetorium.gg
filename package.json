@@ -1,6 +1,6 @@
 {
   "name": "praetorium.gg",
-  "version": "0.53.6",
+  "version": "0.53.7",
   "private": true,
   "description": "Build Warhammer 40,000 armies and track games from setup to final score.",
   "license": "AGPL-3.0-only",
