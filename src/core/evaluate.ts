@@ -565,10 +565,17 @@ export function rosterLimit(definition: Definition, index: CatalogueIndex, optio
   return limit
 }
 
+/**
+ * A candidate judged as a roster would hold it. The roster is one force, so the root
+ * answers as that force: a condition scoped to the force otherwise finds nothing to
+ * look at and reads as false, and a datasheet's own "only while mustering an army"
+ * never arrives. Ancestors stop at a force node, so this identity is carried by the
+ * root rather than by a layer beneath it.
+ */
 function candidateContext(definition: Definition, index: CatalogueIndex, options: EvaluateOptions, census: Census) {
   const counter = { next: 0 }
   const root: Node = {
-    target: { id: 'roster' },
+    target: { id: index.forces[0]?.id ?? 'roster', name: index.forces[0]?.name },
     order: counter.next++,
     catalogueId: options.primaryCatalogueId,
     link: null,
