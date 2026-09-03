@@ -33,6 +33,8 @@
     "catalogue:check": "tsx scripts/syncCatalogue.ts --check",
     "catalogue:descriptions": "tsx scripts/checkDescriptions.ts",
     "catalogue:terrain": "tsx scripts/checkTerrain.ts",
+    "catalogue:parity": "node --max-old-space-size=8192 --import tsx scripts/check40kdcParity.ts",
+    "catalogue:variants": "tsx scripts/check40kdcVariants.ts",
     "catalogue:sync": "tsx scripts/syncCatalogue.ts",
     "catalogue:snapshot": "tsx scripts/catalogueSnapshot.ts",
     "catalogue:update": "tsx scripts/syncCatalogue.ts --update",
