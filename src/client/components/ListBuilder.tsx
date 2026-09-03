@@ -141,6 +141,8 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const paneAfterHistoryBack = useRef<RosterPaneHistory | null>(null)
   const paneHistoryBackPending = useRef(false)
   const paneClosing = useRef(false)
+  /** The history entry this workspace opened on, which nothing here may step behind. */
+  const openedAt = useRef(router.history.location.state.__TSR_index)
   const editingSetup = setupDraft !== null
   const { data: loadedFaction } = useQuery({
     ...factionQuery(catalogueId),
@@ -165,14 +167,23 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const { data: owned } = useQuery({ ...collectionQuery(), enabled: editable && pickerEnabled })
   const collection = useMemo(() => new Set(owned ?? []), [owned])
   const { mutate: mutateCollection } = useCollectionMutation()
+  /*
+   * Leave the pane entry, keeping `next` open behind it.
+   *
+   * Stepping back is only safe over an entry stacked on top of the one this workspace
+   * opened on. A restored tab, a reload or a shared link mounts straight onto an open
+   * pane, and what sits behind that belongs to whatever opened the roster — the same
+   * step would leave the roster altogether. That entry is replaced in place instead.
+   */
   const backFromPane = useCallback(
     (next: RosterPaneHistory | null = null) => {
       if (paneHistoryBackPending.current) return
       paneHistoryBackPending.current = true
       paneAfterHistoryBack.current = next
-      router.history.back()
+      if (router.history.location.state.__TSR_index > openedAt.current) router.history.back()
+      else void navigate({ href: path, replace: true, resetScroll: false, state: (current) => ({ ...current, rosterPane: undefined }) })
     },
-    [router],
+    [navigate, path, router],
   )
 
   useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
@@ -298,12 +309,15 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     [backFromPane, loadoutInline, paneHistory, pushPaneHistory],
   )
 
+  // A pane the workspace is wide enough to draw in place no longer needs a history
+  // entry of its own. The widths are the desktop defaults until the layout effect
+  // above measures them, so a mount that lands on an open pane has to wait for that.
   useEffect(() => {
-    if (!paneHistory) return
+    if (!paneHistory || !workspaceMeasured) return
     const becameInline = paneHistory.pane === 'picker' ? wideWorkspace : loadoutInline
     if (!becameInline) return
     backFromPane(paneHistory)
-  }, [backFromPane, loadoutInline, paneHistory, wideWorkspace])
+  }, [backFromPane, loadoutInline, paneHistory, wideWorkspace, workspaceMeasured])
 
   useEffect(() => {
     if (showing === null) {
