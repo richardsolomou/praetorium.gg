@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.53.3
+
+### Patch Changes
+
+- fa1ab0c: Show every available detachment rule, including keyword definitions.
+
 ## 0.53.2
 
 ### Patch Changes
