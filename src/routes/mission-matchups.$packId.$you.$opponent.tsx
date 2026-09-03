@@ -35,12 +35,13 @@ function MissionMatchupPage() {
   const opponentDisposition = data?.dispositions.find((entry) => entry.id === opponent)
   const layouts = terrain?.layouts ?? []
   if (!data || !pack || !yours || !theirs || !yourDisposition || !opponentDisposition) return null
-  // Named by the side whose mission asks for it: a matchup's two missions can ask for
-  // the same action, and which of the two a player may perform is the whole question.
-  const actions = [
-    { mission: yours, disposition: yourDisposition },
-    { mission: theirs, disposition: opponentDisposition },
-  ].flatMap((side) => (side.mission.card?.actions ?? []).map((action) => ({ disposition: side.disposition, action })))
+  // Each side keeps its own column, in the order the two missions are drawn above:
+  // a matchup's two missions can ask for the same action, and an action shown under
+  // the wrong side is worse than one a player has to look across the page for.
+  const sides = [
+    { seat: 'yours', mission: yours, disposition: yourDisposition },
+    { seat: 'theirs', mission: theirs, disposition: opponentDisposition },
+  ].map((side) => ({ ...side, actions: side.mission.card?.actions ?? [] }))
 
   return (
     <main className="w-full">
@@ -83,17 +84,21 @@ function MissionMatchupPage() {
           </div>
         </section>
 
-        {actions.length ? (
+        {sides.some((side) => side.actions.length) ? (
           <section className="mt-7">
             <h2 className="rubric flex justify-between border-b border-edge pb-2">
               <span>Actions</span>
-              <span className="readout">{actions.length}</span>
+              <span className="readout">{sides.reduce((total, side) => total + side.actions.length, 0)}</span>
             </h2>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              {actions.map((entry) => (
-                <div key={`${entry.disposition.id}-${entry.action.name}`} className="border border-edge bg-panel p-4">
-                  <span className="chip">{entry.disposition.name}</span>
-                  <MissionActions actions={[entry.action]} className="mt-4" />
+            <div className="mt-3 grid items-start gap-3 md:grid-cols-2">
+              {sides.map((side) => (
+                <div key={side.seat} className="border border-edge bg-panel p-4">
+                  <span className="chip">{side.disposition.name}</span>
+                  {side.actions.length ? (
+                    <MissionActions actions={side.actions} className="mt-4" />
+                  ) : (
+                    <p className="mt-4 text-sm text-dim">{side.mission.name} asks for no action.</p>
+                  )}
                 </div>
               ))}
             </div>

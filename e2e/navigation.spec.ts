@@ -367,13 +367,16 @@ test('terrain layouts open with measurement guidance', async ({ page }) => {
   await expect(dialog.locator('svg[aria-label]').first()).toBeVisible()
 })
 
-test('a matchup lists the action a side may perform beside the mission that asks for it', async ({ page }) => {
-  await page.goto('/mission-matchups/chapter-approved-2026-2027/priority-assets/take-and-hold')
-  const actions = page.locator('section').filter({ has: page.getByRole('heading', { name: /^Actions/ }) })
-  await expect(actions.getByText('SECURE ASSET', { exact: true })).toBeVisible()
-  await expect(actions.getByText('Priority Assets', { exact: true })).toBeVisible()
-  // Inescapable Dominion asks for no action, so the other side is not listed at all.
-  await expect(actions.getByText('Take and Hold', { exact: true })).toHaveCount(0)
+test('a matchup keeps each action in the column of the side whose mission asks for it', async ({ page }) => {
+  // Priority Assets asks for the action here, and it is the side drawn second, so an
+  // action packed into the first free column would read as the other side's.
+  await page.goto('/mission-matchups/chapter-approved-2026-2027/take-and-hold/priority-assets')
+  const panels = page
+    .locator('section')
+    .filter({ has: page.getByRole('heading', { name: /^Actions/ }) })
+    .locator('.bg-panel')
+  await expect(panels.nth(0)).toContainText('Inescapable Dominion asks for no action.')
+  await expect(panels.nth(1)).toContainText('SECURE ASSET')
 })
 
 test('a player can enter through the roster library and browse the product', async ({ page }) => {
