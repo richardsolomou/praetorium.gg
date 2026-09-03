@@ -622,7 +622,7 @@ export function heldWargear(
     ]),
   )
   for (const choice of choices) {
-    if (choice.name && isUnitCompositionChoice({ name: choice.name })) continue
+    if (choice.name && isUnitCompositionChoice({ name: choice.name, options: choice.options })) continue
     for (const option of choice.options) {
       if (option.count <= 0 || modeled.has(replacementKey({ choiceKey: choice.key, optionId: option.id }))) continue
       const pieces = option.pieceCounts ?? (option.name ? [{ name: option.name, count: option.count }] : [])

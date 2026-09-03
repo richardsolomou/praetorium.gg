@@ -97,7 +97,16 @@ export type UnitToggle = { key: string; name: string; selected: boolean }
 
 export type ChoiceOptions = { primaryCatalogueId?: string; depth?: number; roster?: readonly Selection[] }
 
-export const isUnitCompositionChoice = ({ name }: Pick<UnitChoice, 'name'>) => name.trim().toLocaleLowerCase() === 'unit composition'
+const MODEL_COUNT = /^\d+\s+models?$/i
+
+/**
+ * A group that picks how many models the squad fields rather than what they carry.
+ * Nearly every datasheet titles it "Unit composition"; Wolf Scouts names it after the
+ * unit and says so only in its options, which are model counts and nothing else.
+ */
+export const isUnitCompositionChoice = ({ name, options }: { name: string; options: readonly { name?: string }[] }) =>
+  name.trim().toLocaleLowerCase() === 'unit composition' ||
+  (options.length > 0 && options.every((option) => MODEL_COUNT.test(option.name?.trim() ?? '')))
 
 export function unitChoices(entryId: string, selection: Selection, index: CatalogueIndex, options: ChoiceOptions = {}): UnitChoice[] {
   const depth = options.depth ?? MAX_DEPTH
