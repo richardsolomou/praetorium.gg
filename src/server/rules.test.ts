@@ -538,6 +538,39 @@ describe('mission cards', () => {
   it('keep which style of play a payout belongs to', () => {
     expect(load().secondaries[0]?.awards[0]?.mode).toBe('tactical')
   })
+
+  /**
+   * The action is printed by the datacards pack and the card is named by the rules
+   * source, and the two are joined by the card's name alone. They are separately
+   * maintained community sources, so a rename on either side has to fail here rather
+   * than silently dropping the action the card's points depend on.
+   */
+  it('carry the action their pack prints for them', () => {
+    const missions = path.join(directory, 'datacards', '11th', 'gdc', 'missions')
+    fs.mkdirSync(missions, { recursive: true })
+    write(path.join(missions, 'pack-a.json'), {
+      name: { en: 'Pack A' },
+      secondaryMissions: [
+        { name: { en: 'Assassination' }, actions: [{ name: { en: 'MARK THE TARGET' }, effectText: { en: 'Your unit marks it.' } }] },
+      ],
+    })
+
+    expect(load().secondaries[0]?.actions).toEqual([
+      {
+        name: 'MARK THE TARGET',
+        starts: null,
+        completes: null,
+        effect: 'Your unit marks it.',
+        units: null,
+        useLimit: null,
+        restriction: null,
+      },
+    ])
+  })
+
+  it('carry no action for a card whose pack prints none', () => {
+    expect(load().secondaries[0]?.actions).toEqual([])
+  })
 })
 
 describe('the mission', () => {

@@ -1,3 +1,4 @@
+import type { MissionAction } from '../../server/missionActions'
 import {
   appliesInMode,
   conditionLabel,
@@ -24,7 +25,7 @@ export function MissionCardReference({
   type,
   mode,
 }: {
-  card: { name: string; text: string | null; awards: Award[] }
+  card: { name: string; text: string | null; awards: Award[]; actions: MissionAction[] }
   type: string
   /** The side's secondary mode, when it is known. Unset shows every way it can pay. */
   mode?: string
@@ -48,6 +49,9 @@ export function MissionCardReference({
       <div className="mt-4 space-y-3">
         {[...groups.values()].map((awards) => (
           <ScoringBlock key={groupKey(awards[0]!)} awards={awards} />
+        ))}
+        {card.actions.map((action) => (
+          <ActionBlock key={action.name} action={action} />
         ))}
       </div>
     </article>
@@ -86,6 +90,34 @@ function ScoringBlock({ awards }: { awards: Award[] }) {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+/**
+ * The action the card names, which is how most of what it pays is earned.
+ *
+ * Written out the way a stratagem is, in the pack's own words and in the order it
+ * prints them, beneath the payouts that depend on it. A line the pack does not state
+ * is left out rather than shown empty, so an action with no restriction states none.
+ */
+function ActionBlock({ action }: { action: MissionAction }) {
+  const lines: [string, string | null][] = [
+    ['Starts', action.starts],
+    ['Completes', action.completes],
+    ['Effect', action.effect],
+    ['Units', action.units],
+    ['Use limit', action.useLimit],
+    ['Restriction', action.restriction],
+  ]
+  const text = lines.flatMap(([label, line]) => (line ? [`**${label}:** ${line}`] : [])).join('\n\n')
+  return (
+    <div className="border border-edge bg-sunken p-3">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <span className="chip">Action</span>
+        <span className="text-base font-bold text-bone uppercase">{action.name}</span>
+      </div>
+      {text ? <RuleText text={text} className="mt-3 text-base text-bone" /> : null}
     </div>
   )
 }

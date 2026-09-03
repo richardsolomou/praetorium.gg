@@ -35,6 +35,7 @@ describe('mission card reference', () => {
             award(6, 'Have a presence in four table quarters.', 'table-quarters'),
             award(1, 'For each enemy unit destroyed this turn.', null),
           ],
+          actions: [],
         },
         type: 'Reconnaissance',
       }),
@@ -55,6 +56,7 @@ describe('mission card reference', () => {
           name: 'Take and Hold',
           text: null,
           awards: [award(3, 'For each objective you control.', null), cumulative],
+          actions: [],
         },
         type: 'Take and Hold',
       }),
@@ -64,5 +66,35 @@ describe('mission card reference', () => {
     expect(markup).toContain('>plus</span>')
     expect(markup).not.toContain('+2 VP')
     expect(markup).toContain('>2 VP</span>')
+  })
+
+  it('prints the action the card names beside what it pays', () => {
+    const markup = renderToStaticMarkup(
+      createElement(MissionCardReference, {
+        card: {
+          name: 'Secure Asset',
+          text: null,
+          awards: [award(4, 'A friendly unit secured the asset this turn.', null)],
+          actions: [
+            {
+              name: 'SECURE ASSET',
+              starts: 'Your Shooting phase.',
+              completes: 'End of your turn, if your unit controls that **objective**.',
+              effect: 'Your unit **secures the asset**.',
+              units: 'One friendly unit within range of one **objective**.',
+              useLimit: 'Once per turn.',
+              restriction: null,
+            },
+          ],
+        },
+        type: 'Priority Assets',
+      }),
+    )
+
+    expect(markup).toContain('SECURE ASSET')
+    expect(markup).toContain('Effect:')
+    expect(markup).toContain('secures the asset')
+    expect(markup).toContain('Once per turn.')
+    expect(markup).not.toContain('Restriction:')
   })
 })
