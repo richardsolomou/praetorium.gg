@@ -48,16 +48,19 @@ export function PrimaryMission({ side, referenceFor, guides }: Props) {
 }
 
 export function SecondaryMissions({ side, actionable, pending, send, referenceFor, guides }: Props) {
+  const [showResolved, setShowResolved] = useState(false)
   // A tactical deck deals its own cards, so naming one would be choosing what you were dealt.
   const choosingSecret =
     actionable && side.secondaryMode === 'fixed' && !side.secondaries.some((card) => card.secret) && side.remainingSecondaries.length > 0
   // A card put back into the deck was never really held, so it does not belong in this list at all.
   const drawn = side.secondaries.filter((secondary) => secondary.status !== 'returned')
+  const resolved = drawn.filter((secondary) => secondary.status !== 'active')
+  const visible = showResolved ? drawn : drawn.filter((secondary) => secondary.status === 'active')
   return (
     <section className="space-y-1.5">
       <Total label="Secondary missions" scored={side.secondary} cap={guides.secondary} stat="secondary" />
       {drawn.length ? null : <p className="text-xs text-dim">No cards in hand.</p>}
-      {drawn.map((secondary) => (
+      {visible.map((secondary) => (
         <div key={secondary.key} data-secondary={secondary.key} className={`${CARD} space-y-1.5`}>
           <div className="flex items-baseline gap-2">
             <span className="min-w-0 flex-1">
@@ -83,6 +86,11 @@ export function SecondaryMissions({ side, actionable, pending, send, referenceFo
           ) : null}
         </div>
       ))}
+      {resolved.length ? (
+        <Button variant="ghost" size="xs" className="text-azure" onClick={() => setShowResolved((shown) => !shown)}>
+          {showResolved ? 'Hide resolved missions' : `Show ${resolved.length} resolved ${resolved.length === 1 ? 'mission' : 'missions'}`}
+        </Button>
+      ) : null}
       {choosingSecret ? (
         <SecretMissionDialog
           cards={side.remainingSecondaries}
