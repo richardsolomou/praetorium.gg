@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.53.6
+
+### Patch Changes
+
+- 72f16b4: Keep loadout choices available when another current selection temporarily closes them.
+
 ## 0.53.5
 
 ### Patch Changes
