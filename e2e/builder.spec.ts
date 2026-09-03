@@ -2078,6 +2078,27 @@ test('a book that keeps its datasheets in a library can still be built from', as
   await expect(page.getByText('Within the points limit')).toBeAttached()
 })
 
+test('Cadian Shock Troops can take their full special weapon allowance', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Astra Militarum', /Combined Arms/)
+  await add(page, 'Cadian Shock Troops')
+  await page.locator('[data-unit="Cadian Shock Troops"]').getByRole('button', { name: 'Cadian Shock Troops', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Meltagun' }).click())
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plasma gun' }).click())
+  await expect(loadout.getByLabel('Meltagun count')).toHaveText('1')
+  await expect(loadout.getByLabel('Plasma gun count')).toHaveText('1')
+
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'More models in Cadian Shock Troops' }).click())
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Meltagun' }).click())
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Meltagun' }).click())
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plasma gun' }).click())
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plasma gun' }).click())
+  await expect(loadout.getByLabel('Meltagun count')).toHaveText('2')
+  await expect(loadout.getByLabel('Plasma gun count')).toHaveText('2')
+})
+
 test('Legends are never offered', async ({ page }) => {
   await openBuilder(page, 'Dark Angels', /Unforgiven Task Force/)
   await page.getByLabel('Add a unit').fill('Land Speeder')
