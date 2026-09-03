@@ -43,6 +43,7 @@ function rosterForces(loaded: LoadedCatalogue, data: PriceInput, detachmentSelec
   const picked = data.units.flatMap((wanted, key) => {
     const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
       primaryCatalogueId: data.catalogueId,
+      mustering: true,
       roster: detachmentSelection,
       spreads: wanted.spreads,
       toggles: wanted.toggles,
@@ -248,7 +249,8 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   const detachmentError = detachmentPointsError(purchased, budget, data.waivedRules)
 
   const { picked, forceSelections } = rosterForces(loaded, data, detachmentSelection)
-  const options = { primaryCatalogueId: data.catalogueId }
+  // Pricing is a roster being mustered, which is what a datasheet's force-scoped rules ask about.
+  const options = { primaryCatalogueId: data.catalogueId, mustering: true }
   const forces = [...forceSelections.values()]
   const selections = forces.flat()
   const selectionIndex = new Map(selections.map((selection, at) => [selection, at]))
@@ -325,6 +327,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     if (modelKindsFor(unit).length) continue
     const composed = buildUnit(unit.entryId, loaded.index, unit.size.models, undefined, {
       primaryCatalogueId: data.catalogueId,
+      mustering: true,
       roster: detachmentSelection,
     })
     if (!composed) continue

@@ -1076,13 +1076,18 @@ describe('a choice the datasheet offers only while an army is being mustered', (
     ],
   })
 
-  it('reads its force, rather than answering as though the roster had none', () => {
+  it('reads its force while an army is mustered, rather than answering as though there were none', () => {
     const index = indexOf(marked())
-    expect(hiddenByRules(index.definitions.get('mark')!, index)).toBe(true)
+    expect(hiddenByRules(index.definitions.get('mark')!, index, { mustering: true })).toBe(true)
   })
 
   it('takes the minimum that mustering imposes on it', () => {
     const index = indexOf(marked())
-    expect(selectionCountBounds(index.definitions.get('mark')!, index).minimum).toBe(1)
+    expect(selectionCountBounds(index.definitions.get('mark')!, index, { mustering: true }).minimum).toBe(1)
+  })
+
+  it('stays on the datasheet being read, which is not an army', () => {
+    const index = indexOf(marked())
+    expect(hiddenByRules(index.definitions.get('mark')!, index)).toBe(false)
   })
 })
