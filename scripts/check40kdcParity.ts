@@ -5,6 +5,7 @@ import { isMatchedPlayDatasheet } from '../src/server/cataloguePicker'
 import { canonicalIdsFor } from '../src/server/externalReferences'
 import { buildUnit } from '../src/core/roster'
 import { unitChoices, isUnitCompositionChoice } from '../src/core/unitChoices'
+import { optionWargear } from '../src/core/modelKinds'
 import { nameOf, targetOf } from '../src/core/catalogue'
 import { normalizedName, normalizedNameVariants } from '../src/core/name'
 import { factionDirectories } from '../src/server/rulesSource'
@@ -34,22 +35,38 @@ const comparable = (name: string) =>
 const english = (value: unknown): string =>
   typeof value === 'string' ? value : typeof (value as { en?: unknown })?.en === 'string' ? (value as { en: string }).en : ''
 
+/**
+ * The unit each BSData entry answers to, read from the checkout being measured rather than
+ * from the synced snapshot: a unit records a reference for every book that prints it, and a
+ * reference added since the snapshot is exactly the kind of gap this script is here to see.
+ */
+const unitByEntry = new Map<string, string>()
 /** Every equipment name 40kdc can put on a model of this unit, however it says so. */
 const offeredBy = new Map<string, Set<string>>()
 /** Every model variant 40kdc names for this unit, which is a separate vocabulary from equipment. */
 const variantsBy = new Map<string, Set<string>>()
 for (const faction of factionDirectories(core)) {
   const at = (file: string) => path.join(core, faction, `${file}.json`)
-  const equipment = new Map<string, string>()
+  if (fs.existsSync(at('units'))) {
+    for (const unit of readJSON<Record<string, any>[]>(at('units'))) {
+      for (const reference of (unit.external_refs ?? []) as Record<string, unknown>[]) {
+        if (reference.namespace === 'bsdata') unitByEntry.set(String(reference.id), String(unit.id))
+      }
+    }
+  }
+  // An item answers to its aliases as well as its name, an alias being the name another
+  // source gives the same weapon.
+  const equipment = new Map<string, string[]>()
   for (const file of ['weapons', 'wargear']) {
     if (!fs.existsSync(at(file))) continue
-    for (const item of readJSON<Record<string, any>[]>(at(file))) equipment.set(String(item.id), english(item.name))
+    for (const item of readJSON<Record<string, any>[]>(at(file))) {
+      equipment.set(String(item.id), [english(item.name), ...((item.aliases ?? []) as string[])])
+    }
   }
   const add = (unit: string, ids: unknown) => {
     const set = offeredBy.get(unit) ?? new Set<string>()
     for (const id of (ids ?? []) as string[]) {
-      const name = equipment.get(id)
-      if (name) set.add(comparable(name))
+      for (const name of equipment.get(id) ?? []) if (name) set.add(comparable(name))
     }
     offeredBy.set(unit, set)
   }
@@ -97,7 +114,8 @@ const edit = (a: string, b: string): number => {
 /**
  * The name 40kdc spells within two characters of this one, if it has one. A miss that
  * close is the same item under another spelling — "agonizer" against "agoniser" — which
- * is the sources disagreeing rather than 40kdc being unable to hold the option.
+ * is the sources disagreeing rather than 40kdc being unable to hold the option. Recording
+ * the spelling as an alias on the 40kdc record is what settles one for good.
  */
 const nearest = (offered: Set<string>, name: string): string | null => {
   const best = [...offered].map((candidate) => [edit(name, candidate), candidate] as const).toSorted((a, b) => a[0] - b[0])[0]
@@ -138,7 +156,7 @@ for (const book of loaded.factions) {
     const entry = loaded.index.definitions.get(entryId)
     if (!entry || !isMatchedPlayDatasheet(loaded.index, entry) || !isReferenceDatasheet(loaded, book.id, entryId)) continue
     const definitionId = targetOf(entry, loaded.index.definitions).id
-    const unitId = canonicalIdsFor(loaded.sourceReferences.units, 'bsdata', definitionId)[0]
+    const unitId = unitByEntry.get(definitionId) ?? canonicalIdsFor(loaded.sourceReferences.units, 'bsdata', definitionId)[0]
     if (!unitId) continue
     const offered = offeredBy.get(unitId)
     if (!offered) continue
@@ -148,21 +166,38 @@ for (const book of loaded.factions) {
     // A model option and a wargear option are answered by different parts of 40kdc,
     // so each is checked against the vocabulary that can hold it.
     const wantedModels = new Set<string>()
-    const wanted = new Set<string>()
+    /** Each option under its own name, against every name 40kdc could hold it by. */
+    const wanted = new Map<string, string[]>()
     for (const choice of choices) {
       if (isUnitCompositionChoice(choice)) continue
       for (const option of choice.options) {
         // `profile` is absent on wargear and present-but-null on a model whose kind is unnamed.
-        if (option.profile !== undefined) wantedModels.add(comparable(option.name))
-        else if (MARKS.has(comparable(option.name))) marksTotal++
-        else wanted.add(comparable(option.name))
+        if (option.profile !== undefined) {
+          wantedModels.add(comparable(option.name))
+          continue
+        }
+        if (MARKS.has(comparable(option.name))) {
+          marksTotal++
+          continue
+        }
+        // Either name answers: the catalogue states a loadout in one option where 40kdc
+        // names each piece, and names a drone's weapon where 40kdc names the drone.
+        const label = comparable(option.name)
+        const pieces = optionWargear(option.id, loaded.index, { primaryCatalogueId: book.id })
+        wanted.set(label, [label, ...pieces.map((piece) => comparable(piece.name))])
       }
     }
     if (!wanted.size && !wantedModels.size) continue
     units++
     const named = variantsBy.get(unitId) ?? new Set<string>()
-    const missingModels = [...wantedModels].filter((name) => !named.has(name))
-    const missedWargear = [...wanted].filter((name) => !offers(offered, name))
+    // A model kind is named as 40kdc names it or by the loadout it carries, since a variant
+    // matching the row's `default_weapon_ids` is that row rather than a variant beside it.
+    const missingModels = [...wantedModels].filter(
+      (name) => !normalizedNameVariants(name).some((variant) => named.has(variant)) && !offers(offered, name),
+    )
+    const missedWargear = [...wanted]
+      .filter(([, candidates]) => !candidates.some((candidate) => offers(offered, candidate)))
+      .map(([label]) => label)
     const respelled = missedWargear.filter((name) => nearest(offered, name))
     const missing = [
       ...missedWargear.filter((name) => !nearest(offered, name)).map((n) => `wargear:${n}`),
