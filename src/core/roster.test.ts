@@ -1534,6 +1534,42 @@ describe('a replacement group whose default is relaxed by a modifier', () => {
   })
 })
 
+describe('a choice closed by the current loadout', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'champion',
+        name: 'Champion',
+        type: 'model',
+        selectionEntries: [{ id: 'rifle', name: 'Rifle', type: 'upgrade', constraints: mandatory('rifle-min') }],
+        selectionEntryGroups: [
+          {
+            id: 'melee',
+            name: 'Melee weapon',
+            constraints: [{ id: 'melee-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            modifiers: [
+              {
+                type: 'set',
+                field: 'melee-max',
+                value: 0,
+                conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'parent', childId: 'rifle' }],
+              },
+            ],
+            selectionEntries: [
+              { id: 'sword', name: 'Sword', type: 'upgrade' },
+              { id: 'fist', name: 'Power fist', type: 'upgrade' },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('keeps the replacement available so another edit can reopen it', () => {
+    expect(buildUnit('champion', index)?.choices).toContainEqual(expect.objectContaining({ name: 'Melee weapon', room: 1 }))
+  })
+})
+
 describe('who the data lets a list nominate as its Warlord', () => {
   // A tank carries the entry only underneath an upgrade a detachment unlocks, and the
   // data hides it until then. Walking past that offered a crown to every vehicle.

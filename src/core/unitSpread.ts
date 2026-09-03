@@ -9,8 +9,18 @@
  */
 
 import type { CatalogueIndex, Definition } from './catalogue'
-import { childrenOf, MAX_DEPTH, maximumCount, repeatedCarrierOn, repeatedModelOn, requiredCount, resolve, UNBOUNDED } from './definitions'
-import { type EvaluateOptions, selectionCountBoundsAt, type Selection } from './evaluate'
+import {
+  childrenOf,
+  MAX_DEPTH,
+  maximumCount,
+  maximumCountAt,
+  repeatedCarrierOn,
+  repeatedModelOn,
+  requiredCount,
+  resolve,
+  UNBOUNDED,
+} from './definitions'
+import type { EvaluateOptions, Selection } from './evaluate'
 import { expand, withChoice } from './expand'
 import { allAt, at, replaceAt, updateSelection, withCounts, withoutSelectionAt, withPlaceFor, withSpread } from './selection'
 import { modelCountOf, sizeOf } from './unitSize'
@@ -130,7 +140,7 @@ function withModelOccupants(
   options: EvaluateOptions,
 ): Selection {
   const optionIds = new Set(Object.keys(counts))
-  const capacity = selectionCountBoundsAt(selection, path, index, options)?.maximum ?? maximumCount(group, index)
+  const capacity = maximumCountAt(selection, path, group, index, options)
   const asking = Object.values(counts).some((count) => count > 0)
   return updateSelection(asking ? withPlaceFor(selection, path) : selection, path, (held) => {
     // A saved list can ask for more bodies than the squad has, either because the

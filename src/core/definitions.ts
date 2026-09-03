@@ -19,7 +19,7 @@ import {
   targetOf,
 } from './catalogue'
 import { isCollectiveGroup } from './collective'
-import { type EvaluateOptions, flattenedModifiers, selectionCountBounds } from './evaluate'
+import { type EvaluateOptions, flattenedModifiers, selectionCountBounds, selectionCountBoundsAt, type Selection } from './evaluate'
 
 export { isCollective, isCollectiveGroup, scaleOf } from './collective'
 
@@ -57,6 +57,20 @@ export function maximumCount(definition: Definition, index: CatalogueIndex, opti
     .map((constraint) => constraint.value)
     .filter((value) => value >= 0)
   return caps.length ? Math.min(...caps) : null
+}
+
+/** A conditional increase applies now; a decrease must not hide the choice that can undo its condition. */
+export function maximumCountAt(
+  selection: Selection,
+  path: readonly string[],
+  definition: Definition,
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+): number | null {
+  const declared = maximumCount(definition, index)
+  const contextual = selectionCountBoundsAt(selection, path, index, options)?.maximum
+  if (declared === null || contextual === null || contextual === undefined) return contextual ?? declared
+  return Math.max(declared, contextual)
 }
 
 /** How many of this child the data insists on: its own minimum, or a group's. */
