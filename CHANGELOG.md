@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.52.0
+
+### Minor Changes
+
+- 676107c: Show the action each mission asks a unit to perform, named by the side that may perform it.
+
 ## 0.51.3
 
 ### Patch Changes
