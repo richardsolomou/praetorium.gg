@@ -1,4 +1,5 @@
 import type { Condition, ModifierGroup, SelectionEntry } from '../core/catalogue'
+import { routeSlug } from '../core/slug'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { cardName, descriptionKey } from './datacards'
 import type { DetachmentRulesDetail } from './rulesFactions'
@@ -7,6 +8,20 @@ export type DetachmentCatalogueDetail = {
   rules: { name: string; description: string | null }[]
   enhancements: { name: string; points: number | null; description: string | null }[]
   forcedEnhancements: { name: string; points: number | null; description: string | null }[]
+}
+
+export function mergeDetachmentRules(
+  catalogueRules: readonly { name: string; description: string | null }[],
+  cardRules: readonly { name: string; description: string }[],
+) {
+  const supplied = new Set(cardRules.map((rule) => routeSlug(rule.name)))
+  const missing = catalogueRules.filter((rule) => {
+    const name = routeSlug(rule.name)
+    if (supplied.has(name)) return false
+    supplied.add(name)
+    return true
+  })
+  return [...cardRules, ...missing]
 }
 
 type EnhancementIndex = { byCardName: Map<string, SelectionEntry[]>; forced: Map<string, SelectionEntry[]> }
