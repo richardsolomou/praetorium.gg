@@ -137,13 +137,13 @@ export const SidePanel = memo(function SidePanel({
       {/* A tablet holds two columns; each panel narrows again in the three-column `lg` table. */}
       <div className="grid gap-x-4 gap-y-3 md:grid-cols-2 md:items-start lg:grid-cols-1 xl:grid-cols-2">
         <div
-          className={`min-w-0 space-y-3 ${side.stratagems.length ? 'order-2 border-t border-edge pt-2.5 md:order-1 md:border-0 md:pt-0' : ''}`}
+          className={`min-w-0 space-y-3 ${side.stratagems.length ? 'order-2 border-t border-edge pt-2.5 md:order-1 md:border-0 md:pt-0 lg:order-2 lg:border-t lg:pt-2.5 xl:order-1 xl:border-0 xl:pt-0' : ''}`}
         >
           <PrimaryMission {...cards} />
           <SecondaryMissions {...cards} />
         </div>
         {side.stratagems.length ? (
-          <div className="order-1 min-w-0 md:order-2 lg:border-t lg:border-edge lg:pt-2.5 xl:border-0 xl:pt-0">
+          <div className="order-1 min-w-0 md:order-2 lg:order-1 xl:order-2">
             <Stratagems
               side={side}
               phase={view.phase}

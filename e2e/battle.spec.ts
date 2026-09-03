@@ -339,6 +339,12 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(alice.getByText(/The battlefield is /)).toBeVisible()
   await expect(alice.getByText(/draws /).first()).toBeVisible()
   await alice.screenshot({ path: 'test-results/battle.png', fullPage: true })
+  await alice.setViewportSize({ width: 1100, height: 900 })
+  const stackedStratagemPosition = await ownPanel.locator('button[aria-label^="About "]').first().boundingBox()
+  const stackedPrimaryPosition = await ownPanel.locator('[data-stat="primary"]').boundingBox()
+  expect(stackedStratagemPosition && stackedPrimaryPosition).toBeTruthy()
+  expect(stackedStratagemPosition!.y).toBeLessThan(stackedPrimaryPosition!.y)
+  await alice.screenshot({ path: 'test-results/battle-stacked-desktop.png', fullPage: true })
   // The same panel on a phone, reached the same way. Only one panel is on screen at
   // a time there, so the scoreboard names the players again.
   await alice.setViewportSize({ width: 390, height: 844 })
