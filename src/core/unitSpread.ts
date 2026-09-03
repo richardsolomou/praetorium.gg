@@ -130,7 +130,9 @@ function withModelOccupants(
   const optionIds = new Set(Object.keys(counts))
   const capacity = maximumCount(group, index)
   const asking = Object.values(counts).some((count) => count > 0)
-  return updateSelection(asking ? withPlaceFor(selection, path) : selection, path, (held) => {
+  const carrier = asking ? withExpandedCarrier(selection, path, index) : selection
+  if (!selectedCarriers(carrier, path, index)) return selection
+  return updateSelection(asking ? withPlaceFor(carrier, path) : carrier, path, (held) => {
     // A saved list can ask for more bodies than the squad has, either because the
     // catalogue's limits moved under it or because two of its own requests
     // disagree. The group's own maximum is the answer, and the models it says
@@ -345,9 +347,9 @@ function keepingTheSquad(before: Selection, after: Selection, path: readonly str
 
 /**
  * The squadmates a body can be taken from or handed back to: models in the same group
- * that the data does not insist on. Spend the group's named default first, then the
- * largest remainder, so a new specialist replaces an ordinary trooper rather than
- * another specialist and the sergeant is never squeezed out.
+ * with copies available above its minimum. Spend the group's named default first,
+ * then the largest remainder, so a specialist replaces an ordinary trooper rather
+ * than another specialist and required models remain.
  */
 function squadmates(group: Selection, carrierId: string, index: CatalogueIndex): Selection[] {
   const groupDefinition = index.definitions.get(group.id)
@@ -356,7 +358,7 @@ function squadmates(group: Selection, carrierId: string, index: CatalogueIndex):
     .filter((child) => {
       if (child.id === carrierId) return false
       const definition = index.definitions.get(child.id)
-      return Boolean(definition) && resolve(definition!, index).type === 'model' && requiredCount(definition!, index) === 0
+      return Boolean(definition) && resolve(definition!, index).type === 'model'
     })
     .toSorted((one, other) => {
       const preferred = Number(other.id === defaultId) - Number(one.id === defaultId)
@@ -405,7 +407,10 @@ function spendBodies(
     const spent = new Map<string, number>()
     for (const giver of squadmates(group, carrierId, index)) {
       if (left <= 0) break
-      const take = Math.min(left, giver.count ?? 1)
+      const definition = index.definitions.get(giver.id)!
+      const available = Math.max(0, (giver.count ?? 1) - requiredCount(definition, index))
+      const take = Math.min(left, available)
+      if (!take) continue
       spent.set(giver.id, take)
       left -= take
     }

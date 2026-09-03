@@ -461,6 +461,7 @@ describe('a specialist the squad does not have yet', () => {
                 id: 'trooper',
                 name: 'Trooper',
                 type: 'model',
+                constraints: [{ id: 'trooper-min', type: 'min', value: 2, field: 'selections', scope: 'parent' }],
                 selectionEntries: [{ id: 'rifle', name: 'Rifle', type: 'upgrade', constraints: mandatory('rifle-min') }],
               },
             ],

@@ -92,6 +92,8 @@ export function ModelCard({
   }
   const sameSource = (one: (typeof shared)[number], other: (typeof shared)[number]) =>
     one.choice.key === other.choice.key && one.option.id === other.option.id
+  const addsModel = (entry: { choice: LoadoutChoice; option: LoadoutOption }) =>
+    model.members.some((member) => member.choiceKey === entry.choice.key && member.id === entry.option.id)
 
   const spend = (taker: (typeof shared)[number]) => {
     // A group with no room left gives up one of its own: the veteran holding the
@@ -103,15 +105,14 @@ export function ModelCard({
     const band = bandOf(taker.row)
     const pool = full ? kin : shared.filter((entry) => bandOf(entry.row) === band)
     const occupied = model.rows.filter((row) => bandOf(row) === band).reduce((total, row) => total + rowCount(row), 0)
+    // A model option with room joins the squad; it does not replace another
+    // specialist on this card. The squad's model group supplies the body.
+    if (!full && addsModel(taker) && canAddPooledOption(taker.option)) return move([], [taker])
     const giver = pool
       .filter((entry) => !sameSource(entry, taker) && entry.option.count > 0 && canAddPooledOption(taker.option, entry))
       .toSorted((one, other) => donorPriority(one.option, other.option))[0]
     if (!full && occupied < count) return canAddPooledOption(taker.option) ? move([], [taker]) : null
     if (giver) return move([giver], [taker])
-    // A kind with nobody to ask can still be armed while its group has room: the
-    // model is what joins the squad rather than something a body already there picks
-    // up, and where it joins the squad's own ranks a squadmate gives up their place
-    // for it. The Plague Marine holding the meltagun is one of the five.
     return !full && canAddPooledOption(taker.option) ? move([], [taker]) : null
   }
 
@@ -199,9 +200,7 @@ export function ModelCard({
           if (!showLoadoutEntry(displayed, showOptions)) return null
           const replacement = replacementChoice(row, model, choices, count)
           const sources = sourcesOf(row)
-          const addsModel = sources.some(({ choice: source, option: candidate }) =>
-            model.members.some((member) => member.choiceKey === source.key && member.id === candidate.id),
-          )
+          const addsModelRow = sources.some(addsModel)
           const exceedsModelCount = sources.some(({ option: candidate }) => candidate.max > count)
           const direct = sources.filter(({ choice: source }) => source.room <= 1 && !source.carried)
           const replacesAnotherRow = Boolean(
@@ -214,7 +213,7 @@ export function ModelCard({
             .map((source) => ({ source, replacement: choiceRemoval(source.choice, source.option, replacesAnotherRow) }))
             .find(({ replacement: candidate }) => candidate !== null)
           const add =
-            displayed >= count && !addsModel && !exceedsModelCount
+            displayed >= count && !addsModelRow && !exceedsModelCount
               ? undefined
               : replacement
                 ? () => onChoose(replacement.key, '')
