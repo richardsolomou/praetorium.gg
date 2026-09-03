@@ -21,6 +21,19 @@ export const abilitySections = {
   wargear: 'Wargear abilities',
 } satisfies Record<AbilityKind, string>
 
+type Profile = Datasheet['profiles'][number]
+
+const dedicatedProfileTypes = new Set(['Unit', 'Ranged Weapons', 'Melee Weapons', 'Transport'])
+
+export function ruleProfileSections(profiles: readonly Profile[]) {
+  const sections = new Map<string, Profile[]>()
+  for (const profile of profiles) {
+    if (dedicatedProfileTypes.has(profile.type)) continue
+    sections.set(profile.type, [...(sections.get(profile.type) ?? []), profile])
+  }
+  return [...sections].map(([title, sectionProfiles]) => ({ title, profiles: sectionProfiles }))
+}
+
 export function compositionCount(composition: readonly string[]) {
   const alternatives: { minimum: number; maximum: number }[][] = [[]]
   for (const line of composition) {

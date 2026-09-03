@@ -2065,6 +2065,11 @@ test('a book that keeps its datasheets in a library can still be built from', as
   await add(page, 'Cadian Shock Troops')
   await expect(page.locator('[data-unit="Cadian Shock Troops"]')).toBeVisible()
 
+  await page.getByLabel('Add a unit').fill('Leman Russ Commander')
+  await page.getByRole('button', { name: 'View Leman Russ Commander datasheet' }).click()
+  const orders = page.locator('aside[aria-label="Datasheet"]').getByRole('heading', { name: 'Orders', exact: true }).locator('..')
+  await expect(orders).toContainText('This Officer can issue 2 Orders to Squadron units.')
+
   // And what it borrows from another book is there beside its own.
   await page.getByLabel('Add a unit').fill('Callidus Assassin')
   await page.getByRole('button', { name: 'Agents of the Imperium 1' }).click()

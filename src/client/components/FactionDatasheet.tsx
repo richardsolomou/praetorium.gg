@@ -7,6 +7,7 @@ import { datasheetSlugQuery, factionQuery } from '../queries'
 import { FactionMark, factionColour } from './FactionMark'
 import { CollectionToggle } from './CollectionToggle'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from './Keyword'
+import { ProfileRules } from './ProfileRules'
 import { RuleText } from './RuleText'
 
 export function FactionDatasheet() {
@@ -89,6 +90,7 @@ export function FactionDatasheet() {
         {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
         {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
         <Abilities abilities={referenceAbilities(sheet.abilities, sheet.attachments)} rules={sheet.keywordRules} />
+        <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} />
         <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
         {sheet.transport ? (
           <section>
