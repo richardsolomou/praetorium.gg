@@ -805,7 +805,7 @@ export class Repository {
         waivedRules: rosters.waivedRules,
         optionalRules: rosters.optionalRules,
         borrowedDetachmentId: rosters.borrowedDetachmentId,
-        unitCount: sql<number>`jsonb_array_length(${rosters.picks}::jsonb)`,
+        picks: rosters.picks,
         visibility: rosters.visibility,
         source: rosters.source,
         createdAt: rosters.createdAt,

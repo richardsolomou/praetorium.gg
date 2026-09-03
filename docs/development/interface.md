@@ -28,7 +28,7 @@ Squad size is edited on the roster card rather than duplicated in the loadout pa
 
 A unit card is one target whose main action opens its details. Menu, detach, and join controls handle their own clicks. Tests locate cards and rows through `data-unit`, `data-roster`, and `data-person`; visible-text selectors are unreliable because CSS changes case and labels such as “Unlisted” can appear in more than one control.
 
-The roster library uses one Filter button and one Sort button at every width. `/rosters/$id` is its only roster surface: the owner sees builder controls, while other entitled readers see the same cards and loadout details without mutation controls. Read-only rosters retain printing and Games Workshop text export. Signed-in readers can duplicate a roster into a private copy; signed-out readers return through sign-in first.
+The roster library uses one Filter button and one Sort button at every width. Roster summaries count an attached character and bodyguard as the one unit they form. `/rosters/$id` is its only roster surface: the owner sees builder controls, while other entitled readers see the same cards and loadout details without mutation controls. Read-only rosters retain printing and Games Workshop text export. Signed-in readers can duplicate a roster into a private copy; signed-out readers return through sign-in first.
 
 A shared roster is priced in its route loader, so its server-rendered frame contains the roster cards. If pricing is still pending during a transition, the roster and a selected unit reserve their final panes with loading placeholders; they never claim that a roster is empty or that no unit is selected while waiting for the server.
 
