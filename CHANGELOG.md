@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.52.1
+
+### Patch Changes
+
+- 003bdba: Offer a Mark of Chaos only in the detachment that grants one, and require it there.
+
 ## 0.52.0
 
 ### Minor Changes
