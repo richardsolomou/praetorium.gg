@@ -865,6 +865,21 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   await page.screenshot({ path: 'test-results/skyshroud-unit-upgrades.png', fullPage: true })
 })
 
+test('a detachment rule marks the weapon abilities it grants', async ({ page }) => {
+  await openBuilder(page, 'Necrons', /Starshatter Arsenal/)
+  await add(page, 'Doomsday Ark')
+  await page.locator('[data-unit="Doomsday Ark"]').getByRole('button', { name: 'Doomsday Ark', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const assault = loadout.getByRole('button', { name: 'Assault', exact: true }).first()
+  await expect(assault).toHaveClass(/text-info/)
+  await assault.hover()
+  await expect(page.getByRole('tooltip')).toContainText('Added by Relentless Onslaught')
+  await page.mouse.move(0, 0)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(assault).toBeVisible()
+})
+
 test('a unit upgrade shows the core ability it grants', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Necrons', /Hand of the Dynasty/)

@@ -4,6 +4,97 @@ import { bookOf, profileOperationCases } from './catalogue.fixtures'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 
 describe('the profile modifiers on a datasheet', () => {
+  it('shows an unconditional weapon ability granted by the selected detachment', () => {
+    const categoryEntries = ['Necrons', 'Vehicle', 'Mounted', 'Titanic'].map((name) => ({
+      id: name.toLocaleLowerCase(),
+      name: name === 'Necrons' ? 'Faction: Necrons' : name,
+    }))
+    const unit = (id: string, keywords: string[]) => ({
+      id,
+      name: id,
+      type: 'unit' as const,
+      categoryLinks: keywords.map((keyword) => ({ id: `${id}-${keyword}`, targetId: keyword, name: keyword })),
+      profiles: [
+        {
+          id: `${id}-gun`,
+          name: 'Gauss gun',
+          typeName: 'Ranged Weapons',
+          characteristics: [{ name: 'Keywords', typeId: 'keywords', $text: 'Rapid Fire 1' }],
+        },
+      ],
+    })
+    const book = bookOf({
+      sharedRules: [
+        {
+          id: 'relentless-onslaught',
+          name: 'Relentless Onslaught',
+          description:
+            'Each time a NECRONS model (excluding MONSTER models) from your army makes an attack that targets a unit within range of one or more objective markers, add 1 to the Hit roll. In addition, ranged weapons equipped by NECRONS VEHICLE and NECRONS MOUNTED models (excluding TITANIC models) from your army have the [ASSAULT] ability.',
+        },
+      ],
+      categoryEntries,
+      selectionEntries: [
+        {
+          id: 'detachments',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'detachment-choices',
+              name: 'Detachment choice',
+              selectionEntries: [
+                {
+                  id: 'starshatter',
+                  name: 'Starshatter Arsenal',
+                  type: 'upgrade',
+                  infoLinks: [{ id: 'relentless-link', targetId: 'relentless-onslaught', name: 'Relentless Onslaught', type: 'rule' }],
+                },
+              ],
+            },
+          ],
+        },
+        unit('ark', ['necrons', 'vehicle']),
+        unit('destroyer', ['necrons', 'mounted']),
+        unit('monolith', ['necrons', 'vehicle', 'titanic']),
+        unit('warriors', ['necrons']),
+      ],
+    })
+    book.datacards.detachmentRules = new Map([
+      [
+        'starshatter-arsenal',
+        [
+          {
+            name: 'Relentless Onslaught',
+            description:
+              'Each time a **NECRONS** model (excluding **MONSTER** models) from your army makes an attack that targets a unit within range of one or more objective markers, add 1 to the Hit roll. In addition, ranged weapons equipped by **NECRONS VEHICLE** and **NECRONS MOUNTED** models (excluding **TITANIC** models) from your army have the **[ASSAULT]** ability.',
+          },
+        ],
+      ],
+    ])
+    const detachment = {
+      id: 'detachments',
+      selections: [{ id: 'detachment-choices', selections: [{ id: 'starshatter' }] }],
+    }
+    const weaponKeywords = (entryId: string, selected = true) => {
+      const selections = [...(selected ? [detachment] : []), { id: entryId }]
+      return datasheetIn(book, 'cat', entryId, {
+        selections,
+        unitSelectionIndex: selections.length - 1,
+      })?.profiles[0]?.values[0]
+    }
+
+    expect(weaponKeywords('ark')).toEqual({
+      name: 'Keywords',
+      value: 'Rapid Fire 1, Assault',
+      baseValue: 'Rapid Fire 1',
+      modifiers: ['Relentless Onslaught'],
+    })
+    expect(weaponKeywords('destroyer')?.value).toBe('Rapid Fire 1, Assault')
+    expect(weaponKeywords('monolith')?.value).toBe('Rapid Fire 1')
+    expect(weaponKeywords('warriors')?.value).toBe('Rapid Fire 1')
+    expect(weaponKeywords('ark', false)?.value).toBe('Rapid Fire 1')
+  })
+
   it('applies profile modifiers from the selected detachment and preserves their source', () => {
     const book = bookOf({
       selectionEntries: [

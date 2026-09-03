@@ -1,6 +1,6 @@
 import { rulesReferencedIn } from './catalogue'
 import { routeSlug } from '../core/slug'
-import { describedEnhancements } from './catalogueDescriptions'
+import { describedEnhancements, mergeDetachmentRules } from './catalogueDescriptions'
 import { descriptionKey } from './datacards'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
@@ -43,18 +43,4 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
     ]),
     attribution: rules.attribution,
   }
-}
-
-function mergeDetachmentRules(
-  catalogueRules: readonly { name: string; description: string | null }[],
-  rules: readonly { name: string; description: string }[],
-) {
-  const supplied = new Set(rules.map((rule) => routeSlug(rule.name)))
-  const missing = catalogueRules.filter((rule) => {
-    const name = routeSlug(rule.name)
-    if (supplied.has(name)) return false
-    supplied.add(name)
-    return true
-  })
-  return [...rules, ...missing]
 }
