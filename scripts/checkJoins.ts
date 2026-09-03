@@ -90,9 +90,9 @@ if (process.argv.includes('--details')) {
 if (report.catalogueOnly.length > 15 || report.datacardsOnly.length > 24) {
   throw new Error('datasheet name agreement fell below the pinned catalogue baseline')
 }
-if (rulesOnlyDetachments.length > 30 || rulesOnlyEnhancements.length > 95 || datacardsOnlyDetachments.size > 5) {
+if (rulesOnlyDetachments.length > 23 || rulesOnlyEnhancements.length > 90 || datacardsOnlyDetachments.size) {
   throw new Error('army-construction name agreement fell below the pinned catalogue baseline')
 }
-if (invalidDetachments.length || invalidEnhancements.length || enhancementsWithoutSemantics.length > 347) {
+if (invalidDetachments.length || invalidEnhancements.length || enhancementsWithoutSemantics.length > 336) {
   throw new Error('Game Datacards construction coverage fell below the pinned catalogue baseline')
 }
