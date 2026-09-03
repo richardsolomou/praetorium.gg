@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.53.5
+
+### Patch Changes
+
+- 8d8b7af: Allow squads to take their full special weapon allowance.
+
 ## 0.53.4
 
 ### Patch Changes
