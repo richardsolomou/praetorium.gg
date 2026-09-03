@@ -1517,6 +1517,10 @@ describe('seats', () => {
     expect(seen.players.map((player) => player.roster?.name)).toEqual(['Ultramarines', 'Death Guard'])
     // Nobody signs in to it, so its deck has to be readable by the people playing it.
     expect(seen.players[1]?.remainingSecondaries).toEqual([{ key: 'a', name: 'Area Denial' }])
+    expect(await send({ kind: 'end-battle', reason: 'conceded', concededBy: 'practice-opponent-1' })).toEqual({
+      outcome: 'refused',
+      reason: 'a practice opponent cannot concede',
+    })
   })
 
   it('deals a practice opponent’s hand off its own deck rather than the drawing player’s', async () => {
@@ -2500,6 +2504,14 @@ describe('the answer to a command', () => {
     expect(answer.result.outcome).toBe('appended')
     expect(answer.screen.view.phase).toBe('movement')
     expect((await service.report(token, 'alice')).at(-1)).toMatchObject({ by: 'bob', text: 'Bob ends the command phase for Alice' })
+  })
+
+  it('lets a seated player record another participant conceding', async () => {
+    const { token, seq } = await started()
+    const answer = await service.submit(token, 'alice', seq(), { kind: 'end-battle', reason: 'conceded', concededBy: 'bob' })
+
+    expect(answer.result.outcome).toBe('appended')
+    expect(answer.screen.view.result).toEqual({ reason: 'conceded', concededBy: 'bob' })
   })
 
   it('corrects a sender that had fallen behind', async () => {

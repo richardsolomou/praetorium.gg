@@ -129,7 +129,7 @@ Better Auth owns the `user`, `session`, `account`, `verification`, and `rateLimi
 
 ## Concurrency limit
 
-Starting the battle is not undoable: `begin-battle` leaves nothing for `undo` to name. Player-scoped commands may carry a `playerId`; omitting it retains the submitting player's meaning for existing log entries. Roster selection remains the owner's choice, and concessions cannot be submitted for another player.
+Starting the battle is not undoable: `begin-battle` leaves nothing for `undo` to name. Player-scoped commands may carry a `playerId`; omitting it retains the submitting player's meaning for existing log entries. Roster selection remains the owner's choice. A seated player can record a concession for any non-automated player at the table.
 
 `expectedSeq` applies to the full battle log. Independent commands from both players can still race, and one player may need to submit again. A stale or refused command discards the rest of the UI batch built on the same sequence, while commands produced by a newer realtime screen remain queued. This behavior remains necessary while commands lack narrower dependency declarations.
 

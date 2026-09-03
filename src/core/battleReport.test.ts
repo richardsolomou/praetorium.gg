@@ -106,6 +106,12 @@ describe('the account of the battle', () => {
     expect(text(battleReport(NAMES, history))).toContain('Bob adds 2 CP for Alice')
   })
 
+  it('names both players when one records another conceding', () => {
+    const history = log(...started(), [ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB }])
+
+    expect(text(battleReport(NAMES, history))).toContain('Alice records that Bob concedes')
+  })
+
   it('uses shared side details when a teammate is named as the target', () => {
     const configure: Command = {
       kind: 'configure-battle',

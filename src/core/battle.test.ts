@@ -1630,9 +1630,19 @@ describe('battle management', () => {
     expect(state).toMatchObject({ status: 'finished', result: { reason: 'conceded', concededBy: BOB } })
   })
 
-  it('only allows a player to concede for themselves', () => {
+  it('allows any seated player to record another player conceding', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
-    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB })).toBe('you can only concede for yourself')
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB })).toBeNull()
+  })
+
+  it('refuses a concession from someone outside the battle', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: CAROL })).toBe('that player is not in this battle')
+  })
+
+  it('does not let a practice opponent concede', () => {
+    const state = reduceBattle(PLAYERS, log(...started()), undefined, [BOB])
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB })).toBe('a practice opponent cannot concede')
   })
 
   it('can reopen a finished battle without discarding its score', () => {

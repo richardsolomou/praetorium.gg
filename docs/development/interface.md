@@ -30,6 +30,8 @@ A unit card is one target whose main action opens its details. Menu, detach, and
 
 The roster library uses one Filter button and one Sort button at every width. `/rosters/$id` is its only roster surface: the owner sees builder controls, while other entitled readers see the same cards and loadout details without mutation controls. Read-only rosters retain printing and Games Workshop text export. Signed-in readers can duplicate a roster into a private copy; signed-out readers return through sign-in first.
 
+A shared roster is priced in its route loader, so its server-rendered frame contains the roster cards. If pricing is still pending during a transition, the roster and a selected unit reserve their final panes with loading placeholders; they never claim that a roster is empty or that no unit is selected while waiting for the server.
+
 ## Battle setup and tracking
 
 Battle setup has the visible sections Format, Armies, Mission, Battlefield, Defender, Secondaries, Reserves, Deploy, First turn, and Pre-battle rules. The active section comes from the battle log, so every seated screen shows the same point in setup. Every attached roster is visible, while roster selection remains the choice of its owner. Anyone at the table can set reserves and the battle-ready bonus for any army. Deep Strike units precede other Strategic Reserves, and an attached character and bodyguard appear as the one unit they arrive as.
@@ -60,7 +62,9 @@ Manual battle creation presents those three shapes. Solo vs pair first asks whic
 
 Small, exclusive option sets use `components/Choice.tsx`. Table shapes, 2v1 roles, visibility, joining, and event cadence share this card style. Its `columns` layout is reserved for sets short enough to fit across a phone.
 
-One scoreboard appears at every width and contains both scores, round, phase, and the menu for finishing, conceding, and deleting. Destructive actions remain in that menu behind confirmation. Both sides' controls and tactical decks are available to every seated player without changing who the battle history records as the actor.
+One scoreboard appears at every width and contains both scores, round, phase, and the menu for finishing, conceding, and deleting. Destructive actions remain in that menu behind confirmation. Any seated player can record a concession for any non-automated player, so one device can referee the table. Both sides' controls and tactical decks are available to every seated player without changing who the battle history records as the actor.
+
+Spectators can open the visible mission cards and army details from the read-only battle screen. A face-down Secret Mission remains hidden.
 
 The phase control also has one component instance. CSS moves it between the centre column and a narrow-screen bottom bar, and it always advances the active side. Long card lists open in a dialog that closes after selection.
 

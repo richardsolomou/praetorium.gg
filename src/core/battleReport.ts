@@ -257,8 +257,11 @@ function describe(
     case 'pause-clock':
     case 'resume-clock':
       return null
-    case 'end-battle':
-      return command.reason === 'conceded' ? `${who} concedes` : `${who} calls the battle early`
+    case 'end-battle': {
+      if (command.reason !== 'conceded') return `${who} calls the battle early`
+      const concedingPlayer = command.concededBy ? (named.get(command.concededBy) ?? 'another player') : who
+      return !command.concededBy || command.concededBy === by ? `${who} concedes` : `${who} records that ${concedingPlayer} concedes`
+    }
     case 'reopen-battle':
       return `${who} reopens the battle`
     default:

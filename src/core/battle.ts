@@ -583,6 +583,7 @@ export type LoggedCommand = { seq: number; by: PlayerId; at: number; command: Co
 export type PlayerState = {
   id: PlayerId
   side: number
+  automated: boolean
   cp: number
   cpGained: number
   cpSpent: number
@@ -686,8 +687,13 @@ export function battleCapacity(settings: { teamBattle?: boolean; playerCount?: 2
   return settings.playerCount ?? (settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE)
 }
 
-export function reduceBattle(playerIds: readonly PlayerId[], log: readonly LoggedCommand[], playerSides?: readonly number[]): BattleState {
-  const state = emptyBattle(playerIds, playerSides)
+export function reduceBattle(
+  playerIds: readonly PlayerId[],
+  log: readonly LoggedCommand[],
+  playerSides?: readonly number[],
+  automatedPlayerIds: readonly PlayerId[] = [],
+): BattleState {
+  const state = emptyBattle(playerIds, playerSides, automatedPlayerIds)
   for (const _step of replay(state, log)) {
     // The fold is the point; every step is already applied to `state`.
   }
@@ -759,7 +765,11 @@ function recordProgress(state: BattleState, entry: LoggedCommand, before: Battle
 }
 
 /** A battle before anything has happened in it, which is what a replay folds into. */
-export function emptyBattle(playerIds: readonly PlayerId[], playerSides?: readonly number[]): BattleState {
+export function emptyBattle(
+  playerIds: readonly PlayerId[],
+  playerSides?: readonly number[],
+  automatedPlayerIds: readonly PlayerId[] = [],
+): BattleState {
   return {
     status: 'setup',
     setupStep: 0,
@@ -783,6 +793,7 @@ export function emptyBattle(playerIds: readonly PlayerId[], playerSides?: readon
     players: playerIds.map((id, index) => ({
       id,
       side: playerSides?.[index] ?? index,
+      automated: automatedPlayerIds.includes(id),
       cp: 0,
       cpGained: 0,
       cpSpent: 0,
@@ -1040,7 +1051,9 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (state.status !== 'playing') return 'the battle is not running'
       if (command.reason === 'completed') return 'completed battles finish after the last turn'
       if (command.reason === 'conceded' && !command.concededBy) return 'choose who conceded'
-      if (command.reason === 'conceded' && command.concededBy !== by) return 'you can only concede for yourself'
+      const concedingPlayer = state.players.find((candidate) => candidate.id === command.concededBy)
+      if (command.reason === 'conceded' && !concedingPlayer) return 'that player is not in this battle'
+      if (command.reason === 'conceded' && concedingPlayer?.automated) return 'a practice opponent cannot concede'
       if (command.reason !== 'conceded' && command.concededBy) return 'only a concession names a conceding player'
       return null
     }

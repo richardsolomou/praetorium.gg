@@ -867,7 +867,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(eventBattle).toContainText(ownerName)
   await eventBattle.click()
   await expect(spectator.getByText('Battle setup', { exact: true })).toBeVisible()
-  await expect(spectator.getByText('Spectators can follow the score, armies, and event log without changing the battle.')).toBeVisible()
   await expect(spectator.getByRole('button', { name: 'Open 2,000-point roster' })).toBeVisible()
   await expect(spectator.getByRole('button', { name: 'Open 1,000-point roster' })).toHaveCount(2)
   await expect(spectator.getByRole('button', { name: 'Begin battle' })).toHaveCount(0)
