@@ -1,6 +1,6 @@
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
 import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
-import { evaluate, rosterLimit } from '../core/evaluate'
+import { battleSizeSelection, evaluate, rosterLimit, type Selection } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 import { isNonMatchedPlayName } from '../core/name'
 import type { UnitGroup } from '../core/unitGroups'
@@ -144,6 +144,7 @@ export function unitsIn(
   const allies = found
     .filter((unit) => unit.alliedFaction)
     .toSorted((left, right) => left.alliedOrder - right.alliedOrder || left.name.localeCompare(right.name))
+  const size = battleSizeSelection(loaded.index, battleSize ?? null)
   const summaries = [...primary, ...allies].flatMap((unit) => {
     const sheet = battleSize !== undefined && isKotcLimit(battleSize) ? datasheetIn(loaded, catalogueId, unit.id) : null
     const facts = sheet ? { keywords: sheet.keywords, toughness: toughnessOf(sheet.profiles) } : null
@@ -158,7 +159,7 @@ export function unitsIn(
         allied: Boolean(unit.alliedFaction),
         alliedFaction: unit.alliedFaction,
         points: sheet?.points ?? priceOf(loaded, catalogueId, unit.id),
-        limit: minimumLimit(limitOf(loaded, catalogueId, unit.id), formatLimit),
+        limit: minimumLimit(limitOf(loaded, catalogueId, unit.id, size), formatLimit),
       },
     ]
   })
@@ -180,10 +181,17 @@ function searchUnits(loaded: LoadedCatalogue, catalogueId: string, query: string
     .map(({ unit }) => unit)
 }
 
-/** How many of one datasheet the roster may hold, or null when nothing limits it. */
-function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
+/**
+ * How many of one datasheet the roster may hold, or null when nothing limits it.
+ *
+ * Asked with the battle size in hand, because the number the data carries is the
+ * largest game's until a force says which game this is. A page with no roster
+ * behind it — a faction's own datasheet list — has no battle size to give.
+ */
+function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, battleSize: Selection | null) {
   const entry = loaded.index.definitions.get(entryId)
-  return entry ? rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId }) : null
+  if (!entry) return null
+  return rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] })
 }
 
 function minimumLimit(left: number | null, right: number | null) {

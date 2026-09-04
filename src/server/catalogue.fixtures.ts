@@ -14,7 +14,26 @@ import { emptyExternalReferences } from './externalReferences'
 
 export const PTS = 'cost-pts'
 
-export const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }] } }
+/** The configuration entry the game system names its battle sizes in, as the real data writes it. */
+const battleSizes = {
+  id: 'battle-size',
+  name: 'Battle Size',
+  type: 'upgrade' as const,
+  selectionEntryGroups: [
+    {
+      id: 'battle-size-choices',
+      name: 'Battle Size',
+      selectionEntries: [
+        { id: 'incursion', name: '1. Incursion (1000 Point limit)', type: 'upgrade' as const },
+        { id: 'strike-force', name: '2. Strike Force (2000 Point limit)', type: 'upgrade' as const },
+      ],
+    },
+  ],
+}
+
+export const system: CatalogueFile = {
+  gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }], sharedSelectionEntries: [battleSizes] },
+}
 
 export const points = (value: number) => [{ name: 'pts', typeId: PTS, value }]
 

@@ -321,6 +321,8 @@ export type CatalogueIndex = {
   ruleCatalogueOf: Map<string, string>
   /** Categories by id, because that is where a datasheet's roster cap is written. */
   categories: Map<string, CategoryEntry>
+  /** The game system's battle size entries, keyed by the points limit each one prints. */
+  battleSizes: Map<number, string>
   /** The data revision every roster and battle must pin, so two clients agree on legality. */
   revision: string
 }
@@ -344,6 +346,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   const rules = new Map<string, Rule>()
   const ruleCatalogueOf = new Map<string, string>()
   const categories = new Map<string, CategoryEntry>()
+  const battleSizes = new Map<number, string>()
 
   let owner = ''
   const collect = (node: Definition) => {
@@ -379,6 +382,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
       ruleCatalogueOf.set(rule.id, root.id)
     }
     for (const category of root.categoryEntries ?? []) categories.set(category.id, category)
+    if (file.gameSystem) collectBattleSizes(root, battleSizes)
     if (file.catalogue) books.set(root.id, root)
     owner = root.id
     for (const costType of root.costTypes ?? []) costTypes.set(costType.id, costType)
@@ -406,8 +410,32 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     rules,
     ruleCatalogueOf,
     categories,
+    battleSizes,
     revision,
   }
+}
+
+/** How the game system writes a battle size's points limit into that entry's own name. */
+const POINTS_LIMIT = /\b(\d[\d,]*)\s*point limit\b/i
+
+/**
+ * The entry that says which battle size a roster is built at, by the limit it prints.
+ *
+ * A datasheet's cap on copies carries the largest game's number and is lowered by a
+ * modifier conditioned on this entry being selected, so a force that never selects
+ * one reads every smaller game as the largest. Nothing else in the data names these
+ * entries: the points limit inside the name is the only durable handle on them.
+ */
+function collectBattleSizes(root: Catalogue, sizes: Map<number, string>) {
+  const visit = (node: Definition) => {
+    const printed = node.name?.match(POINTS_LIMIT)
+    const limit = printed ? Number(printed[1]!.replaceAll(',', '')) : null
+    if (limit !== null && !sizes.has(limit)) sizes.set(limit, node.id)
+    for (const child of node.selectionEntries ?? []) visit(child)
+    for (const child of node.selectionEntryGroups ?? []) visit(child)
+  }
+  for (const child of [...(root.selectionEntries ?? []), ...(root.sharedSelectionEntries ?? [])]) visit(child)
+  for (const child of [...(root.selectionEntryGroups ?? []), ...(root.sharedSelectionEntryGroups ?? [])]) visit(child)
 }
 
 /** A link stands for its target: what an entry _is_ comes from there, not from the link. */

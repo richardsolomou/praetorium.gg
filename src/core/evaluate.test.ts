@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile, type Modifier } from './catalogue'
-import { evaluate, evaluateForces, hiddenByRules, keywordIds, rosterLimit, selectionCountBounds, type Selection } from './evaluate'
+import {
+  battleSizeSelection,
+  evaluate,
+  evaluateForces,
+  hiddenByRules,
+  keywordIds,
+  rosterLimit,
+  selectionCountBounds,
+  type Selection,
+} from './evaluate'
 
 const PTS = 'cost-pts'
 const ENHANCEMENTS = 'cost-enhancements'
@@ -17,6 +26,23 @@ const system: CatalogueFile = {
     forceEntries: [
       { id: 'army-roster', name: 'Army Roster' },
       { id: 'crusade-force', name: 'Crusade Force' },
+    ],
+    sharedSelectionEntries: [
+      {
+        id: 'battle-size',
+        name: 'Battle Size',
+        type: 'upgrade',
+        selectionEntryGroups: [
+          {
+            id: 'battle-size-choices',
+            name: 'Battle Size',
+            selectionEntries: [
+              { id: 'incursion', name: '1. Incursion (1000 Point limit)', type: 'upgrade' },
+              { id: 'strike-force', name: '2. Strike Force (2000 Point limit)', type: 'upgrade' },
+            ],
+          },
+        ],
+      },
     ],
   },
 }
@@ -1036,6 +1062,32 @@ describe('the limit on how many of a datasheet a roster may hold', () => {
     expect(rosterLimit(index.definitions.get('lord')!, index, { roster: [{ id: 'small-game' }] })).toBe(2)
   })
 
+  it('follows the battle size the force is being built at', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'lord',
+          name: 'Lord',
+          type: 'model',
+          constraints: [{ id: 'lord-max', type: 'max', value: 3, field: 'selections', scope: 'force', includeChildSelections: true }],
+          modifiers: [
+            {
+              type: 'set',
+              field: 'lord-max',
+              value: 2,
+              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'force', childId: 'incursion', shared: true }],
+            },
+          ],
+        },
+      ],
+    })
+    const at = (limit: number) => {
+      const size = battleSizeSelection(index, limit)
+      return rosterLimit(index.definitions.get('lord')!, index, { mustering: true, roster: size ? [size] : [] })
+    }
+    expect([at(1_000), at(2_000)]).toEqual([2, 3])
+  })
+
   it('ignores a maximum about something other than how many are taken', () => {
     const index = indexOf({
       sharedSelectionEntries: [
@@ -1048,6 +1100,22 @@ describe('the limit on how many of a datasheet a roster may hold', () => {
       ],
     })
     expect(rosterLimit(index.definitions.get('lord')!, index)).toBeNull()
+  })
+})
+
+describe('the battle size a force is built at', () => {
+  const index = indexOf({})
+
+  it('is the game system entry printing that points limit', () => {
+    expect(battleSizeSelection(index, 1_000)).toEqual({ id: 'incursion' })
+  })
+
+  it('is nothing when the game system offers no battle size of that size', () => {
+    expect(battleSizeSelection(index, 600)).toBeNull()
+  })
+
+  it('is nothing when the roster states no size at all', () => {
+    expect(battleSizeSelection(index, null)).toBeNull()
   })
 })
 
