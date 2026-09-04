@@ -183,7 +183,7 @@ function sideTotal(appearance: Appearance, values: readonly number[]) {
 }
 
 /** One value a reader can filter by, and how many of their battles carry it. */
-export type Facet = { value: string; label: string; battles: number }
+export type Facet = { value: string; label: string; battles: number; image?: string | null }
 
 /** Every dimension of the record a reader can narrow, with the values they have played. */
 export type RecordFacets = {
@@ -206,11 +206,16 @@ export type RecordFacets = {
 export function recordFacets(battles: readonly RecordBattle[], playerId: string): RecordFacets {
   const taken = appearances(battles, playerId)
   const tally = new Map<keyof RecordFacets, Map<string, Facet>>()
-  const add = (dimension: keyof RecordFacets, value: string | null | undefined, label: string) => {
+  const add = (dimension: keyof RecordFacets, value: string | null | undefined, label: string, image?: string | null) => {
     if (value === null || value === undefined || value === '') return
     const dimensionTally = tally.get(dimension) ?? new Map<string, Facet>()
     const seen = dimensionTally.get(value)
-    dimensionTally.set(value, { value, label, battles: (seen?.battles ?? 0) + 1 })
+    dimensionTally.set(value, {
+      value,
+      label,
+      battles: (seen?.battles ?? 0) + 1,
+      ...(image !== undefined ? { image } : seen?.image !== undefined ? { image: seen.image } : {}),
+    })
     tally.set(dimension, dimensionTally)
   }
   for (const one of taken) {
@@ -229,7 +234,9 @@ export function recordFacets(battles: readonly RecordBattle[], playerId: string)
     for (const detachment of new Set(seats.flatMap((other) => battle.detachments[other] ?? []))) {
       add('opponentDetachments', detachment, detachment)
     }
-    for (const other of seats) add('opponents', battle.playerIds[other], battle.players[other] ?? 'Unknown player')
+    for (const other of seats) {
+      add('opponents', battle.playerIds[other], battle.players[other] ?? 'Unknown player', battle.playerDetails?.[other]?.image)
+    }
   }
   const dimension = (key: keyof RecordFacets) =>
     [...(tally.get(key)?.values() ?? [])].toSorted((one, other) => other.battles - one.battles || one.label.localeCompare(other.label))

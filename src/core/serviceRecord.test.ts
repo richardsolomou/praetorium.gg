@@ -203,6 +203,22 @@ describe('recordFacets', () => {
     expect(recordFacets([duel()], 'alice').opponents.map((facet) => facet.value)).toEqual(['bob'])
   })
 
+  it('keeps opponent pictures with the opponent filter', () => {
+    const opponents = recordFacets(
+      [
+        duel({
+          playerDetails: [
+            { id: 'alice', name: 'Alice', image: null },
+            { id: 'bob', name: 'Bob', image: 'https://example.test/bob.webp' },
+          ],
+        }),
+      ],
+      'alice',
+    ).opponents
+
+    expect(opponents).toEqual([{ value: 'bob', label: 'Bob', image: 'https://example.test/bob.webp', battles: 1 }])
+  })
+
   it('counts a 2v2 once for a faction both opponents brought', () => {
     const teamed = duel({
       playerIds: ['alice', 'ally', 'bob', 'carol'],

@@ -60,7 +60,7 @@ export function Standings({ table }: { table: StandingsTable }) {
                   <td className="readout p-3 text-faint">{place + 1}</td>
                   <td className="overflow-hidden p-3">
                     <Link to="/users/$userId" params={{ userId: row.id }} className="flex min-w-0 items-center gap-2 hover:text-info">
-                      <PlayerAvatar name={row.name} className="size-7 text-xs" />
+                      <PlayerAvatar name={row.name} image={row.image} className="size-7 text-xs" />
                       <span className="truncate font-bold uppercase">{row.name}</span>
                     </Link>
                   </td>

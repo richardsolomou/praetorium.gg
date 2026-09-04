@@ -2896,9 +2896,9 @@ describe('standings', () => {
     const table = await service.standings()
 
     expect(running.token).not.toBe(finished.token)
-    expect(table.overall.rows.map((row) => ({ name: row.name, battles: row.battles }))).toEqual([
-      { name: 'Alice', battles: 1 },
-      { name: 'Bob', battles: 1 },
+    expect(table.overall.rows.map((row) => ({ name: row.name, image: row.image, battles: row.battles }))).toEqual([
+      { name: 'Alice', image: null, battles: 1 },
+      { name: 'Bob', image: 'https://example.test/bob.png', battles: 1 },
     ])
   })
 
