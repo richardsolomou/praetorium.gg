@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.57.1
+
+### Patch Changes
+
+- 41f675d: Fix a loadout option that could not be put back once a composite weapon replaced it.
+
 ## 0.57.0
 
 ### Minor Changes
