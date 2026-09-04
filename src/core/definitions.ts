@@ -91,21 +91,6 @@ export function requiredCount(definition: Definition, index: CatalogueIndex, opt
   return minimums.length ? Math.max(...minimums) : 0
 }
 
-/**
- * An entry the squad shares a cap on, however many models could each hold one.
- *
- * "For every 3 models in this unit, 1 model can replace its plasma talon with 1
- * Astartes grenade launcher" is written as a per-model choice with a unit-wide cap
- * on one of its options, and that cap is the only thing naming which of them is the
- * replacement.
- */
-export function isSharedAcrossUnit(definition: Definition, index: CatalogueIndex): boolean {
-  return constraintsOn(definition, index).some(
-    (constraint) =>
-      constraint.type === 'max' && constraint.field === 'selections' && (constraint.scope === 'unit' || constraint.scope === 'unit-self'),
-  )
-}
-
 export function hasMutableMinimum(definition: Definition, index: CatalogueIndex): boolean {
   const minimums = new Set(
     constraintsOn(definition, index)
