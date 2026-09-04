@@ -41,6 +41,8 @@ import {
   userProfile,
   priceRoster,
   rosterAccess,
+  ruleIndex,
+  ruleSection,
   savedRosterSummaries,
   savedRosterTotals,
   savedRosterLoadoutDatasheets,
@@ -435,6 +437,27 @@ export const detachmentDetailQuery = (catalogueId: string, slug: string) =>
   })
 
 export const deploymentsQuery = () => queryOptions({ queryKey: ['deployments'], queryFn: () => deployments(), staleTime: Infinity })
+
+/**
+ * The rules index travels with every rules page, so one rule can link to another.
+ * A section is asked for on its own, because the documents together are far larger
+ * than anything a reader has open.
+ */
+export const ruleIndexQuery = () =>
+  queryOptions({
+    queryKey: ['rule-index'],
+    queryFn: () => ruleIndex(),
+    staleTime: ({ state }) => (state.data ? Infinity : 0),
+    refetchInterval: ({ state }) => (state.data ? false : 1_000),
+  })
+
+export const ruleSectionQuery = (documentId: string, sectionId: string) =>
+  queryOptions({
+    queryKey: ['rule-section', documentId, sectionId],
+    queryFn: () => ruleSection({ data: { documentId, sectionId } }),
+    enabled: Boolean(documentId && sectionId),
+    staleTime: Infinity,
+  })
 
 export const reportQuery = (token: string, enabled: boolean) =>
   queryOptions({ queryKey: ['report', token], queryFn: () => battleReport({ data: { token } }), enabled, staleTime: SSR_STALE_TIME })

@@ -7,6 +7,7 @@ const pages: GlobalSearchResult[] = [
   { id: 'page:new-roster', group: 'Pages', label: 'New roster', detail: 'Build an army list', href: '/rosters/new' },
   { id: 'page:factions', group: 'Pages', label: 'Factions', detail: 'Datasheets and detachment references', href: '/factions' },
   { id: 'page:missions', group: 'Pages', label: 'Mission packs', detail: 'Missions, scoring and deployments', href: '/mission-packs' },
+  { id: 'page:rules', group: 'Pages', label: 'Rules', detail: 'Core rules, missions and event rules', href: '/rules' },
   { id: 'page:sign-in', group: 'Pages', label: 'Sign in', detail: 'Access your Praetorium account', href: '/sign-in' },
 ]
 

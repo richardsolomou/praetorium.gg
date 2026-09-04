@@ -13,7 +13,16 @@ import { DatasheetMatchReasons } from './DatasheetMatchReasons'
 import { matchingPages } from './globalSearchPages'
 import { isSearchShortcut, searchShortcutModifier } from './globalSearchShortcut'
 
-const groups: GlobalSearchResult['group'][] = ['Pages', 'Factions', 'Datasheets', 'Detachments', 'Missions', 'Your rosters', 'Your battles']
+const groups: GlobalSearchResult['group'][] = [
+  'Pages',
+  'Factions',
+  'Datasheets',
+  'Detachments',
+  'Missions',
+  'Rules',
+  'Your rosters',
+  'Your battles',
+]
 
 type GlobalSearchContextValue = {
   open: () => void

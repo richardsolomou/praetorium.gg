@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.56.0
+
+### Minor Changes
+
+- ea994d7: Read the core rules, Chapter Approved, the event companion and Combat Patrol, browsable by section and searchable by rule name or number.
+
 ## 0.55.0
 
 ### Minor Changes

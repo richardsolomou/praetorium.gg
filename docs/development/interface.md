@@ -92,6 +92,8 @@ Leagues cover registration, roster reveal, and entrant-started battles. The late
 
 Doubles events use fixed two-player teams. The organizer pairs accepted entrants through search, and starting a battle asks for the opposing team while the server derives the remaining seats. League cards and detail pages share one organizer menu. Right-click opens that menu, deletion requires confirmation, and editing reuses the creation controls.
 
+The rules pages are a reading surface rather than a control surface. `/rules` lists each document with its sections and filters every rule by name or number, a document's own page lists its rules by the number the source prints against them, and a section page holds those rules with their clarifications collapsed. A number one rule quotes in another is a link, and following one opens the clarification it names. Global search finds a rule the same two ways.
+
 ## Components and styles
 
 Muted green represents primary actions, rules references, success, and selection. Amber represents attention, muted steel blue represents navigation and inspectable information, and player-side tints remain separate ownership signals.

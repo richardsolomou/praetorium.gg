@@ -13,8 +13,9 @@ Praetorium includes:
 - Public or private organized-play registration with reusable events, approved entry, replaceable sealed roster snapshots, simultaneous reveal, and read-only event battle viewing.
 - A home page of shared activity, ordered outwards from the reader: the player's unfinished games, the games they have recently finished, their friends' recent games, and recent public battles including finished ones. Practice games stay in battle history rather than appearing on the home page.
 - A per-player audience setting covering every battle they sit in: anyone, friends, or nobody outside the table.
+- A reading copy of the rules documents the community data carries, browsable by document, section, and rule number.
 
-It does not include pairings, brackets, locations, chat, matchmaking, a rules encyclopedia, or model positions.
+It does not include pairings, brackets, locations, chat, matchmaking, rules this project wrote itself, or model positions.
 
 ## Watching a battle
 

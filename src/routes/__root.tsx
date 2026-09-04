@@ -272,6 +272,13 @@ function PrimaryNavigation({ path }: { path: string }) {
         >
           Leaderboard
         </Link>
+        <Link
+          to="/rules"
+          className={linkClass}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
+        >
+          Rules
+        </Link>
       </nav>
     </div>
   )
