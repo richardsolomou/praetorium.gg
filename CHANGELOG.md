@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.55.0
+
+### Minor Changes
+
+- a83f758: Search detachments by name or force disposition when creating or editing a roster.
+- a83f758: Name a list from what is in it — `HL 1K - C'tan & Hexmark` — instead of repeating the faction and detachment shown beside it, and never overwrite a name you typed.
+
+### Patch Changes
+
+- a83f758: Build the required weapon choices nested deep inside a datasheet, so Firestrike Servo-Turrets, Devastator Squads and Sentinels arrive armed and legal.
+- a83f758: Say that a Judiciar must be attached to a Bodyguard unit instead of reporting an unanswerable shortfall.
+- a83f758: Field the full squad when a datasheet reserves a sergeant, so a Terminator Squad arrives with five models rather than four.
+- a83f758: Take the cheapest option for a mandatory wargear choice, so a Leman Russ, Ravager or Achilles Ridgerunner starts at its Munitorum base cost.
+
 ## 0.54.0
 
 ### Minor Changes
