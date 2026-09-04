@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
 import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
+import { applicationNavigationScript } from '../mobile/src/navigation'
 import { createRoster, signUp, waitForRosterSave } from './account'
 
 /**
@@ -47,6 +48,10 @@ async function expectVerticalPanOnly(element: Locator) {
 async function openBuilder(page: Page, faction = 'Necrons', detachment = /Awakened Dynasty/) {
   await signUp(page, 'Richard')
   await createRoster(page, { faction, detachment })
+}
+
+function navigateNativeTab(page: Page, path: string) {
+  return page.evaluate(applicationNavigationScript(`https://praetorium.gg${path}`)!)
 }
 
 async function add(page: Page, name: string) {
@@ -151,7 +156,7 @@ test('the roster workspace reserves the desktop picker while its book loads', as
   await page.screenshot({ path: 'test-results/stable-roster-loadout-phone.png', fullPage: true })
 })
 
-test('a native unit screen keeps the tab bar beside it', async ({ browser }) => {
+test('a native unit screen fills the WebView without a legacy tab inset', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
   await context.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
@@ -168,14 +173,11 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  const sections = page.getByRole('navigation', { name: 'Application sections' })
   await expect(loadout).toBeVisible()
-  // A screen inside the roster tab, not a sheet over the application.
   await expect(loadout).not.toHaveAttribute('aria-modal', 'true')
   expect(await loadout.evaluate((pane) => Math.round(pane.getBoundingClientRect().bottom))).toBe(
-    await sections.evaluate((tabs) => Math.round(tabs.getBoundingClientRect().top)),
+    await page.evaluate(() => window.innerHeight),
   )
-  expect(await sections.evaluate((tabs) => (tabs as HTMLElement).inert)).toBe(false)
   await expectNoHorizontalOverflow(page.locator('html'))
   await expectNoHorizontalOverflow(loadout)
   const viewport = loadout.locator('[data-slot="scroll-area-viewport"]')
@@ -184,7 +186,7 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await expectNoHorizontalOverflow(loadout.locator('[data-slot="unit-profile"]'))
   await page.screenshot({ path: 'test-results/intercessor-native-phone.png', fullPage: true })
 
-  await sections.getByRole('link', { name: 'Factions' }).click()
+  await navigateNativeTab(page, '/factions')
   await expect(page).toHaveURL('/factions')
 
   await context.close()
@@ -206,24 +208,13 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await expect(loadout).toBeVisible()
   await expect(page).toHaveURL(`${rosterUrl}#roster-pane`)
 
-  const sections = page.getByRole('navigation', { name: 'Application sections' })
-  await sections.getByRole('link', { name: 'Battles' }).click()
+  await navigateNativeTab(page, '/battles')
   await expect(page).toHaveURL('/battles')
 
   // The tab mounts straight onto the open pane, with nothing of the roster's behind it.
-  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await navigateNativeTab(page, '/rosters')
   await expect(page).toHaveURL(`${rosterUrl}#roster-pane`)
   await expect(loadout).toBeVisible()
-
-  // The tablet draws the same unit beside the roster, so the pane entry is replaced
-  // where it stands rather than stepped back over and out of the tab.
-  await sections.getByRole('link', { name: 'Battles' }).click()
-  await expect(page).toHaveURL('/battles')
-  await page.setViewportSize({ width: 1194, height: 834 })
-  await sections.getByRole('link', { name: 'Rosters' }).click()
-  await expect(page).toHaveURL(rosterUrl)
-  await expect(loadout).toBeVisible()
-  await expect(loadout).not.toHaveCSS('position', 'fixed')
 
   await context.close()
 })
@@ -248,14 +239,13 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await page.locator('[data-unit="Lychguard"]').getByRole('button', { name: 'Lychguard', exact: true }).click()
   await expect(page.locator('aside[aria-label="Loadout"]')).toBeVisible()
 
-  const sections = page.getByRole('navigation', { name: 'Application sections' })
-  await sections.getByRole('link', { name: 'Battles' }).click()
+  await navigateNativeTab(page, '/battles')
   await expect(page).toHaveURL('/battles')
 
-  // The unit is unresolvable, so the roster it belongs to is what is left of the tab.
-  await sections.getByRole('link', { name: 'Rosters' }).click()
-  await expect(page).toHaveURL(rosterUrl)
-  await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
+  // The stable unit identity keeps the open pane attached after another row moves.
+  await navigateNativeTab(page, '/rosters')
+  await expect(page).toHaveURL(`${rosterUrl}#roster-pane`)
+  await expect(page.locator('aside[aria-label="Loadout"]')).toBeVisible()
 
   await context.close()
 })

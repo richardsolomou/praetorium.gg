@@ -20,7 +20,10 @@ export async function signUp(page: Page, name: string) {
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Create the account' }).click()
-  await page.getByRole('button', { name: `Account menu for ${name}` }).waitFor()
+  await page
+    .getByRole('button', { name: `Account menu for ${name}`, includeHidden: true })
+    .first()
+    .waitFor({ state: 'attached' })
   return { email, password }
 }
 
