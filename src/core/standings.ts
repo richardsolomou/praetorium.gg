@@ -20,6 +20,7 @@ export type StandingBattle = {
   status: 'setup' | 'playing' | 'finished'
   playerIds: readonly string[]
   players: readonly string[]
+  playerDetails?: readonly { id: string; name: string; image?: string | null }[]
   sides: readonly number[]
   scores: readonly number[]
   /** The army each seat brought, when it was built from a catalogue. */
@@ -31,6 +32,7 @@ export type StandingBattle = {
 export type Standing = {
   id: string
   name: string
+  image: string | null
   battles: number
   won: number
   lost: number
@@ -106,6 +108,7 @@ export function standings(
       const row = table.get(id) ?? {
         id,
         name: battle.players[seat] ?? 'Unknown player',
+        image: battle.playerDetails?.[seat]?.image ?? null,
         battles: 0,
         won: 0,
         lost: 0,

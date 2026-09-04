@@ -13,6 +13,7 @@ import {
 import { Label } from '@/components/ui/label'
 import type { RecordFacets, ServiceRecord, Split } from '../../../core/serviceRecord'
 import type { PlayerProfileFilter } from '../../queries'
+import { PlayerAvatar } from '../PlayerAvatar'
 import { SearchableSelect } from '../SearchableSelect'
 
 /** Which dimension a control narrows, and how the address carries it. */
@@ -152,7 +153,14 @@ function RecordFilters({
                     label: '',
                     items: [
                       { label: 'All', value: ALL },
-                      ...facets[dimension.facet].map((facet) => ({ label: `${facet.label} (${facet.battles})`, value: facet.value })),
+                      ...facets[dimension.facet].map((facet) => ({
+                        label: `${facet.label} (${facet.battles})`,
+                        value: facet.value,
+                        icon:
+                          dimension.key === 'opponentId' ? (
+                            <PlayerAvatar name={facet.label} image={facet.image} className="size-6 text-[0.65rem]" />
+                          ) : undefined,
+                      })),
                     ],
                   },
                 ]}

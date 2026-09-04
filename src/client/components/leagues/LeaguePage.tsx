@@ -1404,7 +1404,18 @@ function DoublesBattleChooser({
     .map((team) => ({
       label: team.entries.map((entry) => labels.get(entry.userId) ?? entry.name).join(' & '),
       value: team.entries[0]!.userId,
-      icon: <PlayerAvatar name={team.entries[0]!.name} image={team.entries[0]!.image} className="size-6 text-[0.65rem]" />,
+      icon: (
+        <span className="flex shrink-0 -space-x-2">
+          {team.entries.map((entry) => (
+            <PlayerAvatar
+              key={entry.userId}
+              name={entry.name}
+              image={entry.image}
+              className="size-6 border-2 border-panel text-[0.65rem]"
+            />
+          ))}
+        </span>
+      ),
     }))
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>

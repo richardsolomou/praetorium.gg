@@ -28,6 +28,22 @@ describe('standings', () => {
     ])
   })
 
+  it('keeps each player picture with their standing', () => {
+    const rows = standings([
+      duel({
+        playerDetails: [
+          { id: 'alice', name: 'Alice', image: 'https://example.test/alice.webp' },
+          { id: 'bob', name: 'Bob', image: null },
+        ],
+      }),
+    ])
+
+    expect(rows.map(({ name, image }) => ({ name, image }))).toEqual([
+      { name: 'Alice', image: 'https://example.test/alice.webp' },
+      { name: 'Bob', image: null },
+    ])
+  })
+
   it('counts nothing from a battle still being set up or played', () => {
     expect(standings([duel({ status: 'setup' }), duel({ status: 'playing' })])).toEqual([])
   })
