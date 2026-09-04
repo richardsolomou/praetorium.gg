@@ -86,8 +86,12 @@ export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogu
       }
     }),
     unknown: parsed.unknown,
+    unplaced: [],
   }
 }
+
+/** Choices a list states that its unit could not be given, named back per unit. */
+export type UnplacedChoices = { unit: string; choices: string[] }
 
 const normalized = (value: string) =>
   value
@@ -107,7 +111,15 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
     return names.some((name) => normalized(name) === normalized(parsed.faction))
   })
   if (!faction) {
-    return { name: parsed.name, catalogueId: null, catalogueName: parsed.faction, detachmentIds: [], units: [], unknown: [parsed.faction] }
+    return {
+      name: parsed.name,
+      catalogueId: null,
+      catalogueName: parsed.faction,
+      detachmentIds: [],
+      units: [],
+      unknown: [parsed.faction],
+      unplaced: [],
+    }
   }
 
   const detachmentName = parsed.detachment
@@ -116,6 +128,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
   const detachmentIds = detachments.map((detachment) => detachment.id)
   const detachmentSelections = rosterDetachments(loaded, faction.id, detachmentIds).selections
   const sourceToImported = new Map<number, number>()
+  const unplaced = new Map<string, Set<string>>()
   const units = parsed.units.flatMap((unit, sourceIndex) => {
     const entryId = [...(loaded.index.datasheets.get(faction.id) ?? [])].find((candidate) => {
       const definition = loaded.index.definitions.get(candidate)
@@ -126,10 +139,19 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
       return []
     }
     sourceToImported.set(sourceIndex, sourceToImported.size)
-    return [textRosterPick(unit, entryId, faction.id, detachmentSelections, loaded)]
+    const read = textRosterPick(unit, entryId, faction.id, detachmentSelections, loaded)
+    if (read.unplaced.length) note(unplaced, unit.name, read.unplaced)
+    return [read.pick]
   })
 
   attachTextUnits(parsed.units, units, sourceToImported)
+  // Read after the pairing, because who leads whom is settled across the whole list
+  // rather than inside one unit. Only the leader's own line is checked: both exporters
+  // print the attachment from both ends, so reading both would say it twice.
+  for (const [source, imported] of sourceToImported) {
+    const unit = parsed.units[source]!
+    if (unit.leading && units[imported]?.attachedTo === undefined) note(unplaced, unit.name, [`Leading ${unit.leading}`])
+  }
 
   return {
     name: parsed.name,
@@ -140,7 +162,15 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
     limit: parsed.limit,
     units,
     unknown,
+    unplaced: [...unplaced].map(([unit, choices]) => ({ unit, choices: [...choices] })),
   }
+}
+
+/** One row per unit however many copies of it a list holds: the same gap is one thing to go and fix. */
+function note(found: Map<string, Set<string>>, unit: string, choices: readonly string[]) {
+  const named = found.get(unit) ?? new Set<string>()
+  for (const choice of choices) named.add(choice)
+  found.set(unit, named)
 }
 
 function attachTextUnits(units: readonly TextRosterUnit[], picks: { attachedTo?: number }[], imported: ReadonlyMap<number, number>) {
@@ -201,9 +231,12 @@ function detachmentsNamed<T extends { id: string; name: string }>(combined: stri
 
 function textRosterPick(unit: TextRosterUnit, entryId: string, catalogueId: string, roster: readonly Selection[], loaded: LoadedCatalogue) {
   const stated = new Map<string, number>()
+  const labels = new Map<string, string>()
   for (const selection of unit.selections) {
-    const name = normalized(selection.name.replace(/^(?:Enhancement|Upgrade):\s*/i, ''))
+    const label = selection.name.replace(/^(?:Enhancement|Upgrade):\s*/i, '').trim()
+    const name = normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
+    if (!labels.has(name)) labels.set(name, label)
   }
   const requestedModels = unit.models ?? Math.max(1, ...unit.selections.map((selection) => selection.count))
   const context = { primaryCatalogueId: catalogueId, roster }
@@ -213,8 +246,10 @@ function textRosterPick(unit: TextRosterUnit, entryId: string, catalogueId: stri
   const toggles = Object.fromEntries(
     unitToggles(entryId, selection, loaded.index, context).map((toggle) => [toggle.key, unit.warlord ? 1 : 0]),
   )
-  const statedChoiceCounts = new Map(choices.map((choice) => [choice.key, countsForChoice(choice.options, stated, loaded, context)]))
-  return {
+  const aliases = choices.map((choice) => optionAliases(choice.options, loaded, context))
+  const statedChoiceCounts = new Map(choices.map((choice, at) => [choice.key, countsForChoice(choice.options, aliases[at]!, stated)]))
+  const placed = placeableNames(selection, aliases, unit.name, loaded)
+  const pick = {
     entryId,
     catalogueId,
     models: built?.size.models ?? 1,
@@ -242,21 +277,61 @@ function textRosterPick(unit: TextRosterUnit, entryId: string, catalogueId: stri
     toggles,
     attachedTo: undefined as number | undefined,
   }
+
+  const unplaced = [...stated.keys()].filter((name) => !placed.has(name)).map((name) => labels.get(name) ?? name)
+  // A crown this datasheet cannot wear, and a squad size it does not field, are both
+  // choices the list states and this build could not take. Only a stated size counts:
+  // an export that prints no model count leaves one to be inferred from its weapons.
+  if (unit.warlord && !Object.keys(toggles).length) unplaced.push('Warlord')
+  if (unit.models && built && built.size.models !== unit.models) unplaced.push(`${unit.models} models`)
+  return { pick, unplaced }
 }
 
-function countsForChoice(
+/** Each option under every name a list could call it by: its own, and the wargear taking it brings. */
+function optionAliases(
   options: readonly { id: string; name: string }[],
-  stated: ReadonlyMap<string, number>,
   loaded: LoadedCatalogue,
   context: { primaryCatalogueId: string; roster: readonly Selection[] },
 ) {
-  const aliases = new Map(
+  return new Map(
     options.map((option) => {
       const selection = defaultSelection(option.id, loaded.index, context)
       const names = [option.name, ...(selection ? wargearOf(selection, loaded.index).map((piece) => piece.name) : [])]
       return [option.id, new Set(names.map(normalized))]
     }),
   )
+}
+
+/**
+ * Every name this unit can answer to: the models and equipment it holds, and every
+ * option it is still offered.
+ *
+ * A stated name outside this set is one the import cannot place anywhere, which is
+ * worth saying rather than quietly leaving the datasheet's default in its place.
+ */
+function placeableNames(
+  selection: Selection,
+  aliases: readonly ReadonlyMap<string, Set<string>>[],
+  unitName: string,
+  loaded: LoadedCatalogue,
+) {
+  const names = new Set([normalized(unitName)])
+  for (const choice of aliases) for (const option of choice.values()) for (const name of option) names.add(name)
+  for (const piece of wargearOf(selection, loaded.index)) names.add(normalized(piece.name))
+  const walk = (node: Selection) => {
+    const definition = loaded.index.definitions.get(node.id)
+    if (definition) names.add(normalized(nameOf(definition, loaded.index.definitions)))
+    for (const child of node.selections ?? []) walk(child)
+  }
+  walk(selection)
+  return names
+}
+
+function countsForChoice(
+  options: readonly { id: string; name: string }[],
+  aliases: ReadonlyMap<string, Set<string>>,
+  stated: ReadonlyMap<string, number>,
+) {
   const owners = new Map<string, number>()
   for (const names of aliases.values()) for (const name of names) owners.set(name, (owners.get(name) ?? 0) + 1)
 

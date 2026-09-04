@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { strFromU8 } from 'fflate'
-import { Copy, FileUp, LoaderCircle, Upload } from 'lucide-react'
+import { Copy, FileUp, LoaderCircle, TriangleAlert, Upload } from 'lucide-react'
 import posthog from 'posthog-js'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,10 @@ import { importRoster, saveRoster } from '../../server/functions'
 import { errorMessage } from '../queryClient'
 import { invalidateSavedRosters } from '../queries'
 
+type Imported = Awaited<ReturnType<typeof importRoster>>
+/** A matched list whose equipment the datasheets could take, which is the ordinary case. */
+type Matched = Imported & { catalogueId: string }
+
 export function RosterImport() {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
@@ -22,23 +26,8 @@ export function RosterImport() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  const bring = useMutation({
-    mutationFn: async (source: File | string) => {
-      let file: string
-      if (typeof source === 'string') file = source
-      else if (source.name.toLowerCase().endsWith('.rosz')) {
-        file = btoa(strFromU8(new Uint8Array(await source.arrayBuffer()), true))
-      } else file = await source.text()
-
-      const imported = await importRoster({ data: { file } })
-      if (!imported.catalogueId) {
-        posthog.capture('roster_import_failed', { reason: 'catalogue_unmatched', input: typeof source === 'string' ? 'text' : 'file' })
-        throw new Error(`Could not match: ${imported.unknown.join(', ') || imported.catalogueName || 'faction'}`)
-      }
-      if (imported.unknown.length) {
-        posthog.capture('roster_import_failed', { reason: 'unit_unmatched', input: typeof source === 'string' ? 'text' : 'file' })
-        throw new Error(`Could not match: ${imported.unknown.join(', ')}`)
-      }
+  const keep = useMutation({
+    mutationFn: async (imported: Matched) => {
       const { id } = await saveRoster({
         data: {
           name: imported.name,
@@ -62,8 +51,39 @@ export function RosterImport() {
     },
   })
 
+  const bring = useMutation({
+    mutationFn: async (source: File | string): Promise<Matched> => {
+      let file: string
+      if (typeof source === 'string') file = source
+      else if (source.name.toLowerCase().endsWith('.rosz')) {
+        file = btoa(strFromU8(new Uint8Array(await source.arrayBuffer()), true))
+      } else file = await source.text()
+
+      const imported = await importRoster({ data: { file } })
+      if (!imported.catalogueId) {
+        posthog.capture('roster_import_failed', { reason: 'catalogue_unmatched', input: typeof source === 'string' ? 'text' : 'file' })
+        throw new Error(`Could not match: ${imported.unknown.join(', ') || imported.catalogueName || 'faction'}`)
+      }
+      if (imported.unknown.length) {
+        posthog.capture('roster_import_failed', { reason: 'unit_unmatched', input: typeof source === 'string' ? 'text' : 'file' })
+        throw new Error(`Could not match: ${imported.unknown.join(', ')}`)
+      }
+      return { ...imported, catalogueId: imported.catalogueId }
+    },
+    // Equipment the datasheets cannot take is the player's to settle: the list is held
+    // back until they have read what could not be placed and said to import it anyway.
+    onSuccess: (imported) => {
+      if (!imported.unplaced.length) keep.mutate(imported)
+    },
+  })
+
+  const review = bring.data?.unplaced.length ? bring.data : null
+  const working = bring.isPending || keep.isPending
+  const failure = bring.error ?? keep.error
+
   const show = () => {
     bring.reset()
+    keep.reset()
     setOpen(true)
   }
 
@@ -77,75 +97,98 @@ export function RosterImport() {
           <DialogHeader>
             <DialogTitle className="text-xl uppercase">Import roster</DialogTitle>
             <DialogDescription className="text-dim">
-              Paste Games Workshop roster text from Praetorium, BattleBase, or New Recruit, or add a BattleScribe or New Recruit roster
-              file.
+              {review
+                ? 'This list states choices these units cannot be given. They will arrive as their datasheet builds them, so open each one and set what it should be.'
+                : 'Paste Games Workshop roster text from Praetorium, BattleBase, or New Recruit, or add a BattleScribe or New Recruit roster file.'}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2">
-            <Label htmlFor="roster-text" className="eyebrow">
-              Roster text
-            </Label>
-            <Textarea
-              id="roster-text"
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              placeholder="Paste Games Workshop roster text…"
-              className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto rounded-none border-edge bg-sunken font-mono text-xs"
-              disabled={bring.isPending}
-            />
-            <Button className="w-full" disabled={!text.trim() || bring.isPending} onClick={() => bring.mutate(text)}>
-              {bring.isPending ? <LoaderCircle className="animate-spin" /> : <Copy />}
-              Import pasted roster
-            </Button>
-          </div>
+          {review ? (
+            <div className="space-y-3">
+              <ul role="alert" className="min-w-0 space-y-1.5 border border-discarded/40 bg-discarded/5 p-2.5">
+                {review.unplaced.map((entry) => (
+                  <li key={entry.unit} className="flex items-start gap-2 text-sm text-discarded">
+                    <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                    <span className="min-w-0">
+                      <span className="font-semibold">{entry.unit}</span>
+                      <span className="block text-xs text-dim">Could not apply {entry.choices.join(', ')}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Button className="w-full" disabled={working} onClick={() => keep.mutate(review)}>
+                {keep.isPending ? <LoaderCircle className="animate-spin" /> : <TriangleAlert />}
+                Import and choose myself
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="roster-text" className="eyebrow">
+                  Roster text
+                </Label>
+                <Textarea
+                  id="roster-text"
+                  value={text}
+                  onChange={(event) => setText(event.target.value)}
+                  placeholder="Paste Games Workshop roster text…"
+                  className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto rounded-none border-edge bg-sunken font-mono text-xs"
+                  disabled={working}
+                />
+                <Button className="w-full" disabled={!text.trim() || working} onClick={() => bring.mutate(text)}>
+                  {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
+                  Import pasted roster
+                </Button>
+              </div>
 
-          <div className="flex items-center gap-3 text-xs text-faint" aria-hidden>
-            <span className="h-px flex-1 bg-edge" />
-            or
-            <span className="h-px flex-1 bg-edge" />
-          </div>
+              <div className="flex items-center gap-3 text-xs text-faint" aria-hidden>
+                <span className="h-px flex-1 bg-edge" />
+                or
+                <span className="h-px flex-1 bg-edge" />
+              </div>
 
-          <div
-            className={`border border-dashed p-5 text-center transition-colors ${dragging ? 'border-azure bg-raised' : 'border-edge bg-sunken'}`}
-            onDragEnter={(event) => {
-              event.preventDefault()
-              setDragging(true)
-            }}
-            onDragOver={(event) => event.preventDefault()}
-            onDragLeave={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false)
-            }}
-            onDrop={(event) => {
-              event.preventDefault()
-              setDragging(false)
-              const file = event.dataTransfer.files[0]
-              if (file) bring.mutate(file)
-            }}
-          >
-            <Upload className="mx-auto size-5 text-azure" />
-            <p className="mt-2 text-sm font-semibold uppercase">Drop a roster file here</p>
-            <p className="mt-1 text-xs text-dim">BattleScribe or New Recruit .ros and .rosz files</p>
-            <Button variant="outline" className="mt-3" onClick={() => input.current?.click()} disabled={bring.isPending}>
-              Choose file
-            </Button>
-            <Input
-              ref={input}
-              type="file"
-              accept=".ros,.rosz"
-              disabled={bring.isPending}
-              className="sr-only"
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                if (file) bring.mutate(file)
-                event.target.value = ''
-              }}
-            />
-          </div>
+              <div
+                className={`border border-dashed p-5 text-center transition-colors ${dragging ? 'border-azure bg-raised' : 'border-edge bg-sunken'}`}
+                onDragEnter={(event) => {
+                  event.preventDefault()
+                  setDragging(true)
+                }}
+                onDragOver={(event) => event.preventDefault()}
+                onDragLeave={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false)
+                }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  setDragging(false)
+                  const file = event.dataTransfer.files[0]
+                  if (file) bring.mutate(file)
+                }}
+              >
+                <Upload className="mx-auto size-5 text-azure" />
+                <p className="mt-2 text-sm font-semibold uppercase">Drop a roster file here</p>
+                <p className="mt-1 text-xs text-dim">BattleScribe or New Recruit .ros and .rosz files</p>
+                <Button variant="outline" className="mt-3" onClick={() => input.current?.click()} disabled={working}>
+                  Choose file
+                </Button>
+                <Input
+                  ref={input}
+                  type="file"
+                  accept=".ros,.rosz"
+                  disabled={working}
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (file) bring.mutate(file)
+                    event.target.value = ''
+                  }}
+                />
+              </div>
+            </>
+          )}
 
-          {bring.error ? (
+          {failure ? (
             <p role="alert" className="text-sm text-destructive">
-              {errorMessage(bring.error)}
+              {errorMessage(failure)}
             </p>
           ) : null}
           <DialogFooter className="rounded-none border-edge bg-sunken">

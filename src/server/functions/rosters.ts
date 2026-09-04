@@ -227,7 +227,13 @@ export const importRoster = createServerFn({ method: 'POST' })
       if (!loaded) throw new Response('army data is not available', { status: 409 })
       const result = importRosterFile(data, loaded)
       const userId = await currentUserId()
-      if (userId) await app().telemetry.capture(userId, 'roster_imported', { unit_count: result.units.length, source: result.source })
+      if (userId) {
+        await app().telemetry.capture(userId, 'roster_imported', {
+          unit_count: result.units.length,
+          source: result.source,
+          unplaced_count: result.unplaced.length,
+        })
+      }
       return result
     }),
   )

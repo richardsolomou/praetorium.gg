@@ -377,6 +377,116 @@ Exported with BattleBase, Data Version: v20260812`,
     expect(imported.units[0]?.choices?.enhancements).toBe('relic')
   })
 
+  it('names equipment the datasheet cannot place instead of defaulting silently', () => {
+    const imported = importRosterFile(
+      {
+        file: `Blades (70 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Tomb Blades (70 Points)
+    • 3x Photon lance
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([{ unit: 'Tomb Blades', choices: ['Photon lance'] }])
+  })
+
+  it('names an enhancement the faction does not offer', () => {
+    const imported = importRosterFile(
+      {
+        file: `Lord (80 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+CHARACTERS
+
+Lokhust Lord (80 Points)
+    • Enhancement: Withering Presence
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([{ unit: 'Lokhust Lord', choices: ['Withering Presence'] }])
+  })
+
+  it('names a Warlord the datasheet cannot be', () => {
+    const imported = importRosterFile(
+      {
+        file: `Lord (80 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+CHARACTERS
+
+Lokhust Lord (80 Points)
+    • Warlord
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([{ unit: 'Lokhust Lord', choices: ['Warlord'] }])
+  })
+
+  it('names an attachment whose target is not in the list', () => {
+    const imported = importRosterFile(
+      {
+        file: `Lord (80 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+CHARACTERS
+
+Lokhust Lord (80 Points)
+    • Leading: Immortals
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([{ unit: 'Lokhust Lord', choices: ['Leading Immortals'] }])
+  })
+
+  it('says nothing about equipment it placed', () => {
+    const imported = importRosterFile(
+      {
+        file: `Blades (70 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Tomb Blades (70 Points)
+    • 3x Particle beamer
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([])
+  })
+
   it('pairs repeated attachments by occurrence', () => {
     const imported = importRosterFile(
       {
@@ -495,6 +605,46 @@ Created with newrecruit.eu v35.51`,
     })!
 
     expect(wargearOf(rebuilt.selection, loaded.index)).toContainEqual({ name: 'Astartes grenade launcher', count: 1 })
+  })
+
+  it('reports nothing for the model names an export lists beside its weapons', () => {
+    const imported = importRosterFile(
+      {
+        file: `+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Xenos - Necrons
++ TOTAL ARMY POINTS: 80pts
+++++++++++++++++++++++++++++++++++++++++++++++
+
+5x Intercessor Squad (80 pts)
+• 1x Intercessor Sergeant: Bolt rifle
+• 4x Intercessor: 4 with Bolt rifle
+  1 with Astartes grenade launcher
+
+Created with newrecruit.eu v35.51`,
+      },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([])
+  })
+
+  it('names a squad size the datasheet does not field', () => {
+    const imported = importRosterFile(
+      {
+        file: `+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Xenos - Necrons
++ TOTAL ARMY POINTS: 70pts
+++++++++++++++++++++++++++++++++++++++++++++++
+
+8x Tomb Blades (70 pts)
+• 8x Tomb Blade: 8 with Particle beamer
+
+Created with newrecruit.eu v35.51`,
+      },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([{ unit: 'Tomb Blades', choices: ['8 models'] }])
   })
 
   it('resolves setup and grouped model choices', () => {
