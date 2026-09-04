@@ -64,6 +64,8 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await expect(concession).toContainText(`This records that ${bobName} conceded`)
   await concession.getByRole('button', { name: `Concede for ${bobName}` }).click()
   await expect(alice.getByRole('heading', { name: `${aliceName} wins by concession` })).toBeVisible()
+  // The confetti is the winner's, on the winner's device: the player who conceded gets the result and nothing else.
+  await expect(bob.locator('[data-victory="confetti"]')).toHaveCount(0)
 })
 
 function panel(page: Page, army: string) {

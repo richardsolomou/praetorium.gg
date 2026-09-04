@@ -9,10 +9,11 @@ import { appliesInMode } from '../missionText'
 import { automaticAttemptsExhausted, claimAutomaticAttempt } from '../automaticAttempts'
 import { errorMessage } from '../queryClient'
 import { armyRulesRequest } from '../sideRules'
+import { celebrateVictory } from '../victory'
 import { type Side, type SideMission, sides } from '../sides'
 import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
-import { battleOutcome } from '../battleOutcome'
+import { battleOutcome, battleResult } from '../battleOutcome'
 import { BattleMenu } from './battle/BattleMenu'
 import { DrawDialog, type WhenDrawn } from './battle/DrawDialog'
 import { DiscardSecondaryDialog } from './battle/DiscardSecondaryDialog'
@@ -248,6 +249,13 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     if (!emptySettlementReady || pending || !claimAutomaticAttempt(attemptedEmptySettlements.current, emptySettlementKey)) return
     send({ kind: 'settle-opponent-turn' })
   }, [emptySettlementKey, emptySettlementReady, pending, send])
+  // The win is this device's to celebrate only when the side it is seated on took it.
+  const result = finished ? battleResult(table, view) : null
+  const wonSide = result?.kind === 'win' ? table.find((side) => side.index === result.side.index) : undefined
+  const wonHere = Boolean(wonSide?.isViewer)
+  useEffect(() => {
+    if (wonHere && wonSide) void celebrateVictory(view.token, wonSide.index)
+  }, [view.token, wonHere, wonSide])
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
   const discardable = active ? discardableSecondaries(active) : []
 
@@ -312,12 +320,6 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           )}
 
           <section className={`space-y-3 rounded-lg border border-edge bg-panel p-3 ${focus === 'battle' ? '' : 'hidden lg:block'}`}>
-            {finished ? (
-              <p className="rounded-sm border border-edge bg-sunken p-3 text-center text-sm text-dim">
-                {resultLabel(view) ?? 'The battle is over.'} Reopen it from the battle menu to keep playing.
-              </p>
-            ) : null}
-
             <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
               <Fact label="Mission" value={yours?.mission?.name ?? 'Matched play'} />
               <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
@@ -511,14 +513,6 @@ function formatName(table: Side[]) {
     .map((side) => side.armies.length)
     .toSorted((left, right) => right - left)
     .join('v')
-}
-
-function resultLabel(view: BattleView) {
-  if (!view.result) return null
-  if (view.result.reason === 'conceded') {
-    return `${view.players.find((player) => player.id === view.result?.concededBy)?.name ?? 'A player'} conceded.`
-  }
-  return view.result.reason === 'finished-early' ? 'Finished early.' : 'Played to the last round.'
 }
 
 /** The cards a side was holding, as keys, so a later hand can be told from this one. */

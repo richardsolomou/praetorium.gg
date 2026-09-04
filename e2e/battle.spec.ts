@@ -154,14 +154,15 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   if (await discard.isVisible()) await discard.getByRole('button', { name: 'Keep hand' }).click()
 
   await expect(handoff).toBeVisible()
-  await expect(page.getByText(/The battle is over/)).toHaveCount(0)
+  await expect(page.locator('[data-scoreboard]')).not.toContainText('Result')
   await handoff.getByRole('button', { name: 'Reveal and continue' }).click()
   const settlement = page.getByRole('dialog', { name: /^Scoring end of their turn points/ })
   await expect(settlement.locator('[data-due="final-secret"]')).toContainText('Final Vigil')
   await settlement.locator('[data-due="final-secret"]').getByRole('button', { name: 'plus 5' }).click()
   await page.screenshot({ path: 'test-results/final-round-settlement.png', fullPage: true })
   await settlement.getByRole('button', { name: 'Take the turn' }).click()
-  await expect(page.getByText('Played to the last round. Reopen it from the battle menu to keep playing.')).toBeVisible()
+  // The last round ends the battle, and the strip that carried the round carries the result.
+  await expect(page.locator('[data-scoreboard]')).toContainText('Result')
 })
 
 test('a tactical hand pays out when the card says', async ({ browser }) => {
