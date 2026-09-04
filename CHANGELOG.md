@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.60.0
+
+### Minor Changes
+
+- 0bc3cc9: Let a league organizer unseal one revealed roster so that entrant can submit a corrected list.
+
 ## 0.59.0
 
 ### Minor Changes
