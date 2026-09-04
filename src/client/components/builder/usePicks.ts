@@ -2,6 +2,21 @@ import { type Dispatch, type SetStateAction, useCallback, useMemo, useRef, useSt
 import type { RosterPick } from '../../../core/roster'
 import { type KeyedPick, positionedPicks } from '../../rosterPicks'
 
+/**
+ * A group told to hold nothing holds nothing, however it came to be filled.
+ *
+ * The same group can be answered as one chosen option or as a spread of counts, and
+ * only one of those is a choice. Clearing the choice alone left the count behind,
+ * which put the option straight back — the button emptied the group and the group
+ * refilled itself, so nothing on screen moved. Anything recorded under the group's
+ * own options goes too: those describe a loadout that is no longer carried.
+ */
+function emptied(spreads: Record<string, Record<string, number>> | undefined, key: string) {
+  if (!spreads) return spreads
+  const entries = Object.entries(spreads).filter(([stored]) => stored !== key && !stored.startsWith(`${key}/`))
+  return entries.length === Object.keys(spreads).length ? spreads : Object.fromEntries(entries)
+}
+
 /** Only what an edit needs to read back off the priced list. */
 type SizedUnit = { size: { models: number }; toggles: { key: string; name: string }[] }
 
@@ -73,7 +88,7 @@ export function pickEditor(
         const choices = { ...pick.choices }
         if (optionId) choices[key] = optionId
         else delete choices[key]
-        return { ...pick, choices }
+        return { ...pick, choices, spreads: optionId ? pick.spreads : emptied(pick.spreads, key) }
       }),
 
     /** How many of each option a group holds, leaving the unit's other groups alone. */
