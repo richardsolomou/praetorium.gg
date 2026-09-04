@@ -1156,9 +1156,10 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
       census.note('constraint percentValue')
       continue
     }
-    // A constraint on an entry counts that entry within the scope, so what is
-    // being counted is the node itself.
-    const raw = measure({ ...constraint, childId: node.target.id }, node, root, index, census)
+    // A constraint counts this node within its scope. A non-shared one identifies
+    // its link rather than every link to the same target.
+    const childId = constraint.shared === false ? node.id : node.target.id
+    const raw = measure({ ...constraint, childId }, node, root, index, census)
     // An unmarked mandatory child beneath an aggregated model is stored once as
     // the model's template, while its minimum applies once to every model.
     const measured = constraint.type === 'min' && raw === 1 ? raw * carriers(constraint, node, index) : raw
