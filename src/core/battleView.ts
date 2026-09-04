@@ -233,12 +233,12 @@ export function battleView(
         canGainCp: (resources.bonusCpByRound[state.round - 1] ?? 0) < 1,
         primary: resources.primary,
         secondary: resources.secondary,
-        total: resources.primary + resources.secondary + (state.status === 'finished' ? sidePaintedPoints(state, player.side) : 0),
+        total: resources.primary + resources.secondary + (state.status === 'setup' ? 0 : sidePaintedPoints(state, player.side)),
         painted: player.painted,
         /**
-         * What the bonus will pay this player's side. It joins the total when the battle
-         * ends, not before, and it is the side's rather than the seat's — so every seat
-         * on a side reads the same number, the way they read the same command points.
+         * What the bonus pays this player's side. It joins the total when the battle
+         * begins, and it is the side's rather than the seat's — so every seat on a side
+         * reads the same number, the way they read the same command points.
          */
         paintedPoints: sidePaintedPoints(state, player.side),
         rounds: Array.from({ length: battleRoundLimit(state.settings.limit) }, (_, round) => ({

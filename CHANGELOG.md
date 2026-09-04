@@ -1,5 +1,25 @@
 # praetorium
 
+## 0.54.0
+
+### Minor Changes
+
+- deb571d: End a battle on the winner's name, picture and score, with confetti on the winning players' own devices.
+- deb571d: Ask only who can see and join a new league, and set its battle format and points on the league page until the first roster is sealed.
+
+### Patch Changes
+
+- deb571d: Score the battle ready bonus as the battle begins, the way the current rules pay it.
+- deb571d: Delete a battle from the home page, without opening it first.
+- deb571d: Drop the note repeating that a finished battle is finished.
+- deb571d: Show a detachment enhancement's ability on a datasheet only once the enhancement is taken.
+- deb571d: Accept the organizer into their own league without asking them to approve themselves.
+- deb571d: Draw the league event list as buttons with their status beside them, and say what a league page means in the words a player uses.
+- deb571d: Let a league organizer change visibility and joining after players have joined, accepting the waiting requests when joining becomes automatic.
+- deb571d: Keep the application's Back action and the iOS back gesture inside the open tab, and offer neither at the bottom of one.
+- deb571d: Open every battle from one New battle button, and say clearly when a league event is waiting for that matchup.
+- deb571d: Shorten the battle events panel so the rest of the battle facts stay in view.
+
 ## 0.53.8
 
 ### Patch Changes

@@ -154,14 +154,15 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   if (await discard.isVisible()) await discard.getByRole('button', { name: 'Keep hand' }).click()
 
   await expect(handoff).toBeVisible()
-  await expect(page.getByText(/The battle is over/)).toHaveCount(0)
+  await expect(page.locator('[data-scoreboard]')).not.toContainText('Result')
   await handoff.getByRole('button', { name: 'Reveal and continue' }).click()
   const settlement = page.getByRole('dialog', { name: /^Scoring end of their turn points/ })
   await expect(settlement.locator('[data-due="final-secret"]')).toContainText('Final Vigil')
   await settlement.locator('[data-due="final-secret"]').getByRole('button', { name: 'plus 5' }).click()
   await page.screenshot({ path: 'test-results/final-round-settlement.png', fullPage: true })
   await settlement.getByRole('button', { name: 'Take the turn' }).click()
-  await expect(page.getByText('Played to the last round. Reopen it from the battle menu to keep playing.')).toBeVisible()
+  // The last round ends the battle, and the strip that carried the round carries the result.
+  await expect(page.locator('[data-scoreboard]')).toContainText('Result')
 })
 
 test('a tactical hand pays out when the card says', async ({ browser }) => {
@@ -340,12 +341,13 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await takeTheTurn(alice)
   await expect(alice.getByText(new RegExp(`${aliceName} draws .+ for ${bobName}`)).first()).toBeVisible()
   await expect(alice.getByText(new RegExp(`${bobName} marks `))).toHaveCount(0)
-  await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored))
+  // Both armies arrive battle ready, so every score carries the bonus the battle paid at the start.
+  await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored + 10))
   await expect(panel.locator('[data-stat="cp"]')).toHaveText('2')
   // Nothing is ticked to finish a card: no control for it exists.
   await expect(alice.getByText('take it out of the hand')).toHaveCount(0)
   await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-stat="vp"]')).toHaveText(
-    String(scored),
+    String(scored + 10),
   )
 
   await expect(alice.getByText(/The battlefield is /)).toBeVisible()

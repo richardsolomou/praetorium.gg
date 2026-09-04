@@ -183,9 +183,9 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
              */}
             <p className={`text-xs ${side.paintedPoints ? 'text-achieved' : 'text-dim'}`}>
               {side.paintedPoints
-                ? `Battle ready · +${side.paintedPoints} VP at the end of the battle`
+                ? `Battle ready · +${side.paintedPoints} VP at the start of the battle`
                 : side.armies.length > 1
-                  ? `+${PAINTED_ARMY_POINTS} VP at the end of the battle once every army on this side is battle ready`
+                  ? `+${PAINTED_ARMY_POINTS} VP at the start of the battle once every army on this side is battle ready`
                   : 'No battle ready bonus'}
             </p>
           </SetupSidePanel>

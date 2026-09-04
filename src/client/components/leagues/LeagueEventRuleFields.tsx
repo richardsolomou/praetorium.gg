@@ -9,9 +9,9 @@ export type LeagueEventRuleValue = { format: TableShape; rosterLimit: number }
 
 /** What each shape asks of an entrant's roster, which is the whole reason an event fixes one. */
 const ROSTER_RULE: Record<TableShape, string> = {
-  '1v1': 'Every entrant uses the same roster size.',
-  '2v1': 'Assign each entrant a solo or allied roster size.',
-  '2v2': 'Pair entrants into fixed two-player teams.',
+  '1v1': 'Everyone builds to the same points.',
+  '2v1': 'You give each entrant a solo or allied size.',
+  '2v2': 'You pair entrants into fixed teams of two.',
 }
 
 export function LeagueEventRuleFields({
@@ -68,10 +68,10 @@ export function LeagueEventRuleFields({
         </Select>
         <p className="text-xs text-dim">
           {value.format === '2v1'
-            ? 'The organizer assigns every accepted entrant to the solo or allied size before they can seal a roster.'
+            ? 'Nobody can seal a list until you give them a size.'
             : value.format === '2v2'
-              ? 'Each paired entrant seals an independently legal half-size roster. Team-wide uniqueness rules require a manual check.'
-              : 'Every accepted entrant must seal a roster configured for this size.'}
+              ? 'Each player seals their own legal half-size list. Team-wide restrictions are yours to check.'
+              : 'Everyone seals a list built for this size.'}
         </p>
       </div>
     </>

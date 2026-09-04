@@ -404,8 +404,17 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     visited.add(definition.id)
     const lineage = [...ancestors, ...definitionTokens(definition)]
     const resolved = targetOf(definition, loaded.index.definitions)
+    /**
+     * An entry the data hides on the sheet itself is something the unit is given
+     * rather than something it has: a detachment enhancement hangs off the datasheet
+     * it upgrades and is unhidden by the detachment that offers it. Printing it
+     * regardless put a Pantheon of Woe enhancement on every Nightbringer, so it is
+     * read like the enhancement group it belongs to and appears once it is taken.
+     */
     const enhancementEntry =
-      enhancement || (resolved.type === undefined && (definition.name ?? resolved.name)?.toLocaleLowerCase().includes('enhancement'))
+      enhancement ||
+      (!isRoot && Boolean(definition.hidden ?? resolved.hidden)) ||
+      (resolved.type === undefined && (definition.name ?? resolved.name)?.toLocaleLowerCase().includes('enhancement'))
     if (!enhancementEntry || selected.has(definition.id)) addProfiles(definition, lineage, 'datasheet', isRoot)
     definition.selectionEntries?.forEach((entry) => visit(entry, false, lineage, enhancementEntry))
     definition.selectionEntryGroups?.forEach((group) => visit(group, false, lineage, enhancementEntry))

@@ -68,7 +68,7 @@ export function Report({
         <ToggleGroupItem value="all">All</ToggleGroupItem>
         <ToggleGroupItem value="cp">CP only</ToggleGroupItem>
       </ToggleGroup>
-      <div className="mt-3 h-96 overflow-x-hidden overflow-y-auto pr-1">
+      <div className="mt-3 h-72 overflow-x-hidden overflow-y-auto pr-1">
         {visible.length ? (
           <ol className="w-full space-y-1">
             {visible.map((entry) => (
@@ -110,7 +110,7 @@ function ReportSkeleton() {
     <div className="mt-3" aria-label="Loading battle events">
       <Skeleton className="h-8 w-28 rounded-none" />
       <div className="mt-3 space-y-2">
-        {Array.from({ length: 8 }, (_, index) => (
+        {Array.from({ length: 6 }, (_, index) => (
           <div key={index} className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-2 sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3" aria-hidden>
             <Skeleton className="ml-auto h-7 w-10" />
             <Skeleton className={`h-4 ${index % 3 === 0 ? 'w-3/4' : 'w-full'}`} />

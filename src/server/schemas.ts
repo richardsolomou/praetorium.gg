@@ -51,37 +51,22 @@ const leagueEventRuleFields = {
     .refine((value) => GAME_SIZES.some((size) => size.limit === value))
     .default(LEAGUE_DEFAULT_ROSTER_LIMIT),
 }
-function validateLeagueEventRule(
-  value: { format: TableShape; rosterLimit: number; playerLimit?: number | null },
-  context: z.RefinementCtx,
-) {
+function validateLeagueEventRule(value: { format: TableShape; rosterLimit: number }, context: z.RefinementCtx) {
   if ((value.format === '2v1' || value.format === '2v2') && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
     context.addIssue({ code: 'custom', path: ['rosterLimit'], message: `choose a supported ${value.format} roster size` })
   }
-  if (value.format === '2v1' && value.playerLimit !== undefined && value.playerLimit !== null && value.playerLimit < 3) {
-    context.addIssue({ code: 'custom', path: ['playerLimit'], message: 'a 2v1 event needs at least three places' })
-  }
-  if (
-    value.format === '2v2' &&
-    value.playerLimit !== undefined &&
-    value.playerLimit !== null &&
-    (value.playerLimit < 4 || value.playerLimit % 2 !== 0)
-  ) {
-    context.addIssue({ code: 'custom', path: ['playerLimit'], message: 'a 2v2 event needs an even number of at least four places' })
-  }
 }
-export const createLeagueSchema = z
-  .object({
-    ...leagueFields,
-    ...leagueEventRuleFields,
-    description: leagueFields.description.default(''),
-    playerLimit: leagueFields.playerLimit.default(null),
-    recurring: z.boolean().default(true),
-  })
-  .superRefine(validateLeagueEventRule)
+export const createLeagueSchema = z.object({
+  ...leagueFields,
+  description: leagueFields.description.default(''),
+  playerLimit: leagueFields.playerLimit.default(null),
+})
 export const updateLeagueSchema = z.object({ token, ...leagueFields })
 export const leagueEventSchema = z.object({ token, eventToken: token.optional() })
 export const createLeagueEventSchema = z.object({ token, ...leagueEventRuleFields }).superRefine(validateLeagueEventRule)
+export const updateLeagueEventSchema = z
+  .object({ token, eventToken: token.optional(), ...leagueEventRuleFields })
+  .superRefine(validateLeagueEventRule)
 export const openLeagueSchema = z.object({ token, eventToken: token.optional() })
 export const moderateLeagueEntrySchema = z.object({
   token,

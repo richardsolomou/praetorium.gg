@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -42,9 +42,16 @@ import {
   moderateLeagueEntry,
   revealLeague,
   submitLeagueRoster,
+  updateLeagueEvent,
 } from '../../../server/functions'
 import { GAME_SIZES } from '../../../core/battle'
-import { alliedLeagueRosterLimit, leagueRosterSplit, leagueTableShape, LEAGUE_MEMBER_MAX } from '../../../core/league'
+import {
+  alliedLeagueRosterLimit,
+  leagueRosterSplit,
+  leagueTableShape,
+  LEAGUE_DEFAULT_ROSTER_LIMIT,
+  LEAGUE_MEMBER_MAX,
+} from '../../../core/league'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { seatedPlayers, seatsFor, type Seat } from '../../seats'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../Seats'
@@ -71,7 +78,8 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
   const [sealing, setSealing] = useState<SavedRoster | null>(null)
   const [revealing, setRevealing] = useState(false)
   const [starting, setStarting] = useState(false)
-  const [eventRule, setEventRule] = useState<LeagueEventRuleValue>({ format: '1v1', rosterLimit: 2_000 })
+  const [editingRule, setEditingRule] = useState(false)
+  const [eventRule, setEventRule] = useState<LeagueEventRuleValue>({ format: '1v1', rosterLimit: LEAGUE_DEFAULT_ROSTER_LIMIT })
   const [choosingBattle, setChoosingBattle] = useState(Boolean(startBattle))
   const [removing, setRemoving] = useState<{ userId: string; name: string } | null>(null)
   const [reassigning, setReassigning] = useState<{ userId: string; name: string; requiredLimit: number } | null>(null)
@@ -130,6 +138,13 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
       await navigate({ to: '/battles/$token', params: { token: battleToken } })
     },
   })
+  const changeRule = useMutation({
+    mutationFn: () => updateLeagueEvent({ data: { token, eventToken: selectedEventToken, ...eventRule } }),
+    onSuccess: async () => {
+      setEditingRule(false)
+      await refresh()
+    },
+  })
   const startEvent = useMutation({
     mutationFn: async () => {
       await makeLeagueRecurring({ data: { token } })
@@ -156,6 +171,19 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
   const closeTeamChooser = () => {
     assignTeam.reset()
     setPairing(null)
+  }
+  const openEventRules = (open: 'change' | 'next') => {
+    changeRule.reset()
+    startEvent.reset()
+    // Changing the open event starts from what it plays now; a fresh event starts from
+    // the default, because the league's places may no longer seat the last event's shape.
+    if (open === 'change') {
+      setEventRule({ format: leagueTableShape(league?.format), rosterLimit: league?.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT })
+      setEditingRule(true)
+      return
+    }
+    setEventRule({ format: '1v1', rosterLimit: LEAGUE_DEFAULT_ROSTER_LIMIT })
+    setStarting(true)
   }
   const openRosterChooser = () => {
     submit.reset()
@@ -185,7 +213,6 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
       : accepted
   const pendingCount = league.entries.filter((entry) => entry.status === 'pending').length
   const latestEvent = league.events[0]
-  const archivedEvents = league.events.slice(1)
   const viewingLatest = latestEvent?.token === league.eventToken
   const entrantLabels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))
   const teamProjection = projectDoublesTeams(accepted)
@@ -211,6 +238,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
         accepted.filter((entry) => entry.requiredLimit === alliedLeagueRosterLimit(league.rosterLimit ?? 0)).length >= 2)) &&
     (league.format !== '2v2' || (doublesReady && pendingCount === 0)) &&
     (league.playerLimit === null || accepted.length === league.playerLimit)
+  const sealedCount = league.entries.filter((entry) => entry.submitted).length
   const eventRuleBlocked =
     league.playerLimit !== null &&
     ((eventRule.format === '2v1' && league.playerLimit < 3) ||
@@ -436,7 +464,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
             <div className="border border-dashed border-edge bg-panel px-5 py-9 text-center">
               <UserPlus className="mx-auto size-7 text-faint" />
               <p className="mt-3 font-bold uppercase">No entrants yet</p>
-              <p className="mt-1 text-sm text-dim">Share this page to open registration.</p>
+              <p className="mt-1 text-sm text-dim">Share the invite link to fill the event.</p>
             </div>
           )}
 
@@ -462,7 +490,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
                 <div className="border border-dashed border-edge bg-panel px-5 py-7 text-center">
                   <Swords className="mx-auto size-7 text-faint" />
                   <p className="mt-3 font-bold uppercase">No battles yet</p>
-                  <p className="mt-1 text-sm text-dim">Battles started from this event will appear here for live viewing and review.</p>
+                  <p className="mt-1 text-sm text-dim">Battles started from this event show up here to watch or read back.</p>
                 </div>
               )}
             </div>
@@ -476,22 +504,21 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
               <h2 className="font-bold uppercase">Sealed rosters</h2>
             </div>
             <p className="mt-2 text-sm text-dim">
-              A submitted roster is copied into this league. Editing or deleting the saved roster cannot change the sealed copy.
+              Nobody sees your list until the organizer reveals every list at once. You can swap it for another until then.
             </p>
             <p className="mt-3 text-sm text-dim">
-              Praetorium checks the event format, assigned size, points, and every roster construction rule it can verify before sealing it.
+              It is checked for points and legality, then copied here. Editing the saved list afterwards does not change the copy.
             </p>
             {league.format === '2v2' ? (
               <p className="mt-3 text-sm text-parchment">
-                Each team must select exactly one eligible CHARACTER or EPIC HERO as its Warlord. Praetorium checks both rosters when the
-                team seals them and rechecks at reveal; your team and organizer must manually check the remaining official cross-army
-                uniqueness restrictions.
+                Your team needs exactly one Warlord across both lists. The rest of the doubles restrictions are yours and the organizer's to
+                check.
               </p>
             ) : null}
             {ownEntry?.status === 'pending' ? (
-              <p className="mt-3 text-sm text-parchment">Your request is waiting for organizer approval.</p>
+              <p className="mt-3 text-sm text-parchment">Waiting for the organizer to let you in.</p>
             ) : null}
-            {ownEntry?.status === 'rejected' ? <p className="mt-3 text-sm text-destructive">Your entry was not accepted.</p> : null}
+            {ownEntry?.status === 'rejected' ? <p className="mt-3 text-sm text-destructive">You are not in this event.</p> : null}
             {ownEntry?.status === 'accepted' && !league.revealedAt ? (
               <Button
                 className="mt-4 w-full"
@@ -503,19 +530,17 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
               </Button>
             ) : null}
             {league.format === '2v1' && ownEntry?.status === 'accepted' && ownEntry.requiredLimit === null && !league.revealedAt ? (
-              <p className="mt-3 text-sm text-parchment">Wait for the organizer to assign your solo or allied roster size.</p>
+              <p className="mt-3 text-sm text-parchment">The organizer has not given you a solo or allied size yet.</p>
             ) : null}
             {league.format === '2v2' && ownEntry?.status === 'accepted' && ownEntry.requiredLimit === null && !league.revealedAt ? (
-              <p className="mt-3 text-sm text-parchment">Wait for the organizer to pair you with a teammate before sealing a roster.</p>
+              <p className="mt-3 text-sm text-parchment">The organizer has not paired you with a teammate yet.</p>
             ) : null}
             {ownEntry?.submitted && !league.revealedAt ? (
               <p className="mt-3 flex items-center gap-2 text-sm text-achieved">
-                <ShieldCheck className="size-4" /> {ownEntry.rosterName ?? 'Roster'} submitted. You can replace it until reveal.
+                <ShieldCheck className="size-4" /> {ownEntry.rosterName ?? 'Roster'} is sealed. Swap it any time before reveal.
               </p>
             ) : null}
-            {league.revealedAt ? (
-              <p className="mt-3 text-sm text-achieved">Every accepted roster is now visible to anyone with this link.</p>
-            ) : null}
+            {league.revealedAt ? <p className="mt-3 text-sm text-achieved">Every list is out in the open.</p> : null}
             {league.revealedAt && ownEntry?.status === 'accepted' ? (
               <Button className="mt-4 w-full" disabled={battle.isPending} onClick={openBattleChooser}>
                 <Swords /> {startBattleLabel(battleFormat)}
@@ -525,8 +550,29 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           {isOwner && !league.revealedAt ? (
             <section className="border border-edge bg-panel p-4">
               <h2 className="font-bold uppercase">Organizer</h2>
-              <p className="mt-2 text-sm text-dim">
-                Reveal closes registration and makes every accepted roster visible at once. It cannot be undone.
+              {viewingLatest ? (
+                <div className="mt-3 border border-edge bg-sunken p-3">
+                  <p className="eyebrow text-dim">Battle format</p>
+                  <p className="mt-1 text-sm">
+                    {TABLE_SHAPE_LABELS[battleFormat].name}
+                    {league.rosterLimit
+                      ? ` · ${leagueRosterSplit(battleFormat, league.rosterLimit) ?? `${league.rosterLimit.toLocaleString()} points`}`
+                      : ''}
+                  </p>
+                  <Button
+                    className="mt-2 w-full"
+                    variant="outline"
+                    size="sm"
+                    disabled={sealedCount > 0}
+                    onClick={() => openEventRules('change')}
+                  >
+                    <Pencil /> Change format and points
+                  </Button>
+                  {sealedCount > 0 ? <p className="mt-2 text-xs text-dim">Fixed now that a list is sealed against it.</p> : null}
+                </div>
+              ) : null}
+              <p className="mt-3 text-sm text-dim">
+                Revealing shows every accepted list at once and closes the event. It cannot be undone.
               </p>
               <Button
                 className="mt-4 w-full"
@@ -543,25 +589,25 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
                   {accepted.length === 0
                     ? 'Accept at least one entrant first.'
                     : league.format === '2v1' && accepted.some((entry) => entry.requiredLimit === null)
-                      ? 'Assign every accepted entrant a solo or allied roster size.'
+                      ? 'Give every entrant a solo or allied size.'
                       : league.format === '2v1' && !accepted.some((entry) => entry.requiredLimit === league.rosterLimit)
-                        ? 'Assign at least one solo entrant.'
+                        ? 'One entrant has to be solo.'
                         : league.format === '2v1' &&
                             accepted.filter((entry) => entry.requiredLimit === alliedLeagueRosterLimit(league.rosterLimit ?? 0)).length < 2
-                          ? 'Assign at least two allied entrants.'
+                          ? 'Two entrants have to be allied.'
                           : league.format === '2v2' && pendingCount > 0
-                            ? 'Resolve every pending request before reveal.'
+                            ? 'Answer every waiting request first.'
                             : league.format === '2v2' && accepted.length < 4
-                              ? 'Accept at least four entrants for doubles.'
+                              ? 'Doubles needs four entrants.'
                               : league.format === '2v2' && accepted.length % 2 !== 0
-                                ? 'Doubles needs an even number of accepted entrants.'
+                                ? 'Doubles needs an even number of entrants.'
                                 : league.format === '2v2' && !doublesReady
-                                  ? 'Pair every accepted entrant into a team of exactly two.'
+                                  ? 'Pair everyone into teams of two.'
                                   : accepted.some((entry) => !entry.submitted)
                                     ? missingRosterMessage(accepted.filter((entry) => !entry.submitted).length)
                                     : league.playerLimit !== null && accepted.length < league.playerLimit
-                                      ? `${league.playerLimit - accepted.length} accepted place${league.playerLimit - accepted.length === 1 ? '' : 's'} still open.`
-                                      : 'The league is not ready to reveal.'}
+                                      ? `${league.playerLimit - accepted.length} place${league.playerLimit - accepted.length === 1 ? '' : 's'} still open.`
+                                      : 'Not ready to reveal yet.'}
                 </p>
               ) : null}
             </section>
@@ -572,49 +618,32 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
               <h2 className="font-bold uppercase">League events</h2>
               <span className="readout">{league.eventCount}</span>
             </div>
-            {latestEvent ? (
-              <div className="mt-3">
-                <p className="eyebrow mb-1 text-dim">Current</p>
-                <Link
-                  to="/leagues/$token"
-                  params={{ token }}
-                  search={{ event: latestEvent.token }}
-                  className={buttonVariants({
-                    variant: latestEvent.token === league.eventToken ? 'outline' : 'ghost',
-                    className: 'w-full justify-between',
-                  })}
-                >
-                  <span>Current event</span>
-                  <span className="text-xs text-dim">{latestEvent.revealedAt ? 'Revealed' : 'Active'}</span>
-                </Link>
-              </div>
-            ) : null}
+            <div className="mt-3 space-y-1.5">
+              {league.events.map((event) => {
+                const selected = event.token === league.eventToken
+                const current = event.number === latestEvent?.number
+                return (
+                  <Link
+                    key={event.token}
+                    to="/leagues/$token"
+                    params={{ token }}
+                    search={{ event: event.token }}
+                    aria-current={selected ? 'page' : undefined}
+                    className={`flex w-full items-center justify-between gap-2 border px-3 py-2 ${selected ? 'border-parchment bg-raised' : 'border-edge bg-sunken hover:border-info'}`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate text-sm font-bold uppercase">Event {event.number}</span>
+                      {current && league.events.length > 1 ? <span className="chip shrink-0 text-parchment">Current</span> : null}
+                    </span>
+                    <span className="shrink-0 text-xs text-dim">{event.revealedAt ? 'Revealed' : 'Open'}</span>
+                  </Link>
+                )
+              })}
+            </div>
             {isOwner && viewingLatest && league.revealedAt ? (
-              <Button className="mt-3 w-full" onClick={() => setStarting(true)}>
+              <Button className="mt-3 w-full" onClick={() => openEventRules('next')}>
                 <CalendarPlus /> Create new event
               </Button>
-            ) : null}
-            {archivedEvents.length ? (
-              <div className="mt-4">
-                <p className="eyebrow mb-1 text-dim">Archive</p>
-                <div className="space-y-1">
-                  {archivedEvents.map((event) => (
-                    <Link
-                      key={event.token}
-                      to="/leagues/$token"
-                      params={{ token }}
-                      search={{ event: event.token }}
-                      className={buttonVariants({
-                        variant: event.token === league.eventToken ? 'outline' : 'ghost',
-                        className: 'w-full justify-between',
-                      })}
-                    >
-                      <span>Event {event.number}</span>
-                      <span className="text-xs text-dim">Revealed</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
             ) : null}
           </section>
         </aside>
@@ -654,8 +683,8 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           </AlertDialogHeader>
           <WaiverList rules={sealWaivers} />
           <p className="text-sm text-dim">
-            Praetorium has not checked {sealWaivers.length === 1 ? 'it' : 'them'}, so this roster may not be legal for the event. The
-            organizer and every opponent see what it waives once the rosters are revealed.
+            Praetorium has not checked {sealWaivers.length === 1 ? 'it' : 'them'}, so this list may not be legal here. The organizer and
+            every opponent see what it waives at reveal.
           </p>
           <AlertDialogFooter className="sm:flex-wrap">
             {sealing ? (
@@ -693,9 +722,9 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           <AlertDialogHeader>
             <AlertDialogTitle className="uppercase">Reveal every roster?</AlertDialogTitle>
             <AlertDialogDescription className="text-dim">
-              Registration closes immediately.{' '}
-              {pendingCount ? `${pendingCount} pending request${pendingCount === 1 ? '' : 's'} will be rejected. ` : ''}
-              Every accepted entrant’s sealed roster becomes visible, and this cannot be undone.
+              Every accepted list becomes visible and the event closes to new players.{' '}
+              {pendingCount ? `${pendingCount} request${pendingCount === 1 ? '' : 's'} still waiting will be turned down. ` : ''}
+              You cannot undo this.
             </AlertDialogDescription>
             {reveal.error ? (
               <p role="alert" className="text-sm text-destructive">
@@ -727,8 +756,8 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
             <AlertDialogTitle className="uppercase">Remove {removing?.name}?</AlertDialogTitle>
             <AlertDialogDescription className="text-dim">
               {removingTeammate
-                ? `This also unpairs ${entrantLabels.get(removingTeammate.userId) ?? removingTeammate.name}. Both teammates’ sealed rosters will be cleared. ${removing?.name} must join again and submit another roster to return.`
-                : 'Their submitted roster will be discarded. They must join again and submit another roster to return.'}
+                ? `This also unpairs ${entrantLabels.get(removingTeammate.userId) ?? removingTeammate.name} and clears both their sealed lists. ${removing?.name} has to join again and seal another list to come back.`
+                : 'Their sealed list goes with them. They have to join again and seal another to come back.'}
             </AlertDialogDescription>
             {moderate.error ? (
               <p role="alert" className="text-sm text-destructive">
@@ -753,7 +782,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           <AlertDialogHeader>
             <AlertDialogTitle className="uppercase">Change {reassigning?.name}’s roster size?</AlertDialogTitle>
             <AlertDialogDescription className="text-dim">
-              Their sealed roster will be discarded. They must seal a roster for the new size before reveal.
+              Their sealed list is cleared. They have to seal one at the new size before you can reveal.
             </AlertDialogDescription>
             {assign.isPending ? <output className="sr-only">Changing roster size…</output> : null}
             {assign.error ? (
@@ -779,19 +808,46 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={editingRule} onOpenChange={(open) => !changeRule.isPending && setEditingRule(open)}>
+        <AlertDialogContent aria-busy={changeRule.isPending} className="rounded-none border border-edge bg-panel text-bone">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="uppercase">Change the battle format?</AlertDialogTitle>
+            <AlertDialogDescription className="text-dim">
+              {accepted.length
+                ? 'Every size and team you have handed out is cleared. You can change this until the first list is sealed.'
+                : 'What every entrant builds for. You can change it until the first list is sealed.'}
+            </AlertDialogDescription>
+            <LeagueEventRuleFields value={eventRule} disabled={changeRule.isPending} onChange={setEventRule} />
+            {eventRuleBlocked ? (
+              <p className="text-sm text-parchment">
+                {eventRule.format === '2v2'
+                  ? 'Raise the player limit to an even number of at least 4 in Edit league first.'
+                  : 'Raise the player limit to at least 3 in Edit league first.'}
+              </p>
+            ) : null}
+            {changeRule.error ? <p className="text-sm text-destructive">{errorMessage(changeRule.error)}</p> : null}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={changeRule.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={changeRule.isPending || eventRuleBlocked} onClick={() => changeRule.mutate()}>
+              {changeRule.isPending ? 'Saving…' : 'Save format'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={starting} onOpenChange={(open) => !startEvent.isPending && setStarting(open)}>
         <AlertDialogContent aria-busy={startEvent.isPending} className="rounded-none border border-edge bg-panel text-bone">
           <AlertDialogHeader>
             <AlertDialogTitle className="uppercase">Create a new event?</AlertDialogTitle>
             <AlertDialogDescription className="text-dim">
-              Registration will open with no entrants. Players from earlier events can join again and submit new sealed rosters.
+              Registration opens again with nobody in it. Everyone joins again and seals a new list, including you.
             </AlertDialogDescription>
             <LeagueEventRuleFields value={eventRule} disabled={startEvent.isPending} onChange={setEventRule} />
             {eventRuleBlocked ? (
               <p className="text-sm text-parchment">
                 {eventRule.format === '2v2'
-                  ? 'Set the league player limit to an even number of at least 4 in Edit league first.'
-                  : 'Raise the league player limit to at least 3 in Edit league first.'}
+                  ? 'Raise the player limit to an even number of at least 4 in Edit league first.'
+                  : 'Raise the player limit to at least 3 in Edit league first.'}
               </p>
             ) : null}
             {startEvent.error ? <p className="text-sm text-destructive">{errorMessage(startEvent.error)}</p> : null}
@@ -892,8 +948,8 @@ function RosterChooser({
           <DialogTitle className="text-2xl uppercase">Seal a roster</DialogTitle>
           <DialogDescription className="text-dim">
             {requiredLimit === null
-              ? 'This copies the roster into the league. You can replace it until the organizer reveals every list.'
-              : `Choose a roster configured for ${requiredLimit.toLocaleString()} points. You can replace it until the organizer reveals every list.`}
+              ? 'Nobody sees it until reveal, and you can swap it until then.'
+              : `Only your ${requiredLimit.toLocaleString()}-point lists. Nobody sees it until reveal, and you can swap it until then.`}
           </DialogDescription>
         </DialogHeader>
         {error || rosterQuery.error ? (
@@ -927,8 +983,8 @@ function RosterChooser({
           <div className="border border-dashed border-edge p-5 text-center">
             <p className="text-sm text-dim">
               {requiredLimit === null
-                ? 'Build or import a roster before submitting.'
-                : `Build or import a ${requiredLimit.toLocaleString()}-point roster before submitting.`}
+                ? 'Build or import a list first.'
+                : `Build or import a ${requiredLimit.toLocaleString()}-point list first.`}
             </p>
             <Button
               className="mt-3"
@@ -1020,7 +1076,7 @@ function OneOnOneBattleChooser({
       <DialogContent className="rounded-none border border-edge bg-panel text-bone sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl uppercase">{startBattleLabel('1v1')}</DialogTitle>
-          <DialogDescription className="text-dim">Choose another entrant. Both sealed rosters are added automatically.</DialogDescription>
+          <DialogDescription className="text-dim">Pick who you are playing. Both sealed lists are added for you.</DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">
           <Label htmlFor="league-opponent">Opponent</Label>
@@ -1119,7 +1175,7 @@ function LeagueBattleChooser({
         <DialogHeader>
           <DialogTitle className="text-2xl uppercase">{startBattleLabel('2v1')}</DialogTitle>
           <DialogDescription className="text-dim">
-            {isSolo ? 'Choose two allied entrants to face.' : 'Choose your allied teammate and the solo entrant to face.'}
+            {isSolo ? 'Pick the two allied entrants you are facing.' : 'Pick your teammate and the solo entrant you are facing.'}
           </DialogDescription>
         </DialogHeader>
         <SeatRows
@@ -1217,7 +1273,7 @@ function LeagueTeamChooser({
               {currentTeam && currentTeammate
                 ? `Currently paired with ${labels.get(currentTeammate.userId) ?? currentTeammate.name}. `
                 : ''}
-              Choose one teammate. Re-pairing or unpairing changes the official force composition and discards every affected sealed roster.
+              Pick one teammate. Changing a pair clears the sealed lists of everyone it touches.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1.5">
@@ -1287,8 +1343,8 @@ function LeagueTeamChooser({
           <AlertDialogHeader>
             <AlertDialogTitle className="uppercase">Clear sealed doubles rosters?</AlertDialogTitle>
             <AlertDialogDescription className="text-dim">
-              This team change will clear the sealed {confirmation?.sealedNames.length === 1 ? 'roster' : 'rosters'} for{' '}
-              {confirmation ? formatNames(confirmation.sealedNames) : ''}. Every affected entrant must seal another roster before reveal.
+              This clears the sealed {confirmation?.sealedNames.length === 1 ? 'list' : 'lists'} for{' '}
+              {confirmation ? formatNames(confirmation.sealedNames) : ''}. They have to seal another before you can reveal.
             </AlertDialogDescription>
             {error ? (
               <p role="alert" className="text-sm text-destructive">
@@ -1359,7 +1415,7 @@ function DoublesBattleChooser({
         <DialogHeader>
           <DialogTitle className="text-2xl uppercase">{startBattleLabel('2v2')}</DialogTitle>
           <DialogDescription className="text-dim">
-            Choose an opposing fixed team. Your teammate and all four sealed rosters are added automatically.
+            Pick the team you are playing. Your teammate and all four sealed lists are added for you.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">
@@ -1428,10 +1484,10 @@ function formatNames(names: string[]) {
 function entryStatus(status: 'pending' | 'accepted' | 'rejected', submitted: boolean, revealed: boolean) {
   if (status === 'pending') return 'Waiting for approval'
   if (status === 'rejected') return 'Not accepted'
-  if (revealed) return submitted ? 'Roster revealed' : 'No roster submitted'
-  return submitted ? 'Roster sealed' : 'Accepted · roster pending'
+  if (revealed) return submitted ? 'List revealed' : 'No list'
+  return submitted ? 'List sealed' : 'Accepted · no list yet'
 }
 
 function missingRosterMessage(count: number) {
-  return `${count} accepted roster${count === 1 ? '' : 's'} still missing.`
+  return `Waiting on ${count} list${count === 1 ? '' : 's'}.`
 }
