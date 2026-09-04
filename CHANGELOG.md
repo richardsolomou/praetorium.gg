@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.57.2
+
+### Patch Changes
+
+- 1de9c64: Show player avatars on the leaderboard and in player choices.
+
 ## 0.57.1
 
 ### Patch Changes
