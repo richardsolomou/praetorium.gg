@@ -162,5 +162,6 @@ The rules source carries units, points and compositions of its own, so `just par
 - `built.units` freezes when a roster is attached, giving battle commands stable unit keys.
 - Roster imports match entries by catalogue ID and resolve joined link paths from the final ID. Name matching is only a fallback.
 - Unmatched import entries are reported rather than dropped.
+- A choice a text export states that its unit cannot be given is named back to the player, per unit, before the list is saved: equipment and enhancements the datasheet cannot place, a Warlord it cannot be, a squad size it does not field, and an attachment whose target the list does not hold. Equipment is unplaced only when it matches no choice option, nothing the built unit holds, and no model in it, so fixed wargear and the model names an export lists beside their weapons are silent. A squad size counts only where the export states one. The unit keeps what its datasheet builds and the player confirms the import, because substituting a choice nobody asked for is the answer they cannot correct at the table.
 - Roster XML uses `fast-xml-parser`, while `.rosz` archives use `fflate`.
 - Export uses the current builder state and does not require a battle attachment.
