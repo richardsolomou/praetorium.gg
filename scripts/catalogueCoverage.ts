@@ -124,8 +124,12 @@ const snapshot = loaded.factions.toSorted(byName).map((faction) => {
         loaded,
       )
       const unit = priced?.units[0]
-      // The loadout pane's view: every weapon the unit could take, in the context of the unit as built.
-      const context = priced?.selections.length ? { selections: priced.selections, unitSelectionIndex: 0, everyWeapon: true } : undefined
+      // The loadout pane's view: every weapon the unit could take, in the context of the
+      // unit as built. A priced force states its battle size and its detachments before
+      // it states a unit, so the unit is looked up rather than assumed to lead.
+      const selections = priced?.selections ?? []
+      const at = selections.findIndex((selection) => selection.id === entryId)
+      const context = at < 0 ? undefined : { selections, unitSelectionIndex: at, everyWeapon: true }
       const sheet = describeDatasheetAbilities(loaded, faction.id, datasheetIn(loaded, faction.id, entryId, context), rules)
       if (!sheet) return []
       return [
