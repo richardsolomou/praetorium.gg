@@ -7,6 +7,7 @@ import { isMatchedPlayDatasheet } from './cataloguePicker'
 import { matchDatasheet, type DatasheetSearchFields, type DatasheetSearchReason } from './datasheetSearch'
 import { factionsFor } from './factionReferences'
 import { gameReferencesFor } from './gameReferences'
+import { ruleIndexOf } from './rulesCore'
 import type { LoadedRules } from './rules'
 
 /**
@@ -20,7 +21,7 @@ import type { LoadedRules } from './rules'
  */
 export type GlobalSearchResult = {
   id: string
-  group: 'Pages' | 'Factions' | 'Datasheets' | 'Detachments' | 'Missions' | 'Your rosters' | 'Your battles'
+  group: 'Pages' | 'Factions' | 'Datasheets' | 'Detachments' | 'Missions' | 'Rules' | 'Your rosters' | 'Your battles'
   label: string
   detail: string
   href: string
@@ -30,7 +31,7 @@ export type GlobalSearchResult = {
 }
 
 /** The order results are shown in, and the most of each that is worth showing. */
-const GROUPS: GlobalSearchResult['group'][] = ['Factions', 'Datasheets', 'Detachments', 'Missions', 'Your rosters', 'Your battles']
+const GROUPS: GlobalSearchResult['group'][] = ['Factions', 'Datasheets', 'Detachments', 'Missions', 'Rules', 'Your rosters', 'Your battles']
 const PER_GROUP = 12
 
 type SavedRoster = { id: string; name: string; limit: number; label: string }
@@ -128,6 +129,7 @@ export async function searchEverything(query: string, sources: Sources): Promise
   const results: GlobalSearchResult[] = [
     ...catalogueResults(wanted, sources),
     ...missionResults(matches, sources.rules),
+    ...ruleResults(wanted, sources.rules),
     ...(await ownResults(matches, sources.own)),
   ]
   return GROUPS.flatMap((group) => results.filter((result) => result.group === group).slice(0, PER_GROUP))
@@ -239,6 +241,29 @@ function missionResults(matches: Matcher, rules: LoadedRules | null): GlobalSear
     })
   }
   return results
+}
+
+/**
+ * Any rule in any of the documents, by its name or by the number it is printed under.
+ *
+ * The number is searched as well as the name because that is how one rule quotes
+ * another, so a player reading `(10.05)` on a card can type it straight in.
+ */
+function ruleResults(wanted: string, rules: LoadedRules | null): GlobalSearchResult[] {
+  if (!rules) return []
+  return ruleIndexOf(rules.ruleDocuments).documents.flatMap((document) =>
+    document.sections.flatMap((section) =>
+      section.entries
+        .filter((entry) => `${entry.code ?? ''} ${entry.title}`.toLowerCase().includes(wanted))
+        .map((entry) => ({
+          id: `rule:${document.slug}:${entry.anchor}`,
+          group: 'Rules' as const,
+          label: entry.title,
+          detail: [entry.code, document.title].filter(Boolean).join(' · '),
+          href: `/rules/${document.slug}/${section.slug}#${entry.anchor}`,
+        })),
+    ),
+  )
 }
 
 /** The signed-in player's own rosters and battles, which nobody else's search reaches. */

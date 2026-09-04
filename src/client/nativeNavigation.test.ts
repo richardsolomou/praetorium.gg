@@ -8,6 +8,7 @@ describe('native application navigation', () => {
     ['/leagues', { section: 'leagues', title: 'Leagues' }],
     ['/factions', { section: 'factions', title: 'Factions' }],
     ['/mission-packs', { section: 'missions', title: 'Mission packs' }],
+    ['/rules', { section: 'rules', title: 'Rules' }],
   ])('leaves %s without a back action, because it is the bottom of its tab', (path, expected) => {
     expect(nativeNavigation(path)).toEqual(expected)
   })
@@ -37,6 +38,11 @@ describe('native application navigation', () => {
         section: 'missions',
         title: 'Mission pack',
       },
+    ],
+    ['/rules/core-rules', { back: { href: '/rules', label: 'Back to rules', preferHistory: true }, section: 'rules', title: 'Rules' }],
+    [
+      '/rules/core-rules/moving',
+      { back: { href: '/rules/core-rules', label: 'Back to contents', preferHistory: true }, section: 'rules', title: 'Rules' },
     ],
     [
       '/factions/necrons/datasheets/overlord',
