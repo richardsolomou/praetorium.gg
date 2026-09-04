@@ -37,7 +37,9 @@ export function useRosterActions(origin: string) {
       const roster = await load(summary)
       return saveRoster({
         data: {
-          name: `Copy of ${roster.name}`.slice(0, ROSTER_NAME_MAX_LENGTH),
+          // A copy of a list nobody named stays unnamed: freezing the label here
+          // would make it the one thing a folded name can never be, which is stale.
+          name: roster.name ? `Copy of ${roster.name}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '',
           catalogueId: roster.catalogueId,
           detachmentIds: roster.detachmentIds,
           disposition: roster.disposition,
@@ -63,8 +65,10 @@ export function useRosterActions(origin: string) {
     onSuccess: refresh,
   })
 
+  // Another tool has nowhere to put a list with no name, so an export and a share
+  // sheet are handed what the library calls it.
   const take = useMutation({
-    mutationFn: async (summary: SavedRoster) => {
+    mutationFn: async ({ roster: summary, title }: { roster: SavedRoster; title: string }) => {
       const roster = await load(summary)
       return exportRoster({
         data: {
@@ -72,7 +76,7 @@ export function useRosterActions(origin: string) {
           detachmentIds: roster.detachmentIds,
           disposition: roster.disposition,
           limit: roster.limit,
-          name: roster.name,
+          name: roster.name || title,
           units: roster.picks,
           waivedRules: roster.waivedRules,
         },
@@ -105,12 +109,12 @@ export function useRosterActions(origin: string) {
    * A copy that fails after the list was opened up leaves it private again: the
    * player asked for a link, not for their list to be readable by anyone holding one.
    */
-  const share = async (roster: SavedRoster) => {
+  const share = async (roster: SavedRoster, title: string) => {
     const promoted = roster.visibility === 'private'
     setShareProblem(null)
     try {
       if (promoted) await access.mutateAsync({ id: roster.id, visibility: 'unlisted' })
-      const result = await shareLink(`${origin}/rosters/${roster.id}`, roster.name)
+      const result = await shareLink(`${origin}/rosters/${roster.id}`, roster.name || title)
       posthog.capture('roster_shared', { visibility_changed: promoted })
       setShareFeedback({ id: roster.id, result })
     } catch (error) {

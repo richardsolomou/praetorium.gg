@@ -18,7 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { GAME_SIZES, PAINTED_ARMY_POINTS, type Command } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
 import { errorMessage } from '../../queryClient'
-import { savedRosterSummariesQuery } from '../../queries'
+import { savedRosterSummariesQuery, savedRosterTotalsQuery } from '../../queries'
 import type { Army, Side } from '../../sides'
 import { ArmyIdentity, RosterIdentity } from '../ArmyIdentity'
 import { rosterWaivers, WaiverList, WaiverNote } from '../FormatWaivers'
@@ -51,7 +51,11 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
    */
   const [confirming, setConfirming] = useState<SavedRoster | null>(null)
   const rosterQuery = useQuery(savedRosterSummariesQuery())
+  // A list its owner never named still has to be told apart from the others here, so
+  // the chooser reads the same folded labels the library does.
+  const totalsQuery = useQuery(savedRosterTotalsQuery())
   const saved = rosterQuery.data ?? []
+  const labels = new Map((totalsQuery.data ?? []).map((entry) => [entry.id, entry.label]))
   const nameDisposition = useDispositionNames()
   const yourSide = sides.find((side) => side.isViewer)
   const sideOf = (army: Army) => sides.find((side) => side.armies.some((candidate) => candidate.playerId === army.playerId))
@@ -194,8 +198,9 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
         rosters={eligible}
         savedCount={saved.length}
         requiredLimit={chooserLimit}
-        selectedName={choosing?.roster?.name}
-        loading={rosterQuery.isPending}
+        selectedId={choosing?.rosterId ?? null}
+        labels={labels}
+        loading={rosterQuery.isPending || totalsQuery.isPending}
         pending={pending}
         onChoose={(savedRoster) => {
           if (rosterWaivers(savedRoster).length) setConfirming(savedRoster)
@@ -247,7 +252,8 @@ function RosterChooser({
   rosters,
   savedCount,
   requiredLimit,
-  selectedName,
+  selectedId,
+  labels,
   loading,
   pending,
   onChoose,
@@ -259,7 +265,9 @@ function RosterChooser({
   rosters: SavedRoster[]
   savedCount: number
   requiredLimit: number | null
-  selectedName?: string
+  /** The list already fielded by this army, matched by id: two lists can share a name. */
+  selectedId: string | null
+  labels: ReadonlyMap<string, string>
   loading: boolean
   pending: boolean
   onChoose: (roster: SavedRoster) => void
@@ -305,11 +313,11 @@ function RosterChooser({
                 disabled={pending}
                 onClick={() => onChoose(roster)}
                 className={`flex w-full items-center gap-3 border bg-sunken p-3 text-left disabled:opacity-60 ${
-                  selectedName === roster.name ? CHOSEN : CHOOSABLE
+                  selectedId === roster.id ? CHOSEN : CHOOSABLE
                 }`}
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block break-words font-bold uppercase">{roster.name}</span>
+                  <span className="block break-words font-bold uppercase">{roster.name || labels.get(roster.id)}</span>
                   {/* The same line the battle draws for an army, so a list is recognisable before it is
                       chosen. Unlinked: the row is the control, and a link inside it takes the press
                       to a faction page instead of choosing the list. */}
@@ -322,7 +330,7 @@ function RosterChooser({
                 </span>
                 <span className="shrink-0 text-right">
                   <span className="chip block">{roster.limit} pts</span>
-                  {selectedName === roster.name ? <span className="mt-1 block text-xs text-parchment">Selected</span> : null}
+                  {selectedId === roster.id ? <span className="mt-1 block text-xs text-parchment">Selected</span> : null}
                 </span>
               </button>
             ))

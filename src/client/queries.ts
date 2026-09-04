@@ -42,7 +42,7 @@ import {
   priceRoster,
   rosterAccess,
   savedRosterSummaries,
-  savedRosterPoints,
+  savedRosterTotals,
   savedRosterLoadoutDatasheets,
   savedRosterPrice,
   sharedRoster,
@@ -383,9 +383,9 @@ export const savedRosterPriceQuery = (
 export const savedRosterSummariesQuery = () =>
   queryOptions({ queryKey: ['saved-roster-summaries'], queryFn: () => savedRosterSummaries(), staleTime: SSR_STALE_TIME })
 
-/** Every list's total in one answer, so a library of twenty rows is one request rather than twenty. */
-export const savedRosterPointsQuery = () =>
-  queryOptions({ queryKey: ['saved-roster-points'], queryFn: () => savedRosterPoints(), staleTime: SSR_STALE_TIME })
+/** Every list's total and fallback label in one answer, so a library of twenty rows is one request rather than twenty. */
+export const savedRosterTotalsQuery = () =>
+  queryOptions({ queryKey: ['saved-roster-totals'], queryFn: () => savedRosterTotals(), staleTime: SSR_STALE_TIME })
 
 /**
  * What "the library changed" means, decided once.
@@ -398,7 +398,7 @@ export function invalidateSavedRosters(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['roster-access'] }),
     queryClient.invalidateQueries({ queryKey: savedRosterSummariesQuery().queryKey }),
-    queryClient.invalidateQueries({ queryKey: savedRosterPointsQuery().queryKey }),
+    queryClient.invalidateQueries({ queryKey: savedRosterTotalsQuery().queryKey }),
   ])
 }
 

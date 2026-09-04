@@ -29,6 +29,7 @@ type RosterHeaderProps = {
   nameId?: string
   onNameChange?: ChangeEventHandler<HTMLInputElement>
   maxLength?: number
+  /** What an unnamed list is called. Shown as the title itself where nobody can type. */
   placeholder?: string
   faction?: PresentedFaction | null
   factionLoading?: boolean
@@ -69,16 +70,25 @@ export function RosterHeader({
 
   return (
     <header className="border-b border-edge px-3 py-2">
+      {/*
+       * A placeholder is not a value: it neither prints nor reads as a title. So the
+       * field only holds one where somebody can replace it, and every other reading
+       * of this list — a shared roster, a printed sheet — is given the words.
+       */}
       <Input
         id={nameId}
-        value={name}
+        value={onNameChange ? name : name || placeholder || ''}
         onChange={onNameChange}
         maxLength={maxLength}
         placeholder={placeholder}
         aria-label="List name"
         readOnly={!onNameChange}
+        data-print-hide={onNameChange && !name ? '' : undefined}
         className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-[0.02em] uppercase focus-visible:ring-0"
       />
+      {onNameChange && !name && placeholder ? (
+        <p className="hidden h-8 items-center text-lg font-bold tracking-[0.02em] uppercase print:flex">{placeholder}</p>
+      ) : null}
 
       {faction || factionLoading || limit !== undefined ? (
         <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-dim">

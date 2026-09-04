@@ -5,6 +5,7 @@ import {
   createLeagueEventSchema,
   createLeagueSchema,
   leagueBattleOptionsSchema,
+  saveRosterSchema,
   savedRosterDatasheetSchema,
   submitSchema,
   unitsSchema,
@@ -139,5 +140,28 @@ describe('league creation input', () => {
 
   it('requires an explicit player limit when editing', () => {
     expect(updateLeagueSchema.safeParse({ ...league, token: 'league', description: '' }).success).toBe(false)
+  })
+})
+
+describe('saved roster input', () => {
+  const roster = {
+    catalogueId: 'necrons',
+    detachmentIds: ['hypercrypt'],
+    disposition: null,
+    limit: 1_000,
+    picks: [],
+    prep: null,
+  }
+
+  it('saves a list nobody named, since a folded label is what it is called', () => {
+    expect(saveRosterSchema.parse({ ...roster, name: '' }).name).toBe('')
+  })
+
+  it('keeps a name the player typed, trimmed', () => {
+    expect(saveRosterSchema.parse({ ...roster, name: '  Hypercrypt push  ' }).name).toBe('Hypercrypt push')
+  })
+
+  it('still refuses a name longer than a list can carry', () => {
+    expect(saveRosterSchema.safeParse({ ...roster, name: 'a'.repeat(81) }).success).toBe(false)
   })
 })

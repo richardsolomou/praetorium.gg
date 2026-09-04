@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
-import { RosterSummary, type RosterSummaryFaction } from './RosterSummary'
+import { RosterSummary, type RosterSummaryFaction, rosterTitle } from './RosterSummary'
 
 /**
  * One saved list in the library: what it is, what it costs, and what can be done to it.
@@ -21,6 +21,7 @@ export function RosterRow({
   onEdit,
   onDelete,
   points,
+  label,
   factionLoading,
   pointsLoading,
 }: {
@@ -32,24 +33,32 @@ export function RosterRow({
   onDelete: () => void
   /** Priced with every other list in the library, so a row asks for nothing of its own. */
   points?: number | null
+  /** What an unnamed list is called, folded from its units beside its total. */
+  label?: string
   factionLoading?: boolean
   pointsLoading?: boolean
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const items = { roster, actions, origin, onEdit, onDelete }
+  const title = rosterTitle(roster, faction, label)
+  const items = { roster, title, actions, origin, onEdit, onDelete }
 
   return (
     <ContextMenu>
       <ContextMenuTrigger
-        render={
-          <article data-roster={roster.name} className="flex items-center gap-2 border border-edge bg-panel p-2 hover:border-azure" />
-        }
+        render={<article data-roster={title} className="flex items-center gap-2 border border-edge bg-panel p-2 hover:border-azure" />}
       >
         <Link to="/rosters/$id" params={{ id: roster.id }} className="flex min-w-0 flex-1 flex-wrap items-center gap-2 p-1">
-          <RosterSummary roster={roster} faction={faction} points={points} factionLoading={factionLoading} pointsLoading={pointsLoading} />
+          <RosterSummary
+            roster={roster}
+            faction={faction}
+            points={points}
+            label={label}
+            factionLoading={factionLoading}
+            pointsLoading={pointsLoading}
+          />
         </Link>
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${roster.name}`} />}>
+          <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${title}`} />}>
             <EllipsisVertical />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 rounded-none border border-edge bg-panel text-bone">
@@ -71,6 +80,7 @@ export function RosterRow({
 function RosterActionItems({
   Item,
   roster,
+  title,
   actions,
   origin,
   onEdit,
@@ -79,6 +89,8 @@ function RosterActionItems({
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
   roster: SavedRoster
+  /** What the library calls this list, so an export and a share sheet say the same. */
+  title: string
   actions: RosterActions
   origin: string
   onEdit: () => void
@@ -92,7 +104,7 @@ function RosterActionItems({
       <Item onClick={() => actions.print(roster.id)}>
         <Printer /> Print
       </Item>
-      <Item disabled={!origin || actions.access.isPending} onClick={() => void actions.share(roster)}>
+      <Item disabled={!origin || actions.access.isPending} onClick={() => void actions.share(roster, title)}>
         <Link2 /> {feedback === 'shared' ? 'Link shared' : feedback === 'copied' ? 'Link copied' : 'Share link'}
       </Item>
       {showPrivacy && roster.visibility !== 'private' ? (
@@ -100,7 +112,7 @@ function RosterActionItems({
           <Lock /> Make private
         </Item>
       ) : null}
-      <Item disabled={actions.take.isPending} onClick={() => actions.take.mutate(roster)}>
+      <Item disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
         <Download /> Export GW text
       </Item>
       <Item onClick={onEdit}>

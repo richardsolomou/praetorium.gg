@@ -239,7 +239,12 @@ const prepSchema = z.object({
 
 export const saveRosterSchema = z.object({
   id: id.optional(),
-  name: z.string().trim().min(1, 'name the list').max(ROSTER_NAME_MAX_LENGTH),
+  /**
+   * Empty when the player has not named this list, which is the ordinary case: a
+   * name is stored only if somebody typed one, and `rosterLabel` folds what to call
+   * the rest. Storing a name the app invented is what let one go stale.
+   */
+  name: z.string().trim().max(ROSTER_NAME_MAX_LENGTH),
   catalogueId,
   detachmentIds: z.array(id).max(MAX_DETACHMENTS),
   disposition: id.nullable(),
