@@ -415,6 +415,25 @@ describe('legality', () => {
     expect(result.errors).toEqual([{ entryId: 'troopers', entryName: 'Troopers', message: 'needs at least 4, has 2' }])
   })
 
+  it('leaves a rule about who a character joins to the attachment check', () => {
+    // Attachments live on saved picks, not in the selection tree, so counting them
+    // here reads zero and called every such datasheet broken the moment it arrived.
+    const result = evaluateOne(
+      { id: 'judiciar' },
+      {
+        sharedSelectionEntries: [
+          {
+            id: 'judiciar',
+            name: 'Judiciar',
+            type: 'model',
+            constraints: [{ id: 'joined', type: 'min', value: 1, field: 'associations', scope: 'self' }],
+          },
+        ],
+      },
+    )
+    expect(result.errors).toEqual([])
+  })
+
   it('accepts a group that meets its minimum', () => {
     expect(evaluateOne(withTroopers(4), squad()).errors).toEqual([])
   })

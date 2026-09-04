@@ -140,6 +140,8 @@ export type Constraint = {
   shared?: boolean
   includeChildSelections?: boolean
   percentValue?: boolean
+  /** The sentence the catalogue wants said when this is broken, with `{this}` for the entry. */
+  message?: string
 }
 
 type EntryType = 'model' | 'unit' | 'upgrade' | 'model-or-unit'

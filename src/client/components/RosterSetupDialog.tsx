@@ -22,9 +22,11 @@ import {
   plays,
   ROSTER_NAME_MAX_LENGTH,
 } from '../../core/battle'
+import { normalizedName } from '../../core/name'
 import type { RosterVisibility } from '../../core/savedRoster'
 import { factionQuery } from '../queries'
 import { DetachmentReference } from './DetachmentReference'
+import { SearchField } from './SearchField'
 import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
 import { factionSelectGroups } from './builder/factions'
 import { OptionalRulesDialog } from './OptionalRulesDialog'
@@ -80,6 +82,18 @@ type Props = {
   pending?: boolean
 }
 
+/**
+ * Whether a detachment answers what was typed, by its own name or a disposition it
+ * offers — "reconnaissance" is a reason to pick one, and the chips already say so.
+ */
+function matchesQuery(detachment: Detachment, query: string) {
+  const wanted = normalizedName(query)
+  if (!wanted) return true
+  return [detachment.name, ...detachment.dispositions.map((disposition) => disposition.name)].some((text) =>
+    normalizedName(text).includes(wanted),
+  )
+}
+
 const BATTLE_SIZE_GROUPS: SearchableGroup[] = [
   {
     label: '',
@@ -100,6 +114,7 @@ export function RosterSetupDialog({
   pending = false,
 }: Props) {
   const [draft, setDraft] = useState(value)
+  const [detachmentQuery, setDetachmentQuery] = useState('')
   const [reference, setReference] = useState<{ catalogueId: string; detachmentId: string; slug: string; name: string } | null>(null)
   const [editingOptionalRules, setEditingOptionalRules] = useState(false)
   const { favourites } = useFavouriteFactions(open)
@@ -163,7 +178,7 @@ export function RosterSetupDialog({
     allowance,
     draft.waivedRules,
   )
-  const availableDetachments = favouriteDetachmentsFirst(
+  const offeredDetachments = favouriteDetachmentsFirst(
     faction?.detachments.filter((detachment) => {
       if (draft.detachmentIds.includes(detachment.id)) return true
       if (draft.detachmentIds.length >= detachmentLimit(draft.limit, draft.waivedRules) && !singleDetachment) return false
@@ -172,6 +187,12 @@ export function RosterSetupDialog({
     }) ?? [],
     faction?.id ?? '',
     favouriteDetachments,
+  )
+  // A detachment already bought stays on the shelf whatever is typed: the shelf is
+  // the only place it can be given back, and a query that hid it would leave the
+  // points spent with no way to undo them.
+  const availableDetachments = offeredDetachments.filter(
+    (detachment) => draft.detachmentIds.includes(detachment.id) || matchesQuery(detachment, detachmentQuery),
   )
   const factionChanged = value.catalogueId !== draft.catalogueId
   const detachmentsChanged = value.detachmentIds.toSorted().join() !== draft.detachmentIds.toSorted().join()
@@ -247,6 +268,7 @@ export function RosterSetupDialog({
                   value={draft.catalogueId}
                   onValueChange={(catalogueId) => {
                     const nextFaction = factionOptions.find((entry) => entry.id === catalogueId)
+                    setDetachmentQuery('')
                     changeDraft({
                       ...draft,
                       name: mode === 'create' ? (nextFaction?.displayName ?? '') : draft.name,
@@ -292,6 +314,17 @@ export function RosterSetupDialog({
                   {allowance === null ? '' : `/${allowance}`} DP used
                 </span>
               </div>
+              {offeredDetachments.length ? (
+                <SearchField
+                  className="mt-2"
+                  value={detachmentQuery}
+                  onChange={setDetachmentQuery}
+                  placeholder="Find a detachment"
+                  label="Find a detachment"
+                  clearLabel="Empty the detachment filter"
+                  inputClassName="h-10 rounded-none border-edge bg-sunken"
+                />
+              ) : null}
               <div className="mt-2 grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">
                 {availableDetachments.map((detachment) => {
                   const chosen = draft.detachmentIds.includes(detachment.id)
@@ -363,6 +396,9 @@ export function RosterSetupDialog({
                   )
                 })}
               </div>
+              {offeredDetachments.length && !availableDetachments.length ? (
+                <p className="mt-2 text-sm text-dim">No detachments match this search.</p>
+              ) : null}
               {pointsError ? (
                 <p role="alert" className="mt-2 text-xs text-destructive">
                   {pointsError}

@@ -289,6 +289,29 @@ export function attachedUnit(units: readonly { attachedTo?: number }[], position
   return units.flatMap((unit, at) => (at !== position && (at === host || unit.attachedTo === host) ? [at] : []))
 }
 
+/**
+ * Why a unit standing on its own is illegal, when the data insists it joins one.
+ *
+ * A minimum on `associations` is the catalogue saying this datasheet is never
+ * fielded alone — a Judiciar has no Leader ability of its own and only exists
+ * beside a Bodyguard unit. The constraint carries the sentence to say, so the
+ * player is told which units will take it rather than that a number is short.
+ */
+function attachmentRequirement(definition: Definition, index: CatalogueIndex): string | null {
+  const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
+  const required = sources
+    .flatMap((source) => source.constraints ?? [])
+    .find((constraint) => constraint.field === 'associations' && constraint.type === 'min' && constraint.value >= 1)
+  if (!required) return null
+  const name = nameOf(definition, index.definitions)
+  return (
+    required.message
+      ?.replace(/^\{this\}\s+/, '')
+      .replaceAll('{this}', name)
+      .replace(/\.$/, '') ?? 'must be attached to another unit'
+  )
+}
+
 export function attachmentErrors(
   units: readonly { entryId: string; attachedTo?: number }[],
   index: CatalogueIndex,
@@ -298,10 +321,14 @@ export function attachmentErrors(
   const occupied = { leader: new Map<number, number[]>(), support: new Map<number, number[]>() }
   const occupiedCategories = new Map<number, Map<string, number[]>>()
   units.forEach((unit, position) => {
-    if (unit.attachedTo === undefined) return
     const definition = index.definitions.get(unit.entryId)
     const name = definition?.name ?? unit.entryId
     const error = (message: string) => errors.push({ entryId: unit.entryId, entryName: name, message })
+    if (unit.attachedTo === undefined) {
+      const required = definition && attachmentRequirement(definition, index)
+      if (required) error(required)
+      return
+    }
     if (unit.attachedTo === position) {
       error('cannot be attached to itself')
       return

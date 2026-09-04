@@ -23,8 +23,17 @@ import { type EvaluateOptions, flattenedModifiers, selectionCountBounds, selecti
 
 export { isCollective, isCollectiveGroup, scaleOf } from './collective'
 
-/** Crusade and campaign subtrees run deep and none of it is mandatory. */
-export const MAX_DEPTH = 4
+/**
+ * How many catalogue containers deep a walk goes before it stops.
+ *
+ * A group is a container rather than a layer of the game, so a datasheet spends
+ * depth fast: a Firestrike Servo-Turret's mandatory weapon sits under a
+ * composition group, a model, a wargear group and a weapon-option group, five
+ * containers below the datasheet. Every mandatory shape in the synced data is
+ * reached by five and nothing changes beyond it, so six is that with a container
+ * to spare. Cycles are stopped by the visited set rather than by this.
+ */
+export const MAX_DEPTH = 6
 
 export const UNBOUNDED = Number.MAX_SAFE_INTEGER
 
