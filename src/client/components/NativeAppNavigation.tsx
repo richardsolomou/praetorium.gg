@@ -1,8 +1,9 @@
-import { Link, useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router'
+import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { BookOpen, ChevronLeft, ScrollText, Swords, Trophy, UsersRound } from 'lucide-react'
-import { useLayoutEffect, type ComponentType } from 'react'
+import { useEffect, useLayoutEffect, type ComponentType } from 'react'
 import { Button } from '@/components/ui/button'
-import { nativeCanGoBack } from '../nativeBridge'
+import { setNativeBackGesture } from '../nativeBridge'
+import { historyStaysInSection, rememberHistorySection } from '../nativeHistory'
 import { nativeNavigation, type NativeSection } from '../nativeNavigation'
 import { restoreNativeTabScroll } from '../nativeTabScroll'
 import { recallTab, rememberTab, tabLocation } from '../nativeTabs'
@@ -21,11 +22,20 @@ const TABS: readonly Tab[] = [
 export function NativeAppHeader({ account, path, search }: { account: React.ReactNode; path: string; search: Record<string, unknown> }) {
   const navigate = useNavigate()
   const router = useRouter()
-  const canGoBack = useCanGoBack()
   const navigation = nativeNavigation(path, search)
+  const index = router.history.location.state.__TSR_index
+  // Back belongs to the tab it is pressed in, so it walks this tab's own history and
+  // otherwise goes to the screen above rather than into whichever tab was open before.
+  const staysInTab = Boolean(navigation.back?.preferHistory) && historyStaysInSection(index, navigation.section)
+  useEffect(() => {
+    rememberHistorySection(index, navigation.section)
+  }, [index, navigation.section])
+  useEffect(() => {
+    setNativeBackGesture(staysInTab)
+  }, [staysInTab])
 
   const goBack = () => {
-    if (navigation.back?.preferHistory && (canGoBack || nativeCanGoBack())) {
+    if (staysInTab) {
       router.history.back()
       return
     }

@@ -15,7 +15,6 @@ export type LeagueFormValue = {
 export function LeagueFormFields({
   idPrefix,
   value,
-  admissionLocked = false,
   minimumPlayerLimit = 2,
   acceptedCount = 0,
   evenPlayerLimit = false,
@@ -24,7 +23,6 @@ export function LeagueFormFields({
 }: {
   idPrefix: string
   value: LeagueFormValue
-  admissionLocked?: boolean
   minimumPlayerLimit?: number
   acceptedCount?: number
   evenPlayerLimit?: boolean
@@ -54,7 +52,7 @@ export function LeagueFormFields({
           value={value.description}
           maxLength={2000}
           rows={4}
-          placeholder="Format, dates, venue, and anything entrants need to know."
+          placeholder="Dates, venue, house rules, anything players need to know."
           disabled={disabled}
           onChange={(event) => onChange({ ...value, description: event.target.value })}
         />
@@ -74,20 +72,20 @@ export function LeagueFormFields({
         />
         <p className="text-xs text-dim">
           {acceptedCount
-            ? `Cannot be lower than ${minimum} for this event.`
+            ? `No lower than ${minimum} while this event is open.`
             : evenPlayerLimit
-              ? 'A 2v2 event needs an even number of at least four places.'
+              ? 'Doubles needs an even number of places, at least four.'
               : minimumPlayerLimit === 3
                 ? 'A 2v1 event needs at least three places.'
-                : 'If set, every place must be accepted and sealed before reveal.'}
+                : 'Leave it empty for no limit. Set it, and every place must be filled before you can reveal.'}
         </p>
       </div>
       <Choice
         label="Visibility"
         value={value.visibility}
         options={[
-          { value: 'private', name: 'Private link', detail: 'Only people with the link can find it.' },
-          { value: 'public', name: 'Public', detail: 'Listed on the leagues page for everyone.' },
+          { value: 'private', name: 'Private link', detail: 'Only people you send the link to.' },
+          { value: 'public', name: 'Public', detail: 'Listed on the leagues page.' },
         ]}
         disabled={disabled}
         onChange={(visibility) => onChange({ ...value, visibility })}
@@ -96,13 +94,12 @@ export function LeagueFormFields({
         label="Joining"
         value={value.admission}
         options={[
-          { value: 'approval', name: 'Require approval', detail: 'You approve each request.' },
-          { value: 'automatic', name: 'Automatic', detail: 'Anyone who joins is accepted.' },
+          { value: 'approval', name: 'Require approval', detail: 'You let each player in.' },
+          { value: 'automatic', name: 'Automatic', detail: 'Anyone who joins is in.' },
         ]}
-        disabled={disabled || admissionLocked}
+        disabled={disabled}
         onChange={(admission) => onChange({ ...value, admission })}
       />
-      {admissionLocked ? <p className="-mt-2 text-xs text-dim">Locked because someone has joined the current event.</p> : null}
     </>
   )
 }

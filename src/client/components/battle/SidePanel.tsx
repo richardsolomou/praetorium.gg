@@ -102,12 +102,8 @@ export const SidePanel = memo(function SidePanel({
           <p data-stat="vp" className="readout text-4xl leading-none font-bold">
             {side.total}
           </p>
-          {/* Chosen before the battle and paid at the end of it, so it is a promise rather than a number in the score. */}
-          {bonus ? (
-            <p className="mt-1 text-[0.625rem] text-achieved">
-              {finished ? 'Battle ready included' : `+${side.paintedPoints} battle ready at the end`}
-            </p>
-          ) : null}
+          {/* Chosen before the battle and paid as it begins, so the score above already holds it. */}
+          {bonus ? <p className="mt-1 text-[0.625rem] text-achieved">Battle ready included</p> : null}
         </div>
         <div className="min-w-0">
           <p className={HEADING}>Command points</p>

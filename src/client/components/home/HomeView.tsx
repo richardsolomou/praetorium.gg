@@ -15,6 +15,8 @@ export type HomeData = {
   open: readonly Battle[]
   /** The control that opens a battle, supplied rather than imported: see `Home`. */
   newBattle?: ReactNode
+  /** Asking to delete one of the reader's own games, answered by `Home` and not here. */
+  onDelete?: (battle: Battle) => void
   more?: { pending: boolean; onShow: () => void } | null
 }
 
@@ -42,7 +44,7 @@ const RECENT = 5
  *
  * Nothing here fetches or mutates, so the whole page can be drawn from fixtures.
  */
-export function HomeView({ me, mine, friends, open, newBattle, more }: HomeData) {
+export function HomeView({ me, mine, friends, open, newBattle, onDelete, more }: HomeData) {
   const sharedGames = (battles: readonly Battle[]) => battles.filter((battle) => !battle.playerDetails?.some((player) => player.automated))
   const ours = sharedGames(mine)
   const going = ours.filter((battle) => battle.status !== 'finished')
@@ -68,7 +70,7 @@ export function HomeView({ me, mine, friends, open, newBattle, more }: HomeData)
     <main className="w-full">
       {me ? <Welcome name={me.name} newBattle={newBattle} /> : <HomeHero battle={hero} />}
       <div className="mx-auto w-full max-w-5xl space-y-8 px-3 py-8 sm:px-4">
-        {me ? <MyTable going={going} played={played} viewerId={me.id} /> : null}
+        {me ? <MyTable going={going} played={played} viewerId={me.id} onDelete={onDelete} /> : null}
         <FriendTables battles={shownFriends} explain={Boolean(me) && !bare} />
         <PublicTables battles={rest} signedIn={Boolean(me)} more={more} />
         {introduce ? <HomeIntro /> : null}
@@ -116,9 +118,19 @@ function Welcome({ name, newBattle }: { name: string; newBattle?: ReactNode }) {
  * button: the band above it already has one, and two of the same control on one
  * screen is two dialogs and two labels for one intent.
  */
-function MyTable({ going, played, viewerId }: { going: readonly Battle[]; played: readonly Battle[]; viewerId: string }) {
+function MyTable({
+  going,
+  played,
+  viewerId,
+  onDelete,
+}: {
+  going: readonly Battle[]
+  played: readonly Battle[]
+  viewerId: string
+  onDelete?: (battle: Battle) => void
+}) {
   const live = going.length ? (
-    <BattleShelf title="Your games" battles={[...going]} viewerId={viewerId} />
+    <BattleShelf title="Your games" battles={[...going]} viewerId={viewerId} onDelete={onDelete} />
   ) : (
     <section data-my-table>
       <p className="rubric border-b border-edge pb-2">Your games</p>
@@ -140,7 +152,7 @@ function MyTable({ going, played, viewerId }: { going: readonly Battle[]; played
     <div className="space-y-8">
       {live}
       <div>
-        <BattleShelf title="Games you have played" battles={[...played]} viewerId={viewerId} />
+        <BattleShelf title="Games you have played" battles={[...played]} viewerId={viewerId} onDelete={onDelete} />
         <AllBattles />
       </div>
     </div>

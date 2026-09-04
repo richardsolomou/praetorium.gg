@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
+import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -130,118 +131,117 @@ export function CreateBattle() {
   const labels = disambiguatedPlayerLabels(opponents)
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button variant="outline" nativeButton={false} render={<Link to="/leagues" />}>
-        League battle
-      </Button>
-      <Dialog open={open} onOpenChange={changeOpen}>
-        <DialogTrigger render={<Button />}>New casual battle</DialogTrigger>
-        <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] overflow-y-auto rounded-none border-edge bg-panel p-4 sm:max-w-md">
-          {leagueMatches.length ? (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-xl uppercase">League battle available</DialogTitle>
-                <DialogDescription>
-                  Start from the league to attach every sealed roster and add the battle to its event history.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-2">
-                {leagueMatches.map((match) => (
-                  <Button
-                    key={match.eventToken}
-                    className="w-full justify-between"
-                    onClick={() =>
-                      navigate({
-                        to: '/leagues/$token',
-                        params: { token: match.token },
-                        search: { event: match.eventToken, start: true },
-                      })
-                    }
-                  >
-                    <span className="truncate">{match.name}</span>
-                    <span className="shrink-0 text-xs">Event {match.eventNumber}</span>
-                  </Button>
-                ))}
-              </div>
-              {create.error ? <p className="text-sm text-destructive">{errorMessage(create.error)}</p> : null}
-              <DialogFooter>
-                <Button variant="outline" disabled={create.isPending} onClick={() => setLeagueMatches([])}>
-                  Go back
-                </Button>
-                <Button variant="outline" disabled={create.isPending} onClick={() => create.mutate(true)}>
-                  {create.isPending ? 'Creating…' : 'Start casual instead'}
-                </Button>
-              </DialogFooter>
-            </>
-          ) : (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-xl uppercase">Start a casual battle</DialogTitle>
-                <DialogDescription>Choose who is playing. A practice opponent lets you play on your own.</DialogDescription>
-              </DialogHeader>
-              <div>
-                <Choice
-                  label="Game format"
-                  value={shape}
-                  options={TABLE_SHAPES.map((candidate) => ({ value: candidate, ...TABLE_SHAPE_LABELS[candidate] }))}
-                  columns={3}
-                  onChange={(next) => {
-                    changeIntent()
-                    setShape(next)
-                  }}
-                />
-                <p className="mt-1.5 text-xs text-dim">{SEATING[shape]}.</p>
-              </div>
-              {shape === '2v1' ? (
-                <Choice
-                  label="Your role"
-                  value={soloPairRole}
-                  options={[
-                    { value: 'solo', name: 'I’m solo', detail: 'Face two opponents' },
-                    { value: 'pair', name: 'I’m on the pair', detail: 'Bring an ally' },
-                  ]}
-                  columns={2}
-                  onChange={(role) => {
-                    changeIntent()
-                    setSoloPairRole(role)
-                  }}
-                />
-              ) : null}
-              {opponentQuery.isPending ? (
-                <p className="border border-edge bg-sunken p-3 text-sm text-dim">Loading players…</p>
-              ) : opponentQuery.error ? null : opponents.length ? (
-                <SeatRows
-                  idPrefix="battle"
-                  seats={seats}
-                  seatedIn={seatedIn}
-                  groupsFor={(_seat, taken) => seatOptions(opponents, labels, taken)}
-                  onPick={(seat, id) => {
-                    changeIntent()
-                    if (seat.side === 'yours') return setAllyId(id)
-                    setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
-                  }}
-                />
-              ) : (
-                <p className="border border-edge bg-sunken p-3 text-sm text-dim">
-                  No opponents are available yet. Add a friend, then try again.
-                </p>
-              )}
-              {opponents.length ? <SeatMatchup seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, opponents)} /> : null}
-              {create.error || opponentQuery.error ? (
-                <p className="text-sm text-destructive">{errorMessage(create.error ?? opponentQuery.error)}</p>
-              ) : null}
-              <DialogFooter>
-                <Button variant="outline" disabled={create.isPending} onClick={() => changeOpen(false)}>
-                  Cancel
-                </Button>
-                <Button disabled={!seated || opponentQuery.isPending || create.isPending} onClick={() => create.mutate(false)}>
-                  {create.isPending ? 'Checking…' : 'Create casual battle'}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+    <Dialog open={open} onOpenChange={changeOpen}>
+      <DialogTrigger render={<Button />}>New battle</DialogTrigger>
+      <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] overflow-y-auto rounded-none border-edge bg-panel p-4 sm:max-w-md">
+        {leagueMatches.length ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-xl uppercase">You are both in a league event</DialogTitle>
+              <DialogDescription>
+                Pick the event to play it there: the sealed lists go on the table for you, and the battle joins the event history.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              {leagueMatches.map((match) => (
+                <button
+                  key={match.eventToken}
+                  type="button"
+                  className="flex w-full items-center gap-3 border border-edge bg-sunken p-3 text-left hover:border-info hover:bg-raised"
+                  onClick={() =>
+                    navigate({
+                      to: '/leagues/$token',
+                      params: { token: match.token },
+                      search: { event: match.eventToken, start: true },
+                    })
+                  }
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-bold uppercase">{match.name}</span>
+                    <span className="block text-xs text-dim">Event {match.eventNumber} · play it here</span>
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-parchment" aria-hidden />
+                </button>
+              ))}
+            </div>
+            {create.error ? <p className="text-sm text-destructive">{errorMessage(create.error)}</p> : null}
+            <DialogFooter>
+              <Button variant="outline" disabled={create.isPending} onClick={() => setLeagueMatches([])}>
+                Go back
+              </Button>
+              <Button variant="outline" disabled={create.isPending} onClick={() => create.mutate(true)}>
+                {create.isPending ? 'Creating…' : 'Play it casually'}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-xl uppercase">Start a battle</DialogTitle>
+              <DialogDescription>Choose who is playing. A practice opponent lets you play on your own.</DialogDescription>
+            </DialogHeader>
+            <div>
+              <Choice
+                label="Game format"
+                value={shape}
+                options={TABLE_SHAPES.map((candidate) => ({ value: candidate, ...TABLE_SHAPE_LABELS[candidate] }))}
+                columns={3}
+                onChange={(next) => {
+                  changeIntent()
+                  setShape(next)
+                }}
+              />
+              <p className="mt-1.5 text-xs text-dim">{SEATING[shape]}.</p>
+            </div>
+            {shape === '2v1' ? (
+              <Choice
+                label="Your role"
+                value={soloPairRole}
+                options={[
+                  { value: 'solo', name: 'I’m solo', detail: 'Face two opponents' },
+                  { value: 'pair', name: 'I’m on the pair', detail: 'Bring an ally' },
+                ]}
+                columns={2}
+                onChange={(role) => {
+                  changeIntent()
+                  setSoloPairRole(role)
+                }}
+              />
+            ) : null}
+            {opponentQuery.isPending ? (
+              <p className="border border-edge bg-sunken p-3 text-sm text-dim">Loading players…</p>
+            ) : opponentQuery.error ? null : opponents.length ? (
+              <SeatRows
+                idPrefix="battle"
+                seats={seats}
+                seatedIn={seatedIn}
+                groupsFor={(_seat, taken) => seatOptions(opponents, labels, taken)}
+                onPick={(seat, id) => {
+                  changeIntent()
+                  if (seat.side === 'yours') return setAllyId(id)
+                  setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
+                }}
+              />
+            ) : (
+              <p className="border border-edge bg-sunken p-3 text-sm text-dim">
+                No opponents are available yet. Add a friend, then try again.
+              </p>
+            )}
+            {opponents.length ? <SeatMatchup seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, opponents)} /> : null}
+            {create.error || opponentQuery.error ? (
+              <p className="text-sm text-destructive">{errorMessage(create.error ?? opponentQuery.error)}</p>
+            ) : null}
+            <DialogFooter>
+              <Button variant="outline" disabled={create.isPending} onClick={() => changeOpen(false)}>
+                Cancel
+              </Button>
+              <Button disabled={!seated || opponentQuery.isPending || create.isPending} onClick={() => create.mutate(false)}>
+                {create.isPending ? 'Checking…' : 'Start battle'}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }

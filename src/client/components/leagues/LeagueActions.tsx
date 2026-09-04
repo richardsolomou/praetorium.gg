@@ -34,7 +34,6 @@ export type ManageableLeague = {
   format: TableShape | null
   currentEventFormat: TableShape | null
   currentEventRevealedAt: number | null
-  currentEntrantCount: number
   currentAcceptedCount: number
 }
 
@@ -126,7 +125,7 @@ function LeagueActionDialogs({ actions }: { actions: Controller }) {
           <DialogHeader>
             <DialogTitle className="text-2xl uppercase">Edit league</DialogTitle>
             <DialogDescription className="text-dim">
-              Changes apply to the current and future registration. Existing event entries, sealed rosters, and battles do not change.
+              Applies from now on. Nothing already entered, sealed, or played changes. Switching to automatic lets in anyone still waiting.
             </DialogDescription>
           </DialogHeader>
           <form
@@ -139,7 +138,6 @@ function LeagueActionDialogs({ actions }: { actions: Controller }) {
             <LeagueFormFields
               idPrefix="edit-league"
               value={actions.value}
-              admissionLocked={actions.league.currentEntrantCount > 0}
               acceptedCount={actions.league.currentEventRevealedAt === null ? actions.league.currentAcceptedCount : 0}
               minimumPlayerLimit={
                 actions.league.currentEventRevealedAt === null
@@ -176,8 +174,7 @@ function LeagueActionDialogs({ actions }: { actions: Controller }) {
           <AlertDialogHeader>
             <AlertDialogTitle className="uppercase">Delete {actions.league.name}?</AlertDialogTitle>
             <AlertDialogDescription className="text-dim">
-              This permanently deletes every event, entry, and sealed league roster. Battles already started from this league stay
-              available.
+              Every event, entrant, and sealed list goes with it, for good. Battles already started from it stay where they are.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {actions.remove.isPending ? <output className="sr-only">Deleting the league…</output> : null}
@@ -222,14 +219,12 @@ function useLeagueActions(league: ManageableLeague, onDeleted?: () => void | Pro
     return () => window.clearTimeout(timeout)
   }, [copyFeedback])
   useEffect(() => {
-    setValue((current) => ({
-      ...current,
-      ...(league.currentEntrantCount > 0 ? { admission: league.admission } : {}),
-      ...(league.currentEventRevealedAt === null && current.playerLimit !== null && current.playerLimit < league.currentAcceptedCount
-        ? { playerLimit: league.playerLimit }
-        : {}),
-    }))
-  }, [league.admission, league.currentAcceptedCount, league.currentEntrantCount, league.currentEventRevealedAt, league.playerLimit])
+    setValue((current) =>
+      league.currentEventRevealedAt === null && current.playerLimit !== null && current.playerLimit < league.currentAcceptedCount
+        ? { ...current, playerLimit: league.playerLimit }
+        : current,
+    )
+  }, [league.currentAcceptedCount, league.currentEventRevealedAt, league.playerLimit])
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['league', league.token] }),

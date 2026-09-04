@@ -1086,7 +1086,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       }
       return null
     }
-    // The bonus is for a painted army, which is settled before the battle and paid at the end of it.
+    // The bonus is for a painted army, settled before the battle and paid as it begins.
     case 'set-painted':
       return state.status === 'setup' ? null : 'the battle ready bonus is set before the battle begins'
     case 'wound-unit': {

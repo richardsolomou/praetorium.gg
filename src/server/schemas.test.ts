@@ -8,6 +8,7 @@ import {
   savedRosterDatasheetSchema,
   submitSchema,
   unitsSchema,
+  updateLeagueEventSchema,
   updateLeagueSchema,
 } from './schemas'
 
@@ -90,8 +91,12 @@ describe('league creation input', () => {
     expect(createLeagueSchema.parse({ ...league, playerLimit: 16 })).toMatchObject({ playerLimit: 16 })
   })
 
-  it('defaults an older create payload to a 2,000-point 1v1 event', () => {
-    expect(createLeagueSchema.parse(league)).toMatchObject({ format: '1v1', rosterLimit: 2_000, recurring: true })
+  it('leaves the battle format to the event a league opens with', () => {
+    expect(createLeagueSchema.parse(league)).not.toHaveProperty('format')
+  })
+
+  it('defaults an event rule to a 2,000-point 1v1', () => {
+    expect(updateLeagueEventSchema.parse({ token: 'league' })).toMatchObject({ format: '1v1', rosterLimit: 2_000 })
   })
 
   it('accepts the supported 2v1 roster-size pair', () => {
@@ -99,18 +104,13 @@ describe('league creation input', () => {
   })
 
   it('rejects a 2v1 size whose allied half is unsupported', () => {
-    expect(createLeagueSchema.safeParse({ ...league, format: '2v1', rosterLimit: 1_000 }).success).toBe(false)
-    expect(createLeagueSchema.safeParse({ ...league, format: '2v1', rosterLimit: 600 }).success).toBe(false)
+    expect(updateLeagueEventSchema.safeParse({ token: 'league', format: '2v1', rosterLimit: 1_000 }).success).toBe(false)
+    expect(updateLeagueEventSchema.safeParse({ token: 'league', format: '2v1', rosterLimit: 600 }).success).toBe(false)
   })
 
-  it('rejects a fixed two-player 2v1 event', () => {
-    expect(createLeagueSchema.safeParse({ ...league, format: '2v1', rosterLimit: 2_000, playerLimit: 2 }).success).toBe(false)
-  })
-
-  it('accepts official doubles and rejects odd or undersized fixed limits', () => {
-    expect(createLeagueSchema.safeParse({ ...league, format: '2v2', rosterLimit: 2_000, playerLimit: 4 }).success).toBe(true)
-    expect(createLeagueSchema.safeParse({ ...league, format: '2v2', rosterLimit: 2_000, playerLimit: 3 }).success).toBe(false)
-    expect(createLeagueSchema.safeParse({ ...league, format: '2v2', rosterLimit: 2_000, playerLimit: 5 }).success).toBe(false)
+  it('accepts the official doubles force size and rejects a smaller one', () => {
+    expect(updateLeagueEventSchema.safeParse({ token: 'league', format: '2v2', rosterLimit: 2_000 }).success).toBe(true)
+    expect(updateLeagueEventSchema.safeParse({ token: 'league', format: '2v2', rosterLimit: 1_000 }).success).toBe(false)
   })
 
   it('accepts all four doubles seats', () => {

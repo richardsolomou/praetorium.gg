@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { NATIVE_BRIDGE_SCRIPT, nativeHistoryStateScript, parseNativeActionRequest } from './nativeActions'
+import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from './nativeActions'
 
 describe('parseNativeActionRequest', () => {
   it('accepts an internal share link', () => {
@@ -22,6 +22,11 @@ describe('parseNativeActionRequest', () => {
       active: true,
     })
     expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-haptic' }))).toEqual({ kind: 'haptic' })
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-back-gesture', enabled: true }))).toEqual({
+      kind: 'back-gesture',
+      enabled: true,
+    })
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-back-gesture' }))).toBeNull()
     expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-print', html: '<html></html>' }))).toEqual({
       kind: 'print',
       html: '<html></html>',
@@ -50,7 +55,7 @@ describe('parseNativeActionRequest', () => {
 describe('NATIVE_BRIDGE_SCRIPT', () => {
   it('publishes only the version 3 capabilities the shell handles', () => {
     expect(NATIVE_BRIDGE_SCRIPT).toContain(
-      "const capabilities = ['app-navigation', 'battle-active', 'haptic', 'open-window', 'print', 'share']",
+      "const capabilities = ['app-navigation', 'back-gesture', 'battle-active', 'haptic', 'open-window', 'print', 'share']",
     )
     expect(NATIVE_BRIDGE_SCRIPT).toContain('bridgeVersion: 3')
   })
@@ -114,11 +119,6 @@ describe('NATIVE_BRIDGE_SCRIPT', () => {
     const executeBridge = new Function('window', 'document', 'Element', 'URL', NATIVE_BRIDGE_SCRIPT)
     executeBridge(window, document, TestElement, URL)
     expect(document.documentElement.dataset.nativeApp).toBe('true')
-    const nativeWindow = window as typeof window & { PraetoriumNative: { history: { canGoBack: boolean } } }
-    expect(nativeWindow.PraetoriumNative.history.canGoBack).toBe(false)
-    // oxlint-disable-next-line typescript/no-implied-eval -- Execute the constant shell update against the injected bridge state.
-    new Function('window', nativeHistoryStateScript(true))(nativeWindow)
-    expect(nativeWindow.PraetoriumNative.history.canGoBack).toBe(true)
 
     const nativeOpen = window.open as unknown as (url: string, target?: string) => null
     expect(nativeOpen('/rosters/abc?print=true', '_blank')).toBeNull()

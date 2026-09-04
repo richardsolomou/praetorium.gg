@@ -942,8 +942,9 @@ it('edits league registration settings only while the current event allows them'
   expect(await repository.updateLeague('league-token', 'user-001', changed)).toBe('forbidden')
   expect(await repository.updateLeague('league-token', 'user-000', changed)).toBe('updated')
   expect(await repository.joinLeague('league-token', 'user-001', 2, 128)).toBe('accepted')
-  expect(await repository.updateLeague('league-token', 'user-000', { ...changed, admission: 'approval' })).toBe('joined')
-  expect(await repository.joinLeague('league-token', 'user-002', 3, 128)).toBe('accepted')
+  expect(await repository.updateLeague('league-token', 'user-000', { ...changed, admission: 'approval' })).toBe('updated')
+  expect(await repository.joinLeague('league-token', 'user-002', 3, 128)).toBe('pending')
+  expect(await repository.updateLeague('league-token', 'user-000', changed)).toBe('updated')
   expect(await repository.updateLeague('league-token', 'user-000', { ...changed, playerLimit: 1 })).toBe('below-accepted')
   expect(await repository.updateLeague('league-token', 'user-000', { ...changed, name: 'Final name' })).toBe('updated')
 

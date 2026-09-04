@@ -1,25 +1,15 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { Swords } from 'lucide-react'
 import { useState } from 'react'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import type { Battle } from '../client/components/battles/battle'
 import { BattleShelf } from '../client/components/battles/BattleShelf'
 import { CreateBattle } from '../client/components/battles/CreateBattle'
+import { DeleteBattleDialog } from '../client/components/battles/DeleteBattle'
 import { SignInRequired } from '../client/components/SignInRequired'
 import { battlesFrom, battlesQuery, meQuery } from '../client/queries'
 import { useLiveBattles } from '../client/useLiveBattle'
-import { deleteBattle } from '../server/functions'
 
 export const Route = createFileRoute('/battles/')({
   loader: ({ context }) =>
@@ -32,11 +22,6 @@ function Battles() {
   const { data: pages, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery(battlesQuery())
   const battles = battlesFrom(pages)
   const [deleting, setDeleting] = useState<Battle | null>(null)
-  const queryClient = useQueryClient()
-  const remove = useMutation({
-    mutationFn: (token: string) => deleteBattle({ data: { token } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey }),
-  })
   // Being added to a battle happens on someone else's device, so this page is told.
   useLiveBattles(Boolean(me))
   if (!me) return <SignInRequired title="Your battles" explanation="Sign in to see the battles you have played and the ones still going." />
@@ -82,29 +67,7 @@ function Battles() {
           </div>
         </div>
       )}
-      <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
-        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Delete battle?</AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
-              This permanently deletes the battle, including its scores and history.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="rounded-none border-edge bg-sunken">
-            <AlertDialogCancel>Keep battle</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={remove.isPending}
-              onClick={() => {
-                if (deleting) remove.mutate(deleting.token)
-                setDeleting(null)
-              }}
-            >
-              Delete battle
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteBattleDialog battle={deleting} onClose={() => setDeleting(null)} />
     </main>
   )
 }

@@ -33,7 +33,7 @@ import {
   type AppShellState,
 } from './src/appShellState'
 import { appStateChanged, initialAppLifecycle, WEB_RESUME_SCRIPT } from './src/lifecycle'
-import { NATIVE_BRIDGE_SCRIPT, nativeHistoryStateScript, parseNativeActionRequest, type NativeActionRequest } from './src/nativeActions'
+import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest, type NativeActionRequest } from './src/nativeActions'
 import { applicationNavigationScript, classifyNavigation } from './src/navigation'
 import {
   NATIVE_AUTH_CALLBACK_URL,
@@ -105,7 +105,13 @@ function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
 
 function AppShell() {
   const webView = useRef<WebView>(null)
-  const canGoBack = useRef(false)
+  /**
+   * Whether going back stays in the tab the player is looking at, which only the web
+   * application can answer: every tab shares this one history stack, and a swipe that
+   * pops it blindly leaves the tab. It stays off until a screen says otherwise, so the
+   * bottom of a tab has nothing behind it.
+   */
+  const [backGesture, setBackGesture] = useState(false)
   const authOpen = useRef(false)
   const battleAwake = useRef(false)
   const battleAwakeOperation = useRef<Promise<void>>(Promise.resolve())
@@ -243,6 +249,9 @@ function AppShell() {
   const handleNativeAction = useCallback(
     async (action: NativeActionRequest) => {
       switch (action.kind) {
+        case 'back-gesture':
+          setBackGesture(action.enabled)
+          break
         case 'battle-active':
           await setBattleActive(action.active)
           break
@@ -307,12 +316,12 @@ function AppShell() {
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (!canGoBack.current) return false
+      if (!backGesture) return false
       webView.current?.goBack()
       return true
     })
     return () => subscription.remove()
-  }, [])
+  }, [backGesture])
 
   useEffect(() => {
     let active = true
@@ -379,8 +388,6 @@ function AppShell() {
 
   const updateNavigation = useCallback(
     (navigation: WebViewNavigation) => {
-      canGoBack.current = navigation.canGoBack
-      webView.current?.injectJavaScript(nativeHistoryStateScript(navigation.canGoBack))
       commitShell(webNavigationChanged(shellRef.current, navigation.url))
     },
     [commitShell],
@@ -409,7 +416,7 @@ function AppShell() {
           injectedJavaScriptBeforeContentLoaded={`${NATIVE_BRIDGE_SCRIPT}\n${nativeAuthCompletionScript()}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
-          allowsBackForwardNavigationGestures
+          allowsBackForwardNavigationGestures={backGesture}
           allowsLinkPreview={false}
           setSupportMultipleWindows
           startInLoadingState

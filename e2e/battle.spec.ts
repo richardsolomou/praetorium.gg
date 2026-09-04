@@ -340,12 +340,13 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await takeTheTurn(alice)
   await expect(alice.getByText(new RegExp(`${aliceName} draws .+ for ${bobName}`)).first()).toBeVisible()
   await expect(alice.getByText(new RegExp(`${bobName} marks `))).toHaveCount(0)
-  await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored))
+  // Both armies arrive battle ready, so every score carries the bonus the battle paid at the start.
+  await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored + 10))
   await expect(panel.locator('[data-stat="cp"]')).toHaveText('2')
   // Nothing is ticked to finish a card: no control for it exists.
   await expect(alice.getByText('take it out of the hand')).toHaveCount(0)
   await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-stat="vp"]')).toHaveText(
-    String(scored),
+    String(scored + 10),
   )
 
   await expect(alice.getByText(/The battlefield is /)).toBeVisible()
