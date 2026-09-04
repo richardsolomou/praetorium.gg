@@ -196,6 +196,11 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   await page.getByRole('button', { name: 'Account menu for Alice' }).click()
   await page.getByRole('menuitem', { name: 'My profile' }).click()
+  const rostersTab = page.getByRole('tab', { name: /rosters/i })
+  await expect(async () => {
+    await rostersTab.click()
+    await expect(page.locator('[data-player-rosters]')).toBeVisible({ timeout: 1000 })
+  }).toPass()
   await expect(page.locator('[data-player-rosters]')).toContainText('Copy of Nurgle 2k')
 
   // Back to unlisted, so the rest of this test reads the link the way it did before.

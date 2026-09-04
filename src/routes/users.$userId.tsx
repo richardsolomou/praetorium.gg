@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { UserX } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { ServiceRecord } from '../core/serviceRecord'
 import { BattleShelf } from '../client/components/battles/BattleShelf'
 import { PageState } from '../client/components/PageState'
@@ -18,11 +19,24 @@ import {
   userProfileQuery,
 } from '../client/queries'
 
-/** The filter as an address carries it, so a narrowed record is a link. */
-const readFilter = (search: Record<string, unknown>): PlayerProfileFilter => {
+/** Which of the three answers a profile holds is on screen. */
+const TABS = ['record', 'battles', 'rosters'] as const
+type ProfileTab = (typeof TABS)[number]
+
+type ProfileSearch = PlayerProfileFilter & { tab?: ProfileTab }
+
+/**
+ * The address carries both the tab and the record's narrowing.
+ *
+ * `tab` is deliberately not a loader dependency: every tab's data is fetched for
+ * the first frame, so switching one is a render rather than a request.
+ */
+const readSearch = (search: Record<string, unknown>): ProfileSearch => {
   const text = (value: unknown) => (typeof value === 'string' && value ? value : undefined)
   const size = Number(search.limit)
+  const tab = TABS.find((candidate) => candidate === search.tab)
   return {
+    tab,
     faction: text(search.faction),
     detachment: text(search.detachment),
     opponentFaction: text(search.opponentFaction),
@@ -33,9 +47,12 @@ const readFilter = (search: Record<string, unknown>): PlayerProfileFilter => {
   }
 }
 
+/** The narrowing alone, so a tab change is not a new cache key for the record. */
+const recordFilter = ({ tab: _tab, ...filter }: ProfileSearch): PlayerProfileFilter => filter
+
 export const Route = createFileRoute('/users/$userId')({
-  validateSearch: readFilter,
-  loaderDeps: ({ search }) => search,
+  validateSearch: readSearch,
+  loaderDeps: ({ search }) => recordFilter(search),
   loader: ({ context, params, deps }) =>
     Promise.all([
       context.queryClient.ensureQueryData(meQuery()),
@@ -62,7 +79,8 @@ export const Route = createFileRoute('/users/$userId')({
  */
 function PlayerProfile() {
   const { userId } = Route.useParams()
-  const filter = Route.useSearch()
+  const search = Route.useSearch()
+  const filter = recordFilter(search)
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
   const { data: profile } = useQuery(userProfileQuery(userId))
@@ -87,6 +105,14 @@ function PlayerProfile() {
 
   const yourself = userId === me?.id
   const record = data?.record
+  // A tab nothing would fill is not offered, and an address naming one falls back
+  // to the record rather than an empty panel insisting the tab exists.
+  const tabs = [
+    { value: 'record' as const, label: 'Record', count: undefined },
+    { value: 'battles' as const, label: 'Battles', count: data?.played ?? 0 },
+    ...(published?.rosters.length ? [{ value: 'rosters' as const, label: 'Rosters', count: published.rosters.length }] : []),
+  ]
+  const tab = tabs.some((candidate) => candidate.value === search.tab) ? (search.tab as ProfileTab) : 'record'
   return (
     <main className="w-full">
       <section className="relative overflow-hidden border-b border-edge bg-panel">
@@ -100,44 +126,66 @@ function PlayerProfile() {
           </div>
         </div>
       </section>
-      <div className="mx-auto max-w-5xl space-y-6 px-3 pt-4 pb-8 sm:px-4">
-        {rankings ? <PlayerRankings rankings={rankings} /> : null}
-        {published ? (
-          <PlayerRosters
-            rosters={published.rosters}
-            totals={new Map(published.totals.map((entry) => [entry.id, entry]))}
-            factions={factions.data?.factions ?? []}
-            factionsLoading={factions.isPending}
-          />
-        ) : null}
-        {data ? (
-          <ServiceRecordPanel
-            record={data.record}
-            facets={data.facets}
-            filter={filter}
-            onFilter={(next) => void navigate({ to: '/users/$userId', params: { userId }, search: next })}
-          />
-        ) : null}
+      <div className="mx-auto max-w-5xl px-3 pt-4 pb-8 sm:px-4">
+        {/* The primitive's root is a flex row by default, which would sit the panel beside the tab bar. */}
+        <Tabs
+          value={tab}
+          className="flex-col gap-0"
+          onValueChange={(value) =>
+            void navigate({ to: '/users/$userId', params: { userId }, search: { ...filter, tab: value as ProfileTab } })
+          }
+        >
+          <TabsList variant="line" className="h-auto w-full justify-start gap-4 border-b border-edge pb-2">
+            {tabs.map(({ value, label, count }) => (
+              <TabsTrigger key={value} value={value} className="rubric flex-none gap-2 px-0 data-active:text-bone">
+                {label}
+                {count === undefined ? null : <span className="readout text-faint">{count}</span>}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-        {data?.battles.length ? (
-          <div>
-            <BattleShelf title="Battles" battles={[...data.battles]} />
-            {data.played > data.battles.length ? (
-              <p className="mt-2 text-xs text-faint">
-                The {data.battles.length} most recent of {data.played}.
-              </p>
+          <TabsContent value="record" className="mt-4 space-y-6">
+            {rankings ? <PlayerRankings rankings={rankings} /> : null}
+            {data ? (
+              <ServiceRecordPanel
+                record={data.record}
+                facets={data.facets}
+                filter={filter}
+                onFilter={(next) => void navigate({ to: '/users/$userId', params: { userId }, search: { ...next, tab: 'record' } })}
+              />
             ) : null}
-          </div>
-        ) : (
-          <section>
-            <p className="rubric border-b border-edge pb-2">Battles</p>
-            <p className="mt-2 border border-edge bg-panel p-5 text-sm text-dim">
-              {yourself
-                ? 'None of your battles are listed here. Only the ones your sharing setting allows appear.'
-                : 'This player has no battles anyone else can watch.'}
-            </p>
-          </section>
-        )}
+          </TabsContent>
+
+          <TabsContent value="battles" className="mt-4">
+            {data?.battles.length ? (
+              <>
+                <BattleShelf battles={[...data.battles]} />
+                {data.played > data.battles.length ? (
+                  <p className="mt-2 text-xs text-faint">
+                    The {data.battles.length} most recent of {data.played}.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="border border-edge bg-panel p-5 text-sm text-dim">
+                {yourself
+                  ? 'None of your battles are listed here. Only the ones your sharing setting allows appear.'
+                  : 'This player has no battles anyone else can watch.'}
+              </p>
+            )}
+          </TabsContent>
+
+          {published?.rosters.length ? (
+            <TabsContent value="rosters" className="mt-4">
+              <PlayerRosters
+                rosters={published.rosters}
+                totals={new Map(published.totals.map((entry) => [entry.id, entry]))}
+                factions={factions.data?.factions ?? []}
+                factionsLoading={factions.isPending}
+              />
+            </TabsContent>
+          ) : null}
+        </Tabs>
       </div>
     </main>
   )

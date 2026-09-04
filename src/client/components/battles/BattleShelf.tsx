@@ -15,6 +15,9 @@ import type { Battle } from './battle'
  *
  * Both sides read the same way whichever seat the viewer holds, so a shelf of
  * finished games can be scanned without working out who was who each time.
+ *
+ * `title` is optional because a shelf that is already the whole of a named tab
+ * would only repeat that name over itself.
  */
 export function BattleShelf({
   title,
@@ -22,19 +25,21 @@ export function BattleShelf({
   viewerId,
   onDelete,
 }: {
-  title: string
+  title?: string
   battles: Battle[]
   viewerId?: string
   onDelete?: (battle: Battle) => void
 }) {
   if (!battles.length) return null
   return (
-    <section data-battle-shelf={title}>
-      <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>{title}</span>
-        <span className="readout">{battles.length}</span>
-      </p>
-      <div className="mt-2 space-y-3">
+    <section data-battle-shelf={title ?? ''}>
+      {title ? (
+        <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+          <span>{title}</span>
+          <span className="readout">{battles.length}</span>
+        </p>
+      ) : null}
+      <div className={`space-y-3 ${title ? 'mt-2' : ''}`}>
         {battles.map((battle) => {
           const canDelete = Boolean(viewerId && onDelete && battle.playerIds[0] === viewerId)
           // Folded into sides rather than read seat by seat: an ally of a 2v1 sits second.

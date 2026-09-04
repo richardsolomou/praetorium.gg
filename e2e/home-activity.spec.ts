@@ -178,8 +178,19 @@ test('a signed-out visitor opens a player profile from the leaderboard', async (
   await first.click()
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(name, { ignoreCase: true })
+  // The record is the tab a profile opens on, so it is on screen without a click.
+  await expect(page.getByRole('tab', { selected: true })).toHaveText('Record')
   await expect(page.locator('[data-service-record]')).toContainText('Service record')
   await expect(page.locator('[data-rankings]')).toContainText('Everyone')
+
+  // Retried because a tab click that lands before hydration is swallowed rather
+  // than failing: the panel is controlled by the address, so nothing moves.
+  const battlesTab = page.getByRole('tab', { name: /battles/i })
+  await expect(async () => {
+    await battlesTab.click()
+    await expect(page).toHaveURL(/tab=battles/, { timeout: 1000 })
+  }).toPass()
+  await expect(page.locator('[data-battle-shelf]')).toBeVisible()
 })
 
 test('a player profile fits a phone', async ({ page }) => {

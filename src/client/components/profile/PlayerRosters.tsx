@@ -27,11 +27,7 @@ export function PlayerRosters({
   if (!rosters.length) return null
   return (
     <section data-player-rosters>
-      <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>Rosters</span>
-        <span className="readout">{rosters.length}</span>
-      </p>
-      <div className="mt-2 space-y-2">
+      <div className="space-y-2">
         {rosters.map((roster) => (
           <article
             key={roster.id}

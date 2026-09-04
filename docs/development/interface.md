@@ -84,6 +84,8 @@ Empty shelves explain rather than disappear. A signed-in player with no live gam
 
 `Home` owns data fetching and `HomeView` composes the page from props and fixtures. Every shelf is loaded by the route loader so the server-rendered frame has its final geometry. Friends remains in the signed-in account menu rather than global navigation.
 
+A profile splits into three tabs: the record, the battles, and the rosters the player has published. The tab rides in the address so a tab is a link, and it is not a loader dependency, since every tab's data is fetched for the first frame and switching one is a render rather than a request. A tab nothing would fill is not offered, and an address naming one that is absent falls back to the record. The tab bar carries each section's name and count, so the panel below it does not repeat them.
+
 The leaderboard chooses its faction with a searchable combobox that navigates, so a faction's table has an address somebody can send rather than living in component state, and a busy instance offers dozens of factions as a list to search rather than a wall of chips. Only factions with a finished battle behind them are offered. Every row links to the player it belongs to.
 
 Leagues cover registration, roster reveal, and entrant-started battles. The latest event appears as the current event, while earlier numbered events form the archive. A new event begins without entrants. Before reveal, only roster-submission status is visible, including to the organizer; after reveal, a roster snapshot loads only when its viewer opens. Event pages list live and finished battles as read-only views.
