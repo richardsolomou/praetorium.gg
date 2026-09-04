@@ -92,6 +92,7 @@ export type SubmitLeagueRosterResult =
   | { outcome: 'missing' | 'unassigned' | 'wrong-limit' }
   | { outcome: 'invalid-warlords'; format: TableShape | null }
 export type RevealLeagueResult = { outcome: 'revealed' | 'not-ready' } | { outcome: 'invalid-warlords'; format: TableShape }
+export type UnsealLeagueRosterResult = 'unsealed' | 'missing' | 'forbidden' | 'not-revealed'
 export type LeagueBattleCandidate = {
   token: string
   name: string
@@ -1668,14 +1669,22 @@ export class Repository {
         .orderBy(desc(leagueEvents.number))
         .limit(1)
         .for('update')
-      if (!event || event.revealedAt !== null) return { outcome: 'missing' }
+      if (!event) return { outcome: 'missing' }
       const [entry] = await tx
-        .select({ status: leagueEventEntries.status, requiredLimit: leagueEventEntries.requiredLimit, teamId: leagueEventEntries.teamId })
+        .select({
+          status: leagueEventEntries.status,
+          requiredLimit: leagueEventEntries.requiredLimit,
+          teamId: leagueEventEntries.teamId,
+          snapshot: leagueEventEntries.rosterSnapshot,
+        })
         .from(leagueEventEntries)
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, input.userId)))
         .limit(1)
         .for('update')
       if (!entry || entry.status !== 'accepted') return { outcome: 'missing' }
+      // Reveal closes submission, so after it the absence of a snapshot is the whole
+      // record that the organizer unsealed this entry and asked for another list.
+      if (event.revealedAt !== null && entry.snapshot !== null) return { outcome: 'missing' }
       const requiredLimit = requiredLeagueRosterLimit(event.format, event.rosterLimit, entry.requiredLimit, entry.teamId)
       if ((event.format === '2v1' || event.format === '2v2') && requiredLimit === null) return { outcome: 'unassigned' }
       if (requiredLimit !== null && input.rosterLimit !== requiredLimit) return { outcome: 'wrong-limit' }
@@ -1830,6 +1839,46 @@ export class Repository {
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'pending')))
       await tx.update(leagueEvents).set({ revealedAt: now }).where(eq(leagueEvents.id, event.id))
       return { outcome: 'revealed' }
+    })
+  }
+
+  /**
+   * Reopen submission for one revealed entrant.
+   *
+   * Reveal is still one-way for the event; clearing a single snapshot lets the
+   * organizer send a mistaken list back without unrevealing everyone else's.
+   */
+  async unsealLeagueRoster(token: string, ownerId: string, userId: string, eventToken?: string): Promise<UnsealLeagueRosterResult> {
+    return this.database.transaction(async (tx) => {
+      const [league] = await tx
+        .select({ id: leagues.id, ownerId: leagues.ownerId })
+        .from(leagues)
+        .where(eq(leagues.token, token))
+        .for('update')
+      if (!league) return 'missing'
+      if (league.ownerId !== ownerId) return 'forbidden'
+      const [event] = await tx
+        .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
+        .from(leagueEvents)
+        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
+        .orderBy(desc(leagueEvents.number))
+        .limit(1)
+        .for('update')
+      if (!event) return 'missing'
+      if (event.revealedAt === null) return 'not-revealed'
+      const cleared = await tx
+        .update(leagueEventEntries)
+        .set({ rosterId: null, rosterName: null, rosterSnapshot: null, submittedAt: null })
+        .where(
+          and(
+            eq(leagueEventEntries.eventId, event.id),
+            eq(leagueEventEntries.userId, userId),
+            eq(leagueEventEntries.status, 'accepted'),
+            isNotNull(leagueEventEntries.rosterSnapshot),
+          ),
+        )
+        .returning({ userId: leagueEventEntries.userId })
+      return cleared.length ? 'unsealed' : 'missing'
     })
   }
 

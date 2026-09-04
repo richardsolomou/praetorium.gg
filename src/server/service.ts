@@ -384,6 +384,15 @@ export class PraetoriumService {
     throw new Response('fill every configured place and wait for every accepted roster before reveal', { status: 409 })
   }
 
+  /** Send one revealed list back to its owner so a mistake can be corrected in place. */
+  async unsealLeagueRoster(token: string, ownerId: string, userId: string, eventToken?: string) {
+    const result = await this.repository.unsealLeagueRoster(token, ownerId, userId, eventToken)
+    if (result === 'unsealed') return
+    if (result === 'forbidden') throw new Response('only the organizer can unseal a roster', { status: 403 })
+    if (result === 'not-revealed') throw new Response('an entrant can swap their own roster until reveal', { status: 409 })
+    throw new Response('no such revealed event roster', { status: 404 })
+  }
+
   async leagueRoster(token: string, userId: string, eventToken?: string) {
     const stored = await this.repository.leagueRoster(token, userId, eventToken)
     if (!stored) return null

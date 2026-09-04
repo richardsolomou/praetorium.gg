@@ -1,6 +1,19 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { CalendarPlus, Check, Eye, FileLock2, LockKeyhole, Pencil, ShieldCheck, Swords, TriangleAlert, UserPlus, X } from 'lucide-react'
+import {
+  CalendarPlus,
+  Check,
+  Eye,
+  FileLock2,
+  LockKeyhole,
+  LockKeyholeOpen,
+  Pencil,
+  ShieldCheck,
+  Swords,
+  TriangleAlert,
+  UserPlus,
+  X,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
   AlertDialog,
@@ -42,6 +55,7 @@ import {
   moderateLeagueEntry,
   revealLeague,
   submitLeagueRoster,
+  unsealLeagueRoster,
   updateLeagueEvent,
 } from '../../../server/functions'
 import { GAME_SIZES } from '../../../core/battle'
@@ -84,6 +98,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
   const [removing, setRemoving] = useState<{ userId: string; name: string } | null>(null)
   const [reassigning, setReassigning] = useState<{ userId: string; name: string; requiredLimit: number } | null>(null)
   const [pairing, setPairing] = useState<{ userId: string; name: string } | null>(null)
+  const [unsealing, setUnsealing] = useState<{ userId: string; name: string } | null>(null)
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['league', token] }),
@@ -116,6 +131,13 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
     mutationFn: (userIds: string[]) => assignLeagueTeam({ data: { token, eventToken: selectedEventToken, userIds } }),
     onSuccess: async () => {
       setPairing(null)
+      await refresh()
+    },
+  })
+  const unseal = useMutation({
+    mutationFn: (userId: string) => unsealLeagueRoster({ data: { token, eventToken: selectedEventToken, userId } }),
+    onSuccess: async () => {
+      setUnsealing(null)
       await refresh()
     },
   })
@@ -202,15 +224,16 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
   const ownEntry = league.entries.find((entry) => entry.userId === me?.id)
   const battleFormat = leagueTableShape(league.format)
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
+  const sealedEntrants = accepted.filter((entry) => entry.submitted)
   const oneOnOneEntrants =
     league.format === null
-      ? accepted.filter(
+      ? sealedEntrants.filter(
           (entry) =>
             typeof ownEntry?.sealedLimit === 'number' &&
             GAME_SIZES.some((size) => size.limit === ownEntry.sealedLimit) &&
             entry.sealedLimit === ownEntry.sealedLimit,
         )
-      : accepted
+      : sealedEntrants
   const pendingCount = league.entries.filter((entry) => entry.status === 'pending').length
   const latestEvent = league.events[0]
   const viewingLatest = latestEvent?.token === league.eventToken
@@ -221,6 +244,9 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
   const removingTeammate = removingEntry?.teamId
     ? teamMembers.get(removingEntry.teamId)?.find((entry) => entry.userId !== removingEntry.userId)
     : undefined
+  const ownTeam = league.format === '2v2' && ownEntry?.teamId ? (teamMembers.get(ownEntry.teamId) ?? []) : []
+  // A doubles battle carries both teammates' lists, so an unsealed teammate has nothing to play with.
+  const ownSideSealed = league.format !== '2v2' || (ownTeam.length === 2 && ownTeam.every((entry) => entry.submitted))
   const doublesReady =
     accepted.length >= 4 &&
     accepted.length % 2 === 0 &&
@@ -437,7 +463,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
                       </div>
                     ) : null}
                     {league.revealedAt && entry.status === 'accepted' && entry.submitted ? (
-                      <div className="flex gap-1">
+                      <div className="flex w-full min-w-0 flex-wrap justify-end gap-1 sm:w-auto">
                         <Button
                           variant="outline"
                           size="sm"
@@ -454,6 +480,20 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
                         >
                           <Eye /> View roster
                         </Button>
+                        {isOwner ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Unseal ${entrantLabel}’s roster`}
+                            disabled={unseal.isPending}
+                            onClick={() => {
+                              unseal.reset()
+                              setUnsealing({ userId: entry.userId, name: entrantLabel })
+                            }}
+                          >
+                            <LockKeyholeOpen /> Unseal
+                          </Button>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
@@ -519,7 +559,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
               <p className="mt-3 text-sm text-parchment">Waiting for the organizer to let you in.</p>
             ) : null}
             {ownEntry?.status === 'rejected' ? <p className="mt-3 text-sm text-destructive">You are not in this event.</p> : null}
-            {ownEntry?.status === 'accepted' && !league.revealedAt ? (
+            {ownEntry?.status === 'accepted' && (!league.revealedAt || !ownEntry.submitted) ? (
               <Button
                 className="mt-4 w-full"
                 variant={ownEntry.submitted ? 'outline' : 'default'}
@@ -541,7 +581,15 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
               </p>
             ) : null}
             {league.revealedAt ? <p className="mt-3 text-sm text-achieved">Every list is out in the open.</p> : null}
-            {league.revealedAt && ownEntry?.status === 'accepted' ? (
+            {league.revealedAt && ownEntry?.status === 'accepted' && !ownEntry.submitted ? (
+              <p className="mt-3 text-sm text-parchment">
+                The organizer unsealed your list. Seal another one to start battles from this event.
+              </p>
+            ) : null}
+            {league.revealedAt && ownEntry?.status === 'accepted' && ownEntry.submitted && !ownSideSealed ? (
+              <p className="mt-3 text-sm text-parchment">Your teammate is sealing another list. You can play once theirs is back.</p>
+            ) : null}
+            {league.revealedAt && ownEntry?.status === 'accepted' && ownEntry.submitted && ownSideSealed ? (
               <Button className="mt-4 w-full" disabled={battle.isPending} onClick={openBattleChooser}>
                 <Swords /> {startBattleLabel(battleFormat)}
               </Button>
@@ -777,6 +825,38 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog
+        open={unsealing !== null}
+        onOpenChange={(open) => {
+          if (unseal.isPending) return
+          if (!open) {
+            unseal.reset()
+            setUnsealing(null)
+          }
+        }}
+      >
+        <AlertDialogContent aria-busy={unseal.isPending} className="rounded-none border border-edge bg-panel text-bone">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="uppercase">Unseal {unsealing?.name}’s roster?</AlertDialogTitle>
+            <AlertDialogDescription className="text-dim">
+              Their revealed list is discarded and they can seal another one for this event. Battles already started keep the list they were
+              created with.
+            </AlertDialogDescription>
+            {unseal.error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {errorMessage(unseal.error)}
+              </p>
+            ) : null}
+            {unseal.isPending ? <output className="sr-only">Unsealing roster…</output> : null}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={unseal.isPending}>Keep it sealed</AlertDialogCancel>
+            <AlertDialogAction disabled={unseal.isPending} onClick={() => unsealing && unseal.mutate(unsealing.userId)}>
+              {unseal.isPending ? 'Unsealing…' : 'Unseal roster'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={reassigning !== null} onOpenChange={(open) => !assign.isPending && !open && setReassigning(null)}>
         <AlertDialogContent aria-busy={assign.isPending} className="rounded-none border border-edge bg-panel text-bone">
           <AlertDialogHeader>
@@ -880,7 +960,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           ownUserId={ownEntry.userId}
           ownRequiredLimit={ownEntry.requiredLimit}
           rosterLimit={league.rosterLimit}
-          entries={accepted}
+          entries={sealedEntrants}
           pending={battle.isPending}
           error={battle.error}
           onIntentChange={() => battle.reset()}
@@ -1400,7 +1480,7 @@ function DoublesBattleChooser({
   const ownTeamId = entries.find((entry) => entry.userId === ownUserId)?.teamId
   const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
   const options = projection.teams
-    .filter((team) => team.id !== ownTeamId && team.entries.length === 2)
+    .filter((team) => team.id !== ownTeamId && team.entries.length === 2 && team.entries.every((entry) => entry.submitted))
     .map((team) => ({
       label: team.entries.map((entry) => labels.get(entry.userId) ?? entry.name).join(' & '),
       value: team.entries[0]!.userId,

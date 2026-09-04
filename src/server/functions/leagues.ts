@@ -104,6 +104,17 @@ export const openLeagueRoster = createServerFn({ method: 'GET' })
   .validator(leagueRosterSchema)
   .handler(({ data }) => rpc(() => app().service.leagueRoster(data.token, data.userId, data.eventToken)))
 
+export const unsealLeagueRoster = createServerFn({ method: 'POST' })
+  .validator(leagueRosterSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.unsealLeagueRoster(data.token, player.id, data.userId, data.eventToken)
+      await app().telemetry.capture(player.id, 'league_roster_unsealed')
+      return null
+    }),
+  )
+
 export const createLeagueEvent = createServerFn({ method: 'POST' })
   .validator(createLeagueEventSchema)
   .handler(({ data }) =>
