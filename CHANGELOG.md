@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.59.0
+
+### Minor Changes
+
+- 35d19a5: Name the choices a roster import cannot give a unit — equipment, enhancements, Warlord, squad size and attachments — and ask before saving, instead of quietly leaving the datasheet's own build in their place.
+
 ## 0.58.1
 
 ### Patch Changes
