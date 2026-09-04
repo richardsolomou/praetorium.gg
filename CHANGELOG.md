@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.58.1
+
+### Patch Changes
+
+- b328da1: Allow separate loadout slots to select the same weapon without violating their individual limits.
+
 ## 0.58.0
 
 ### Minor Changes
