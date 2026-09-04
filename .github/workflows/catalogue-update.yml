@@ -11,8 +11,6 @@ concurrency:
 
 permissions:
   contents: read
-  # Publishing failing quietly is how the last two outages lasted twelve hours each.
-  issues: write
 
 jobs:
   update:
@@ -71,6 +69,3 @@ jobs:
           done
           aws s3 cp "$CATALOGUE_SNAPSHOT_POINTER_FILE" "s3://$SNAPSHOT_BUCKET/current.json" \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
-      - name: Report a failed publish
-        if: failure()
-        run: sh scripts/report-catalogue-failure.sh "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
