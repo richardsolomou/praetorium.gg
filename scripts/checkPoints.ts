@@ -11,6 +11,7 @@
  */
 
 import fs from 'node:fs'
+import { baselineShortfall } from './baselines'
 import path from 'node:path'
 import { parse } from 'yaml'
 import { buildIndex, type CatalogueFile, type SelectionEntry, targetOf } from '../src/core/catalogue'
@@ -303,4 +304,4 @@ for (const note of [...census].toSorted()) console.log(`  ${note}`)
 
 const allowedUnhandled = new Set(['scope primary-catalogue without a catalogue to compare'])
 const unexpectedUnhandled = [...census].filter((note) => !allowedUnhandled.has(note))
-if (unexpectedUnhandled.length) process.exitCode = 1
+if (unexpectedUnhandled.length) baselineShortfall(`the evaluator did not act on ${unexpectedUnhandled.length} catalogue features`)

@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { baselineShortfall } from './baselines'
 import { factionRestrictionCoverageIssues, loadDatacards } from '../src/server/datacards'
 
 const directory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
@@ -36,4 +37,4 @@ for (const file of fs.readdirSync(definitions).filter((name) => name.endsWith('.
 }
 console.log(`\n## structured catalogue error restrictions (${errorModifiers})`)
 for (const file of modifierIssues) console.log(`  unsupported shape in ${file}`)
-if (issues.length || modifierIssues.length) process.exitCode = 1
+if (issues.length || modifierIssues.length) baselineShortfall('named faction restrictions or error modifiers are unreadable')
