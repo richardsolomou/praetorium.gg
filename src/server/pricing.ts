@@ -11,7 +11,7 @@ import {
   kotcUnitExclusions,
 } from '../core/battle'
 import { type CatalogueIndex, targetOf } from '../core/catalogue'
-import { evaluate, evaluateForces, keywordIdsBySelection, type Selection } from '../core/evaluate'
+import { battleSizeSelection, evaluate, evaluateForces, keywordIdsBySelection, type Selection } from '../core/evaluate'
 import { type ModelKind, modelKindsOf, modelRowCount, modelRowSources, optionWargear } from '../core/modelKinds'
 import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
 import { buildUnit } from '../core/roster'
@@ -42,25 +42,32 @@ export { rosterDetachments }
  * plainest possible version of the same question answered twice.
  */
 function rosterForces(loaded: LoadedCatalogue, data: PriceInput, detachmentSelection: readonly Selection[]) {
+  // Every force says which battle size it is, because the caps conditioned on it are
+  // written for the largest game and lowered from there. An ally sits in a force of
+  // its own and asks the same question, and the answer has to be in there with it —
+  // but only once per force, because the roster may hold one battle size in all.
+  const battleSize = battleSizeSelection(loaded.index, data.limit)
+  const configuration = battleSize ? [battleSize] : []
+  const roster = [...configuration, ...detachmentSelection]
   const picked = data.units.flatMap((wanted, key) => {
     const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
       primaryCatalogueId: data.catalogueId,
       mustering: true,
-      roster: detachmentSelection,
+      roster,
       spreads: wanted.spreads,
       toggles: wanted.toggles,
     })
     const entry = loaded.index.definitions.get(wanted.entryId)
     return built ? [{ key, entryId: wanted.entryId, name: entry?.name ?? wanted.entryId, ...built }] : []
   })
-  const forceSelections = new Map<string, Selection[]>([[data.catalogueId, [...detachmentSelection]]])
+  const forceSelections = new Map<string, Selection[]>([[data.catalogueId, [...roster]]])
   for (const unit of picked) {
     const owner = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
-    const force = forceSelections.get(owner) ?? []
+    const force = forceSelections.get(owner) ?? [...configuration]
     force.push(unit.selection)
     forceSelections.set(owner, force)
   }
-  return { picked, forceSelections }
+  return { picked, forceSelections, roster }
 }
 
 type ReplacementChoice = {
@@ -313,7 +320,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   )
   const detachmentError = detachmentPointsError(purchased, budget, data.waivedRules)
 
-  const { picked, forceSelections } = rosterForces(loaded, data, detachmentSelection)
+  const { picked, forceSelections, roster } = rosterForces(loaded, data, detachmentSelection)
   // Pricing is a roster being mustered, which is what a datasheet's force-scoped rules ask about.
   const options = { primaryCatalogueId: data.catalogueId, mustering: true }
   const forces = [...forceSelections.values()]
@@ -386,6 +393,10 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
    * built with no choices at all rather than the one in the list: an enhancement the
    * player picked is inside that unit too, and its own limits are theirs to answer
    * for — two of the same relic in one army is a mistake worth being told about.
+   *
+   * What is inside the unit, and never the unit itself: how many of a datasheet a
+   * roster may hold is broken by picking another one, which is the plainest mistake
+   * a list can make and the one this must never swallow.
    */
   const composedByCatalogue = new Map<string, string>()
   for (const unit of picked) {
@@ -393,7 +404,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     const composed = buildUnit(unit.entryId, loaded.index, unit.size.models, undefined, {
       primaryCatalogueId: data.catalogueId,
       mustering: true,
-      roster: detachmentSelection,
+      roster,
     })
     if (!composed) continue
     const walk = (node: Selection) => {
@@ -402,7 +413,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       if (definition) composedByCatalogue.set(targetOf(definition, loaded.index.definitions).id, unit.name)
       node.selections?.forEach(walk)
     }
-    walk(composed.selection)
+    composed.selection.selections?.forEach(walk)
   }
   const selfContradictory = new Set(whole.errors.filter((error) => isCatalogueSelfContradiction(error, composedByCatalogue)))
   const pickedSelections = data.units.map((_, key) => picked.find((unit) => unit.key === key)?.selection)
@@ -506,7 +517,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       const models = modelKindsFor(unit)
       const replacementPairs = legalReplacementPairs(unit.entryId, unit.selection, describedChoices, models, loaded.index, {
         ...options,
-        roster: detachmentSelection,
+        roster,
       })
       const choices = describedChoices.map((choice) => ({
         ...choice,

@@ -285,6 +285,34 @@ describe('the picker', () => {
     })
   })
 
+  it('counts a datasheet against the cap for the battle size being built', () => {
+    // The data writes the largest game's cap on the datasheet and lowers it with a
+    // modifier, so a picker that never says which game this is offers a Strike Force
+    // list at Incursion.
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'lord',
+          name: 'Warlord',
+          type: 'model',
+          costs: points(100),
+          constraints: [{ id: 'lord-max', type: 'max', value: 3, field: 'selections', scope: 'force', includeChildSelections: true }],
+          modifiers: [
+            {
+              type: 'set',
+              field: 'lord-max',
+              value: 2,
+              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'force', childId: 'incursion', shared: true }],
+            },
+          ],
+        },
+      ],
+    })
+    const limitAt = (battleSize?: number) => unitsIn(book, 'cat', '', { battleSize })[0]?.limit
+
+    expect([limitAt(1_000), limitAt(2_000), limitAt()]).toEqual([2, 3, 3])
+  })
+
   it('gives datasheets readable unambiguous route slugs', () => {
     const book = bookOf({
       selectionEntries: [

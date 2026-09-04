@@ -14,8 +14,119 @@ import {
   uniqueNames,
 } from './pricing'
 import { descriptionKey } from './datacards'
-import { bookOf, points as pointsCost } from './catalogue.fixtures'
+import { bookOf, points as pointsCost, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'
+
+const cappedLord = (id: string, name: string) => ({
+  id,
+  name,
+  type: 'unit' as const,
+  selectionEntries: [
+    {
+      id: `${id}-body`,
+      name,
+      type: 'model' as const,
+      costs: pointsCost(100),
+      constraints: [
+        { id: `${id}-body-min`, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' },
+        { id: `${id}-body-max`, type: 'max' as const, value: 1, field: 'selections', scope: 'parent' },
+      ],
+    },
+  ],
+  constraints: [{ id: `${id}-max`, type: 'max' as const, value: 3, field: 'selections', scope: 'force', includeChildSelections: true }],
+  modifiers: [
+    {
+      type: 'set' as const,
+      field: `${id}-max`,
+      value: 2,
+      conditions: [{ type: 'atLeast' as const, value: 1, field: 'selections', scope: 'force', childId: 'incursion', shared: true }],
+    },
+  ],
+})
+
+const rulesWithout = {
+  factionKeys: new Map(),
+  detachmentReferences: new Map(),
+  detachmentDetails: new Map(),
+  factionRestrictions: new Map(),
+} as Partial<LoadedRules> as LoadedRules
+
+describe('a datasheet capped by the battle size', () => {
+  const priceCopies = (loaded: ReturnType<typeof bookOf>, limit: number, units: { entryId: string; catalogueId?: string }[]) =>
+    calculateRosterPrice({ catalogueId: 'cat', detachmentIds: [], disposition: null, limit, units }, loaded, rulesWithout)?.errors.map(
+      (error) => error.message,
+    )
+
+  it('allows the smaller game fewer copies than the larger one', () => {
+    const loaded = bookOf({ selectionEntries: [cappedLord('lord', 'Warlord')] })
+    const three = [{ entryId: 'lord' }, { entryId: 'lord' }, { entryId: 'lord' }]
+
+    expect(priceCopies(loaded, 2_000, three)).toEqual([])
+    expect(priceCopies(loaded, 1_000, three)).toEqual(['allows at most 2, has 3'])
+  })
+
+  it('caps an ally in its own force by the same battle size', () => {
+    // An allied book is a force of its own, and a force that is not told the battle
+    // size reads the largest game's cap.
+    const loaded = shelfOf({ selectionEntries: [cappedLord('lord', 'Warlord')] }, { selectionEntries: [cappedLord('ally', 'Ally')] })
+    const three = [
+      { entryId: 'ally', catalogueId: 'cat-1' },
+      { entryId: 'ally', catalogueId: 'cat-1' },
+      { entryId: 'ally', catalogueId: 'cat-1' },
+    ]
+
+    expect(priceCopies(loaded, 2_000, three)).toEqual([])
+    expect(priceCopies(loaded, 1_000, three)).toEqual(['allows at most 2, has 3'])
+  })
+})
+
+describe('a limit the catalogue breaks inside a unit', () => {
+  // A composed unit holding two of something capped at one is the catalogue
+  // contradicting itself; four of that unit where the roster may hold three is the
+  // player, and the two must not be silenced together.
+  const loaded = bookOf({
+    selectionEntries: [
+      {
+        id: 'kill-team',
+        name: 'Kill Team',
+        type: 'unit',
+        costs: pointsCost(100),
+        constraints: [{ id: 'team-max', type: 'max', value: 3, field: 'selections', scope: 'force', includeChildSelections: true }],
+        selectionEntries: [
+          {
+            id: 'rifle',
+            name: 'Exchange rifle',
+            type: 'upgrade',
+            constraints: [
+              { id: 'rifle-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+              { id: 'rifle-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const errorsFor = (copies: number) =>
+    calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        limit: 2_000,
+        units: Array.from({ length: copies }, () => ({ entryId: 'kill-team' })),
+      },
+      loaded,
+      rulesWithout,
+    )?.errors.map((error) => error.message)
+
+  it('says nothing about the composition the player did not choose', () => {
+    expect(errorsFor(1)).toEqual([])
+  })
+
+  it('still reports how many of the datasheet the roster may hold', () => {
+    expect(errorsFor(4)).toEqual(['allows at most 3, has 4'])
+  })
+})
 
 describe('force disposition', () => {
   it('uses the only available disposition', () => {

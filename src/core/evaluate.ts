@@ -561,13 +561,28 @@ function withPath(selection: Selection, path: readonly string[]): Selection {
 }
 
 /**
+ * What a force carries to say which battle size it is being built at.
+ *
+ * The battle size is a selection in the data, not a number beside the list: every
+ * cap conditioned on it — how many copies of a datasheet a roster may hold above
+ * all — reads the largest game until the force holds this. So a force that is
+ * priced, or a datasheet whose limit is being asked for, is given it first, and a
+ * limit the game system does not offer gets nothing rather than a guess.
+ */
+export function battleSizeSelection(index: CatalogueIndex, limit: number | null): Selection | null {
+  const id = limit === null ? undefined : index.battleSizes.get(limit)
+  return id ? { id } : null
+}
+
+/**
  * How many of one datasheet a roster may hold, or null when nothing limits it.
  *
  * The number is in the data but not as a number: a roster-scoped `max` constraint
  * carries the Strike Force figure, and a modifier aimed at that constraint's id
  * lowers it for a smaller game. So it is read the same way legality reads it —
  * through `constraintValue`, with the rest of the list present, because the
- * modifier's condition is usually about the roster.
+ * modifier's condition is usually about the roster — the battle size above all, so
+ * a caller that knows which game this is passes `battleSizeSelection` in `roster`.
  *
  * Nothing here refuses anything. It is what lets the picker say "3 in roster" and
  * offer to hide what is already full; `violations` remains the only authority on
