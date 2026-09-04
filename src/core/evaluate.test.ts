@@ -462,6 +462,46 @@ describe('legality', () => {
     expect(result.errors[0]?.message).toBe('allows at most 3, has 4')
   })
 
+  it('keeps a non-shared maximum separate for each link to an entry', () => {
+    const result = evaluateOne(
+      {
+        id: 'transport',
+        selections: [{ id: 'wargear', selections: [{ id: 'hull-bolter' }, { id: 'pintle', selections: [{ id: 'pintle-bolter' }] }] }],
+      },
+      {
+        sharedSelectionEntries: [
+          {
+            id: 'transport',
+            name: 'Transport',
+            type: 'model',
+            selectionEntryGroups: [
+              {
+                id: 'wargear',
+                name: 'Wargear',
+                entryLinks: [{ id: 'hull-bolter', targetId: 'combi-bolter', type: 'selectionEntry' }],
+                selectionEntryGroups: [
+                  {
+                    id: 'pintle',
+                    name: 'Pintle weapon',
+                    entryLinks: [{ id: 'pintle-bolter', targetId: 'combi-bolter', type: 'selectionEntry' }],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'combi-bolter',
+            name: 'Combi-bolter',
+            type: 'upgrade',
+            constraints: [{ id: 'per-link', type: 'max', value: 1, field: 'selections', scope: 'parent', shared: false }],
+          },
+        ],
+      },
+    )
+
+    expect(result.errors).toEqual([])
+  })
+
   it('treats a negative limit as no limit', () => {
     const result = evaluateOne(
       { id: 'squad', selections: [{ id: 'trooper', count: 99 }] },
