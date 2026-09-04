@@ -1179,6 +1179,85 @@ it('rejects a league snapshot that cannot be read back', async () => {
   expect(await refusalStatus(() => service.revealLeague(token, 'alice'))).toBe(409)
 })
 
+it('lets an entrant seal another roster after the organizer unseals theirs', async () => {
+  const { token } = await revealedLeague()
+
+  await service.unsealLeagueRoster(token, 'alice', 'dave')
+  await saveAndSealLeagueRoster(token, 'dave', 2_000, '-replacement')
+
+  expect(await service.leagueRoster(token, 'dave')).toMatchObject({ name: 'dave-replacement sealed' })
+})
+
+it('withholds an unsealed roster from the revealed event', async () => {
+  const { token } = await revealedLeague()
+
+  await service.unsealLeagueRoster(token, 'alice', 'dave')
+
+  expect(await service.leagueRoster(token, 'dave')).toBeNull()
+})
+
+it('keeps a revealed roster sealed against its own owner', async () => {
+  const { token } = await revealedLeague()
+
+  expect(await refusalStatus(() => saveAndSealLeagueRoster(token, 'dave', 2_000, '-replacement'))).toBe(409)
+})
+
+it('refuses to unseal a roster before the event reveals', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+  })
+  await service.joinLeague(token, 'bob')
+  await saveAndSealLeagueRoster(token, 'bob', 2_000)
+
+  expect(await refusalStatus(() => service.unsealLeagueRoster(token, 'alice', 'bob'))).toBe(409)
+})
+
+it('only lets the organizer unseal a revealed roster', async () => {
+  const { token } = await revealedLeague()
+
+  expect(await refusalStatus(() => service.unsealLeagueRoster(token, 'dave', 'dave'))).toBe(403)
+})
+
+it('refuses to unseal an entrant who has no sealed roster', async () => {
+  const { token } = await revealedLeague()
+  await service.unsealLeagueRoster(token, 'alice', 'dave')
+
+  expect(await refusalStatus(() => service.unsealLeagueRoster(token, 'alice', 'dave'))).toBe(404)
+})
+
+it('refuses a league battle against an entrant whose roster is unsealed', async () => {
+  const { token } = await revealedLeague()
+
+  await service.unsealLeagueRoster(token, 'alice', 'dave')
+
+  expect(await refusalStatus(() => service.createLeagueBattle('alice', token, 'dave', null))).toBe(403)
+})
+
+it('leaves a battle started before an unseal reading its own copy of the roster', async () => {
+  const league = await revealedLeague()
+  const battle = await service.createLeagueBattle('alice', league.token, 'dave', null)
+
+  await service.unsealLeagueRoster(league.token, 'alice', 'dave')
+
+  const screen = await view(battle.token, 'alice')
+  expect(screen.players.map((player) => [player.id, player.roster?.name])).toEqual([
+    ['alice', league.aliceRoster.name],
+    ['dave', league.opponentRoster.name],
+  ])
+})
+
+it('holds the doubles Warlord rule when an unsealed teammate seals again', async () => {
+  const { token } = await revealedDoublesLeague()
+
+  await service.unsealLeagueRoster(token, 'alice', 'bob')
+
+  expect(await refusalStatus(() => saveAndSealLeagueRoster(token, 'bob', 1_000, '-replacement', true))).toBe(409)
+})
+
 it('chooses tactical draws on the server instead of trusting the submitted card', async () => {
   const { token } = await service.createBattle('alice', 'bob')
   let seq = 0

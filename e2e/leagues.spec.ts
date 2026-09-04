@@ -231,6 +231,29 @@ async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = fa
   }
 }
 
+async function sealOwnRoster(page: Page, rosterName: string) {
+  await page.getByRole('button', { name: /^(?:Choose|Change) roster$/ }).click()
+  await page.getByRole('dialog', { name: 'Seal a roster' }).locator(`[data-roster="${rosterName}"]`).click()
+  await expect(page.getByRole('dialog', { name: 'Seal a roster' })).toBeHidden()
+}
+
+/** A roster a league accepts: one Warlord, plus whatever else it is asked to field. */
+async function sealableRoster(page: Page, name: string, extraUnit?: string) {
+  await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name })
+  await page.getByLabel('Add a unit').fill('Skorpekh Lord')
+  await page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click()
+  await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Make Skorpekh Lord Warlord' }).click())
+  if (!extraUnit) return
+  await page.getByLabel('Add a unit').fill(extraUnit)
+  await waitForRosterSave(page, () =>
+    page
+      .getByRole('button', { name: `Add ${extraUnit}`, exact: true })
+      .first()
+      .click(),
+  )
+}
+
 async function join(page: Page) {
   await page.getByRole('button', { name: 'Join league' }).click()
 }
@@ -339,6 +362,75 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   await page.screenshot({ path: 'test-results/league-first-event-phone.png', fullPage: true })
+})
+
+test('the organizer unseals a revealed roster so its entrant can seal a corrected one', async ({ browser }) => {
+  const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  const entrantContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  const owner = await ownerContext.newPage()
+  const entrant = await entrantContext.newPage()
+  const ownerName = uniqueName('UnsealOwner')
+  const entrantName = uniqueName('UnsealEntrant')
+
+  await signUp(owner, ownerName)
+  await signUp(entrant, entrantName)
+  await sealableRoster(owner, 'Organizer list')
+  await sealableRoster(entrant, 'Mistaken list')
+  await sealableRoster(entrant, 'Corrected list', 'Lokhust Destroyers')
+  await owner.goto('/leagues')
+  await owner.getByRole('button', { name: 'New league' }).click()
+  const create = owner.getByRole('dialog', { name: 'Create league' })
+  await create.getByLabel('Name').fill(uniqueName('Unseal League'))
+  await create.getByRole('button', { name: /^Automatic/ }).click()
+  await submitLeagueCreation(owner, create)
+  const leagueUrl = new URL(owner.url())
+  leagueUrl.search = ''
+  await join(owner)
+  await sealOwnRoster(owner, 'Organizer list')
+  await entrant.goto(leagueUrl.toString())
+  await join(entrant)
+  await sealOwnRoster(entrant, 'Mistaken list')
+  await owner.reload()
+  await owner.getByRole('button', { name: 'Reveal all rosters' }).click()
+  await owner.getByRole('alertdialog', { name: 'Reveal every roster?' }).getByRole('button', { name: 'Reveal all rosters' }).click()
+  const entrantRow = owner.locator(`[data-person="${entrantName}"]`)
+  await expect(entrantRow.getByText('List revealed')).toBeVisible()
+  await owner.screenshot({ path: 'test-results/league-unseal-revealed.png', fullPage: true })
+  await owner.setViewportSize({ width: 390, height: 844 })
+  await expectNoHorizontalOverflow(owner)
+  await owner.screenshot({ path: 'test-results/league-unseal-revealed-phone.png', fullPage: true })
+  await owner.setViewportSize({ width: 1440, height: 900 })
+
+  await entrantRow.getByRole('button', { name: `Unseal ${entrantName}’s roster` }).click()
+  const confirm = owner.getByRole('alertdialog', { name: `Unseal ${entrantName}’s roster?` })
+  await expectNoHorizontalOverflow(owner, confirm)
+  await owner.screenshot({ path: 'test-results/league-unseal-confirm.png', fullPage: true })
+  await confirm.getByRole('button', { name: 'Unseal roster' }).click()
+
+  await expect(entrantRow.getByText('No list')).toBeVisible()
+  await expect(entrantRow.getByRole('button', { name: 'View roster' })).toHaveCount(0)
+  await owner.screenshot({ path: 'test-results/league-unseal-reopened.png', fullPage: true })
+
+  await entrant.reload()
+  await expect(entrant.getByText('The organizer unsealed your list.')).toBeVisible()
+  await expect(entrant.getByRole('button', { name: 'Start 1 vs 1 battle' })).toHaveCount(0)
+  await expect(entrant.getByRole('button', { name: /^Unseal / })).toHaveCount(0)
+  await expectNoHorizontalOverflow(entrant)
+  await entrant.screenshot({ path: 'test-results/league-unseal-entrant.png', fullPage: true })
+
+  await sealOwnRoster(entrant, 'Corrected list')
+  await expect(entrant.getByRole('button', { name: 'Start 1 vs 1 battle' })).toBeVisible()
+  await owner.reload()
+  await expect(entrantRow.getByText('List revealed')).toBeVisible()
+  const revealedPage = owner.waitForEvent('popup')
+  await entrantRow.getByRole('button', { name: 'View roster' }).click()
+  const revealed = await revealedPage
+
+  await expect(revealed.locator('[data-unit="Lokhust Destroyers"]')).toBeVisible()
+  await owner.screenshot({ path: 'test-results/league-unseal-resealed.png', fullPage: true })
+  await revealed.close()
+  await ownerContext.close()
+  await entrantContext.close()
 })
 
 test('an eligible casual matchup is directed through its league event', async ({ browser }) => {
