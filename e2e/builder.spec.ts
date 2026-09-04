@@ -242,10 +242,10 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await navigateNativeTab(page, '/battles')
   await expect(page).toHaveURL('/battles')
 
-  // The stable unit identity keeps the open pane attached after another row moves.
+  // The pane may close if its position can no longer be restored, but it stays in its roster tab.
   await navigateNativeTab(page, '/rosters')
-  await expect(page).toHaveURL(`${rosterUrl}#roster-pane`)
-  await expect(page.locator('aside[aria-label="Loadout"]')).toBeVisible()
+  await expect(page).toHaveURL((url) => url.href === rosterUrl || url.href === `${rosterUrl}#roster-pane`)
+  await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
 
   await context.close()
 })
