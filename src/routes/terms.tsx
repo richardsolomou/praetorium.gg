@@ -48,8 +48,8 @@ function Terms() {
       <LegalSection title="Your content">
         <p>
           Your lists stay yours. You grant us only the licence needed to store, price and display them to the people entitled to see them:
-          you, the players seated opposite you, and anyone you share an unlisted link with. You are responsible for the names, tags and text
-          you type. You can export any roster at any time, and deleting content removes it.
+          you, the players seated opposite you, and anyone you share an unlisted or public list with. You are responsible for the names,
+          tags and text you type. You can export any roster at any time, and deleting content removes it.
         </p>
       </LegalSection>
 

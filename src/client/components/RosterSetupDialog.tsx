@@ -22,7 +22,8 @@ import {
   plays,
   ROSTER_NAME_MAX_LENGTH,
 } from '../../core/battle'
-import type { RosterVisibility } from '../../core/savedRoster'
+import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../core/savedRoster'
+import { VISIBILITY_DETAIL } from './rosters/visibility'
 import { factionQuery } from '../queries'
 import { DetachmentReference } from './DetachmentReference'
 import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
@@ -445,12 +446,15 @@ export function RosterSetupDialog({
               >
                 <SelectTrigger id="setup-visibility" className="mt-2 h-11 w-full rounded-none border-edge bg-sunken">
                   <SelectValue>
-                    {(visibility: unknown) => (visibility === 'unlisted' ? 'Unlisted — anyone with the link' : 'Private — only you')}
+                    {(visibility: unknown) => VISIBILITY_DETAIL[visibility as RosterVisibility] ?? VISIBILITY_DETAIL.private}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="private">Private — only you</SelectItem>
-                  <SelectItem value="unlisted">Unlisted — anyone with the link</SelectItem>
+                  {ROSTER_VISIBILITIES.map((visibility) => (
+                    <SelectItem key={visibility} value={visibility}>
+                      {VISIBILITY_DETAIL[visibility]}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

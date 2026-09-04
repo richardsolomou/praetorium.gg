@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { FactionLabel, type FactionPresentation } from '../FactionMark'
 import { rosterWaivers, WaiverChip } from '../FormatWaivers'
 import type { SavedRoster } from './rosterLibrary'
+import { VISIBILITY_NAME } from './visibility'
 
 export type RosterSummaryFaction = FactionPresentation & { detachments: { id: string; name: string }[] }
 
@@ -49,7 +50,7 @@ export function RosterSummary({
             {points ?? '—'}/{roster.limit}
           </span>
         )}
-        <span className="text-xs text-dim">{roster.visibility === 'private' ? 'Private' : 'Unlisted'}</span>
+        <span className="text-xs text-dim">{VISIBILITY_NAME[roster.visibility]}</span>
       </span>
     </>
   )

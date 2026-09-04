@@ -51,6 +51,7 @@ const SHARING_GROUPS: SearchableGroup[] = [
       { label: 'Any sharing status', value: 'all' },
       { label: 'Private', value: 'private' },
       { label: 'Unlisted', value: 'unlisted' },
+      { label: 'Public', value: 'public' },
     ],
   },
 ]

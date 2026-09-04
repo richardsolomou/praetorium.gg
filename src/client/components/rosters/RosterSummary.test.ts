@@ -44,6 +44,12 @@ describe('roster summary', () => {
     expect(markup).not.toContain('switched off')
   })
 
+  it('names a published roster rather than labelling it as another kind of share', () => {
+    const markup = renderToStaticMarkup(createElement(RosterSummary, { roster: { ...roster, visibility: 'public' } }))
+
+    expect(markup).toContain('Public')
+  })
+
   it('names the format restrictions a roster is not playing', () => {
     const markup = renderToStaticMarkup(
       createElement(RosterSummary, {

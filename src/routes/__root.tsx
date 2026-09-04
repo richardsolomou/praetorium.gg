@@ -28,6 +28,7 @@ import {
   ShieldCheck,
   Swords,
   Trophy,
+  UserRound,
   UserRoundPen,
   Users,
   X,
@@ -123,6 +124,9 @@ function Account({ native = false }: { native?: boolean }) {
         <DropdownMenuSeparator />
         {me ? (
           <>
+            <DropdownMenuItem render={<Link to="/users/$userId" params={{ userId: me.id }} search={{}} />}>
+              <UserRound /> My profile
+            </DropdownMenuItem>
             <DropdownMenuItem render={<Link to="/profile" />}>
               <UserRoundPen /> Edit profile
             </DropdownMenuItem>
@@ -247,14 +251,6 @@ function PrimaryNavigation({ path }: { path: string }) {
           Leagues
         </Link>
         <Link
-          to="/leaderboard"
-          search={{ faction: undefined }}
-          className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
-        >
-          Leaderboard
-        </Link>
-        <Link
           to="/factions"
           className={linkClass}
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
@@ -267,6 +263,14 @@ function PrimaryNavigation({ path }: { path: string }) {
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Mission packs
+        </Link>
+        <Link
+          to="/leaderboard"
+          search={{ faction: undefined }}
+          className={linkClass}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
+        >
+          Leaderboard
         </Link>
       </nav>
     </div>

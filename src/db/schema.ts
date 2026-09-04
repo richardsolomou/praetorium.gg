@@ -250,8 +250,11 @@ export const rosters = pgTable(
      * unspent. Null is the ordinary roster, which plays a disposition it brought.
      */
     borrowedDetachmentId: text('borrowed_detachment_id'),
-    /** Private rosters are owner-only; unlisted rosters resolve through their opaque id. */
-    visibility: text('visibility', { enum: ['private', 'unlisted'] })
+    /**
+     * Private rosters are owner-only. Unlisted and public rosters both resolve through
+     * their opaque id; only a public one is listed on its owner's profile.
+     */
+    visibility: text('visibility', { enum: ['private', 'unlisted', 'public'] })
       .notNull()
       .default('unlisted'),
     /** How the list first entered Praetorium, retained through later edits. */

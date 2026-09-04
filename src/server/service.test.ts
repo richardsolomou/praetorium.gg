@@ -3,10 +3,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { PraetoriumConnection, PraetoriumDatabase } from '../db/connection'
 import { openTestDatabase } from '../db/testDatabase'
 import { Repository } from '../db/repository'
-import { battles, battleUsers, leagueEventEntries, leagueEvents, leagues, user } from '../db/schema'
+import { battles, battleUsers, leagueEventEntries, leagueEvents, leagues, practiceOpponents, user } from '../db/schema'
 import type { Roster } from '../core/battle'
 import { PraetoriumService } from './service'
 import type { LoadedRules } from './rules'
+import type { RosterVisibility } from '../core/savedRoster'
 import { createBattleSchema } from './schemas'
 
 let connection: PraetoriumConnection
@@ -2366,7 +2367,7 @@ describe('scoring caps', () => {
 })
 
 describe('saved rosters', () => {
-  const save = (visibility: 'private' | 'unlisted' = 'private') =>
+  const save = (visibility: RosterVisibility = 'private') =>
     service.saveRoster('alice', {
       name: 'Recon force',
       catalogueId: 'necrons',
@@ -2473,6 +2474,43 @@ describe('saved rosters', () => {
     const { id } = await save()
     expect(await refusalStatus(() => service.setRosterVisibility('bob', id, 'unlisted'))).toBe(403)
     expect(await service.sharedRoster(id, null)).toBeNull()
+  })
+
+  it('shows a public roster to a link holder with no account', async () => {
+    const { id } = await save('public')
+
+    expect(await service.sharedRoster(id, null)).toMatchObject({ id })
+  })
+
+  it('lists a public roster on its owner profile', async () => {
+    const { id } = await save('public')
+
+    expect((await service.publicRosters('alice')).summaries.map((roster) => roster.id)).toEqual([id])
+  })
+
+  it('keeps an unlisted roster off the profile, because a link is not a listing', async () => {
+    await save('unlisted')
+
+    expect((await service.publicRosters('alice')).summaries).toEqual([])
+  })
+
+  it('keeps a private roster off the profile', async () => {
+    await save('private')
+
+    expect((await service.publicRosters('alice')).summaries).toEqual([])
+  })
+
+  it('takes a roster off the profile when it stops being public', async () => {
+    const { id } = await save('public')
+    await service.setRosterVisibility('alice', id, 'unlisted')
+
+    expect((await service.publicRosters('alice')).summaries).toEqual([])
+  })
+
+  it('lists nothing from a player who has published none', async () => {
+    await save('public')
+
+    expect((await service.publicRosters('bob')).summaries).toEqual([])
   })
 
   it('does not let another player overwrite a roster', async () => {
@@ -2744,6 +2782,111 @@ describe('who may watch a battle', () => {
   })
 })
 
+describe("a player's profile", () => {
+  it('lists a public battle to a stranger with no account', async () => {
+    const { token, send } = await started()
+    await send('alice', { kind: 'end-battle' })
+
+    const profile = await service.playerProfile('alice', null)
+
+    expect(profile.battles.map((battle) => battle.token)).toEqual([token])
+  })
+
+  it('lists nothing to a stranger once a player at the table went private', async () => {
+    const { send } = await started()
+    await send('alice', { kind: 'end-battle' })
+    await service.setBattleAudience('bob', 'private')
+
+    expect(await service.playerProfile('alice', null)).toMatchObject({ battles: [], record: { battles: 0 } })
+  })
+
+  it('still lists the battle to the player whose own it is, however they withheld it', async () => {
+    const { token, send } = await started()
+    await send('alice', { kind: 'end-battle' })
+    await service.setBattleAudience('alice', 'private')
+
+    expect((await service.playerProfile('alice', 'alice')).battles.map((battle) => battle.token)).toEqual([token])
+  })
+
+  it('withholds a friends-only battle from a stranger', async () => {
+    const { send } = await started()
+    await send('alice', { kind: 'end-battle' })
+    await service.setBattleAudience('alice', 'friends')
+
+    expect((await service.playerProfile('alice', 'dave')).battles).toEqual([])
+  })
+
+  it('shows a friends-only battle to a confirmed friend', async () => {
+    const { token, send } = await started()
+    await send('alice', { kind: 'end-battle' })
+    await service.setBattleAudience('alice', 'friends')
+
+    expect((await service.playerProfile('alice', 'carol')).battles.map((battle) => battle.token)).toEqual([token])
+  })
+
+  it('folds the record from the profile owner’s side of the table', async () => {
+    const { send } = await started()
+    await send('alice', { kind: 'score', category: 'primary', delta: 10 })
+    await send('alice', { kind: 'end-battle' })
+
+    const [alice, bob] = await Promise.all([service.playerProfile('alice', null), service.playerProfile('bob', null)])
+
+    expect([alice.record.won, bob.record.won]).toEqual([1, 0])
+  })
+
+  it('separates the record by who took the first turn', async () => {
+    const { send } = await started()
+    await send('alice', { kind: 'score', category: 'primary', delta: 10 })
+    await send('alice', { kind: 'end-battle' })
+
+    const { record } = await service.playerProfile('alice', null)
+
+    expect({ first: record.goingFirst.battles, second: record.goingSecond.battles }).toEqual({ first: 1, second: 0 })
+  })
+
+  it('offers the opponents they have faced as something to narrow by', async () => {
+    const { send } = await started()
+    await send('alice', { kind: 'end-battle' })
+
+    expect((await service.playerProfile('alice', null)).facets.opponents.map((facet) => facet.label)).toEqual(['Bob'])
+  })
+
+  it('narrows the record to the battles against one opponent', async () => {
+    const { send } = await started()
+    await send('alice', { kind: 'end-battle' })
+
+    const [against, elsewhere] = await Promise.all([
+      service.playerProfile('alice', null, { opponentId: 'bob' }),
+      service.playerProfile('alice', null, { opponentId: 'carol' }),
+    ])
+
+    expect([against.record.battles, elsewhere.record.battles]).toEqual([1, 0])
+  })
+
+  it('leaves a practice game out of the record and the list', async () => {
+    await enrol('sparring', 'Sparring partner')
+    await database.insert(practiceOpponents).values({ userId: 'sparring' })
+    const { token } = await service.createBattle('alice', 'sparring')
+    await service.submit(token, 'alice', 0, { kind: 'end-battle' })
+
+    expect(await service.playerProfile('alice', 'alice')).toMatchObject({ battles: [], record: { battles: 0 } })
+  })
+
+  it('puts the player where the leaderboard puts them, out of everyone it counted', async () => {
+    const { send } = await started()
+    await send('alice', { kind: 'score', category: 'primary', delta: 10 })
+    await send('alice', { kind: 'end-battle' })
+
+    const rankings = await service.playerRankings('alice')
+
+    expect({ place: rankings.overall?.place, of: rankings.overall?.of }).toEqual({ place: 1, of: 2 })
+  })
+
+  it('gives a player the leaderboard has not counted no place at all', async () => {
+    expect(await service.playerRankings('dave')).toMatchObject({ overall: null, factions: [] })
+  })
+})
+
 describe('standings', () => {
   it('counts a finished battle and leaves a running one out', async () => {
     const running = await started()
@@ -2753,7 +2896,7 @@ describe('standings', () => {
     const table = await service.standings()
 
     expect(running.token).not.toBe(finished.token)
-    expect(table.overall.map((row) => ({ name: row.name, battles: row.battles }))).toEqual([
+    expect(table.overall.rows.map((row) => ({ name: row.name, battles: row.battles }))).toEqual([
       { name: 'Alice', battles: 1 },
       { name: 'Bob', battles: 1 },
     ])
@@ -2764,7 +2907,7 @@ describe('standings', () => {
     await battle.send('alice', { kind: 'end-battle' })
     await service.setBattleAudience('bob', 'private')
 
-    expect((await service.standings()).overall).toEqual([])
+    expect((await service.standings()).overall.rows).toEqual([])
   })
 
   it('ranks the players of each faction played, naming the faction from the catalogue', async () => {
@@ -2784,16 +2927,16 @@ describe('standings', () => {
     await send('alice', { kind: 'score', category: 'primary', delta: 10 })
     await send('alice', { kind: 'end-battle' })
 
-    const table = await service.standings(new Map([['catalogue', 'Ultramarines']]))
+    const table = await service.standings([{ id: 'catalogue', slug: 'ultramarines', displayName: 'Ultramarines', icon: null }])
 
     // One table per faction played, ranking the players who fielded it.
     expect(table.factions).toEqual([
       {
-        id: 'catalogue',
-        name: 'Ultramarines',
-        standings: [expect.objectContaining({ name: 'Alice', won: 1 }), expect.objectContaining({ name: 'Bob', lost: 1 })],
+        faction: { slug: 'ultramarines', displayName: 'Ultramarines', icon: null },
+        players: 2,
+        rows: [expect.objectContaining({ name: 'Alice', won: 1 }), expect.objectContaining({ name: 'Bob', lost: 1 })],
       },
     ])
-    expect(table.overall.map((row) => row.name)).toEqual(['Alice', 'Bob'])
+    expect(table.overall.rows.map((row) => row.name)).toEqual(['Alice', 'Bob'])
   })
 })

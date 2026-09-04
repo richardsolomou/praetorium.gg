@@ -10,6 +10,7 @@ import {
   createBattleSchema,
   deleteBattleSchema,
   leagueBattleOptionsSchema,
+  playerProfileSchema,
   submitSchema,
   tokenSchema,
   userSchema,
@@ -83,20 +84,30 @@ export const friendBattles = createServerFn({ method: 'GET' })
 /**
  * The standings folded from finished public battles. Signed out too, for the same reason.
  *
- * Faction rows are keyed by catalogue id, which is not a name anybody would
- * recognise, so the instance's own faction index supplies the labels. An instance
- * with no catalogue synced still answers — those rows keep their ids rather than
- * the table disappearing.
+ * `battleFactions` names the armies, the same index the battle list is given, so a
+ * faction table is headed with a name a player recognises and addressed by its
+ * slug. An instance with no catalogue synced still answers with the overall table.
  */
-export const standings = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => {
-    const loaded = app().catalogue()
-    const names = loaded
-      ? new Map(factionIndexFor(loaded, app().rules()).factions.map((faction) => [faction.id, faction.displayName]))
-      : undefined
-    return app().service.standings(names)
-  }),
-)
+export const standings = createServerFn({ method: 'GET' }).handler(() => rpc(() => app().service.standings(battleFactions())))
+
+/**
+ * One player's profile: the battles this reader may see them in, their record, and
+ * what the record can be narrowed by. Signed out too, the same as their name is.
+ */
+export const playerProfile = createServerFn({ method: 'GET' })
+  .validator(playerProfileSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const { userId, ...filter } = data
+      const viewerId = await currentUserId()
+      return app().service.playerProfile(userId, viewerId, filter, app().rules(), battleFactions())
+    }),
+  )
+
+/** Where one player sits in the leaderboard's tables. The same fold the leaderboard pages. */
+export const playerRankings = createServerFn({ method: 'GET' })
+  .validator(userSchema)
+  .handler(({ data }) => rpc(() => app().service.playerRankings(data.userId, battleFactions())))
 
 /** The most recently active battles the viewer shares with one other player. */
 export const sharedBattles = createServerFn({ method: 'GET' })

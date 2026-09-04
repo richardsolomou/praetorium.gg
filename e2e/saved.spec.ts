@@ -183,6 +183,32 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await setup.getByRole('button', { name: 'Save changes' }).click()
   await promoted
 
+  // Public reads exactly as unlisted does. What it adds is being listed on the
+  // owner's profile, which is the only place the two values look different.
+  await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
+  await page.getByRole('menuitem', { name: 'Edit setup' }).click()
+  const publishing = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await publishing.getByRole('combobox', { name: 'Access' }).click()
+  await page.getByRole('option', { name: 'Public — listed on your profile' }).click()
+  const published = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes('"public"')))
+  await publishing.getByRole('button', { name: 'Save changes' }).click()
+  await published
+
+  await page.getByRole('button', { name: 'Account menu for Alice' }).click()
+  await page.getByRole('menuitem', { name: 'My profile' }).click()
+  await expect(page.locator('[data-player-rosters]')).toContainText('Copy of Nurgle 2k')
+
+  // Back to unlisted, so the rest of this test reads the link the way it did before.
+  await page.goto('/rosters')
+  await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
+  await page.getByRole('menuitem', { name: 'Edit setup' }).click()
+  const reverting = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await reverting.getByRole('combobox', { name: 'Access' }).click()
+  await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
+  const relisted = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes('"unlisted"')))
+  await reverting.getByRole('button', { name: 'Save changes' }).click()
+  await relisted
+
   const firstFrameContext = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1600, height: 900 } })
   const firstFrame = await firstFrameContext.newPage()
   await firstFrame.goto(sharedUrl)
