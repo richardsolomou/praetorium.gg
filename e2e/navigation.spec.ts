@@ -1,5 +1,6 @@
 import { devices, expect, test } from '@playwright/test'
 import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
+import { applicationNavigationScript } from '../mobile/src/navigation'
 import { signUp } from './account'
 
 test('primary navigation collapses below 860 pixels', async ({ page }) => {
@@ -723,29 +724,29 @@ test('an officer datasheet shows how many orders it can issue', async ({ page })
   await page.screenshot({ path: 'test-results/officer-orders-datasheet-phone.png', fullPage: true })
 })
 
-test('each application tab returns to where it was left', async ({ browser }) => {
+test('each native application tab returns to where it was left', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
 ${NATIVE_BRIDGE_SCRIPT}`,
   })
   const page = await context.newPage()
-  const sections = page.getByRole('navigation', { name: 'Application sections' })
+  const navigate = (path: string) => page.evaluate(applicationNavigationScript(`https://praetorium.gg${path}`)!)
 
   await page.goto('/factions/necrons/datasheets/overlord')
   // The missions tab lands on the current pack, so its memory is that redirect.
-  await sections.getByRole('link', { name: 'Missions' }).click()
+  await navigate('/mission-packs')
   await expect(page).toHaveURL(/\/mission-packs\//)
 
-  await sections.getByRole('link', { name: 'Factions' }).click()
+  await navigate('/factions')
   await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
 
   // The section you are already in has one obvious destination left: its top.
-  await sections.getByRole('link', { name: 'Factions' }).click()
+  await navigate('/factions')
   await expect(page).toHaveURL('/factions')
 
-  await sections.getByRole('link', { name: 'Missions' }).click()
-  await sections.getByRole('link', { name: 'Factions' }).click()
+  await navigate('/mission-packs')
+  await navigate('/factions')
   await expect(page).toHaveURL('/factions')
 
   await context.close()
