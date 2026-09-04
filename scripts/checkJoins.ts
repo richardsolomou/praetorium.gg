@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { baselineShortfall } from './baselines'
 import { isReferenceDatasheet, loadCatalogue } from '../src/server/catalogueIndex'
 import { isMatchedPlayDatasheet } from '../src/server/cataloguePicker'
 import { datacardJoinReport } from '../src/server/datasheetJoin'
@@ -88,11 +89,11 @@ if (process.argv.includes('--details')) {
  * the Gunwagon, Nazdreg and Runtherd the catalogue has no datasheet for at all).
  */
 if (report.catalogueOnly.length > 15 || report.datacardsOnly.length > 24) {
-  throw new Error('datasheet name agreement fell below the pinned catalogue baseline')
+  baselineShortfall('datasheet name agreement fell below the pinned catalogue baseline')
 }
 if (rulesOnlyDetachments.length > 23 || rulesOnlyEnhancements.length > 90 || datacardsOnlyDetachments.size) {
-  throw new Error('army-construction name agreement fell below the pinned catalogue baseline')
+  baselineShortfall('army-construction name agreement fell below the pinned catalogue baseline')
 }
 if (invalidDetachments.length || invalidEnhancements.length || enhancementsWithoutSemantics.length > 336) {
-  throw new Error('Game Datacards construction coverage fell below the pinned catalogue baseline')
+  baselineShortfall('Game Datacards construction coverage fell below the pinned catalogue baseline')
 }
