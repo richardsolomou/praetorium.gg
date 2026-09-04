@@ -31,7 +31,6 @@ import { type KeyedPick, picksAfterDetachmentChange } from '../rosterPicks'
 import { useCollectionMutation } from '../useCollection'
 import { useSettled } from '../useSettled'
 import { DatasheetPanel } from './builder/DatasheetPanel'
-import { shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
 import { Stepper } from './builder/LoadoutControls'
@@ -333,17 +332,15 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     }
   }, [loadoutInline, paneHistory, picks, preview, pushPaneHistory, selected, showing, wideWorkspace, workspaceMeasured, workspacePath])
 
-  const suggested = faction
-    ? [shortName(faction.name), faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name].filter(Boolean).join(' — ')
-    : ''
-  const listName = name.trim() || suggested
+  // A name the player typed, which may be nothing at all.
+  const listName = name.trim()
   const save = useMutation({
     scope: { id: 'roster-autosave' },
     mutationFn: () =>
       saveRoster({
         data: {
           id: savedId,
-          name: listName || 'Untitled list',
+          name: listName,
           catalogueId,
           detachmentIds,
           disposition,
@@ -365,7 +362,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const settledPicks = useSettled(positioned)
   const settledListName = useSettled(listName)
   useEffect(() => {
-    if (!editable || !catalogueId || !settledListName) return
+    if (!editable || !catalogueId) return
     save.mutate()
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
@@ -389,7 +386,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const take = useMutation({
     mutationFn: () =>
       exportRoster({
-        data: { catalogueId, detachmentIds, disposition, limit, name: listName || 'Roster', units: positioned, waivedRules },
+        data: { catalogueId, detachmentIds, disposition, limit, name: shownName || 'Roster', units: positioned, waivedRules },
       }),
     onSuccess: ({ text }) => setExportText(text),
   })
@@ -398,7 +395,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     mutationFn: () =>
       saveRoster({
         data: {
-          name: `Copy of ${listName}`.slice(0, ROSTER_NAME_MAX_LENGTH),
+          name: listName ? `Copy of ${listName}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '',
           catalogueId,
           detachmentIds,
           disposition,
@@ -456,6 +453,10 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   }, [picks, pricePending, priced, pricedAt])
 
   const units = priced?.units ?? NO_UNITS
+  // What an unnamed list is called, folded by the price beside the units it reads.
+  // A name the player typed is never one of its inputs and never replaced by it.
+  const label = priced?.label ?? ''
+  const shownName = listName || label
   const rosterLoading = priceLoading && picks.length > 0
   const edit = useMemo(() => pickEditor(setPicks, { catalogueId, units }, allocateKey), [allocateKey, catalogueId, setPicks, units])
   const editor = useRef({ edit, pickCount: picks.length })
@@ -637,7 +638,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         nameId="listname"
         onNameChange={editable ? (event) => setName(event.target.value) : undefined}
         maxLength={ROSTER_NAME_MAX_LENGTH}
-        placeholder={suggested || 'Named from your picks'}
+        placeholder={label || 'Named from what is in it'}
         faction={faction}
         factionLoading={Boolean(catalogueId) && !faction}
         limit={limit}
@@ -778,6 +779,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
             value={setupDraft}
             onDraftChange={setSetupDraft}
             hasUnits={Boolean(picks.length)}
+            namePlaceholder={label}
             onSave={(setup) => {
               const changedFaction = setup.catalogueId !== catalogueId
               if (!changedFaction) {

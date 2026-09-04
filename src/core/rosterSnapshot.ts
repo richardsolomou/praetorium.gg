@@ -18,6 +18,8 @@ type SavedRoster = {
 type PricedRoster = {
   points: number
   revision: string
+  /** What an unnamed list is called, frozen here: a battle keeps the name it was fielded under. */
+  label: string
   detachment: string | null
   detachments: readonly { name: string; points: number | null }[]
   detachmentPointBudget: number | null
@@ -55,7 +57,9 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds:
   )
   const woundsOf = new Map(wounds.map((entry) => [entry.entryId, entry.wounds]))
   return {
-    name: saved.name,
+    // A list nobody named is fielded under the label it had when it was fielded. The
+    // log and the seat then keep saying that, whatever the library later folds.
+    name: saved.name || priced.label,
     id: saved.id,
     text: [
       `${priced.points} / ${saved.limit} pts`,

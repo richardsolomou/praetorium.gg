@@ -27,7 +27,7 @@ import { readWorkspaceState, writeWorkspaceState } from '../client/components/wo
 import { SignInRequired } from '../client/components/SignInRequired'
 import { PageState } from '../client/components/PageState'
 import { useFavouriteFactions } from '../client/favouriteFactions'
-import { factionIndexQuery, meQuery, savedRosterPointsQuery, savedRosterSummariesQuery } from '../client/queries'
+import { factionIndexQuery, meQuery, savedRosterSummariesQuery, savedRosterTotalsQuery } from '../client/queries'
 import { useOrigin } from '../client/useOrigin'
 import { GAME_SIZES } from '../core/battle'
 import { ROSTER_VISIBILITIES, type RosterVisibility } from '../core/savedRoster'
@@ -65,10 +65,10 @@ export const Route = createFileRoute('/rosters/')({
 function RosterLibrary() {
   const { data: me } = useQuery(meQuery())
   const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
-  const pricesResult = useQuery({ ...savedRosterPointsQuery(), enabled: Boolean(me) })
+  const totalsResult = useQuery({ ...savedRosterTotalsQuery(), enabled: Boolean(me) })
   const availableResult = useQuery({ ...factionIndexQuery(), enabled: Boolean(me) })
   const saved = savedResult.data ?? []
-  const prices = pricesResult.data
+  const totals = totalsResult.data
   const available = availableResult.data
   const search = Route.useSearch()
   const navigate = useNavigate()
@@ -91,7 +91,7 @@ function RosterLibrary() {
   const libraryPending = savedResult.isPending || (Boolean(search.faction) && availableResult.isPending)
   const libraryError = savedResult.isError || (Boolean(search.faction) && availableResult.isError)
 
-  const points = new Map((prices ?? []).map((entry) => [entry.id, entry.points]))
+  const totalsById = new Map((totals ?? []).map((entry) => [entry.id, entry]))
 
   const origin = useOrigin()
   const actions = useRosterActions(origin)
@@ -182,9 +182,10 @@ function RosterLibrary() {
                 key={roster.id}
                 roster={roster}
                 faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
-                points={points.get(roster.id)}
+                points={totalsById.get(roster.id)?.points}
+                label={totalsById.get(roster.id)?.label}
                 factionLoading={availableResult.isPending}
-                pointsLoading={pricesResult.isPending}
+                pointsLoading={totalsResult.isPending}
                 actions={actions}
                 origin={origin}
                 onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}

@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
-import { calculateRosterPoints, calculateRosterPrice, savedRosterPriceInput } from '../pricing'
+import { calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../pricing'
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, importRosterFile } from '../rosterFiles'
 import { factionsFor } from '../factionReferences'
@@ -42,32 +42,32 @@ export const savedRosterSummaries = createServerFn({ method: 'GET' }).handler(()
 )
 
 /**
- * A list's points change only when the list or the catalogue does, and both are in
- * the key: `updatedAt` moves with every save and the revision with every snapshot.
- * A stale entry can therefore never be served, only evicted.
+ * A list's total and its fallback label change only when the list or the catalogue
+ * does, and both are in the key: `updatedAt` moves with every save and the revision
+ * with every snapshot. A stale entry can therefore never be served, only evicted.
  */
-const rosterPointsCache = new Map<string, number | null>()
-const ROSTER_POINTS_CACHE_LIMIT = 10_000
+const rosterTotalsCache = new Map<string, ReturnType<typeof calculateRosterTotals>>()
+const ROSTER_TOTALS_CACHE_LIMIT = 10_000
 
 function rosterRevisionKey(roster: { id: string; updatedAt: Date | number }) {
   const revision = app().catalogue()?.index.revision ?? 'none'
   return `${roster.id}:${new Date(roster.updatedAt).getTime()}:${revision}`
 }
 
-function cachedRosterPoints(roster: {
+function cachedRosterTotals(roster: {
   id: string
   updatedAt: Date | number
   catalogueId: string
   detachmentIds: string[]
   disposition: string | null
   limit: number
-  picks: Parameters<typeof calculateRosterPoints>[0]['units']
-  waivedRules: Parameters<typeof calculateRosterPoints>[0]['waivedRules']
+  picks: Parameters<typeof calculateRosterTotals>[0]['units']
+  waivedRules: Parameters<typeof calculateRosterTotals>[0]['waivedRules']
 }) {
   const key = rosterRevisionKey(roster)
-  const cached = rosterPointsCache.get(key)
-  if (cached !== undefined || rosterPointsCache.has(key)) return cached ?? null
-  const points = calculateRosterPoints({
+  const cached = rosterTotalsCache.get(key)
+  if (cached !== undefined || rosterTotalsCache.has(key)) return cached ?? null
+  const totals = calculateRosterTotals({
     catalogueId: roster.catalogueId,
     detachmentIds: roster.detachmentIds,
     disposition: roster.disposition,
@@ -75,20 +75,23 @@ function cachedRosterPoints(roster: {
     units: roster.picks,
     waivedRules: roster.waivedRules,
   })
-  if (rosterPointsCache.size >= ROSTER_POINTS_CACHE_LIMIT) {
-    const oldest = rosterPointsCache.keys().next().value
-    if (oldest !== undefined) rosterPointsCache.delete(oldest)
+  if (rosterTotalsCache.size >= ROSTER_TOTALS_CACHE_LIMIT) {
+    const oldest = rosterTotalsCache.keys().next().value
+    if (oldest !== undefined) rosterTotalsCache.delete(oldest)
   }
-  rosterPointsCache.set(key, points)
-  return points
+  rosterTotalsCache.set(key, totals)
+  return totals
 }
 
-export const savedRosterPoints = createServerFn({ method: 'GET' }).handler(() =>
+export const savedRosterTotals = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
     if (!id) return []
     const saved = await app().service.savedRosters(id)
-    return saved.map((roster) => ({ id: roster.id, points: cachedRosterPoints(roster) }))
+    return saved.map((roster) => {
+      const totals = cachedRosterTotals(roster)
+      return { id: roster.id, points: totals?.points ?? null, label: totals?.label ?? '' }
+    })
   }),
 )
 

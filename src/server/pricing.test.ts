@@ -14,7 +14,7 @@ import {
   uniqueNames,
 } from './pricing'
 import { descriptionKey } from './datacards'
-import { bookOf } from './catalogue.fixtures'
+import { bookOf, points as pointsCost } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'
 
 describe('force disposition', () => {
@@ -503,5 +503,41 @@ describe('saved roster price input', () => {
   it('defaults a list that borrows nothing to no borrow', () => {
     const { optionalRules: _rules, borrowedDetachmentId: _borrowed, ...plain } = saved
     expect(savedRosterPriceInput(plain)).toMatchObject({ borrowedDetachmentId: null, optionalRules: undefined })
+  })
+})
+
+describe('the name an unnamed list falls back on', () => {
+  const necrons = () =>
+    bookOf({
+      name: 'Necrons',
+      selectionEntries: [
+        { id: 'ctan', name: "C'tan Shard of the Nightbringer", type: 'unit', costs: pointsCost(330) },
+        { id: 'hexmark', name: 'Hexmark Destroyer', type: 'unit', costs: pointsCost(90) },
+      ],
+      sharedSelectionEntries: [
+        {
+          id: 'wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'choices',
+              name: 'Detachment',
+              selectionEntries: [{ id: 'hypercrypt', name: 'Hypercrypt Legion', type: 'upgrade' }],
+            },
+          ],
+        },
+      ],
+    })
+
+  const priceOf = (units: { entryId: string; toggles?: Record<string, number> }[]) =>
+    calculateRosterPrice({ catalogueId: 'cat', detachmentIds: ['hypercrypt'], disposition: null, limit: 1_000, units }, necrons(), null)
+
+  it('names the detachment, the size, the centrepiece and the Warlord', () => {
+    expect(priceOf([{ entryId: 'ctan' }, { entryId: 'hexmark', toggles: { warlord: 1 } }])?.label).toBe("HL 1K - C'tan & Hexmark")
+  })
+
+  it('is the detachment and the size while the list is still empty', () => {
+    expect(priceOf([])?.label).toBe('HL 1K')
   })
 })

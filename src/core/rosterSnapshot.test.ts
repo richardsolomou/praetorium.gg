@@ -16,6 +16,7 @@ it('freezes unit wounds into a roster snapshot', () => {
     {
       points: 80,
       revision: 'revision',
+      label: 'GTF 2K',
       detachment: null,
       detachments: [],
       detachmentPointBudget: null,
@@ -59,6 +60,7 @@ it('freezes catalogue-derived Warlord eligibility into a roster snapshot', () =>
     {
       points: 80,
       revision: 'revision',
+      label: 'GTF 2K',
       detachment: null,
       detachments: [],
       detachmentPointBudget: null,
@@ -113,6 +115,7 @@ it('freezes the unit a character joined into a roster snapshot', () => {
     {
       points: 160,
       revision: 'revision',
+      label: 'GTF 2K',
       detachment: null,
       detachments: [],
       detachmentPointBudget: null,
@@ -143,6 +146,7 @@ it('leaves a character the list joined to nothing unattached', () => {
     {
       points: 80,
       revision: 'revision',
+      label: 'GTF 2K',
       detachment: null,
       detachments: [],
       detachmentPointBudget: null,
@@ -169,4 +173,47 @@ it('leaves a character the list joined to nothing unattached', () => {
   )
 
   expect(roster.built?.units[0]).not.toHaveProperty('attachedTo')
+})
+
+it('fields a list nobody named under the label it had when it was fielded', () => {
+  const snapshot = rosterSnapshot(
+    {
+      id: 'roster',
+      name: '',
+      catalogueId: 'catalogue',
+      detachmentIds: [],
+      disposition: null,
+      limit: 1_000,
+      waivedRules: [],
+      picks: [{ entryId: 'unit' }],
+    },
+    {
+      points: 80,
+      revision: 'revision',
+      label: "HL 1K - C'tan & Hexmark",
+      detachment: null,
+      detachments: [],
+      detachmentPointBudget: null,
+      disposition: null,
+      units: [
+        {
+          key: 0,
+          entryId: 'unit',
+          name: 'Unit',
+          points: 80,
+          group: 'infantry',
+          toggles: [],
+          size: { models: 5, resizable: false },
+          attachment: null,
+          wargear: [],
+          enhancements: [],
+          upgrades: [],
+          formationOptions: [],
+          prebattleRules: [],
+        },
+      ],
+    },
+    [],
+  )
+  expect(snapshot.name).toBe("HL 1K - C'tan & Hexmark")
 })

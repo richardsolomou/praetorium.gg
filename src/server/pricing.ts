@@ -13,6 +13,7 @@ import {
 import { type CatalogueIndex, targetOf } from '../core/catalogue'
 import { evaluate, evaluateForces, keywordIdsBySelection, type Selection } from '../core/evaluate'
 import { type ModelKind, modelKindsOf, modelRowCount, modelRowSources, optionWargear } from '../core/modelKinds'
+import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
 import { buildUnit } from '../core/roster'
 import { allAt } from '../core/selection'
 import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices } from '../core/unitChoices'
@@ -22,11 +23,12 @@ import { app } from './app'
 import { contextualAbilityNamesIn, datasheetIn, rulesReferencedIn, toughnessOf } from './catalogue'
 import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey, type FactionRestrictions, restrictedBy } from './datacards'
+import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
 import { type LoadedCatalogue } from './catalogueIndex'
-import { rulesFaction } from './rules'
+import { type LoadedRules, rulesFaction } from './rules'
 import type { PriceInput } from './schemas'
 
 export { rosterDetachments }
@@ -147,12 +149,74 @@ function legalReplacementPairs(
  * that price with the display work left off rather than a second opinion about
  * what a list costs.
  */
-export function calculateRosterPoints(data: PriceInput) {
-  const loaded = app().catalogue()
+/**
+ * What each pick is called, what it cost, and whether it is the Warlord.
+ *
+ * The three facts `rosterLabel` folds a name out of. Gathered here because the
+ * library's cheap total and the builder's whole price both hand them over, and a
+ * library row and the editor suggesting different names for one list would be the
+ * plainest possible version of the same question answered twice.
+ */
+function labelUnitsOf(
+  picked: readonly { key: number; name: string; selection: Selection }[],
+  pointsBySelection: ReadonlyMap<Selection, number>,
+  data: PriceInput,
+): LabelUnit[] {
+  return picked.map((unit) => ({
+    name: unit.name,
+    points: pointsBySelection.get(unit.selection) ?? 0,
+    warlord: Object.values(data.units[unit.key]?.toggles ?? {}).some((count) => count > 0),
+  }))
+}
+
+const factionNameOf = (loaded: LoadedCatalogue, catalogueId: string, rules: LoadedRules | null | undefined) =>
+  factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? '', rules?.factionNames)
+
+/**
+ * The label a list falls back on, from its setup alone.
+ *
+ * No units, so no pricing: enough for a search result or a library row that has not
+ * had its totals answered yet, and the same fold either way.
+ */
+export function rosterSetupLabel(
+  loaded: LoadedCatalogue,
+  rules: LoadedRules | null | undefined,
+  roster: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
+) {
+  const { chosen } = rosterDetachments(loaded, roster.catalogueId, roster.detachmentIds)
+  return rosterLabel({
+    factionName: factionNameOf(loaded, roster.catalogueId, rules),
+    detachmentNames: chosen.map((option) => option.name),
+    limit: roster.limit,
+  })
+}
+
+/**
+ * A list's total and the name it falls back on, which come out of one fold.
+ *
+ * The library asks for both at once: a row shows a points total and, for a list its
+ * owner never named, the label instead of an empty line. Pricing every unit twice to
+ * answer two halves of one question would double the cost of opening the library.
+ */
+export function calculateRosterTotals(data: PriceInput, loaded = app().catalogue(), loadedRules = app().rules()) {
   if (!loaded) return null
-  const { selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
-  const { forceSelections } = rosterForces(loaded, data, detachmentSelection)
-  return evaluateForces([...forceSelections.values()], loaded.index, { primaryCatalogueId: data.catalogueId }).points
+  const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
+  const { picked, forceSelections } = rosterForces(loaded, data, detachmentSelection)
+  const forces = [...forceSelections.values()]
+  const evaluated = evaluateForces(forces, loaded.index, { primaryCatalogueId: data.catalogueId })
+  const pointsBySelection = new Map<Selection, number>()
+  forces.forEach((force, forceAt) =>
+    force.forEach((selection, at) => pointsBySelection.set(selection, evaluated.selectionPoints[forceAt]?.[at] ?? 0)),
+  )
+  return {
+    points: evaluated.points,
+    label: rosterLabel({
+      factionName: factionNameOf(loaded, data.catalogueId, loadedRules),
+      detachmentNames: chosen.map((option) => option.name),
+      limit: data.limit,
+      units: labelUnitsOf(picked, pointsBySelection, data),
+    }),
+  }
 }
 
 /**
@@ -194,6 +258,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   // the roster when units are expanded.
   const rules = loadedRules
   const factionSlug = routeSlug(loaded.index.catalogues.get(data.catalogueId)?.name ?? '')
+  const factionName = factionNameOf(loaded, data.catalogueId, rules)
   const rulesId = rulesFaction(rules, factionSlug)
   const references = rules?.detachmentReferences.get(rulesId)
   const details = rules?.detachmentDetails.get(rulesId)
@@ -368,6 +433,14 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
 
   return {
     revision: loaded.index.revision,
+    // Folded here rather than in the browser so a battle snapshot, a library row and
+    // the field's own placeholder all read the one answer.
+    label: rosterLabel({
+      factionName,
+      detachmentNames: chosen.map((option) => option.name),
+      limit: data.limit,
+      units: labelUnitsOf(picked, selectionPoints, data),
+    }),
     detachment: chosen[0]?.name ?? null,
     detachments: purchased,
     detachmentPointBudget: budget,

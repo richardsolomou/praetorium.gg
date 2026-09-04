@@ -23,6 +23,7 @@ import {
   ROSTER_NAME_MAX_LENGTH,
 } from '../../core/battle'
 import { normalizedName } from '../../core/name'
+import { rosterLabel } from '../../core/rosterLabel'
 import type { RosterVisibility } from '../../core/savedRoster'
 import { factionQuery } from '../queries'
 import { DetachmentReference } from './DetachmentReference'
@@ -78,6 +79,13 @@ type Props = {
   value: RosterSetup
   onDraftChange?: (value: RosterSetup) => void
   hasUnits: boolean
+  /**
+   * What an unnamed list would be called, when the caller already knows.
+   *
+   * The units are the half of a label this dialog cannot see, so the builder hands
+   * over the one it priced and the library falls back to the setup alone.
+   */
+  namePlaceholder?: string
   onSave: (value: RosterSetup) => void
   pending?: boolean
 }
@@ -110,6 +118,7 @@ export function RosterSetupDialog({
   value,
   onDraftChange,
   hasUnits,
+  namePlaceholder,
   onSave,
   pending = false,
 }: Props) {
@@ -194,6 +203,13 @@ export function RosterSetupDialog({
   const availableDetachments = offeredDetachments.filter(
     (detachment) => draft.detachmentIds.includes(detachment.id) || matchesQuery(detachment, detachmentQuery),
   )
+  const placeholder =
+    namePlaceholder ||
+    rosterLabel({
+      factionName: faction?.displayName ?? factionOptions.find((entry) => entry.id === draft.catalogueId)?.displayName,
+      detachmentNames: selected.map((detachment) => detachment.name),
+      limit: draft.limit,
+    })
   const factionChanged = value.catalogueId !== draft.catalogueId
   const detachmentsChanged = value.detachmentIds.toSorted().join() !== draft.detachmentIds.toSorted().join()
   const groups = factionSelectGroups(factionOptions, favourites)
@@ -207,12 +223,6 @@ export function RosterSetupDialog({
     const offered = dispositionsFor(faction?.detachments ?? [], ids)
     changeDraft({
       ...draft,
-      name:
-        mode === 'create'
-          ? [faction?.displayName, ...ids.map((selectedId) => faction?.detachments.find((entry) => entry.id === selectedId)?.name)]
-              .filter(Boolean)
-              .join(' — ')
-          : draft.name,
       detachmentIds: ids,
       disposition:
         offered.length === 1
@@ -267,11 +277,9 @@ export function RosterSetupDialog({
                   groups={groups}
                   value={draft.catalogueId}
                   onValueChange={(catalogueId) => {
-                    const nextFaction = factionOptions.find((entry) => entry.id === catalogueId)
                     setDetachmentQuery('')
                     changeDraft({
                       ...draft,
-                      name: mode === 'create' ? (nextFaction?.displayName ?? '') : draft.name,
                       catalogueId,
                       detachmentIds: [],
                       disposition: null,
@@ -466,9 +474,11 @@ export function RosterSetupDialog({
                 id="setup-name"
                 value={draft.name}
                 onChange={(event) => changeDraft({ ...draft, name: event.target.value })}
+                placeholder={placeholder}
                 maxLength={ROSTER_NAME_MAX_LENGTH}
                 className="mt-2 h-11 rounded-none border-edge bg-sunken text-base"
               />
+              <p className="mt-1.5 text-xs text-dim">Leave this empty to name the list from your army.</p>
             </div>
 
             <div>
@@ -509,7 +519,6 @@ export function RosterSetupDialog({
               disabled={
                 pending ||
                 loadingFaction ||
-                !draft.name.trim() ||
                 !draft.catalogueId ||
                 !draft.detachmentIds.length ||
                 (dispositions.length > 1 && !selectedDisposition) ||
