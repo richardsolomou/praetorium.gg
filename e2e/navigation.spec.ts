@@ -2,7 +2,7 @@ import { devices, expect, test } from '@playwright/test'
 import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
 import { signUp } from './account'
 
-test('primary navigation collapses below 815 pixels', async ({ page }) => {
+test('primary navigation collapses below 860 pixels', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
 
@@ -16,6 +16,7 @@ test('primary navigation collapses below 815 pixels', async ({ page }) => {
   await expect(primary.getByRole('link', { name: 'Rosters' })).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Factions' })).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Mission packs' })).toBeVisible()
+  await expect(primary.getByRole('link', { name: 'Leaderboard' })).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Rules' })).toBeVisible()
   const webHeader = page.locator('[data-web-app-chrome]')
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
@@ -37,12 +38,19 @@ test('primary navigation collapses below 815 pixels', async ({ page }) => {
   await expect(page).toHaveURL(/\/mission-packs\//)
   await expect(primary).toBeHidden()
 
-  await page.setViewportSize({ width: 814, height: 844 })
+  await page.setViewportSize({ width: 859, height: 844 })
   await expect(page.getByRole('button', { name: 'Open primary navigation' })).toBeVisible()
   await expect(primary).toBeHidden()
-  await page.setViewportSize({ width: 815, height: 844 })
+  await page.setViewportSize({ width: 860, height: 844 })
   await expect(page.getByRole('button', { name: 'Open primary navigation' })).toBeHidden()
   await expect(primary).toBeVisible()
+  await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
+
+  // The wordmark and the wider gap arrive at 1000, which is the other width the
+  // seven navigation items have to fit inside.
+  await page.setViewportSize({ width: 999, height: 844 })
+  await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
+  await page.setViewportSize({ width: 1000, height: 844 })
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
 })
 

@@ -60,6 +60,7 @@ describe('native application navigation', () => {
         title: 'Mission',
       },
     ],
+    ['/leaderboard', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Leaderboard' }],
     ['/users/player-id', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }],
     ['/support', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Support' }],
     ['/privacy', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Privacy' }],
