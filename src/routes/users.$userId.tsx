@@ -105,7 +105,7 @@ function PlayerProfile() {
         {published ? (
           <PlayerRosters
             rosters={published.rosters}
-            points={new Map(published.points.map((entry) => [entry.id, entry.points]))}
+            totals={new Map(published.totals.map((entry) => [entry.id, entry]))}
             factions={factions.data?.factions ?? []}
             factionsLoading={factions.isPending}
           />

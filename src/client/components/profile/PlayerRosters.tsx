@@ -15,12 +15,12 @@ type IndexedFaction = RosterSummaryFaction & { id: string }
  */
 export function PlayerRosters({
   rosters,
-  points,
+  totals,
   factions,
   factionsLoading = false,
 }: {
   rosters: readonly SavedRoster[]
-  points: ReadonlyMap<string, number | null>
+  totals: ReadonlyMap<string, { points: number | null; label: string }>
   factions: readonly IndexedFaction[]
   factionsLoading?: boolean
 }) {
@@ -42,7 +42,8 @@ export function PlayerRosters({
               <RosterSummary
                 roster={roster}
                 faction={factions.find((faction) => faction.id === roster.catalogueId)}
-                points={points.get(roster.id)}
+                points={totals.get(roster.id)?.points}
+                label={totals.get(roster.id)?.label}
                 factionLoading={factionsLoading}
               />
             </Link>

@@ -87,16 +87,22 @@ function cachedRosterTotals(roster: {
 /**
  * The lists a player has published, for anybody reading their profile.
  *
- * Priced here rather than in the service, because pricing needs the catalogue and
- * the count does not. The picks never leave the server: the summaries the library
- * row draws carry a unit count, and the points come back beside them.
+ * Totalled here rather than in the service, because a total needs the catalogue and
+ * a listing does not. The picks never leave the server: the summaries the library
+ * row draws carry a unit count, and the points and label come back beside them.
  */
 export const playerRosters = createServerFn({ method: 'GET' })
   .validator(userSchema)
   .handler(({ data }) =>
     rpc(async () => {
       const { summaries, priceable } = await app().service.publicRosters(data.userId)
-      return { rosters: summaries, points: priceable.map((roster) => ({ id: roster.id, points: cachedRosterPoints(roster) })) }
+      return {
+        rosters: summaries,
+        totals: priceable.map((roster) => {
+          const totals = cachedRosterTotals(roster)
+          return { id: roster.id, points: totals?.points ?? null, label: totals?.label ?? '' }
+        }),
+      }
     }),
   )
 
