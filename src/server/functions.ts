@@ -15,7 +15,7 @@ import { gameReferencesFor } from './gameReferences'
 import { rulesFaction } from './rules'
 import { type GlobalSearchResult, searchEverything } from './globalSearch'
 import { mutationRpc, rpc } from './rpc'
-import { rosterDetachments } from './pricing'
+import { rosterDetachments, rosterSetupLabel } from './pricing'
 import { currentUserId } from './playerSession'
 import { cacheUntilSnapshotChanges } from './snapshotCache'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
@@ -73,7 +73,15 @@ export const globalSearch = createServerFn({ method: 'GET' })
             app().service.savedRosterSummaries(userId),
             app().service.battles(userId, app().rules(), { limit: 50 }),
           ])
-          return { rosters, battles: page.battles }
+          const loaded = app().catalogue()
+          const rules = app().rules()
+          return {
+            rosters: rosters.map((roster) => ({
+              ...roster,
+              label: loaded ? rosterSetupLabel(loaded, rules, roster) : '',
+            })),
+            battles: page.battles,
+          }
         },
       }),
     ),

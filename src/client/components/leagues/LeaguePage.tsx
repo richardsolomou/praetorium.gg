@@ -29,7 +29,7 @@ import {
   leagueQuery,
   leaguesQuery,
   meQuery,
-  savedRosterPointsQuery,
+  savedRosterTotalsQuery,
   savedRosterSummariesQuery,
 } from '../../queries'
 import {
@@ -937,7 +937,7 @@ function RosterChooser({
 }) {
   const rosterQuery = useQuery({ ...savedRosterSummariesQuery(), enabled: open })
   const { data: available } = useQuery({ ...factionIndexQuery(), enabled: open })
-  const { data: prices } = useQuery({ ...savedRosterPointsQuery(), enabled: open })
+  const { data: prices } = useQuery({ ...savedRosterTotalsQuery(), enabled: open })
   const rosters = (rosterQuery.data ?? []).filter((roster) => requiredLimit === null || roster.limit === requiredLimit)
   const points = new Map((prices ?? []).map((entry) => [entry.id, entry.points]))
 

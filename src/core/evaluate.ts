@@ -1146,6 +1146,10 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
   const name = node.target.name ?? node.target.id
 
   for (const constraint of sourcesOf(node).flatMap((source) => source.constraints ?? [])) {
+    // Who a character joins is not in the selection tree, so this cannot count it:
+    // `attachmentErrors` holds the whole answer, and reading zero attachments here
+    // reported every such rule as broken.
+    if (constraint.field === 'associations') continue
     const limit = constraintValue(constraint, node, root, index, census) * carriers(constraint, node, index)
     if (limit < 0) continue
     if (constraint.percentValue) {

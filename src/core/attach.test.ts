@@ -334,6 +334,42 @@ describe('attachment legality', () => {
     )
   })
 
+  it('says why a character the data never fields alone is illegal on its own', () => {
+    // A Judiciar has no Leader ability of its own; the catalogue writes "must be
+    // attached" as a minimum on `associations`, and says in the constraint which
+    // units will take it.
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'judiciar',
+          name: 'Judiciar',
+          type: 'model',
+          constraints: [
+            {
+              id: 'joined',
+              type: 'min',
+              value: 1,
+              field: 'associations',
+              scope: 'self',
+              message: '{this} must be attached to a Bodyguard unit.',
+            },
+          ],
+          infoGroups: [
+            { id: 'g', name: 'Leader', profiles: [ability('Leader', 'This model can be attached to the following units:\n■ SQUAD')] },
+          ],
+        },
+        { id: 'squad', name: 'SQUAD', type: 'unit' },
+      ],
+    })
+    expect({
+      alone: attachmentErrors([{ entryId: 'judiciar' }, { entryId: 'squad' }], index),
+      joined: attachmentErrors([{ entryId: 'judiciar', attachedTo: 1 }, { entryId: 'squad' }], index),
+    }).toEqual({
+      alone: [{ entryId: 'judiciar', entryName: 'Judiciar', message: 'must be attached to a Bodyguard unit' }],
+      joined: [],
+    })
+  })
+
   it('accepts a named host', () => {
     const index = indexOf({
       sharedSelectionEntries: [

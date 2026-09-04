@@ -11,8 +11,18 @@
  */
 
 import type { CatalogueIndex, Definition } from './catalogue'
-import { childrenOf, MAX_DEPTH, maximumCount, type Option, pointsOf, requiredCount, resolve, scaleOf } from './definitions'
-import { type EvaluateOptions, hiddenByRules, type Selection } from './evaluate'
+import {
+  childrenOf,
+  hasDynamicSelectionLimit,
+  MAX_DEPTH,
+  maximumCount,
+  type Option,
+  pointsOf,
+  requiredCount,
+  resolve,
+  scaleOf,
+} from './definitions'
+import { evaluate, type EvaluateOptions, hiddenByRules, type Selection } from './evaluate'
 import { updateSelection, withCounts, withPlaceFor } from './selection'
 
 export type DefaultOptions = EvaluateOptions & { maxDepth?: number }
@@ -78,9 +88,13 @@ export function expand(
       }
       if (take <= 0) continue
       inside.push(expand(child.id, child.definition, index, depth - 1, take, visited, carriers, options))
-      remaining -= Math.min(remaining, take)
+      // Only the discretionary part of this take comes out of what is left to
+      // spread: `reserved` already accounted for the option's own minimum, and
+      // charging it twice left a squad a body short of the size it must field.
+      remaining -= share
     }
-    return inside.length ? { id, count: 1, selections: inside } : { id, count: 1 }
+    const kept = withinOwnLimit(id, target, inside, index, options)
+    return kept.length ? { id, count: 1, selections: kept } : { id, count: 1 }
   }
 
   const children: Selection[] = []
@@ -105,19 +119,48 @@ export function expand(
 }
 
 /**
- * What a group offers, best first: what it names as its default, then the cheapest,
- * then entries before nested groups.
+ * The placements a group's own limit still allows, once it holds them.
  *
- * Cheapest matters. A mandatory choice has to be made for the player, and making
- * it an expensive one puts points on a list nobody asked for — the floor of a
- * datasheet is what this is for.
+ * A group can put its limit behind a modifier — "two weapons, unless you take the
+ * twin, in which case one" — and that limit was read while the group was empty.
+ * Taking the first option can settle the very question the limit was asking, so it
+ * is asked again with the contents present and the placements it no longer allows
+ * are let go of, least preferred first. Only groups whose limits move are asked twice.
+ */
+function withinOwnLimit(
+  id: string,
+  target: Definition,
+  inside: readonly Selection[],
+  index: CatalogueIndex,
+  options: DefaultOptions,
+): readonly Selection[] {
+  if (inside.length < 2 || !hasDynamicSelectionLimit(target, index)) return inside
+  const overfull = (candidate: readonly Selection[]) =>
+    evaluate([{ id, count: 1, selections: [...candidate] }], index, options).errors.some(
+      (error) => error.entryId === target.id && error.message.startsWith('allows at most '),
+    )
+  let kept = inside
+  while (kept.length > 1 && overfull(kept)) kept = kept.slice(0, -1)
+  return kept
+}
+
+/**
+ * What a group offers, best first: the cheapest, then what the group names as its
+ * default, then entries before nested groups.
+ *
+ * Cheapest first, because a mandatory choice has to be made for the player and
+ * making it an expensive one puts points on a list nobody asked for — the floor of
+ * a datasheet is what this is for. The catalogue's own default does not always
+ * stand at that floor: an Achilles Ridgerunner names the heavy mining laser, which
+ * the Munitorum prices as ten points of wargear over the base cost. So the named
+ * default only settles a choice between options that cost the same.
  */
 function ordered(group: Definition, options: Option[], index: CatalogueIndex): Option[] {
   const named = 'defaultSelectionEntryId' in group ? group.defaultSelectionEntryId : undefined
   return options.toSorted(
     (left, right) =>
-      Number(right.id === named) - Number(left.id === named) ||
       pointsOf(left, index) - pointsOf(right, index) ||
+      Number(right.id === named) - Number(left.id === named) ||
       kindOf(left, index) - kindOf(right, index),
   )
 }

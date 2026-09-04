@@ -33,7 +33,7 @@ export type GlobalSearchResult = {
 const GROUPS: GlobalSearchResult['group'][] = ['Factions', 'Datasheets', 'Detachments', 'Missions', 'Your rosters', 'Your battles']
 const PER_GROUP = 12
 
-type SavedRoster = { id: string; name: string; limit: number }
+type SavedRoster = { id: string; name: string; limit: number; label: string }
 type Battle = {
   token: string
   status: string
@@ -248,11 +248,15 @@ async function ownResults(matches: Matcher, own: Sources['own']): Promise<Global
 
   const results: GlobalSearchResult[] = []
   for (const roster of mine.rosters) {
-    if (!matches(roster.name)) continue
+    // A list its owner never named is found by what it is called instead. The label
+    // here is the setup alone: pricing every list on a keystroke to reach its units
+    // would be paid by every search, and the units are searchable as datasheets.
+    const name = roster.name || roster.label
+    if (!matches(name)) continue
     results.push({
       id: `roster:${roster.id}`,
       group: 'Your rosters',
-      label: roster.name,
+      label: name,
       detail: `${roster.limit} points`,
       href: `/rosters/${roster.id}`,
     })
