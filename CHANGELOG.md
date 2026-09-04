@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.60.1
+
+### Patch Changes
+
+- 1f4f9a8: Limit an Incursion roster to two of each datasheet, and four of a Battleline or Dedicated Transport, instead of the Strike Force allowance.
+- 1f4f9a8: Report how many of a datasheet a roster may hold for units the catalogue composes itself, which covers most datasheets.
+
 ## 0.60.0
 
 ### Minor Changes
