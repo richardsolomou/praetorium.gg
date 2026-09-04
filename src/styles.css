@@ -235,6 +235,15 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
     @apply border-border;
   }
 
+  /*
+   * Tailwind's preflight gives buttons `cursor: default`, which left every control
+   * in the interface reading as text. A tab bar is where it showed worst, having no
+   * border of its own to look clickable with.
+   */
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
   html {
     background-color: var(--color-void);
     color: var(--color-bone);
