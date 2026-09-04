@@ -1,4 +1,4 @@
-export type NativeSection = 'battles' | 'factions' | 'leagues' | 'missions' | 'rosters' | 'rules'
+export type NativeSection = 'battles' | 'factions' | 'leaderboard' | 'leagues' | 'missions' | 'rosters' | 'rules'
 
 type NativeNavigation = {
   back?: { href: string; label: string; preferHistory?: boolean }
@@ -89,10 +89,7 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
     }
   }
   if (root === 'profile') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }
-  // No tab of its own: the application is for playing at the table, and a phone's
-  // seven-tab bar would be crowded by a page nobody opens mid-game. Named anyway,
-  // because a rank on a profile links here and the top bar should say where you are.
-  if (root === 'leaderboard') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Leaderboard' }
+  if (root === 'leaderboard') return { section: 'leaderboard', title: 'Leaderboard' }
   if (root === 'users') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }
   if (root === 'friends') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Friends' }
   if (root === 'admin') return { back: { href: '/profile', label: 'Back to profile', preferHistory: true }, title: 'Admin' }

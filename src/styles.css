@@ -103,6 +103,51 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
   height: calc(100dvh - 7rem);
 }
 
+html[data-native-shell='true'] [data-native-app-chrome],
+html[data-native-shell='true'] [data-web-app-footer] {
+  display: none !important;
+}
+
+html[data-native-shell='true'] [data-native-app-header] {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: grid !important;
+  visibility: hidden;
+  transform: translateY(-3rem);
+  pointer-events: none;
+}
+
+html[data-native-shell='true'] {
+  touch-action: pan-x pan-y;
+}
+
+html[data-native-shell='true'] [data-native-app-frame] {
+  min-height: 100dvh;
+  padding: 0 !important;
+}
+
+html[data-native-shell='true'] [data-native-app-content][data-immersive='true'] {
+  height: 100dvh !important;
+}
+
+html[data-native-shell='true'] [data-scoreboard] {
+  top: 0;
+}
+
+@media (max-width: 1023px) {
+  html[data-native-shell='true'] [data-turn-control],
+  html[data-native-shell='true'] [data-pane='loadout'],
+  html[data-native-shell='true'] [data-setup-next] {
+    bottom: 0;
+  }
+
+  html[data-native-shell='true'] [data-battle-tracker] {
+    padding-bottom: 8rem;
+  }
+}
+
 @media (min-width: 1024px) {
   html[data-native-app='true'] [data-native-app-frame] {
     padding-bottom: 0;

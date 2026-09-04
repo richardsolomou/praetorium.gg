@@ -17,6 +17,27 @@ describe('parseNativeActionRequest', () => {
   })
 
   it('accepts battle, haptic, and print actions', () => {
+    expect(
+      parseNativeActionRequest(
+        JSON.stringify({ version: 3, type: 'native-account', name: 'Rogal Dorn', image: 'https://cdn.example/dorn.webp' }),
+      ),
+    ).toEqual({ kind: 'account', name: 'Rogal Dorn', image: 'https://cdn.example/dorn.webp' })
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-account' }))).toEqual({ kind: 'account' })
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-account-menu', open: false }))).toEqual({
+      kind: 'account-menu',
+      open: false,
+    })
+    expect(
+      parseNativeActionRequest(
+        JSON.stringify({
+          version: 3,
+          type: 'native-navigation',
+          title: 'Roster',
+          backUrl: '/rosters',
+          preferHistory: true,
+        }),
+      ),
+    ).toEqual({ kind: 'navigation', title: 'Roster', backUrl: 'https://praetorium.gg/rosters', preferHistory: true })
     expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-battle-active', active: true }))).toEqual({
       kind: 'battle-active',
       active: true,
@@ -55,13 +76,17 @@ describe('parseNativeActionRequest', () => {
 describe('NATIVE_BRIDGE_SCRIPT', () => {
   it('publishes only the version 3 capabilities the shell handles', () => {
     expect(NATIVE_BRIDGE_SCRIPT).toContain(
-      "const capabilities = ['app-navigation', 'back-gesture', 'battle-active', 'haptic', 'open-window', 'print', 'share']",
+      "const capabilities = ['account', 'app-navigation', 'back-gesture', 'battle-active', 'haptic', 'open-window', 'print', 'share']",
     )
     expect(NATIVE_BRIDGE_SCRIPT).toContain('bridgeVersion: 3')
   })
 
   it('marks documents for the native application layout before they render', () => {
     expect(NATIVE_BRIDGE_SCRIPT).toContain("document.documentElement.dataset.nativeApp = 'true'")
+  })
+
+  it('disables document zoom in the native application', () => {
+    expect(NATIVE_BRIDGE_SCRIPT).toContain('maximum-scale=1, user-scalable=no')
   })
 
   it('waits for the document root when the WebView injects the bridge first', () => {
@@ -81,6 +106,7 @@ describe('NATIVE_BRIDGE_SCRIPT', () => {
       baseURI: 'https://praetorium.gg/',
       documentElement: null as { dataset: Record<string, string> } | null,
       addEventListener: vi.fn(),
+      querySelector: vi.fn(() => null),
     }
     class TestElement {
       closest() {
@@ -114,6 +140,7 @@ describe('NATIVE_BRIDGE_SCRIPT', () => {
       baseURI: 'https://praetorium.gg/rosters/abc',
       documentElement: { dataset: {} as Record<string, string> },
       addEventListener: (type: string, listener: (event: Record<string, unknown>) => void) => listeners.set(type, listener),
+      querySelector: () => null,
     }
     // oxlint-disable-next-line typescript/no-implied-eval -- Execute the fixed injected script against a small WebView-shaped test harness.
     const executeBridge = new Function('window', 'document', 'Element', 'URL', NATIVE_BRIDGE_SCRIPT)

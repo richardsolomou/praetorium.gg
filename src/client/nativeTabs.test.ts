@@ -44,6 +44,13 @@ describe('native tab memory', () => {
     expect(recallTab('rosters')).toMatchObject({ href: '/rosters/army-id', scrollY: 0 })
   })
 
+  it('keeps the leaderboard position behind More', () => {
+    stubSessionStorage()
+    rememberTab('/leaderboard?faction=orks', { scrollY: 480 })
+
+    expect(recallTab('leaderboard')).toMatchObject({ href: '/leaderboard?faction=orks', scrollY: 480 })
+  })
+
   it('has nothing to recall for a section this session has not visited', () => {
     stubSessionStorage()
     expect(recallTab('leagues')).toBeNull()

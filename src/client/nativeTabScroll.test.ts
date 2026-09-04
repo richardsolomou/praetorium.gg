@@ -30,7 +30,7 @@ describe('native tab scroll restoration', () => {
     vi.unstubAllGlobals()
   })
 
-  it('retries only targets whose content was not ready', () => {
+  it('restores again after the router resets the document scroll', () => {
     vi.useFakeTimers()
     const browser = stubBrowser()
     let loadout: { scrollTop: number; scrollTo: (left: number, top: number) => void } | null = null
@@ -39,16 +39,16 @@ describe('native tab scroll restoration', () => {
     restoreNativeTabScroll(120, { loadout: 360 }, { loadout: '[data-pane="loadout"]' })
     expect(browser.scrollTo).toHaveBeenCalledWith(0, 120)
 
-    browser.setScrollY(40)
+    browser.setScrollY(0)
     loadout = {
       scrollTop: 0,
       scrollTo(_left, top) {
         this.scrollTop = top
       },
     }
-    vi.advanceTimersByTime(50)
+    vi.advanceTimersByTime(0)
 
-    expect(browser.scrollTo).toHaveBeenCalledTimes(1)
+    expect(browser.scrollTo).toHaveBeenCalledTimes(2)
     expect(loadout.scrollTop).toBe(360)
   })
 

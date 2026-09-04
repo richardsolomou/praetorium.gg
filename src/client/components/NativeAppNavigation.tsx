@@ -1,15 +1,17 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { BookOpen, ChevronLeft, Gavel, ScrollText, Swords, Trophy, UsersRound } from 'lucide-react'
 import { useEffect, useLayoutEffect, type ComponentType } from 'react'
 import { Button } from '@/components/ui/button'
-import { setNativeBackGesture } from '../nativeBridge'
+import { meQuery } from '../queries'
+import { setNativeAccount, setNativeBackGesture, setNativeNavigation } from '../nativeBridge'
 import { historyStaysInSection, rememberHistorySection } from '../nativeHistory'
 import { nativeNavigation, type NativeSection } from '../nativeNavigation'
 import { restoreNativeTabScroll } from '../nativeTabScroll'
 import { recallTab, rememberTab, tabLocation } from '../nativeTabs'
 import { GlobalSearch } from './GlobalSearch'
 
-type Tab = { icon: ComponentType<{ className?: string }>; label: string; section: NativeSection; to: string }
+type Tab = { hidden?: boolean; icon: ComponentType<{ className?: string }>; label: string; section: NativeSection; to: string }
 
 const TABS: readonly Tab[] = [
   { icon: ScrollText, label: 'Rosters', section: 'rosters', to: '/rosters' },
@@ -18,9 +20,11 @@ const TABS: readonly Tab[] = [
   { icon: UsersRound, label: 'Factions', section: 'factions', to: '/factions' },
   { icon: BookOpen, label: 'Missions', section: 'missions', to: '/mission-packs' },
   { icon: Gavel, label: 'Rules', section: 'rules', to: '/rules' },
+  { hidden: true, icon: Trophy, label: 'Leaderboard', section: 'leaderboard', to: '/leaderboard' },
 ]
 
 export function NativeAppHeader({ account, path, search }: { account: React.ReactNode; path: string; search: Record<string, unknown> }) {
+  const { data: me } = useQuery(meQuery())
   const navigate = useNavigate()
   const router = useRouter()
   const navigation = nativeNavigation(path, search)
@@ -33,7 +37,11 @@ export function NativeAppHeader({ account, path, search }: { account: React.Reac
   }, [index, navigation.section])
   useEffect(() => {
     setNativeBackGesture(staysInTab)
-  }, [staysInTab])
+    setNativeNavigation(navigation.title, navigation.back?.href, staysInTab)
+  }, [navigation.back?.href, navigation.title, staysInTab])
+  useEffect(() => {
+    setNativeAccount(me?.name, me?.image)
+  }, [me?.image, me?.name])
 
   const goBack = () => {
     if (staysInTab) {
@@ -108,7 +116,7 @@ export function NativeAppTabs({ href, state }: { href: string; state: unknown })
       aria-label="Application sections"
       className="fixed right-0 bottom-0 left-0 z-30 hidden h-16 items-stretch border-t border-edge bg-panel/95 backdrop-blur"
     >
-      {TABS.map(({ icon: Icon, label, section, to }) => (
+      {TABS.map(({ hidden, icon: Icon, label, section, to }) => (
         <Link
           key={section}
           to={to}
@@ -120,16 +128,15 @@ export function NativeAppTabs({ href, state }: { href: string; state: unknown })
               return
             }
             const remembered = recallTab(section)
-            if (!remembered || remembered.href === to) return
             event.preventDefault()
             void navigate({
-              href: remembered.href,
+              href: remembered?.href ?? to,
               resetScroll: false,
-              ...(remembered.state ? { state: (current) => ({ ...current, ...remembered.state }) } : {}),
+              ...(remembered?.state ? { state: (current) => ({ ...current, ...remembered.state }) } : {}),
             })
           }}
           aria-current={active === section ? 'page' : undefined}
-          className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-t-2 text-[0.625rem] font-semibold tracking-[0.04em] uppercase ${
+          className={`${hidden ? 'hidden!' : 'flex'} min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-t-2 text-[0.625rem] font-semibold tracking-[0.04em] uppercase ${
             active === section ? 'border-parchment bg-raised text-parchment' : 'border-transparent text-dim hover:bg-raised hover:text-info'
           }`}
         >

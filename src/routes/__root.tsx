@@ -18,21 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  CircleUserRound,
-  LogIn,
-  LogOut,
-  Menu,
-  MessageSquareWarning,
-  ScrollText,
-  ShieldCheck,
-  Swords,
-  Trophy,
-  UserRound,
-  UserRoundPen,
-  Users,
-  X,
-} from 'lucide-react'
+import { CircleUserRound, LogIn, LogOut, Menu, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users, X } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { useEffect, useRef, useState } from 'react'
@@ -42,6 +28,7 @@ import { ImpersonationBanner } from '../client/components/ImpersonationBanner'
 import { NativeAppHeader, NativeAppTabs } from '../client/components/NativeAppNavigation'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { PageState } from '../client/components/PageState'
+import { setNativeAccountMenuOpen } from '../client/nativeBridge'
 import { meQuery } from '../client/queries'
 import { POSTHOG_BROWSER_OPTIONS, POSTHOG_INGEST_PATH } from '../posthog'
 import appCss from '../styles.css?url'
@@ -99,9 +86,27 @@ function Account({ native = false }: { native?: boolean }) {
   const { data: me } = useQuery(meQuery())
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const [nativeOpen, setNativeOpen] = useState(false)
+
+  useEffect(() => {
+    if (!native) return
+    const setOpen = (event: Event) => setNativeOpen(Boolean((event as CustomEvent<{ open?: unknown }>).detail?.open))
+    document.addEventListener('praetorium:set-account-menu', setOpen)
+    return () => document.removeEventListener('praetorium:set-account-menu', setOpen)
+  }, [native])
 
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      open={native ? nativeOpen : undefined}
+      onOpenChange={
+        native
+          ? (open) => {
+              setNativeOpen(open)
+              setNativeAccountMenuOpen(open)
+            }
+          : undefined
+      }
+    >
       <DropdownMenuTrigger
         render={
           <Button
@@ -129,15 +134,6 @@ function Account({ native = false }: { native?: boolean }) {
             </DropdownMenuItem>
             <DropdownMenuItem render={<Link to="/profile" />}>
               <UserRoundPen /> Edit profile
-            </DropdownMenuItem>
-            <DropdownMenuItem render={<Link to="/battles" />}>
-              <Swords /> My battles
-            </DropdownMenuItem>
-            <DropdownMenuItem render={<Link to="/rosters" />}>
-              <ScrollText /> My rosters
-            </DropdownMenuItem>
-            <DropdownMenuItem render={<Link to="/leagues" />}>
-              <Trophy /> Leagues
             </DropdownMenuItem>
             <DropdownMenuItem render={<Link to="/friends" />}>
               <Users /> Friends
@@ -335,7 +331,10 @@ function RootComponent() {
                  * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
                  */}
                 {immersive ? null : (
-                  <footer className="flex flex-col items-center gap-1.5 border-t border-edge px-4 py-4 text-center text-xs text-faint min-[1000px]:flex-row min-[1000px]:justify-between">
+                  <footer
+                    data-web-app-footer
+                    className="flex flex-col items-center gap-1.5 border-t border-edge px-4 py-4 text-center text-xs text-faint min-[1000px]:flex-row min-[1000px]:justify-between"
+                  >
                     <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
                     <p className="space-x-3">
                       <Link to="/support" className="transition-colors hover:text-bone">

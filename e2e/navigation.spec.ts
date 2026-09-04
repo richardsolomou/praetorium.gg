@@ -1,5 +1,6 @@
 import { devices, expect, test } from '@playwright/test'
 import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
+import { applicationNavigationScript } from '../mobile/src/navigation'
 import { signUp } from './account'
 
 test('primary navigation collapses below 860 pixels', async ({ page }) => {
@@ -54,7 +55,7 @@ test('primary navigation collapses below 860 pixels', async ({ page }) => {
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
 })
 
-test('the native application has stable route-aware phone and tablet navigation', async ({ browser }) => {
+test('the native shell leaves stable web content in portrait and landscape', async ({ browser }) => {
   const loadingContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await loadingContext.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
@@ -64,8 +65,8 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await loadingPage.route('**/*', (route) => (route.request().resourceType() === 'script' ? route.abort() : route.continue()))
   await loadingPage.goto('/factions/necrons/datasheets/overlord')
   await expect(loadingPage.locator('[data-web-app-chrome]')).toBeHidden()
-  await expect(loadingPage.locator('[data-native-app-header]')).toBeVisible()
-  await expect(loadingPage.locator('[data-native-app-tabs]')).toBeVisible()
+  await expect(loadingPage.locator('[data-native-app-header]')).toBeHidden()
+  await expect(loadingPage.locator('[data-native-app-tabs]')).toBeHidden()
   expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   await loadingPage.setViewportSize({ width: 1024, height: 768 })
   expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(1024)
@@ -84,64 +85,18 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await page.goto('/factions/necrons/datasheets/overlord')
 
   const webHeader = page.locator('[data-web-app-chrome]')
-  const nativeHeader = page.getByRole('banner', { name: 'Application' })
-  const sections = page.getByRole('navigation', { name: 'Application sections' })
   await expect(webHeader).toBeHidden()
-  await expect(nativeHeader).toBeVisible()
-  await expect(sections).toBeVisible()
-  await expect(sections.getByRole('link', { name: 'Factions' })).toHaveAttribute('aria-current', 'page')
-  const detailBack = nativeHeader.getByRole('button', { name: 'Back to datasheets' })
-  const detailBackBox = await detailBack.boundingBox()
-  expect(detailBackBox?.x).toBe(0)
-  expect(detailBackBox?.width).toBeGreaterThanOrEqual(44)
-  expect((await nativeHeader.getByRole('button', { name: 'Search Praetorium' }).boundingBox())?.width).toBeGreaterThanOrEqual(44)
-  expect((await nativeHeader.getByRole('button', { name: 'Account menu' }).boundingBox())?.width).toBeGreaterThanOrEqual(44)
+  await expect(page.locator('[data-native-app-header]')).toBeHidden()
+  await expect(page.locator('[data-native-app-tabs]')).toBeHidden()
+  await expect(page.locator('[data-native-app-content]')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   expect(hydrationErrors).toEqual([])
   await page.screenshot({ path: 'test-results/native-navigation-phone.png', fullPage: true })
 
-  await detailBack.click()
-  await expect(page).toHaveURL('/factions/necrons/datasheets')
-  const factionBack = nativeHeader.getByRole('button', { name: 'Back to faction' })
-  expect((await factionBack.boundingBox())?.x).toBe(detailBackBox?.x)
-
-  await page.goto('/factions/necrons/datasheets')
-  await page
-    .locator('[data-datasheet="Overlord"]')
-    .getByRole('link', { name: /^Overlord \d+ pts$/ })
-    .click()
-  await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
-  expect(await page.evaluate(() => history.state.__TSR_index)).toBe(1)
-  await nativeHeader.getByRole('button', { name: 'Back to datasheets' }).click()
-  await expect(page).toHaveURL('/factions/necrons/datasheets')
-  expect(await page.evaluate(() => history.state.__TSR_index)).toBe(0)
-
-  // Back belongs to the tab it is pressed in: a datasheet reached from a page outside
-  // the tabs returns to the datasheets, not to whatever the player was reading before.
-  await page.goto('/support')
-  await nativeHeader.getByRole('button', { name: 'Search Praetorium' }).click()
-  await page.getByPlaceholder('Search everything…').fill('Overlord')
-  await page
-    .getByRole('option', { name: /Overlord/ })
-    .first()
-    .click()
-  await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
-  await nativeHeader.getByRole('button', { name: 'Back to datasheets' }).click()
-  await expect(page).toHaveURL('/factions/necrons/datasheets')
-
-  await page.goto('/factions/necrons/datasheets/overlord')
-  expect(await page.evaluate(() => history.state.__TSR_index)).toBe(0)
-  await nativeHeader.getByRole('button', { name: 'Back to datasheets' }).click()
-  await expect(page).toHaveURL('/factions/necrons/datasheets')
-
-  // The bottom of a tab has nothing behind it, so it offers no Back action at all.
-  await sections.getByRole('link', { name: 'Rosters' }).click()
-  await expect(page).toHaveURL('/rosters')
-  await expect(nativeHeader.getByRole('button', { name: /^Back/ })).toHaveCount(0)
-
   await page.setViewportSize({ width: 1024, height: 768 })
-  await expect(sections).toHaveCSS('flex-direction', 'column')
-  expect((await sections.boundingBox())?.x).toBe(0)
-  expect((await nativeHeader.boundingBox())?.x).toBeGreaterThanOrEqual(80)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1024)
+  await expect(page.locator('[data-native-app-header]')).toBeHidden()
+  await expect(page.locator('[data-native-app-tabs]')).toBeHidden()
   await page.screenshot({ path: 'test-results/native-navigation-tablet.png', fullPage: true })
 
   await context.close()
@@ -769,29 +724,29 @@ test('an officer datasheet shows how many orders it can issue', async ({ page })
   await page.screenshot({ path: 'test-results/officer-orders-datasheet-phone.png', fullPage: true })
 })
 
-test('each application tab returns to where it was left', async ({ browser }) => {
+test('each native application tab returns to where it was left', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
 ${NATIVE_BRIDGE_SCRIPT}`,
   })
   const page = await context.newPage()
-  const sections = page.getByRole('navigation', { name: 'Application sections' })
+  const navigate = (path: string) => page.evaluate(applicationNavigationScript(`https://praetorium.gg${path}`)!)
 
   await page.goto('/factions/necrons/datasheets/overlord')
   // The missions tab lands on the current pack, so its memory is that redirect.
-  await sections.getByRole('link', { name: 'Missions' }).click()
+  await navigate('/mission-packs')
   await expect(page).toHaveURL(/\/mission-packs\//)
 
-  await sections.getByRole('link', { name: 'Factions' }).click()
+  await navigate('/factions')
   await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
 
   // The section you are already in has one obvious destination left: its top.
-  await sections.getByRole('link', { name: 'Factions' }).click()
+  await navigate('/factions')
   await expect(page).toHaveURL('/factions')
 
-  await sections.getByRole('link', { name: 'Missions' }).click()
-  await sections.getByRole('link', { name: 'Factions' }).click()
+  await navigate('/mission-packs')
+  await navigate('/factions')
   await expect(page).toHaveURL('/factions')
 
   await context.close()

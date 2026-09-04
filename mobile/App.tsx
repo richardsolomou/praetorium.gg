@@ -3,10 +3,23 @@ import * as Haptics from 'expo-haptics'
 import * as KeepAwake from 'expo-keep-awake'
 import * as Print from 'expo-print'
 import * as WebBrowser from 'expo-web-browser'
-import * as SecureStore from 'expo-secure-store'
 import PostHog, { PostHogProvider, type PostHogOptions } from 'posthog-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Alert,
+  AppState,
+  BackHandler,
+  Image,
+  Linking,
+  Platform,
+  Pressable,
+  Share,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewNavigation } from 'react-native-webview'
@@ -23,6 +36,7 @@ import {
   initialAppShellState,
   initialAuthReceived,
   initialUrlReceived,
+  navigationDeliverySucceeded,
   rendererTerminated,
   warmUrlReceived,
   webLoadFailed,
@@ -34,7 +48,13 @@ import {
 } from './src/appShellState'
 import { appStateChanged, initialAppLifecycle, WEB_RESUME_SCRIPT } from './src/lifecycle'
 import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest, type NativeActionRequest } from './src/nativeActions'
-import { applicationNavigationScript, classifyNavigation } from './src/navigation'
+import {
+  APPLICATION_SEARCH_SCRIPT,
+  APP_URL,
+  applicationAccountMenuScript,
+  applicationNavigationScript,
+  classifyNavigation,
+} from './src/navigation'
 import {
   NATIVE_AUTH_CALLBACK_URL,
   nativeAuthCompletionScript,
@@ -46,8 +66,10 @@ import {
 } from './src/nativeAuth'
 import { completedPendingNativeAuth, parsePendingNativeAuth, pendingNativeAuth, type PendingNativeAuth } from './src/pendingNativeAuth'
 import { NATIVE_USER_AGENT } from './src/version'
+import { deleteSecureValue, getSecureValue, setSecureValue } from './src/secureStorage'
 
 const BACKGROUND = '#0b0c0e'
+const CHROME_BACKGROUND = '#111416'
 const PENDING_AUTH_KEY = 'praetorium.native-auth.pending'
 let pendingAuthTestValue: string | null = null
 const pendingAuthStorage = process.env.EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL
@@ -60,7 +82,11 @@ const pendingAuthStorage = process.env.EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL
         pendingAuthTestValue = null
       },
     }
-  : SecureStore
+  : {
+      getItemAsync: getSecureValue,
+      setItemAsync: setSecureValue,
+      deleteItemAsync: deleteSecureValue,
+    }
 const ACTIVE_BATTLE_KEEP_AWAKE_TAG = 'praetorium-active-battle'
 const POSTHOG_OPTIONS = {
   host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
@@ -103,7 +129,39 @@ function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
   )
 }
 
+const tabs = [
+  { label: 'Battles', path: '/battles', symbol: '×' },
+  { label: 'Rosters', path: '/rosters', symbol: '▥' },
+  { label: 'Factions', path: '/factions', symbol: '◇' },
+  { label: 'Missions', path: '/mission-packs', symbol: '⊕' },
+] as const
+
+const moreDestinations = [
+  { label: 'Leagues', path: '/leagues', symbol: '▤' },
+  { label: 'Leaderboard', path: '/leaderboard', symbol: '♜' },
+  { label: 'Rules', path: '/rules', symbol: '¶' },
+] as const
+
+function pathOf(url: string) {
+  try {
+    return new URL(url).pathname
+  } catch {
+    return '/'
+  }
+}
+
+function tabIsActive(path: string, root: string) {
+  return (
+    (root === '/battles' && path === '/') ||
+    path === root ||
+    path.startsWith(`${root}/`) ||
+    (root === '/mission-packs' && path.startsWith('/mission-matchups'))
+  )
+}
+
 function AppShell() {
+  const { height, width } = useWindowDimensions()
+  const landscape = width > height
   const webView = useRef<WebView>(null)
   /**
    * Whether going back stays in the tab the player is looking at, which only the web
@@ -112,6 +170,15 @@ function AppShell() {
    * bottom of a tab has nothing behind it.
    */
   const [backGesture, setBackGesture] = useState(false)
+  const [nativeNavigation, setNativeNavigation] = useState<{ title: string; backUrl?: string; preferHistory: boolean }>({
+    title: 'Praetorium',
+    preferHistory: false,
+  })
+  const [nativeAccount, setNativeAccount] = useState<{ name?: string; image?: string }>({})
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const pendingMoreDestination = useRef<string | null>(null)
+  const [currentUrl, setCurrentUrl] = useState(APP_URL)
   const authOpen = useRef(false)
   const battleAwake = useRef(false)
   const battleAwakeOperation = useRef<Promise<void>>(Promise.resolve())
@@ -249,6 +316,26 @@ function AppShell() {
   const handleNativeAction = useCallback(
     async (action: NativeActionRequest) => {
       switch (action.kind) {
+        case 'account':
+          setNativeAccount({
+            ...(action.name ? { name: action.name } : {}),
+            ...(action.image ? { image: action.image } : {}),
+          })
+          break
+        case 'account-menu':
+          setAccountMenuOpen(action.open)
+          break
+        case 'navigation':
+          setNativeNavigation({
+            title: action.title,
+            ...(action.backUrl ? { backUrl: action.backUrl } : {}),
+            preferHistory: action.preferHistory,
+          })
+          if (pendingMoreDestination.current) {
+            pendingMoreDestination.current = null
+            setMoreOpen(false)
+          }
+          break
         case 'back-gesture':
           setBackGesture(action.enabled)
           break
@@ -316,12 +403,16 @@ function AppShell() {
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (moreOpen) {
+        setMoreOpen(false)
+        return true
+      }
       if (!backGesture) return false
       webView.current?.goBack()
       return true
     })
     return () => subscription.remove()
-  }, [backGesture])
+  }, [backGesture, moreOpen])
 
   useEffect(() => {
     let active = true
@@ -388,6 +479,11 @@ function AppShell() {
 
   const updateNavigation = useCallback(
     (navigation: WebViewNavigation) => {
+      setCurrentUrl(navigation.url)
+      if (pendingMoreDestination.current && tabIsActive(pathOf(navigation.url), pendingMoreDestination.current)) {
+        pendingMoreDestination.current = null
+        setMoreOpen(false)
+      }
       commitShell(webNavigationChanged(shellRef.current, navigation.url))
     },
     [commitShell],
@@ -404,97 +500,255 @@ function AppShell() {
     <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.safeArea}>
       {/* oxlint-disable-next-line react/style-prop-object -- Expo's style prop selects a color scheme. */}
       <StatusBar style="light" />
-      {renderedShell.sourceUrl ? (
-        <WebView
-          key={renderedShell.renderKey}
-          ref={webView}
-          source={{ uri: renderedShell.sourceUrl }}
-          style={styles.webView}
-          containerStyle={styles.webView}
-          originWhitelist={['*']}
-          applicationNameForUserAgent={NATIVE_USER_AGENT}
-          injectedJavaScriptBeforeContentLoaded={`${NATIVE_BRIDGE_SCRIPT}\n${nativeAuthCompletionScript()}`}
-          sharedCookiesEnabled
-          thirdPartyCookiesEnabled={false}
-          allowsBackForwardNavigationGestures={backGesture}
-          allowsLinkPreview={false}
-          setSupportMultipleWindows
-          startInLoadingState
-          renderLoading={() => <StateView />}
-          renderError={() => <StateView error retry={() => webView.current?.reload()} />}
-          onLoadStart={({ nativeEvent }) => {
-            cancelScheduledDrain()
-            commitShell(webNavigationStarted(shellRef.current, Platform.OS, nativeEvent.loading))
+      <View style={styles.header}>
+        {!moreOpen && nativeNavigation.backUrl ? (
+          <Pressable
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+            onPress={() => (nativeNavigation.preferHistory ? webView.current?.goBack() : navigateApplication(nativeNavigation.backUrl!))}
+            style={styles.headerAction}
+          >
+            <Text style={styles.backSymbol}>‹</Text>
+          </Pressable>
+        ) : (
+          <Image accessibilityIgnoresInvertColors source={require('./assets/logo.png')} style={styles.logo} />
+        )}
+        <Text numberOfLines={1} style={styles.brand}>
+          {moreOpen ? 'MORE' : nativeNavigation.title.toUpperCase()}
+        </Text>
+        <Pressable
+          accessibilityLabel="Search Praetorium"
+          accessibilityRole="button"
+          onPress={() => {
+            setMoreOpen(false)
+            webView.current?.injectJavaScript(APPLICATION_SEARCH_SCRIPT)
           }}
-          onLoad={({ nativeEvent }) => {
-            finishWebLoad(nativeEvent.url)
+          style={styles.headerUtility}
+        >
+          <View aria-hidden style={styles.searchIcon}>
+            <View style={styles.searchLens} />
+            <View style={styles.searchHandle} />
+          </View>
+        </Pressable>
+        <Pressable
+          accessibilityLabel="Open account menu"
+          accessibilityRole="button"
+          onPress={() => {
+            setMoreOpen(false)
+            const open = !accountMenuOpen
+            setAccountMenuOpen(open)
+            webView.current?.injectJavaScript(applicationAccountMenuScript(open))
           }}
-          onError={({ nativeEvent }) => {
-            captureNativeException('web_load', new Error(`WebView load failed: ${nativeEvent.description} (code ${nativeEvent.code})`))
-            cancelScheduledDrain()
-            commitShell(webLoadFailed(shellRef.current))
-          }}
-          onHttpError={({ nativeEvent }) => {
-            captureNativeException('web_http', new Error(`WebView HTTP error ${nativeEvent.statusCode}: ${nativeEvent.description}`))
-            cancelScheduledDrain()
-            commitShell(webLoadFailed(shellRef.current))
-          }}
-          onContentProcessDidTerminate={recoverRenderer}
-          onRenderProcessGone={recoverRenderer}
-          onMessage={({ nativeEvent }) => {
-            if (handleNativeActionMessage(nativeEvent.data)) return
-            const result = (() => {
-              try {
-                return JSON.parse(nativeEvent.data) as {
-                  version?: unknown
-                  type?: unknown
-                  id?: unknown
-                  ok?: unknown
-                  retryable?: unknown
+          style={styles.account}
+        >
+          {nativeAccount.image ? (
+            <Image
+              accessibilityIgnoresInvertColors
+              source={{ uri: nativeAccount.image }}
+              style={styles.accountAvatar}
+              onError={() => setNativeAccount((current) => ({ ...current, image: undefined }))}
+            />
+          ) : (
+            <Text style={styles.accountText}>{nativeAccount.name?.trim().charAt(0).toUpperCase() || '◎'}</Text>
+          )}
+        </Pressable>
+      </View>
+      <View style={[styles.body, landscape && styles.bodyLandscape]}>
+        <View style={styles.content}>
+          {renderedShell.sourceUrl ? (
+            <WebView
+              key={renderedShell.renderKey}
+              accessibilityElementsHidden={moreOpen}
+              importantForAccessibility={moreOpen ? 'no-hide-descendants' : 'auto'}
+              ref={webView}
+              source={{ uri: renderedShell.sourceUrl }}
+              style={styles.webView}
+              containerStyle={styles.webView}
+              originWhitelist={['*']}
+              applicationNameForUserAgent={NATIVE_USER_AGENT}
+              injectedJavaScriptBeforeContentLoaded={`${NATIVE_BRIDGE_SCRIPT}\n${nativeAuthCompletionScript()}`}
+              sharedCookiesEnabled
+              thirdPartyCookiesEnabled={false}
+              allowsBackForwardNavigationGestures={backGesture}
+              allowsLinkPreview={false}
+              setBuiltInZoomControls={false}
+              setSupportMultipleWindows
+              startInLoadingState
+              renderLoading={() => <StateView />}
+              renderError={() => <StateView error retry={() => webView.current?.reload()} />}
+              onLoadStart={({ nativeEvent }) => {
+                cancelScheduledDrain()
+                commitShell(webNavigationStarted(shellRef.current, Platform.OS, nativeEvent.loading))
+              }}
+              onLoad={({ nativeEvent }) => {
+                finishWebLoad(nativeEvent.url)
+              }}
+              onError={({ nativeEvent }) => {
+                captureNativeException('web_load', new Error(`WebView load failed: ${nativeEvent.description} (code ${nativeEvent.code})`))
+                cancelScheduledDrain()
+                commitShell(webLoadFailed(shellRef.current))
+              }}
+              onHttpError={({ nativeEvent }) => {
+                captureNativeException('web_http', new Error(`WebView HTTP error ${nativeEvent.statusCode}: ${nativeEvent.description}`))
+                cancelScheduledDrain()
+                commitShell(webLoadFailed(shellRef.current))
+              }}
+              onContentProcessDidTerminate={recoverRenderer}
+              onRenderProcessGone={recoverRenderer}
+              onMessage={({ nativeEvent }) => {
+                if (handleNativeActionMessage(nativeEvent.data)) return
+                const result = (() => {
+                  try {
+                    return JSON.parse(nativeEvent.data) as {
+                      version?: unknown
+                      type?: unknown
+                      id?: unknown
+                      ok?: unknown
+                      retryable?: unknown
+                      url?: unknown
+                    }
+                  } catch {
+                    return null
+                  }
+                })()
+                if (result?.version === 3 && result.type === 'native-navigation-result' && typeof result.url === 'string') {
+                  const acknowledged = navigationDeliverySucceeded(shellRef.current, result.url)
+                  if (acknowledged !== shellRef.current) commitAndDrain(acknowledged)
+                  return
                 }
-              } catch {
-                return null
-              }
-            })()
-            if (result?.version === 2 && result.type === 'native-auth-result' && typeof result.id === 'string') {
-              if (result.ok === true) {
-                const delivering = shellRef.current.delivering
-                if (delivering?.kind !== 'auth' || delivering.callback.id !== result.id) return
-                commitShell(authDeliverySucceeded(shellRef.current, result.id))
-                void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY).then(
-                  () => webView.current?.injectJavaScript(nativeAuthConsumeScript(delivering.callback)),
-                  (error) => captureNativeException('native_auth_cleanup', error),
-                )
-              } else if (result.retryable === true) {
-                const deferred = authDeliveryDeferred(shellRef.current, result.id)
-                if (deferred === shellRef.current) return
-                commitShell(deferred)
-                Alert.alert(
-                  'Sign-in is waiting',
-                  'Praetorium could not finish the secure sign-in exchange. Check your connection and retry.',
-                  [{ text: 'Retry', onPress: () => commitAndDrain(shellRef.current) }],
-                  { cancelable: false },
-                )
-              } else {
-                const failed = authDeliveryFailed(shellRef.current, result.id)
-                if (failed === shellRef.current) return
-                commitAndDrain(failed)
-                void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
-                Alert.alert('Sign-in did not finish', 'The secure sign-in code expired. Try again.')
-              }
-              return
-            }
-            void openNativeAuth(nativeEvent.data)
-          }}
-          onNavigationStateChange={updateNavigation}
-          onShouldStartLoadWithRequest={({ url }) => handleUrl(url)}
-          onOpenWindow={({ nativeEvent }) => {
-            void handleNativeAction({ kind: 'open-window', url: nativeEvent.targetUrl })
-          }}
-        />
-      ) : (
-        <StateView />
-      )}
+                if (result?.version === 2 && result.type === 'native-auth-result' && typeof result.id === 'string') {
+                  if (result.ok === true) {
+                    const delivering = shellRef.current.delivering
+                    if (delivering?.kind !== 'auth' || delivering.callback.id !== result.id) return
+                    commitShell(authDeliverySucceeded(shellRef.current, result.id))
+                    void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY).then(
+                      () => webView.current?.injectJavaScript(nativeAuthConsumeScript(delivering.callback)),
+                      (error) => captureNativeException('native_auth_cleanup', error),
+                    )
+                  } else if (result.retryable === true) {
+                    const deferred = authDeliveryDeferred(shellRef.current, result.id)
+                    if (deferred === shellRef.current) return
+                    commitShell(deferred)
+                    Alert.alert(
+                      'Sign-in is waiting',
+                      'Praetorium could not finish the secure sign-in exchange. Check your connection and retry.',
+                      [{ text: 'Retry', onPress: () => commitAndDrain(shellRef.current) }],
+                      { cancelable: false },
+                    )
+                  } else {
+                    const failed = authDeliveryFailed(shellRef.current, result.id)
+                    if (failed === shellRef.current) return
+                    commitAndDrain(failed)
+                    void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
+                    Alert.alert('Sign-in did not finish', 'The secure sign-in code expired. Try again.')
+                  }
+                  return
+                }
+                void openNativeAuth(nativeEvent.data)
+              }}
+              onNavigationStateChange={updateNavigation}
+              onShouldStartLoadWithRequest={({ url }) => handleUrl(url)}
+              onOpenWindow={({ nativeEvent }) => {
+                void handleNativeAction({ kind: 'open-window', url: nativeEvent.targetUrl })
+              }}
+            />
+          ) : (
+            <StateView />
+          )}
+          {moreOpen ? (
+            <View accessibilityRole="menu" style={styles.moreScreen}>
+              <Text style={styles.moreHeading}>DESTINATIONS</Text>
+              <View style={styles.moreList}>
+                {moreDestinations.map((item) => {
+                  const active = tabIsActive(pathOf(currentUrl), item.path)
+                  return (
+                    <Pressable
+                      key={item.path}
+                      accessibilityRole="menuitem"
+                      onPress={() => {
+                        if (active) setMoreOpen(false)
+                        else {
+                          pendingMoreDestination.current = item.path
+                          navigateApplication(new URL(item.path, APP_URL).href)
+                        }
+                      }}
+                      style={({ pressed }) => [styles.moreItem, active && styles.moreItemActive, pressed && styles.tabPressed]}
+                    >
+                      <Text style={[styles.moreItemSymbol, active && styles.activeTabText]}>{item.symbol}</Text>
+                      <Text style={[styles.moreItemLabel, active && styles.activeTabText]}>{item.label}</Text>
+                      <Text aria-hidden style={styles.moreChevron}>
+                        ›
+                      </Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
+            </View>
+          ) : null}
+        </View>
+        <View accessibilityRole="tablist" style={[styles.tabs, landscape && styles.tabsLandscape]}>
+          {tabs.map((tab) => {
+            const destinationActive = tabIsActive(pathOf(currentUrl), tab.path)
+            const active = !moreOpen && destinationActive
+            return (
+              <Pressable
+                key={tab.path}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+                onPress={() => {
+                  if (moreOpen && !destinationActive) pendingMoreDestination.current = tab.path
+                  else setMoreOpen(false)
+                  navigateApplication(new URL(tab.path, APP_URL).href)
+                }}
+                style={({ pressed }) => [
+                  styles.tab,
+                  landscape && styles.tabLandscape,
+                  active && styles.activeTab,
+                  active && landscape && styles.activeTabLandscape,
+                  pressed && styles.tabPressed,
+                ]}
+              >
+                <Text style={[styles.tabSymbol, active && styles.activeTabText]}>{tab.symbol}</Text>
+                <Text numberOfLines={1} style={[styles.tabLabel, active && styles.activeTabText]}>
+                  {tab.label}
+                </Text>
+              </Pressable>
+            )
+          })}
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: moreOpen || moreDestinations.some((item) => tabIsActive(pathOf(currentUrl), item.path)) }}
+            onPress={() => setMoreOpen(true)}
+            style={({ pressed }) => [
+              styles.tab,
+              landscape && styles.tabLandscape,
+              (moreOpen || moreDestinations.some((item) => tabIsActive(pathOf(currentUrl), item.path))) && styles.activeTab,
+              (moreOpen || moreDestinations.some((item) => tabIsActive(pathOf(currentUrl), item.path))) &&
+                landscape &&
+                styles.activeTabLandscape,
+              pressed && styles.tabPressed,
+            ]}
+          >
+            <Text
+              style={[
+                styles.tabSymbol,
+                styles.moreSymbol,
+                (moreOpen || moreDestinations.some((item) => tabIsActive(pathOf(currentUrl), item.path))) && styles.activeTabText,
+              ]}
+            >
+              •••
+            </Text>
+            <Text
+              style={[
+                styles.tabLabel,
+                (moreOpen || moreDestinations.some((item) => tabIsActive(pathOf(currentUrl), item.path))) && styles.activeTabText,
+              ]}
+            >
+              More
+            </Text>
+          </Pressable>
+        </View>
+      </View>
     </SafeAreaView>
   )
 }
@@ -517,12 +771,102 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: BACKGROUND,
+    backgroundColor: CHROME_BACKGROUND,
   },
+  body: { flex: 1 },
+  bodyLandscape: { flexDirection: 'row-reverse' },
+  content: { flex: 1, backgroundColor: BACKGROUND },
   webView: {
     flex: 1,
     backgroundColor: BACKGROUND,
   },
+  header: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2b3035',
+    backgroundColor: CHROME_BACKGROUND,
+  },
+  logo: { width: 30, height: 30 },
+  headerAction: { width: 30, height: 40, alignItems: 'flex-start', justifyContent: 'center' },
+  backSymbol: { color: '#eceff1', fontSize: 36, fontWeight: '300', lineHeight: 38 },
+  brand: { flex: 1, color: '#eceff1', fontSize: 20, fontWeight: '800', letterSpacing: 1 },
+  headerUtility: { width: 34, height: 40, alignItems: 'center', justifyContent: 'center' },
+  searchIcon: { width: 22, height: 22 },
+  searchLens: { width: 14, height: 14, borderWidth: 2.5, borderColor: '#c8c1ae', borderRadius: 7 },
+  searchHandle: {
+    position: 'absolute',
+    right: 1,
+    bottom: 3,
+    width: 9,
+    height: 2.5,
+    borderRadius: 2,
+    backgroundColor: '#c8c1ae',
+    transform: [{ rotate: '45deg' }],
+  },
+  account: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#4a535a',
+    borderRadius: 17,
+  },
+  accountText: { color: '#c8c1ae', fontSize: 12, fontWeight: '800' },
+  accountAvatar: { width: 32, height: 32, borderRadius: 16 },
+  tabs: {
+    height: 66,
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#2b3035',
+    backgroundColor: CHROME_BACKGROUND,
+  },
+  tabsLandscape: {
+    width: 78,
+    height: 'auto',
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
+    paddingTop: 6,
+    borderTopWidth: 0,
+    borderRightWidth: 1,
+    borderRightColor: '#2b3035',
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    borderTopWidth: 2,
+    borderTopColor: 'transparent',
+  },
+  tabLandscape: { flex: 0, width: '100%', height: 58, borderTopWidth: 0, borderLeftWidth: 2, borderLeftColor: 'transparent' },
+  activeTab: { borderTopColor: '#7eaa9e', backgroundColor: '#181c20' },
+  activeTabLandscape: { borderTopColor: 'transparent', borderLeftColor: '#7eaa9e' },
+  tabPressed: { opacity: 0.65 },
+  tabSymbol: { color: '#737b76', fontSize: 20, fontWeight: '700' },
+  moreSymbol: { fontSize: 16, letterSpacing: 1 },
+  tabLabel: { color: '#737b76', fontSize: 9, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
+  activeTabText: { color: '#7eaa9e' },
+  moreScreen: { position: 'absolute', inset: 0, paddingHorizontal: 16, paddingTop: 24, backgroundColor: BACKGROUND },
+  moreHeading: { marginBottom: 10, color: '#737b76', fontSize: 11, fontWeight: '800', letterSpacing: 1.4 },
+  moreList: { borderWidth: 1, borderColor: '#2b3035', backgroundColor: '#15191c' },
+  moreItem: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#2b3035',
+  },
+  moreItemActive: { backgroundColor: '#1b2223' },
+  moreItemSymbol: { width: 28, color: '#c8c1ae', fontSize: 22, textAlign: 'center' },
+  moreItemLabel: { color: '#eceff1', fontSize: 16, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
+  moreChevron: { marginLeft: 'auto', color: '#737b76', fontSize: 28, fontWeight: '300' },
   state: {
     position: 'absolute',
     top: 0,
