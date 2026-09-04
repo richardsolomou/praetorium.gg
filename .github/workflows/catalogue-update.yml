@@ -30,7 +30,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.0
+      # Baselines report here rather than fail. They measure agreement between sources this
+      # job does not control, so an upstream addition trips one and holds every unrelated
+      # part of the refresh back until two upstreams agree about a name again. A shortfall
+      # lands in the run summary and the `points` job still enforces the same numbers on a
+      # pull request, where a pinned snapshot makes a moved number our regression. Nothing
+      # here relaxes integrity: an unresolvable upstream or an incomplete snapshot still
+      # fails, as does the archive verification below.
       - name: Resolve and validate every upstream source
+        env:
+          CATALOGUE_BASELINES: report
         run: |
           pnpm catalogue:update
           pnpm catalogue:descriptions

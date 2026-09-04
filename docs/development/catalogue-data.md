@@ -8,7 +8,7 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 - The Game Datacards source extracts only `11th/gdc`; data for other games and editions is excluded from snapshots.
 - Mission cards are read from both sources: the rules source says when a payout is due and how a card's payouts relate, and the Game Datacards mission pack says what each one asks for. Game Datacards names army-construction choices; the rules source only adds semantics it uniquely carries. Nothing is joined by a fuzzy match.
 - `catalogue-data/` contains fetched data and is gitignored. Game data and copied rules text never enter version control.
-- An hourly automation checks upstream revisions and publishes a complete immutable snapshot. It replaces the remote `current.json` pointer only after reading and verifying the published archive.
+- An hourly automation checks upstream revisions and publishes a complete immutable snapshot. It replaces the remote `current.json` pointer only after reading and verifying the published archive. A source disagreeing with another about a name is reported there rather than blocking the publish; see [Points ratchet](#points-ratchet).
 - Running instances check that pointer hourly, download a changed snapshot from the shared store, and swap it into place atomically. They never contact an upstream data provider.
 - Community-data requests have a per-attempt timeout and retry only transient network failures, timeouts, rate limits, and server errors. Checksums and invalid data fail immediately.
 - `src/server/sync.ts` fetches upstream data only for the snapshot publisher. `src/server/catalogueSnapshot.ts` owns packing, verification, and instance downloads.
@@ -125,6 +125,10 @@ Legends reference entries are compared only with catalogue entries explicitly ma
 The MFM YAML does not expose the source IDs carried by 40kdc's `mfm` references, so the points ratchet reports its accepted unit-name joins as fallbacks. A 40kdc MFM reference becomes usable only when the paired points record exposes that identity.
 
 Evaluator work begins with the generated selection because a mismatch can come from the evaluator, the catalogue, or the check harness.
+
+`CATALOGUE_BASELINES=report` turns every pinned baseline from a failure into a reported shortfall, and only the snapshot publisher sets it. A baseline says "this got worse" next to something to compare against, and a pull request has that: one pinned snapshot measured against both revisions, so a number that moved is a number this repository moved. The publisher has no comparison, because fetching data nobody here controls is the whole job. There the same number moves when two sources disagree about a name, and refusing to publish holds every unrelated part of the refresh back until they agree again. So it records the shortfall in the run summary and publishes. `baselineShortfall` in `scripts/baselines.ts` is the one place that decides which of the two a run is doing.
+
+That covers agreement between sources and nothing else. An unresolvable upstream, an incomplete snapshot, and an archive that does not verify after upload all still fail the publisher.
 
 `just coverage out.json` (or `pnpm catalogue:coverage out.json`) writes everything the app can say about the synced data — every datasheet's profiles, abilities, model cards, wargear and choices, every detachment's rules, enhancements and stratagems — and `--compare before.json` lists what an earlier snapshot had that this one does not. Source-reading changes compare a `main` snapshot with the changed snapshot so a missing field appears by name. Both runs use the same `revision.json`, because `app()` otherwise refreshes the snapshot from the shared store at startup.
 

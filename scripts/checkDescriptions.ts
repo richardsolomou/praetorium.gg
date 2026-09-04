@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { baselineShortfall } from './baselines'
 import { detachmentCatalogueDetail } from '../src/server/catalogueDescriptions'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { routeSlug } from '../src/core/slug'
@@ -86,7 +87,7 @@ if (process.argv.includes('--details')) {
  * match is a guess.
  */
 if (missing.detachmentRules.length || missing.enhancements.length || missing.stratagems.length > 35) {
-  throw new Error('description coverage fell below the pinned catalogue baseline')
+  baselineShortfall('description coverage fell below the pinned catalogue baseline')
 }
 
 for (const name of ['Hand of the Dynasty', 'Skyshroud Spearhead', 'The Phaeronâ€™s Armoury']) {
@@ -95,6 +96,6 @@ for (const name of ['Hand of the Dynasty', 'Skyshroud Spearhead', 'The Phaeronâ€
     missing.enhancements.some((entry) => entry.detachment === name) ||
     missing.stratagems.some((entry) => entry.detachment === name)
   ) {
-    throw new Error(`${name} is missing description data`)
+    baselineShortfall(`${name} is missing description data`)
   }
 }
