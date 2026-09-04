@@ -8,7 +8,6 @@ import { createLeague } from '../../../server/functions'
 import { leaguesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { LeagueFormFields, type LeagueFormValue } from './LeagueForm'
-import { LeagueEventRuleFields, type LeagueEventRuleValue } from './LeagueEventRuleFields'
 
 export function CreateLeague() {
   const [open, setOpen] = useState(false)
@@ -19,18 +18,10 @@ export function CreateLeague() {
     admission: 'approval',
     playerLimit: null,
   })
-  const [eventRule, setEventRule] = useState<LeagueEventRuleValue>({ format: '1v1', rosterLimit: 2_000 })
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useMutation({
-    mutationFn: () =>
-      createLeague({
-        data: {
-          ...value,
-          ...eventRule,
-          recurring: true,
-        },
-      }),
+    mutationFn: () => createLeague({ data: value }),
     onSuccess: async ({ token, eventToken }) => {
       await queryClient.invalidateQueries({ queryKey: leaguesQuery().queryKey })
       setOpen(false)
@@ -50,7 +41,9 @@ export function CreateLeague() {
       >
         <DialogHeader>
           <DialogTitle className="text-2xl uppercase">Create league</DialogTitle>
-          <DialogDescription className="text-dim">Open roster registration for a league, tournament, or private event.</DialogDescription>
+          <DialogDescription className="text-dim">
+            Open registration for a league, tournament, or club night. You choose the game format and points once it exists.
+          </DialogDescription>
         </DialogHeader>
         <form
           className="space-y-4"
@@ -59,15 +52,7 @@ export function CreateLeague() {
             create.mutate()
           }}
         >
-          <LeagueFormFields
-            idPrefix="create-league"
-            value={value}
-            minimumPlayerLimit={eventRule.format === '2v2' ? 4 : eventRule.format === '2v1' ? 3 : 2}
-            evenPlayerLimit={eventRule.format === '2v2'}
-            disabled={create.isPending}
-            onChange={setValue}
-          />
-          <LeagueEventRuleFields value={eventRule} disabled={create.isPending} onChange={setEventRule} />
+          <LeagueFormFields idPrefix="create-league" value={value} disabled={create.isPending} onChange={setValue} />
           {create.isPending ? <output className="sr-only">Creating league…</output> : null}
           {create.error ? <p className="text-sm text-destructive">{errorMessage(create.error)}</p> : null}
           <DialogFooter>

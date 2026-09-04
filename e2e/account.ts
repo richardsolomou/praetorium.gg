@@ -132,8 +132,8 @@ export async function createBattle(
   } = {},
 ) {
   await page.goto('/battles')
-  const dialog = page.getByRole('dialog', { name: 'Start a casual battle' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New casual battle' }).click())
+  const dialog = page.getByRole('dialog', { name: 'Start a battle' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New battle' }).click())
   if (secondOpponent) await page.getByRole('button', { name: /^Doubles/ }).click()
   else if (ally) {
     await page.getByRole('button', { name: /^Solo vs pair/ }).click()
@@ -162,7 +162,7 @@ export async function createBattle(
     await expect(matchup).toContainText(player)
   }
   await beforeCreate?.(dialog)
-  await page.getByRole('button', { name: 'Create casual battle' }).click()
+  await page.getByRole('button', { name: 'Start battle' }).click()
   await page.waitForURL(/\/battles\/[^/]+$/)
   return page.url()
 }

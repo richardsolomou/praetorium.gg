@@ -159,7 +159,7 @@ export function sides(view: BattleView, missions: readonly { side: number; missi
         disposition: captain.disposition ?? null,
         dispositionChoices: captain.dispositionChoices ?? [],
         paintedPoints,
-        total: captain.primary + captain.secondary + (view.status === 'finished' ? paintedPoints : 0),
+        total: captain.primary + captain.secondary + (view.status === 'setup' ? 0 : paintedPoints),
         rounds: captain.rounds,
         primaryCard: captain.primaryCard,
         secondaries: unsettledFirst(captain.secondaries),

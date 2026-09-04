@@ -6,7 +6,9 @@ A league is a lightweight organized-play home for one or more events. An event c
 
 Every league starts with Event 1, exposes its event history, and lets the organizer start another event after the current event reveals. A league used once remains a single-event league without requiring a separate mode.
 
-Each event starts with no entrants. A player who joined an earlier event must join again, so returning players and new players follow the same registration path. League identity, organizer, visibility, admission policy, player limit, and invite link persist between events. The organizer chooses a fresh battle format and roster size when starting each event. Entrants, roster-size assignments, roster snapshots, and reveal state do not carry between events.
+Each event starts with no entrants. A player who joined an earlier event must join again, so returning players and new players follow the same registration path. League identity, organizer, visibility, admission policy, player limit, and invite link persist between events. Entrants, roster-size assignments, roster snapshots, and reveal state do not carry between events.
+
+Creating a league asks only who may see it and who may join it. Event 1 opens as a 1v1 at the default roster size, and the organizer settles the battle format and roster size on the league page. Later events take theirs when the organizer starts them.
 
 A 1v1 event gives every entrant the event's roster size automatically. A 2v1 event uses a 2,000-point solo roster against two 1,000-point allied rosters. The organizer assigns each accepted entrant either the solo or allied size. The assignment belongs to that event entry, so the same player may have a different size in another event. A 2v1 event needs at least one solo entrant and two allied entrants, but it may contain any larger mix because it does not create pairings.
 
@@ -18,7 +20,9 @@ Starting an event creates new rows rather than clearing the previous event. Prio
 
 ## Organizer controls
 
-The organizer can rename a league, change its details, and switch its visibility at any time. Admission can change only before anyone has joined the current event. While registration is open, the player limit cannot be lower than the accepted entrant count or the three places a 2v1 event needs. It can change freely between events so a league can move between 1v1 and 2v1. These league properties govern the current and future registration without rewriting earlier event entries, sealed roster snapshots, reveal state, or battles.
+The organizer can rename a league, change its details, switch its visibility, and switch its admission at any time. Turning approval into automatic entry accepts the requests already waiting, oldest first, until the configured places run out. While registration is open, the player limit cannot be lower than the accepted entrant count or the three places a 2v1 event needs. It can change freely between events so a league can move between 1v1 and 2v1. These league properties govern the current and future registration without rewriting earlier event entries, sealed roster snapshots, reveal state, or battles.
+
+The open event's battle format and roster size change until its first roster is sealed, and the change clears every roster-size assignment and team, which were made under rules that no longer apply. After the first seal they are fixed for that event; a different shape is the next event's to take. A change is refused when the league's player limit cannot seat the shape.
 
 Deleting a league permanently deletes its event history, entries, and sealed league roster snapshots. Battles already created from those snapshots remain available because their command logs contain their own copies.
 
@@ -26,7 +30,7 @@ Deleting a league permanently deletes its event history, entries, and sealed lea
 
 Public leagues appear in the leagues index. Private leagues are unlisted and shared by their stable opaque link. Both use the same detail page and require an account to join or submit. A signed-in player continues to see a private league after participating in an earlier event, even before joining the current event.
 
-The organizer chooses automatic entry or approval when creating the league. Approval events create pending entries. The organizer may accept, reject, or remove entrants until reveal. An event accepts at most 128 active entries and may use the league's lower accepted-player limit. Approval requests do not consume those configured places, but total active requests remain bounded at 128. A configured player limit makes every place a reveal requirement.
+The organizer chooses automatic entry or approval when creating the league. Approval events create pending entries, except for the organizer's own entry, which is accepted outright because approving oneself asks nothing. The organizer may accept, reject, or remove entrants until reveal. An event accepts at most 128 active entries and may use the league's lower accepted-player limit. Approval requests do not consume those configured places, but total active requests remain bounded at 128. A configured player limit makes every place a reveal requirement.
 
 ## Roster sealing
 

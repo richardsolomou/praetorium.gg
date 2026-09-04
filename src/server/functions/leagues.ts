@@ -17,6 +17,7 @@ import {
   openLeagueSchema,
   submitLeagueRosterSchema,
   tokenSchema,
+  updateLeagueEventSchema,
   updateLeagueSchema,
 } from '../schemas'
 
@@ -47,12 +48,7 @@ export const createLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const result = await app().service.createLeague(player.id, data)
-      await app().telemetry.capture(player.id, 'league_created', {
-        visibility: data.visibility,
-        admission: data.admission,
-        format: data.format,
-        roster_limit: data.rosterLimit,
-      })
+      await app().telemetry.capture(player.id, 'league_created', { visibility: data.visibility, admission: data.admission })
       return result
     }),
   )
@@ -116,6 +112,17 @@ export const createLeagueEvent = createServerFn({ method: 'POST' })
       const result = await app().service.createLeagueEvent(data.token, player.id, data)
       await app().telemetry.capture(player.id, 'league_event_created', { format: data.format, roster_limit: data.rosterLimit })
       return result
+    }),
+  )
+
+export const updateLeagueEvent = createServerFn({ method: 'POST' })
+  .validator(updateLeagueEventSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const result = await app().service.updateLeagueEvent(data.token, player.id, data, data.eventToken)
+      await app().telemetry.capture(player.id, 'league_event_updated', { format: result.format, roster_limit: result.rosterLimit })
+      return null
     }),
   )
 

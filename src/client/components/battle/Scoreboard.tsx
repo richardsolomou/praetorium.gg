@@ -1,8 +1,9 @@
 import { Link } from '@tanstack/react-router'
 import type { BattleView } from '../../../core/battleView'
+import { battleResult } from '../../battleOutcome'
 import { completedSideRound } from '../../battleProgress'
 import { PlayerAvatar } from '../PlayerAvatar'
-import type { Side } from '../../sides'
+import { sideName, type Side } from '../../sides'
 import { tint } from './tints'
 
 type Props = { view: BattleView; sides: Side[]; outcome: string | null }
@@ -22,8 +23,13 @@ export function Scoreboard({ view, sides, outcome }: Props) {
       aria-label="Battle scoreboard"
       className="sticky top-12 z-20 -mx-3 border-b border-edge bg-void/95 px-3 py-2 backdrop-blur"
     >
+      {/*
+       * A finished battle gives the whole strip to its result on a phone. Each side's
+       * score is already at the top of its own panel a thumb away, and three columns
+       * left the winner's name fighting the numbers either side of it for the width.
+       */}
       <div
-        className={`mx-auto grid items-center gap-3 sm:gap-6 ${
+        className={`mx-auto grid items-center gap-3 sm:gap-6 ${finished ? 'max-sm:grid-cols-1' : ''} ${
           sides.length > 1 ? 'max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'max-w-3xl grid-cols-[minmax(0,1fr)_auto]'
         }`}
       >
@@ -36,14 +42,12 @@ export function Scoreboard({ view, sides, outcome }: Props) {
               side.armies.map((army) => army.playerId),
             )}
             align={position === 0 ? 'start' : 'end'}
+            className={finished ? 'max-sm:hidden' : ''}
           />
         ))}
-        <div className="order-2 min-w-28 text-center">
+        <div className={`order-2 text-center ${finished ? 'min-w-32 sm:min-w-44' : 'min-w-28'}`}>
           {finished ? (
-            <>
-              <p className="eyebrow">Result</p>
-              <h1 className="text-sm leading-tight font-bold text-balance uppercase">{outcome}</h1>
-            </>
+            <Result view={view} sides={sides} outcome={outcome} />
           ) : (
             <>
               <p className="eyebrow">
@@ -63,11 +67,65 @@ export function Scoreboard({ view, sides, outcome }: Props) {
   )
 }
 
-function SideScore({ side, completedRound, align }: { side: Side; completedRound: number; align: 'start' | 'end' }) {
+/**
+ * The end of the battle, said the way the table says it out loud.
+ *
+ * The winner is named in their own tint under their own picture, because that is what
+ * the two sides have been reading all game, and the score sits under the name rather
+ * than inside the sentence. The heading still reads as one line for a screen reader.
+ */
+function Result({ view, sides, outcome }: Props) {
+  const result = battleResult(sides, view)
+  const winner = result.kind === 'win' ? sides.find((side) => side.index === result.side.index) : undefined
+  if (!winner || result.kind !== 'win') {
+    return (
+      <>
+        <p className="eyebrow">Result</p>
+        <h1 className="text-sm leading-tight font-bold text-balance uppercase">{outcome}</h1>
+      </>
+    )
+  }
+  const colours = tint(winner.index)
+  return (
+    <>
+      <p className="eyebrow">Result</p>
+      <div className="mt-0.5 flex justify-center -space-x-2" aria-hidden>
+        {winner.armies.map((army) => (
+          <PlayerAvatar
+            key={army.playerId}
+            name={army.playerName}
+            image={army.playerImage}
+            className={`size-8 border-2 border-void text-xs sm:size-10 sm:text-sm ${colours.ring}`}
+          />
+        ))}
+      </div>
+      <h1 className="mt-1 text-base leading-tight font-bold text-balance uppercase sm:text-lg">
+        <span className={colours.text}>{sideName(winner)}</span> <span className="text-dim">{result.verb}</span>{' '}
+        {result.score ? (
+          <span className="readout block text-2xl leading-none sm:text-3xl">{result.score}</span>
+        ) : (
+          <span className="text-dim">{result.detail}</span>
+        )}
+      </h1>
+    </>
+  )
+}
+
+function SideScore({
+  side,
+  completedRound,
+  align,
+  className = '',
+}: {
+  side: Side
+  completedRound: number
+  align: 'start' | 'end'
+  className?: string
+}) {
   const colours = tint(side.index)
   const end = align === 'end'
   return (
-    <div data-side-score={side.index} className={`min-w-0 ${end ? 'order-3' : 'order-1'}`}>
+    <div data-side-score={side.index} className={`min-w-0 ${end ? 'order-3' : 'order-1'} ${className}`}>
       {/* Capped, or the round strip stretches across a wide column and stops reading as five rounds. */}
       <div className={`min-w-0 max-w-64 ${end ? 'ml-auto text-right' : ''}`}>
         {/*

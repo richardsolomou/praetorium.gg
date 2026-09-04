@@ -1657,12 +1657,17 @@ describe('battle management', () => {
     expect(state.players[0]?.primary).toBe(5)
   })
 
-  it('holds the painted-army bonus back while the battle is running', () => {
+  it('pays the painted-army bonus as the battle begins', () => {
     const state = reduceBattle(PLAYERS, log([ALICE, { kind: 'set-painted', painted: true }], ...started()))
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]).toMatchObject({ painted: true, paintedPoints: 10, total: 10 })
+  })
+
+  it('keeps the painted-army bonus out of the total while the table is still setting up', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, { kind: 'set-painted', painted: true }]))
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]).toMatchObject({ painted: true, paintedPoints: 10, total: 0 })
   })
 
-  it('adds the painted-army bonus to the total once the battle is over', () => {
+  it('carries the painted-army bonus into the finished total', () => {
     const state = reduceBattle(
       PLAYERS,
       log([ALICE, { kind: 'set-painted', painted: true }], ...started(), [ALICE, { kind: 'end-battle', reason: 'finished-early' }]),

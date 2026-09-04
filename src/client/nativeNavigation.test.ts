@@ -3,7 +3,17 @@ import { nativeNavigation } from './nativeNavigation'
 
 describe('native application navigation', () => {
   it.each([
-    ['/rosters', { back: { href: '/', label: 'Back to home' }, section: 'rosters', title: 'Rosters' }],
+    ['/rosters', { section: 'rosters', title: 'Rosters' }],
+    ['/battles', { section: 'battles', title: 'Battles' }],
+    ['/leagues', { section: 'leagues', title: 'Leagues' }],
+    ['/factions', { section: 'factions', title: 'Factions' }],
+    ['/mission-packs', { section: 'missions', title: 'Mission packs' }],
+  ])('leaves %s without a back action, because it is the bottom of its tab', (path, expected) => {
+    expect(nativeNavigation(path)).toEqual(expected)
+  })
+
+  it.each([
+    ['/rosters', { section: 'rosters', title: 'Rosters' }],
     [
       '/rosters/army-id',
       { back: { href: '/rosters', label: 'Back to rosters', preferHistory: true }, section: 'rosters', title: 'Roster' },

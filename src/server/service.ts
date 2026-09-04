@@ -110,6 +110,12 @@ export class PraetoriumService {
     return this.repository.userById(id)
   }
 
+  /**
+   * A new league opens at the default duel size; its rules are the event's to change.
+   *
+   * Registration is what creation is for, so the shape of the games is asked once the
+   * league exists and only until an entrant seals a list against it.
+   */
   async createLeague(
     ownerId: string,
     input: {
@@ -118,39 +124,41 @@ export class PraetoriumService {
       visibility: LeagueVisibility
       admission: LeagueAdmission
       playerLimit: number | null
-      recurring?: boolean
-      format?: TableShape
-      rosterLimit?: number
     },
   ) {
-    const id = randomId()
     const token = randomToken()
-    const eventId = randomId()
     const eventToken = randomToken()
-    const format = leagueTableShape(input.format)
-    const rosterLimit = input.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
-    if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
-      throw new Response(`choose a supported ${format} roster size`, { status: 400 })
-    }
-    if (format === '2v1' && input.playerLimit !== null && input.playerLimit < 3) {
-      throw new Response('a 2v1 event needs at least three places', { status: 400 })
-    }
-    if (format === '2v2' && input.playerLimit !== null && (input.playerLimit < 4 || input.playerLimit % 2 !== 0)) {
-      throw new Response('a 2v2 event needs an even number of at least four places', { status: 400 })
-    }
     await this.repository.createLeague({
-      id,
+      id: randomId(),
       token,
-      eventId,
+      eventId: randomId(),
       eventToken,
       ownerId,
       ...input,
       recurring: true,
-      format,
-      rosterLimit,
+      format: '1v1',
+      rosterLimit: LEAGUE_DEFAULT_ROSTER_LIMIT,
       now: this.clock(),
     })
     return { token, eventToken }
+  }
+
+  async updateLeagueEvent(token: string, ownerId: string, rule: { format?: TableShape; rosterLimit?: number }, eventToken?: string) {
+    const format = leagueTableShape(rule.format)
+    const rosterLimit = rule.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
+    if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
+      throw new Response(`choose a supported ${format} roster size`, { status: 400 })
+    }
+    const result = await this.repository.updateLeagueEvent(token, ownerId, { format, rosterLimit }, eventToken)
+    if (result === 'updated') return { format, rosterLimit }
+    if (result === 'missing') throw new Response('no such league event', { status: 404 })
+    if (result === 'forbidden') throw new Response('only the organizer can change the event rules', { status: 403 })
+    if (result === 'closed') throw new Response('the event rules cannot change after reveal', { status: 409 })
+    if (result === 'sealed') throw new Response('the event rules cannot change once a roster is sealed', { status: 409 })
+    throw new Response(
+      format === '2v2' ? 'a 2v2 event needs an even number of at least four places' : 'a 2v1 event needs at least three places',
+      { status: 409 },
+    )
   }
 
   async createLeagueEvent(token: string, ownerId: string, rule: { format?: TableShape; rosterLimit?: number } = {}) {
@@ -204,7 +212,6 @@ export class PraetoriumService {
     if (result === 'updated') return
     if (result === 'missing') throw new Response('no such league', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can edit this league', { status: 403 })
-    if (result === 'joined') throw new Response('joining cannot change after someone has joined the current event', { status: 409 })
     if (result === 'team-minimum') throw new Response('the open team event needs a supported number of places', { status: 409 })
     throw new Response('the player limit cannot be lower than the accepted entrant count', { status: 409 })
   }
@@ -590,15 +597,15 @@ export class PraetoriumService {
           return faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon } : null
         }),
         detachments: state.players.map((player) => player.roster?.built?.detachments?.map((detachment) => detachment.name) ?? []),
-        // The painted bonus pays at the end of the battle, so a running score does not
-        // carry it yet — and it is the side's one bonus, the same as everywhere else.
-        // Onto the seat that already carries the side's score, because that is the seat
-        // every reader of this list picks out to ask what a side finished on.
+        // The painted bonus is paid when the battle begins, and it is the side's one
+        // bonus, the same as everywhere else. Onto the seat that already carries the
+        // side's score, because that is the seat every reader of this list picks out to
+        // ask what a side is on.
         scores: state.players.map(
           (player) =>
             player.primary +
             player.secondary +
-            (state.status === 'finished' && player.id === sideCaptain(state, player.side).id ? sidePaintedPoints(state, player.side) : 0),
+            (state.status !== 'setup' && player.id === sideCaptain(state, player.side).id ? sidePaintedPoints(state, player.side) : 0),
         ),
         mission: rules ? missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId) : null,
         deploymentId: state.deploymentId,

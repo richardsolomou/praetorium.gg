@@ -107,6 +107,8 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await expect(page).toHaveURL('/factions/necrons/datasheets')
   expect(await page.evaluate(() => history.state.__TSR_index)).toBe(0)
 
+  // Back belongs to the tab it is pressed in: a datasheet reached from a page outside
+  // the tabs returns to the datasheets, not to whatever the player was reading before.
   await page.goto('/support')
   await nativeHeader.getByRole('button', { name: 'Search Praetorium' }).click()
   await page.getByPlaceholder('Search everything…').fill('Overlord')
@@ -116,19 +118,17 @@ ${NATIVE_BRIDGE_SCRIPT}`,
     .click()
   await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
   await nativeHeader.getByRole('button', { name: 'Back to datasheets' }).click()
-  await expect(page).toHaveURL('/support')
+  await expect(page).toHaveURL('/factions/necrons/datasheets')
 
   await page.goto('/factions/necrons/datasheets/overlord')
   expect(await page.evaluate(() => history.state.__TSR_index)).toBe(0)
-  await page.evaluate(() => {
-    if (window.PraetoriumNative?.history) window.PraetoriumNative.history.canGoBack = true
-  })
   await nativeHeader.getByRole('button', { name: 'Back to datasheets' }).click()
-  await expect(page).toHaveURL('/support')
+  await expect(page).toHaveURL('/factions/necrons/datasheets')
 
+  // The bottom of a tab has nothing behind it, so it offers no Back action at all.
   await sections.getByRole('link', { name: 'Rosters' }).click()
-  await nativeHeader.getByRole('button', { name: 'Back to home' }).click()
-  await expect(page).toHaveURL('/')
+  await expect(page).toHaveURL('/rosters')
+  await expect(nativeHeader.getByRole('button', { name: /^Back/ })).toHaveCount(0)
 
   await page.setViewportSize({ width: 1024, height: 768 })
   await expect(sections).toHaveCSS('flex-direction', 'column')
@@ -507,10 +507,10 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('link', { name: 'Battles' }).click()
   await expect(page.getByRole('heading', { name: 'My battles' })).toBeVisible()
   await expect(page.getByText('No battles yet.')).toBeVisible()
-  await page.getByRole('button', { name: 'New casual battle' }).click()
+  await page.getByRole('button', { name: 'New battle' }).click()
   await page.getByRole('combobox', { name: 'Opponent' }).click()
   await page.getByRole('option', { name: 'Practice Opponent', exact: true }).click()
-  await page.getByRole('button', { name: 'Create casual battle' }).click()
+  await page.getByRole('button', { name: 'Start battle' }).click()
   await page.getByRole('link', { name: 'Battles' }).click()
   await expect(page.locator('[data-battle-shelf="Setup"]')).toBeVisible()
   await expect(page.getByText('Practice Opponent').first()).toBeVisible()

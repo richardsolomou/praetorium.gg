@@ -6,12 +6,20 @@ type NativeNavigation = {
   title: string
 }
 
+/**
+ * A tab's own top screen, which is the bottom of that tab.
+ *
+ * There is nothing behind it inside the tab, so it carries no Back action and the
+ * shell turns the iOS back gesture off there: the tabs, not a back stack, are how a
+ * player leaves one section for another.
+ */
+
 export function nativeNavigation(path: string, search: Record<string, unknown> = {}): NativeNavigation {
   const segments = path.split('/').filter(Boolean)
   const [root, id, child, detail] = segments
 
   if (root === 'rosters') {
-    if (!id) return { back: { href: '/', label: 'Back to home' }, section: 'rosters', title: 'Rosters' }
+    if (!id) return { section: 'rosters', title: 'Rosters' }
     if (typeof search.battle === 'string') {
       return {
         back: { href: `/battles/${search.battle}`, label: 'Back to battle', preferHistory: true },
@@ -32,15 +40,15 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
   if (root === 'battles') {
     return id
       ? { back: { href: '/battles', label: 'Back to battles', preferHistory: true }, section: 'battles', title: 'Battle' }
-      : { back: { href: '/', label: 'Back to home' }, section: 'battles', title: 'Battles' }
+      : { section: 'battles', title: 'Battles' }
   }
   if (root === 'leagues') {
     return id
       ? { back: { href: '/leagues', label: 'Back to leagues', preferHistory: true }, section: 'leagues', title: 'League' }
-      : { back: { href: '/', label: 'Back to home' }, section: 'leagues', title: 'Leagues' }
+      : { section: 'leagues', title: 'Leagues' }
   }
   if (root === 'factions') {
-    if (!id) return { back: { href: '/', label: 'Back to home' }, section: 'factions', title: 'Factions' }
+    if (!id) return { section: 'factions', title: 'Factions' }
     if (child === 'datasheets' && detail) {
       return {
         back: { href: `/factions/${id}/datasheets`, label: 'Back to datasheets', preferHistory: true },
@@ -64,7 +72,7 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
           section: 'missions',
           title: 'Mission pack',
         }
-      : { back: { href: '/', label: 'Back to home' }, section: 'missions', title: 'Mission packs' }
+      : { section: 'missions', title: 'Mission packs' }
   }
   if (root === 'mission-matchups') {
     return {

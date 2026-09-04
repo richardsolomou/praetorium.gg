@@ -131,12 +131,12 @@ describe('battle sides', () => {
     expect(sides(battle)[0]?.paintedPoints).toBe(10)
   })
 
-  it('keeps the battle-ready bonus out of a running score', () => {
+  it('carries the battle-ready bonus in a running score', () => {
     const battle = view([
       player({ id: 'ally', side: 0, primary: 20, secondary: 12, painted: true, paintedPoints: 10 }),
       player({ id: 'other', side: 0, primary: 20, secondary: 12, painted: true, paintedPoints: 10 }),
     ])
-    expect(sides(battle)[0]?.total).toBe(32)
+    expect(sides(battle)[0]?.total).toBe(42)
   })
 
   it('totals a side once from its shared score and its one bonus when the battle is over', () => {
