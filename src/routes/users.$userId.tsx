@@ -71,7 +71,7 @@ function PlayerProfile() {
         </div>
       </section>
       {me ? (
-        <div className="mx-auto max-w-5xl space-y-6 px-3 py-4 sm:px-4">
+        <div className="mx-auto max-w-5xl space-y-6 px-3 pt-4 pb-8 sm:px-4">
           <section>
             <p className="rubric border-b border-edge pb-2">{yourself ? 'Your record' : 'Your record against them'}</p>
             <div className="mt-3 grid grid-cols-3 gap-2">

@@ -1,5 +1,53 @@
 import { describe, expect, it } from 'vitest'
-import { addedKeywords, attachmentGroups, compositionCount, referenceAbilities } from './datasheet'
+import { addedKeywords, attachmentGroups, compositionCount, primaryUnitProfile, referenceAbilities, ruleProfileSections } from './datasheet'
+
+describe('primary unit profile', () => {
+  const profile = (id: string, name: string, type = 'Unit') => ({ id, name, type, values: [] })
+
+  it('uses the profile named after the datasheet instead of an optional model listed first', () => {
+    const outrider = profile('outrider', 'Outrider Squad')
+
+    expect(
+      primaryUnitProfile({
+        name: 'Outrider Squad',
+        profiles: [profile('atv', 'Invader ATV'), outrider, profile('sergeant', 'Outrider Sergeant')],
+      }),
+    ).toBe(outrider)
+  })
+
+  it('matches a singular primary model after an optional model', () => {
+    const guardian = profile('guardian', 'Storm Guardian')
+
+    expect(
+      primaryUnitProfile({
+        name: 'Storm Guardians',
+        profiles: [profile('platform', "Serpent's Scale Platform"), guardian],
+      }),
+    ).toBe(guardian)
+  })
+
+  it('prefers an exact profile over an earlier singular profile', () => {
+    const guardians = profile('guardians', 'Storm Guardians')
+
+    expect(
+      primaryUnitProfile({
+        name: 'Storm Guardians',
+        profiles: [profile('guardian', 'Storm Guardian'), guardians],
+      }),
+    ).toBe(guardians)
+  })
+
+  it('falls back to the first unit profile when none matches the datasheet name', () => {
+    const champion = profile('champion', 'Aspiring Champion')
+
+    expect(
+      primaryUnitProfile({
+        name: 'Chosen',
+        profiles: [profile('weapon', 'Boltgun', 'Ranged Weapons'), champion, profile('chosen', 'Chosen Warrior')],
+      }),
+    ).toBe(champion)
+  })
+})
 
 describe('datasheet composition count', () => {
   it('adds fixed and ranged model groups', () => {
@@ -15,6 +63,27 @@ describe('datasheet composition count', () => {
       compositionCount(['**1 Shock Trooper Sergeant and 9 Shock Troopers**', 'OR', '**2 Shock Trooper Sergeants and 18 Shock Troopers**']),
     ).toBe('10–20 models')
   })
+})
+
+it('groups rule profiles by their catalogue type', () => {
+  const orders = {
+    id: 'orders',
+    name: 'Orders',
+    type: 'Orders',
+    values: [{ name: 'Orders', value: 'This Officer can issue 2 Orders.' }],
+  }
+  const doctrine = {
+    id: 'doctrine',
+    name: 'Decisive Command',
+    type: 'Hero of Hades Hive',
+    values: [{ name: 'Description', value: 'Issue one Order.' }],
+  }
+  expect(
+    ruleProfileSections([{ id: 'unit', name: 'Commander', type: 'Unit', values: [{ name: 'M', value: '10"' }] }, orders, doctrine]),
+  ).toEqual([
+    { title: 'Orders', profiles: [orders] },
+    { title: 'Hero of Hades Hive', profiles: [doctrine] },
+  ])
 })
 
 describe('datasheet abilities', () => {

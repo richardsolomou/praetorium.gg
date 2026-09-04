@@ -1,4 +1,4 @@
-import { english as english_, type MissionPack, readMissionPacks } from './missionPacks'
+import { english as english_, type MissionPack, missionCards, readMissionPacks } from './missionPacks'
 
 /**
  * What each payout on a mission card asks for, in the words the pack prints.
@@ -20,7 +20,7 @@ export function criteriaIn(packs: readonly MissionPack[]): Map<string, Payout[]>
   // A name in two packs is two cards until proven otherwise, so neither is used.
   const contested = new Set<string>()
   for (const pack of packs) {
-    for (const card of cardsIn(pack)) {
+    for (const card of missionCards(pack)) {
       const name = cardName(card)
       const payouts = payoutsIn(card)
       if (!name || !payouts.length) continue
@@ -53,14 +53,6 @@ export function pairCriteria(awards: readonly { vp: number }[], payouts: readonl
 
 /** Cards are keyed by name because the two sources give them unrelated ids. */
 export const criteriaKey = (name: string) => name.toLocaleLowerCase().replaceAll(/\s+/g, ' ').trim()
-
-function cardsIn(pack: unknown): Record<string, unknown>[] {
-  if (!pack || typeof pack !== 'object') return []
-  return ['primaryMissions', 'secondaryMissions'].flatMap((field) => {
-    const cards: unknown = (pack as Record<string, unknown>)[field]
-    return Array.isArray(cards) ? cards.filter((card): card is Record<string, unknown> => Boolean(card) && typeof card === 'object') : []
-  })
-}
 
 function cardName(card: Record<string, unknown>): string | null {
   const english = english_(card.name)

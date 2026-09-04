@@ -1,5 +1,232 @@
 # praetorium
 
+## 0.54.0
+
+### Minor Changes
+
+- deb571d: End a battle on the winner's name, picture and score, with confetti on the winning players' own devices.
+- deb571d: Ask only who can see and join a new league, and set its battle format and points on the league page until the first roster is sealed.
+
+### Patch Changes
+
+- deb571d: Score the battle ready bonus as the battle begins, the way the current rules pay it.
+- deb571d: Delete a battle from the home page, without opening it first.
+- deb571d: Drop the note repeating that a finished battle is finished.
+- deb571d: Show a detachment enhancement's ability on a datasheet only once the enhancement is taken.
+- deb571d: Accept the organizer into their own league without asking them to approve themselves.
+- deb571d: Draw the league event list as buttons with their status beside them, and say what a league page means in the words a player uses.
+- deb571d: Let a league organizer change visibility and joining after players have joined, accepting the waiting requests when joining becomes automatic.
+- deb571d: Keep the application's Back action and the iOS back gesture inside the open tab, and offer neither at the bottom of one.
+- deb571d: Open every battle from one New battle button, and say clearly when a league event is waiting for that matchup.
+- deb571d: Shorten the battle events panel so the rest of the battle facts stay in view.
+
+## 0.53.8
+
+### Patch Changes
+
+- 06262a1: Show unconditional weapon abilities granted by a detachment on eligible units.
+
+## 0.53.7
+
+### Patch Changes
+
+- cc1cf40: Keep the unit picker available when opening saved 500-point King of the Colosseum rosters.
+- cc1cf40: Count attached datasheets as one unit in roster summaries.
+
+## 0.53.6
+
+### Patch Changes
+
+- 72f16b4: Keep loadout choices available when another current selection temporarily closes them.
+
+## 0.53.5
+
+### Patch Changes
+
+- 8d8b7af: Allow squads to take their full special weapon allowance.
+
+## 0.53.4
+
+### Patch Changes
+
+- 9def47d: Allow squad-size rules to increase the number of special weapons available.
+
+## 0.53.3
+
+### Patch Changes
+
+- fa1ab0c: Show every available detachment rule, including keyword definitions.
+
+## 0.53.2
+
+### Patch Changes
+
+- 289dd2a: Show each officer's Orders limit and eligible units on its datasheet.
+
+## 0.53.1
+
+### Patch Changes
+
+- 1e9dca9: Allow bodyguard units to accept every Leader permitted by their catalogue.
+
+## 0.53.0
+
+### Minor Changes
+
+- a9609f9: Let spectators read battle missions, allow seated players to record another player's concession, and keep shared rosters stable while they load.
+
+## 0.52.1
+
+### Patch Changes
+
+- 003bdba: Offer a Mark of Chaos only in the detachment that grants one, and require it there.
+
+## 0.52.0
+
+### Minor Changes
+
+- 676107c: Show the action each mission asks a unit to perform, named by the side that may perform it.
+
+## 0.51.3
+
+### Patch Changes
+
+- 75aa8be: Put stratagems first on stacked battle panels and tuck resolved secondary missions behind a reveal control.
+
+## 0.51.2
+
+### Patch Changes
+
+- c7e4628: Hold a Wolf Scouts import to the six or twelve models the datasheet offers.
+
+## 0.51.1
+
+### Patch Changes
+
+- 64cf604: Keep long roster names, army rows and battle cards inside the screen on a phone.
+- d28ae30: Return to the roster, not the screen before it, when a tab reopens a unit.
+
+## 0.51.0
+
+### Minor Changes
+
+- 21e9c10: Split the signed-in home page into your live games, the games you have played, your friends' games and everybody else's, in that order.
+
+## 0.50.7
+
+### Patch Changes
+
+- 988fbcc: Keep battle controls reachable, preserve native tabs, enlarge mobile dialog actions, and recover stale live battles.
+
+## 0.50.6
+
+### Patch Changes
+
+- 351694f: Keep shared battle setup stable when both players act together.
+
+## 0.50.5
+
+### Patch Changes
+
+- cc572e7: Keep mobile rosters with switched-off format restrictions inside the screen.
+
+## 0.50.4
+
+### Patch Changes
+
+- ce6d6c3: Show each core stratagem only once when sources punctuate its name differently.
+
+## 0.50.3
+
+### Patch Changes
+
+- de2c4d4: Keep undo available in every live battle action dialog.
+
+## 0.50.2
+
+### Patch Changes
+
+- fa61429: Show clear battlefield and replacement-draw names in battle logs, count attached datasheets as one unit, and keep unit panes within phone screens.
+
+## 0.50.1
+
+### Patch Changes
+
+- 4deba7d: Record iOS app sessions through the privacy-masked web recorder instead of black native frames.
+
+## 0.50.0
+
+### Minor Changes
+
+- 1da2457: Return each application tab to the screen you left it on, so moving between a roster and a datasheet keeps both in place.
+
+### Patch Changes
+
+- fb8d39f: Keep the application tabs reachable while a unit is open in the roster editor, instead of covering them.
+
+## 0.49.2
+
+### Patch Changes
+
+- bceccdc: Clean up completed iOS deliveries after their final status succeeds.
+
+## 0.49.1
+
+### Patch Changes
+
+- 512b657: Open a link that asks for a new tab in the application itself rather than in a window stacked on top of it.
+- d760b77: Stop iOS zooming the page, and pushing the header and tabs off screen, when you tap a search or text field.
+
+## 0.49.0
+
+### Minor Changes
+
+- 6521e41: Deliver iOS application updates through automatic canary and stable channels.
+
+## 0.48.1
+
+### Patch Changes
+
+- 986a8cf: Show the correct characteristics for roster units with optional models.
+
+## 0.48.0
+
+### Minor Changes
+
+- 9a95d8d: Add native phone and tablet navigation, keep back actions in a stable location, and prevent signed-in players from returning to sign-in.
+
+## 0.47.3
+
+### Patch Changes
+
+- 48417c5: Wrap every featured battle player name onto its own line on narrow screens.
+
+## 0.47.2
+
+### Patch Changes
+
+- 97299b6: Make homepage capability cards fully clickable and speak directly to players.
+
+## 0.47.1
+
+### Patch Changes
+
+- 0b4cce9: Keep catalogue datasheets and rules aligned when upstream names differ.
+
+## 0.47.0
+
+### Minor Changes
+
+- 9acb549: Show player avatars, factions, faction marks, and detachments on battle cards, and keep practice games off the home page.
+
+## 0.46.0
+
+### Minor Changes
+
+- 0ed0f4e: Show live activity on the home page: your own table, your friends' battles, and every battle anyone may watch, newest first and including finished ones so you can watch a game or read back through it. Choose who can watch your battles from your profile.
+- 0ed0f4e: Every battle now names its whole table when it is created. Battle links no longer offer an open seat to join, so a link only ever opens a battle to read or watch.
+- e256c5c: Colour every battle by the stage it is at, open player profiles to anybody, and land on the home page after signing in.
+
 ## 0.45.0
 
 ### Minor Changes

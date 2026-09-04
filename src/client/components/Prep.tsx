@@ -1,18 +1,19 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import type { Command, Secondary, SecondaryMode } from '../../core/battle'
+import type { Secondary, SecondaryMode } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
 import { FIXED_SECONDARIES, isKotcLimit, SECONDARY_MODES } from '../../core/battle'
 import { detachmentRulesQuery, gameReferencesQuery } from '../queries'
 import { primaryCards, secondaryCards } from '../missionDeck'
 import { armyRulesRequest, sideStratagems } from '../sideRules'
 import { canWritePrep } from '../sides'
+import type { SendCommand } from '../useCommand'
 import { MissionName, type ReferenceCard } from './battle/MissionCards'
 import { CHOOSABLE, CHOSEN } from './setup/chrome'
 import type { Side } from '../sides'
 
-type Props = { view: BattleView; side: Side; missionId: string | null; send: (command: Command) => void; pending: boolean }
+type Props = { view: BattleView; side: Side; missionId: string | null; send: SendCommand; pending: boolean }
 
 /**
  * The one card decision a side actually makes: how its secondaries are drawn.
@@ -67,29 +68,29 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
   const chosen = captain.secondaries.map(({ key, name, awards }) => ({ key, name, awards }))
   const deckReady = captain.secondaryDeckReady
 
-  const save = (next: { mode?: SecondaryMode; secondaries?: Secondary[] }) => {
+  const save = (next: { mode?: SecondaryMode; secondaries?: Secondary[] }, options?: Parameters<SendCommand>[1]) => {
     if (!rules) return
     const nextMode = next.mode ?? mode
-    send({
-      kind: 'set-prep',
-      playerId: captain.id,
-      stratagems,
-      // A tactical hand starts empty and is drawn from the deck once the battle begins.
-      // Fixed play is clamped on the way out, because a side that settled its cards
-      // when the picker offered six is still holding them: sending those back
-      // verbatim is refused by the rule this now sends, and a refusal here would
-      // wedge every other prep write the side makes.
-      secondaries:
-        nextMode === 'tactical'
-          ? []
-          : (next.secondaries ?? chosen)
-              .slice(-FIXED_SECONDARIES)
-              .map((secondary) => deck.find((card) => card.key === secondary.key) ?? secondary)
-              .map(({ key, name, awards }) => ({ key, name, awards })),
-      secondaryDeck: deck.map(({ key, name, awards }) => ({ key, name, awards })),
-      primary,
-      secondaryMode: nextMode,
-    })
+    send(
+      {
+        kind: 'set-prep',
+        playerId: captain.id,
+        stratagems,
+        // Tactical starts empty. Clamp fixed choices because older setup may hold more
+        // than the current rule accepts.
+        secondaries:
+          nextMode === 'tactical'
+            ? []
+            : (next.secondaries ?? chosen)
+                .slice(-FIXED_SECONDARIES)
+                .map((secondary) => deck.find((card) => card.key === secondary.key) ?? secondary)
+                .map(({ key, name, awards }) => ({ key, name, awards })),
+        secondaryDeck: deck.map(({ key, name, awards }) => ({ key, name, awards })),
+        primary,
+        secondaryMode: nextMode,
+      },
+      options,
+    )
   }
 
   // What the armies bring is not a decision, so it is recorded as soon as it is known —
@@ -110,7 +111,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     const missingDeck = deck.length > 0 && !captain.secondaryDeckReady
     const invalidMode = tacticalOnly && storedMode !== 'tactical'
     if (!wrongStratagems && !wrongPrimary && !missingDeck && !invalidMode) return
-    save({})
+    save({}, tacticalOnly ? { background: true } : undefined)
     // Re-runs only when one of those facts changes, and every one is satisfied by the save.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -145,11 +146,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
   }
 
   if (!rules) {
-    return (
-      <p className="text-sm text-dim">
-        No stratagem or mission data on this instance. Run <span className="readout">pnpm catalogue:sync</span> and reload.
-      </p>
-    )
+    return <p className="text-sm text-dim">Mission and stratagem data is unavailable right now. Try again shortly.</p>
   }
 
   return (

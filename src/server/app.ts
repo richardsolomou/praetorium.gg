@@ -90,7 +90,7 @@ export function warm(instance: Pick<App, 'catalogue' | 'rules'>): Promise<void> 
       try {
         prepareGlobalSearch(instance.catalogue(), instance.rules())
       } catch (error) {
-        sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'the catalogue could not be loaded' }
+        sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
       }
       resolve()
     })
@@ -117,7 +117,10 @@ export function app(): App {
       auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email),
       email,
       catalogue: memoize(loadCatalogue),
-      rules: memoize(() => loadRules(undefined, undefined, undefined, undefined, instance.catalogue()?.datacards)),
+      rules: memoize(() => {
+        const catalogue = instance.catalogue()
+        return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
+      }),
       sync: () => sync.state,
       telemetry,
       ready: () => ready,
@@ -126,14 +129,20 @@ export function app(): App {
     // serve battles whether or not it has the catalogues yet.
     sync.begin(catalogueDirectory(dataDirectory), () => {
       instance.catalogue = memoize(loadCatalogue)
-      instance.rules = memoize(() => loadRules(undefined, undefined, undefined, undefined, instance.catalogue()?.datacards))
+      instance.rules = memoize(() => {
+        const catalogue = instance.catalogue()
+        return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
+      })
       ready = warm(instance)
     })
     const catalogueRefresh = setInterval(
       () =>
         sync.begin(catalogueDirectory(dataDirectory), () => {
           instance.catalogue = memoize(loadCatalogue)
-          instance.rules = memoize(() => loadRules(undefined, undefined, undefined, undefined, instance.catalogue()?.datacards))
+          instance.rules = memoize(() => {
+            const catalogue = instance.catalogue()
+            return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
+          })
           ready = warm(instance)
         }),
       60 * 60 * 1000,

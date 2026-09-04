@@ -86,17 +86,17 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
           <SetupSidePanel key={side.index} side={side}>
             {side.armies.map((army) => (
               <article key={army.playerId} className="space-y-2 rounded-sm border border-edge bg-sunken p-2.5">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="min-w-0 flex-1">
                     {side.armies.length > 1 ? (
                       <span className="block text-[0.6875rem] font-semibold text-dim uppercase">{army.playerName}</span>
                     ) : null}
-                    <span className="block truncate font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
+                    <span className="block break-words font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
                     {/* What the army is, named the same way the battle will name it. */}
                     {army.roster ? <ArmyIdentity army={army} token={view.token} list={false} className="mt-0.5" /> : null}
                     <span className="mt-0.5 block text-xs text-dim">
                       {army.roster?.built && army.units.length
-                        ? `${army.units.length} units · ${army.points} of ${army.roster.built.limit} points`
+                        ? `${army.unitCount} units · ${army.points} of ${army.roster.built.limit} points`
                         : army.roster
                           ? 'Imported army'
                           : army.automated
@@ -179,9 +179,9 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
              */}
             <p className={`text-xs ${side.paintedPoints ? 'text-achieved' : 'text-dim'}`}>
               {side.paintedPoints
-                ? `Battle ready · +${side.paintedPoints} VP at the end of the battle`
+                ? `Battle ready · +${side.paintedPoints} VP at the start of the battle`
                 : side.armies.length > 1
-                  ? `+${PAINTED_ARMY_POINTS} VP at the end of the battle once every army on this side is battle ready`
+                  ? `+${PAINTED_ARMY_POINTS} VP at the start of the battle once every army on this side is battle ready`
                   : 'No battle ready bonus'}
             </p>
           </SetupSidePanel>
@@ -309,7 +309,7 @@ function RosterChooser({
                 }`}
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-bold uppercase">{roster.name}</span>
+                  <span className="block break-words font-bold uppercase">{roster.name}</span>
                   {/* The same line the battle draws for an army, so a list is recognisable before it is
                       chosen. Unlinked: the row is the control, and a link inside it takes the press
                       to a faction page instead of choosing the list. */}

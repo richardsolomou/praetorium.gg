@@ -2,7 +2,7 @@
 
 Praetorium uses PostHog for analytics, replay, flags, errors, performance, and server logs. The integration is optional. Every product path works without PostHog variables.
 
-The browser integration inside the mobile WebView owns identified product events and web replay. The Expo shell uses a separate native client for application lifecycle events, masked native replay, and native-shell exceptions when `EXPO_PUBLIC_POSTHOG_API_KEY` is set. Native replay does not capture logs or network telemetry. EAS Build uploads the native JavaScript source maps through the PostHog Expo and Metro plugins.
+The browser integration inside the mobile WebView owns identified product events and masked session replay. The Expo shell uses a separate native client for application lifecycle events and native-shell exceptions when `EXPO_PUBLIC_POSTHOG_API_KEY` is set. Native screenshot replay stays disabled because it cannot redact the WebView DOM without masking the whole view. Production EAS Build uploads the native JavaScript source maps through the PostHog Expo and Metro plugins. Canary builds exercise the same tooling in dry-run mode because preview jobs do not receive the source-map upload credential.
 
 ## Event contract
 
@@ -18,7 +18,7 @@ ordinary clicks remain autocaptured.
 | Rosters    | `roster_created`, `roster_duplicated`, `roster_imported`, `roster_import_failed`, `roster_exported`, `roster_export_copied`, `roster_shared`, `roster_deleted`, `roster_visibility_updated`, `roster_unit_added`, `roster_unit_removed`, `roster_unit_duplicated`, `roster_attachment_updated`                                           |
 | Navigation | `global_search_result_opened`                                                                                                                                                                                                                                                                                                            |
 | Battles    | `battle_created`, `battle_roster_attached`, `battle_started`, `battle_finished`, `battle_reopened`, `battle_deleted`, `battle_command_submitted`, `battle_spectated`, `battle_audience_set`                                                                                                                                              |
-| Leagues    | `league_created`, `league_updated`, `league_deleted`, `league_event_created`, `league_joined`, `league_roster_requirement_assigned`, `league_team_assigned`, `league_roster_submitted`, `league_rosters_revealed`, `league_battle_created`                                                                                               |
+| Leagues    | `league_created`, `league_updated`, `league_deleted`, `league_event_created`, `league_event_updated`, `league_joined`, `league_roster_requirement_assigned`, `league_team_assigned`, `league_roster_submitted`, `league_rosters_revealed`, `league_battle_created`                                                                       |
 | Quality    | `roster_datasheet_loaded`, `roster_datasheet_rendered`, sampled `roster_priced`, `$exception`, and structured server error logs                                                                                                                                                                                                          |
 
 `battle_command_submitted` contains the command kind and outcome. It does not contain the command payload. Datasheet metrics separate server work, request time, and render time. Performance events contain durations and workload counts only.
@@ -29,10 +29,10 @@ import failures carry only a bounded reason and input kind.
 
 ## Privacy boundary
 
-Never capture names, email addresses, images, battle tokens, roster ids, catalogue
-ids, search text, unit names, list contents, command payloads, rules text, or error
-messages as analytics properties. Safe properties are bounded enums, booleans,
-counts, durations, and non-sensitive outcome labels.
+Analytics properties exclude names, email addresses, images, battle tokens, roster
+ids, catalogue ids, search text, unit names, list contents, command payloads, rules
+text, and error messages. They contain only bounded enums, booleans, counts,
+durations, and non-sensitive outcome labels.
 
 Errors may contain stack traces through PostHog Error Tracking. Manual exception
 captures add only an operation label. Server logs use stable messages and bounded
@@ -41,6 +41,6 @@ request metadata rather than request bodies or URLs containing opaque ids.
 ## Measuring success
 
 The core product funnel is account created → roster created or imported → battle
-created → roster attached → battle started → battle finished. Diagnose drop-off
-with command outcomes, exceptions, replay, and the sampled roster pricing and
-datasheet duration distributions.
+created → roster attached → battle started → battle finished. Command outcomes,
+exceptions, replay, and sampled roster-pricing and datasheet-duration distributions
+explain drop-off between those stages.

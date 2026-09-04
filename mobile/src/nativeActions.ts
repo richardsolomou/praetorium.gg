@@ -6,6 +6,7 @@ const MAX_OPEN_WINDOW_URL_LENGTH = 2_048
 const MAX_PRINT_HTML_LENGTH = 2_000_000
 
 export type NativeActionRequest =
+  | { kind: 'back-gesture'; enabled: boolean }
   | { kind: 'battle-active'; active: boolean }
   | { kind: 'haptic' }
   | { kind: 'open-window'; url: string }
@@ -16,6 +17,9 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
   try {
     const value = JSON.parse(message) as Record<string, unknown>
     if (value.version !== 3) return null
+    if (value.type === 'native-back-gesture' && typeof value.enabled === 'boolean') {
+      return { kind: 'back-gesture', enabled: value.enabled }
+    }
     if (value.type === 'native-battle-active' && typeof value.active === 'boolean') {
       return { kind: 'battle-active', active: value.active }
     }
@@ -40,8 +44,20 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
 }
 
 export const NATIVE_BRIDGE_SCRIPT = `(() => {
-  const capabilities = ['battle-active', 'haptic', 'open-window', 'print', 'share'];
+  const capabilities = ['app-navigation', 'back-gesture', 'battle-active', 'haptic', 'open-window', 'print', 'share'];
   window.PraetoriumNative = Object.freeze({ bridgeVersion: 3, capabilities });
+  const markNativeApp = () => {
+    if (!document.documentElement) return false;
+    document.documentElement.dataset.nativeApp = 'true';
+    return true;
+  };
+  if (!markNativeApp()) {
+    const observer = new MutationObserver(() => {
+      if (!markNativeApp()) return;
+      observer.disconnect();
+    });
+    observer.observe(document, { childList: true });
+  }
   const requestOpenWindow = (value) => {
     try {
       const url = new URL(String(value), document.baseURI).href;

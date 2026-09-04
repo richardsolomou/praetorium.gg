@@ -82,7 +82,8 @@ export type JoinLeagueResult = LeagueEntryStatus | 'missing' | 'closed' | 'full'
 export type ModerateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'full'
 export type CreateLeagueEventResult = 'created' | 'missing' | 'forbidden' | 'open' | 'too-small'
 export type MakeLeagueRecurringResult = 'updated' | 'missing' | 'forbidden'
-export type UpdateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'joined' | 'below-accepted' | 'team-minimum'
+export type UpdateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'below-accepted' | 'team-minimum'
+export type UpdateLeagueEventResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'sealed' | 'too-small'
 export type DeleteLeagueResult = 'deleted' | 'missing' | 'forbidden'
 export type AssignLeagueRosterRequirementResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format' | 'wrong-limit'
 export type AssignLeagueTeamResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format'
@@ -746,6 +747,7 @@ export class Repository {
         seated.map((player) => player.id),
         log,
         seated.map((player) => player.side),
+        seated.filter((player) => player.automated).map((player) => player.id),
       )
       if (input.expectedSeq !== state.seq) return { result: { outcome: 'stale', seq: state.seq }, log }
       const command = resolveCommand(state, input.command)
@@ -827,7 +829,7 @@ export class Repository {
         waivedRules: rosters.waivedRules,
         optionalRules: rosters.optionalRules,
         borrowedDetachmentId: rosters.borrowedDetachmentId,
-        unitCount: sql<number>`jsonb_array_length(${rosters.picks}::jsonb)`,
+        picks: rosters.picks,
         visibility: rosters.visibility,
         source: rosters.source,
         createdAt: rosters.createdAt,
@@ -925,6 +927,49 @@ export class Repository {
     })
   }
 
+  /**
+   * The rules an open event registers against, changeable until the first list is sealed.
+   *
+   * A change to the shape or the size makes every size assignment and team meaningless,
+   * so they go with it rather than being carried into rules they were not made under.
+   */
+  async updateLeagueEvent(
+    token: string,
+    ownerId: string,
+    rule: { format: TableShape; rosterLimit: number },
+    eventToken?: string,
+  ): Promise<UpdateLeagueEventResult> {
+    return this.database.transaction(async (tx) => {
+      const [league] = await tx
+        .select({ id: leagues.id, ownerId: leagues.ownerId, playerLimit: leagues.playerLimit })
+        .from(leagues)
+        .where(eq(leagues.token, token))
+        .for('update')
+      if (!league) return 'missing'
+      if (league.ownerId !== ownerId) return 'forbidden'
+      if (rule.format === '2v1' && league.playerLimit !== null && league.playerLimit < 3) return 'too-small'
+      if (rule.format === '2v2' && league.playerLimit !== null && (league.playerLimit < 4 || league.playerLimit % 2 !== 0))
+        return 'too-small'
+      const [event] = await tx
+        .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
+        .from(leagueEvents)
+        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
+        .orderBy(desc(leagueEvents.number))
+        .limit(1)
+        .for('update')
+      if (!event) return 'missing'
+      if (event.revealedAt !== null) return 'closed'
+      const [sealed] = await tx
+        .select({ total: count() })
+        .from(leagueEventEntries)
+        .where(and(eq(leagueEventEntries.eventId, event.id), isNotNull(leagueEventEntries.rosterSnapshot)))
+      if ((sealed?.total ?? 0) > 0) return 'sealed'
+      await tx.update(leagueEvents).set({ format: rule.format, rosterLimit: rule.rosterLimit }).where(eq(leagueEvents.id, event.id))
+      await tx.update(leagueEventEntries).set({ requiredLimit: null, teamId: null }).where(eq(leagueEventEntries.eventId, event.id))
+      return 'updated'
+    })
+  }
+
   async makeLeagueRecurring(token: string, ownerId: string): Promise<MakeLeagueRecurringResult> {
     return this.database.transaction(async (tx) => {
       const [league] = await tx
@@ -980,7 +1025,6 @@ export class Repository {
         .select({ total: count(), accepted: count(sql`case when ${leagueEventEntries.status} = 'accepted' then 1 end`) })
         .from(leagueEventEntries)
         .where(eq(leagueEventEntries.eventId, current.id))
-      if (input.admission !== league.admission && (entries?.total ?? 0) > 0) return 'joined'
       if (input.playerLimit !== league.playerLimit && current.revealedAt === null) {
         if (current.format === '2v1' && input.playerLimit !== null && input.playerLimit < 3) return 'team-minimum'
         if (current.format === '2v2' && input.playerLimit !== null && (input.playerLimit < 4 || input.playerLimit % 2 !== 0))
@@ -988,6 +1032,23 @@ export class Repository {
         if (input.playerLimit !== null && input.playerLimit < (entries?.accepted ?? 0)) return 'below-accepted'
       }
       await tx.update(leagues).set(input).where(eq(leagues.id, league.id))
+      // Automatic joining means nobody waits, so the requests already in the queue are
+      // taken in the order they arrived until the configured places run out.
+      if (input.admission === 'automatic' && league.admission === 'approval' && current.revealedAt === null) {
+        const waiting = await tx
+          .select({ userId: leagueEventEntries.userId })
+          .from(leagueEventEntries)
+          .where(and(eq(leagueEventEntries.eventId, current.id), eq(leagueEventEntries.status, 'pending')))
+          .orderBy(asc(leagueEventEntries.joinedAt), asc(leagueEventEntries.userId))
+        const places = input.playerLimit === null ? waiting.length : Math.max(0, input.playerLimit - (entries?.accepted ?? 0))
+        const admitted = waiting.slice(0, places).map((entry) => entry.userId)
+        if (admitted.length) {
+          await tx
+            .update(leagueEventEntries)
+            .set({ status: 'accepted' })
+            .where(and(eq(leagueEventEntries.eventId, current.id), inArray(leagueEventEntries.userId, admitted)))
+        }
+      }
       return 'updated'
     })
   }
@@ -1313,7 +1374,7 @@ export class Repository {
   async joinLeague(token: string, userId: string, now: number, memberLimit: number, eventToken?: string): Promise<JoinLeagueResult> {
     return this.database.transaction(async (tx) => {
       const [league] = await tx
-        .select({ id: leagues.id, admission: leagues.admission, playerLimit: leagues.playerLimit })
+        .select({ id: leagues.id, ownerId: leagues.ownerId, admission: leagues.admission, playerLimit: leagues.playerLimit })
         .from(leagues)
         .where(eq(leagues.token, token))
         .for('update')
@@ -1342,7 +1403,8 @@ export class Repository {
           ? (members?.accepted ?? 0) >= league.playerLimit || (members?.active ?? 0) >= memberLimit
           : (members?.active ?? 0) >= (league.playerLimit ?? memberLimit)
       if (full) return 'full'
-      const status = league.admission === 'automatic' ? 'accepted' : 'pending'
+      // The organizer approves entrants, so approving themselves is a click with no question in it.
+      const status = league.admission === 'automatic' || league.ownerId === userId ? 'accepted' : 'pending'
       if (existing) {
         await tx
           .update(leagueEventEntries)

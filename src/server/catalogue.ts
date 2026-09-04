@@ -13,6 +13,7 @@ import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
 import { bracketedRuleReferences, normalizeRuleReference, ruleReferenceKeys, ruleReferenceMatches } from '../core/ruleReference'
+import { routeSlug } from '../core/slug'
 import {
   datasheetIdBySlug,
   datasheetSlug,
@@ -25,6 +26,7 @@ import { type DatasheetSearchFields, dedupeWeapons } from './datasheetSearch'
 import { isMatchedPlayDatasheet, priceOf } from './cataloguePicker'
 import type { DatasheetDetails } from './datacards'
 import { datacardOf } from './datasheetJoin'
+import { mergeDetachmentRules } from './catalogueDescriptions'
 
 export type Datasheet = {
   id: string
@@ -297,7 +299,10 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
         )
       : [])
   const grantedWeaponAbilities = context
-    ? weaponAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index)
+    ? [
+        ...weaponAbilitiesFromDetachments(context.selections, context.unitSelectionIndex, loaded, catalogueId, context.keywordIds),
+        ...weaponAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index),
+      ]
     : []
   const grantedInvulnerableSaves = context
     ? invulnerableSavesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index)
@@ -399,8 +404,17 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     visited.add(definition.id)
     const lineage = [...ancestors, ...definitionTokens(definition)]
     const resolved = targetOf(definition, loaded.index.definitions)
+    /**
+     * An entry the data hides on the sheet itself is something the unit is given
+     * rather than something it has: a detachment enhancement hangs off the datasheet
+     * it upgrades and is unhidden by the detachment that offers it. Printing it
+     * regardless put a Pantheon of Woe enhancement on every Nightbringer, so it is
+     * read like the enhancement group it belongs to and appears once it is taken.
+     */
     const enhancementEntry =
-      enhancement || (resolved.type === undefined && (definition.name ?? resolved.name)?.toLocaleLowerCase().includes('enhancement'))
+      enhancement ||
+      (!isRoot && Boolean(definition.hidden ?? resolved.hidden)) ||
+      (resolved.type === undefined && (definition.name ?? resolved.name)?.toLocaleLowerCase().includes('enhancement'))
     if (!enhancementEntry || selected.has(definition.id)) addProfiles(definition, lineage, 'datasheet', isRoot)
     definition.selectionEntries?.forEach((entry) => visit(entry, false, lineage, enhancementEntry))
     definition.selectionEntryGroups?.forEach((group) => visit(group, false, lineage, enhancementEntry))
@@ -630,6 +644,97 @@ export function datasheetViewsIn(
 
 type GrantedWeaponAbility = { keyword: string; source: string; profileTypes: readonly string[] }
 type GrantedInvulnerableSave = { value: string; source: string; originIds: readonly string[] }
+
+function weaponAbilitiesFromDetachments(
+  selections: readonly Selection[],
+  unitSelectionIndex: number | undefined,
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  selectedKeywordIds?: readonly string[],
+): GrantedWeaponAbility[] {
+  if (unitSelectionIndex === undefined) return []
+  const optionIds = new Set(loaded.detachments.get(catalogueId)?.options.map((option) => option.id) ?? [])
+  if (!optionIds.size) return []
+  const keywordNames = (selectedKeywordIds ?? keywordIds(selections, unitSelectionIndex, loaded.index, { primaryCatalogueId: catalogueId }))
+    .flatMap((id) => {
+      const category = loaded.index.categories.get(id)
+      const name = category?.name?.replace(/^Faction:\s*/iu, '')
+      return name && !category?.hidden ? [normalizeKeywordSelector(name)] : []
+    })
+    .filter(Boolean)
+  const found = new Map<string, GrantedWeaponAbility>()
+  const selectedDefinitions = definitionsInSelections(
+    selections,
+    selections.map((_, index) => index),
+    loaded.index,
+  ).filter((definition) => optionIds.has(definition.id))
+  for (const definition of selectedDefinitions) {
+    const catalogueRules: { name: string; description: string }[] = []
+    for (const source of new Set([definition, targetOf(definition, loaded.index.definitions)])) {
+      for (const link of source.infoLinks ?? []) {
+        if (link.type !== 'rule' || infoLinkHiddenByRules(link, loaded.index, { primaryCatalogueId: catalogueId, roster: selections }))
+          continue
+        const rule = loaded.index.rules.get(link.targetId)
+        if (rule?.name && rule.description && !rule.hidden) catalogueRules.push({ name: rule.name, description: rule.description })
+      }
+      catalogueRules.push(
+        ...(source.rules ?? []).flatMap((rule) =>
+          rule.name && rule.description && !rule.hidden ? [{ name: rule.name, description: rule.description }] : [],
+        ),
+      )
+    }
+    const cardRules = loaded.datacards.detachmentRules.get(routeSlug(nameOf(definition, loaded.index.definitions))) ?? []
+    const rules = mergeDetachmentRules(catalogueRules, cardRules)
+    for (const rule of rules) {
+      if (!rule.description) continue
+      for (const grant of unconditionalWeaponAbilityGrants(rule.description)) {
+        if (!matchesKeywordSelector(grant.recipients, keywordNames)) continue
+        if (grant.exclusions && matchesKeywordSelector(grant.exclusions, keywordNames)) continue
+        const granted = { keyword: grant.keyword, source: rule.name, profileTypes: grant.profileTypes }
+        found.set(`${grant.keyword.toLocaleLowerCase()}:${grant.profileTypes.join(',')}:${rule.name}`, granted)
+      }
+    }
+  }
+  return [...found.values()]
+}
+
+function unconditionalWeaponAbilityGrants(description: string) {
+  const grants: { keyword: string; recipients: string; exclusions?: string; profileTypes: string[] }[] = []
+  const pattern =
+    /(?:^|[.!?]\s+)(?:[-■]\s*)?(?:In addition,\s+)?(?:(ranged|melee)\s+)?weapons equipped by (.+?) models(?: \((?:excluding|except) (.+?) models\))? from your army have the \[([^\]]+)\] ability(?=[.,]|$)/giu
+  const normalized = description.normalize('NFKC').replaceAll(/\^\^|\*\*/g, '')
+  for (const match of normalized.matchAll(pattern)) {
+    const weaponType = match[1]?.toLocaleLowerCase()
+    grants.push({
+      keyword: titleCaseAbility(match[4]!),
+      recipients: match[2]!,
+      ...(match[3] ? { exclusions: match[3] } : {}),
+      profileTypes:
+        weaponType === 'ranged' ? ['Ranged Weapons'] : weaponType === 'melee' ? ['Melee Weapons'] : ['Ranged Weapons', 'Melee Weapons'],
+    })
+  }
+  return grants
+}
+
+const normalizeKeywordSelector = (value: string) =>
+  value
+    .replaceAll(/\^\^|\*\*/g, '')
+    .replaceAll(/[‐‑‒–—]/g, '-')
+    .replaceAll(/[^\p{L}\p{N}+'’-]+/gu, ' ')
+    .trim()
+    .toLocaleLowerCase()
+
+function matchesKeywordSelector(selector: string, keywordNames: readonly string[]) {
+  const alternatives = selector
+    .replaceAll(/\^\^|\*\*/g, '')
+    .split(/\s+(?:and|or)\s+|\s*,\s*/iu)
+    .map(normalizeKeywordSelector)
+    .filter(Boolean)
+  const held = [...new Set(keywordNames)].toSorted((left, right) => right.length - left.length)
+  const covered = (remaining: string): boolean =>
+    held.some((keyword) => remaining === keyword || (remaining.startsWith(`${keyword} `) && covered(remaining.slice(keyword.length + 1))))
+  return alternatives.some(covered)
+}
 
 function grantedAbilitiesInAttachedUnit(
   selections: readonly Selection[],

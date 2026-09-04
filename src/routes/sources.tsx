@@ -15,9 +15,9 @@ const linkClass = 'text-info hover:text-parchment'
 
 function Sources() {
   return (
-    <LegalPage title="Data sources" updated="31 August 2026">
+    <LegalPage title="Data sources" updated="1 September 2026">
       <LegalSection title="Community data">
-        <p>Praetorium converts these community sources into versioned, checksummed snapshots:</p>
+        <p>Praetorium uses rules and reference data from these community projects:</p>
         <LegalLinks>
           <li>
             Faction entries, constraints, modifiers, and costs from{' '}
@@ -31,7 +31,7 @@ function Sources() {
             <a href="https://github.com/wn-mitch/40kdc-data/blob/main/LICENSE-DATA" className={linkClass}>
               CC BY 4.0
             </a>
-            . Praetorium changes the source files to match its internal snapshot format.{' '}
+            . Praetorium prepares this data for use in the army builder and battle tracker.{' '}
             <a href="https://40kdc.alpacasoft.dev" className={linkClass}>
               Powered by 40kdc-data
             </a>

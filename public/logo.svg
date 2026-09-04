@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title description">
   <title id="title">Praetorium</title>
-  <desc id="description">Two opposing sides entering one shared command core</desc>
+  <desc id="description">Praetorium shield logo</desc>
   <circle cx="32" cy="32" r="27" fill="none" stroke="#a7aea8" stroke-width="6" stroke-dasharray="21 4"/>
   <path fill="#df8078" d="M8 29h17l7 3-7 3H8Z"/>
   <path fill="#7eaa9e" d="M56 29H39l-7 3 7 3h17Z"/>

@@ -11,14 +11,17 @@ export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfi
  * per call because the suite shares one database across specs.
  */
 export async function signUp(page: Page, name: string) {
+  const email = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${crypto.randomUUID()}@example.test`
+  const password = 'a-long-enough-password'
   await page.goto('/sign-in')
   await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: 'I need an account' }).click()
   await page.getByLabel('Your name').fill(name)
-  await page.getByLabel('Email').fill(`${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${crypto.randomUUID()}@example.test`)
-  await page.getByLabel('Password').fill('a-long-enough-password')
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Create the account' }).click()
   await page.getByRole('button', { name: `Account menu for ${name}` }).waitFor()
+  return { email, password }
 }
 
 export function uniqueName(base: string) {
@@ -35,14 +38,9 @@ export async function retryUntilVisible(outcome: Locator, action: () => Promise<
 }
 
 export async function befriend(requester: Page, recipient: Page) {
-  const requesterName = (await requester.locator('button[aria-label^="Account menu for "]').getAttribute('aria-label'))?.replace(
-    'Account menu for ',
-    '',
-  )
-  const recipientName = (await recipient.locator('button[aria-label^="Account menu for "]').getAttribute('aria-label'))?.replace(
-    'Account menu for ',
-    '',
-  )
+  const accountMenu = (page: Page) => page.locator('[data-web-app-chrome] button[aria-label^="Account menu for "]')
+  const requesterName = (await accountMenu(requester).getAttribute('aria-label'))?.replace('Account menu for ', '')
+  const recipientName = (await accountMenu(recipient).getAttribute('aria-label'))?.replace('Account menu for ', '')
   if (!requesterName || !recipientName) throw new Error('Both players must be signed in before becoming friends.')
   await requester.goto('/friends')
   const sent = requester.locator('section').filter({ hasText: 'Sent requests' }).filter({ hasText: recipientName })
@@ -134,8 +132,8 @@ export async function createBattle(
   } = {},
 ) {
   await page.goto('/battles')
-  const dialog = page.getByRole('dialog', { name: 'Start a casual battle' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New casual battle' }).click())
+  const dialog = page.getByRole('dialog', { name: 'Start a battle' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New battle' }).click())
   if (secondOpponent) await page.getByRole('button', { name: /^Doubles/ }).click()
   else if (ally) {
     await page.getByRole('button', { name: /^Solo vs pair/ }).click()
@@ -164,7 +162,7 @@ export async function createBattle(
     await expect(matchup).toContainText(player)
   }
   await beforeCreate?.(dialog)
-  await page.getByRole('button', { name: 'Create casual battle' }).click()
+  await page.getByRole('button', { name: 'Start battle' }).click()
   await page.waitForURL(/\/battles\/[^/]+$/)
   return page.url()
 }

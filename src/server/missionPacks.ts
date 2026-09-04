@@ -36,3 +36,18 @@ export function english(value: unknown): string | null {
   const translated = (value as Record<string, unknown>).en
   return typeof translated === 'string' ? translated.trim() || null : null
 }
+
+/**
+ * Every primary and secondary card a pack prints, in the order it prints them.
+ *
+ * A pack's two card lists are read the same way by everything that reads a card at
+ * all — what its payouts ask for, and the action it puts a unit up to — so the
+ * traversal lives here rather than once per reading.
+ */
+export function missionCards(pack: unknown): Record<string, unknown>[] {
+  if (!pack || typeof pack !== 'object') return []
+  return ['primaryMissions', 'secondaryMissions'].flatMap((field) => {
+    const cards: unknown = (pack as Record<string, unknown>)[field]
+    return Array.isArray(cards) ? cards.filter((card): card is Record<string, unknown> => Boolean(card) && typeof card === 'object') : []
+  })
+}

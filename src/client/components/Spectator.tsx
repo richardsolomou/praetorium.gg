@@ -6,14 +6,16 @@ import { useEffect, useMemo, useRef } from 'react'
 import type { Command } from '../../core/battle'
 import type { ReportEntry } from '../../core/battleReport'
 import type { BattleView } from '../../core/battleView'
+import { battleOutcome } from '../battleOutcome'
 import { battleStage } from '../battleStage'
+import { missionCardsByKey } from '../missionDeck'
 import { deploymentsQuery, gameReferencesQuery, meQuery } from '../queries'
-import { sideName, sides, type Side, type SideMission } from '../sides'
+import { sides, type Side, type SideMission } from '../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { PlayerName } from './PlayerName'
 import { Report, type ReportPlayer } from './Report'
 import { ArmyRoster } from './battle/ArmyRoster'
-import { PrimaryMission, SecondaryMissions } from './battle/MissionCards'
+import { PrimaryMission, type ReferenceCard, SecondaryMissions } from './battle/MissionCards'
 import { Scoreboard } from './battle/Scoreboard'
 import { HEADING, tint } from './battle/tints'
 
@@ -25,7 +27,6 @@ type Props = {
 
 const ignoreCommand = (_command: Command) => {}
 const noAwards = () => []
-const noReference = () => undefined
 
 export function Spectator({ view, missions, report }: Props) {
   const table = useMemo(() => sides(view, missions), [missions, view])
@@ -34,6 +35,8 @@ export function Spectator({ view, missions, report }: Props) {
   const { data: references } = useQuery(gameReferencesQuery())
   const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
   const missionPack = references?.packs.find((entry) => entry.id === view.settings.missionPackId)
+  const cardsByKey = useMemo(() => missionCardsByKey(references), [references])
+  const referenceFor = (key: string) => cardsByKey.get(key)
   const captured = useRef(false)
   const reportPlayers: ReportPlayer[] = view.players.map((player) => ({
     id: player.id,
@@ -90,7 +93,7 @@ export function Spectator({ view, missions, report }: Props) {
         </span>
       </div>
 
-      <Scoreboard view={view} sides={table} outcome={view.status === 'finished' ? outcome(table, view) : null} />
+      <Scoreboard view={view} sides={table} outcome={view.status === 'finished' ? battleOutcome(table, view) : null} />
 
       <div className="mx-auto grid max-w-7xl items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]">
         {table.map((side) => (
@@ -98,14 +101,12 @@ export function Spectator({ view, missions, report }: Props) {
             key={side.index}
             view={view}
             side={side}
+            referenceFor={referenceFor}
             className={side.index === 0 ? 'lg:col-start-1' : 'lg:col-start-3 lg:row-start-1'}
           />
         ))}
 
         <section className="min-w-0 space-y-3 rounded-lg border border-edge bg-panel p-3 lg:col-start-2 lg:row-start-1">
-          <p className="rounded-sm border border-edge bg-sunken p-2 text-center text-xs text-dim">
-            Spectators can follow the score, armies, and event log without changing the battle.
-          </p>
           <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
             <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
             <Fact label="Battlefield" value={deployment?.name ?? 'Not chosen'} />
@@ -122,7 +123,17 @@ export function Spectator({ view, missions, report }: Props) {
   )
 }
 
-function SpectatorSide({ view, side, className }: { view: BattleView; side: Side; className: string }) {
+function SpectatorSide({
+  view,
+  side,
+  referenceFor,
+  className,
+}: {
+  view: BattleView
+  side: Side
+  referenceFor: (key: string) => ReferenceCard | undefined
+  className: string
+}) {
   const colours = tint(side.index)
   const guides = {
     primary: side.mission?.gameCap ?? view.guides.primary,
@@ -135,7 +146,7 @@ function SpectatorSide({ view, side, className }: { view: BattleView; side: Side
     pending: false,
     send: ignoreCommand,
     awardsFor: noAwards,
-    referenceFor: noReference,
+    referenceFor,
     guides,
   }
 
@@ -184,16 +195,4 @@ function Fact({ label, value }: { label: string; value: string }) {
       <dd className="truncate text-bone">{value}</dd>
     </div>
   )
-}
-
-function outcome(table: Side[], view: BattleView) {
-  if (view.result?.reason === 'conceded') {
-    const conceded = view.players.find((player) => player.id === view.result?.concededBy)?.side
-    const winner = table.find((side) => side.index !== conceded)
-    return winner ? `${sideName(winner)} win by concession` : 'Battle conceded'
-  }
-  const [first, second] = table.toSorted((left, right) => right.total - left.total)
-  if (!first) return 'No result'
-  if (!second) return `Final score ${first.total}`
-  return first.total === second.total ? `Drawn at ${first.total}` : `${sideName(first)} win ${first.total}–${second.total}`
 }

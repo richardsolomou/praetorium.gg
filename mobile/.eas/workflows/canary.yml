@@ -1,0 +1,39 @@
+name: Mobile canary delivery
+
+on:
+  push:
+    tags: [mobile-canary-*]
+
+concurrency:
+  group: ${{ workflow.filename }}-${{ github.ref }}
+  cancel_in_progress: false
+
+jobs:
+  build_ios:
+    name: Build iOS canary
+    type: build
+    params:
+      platform: ios
+      profile: canary-ios
+  submit_ios:
+    name: Send iOS canary to TestFlight
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: canary
+  update_ios:
+    name: Update iOS canary
+    needs: [submit_ios]
+    type: update
+    environment: preview
+    params:
+      channel: canary
+      platform: ios
+  complete:
+    name: Delivery complete
+    after: [update_ios]
+    environment: preview
+    steps:
+      - name: Verify delivery
+        run: test "${{ after.update_ios.status }}" = success

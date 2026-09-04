@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { classifyAuthCallbackFailure, localRedirectPath } from 'ras-stack/auth/client'
 import { useAuthAction } from 'ras-stack/auth/react'
 import posthog from 'posthog-js'
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { authClient } from '../client/authClient'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES } from '../client/components/AuthMethodIcon'
 import { requestNativeAuth } from '../client/nativeAuth'
+import { signedInDestination } from '../client/signInGuard'
 import { TwoFactorSignIn } from '../client/components/TwoFactorSignIn'
 import { signInOptionsQuery } from '../client/queries'
 import { PASSWORD_MIN_LENGTH } from '../authConfig'
@@ -31,6 +32,11 @@ export const Route = createFileRoute('/sign-in')({
     if (typeof search.error === 'string' && search.error) result.error = search.error
     if (search.reset === true || search.reset === 'true') result.reset = true
     return result
+  },
+  beforeLoad: async ({ context, preload, search }) => {
+    if (preload) return
+    const destination = await signedInDestination(context.queryClient, search.next)
+    if (destination) throw redirect({ href: destination, replace: true })
   },
   loader: ({ context }) => context.queryClient.ensureQueryData(signInOptionsQuery()),
   component: SignIn,
@@ -81,8 +87,8 @@ function SignIn() {
       await queryClient.invalidateQueries()
       // `next` is a pathname rather than a route, so this is a navigation by href
       // rather than by route id.
-      if (next) window.location.assign(next)
-      else await navigate({ to: '/' })
+      if (next) window.location.replace(next)
+      else await navigate({ to: '/', replace: true })
     } else {
       posthog.capture('account_authentication_failed', { method: 'email', action: joining ? 'create' : 'sign_in' })
     }
@@ -94,21 +100,18 @@ function SignIn() {
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,transparent_30%,color-mix(in_srgb,var(--color-parchment)_10%,transparent),transparent_75%)]" />
         <div className="relative ml-auto grid h-full w-full max-w-lg content-between p-8">
           <div>
-            <p className="eyebrow text-parchment">Praetorium account</p>
-            <h2 className="mt-2 text-3xl">One player. Every battle.</h2>
+            <p className="eyebrow text-parchment">Build. Plan. Play.</p>
+            <h2 className="mt-2 text-3xl">Your armies and battles, ready when you are.</h2>
           </div>
           <img src="/logo.svg" alt="" className="mx-auto size-40 drop-shadow-[0_0_2rem_rgba(137,184,157,0.18)]" />
-          <p className="text-sm text-dim">Your rosters, friendships, and battle history follow your account across devices.</p>
+          <p className="text-sm text-dim">Sign in on any device to get back to your army lists and games.</p>
         </div>
       </aside>
       <section className="border-b border-edge bg-panel md:border-l">
         <div className="mr-auto h-full w-full max-w-lg p-6 sm:p-8">
           <p className="eyebrow text-parchment">{joining ? 'Create account' : 'Sign in'}</p>
           <h1 className="mt-1 text-3xl">{joining ? 'Make an account' : 'Welcome back'}</h1>
-          <p className="mt-3 text-sm text-dim">
-            Your account is your player: it holds your saved lists, the battles you have played and the ones still going, on whatever device
-            you pick up.
-          </p>
+          <p className="mt-3 text-sm text-dim">Save your army lists, start games with friends and pick up battles already in progress.</p>
           {callbackError ? (
             <p role="alert" className="mt-6 border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
               {callbackError}
@@ -124,8 +127,8 @@ function SignIn() {
               onBack={() => setTwoFactorPending(false)}
               onSuccess={() => {
                 posthog.capture('account_signed_in', { method: 'two_factor', redirected: Boolean(next) })
-                if (next) window.location.assign(next)
-                else void navigate({ to: '/' })
+                if (next) window.location.replace(next)
+                else void navigate({ to: '/', replace: true })
               }}
             />
           ) : (

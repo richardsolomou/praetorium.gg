@@ -1,6 +1,7 @@
-type Attached = { key: string; attachedTo?: string }
+type UnitKey = string | number
+type Attached<Key extends UnitKey> = { key: Key; attachedTo?: Key }
 
-type Deployable = Attached & { formationOptions?: readonly string[]; prebattleRules?: readonly string[] }
+type Deployable<Key extends UnitKey> = Attached<Key> & { formationOptions?: readonly string[]; prebattleRules?: readonly string[] }
 
 /**
  * One attached unit, as the game counts units rather than as a list stores them.
@@ -26,7 +27,7 @@ export type AttachedUnit<T> = {
  *
  * A unit naming a host the log does not hold stands alone rather than disappearing.
  */
-export function attachedUnits<T extends Attached>(units: readonly T[], key: string): T[] {
+export function attachedUnits<T extends Attached<UnitKey>>(units: readonly T[], key: T['key']): T[] {
   const unit = units.find((candidate) => candidate.key === key)
   if (!unit) return []
   const host = units.find((candidate) => candidate.key === unit.attachedTo) ?? unit
@@ -34,7 +35,7 @@ export function attachedUnits<T extends Attached>(units: readonly T[], key: stri
 }
 
 /** An army folded into the units it is actually played as, in list order. */
-export function attachedUnitList<T extends Deployable>(units: readonly T[]): AttachedUnit<T>[] {
+export function attachedUnitList<T extends Deployable<UnitKey>>(units: readonly T[]): AttachedUnit<T>[] {
   return units.flatMap((unit) => {
     const [host, ...joined] = attachedUnits(units, unit.key)
     if (!host || host.key !== unit.key) return []
@@ -49,6 +50,17 @@ export function attachedUnitList<T extends Deployable>(units: readonly T[]): Att
   })
 }
 
+export const attachedUnitCount = (units: readonly Attached<UnitKey>[]) => attachedUnitList(units).length
+
+/** Counts the units an army plays after attached datasheets have formed one unit. */
+export function battleUnitCounts<T extends Deployable<UnitKey> & { destroyed: boolean; deployed: boolean }>(units: readonly T[]) {
+  return {
+    total: attachedUnitCount(units),
+    standing: attachedUnitCount(units.filter((unit) => !unit.destroyed)),
+    deployed: attachedUnitCount(units.filter((unit) => unit.deployed && !unit.destroyed)),
+  }
+}
+
 /**
  * What the whole unit can do, which is only what every unit in it can do.
  *
@@ -56,5 +68,5 @@ export function attachedUnitList<T extends Deployable>(units: readonly T[]): Att
  * ability, so a character carrying one brings nothing to a bodyguard unit without it,
  * and a character without one takes it from a bodyguard unit that has it.
  */
-const shared = <T extends Deployable>(units: readonly T[], field: 'formationOptions' | 'prebattleRules'): string[] =>
+const shared = <T extends Deployable<UnitKey>>(units: readonly T[], field: 'formationOptions' | 'prebattleRules'): string[] =>
   [...(units[0]?.[field] ?? [])].filter((ability) => units.every((unit) => unit[field]?.includes(ability)))

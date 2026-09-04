@@ -183,6 +183,15 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await setup.getByRole('button', { name: 'Save changes' }).click()
   await promoted
 
+  const firstFrameContext = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1600, height: 900 } })
+  const firstFrame = await firstFrameContext.newPage()
+  await firstFrame.goto(sharedUrl)
+  await expect(firstFrame.locator('[data-unit="Immortals"]')).toBeVisible()
+  await expect(firstFrame.locator('[data-unit="Overlord"]')).toBeVisible()
+  await expect(firstFrame.getByText('This roster has no units.')).toHaveCount(0)
+  await expect(firstFrame.getByLabel('Loading roster units')).toHaveCount(0)
+  await firstFrameContext.close()
+
   const guestContext = await browser.newContext({ viewport: { width: 1600, height: 900 } })
   const guest = await guestContext.newPage()
   await guest.goto(sharedUrl)
@@ -198,9 +207,21 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(guest.getByRole('button', { name: 'Characters 1', exact: true })).toBeVisible()
   await expect(guest.getByRole('button', { name: 'Battleline 1', exact: true })).toBeVisible()
   await expect(guest.getByLabel('Unit actions for Immortals')).toHaveCount(0)
+  let releaseLoadout: () => void = () => {}
+  const loadoutHeld = new Promise<void>((resolve) => {
+    releaseLoadout = resolve
+  })
+  await guest.route('**/_serverFn/**', async (route) => {
+    await loadoutHeld
+    await route.continue()
+  })
   await guest.getByRole('button', { name: 'Immortals', exact: true }).click()
   const guestLoadout = guest.locator('aside[aria-label="Loadout"]')
+  await expect(guestLoadout.getByLabel('Loading loadout')).toBeVisible()
+  await expect(guestLoadout.getByText('Select a unit from the roster to see its loadout.')).toHaveCount(0)
+  releaseLoadout()
   await expect(guestLoadout.getByText('Gauss blaster', { exact: true }).first()).toBeVisible()
+  await guest.unroute('**/_serverFn/**')
   await expect(guest.locator('[data-unit="Immortals"]')).toContainText('6x Gauss blaster')
   await expect(guestLoadout.getByRole('button', { name: 'More Gauss blaster' })).toHaveCount(0)
   await expect(guestLoadout.getByRole('button', { name: /^Select / })).toHaveCount(0)
@@ -212,7 +233,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   expect(await guest.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   expect(await guestLoadout.evaluate((pane) => pane.scrollWidth <= pane.clientWidth)).toBe(true)
   await guest.screenshot({ path: 'test-results/shared-roster-read-only-phone.png', fullPage: true })
-  await guestLoadout.getByRole('button', { name: 'Close' }).click()
+  await guestLoadout.getByRole('button', { name: 'Back to roster' }).click()
   await guest.getByRole('button', { name: 'Roster actions' }).click()
   await expect(guest.getByRole('menuitem', { name: 'Sign in to duplicate' })).toBeVisible()
   expect(await guest.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)

@@ -1,12 +1,27 @@
 import type { Condition, ModifierGroup, SelectionEntry } from '../core/catalogue'
+import { routeSlug } from '../core/slug'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { cardName, descriptionKey } from './datacards'
 import type { DetachmentRulesDetail } from './rulesFactions'
 
 export type DetachmentCatalogueDetail = {
-  rule: { name: string; description: string | null } | null
+  rules: { name: string; description: string | null }[]
   enhancements: { name: string; points: number | null; description: string | null }[]
   forcedEnhancements: { name: string; points: number | null; description: string | null }[]
+}
+
+export function mergeDetachmentRules(
+  catalogueRules: readonly { name: string; description: string | null }[],
+  cardRules: readonly { name: string; description: string }[],
+) {
+  const supplied = new Set(cardRules.map((rule) => routeSlug(rule.name)))
+  const missing = catalogueRules.filter((rule) => {
+    const name = routeSlug(rule.name)
+    if (supplied.has(name)) return false
+    supplied.add(name)
+    return true
+  })
+  return [...cardRules, ...missing]
 }
 
 type EnhancementIndex = { byCardName: Map<string, SelectionEntry[]>; forced: Map<string, SelectionEntry[]> }
@@ -22,11 +37,13 @@ export function detachmentCatalogueDetail(
   const option = loaded.detachments.get(catalogueId)?.options.find((candidate) => candidate.id === detachmentId)
   if (!option) return null
   const definition = loaded.index.definitions.get(option.id)
-  const linkedRule = definition?.infoLinks
-    ?.map((link) => loaded.index.rules.get(link.targetId))
-    .find((candidate) => candidate && !candidate.hidden)
-  const inlineRule = definition?.rules?.find((candidate) => !candidate.hidden)
-  const rule = linkedRule ?? inlineRule
+  const rules = [
+    ...(definition?.infoLinks?.flatMap((link) => {
+      const rule = loaded.index.rules.get(link.targetId)
+      return rule && !rule.hidden ? [rule] : []
+    }) ?? []),
+    ...(definition?.rules?.filter((rule) => !rule.hidden) ?? []),
+  ].flatMap((rule) => (rule.name ? [{ name: rule.name, description: rule.description ?? null }] : []))
 
   const indexed = enhancementIndex(loaded)
   const enhancements = enhancementNames
@@ -52,7 +69,7 @@ export function detachmentCatalogueDetail(
     .toSorted((left, right) => left.name.localeCompare(right.name))
 
   return {
-    rule: rule?.name ? { name: rule.name, description: rule.description ?? null } : null,
+    rules,
     enhancements,
     forcedEnhancements,
   }

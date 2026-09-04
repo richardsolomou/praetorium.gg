@@ -42,6 +42,8 @@ export type Army = {
   units: ViewPlayer['units']
   /** How many of them are still on the table, folded by the domain rather than counted again here. */
   standing: number
+  /** How many units the army plays after attachments are formed. */
+  unitCount: number
   painted: boolean
   /** What the bonus will pay at the end. It is not in the running score. */
   paintedPoints: number
@@ -157,7 +159,7 @@ export function sides(view: BattleView, missions: readonly { side: number; missi
         disposition: captain.disposition ?? null,
         dispositionChoices: captain.dispositionChoices ?? [],
         paintedPoints,
-        total: captain.primary + captain.secondary + (view.status === 'finished' ? paintedPoints : 0),
+        total: captain.primary + captain.secondary + (view.status === 'setup' ? 0 : paintedPoints),
         rounds: captain.rounds,
         primaryCard: captain.primaryCard,
         secondaries: unsettledFirst(captain.secondaries),
@@ -194,7 +196,7 @@ export function facingSides(view: BattleView): { yours: Side | undefined; theirs
 }
 
 /** What a side is called: every player on it, in seating order. */
-export function sideName(side: Side): string {
+export function sideName(side: { armies: readonly { playerName: string }[] }): string {
   return side.armies.map((army) => army.playerName).join(' & ')
 }
 
@@ -223,6 +225,7 @@ function toArmy(player: ViewPlayer): Army {
     rosterId: player.roster?.id ?? null,
     units: player.units,
     standing: player.standing,
+    unitCount: player.unitCount,
     painted: player.painted,
     paintedPoints: player.paintedPoints,
     points: units?.length ? units.reduce((total, unit) => total + unit.points, 0) : null,

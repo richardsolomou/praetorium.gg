@@ -4,12 +4,12 @@
 
 ## Command log
 
-- Store commands, not derived battle state. `reduceBattle` derives the score, round, phase, and unit state.
-- Use `validate` as the only command-legality check. The server and `battleView` both depend on it.
-- Read the log, validate the command, and append it in one `Repository.submit` transaction.
-- Require `expectedSeq` on each command. Return `stale` when it does not match. Do not resend the command automatically with a new sequence number.
-- Return the updated seated screen with a submitted command. `useCommand` writes that screen to the query cache before another command can use it.
-- Implement every new `Command` kind in both `validate` and `apply`. Their exhaustive checks make missing cases fail the build.
+- The log stores commands rather than derived battle state. `reduceBattle` derives the score, round, phase, and unit state.
+- `validate` is the only command-legality check used by the server and `battleView`.
+- `Repository.submit` reads the log, validates the command, and appends it in one transaction.
+- Every command carries `expectedSeq`. A mismatch returns `stale`, and the client does not automatically resend the command under a new sequence number.
+- A successful submission returns the updated seated screen. `useCommand` writes that screen to the query cache before another command can use it.
+- Every `Command` kind has a case in both `validate` and `apply`; their exhaustive checks make an omitted case fail the build.
 
 Undo appends an `undo` command that names the latest active command. It does not delete history. Either player can undo the latest command, then continue rewinding active commands across turn boundaries.
 
@@ -20,6 +20,8 @@ Live commands can name the affected player or army. Any seated player can operat
 What the active side still owes before a turn moves on — cards to draw or review, a previous turn to settle, mission scoring, a tactical hand, or a secret mission to answer — is a shared prompt and an advance guard. Any seated player can complete it for either side, so the guard prevents omissions without preventing one person from refereeing the table.
 
 Every required live prompt is shared. A phase or turn advance opens the same scoring and tactical-discard sequence on every seated device, and either player may complete it once. Tactical draws and prior-turn scoring work the same way. Prompt requests and acknowledgements are folded from the log so reloads and realtime updates preserve them, but they are not battle report entries or undo targets.
+
+Every required live prompt also carries the latest undo action. Rewinding into an earlier scoring, discard, draw, or Secret Mission prompt therefore leaves undo available to continue through the preceding actions.
 
 After a turn changes, the prior-turn scoring owed to the incoming side is settled before its tactical draw. A helper cannot dismiss an apparently empty settlement because their view may be withholding a hidden mission; only its own side can conclude that no private work remains. A side of practice opponents has no such seat, so the table playing it concludes that instead.
 
@@ -74,7 +76,7 @@ Undoing a logged draw returns hidden random state to the deck, so both the draw 
 
 ## Views and visibility
 
-`battleView` in `src/core/battleView.ts` is the only place that decides what a player can see. Routes and realtime messages must not build a second view.
+`battleView` in `src/core/battleView.ts` is the only place that decides what a player can see. Routes and realtime messages consume that view rather than building another.
 
 One thing in the game is genuinely hidden: the identity of a fixed Secret Mission played face down, until it is revealed. Everything else about the cards is public, including both tactical decks, because every draw, put-back and discard is named to both sides in the report. After a Secret Mission is selected, its side's remaining deck is withheld from the opposing side because the public pack minus that deck would identify the hidden card.
 
@@ -86,7 +88,7 @@ Because the seats are filled at creation, the number of them always equals `batt
 
 `src/core/battleAudience.ts` is the only place that decides who may read a battle they hold no seat in. A player stores one answer in `battle_sharing` — anyone, friends, or nobody — and a battle takes the narrowest answer of its seats, so one player choosing private makes the battle private for everyone at that table. A player with no row is public; the default lives in the domain rather than as a column default, so there is one copy of it.
 
-The home-page feeds and the screen a link resolves to must both read that fold. `Repository.publicBattles` and `battlesByFriends` express it as the absence of a seat that refused, because a player who has never answered has no row to agree with. `PraetoriumService.mayWatch` folds the same answers for one battle, and only reads friendships when the fold actually turns on one.
+The home-page feeds and battle links both read that fold. `Repository.publicBattles` and `battlesByFriends` express it as the absence of a seat that refused, because a player who has never answered has no row to agree with. `PraetoriumService.mayWatch` folds the same answers for one battle, and only reads friendships when the fold actually turns on one.
 
 `screen` answers one of three ways. A seated player gets the battle. Anyone the fold allows gets the read-only spectator screen, including a signed-out visitor, since a public battle found on the home page has to open. Everyone else gets `unavailable`, which offers sign-in rather than a flat refusal — a seated player whose session lapsed reaches it too, and telling them their own battle does not exist would be a lie.
 
@@ -110,20 +112,20 @@ A battle locked to a revealed league event returns a read-only spectator screen 
 
 ## Realtime updates
 
-- Realtime messages contain only the battle ID, plus the log's new sequence number when one command caused them. The client refetches the battle through the normal read path — never state from the message — and a client whose cached screen already carries the announced sequence skips the refetch it would only repeat, which is how the submitter avoids fetching the screen `submit` just returned. A subscription token carries its subject and its channel and nothing else — nothing on a screen is drawn from a connection, so nothing needs to be.
+- Realtime messages contain only the battle ID, plus the log's new sequence number when one command caused them. The client refetches through the normal read path, unless its screen already holds that sequence, and never draws state from the message. While the battle subscription is unavailable, the open battle polls until it subscribes, so a connected transport with a failed subscription cannot leave the table stale. A subscription token carries its subject and its channel and nothing else — nothing on a screen is drawn from a connection, so nothing needs to be.
 - `/api/realtime/token` requires an account and a seat in the requested battle.
 - Realtime channels use the internal battle ID, not the shared token.
 - A second channel is named after a player, so the list of battles hears about a battle the player has not opened yet. The home page listens on it for the same reason.
 - Spectators poll. Nothing on a public feed names the person reading it, so there is no channel to give them.
-- Every channel prefix needs a namespace in `realtime.json`. Centrifugo rejects a subscription to a prefix it was not configured with.
-- Caddy and the Vite development proxy serve Centrifugo on the app origin. Keep `connect-src 'self'`.
+- Every channel prefix has a namespace in `realtime.json`; Centrifugo rejects an unconfigured prefix.
+- Caddy and the Vite development proxy serve Centrifugo on the app origin, so `connect-src 'self'` remains sufficient.
 
 ## Server boundaries
 
-- More than one replica needs `VALKEY_URL`. Centrifugo then fans out through Valkey, so a command taken by one replica reaches a page connected to another. Without it, run one replica.
-- Wrap server-function reads with `rpc()` and mutations with `mutationRpc()`.
-- Keep `/api/health` outside canonical-host redirects so container health checks remain local.
-- Keep sign-in `next` values as paths on this instance. Absolute redirect targets create an open redirect.
+- A deployment with more than one replica requires `VALKEY_URL`. Centrifugo then fans out through Valkey, allowing a command handled by one replica to reach a page connected to another. A deployment without Valkey supports one replica.
+- Server-function reads use `rpc()` and mutations use `mutationRpc()`.
+- `/api/health` sits outside canonical-host redirects so container health checks remain local.
+- Sign-in `next` values are paths on the current installation. Absolute redirect targets would create an open redirect.
 
 ## Accounts
 
@@ -133,13 +135,13 @@ Battle seats, commands, saved lists, collections, and friendships reference `use
 
 Shared battles can only be created with mutually confirmed friends. Friend requests are directional until the recipient accepts; either player can later remove the connection. A practice opponent needs no friendship.
 
-Better Auth owns the `user`, `session`, `account`, `verification`, and `rateLimit` tables. Add product data to Praetorium tables instead of changing those schemas.
+Better Auth owns the `user`, `session`, `account`, `verification`, and `rateLimit` tables. Product data belongs to Praetorium tables rather than those schemas.
 
 ## Concurrency limit
 
-Starting the battle is not undoable: `begin-battle` leaves nothing for `undo` to name. Player-scoped commands may carry a `playerId`; omitting it retains the submitting player's meaning for existing log entries. Roster selection remains the owner's choice, and concessions cannot be submitted for another player.
+Starting the battle is not undoable: `begin-battle` leaves nothing for `undo` to name. Player-scoped commands may carry a `playerId`; omitting it retains the submitting player's meaning for existing log entries. Roster selection remains the owner's choice. A seated player can record a concession for any non-automated player at the table.
 
-`expectedSeq` applies to the full battle log. Independent commands from both players can still race, and one player may need to submit again. A stale or refused command discards the rest of the UI batch built on the same sequence, while commands produced by a newer realtime screen remain queued. Keep this behavior until commands declare narrower dependencies. Do not remove `expectedSeq`.
+`expectedSeq` applies to the full battle log. Independent commands from both players can still race, and one player may need to submit again. A stale or refused command discards the rest of the UI batch built on the same sequence, while commands produced by a newer realtime screen remain queued. This behavior remains necessary while commands lack narrower dependency declarations.
 
 ## Tests
 

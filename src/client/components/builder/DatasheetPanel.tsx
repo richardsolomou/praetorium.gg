@@ -7,8 +7,9 @@ import { datasheetQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { HoverTooltip } from '../HoverTooltip'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList } from '../Keyword'
-import { abilitySections, addedKeywords, attachmentGroups, referenceAbilities } from '../../datasheet'
+import { abilitySections, addedKeywords, attachmentGroups, primaryUnitProfile, referenceAbilities } from '../../datasheet'
 import { RuleText } from '../RuleText'
+import { ProfileRules } from '../ProfileRules'
 
 type Props = {
   catalogueId: string
@@ -69,7 +70,7 @@ export function DatasheetPanel({
   }
   if (!sheet) return <DatasheetLoading />
 
-  const model = sheet.profiles.find((profile) => profile.type === 'Unit')
+  const model = primaryUnitProfile(sheet)
   const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
   const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
   const content = (
@@ -82,6 +83,7 @@ export function DatasheetPanel({
         <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} />
       ) : null}
       <AbilitySummary abilities={referenceAbilities(sheet.abilities, sheet.attachments)} rules={sheet.keywordRules} />
+      <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} compact />
       {sheet.referenceRoute ? (
         <div className="border-t border-edge pt-3">
           <div className="flex min-w-0 flex-wrap gap-1">
@@ -97,7 +99,9 @@ export function DatasheetPanel({
   return embedded ? (
     <div className="border-t border-edge pt-4">{content}</div>
   ) : (
-    <ScrollArea className="h-full [&_[data-slot=scroll-area-viewport]]:p-3">{content}</ScrollArea>
+    <ScrollArea className="h-full min-w-0 max-w-full overflow-hidden [&_[data-slot=scroll-area-viewport]]:touch-pan-y [&_[data-slot=scroll-area-viewport]]:!overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:overscroll-x-none [&_[data-slot=scroll-area-viewport]]:p-3">
+      {content}
+    </ScrollArea>
   )
 }
 

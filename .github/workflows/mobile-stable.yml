@@ -1,0 +1,62 @@
+name: Mobile stable
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/mobile-canary.yml
+      - .github/workflows/mobile-stable.yml
+      - mobile/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - scripts/check-mobile-delivery-revision.sh
+      - scripts/finish-mobile-deliveries.sh
+      - scripts/wait-for-commit-status.sh
+
+concurrency:
+  group: mobile-stable
+  queue: max
+
+permissions:
+  contents: write
+  statuses: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DELIVERY_SHA: ${{ github.sha }}
+      DELIVERY_TAG: mobile-stable-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Finish interrupted stable deliveries
+        run: sh scripts/finish-mobile-deliveries.sh "$GITHUB_REPOSITORY" mobile-stable- "Mobile stable delivery"
+      - name: Check stable revision
+        id: revision
+        run: sh scripts/check-mobile-delivery-revision.sh "$DELIVERY_SHA" "$GITHUB_OUTPUT"
+      - name: Start stable delivery
+        if: steps.revision.outputs.current == 'true'
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$DELIVERY_TAG" -f sha="$DELIVERY_SHA"
+      - name: Wait for stable delivery
+        id: delivery
+        if: steps.revision.outputs.current == 'true'
+        run: |
+          if sh scripts/wait-for-commit-status.sh "$GITHUB_REPOSITORY" "$DELIVERY_SHA" "Mobile stable delivery / Delivery complete"; then
+            echo "terminal=true" >> "$GITHUB_OUTPUT"
+          else
+            status=$?
+            if test "$status" -eq 2; then
+              echo "terminal=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "terminal=true" >> "$GITHUB_OUTPUT"
+            fi
+            exit "$status"
+          fi
+      - name: Remove delivery tag
+        if: ${{ !cancelled() && steps.delivery.outputs.terminal == 'true' }}
+        run: gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$DELIVERY_TAG" || true

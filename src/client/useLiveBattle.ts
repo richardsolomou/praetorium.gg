@@ -1,9 +1,16 @@
 import { useQueryClient } from '@tanstack/react-query'
 import posthog from 'posthog-js'
-import type { Centrifuge, Subscription, SubscriptionOptions } from 'centrifuge'
+import {
+  SubscriptionState,
+  UnauthorizedError,
+  type Centrifuge,
+  type Subscription,
+  type SubscriptionOptions,
+  type SubscriptionStateContext,
+} from 'centrifuge'
 import { createSameOriginRealtimeClient, requestRealtimeTicket } from 'ras-stack/realtime/client'
 import { useConnectedRealtimeClient, useRealtimeSubscription } from 'ras-stack/realtime/react'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { z } from 'zod'
 import { battleQuery, battlesQuery } from './queries'
 import { isExpectedRealtimeDisconnect } from './realtimeErrors'
@@ -22,13 +29,14 @@ const reportRealtimeError = (error: unknown) => {
 /**
  * Keeps an open battle current.
  *
- * The message carries nothing but the battle id and only prompts a refetch, so
- * `battleView` stays the only thing deciding what a player may see. A connection
- * that dies costs only freshness: subscribing refetches, which covers whatever
- * changed while it was down.
+ * Messages only prompt the normal read, so `battleView` stays authoritative.
+ * Subscribing refetches, and polling continues until the battle channel is subscribed.
  */
 export function useLiveBattle(token: string, enabled: boolean) {
   const queryClient = useQueryClient()
+  const [subscribed, setSubscribed] = useState(false)
+  const [retry, setRetry] = useState(0)
+  const retryTimer = useRef<number | undefined>(undefined)
   const ask = useCallback(
     (init?: RequestInit) =>
       requestRealtimeTicket(`/api/realtime/token?battle=${encodeURIComponent(token)}`, {
@@ -38,18 +46,22 @@ export function useLiveBattle(token: string, enabled: boolean) {
     [token],
   )
   const createClient = useCallback(async () => {
-    const { token: connection, channel } = await ask()
+    const { token: connection, channel } = await ask(retry ? { cache: 'no-store' } : undefined)
     if (!channel) throw new Error('Realtime ticket did not include a battle channel')
     const client = createSameOriginRealtimeClient({ token: connection, getToken: async () => (await ask()).token })
     clientChannels.set(client, channel)
     return client
-  }, [ask])
-  const client = useConnectedRealtimeClient(createClient, enabled, { onError: reportRealtimeError })
+  }, [ask, retry])
+  const handleRealtimeError = useCallback((error: unknown) => {
+    reportRealtimeError(error)
+    if (error instanceof UnauthorizedError) return
+    window.clearTimeout(retryTimer.current)
+    retryTimer.current = window.setTimeout(() => setRetry((current) => current + 1), 5_000)
+  }, [])
+  useEffect(() => () => window.clearTimeout(retryTimer.current), [])
+  const client = useConnectedRealtimeClient(createClient, enabled, { onError: handleRealtimeError })
   const refresh = useCallback(
     (announcedSeq?: number) => {
-      // A command's publication names the log's new high-water mark. The player who
-      // sent it already holds that screen — `submit` returned it — so refetching the
-      // battle and the report again would only repeat the answer they just wrote.
       if (announcedSeq !== undefined) {
         const held = queryClient.getQueryData(battleQuery(token).queryKey) as { kind?: string; view?: { seq?: number } } | undefined
         if (held?.kind === 'battle' && typeof held.view?.seq === 'number' && held.view.seq >= announcedSeq) {
@@ -63,6 +75,11 @@ export function useLiveBattle(token: string, enabled: boolean) {
     },
     [queryClient, token],
   )
+  useEffect(() => {
+    if (!enabled || subscribed) return
+    const timer = window.setInterval(refresh, 5_000)
+    return () => window.clearInterval(timer)
+  }, [enabled, refresh, subscribed])
   const subscriptionOptions = useMemo<SubscriptionOptions>(
     () => ({
       getToken: async ({ channel }) =>
@@ -78,16 +95,21 @@ export function useLiveBattle(token: string, enabled: boolean) {
   )
   const configure = useCallback(
     (subscription: Subscription) => {
+      const state = ({ newState }: SubscriptionStateContext) => setSubscribed(newState === SubscriptionState.Subscribed)
       const publication = (context: { data?: unknown }) => {
         const seq = (context.data as { seq?: unknown } | undefined)?.seq
         refresh(typeof seq === 'number' ? seq : undefined)
       }
-      const subscribed = () => refresh()
+      const onSubscribed = () => refresh()
+      subscription.on('state', state)
       subscription.on('publication', publication)
-      subscription.on('subscribed', subscribed)
+      subscription.on('subscribed', onSubscribed)
+      setSubscribed(subscription.state === SubscriptionState.Subscribed)
       return () => {
+        subscription.off('state', state)
         subscription.off('publication', publication)
-        subscription.off('subscribed', subscribed)
+        subscription.off('subscribed', onSubscribed)
+        setSubscribed(false)
       }
     },
     [refresh],

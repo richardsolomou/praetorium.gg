@@ -55,7 +55,7 @@ function FactionPage() {
           <FavouriteFactionToggle catalogueId={faction.id} name={faction.displayName} />
         </div>
       </section>
-      <div className="mx-auto max-w-5xl px-3 py-4 sm:px-4">
+      <div className="mx-auto max-w-5xl px-3 pt-4 pb-8 sm:px-4">
         <Link to="/factions" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
           <ChevronLeft className="size-3.5" /> Factions
         </Link>
@@ -96,7 +96,7 @@ function FactionPage() {
                 headingLevel={2}
                 eyebrow="Detachments"
                 title="No detachments available"
-                explanation="The current structured sources do not define detachments for this faction."
+                explanation="No detachment rules are available for this faction."
                 icon={ShieldQuestion}
                 className="border-0"
               />

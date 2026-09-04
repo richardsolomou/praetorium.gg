@@ -1,4 +1,5 @@
 import { devices, expect, test } from '@playwright/test'
+import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
 import { signUp } from './account'
 
 test('primary navigation collapses below 815 pixels', async ({ page }) => {
@@ -16,11 +17,22 @@ test('primary navigation collapses below 815 pixels', async ({ page }) => {
   await expect(primary.getByRole('link', { name: 'Factions' })).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Mission packs' })).toBeVisible()
   await expect(primary.getByText('Rules', { exact: true })).toHaveCount(0)
-  await expect(page.locator('header')).toHaveJSProperty(
-    'scrollWidth',
-    await page.locator('header').evaluate((header) => header.clientWidth),
-  )
+  const webHeader = page.locator('[data-web-app-chrome]')
+  await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
   await page.screenshot({ path: 'test-results/navigation-phone.png', fullPage: true })
+
+  await page.keyboard.press('Control+K')
+  await expect(page.getByPlaceholder('Search everything…')).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(page.getByPlaceholder('Search everything…')).toHaveCount(0)
+
+  await primary.getByRole('link', { name: 'Rosters' }).click()
+  await expect(page.getByRole('button', { name: 'Go back' })).toHaveCount(0)
+  await page.setViewportSize({ width: 320, height: 568 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
+  expect(await webHeader.evaluate((header) => header.scrollWidth)).toBe(320)
+
+  await page.getByRole('button', { name: 'Open primary navigation' }).click()
   await primary.getByRole('link', { name: 'Mission packs' }).click()
   await expect(page).toHaveURL(/\/mission-packs\//)
   await expect(primary).toBeHidden()
@@ -31,10 +43,125 @@ test('primary navigation collapses below 815 pixels', async ({ page }) => {
   await page.setViewportSize({ width: 815, height: 844 })
   await expect(page.getByRole('button', { name: 'Open primary navigation' })).toBeHidden()
   await expect(primary).toBeVisible()
-  await expect(page.locator('header')).toHaveJSProperty(
-    'scrollWidth',
-    await page.locator('header').evaluate((header) => header.clientWidth),
-  )
+  await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
+})
+
+test('the native application has stable route-aware phone and tablet navigation', async ({ browser }) => {
+  const loadingContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  await loadingContext.addInitScript({
+    content: `window.ReactNativeWebView = { postMessage: () => {} };
+${NATIVE_BRIDGE_SCRIPT}`,
+  })
+  const loadingPage = await loadingContext.newPage()
+  await loadingPage.route('**/*', (route) => (route.request().resourceType() === 'script' ? route.abort() : route.continue()))
+  await loadingPage.goto('/factions/necrons/datasheets/overlord')
+  await expect(loadingPage.locator('[data-web-app-chrome]')).toBeHidden()
+  await expect(loadingPage.locator('[data-native-app-header]')).toBeVisible()
+  await expect(loadingPage.locator('[data-native-app-tabs]')).toBeVisible()
+  expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await loadingPage.setViewportSize({ width: 1024, height: 768 })
+  expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(1024)
+  await loadingContext.close()
+
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  await context.addInitScript({
+    content: `window.ReactNativeWebView = { postMessage: () => {} };
+${NATIVE_BRIDGE_SCRIPT}`,
+  })
+  const page = await context.newPage()
+  const hydrationErrors: string[] = []
+  page.on('console', (message) => {
+    if (message.type() === 'error' && /hydrat/i.test(message.text())) hydrationErrors.push(message.text())
+  })
+  await page.goto('/factions/necrons/datasheets/overlord')
+
+  const webHeader = page.locator('[data-web-app-chrome]')
+  const nativeHeader = page.getByRole('banner', { name: 'Application' })
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
+  await expect(webHeader).toBeHidden()
+  await expect(nativeHeader).toBeVisible()
+  await expect(sections).toBeVisible()
+  await expect(sections.getByRole('link', { name: 'Factions' })).toHaveAttribute('aria-current', 'page')
+  const detailBack = nativeHeader.getByRole('button', { name: 'Back to datasheets' })
+  const detailBackBox = await detailBack.boundingBox()
+  expect(detailBackBox?.x).toBe(0)
+  expect(detailBackBox?.width).toBeGreaterThanOrEqual(44)
+  expect((await nativeHeader.getByRole('button', { name: 'Search Praetorium' }).boundingBox())?.width).toBeGreaterThanOrEqual(44)
+  expect((await nativeHeader.getByRole('button', { name: 'Account menu' }).boundingBox())?.width).toBeGreaterThanOrEqual(44)
+  expect(hydrationErrors).toEqual([])
+  await page.screenshot({ path: 'test-results/native-navigation-phone.png', fullPage: true })
+
+  await detailBack.click()
+  await expect(page).toHaveURL('/factions/necrons/datasheets')
+  const factionBack = nativeHeader.getByRole('button', { name: 'Back to faction' })
+  expect((await factionBack.boundingBox())?.x).toBe(detailBackBox?.x)
+
+  await page.goto('/factions/necrons/datasheets')
+  await page
+    .locator('[data-datasheet="Overlord"]')
+    .getByRole('link', { name: /^Overlord \d+ pts$/ })
+    .click()
+  await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
+  expect(await page.evaluate(() => history.state.__TSR_index)).toBe(1)
+  await nativeHeader.getByRole('button', { name: 'Back to datasheets' }).click()
+  await expect(page).toHaveURL('/factions/necrons/datasheets')
+  expect(await page.evaluate(() => history.state.__TSR_index)).toBe(0)
+
+  // Back belongs to the tab it is pressed in: a datasheet reached from a page outside
+  // the tabs returns to the datasheets, not to whatever the player was reading before.
+  await page.goto('/support')
+  await nativeHeader.getByRole('button', { name: 'Search Praetorium' }).click()
+  await page.getByPlaceholder('Search everything…').fill('Overlord')
+  await page
+    .getByRole('option', { name: /Overlord/ })
+    .first()
+    .click()
+  await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
+  await nativeHeader.getByRole('button', { name: 'Back to datasheets' }).click()
+  await expect(page).toHaveURL('/factions/necrons/datasheets')
+
+  await page.goto('/factions/necrons/datasheets/overlord')
+  expect(await page.evaluate(() => history.state.__TSR_index)).toBe(0)
+  await nativeHeader.getByRole('button', { name: 'Back to datasheets' }).click()
+  await expect(page).toHaveURL('/factions/necrons/datasheets')
+
+  // The bottom of a tab has nothing behind it, so it offers no Back action at all.
+  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await expect(page).toHaveURL('/rosters')
+  await expect(nativeHeader.getByRole('button', { name: /^Back/ })).toHaveCount(0)
+
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await expect(sections).toHaveCSS('flex-direction', 'column')
+  expect((await sections.boundingBox())?.x).toBe(0)
+  expect((await nativeHeader.boundingBox())?.x).toBeGreaterThanOrEqual(80)
+  await page.screenshot({ path: 'test-results/native-navigation-tablet.png', fullPage: true })
+
+  await context.close()
+})
+
+test('a signed-in player cannot return to the sign-in form', async ({ page }) => {
+  const name = 'No stale sign in'
+  const credentials = await signUp(page, name)
+
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
+  await expect(page).not.toHaveURL(/\/sign-in/)
+
+  await page.goto('/sign-in')
+  await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
+  await expect(page).not.toHaveURL(/\/sign-in/)
+
+  await page.getByRole('button', { name: `Account menu for ${name}` }).click()
+  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await page.goto('/support')
+  await page.goto('/sign-in?next=%2Ffactions')
+  await page.getByLabel('Email').fill(credentials.email)
+  await page.getByLabel('Password').fill(credentials.password)
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page).toHaveURL('/factions')
+  await page.goBack()
+  await expect(page).toHaveURL('/support')
+  await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
 })
 
 test('public reference data renders without client JavaScript', async ({ browser }) => {
@@ -240,6 +367,18 @@ test('terrain layouts open with measurement guidance', async ({ page }) => {
   await expect(dialog.locator('svg[aria-label]').first()).toBeVisible()
 })
 
+test('a matchup keeps each action in the column of the side whose mission asks for it', async ({ page }) => {
+  // Priority Assets asks for the action here, and it is the side drawn second, so an
+  // action packed into the first free column would read as the other side's.
+  await page.goto('/mission-matchups/chapter-approved-2026-2027/take-and-hold/priority-assets')
+  const panels = page
+    .locator('section')
+    .filter({ has: page.getByRole('heading', { name: /^Actions/ }) })
+    .locator('.bg-panel')
+  await expect(panels.nth(0)).toContainText('Inescapable Dominion asks for no action.')
+  await expect(panels.nth(1)).toContainText('SECURE ASSET')
+})
+
 test('a player can enter through the roster library and browse the product', async ({ page }) => {
   // Signed out, the library says what it is and asks for an account.
   await page.goto('/rosters')
@@ -368,10 +507,10 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('link', { name: 'Battles' }).click()
   await expect(page.getByRole('heading', { name: 'My battles' })).toBeVisible()
   await expect(page.getByText('No battles yet.')).toBeVisible()
-  await page.getByRole('button', { name: 'New casual battle' }).click()
+  await page.getByRole('button', { name: 'New battle' }).click()
   await page.getByRole('combobox', { name: 'Opponent' }).click()
   await page.getByRole('option', { name: 'Practice Opponent', exact: true }).click()
-  await page.getByRole('button', { name: 'Create casual battle' }).click()
+  await page.getByRole('button', { name: 'Start battle' }).click()
   await page.getByRole('link', { name: 'Battles' }).click()
   await expect(page.locator('[data-battle-shelf="Setup"]')).toBeVisible()
   await expect(page.getByText('Practice Opponent').first()).toBeVisible()
@@ -556,4 +695,44 @@ test('a dense squad datasheet remains readable at desktop and phone widths', asy
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: 'test-results/deathwing-terminator-datasheet-phone.png', fullPage: true })
+})
+
+test('an officer datasheet shows how many orders it can issue', async ({ page }) => {
+  await page.goto('/factions/astra-militarum/datasheets/leman-russ-commander')
+  const orders = page.getByRole('heading', { name: 'Orders', exact: true }).locator('..')
+  await expect(orders).toContainText('This Officer can issue 2 Orders to Squadron units.')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(await page.evaluate(() => window.innerWidth))
+  await page.screenshot({ path: 'test-results/officer-orders-datasheet.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/officer-orders-datasheet-phone.png', fullPage: true })
+})
+
+test('each application tab returns to where it was left', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  await context.addInitScript({
+    content: `window.ReactNativeWebView = { postMessage: () => {} };
+${NATIVE_BRIDGE_SCRIPT}`,
+  })
+  const page = await context.newPage()
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
+
+  await page.goto('/factions/necrons/datasheets/overlord')
+  // The missions tab lands on the current pack, so its memory is that redirect.
+  await sections.getByRole('link', { name: 'Missions' }).click()
+  await expect(page).toHaveURL(/\/mission-packs\//)
+
+  await sections.getByRole('link', { name: 'Factions' }).click()
+  await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
+
+  // The section you are already in has one obvious destination left: its top.
+  await sections.getByRole('link', { name: 'Factions' }).click()
+  await expect(page).toHaveURL('/factions')
+
+  await sections.getByRole('link', { name: 'Missions' }).click()
+  await sections.getByRole('link', { name: 'Factions' }).click()
+  await expect(page).toHaveURL('/factions')
+
+  await context.close()
 })

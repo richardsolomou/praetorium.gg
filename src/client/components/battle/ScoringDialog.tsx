@@ -20,6 +20,7 @@ import { type Side, sideName } from '../../sides'
 import { RuleText } from '../RuleText'
 import { MissionName, type ReferenceCard } from './MissionCards'
 import { tint } from './tints'
+import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
 
 /** Which side a prompt is recording for, in the colours it wears to say so. */
 type Tone = ReturnType<typeof tint>
@@ -41,6 +42,8 @@ type Props = {
    * that has already ended owes its points to the round that turn was in.
    */
   round: number
+  undoable: number | null
+  undoableDraw: boolean
 }
 
 /** How many times each payout on a card was taken. Zero throughout is "did not score". */
@@ -56,8 +59,22 @@ const CATEGORIES = ['primary', 'secondary'] as const
  * groups the payouts that are tiers of one thing, and only the better tier scores.
  * Everything it leaves ungrouped a card can pay at the same time.
  */
-export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, referenceFor, onDone, onCancel, round }: Props) {
+export function ScoringDialog({
+  side,
+  due,
+  moment,
+  confirmLabel,
+  pending,
+  send,
+  referenceFor,
+  onDone,
+  onCancel,
+  round,
+  undoable,
+  undoableDraw,
+}: Props) {
   const [answers, setAnswers] = useState<Answers>({})
+  const undo = useUndoLatest({ undoable, undoableDraw, send })
   const answerFor = (card: DueCard) => answers[card.key] ?? card.awards.map(() => 0)
   const claimedFor = (card: DueCard) => card.awards.reduce((total, award, at) => total + awardTotal(award, answerFor(card)[at] ?? 0), 0)
 
@@ -158,114 +175,118 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
   const colours = tint(side.index)
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onCancel?.()}>
-      {/*
-       * Edged and titled in the side's own tint. Points go to one side and cannot be
-       * taken back without an undo, so which side is being paid should be readable
-       * before the sentence naming them is — a prompt that looked the same for both
-       * left the name doing that work alone.
-       */}
-      <DialogContent className={`max-h-[85dvh] overflow-y-auto rounded-none border bg-panel text-bone sm:max-w-2xl ${colours.border}`}>
-        <DialogHeader className="text-center">
-          <p className="eyebrow text-discarded">Now</p>
-          <DialogTitle className={`uppercase ${colours.text}`}>
-            Scoring {moment} points · {sideName(side)}
-          </DialogTitle>
-          <DialogDescription className="text-dim">
-            Recording points for {sideName(side)}. Press what the board actually paid on each card.
-          </DialogDescription>
-          {allowances.length ? (
-            <p className="readout flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-xs text-dim">
-              {allowances.map((allowance) => (
-                <span key={allowance.label}>
-                  {allowance.label} <span className="text-bone">{allowance.standing}</span>/{allowance.cap} {allowance.when}
-                </span>
-              ))}
-            </p>
-          ) : null}
-        </DialogHeader>
-
-        <div className="space-y-3">
-          {due.map((card) => {
-            const taken = answerFor(card)
-            const { claimed, scoring } = settledFor(card)
-            const reference = referenceFor(card.key)
-            return (
-              <section key={card.key} data-due={card.key} className="border border-edge">
-                <div className="bg-sunken px-3 py-2">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <MissionName
-                      name={card.name}
-                      card={reference}
-                      type={card.category === 'primary' ? 'Primary mission' : 'Secondary mission'}
-                      mode={card.category === 'secondary' ? side.secondaryMode : undefined}
-                      className={colours.text}
-                    />
-                    {/* Which card the ceiling actually took from, so unpicking a payout
-                        elsewhere is a move the player can see is theirs to make. */}
-                    <span className="readout shrink-0 text-xs text-dim">
-                      {claimed > scoring
-                        ? `+${scoring} of ${claimed} VP`
-                        : claimed
-                          ? `+${scoring} VP`
-                          : `${scoredThisRound(roundSoFar, card.category)} VP so far`}
-                    </span>
-                  </div>
-                </div>
-                <div className="divide-y divide-edge">
-                  {card.awards.map((award, at) => (
-                    <AwardRow
-                      key={`${award.vp}-${award.criteria ?? at}`}
-                      card={card}
-                      award={award}
-                      join={payoutJoin(award, card.awards[at - 1])}
-                      times={taken[at] ?? 0}
-                      pending={pending}
-                      tone={colours}
-                      onAnswer={(times) => answer(card, at, times)}
-                    />
-                  ))}
-                  <div className="flex items-center gap-3 px-3 py-2">
-                    <span className="min-w-0 flex-1 text-sm text-dim">Did not score (or chose not to)</span>
-                    <Chip
-                      label="0 VP"
-                      chosen={taken.every((times) => times === 0)}
-                      pending={pending}
-                      tone={colours}
-                      ariaLabel={`${card.name} scored nothing`}
-                      onPress={() => setAnswers((current) => ({ ...current, [card.key]: card.awards.map(() => 0) }))}
-                    />
-                  </div>
-                </div>
-              </section>
-            )
-          })}
-        </div>
-
-        <DialogFooter className="flex-col items-stretch gap-2 rounded-none border-edge bg-sunken sm:flex-row sm:items-center">
-          {/* The result of the calculation above it, so a reader who cannot watch the
-              number move is told when a cap has quietly taken a piece of it. */}
-          <output className="mr-auto block space-y-1">
-            <p className="readout text-sm text-dim">
-              Scoring <span className="font-bold text-bone">{total}</span> VP
-            </p>
-            {capNotes.map((note) => (
-              <p key={note} className="max-w-prose text-[0.625rem] text-discarded">
-                {note}
+    <>
+      <Dialog open onOpenChange={(open) => !open && onCancel?.()}>
+        {/*
+         * Edged and titled in the side's own tint. Points go to one side and cannot be
+         * taken back without an undo, so which side is being paid should be readable
+         * before the sentence naming them is — a prompt that looked the same for both
+         * left the name doing that work alone.
+         */}
+        <DialogContent className={`max-h-[85dvh] overflow-y-auto rounded-none border bg-panel text-bone sm:max-w-2xl ${colours.border}`}>
+          <DialogHeader className="text-center">
+            <p className="eyebrow text-discarded">Now</p>
+            <DialogTitle className={`uppercase ${colours.text}`}>
+              Scoring {moment} points · {sideName(side)}
+            </DialogTitle>
+            <DialogDescription className="text-dim">
+              Recording points for {sideName(side)}. Press what the board actually paid on each card.
+            </DialogDescription>
+            {allowances.length ? (
+              <p className="readout flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-xs text-dim">
+                {allowances.map((allowance) => (
+                  <span key={allowance.label}>
+                    {allowance.label} <span className="text-bone">{allowance.standing}</span>/{allowance.cap} {allowance.when}
+                  </span>
+                ))}
               </p>
-            ))}
-          </output>
-          {onCancel ? (
-            <Button variant="outline" disabled={pending} onClick={onCancel}>
-              Go back
+            ) : null}
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {due.map((card) => {
+              const taken = answerFor(card)
+              const { claimed, scoring } = settledFor(card)
+              const reference = referenceFor(card.key)
+              return (
+                <section key={card.key} data-due={card.key} className="border border-edge">
+                  <div className="bg-sunken px-3 py-2">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <MissionName
+                        name={card.name}
+                        card={reference}
+                        type={card.category === 'primary' ? 'Primary mission' : 'Secondary mission'}
+                        mode={card.category === 'secondary' ? side.secondaryMode : undefined}
+                        className={colours.text}
+                      />
+                      {/* Which card the ceiling actually took from, so unpicking a payout
+                        elsewhere is a move the player can see is theirs to make. */}
+                      <span className="readout shrink-0 text-xs text-dim">
+                        {claimed > scoring
+                          ? `+${scoring} of ${claimed} VP`
+                          : claimed
+                            ? `+${scoring} VP`
+                            : `${scoredThisRound(roundSoFar, card.category)} VP so far`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-edge">
+                    {card.awards.map((award, at) => (
+                      <AwardRow
+                        key={`${award.vp}-${award.criteria ?? at}`}
+                        card={card}
+                        award={award}
+                        join={payoutJoin(award, card.awards[at - 1])}
+                        times={taken[at] ?? 0}
+                        pending={pending}
+                        tone={colours}
+                        onAnswer={(times) => answer(card, at, times)}
+                      />
+                    ))}
+                    <div className="flex items-center gap-3 px-3 py-2">
+                      <span className="min-w-0 flex-1 text-sm text-dim">Did not score (or chose not to)</span>
+                      <Chip
+                        label="0 VP"
+                        chosen={taken.every((times) => times === 0)}
+                        pending={pending}
+                        tone={colours}
+                        ariaLabel={`${card.name} scored nothing`}
+                        onPress={() => setAnswers((current) => ({ ...current, [card.key]: card.awards.map(() => 0) }))}
+                      />
+                    </div>
+                  </div>
+                </section>
+              )
+            })}
+          </div>
+
+          <DialogFooter className="flex-col items-stretch gap-2 rounded-none border-edge bg-sunken sm:flex-row sm:items-center">
+            {/* The result of the calculation above it, so a reader who cannot watch the
+              number move is told when a cap has quietly taken a piece of it. */}
+            <output className="mr-auto block space-y-1">
+              <p className="readout text-sm text-dim">
+                Scoring <span className="font-bold text-bone">{total}</span> VP
+              </p>
+              {capNotes.map((note) => (
+                <p key={note} className="max-w-prose text-[0.625rem] text-discarded">
+                  {note}
+                </p>
+              ))}
+            </output>
+            <UndoLatestButton disabled={pending || undoable === null} onClick={undo.request} />
+            {onCancel ? (
+              <Button variant="outline" disabled={pending} onClick={onCancel}>
+                Go back
+              </Button>
+            ) : null}
+            <Button className={colours.fill} disabled={pending} onClick={confirm}>
+              {confirmLabel}
             </Button>
-          ) : null}
-          <Button className={colours.fill} disabled={pending} onClick={confirm}>
-            {confirmLabel}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <UndoLatestConfirmation pending={pending} control={undo} />
+    </>
   )
 }
 

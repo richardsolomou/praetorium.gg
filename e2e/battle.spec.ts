@@ -19,6 +19,29 @@ import {
 } from './account'
 import { postgresPort } from './stackEnv'
 
+test('native battle controls leave the application tabs reachable', async ({ page }) => {
+  await signUp(page, uniqueName('Native controls'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Native battle roster' })
+  await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await startBattle(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.evaluate(() => {
+    document.documentElement.dataset.nativeApp = 'true'
+  })
+
+  const turnControl = page.locator('[data-turn-control]')
+  const applicationTabs = page.getByRole('navigation', { name: 'Application sections' })
+  await expect(turnControl).toBeVisible()
+  await expect(applicationTabs).toBeVisible()
+  const controlBox = await turnControl.boundingBox()
+  const tabsBox = await applicationTabs.boundingBox()
+  expect(controlBox && tabsBox).toBeTruthy()
+  expect(controlBox!.y + controlBox!.height).toBeLessThanOrEqual(tabsBox!.y)
+  await page.screenshot({ path: 'test-results/native-battle-controls-phone.png', fullPage: true })
+})
+
 test('a running battle restores mission prompts when its tactical prep is missing', async ({ page }) => {
   await signUp(page, uniqueName('Repair'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Repair roster' })
@@ -131,14 +154,15 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   if (await discard.isVisible()) await discard.getByRole('button', { name: 'Keep hand' }).click()
 
   await expect(handoff).toBeVisible()
-  await expect(page.getByText(/The battle is over/)).toHaveCount(0)
+  await expect(page.locator('[data-scoreboard]')).not.toContainText('Result')
   await handoff.getByRole('button', { name: 'Reveal and continue' }).click()
   const settlement = page.getByRole('dialog', { name: /^Scoring end of their turn points/ })
   await expect(settlement.locator('[data-due="final-secret"]')).toContainText('Final Vigil')
   await settlement.locator('[data-due="final-secret"]').getByRole('button', { name: 'plus 5' }).click()
   await page.screenshot({ path: 'test-results/final-round-settlement.png', fullPage: true })
   await settlement.getByRole('button', { name: 'Take the turn' }).click()
-  await expect(page.getByText('Played to the last round. Reopen it from the battle menu to keep playing.')).toBeVisible()
+  // The last round ends the battle, and the strip that carried the round carries the result.
+  await expect(page.locator('[data-scoreboard]')).toContainText('Result')
 })
 
 test('a tactical hand pays out when the card says', async ({ browser }) => {
@@ -172,6 +196,18 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   // The same two cards on the other device: a hand is public once it is drawn.
   const drawn = await hand.evaluateAll((cards) => cards.map((card) => card.getAttribute('data-secondary')))
   for (const key of drawn) await expect(bob.locator(`[data-secondary="${key}"]`)).toBeVisible()
+
+  const spectator = await (await browser.newContext(desktopContext)).newPage()
+  await spectator.goto(alice.url())
+  const spectatorMission = spectator
+    .locator('[data-secondary]')
+    .getByRole('button', { name: /^Read / })
+    .first()
+  await expect(spectatorMission).toBeVisible()
+  const missionName = (await spectatorMission.getAttribute('aria-label'))?.replace(/^Read /, '')
+  await spectatorMission.click()
+  await expect(spectator.getByRole('dialog', { name: missionName })).toBeVisible()
+  await expect(spectator.getByText('Spectators can follow the score, armies, and event log without changing the battle.')).toHaveCount(0)
 
   // The side panel is the way out of a battle to whoever is playing it and to what
   // they brought. It is written there once: with both panels on screen at this width
@@ -233,6 +269,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   const bobScoring = bob.getByRole('dialog', { name: /^Scoring end of turn points/ })
   await expect(scoring).toBeVisible()
   await expect(bobScoring).toBeVisible()
+  await expect(scoring.getByRole('button', { name: 'Undo latest action' })).toBeEnabled()
   // Whichever cards the matchup dealt, a flat payout is a yes or no rather than
   // something that can be pressed twice for double the points.
   const answer = scoring.getByRole('button', { name: /plus \d+$/ }).first()
@@ -271,10 +308,26 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
     const bobDiscard = bob.getByRole('dialog', { name: 'Discard tactical secondaries?' })
     await expect(discard).toBeVisible()
     await expect(bobDiscard).toBeVisible()
-    await discard.locator('button[aria-pressed]').first().click()
+    const discardedCard = await discard.locator('button[aria-pressed]').first().innerText()
+    await discard.getByRole('button', { name: discardedCard, exact: true }).click()
     await discard.getByRole('button', { name: 'Discard 1 and gain 1 CP' }).click()
-    await expect(alice.getByRole('dialog', { name: `${bobName}’s secondary missions` })).toBeVisible()
+    const nextHand = alice.getByRole('dialog', { name: `${bobName}’s secondary missions` })
+    await expect(nextHand).toBeVisible()
     await expect(alice.getByText(/discards .+ and gains 1 CP/)).toBeVisible()
+
+    await nextHand.getByRole('button', { name: 'Undo latest action' }).click()
+    await expect(discard).toBeVisible()
+    await alice.setViewportSize({ width: 390, height: 844 })
+    expect(await alice.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    expect(await discard.evaluate((dialog) => dialog.scrollWidth <= dialog.clientWidth)).toBe(true)
+    await expect(discard.getByRole('button', { name: discardedCard, exact: true })).toHaveCount(0)
+    await discard.getByRole('button', { name: 'Undo latest action' }).click()
+    await expect(discard.getByRole('button', { name: discardedCard, exact: true })).toBeVisible()
+    await alice.screenshot({ path: 'test-results/undo-discard-phone.png' })
+    await discard.getByRole('button', { name: discardedCard, exact: true }).click()
+    await discard.getByRole('button', { name: 'Discard 1 and gain 1 CP' }).click()
+    await expect(nextHand).toBeVisible()
+    await alice.setViewportSize(desktopContext.viewport)
   } finally {
     releaseBob()
   }
@@ -288,17 +341,24 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await takeTheTurn(alice)
   await expect(alice.getByText(new RegExp(`${aliceName} draws .+ for ${bobName}`)).first()).toBeVisible()
   await expect(alice.getByText(new RegExp(`${bobName} marks `))).toHaveCount(0)
-  await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored))
+  // Both armies arrive battle ready, so every score carries the bonus the battle paid at the start.
+  await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored + 10))
   await expect(panel.locator('[data-stat="cp"]')).toHaveText('2')
   // Nothing is ticked to finish a card: no control for it exists.
   await expect(alice.getByText('take it out of the hand')).toHaveCount(0)
   await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-stat="vp"]')).toHaveText(
-    String(scored),
+    String(scored + 10),
   )
 
   await expect(alice.getByText(/The battlefield is /)).toBeVisible()
   await expect(alice.getByText(/draws /).first()).toBeVisible()
   await alice.screenshot({ path: 'test-results/battle.png', fullPage: true })
+  await alice.setViewportSize({ width: 1100, height: 900 })
+  const stackedStratagemPosition = await ownPanel.locator('button[aria-label^="About "]').first().boundingBox()
+  const stackedPrimaryPosition = await ownPanel.locator('[data-stat="primary"]').boundingBox()
+  expect(stackedStratagemPosition && stackedPrimaryPosition).toBeTruthy()
+  expect(stackedStratagemPosition!.y).toBeLessThan(stackedPrimaryPosition!.y)
+  await alice.screenshot({ path: 'test-results/battle-stacked-desktop.png', fullPage: true })
   // The same panel on a phone, reached the same way. Only one panel is on screen at
   // a time there, so the scoreboard names the players again.
   await alice.setViewportSize({ width: 390, height: 844 })
@@ -306,7 +366,18 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(detachment).toBeVisible()
   await expect(ownPanel.getByRole('link', { name: aliceRoster, exact: true })).toBeVisible()
   await expect(scoreboard.getByRole('link', { name: aliceName })).toBeVisible()
+  const stratagemPosition = await ownPanel.locator('button[aria-label^="About "]').first().boundingBox()
+  const primaryPosition = await ownPanel.locator('[data-stat="primary"]').boundingBox()
+  expect(stratagemPosition && primaryPosition).toBeTruthy()
+  expect(stratagemPosition!.y).toBeLessThan(primaryPosition!.y)
+  const shownSecondaries = await ownPanel.locator('[data-secondary]').count()
+  const resolvedToggle = ownPanel.getByRole('button', { name: /Show \d+ resolved missions?/ })
+  const resolvedCount = Number((await resolvedToggle.innerText()).match(/\d+/)?.[0])
   await alice.screenshot({ path: 'test-results/battle-phone.png', fullPage: true })
+  await resolvedToggle.click()
+  await expect(ownPanel.getByRole('button', { name: 'Hide resolved missions' })).toBeVisible()
+  await expect(ownPanel.locator('[data-secondary]')).toHaveCount(shownSecondaries + resolvedCount)
+  await alice.screenshot({ path: 'test-results/battle-phone-resolved.png', fullPage: true })
   await playerLink.click()
   await expect(alice).toHaveURL(/\/users\/[^/?]+$/)
   await expect(alice.getByRole('heading', { name: aliceName })).toBeVisible()
@@ -482,6 +553,7 @@ test('a card names its own condition, and what their turn owed is asked as the t
   const refereeing = bob.getByRole('dialog', { name: /^Scoring end of their turn points/ })
   await expect(owed).toBeVisible()
   await expect(refereeing).toBeVisible()
+  await expect(owed.getByRole('button', { name: 'Undo latest action' })).toBeEnabled()
   await expect(refereeing).toContainText(aliceName)
   await expect(owed.locator('[data-due="assassination"]')).toContainText('For each enemy CHARACTER model destroyed this turn.')
   // The allowance belongs to the round the ended turn was in, which the battle has
@@ -544,6 +616,7 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
   const sharedBobAction = alice.getByRole('dialog', { name: `Secret Mission action · ${bobName}` })
   await expect(bobAction).toBeVisible()
   await expect(sharedBobAction).toBeVisible()
+  await expect(bobAction.getByRole('button', { name: 'Undo latest action' })).toBeEnabled()
   await expect(bob.getByRole('dialog', { name: /^Scoring / })).toHaveCount(0)
   await bobAction.getByRole('button', { name: 'Back' }).click()
   await expect(bobAction).toBeHidden()

@@ -8,7 +8,7 @@ import { befriend, createBattle, createRoster, signUp, uniqueName, waitForRoster
  */
 test('a battle cannot be opened without an account', async ({ page }) => {
   await page.goto('/battles')
-  await expect(page.getByRole('button', { name: 'New casual battle' })).toBeHidden()
+  await expect(page.getByRole('button', { name: 'New battle' })).toBeHidden()
   await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
 })
 
@@ -17,6 +17,7 @@ test('account forms show the server error', async ({ page }) => {
   await page.request.post('/api/auth/sign-up/email', {
     data: { email, password: 'a-long-enough-password', name: 'Auth Error' },
   })
+  await page.context().clearCookies()
 
   await page.goto('/sign-in')
   await page.getByLabel('Email').fill(email)
@@ -173,7 +174,7 @@ test('a player can permanently delete their account', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Delete account' }).click()
   const dialog = page.getByRole('dialog', { name: 'Delete your account' })
-  await expect(dialog).toContainText('Shared battles are deleted too')
+  await expect(dialog).toContainText('every battle you played will be deleted')
   await page.screenshot({ path: 'test-results/delete-account-confirm-desktop.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: 'test-results/delete-account-confirm-phone.png', fullPage: true })

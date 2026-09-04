@@ -64,6 +64,74 @@
   }
 }
 
+html[data-native-app='true'] [data-web-app-chrome] {
+  display: none;
+}
+
+html[data-native-app='true'] [data-native-app-header] {
+  display: grid;
+}
+
+html[data-native-app='true'] [data-native-app-tabs] {
+  display: flex;
+}
+
+@media (max-width: 1023px) {
+  html[data-native-app='true'] [data-turn-control] {
+    bottom: 4rem;
+  }
+
+  html[data-native-app='true'] [data-battle-tracker] {
+    padding-bottom: 12rem;
+  }
+
+  /* A unit is a screen inside the roster tab, not a sheet over the application. */
+  html[data-native-app='true'] [data-pane='loadout'] {
+    bottom: 4rem;
+  }
+
+  html[data-native-app='true'] [data-setup-next] {
+    bottom: 4rem;
+  }
+}
+
+html[data-native-app='true'] [data-native-app-frame] {
+  padding-bottom: 4rem;
+}
+
+html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
+  height: calc(100dvh - 7rem);
+}
+
+@media (min-width: 1024px) {
+  html[data-native-app='true'] [data-native-app-frame] {
+    padding-bottom: 0;
+    padding-left: 5rem;
+  }
+
+  html[data-native-app='true'] [data-native-app-tabs] {
+    top: 0;
+    right: auto;
+    width: 5rem;
+    height: 100dvh;
+    flex-direction: column;
+    border-top: 0;
+    border-right: 1px solid var(--color-edge);
+  }
+
+  html[data-native-app='true'] [data-native-app-tabs] a {
+    width: 100%;
+    min-height: 4.5rem;
+    flex: 0 0 auto;
+    border-top: 0;
+    border-left-width: 2px;
+  }
+
+  html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
+    height: calc(100dvh - 3rem);
+  }
+}
+
 @media print {
   [data-print-hide],
   body > div > header,
@@ -230,6 +298,37 @@
 
   ::-webkit-scrollbar-thumb:hover {
     background-color: var(--color-faint);
+  }
+}
+
+/*
+ * iOS zooms the page when a focused control's text is under 16px, and the zoom
+ * takes the fixed application header and tabs off screen with it. A floor on
+ * touch pointers keeps every field above the threshold; a mouse keeps the denser
+ * `text-sm` controls. Unlayered so it outranks the Tailwind utilities that set them.
+ */
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio']),
+  select,
+  textarea {
+    font-size: max(1rem, 16px);
+  }
+}
+
+@media (max-width: 639px) {
+  [data-slot='dialog-footer'],
+  [data-slot='alert-dialog-footer'] {
+    gap: 0.75rem;
+    padding-block: 1rem;
+  }
+
+  [data-slot='dialog-footer'] [data-slot='button'],
+  [data-slot='alert-dialog-footer'] [data-slot='button'],
+  [data-slot='alert-dialog-action'],
+  [data-slot='alert-dialog-cancel'] {
+    min-height: 2.75rem;
+    padding-inline: 1rem;
+    font-size: 1rem;
   }
 }
 

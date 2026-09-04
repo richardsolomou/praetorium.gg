@@ -24,21 +24,40 @@ import {
 /** One thing that happened, in the words a player would use about it. */
 export type ReportEntry = { seq: number; at: number; round: number; phase: Phase; by: string; commandKind: Command['kind']; text: string }
 
+type BattleReportReferences = {
+  deployments: readonly { id: string; name: string }[]
+}
+
 export function battleReport(
   players: readonly { id: PlayerId; name: string }[],
   log: readonly LoggedCommand[],
   playerIds: readonly PlayerId[] = players.map((player) => player.id),
   viewerId?: PlayerId,
   playerSides?: readonly number[],
+  references?: BattleReportReferences | null,
 ): ReportEntry[] {
   const named = new Map(players.map((player) => [player.id, player.name]))
+  const deployments = new Map(references?.deployments.map((deployment) => [deployment.id, deployment.name]))
   const state = emptyBattle(playerIds, playerSides)
   const entries: ReportEntry[] = []
+  let returned: { entry: ReportEntry; targetId: PlayerId; by: PlayerId } | null = null
 
   for (const { entry, before, army } of replay(state, log)) {
-    const text = describe(entry.command, state, before, entry.by, army, named, viewerId)
+    const text = describe(entry.command, state, before, entry.by, army, named, deployments, viewerId)
     if (!text) continue
-    entries.push({
+    const targetId = commandTarget(entry.command, entry.by)
+    if (
+      returned &&
+      returned.entry.seq + 1 === entry.seq &&
+      returned.targetId === targetId &&
+      returned.by === entry.by &&
+      (entry.command.kind === 'draw-secondary' || entry.command.kind === 'draw-secondaries')
+    ) {
+      returned.entry.text += ` and ${drawDescription(entry.command, army)}`
+      returned = null
+      continue
+    }
+    const reportEntry = {
       seq: entry.seq,
       at: entry.at,
       round: before.round || state.round,
@@ -46,7 +65,12 @@ export function battleReport(
       by: entry.by,
       commandKind: entry.command.kind,
       text,
-    })
+    }
+    entries.push(reportEntry)
+    returned =
+      entry.command.kind === 'set-secondary-status' && entry.command.status === 'returned'
+        ? { entry: reportEntry, targetId, by: entry.by }
+        : null
   }
 
   return entries
@@ -59,11 +83,12 @@ function describe(
   by: PlayerId,
   player: PlayerState | undefined,
   named: Map<PlayerId, string>,
+  deployments: ReadonlyMap<string, string>,
   viewerId?: PlayerId,
 ): string | null {
   const who = named.get(by) ?? 'Someone'
   // Setting the table can be done for someone else, so a line names the army it changed.
-  const targetId = 'playerId' in command && command.playerId ? command.playerId : by
+  const targetId = commandTarget(command, by)
   const whose = targetId === by ? 'their' : `${named.get(targetId) ?? 'another player'}’s`
   const forTarget = targetId === by ? '' : ` for ${named.get(targetId) ?? 'another player'}`
 
@@ -100,10 +125,9 @@ function describe(
       return parts.length ? `${who} took ${parts.join(', ')}${forTarget}` : null
     }
     case 'set-deployment':
-      // Only the id reaches here, so it is titled rather than left as a slug.
-      return command.patternId ? `The battlefield is ${titled(command.patternId)}` : null
+      return command.patternId ? `The battlefield is ${deployments.get(command.patternId) ?? titled(command.patternId)}` : null
     case 'set-battlefield':
-      return `The battlefield is ${titled(command.terrainLayoutId)}`
+      return `The battlefield is ${deployments.get(command.patternId) ?? titled(command.patternId)}`
     case 'deploy-unit': {
       const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
       if (targetId === by) return command.deployed ? `${who} put ${unit} on the table` : `${who} held ${unit} in reserve`
@@ -190,13 +214,9 @@ function describe(
       return `${who} marks ${name} ${command.status}${forTarget}`
     }
     case 'draw-secondary':
-      return `${who} draws ${player?.secondaries.find((secondary) => secondary.key === command.secondary.key)?.name ?? 'a secondary'}${forTarget}`
-    case 'draw-secondaries': {
-      const names = command.secondaries.map(
-        (drawn) => player?.secondaries.find((secondary) => secondary.key === drawn.key)?.name ?? 'a secondary',
-      )
-      return `${who} ${command.selected ? 'selects' : 'draws'} ${names.join(' and ')}${forTarget}`
-    }
+      return `${who} ${drawDescription(command, player)}${forTarget}`
+    case 'draw-secondaries':
+      return `${who} ${drawDescription(command, player)}${forTarget}`
     case 'select-secret': {
       const selected = player?.secondaries.find((secondary) => secondary.key === command.secondary.key)?.name ?? 'a secret mission'
       return sameSide(after, viewerId ?? null, targetId)
@@ -237,13 +257,29 @@ function describe(
     case 'pause-clock':
     case 'resume-clock':
       return null
-    case 'end-battle':
-      return command.reason === 'conceded' ? `${who} concedes` : `${who} calls the battle early`
+    case 'end-battle': {
+      if (command.reason !== 'conceded') return `${who} calls the battle early`
+      const concedingPlayer = command.concededBy ? (named.get(command.concededBy) ?? 'another player') : who
+      return !command.concededBy || command.concededBy === by ? `${who} concedes` : `${who} records that ${concedingPlayer} concedes`
+    }
     case 'reopen-battle':
       return `${who} reopens the battle`
     default:
       return null
   }
+}
+
+function commandTarget(command: Command, by: PlayerId): PlayerId {
+  return 'playerId' in command && command.playerId ? command.playerId : by
+}
+
+function drawDescription(
+  command: Extract<Command, { kind: 'draw-secondary' | 'draw-secondaries' }>,
+  player: PlayerState | undefined,
+): string {
+  const drawn = command.kind === 'draw-secondary' ? [command.secondary] : command.secondaries
+  const names = drawn.map((card) => player?.secondaries.find((secondary) => secondary.key === card.key)?.name ?? 'a secondary')
+  return `${command.kind === 'draw-secondaries' && command.selected ? 'selects' : 'draws'} ${names.join(' and ')}`
 }
 
 /** A slug the data never gave a printed name, put into the case a sentence needs. */

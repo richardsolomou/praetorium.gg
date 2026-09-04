@@ -47,6 +47,7 @@ beforeEach(() => {
       cp_cost: 1,
       timing: 'once-per-phase',
       game_version: { edition: '11th', dataslate: 'launch' },
+      external_refs: [{ namespace: 'game-datacards', id: 'gdc-grim-reapers' }],
     },
     { id: 'mortarions-teachings', name: "MORTARION'S TEACHINGS", detachment_id: 'flyblown-host', cp_cost: 2, timing: 'unknown-timing' },
     // The same card written down a second time under the detachment that shares it.
@@ -65,8 +66,21 @@ beforeEach(() => {
     { id: 'plague-cohort', name: 'Plague Cohort', stratagem_ids: ['grim-reapers-flyblown-host'], detachment_points: 1 },
   ])
   write(path.join(core, 'enhancements.json'), [
-    { id: 'living-plague', name: 'Living Plague', detachment_id: 'flyblown-host', cost: 20, keyword_restrictions: ['Character'] },
-    { id: 'rejuvenating-swarm', name: 'Rejuvenating Swarm', detachment_id: 'flyblown-host', cost: 10 },
+    {
+      id: 'living-plague',
+      name: 'Living Plague',
+      detachment_id: 'flyblown-host',
+      cost: 20,
+      keyword_restrictions: ['Character'],
+      external_refs: [{ namespace: 'game-datacards', id: 'gdc-living-plague' }],
+    },
+    {
+      id: 'rejuvenating-swarm',
+      name: 'Rejuvenating Swarm',
+      detachment_id: 'flyblown-host',
+      cost: 10,
+      external_refs: [{ namespace: 'game-datacards', id: 'missing-rejuvenating-swarm' }],
+    },
     { id: 'virulent-carapace', name: 'Virulent Carapace (Upgrade)', detachment_id: 'flyblown-host', cost: 15 },
   ])
   write(path.join(core, 'factions.json'), [
@@ -84,6 +98,7 @@ beforeEach(() => {
   fs.writeFileSync(path.join(icons, 'death-guard.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
   write(path.join(root, 'stratagems.json'), [
     { id: 'command-re-roll', name: 'COMMAND RE-ROLL', cp_cost: 1, timing: 'once-per-battle' },
+    { id: 'counter-offensive', name: 'COUNTER-OFFENSIVE', cp_cost: 2, timing: 'once-per-phase' },
     { id: 'insane-bravery', name: 'INSANE BRAVERY', cp_cost: 1, timing: 'once-per-battle' },
   ])
   const datacards = path.join(directory, 'datacards', '11th', 'gdc')
@@ -118,13 +133,26 @@ beforeEach(() => {
       ],
     },
     enhancements: [
-      { name: { en: 'Living Plague' }, detachment: 'Flyblown Host', cost: '25', description: { en: 'Spread the plague.' } },
+      {
+        id: 'gdc-living-plague',
+        name: { en: 'Living Plague Card' },
+        detachment: 'Flyblown Host',
+        cost: '25',
+        description: { en: 'Spread the plague.' },
+      },
       { name: { en: 'Rejuvenating Swarm' }, detachment: 'Flyblown Host', cost: '5', description: { en: 'Return models.' } },
       // The rules dataset spells the upgrade with its suffix; the cards may not.
       { name: { en: 'Virulent Carapace' }, detachment: 'Flyblown Host', cost: '30', description: { en: 'Improve the unit.' } },
       { name: { en: 'Daemon Weapon of Nurgle' }, detachment: 'Virulent Vectorium', cost: '10', description: { en: 'Corrupt it.' } },
     ],
-    stratagems: [{ name: { en: 'Grim Reapers' }, detachment: 'Flyblown Host', effect: { en: 'Cut them down.' } }],
+    stratagems: [
+      {
+        id: 'gdc-grim-reapers',
+        name: { en: 'Grim Reapers Card' },
+        detachment: 'Flyblown Host',
+        effect: { en: 'Cut them down.' },
+      },
+    ],
   })
   write(path.join(datacards, 'deathwatch.json'), {
     name: 'Deathwatch',
@@ -182,6 +210,12 @@ beforeEach(() => {
         target: { en: 'That unit or model.' },
         effect: { en: 'Re-roll that roll.' },
         restrictions: { en: 'One re-roll.' },
+      },
+      {
+        name: { en: 'Counteroffensive' },
+        type: 'Core Stratagem',
+        when: { en: 'Fight phase.' },
+        effect: { en: 'Fight next.' },
       },
       {
         id: 'new-orders',
@@ -332,12 +366,12 @@ describe('stratagems', () => {
     expect(load().detachmentDetails.get('death-guard')?.get('flyblown-host')).toMatchObject({
       rules: [{ name: 'Virulent Vectorium', description: 'Spread disease.' }],
       enhancements: [
-        { name: 'Living Plague', points: 25, description: 'Spread the plague.', keywordRestrictions: ['Character'] },
+        { name: 'Living Plague Card', points: 25, description: 'Spread the plague.', keywordRestrictions: ['Character'] },
         { name: 'Rejuvenating Swarm', points: 5, description: 'Return models.' },
       ],
       upgrades: [{ name: 'Virulent Carapace', points: 30, description: 'Improve the unit.' }],
       stratagems: expect.arrayContaining([
-        expect.objectContaining({ name: 'Grim Reapers', cp: 1, description: '**Effect:** Cut them down.' }),
+        expect.objectContaining({ name: 'Grim Reapers Card', cp: 1, description: '**Effect:** Cut them down.' }),
       ]),
     })
   })
@@ -378,7 +412,7 @@ describe('stratagems', () => {
 
   it('counts a card reached both ways once', () => {
     const found = load().byDetachment.get('death-guard')?.get('flyblown-host') ?? []
-    expect(found.map((stratagem) => stratagem.name)).toEqual(['Grim Reapers', "Mortarion's Teachings"])
+    expect(found.map((stratagem) => stratagem.name)).toEqual(['Grim Reapers Card', "Mortarion's Teachings"])
     // The copy filed under this detachment, not the one it merely names.
     expect(found[0]?.key).toBe('grim-reapers-flyblown-host')
   })
@@ -413,6 +447,33 @@ describe('stratagems', () => {
     expect(load().constructionJoinIssues).toEqual([{ kind: 'detachment', faction: 'Death Guard', detachment: 'Plague Cohort' }])
   })
 
+  it('does not report an exact enhancement join as a name fallback', () => {
+    expect(load().sourceJoinFallbacks).not.toContainEqual({
+      kind: 'enhancement',
+      faction: 'Death Guard',
+      detachment: 'Flyblown Host',
+      name: 'Living Plague Card',
+    })
+  })
+
+  it('reports a resolved exact enhancement join', () => {
+    expect(load().sourceJoinExacts).toContainEqual({
+      kind: 'enhancement',
+      faction: 'Death Guard',
+      detachment: 'Flyblown Host',
+      name: 'Living Plague Card',
+    })
+  })
+
+  it('reports an enhancement without an external reference as a name fallback', () => {
+    expect(load().sourceJoinFallbacks).toContainEqual({
+      kind: 'enhancement',
+      faction: 'Death Guard',
+      detachment: 'Flyblown Host',
+      name: 'Rejuvenating Swarm',
+    })
+  })
+
   it('name the slug back when a stale rules object lacks the map', () => {
     // A memoized rules object built before the map existed keeps no factionKeys.
     // The reader must fall back to the slug rather than throw on the missing map.
@@ -437,8 +498,9 @@ describe('stratagems', () => {
   })
 
   it('include the ones every army has', () => {
-    // Named as the card prints it where there is one; titled from the dataset's capitals where there is not.
-    expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-roll', 'Insane Bravery', 'New Orders'])
+    // A card supplies its casing when the names agree; the semantic source keeps
+    // punctuation that the card source omitted.
+    expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-roll', 'Counter-Offensive', 'Insane Bravery', 'New Orders'])
   })
 
   it('reads core cards and descriptions from the verified Game Datacards path when the semantic source has a gap', () => {
@@ -448,6 +510,11 @@ describe('stratagems', () => {
         type: 'Core Stratagem',
         description:
           'Bend fate to your will.\n\n**When:** Any phase.\n\n**Target:** That unit or model.\n\n**Effect:** Re-roll that roll.\n\n**Restrictions:** One re-roll.',
+      },
+      {
+        id: 'counter-offensive',
+        type: 'Core Stratagem',
+        description: '**When:** Fight phase.\n\n**Effect:** Fight next.',
       },
       {
         id: 'new-orders',
@@ -470,6 +537,39 @@ describe('mission cards', () => {
 
   it('keep which style of play a payout belongs to', () => {
     expect(load().secondaries[0]?.awards[0]?.mode).toBe('tactical')
+  })
+
+  /**
+   * The action is printed by the datacards pack and the card is named by the rules
+   * source, and the two are joined by the card's name alone. They are separately
+   * maintained community sources, so a rename on either side has to fail here rather
+   * than silently dropping the action the card's points depend on.
+   */
+  it('carry the action their pack prints for them', () => {
+    const missions = path.join(directory, 'datacards', '11th', 'gdc', 'missions')
+    fs.mkdirSync(missions, { recursive: true })
+    write(path.join(missions, 'pack-a.json'), {
+      name: { en: 'Pack A' },
+      secondaryMissions: [
+        { name: { en: 'Assassination' }, actions: [{ name: { en: 'MARK THE TARGET' }, effectText: { en: 'Your unit marks it.' } }] },
+      ],
+    })
+
+    expect(load().secondaries[0]?.actions).toEqual([
+      {
+        name: 'MARK THE TARGET',
+        starts: null,
+        completes: null,
+        effect: 'Your unit marks it.',
+        units: null,
+        useLimit: null,
+        restriction: null,
+      },
+    ])
+  })
+
+  it('carry no action for a card whose pack prints none', () => {
+    expect(load().secondaries[0]?.actions).toEqual([])
   })
 })
 

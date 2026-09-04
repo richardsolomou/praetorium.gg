@@ -1,6 +1,6 @@
 import { rulesReferencedIn } from './catalogue'
 import { routeSlug } from '../core/slug'
-import { describedEnhancements } from './catalogueDescriptions'
+import { describedEnhancements, mergeDetachmentRules } from './catalogueDescriptions'
 import { descriptionKey } from './datacards'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
@@ -13,7 +13,7 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   const option = loaded.detachments.get(catalogueId)?.options.find((candidate) => routeSlug(candidate.name) === detachmentSlug)
   if (!detail || !option || !isReferenceDetachment(loaded, rules, faction, option)) return null
   const { catalogue: catalogueDetail, described } = describedEnhancements(loaded, catalogueId, option, detail)
-  const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rule ?? null, detail.rules)
+  const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rules ?? [], detail.rules)
   const enhancements = [
     ...detail.enhancements.map((enhancement) => ({
       name: enhancement.name,
@@ -43,12 +43,4 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
     ]),
     attribution: rules.attribution,
   }
-}
-
-function mergeDetachmentRules(
-  catalogueRule: { name: string; description: string | null } | null,
-  rules: readonly { name: string; description: string }[],
-) {
-  if (rules.length || !catalogueRule) return rules
-  return [catalogueRule]
 }

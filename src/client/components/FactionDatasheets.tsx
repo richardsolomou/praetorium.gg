@@ -40,7 +40,7 @@ export function FactionDatasheets() {
           </span>
         </div>
       </header>
-      <div className="mx-auto max-w-5xl px-3 py-4 sm:px-4">
+      <div className="mx-auto max-w-5xl px-3 pt-4 pb-8 sm:px-4">
         <Link
           to="/factions/$catalogueId"
           params={{ catalogueId: faction.slug }}
@@ -81,11 +81,7 @@ export function FactionDatasheets() {
               icon={FileSearch}
               eyebrow={query.trim() ? 'Datasheet search' : faction.displayName}
               title={query.trim() ? 'No datasheets match' : 'Loading datasheets'}
-              explanation={
-                query.trim()
-                  ? 'Try another datasheet name or clear the search.'
-                  : 'Pricing the faction’s datasheets from the verified catalogue.'
-              }
+              explanation={query.trim() ? 'Try another datasheet name or clear the search.' : 'Loading datasheets and points.'}
             />
           )}
         </div>

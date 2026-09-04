@@ -38,18 +38,23 @@ const BATTLES_PAGE = 25
 /** A page of a home-page feed. Shorter, because the page shows three of them at once. */
 const FEED_PAGE = 10
 
+function battleFactions() {
+  const catalogue = app().catalogue()
+  return catalogue ? factionIndexFor(catalogue, app().rules()).factions : []
+}
+
 export const myBattles = createServerFn({ method: 'GET' })
   .validator(battlesPageSchema)
   .handler(({ data }) =>
     rpc(async () => {
       const id = await currentUserId()
       if (!id) return { battles: [], nextCursor: null }
-      return app().service.battles(id, app().rules(), { limit: BATTLES_PAGE, before: data.before ?? undefined })
+      return app().service.battles(id, app().rules(), { limit: BATTLES_PAGE, before: data.before ?? undefined }, battleFactions())
     }),
   )
 
 /**
- * The battles anyone may watch, newest activity first.
+ * The battles anyone may watch, most recently started first.
  *
  * Signed out as well as signed in: this is what the home page shows a visitor who
  * has never played, so it must answer without an account. The viewer, when there
@@ -60,7 +65,7 @@ export const publicBattles = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const viewerId = await currentUserId()
-      return app().service.publicBattles(viewerId, app().rules(), { limit: FEED_PAGE, before: data.before ?? undefined })
+      return app().service.publicBattles(viewerId, app().rules(), { limit: FEED_PAGE, before: data.before ?? undefined }, battleFactions())
     }),
   )
 
@@ -71,7 +76,7 @@ export const friendBattles = createServerFn({ method: 'GET' })
     rpc(async () => {
       const id = await currentUserId()
       if (!id) return { battles: [], nextCursor: null }
-      return app().service.friendBattles(id, app().rules(), { limit: FEED_PAGE, before: data.before ?? undefined })
+      return app().service.friendBattles(id, app().rules(), { limit: FEED_PAGE, before: data.before ?? undefined }, battleFactions())
     }),
   )
 
@@ -100,7 +105,7 @@ export const sharedBattles = createServerFn({ method: 'GET' })
     rpc(async () => {
       const id = await currentUserId()
       if (!id) return []
-      const { battles } = await app().service.battles(id, app().rules(), { limit: BATTLES_PAGE, withUserId: data.userId })
+      const { battles } = await app().service.battles(id, app().rules(), { limit: BATTLES_PAGE, withUserId: data.userId }, battleFactions())
       return battles
     }),
   )
@@ -184,4 +189,4 @@ export const submit = createServerFn({ method: 'POST' })
 
 export const battleReport = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(async () => app().service.report(data.token, await requireUserId())))
+  .handler(({ data }) => rpc(async () => app().service.report(data.token, await requireUserId(), app().rules())))

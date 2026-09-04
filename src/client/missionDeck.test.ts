@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { primaryCards, secondaryCards } from './missionDeck'
+import { missionCardsByKey, primaryCards, secondaryCards } from './missionDeck'
 
 type References = Parameters<typeof primaryCards>[0]
 
@@ -45,5 +45,11 @@ describe('the mission deck', () => {
 
   it('takes the secondaries as the references give them', () => {
     expect(secondaryCards(references([], [card('assassination')])).map((entry) => entry.key)).toEqual(['assassination'])
+  })
+
+  it('indexes primary and secondary cards for battle references', () => {
+    expect([...missionCardsByKey(references([pack('chapter-approved', [card('take-and-hold')])], [card('assassination')])).keys()]).toEqual(
+      ['take-and-hold', 'assassination'],
+    )
   })
 })

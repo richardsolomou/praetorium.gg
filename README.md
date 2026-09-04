@@ -4,7 +4,7 @@
 
 # Praetorium
 
-Build a Warhammer 40,000 army list. Track the battle live from each player's phone.
+Warhammer 40,000 army building and game tracking, from setup to final score.
 
 [praetorium.gg](https://praetorium.gg)
 
@@ -14,21 +14,22 @@ Build a Warhammer 40,000 army list. Track the battle live from each player's pho
 
 ## Product
 
-Praetorium is free and open source. It supports games between up to four friends: 1v1, 2v1, or 2v2 Doubles. Every instance also seats practice opponents, so you can play a full battle through on your own. The home page shows the battles being played right now, so there is something to watch before there is something to play.
+Praetorium is a Warhammer 40,000 army builder and battle tracker. It supports 1v1, 2v1, and 2v2 games between friends, plus practice games for one player. Mission choice, setup, turns, command points, scoring, and casualties are all part of the tracked game. Public live and finished battles appear on the home page for anyone who wants to follow along.
+
+Praetorium is free to use and open source.
 
 Players can:
 
 - Build, import, save, share, print, and export army lists.
-- Run public or private league events with approved entry, sealed roster submission, organizer-controlled reveal, and reusable event history.
-- Follow live or finished battles with their frozen rosters and battle history, without taking a seat.
-- Choose who can watch their battles: anyone, their friends, or only the players at the table.
-- See who is winning overall or with a given faction, and a home page of the battles being played now.
-- Use faction, detachment, unit, loadout, enhancement, and points data from community catalogues.
-- Configure missions, deployment, terrain, formations, stratagems, and mission cards.
-- Track rounds, phases, command points, victory points, and each unit's models, wounds and losses.
-- Review and correct a finished battle without deleting its history.
-
-The app stores one append-only command log for each battle. It derives the current state from that log. The server validates every command before it appends it.
+- Browse factions, detachments, datasheets, loadouts, enhancements, and points.
+- Set up missions, deployment, terrain, formations, stratagems, and mission cards.
+- Play 1v1, 2v1, and 2v2 games with friends or practise on your own.
+- Track rounds, phases, command points, victory points, models, wounds, and losses.
+- Watch live or finished public battles without joining the game.
+- See who is winning overall, or with a given faction, from finished public battles.
+- Choose whether anyone, friends, or only the players at the table can watch your battles.
+- Run public or private league events with registration, sealed rosters, and organizer-controlled reveal.
+- Review and correct a finished battle without losing its history.
 
 ## Scope
 
@@ -38,7 +39,7 @@ This repository contains no game data. Each instance downloads verified snapshot
 
 ## Use
 
-[praetorium.gg](https://praetorium.gg) is the supported service. It includes catalogue updates and persistent storage.
+[praetorium.gg](https://praetorium.gg) is the supported service and the easiest way to use Praetorium. It keeps the community rules data current and saves your rosters and battles.
 
 Self-hosting is available for experienced operators. See [Self-hosting](docs/deployment.md).
 
@@ -52,10 +53,11 @@ just catalogue-sync
 just dev
 ```
 
-Run `just check` before you submit a change. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and test details. Read [AGENTS.md](AGENTS.md) for architecture rules.
+`just check` is the local change gate. [CONTRIBUTING.md](CONTRIBUTING.md) covers setup and tests, while [AGENTS.md](AGENTS.md) records the architecture rules used by coding agents.
 
 ## Architecture
 
+- Each battle is stored as an append-only command log. The current score, round, phase, and other state are derived from that history, and every command is validated before it is added.
 - `src/core` contains the IO-free battle, catalogue, and roster domain.
 - `src/db` contains the Postgres schema and Drizzle repository.
 - `src/server` contains authentication, application services, catalogue loading, and server functions.

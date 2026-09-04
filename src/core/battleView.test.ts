@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { type Command, reduceBattle, validate } from './battle'
 import { battleReport } from './battleReport'
 import { battleView } from './battleView'
-import { ALICE, BOB, NAMES, PLAYERS, builtRoster, log, roster, started, text, turns } from './battle.fixtures'
+import { ALICE, BOB, NAMES, PLAYERS, attachedRoster, builtRoster, log, roster, started, text, turns } from './battle.fixtures'
 
 describe('the view', () => {
   it('shows every tactical deck to the table', () => {
@@ -149,6 +149,13 @@ describe('units on the table', () => {
   it('are counted in the view', () => {
     const state = reduceBattle(PLAYERS, log(...withUnits(), [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }]))
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players.find((player) => player.isViewer)?.standing).toBe(1)
+  })
+
+  it('count attached datasheets as one unit in the view', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, attachedRoster()]))
+    const player = battleView({ token: 'abc' }, NAMES, state, ALICE).players.find((candidate) => candidate.isViewer)
+
+    expect(player).toMatchObject({ unitCount: 1, standing: 1, deployed: 1 })
   })
 
   it('require another participant to name the army they are changing', () => {

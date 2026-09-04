@@ -11,7 +11,7 @@ Praetorium includes:
 - One synchronized 1v1, 2v1, or 2v2 battle between signed-in players, against a friend or a practice opponent. Every player is named when the battle is created; there are no open seats to join.
 - Mutual friendships for choosing private battle opponents, and practice opponents for playing without one.
 - Public or private organized-play registration with reusable events, approved entry, replaceable sealed roster snapshots, simultaneous reveal, and read-only event battle viewing.
-- A home page of live activity: the player's own table, their friends' tables, and the battles anyone may watch.
+- A home page of shared activity, ordered outwards from the reader: the player's unfinished games, the games they have recently finished, their friends' recent games, and recent public battles including finished ones. Practice games stay in battle history rather than appearing on the home page.
 - A per-player audience setting covering every battle they sit in: anyone, friends, or nobody outside the table.
 
 It does not include pairings, brackets, locations, chat, matchmaking, a rules encyclopedia, or model positions.
@@ -26,7 +26,7 @@ The leaderboard counts finished public battles over the last 90 days. A row is a
 
 ## Interface
 
-Use these patterns consistently:
+The interface has these recurring patterns:
 
 - A dense three-column roster builder on desktop.
 - Picker, roster, and loadout panes with one clear task each.
@@ -38,7 +38,7 @@ On phones, the roster stays visible. The picker or loadout moves into one sheet.
 
 Battle setup is a walked rail of sections with a persistent summary. It separates table decisions from army preparation. It shows both sides before play starts.
 
-Keep screenshots that contain roster or battle data outside version control.
+Screenshots containing roster or battle data stay outside version control.
 
 ## Current coverage
 
@@ -57,7 +57,7 @@ Keep screenshots that contain roster or battle data outside version control.
 
 ## Known data limits
 
-`just points` currently matches every generated reference check. Keep new mismatches out of the baseline.
+`just points` currently matches every generated reference check. A new mismatch is a regression unless the generated reference set has changed.
 
 The sources do not structure every restriction or replacement rule. Praetorium reports missing semantics. It does not reconstruct rules from memory.
 
@@ -65,19 +65,8 @@ The current sources do not provide enough transport relationships to automate em
 
 ## Verification
 
-The browser suite covers the main workflow:
+The browser suite builds or imports a roster, validates and saves it, attaches two rosters to a battle, completes setup and five standard rounds from two browser contexts, and reviews the finished battle and event history.
 
-1. Build or import a roster.
-2. Validate and save it.
-3. Attach two rosters to a battle.
-4. Complete setup and all five standard rounds from two browser contexts.
-5. Review the finished battle and event history.
+Unit cards are located through `data-unit` because CSS changes their displayed text to uppercase. Picker and loadout panes have one component instance that CSS moves between layouts. Pricing, saving, import, and export preserve `spreads`, `models`, `choices`, `toggles`, and attachments. Changes to `defaultSelection`, `buildUnit`, `refit`, or evaluation logic include a `just points` run.
 
-Also verify these interface details:
-
-- Find unit cards with `data-unit`; CSS changes displayed text to uppercase.
-- Render each picker or loadout pane once and move it with CSS.
-- Keep `spreads`, `models`, `choices`, `toggles`, and attachments through pricing, saving, import, and export.
-- Run `just points` after changing `defaultSelection`, `buildUnit`, `refit`, or evaluation logic.
-
-See [Catalogue data](development/catalogue-data.md), [Battles](development/battles.md), and [Interface](development/interface.md) for implementation rules.
+[Catalogue data](development/catalogue-data.md), [Battles](development/battles.md), and [Interface](development/interface.md) describe the implementation in detail.

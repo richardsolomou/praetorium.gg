@@ -102,12 +102,8 @@ export const SidePanel = memo(function SidePanel({
           <p data-stat="vp" className="readout text-4xl leading-none font-bold">
             {side.total}
           </p>
-          {/* Chosen before the battle and paid at the end of it, so it is a promise rather than a number in the score. */}
-          {bonus ? (
-            <p className="mt-1 text-[0.625rem] text-achieved">
-              {finished ? 'Battle ready included' : `+${side.paintedPoints} battle ready at the end`}
-            </p>
-          ) : null}
+          {/* Chosen before the battle and paid as it begins, so the score above already holds it. */}
+          {bonus ? <p className="mt-1 text-[0.625rem] text-achieved">Battle ready included</p> : null}
         </div>
         <div className="min-w-0">
           <p className={HEADING}>Command points</p>
@@ -134,34 +130,27 @@ export const SidePanel = memo(function SidePanel({
         </div>
       </div>
 
-      {/*
-       * Missions and stratagems side by side: both are read constantly, so neither is
-       * worth scrolling for. Which widths can hold two columns is not a straight line —
-       * below `lg` one panel fills the page behind its tab and a tablet has room to
-       * spare, while at `lg` the same panel is a third of a three-column table and has
-       * none. So it splits on a tablet, folds back at `lg`, and splits again at `xl`.
-       */}
+      {/* A tablet holds two columns; each panel narrows again in the three-column `lg` table. */}
       <div className="grid gap-x-4 gap-y-3 md:grid-cols-2 md:items-start lg:grid-cols-1 xl:grid-cols-2">
-        <div className="min-w-0 space-y-3">
+        <div
+          className={`min-w-0 space-y-3 ${side.stratagems.length ? 'order-2 border-t border-edge pt-2.5 md:order-1 md:border-0 md:pt-0 lg:order-2 lg:border-t lg:pt-2.5 xl:order-1 xl:border-0 xl:pt-0' : ''}`}
+        >
           <PrimaryMission {...cards} />
           <SecondaryMissions {...cards} />
         </div>
-        {/*
-         * The rule above the stratagems separates them from the missions, so it is
-         * drawn only at the widths that stack the two. Beside them it was a line
-         * across the top of a column with nothing above it to divide from.
-         */}
-        <div className="min-w-0 border-t border-edge pt-2.5 md:border-0 md:pt-0 lg:border-t lg:pt-2.5 xl:border-0 xl:pt-0">
-          <Stratagems
-            side={side}
-            phase={view.phase}
-            coreKeys={coreKeys}
-            actionable={actionable}
-            pending={pending}
-            send={send}
-            writtenFor={(key) => writtenFor(side, key)}
-          />
-        </div>
+        {side.stratagems.length ? (
+          <div className="order-1 min-w-0 md:order-2 lg:order-1 xl:order-2">
+            <Stratagems
+              side={side}
+              phase={view.phase}
+              coreKeys={coreKeys}
+              actionable={actionable}
+              pending={pending}
+              send={send}
+              writtenFor={(key) => writtenFor(side, key)}
+            />
+          </div>
+        ) : null}
       </div>
     </section>
   )

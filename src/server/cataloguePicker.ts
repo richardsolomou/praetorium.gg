@@ -2,6 +2,7 @@ import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/
 import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
 import { evaluate, rosterLimit } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
+import { isNonMatchedPlayName } from '../core/name'
 import type { UnitGroup } from '../core/unitGroups'
 import { datasheetSearchFieldsIn, datasheetIn, keywordsIn, toughnessOf } from './catalogue'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
@@ -76,12 +77,9 @@ export function groupOfEntry(index: CatalogueIndex, entryId: string): UnitGroup 
   return entry ? groupOf(entry, targetOf(entry, index.definitions)) : 'other'
 }
 
-/** Non-matched-play variants are marked only by a suffix in the community data. */
-const NON_MATCHED_PLAY = /\[(?:legends|crucible)\]/i
-
 export function isMatchedPlayDatasheet(index: CatalogueIndex, entry: Definition) {
   const target = targetOf(entry, index.definitions)
-  if (entry.hidden || target.hidden || NON_MATCHED_PLAY.test(nameOf(entry, index.definitions))) return false
+  if (entry.hidden || target.hidden || isNonMatchedPlayName(nameOf(entry, index.definitions))) return false
   const ownerId = index.catalogueOf.get(target.id)
   return !ownerId || index.catalogues.get(ownerId)?.name !== 'Unaligned Forces'
 }

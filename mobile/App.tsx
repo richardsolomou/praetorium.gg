@@ -6,20 +6,7 @@ import * as WebBrowser from 'expo-web-browser'
 import * as SecureStore from 'expo-secure-store'
 import PostHog, { PostHogProvider, type PostHogOptions } from 'posthog-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  AppState,
-  BackHandler,
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  Share,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewNavigation } from 'react-native-webview'
@@ -40,7 +27,7 @@ import {
   warmUrlReceived,
   webLoadFailed,
   webLoadFinished,
-  webLoadStarted,
+  webNavigationStarted,
   webNavigationChanged,
   type AppShellCommand,
   type AppShellState,
@@ -58,6 +45,7 @@ import {
   parseNativeAuthRequest,
 } from './src/nativeAuth'
 import { completedPendingNativeAuth, parsePendingNativeAuth, pendingNativeAuth, type PendingNativeAuth } from './src/pendingNativeAuth'
+import { NATIVE_USER_AGENT } from './src/version'
 
 const BACKGROUND = '#0b0c0e'
 const PENDING_AUTH_KEY = 'praetorium.native-auth.pending'
@@ -76,22 +64,19 @@ const pendingAuthStorage = process.env.EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL
 const ACTIVE_BATTLE_KEEP_AWAKE_TAG = 'praetorium-active-battle'
 const POSTHOG_OPTIONS = {
   host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
-  enableSessionReplay: true,
-  sessionReplayConfig: {
-    maskAllTextInputs: true,
-    maskAllImages: true,
-    maskAllSandboxedViews: true,
-    captureLog: false,
-    captureNetworkTelemetry: false,
-  },
+  // Browser replay provides DOM-aware masking; native screenshot replay cannot
+  // redact the WebView's contents without masking the whole view.
+  enableSessionReplay: false,
   errorTracking: {
     autocapture: { uncaughtExceptions: true, unhandledRejections: true },
   },
 } satisfies PostHogOptions
-const posthog = process.env.EXPO_PUBLIC_POSTHOG_API_KEY ? new PostHog(process.env.EXPO_PUBLIC_POSTHOG_API_KEY, POSTHOG_OPTIONS) : null
+const posthogApiKey = __DEV__ ? undefined : process.env.EXPO_PUBLIC_POSTHOG_API_KEY
+const posthog = posthogApiKey ? new PostHog(posthogApiKey, POSTHOG_OPTIONS) : null
 
-function captureNativeException(operation: string) {
-  posthog?.captureException(new Error(`Praetorium ${operation.replaceAll('_', ' ')} failed`), { operation })
+function captureNativeException(operation: string, cause?: unknown) {
+  const exception = cause instanceof Error ? cause : new Error(`Praetorium ${operation.replaceAll('_', ' ')} failed`, { cause })
+  posthog?.captureException(exception, { operation })
 }
 
 WebBrowser.maybeCompleteAuthSession()
@@ -120,8 +105,13 @@ function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
 
 function AppShell() {
   const webView = useRef<WebView>(null)
-  const openedWebView = useRef<WebView>(null)
-  const canGoBack = useRef(false)
+  /**
+   * Whether going back stays in the tab the player is looking at, which only the web
+   * application can answer: every tab shares this one history stack, and a swipe that
+   * pops it blindly leaves the tab. It stays off until a screen says otherwise, so the
+   * bottom of a tab has nothing behind it.
+   */
+  const [backGesture, setBackGesture] = useState(false)
   const authOpen = useRef(false)
   const battleAwake = useRef(false)
   const battleAwakeOperation = useRef<Promise<void>>(Promise.resolve())
@@ -131,7 +121,6 @@ function AppShell() {
   const loadDrainTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadGeneration = useRef(0)
   const [renderedShell, setRenderedShell] = useState(() => appShellRenderState(shellRef.current))
-  const [openedUrl, setOpenedUrl] = useState<string | null>(null)
 
   const commitShell = useCallback((state: AppShellState) => {
     const shouldRender = appShellRenderChanged(shellRef.current, state)
@@ -212,8 +201,8 @@ function AppShell() {
             Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
           }
         }
-      } catch {
-        captureNativeException('native_auth')
+      } catch (error) {
+        captureNativeException('native_auth', error)
         await pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
         Alert.alert('Could not open sign-in', 'The secure system sign-in session could not be opened.')
       } finally {
@@ -226,8 +215,8 @@ function AppShell() {
   const openExternal = useCallback(async (url: string) => {
     try {
       await Linking.openURL(url)
-    } catch {
-      captureNativeException('external_link')
+    } catch (error) {
+      captureNativeException('external_link', error)
       Alert.alert('Could not open link', 'No application on this device can open that link.')
     }
   }, [])
@@ -250,9 +239,19 @@ function AppShell() {
     return operation
   }, [])
 
+  const navigateApplication = useCallback(
+    (url: string) => {
+      commitAndDrain(warmUrlReceived(shellRef.current, url))
+    },
+    [commitAndDrain],
+  )
+
   const handleNativeAction = useCallback(
     async (action: NativeActionRequest) => {
       switch (action.kind) {
+        case 'back-gesture':
+          setBackGesture(action.enabled)
+          break
         case 'battle-active':
           await setBattleActive(action.active)
           break
@@ -262,7 +261,9 @@ function AppShell() {
           break
         case 'open-window': {
           const decision = classifyNavigation(action.url)
-          if (decision.kind === 'internal') setOpenedUrl(decision.url)
+          // The application is one screen: a second window would stack a separate
+          // web context over the one the player is already in.
+          if (decision.kind === 'internal') navigateApplication(decision.url)
           if (decision.kind === 'external') await openExternal(decision.url)
           break
         }
@@ -274,15 +275,15 @@ function AppShell() {
           break
       }
     },
-    [openExternal, setBattleActive],
+    [navigateApplication, openExternal, setBattleActive],
   )
 
   const handleNativeActionMessage = useCallback(
     (message: string) => {
       const action = parseNativeActionRequest(message)
       if (!action) return false
-      void handleNativeAction(action).catch(() => {
-        captureNativeException(`native_${action.kind.replace('-', '_')}`)
+      void handleNativeAction(action).catch((error) => {
+        captureNativeException(`native_${action.kind.replace('-', '_')}`, error)
         if (action.kind === 'print') Alert.alert('Could not print', 'The system print service could not open this roster.')
         if (action.kind === 'share') Alert.alert('Could not share', 'The system share sheet could not open this link.')
       })
@@ -301,18 +302,11 @@ function AppShell() {
     [openExternal],
   )
 
-  const navigateApplication = useCallback(
-    (url: string) => {
-      commitAndDrain(warmUrlReceived(shellRef.current, url))
-    },
-    [commitAndDrain],
-  )
-
   const handleIncomingUrl = useCallback(
     (url: string) => {
       if (url.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
-        void handleAuthCallback(url).catch(() => {
-          captureNativeException('native_auth_callback')
+        void handleAuthCallback(url).catch((error) => {
+          captureNativeException('native_auth_callback', error)
           Alert.alert('Sign-in did not finish', 'The secure sign-in result could not be saved. Try again.')
         })
       } else navigateApplication(url)
@@ -322,12 +316,12 @@ function AppShell() {
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (!canGoBack.current) return false
+      if (!backGesture) return false
       webView.current?.goBack()
       return true
     })
     return () => subscription.remove()
-  }, [])
+  }, [backGesture])
 
   useEffect(() => {
     let active = true
@@ -358,8 +352,8 @@ function AppShell() {
           else commitShell(initialUrlReceived(shellRef.current, url))
         }
       })
-      .catch(() => {
-        captureNativeException('native_initialization')
+      .catch((error) => {
+        captureNativeException('native_initialization', error)
         if (active) commitShell(initialUrlReceived(shellRef.current, null))
       })
     const subscription = Linking.addEventListener('url', ({ url }) => {
@@ -394,7 +388,6 @@ function AppShell() {
 
   const updateNavigation = useCallback(
     (navigation: WebViewNavigation) => {
-      canGoBack.current = navigation.canGoBack
       commitShell(webNavigationChanged(shellRef.current, navigation.url))
     },
     [commitShell],
@@ -419,30 +412,30 @@ function AppShell() {
           style={styles.webView}
           containerStyle={styles.webView}
           originWhitelist={['*']}
-          applicationNameForUserAgent="PraetoriumNative/1.0.0"
+          applicationNameForUserAgent={NATIVE_USER_AGENT}
           injectedJavaScriptBeforeContentLoaded={`${NATIVE_BRIDGE_SCRIPT}\n${nativeAuthCompletionScript()}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
-          allowsBackForwardNavigationGestures
+          allowsBackForwardNavigationGestures={backGesture}
           allowsLinkPreview={false}
           setSupportMultipleWindows
           startInLoadingState
           renderLoading={() => <StateView />}
           renderError={() => <StateView error retry={() => webView.current?.reload()} />}
-          onLoadStart={() => {
+          onLoadStart={({ nativeEvent }) => {
             cancelScheduledDrain()
-            commitShell(webLoadStarted(shellRef.current))
+            commitShell(webNavigationStarted(shellRef.current, Platform.OS, nativeEvent.loading))
           }}
           onLoad={({ nativeEvent }) => {
             finishWebLoad(nativeEvent.url)
           }}
-          onError={() => {
-            captureNativeException('web_load')
+          onError={({ nativeEvent }) => {
+            captureNativeException('web_load', new Error(`WebView load failed: ${nativeEvent.description} (code ${nativeEvent.code})`))
             cancelScheduledDrain()
             commitShell(webLoadFailed(shellRef.current))
           }}
-          onHttpError={() => {
-            captureNativeException('web_http')
+          onHttpError={({ nativeEvent }) => {
+            captureNativeException('web_http', new Error(`WebView HTTP error ${nativeEvent.statusCode}: ${nativeEvent.description}`))
             cancelScheduledDrain()
             commitShell(webLoadFailed(shellRef.current))
           }}
@@ -470,7 +463,7 @@ function AppShell() {
                 commitShell(authDeliverySucceeded(shellRef.current, result.id))
                 void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY).then(
                   () => webView.current?.injectJavaScript(nativeAuthConsumeScript(delivering.callback)),
-                  () => captureNativeException('native_auth_cleanup'),
+                  (error) => captureNativeException('native_auth_cleanup', error),
                 )
               } else if (result.retryable === true) {
                 const deferred = authDeliveryDeferred(shellRef.current, result.id)
@@ -502,51 +495,6 @@ function AppShell() {
       ) : (
         <StateView />
       )}
-      <Modal animationType="slide" onRequestClose={() => setOpenedUrl(null)} presentationStyle="fullScreen" visible={openedUrl !== null}>
-        <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.safeArea}>
-          <View style={styles.windowBar}>
-            <Text numberOfLines={1} style={styles.windowTitle}>
-              Praetorium
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setOpenedUrl(null)}
-              style={({ pressed }) => [styles.windowClose, pressed && styles.buttonPressed]}
-            >
-              <Text style={styles.windowCloseText}>Close</Text>
-            </Pressable>
-          </View>
-          {openedUrl ? (
-            <WebView
-              key={openedUrl}
-              ref={openedWebView}
-              source={{ uri: openedUrl }}
-              style={styles.webView}
-              containerStyle={styles.webView}
-              originWhitelist={['*']}
-              applicationNameForUserAgent="PraetoriumNative/1.0.0"
-              injectedJavaScriptBeforeContentLoaded={NATIVE_BRIDGE_SCRIPT}
-              sharedCookiesEnabled
-              thirdPartyCookiesEnabled={false}
-              allowsBackForwardNavigationGestures
-              allowsLinkPreview={false}
-              setSupportMultipleWindows
-              startInLoadingState
-              renderLoading={() => <StateView />}
-              renderError={() => <StateView error retry={() => openedWebView.current?.reload()} />}
-              onContentProcessDidTerminate={() => openedWebView.current?.reload()}
-              onRenderProcessGone={() => openedWebView.current?.reload()}
-              onMessage={({ nativeEvent }) => {
-                handleNativeActionMessage(nativeEvent.data)
-              }}
-              onShouldStartLoadWithRequest={({ url }) => handleUrl(url)}
-              onOpenWindow={({ nativeEvent }) => {
-                void handleNativeAction({ kind: 'open-window', url: nativeEvent.targetUrl })
-              }}
-            />
-          ) : null}
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   )
 }
@@ -574,32 +522,6 @@ const styles = StyleSheet.create({
   webView: {
     flex: 1,
     backgroundColor: BACKGROUND,
-  },
-  windowBar: {
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#343a40',
-    paddingLeft: 16,
-    backgroundColor: BACKGROUND,
-  },
-  windowTitle: {
-    flex: 1,
-    color: '#eceff1',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  windowClose: {
-    minHeight: 48,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  windowCloseText: {
-    color: '#9fc8bd',
-    fontSize: 15,
-    fontWeight: '600',
   },
   state: {
     position: 'absolute',

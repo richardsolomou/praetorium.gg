@@ -8,6 +8,7 @@ import type { BattleView } from '../../core/battleView'
 import { FIXED_SECONDARIES, GAME_SIZES, isKotcLimit } from '../../core/battle'
 import { deploymentsQuery, gameReferencesQuery } from '../queries'
 import { missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../sides'
+import type { SendCommand } from '../useCommand'
 import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
 import { Battlefield } from './Battlefield'
 import { ArmiesStep } from './setup/ArmiesStep'
@@ -31,7 +32,7 @@ type Props = {
   mission: { id: string; name: string; deploymentIds: string[] } | null
   /** Every side's matchup, so a side the table plays settles its cards from its own. */
   missions: { side: number; mission: SideMission | null }[]
-  send: (command: Command) => void
+  send: SendCommand
   attachSavedRoster: (rosterId: string, playerId?: string) => Promise<boolean>
   pending: boolean
   problem: string | null
@@ -190,7 +191,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
     })
 
   return (
-    <main className="flex w-full flex-col">
+    <main className={`flex w-full flex-col ${at < steps.length - 1 ? 'pb-20' : ''}`}>
       {/*
        * Where the table is, banded across the top and pinned there the way the tracker
        * pins its scoreboard — the same offset under the same header, so setup and the
@@ -271,8 +272,8 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
               </SetupPanel>
               {isKotcLimit(view.settings.limit) ? (
                 <SetupNote>
-                  The synced rules source does not yet provide the KOTC 2.0 battlefield. Use the prototype pack for setup; Praetorium will
-                  not substitute the older 9-inch deployment.
+                  The KOTC 2.0 battlefield is not available yet. Use the prototype pack for setup; Praetorium will not substitute the older
+                  9-inch deployment.
                 </SetupNote>
               ) : null}
             </>
@@ -367,18 +368,9 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
         </section>
       </div>
 
-      {/*
-       * The way on, in the corner of the page rather than on the rail: setup is a
-       * column of questions of any length, and the one control that answers "and then?"
-       * belongs within reach of a thumb wherever the section has been read to. Why it
-       * will not move is already said under the heading, so the button only closes.
-       *
-       * Stuck to the bottom of setup rather than to the window, so scrolling to the end
-       * sets it down above the site footer instead of over its links. The strip it rides
-       * takes no clicks of its own, since it crosses the width of whatever is under it.
-       */}
+      {/* The pointerless strip keeps Next reachable without covering the final setup control. */}
       {at < steps.length - 1 ? (
-        <div className="pointer-events-none sticky bottom-0 z-30 mt-auto flex justify-end px-4 pt-4 pb-4">
+        <div data-setup-next className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-end px-4 py-4">
           <Button
             className="pointer-events-auto h-11 gap-1.5 px-5 text-base shadow-lg"
             disabled={blocked !== null}

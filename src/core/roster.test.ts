@@ -19,59 +19,65 @@ const mandatory = (id: string) => [{ id, type: 'min' as const, value: 1, field: 
 const points = (value: number) => [{ name: 'pts', typeId: PTS, value }]
 
 describe('fixed squad sizes', () => {
-  const index = indexOf({
-    sharedSelectionEntries: [
-      {
-        id: 'squad',
-        name: 'Squad',
-        type: 'unit',
-        selectionEntryGroups: [
-          {
-            id: 'composition',
-            name: 'Unit Composition',
-            defaultSelectionEntryId: 'ten-models',
-            constraints: [
-              { id: 'composition-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
-              { id: 'composition-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
-            ],
-            selectionEntries: [
-              {
-                id: 'ten-models',
-                name: '10 models',
-                type: 'upgrade',
-                selectionEntries: [
-                  {
-                    id: 'ten-bodies',
-                    name: 'Bodies',
-                    type: 'model',
-                    constraints: [{ id: 'ten-min', type: 'min', value: 10, field: 'selections', scope: 'parent' }],
-                  },
-                ],
-              },
-              {
-                id: 'twenty-models',
-                name: '20 models',
-                type: 'upgrade',
-                selectionEntries: [
-                  {
-                    id: 'twenty-bodies',
-                    name: 'Bodies',
-                    type: 'model',
-                    constraints: [{ id: 'twenty-min', type: 'min', value: 20, field: 'selections', scope: 'parent' }],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  })
+  const squadNaming = (group: string) =>
+    indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'composition',
+              name: group,
+              defaultSelectionEntryId: 'ten-models',
+              constraints: [
+                { id: 'composition-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                { id: 'composition-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+              ],
+              selectionEntries: [
+                {
+                  id: 'ten-models',
+                  name: '10 models',
+                  type: 'upgrade',
+                  selectionEntries: [
+                    {
+                      id: 'ten-bodies',
+                      name: 'Bodies',
+                      type: 'model',
+                      constraints: [{ id: 'ten-min', type: 'min', value: 10, field: 'selections', scope: 'parent' }],
+                    },
+                  ],
+                },
+                {
+                  id: 'twenty-models',
+                  name: '20 models',
+                  type: 'upgrade',
+                  selectionEntries: [
+                    {
+                      id: 'twenty-bodies',
+                      name: 'Bodies',
+                      type: 'model',
+                      constraints: [{ id: 'twenty-min', type: 'min', value: 20, field: 'selections', scope: 'parent' }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
 
   it('offers and preserves only the declared model counts', () => {
+    const index = squadNaming('Unit Composition')
     expect(buildUnit('squad', index)?.size).toMatchObject({ models: 10, min: 10, max: 20, options: [10, 20] })
     expect(buildUnit('squad', index, 11)?.size.models).toBe(10)
     expect(buildUnit('squad', index, 19)?.size.models).toBe(20)
+  })
+
+  it('holds a count named after the unit rather than titled a composition to the same sizes', () => {
+    expect(buildUnit('squad', squadNaming('Squad'), 11)?.size.models).toBe(10)
   })
 })
 
@@ -373,6 +379,100 @@ describe('specialists in a separately led squad', () => {
     const atTen = buildUnit('squad', index, 10)?.choices.find((choice) => choice.name === 'Models')
     expect(atFive?.options.find((option) => option.id === 'specialist')?.max).toBe(2)
     expect(atTen?.options.find((option) => option.id === 'specialist')?.max).toBe(4)
+  })
+})
+
+describe('a specialist group whose capacity grows with squad size', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'sergeant',
+            name: 'Sergeant',
+            type: 'model',
+            constraints: [
+              ...mandatory('sergeant-min'),
+              { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: 'Models',
+            defaultSelectionEntryId: 'trooper',
+            constraints: [
+              { id: 'models-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+              { id: 'models-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'trooper',
+                name: 'Trooper',
+                type: 'model',
+                constraints: [{ id: 'trooper-max', type: 'max', value: 9, field: 'selections', scope: 'parent' }],
+              },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'special-weapons',
+                name: 'Special weapons',
+                constraints: [{ id: 'special-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                modifiers: [
+                  {
+                    type: 'set',
+                    field: 'special-max',
+                    value: 4,
+                    conditions: [
+                      {
+                        type: 'atLeast',
+                        value: 10,
+                        field: 'selections',
+                        scope: 'unit',
+                        childId: 'model',
+                        includeChildSelections: true,
+                      },
+                    ],
+                  },
+                ],
+                selectionEntries: [
+                  {
+                    id: 'meltagun',
+                    name: 'Meltagun',
+                    type: 'model',
+                    constraints: [{ id: 'meltagun-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                  },
+                  {
+                    id: 'plasma-gun',
+                    name: 'Plasma gun',
+                    type: 'model',
+                    constraints: [{ id: 'plasma-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers four special weapons to a ten-model squad', () => {
+    const atFive = buildUnit('squad', index, 5)?.choices.find((choice) => choice.name === 'Special weapons')
+    const atTen = buildUnit('squad', index, 10)?.choices.find((choice) => choice.name === 'Special weapons')
+    const armed = buildUnit('squad', index, 10, undefined, {
+      spreads: { 'models/special-weapons': { meltagun: 2, 'plasma-gun': 2 } },
+    })
+
+    expect(atFive?.room).toBe(2)
+    expect(atTen?.room).toBe(4)
+    expect(atTen?.options.map(({ max }) => max)).toEqual([2, 2])
+    expect(armed?.choices.find((choice) => choice.name === 'Special weapons')?.options.map(({ count }) => count)).toEqual([2, 2])
+    expect(evaluate(armed ? [armed.selection] : [], index).errors).toEqual([])
   })
 })
 
@@ -1431,6 +1531,42 @@ describe('a replacement group whose default is relaxed by a modifier', () => {
       wargear: [{ name: 'Power fist', count: 1 }],
       errors: [],
     })
+  })
+})
+
+describe('a choice closed by the current loadout', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'champion',
+        name: 'Champion',
+        type: 'model',
+        selectionEntries: [{ id: 'rifle', name: 'Rifle', type: 'upgrade', constraints: mandatory('rifle-min') }],
+        selectionEntryGroups: [
+          {
+            id: 'melee',
+            name: 'Melee weapon',
+            constraints: [{ id: 'melee-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            modifiers: [
+              {
+                type: 'set',
+                field: 'melee-max',
+                value: 0,
+                conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'parent', childId: 'rifle' }],
+              },
+            ],
+            selectionEntries: [
+              { id: 'sword', name: 'Sword', type: 'upgrade' },
+              { id: 'fist', name: 'Power fist', type: 'upgrade' },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('keeps the replacement available so another edit can reopen it', () => {
+    expect(buildUnit('champion', index)?.choices).toContainEqual(expect.objectContaining({ name: 'Melee weapon', room: 1 }))
   })
 })
 

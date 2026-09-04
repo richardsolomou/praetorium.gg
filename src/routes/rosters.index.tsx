@@ -116,7 +116,7 @@ function RosterLibrary() {
     visibility: roster.visibility,
   })
 
-  if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to build a list and keep it between battles." />
+  if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to build and save army lists." />
 
   return (
     <main className="w-full">
@@ -146,7 +146,7 @@ function RosterLibrary() {
         <p className="mx-auto mt-3 max-w-5xl px-3 text-sm text-destructive sm:px-4">Could not copy the link: {actions.shareProblem}</p>
       ) : null}
 
-      <section className="mx-auto mt-4 max-w-5xl px-3 sm:px-4">
+      <section className="mx-auto mt-4 max-w-5xl px-3 pb-8 sm:px-4">
         <div className="rubric flex items-baseline justify-between border-b border-edge pb-2">
           <span>Rosters</span>
           {libraryPending ? (
@@ -157,7 +157,7 @@ function RosterLibrary() {
             <span className="readout">{shown.length}</span>
           )}
         </div>
-        <div className="mt-2 space-y-2">
+        <div className="mt-2 space-y-3">
           {libraryError ? (
             <PageState
               headingLevel={2}

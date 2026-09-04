@@ -4,14 +4,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import type { Side } from '../../sides'
+import { MissionActions } from '../MissionActions'
 import { MissionCardReference } from '../MissionCardReference'
 import { CARD, CARD_NAME, HEADING } from './tints'
 
+import type { MissionAction } from '../../../server/missionActions'
 import type { MissionAward as Award } from '../../missionText'
 
 export type { MissionAward as Award } from '../../missionText'
 
-export type ReferenceCard = ComponentProps<typeof MissionCardReference>['card']
+/** A card, and the action it names, because the reader prints both. */
+export type ReferenceCard = ComponentProps<typeof MissionCardReference>['card'] & { actions: MissionAction[] }
 export type MissionDetails = { name: string; card: ReferenceCard; type: string; mode?: string }
 
 /** What a stratagem actually says, as the detachment page prints it. */
@@ -48,16 +51,19 @@ export function PrimaryMission({ side, referenceFor, guides }: Props) {
 }
 
 export function SecondaryMissions({ side, actionable, pending, send, referenceFor, guides }: Props) {
+  const [showResolved, setShowResolved] = useState(false)
   // A tactical deck deals its own cards, so naming one would be choosing what you were dealt.
   const choosingSecret =
     actionable && side.secondaryMode === 'fixed' && !side.secondaries.some((card) => card.secret) && side.remainingSecondaries.length > 0
   // A card put back into the deck was never really held, so it does not belong in this list at all.
   const drawn = side.secondaries.filter((secondary) => secondary.status !== 'returned')
+  const resolved = drawn.filter((secondary) => secondary.status !== 'active')
+  const visible = showResolved ? drawn : drawn.filter((secondary) => secondary.status === 'active')
   return (
     <section className="space-y-1.5">
       <Total label="Secondary missions" scored={side.secondary} cap={guides.secondary} stat="secondary" />
       {drawn.length ? null : <p className="text-xs text-dim">No cards in hand.</p>}
-      {drawn.map((secondary) => (
+      {visible.map((secondary) => (
         <div key={secondary.key} data-secondary={secondary.key} className={`${CARD} space-y-1.5`}>
           <div className="flex items-baseline gap-2">
             <span className="min-w-0 flex-1">
@@ -83,6 +89,11 @@ export function SecondaryMissions({ side, actionable, pending, send, referenceFo
           ) : null}
         </div>
       ))}
+      {resolved.length ? (
+        <Button variant="ghost" size="xs" className="text-azure" onClick={() => setShowResolved((shown) => !shown)}>
+          {showResolved ? 'Hide resolved missions' : `Show ${resolved.length} resolved ${resolved.length === 1 ? 'mission' : 'missions'}`}
+        </Button>
+      ) : null}
       {choosingSecret ? (
         <SecretMissionDialog
           cards={side.remainingSecondaries}
@@ -204,6 +215,7 @@ function MissionDetailsContent({ details }: { details: MissionDetails }) {
         <DialogDescription className="text-dim">What this mission asks you to do and when it scores.</DialogDescription>
       </DialogHeader>
       <MissionCardReference card={details.card} type={details.type} mode={details.mode} />
+      <MissionActions actions={details.card.actions} />
     </DialogContent>
   )
 }

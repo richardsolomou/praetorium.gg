@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { abilityNamesIn, datasheetIn, rulesReferencedIn } from './catalogue'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
-import { ability, bookOf, shelfOf } from './catalogue.fixtures'
+import { ability, bookOf, points, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'
 
 describe('the abilities and wargear a datasheet lists', () => {
@@ -89,6 +89,7 @@ describe('the abilities and wargear a datasheet lists', () => {
       name: rulesFaction,
       datasheets: new Set(),
       datasheetDetails: new Map(),
+      datasheetIds: new Map(),
       detachments: new Set(),
       enhancements: new Map(),
       detachmentRules: new Map(),
@@ -135,6 +136,37 @@ describe('the abilities and wargear a datasheet lists', () => {
         unitSelectionIndex: 0,
       })?.abilities.map(({ name }) => name),
     ).toEqual(['Implacable Eradication', 'Tools of Dominion'])
+  })
+
+  it('shows a hidden detachment enhancement on the datasheet only once it is taken', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'nightbringer',
+          name: 'Nightbringer',
+          type: 'unit',
+          profiles: [ability('intrinsic', 'Necrodermis')],
+          selectionEntries: [
+            {
+              id: 'goad',
+              name: 'Quantum Goad',
+              type: 'upgrade',
+              hidden: true,
+              costs: points(45),
+              profiles: [ability('goad-ability', 'Quantum Goad')],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'nightbringer')?.abilities.map(({ name }) => name)).toEqual(['Necrodermis'])
+    expect(
+      datasheetIn(book, 'cat', 'nightbringer', {
+        selections: [{ id: 'nightbringer', selections: [{ id: 'goad' }] }],
+        unitSelectionIndex: 0,
+      })?.abilities.map(({ name }) => name),
+    ).toEqual(['Necrodermis', 'Quantum Goad'])
   })
 
   it('identifies a selected detachment unit upgrade separately from wargear', () => {

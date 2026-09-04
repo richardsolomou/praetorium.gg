@@ -1,6 +1,16 @@
 import type { Datasheet } from '../server/catalogue'
+import { normalizedName, normalizedNameVariants } from '../core/name'
 
 type AbilityKind = Datasheet['abilities'][number]['kind']
+
+export function primaryUnitProfile(sheet: Pick<Datasheet, 'name' | 'profiles'>) {
+  const profiles = sheet.profiles.filter((profile) => profile.type === 'Unit')
+  for (const name of normalizedNameVariants(sheet.name)) {
+    const profile = profiles.find((candidate) => normalizedName(candidate.name) === name)
+    if (profile) return profile
+  }
+  return profiles[0]
+}
 
 export const abilitySections = {
   core: 'Core abilities',
@@ -10,6 +20,19 @@ export const abilitySections = {
   upgrade: 'Unit upgrades',
   wargear: 'Wargear abilities',
 } satisfies Record<AbilityKind, string>
+
+type Profile = Datasheet['profiles'][number]
+
+const dedicatedProfileTypes = new Set(['Unit', 'Ranged Weapons', 'Melee Weapons', 'Transport'])
+
+export function ruleProfileSections(profiles: readonly Profile[]) {
+  const sections = new Map<string, Profile[]>()
+  for (const profile of profiles) {
+    if (dedicatedProfileTypes.has(profile.type)) continue
+    sections.set(profile.type, [...(sections.get(profile.type) ?? []), profile])
+  }
+  return [...sections].map(([title, sectionProfiles]) => ({ title, profiles: sectionProfiles }))
+}
 
 export function compositionCount(composition: readonly string[]) {
   const alternatives: { minimum: number; maximum: number }[][] = [[]]

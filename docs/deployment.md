@@ -2,7 +2,7 @@
 
 [praetorium.gg](https://praetorium.gg) is the supported service. Self-hosting requires Docker, persistent storage, backups, and a reverse proxy.
 
-Private deployments do not include managed support. Read this page and `docker-compose.yml` before you start.
+Private deployments do not include managed support. Their operating contract is documented here and in `docker-compose.yml`.
 
 Praetorium runs as one container against a Postgres, a Valkey, and an S3-compatible store. The supplied `docker-compose.yml` starts all four, the last as a bundled MinIO. Copy `.env.example` to `.env`, set `POSTGRES_PASSWORD`, then start the Compose project.
 
@@ -13,9 +13,9 @@ docker compose up -d
 
 ## Data stores
 
-`DATABASE_URL` is required. Postgres holds accounts, lists, battles, and command logs. Back up this store.
+`DATABASE_URL` is required. Postgres holds accounts, lists, battles, and command logs and is the primary backup target.
 
-`VALKEY_URL` is optional. Valkey holds sessions, sign-in rate limits, and realtime fan-out. Leave it unset for one replica. Set it for multiple replicas.
+`VALKEY_URL` is optional. Valkey holds sessions, sign-in rate limits, and realtime fan-out. One-replica deployments work without it; multiple replicas require it.
 
 `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` point the app at an S3-compatible store — Compose's bundled MinIO by default. A profile picture is uploaded there, keyed by its own hash, and only that short URL is written to the database; without this set, uploading one fails with a clear error instead of storing the picture somewhere it should not be. `S3_PUBLIC_BASE_URL` is where a browser reads those pictures (and, unset, the community catalogue) back from — Compose points it at MinIO's published port; production behind a proxy should point it at that store's public hostname instead.
 
@@ -25,7 +25,7 @@ The `/data` volume no longer holds game data. What remains is:
 - `realtime-secret` signs Centrifugo tokens. Replacing it disconnects active realtime clients.
 - `catalogue/` caches verified community data from the snapshot service.
 
-Back up Postgres and `auth.secret` together. The app can fetch the catalogue again, and nothing in Valkey needs backing up.
+Complete backups contain Postgres and `auth.secret` together. The app can fetch the catalogue again, and nothing in Valkey requires backup.
 
 ## Schema migrations
 
@@ -51,7 +51,7 @@ The image runs the app, Centrifugo, and Caddy. Caddy sends `/connection/*` to Ce
 
 With `VALKEY_URL`, Centrifugo sends commands between replicas. Replicas also share sessions and rate-limit counters.
 
-Without it, run one replica. Live updates then fan out inside a single process, and a second replica would serve battles that never hear each other's commands.
+Without it, the supported topology is one replica. Live updates then fan out inside a single process; a second replica would serve battles that never hear each other's commands.
 
 ## Sessions
 
@@ -85,6 +85,6 @@ Upgrades from 0.25.0 or earlier must stop every replica before starting the new 
 
 ## Reverse proxy
 
-The proxy must forward `X-Forwarded-Host` and `X-Forwarded-Proto`. Set `APP_URL` when those headers do not describe the public origin. When set, `APP_URL` is also the canonical origin. Requests for another host redirect to it and keep their path.
+The proxy forwards `X-Forwarded-Host` and `X-Forwarded-Proto`. `APP_URL` supplies the public origin when those headers do not describe it correctly and also becomes the canonical origin. Requests for another host redirect there while retaining their path.
 
-Use `GET /api/health` for health checks. This route does not redirect to `APP_URL`.
+`GET /api/health` is the health-check endpoint and does not redirect to `APP_URL`.

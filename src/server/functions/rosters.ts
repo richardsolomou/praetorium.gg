@@ -198,7 +198,7 @@ export const importRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const loaded = app().catalogue()
-      if (!loaded) throw new Response('this instance has no catalogue', { status: 409 })
+      if (!loaded) throw new Response('army data is not available', { status: 409 })
       const result = importRosterFile(data, loaded)
       const userId = await currentUserId()
       if (userId) await app().telemetry.capture(userId, 'roster_imported', { unit_count: result.units.length, source: result.source })
@@ -211,9 +211,9 @@ export const exportRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const loaded = app().catalogue()
-      if (!loaded) throw new Response('this instance has no catalogue', { status: 409 })
+      if (!loaded) throw new Response('army data is not available', { status: 409 })
       const priced = calculateRosterPrice(data)
-      if (!priced) throw new Response('this instance has no catalogue', { status: 409 })
+      if (!priced) throw new Response('army data is not available', { status: 409 })
       const dispositionNames = priced.dispositions.map((disposition) => app().rules()?.dispositions.get(disposition) ?? disposition)
       const result = exportRosterFile(data, loaded, { ...priced, disposition: priced.disposition ?? null }, dispositionNames)
       const userId = await currentUserId()

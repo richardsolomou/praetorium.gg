@@ -9,6 +9,8 @@ const SIDE_TINTS = [
     edge: 'border-t-side-a',
     rail: 'bg-side-a',
     glow: 'ring-side-a/40',
+    /** A picture that belongs to this side, edged in the tint rather than labelled. */
+    ring: 'ring-2 ring-side-a',
     /** A control that acts for this side, so pressing it already says whose it is. */
     fill: 'bg-side-a text-void hover:bg-side-a/80',
     /** The edge of a dialog that belongs to this side, read before its title is. */
@@ -22,6 +24,7 @@ const SIDE_TINTS = [
     edge: 'border-t-side-b',
     rail: 'bg-side-b',
     glow: 'ring-side-b/40',
+    ring: 'ring-2 ring-side-b',
     fill: 'bg-side-b text-void hover:bg-side-b/80',
     border: 'border-side-b/70',
     mark: 'border-side-b bg-side-b/15 text-side-b',

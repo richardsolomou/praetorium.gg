@@ -1,4 +1,4 @@
-import { type Dispatch, type SetStateAction, useMemo, useState } from 'react'
+import { type Dispatch, type SetStateAction, useCallback, useMemo, useRef, useState } from 'react'
 import type { RosterPick } from '../../../core/roster'
 import { type KeyedPick, positionedPicks } from '../../rosterPicks'
 
@@ -15,6 +15,8 @@ type SizedUnit = { size: { models: number }; toggles: { key: string; name: strin
  */
 export function usePicks(initial: readonly RosterPick[]) {
   const [picks, setPicks] = useState<KeyedPick[]>(() => initial.map((pick, key) => ({ ...pick, key })))
+  const nextKey = useRef(initial.length)
+  const allocateKey = useCallback(() => nextKey.current++, [])
   const positioned = useMemo(() => positionedPicks(picks), [picks])
   /** How many of each datasheet the list already holds, so the picker can say so. */
   const held = useMemo(() => {
@@ -23,7 +25,7 @@ export function usePicks(initial: readonly RosterPick[]) {
     return counts
   }, [picks])
 
-  return { picks, setPicks, positioned, held }
+  return { picks, setPicks, positioned, held, allocateKey }
 }
 
 /**
@@ -35,22 +37,22 @@ export function usePicks(initial: readonly RosterPick[]) {
 export function pickEditor(
   setPicks: Dispatch<SetStateAction<KeyedPick[]>>,
   context: { catalogueId: string; units: readonly (SizedUnit | undefined)[] },
+  allocateKey: () => number,
 ) {
   const editAt = (index: number, edit: (pick: KeyedPick) => KeyedPick) =>
     setPicks((current) => current.map((pick, at) => (at === index ? edit(pick) : pick)))
 
-  /**
-   * Keys are numbered from the list as it stands, so two additions in one render
-   * cannot both claim the same one.
-   */
-  const insert = (choose: (picks: readonly KeyedPick[]) => { pick: RosterPick; after?: number } | null) =>
+  /** Keys only move forward, so history cannot mistake a replacement for a deleted unit. */
+  const insert = (choose: (picks: readonly KeyedPick[]) => { pick: RosterPick; after?: number } | null) => {
+    const key = allocateKey()
     setPicks((current) => {
       const chosen = choose(current)
       if (!chosen) return current
-      const keyed = { ...chosen.pick, key: Math.max(-1, ...current.map((held) => held.key)) + 1 }
+      const keyed = { ...chosen.pick, key }
       const { after } = chosen
       return after === undefined ? [...current, keyed] : [...current.slice(0, after + 1), keyed, ...current.slice(after + 1)]
     })
+  }
 
   return {
     add: (entryId: string) => insert(() => ({ pick: { entryId, catalogueId: context.catalogueId } })),

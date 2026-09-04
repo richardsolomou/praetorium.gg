@@ -1,10 +1,11 @@
-import { FIXED_SECONDARIES, type Command } from '../../../core/battle'
+import { FIXED_SECONDARIES } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import type { Side } from '../../sides'
+import type { SendCommand } from '../../useCommand'
 import { Prep } from '../Prep'
 import { SetupSidePanel } from './chrome'
 
-type Props = { view: BattleView; sides: Side[]; send: (command: Command) => void; pending: boolean }
+type Props = { view: BattleView; sides: Side[]; send: SendCommand; pending: boolean }
 
 /**
  * The one card decision each side actually makes: how its secondaries are drawn.

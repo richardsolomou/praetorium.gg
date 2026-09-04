@@ -47,7 +47,7 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
 
   if (methodsResult.isError) {
     return (
-      <div className="mx-auto mt-6 max-w-5xl px-3 sm:px-0">
+      <div className="mx-auto mt-6 max-w-5xl px-3 pb-8 sm:px-0">
         <PageState
           headingLevel={2}
           eyebrow="Account security"
@@ -64,7 +64,7 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
   }
 
   return (
-    <div className="ph-no-capture mx-auto mt-6 grid max-w-5xl gap-6 px-3 sm:px-0 lg:grid-cols-2">
+    <div className="ph-no-capture mx-auto mt-6 grid max-w-5xl gap-6 px-3 pb-8 sm:px-0 lg:grid-cols-2">
       <section className="border border-edge bg-panel p-5 md:p-7">
         <p className="rubric border-b border-edge pb-2">Two-factor authentication</p>
         <div className="mt-4 flex items-start gap-3">
@@ -235,7 +235,7 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
         <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-base">Permanently delete your Praetorium account</h2>
-            <p className="mt-1 text-sm text-dim">This removes your rosters, friendships, leagues and every battle you participated in.</p>
+            <p className="mt-1 text-sm text-dim">This removes your rosters, friendships, leagues and every battle you played.</p>
           </div>
           <Button type="button" variant="destructive" disabled={!methods} onClick={() => setDialog('delete-account')}>
             <Trash2 /> Delete account
@@ -285,7 +285,7 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
       {dialog === 'delete-account' ? (
         <AccountDialog
           title="Delete your account"
-          description="This cannot be undone. Shared battles are deleted too, because their command logs cannot remain valid without every participant."
+          description="This cannot be undone. Your rosters, friendships, league entries and every battle you played will be deleted."
           onClose={() => setDialog(undefined)}
         >
           <DeleteAccountForm hasPassword={hasPassword} />

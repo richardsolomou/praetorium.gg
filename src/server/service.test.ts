@@ -145,9 +145,8 @@ async function revealedTeamLeague() {
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 3,
-    format: '2v1',
-    rosterLimit: 2_000,
   })
+  await service.updateLeagueEvent(token, 'alice', { format: '2v1', rosterLimit: 2_000 })
   for (const userId of ['alice', 'bob', 'carol']) await service.joinLeague(token, userId)
   await service.assignLeagueRosterRequirement(token, 'alice', 'alice', 2_000)
   await service.assignLeagueRosterRequirement(token, 'alice', 'bob', 1_000)
@@ -171,9 +170,8 @@ async function revealedDoublesLeague() {
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 4,
-    format: '2v2',
-    rosterLimit: 2_000,
   })
+  await service.updateLeagueEvent(token, 'alice', { format: '2v2', rosterLimit: 2_000 })
   for (const userId of ['alice', 'bob', 'carol', 'dave']) await service.joinLeague(token, userId)
   await service.assignLeagueTeam(token, 'alice', ['alice', 'bob'])
   await service.assignLeagueTeam(token, 'alice', ['carol', 'dave'])
@@ -387,9 +385,8 @@ it('atomically re-pairs doubles entrants and clears every affected seal', async 
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 4,
-    format: '2v2',
-    rosterLimit: 2_000,
   })
+  await service.updateLeagueEvent(token, 'alice', { format: '2v2', rosterLimit: 2_000 })
   for (const userId of ['alice', 'bob', 'carol', 'dave']) await service.joinLeague(token, userId)
   await service.assignLeagueTeam(token, 'alice', ['alice', 'bob'])
   await service.assignLeagueTeam(token, 'alice', ['carol', 'dave'])
@@ -415,9 +412,8 @@ it('rejects the seal that would complete a doubles team without exactly one Warl
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 4,
-    format: '2v2',
-    rosterLimit: 2_000,
   })
+  await service.updateLeagueEvent(token, 'alice', { format: '2v2', rosterLimit: 2_000 })
   for (const userId of ['alice', 'bob']) await service.joinLeague(token, userId)
   await service.assignLeagueTeam(token, 'alice', ['alice', 'bob'])
   await saveAndSealLeagueRoster(token, 'alice', 1_000, '', false)
@@ -442,8 +438,6 @@ it('rejects a standard league roster without exactly one eligible Warlord', asyn
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 2,
-    format: '1v1',
-    rosterLimit: 2_000,
   })
   await service.joinLeague(token, 'alice')
   await service.saveRoster('alice', {
@@ -482,8 +476,6 @@ it('accepts catalogue-derived Warlord eligibility on an upgraded unit', async ()
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 2,
-    format: '1v1',
-    rosterLimit: 2_000,
   })
   await service.joinLeague(token, 'alice')
   await service.saveRoster('alice', {
@@ -513,8 +505,6 @@ it('rejects a standard replacement with multiple eligible Warlords', async () =>
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 2,
-    format: '1v1',
-    rosterLimit: 2_000,
   })
   await service.joinLeague(token, 'alice')
   await saveAndSealLeagueRoster(token, 'alice', 2_000)
@@ -539,9 +529,8 @@ it('rejects a first doubles seal with multiple eligible Warlords', async () => {
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 4,
-    format: '2v2',
-    rosterLimit: 2_000,
   })
+  await service.updateLeagueEvent(token, 'alice', { format: '2v2', rosterLimit: 2_000 })
   for (const userId of ['alice', 'bob']) await service.joinLeague(token, userId)
   await service.assignLeagueTeam(token, 'alice', ['alice', 'bob'])
   const saved = await saveLeagueRoster('alice', 1_000)
@@ -561,8 +550,6 @@ it('revalidates standard Warlords before revealing existing sealed snapshots', a
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 2,
-    format: '1v1',
-    rosterLimit: 2_000,
   })
   for (const userId of ['alice', 'bob']) {
     await service.joinLeague(token, userId)
@@ -590,8 +577,6 @@ it('reveals an older upgraded Warlord without a frozen eligibility marker', asyn
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 2,
-    format: '1v1',
-    rosterLimit: 2_000,
   })
   for (const userId of ['alice', 'bob']) {
     await service.joinLeague(token, userId)
@@ -611,9 +596,8 @@ it('rejects a replacement that would give a doubles team two Warlords', async ()
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 4,
-    format: '2v2',
-    rosterLimit: 2_000,
   })
+  await service.updateLeagueEvent(token, 'alice', { format: '2v2', rosterLimit: 2_000 })
   for (const userId of ['alice', 'bob']) await service.joinLeague(token, userId)
   await service.assignLeagueTeam(token, 'alice', ['alice', 'bob'])
   await saveAndSealLeagueRoster(token, 'alice', 1_000, '', false)
@@ -634,9 +618,8 @@ it('explains the exact doubles Warlord requirement when reveal is refused', asyn
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 4,
-    format: '2v2',
-    rosterLimit: 2_000,
   })
+  await service.updateLeagueEvent(token, 'alice', { format: '2v2', rosterLimit: 2_000 })
   for (const userId of ['alice', 'bob', 'carol', 'dave']) await service.joinLeague(token, userId)
   await service.assignLeagueTeam(token, 'alice', ['alice', 'bob'])
   await service.assignLeagueTeam(token, 'alice', ['carol', 'dave'])
@@ -665,9 +648,8 @@ it('requires an assigned 2v1 roster size and clears a seal when that assignment 
     visibility: 'private',
     admission: 'automatic',
     playerLimit: null,
-    format: '2v1',
-    rosterLimit: 2_000,
   })
+  await service.updateLeagueEvent(token, 'alice', { format: '2v1', rosterLimit: 2_000 })
   await service.joinLeague(token, 'bob')
   await service.saveRoster('bob', {
     id: 'bob-team-roster',
@@ -716,9 +698,8 @@ it('only lets the organizer assign sizes before reveal', async () => {
     visibility: 'private',
     admission: 'automatic',
     playerLimit: null,
-    format: '2v1',
-    rosterLimit: 2_000,
   })
+  await service.updateLeagueEvent(token, 'alice', { format: '2v1', rosterLimit: 2_000 })
   await service.joinLeague(token, 'bob')
 
   expect(await refusalStatus(() => service.assignLeagueRosterRequirement(token, 'bob', 'bob', 1_000))).toBe(403)
@@ -734,9 +715,8 @@ it('refuses reveal until a 2v1 event has one solo and two allied entrants', asyn
     visibility: 'private',
     admission: 'automatic',
     playerLimit: null,
-    format: '2v1',
-    rosterLimit: 2_000,
   })
+  await service.updateLeagueEvent(token, 'alice', { format: '2v1', rosterLimit: 2_000 })
   await service.joinLeague(token, 'alice')
   await service.joinLeague(token, 'bob')
   await service.joinLeague(token, 'carol')
@@ -769,8 +749,6 @@ it('refuses reveal when a frozen roster does not match its event size', async ()
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 2,
-    format: '1v1',
-    rosterLimit: 2_000,
   })
   await service.joinLeague(token, 'alice')
   await service.joinLeague(token, 'bob')
@@ -788,9 +766,8 @@ it('does not let league edits reduce an open 2v1 event below three places', asyn
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 3,
-    format: '2v1',
-    rosterLimit: 2_000,
   })
+  await service.updateLeagueEvent(token, 'alice', { format: '2v1', rosterLimit: 2_000 })
 
   expect(
     await refusalStatus(() =>
@@ -870,19 +847,6 @@ it('keeps league battle history scoped to its event', async () => {
   expect((await service.leagueBattles(league.token, next.eventToken, { limit: 25 })).battles).toEqual([])
 })
 
-it('normalizes a legacy one-off create payload to reusable events', async () => {
-  const { token, eventToken } = await service.createLeague('alice', {
-    name: 'League',
-    description: '',
-    visibility: 'private',
-    admission: 'automatic',
-    playerLimit: 2,
-    recurring: false,
-  })
-
-  expect((await service.league(token, 'alice', eventToken))?.recurring).toBe(true)
-})
-
 it('converts a persisted one-off league for legacy replicas', async () => {
   const { token, eventToken } = await service.createLeague('alice', {
     name: 'League',
@@ -959,6 +923,105 @@ it('lets a two-player league raise its limit before starting a 2v1 event', async
   expect(await service.league(league.token, 'alice', next.eventToken)).toEqual(
     expect.objectContaining({ format: '2v1', playerLimit: 3, rosterLimit: 2_000 }),
   )
+})
+
+it('changes an open event rule and drops the assignments made under the old one', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'Team league',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 3,
+  })
+  await service.updateLeagueEvent(token, 'alice', { format: '2v1', rosterLimit: 2_000 })
+  await service.joinLeague(token, 'bob')
+  await service.assignLeagueRosterRequirement(token, 'alice', 'bob', 1_000)
+
+  await service.updateLeagueEvent(token, 'alice', { format: '1v1', rosterLimit: 1_000 })
+
+  expect(await service.league(token, 'alice')).toEqual(
+    expect.objectContaining({
+      format: '1v1',
+      rosterLimit: 1_000,
+      entries: [expect.objectContaining({ userId: 'bob', requiredLimit: 1_000 })],
+    }),
+  )
+})
+
+it('refuses an event rule the league player limit cannot seat', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+  })
+
+  expect(await refusalStatus(() => service.updateLeagueEvent(token, 'alice', { format: '2v1', rosterLimit: 2_000 }))).toBe(409)
+})
+
+it('refuses an event rule change once an entrant has sealed a roster', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+  })
+  await service.joinLeague(token, 'alice')
+  await saveAndSealLeagueRoster(token, 'alice', 2_000)
+
+  expect(await refusalStatus(() => service.updateLeagueEvent(token, 'alice', { format: '2v2', rosterLimit: 2_000 }))).toBe(409)
+})
+
+it('only lets the organizer change an event rule', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+  })
+
+  expect(await refusalStatus(() => service.updateLeagueEvent(token, 'bob', { format: '2v2', rosterLimit: 2_000 }))).toBe(403)
+})
+
+it('accepts the organizer into their own league without an approval', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'approval',
+    playerLimit: null,
+  })
+
+  await expect(service.joinLeague(token, 'alice')).resolves.toBe('accepted')
+})
+
+it('accepts the waiting requests in join order when joining becomes automatic', async () => {
+  await enrol('dave', 'Dave')
+  const { token } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'approval',
+    playerLimit: 2,
+  })
+  for (const userId of ['bob', 'carol', 'dave']) await service.joinLeague(token, userId)
+
+  await service.updateLeague(token, 'alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+  })
+
+  expect((await service.league(token, 'alice'))?.entries.map((entry) => [entry.userId, entry.status])).toEqual([
+    ['bob', 'accepted'],
+    ['carol', 'accepted'],
+    ['dave', 'pending'],
+  ])
 })
 
 it('only lets the organizer edit and delete a league', async () => {
@@ -1517,6 +1580,10 @@ describe('seats', () => {
     expect(seen.players.map((player) => player.roster?.name)).toEqual(['Ultramarines', 'Death Guard'])
     // Nobody signs in to it, so its deck has to be readable by the people playing it.
     expect(seen.players[1]?.remainingSecondaries).toEqual([{ key: 'a', name: 'Area Denial' }])
+    expect(await send({ kind: 'end-battle', reason: 'conceded', concededBy: 'practice-opponent-1' })).toEqual({
+      outcome: 'refused',
+      reason: 'a practice opponent cannot concede',
+    })
   })
 
   it('deals a practice opponent’s hand off its own deck rather than the drawing player’s', async () => {
@@ -1756,6 +1823,7 @@ describe('battle setup references', () => {
       name: 'Card',
       text: null,
       awards: [],
+      actions: [],
       whenDrawn: null,
     }
     const battle = await configured({
@@ -1806,7 +1874,7 @@ describe('battle setup references', () => {
       criteria: 'Control an objective marker.',
       trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: 2, roundMax: null },
     }
-    const card = { name: 'Card', text: null, whenDrawn: null }
+    const card = { name: 'Card', text: null, actions: [], whenDrawn: null }
     const loaded = {
       ...rules(),
       primaries: [
@@ -1850,7 +1918,7 @@ describe('battle setup references', () => {
       trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: 1, roundMax: null },
     }
     const timingFixedAward = { ...commandAward, mode: 'fixed', trigger: { ...commandAward.trigger, phase: 'movement' } }
-    const card = { name: 'Card', text: null, whenDrawn: null }
+    const card = { name: 'Card', text: null, actions: [], whenDrawn: null }
     const loaded = {
       ...rules(),
       primaries: [
@@ -1901,7 +1969,7 @@ describe('battle setup references', () => {
   })
 
   it('refuses to begin with a fixed mission outside the server deck', async () => {
-    const card = { name: 'Card', text: null, awards: [fixedAward], whenDrawn: null }
+    const card = { name: 'Card', text: null, awards: [fixedAward], actions: [], whenDrawn: null }
     const loaded = {
       ...rules(),
       primaries: [
@@ -1939,7 +2007,7 @@ describe('battle setup references', () => {
   })
 
   it('refuses to begin with tactical-only cards selected as fixed missions', async () => {
-    const card = { name: 'Card', text: null, whenDrawn: null }
+    const card = { name: 'Card', text: null, actions: [], whenDrawn: null }
     const tacticalAward = {
       vp: 5,
       per: null,
@@ -2016,8 +2084,8 @@ describe('battle setup references', () => {
     const loaded = {
       ...rules(),
       primaries: [
-        { key: 'mission-a', name: 'Mission A', text: null, whenDrawn: null, awards: [commandAward] },
-        { key: 'mission-b', name: 'Mission B', text: null, whenDrawn: null, awards: [movementAward] },
+        { key: 'mission-a', name: 'Mission A', text: null, actions: [], whenDrawn: null, awards: [commandAward] },
+        { key: 'mission-b', name: 'Mission B', text: null, actions: [], whenDrawn: null, awards: [movementAward] },
       ],
     }
     const battle = await configured()
@@ -2052,7 +2120,7 @@ describe('battle setup references', () => {
     if (result.outcome === 'appended') battle.setSeq(result.seq)
     result = await battle.send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })
     if (result.outcome === 'appended') battle.setSeq(result.seq)
-    const card = { name: 'Card', text: null, awards: [], whenDrawn: null }
+    const card = { name: 'Card', text: null, awards: [], actions: [], whenDrawn: null }
     const loadedRules = {
       ...rules(),
       primaries: [
@@ -2327,7 +2395,7 @@ describe('saved rosters', () => {
       detachmentIds: ['awakened-dynasty'],
       disposition: 'reconnaissance',
       limit: 2000,
-      picks: [{ entryId: 'warriors' }],
+      picks: [{ entryId: 'warriors' }, { entryId: 'overlord', attachedTo: 0 }, { entryId: 'plasmacyte', attachedTo: 0 }],
       prep: null,
       visibility: 'private',
       source: 'editable',
@@ -2499,6 +2567,14 @@ describe('the answer to a command', () => {
     expect(answer.result.outcome).toBe('appended')
     expect(answer.screen.view.phase).toBe('movement')
     expect((await service.report(token, 'alice')).at(-1)).toMatchObject({ by: 'bob', text: 'Bob ends the command phase for Alice' })
+  })
+
+  it('lets a seated player record another participant conceding', async () => {
+    const { token, seq } = await started()
+    const answer = await service.submit(token, 'alice', seq(), { kind: 'end-battle', reason: 'conceded', concededBy: 'bob' })
+
+    expect(answer.result.outcome).toBe('appended')
+    expect(answer.screen.view.result).toEqual({ reason: 'conceded', concededBy: 'bob' })
   })
 
   it('corrects a sender that had fallen behind', async () => {

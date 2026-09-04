@@ -355,6 +355,16 @@ describe('secondaries', () => {
     expect(text(battleReport(NAMES, discarded))).toContain('Alice marks Behind Enemy Lines discarded')
   })
 
+  it('reports which mission replaces one put back into the deck', () => {
+    const history = log(
+      ...named(),
+      [ALICE, { kind: 'set-secondary-status', key: 'a', status: 'returned' }],
+      [ALICE, { kind: 'draw-secondaries', secondaries: [{ key: 'c', name: 'Area Denial' }] }],
+    )
+
+    expect(text(battleReport(NAMES, history))).toContain('Alice puts Behind Enemy Lines back in the deck and draws Area Denial')
+  })
+
   it('discards a chosen active tactical secondary and gains one command point atomically', () => {
     const command: Command = { kind: 'resolve-tactical-hand', keys: ['a'], gainCp: true }
     const before = tacticalEnd()

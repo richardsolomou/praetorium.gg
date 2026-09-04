@@ -100,6 +100,15 @@ export type EvaluateOptions = {
    * roster present hides every one of them.
    */
   roster?: readonly Selection[]
+  /**
+   * Whether an army is being mustered, rather than a datasheet being read.
+   *
+   * A datasheet can offer a choice only while mustering — a Mark of Chaos is granted
+   * by a detachment, not by the datasheet that lists it — and says so with a condition
+   * scoped to the force. A reference page is not an army, so it answers no and keeps
+   * describing everything the datasheet can express.
+   */
+  mustering?: boolean
 }
 
 export type ProfileModifier = {
@@ -506,6 +515,25 @@ export function selectionCountBounds(
 ): { minimum: number; maximum: number | null } {
   const census = new Census()
   const { root, node } = candidateContext(definition, index, options, census)
+  return selectionCountBoundsFor(node, root, index, census)
+}
+
+/** Selection-count bounds for a definition in the unit where its conditions apply. */
+export function selectionCountBoundsAt(
+  selection: Selection,
+  path: readonly string[],
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+): { minimum: number; maximum: number | null } | null {
+  const census = new Census()
+  const candidate = withPath(selection, path)
+  const { root, forces } = rosterContext([[...(options.roster ?? []), candidate]], index, census, options)
+  let node = forces[0]?.children.at(-1)
+  for (const id of path) node = node?.children.find((child) => child.id === id)
+  return node ? selectionCountBoundsFor(node, root, index, census) : null
+}
+
+function selectionCountBoundsFor(node: Node, root: Node, index: CatalogueIndex, census: Census) {
   let minimum = 0
   let maximum: number | null = null
 
@@ -518,6 +546,18 @@ export function selectionCountBounds(
     if (constraint.type === 'max' && value >= 0) maximum = maximum === null ? value : Math.min(maximum, value)
   }
   return { minimum, maximum }
+}
+
+function withPath(selection: Selection, path: readonly string[]): Selection {
+  const [id, ...rest] = path
+  if (!id) return selection
+  const children = [...(selection.selections ?? [])]
+  const at = children.findIndex((child) => child.id === id)
+  const child = children[at] ?? { id, count: 0 }
+  const placed = withPath(child, rest)
+  if (at >= 0) children[at] = placed
+  else children.push(placed)
+  return { ...selection, selections: children }
 }
 
 /**
@@ -565,10 +605,17 @@ export function rosterLimit(definition: Definition, index: CatalogueIndex, optio
   return limit
 }
 
+/**
+ * A candidate judged as a roster would hold it. While mustering, the roster is one force,
+ * so the root answers as that force: a condition scoped to the force otherwise finds
+ * nothing to look at and reads as false, and a datasheet's own "only while mustering an
+ * army" never arrives. Ancestors stop at a force node, so the identity is carried by the
+ * root rather than by a layer beneath it.
+ */
 function candidateContext(definition: Definition, index: CatalogueIndex, options: EvaluateOptions, census: Census) {
   const counter = { next: 0 }
   const root: Node = {
-    target: { id: 'roster' },
+    target: options.mustering ? { id: index.forces[0]?.id ?? 'roster', name: index.forces[0]?.name } : { id: 'roster' },
     order: counter.next++,
     catalogueId: options.primaryCatalogueId,
     link: null,

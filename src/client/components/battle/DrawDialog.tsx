@@ -1,4 +1,4 @@
-import { Check, Undo2 } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -6,9 +6,9 @@ import type { Command } from '../../../core/battle'
 import { nextDraw } from '../../scoring'
 import { type Side, sideName } from '../../sides'
 import { redrawOffer, type WhenDrawn } from './drawOffer'
-import { DrawUndoAlert } from './DrawUndoAlert'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
 import { CARD } from './tints'
+import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
 
 export type { WhenDrawn } from './drawOffer'
 
@@ -48,7 +48,6 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
   const [inspected, setInspected] = useState<MissionDetails | null>(null)
-  const [confirmingUndo, setConfirmingUndo] = useState<number | null>(null)
   const owed = Math.min(side.secondaryDrawTarget - side.secondariesDrawnThisTurn.length, side.remainingSecondaries.length)
   const needsDraw = owed > 0
   const canUndo = undoable !== null
@@ -61,6 +60,12 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
    * request flag is what stops a hand of one being dealt back up to three.
    */
   const asked = useRef(new Set<string>())
+  const resetForUndo = () => {
+    setPaused(true)
+    setSelecting(false)
+    setSelected([])
+  }
+  const undo = useUndoLatest({ undoable, undoableDraw: confirmUndo, send, beforeUndo: resetForUndo })
 
   // A refused ask — the hand filled from elsewhere before this one landed — never
   // appears in `side.secondaries`, so nothing about the view changes to prompt a
@@ -235,24 +240,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
             {!selecting && !paused && needsDraw ? <p className="text-sm text-discarded">Drawing…</p> : null}
           </div>
           <DialogFooter className="rounded-none border-edge bg-sunken">
-            <Button
-              variant="outline"
-              disabled={pending || !canUndo}
-              onClick={() => {
-                if (undoable === null) return
-                if (confirmUndo) {
-                  setConfirmingUndo(undoable)
-                  return
-                }
-                setPaused(true)
-                setSelecting(false)
-                setSelected([])
-                send({ kind: 'undo', target: undoable })
-              }}
-            >
-              <Undo2 />
-              Undo latest action
-            </Button>
+            <UndoLatestButton disabled={pending || !canUndo} onClick={undo.request} />
             {selecting && needsDraw ? (
               <>
                 <Button
@@ -288,19 +276,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
       </Dialog>
       {/* Base UI treats nested dialogs as one dismissible region, so details must be a sibling. */}
       {inspected ? <MissionDetailsDialog details={inspected} onOpenChange={(open) => !open && setInspected(null)} /> : null}
-      <DrawUndoAlert
-        open={confirmingUndo !== null}
-        pending={pending}
-        onOpenChange={(open) => !open && setConfirmingUndo(null)}
-        onConfirm={() => {
-          if (confirmingUndo === null) return
-          setPaused(true)
-          setSelecting(false)
-          setSelected([])
-          setConfirmingUndo(null)
-          send({ kind: 'undo', target: confirmingUndo })
-        }}
-      />
+      <UndoLatestConfirmation pending={pending} control={undo} />
     </>
   )
 }

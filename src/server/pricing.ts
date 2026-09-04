@@ -1,4 +1,4 @@
-import { attachmentErrors, attachmentOf } from '../core/attach'
+import { attachmentCategoriesOf, attachmentErrors, attachmentLimitsOf, attachmentOf } from '../core/attach'
 import { routeSlug } from '../core/slug'
 import {
   borrowedDispositionError,
@@ -43,6 +43,7 @@ function rosterForces(loaded: LoadedCatalogue, data: PriceInput, detachmentSelec
   const picked = data.units.flatMap((wanted, key) => {
     const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
       primaryCatalogueId: data.catalogueId,
+      mustering: true,
       roster: detachmentSelection,
       spreads: wanted.spreads,
       toggles: wanted.toggles,
@@ -100,7 +101,7 @@ function legalReplacementPairs(
       wanted.set(found.choice.key, counts)
     }
     let candidate = selection
-    for (const [key, counts] of wanted) candidate = withUnitSpread(candidate, key, counts, index)
+    for (const [key, counts] of wanted) candidate = withUnitSpread(candidate, key, counts, index, options)
     const rebuilt = unitChoices(entryId, candidate, index, options)
     const rebuiltCount = (found: Found) =>
       rebuilt.find((choice) => choice.key === found.choice.key)?.options.find((option) => option.id === found.option.id)?.count ?? 0
@@ -248,7 +249,8 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   const detachmentError = detachmentPointsError(purchased, budget, data.waivedRules)
 
   const { picked, forceSelections } = rosterForces(loaded, data, detachmentSelection)
-  const options = { primaryCatalogueId: data.catalogueId }
+  // Pricing is a roster being mustered, which is what a datasheet's force-scoped rules ask about.
+  const options = { primaryCatalogueId: data.catalogueId, mustering: true }
   const forces = [...forceSelections.values()]
   const selections = forces.flat()
   const selectionIndex = new Map(selections.map((selection, at) => [selection, at]))
@@ -325,6 +327,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     if (modelKindsFor(unit).length) continue
     const composed = buildUnit(unit.entryId, loaded.index, unit.size.models, undefined, {
       primaryCatalogueId: data.catalogueId,
+      mustering: true,
       roster: detachmentSelection,
     })
     if (!composed) continue
@@ -385,6 +388,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     selections,
     units: picked.map((unit) => {
       const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+      const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
       const unitSelectionIndex = selectionIndex.get(unit.selection)
       const host = data.units[unit.key]?.attachedTo ?? unit.key
       const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
@@ -445,6 +449,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       )
       const specialSelections = new Set([...specialChoices, ...automaticEnhancements.map(routeSlug)])
       const wargear = heldWargear(models, choices, catalogued)
+      const attachment = attachmentOf(definition, loaded.index, unit.selection)
       return {
         key: unit.key,
         entryId: unit.entryId,
@@ -472,7 +477,9 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
           .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
         wargear: wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name))),
         group: groupOfEntry(loaded.index, unit.entryId),
-        attachment: attachmentOf(loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }, loaded.index, unit.selection),
+        attachment,
+        attachmentLimits: attachmentLimitsOf(definition, loaded.index),
+        attachmentCategories: attachment ? attachmentCategoriesOf(definition, loaded.index) : [],
       }
     }),
   }
@@ -622,7 +629,7 @@ export function heldWargear(
     ]),
   )
   for (const choice of choices) {
-    if (choice.name && isUnitCompositionChoice({ name: choice.name })) continue
+    if (choice.name && isUnitCompositionChoice({ name: choice.name, options: choice.options })) continue
     for (const option of choice.options) {
       if (option.count <= 0 || modeled.has(replacementKey({ choiceKey: choice.key, optionId: option.id }))) continue
       const pieces = option.pieceCounts ?? (option.name ? [{ name: option.name, count: option.count }] : [])

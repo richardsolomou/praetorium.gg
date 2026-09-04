@@ -9,30 +9,23 @@ import { errorMessage } from './queryClient'
 import { requestNativeHaptic } from './nativeBridge'
 
 type SubmittedCommand = Command | { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
-type QueuedCommand = { command: SubmittedCommand; basedOn: number; complete?: (appended: boolean) => void }
+export type SendCommand = (command: Command, options?: { background?: boolean }) => void
+type QueuedCommand = { command: SubmittedCommand; basedOn: number; background?: boolean; complete?: (appended: boolean) => void }
 
-function explain(result: SubmitResult) {
+function explain(result: SubmitResult, setup: boolean) {
   if (result.outcome === 'appended') return null
-  // A lost race is not a mistake, so it says what happened rather than what the
-  // player did wrong. The screen that comes with it leaves them able to tap again.
+  if (result.outcome === 'stale' && setup) return null
+  // Shared setup redraws from the winner; live controls remain available to retry.
   if (result.outcome === 'stale') return 'Your opponent got there first. Try that again.'
   return result.reason
 }
 
 /**
- * Sends commands one at a time, each conditional on the history the last one left.
+ * Sends commands sequentially against the latest history this device has seen.
  *
- * A refusal and a lost race are both answers rather than failures: the domain's
- * own wording goes on screen, and the answer carries the battle as it now stands,
- * so the page is never left acting on what it has already changed. A lapsed
- * session is the third of them, and the only one answered by a different screen.
- *
- * They queue rather than block. `expectedSeq` covers the whole log, so two of a
- * player's own taps would otherwise race each other, and the only way to stop that
- * was to disable every control on the page until each round trip came back —
- * which made the whole battle flicker on every press. Sending in order removes the
- * race instead of hiding it, and leaves a stale answer meaning what it says: the
- * opponent moved.
+ * Every response carries the authoritative screen. Refusals remain visible, setup
+ * collisions quietly redraw, and live collisions ask the player to retry. The queue
+ * prevents one device's taps from racing under the battle-wide `expectedSeq`.
  */
 export function useCommand(token: string, seq: number) {
   const queryClient = useQueryClient()
@@ -56,12 +49,13 @@ export function useCommand(token: string, seq: number) {
         if (!item) break
         try {
           const { result, screen } = await submit({ data: { token, expectedSeq: seen.current, command: item.command } })
-          setProblem(explain(result))
+          const setup = screen?.kind === 'battle' && screen.view.status === 'setup'
+          if (!item.background || result.outcome === 'refused') setProblem(explain(result, setup))
           queryClient.setQueryData(battleQuery(token).queryKey, screen)
           if (screen?.kind === 'battle') seen.current = Math.max(seen.current, screen.view.seq)
           void queryClient.invalidateQueries({ queryKey: ['report', token] })
           item.complete?.(result.outcome === 'appended')
-          if (result.outcome === 'appended') requestNativeHaptic()
+          if (result.outcome === 'appended' && !item.background) requestNativeHaptic()
           if (result.outcome !== 'appended') {
             const authoritativeSeq = screen?.kind === 'battle' ? screen.view.seq : item.basedOn
             const kept: QueuedCommand[] = []
@@ -101,9 +95,9 @@ export function useCommand(token: string, seq: number) {
   }, [queryClient, token])
 
   const send = useCallback(
-    (command: Command) => {
-      queued.current.push({ command, basedOn: seq })
-      setPending(true)
+    (command: Command, options?: { background?: boolean }) => {
+      queued.current.push({ command, basedOn: seq, background: options?.background })
+      if (!options?.background) setPending(true)
       void drain()
     },
     [drain, seq],

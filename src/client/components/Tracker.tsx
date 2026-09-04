@@ -4,14 +4,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
-import { primaryCards, secondaryCards } from '../missionDeck'
+import { missionCardsByKey, primaryCards, secondaryCards } from '../missionDeck'
 import { appliesInMode } from '../missionText'
 import { automaticAttemptsExhausted, claimAutomaticAttempt } from '../automaticAttempts'
 import { errorMessage } from '../queryClient'
 import { armyRulesRequest } from '../sideRules'
-import { type Side, type SideMission, sideName, sides } from '../sides'
+import { celebrateVictory } from '../victory'
+import { type Side, type SideMission, sides } from '../sides'
 import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
+import { battleOutcome, battleResult } from '../battleOutcome'
 import { BattleMenu } from './battle/BattleMenu'
 import { DrawDialog, type WhenDrawn } from './battle/DrawDialog'
 import { DiscardSecondaryDialog } from './battle/DiscardSecondaryDialog'
@@ -96,13 +98,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   // The cards are the instance's, not a side's: one deck, read the same way for both.
   const primaryDeck = useMemo(() => primaryCards(references), [references])
   const secondaryDeck = useMemo(() => secondaryCards(references), [references])
-  const deck = useMemo(() => [...primaryDeck, ...secondaryDeck], [primaryDeck, secondaryDeck])
-  // The first card claiming a key answers for it, the way `find` over the deck did.
-  const cardsByKey = useMemo(() => {
-    const cards = new Map<string, ReferenceCard>()
-    for (const card of deck) if (!cards.has(card.key)) cards.set(card.key, card)
-    return cards
-  }, [deck])
+  const cardsByKey = useMemo(() => missionCardsByKey(references), [references])
   const awardsFor = useCallback(
     (key: string, mode?: string): Award[] => (cardsByKey.get(key)?.awards ?? []).filter((award) => appliesInMode(award, mode)),
     [cardsByKey],
@@ -253,12 +249,19 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     if (!emptySettlementReady || pending || !claimAutomaticAttempt(attemptedEmptySettlements.current, emptySettlementKey)) return
     send({ kind: 'settle-opponent-turn' })
   }, [emptySettlementKey, emptySettlementReady, pending, send])
+  // The win is this device's to celebrate only when the side it is seated on took it.
+  const result = finished ? battleResult(table, view) : null
+  const wonSide = result?.kind === 'win' ? table.find((side) => side.index === result.side.index) : undefined
+  const wonHere = Boolean(wonSide?.isViewer)
+  useEffect(() => {
+    if (wonHere && wonSide) void celebrateVictory(view.token, wonSide.index)
+  }, [view.token, wonHere, wonSide])
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
   const discardable = active ? discardableSecondaries(active) : []
 
   return (
-    <main className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
-      <Scoreboard view={view} sides={table} outcome={finished ? outcome(table, view) : null} />
+    <main data-battle-tracker className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
+      <Scoreboard view={view} sides={table} outcome={finished ? battleOutcome(table, view) : null} />
 
       {/* Nobody across the table yet means neither a tab nor a column for them. */}
       <Tabs value={focus} onValueChange={(value) => setFocus(value as Focus)} className="lg:hidden">
@@ -317,12 +320,6 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           )}
 
           <section className={`space-y-3 rounded-lg border border-edge bg-panel p-3 ${focus === 'battle' ? '' : 'hidden lg:block'}`}>
-            {finished ? (
-              <p className="rounded-sm border border-edge bg-sunken p-3 text-center text-sm text-dim">
-                {resultLabel(view) ?? 'The battle is over.'} Reopen it from the battle menu to keep playing.
-              </p>
-            ) : null}
-
             <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
               <Fact label="Mission" value={yours?.mission?.name ?? 'Matched play'} />
               <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
@@ -377,8 +374,9 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
                 finished={finished}
                 canDelete={view.creatorId === view.viewerId}
                 pending={pending || remove.isPending}
+                players={view.players}
                 onFinishEarly={() => send({ kind: 'end-battle', reason: 'finished-early' })}
-                onConcede={() => send({ kind: 'end-battle', reason: 'conceded', concededBy: view.viewerId })}
+                onConcede={(playerId) => send({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
                 onReopen={() => send({ kind: 'reopen-battle' })}
                 onDelete={() => remove.mutate()}
               />
@@ -404,6 +402,8 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           send={send}
           referenceFor={referenceFor}
           round={view.round}
+          undoable={view.undoable}
+          undoableDraw={view.undoableDraw}
           onCancel={() => send({ kind: 'cancel-advance', playerId: active.captain.id })}
           onDone={(completedSecondaryKeys, scored) => {
             const unresolved = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
@@ -426,6 +426,9 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             activeSecretMissionAction ? () => send({ kind: 'cancel-advance', playerId: secretMissionActionSide.captain.id }) : undefined
           }
           onReveal={() => send({ kind: 'reveal-secret', playerId: secretMissionActionSide.captain.id })}
+          undoable={view.undoable}
+          undoableDraw={view.undoableDraw}
+          send={send}
         />
       ) : null}
 
@@ -439,6 +442,8 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           send={send}
           referenceFor={referenceFor}
           round={settlementRound ?? view.round}
+          undoable={view.undoable}
+          undoableDraw={view.undoableDraw}
           onDone={() => send({ kind: 'settle-opponent-turn' })}
         />
       ) : null}
@@ -454,6 +459,8 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           keys={discardable}
           pending={pending}
           send={send}
+          undoable={view.undoable}
+          undoableDraw={view.undoableDraw}
           onDone={() => {
             send({ kind: 'advance', playerId: active.captain.id })
           }}
@@ -506,26 +513,6 @@ function formatName(table: Side[]) {
     .map((side) => side.armies.length)
     .toSorted((left, right) => right - left)
     .join('v')
-}
-
-function outcome(table: Side[], view: BattleView) {
-  if (view.result?.reason === 'conceded') {
-    const conceded = view.players.find((player) => player.id === view.result?.concededBy)?.side
-    const winner = table.find((side) => side.index !== conceded)
-    return winner ? `${sideName(winner)} win by concession` : 'Battle conceded'
-  }
-  const [first, second] = table.toSorted((left, right) => right.total - left.total)
-  if (!first) return 'No result'
-  if (!second) return `Final score ${first.total}`
-  return first.total === second.total ? `Drawn at ${first.total}` : `${sideName(first)} win ${first.total}–${second.total}`
-}
-
-function resultLabel(view: BattleView) {
-  if (!view.result) return null
-  if (view.result.reason === 'conceded') {
-    return `${view.players.find((player) => player.id === view.result?.concededBy)?.name ?? 'A player'} conceded.`
-  }
-  return view.result.reason === 'finished-early' ? 'Finished early.' : 'Played to the last round.'
 }
 
 /** The cards a side was holding, as keys, so a later hand can be told from this one. */

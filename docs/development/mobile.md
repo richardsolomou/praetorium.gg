@@ -13,29 +13,43 @@ just mobile
 
 Press `i` for the iOS simulator or `a` for an Android emulator. The platform-specific shortcuts are `just mobile-ios` and `just mobile-android`.
 
-Expo generates `mobile/ios` and `mobile/android` from `mobile/app.json`; both directories are gitignored. Change the app configuration instead of editing generated native projects.
+Expo generates `mobile/ios` and `mobile/android` from `mobile/app.json`; both directories are gitignored and disposable. Persistent native configuration lives in the app configuration rather than those generated projects.
 
-The shell always loads the production service. It preserves first-party cookies, keeps ordinary `praetorium.gg` navigation in the main WebView, and opens other supported links with the operating system. Its injected bridge captures both `_blank` links and `window.open`. A trusted `praetorium.gg` new window opens in a second, dismissible WebView so the original screen and authenticated session remain in place; an external URL still goes to the operating system. The WebView's native new-window event is the fallback. Apple, Google and Discord authentication leaves the WebView for a system authentication session. The local proof uses a fifteen-minute envelope around Better Auth's ten-minute provider state window. A valid callback resets the local proof to the server receipt's three-minute window.
+The shell always loads the production service. It preserves first-party cookies, keeps ordinary `praetorium.gg` navigation in the main WebView, and opens other supported links with the operating system. Its injected bridge captures both `_blank` links and `window.open`. A trusted `praetorium.gg` new window loads in the main WebView, because the application has no second window; an external URL still goes to the operating system. The WebView's native new-window event is the fallback. Apple, Google and Discord authentication leaves the WebView for a system authentication session. The local proof uses a fifteen-minute envelope around Better Auth's ten-minute provider state window. A valid callback resets the local proof to the server receipt's three-minute window.
 
 The web application binds the receipt to the shell, provider, action, destination, user, and server session. The WebView submits the receipt as a top-level POST request. The server validates the receipt, sets the session cookie, and redirects the same WebView to the bound destination. This transaction stores the cookie before the redirect loads. A temporary query value prevents a cached signed-out document. The injected bridge removes this value before the web application starts.
 
 The shell remounts the current trusted WebView location after receiving the callback, then submits the proof only after the new document finishes loading. The destination reports success to the shell after the redirect finishes loading. The shell then removes its local proof and consumes the server receipt. Receipt consumption reloads the destination once so the interface reads the committed session. An application or renderer restart retries the same receipt. A transport failure keeps the proof for an explicit retry. An invalid or expired receipt redirects to the sign-in page and removes the proof. The token and verifier stay in request bodies. Only the non-secret exchange ID appears in the temporary query value. WKWebView can omit the `Origin` header from these requests. The server accepts a missing or null `Origin` only on the proof-bound exchange and consume endpoints.
 
-Linking a second provider still starts by moving the existing WebView session into the system browser with Better Auth's single-use token. The system browser normally retains the resulting cookie through the provider redirect, but a browser or application failure after consuming that token and before the provider callback requires the player to start linking again from the WebView. Do not infer successful transfer from an unrelated system-browser session.
+Linking a second provider still starts by moving the existing WebView session into the system browser with Better Auth's single-use token. The system browser normally retains the resulting cookie through the provider redirect, but a browser or application failure after consuming that token and before the provider callback requires the player to start linking again from the WebView. An unrelated system-browser session is not evidence of a successful transfer.
 
 The shell preserves the full path, query, and fragment when an internal HTTPS link starts or foregrounds the application. `mobile/app.json` declares the `praetorium.gg` associated domain and Android intent filter. Production link verification also requires `APPLE_TEAM_ID` and `ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS`. The deployment serves the resulting Apple and Android association files and returns 404 rather than publishing placeholders while either platform's release identity is absent.
 
-After a real background cycle, the shell nudges the WebView's browser lifecycle. This closes and reconnects Centrifugo, then refetches active TanStack Query data through the web application's existing browser handlers. Do not add native battle state or lifecycle-specific fetches.
+An updated shell declares the `app-navigation` capability and marks each document as a native application document. The web application then replaces its website header with application navigation. Phones use a fixed top bar and five bottom tabs. Layouts that are at least 1024 pixels wide move the tabs into a left rail.
 
-`praetorium://auth` is reserved for this handoff. Keep its request and callback validation in `mobile/src/nativeAuth.ts`. The shell publishes `window.PraetoriumNative.bridgeVersion` before the web application loads; web features must require a bridge version they understand so a deployment cannot send messages to older installed shells. Bridge version 2 adds retryable, challenge-bound authentication while the web deployment retains version 1 for installed shells that have not updated yet. Bridge version 3 keeps that protocol and adds native sharing, printing, battle haptics, and active-battle screen wake locks. Each action is accepted only when version 3 declares the matching capability.
+Each tab returns to the screen it was left on. The session records the last location, history state, and scroll positions of every section in `src/client/nativeTabs.ts`, keyed by the section `nativeNavigation` derives from the path. This keeps an open roster unit open when another tab is visited. Tapping the section you are already in goes to its top instead. The record lives in `sessionStorage`, so a cold start opens every tab at its top.
+
+The top bar keeps the Back action in a fixed location. A detail screen returns to the previous application route when that route is in the same tab, and to its mapped parent route otherwise. A section root is the bottom of its tab: it carries no Back action, and the shell turns the iOS back gesture off there. Every tab shares one WebView history stack, so the web application records the section of each history entry and tells the shell whether going back stays inside the current tab. The shell enables the iOS back gesture and the Android system Back action only while that is true. The website keeps its website header.
+
+Compact roster panes use browser history, which is inside the roster tab. An iOS back gesture or Android system Back action dismisses the pane before it leaves the roster. A datasheet opened from the unit picker returns to that picker. A datasheet opened from a roster unit returns to the roster. The visible Back action consumes the same history entry.
+
+A compact unit pane is a screen inside the roster tab rather than a sheet over the application: it stops above the tab bar, and the tab bar stays live beside it. The website keeps the same pane as a modal dialog, because there is no tab bar to reach.
+
+After a real background cycle, the shell nudges the WebView's browser lifecycle. This closes and reconnects Centrifugo, then refetches active TanStack Query data through the web application's existing browser handlers. The shell holds no native battle state or lifecycle-specific fetch path.
+
+`praetorium://auth` is reserved for this handoff. Request and callback validation stay in `mobile/src/nativeAuth.ts`. The shell publishes `window.PraetoriumNative.bridgeVersion` before the web application loads. Web features require a supported bridge version and a matching capability. This prevents the deployment from sending messages to older installed shells. Bridge version 2 adds retryable, challenge-bound authentication. The web deployment retains version 1 for installed shells that are not updated. Bridge version 3 adds application navigation, native sharing, printing, battle haptics, active-battle screen wake locks, and the back-gesture capability the web application uses to allow or refuse the system back action.
 
 Store builds use `mobile/eas.json`. Apple metadata lives in `mobile/store.config.json`; Google Play metadata and both stores' manual review fields are recorded in [Mobile release](mobile-release.md).
+
+The iOS shell receives over-the-air JavaScript updates through EAS Update. The public application uses the `stable` channel and testers use one shared `canary` channel. Canary installations always receive the latest compatible update merged to `main`; pull-request revisions are never distributed. Each update targets the native fingerprint that produced it, so an incompatible binary cannot receive it.
+
+Checked-in GitHub workflows queue iOS deliveries through temporary tags. Each delivery finishes before the next change starts, including store submission and over-the-air publishing. Every canary and stable delivery creates a new iOS build, uploads it to TestFlight, and publishes the same merged revision over the canary or stable channel for compatible installed builds. A mobile change merged to `main` delivers both channels; an open pull request only runs validation. Android builds, updates, and store uploads remain manual and disabled until the release gate passes on a physical Android device and the Google account requirements are complete.
 
 ## Check it
 
 `just check` formats, lints, type-checks, and tests the mobile source with the web application.
 
-Boot an iOS Simulator before you test native authentication. Install Java 21 and Maestro, then run:
+Native authentication testing requires a booted iOS Simulator, Java 21, and Maestro:
 
 ```sh
 just e2e-native-auth-ios
@@ -43,6 +57,8 @@ just e2e-native-auth-ios
 
 The test builds the Release application and launches it one time. It completes the native Google handoff against an isolated local stack. It checks the proof exchange, authenticated redirect, proof consumption, and authenticated reload. It also checks that the account appears without another application launch.
 
-The Simulator build does not have the production keychain entitlement. The test build keeps only its pending callback in memory. Production builds continue to use SecureStore. Test SecureStore and the real Apple and Google providers on a signed physical-device build.
+Run this journey before pushing a change to the native shell, its dependencies, or its configuration. TestFlight submission is automatic, so the pushed commit must already have passed the release-mode journey.
 
-Before a mobile change is ready, inspect it on physical iOS and Android devices. Exercise sign-in, WebSocket reconnection, external links, file selection, printing, backgrounding, and platform back navigation.
+The Simulator build does not have the production keychain entitlement. The test build keeps only its pending callback in memory. Production builds continue to use SecureStore. Signed physical-device builds are the verification surface for SecureStore and the real Apple and Google providers.
+
+Physical-device verification covers iOS and Android sign-in, WebSocket reconnection, external links, file selection, printing, backgrounding, and platform back navigation.

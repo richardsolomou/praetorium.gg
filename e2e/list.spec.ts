@@ -55,9 +55,9 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
   await expect(bob.getByRole('heading', { name: 'command phase' })).toBeVisible()
 
   const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
-  // The bonus is promised during setup and paid when the battle ends, so the running score is still zero.
-  await expect(panel.locator('[data-stat="vp"]')).toHaveText('0')
-  await expect(panel).toContainText('+10 battle ready at the end')
+  // The bonus is claimed during setup and paid as the battle begins, so it is already in the score.
+  await expect(panel.locator('[data-stat="vp"]')).toHaveText('10')
+  await expect(panel).toContainText('Battle ready included')
   await expect(
     bob
       .locator('[data-panel="player"]')

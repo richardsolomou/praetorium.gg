@@ -456,7 +456,7 @@ describe('setup', () => {
 
   it('refuses a borrowed disposition the catalogue cannot price', () => {
     expect(borrowedDispositionError(600, ['kotc-borrowed-disposition'], { points: null }, { points: 2 })).toBe(
-      'This catalogue does not price one of these detachments, so the borrowed disposition cannot be paid for.',
+      'One of these detachments has no points value, so the borrowed disposition cannot be paid for.',
     )
   })
 
@@ -1630,9 +1630,19 @@ describe('battle management', () => {
     expect(state).toMatchObject({ status: 'finished', result: { reason: 'conceded', concededBy: BOB } })
   })
 
-  it('only allows a player to concede for themselves', () => {
+  it('allows any seated player to record another player conceding', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
-    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB })).toBe('you can only concede for yourself')
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB })).toBeNull()
+  })
+
+  it('refuses a concession from someone outside the battle', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: CAROL })).toBe('that player is not in this battle')
+  })
+
+  it('does not let a practice opponent concede', () => {
+    const state = reduceBattle(PLAYERS, log(...started()), undefined, [BOB])
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB })).toBe('a practice opponent cannot concede')
   })
 
   it('can reopen a finished battle without discarding its score', () => {
@@ -1647,12 +1657,17 @@ describe('battle management', () => {
     expect(state.players[0]?.primary).toBe(5)
   })
 
-  it('holds the painted-army bonus back while the battle is running', () => {
+  it('pays the painted-army bonus as the battle begins', () => {
     const state = reduceBattle(PLAYERS, log([ALICE, { kind: 'set-painted', painted: true }], ...started()))
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]).toMatchObject({ painted: true, paintedPoints: 10, total: 10 })
+  })
+
+  it('keeps the painted-army bonus out of the total while the table is still setting up', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, { kind: 'set-painted', painted: true }]))
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]).toMatchObject({ painted: true, paintedPoints: 10, total: 0 })
   })
 
-  it('adds the painted-army bonus to the total once the battle is over', () => {
+  it('carries the painted-army bonus into the finished total', () => {
     const state = reduceBattle(
       PLAYERS,
       log([ALICE, { kind: 'set-painted', painted: true }], ...started(), [ALICE, { kind: 'end-battle', reason: 'finished-early' }]),

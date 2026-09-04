@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { attachedUnitList, attachedUnits } from './attachedUnits'
+import { attachedUnitCount, attachedUnitList, attachedUnits, battleUnitCounts } from './attachedUnits'
 
 const MARINES = { key: 'marines', formationOptions: ['deep-strike'], prebattleRules: ['infiltrators'] }
 const LORD = { key: 'lord', attachedTo: 'marines', formationOptions: ['deep-strike'], prebattleRules: [] }
+const SUPPORT = { key: 'support', attachedTo: 'marines', formationOptions: [], prebattleRules: [] }
 const RHINO = { key: 'rhino', formationOptions: [], prebattleRules: [] }
 
 describe('attachedUnits', () => {
@@ -46,5 +47,44 @@ describe('attachedUnitList', () => {
 
   it('leaves a unit standing alone with the abilities of its own datasheet', () => {
     expect(attachedUnitList([MARINES])[0]?.prebattleRules).toEqual(['infiltrators'])
+  })
+})
+
+describe('attachedUnitCount', () => {
+  it('counts saved roster positions by the units they form', () => {
+    expect(attachedUnitCount([{ key: 0 }, { key: 1, attachedTo: 0 }, { key: 2, attachedTo: 0 }, { key: 3 }])).toBe(2)
+  })
+
+  it('keeps an attachment whose target is missing as its own unit', () => {
+    expect(attachedUnitCount([{ key: 0, attachedTo: 1 }])).toBe(1)
+  })
+})
+
+describe('battleUnitCounts', () => {
+  const onTable = { destroyed: false, deployed: true }
+
+  it('counts leaders and supports with their bodyguard as one unit', () => {
+    expect(
+      battleUnitCounts([
+        { ...MARINES, ...onTable },
+        { ...LORD, ...onTable },
+        { ...SUPPORT, ...onTable },
+        { ...RHINO, ...onTable },
+      ]),
+    ).toEqual({
+      total: 2,
+      standing: 2,
+      deployed: 2,
+    })
+  })
+
+  it('counts surviving characters separately after their bodyguard is lost', () => {
+    expect(
+      battleUnitCounts([
+        { ...MARINES, destroyed: true, deployed: true },
+        { ...LORD, destroyed: false, deployed: true },
+        { ...LORD, key: 'lord-two', destroyed: false, deployed: true },
+      ]).standing,
+    ).toBe(2)
   })
 })

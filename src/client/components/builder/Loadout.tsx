@@ -4,6 +4,7 @@ import { cloneElement, type ReactElement, useEffect, useRef } from 'react'
 import type { Datasheet } from '../../../server/catalogue'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../core/roster'
+import { primaryUnitProfile } from '../../datasheet'
 import { loadoutDatasheetsQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { UnitProfile, WeaponSummary } from './DatasheetPanel'
@@ -21,6 +22,7 @@ import { ModelCard } from './ModelCard'
 type Props = {
   catalogueId: string
   unit: LoadoutUnit | null
+  loading?: boolean
   detachmentIds: readonly string[]
   picks: readonly RosterPick[]
   pickIndex: number | null
@@ -45,6 +47,7 @@ type Props = {
 export function Loadout({
   catalogueId,
   unit,
+  loading = false,
   detachmentIds,
   picks,
   pickIndex,
@@ -102,6 +105,7 @@ export function Loadout({
   // has to be visible before the choice is made rather than after.
   const availableSheet = sheets?.available
 
+  if (loading) return <LoadoutLoading />
   if (!unit) {
     return (
       <div className="flex h-full items-center justify-center p-6">
@@ -119,7 +123,7 @@ export function Loadout({
     sheet.profiles.filter((profile) => profile.type === type && (profile.count ?? 1) > controlledProfileCount(unit.choices, profile.name))
   const equippedRanged = equipped('Ranged Weapons')
   const equippedMelee = equipped('Melee Weapons')
-  const profile = sheet.profiles.find((candidate) => candidate.type === 'Unit')
+  const profile = primaryUnitProfile(sheet)
 
   const { models, loose } = divide(unit)
   const visibleLoose = showOptions
@@ -129,7 +133,7 @@ export function Loadout({
 
   return (
     <div className="flex h-full min-w-0 flex-col">
-      <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:p-2.5">
+      <ScrollArea className="min-h-0 min-w-0 max-w-full flex-1 overflow-hidden [&_[data-slot=scroll-area-viewport]]:touch-pan-y [&_[data-slot=scroll-area-viewport]]:!overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:overscroll-x-none [&_[data-slot=scroll-area-viewport]]:p-2.5">
         <div className="w-full min-w-0 space-y-4">
           {profile ? <UnitProfile profile={profile} /> : null}
           {unit.models.length ? (
