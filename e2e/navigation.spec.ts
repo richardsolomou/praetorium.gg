@@ -64,7 +64,8 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await loadingPage.route('**/*', (route) => (route.request().resourceType() === 'script' ? route.abort() : route.continue()))
   await loadingPage.goto('/factions/necrons/datasheets/overlord')
   await expect(loadingPage.locator('[data-web-app-chrome]')).toBeHidden()
-  await expect(loadingPage.locator('[data-native-app-chrome]')).toBeHidden()
+  await expect(loadingPage.locator('[data-native-app-header]')).toBeHidden()
+  await expect(loadingPage.locator('[data-native-app-tabs]')).toBeHidden()
   expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   await loadingPage.setViewportSize({ width: 1024, height: 768 })
   expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(1024)
@@ -84,7 +85,8 @@ ${NATIVE_BRIDGE_SCRIPT}`,
 
   const webHeader = page.locator('[data-web-app-chrome]')
   await expect(webHeader).toBeHidden()
-  await expect(page.locator('[data-native-app-chrome]')).toBeHidden()
+  await expect(page.locator('[data-native-app-header]')).toBeHidden()
+  await expect(page.locator('[data-native-app-tabs]')).toBeHidden()
   await expect(page.locator('[data-native-app-content]')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   expect(hydrationErrors).toEqual([])
@@ -92,7 +94,8 @@ ${NATIVE_BRIDGE_SCRIPT}`,
 
   await page.setViewportSize({ width: 1024, height: 768 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1024)
-  await expect(page.locator('[data-native-app-chrome]')).toBeHidden()
+  await expect(page.locator('[data-native-app-header]')).toBeHidden()
+  await expect(page.locator('[data-native-app-tabs]')).toBeHidden()
   await page.screenshot({ path: 'test-results/native-navigation-tablet.png', fullPage: true })
 
   await context.close()
