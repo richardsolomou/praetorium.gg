@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.57.0
+
+### Minor Changes
+
+- 2200221: Add a leaderboard of players, ranked by wins and win rate, with a table per faction ranking the players who field it.
+- 2200221: Open every player's profile to anyone, with their leaderboard rank, a service record of how they play, and the battles a reader may watch them in.
+- 2200221: Add a public roster option, which lists a saved list on its owner's profile as well as behind its link.
+
 ## 0.56.0
 
 ### Minor Changes
