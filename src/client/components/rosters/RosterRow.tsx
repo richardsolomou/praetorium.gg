@@ -107,7 +107,7 @@ function RosterActionItems({
       <Item disabled={!origin || actions.access.isPending} onClick={() => void actions.share(roster, title)}>
         <Link2 /> {feedback === 'shared' ? 'Link shared' : feedback === 'copied' ? 'Link copied' : 'Share link'}
       </Item>
-      {showPrivacy && roster.visibility === 'unlisted' ? (
+      {showPrivacy && roster.visibility !== 'private' ? (
         <Item disabled={actions.access.isPending} onClick={() => actions.access.mutate({ id: roster.id, visibility: 'private' })}>
           <Lock /> Make private
         </Item>

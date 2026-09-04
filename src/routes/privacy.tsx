@@ -57,7 +57,10 @@ function PrivacyPolicy() {
       <LegalSection title="Who can see your content">
         <LegalLinks>
           <li>Players seated in a battle see that battle's record, including every attached roster.</li>
-          <li>A roster is unlisted by default: anyone with its link can read it. Make one private and only you can open it.</li>
+          <li>
+            A roster is private when you make it: only you can open it. Make one unlisted and anyone holding its link can read it; make one
+            public and it is also listed on your profile.
+          </li>
           <li>Your name, profile picture and profile page are public.</li>
           <li>
             You choose whether anyone, friends, or only the seated players can watch your battles. The most private choice made by anyone at

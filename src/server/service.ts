@@ -28,7 +28,9 @@ import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import type { MissionAward } from '../core/scoring'
 import type { RosterPick } from '../core/roster'
-import type { RosterSource } from '../core/savedRoster'
+import type { RosterSource, RosterVisibility } from '../core/savedRoster'
+import { filterBattles, type RecordFilter, recordFacets, serviceRecord } from '../core/serviceRecord'
+import { factionsPlayed, type Standing, type StandingFaction, standings } from '../core/standings'
 import {
   alliedLeagueRosterLimit,
   leagueTableShape,
@@ -71,10 +73,45 @@ type SpectatorScreen = {
  */
 type BattleScreen = SeatedScreen | SpectatorScreen | { kind: 'unavailable' }
 
+/** One table of players: everybody, or everybody who has fielded one faction. */
+type StandingsTable = { faction: StandingFaction | null; players: number; rows: Standing[] }
+
+/** The overall table, a table per faction played, and how many days back they reach. */
+type StandingsAnswer = { days: number; overall: StandingsTable; factions: (StandingsTable & { faction: StandingFaction })[] }
+
+/** Every row of every table, before the leaderboard slices it. Ranks are read off this. */
+type StandingsFold = {
+  days: number
+  overall: { faction: null; rows: Standing[] }
+  factions: { faction: StandingFaction; rows: Standing[] }[]
+}
+
+/** One player's place in each table they appear in, and the window it covers. */
+type PlayerRanking<T> = { faction: T; place: number; of: number; standing: Standing }
+type PlayerRankings = {
+  days: number
+  overall: PlayerRanking<null> | null
+  factions: PlayerRanking<StandingFaction>[]
+}
+
 const SPECTATOR_ID = ''
 
 /** A page of a home-page feed. Small: every row on it costs a folded log. */
 const PUBLIC_BATTLES_PAGE = 10
+
+/** How far back the standings look, and how many battles they will read to do it. */
+const DAY_MS = 24 * 60 * 60 * 1000
+const STANDINGS_WINDOW_MS = 90 * DAY_MS
+const STANDINGS_BATTLE_LIMIT = 500
+const STANDINGS_HOLD_MS = 60_000
+
+/** How much of a table is sent. Nobody reads past this, and every faction played costs one. */
+const STANDINGS_ROWS = 50
+
+/** How many of a player's battles a profile folds, how many it lists, and its lists. */
+const PROFILE_BATTLE_LIMIT = 200
+const PROFILE_ROSTER_LIMIT = 50
+const PROFILE_BATTLE_PAGE = 25
 
 /**
  * What a command answers: what happened to it, and what the battle now is.
@@ -94,6 +131,22 @@ function newBattleSeats(input?: string | NewBattlePlayers) {
   return { allyIds, opponentIds, invited: [...allyIds, ...opponentIds] }
 }
 
+/** A library row as the client reads it: picks counted rather than sent. */
+function rosterSummaries<T extends { detachmentId: string | null; waivedRules: string; optionalRules: string; picks: string }>(
+  rows: readonly T[],
+) {
+  return rows.map(({ detachmentId, waivedRules, optionalRules, picks, ...row }) => {
+    const units = picksSchema.parse(JSON.parse(picks))
+    return {
+      ...row,
+      detachmentIds: detachmentIds(detachmentId),
+      waivedRules: waivedRulesFrom(waivedRules),
+      optionalRules: optionalRulesFrom(optionalRules),
+      unitCount: attachedUnitCount(units.map((unit, key) => ({ key, attachedTo: unit.attachedTo }))),
+    }
+  })
+}
+
 export class PraetoriumService {
   constructor(
     private readonly repository: Repository,
@@ -101,6 +154,9 @@ export class PraetoriumService {
     private readonly events: BattleEvents,
     private readonly randomIndex: (limit: number) => number,
   ) {}
+
+  /** The last standings folded, and when they stop being offered. See `standings`. */
+  private standingsHeld: { until: number; fold: StandingsFold } | null = null
 
   adminUsers(input: Parameters<Repository['adminUsers']>[0]) {
     return this.repository.adminUsers(input)
@@ -527,6 +583,131 @@ export class PraetoriumService {
     return { battles: this.battleSummaries(histories, userId, rules, factions), nextCursor }
   }
 
+  /**
+   * The standings, counted from the finished battles anyone may watch.
+   *
+   * A row is always a player. Beside the overall table there is one per faction
+   * anybody has actually played, answering who is best with that army rather than
+   * how the army itself does — a faction has no record, the people fielding it do.
+   * Only factions with a finished battle behind them get a table, because an empty
+   * one answers nothing.
+   *
+   * One read of the battles answers all of them: the logs are the expensive part,
+   * and each table is the same finished games counted through a different filter.
+   *
+   * Held for a minute rather than counted again for every visitor. A standing is
+   * derived, so a copy of it that goes stale costs a reader a minute of accuracy
+   * and nothing else — which is exactly the trade a battle screen may not make,
+   * because a stale battle is a player acting on a board that has moved. It is
+   * kept in the process rather than in Valkey for the same reason: losing it on a
+   * restart costs one recomputation, so it does not need somewhere to survive.
+   *
+   * `factions` names the catalogue armies, the same as it does for the battle
+   * list, so a table can be headed with a name a player recognises and addressed
+   * by a slug rather than a catalogue id.
+   */
+  private async standingsFold(factions: readonly BattleFaction[]) {
+    const now = this.clock()
+    if (this.standingsHeld && this.standingsHeld.until > now) return this.standingsHeld.fold
+    const [histories, practice] = await Promise.all([
+      this.repository.watchableBattlesSince(now - STANDINGS_WINDOW_MS, STANDINGS_BATTLE_LIMIT),
+      this.repository.practiceOpponents(),
+    ])
+    const summaries = this.battleSummaries(histories, null, null, factions)
+    const exclude = practice.map((opponent) => opponent.id)
+    const table = <T extends StandingFaction | null>(faction: T) => ({
+      faction,
+      rows: standings(summaries, { exclude, faction: faction?.slug }),
+    })
+    // The battle limit can bite before the window does, so the fold reports the days
+    // it actually reached back rather than the ninety it asked for: a page claiming a
+    // window nothing was counted from is a number no reader can check.
+    const oldest =
+      summaries.length < STANDINGS_BATTLE_LIMIT ? now - STANDINGS_WINDOW_MS : Math.min(...summaries.map((battle) => battle.lastActivity))
+    const fold = {
+      days: Math.max(1, Math.round((now - oldest) / DAY_MS)),
+      overall: table(null),
+      factions: factionsPlayed(summaries, exclude).map(table),
+    }
+    this.standingsHeld = { until: now + STANDINGS_HOLD_MS, fold }
+    return fold
+  }
+
+  async standings(factions: readonly BattleFaction[] = []): Promise<StandingsAnswer> {
+    const { days, overall, factions: played } = await this.standingsFold(factions)
+    const page = <T extends StandingFaction | null>(table: { faction: T; rows: Standing[] }) => ({
+      faction: table.faction,
+      players: table.rows.length,
+      rows: table.rows.slice(0, STANDINGS_ROWS),
+    })
+    return { days, overall: page(overall), factions: played.map(page) }
+  }
+
+  /**
+   * Where one player sits in each table they appear in.
+   *
+   * The same held fold the leaderboard pages, so a rank on a profile is the row
+   * that page would show and cannot drift from it. A player outside the rows the
+   * leaderboard sends still has a rank here, because the fold is not sliced until
+   * the leaderboard asks.
+   */
+  async playerRankings(userId: string, factions: readonly BattleFaction[] = []): Promise<PlayerRankings> {
+    const fold = await this.standingsFold(factions)
+    const rank = <T extends StandingFaction | null>({ faction, rows }: { faction: T; rows: Standing[] }) => {
+      const at = rows.findIndex((row) => row.id === userId)
+      return at === -1 ? [] : [{ faction, place: at + 1, of: rows.length, standing: rows[at] as Standing }]
+    }
+    return {
+      days: fold.days,
+      overall: rank(fold.overall)[0] ?? null,
+      // Ordered by how much of this player's own record each army accounts for. The
+      // leaderboard's order is how much everybody has played it, which on a profile
+      // puts the army they brought once above the one they always bring.
+      factions: fold.factions
+        .flatMap(rank)
+        .toSorted((one, other) => other.standing.battles - one.standing.battles || one.place - other.place),
+    }
+  }
+
+  /**
+   * One player's profile: the battles a reader may see them in, and their record.
+   *
+   * Open to anybody, the same as their name is. What a reader gets is narrowed by
+   * `watchable`, so the list holds exactly the battles whose links would answer
+   * them — a player who keeps their battles private has a profile with a name on
+   * it and nothing else, which is the promise `battleAudience` already makes.
+   *
+   * The record is folded over every battle in that list rather than a page of it,
+   * because a record over a page would be a different record for every reader. The
+   * list is bounded instead, the same way the standings are.
+   *
+   * Practice opponents are left out of the record for the reason they are left out
+   * of the leaderboard: beating a seat nobody sits in is not a result. They stay in
+   * the battle list, because a player's own history is still their history.
+   */
+  async playerProfile(
+    userId: string,
+    viewerId: string | null,
+    filter: RecordFilter = {},
+    rules?: Parameters<typeof missionFor>[0] | null,
+    factions: readonly BattleFaction[] = [],
+  ) {
+    const [seated, practice] = await Promise.all([
+      this.repository.battlesSeatedBy(userId, PROFILE_BATTLE_LIMIT, viewerId),
+      this.repository.practiceOpponents(),
+    ])
+    const histories = await this.watchable(seated, viewerId)
+    const practised = new Set(practice.map((opponent) => opponent.id))
+    const summaries = this.battleSummaries(histories, viewerId, rules, factions).filter(
+      (battle) => !battle.playerIds.some((id) => practised.has(id)),
+    )
+    // The facets are what the player has played, not what is left after narrowing —
+    // a control that empties itself as soon as it is used cannot be used twice.
+    const facets = recordFacets(summaries, userId)
+    const shown = filterBattles(summaries, userId, filter)
+    return { record: serviceRecord(summaries, userId, filter), facets, battles: shown.slice(0, PROFILE_BATTLE_PAGE), played: shown.length }
+  }
+
   /** How widely this player's battles may be seen, and their own answer to it. */
   battleAudience(userId: string) {
     return this.repository.battleAudience(userId)
@@ -537,19 +718,38 @@ export class PraetoriumService {
   }
 
   /**
-   * Whether a viewer holding no seat may read this battle.
+   * Which of these battles a viewer may read, answered for all of them at once.
    *
-   * `battleAudience` folds the seats' answers; a friend is only asked about when
-   * the fold says the answer turns on one, so an ordinary public battle costs the
-   * audience read alone.
+   * Every seat's answer comes back in one read and the viewer's friendships in
+   * another, because a query per battle is a round trip per battle. Friendships are
+   * only read when some battle's fold actually turns on one, so a page of ordinary
+   * public battles costs the audience read alone.
+   *
+   * The decision itself stays `battleAudience` and `maySpectate`. A viewer holding
+   * a seat always sees their own battle, which is the same answer `screen` gives
+   * before it ever asks this.
    */
+  private async watchable(histories: readonly BattleHistory[], viewerId: string | null) {
+    const seats = [...new Set(histories.flatMap((history) => history.players.map((player) => player.id)))]
+    const audiences = await this.repository.battleAudiences(seats)
+    const folded = histories.map((history) => ({
+      history,
+      audience: battleAudience(history.players.map((player) => audiences.get(player.id))),
+    }))
+    const turnsOnAFriend = Boolean(viewerId) && folded.some((one) => one.audience === 'friends')
+    const friends = viewerId && turnsOnAFriend ? sortedFriends(await this.repository.relationships(viewerId), viewerId).friends : []
+    return folded
+      .filter(({ history, audience }) => {
+        if (viewerId && history.players.some((player) => player.id === viewerId)) return true
+        const friend = friends.some((known) => history.players.some((player) => player.id === known.id))
+        return maySpectate(audience, { signedIn: Boolean(viewerId), friend })
+      })
+      .map(({ history }) => history)
+  }
+
+  /** Whether a viewer may read this one battle. One question, so one battle's worth of `watchable`. */
   private async mayWatch(history: BattleHistory, viewerId: string | null) {
-    const audiences = await this.repository.battleAudiences(history.players.map((player) => player.id))
-    const audience = battleAudience(history.players.map((player) => audiences.get(player.id)))
-    if (!viewerId || audience !== 'friends') return maySpectate(audience, { signedIn: Boolean(viewerId), friend: false })
-    const friends = sortedFriends(await this.repository.relationships(viewerId), viewerId).friends
-    const friend = history.players.some((player) => friends.some((known) => known.id === player.id))
-    return maySpectate(audience, { signedIn: true, friend })
+    return (await this.watchable([history], viewerId)).length > 0
   }
 
   async leagueBattles(
@@ -592,11 +792,19 @@ export class PraetoriumService {
         playerIds: players.map((player) => player.id),
         sides: state.players.map((player) => player.side),
         armies: state.players.map((player) => player.roster?.name ?? null),
+        // The catalogue army each seat brought, so a battle can also be counted as a
+        // result for the faction that fielded it. A pasted list has none.
         factions: state.players.map((player) => {
           const faction = player.roster?.built?.catalogueId ? factionsById.get(player.roster.built.catalogueId) : undefined
           return faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon } : null
         }),
         detachments: state.players.map((player) => player.roster?.built?.detachments?.map((detachment) => detachment.name) ?? []),
+        // Who took the first turn, and the two halves each seat's score is made of,
+        // so a player's record can separate going first from going second and say
+        // where their points came from. `scores` only carries the total.
+        firstPlayerId: state.firstPlayerId,
+        primaries: state.players.map((player) => player.primary),
+        secondaries: state.players.map((player) => player.secondary),
         // The painted bonus is paid when the battle begins, and it is the side's one
         // bonus, the same as everywhere else. Onto the seat that already carries the
         // side's score, because that is the seat every reader of this list picks out to
@@ -644,7 +852,7 @@ export class PraetoriumService {
       waivedRules?: readonly FormatRuleId[]
       optionalRules?: readonly OptionalRuleId[]
       borrowedDetachmentId?: string | null
-      visibility: 'private' | 'unlisted'
+      visibility: RosterVisibility
       source: RosterSource
     },
   ) {
@@ -673,21 +881,34 @@ export class PraetoriumService {
   }
 
   async savedRosterSummaries(userId: string) {
-    return (await this.repository.rosterSummariesByUser(userId)).map(({ detachmentId, waivedRules, optionalRules, picks, ...row }) => {
-      const units = picksSchema.parse(JSON.parse(picks))
-      return {
-        ...row,
-        detachmentIds: detachmentIds(detachmentId),
-        waivedRules: waivedRulesFrom(waivedRules),
-        optionalRules: optionalRulesFrom(optionalRules),
-        unitCount: attachedUnitCount(units.map((unit, key) => ({ key, attachedTo: unit.attachedTo }))),
-      }
-    })
+    return rosterSummaries(await this.repository.rosterSummariesByUser(userId))
   }
 
   /**
-   * An unlisted roster, its owner's private roster, or a list fielded in a battle the
+   * The lists this player has published, for anybody reading their profile.
+   *
+   * No viewer is asked for, because a public list is public: the only credential is
+   * the owner having chosen it. Private and unlisted lists are absent — an unlisted
+   * one is a link its owner handed out, and listing it here would hand it to
+   * everybody.
+   *
+   * One read answers both shapes: `summaries` is what the library row draws, and
+   * `priceable` is the same lists in the form the points cache takes. The picks stay
+   * on the server, which is why the caller gets them separately rather than the
+   * summaries carrying them.
+   */
+  async publicRosters(userId: string) {
+    const rows = await this.repository.publicRostersByUser(userId, PROFILE_ROSTER_LIMIT)
+    return { summaries: rosterSummaries(rows), priceable: rows.map((row) => rosterFromRow(row)) }
+  }
+
+  /**
+   * A shared roster, its owner's private roster, or a list fielded in a battle the
    * reader is seated in.
+   *
+   * Unlisted and public read alike: holding the opaque id is the whole credential for
+   * both, and what a public one adds is being listed on its owner's profile rather
+   * than any further access.
    *
    * The last case widens nothing: a battle already shows every seat the opposing army
    * and its units, so the reader can see this list either way. The battle has to be
@@ -697,7 +918,9 @@ export class PraetoriumService {
     const row = await this.repository.roster(id)
     if (!row) return null
     if (row.userId === userId) return { roster: rosterFromRow(row, true), editable: true }
-    if (row.visibility === 'unlisted') return { roster: rosterFromRow(row), editable: false }
+    // Named rather than "anything but private", so a value added later is refused
+    // until somebody decides it should not be.
+    if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: rosterFromRow(row), editable: false }
     if (!userId || !token) return null
     return (await this.fieldedIn(token, userId, id)) ? { roster: rosterFromRow(row), editable: false } : null
   }
@@ -713,7 +936,7 @@ export class PraetoriumService {
     return history.log.some((entry) => entry.command.kind === 'attach-roster' && entry.command.roster.id === rosterId)
   }
 
-  async setRosterVisibility(userId: string, id: string, visibility: 'private' | 'unlisted') {
+  async setRosterVisibility(userId: string, id: string, visibility: RosterVisibility) {
     if (!(await this.repository.setRosterVisibility(id, userId, visibility, this.clock()))) {
       throw new Response('you do not own this roster', { status: 403 })
     }

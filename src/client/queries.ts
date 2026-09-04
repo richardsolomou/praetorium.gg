@@ -9,6 +9,10 @@ import {
   battleAudience,
   friendBattles,
   publicBattles,
+  standings,
+  playerProfile,
+  playerRankings,
+  playerRosters,
   catalogueStatus,
   collection,
   deployments,
@@ -118,6 +122,35 @@ export const friendBattlesQuery = () =>
     staleTime: SSR_STALE_TIME,
     refetchInterval: FEED_POLL_MS,
   })
+
+/** One player's battles and record, as this reader may see them, narrowed as asked. */
+export const playerProfileQuery = (userId: string, filter: PlayerProfileFilter = {}) =>
+  queryOptions({
+    queryKey: ['player-profile', userId, filter],
+    queryFn: () => playerProfile({ data: { userId, ...filter } }),
+  })
+
+/** What a profile's record can be narrowed by, exactly as the address carries it. */
+export type PlayerProfileFilter = {
+  faction?: string
+  detachment?: string
+  opponentFaction?: string
+  opponentDetachment?: string
+  opponentId?: string
+  missionPackId?: string
+  limit?: number
+}
+
+/** The lists a player has published, priced the same way their own library is. */
+export const playerRostersQuery = (userId: string) =>
+  queryOptions({ queryKey: ['player-rosters', userId], queryFn: () => playerRosters({ data: { userId } }) })
+
+/** Where a player sits in the leaderboard's tables. Held with the standings, so equally stale. */
+export const playerRankingsQuery = (userId: string) =>
+  queryOptions({ queryKey: ['player-rankings', userId], queryFn: () => playerRankings({ data: { userId } }), staleTime: 60_000 })
+
+/** The standings. The server holds them for a minute, so asking oftener answers the same. */
+export const standingsQuery = () => queryOptions({ queryKey: ['standings'], queryFn: () => standings(), staleTime: 60_000 })
 
 export const battleAudienceQuery = () =>
   queryOptions({ queryKey: ['battle-audience'], queryFn: () => battleAudience(), staleTime: SSR_STALE_TIME })

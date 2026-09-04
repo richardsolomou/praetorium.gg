@@ -125,3 +125,79 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await Promise.all([hostContext.close(), guestContext.close()])
   }
 })
+
+test('the leaderboard fits a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/leaderboard')
+
+  expect(
+    await page.evaluate(() => ({
+      heading: document.querySelector('h1')?.textContent,
+      hasHorizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    })),
+  ).toEqual({ heading: 'Leaderboard', hasHorizontalOverflow: false })
+})
+
+/**
+ * Choosing a faction navigates, so the table it opens has an address to send.
+ *
+ * The control is a combobox rather than component state for exactly this reason,
+ * and only a browser can prove the choice reaches the URL and the table. The open
+ * is retried because this is the first interaction after a navigation, and a click
+ * that lands before hydration is swallowed rather than failing.
+ */
+test('the leaderboard gives each faction table an address', async ({ page }) => {
+  await page.goto('/leaderboard')
+  const chooser = page.getByRole('combobox', { name: 'Faction' })
+  await expect(async () => {
+    await chooser.click()
+    await expect(page.getByRole('option').first()).toBeVisible({ timeout: 1000 })
+  }).toPass()
+
+  // Whichever faction the seeded battles produced: the list is what has been played.
+  const faction = page.getByRole('option').nth(1)
+  const name = ((await faction.textContent()) ?? '').trim()
+  await faction.click()
+
+  await expect(page).toHaveURL(/\/leaderboard\?faction=/)
+  await expect(page.locator('[data-standings] h2')).toContainText(name)
+})
+
+/**
+ * A profile answers a visitor with no account, and only with battles they may watch.
+ *
+ * The page is reached from the leaderboard, which is the link that used to lead
+ * nowhere. Only a browser proves the whole chain: the row links to the profile, the
+ * profile renders signed out, and its record is folded rather than empty.
+ */
+test('a signed-out visitor opens a player profile from the leaderboard', async ({ page }) => {
+  await page.goto('/leaderboard')
+  const first = page.locator('[data-standing] a').first()
+  // Scoped to the name span: the avatar draws an initial inside the same link.
+  const name = ((await first.locator('.truncate').textContent()) ?? '').trim()
+  await first.click()
+
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(name, { ignoreCase: true })
+  // The record is the tab a profile opens on, so it is on screen without a click.
+  await expect(page.getByRole('tab', { selected: true })).toHaveText('Record')
+  await expect(page.locator('[data-service-record]')).toContainText('Service record')
+  await expect(page.locator('[data-rankings]')).toContainText('Everyone')
+
+  // Retried because a tab click that lands before hydration is swallowed rather
+  // than failing: the panel is controlled by the address, so nothing moves.
+  const battlesTab = page.getByRole('tab', { name: /battles/i })
+  await expect(async () => {
+    await battlesTab.click()
+    await expect(page).toHaveURL(/tab=battles/, { timeout: 1000 })
+  }).toPass()
+  await expect(page.locator('[data-battle-shelf]')).toBeVisible()
+})
+
+test('a player profile fits a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/leaderboard')
+  await page.locator('[data-standing] a').first().click()
+  await expect(page.locator('[data-service-record]')).toBeVisible()
+
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+})

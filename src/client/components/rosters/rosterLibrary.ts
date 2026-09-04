@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import posthog from 'posthog-js'
 import { useState } from 'react'
 import { ROSTER_NAME_MAX_LENGTH } from '../../../core/battle'
+import type { RosterVisibility } from '../../../core/savedRoster'
 import { deleteRoster, exportRoster, saveRoster, setRosterVisibility, sharedRoster } from '../../../server/functions'
 import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
@@ -60,8 +61,7 @@ export function useRosterActions(origin: string) {
   const remove = useMutation({ mutationFn: (id: string) => deleteRoster({ data: { id } }), onSuccess: refresh })
 
   const access = useMutation({
-    mutationFn: ({ id, visibility }: { id: string; visibility: 'private' | 'unlisted' }) =>
-      setRosterVisibility({ data: { id, visibility } }),
+    mutationFn: ({ id, visibility }: { id: string; visibility: RosterVisibility }) => setRosterVisibility({ data: { id, visibility } }),
     onSuccess: refresh,
   })
 

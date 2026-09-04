@@ -1,4 +1,4 @@
-export const ROSTER_VISIBILITIES = ['private', 'unlisted'] as const
+export const ROSTER_VISIBILITIES = ['private', 'unlisted', 'public'] as const
 export type RosterVisibility = (typeof ROSTER_VISIBILITIES)[number]
 
 export const ROSTER_SOURCES = ['legacy', 'editable', 'praetorium', 'battlebase', 'newrecruit', 'roster-file'] as const

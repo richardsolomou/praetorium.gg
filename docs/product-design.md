@@ -15,13 +15,17 @@ Praetorium includes:
 - A per-player audience setting covering every battle they sit in: anyone, friends, or nobody outside the table.
 - A reading copy of the rules documents the community data carries, browsable by document, section, and rule number.
 
-It does not include rankings, standings, pairings, brackets, locations, chat, matchmaking, rules this project wrote itself, or model positions.
+It does not include pairings, brackets, locations, chat, matchmaking, rules this project wrote itself, or model positions.
 
 ## Watching a battle
 
 A battle is watchable by default. Anyone may open a public battle's link, and the home page lists public battles so a game can be found without one. Watching is read-only: a spectator sees the score, both armies, the public mission and stratagem state, and the visibility-filtered report, never a face-down Secret Mission and never a control. A read never claims a seat.
 
 The audience belongs to the player rather than the battle, because a player answers it once instead of at every game. A battle takes the narrowest answer of everyone seated in it, so one player choosing to keep their battles private keeps the whole table private. The setting applies to battles already being played, and a player who has never opened it is public.
+
+A player's profile is open to anybody, split across tabs for the record, the battles and the published rosters. It shows where they sit on the leaderboard, any rosters they have made public, a service record folded from their battles — totals, win rate split by who took the first turn, average victory points, and win streaks — and the battles themselves. Every part of it is narrowed to what the reader may watch, so a player who keeps their battles private shows a name and nothing else. The record can be narrowed by their army, their detachment, the opponent, what they faced, the mission pack and the battle size, and the narrowing is carried by the address.
+
+The leaderboard counts finished public battles over the last 90 days. A row is a player, ranked by wins and then win rate. Beside the overall table there is one per faction anybody has played, ranking the players who fielded it rather than giving the faction a record of its own. A concession is a loss whatever the score said, allies share their side's points, games of every table shape count together, and a battle with a practice opponent in it counts for nobody.
 
 ## Interface
 
@@ -46,7 +50,7 @@ Screenshots containing roster or battle data stay outside version control.
 | Accounts          | Email and password work without provider configuration. Google and Discord are optional and linkable. Players can manage their profile, password, sign-in methods, and authenticator 2FA. Administrators can manage and impersonate accounts. |
 | Battles           | Shared or practice 1v1, 2v1, and 2v2 setup drafts, server-side legality, corrections, concessions, reopening, and live updates.                                                                                                               |
 | Turn tracker      | Five battle rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion.                                                                                               |
-| Rosters           | Build, import, save, copy, rename, private or unlisted share, print, export, and attach.                                                                                                                                                      |
+| Rosters           | Build, import, save, copy, rename, private, unlisted or public share, print, export, and attach.                                                                                                                                              |
 | Leagues           | Public or private reusable events, automatic or approved entry, replaceable roster snapshots, organizer-controlled simultaneous reveal, and live or finished battle viewing.                                                                  |
 | Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                                                                                                                           |
 | Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs.                                                                                                                                      |

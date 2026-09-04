@@ -157,7 +157,7 @@ The rules source carries units, points and compositions of its own, so `just par
 
 - Application record IDs are compact URL-safe values minted by `randomId()` on the server. Clients provide an ID only when updating an existing record; share tokens use the longer `randomToken()` format.
 - Saved lists store `RosterPick` values rather than expanded selections and rebuild them against the current catalogue for pricing.
-- New saved lists are private. Making one unlisted lets anyone holding its opaque URL read it. Switching it back to private invalidates that public access without changing the URL.
+- New saved lists are private. Making one unlisted lets anyone holding its opaque URL read it, and making one public also lists it on its owner's profile. Unlisted and public read alike, so what public adds is discovery rather than access. Switching a list back to private revokes both without changing the URL.
 - Import provenance stays with the saved list so the library can distinguish an editable Praetorium roster, BattleBase and New Recruit text imports, and `.ros` or `.rosz` file imports.
 - `built.units` freezes when a roster is attached, giving battle commands stable unit keys.
 - Roster imports match entries by catalogue ID and resolve joined link paths from the final ID. Name matching is only a fallback.

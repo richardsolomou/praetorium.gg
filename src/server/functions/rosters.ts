@@ -13,6 +13,7 @@ import {
   rosterInBattleSchema,
   rosterVisibilitySchema,
   saveRosterSchema,
+  userSchema,
 } from '../schemas'
 
 export const priceRoster = createServerFn({ method: 'POST' })
@@ -82,6 +83,28 @@ function cachedRosterTotals(roster: {
   rosterTotalsCache.set(key, totals)
   return totals
 }
+
+/**
+ * The lists a player has published, for anybody reading their profile.
+ *
+ * Totalled here rather than in the service, because a total needs the catalogue and
+ * a listing does not. The picks never leave the server: the summaries the library
+ * row draws carry a unit count, and the points and label come back beside them.
+ */
+export const playerRosters = createServerFn({ method: 'GET' })
+  .validator(userSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const { summaries, priceable } = await app().service.publicRosters(data.userId)
+      return {
+        rosters: summaries,
+        totals: priceable.map((roster) => {
+          const totals = cachedRosterTotals(roster)
+          return { id: roster.id, points: totals?.points ?? null, label: totals?.label ?? '' }
+        }),
+      }
+    }),
+  )
 
 export const savedRosterTotals = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {

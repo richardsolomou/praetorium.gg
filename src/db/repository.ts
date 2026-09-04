@@ -21,7 +21,7 @@ import type { AdminUserPage, AdminUsersCursor } from '../admin'
 import { type Command, type LoggedCommand, reduceBattle, type Roster, type SubmitResult, validate } from '../core/battle'
 import { commandSchema, parseRosterSnapshot } from '../core/commands'
 import { type BattleAudience, DEFAULT_BATTLE_AUDIENCE } from '../core/battleAudience'
-import type { RosterSource } from '../core/savedRoster'
+import type { RosterSource, RosterVisibility } from '../core/savedRoster'
 import {
   alliedLeagueRosterLimit,
   requiredLeagueRosterLimit,
@@ -650,6 +650,61 @@ export class Repository {
     return this.hydrateBattles(rows, page.limit)
   }
 
+  /**
+   * Every battle anyone may watch that has moved since `since`, for the standings.
+   *
+   * Bounded by both a window and a count, because this reads whole logs: a
+   * leaderboard is folded from the same histories the battle list folds, and an
+   * unbounded one would read every command an instance has ever stored to print
+   * ten rows. Which of them are finished is `standings`' to decide, since being
+   * finished is a fold rather than a column.
+   */
+  async watchableBattlesSince(since: number, limit: number) {
+    const activity = this.activityTime
+    const rows = await this.database
+      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, at: activity })
+      .from(battles)
+      .leftJoin(commands, eq(commands.battleId, battles.id))
+      .where(not(this.withheldFrom('public')))
+      .groupBy(battles.id)
+      .having(sql`coalesce(max(${commands.at}), ${battles.createdAt}) >= ${since}`)
+      .orderBy(desc(activity), desc(battles.id))
+      .limit(limit)
+    return (await this.hydrateBattles(rows)).battles
+  }
+
+  /**
+   * Battles this player holds a seat in, for a reader of their profile.
+   *
+   * The audience is only coarsely narrowed here, to the battles that could be
+   * shown to this reader at all: a seat that refused everybody can never be, and a
+   * reader with no account can only ever be offered the public ones. Which of the
+   * rest they may actually see is `maySpectate`'s to answer, over the same folded
+   * seats the battle screen reads — so a profile cannot list a battle the link
+   * would refuse.
+   *
+   * Bounded by a count rather than paged, because the record folded from these is
+   * over all of them and a page would fold a different number for every reader.
+   */
+  async battlesSeatedBy(userId: string, limit: number, viewerId: string | null) {
+    const activity = this.activityTime
+    const rows = await this.database
+      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, at: activity })
+      .from(battles)
+      .innerJoin(battleUsers, eq(battleUsers.battleId, battles.id))
+      .leftJoin(commands, eq(commands.battleId, battles.id))
+      .where(
+        and(
+          eq(battleUsers.userId, userId),
+          viewerId ? or(this.seatOf(viewerId), not(this.withheldFrom('friends'))) : not(this.withheldFrom('public')),
+        ),
+      )
+      .groupBy(battles.id)
+      .orderBy(desc(activity), desc(battles.id))
+      .limit(limit)
+    return (await this.hydrateBattles(rows)).battles
+  }
+
   /** How widely these players allow their battles to be seen. Absent means the default. */
   async battleAudiences(userIds: readonly string[]) {
     const ids = [...new Set(userIds)]
@@ -754,7 +809,7 @@ export class Repository {
     waivedRules: string
     optionalRules?: string
     borrowedDetachmentId?: string | null
-    visibility: 'private' | 'unlisted'
+    visibility: RosterVisibility
     source: RosterSource
     now: number
   }) {
@@ -792,6 +847,22 @@ export class Repository {
 
   async rostersByUser(userId: string) {
     return this.database.select().from(rosters).where(eq(rosters.userId, userId)).orderBy(desc(rosters.createdAt))
+  }
+
+  /**
+   * The lists this player has made public, newest first.
+   *
+   * The owner-and-date index answers it: this narrows to one player before it looks
+   * at visibility, so no second index is needed. A private or unlisted list is
+   * absent — unlisted means a link its owner handed somebody, not a list to find.
+   */
+  async publicRostersByUser(userId: string, limit: number) {
+    return this.database
+      .select()
+      .from(rosters)
+      .where(and(eq(rosters.userId, userId), eq(rosters.visibility, 'public')))
+      .orderBy(desc(rosters.createdAt))
+      .limit(limit)
   }
 
   async rosterSummariesByUser(userId: string) {
@@ -1857,7 +1928,7 @@ export class Repository {
     })
   }
 
-  async setRosterVisibility(id: string, userId: string, visibility: 'private' | 'unlisted', now: number) {
+  async setRosterVisibility(id: string, userId: string, visibility: RosterVisibility, now: number) {
     const updated = await this.database
       .update(rosters)
       .set({ visibility, updatedAt: now })

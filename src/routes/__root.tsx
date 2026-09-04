@@ -28,6 +28,7 @@ import {
   ShieldCheck,
   Swords,
   Trophy,
+  UserRound,
   UserRoundPen,
   Users,
   X,
@@ -123,6 +124,9 @@ function Account({ native = false }: { native?: boolean }) {
         <DropdownMenuSeparator />
         {me ? (
           <>
+            <DropdownMenuItem render={<Link to="/users/$userId" params={{ userId: me.id }} search={{}} />}>
+              <UserRound /> My profile
+            </DropdownMenuItem>
             <DropdownMenuItem render={<Link to="/profile" />}>
               <UserRoundPen /> Edit profile
             </DropdownMenuItem>
@@ -204,15 +208,15 @@ function PrimaryNavigation({ path }: { path: string }) {
   }, [open])
 
   const linkClass =
-    'eyebrow flex min-h-11 items-center border-l-2 border-transparent px-3 hover:border-info hover:bg-raised hover:text-info min-[815px]:min-h-0 min-[815px]:border-0 min-[815px]:bg-transparent min-[815px]:px-0'
+    'eyebrow flex min-h-11 items-center border-l-2 border-transparent px-3 hover:border-info hover:bg-raised hover:text-info min-[860px]:min-h-0 min-[860px]:border-0 min-[860px]:bg-transparent min-[860px]:px-0'
 
   return (
-    <div ref={root} className="min-[815px]:contents">
+    <div ref={root} className="min-[860px]:contents">
       <Button
         ref={trigger}
         variant="ghost"
         size="icon-sm"
-        className="text-dim hover:bg-raised hover:text-info min-[815px]:hidden"
+        className="text-dim hover:bg-raised hover:text-info min-[860px]:hidden"
         aria-label={open ? 'Close primary navigation' : 'Open primary navigation'}
         aria-controls="primary-navigation"
         aria-expanded={open}
@@ -222,48 +226,56 @@ function PrimaryNavigation({ path }: { path: string }) {
       </Button>
       <nav
         id="primary-navigation"
-        className={`${open ? 'grid' : 'hidden'} absolute top-full right-0 left-0 gap-1 border-b border-edge bg-panel p-2 shadow-lg min-[815px]:static min-[815px]:flex min-[815px]:items-center min-[815px]:gap-4 min-[815px]:border-0 min-[815px]:bg-transparent min-[815px]:p-0 min-[815px]:shadow-none`}
+        className={`${open ? 'grid' : 'hidden'} absolute top-full right-0 left-0 gap-1 border-b border-edge bg-panel p-2 shadow-lg min-[860px]:static min-[860px]:flex min-[860px]:items-center min-[860px]:gap-4 min-[860px]:border-0 min-[860px]:bg-transparent min-[860px]:p-0 min-[860px]:shadow-none`}
         aria-label="Primary"
       >
         <Link
           to="/rosters"
           className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
         >
           Rosters
         </Link>
         <Link
           to="/battles"
           className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
         >
           Battles
         </Link>
         <Link
           to="/leagues"
           className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
         >
           Leagues
         </Link>
         <Link
           to="/factions"
           className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
         >
           Factions
         </Link>
         <Link
           to="/mission-packs"
           className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
         >
           Mission packs
         </Link>
         <Link
+          to="/leaderboard"
+          search={{ faction: undefined }}
+          className={linkClass}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
+        >
+          Leaderboard
+        </Link>
+        <Link
           to="/rules"
           className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
         >
           Rules
         </Link>
@@ -293,13 +305,13 @@ function RootComponent() {
                */}
               <div data-native-app-frame className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
                 <header data-web-app-chrome className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
-                  <div className="flex h-12 items-center gap-2 px-2 sm:px-4 min-[815px]:gap-3 min-[900px]:gap-5">
+                  <div className="flex h-12 items-center gap-2 px-2 sm:px-4 min-[860px]:gap-3 min-[1000px]:gap-5">
                     <Link
                       to="/"
                       className="group flex shrink-0 items-center gap-1.5 text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-info sm:text-lg"
                     >
                       <img src="/logo.svg" alt="" className="size-7 transition-transform group-hover:rotate-180" />
-                      <span className="min-[815px]:hidden min-[900px]:inline">Praetorium</span>
+                      <span className="min-[860px]:hidden min-[1000px]:inline">Praetorium</span>
                     </Link>
                     <PrimaryNavigation path={path} />
                     <GlobalSearch />
@@ -323,7 +335,7 @@ function RootComponent() {
                  * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
                  */}
                 {immersive ? null : (
-                  <footer className="flex flex-col items-center gap-1.5 border-t border-edge px-4 py-4 text-center text-xs text-faint min-[900px]:flex-row min-[900px]:justify-between">
+                  <footer className="flex flex-col items-center gap-1.5 border-t border-edge px-4 py-4 text-center text-xs text-faint min-[1000px]:flex-row min-[1000px]:justify-between">
                     <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
                     <p className="space-x-3">
                       <Link to="/support" className="transition-colors hover:text-bone">

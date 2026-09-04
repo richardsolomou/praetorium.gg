@@ -138,6 +138,25 @@ export const battlesPageSchema = z.object({
 export const battleAudienceSchema = z.object({ audience: z.enum(BATTLE_AUDIENCES) })
 export const userSchema = z.object({ userId: id })
 export const friendSchema = z.object({ userId: id })
+
+/**
+ * A player's profile, and what to narrow their record by.
+ *
+ * Every filter is optional and absent means all of them, so an address that names
+ * none of them is the whole record. Names are bounded because they arrive as text
+ * from a link rather than from a control.
+ */
+const filterName = z.string().trim().min(1).max(120).optional()
+export const playerProfileSchema = z.object({
+  userId: id,
+  faction: filterName,
+  detachment: filterName,
+  opponentFaction: filterName,
+  opponentDetachment: filterName,
+  opponentId: id.optional(),
+  missionPackId: filterName,
+  limit: z.number().int().positive().max(100_000).optional(),
+})
 export const setOwnPasswordSchema = z.object({ password: z.string().min(PASSWORD_MIN_LENGTH).max(128) })
 export const unlinkOwnAccountSchema = z.object({ provider: z.enum(['credential', ...SOCIAL_PROVIDERS]) })
 export const setAdminRoleSchema = z.object({ userId: id, role: z.enum(['admin', 'user']) })

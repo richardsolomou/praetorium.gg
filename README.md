@@ -26,13 +26,14 @@ Players can:
 - Play 1v1, 2v1, and 2v2 games with friends or practise on your own.
 - Track rounds, phases, command points, victory points, models, wounds, and losses.
 - Watch live or finished public battles without joining the game.
+- See who is winning overall, or with a given faction, from finished public battles.
 - Choose whether anyone, friends, or only the players at the table can watch your battles.
 - Run public or private league events with registration, sealed rosters, and organizer-controlled reveal.
 - Review and correct a finished battle without losing its history.
 
 ## Scope
 
-Praetorium does not provide matchmaking, chat, rankings, standings, or tournament pairings, nor a rules encyclopedia. An account is required to play, though not to watch a public battle.
+Praetorium does not provide matchmaking, chat, tournament pairings, or a rules encyclopedia. An account is required to play, though not to watch a public battle or read the leaderboard.
 
 This repository contains no game data. Each instance downloads verified snapshots from the configured community sources.
 
