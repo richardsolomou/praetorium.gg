@@ -42,3 +42,17 @@ Praetorium reads stratagem and mission data from [40kdc-data](https://github.com
 ## Deployment patterns
 
 Deployment-zone points are relative to each zone's position. Drawing applies the zone offset to every point and takes its area from the pattern rather than assuming a board size.
+
+## Rules documents
+
+The same source ships the rules themselves beside its cards, in `datacards/11th/gdc/core`. `src/server/rulesCore.ts` reads them and `src/client/ruleMarkup.ts` reads the markup they are written in.
+
+- Whatever files that directory holds and declares as rules documents become documents. Today that is the core rules, Chapter Approved, the event companion, Combat Patrol, and a Legends appendix. The core rules are read first, because the other four amend them.
+- A document is sections of numbered rules, and a rule is prose, headings, and collapsible clarifications. `/rules`, `/rules/$documentId`, and `/rules/$documentId/$sectionId` are those three levels. A section is asked for on its own: the five documents together are far more English than a reader has open.
+- `ruleIndexOf` derives the contents and every number a page answers to, and travels with each rules page so one rule can link to another. Numbers belong to the document that prints them — Combat Patrol prints an `01.03` of its own — and the core rules answer for a number a document does not print itself. A number nothing prints stays the text the rule prints.
+- A rule is addressed by the number printed against it. The second rule to claim a number another has already used is numbered off it, so every rule and clarification on a page has an address of its own.
+- The markup reader knows six tags: bold, italic, underline, a keyword, a bullet list, and a table. Only those mean anything, so words in angle brackets stay the words the rule prints, and nothing from the source is handed to the browser as markup. A sub-list written beside the bullet it belongs under, and a sentence left loose in a list the source never closed, are both read rather than dropped.
+- The same strings also carry Markdown, which its examples and captions are emphasised in: `***both***`, `**bold**`, `*italic*` and the occasional line of `-` bullets. A span is read where it is written as Markdown writes one — delimiters the same length on both sides, against the words rather than against a space, opening and closing on one line. Everything else stays the character the source printed, because the asterisk it hangs a footnote off would otherwise emphasise the rest of the sentence. Twenty-two markers across the five documents read as markers for exactly that reason.
+- A movement behaviour and a core stratagem carry labelled fields beside their prose. Each is labelled from the name the source gives it, so a field this app has never heard of reaches the page instead of disappearing. A field the source states only as a dash is not a rule and is left out.
+- The pictures are the printed rulebook's own photography and are not republished. Nothing else the format describes is dropped.
+- Every rules page shows the Game Datacards attribution, which its licence requires.

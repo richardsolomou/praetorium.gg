@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
-import { BookOpen, ChevronLeft, ScrollText, Swords, Trophy, UsersRound } from 'lucide-react'
+import { BookOpen, ChevronLeft, Gavel, ScrollText, Swords, Trophy, UsersRound } from 'lucide-react'
 import { useEffect, useLayoutEffect, type ComponentType } from 'react'
 import { Button } from '@/components/ui/button'
 import { setNativeBackGesture } from '../nativeBridge'
@@ -17,6 +17,7 @@ const TABS: readonly Tab[] = [
   { icon: Trophy, label: 'Leagues', section: 'leagues', to: '/leagues' },
   { icon: UsersRound, label: 'Factions', section: 'factions', to: '/factions' },
   { icon: BookOpen, label: 'Missions', section: 'missions', to: '/mission-packs' },
+  { icon: Gavel, label: 'Rules', section: 'rules', to: '/rules' },
 ]
 
 export function NativeAppHeader({ account, path, search }: { account: React.ReactNode; path: string; search: Record<string, unknown> }) {

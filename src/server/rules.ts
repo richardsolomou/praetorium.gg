@@ -20,6 +20,7 @@ import {
 } from './rulesFactions'
 import { fixedSecondaryCapsIn, type MissionTwist, twistsIn } from './missionTwists'
 import { readMissionPacks } from './missionPacks'
+import { type RuleDocument, loadRuleDocuments } from './rulesCore'
 import { joinKey, rulesDirectory } from './rulesSource'
 import type { ExternalReferences } from './externalReferences'
 import {
@@ -33,7 +34,7 @@ import {
 
 /**
  * Everything the app knows that the community catalogues do not carry: stratagems,
- * mission cards, force dispositions and battlefields.
+ * mission cards, force dispositions, battlefields and the rules documents themselves.
  *
  * The bulk of it comes from the Tabletop Developer Consortium's dataset, which is
  * licensed CC BY 4.0 — the whole reason it can be used at all. Attribution is a
@@ -69,6 +70,8 @@ export type LoadedRules = {
   factionRules: Map<string, { name: string; description: string }>
   /** Stratagems every army has, offered alongside whatever the detachment brings. */
   core: Stratagem[]
+  /** The rules documents the datacards source writes out, for the pages that read them. */
+  ruleDocuments: RuleDocument[]
   coreDetails: LoadedCards['coreDetails']
   secondaries: MissionCard[]
   primaries: MissionCard[]
@@ -131,6 +134,7 @@ export function loadRules(
     factionRules: factions.factionRules,
     core: cards.core,
     coreDetails: cards.coreDetails,
+    ruleDocuments: loadRuleDocuments(datacardsDirectory),
     secondaries: cards.secondaries,
     primaries: cards.primaries,
     missions: loadMissions(core),

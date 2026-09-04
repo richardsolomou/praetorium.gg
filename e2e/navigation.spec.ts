@@ -16,7 +16,7 @@ test('primary navigation collapses below 815 pixels', async ({ page }) => {
   await expect(primary.getByRole('link', { name: 'Rosters' })).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Factions' })).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Mission packs' })).toBeVisible()
-  await expect(primary.getByText('Rules', { exact: true })).toHaveCount(0)
+  await expect(primary.getByRole('link', { name: 'Rules' })).toBeVisible()
   const webHeader = page.locator('[data-web-app-chrome]')
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
   await page.screenshot({ path: 'test-results/navigation-phone.png', fullPage: true })
@@ -211,9 +211,61 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
 test('server-rendered reference pages keep route-shaped payloads', async ({ request }) => {
   const factions = await (await request.get('/factions')).body()
   const missionPack = await (await request.get('/mission-packs/chapter-approved-2026-2027')).body()
+  // One section, never the five documents: the whole rules corpus is far larger.
+  const ruleSection = await (await request.get('/rules/core-rules/movement-phase')).body()
 
   expect(factions.byteLength).toBeLessThan(250_000)
   expect(missionPack.byteLength).toBeLessThan(250_000)
+  expect(ruleSection.byteLength).toBeLessThan(250_000)
+})
+
+test('a rule is read by the number the source prints against it', async ({ page }) => {
+  await page.goto('/rules')
+  await page.locator('a[href="/rules/core-rules"]').first().click()
+  await expect(page).toHaveURL('/rules/core-rules')
+
+  await page.locator('a[href="/rules/core-rules/movement-phase"]').first().click()
+  await expect(page).toHaveURL('/rules/core-rules/movement-phase')
+  const remainStationary = page.locator('[id="09.04"]')
+  await expect(remainStationary).toContainText(/remain stationary/i)
+  // A movement behaviour states its own fields, and one the source writes as a dash is
+  // not a rule: that is how it states Remain Stationary's maximum distance.
+  await expect(remainStationary).toContainText(/eligible if/i)
+  await expect(remainStationary).not.toContainText(/maximum distance/i)
+  // The printed rulebook's photography is not republished.
+  await expect(page.locator('main img')).toHaveCount(0)
+
+  // A rule that quotes another rule's number links to it.
+  await page.locator('a[href="/rules/core-rules/movement-phase#09.04"]').first().click()
+  await expect(page).toHaveURL('/rules/core-rules/movement-phase#09.04')
+  await page.screenshot({ path: 'test-results/rules-section.png', fullPage: true })
+
+  // The source emphasises its examples in Markdown, which is read rather than shown.
+  await page.goto('/rules/core-rules/terrain')
+  const example = page.locator('p', { hasText: 'All sections of the' }).first()
+  await expect(example).toContainText('terrain feature (A) are more than')
+  await expect(example.locator('strong em')).not.toHaveCount(0)
+  expect(await page.locator('main').innerText()).not.toContain('***')
+
+  // A clarification stays collapsed until the address names it.
+  await page.goto('/rules/core-rules/core-concepts')
+  const clarification = page.locator('[id="01.02.03"]')
+  expect(await clarification.evaluate((element: HTMLDetailsElement) => element.open)).toBe(false)
+  await page.goto('/rules/core-rules/core-concepts#01.02.03')
+  await expect.poll(() => clarification.evaluate((element: HTMLDetailsElement) => element.open)).toBe(true)
+
+  // The filter answers a number as well as a name, because one rule quotes the other.
+  await page.goto('/rules')
+  await page.getByLabel('Find a rule').fill('09.04')
+  await expect(page.locator('a[href="/rules/core-rules/movement-phase#09.04"]')).toHaveCount(1)
+
+  await page.getByRole('button', { name: 'Search Praetorium' }).click()
+  await page.getByPlaceholder('Search everything…').fill('coherency')
+  await page
+    .getByRole('option', { name: /Coherency/ })
+    .first()
+    .click()
+  await expect(page).toHaveURL('/rules/core-rules/moving#03.03')
 })
 
 test('a datasheet shows attachment keywords and lists their targets once', async ({ page }) => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { categories, points, shelfOf } from './catalogue.fixtures'
 import { searchEverything } from './globalSearch'
 import type { LoadedRules } from './rules'
+import type { RuleDocument } from './rulesCore'
 
 describe('global datasheet search', () => {
   it('finds a datasheet by structured metadata and explains the match', async () => {
@@ -230,6 +231,7 @@ describe('global datasheet search', () => {
       primaries: [],
       secondaries: [],
       deployments: [],
+      ruleDocuments: [],
       attribution: '',
     } as Partial<LoadedRules> as LoadedRules
     catalogue.factionContents.set('deathwatch', {
@@ -257,5 +259,44 @@ describe('global datasheet search', () => {
     expect(shared.filter((result) => result.group === 'Detachments')).toEqual([
       expect.objectContaining({ label: '1st Company Task Force', detail: 'Space Marines' }),
     ])
+  })
+})
+
+describe('global rules search', () => {
+  const ruleDocuments: RuleDocument[] = [
+    {
+      id: 'core-rules-document',
+      slug: 'core-rules',
+      title: 'Core Rules',
+      updated: null,
+      sections: [
+        {
+          id: 'section-moving',
+          slug: 'moving',
+          title: '03. Moving',
+          entries: [{ id: 'entry', code: '03.01', anchor: '03.01', title: 'Moving Units', blocks: [], facts: [], cost: null, lore: null }],
+        },
+      ],
+    },
+  ]
+  const rules = {
+    ruleDocuments,
+    missions: new Map(),
+    primaries: [],
+    secondaries: [],
+    deployments: [],
+    attribution: '',
+  } as Partial<LoadedRules> as LoadedRules
+
+  it('finds a rule by name and links to where it is printed', async () => {
+    const results = await searchEverything('moving units', { catalogue: null, rules, own: async () => null })
+    expect(results.filter((result) => result.group === 'Rules')).toEqual([
+      expect.objectContaining({ label: 'Moving Units', detail: '03.01 · Core Rules', href: '/rules/core-rules/moving#03.01' }),
+    ])
+  })
+
+  it('finds a rule by the number another rule quotes it as', async () => {
+    const results = await searchEverything('03.01', { catalogue: null, rules, own: async () => null })
+    expect(results.filter((result) => result.group === 'Rules').map((result) => result.label)).toEqual(['Moving Units'])
   })
 })

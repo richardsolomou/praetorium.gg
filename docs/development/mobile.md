@@ -25,7 +25,7 @@ Linking a second provider still starts by moving the existing WebView session in
 
 The shell preserves the full path, query, and fragment when an internal HTTPS link starts or foregrounds the application. `mobile/app.json` declares the `praetorium.gg` associated domain and Android intent filter. Production link verification also requires `APPLE_TEAM_ID` and `ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS`. The deployment serves the resulting Apple and Android association files and returns 404 rather than publishing placeholders while either platform's release identity is absent.
 
-An updated shell declares the `app-navigation` capability and marks each document as a native application document. The web application then replaces its website header with application navigation. Phones use a fixed top bar and five bottom tabs. Layouts that are at least 1024 pixels wide move the tabs into a left rail.
+An updated shell declares the `app-navigation` capability and marks each document as a native application document. The web application then replaces its website header with application navigation. Phones use a fixed top bar and six bottom tabs. Layouts that are at least 1024 pixels wide move the tabs into a left rail.
 
 Each tab returns to the screen it was left on. The session records the last location, history state, and scroll positions of every section in `src/client/nativeTabs.ts`, keyed by the section `nativeNavigation` derives from the path. This keeps an open roster unit open when another tab is visited. Tapping the section you are already in goes to its top instead. The record lives in `sessionStorage`, so a cold start opens every tab at its top.
 

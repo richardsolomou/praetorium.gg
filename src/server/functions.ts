@@ -12,6 +12,7 @@ import { factionDisplayName } from './factionNames'
 import { unitsIn } from './cataloguePicker'
 
 import { gameReferencesFor } from './gameReferences'
+import { ruleIndexOf, ruleSectionOf } from './rulesCore'
 import { rulesFaction } from './rules'
 import { type GlobalSearchResult, searchEverything } from './globalSearch'
 import { mutationRpc, rpc } from './rpc'
@@ -26,6 +27,7 @@ import {
   detachmentDetailSchema,
   factionSchema,
   globalSearchSchema,
+  ruleSectionSchema,
   savedRosterDatasheetSchema,
   terrainReferencesSchema,
   unitsSchema,
@@ -358,6 +360,26 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
     return gameReferencesFor(rules)
   }),
 )
+
+/** Every rules document and section by name, with the numbers their prose quotes. */
+export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() => {
+    cacheUntilSnapshotChanges()
+    const rules = app().rules()
+    return rules ? ruleIndexOf(rules.ruleDocuments) : null
+  }),
+)
+
+/** One section at a time: the five documents together are far more than a page needs. */
+export const ruleSection = createServerFn({ method: 'GET' })
+  .validator(ruleSectionSchema)
+  .handler(({ data }) =>
+    rpc(() => {
+      cacheUntilSnapshotChanges()
+      const rules = app().rules()
+      return rules ? ruleSectionOf(rules.ruleDocuments, data.documentId, data.sectionId) : null
+    }),
+  )
 
 export const terrainReferences = createServerFn({ method: 'GET' })
   .validator(terrainReferencesSchema)
