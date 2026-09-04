@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.58.0
+
+### Minor Changes
+
+- 9a82453: Use native application bars around the complete responsive battle, roster, catalogue, rules, and league interface.
+
 ## 0.57.2
 
 ### Patch Changes
