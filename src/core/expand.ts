@@ -14,6 +14,7 @@ import type { CatalogueIndex, Definition } from './catalogue'
 import {
   childrenOf,
   hasDynamicSelectionLimit,
+  isSharedAcrossUnit,
   MAX_DEPTH,
   maximumCount,
   type Option,
@@ -146,7 +147,7 @@ function withinOwnLimit(
 
 /**
  * What a group offers, best first: the cheapest, then what the group names as its
- * default, then entries before nested groups.
+ * default, then what every model can carry, then entries before nested groups.
  *
  * Cheapest first, because a mandatory choice has to be made for the player and
  * making it an expensive one puts points on a list nobody asked for — the floor of
@@ -154,6 +155,13 @@ function withinOwnLimit(
  * stand at that floor: an Achilles Ridgerunner names the heavy mining laser, which
  * the Munitorum prices as ten points of wargear over the base cost. So the named
  * default only settles a choice between options that cost the same.
+ *
+ * Where the group names nothing, an option the squad shares a cap on is the
+ * replacement rather than the standard weapon, so it comes after one nothing counts
+ * across the unit. A Ravenwing Command Squad's grenade launcher is one of three
+ * per-model choices but only one model may take it, and the default it names
+ * resolves to nothing at all: filling all three with it hands the player a list the
+ * same data then refuses.
  */
 function ordered(group: Definition, options: Option[], index: CatalogueIndex): Option[] {
   const named = 'defaultSelectionEntryId' in group ? group.defaultSelectionEntryId : undefined
@@ -161,6 +169,7 @@ function ordered(group: Definition, options: Option[], index: CatalogueIndex): O
     (left, right) =>
       pointsOf(left, index) - pointsOf(right, index) ||
       Number(right.id === named) - Number(left.id === named) ||
+      Number(isSharedAcrossUnit(left.definition, index)) - Number(isSharedAcrossUnit(right.definition, index)) ||
       kindOf(left, index) - kindOf(right, index),
   )
 }
