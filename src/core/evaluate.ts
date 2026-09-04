@@ -560,6 +560,40 @@ function withPath(selection: Selection, path: readonly string[]): Selection {
   return { ...selection, selections: children }
 }
 
+/** The cost type the data counts an army's enhancements in. */
+export const ENHANCEMENT_COST = 'Enhancements'
+
+/**
+ * How many enhancements an army may hold, or null when the data does not say.
+ *
+ * A battle size sets this for the whole army, so the number is written on the force
+ * rather than on anything a player picks, and the modifier that lowers it asks which
+ * battle size the force holds. Counting them needs nothing extra: an enhancement
+ * costs one of its own cost type, which is what makes a second copy of an upgrade
+ * free of the limit, so `evaluateForces` has already counted the army's enhancements
+ * before this says how many it may hold.
+ */
+export function enhancementLimit(
+  index: CatalogueIndex,
+  forces: readonly (readonly Selection[])[],
+  options: EvaluateOptions = {},
+): number | null {
+  const type = [...index.costTypes.values()].find((cost) => cost.name === ENHANCEMENT_COST)
+  const entry = index.forces[0]
+  if (!type || !entry) return null
+  const census = new Census()
+  const { root, forces: built } = rosterContext(forces, index, census, options)
+  const force = built[0]
+  if (!force) return null
+  const extra = [...(entry.modifiers ?? []), ...(entry.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
+  const stated = (entry.constraints ?? [])
+    .filter((constraint) => constraint.type === 'max' && constraint.field === type.id)
+    .map((constraint) => constraintValue(constraint, force, root, index, census, extra))
+    // A negative maximum is how the data says "no cap".
+    .filter((value) => value >= 0)
+  return stated.length ? Math.min(...stated) : null
+}
+
 /**
  * What a force carries to say which battle size it is being built at.
  *

@@ -14,7 +14,7 @@ import {
   uniqueNames,
 } from './pricing'
 import { descriptionKey } from './datacards'
-import { bookOf, points as pointsCost, shelfOf } from './catalogue.fixtures'
+import { bookOf, enhancement, points as pointsCost, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'
 
 const cappedLord = (id: string, name: string) => ({
@@ -50,6 +50,47 @@ const rulesWithout = {
   detachmentDetails: new Map(),
   factionRestrictions: new Map(),
 } as Partial<LoadedRules> as LoadedRules
+
+describe('the enhancements an army may hold', () => {
+  const bearer = (id: string, name: string) => ({
+    id,
+    name,
+    type: 'model' as const,
+    costs: pointsCost(80),
+    selectionEntries: [
+      {
+        id: `${id}-relic`,
+        name: `${name}'s relic`,
+        type: 'upgrade' as const,
+        costs: enhancement(),
+        constraints: [{ id: `${id}-relic-min`, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' }],
+      },
+    ],
+  })
+  const loaded = bookOf({
+    selectionEntries: ['one', 'two', 'three', 'four', 'five'].map((word, at) => bearer(`lord-${at}`, `Lord ${word}`)),
+  })
+  const errorsFor = (bearers: number, limit: number) =>
+    calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        limit,
+        units: Array.from({ length: bearers }, (_, at) => ({ entryId: `lord-${at}` })),
+      },
+      loaded,
+      rulesWithout,
+    )?.errors.map((error) => error.message)
+
+  it('is two in an Incursion army', () => {
+    expect([errorsFor(2, 1_000), errorsFor(3, 1_000)]).toEqual([[], ['allow at most 2 in an army, has 3']])
+  })
+
+  it('is four in a Strike Force army', () => {
+    expect([errorsFor(4, 2_000), errorsFor(5, 2_000)]).toEqual([[], ['allow at most 4 in an army, has 5']])
+  })
+})
 
 describe('a datasheet capped by the battle size', () => {
   const priceCopies = (loaded: ReturnType<typeof bookOf>, limit: number, units: { entryId: string; catalogueId?: string }[]) =>

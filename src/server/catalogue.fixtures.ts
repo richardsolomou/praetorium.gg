@@ -31,9 +31,50 @@ const battleSizes = {
   ],
 }
 
-export const system: CatalogueFile = {
-  gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }], sharedSelectionEntries: [battleSizes] },
+export const ENHANCEMENTS = 'cost-enhancements'
+
+/** The army-wide enhancement limit, written on the force the way the game system writes it. */
+const armyRoster = {
+  id: 'army-roster',
+  name: 'Army Roster',
+  constraints: [
+    { id: 'army-enhancements', type: 'max' as const, value: 2, field: ENHANCEMENTS, scope: 'force', includeChildSelections: true },
+  ],
+  modifiers: [
+    {
+      type: 'set' as const,
+      field: 'army-enhancements',
+      value: 4,
+      conditions: [
+        {
+          type: 'equalTo' as const,
+          value: 0,
+          field: 'selections',
+          scope: 'force',
+          childId: 'incursion',
+          shared: true,
+          includeChildSelections: true,
+        },
+      ],
+    },
+  ],
 }
+
+export const system: CatalogueFile = {
+  gameSystem: {
+    id: 'gs',
+    name: 'Test',
+    costTypes: [
+      { id: PTS, name: 'pts' },
+      { id: ENHANCEMENTS, name: 'Enhancements' },
+    ],
+    forceEntries: [armyRoster],
+    sharedSelectionEntries: [battleSizes],
+  },
+}
+
+/** What an enhancement costs an army, beside its points. */
+export const enhancement = () => [{ name: 'Enhancements', typeId: ENHANCEMENTS, value: 1 }]
 
 export const points = (value: number) => [{ name: 'pts', typeId: PTS, value }]
 
