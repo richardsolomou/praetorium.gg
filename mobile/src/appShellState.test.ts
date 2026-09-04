@@ -11,6 +11,7 @@ import {
   drainAppShell,
   initialAppShellState,
   initialUrlReceived,
+  navigationDeliverySucceeded,
   rendererTerminated,
   warmUrlReceived,
   webLoadFailed,
@@ -55,6 +56,25 @@ describe('application shell delivery', () => {
       kind: 'navigation',
       url: 'https://praetorium.gg/lists?mode=saved#current',
     })
+  })
+
+  it('allows another native navigation after the web application accepts the first', () => {
+    const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
+    const first = drainAppShell(warmUrlReceived(loaded, 'https://praetorium.gg/factions')).state
+    const second = warmUrlReceived(first, 'https://praetorium.gg/rules')
+    const acknowledged = navigationDeliverySucceeded(second, 'https://praetorium.gg/factions')
+
+    expect(drainAppShell(acknowledged)).toEqual({
+      state: expect.objectContaining({ pendingNavigation: null, delivering: { kind: 'navigation', url: 'https://praetorium.gg/rules' } }),
+      command: { kind: 'navigation', url: 'https://praetorium.gg/rules' },
+    })
+  })
+
+  it('ignores a stale native navigation acknowledgement', () => {
+    const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
+    const delivering = drainAppShell(warmUrlReceived(loaded, 'https://praetorium.gg/factions')).state
+
+    expect(navigationDeliverySucceeded(delivering, 'https://praetorium.gg/rules')).toBe(delivering)
   })
 
   it('does not drain queued work after a failed load', () => {

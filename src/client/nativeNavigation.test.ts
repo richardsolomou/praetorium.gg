@@ -9,6 +9,7 @@ describe('native application navigation', () => {
     ['/factions', { section: 'factions', title: 'Factions' }],
     ['/mission-packs', { section: 'missions', title: 'Mission packs' }],
     ['/rules', { section: 'rules', title: 'Rules' }],
+    ['/leaderboard', { section: 'leaderboard', title: 'Leaderboard' }],
   ])('leaves %s without a back action, because it is the bottom of its tab', (path, expected) => {
     expect(nativeNavigation(path)).toEqual(expected)
   })
@@ -60,7 +61,6 @@ describe('native application navigation', () => {
         title: 'Mission',
       },
     ],
-    ['/leaderboard', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Leaderboard' }],
     ['/users/player-id', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }],
     ['/support', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Support' }],
     ['/privacy', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Privacy' }],

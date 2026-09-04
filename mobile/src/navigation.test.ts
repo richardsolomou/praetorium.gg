@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { APP_URL, applicationNavigationScript, classifyNavigation, initialApplicationUrl, resolveApplicationUrl } from './navigation'
+import {
+  APPLICATION_SEARCH_SCRIPT,
+  APP_URL,
+  applicationAccountMenuScript,
+  applicationNavigationScript,
+  classifyNavigation,
+  initialApplicationUrl,
+  resolveApplicationUrl,
+} from './navigation'
 
 describe('application URL', () => {
   it('uses production unless a simulator test origin is configured', () => {
@@ -63,12 +71,22 @@ describe('incoming application links', () => {
   })
 
   it('builds a warm navigation script from the normalized internal URL', () => {
-    expect(applicationNavigationScript('https://praetorium.gg/rosters/abc?token=opaque#units')).toBe(
-      'window.location.assign("https://praetorium.gg/rosters/abc?token=opaque#units"); true;',
-    )
+    const script = applicationNavigationScript('https://praetorium.gg/rosters/abc?token=opaque#units')
+    expect(script).toContain('https://praetorium.gg/rosters/abc?token=opaque#units')
+    expect(script).toContain('window.location.assign(target.href)')
+    expect(script).toContain("type: 'native-navigation-result'")
   })
 
   it('does not build a warm navigation script for another origin', () => {
     expect(applicationNavigationScript('https://example.com/rosters/abc')).toBeNull()
+  })
+
+  it('opens the web application search from the native header', () => {
+    expect(APPLICATION_SEARCH_SCRIPT).toContain('praetorium:open-search')
+  })
+
+  it('opens the web account menu from the native header', () => {
+    expect(applicationAccountMenuScript(true)).toContain('detail: { open: true }')
+    expect(applicationAccountMenuScript(false)).toContain('detail: { open: false }')
   })
 })

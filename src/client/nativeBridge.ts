@@ -1,4 +1,4 @@
-type NativeCapability = 'app-navigation' | 'back-gesture' | 'battle-active' | 'haptic' | 'open-window' | 'print' | 'share'
+type NativeCapability = 'account' | 'app-navigation' | 'back-gesture' | 'battle-active' | 'haptic' | 'open-window' | 'print' | 'share'
 
 declare global {
   interface Window {
@@ -44,6 +44,26 @@ export function requestNativeHaptic() {
  */
 export function setNativeBackGesture(enabled: boolean) {
   return send('back-gesture', { type: 'native-back-gesture', enabled })
+}
+
+export function setNativeNavigation(title: string, backUrl?: string, preferHistory = false) {
+  return send('app-navigation', {
+    type: 'native-navigation',
+    title,
+    ...(backUrl ? { backUrl, preferHistory } : {}),
+  })
+}
+
+export function setNativeAccount(name?: string, image?: string | null) {
+  return send('account', {
+    type: 'native-account',
+    ...(name ? { name } : {}),
+    ...(image ? { image } : {}),
+  })
+}
+
+export function setNativeAccountMenuOpen(open: boolean) {
+  return send('account', { type: 'native-account-menu', open })
 }
 
 export async function shareLink(url: string, title?: string): Promise<'copied' | 'shared'> {

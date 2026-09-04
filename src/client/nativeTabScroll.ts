@@ -1,9 +1,8 @@
-const RETRY_DELAYS = [50, 250, 1_000, 3_000] as const
+const RETRY_DELAYS = [0, 50, 250, 1_000, 3_000] as const
 const INTERACTION_EVENTS = ['pointerdown', 'touchstart', 'wheel', 'keydown'] as const
 
 export function restoreNativeTabScroll(scrollY: number, regions: Record<string, number>, selectors: Record<string, string>) {
-  let windowTarget: number | undefined = scrollY
-  const regionTargets = new Map(Object.entries(regions).filter(([name]) => selectors[name]))
+  const regionTargets = Object.entries(regions).filter(([name]) => selectors[name])
   let timers: number[] = []
   let cancelled = false
 
@@ -17,23 +16,21 @@ export function restoreNativeTabScroll(scrollY: number, regions: Record<string, 
 
   const restore = () => {
     if (cancelled) return
-    if (windowTarget !== undefined) {
-      if (window.scrollY !== windowTarget) window.scrollTo(0, windowTarget)
-      if (window.scrollY === windowTarget) windowTarget = undefined
-    }
+    if (window.scrollY !== scrollY) window.scrollTo(0, scrollY)
     for (const [name, top] of regionTargets) {
       const element = document.querySelector<HTMLElement>(selectors[name] ?? '')
       if (!element) continue
       if (element.scrollTop !== top) element.scrollTo(0, top)
-      if (element.scrollTop === top) regionTargets.delete(name)
     }
-    if (windowTarget === undefined && regionTargets.size === 0) cancel()
   }
 
   restore()
-  if (!cancelled) {
-    INTERACTION_EVENTS.forEach((event) => window.addEventListener(event, cancel, { passive: true }))
-    timers = RETRY_DELAYS.map((delay) => window.setTimeout(restore, delay))
-  }
+  INTERACTION_EVENTS.forEach((event) => window.addEventListener(event, cancel, { passive: true }))
+  timers = RETRY_DELAYS.map((delay, index) =>
+    window.setTimeout(() => {
+      restore()
+      if (index === RETRY_DELAYS.length - 1) cancel()
+    }, delay),
+  )
   return cancel
 }

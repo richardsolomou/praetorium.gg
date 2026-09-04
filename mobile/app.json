@@ -4,14 +4,19 @@
     "slug": "praetorium",
     "description": "Build Warhammer 40,000 armies and track games from setup to final score.",
     "scheme": "praetorium",
-    "version": "1.1.0",
-    "orientation": "portrait",
+    "version": "1.2.0",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
       "bundleIdentifier": "gg.praetorium",
       "supportsTablet": true,
       "associatedDomains": ["applinks:praetorium.gg"],
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      },
       "config": {
         "usesNonExemptEncryption": false
       },

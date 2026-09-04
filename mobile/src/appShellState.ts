@@ -162,6 +162,10 @@ export function authDeliverySucceeded(state: AppShellState, id: string): AppShel
   }
 }
 
+export function navigationDeliverySucceeded(state: AppShellState, url: string): AppShellState {
+  return state.delivering?.kind === 'navigation' && state.delivering.url === url ? { ...state, delivering: null } : state
+}
+
 export function rendererTerminated(state: AppShellState): AppShellState {
   const restored = restoreDelivery(state)
   return {

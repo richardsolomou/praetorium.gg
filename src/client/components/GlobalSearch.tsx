@@ -54,6 +54,12 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  useEffect(() => {
+    const openNativeSearch = () => setOpen(true)
+    document.addEventListener('praetorium:open-search', openNativeSearch)
+    return () => document.removeEventListener('praetorium:open-search', openNativeSearch)
+  }, [])
+
   const go = async (result: GlobalSearchResult) => {
     posthog.capture('global_search_result_opened', { group: result.group, result_count: results.length, fuzzy: Boolean(result.fuzzy) })
     setOpen(false)

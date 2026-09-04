@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { requestNativeHaptic, setNativeBattleActive, shareLink } from './nativeBridge'
+import { requestNativeHaptic, setNativeAccount, setNativeAccountMenuOpen, setNativeBattleActive, shareLink } from './nativeBridge'
 
 describe('native application actions', () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -7,15 +7,19 @@ describe('native application actions', () => {
   it('sends declared actions to a version 3 shell', async () => {
     const postMessage = vi.fn()
     vi.stubGlobal('window', {
-      PraetoriumNative: { bridgeVersion: 3, capabilities: ['battle-active', 'haptic', 'share'] },
+      PraetoriumNative: { bridgeVersion: 3, capabilities: ['account', 'battle-active', 'haptic', 'share'] },
       ReactNativeWebView: { postMessage },
     })
 
     expect(setNativeBattleActive(true)).toBe(true)
+    expect(setNativeAccount('Rogal Dorn', 'https://cdn.example/dorn.webp')).toBe(true)
+    expect(setNativeAccountMenuOpen(true)).toBe(true)
     expect(requestNativeHaptic()).toBe(true)
     await expect(shareLink('https://praetorium.gg/battles/abc', 'Battle')).resolves.toBe('shared')
     expect(postMessage.mock.calls.map(([message]) => JSON.parse(message))).toEqual([
       { version: 3, type: 'native-battle-active', active: true },
+      { version: 3, type: 'native-account', name: 'Rogal Dorn', image: 'https://cdn.example/dorn.webp' },
+      { version: 3, type: 'native-account-menu', open: true },
       { version: 3, type: 'native-haptic' },
       { version: 3, type: 'native-share', url: 'https://praetorium.gg/battles/abc', title: 'Battle' },
     ])
