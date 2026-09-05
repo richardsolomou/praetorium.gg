@@ -409,7 +409,11 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.unplaced).toEqual([
-      { unit: 'Tomb Blades', choices: [{ name: 'Photon lance', reason: 'nothing in the Necrons catalogue is called that' }] },
+      {
+        unit: 'Tomb Blades',
+        entryId: 'tomb-blades',
+        choices: [{ name: 'Photon lance', reason: 'nothing in the Necrons catalogue is called that' }],
+      },
     ])
   })
 
@@ -433,7 +437,11 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.unplaced).toEqual([
-      { unit: 'Lokhust Lord', choices: [{ name: 'Withering Presence', reason: 'nothing in the Necrons catalogue is called that' }] },
+      {
+        unit: 'Lokhust Lord',
+        entryId: 'lord',
+        choices: [{ name: 'Withering Presence', reason: 'nothing in the Necrons catalogue is called that' }],
+      },
     ])
   })
 
@@ -457,7 +465,7 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.unplaced).toEqual([
-      { unit: 'Lokhust Lord', choices: [{ name: 'Warlord', reason: 'this datasheet has no Warlord option' }] },
+      { unit: 'Lokhust Lord', entryId: 'lord', choices: [{ name: 'Warlord', reason: 'this datasheet has no Warlord option' }] },
     ])
   })
 
@@ -481,7 +489,7 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.unplaced).toEqual([
-      { unit: 'Lokhust Lord', choices: [{ name: 'Leading Immortals', reason: 'this list has no Immortals' }] },
+      { unit: 'Lokhust Lord', entryId: 'lord', choices: [{ name: 'Leading Immortals', reason: 'this list has no Immortals' }] },
     ])
   })
 
@@ -527,7 +535,11 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.unplaced).toEqual([
-      { unit: 'Lokhust Lord', choices: [{ name: 'Veil of Darkness', reason: 'an enhancement of the Skyshroud Spearhead detachment' }] },
+      {
+        unit: 'Lokhust Lord',
+        entryId: 'lord',
+        choices: [{ name: 'Veil of Darkness', reason: 'an enhancement of the Skyshroud Spearhead detachment' }],
+      },
     ])
   })
 
@@ -551,7 +563,11 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.unplaced).toEqual([
-      { unit: 'Tomb Blades', choices: [{ name: 'Veil of Darkness', reason: 'this datasheet cannot take that enhancement' }] },
+      {
+        unit: 'Tomb Blades',
+        entryId: 'tomb-blades',
+        choices: [{ name: 'Veil of Darkness', reason: 'this datasheet cannot take that enhancement' }],
+      },
     ])
   })
 
@@ -575,7 +591,7 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.unplaced).toEqual([
-      { unit: 'Tomb Blades', choices: [{ name: 'Tesla carbine', reason: 'this datasheet does not offer it' }] },
+      { unit: 'Tomb Blades', entryId: 'tomb-blades', choices: [{ name: 'Tesla carbine', reason: 'this datasheet does not offer it' }] },
     ])
   })
 
@@ -598,6 +614,29 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.unknown).toEqual([{ name: 'Terminator Squad', reason: 'a Space Marines datasheet, not Necrons' }])
+  })
+
+  it('reads the units it matched beside the one it could not', () => {
+    const imported = importRosterFile(
+      {
+        file: `Allies (170 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Terminator Squad (100 Points)
+
+Tomb Blades (70 Points)
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.units.map((unit) => unit.entryId)).toEqual(['tomb-blades'])
   })
 
   it('names the closest datasheet to one it cannot find', () => {
@@ -695,7 +734,11 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.unplaced).toEqual([
-      { unit: 'Lokhust Lord', choices: [{ name: 'Leading Immortals', reason: 'every Immortals in this list is already led' }] },
+      {
+        unit: 'Lokhust Lord',
+        entryId: 'lord',
+        choices: [{ name: 'Leading Immortals', reason: 'every Immortals in this list is already led' }],
+      },
     ])
   })
 
@@ -857,7 +900,7 @@ Created with newrecruit.eu v35.51`,
     )
 
     expect(imported.unplaced).toEqual([
-      { unit: 'Tomb Blades', choices: [{ name: '8 models', reason: 'this datasheet fields 3 to 6 models' }] },
+      { unit: 'Tomb Blades', entryId: 'tomb-blades', choices: [{ name: '8 models', reason: 'this datasheet fields 3 to 6 models' }] },
     ])
   })
 

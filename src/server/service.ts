@@ -46,7 +46,8 @@ import type { TableShape } from '../core/tableShape'
 import { commandSchema, parseRosterSnapshot } from '../core/commands'
 import type { BattleHistory, BattleSeats, BattlesCursor, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
-import { picksSchema, savedPrepSchema } from './schemas'
+import type { ImportReport } from './importMismatch'
+import { importReportSchema, picksSchema, savedPrepSchema } from './schemas'
 
 type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
 type BattleFaction = { id: string; slug: string; displayName: string; icon: string | null }
@@ -863,6 +864,8 @@ export class PraetoriumService {
       borrowedDetachmentId?: string | null
       visibility: RosterVisibility
       source: RosterSource
+      /** Only read when this call creates the list; a later save leaves the note alone. */
+      importNotes?: ImportReport | null
     },
   ) {
     const id = roster.id ?? randomId()
@@ -877,6 +880,7 @@ export class PraetoriumService {
       waivedRules: JSON.stringify(roster.waivedRules ?? []),
       optionalRules: JSON.stringify(roster.optionalRules ?? []),
       borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
+      importNotes: roster.importNotes ? JSON.stringify(roster.importNotes) : null,
       now: this.clock(),
     })
     if (!saved) throw new Response('you do not own this roster', { status: 403 })
@@ -949,6 +953,10 @@ export class PraetoriumService {
     if (!(await this.repository.setRosterVisibility(id, userId, visibility, this.clock()))) {
       throw new Response('you do not own this roster', { status: 403 })
     }
+  }
+
+  async clearImportNotes(userId: string, id: string) {
+    await this.repository.clearImportNotes(id, userId)
   }
 
   async deleteRoster(userId: string, id: string) {
@@ -1379,7 +1387,8 @@ function sortedFriends(relationships: Awaited<ReturnType<Repository['relationshi
   }
 }
 
-function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>>>, includePrep = false) {
+/** `owner` gates what only the list's own player has any use for: their prep, and what its import could not do. */
+function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>>>, owner = false) {
   return {
     id: row.id,
     name: row.name,
@@ -1390,7 +1399,8 @@ function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     picks: picksSchema.parse(JSON.parse(row.picks)),
-    prep: includePrep && row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
+    prep: owner && row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
+    importNotes: owner && row.importNotes ? importReportSchema.parse(JSON.parse(row.importNotes)) : null,
     waivedRules: waivedRulesFrom(row.waivedRules),
     optionalRules: optionalRulesFrom(row.optionalRules),
     borrowedDetachmentId: row.borrowedDetachmentId,

@@ -1,0 +1,1 @@
+ALTER TABLE "rosters" ADD COLUMN "import_notes" text;

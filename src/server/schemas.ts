@@ -258,6 +258,18 @@ export const saveRosterSchema = z.object({
   source: z.enum(ROSTER_SOURCES).default('editable'),
 })
 
+/**
+ * What an import could not do, as it is stored beside the list.
+ *
+ * Bounded on every axis: a note is written once by an import and only ever read back
+ * to the player who made it, so nothing here needs to grow with a roster.
+ */
+const unmatchedNameSchema = z.object({ name: z.string().max(200), reason: z.string().max(300) })
+export const importReportSchema = z.object({
+  missing: z.array(unmatchedNameSchema).max(100),
+  unplaced: z.array(z.object({ unit: z.string().max(200), entryId: id, choices: z.array(unmatchedNameSchema).max(50) })).max(100),
+})
+
 /** A Praetorium, BattleBase or New Recruit text export, which no roster comes close to filling. */
 export const importRosterSchema = z.object({ file: z.string().min(1).max(200_000) })
 export type ImportRosterInput = z.infer<typeof importRosterSchema>

@@ -2445,6 +2445,67 @@ describe('scoring caps', () => {
   })
 })
 
+describe('what an import could not do', () => {
+  const report = {
+    missing: [{ name: 'Plague Marines', reason: 'a Death Guard datasheet, not Necrons' }],
+    unplaced: [
+      {
+        unit: 'Tomb Blades',
+        entryId: 'tomb-blades',
+        choices: [{ name: 'Photon lance', reason: 'nothing in the Necrons catalogue is called that' }],
+      },
+    ],
+  }
+  const save = (extra: Partial<Parameters<PraetoriumService['saveRoster']>[1]> = {}) =>
+    service.saveRoster('alice', {
+      id: 'imported',
+      name: 'Imported list',
+      catalogueId: 'necrons',
+      detachmentIds: [],
+      disposition: null,
+      limit: 2000,
+      picks: [],
+      prep: null,
+      visibility: 'private',
+      source: 'battlebase',
+      ...extra,
+    })
+  const notesFor = async (reader: string) => (await service.rosterAccess('imported', reader))?.roster.importNotes
+
+  it('keeps the report with the list the import made', async () => {
+    await save({ importNotes: report })
+
+    expect(await notesFor('alice')).toEqual(report)
+  })
+
+  it('leaves the report alone when a later save rewrites the list', async () => {
+    await save({ importNotes: report })
+    await save({ name: 'Renamed in the builder' })
+
+    expect(await notesFor('alice')).toEqual(report)
+  })
+
+  it('drops the report once the player has read it', async () => {
+    await save({ importNotes: report })
+    await service.clearImportNotes('alice', 'imported')
+
+    expect(await notesFor('alice')).toBeNull()
+  })
+
+  it('refuses to drop a report belonging to somebody else', async () => {
+    await save({ importNotes: report })
+    await service.clearImportNotes('bob', 'imported')
+
+    expect(await notesFor('alice')).toEqual(report)
+  })
+
+  it('withholds the report from a reader who does not own the list', async () => {
+    await save({ importNotes: report, visibility: 'public' })
+
+    expect(await notesFor('bob')).toBeNull()
+  })
+})
+
 describe('saved rosters', () => {
   const save = (visibility: RosterVisibility = 'private') =>
     service.saveRoster('alice', {

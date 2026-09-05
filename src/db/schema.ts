@@ -261,6 +261,12 @@ export const rosters = pgTable(
     source: text('source', { enum: ['legacy', 'editable', 'praetorium', 'battlebase', 'newrecruit', 'roster-file'] })
       .notNull()
       .default('legacy'),
+    /**
+     * What the import could not do, as JSON: units that never arrived and choices a
+     * unit could not be given. Written once when an import creates the list, never by a
+     * later save, and cleared when the player says they have read it.
+     */
+    importNotes: text('import_notes'),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
   },

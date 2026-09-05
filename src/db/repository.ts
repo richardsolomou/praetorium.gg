@@ -812,6 +812,8 @@ export class Repository {
     borrowedDetachmentId?: string | null
     visibility: RosterVisibility
     source: RosterSource
+    /** Only ever set when this call creates the row: a later save must not overwrite it. */
+    importNotes?: string | null
     now: number
   }) {
     // Everything a later save may change. `id` identifies the row and `userId`
@@ -840,7 +842,7 @@ export class Repository {
     if (updated.length) return true
     const inserted = await this.database
       .insert(rosters)
-      .values({ id: input.id, userId: input.userId, createdAt: input.now, ...updatable })
+      .values({ id: input.id, userId: input.userId, createdAt: input.now, importNotes: input.importNotes ?? null, ...updatable })
       .onConflictDoNothing()
       .returning({ id: rosters.id })
     return inserted.length > 0
@@ -1984,6 +1986,14 @@ export class Repository {
       .where(and(eq(rosters.id, id), eq(rosters.userId, userId)))
       .returning({ id: rosters.id })
     return updated.length > 0
+  }
+
+  /** Once the player has read what the import could not do, the note has nothing left to say. */
+  async clearImportNotes(id: string, userId: string) {
+    await this.database
+      .update(rosters)
+      .set({ importNotes: null })
+      .where(and(eq(rosters.id, id), eq(rosters.userId, userId)))
   }
 
   /** The datasheets this player owns models for. */
