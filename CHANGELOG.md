@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.61.0
+
+### Minor Changes
+
+- 25ba448: Say why a roster import could not match a name: the faction a datasheet actually belongs to, the closest name the catalogue does have, the detachment an enhancement comes from, and the squad sizes a datasheet fields.
+- 25ba448: Import the rest of a roster when one of its units names a datasheet the faction does not have, instead of refusing the whole list. The units that will not arrive are named with the rest of what could not be placed, in the dialog that asks before the list is saved.
+- 25ba448: Remove `.ros` and `.rosz` roster file import. Roster import now reads Praetorium, BattleBase and New Recruit text exports only.
+
 ## 0.60.2
 
 ### Patch Changes
