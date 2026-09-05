@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.60.2
+
+### Patch Changes
+
+- 776207b: Report a roster that holds more enhancements than its battle size allows, two at Incursion and four at Strike Force.
+
 ## 0.60.1
 
 ### Patch Changes
