@@ -18,6 +18,10 @@ type Imported = Awaited<ReturnType<typeof importRoster>>
 /** A matched list whose equipment the datasheets could take, which is the ordinary case. */
 type Matched = Imported & { catalogueId: string }
 
+/** Each name the import refused, on its own line, so the player reads why rather than only what. */
+const explain = (unknown: readonly { name: string; reason: string }[]) =>
+  unknown.map(({ name, reason }) => `Could not match ${name}: ${reason}.`).join('\n')
+
 export function RosterImport() {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
@@ -62,11 +66,11 @@ export function RosterImport() {
       const imported = await importRoster({ data: { file } })
       if (!imported.catalogueId) {
         posthog.capture('roster_import_failed', { reason: 'catalogue_unmatched', input: typeof source === 'string' ? 'text' : 'file' })
-        throw new Error(`Could not match: ${imported.unknown.join(', ') || imported.catalogueName || 'faction'}`)
+        throw new Error(explain(imported.unknown) || `Could not match ${imported.catalogueName || 'the faction'}`)
       }
       if (imported.unknown.length) {
         posthog.capture('roster_import_failed', { reason: 'unit_unmatched', input: typeof source === 'string' ? 'text' : 'file' })
-        throw new Error(`Could not match: ${imported.unknown.join(', ')}`)
+        throw new Error(explain(imported.unknown))
       }
       return { ...imported, catalogueId: imported.catalogueId }
     },
@@ -111,7 +115,11 @@ export function RosterImport() {
                     <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                     <span className="min-w-0">
                       <span className="font-semibold">{entry.unit}</span>
-                      <span className="block text-xs text-dim">Could not apply {entry.choices.join(', ')}</span>
+                      {entry.choices.map((choice) => (
+                        <span key={choice.name} className="block text-xs text-dim">
+                          Could not apply {choice.name}: {choice.reason}
+                        </span>
+                      ))}
                     </span>
                   </li>
                 ))}
@@ -187,7 +195,7 @@ export function RosterImport() {
           )}
 
           {failure ? (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="whitespace-pre-line text-sm text-destructive">
               {errorMessage(failure)}
             </p>
           ) : null}

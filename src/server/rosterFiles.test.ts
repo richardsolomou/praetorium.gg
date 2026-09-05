@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
 import { wargearOf } from '../core/wargear'
+import { descriptionKey } from './datacards'
 import { exportRosterFile, importRosterFile } from './rosterFiles'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { emptyExternalReferences } from './externalReferences'
@@ -170,13 +171,21 @@ const faction: CatalogueFile = {
   },
 }
 
+const allies: CatalogueFile = {
+  catalogue: {
+    id: 'marines',
+    name: 'Imperium - Space Marines',
+    selectionEntries: [{ id: 'terminator-squad', name: 'Terminator Squad', type: 'unit' }],
+  },
+}
+
 const loaded: LoadedCatalogue = {
-  index: buildIndex([system, faction], 'test-revision'),
+  index: buildIndex([system, faction, allies], 'test-revision'),
   characteristicNames: new Map(),
   datacards: {
     factions: new Map(),
     detachmentRules: new Map(),
-    enhancements: new Map(),
+    enhancements: new Map([[descriptionKey('Skyshroud Spearhead', 'Veil of Darkness'), 'Vanishes.']]),
     stratagems: new Map(),
     stratagemsById: new Map(),
     armyRules: new Map(),
@@ -184,7 +193,10 @@ const loaded: LoadedCatalogue = {
     enhancementPoints: new Map(),
   },
   sourceReferences: emptyExternalReferences(),
-  factions: [{ id: 'necrons', name: 'Xenos - Necrons', references: [] }],
+  factions: [
+    { id: 'necrons', name: 'Xenos - Necrons', references: [] },
+    { id: 'marines', name: 'Imperium - Space Marines', references: [] },
+  ],
   detachments: new Map([
     [
       'necrons',
@@ -396,7 +408,9 @@ Exported with BattleBase, Data Version: v20260812`,
       loaded,
     )
 
-    expect(imported.unplaced).toEqual([{ unit: 'Tomb Blades', choices: ['Photon lance'] }])
+    expect(imported.unplaced).toEqual([
+      { unit: 'Tomb Blades', choices: [{ name: 'Photon lance', reason: 'nothing in the Necrons catalogue is called that' }] },
+    ])
   })
 
   it('names an enhancement the faction does not offer', () => {
@@ -418,7 +432,9 @@ Exported with BattleBase, Data Version: v20260812`,
       loaded,
     )
 
-    expect(imported.unplaced).toEqual([{ unit: 'Lokhust Lord', choices: ['Withering Presence'] }])
+    expect(imported.unplaced).toEqual([
+      { unit: 'Lokhust Lord', choices: [{ name: 'Withering Presence', reason: 'nothing in the Necrons catalogue is called that' }] },
+    ])
   })
 
   it('names a Warlord the datasheet cannot be', () => {
@@ -440,7 +456,9 @@ Exported with BattleBase, Data Version: v20260812`,
       loaded,
     )
 
-    expect(imported.unplaced).toEqual([{ unit: 'Lokhust Lord', choices: ['Warlord'] }])
+    expect(imported.unplaced).toEqual([
+      { unit: 'Lokhust Lord', choices: [{ name: 'Warlord', reason: 'this datasheet has no Warlord option' }] },
+    ])
   })
 
   it('names an attachment whose target is not in the list', () => {
@@ -462,7 +480,9 @@ Exported with BattleBase, Data Version: v20260812`,
       loaded,
     )
 
-    expect(imported.unplaced).toEqual([{ unit: 'Lokhust Lord', choices: ['Leading Immortals'] }])
+    expect(imported.unplaced).toEqual([
+      { unit: 'Lokhust Lord', choices: [{ name: 'Leading Immortals', reason: 'this list has no Immortals' }] },
+    ])
   })
 
   it('says nothing about equipment it placed', () => {
@@ -485,6 +505,198 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.unplaced).toEqual([])
+  })
+
+  it('names the detachment an enhancement belongs to', () => {
+    const imported = importRosterFile(
+      {
+        file: `Lord (80 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+CHARACTERS
+
+Lokhust Lord (80 Points)
+    • Enhancement: Veil of Darkness
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([
+      { unit: 'Lokhust Lord', choices: [{ name: 'Veil of Darkness', reason: 'an enhancement of the Skyshroud Spearhead detachment' }] },
+    ])
+  })
+
+  it('separates an enhancement of the chosen detachment from one of another', () => {
+    const imported = importRosterFile(
+      {
+        file: `Blades (70 Points)
+
+Necrons
+Skyshroud Spearhead (2 Detachment Points)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Tomb Blades (70 Points)
+    • Enhancement: Veil of Darkness
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([
+      { unit: 'Tomb Blades', choices: [{ name: 'Veil of Darkness', reason: 'this datasheet cannot take that enhancement' }] },
+    ])
+  })
+
+  it('separates wargear the faction has from wargear it does not', () => {
+    const imported = importRosterFile(
+      {
+        file: `Blades (70 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Tomb Blades (70 Points)
+    • 3x Tesla carbine
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([
+      { unit: 'Tomb Blades', choices: [{ name: 'Tesla carbine', reason: 'this datasheet does not offer it' }] },
+    ])
+  })
+
+  it('names the faction a datasheet belongs to instead', () => {
+    const imported = importRosterFile(
+      {
+        file: `Allies (100 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Terminator Squad (100 Points)
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unknown).toEqual([{ name: 'Terminator Squad', reason: 'a Space Marines datasheet, not Necrons' }])
+  })
+
+  it('names the closest datasheet to one it cannot find', () => {
+    const imported = importRosterFile(
+      {
+        file: `Blades (70 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Tomb Blade Squad (70 Points)
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unknown).toEqual([
+      { name: 'Tomb Blade Squad', reason: 'no Necrons datasheet is called that; the closest is "Tomb Blades"' },
+    ])
+  })
+
+  it('names the closest faction to one it cannot find', () => {
+    const imported = importRosterFile(
+      {
+        file: `Blades (70 Points)
+
+Necron
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Tomb Blades (70 Points)
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unknown).toEqual([{ name: 'Necron', reason: 'no faction is called that; the closest is "Necrons"' }])
+  })
+
+  it('names the closest detachment to one it cannot find', () => {
+    const imported = importRosterFile(
+      {
+        file: `Blades (70 Points)
+
+Necrons
+Pantheon of Doom (2 Detachment Points)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Tomb Blades (70 Points)
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unknown).toEqual([
+      { name: 'Pantheon of Doom', reason: 'no Necrons detachment is called that; the closest is "Pantheon of Woe"' },
+    ])
+  })
+
+  it('separates an attachment target this list holds from one it does not', () => {
+    const imported = importRosterFile(
+      {
+        file: `Crowded (300 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+CHARACTERS
+
+Lokhust Lord (100 Points)
+    • Leading: Immortals
+
+Lokhust Lord (100 Points)
+    • Leading: Immortals
+
+OTHER DATASHEETS
+
+Immortals (100 Points)
+    • Leader: Lokhust Lord
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([
+      { unit: 'Lokhust Lord', choices: [{ name: 'Leading Immortals', reason: 'every Immortals in this list is already led' }] },
+    ])
   })
 
   it('pairs repeated attachments by occurrence', () => {
@@ -644,7 +856,9 @@ Created with newrecruit.eu v35.51`,
       loaded,
     )
 
-    expect(imported.unplaced).toEqual([{ unit: 'Tomb Blades', choices: ['8 models'] }])
+    expect(imported.unplaced).toEqual([
+      { unit: 'Tomb Blades', choices: [{ name: '8 models', reason: 'this datasheet fields 3 to 6 models' }] },
+    ])
   })
 
   it('resolves setup and grouped model choices', () => {
