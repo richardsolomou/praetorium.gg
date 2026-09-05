@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile, type Modifier } from './catalogue'
 import {
   battleSizeSelection,
+  enhancementLimit,
   evaluate,
   evaluateForces,
   hiddenByRules,
@@ -24,7 +25,31 @@ const system: CatalogueFile = {
       { id: ENHANCEMENTS, name: 'Enhancements' },
     ],
     forceEntries: [
-      { id: 'army-roster', name: 'Army Roster' },
+      {
+        id: 'army-roster',
+        name: 'Army Roster',
+        constraints: [
+          { id: 'army-enhancements', type: 'max', value: 2, field: ENHANCEMENTS, scope: 'force', includeChildSelections: true },
+        ],
+        modifiers: [
+          {
+            type: 'set',
+            field: 'army-enhancements',
+            value: 4,
+            conditions: [
+              {
+                type: 'equalTo',
+                value: 0,
+                field: 'selections',
+                scope: 'force',
+                childId: 'incursion',
+                shared: true,
+                includeChildSelections: true,
+              },
+            ],
+          },
+        ],
+      },
       { id: 'crusade-force', name: 'Crusade Force' },
     ],
     sharedSelectionEntries: [
@@ -1100,6 +1125,30 @@ describe('the limit on how many of a datasheet a roster may hold', () => {
       ],
     })
     expect(rosterLimit(index.definitions.get('lord')!, index)).toBeNull()
+  })
+})
+
+describe('the enhancements an army may hold', () => {
+  const index = indexOf({})
+  const at = (limit: number | null) => {
+    const size = battleSizeSelection(index, limit)
+    return enhancementLimit(index, [size ? [size] : []], { mustering: true })
+  }
+
+  it('is the number the battle size states', () => {
+    expect([at(1_000), at(2_000)]).toEqual([2, 4])
+  })
+
+  it('is the larger game’s number when the force names no battle size', () => {
+    expect(at(null)).toBe(4)
+  })
+
+  it('is nothing when the game system states no limit', () => {
+    const bare = buildIndex(
+      [{ gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }], forceEntries: [{ id: 'army-roster' }] } }],
+      'test-revision',
+    )
+    expect(enhancementLimit(bare, [[]])).toBeNull()
   })
 })
 

@@ -256,7 +256,7 @@ export type Catalogue = {
   library?: boolean
   gameSystemId?: string
   costTypes?: CostType[]
-  forceEntries?: { id: string; name?: string }[]
+  forceEntries?: (Omit<ForceEntry, 'name'> & { name?: string })[]
   selectionEntries?: SelectionEntry[]
   sharedSelectionEntries?: SelectionEntry[]
   selectionEntryGroups?: SelectionEntryGroup[]
@@ -267,6 +267,15 @@ export type Catalogue = {
   sharedInfoGroups?: InfoGroup[]
   sharedRules?: Rule[]
   categoryEntries?: CategoryEntry[]
+}
+
+/** A kind of force, carrying the limits the game system puts on a whole army. */
+export type ForceEntry = {
+  id: string
+  name: string
+  constraints?: Constraint[]
+  modifiers?: Modifier[]
+  modifierGroups?: ModifierGroup[]
 }
 
 /** A parsed file: the game system and every catalogue arrive in the same envelope. */
@@ -305,9 +314,10 @@ export type CatalogueIndex = {
   alliedDatasheets: Map<string, ReadonlyMap<string, { name: string; order: number }>>
   /**
    * The kinds of force a roster can be — Army Roster, Boarding Actions, Crusade.
-   * Conditions count and scope to these, so a roster needs one to answer them.
+   * Conditions count and scope to these, so a roster needs one to answer them, and
+   * the army-wide limits a battle size sets are written on them.
    */
-  forces: { id: string; name: string }[]
+  forces: ForceEntry[]
   /**
    * Profiles and info groups defined once at a catalogue's top level, by id.
    *
@@ -340,7 +350,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   const unitsByName = new Map<string, SelectionEntry[]>()
   const catalogues = new Map<string, { id: string; name: string; revision?: number; library?: boolean; gameSystem: boolean }>()
   const catalogueOf = new Map<string, string>()
-  const forces: { id: string; name: string }[] = []
+  const forces: ForceEntry[] = []
   const books = new Map<string, Catalogue>()
   const shared = new Map<string, Profile | InfoGroup>()
   const rules = new Map<string, Rule>()
@@ -374,7 +384,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
       library: root.library,
       gameSystem: Boolean(file.gameSystem),
     })
-    for (const force of root.forceEntries ?? []) forces.push({ id: force.id, name: force.name ?? force.id })
+    for (const force of root.forceEntries ?? []) forces.push({ ...force, name: force.name ?? force.id })
     for (const profile of root.sharedProfiles ?? []) shared.set(profile.id, profile)
     for (const group of root.sharedInfoGroups ?? []) shared.set(group.id, group)
     for (const rule of root.sharedRules ?? []) {

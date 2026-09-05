@@ -11,7 +11,15 @@ import {
   kotcUnitExclusions,
 } from '../core/battle'
 import { type CatalogueIndex, targetOf } from '../core/catalogue'
-import { battleSizeSelection, evaluate, evaluateForces, keywordIdsBySelection, type Selection } from '../core/evaluate'
+import {
+  battleSizeSelection,
+  ENHANCEMENT_COST,
+  enhancementLimit,
+  evaluate,
+  evaluateForces,
+  keywordIdsBySelection,
+  type Selection,
+} from '../core/evaluate'
 import { type ModelKind, modelKindsOf, modelRowCount, modelRowSources, optionWargear } from '../core/modelKinds'
 import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
 import { buildUnit } from '../core/roster'
@@ -424,6 +432,13 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     attachedByHost.set(host, [...(attachedByHost.get(host) ?? []), key])
   })
 
+  /*
+   * The enhancements an army may hold, which its battle size sets for the whole army
+   * rather than for anything in it. The count is the data's own: a second copy of an
+   * upgrade costs no enhancement, so the army's total already excludes it.
+   */
+  const enhancementsAllowed = enhancementLimit(loaded.index, forces, options)
+  const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
   // The 10e catalogue wrapper caps detachments at one; the 11e rules source
   // replaces that constraint with the DP budget checked above.
   const reported = [
@@ -435,6 +450,15 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     ...attachmentErrors(data.units, loaded.index, pickedSelections),
     ...factionRestrictionViolations(restrictions, constructionUnits),
     ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules) : []),
+    ...(enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
+      ? [
+          {
+            entryId: 'enhancements',
+            entryName: 'Enhancements',
+            message: `allow at most ${enhancementsAllowed} in an army, has ${enhancementsHeld}`,
+          },
+        ]
+      : []),
   ]
   // One fact, said once. A limit on a shared entry is broken by each selection of it,
   // and every one of them reports the same sentence about the same count.
