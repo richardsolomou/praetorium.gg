@@ -54,17 +54,6 @@ export function unmatchedDatasheetReason(stated: string, catalogueId: string, lo
   return `no ${faction} datasheet is called that`
 }
 
-/** An entry a roster file names by an id this catalogue does not hold. */
-export function unmatchedEntryReason(stated: string, catalogueId: string | null, loaded: LoadedCatalogue): string {
-  const faction = catalogueId ? factionOf(loaded, catalogueId) : null
-  const other = otherFaction(stated, catalogueId, loaded)
-  if (other) return faction ? `a ${other} datasheet, not ${faction}` : `a ${other} datasheet`
-  if (catalogueId && factionNames(loaded, catalogueId).has(normalized(stated))) {
-    return `this file gives it an id the ${faction} catalogue does not have`
-  }
-  return faction ? `nothing in the ${faction} catalogue is called that` : 'nothing in the catalogue is called that'
-}
-
 export function unmatchedDetachmentReason(stated: string, catalogueId: string, loaded: LoadedCatalogue): string {
   const options = loaded.detachments.get(catalogueId)?.options ?? []
   const near = closestName(
@@ -115,7 +104,7 @@ const factionOf = (loaded: LoadedCatalogue, catalogueId: string) =>
  * imported into. Two are named where two have it, because a Plague Marine bought from
  * the wrong book is as likely to belong to either.
  */
-function otherFaction(stated: string, catalogueId: string | null, loaded: LoadedCatalogue): string | null {
+function otherFaction(stated: string, catalogueId: string, loaded: LoadedCatalogue): string | null {
   const elsewhere = [...(datasheetFactions(loaded).get(normalized(stated)) ?? [])]
     .filter((id) => id !== catalogueId)
     .map((id) => factionOf(loaded, id))

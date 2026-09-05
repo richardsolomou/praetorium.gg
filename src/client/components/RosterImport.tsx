@@ -1,12 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { strFromU8 } from 'fflate'
-import { Copy, FileUp, LoaderCircle, TriangleAlert, Upload } from 'lucide-react'
+import { Copy, FileUp, LoaderCircle, TriangleAlert } from 'lucide-react'
 import posthog from 'posthog-js'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { DEFAULT_GAME_LIMIT } from '../../core/battle'
@@ -16,7 +14,7 @@ import { invalidateSavedRosters } from '../queries'
 
 type Imported = Awaited<ReturnType<typeof importRoster>>
 /** A matched list whose equipment the datasheets could take, which is the ordinary case. */
-type Matched = Imported & { catalogueId: string }
+type Matched = Imported & { catalogueId: string; source: NonNullable<Imported['source']> }
 
 /** Each name the import refused, on its own line, so the player reads why rather than only what. */
 const explain = (unknown: readonly { name: string; reason: string }[]) =>
@@ -25,8 +23,6 @@ const explain = (unknown: readonly { name: string; reason: string }[]) =>
 export function RosterImport() {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
-  const [dragging, setDragging] = useState(false)
-  const input = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -56,23 +52,17 @@ export function RosterImport() {
   })
 
   const bring = useMutation({
-    mutationFn: async (source: File | string): Promise<Matched> => {
-      let file: string
-      if (typeof source === 'string') file = source
-      else if (source.name.toLowerCase().endsWith('.rosz')) {
-        file = btoa(strFromU8(new Uint8Array(await source.arrayBuffer()), true))
-      } else file = await source.text()
-
+    mutationFn: async (file: string): Promise<Matched> => {
       const imported = await importRoster({ data: { file } })
-      if (!imported.catalogueId) {
-        posthog.capture('roster_import_failed', { reason: 'catalogue_unmatched', input: typeof source === 'string' ? 'text' : 'file' })
+      if (!imported.catalogueId || !imported.source) {
+        posthog.capture('roster_import_failed', { reason: 'catalogue_unmatched', input: 'text' })
         throw new Error(explain(imported.unknown) || `Could not match ${imported.catalogueName || 'the faction'}`)
       }
       if (imported.unknown.length) {
-        posthog.capture('roster_import_failed', { reason: 'unit_unmatched', input: typeof source === 'string' ? 'text' : 'file' })
+        posthog.capture('roster_import_failed', { reason: 'unit_unmatched', input: 'text' })
         throw new Error(explain(imported.unknown))
       }
-      return { ...imported, catalogueId: imported.catalogueId }
+      return { ...imported, catalogueId: imported.catalogueId, source: imported.source }
     },
     // Equipment the datasheets cannot take is the player's to settle: the list is held
     // back until they have read what could not be placed and said to import it anyway.
@@ -103,7 +93,7 @@ export function RosterImport() {
             <DialogDescription className="text-dim">
               {review
                 ? 'This list states choices these units cannot be given. They will arrive as their datasheet builds them, so open each one and set what it should be.'
-                : 'Paste Games Workshop roster text from Praetorium, BattleBase, or New Recruit, or add a BattleScribe or New Recruit roster file.'}
+                : 'Paste Games Workshop roster text from Praetorium, BattleBase, or New Recruit.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -130,68 +120,23 @@ export function RosterImport() {
               </Button>
             </div>
           ) : (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="roster-text" className="eyebrow">
-                  Roster text
-                </Label>
-                <Textarea
-                  id="roster-text"
-                  value={text}
-                  onChange={(event) => setText(event.target.value)}
-                  placeholder="Paste Games Workshop roster text…"
-                  className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto rounded-none border-edge bg-sunken font-mono text-xs"
-                  disabled={working}
-                />
-                <Button className="w-full" disabled={!text.trim() || working} onClick={() => bring.mutate(text)}>
-                  {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
-                  Import pasted roster
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-3 text-xs text-faint" aria-hidden>
-                <span className="h-px flex-1 bg-edge" />
-                or
-                <span className="h-px flex-1 bg-edge" />
-              </div>
-
-              <div
-                className={`border border-dashed p-5 text-center transition-colors ${dragging ? 'border-azure bg-raised' : 'border-edge bg-sunken'}`}
-                onDragEnter={(event) => {
-                  event.preventDefault()
-                  setDragging(true)
-                }}
-                onDragOver={(event) => event.preventDefault()}
-                onDragLeave={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false)
-                }}
-                onDrop={(event) => {
-                  event.preventDefault()
-                  setDragging(false)
-                  const file = event.dataTransfer.files[0]
-                  if (file) bring.mutate(file)
-                }}
-              >
-                <Upload className="mx-auto size-5 text-azure" />
-                <p className="mt-2 text-sm font-semibold uppercase">Drop a roster file here</p>
-                <p className="mt-1 text-xs text-dim">BattleScribe or New Recruit .ros and .rosz files</p>
-                <Button variant="outline" className="mt-3" onClick={() => input.current?.click()} disabled={working}>
-                  Choose file
-                </Button>
-                <Input
-                  ref={input}
-                  type="file"
-                  accept=".ros,.rosz"
-                  disabled={working}
-                  className="sr-only"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    if (file) bring.mutate(file)
-                    event.target.value = ''
-                  }}
-                />
-              </div>
-            </>
+            <div className="space-y-2">
+              <Label htmlFor="roster-text" className="eyebrow">
+                Roster text
+              </Label>
+              <Textarea
+                id="roster-text"
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                placeholder="Paste Games Workshop roster text…"
+                className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto rounded-none border-edge bg-sunken font-mono text-xs"
+                disabled={working}
+              />
+              <Button className="w-full" disabled={!text.trim() || working} onClick={() => bring.mutate(text)}>
+                {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
+                Import pasted roster
+              </Button>
+            </div>
           )}
 
           {failure ? (

@@ -1,5 +1,5 @@
 import { version } from '../../package.json'
-import { type Attachment, attachmentOf } from '../core/attach'
+import type { Attachment } from '../core/attach'
 import { attachmentRows } from '../core/attachmentRows'
 import { fromBattleBaseText } from '../core/battlebase'
 import { nameOf } from '../core/catalogue'
@@ -8,9 +8,7 @@ import { fromNewRecruitText } from '../core/newRecruit'
 import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
 import { unitChoices, unitToggles } from '../core/unitChoices'
-import { modelCountOf } from '../core/unitSize'
 import { wargearOf } from '../core/wargear'
-import { fromRosterXml } from '../core/rosz'
 import type { TextRoster, TextRosterUnit } from '../core/textRoster'
 import { toGwText } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
@@ -22,19 +20,15 @@ import {
   type UnmatchedName,
   unmatchedDatasheetReason,
   unmatchedDetachmentReason,
-  unmatchedEntryReason,
   unmatchedFactionReason,
   type UnplacedChoice,
   unplacedChoiceReason,
   squadSizeReason,
   WARLORD_REASON,
 } from './importMismatch'
-import { isDatasheetId, type LoadedCatalogue } from './catalogueIndex'
+import type { LoadedCatalogue } from './catalogueIndex'
 import { rosterDetachments } from './rosterDetachments'
-import { parseXml, rosterXml } from './rosz'
 import type { ExportRosterInput, ImportRosterInput } from './schemas'
-
-const allSelections = (selection: Selection): Selection[] => [selection, ...(selection.selections ?? []).flatMap(allSelections)]
 
 export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogue) {
   const battleBase = fromBattleBaseText(data.file)
@@ -44,62 +38,15 @@ export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogu
   }
   const newRecruit = fromNewRecruitText(data.file)
   if (newRecruit) return { ...importTextRoster(newRecruit, loaded), source: 'newrecruit' as const }
-  const parsed = fromRosterXml(rosterXml(data.file), loaded.index, parseXml)
-  const catalogueId = parsed.catalogueId && loaded.index.catalogues.has(parsed.catalogueId) ? parsed.catalogueId : null
-  const detachment = catalogueId ? loaded.detachments.get(catalogueId) : undefined
-  const flattened = parsed.selections.flatMap(allSelections)
-  const detachmentIds =
-    detachment?.options
-      .flatMap((option) => {
-        const at = flattened.findIndex((selection) => selection.id === option.id)
-        return at < 0 ? [] : [{ id: option.id, at }]
-      })
-      .toSorted((left, right) => left.at - right.at)
-      .map(({ id }) => id) ?? []
-  // What the roster's detachments leave open is part of reading its units: an
-  // enhancement group and the Warlord entry on a tank are both conditional on them.
-  const detachmentSelections = catalogueId ? rosterDetachments(loaded, catalogueId, detachmentIds).selections : []
-  const importedUnits: { selection: Selection; parent: number | null; catalogueId: string | null }[] = []
-  const collectUnits = (selection: Selection, parent: number | null, forceCatalogueId: string | null) => {
-    const isDatasheet = isDatasheetId(loaded.index, selection.id, forceCatalogueId)
-    const at = isDatasheet ? importedUnits.push({ selection, parent, catalogueId: forceCatalogueId }) - 1 : parent
-    for (const child of selection.selections ?? []) collectUnits(child, at, forceCatalogueId)
-  }
-  for (const force of parsed.forces) {
-    for (const selection of force.selections) collectUnits(selection, null, force.catalogueId)
-  }
-
   return {
-    source: 'roster-file' as const,
-    name: data.name ?? parsed.name,
-    catalogueId,
-    catalogueName: parsed.catalogueName,
-    detachmentIds,
-    units: importedUnits.map(({ selection, parent, catalogueId: forceCatalogueId }) => {
-      const context = { primaryCatalogueId: catalogueId ?? undefined, roster: detachmentSelections }
-      const decisions = unitChoices(selection.id, selection, loaded.index, context)
-      const entry = loaded.index.definitions.get(selection.id)
-      const attachedTo = parent !== null && entry && attachmentOf(entry, loaded.index, selection) ? parent : undefined
-      return {
-        entryId: selection.id,
-        catalogueId: forceCatalogueId ?? loaded.index.catalogueOf.get(selection.id),
-        models: Math.max(1, modelCountOf(selection, loaded.index)),
-        choices: Object.fromEntries(
-          decisions.filter((choice) => choice.room === 1 && choice.chosen).map((choice) => [choice.key, choice.chosen]),
-        ),
-        spreads: Object.fromEntries(
-          decisions
-            .filter((choice) => choice.room > 1)
-            .map((choice) => [choice.key, Object.fromEntries(choice.options.map((option) => [option.id, option.count]))]),
-        ),
-        toggles: Object.fromEntries(
-          unitToggles(selection.id, selection, loaded.index, context).map((toggle) => [toggle.key, toggle.selected ? 1 : 0]),
-        ),
-        attachedTo,
-      }
-    }),
-    unknown: parsed.unknown.map((name) => ({ name, reason: unmatchedEntryReason(name, catalogueId, loaded) })),
+    name: 'Imported list',
+    catalogueId: null,
+    catalogueName: null,
+    detachmentIds: [],
+    units: [],
+    unknown: [{ name: 'the pasted text', reason: 'it is not an export from Praetorium, BattleBase or New Recruit' }],
     unplaced: [],
+    source: null,
   }
 }
 

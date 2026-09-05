@@ -69,7 +69,6 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "drizzle-orm": "^0.45.2",
-    "fast-xml-parser": "^5.11.0",
     "fastest-levenshtein": "1.0.16",
     "fflate": "^0.8.3",
     "iovalkey": "^0.4.0",
