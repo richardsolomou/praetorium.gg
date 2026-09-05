@@ -25,8 +25,7 @@ import { type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { Datasheet } from '../../server/catalogue'
-import { dismissImportNotes, exportRoster, saveRoster } from '../../server/functions'
-import type { ImportReport, UnplacedChoice } from '../../server/importMismatch'
+import { exportRoster, saveRoster } from '../../server/functions'
 import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery } from '../queries'
 import { type KeyedPick, picksAfterDetachmentChange } from '../rosterPicks'
 import { useCollectionMutation } from '../useCollection'
@@ -44,7 +43,6 @@ import { survivingUnits } from './builder/pricePlaceholder'
 import { attachmentRows, joinableUnits } from './builder/attachments'
 import { pickEditor, usePicks } from './builder/usePicks'
 import { WaiverWarning } from './FormatWaivers'
-import { ImportNotice, UnitImportNote } from './ImportNotes'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
@@ -66,8 +64,6 @@ type Props = {
     borrowedDetachmentId?: string | null
     visibility: RosterVisibility
     source: RosterSource
-    /** What the import that made this list could not do, until the player has read it. */
-    importNotes?: ImportReport | null
   }
   initialFaction?: RosterSetupFaction | null
   editable?: boolean
@@ -118,7 +114,6 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const [optionalRules, setOptionalRules] = useState<OptionalRuleId[]>(initial.optionalRules ?? [])
   const [borrowedDetachmentId, setBorrowedDetachmentId] = useState<string | null>(initial.borrowedDetachmentId ?? null)
   const [name, setName] = useState(initial.name)
-  const [importNotes, setImportNotes] = useState(initial.importNotes ?? null)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [selected, setSelected] = useState<number | null>(null)
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string; name: string } | null>(null)
@@ -396,14 +391,6 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     onSuccess: ({ text }) => setExportText(text),
   })
 
-  // Dropped from the row as well as from the screen: the note has been read, and it has
-  // nothing to say to the next visit.
-  const forgetImportNotes = useMutation({ mutationFn: () => dismissImportNotes({ data: { id: savedId } }) })
-  const dismissImport = () => {
-    setImportNotes(null)
-    forgetImportNotes.mutate()
-  }
-
   const duplicateRoster = useMutation({
     mutationFn: () =>
       saveRoster({
@@ -561,10 +548,6 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           })),
         }
       : selectedUnit
-  const unplacedByEntry = useMemo(
-    () => new Map((importNotes?.unplaced ?? []).map((entry) => [entry.entryId, entry.choices])),
-    [importNotes],
-  )
   const waivers = waivedFormatRules(limit, waivedRules)
   /*
    * Dismissing says "I know", not "never tell me": the key is the set of waived
@@ -883,7 +866,6 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                       onOwned={setUnitOwned}
                       onJoin={join}
                       editable={editable}
-                      unplaced={unplacedByEntry.get(unit.entryId)}
                     />
                   ))}
                 </Section>
@@ -1046,7 +1028,6 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
             </ul>
           </div>
         ) : null}
-        {importNotes ? <ImportNotice report={importNotes} onDismiss={dismissImport} /> : null}
         {/* Under the errors, because a restriction switched off is why one of them is not there. */}
         {dismissedWaivers === waiverKey ? null : (
           <WaiverWarning rules={waivers} onDismiss={() => dismissWaivers(waiverKey)} editable={editable} />
@@ -1071,8 +1052,6 @@ type BuilderUnitCardProps = {
   onDuplicate: (index: number) => void
   onOwned: (entryId: string, owned: boolean) => void
   onJoin: (index: number, targetKey: number | undefined) => void
-  /** What an import could not give this datasheet, when one made this list and the player has not read it yet. */
-  unplaced?: readonly UnplacedChoice[]
 }
 
 const BuilderUnitCard = memo(function BuilderUnitCard({
@@ -1089,7 +1068,6 @@ const BuilderUnitCard = memo(function BuilderUnitCard({
   onDuplicate,
   onOwned,
   onJoin,
-  unplaced,
 }: BuilderUnitCardProps) {
   return (
     <UnitCard
@@ -1105,7 +1083,6 @@ const BuilderUnitCard = memo(function BuilderUnitCard({
       canJoin={canJoin}
       onJoin={(targetKey) => onJoin(index, targetKey)}
       editable={editable}
-      status={unplaced ? <UnitImportNote choices={unplaced} /> : undefined}
     />
   )
 })

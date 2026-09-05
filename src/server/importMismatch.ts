@@ -22,22 +22,6 @@ export type UnmatchedName = { name: string; reason: string }
 /** A choice a list states that its unit could not be given, and what stopped it. */
 export type UnplacedChoice = { name: string; reason: string }
 
-/**
- * Choices one unit could not be given, named back once however many copies a list
- * holds: the same gap is one thing to go and fix. `entryId` is what the editor marks
- * its cards by, since a display name can be spelled more than one way.
- */
-export type UnplacedChoices = { unit: string; entryId: string; choices: UnplacedChoice[] }
-
-/**
- * What an import could not do, kept with the list it made.
- *
- * A player dropped straight into the editor has no other way to learn that a unit
- * did not arrive, or did not arrive as they wrote it, so the report rides along with
- * the roster until they say they have read it.
- */
-export type ImportReport = { missing: UnmatchedName[]; unplaced: UnplacedChoices[] }
-
 export const normalized = (value: string) =>
   value
     .trim()

@@ -2,4 +2,4 @@
 'praetorium.gg': minor
 ---
 
-Import a roster as far as it can be read instead of refusing it. A unit the faction has no datasheet for is skipped rather than sinking the whole list, and what the import could not do is flagged in the roster editor — on each unit's card, and in the footer for units that never arrived.
+Import the rest of a roster when one of its units names a datasheet the faction does not have, instead of refusing the whole list. The units that will not arrive are named with the rest of what could not be placed, in the dialog that asks before the list is saved.

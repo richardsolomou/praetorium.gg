@@ -50,6 +50,9 @@ export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogu
   }
 }
 
+/** Choices a list states that its unit could not be given, named back per unit with why. */
+export type UnplacedChoices = { unit: string; choices: UnplacedChoice[] }
+
 const slug = (value: string) =>
   normalized(value)
     .replaceAll(/[^a-z0-9]+/g, '-')
@@ -81,7 +84,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
   const detachmentIds = detachments.map((detachment) => detachment.id)
   const detachmentSelections = rosterDetachments(loaded, faction.id, detachmentIds).selections
   const sourceToImported = new Map<number, number>()
-  const unplaced = new Map<string, { unit: string; choices: Map<string, string> }>()
+  const unplaced = new Map<string, Map<string, string>>()
   const units = parsed.units.flatMap((unit, sourceIndex) => {
     const entryId = [...(loaded.index.datasheets.get(faction.id) ?? [])].find((candidate) => {
       const definition = loaded.index.definitions.get(candidate)
@@ -93,7 +96,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
     }
     sourceToImported.set(sourceIndex, sourceToImported.size)
     const read = textRosterPick(unit, entryId, faction.id, detachmentIds, detachmentSelections, loaded)
-    if (read.unplaced.length) note(unplaced, entryId, unit.name, read.unplaced)
+    if (read.unplaced.length) note(unplaced, unit.name, read.unplaced)
     return [read.pick]
   })
 
@@ -104,9 +107,8 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
   const importedNames = new Set([...sourceToImported.keys()].map((source) => normalized(parsed.units[source]!.name)))
   for (const [source, imported] of sourceToImported) {
     const unit = parsed.units[source]!
-    const pick = units[imported]
-    if (!unit.leading || !pick || pick.attachedTo !== undefined) continue
-    note(unplaced, pick.entryId, unit.name, [
+    if (!unit.leading || units[imported]?.attachedTo !== undefined) continue
+    note(unplaced, unit.name, [
       { name: `Leading ${unit.leading}`, reason: attachmentReason(unit.leading, importedNames.has(normalized(unit.leading))) },
     ])
   }
@@ -120,24 +122,18 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
     limit: parsed.limit,
     units,
     unknown,
-    unplaced: [...unplaced].map(([entryId, found]) => ({
-      unit: found.unit,
-      entryId,
-      choices: [...found.choices].map(([name, reason]) => ({ name, reason })),
+    unplaced: [...unplaced].map(([unit, choices]) => ({
+      unit,
+      choices: [...choices].map(([name, reason]) => ({ name, reason })),
     })),
   }
 }
 
-/** One row per datasheet however many copies of it a list holds: the same gap is one thing to go and fix. */
-function note(
-  found: Map<string, { unit: string; choices: Map<string, string> }>,
-  entryId: string,
-  unit: string,
-  choices: readonly UnplacedChoice[],
-) {
-  const named = found.get(entryId) ?? { unit, choices: new Map<string, string>() }
-  for (const choice of choices) named.choices.set(choice.name, choice.reason)
-  found.set(entryId, named)
+/** One row per unit however many copies of it a list holds: the same gap is one thing to go and fix. */
+function note(found: Map<string, Map<string, string>>, unit: string, choices: readonly UnplacedChoice[]) {
+  const named = found.get(unit) ?? new Map<string, string>()
+  for (const choice of choices) named.set(choice.name, choice.reason)
+  found.set(unit, named)
 }
 
 function attachTextUnits(units: readonly TextRosterUnit[], picks: { attachedTo?: number }[], imported: ReadonlyMap<number, number>) {

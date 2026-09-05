@@ -13,7 +13,6 @@ type Roster = {
   prep?: { stratagems: Stratagem[]; secondaries: Secondary[] } | null
   visibility: Parameters<typeof ListBuilder>[0]['initial']['visibility']
   source: Parameters<typeof ListBuilder>[0]['initial']['source']
-  importNotes?: Parameters<typeof ListBuilder>[0]['initial']['importNotes']
 }
 
 type Props = {

@@ -1,7 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
-import { DEFAULT_GAME_LIMIT } from '../../core/battle'
 import { calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../pricing'
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, importRosterFile } from '../rosterFiles'
@@ -220,55 +219,23 @@ export const setRosterVisibility = createServerFn({ method: 'POST' })
     }),
   )
 
-/**
- * Reads a text export into a saved list, in one step.
- *
- * The list is saved even when parts of it could not be read, because a player who
- * pasted a list wants the list: what the import could not do is written down beside
- * it for the editor to say, rather than being a reason to hand back nothing. Only a
- * faction nobody recognises stops it, since there is no book to build anything from.
- */
 export const importRoster = createServerFn({ method: 'POST' })
   .validator(importRosterSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
       const loaded = app().catalogue()
       if (!loaded) throw new Response('army data is not available', { status: 409 })
-      const player = await requireUser()
       const result = importRosterFile(data, loaded)
-      if (!result.catalogueId || !result.source) {
-        return { id: null, unknown: result.unknown, catalogueName: result.catalogueName }
+      const userId = await currentUserId()
+      if (userId) {
+        await app().telemetry.capture(userId, 'roster_imported', {
+          unit_count: result.units.length,
+          source: result.source,
+          missing_count: result.unknown.length,
+          unplaced_count: result.unplaced.length,
+        })
       }
-      const report = result.unknown.length || result.unplaced.length ? { missing: result.unknown, unplaced: result.unplaced } : null
-      const { id } = await app().service.saveRoster(player.id, {
-        name: result.name,
-        catalogueId: result.catalogueId,
-        detachmentIds: result.detachmentIds,
-        disposition: 'disposition' in result ? (result.disposition ?? null) : null,
-        limit: 'limit' in result && result.limit ? result.limit : DEFAULT_GAME_LIMIT,
-        picks: result.units,
-        prep: null,
-        visibility: 'private',
-        source: result.source,
-        importNotes: report,
-      })
-      await app().telemetry.capture(player.id, 'roster_imported', {
-        unit_count: result.units.length,
-        source: result.source,
-        missing_count: result.unknown.length,
-        unplaced_count: result.unplaced.length,
-      })
-      return { id, unknown: result.unknown, catalogueName: result.catalogueName }
-    }),
-  )
-
-export const dismissImportNotes = createServerFn({ method: 'POST' })
-  .validator(rosterIdSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      await app().service.clearImportNotes(player.id, data.id)
-      return null
+      return result
     }),
   )
 
