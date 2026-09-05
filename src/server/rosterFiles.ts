@@ -1,5 +1,5 @@
 import { version } from '../../package.json'
-import { type Attachment, attachmentOf } from '../core/attach'
+import type { Attachment } from '../core/attach'
 import { attachmentRows } from '../core/attachmentRows'
 import { fromBattleBaseText } from '../core/battlebase'
 import { nameOf } from '../core/catalogue'
@@ -8,20 +8,27 @@ import { fromNewRecruitText } from '../core/newRecruit'
 import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
 import { unitChoices, unitToggles } from '../core/unitChoices'
-import { modelCountOf } from '../core/unitSize'
 import { wargearOf } from '../core/wargear'
-import { fromRosterXml } from '../core/rosz'
 import type { TextRoster, TextRosterUnit } from '../core/textRoster'
 import { toGwText } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
 import { GAME_SIZES } from '../core/battle'
 import { factionDisplayName } from './factionNames'
-import { isDatasheetId, type LoadedCatalogue } from './catalogueIndex'
+import {
+  attachmentReason,
+  normalized,
+  type UnmatchedName,
+  unmatchedDatasheetReason,
+  unmatchedDetachmentReason,
+  unmatchedFactionReason,
+  type UnplacedChoice,
+  unplacedChoiceReason,
+  squadSizeReason,
+  WARLORD_REASON,
+} from './importMismatch'
+import type { LoadedCatalogue } from './catalogueIndex'
 import { rosterDetachments } from './rosterDetachments'
-import { parseXml, rosterXml } from './rosz'
 import type { ExportRosterInput, ImportRosterInput } from './schemas'
-
-const allSelections = (selection: Selection): Selection[] => [selection, ...(selection.selections ?? []).flatMap(allSelections)]
 
 export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogue) {
   const battleBase = fromBattleBaseText(data.file)
@@ -31,75 +38,21 @@ export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogu
   }
   const newRecruit = fromNewRecruitText(data.file)
   if (newRecruit) return { ...importTextRoster(newRecruit, loaded), source: 'newrecruit' as const }
-  const parsed = fromRosterXml(rosterXml(data.file), loaded.index, parseXml)
-  const catalogueId = parsed.catalogueId && loaded.index.catalogues.has(parsed.catalogueId) ? parsed.catalogueId : null
-  const detachment = catalogueId ? loaded.detachments.get(catalogueId) : undefined
-  const flattened = parsed.selections.flatMap(allSelections)
-  const detachmentIds =
-    detachment?.options
-      .flatMap((option) => {
-        const at = flattened.findIndex((selection) => selection.id === option.id)
-        return at < 0 ? [] : [{ id: option.id, at }]
-      })
-      .toSorted((left, right) => left.at - right.at)
-      .map(({ id }) => id) ?? []
-  // What the roster's detachments leave open is part of reading its units: an
-  // enhancement group and the Warlord entry on a tank are both conditional on them.
-  const detachmentSelections = catalogueId ? rosterDetachments(loaded, catalogueId, detachmentIds).selections : []
-  const importedUnits: { selection: Selection; parent: number | null; catalogueId: string | null }[] = []
-  const collectUnits = (selection: Selection, parent: number | null, forceCatalogueId: string | null) => {
-    const isDatasheet = isDatasheetId(loaded.index, selection.id, forceCatalogueId)
-    const at = isDatasheet ? importedUnits.push({ selection, parent, catalogueId: forceCatalogueId }) - 1 : parent
-    for (const child of selection.selections ?? []) collectUnits(child, at, forceCatalogueId)
-  }
-  for (const force of parsed.forces) {
-    for (const selection of force.selections) collectUnits(selection, null, force.catalogueId)
-  }
-
   return {
-    source: 'roster-file' as const,
-    name: data.name ?? parsed.name,
-    catalogueId,
-    catalogueName: parsed.catalogueName,
-    detachmentIds,
-    units: importedUnits.map(({ selection, parent, catalogueId: forceCatalogueId }) => {
-      const context = { primaryCatalogueId: catalogueId ?? undefined, roster: detachmentSelections }
-      const decisions = unitChoices(selection.id, selection, loaded.index, context)
-      const entry = loaded.index.definitions.get(selection.id)
-      const attachedTo = parent !== null && entry && attachmentOf(entry, loaded.index, selection) ? parent : undefined
-      return {
-        entryId: selection.id,
-        catalogueId: forceCatalogueId ?? loaded.index.catalogueOf.get(selection.id),
-        models: Math.max(1, modelCountOf(selection, loaded.index)),
-        choices: Object.fromEntries(
-          decisions.filter((choice) => choice.room === 1 && choice.chosen).map((choice) => [choice.key, choice.chosen]),
-        ),
-        spreads: Object.fromEntries(
-          decisions
-            .filter((choice) => choice.room > 1)
-            .map((choice) => [choice.key, Object.fromEntries(choice.options.map((option) => [option.id, option.count]))]),
-        ),
-        toggles: Object.fromEntries(
-          unitToggles(selection.id, selection, loaded.index, context).map((toggle) => [toggle.key, toggle.selected ? 1 : 0]),
-        ),
-        attachedTo,
-      }
-    }),
-    unknown: parsed.unknown,
+    name: 'Imported list',
+    catalogueId: null,
+    catalogueName: null,
+    detachmentIds: [],
+    units: [],
+    unknown: [{ name: 'the pasted text', reason: 'it is not an export from Praetorium, BattleBase or New Recruit' }],
     unplaced: [],
+    source: null,
   }
 }
 
-/** Choices a list states that its unit could not be given, named back per unit. */
-export type UnplacedChoices = { unit: string; choices: string[] }
+/** Choices a list states that its unit could not be given, named back per unit with why. */
+export type UnplacedChoices = { unit: string; choices: UnplacedChoice[] }
 
-const normalized = (value: string) =>
-  value
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/\s+/g, ' ')
-    .replace(/\[\d+\]$/, '')
-    .replaceAll(/[’‘]/g, "'")
 const slug = (value: string) =>
   normalized(value)
     .replaceAll(/[^a-z0-9]+/g, '-')
@@ -117,29 +70,32 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
       catalogueName: parsed.faction,
       detachmentIds: [],
       units: [],
-      unknown: [parsed.faction],
+      unknown: [{ name: parsed.faction, reason: unmatchedFactionReason(parsed.faction, loaded) }],
       unplaced: [],
     }
   }
 
   const detachmentName = parsed.detachment
   const detachments = detachmentName ? detachmentsNamed(detachmentName, loaded.detachments.get(faction.id)?.options ?? []) : []
-  const unknown = detachments.length || !detachmentName ? [] : [detachmentName]
+  const unknown: UnmatchedName[] =
+    detachments.length || !detachmentName
+      ? []
+      : [{ name: detachmentName, reason: unmatchedDetachmentReason(detachmentName, faction.id, loaded) }]
   const detachmentIds = detachments.map((detachment) => detachment.id)
   const detachmentSelections = rosterDetachments(loaded, faction.id, detachmentIds).selections
   const sourceToImported = new Map<number, number>()
-  const unplaced = new Map<string, Set<string>>()
+  const unplaced = new Map<string, Map<string, string>>()
   const units = parsed.units.flatMap((unit, sourceIndex) => {
     const entryId = [...(loaded.index.datasheets.get(faction.id) ?? [])].find((candidate) => {
       const definition = loaded.index.definitions.get(candidate)
       return definition && normalized(nameOf(definition, loaded.index.definitions)) === normalized(unit.name)
     })
     if (!entryId) {
-      unknown.push(unit.name)
+      unknown.push({ name: unit.name, reason: unmatchedDatasheetReason(unit.name, faction.id, loaded) })
       return []
     }
     sourceToImported.set(sourceIndex, sourceToImported.size)
-    const read = textRosterPick(unit, entryId, faction.id, detachmentSelections, loaded)
+    const read = textRosterPick(unit, entryId, faction.id, detachmentIds, detachmentSelections, loaded)
     if (read.unplaced.length) note(unplaced, unit.name, read.unplaced)
     return [read.pick]
   })
@@ -148,9 +104,13 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
   // Read after the pairing, because who leads whom is settled across the whole list
   // rather than inside one unit. Only the leader's own line is checked: both exporters
   // print the attachment from both ends, so reading both would say it twice.
+  const importedNames = new Set([...sourceToImported.keys()].map((source) => normalized(parsed.units[source]!.name)))
   for (const [source, imported] of sourceToImported) {
     const unit = parsed.units[source]!
-    if (unit.leading && units[imported]?.attachedTo === undefined) note(unplaced, unit.name, [`Leading ${unit.leading}`])
+    if (!unit.leading || units[imported]?.attachedTo !== undefined) continue
+    note(unplaced, unit.name, [
+      { name: `Leading ${unit.leading}`, reason: attachmentReason(unit.leading, importedNames.has(normalized(unit.leading))) },
+    ])
   }
 
   return {
@@ -162,14 +122,17 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
     limit: parsed.limit,
     units,
     unknown,
-    unplaced: [...unplaced].map(([unit, choices]) => ({ unit, choices: [...choices] })),
+    unplaced: [...unplaced].map(([unit, choices]) => ({
+      unit,
+      choices: [...choices].map(([name, reason]) => ({ name, reason })),
+    })),
   }
 }
 
 /** One row per unit however many copies of it a list holds: the same gap is one thing to go and fix. */
-function note(found: Map<string, Set<string>>, unit: string, choices: readonly string[]) {
-  const named = found.get(unit) ?? new Set<string>()
-  for (const choice of choices) named.add(choice)
+function note(found: Map<string, Map<string, string>>, unit: string, choices: readonly UnplacedChoice[]) {
+  const named = found.get(unit) ?? new Map<string, string>()
+  for (const choice of choices) named.set(choice.name, choice.reason)
   found.set(unit, named)
 }
 
@@ -229,7 +192,14 @@ function detachmentsNamed<T extends { id: string; name: string }>(combined: stri
   return visit(normalized(combined), candidates) ?? []
 }
 
-function textRosterPick(unit: TextRosterUnit, entryId: string, catalogueId: string, roster: readonly Selection[], loaded: LoadedCatalogue) {
+function textRosterPick(
+  unit: TextRosterUnit,
+  entryId: string,
+  catalogueId: string,
+  detachmentIds: readonly string[],
+  roster: readonly Selection[],
+  loaded: LoadedCatalogue,
+) {
   const stated = new Map<string, number>()
   const labels = new Map<string, string>()
   for (const selection of unit.selections) {
@@ -278,12 +248,19 @@ function textRosterPick(unit: TextRosterUnit, entryId: string, catalogueId: stri
     attachedTo: undefined as number | undefined,
   }
 
-  const unplaced = [...stated.keys()].filter((name) => !placed.has(name)).map((name) => labels.get(name) ?? name)
+  const unplaced = [...stated.keys()]
+    .filter((name) => !placed.has(name))
+    .map((name) => ({
+      name: labels.get(name) ?? name,
+      reason: unplacedChoiceReason(labels.get(name) ?? name, { loaded, catalogueId, detachmentIds }),
+    }))
   // A crown this datasheet cannot wear, and a squad size it does not field, are both
   // choices the list states and this build could not take. Only a stated size counts:
   // an export that prints no model count leaves one to be inferred from its weapons.
-  if (unit.warlord && !Object.keys(toggles).length) unplaced.push('Warlord')
-  if (unit.models && built && built.size.models !== unit.models) unplaced.push(`${unit.models} models`)
+  if (unit.warlord && !Object.keys(toggles).length) unplaced.push({ name: 'Warlord', reason: WARLORD_REASON })
+  if (unit.models && built && built.size.models !== unit.models) {
+    unplaced.push({ name: `${unit.models} models`, reason: squadSizeReason(built.size) })
+  }
   return { pick, unplaced }
 }
 

@@ -231,6 +231,7 @@ export const importRoster = createServerFn({ method: 'POST' })
         await app().telemetry.capture(userId, 'roster_imported', {
           unit_count: result.units.length,
           source: result.source,
+          missing_count: result.unknown.length,
           unplaced_count: result.unplaced.length,
         })
       }

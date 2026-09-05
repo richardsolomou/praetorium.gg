@@ -397,11 +397,9 @@ export const terrainReferences = createServerFn({ method: 'GET' })
   )
 
 /**
- * Reads a `.ros`, `.rosz`, BattleBase, or NewRecruit export into picks this instance can price.
- *
- * Both sides read the same community catalogues, so an entry id from another tool
- * is the same id here. Anything that cannot be placed is named in the answer rather
- * than dropped quietly.
+ * Reads a Praetorium, BattleBase or New Recruit text export into picks this instance
+ * can price. Anything that cannot be placed is named in the answer rather than dropped
+ * quietly.
  */
 export * from './functions/accounts'
 export * from './functions/battles'
