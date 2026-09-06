@@ -35,8 +35,31 @@ test('an army is read and its losses recorded without leaving the battle', async
   const army = page.locator('[data-army-roster]')
   const squad = army.locator('[data-unit="Plague Marines"]')
 
+  // Casualty controls stay mounted while the command is in flight.
+  let releaseSubmit = () => undefined
+  const submitHeld = new Promise<void>((resolve) => {
+    releaseSubmit = resolve
+  })
+  let submitStarted = () => undefined
+  const started = new Promise<void>((resolve) => {
+    submitStarted = resolve
+  })
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'POST') {
+      submitStarted()
+      await submitHeld
+    }
+    await route.continue()
+  })
+
   // A model comes off the squad, and what is left of the army says so behind the dialog.
-  await squad.getByRole('button', { name: 'Remove a model from Plague Marines' }).click()
+  const removeModel = squad.getByRole('button', { name: 'Remove a model from Plague Marines' })
+  await removeModel.click()
+  await started
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+  await expect(removeModel).toBeVisible()
+  await expect(army.getByRole('button', { name: 'Mark Foetid Bloat-drone lost' })).toBeVisible()
+  releaseSubmit()
   await expect(models).toHaveText(`${brought - 1}/${brought}`)
   await expect(units).toHaveText('2/2')
 
