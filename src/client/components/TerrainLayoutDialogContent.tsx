@@ -35,7 +35,10 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
           Deployment zones
         </span>
         <span className="flex items-center gap-2">
-          <span className="h-1 w-4 bg-discarded" /> Physical terrain
+          <span className="h-1 w-4 bg-achieved" /> Dense terrain
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="h-1 w-4 bg-discarded" /> Light terrain
         </span>
         <span className="flex items-center gap-2">
           <span className="size-3 rounded-full border border-bone bg-void" /> Objective
