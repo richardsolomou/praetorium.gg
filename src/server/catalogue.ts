@@ -115,6 +115,7 @@ type DatasheetContext = {
   unitSelectionIndex?: number
   /** Whether to keep weapons the unit is not carrying. */
   everyWeapon?: boolean
+  everyWargearAbility?: boolean
   /** The units that count as this one, by position: a character and what it leads. */
   companions?: readonly number[]
   keywordIds?: readonly string[]
@@ -301,6 +302,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   const grantedWeaponAbilities = context
     ? [
         ...weaponAbilitiesFromDetachments(context.selections, context.unitSelectionIndex, loaded, catalogueId, context.keywordIds),
+        ...weaponAbilitiesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index),
         ...weaponAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index),
       ]
     : []
@@ -415,7 +417,17 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       enhancement ||
       (!isRoot && Boolean(definition.hidden ?? resolved.hidden)) ||
       (resolved.type === undefined && (definition.name ?? resolved.name)?.toLocaleLowerCase().includes('enhancement'))
-    if (!enhancementEntry || selected.has(definition.id)) addProfiles(definition, lineage, 'datasheet', isRoot)
+    const selectedUpgrade = selected.has(definition.id) || selected.has(resolved.id)
+    const kind = !isRoot && resolved.type === 'upgrade' ? 'wargear' : 'datasheet'
+    if (!enhancementEntry || selectedUpgrade) {
+      addProfiles(
+        definition,
+        lineage,
+        kind,
+        isRoot,
+        Boolean(selectedUnit && !context?.everyWargearAbility && kind === 'wargear' && !selectedUpgrade),
+      )
+    }
     definition.selectionEntries?.forEach((entry) => visit(entry, false, lineage, enhancementEntry))
     definition.selectionEntryGroups?.forEach((group) => visit(group, false, lineage, enhancementEntry))
     for (const link of definition.entryLinks ?? []) {
@@ -425,7 +437,10 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       const targetLineage = [...lineage, ...definitionTokens(link), ...definitionTokens(target)]
       // A linked group may be a catalogue-wide library. Its own profile belongs
       // here; recursively importing all its children does not.
-      if (!enhancementEntry || selected.has(link.id) || selected.has(target.id)) addProfiles(target, targetLineage, 'wargear')
+      const selectedTarget = selected.has(link.id) || selected.has(target.id)
+      if (!enhancementEntry || selectedTarget) {
+        addProfiles(target, targetLineage, 'wargear', false, Boolean(selectedUnit && !context?.everyWargearAbility && !selectedTarget))
+      }
     }
   }
   // A book reaches most of its datasheets through a link, and everything a
@@ -625,7 +640,7 @@ export function datasheetViewsIn(
   loaded: LoadedCatalogue,
   catalogueId: string,
   entryId: string,
-  context: Omit<DatasheetContext, 'everyWeapon' | 'modifiers'>,
+  context: Omit<DatasheetContext, 'everyWeapon' | 'everyWargearAbility' | 'modifiers'>,
 ) {
   const modifiers = profileModifiers(
     context.selections,
@@ -638,7 +653,7 @@ export function datasheetViewsIn(
   const shared = { ...context, modifiers }
   return {
     selected: datasheetIn(loaded, catalogueId, entryId, shared),
-    available: datasheetIn(loaded, catalogueId, entryId, { ...shared, everyWeapon: true }),
+    available: datasheetIn(loaded, catalogueId, entryId, { ...shared, everyWeapon: true, everyWargearAbility: true }),
   }
 }
 
@@ -1117,6 +1132,33 @@ const titleCaseAbility = (name: string) =>
     .trim()
     .toLocaleLowerCase()
     .replaceAll(/(^|[\s-])\p{L}/gu, (letter) => letter.toLocaleUpperCase())
+
+function weaponAbilitiesInSelectedUnit(
+  selections: readonly Selection[],
+  unitSelectionIndex: number | undefined,
+  index: LoadedCatalogue['index'],
+): GrantedWeaponAbility[] {
+  if (unitSelectionIndex === undefined) return []
+  const found = new Map<string, GrantedWeaponAbility>()
+  for (const definition of definitionsInSelections(selections, [unitSelectionIndex], index)) {
+    for (const source of new Set([definition, targetOf(definition, index.definitions)])) {
+      for (const profile of source.profiles ?? []) {
+        if (profile.typeName !== 'Abilities' || !profile.name) continue
+        const match = normalizedAbilityDescription(profile)?.match(
+          /^(Ranged|Melee) weapons equipped by (?:the bearer|models in this unit) have (?:the )?\[([^\]]+)\] ability\.$/iu,
+        )
+        if (!match) continue
+        const granted = {
+          keyword: titleCaseAbility(match[2]!),
+          source: profile.name,
+          profileTypes: [`${titleCaseAbility(match[1]!)} Weapons`],
+        }
+        found.set(`${granted.keyword.toLocaleLowerCase()}:${granted.profileTypes.join(',')}:${granted.source}`, granted)
+      }
+    }
+  }
+  return [...found.values()]
+}
 
 function weaponAbilitiesInAttachedUnit(
   selections: readonly Selection[],
