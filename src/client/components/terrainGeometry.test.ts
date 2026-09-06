@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   deploymentNeedsFlip,
   formatInches,
-  objectiveTerrainMarkerPosition,
   objectiveTerrainMarkers,
+  placeMeasurementLabel,
   pointInPolygon,
   polygonCentroid,
   portraitPoint,
@@ -24,7 +24,8 @@ const openArea = (points: { x: number; y: number }[], markers: { label: string; 
   name: 'Area',
   points,
   markers,
-  objectiveGroup: null,
+  objective: null,
+  measurements: [],
   parts: [],
 })
 
@@ -93,21 +94,26 @@ describe('placing a marker in a terrain area', () => {
     expect(terrainMarkerPosition(area, area.markers[0]!)).toEqual({ x: 5, y: 5 })
   })
 
-  it('keeps an objective marker clear of the terrain labels beside it', () => {
-    const area = openArea(square(0, 0, 10), [{ label: 'AB', position: { x: 5, y: 5 } }])
-    const placed = objectiveTerrainMarkerPosition(area)
-    expect(Math.hypot(placed.x - 5, placed.y - 5)).toBeGreaterThanOrEqual(2.5)
+  it('moves a terrain label rather than the source objective position', () => {
+    const area = {
+      ...openArea(square(0, 0, 10), [{ label: 'AB', position: { x: 5, y: 5 } }]),
+      objective: { position: { x: 5, y: 5 }, group: null },
+    }
+    const placed = terrainMarkerPosition(area, area.markers[0]!)
+    expect(Math.hypot(placed.x - 5, placed.y - 5)).toBeGreaterThanOrEqual(2.4)
+    expect(objectiveTerrainMarkers({ areas: [area] })).toEqual([{ key: 'area', position: { x: 5, y: 5 } }])
   })
 
-  it('puts an objective marker in the middle of an area with no labels', () => {
-    expect(objectiveTerrainMarkerPosition(openArea(square(0, 0, 10)))).toEqual({ x: 5, y: 5 })
+  it('ignores letters when selecting objectives and keeps an unlettered objective', () => {
+    const lettered = openArea(square(0, 0, 10), [{ label: 'AB', position: { x: 5, y: 5 } }])
+    const unlettered = { ...openArea(square(20, 0, 10)), id: 'generator', objective: { position: { x: 26, y: 4 }, group: null } }
+    expect(objectiveTerrainMarkers({ areas: [lettered, unlettered] })).toEqual([{ key: 'generator', position: { x: 26, y: 4 } }])
   })
 
-  it('gives connected objective terrain one shared marker', () => {
-    const left = { ...openArea(square(20, 17, 5), [{ label: 'AB', position: { x: 21, y: 18 } }]), id: 'left', objectiveGroup: 'center' }
-    const right = { ...openArea(square(35, 22, 5), [{ label: 'CD', position: { x: 39, y: 26 } }]), id: 'right', objectiveGroup: 'center' }
-
-    expect(objectiveTerrainMarkers({ areas: [left, right] })).toEqual([{ key: 'group-center', position: { x: 32.2, y: 19.8 } }])
+  it('gives connected objective terrain one shared marker at the source positions’ midpoint', () => {
+    const left = { ...openArea(square(20, 17, 5)), id: 'left', objective: { position: { x: 22, y: 20 }, group: 'center' } }
+    const right = { ...openArea(square(35, 22, 5)), id: 'right', objective: { position: { x: 38, y: 24 }, group: 'center' } }
+    expect(objectiveTerrainMarkers({ areas: [left, right] })).toEqual([{ key: 'group-center', position: { x: 30, y: 22 } }])
   })
 })
 
@@ -118,8 +124,28 @@ describe('printing a measurement', () => {
     expect(formatInches(6.25)).toBe('6.25\u2033')
   })
 
-  it('rounds to the nearest quarter inch, which is what a tape measure reads', () => {
-    expect(formatInches(6.1)).toBe('6\u2033')
-    expect(formatInches(6.4)).toBe('6.5\u2033')
+  it('preserves non-quarter-inch references while dropping coordinate noise', () => {
+    expect(formatInches(6.1)).toBe('6.1″')
+    expect(formatInches(6.402)).toBe('6.4″')
+    expect(formatInches(6.003)).toBe('6″')
+    expect(formatInches(6.126)).toBe('6.13″')
+  })
+})
+
+describe('placing measurement labels', () => {
+  it('searches further along the ruler when nearby labels fill the usual positions', () => {
+    const occupied = [{ left: 6, right: 14, top: 14, bottom: 20 }]
+    const label = placeMeasurementLabel({ x: 10, y: 20 }, { x: 10, y: 0 }, true, '17″', occupied)
+    expect(label).toEqual({ x: 10, y: 12.325 })
+    expect(occupied).toHaveLength(2)
+    expect(occupied[1]!.bottom).toBeLessThan(occupied[0]!.top)
+  })
+
+  it('reserves even a fallback label and keeps it inside the board', () => {
+    const occupied = [{ left: 0, right: 44, top: 0, bottom: 60 }]
+    placeMeasurementLabel({ x: 0, y: 0 }, { x: 0, y: 0 }, false, '0″', occupied)
+    expect(occupied).toHaveLength(2)
+    expect(occupied[1]!.left).toBeGreaterThanOrEqual(0)
+    expect(occupied[1]!.top).toBeGreaterThanOrEqual(0)
   })
 })

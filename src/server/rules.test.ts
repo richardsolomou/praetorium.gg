@@ -757,7 +757,7 @@ describe('Battlemaster terrain geometry', () => {
     expect(rules.terrainLayouts[0]?.geometry?.areas[0]).toMatchObject({
       id: 'area-1',
       markers: [{ label: 'AB', position: { x: 35, y: 17 } }],
-      objectiveGroup: 'center',
+      objective: { position: { x: 0, y: 0 }, group: 'center' },
     })
   })
 })

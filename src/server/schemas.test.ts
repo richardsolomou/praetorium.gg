@@ -8,10 +8,20 @@ import {
   saveRosterSchema,
   savedRosterDatasheetSchema,
   submitSchema,
+  terrainReferencesSchema,
   unitsSchema,
   updateLeagueEventSchema,
   updateLeagueSchema,
 } from './schemas'
+
+describe('terrain reference input', () => {
+  it('accepts the geometry cache version and keeps older clients valid', () => {
+    const legacy = { matchupIds: ['take-vs-purge'] }
+    expect(terrainReferencesSchema.parse(legacy)).toEqual(legacy)
+    expect(terrainReferencesSchema.parse({ ...legacy, geometryVersion: 2 })).toEqual({ ...legacy, geometryVersion: 2 })
+    expect(terrainReferencesSchema.safeParse({ ...legacy, geometryVersion: 3 }).success).toBe(false)
+  })
+})
 
 describe('battle creation input', () => {
   it('keeps the legacy opponent-only payload valid', () => {

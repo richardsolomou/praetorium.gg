@@ -25,7 +25,8 @@ export type TerrainGeometry = {
     name: string
     points: { x: number; y: number }[]
     markers: { label: string; position: { x: number; y: number } }[]
-    objectiveGroup: string | null
+    objective: { position: Point; group: string | null } | null
+    measurements: { from: Point; to: Point }[]
     parts: {
       id: string
       name: string
@@ -50,44 +51,18 @@ export type TerrainTemplate = {
   }[]
 }
 
-export function objectiveTerrainMarkerPosition(area: TerrainGeometry['areas'][number]) {
-  const centre = polygonCentroid(area.points)
-  const terrainMarkers = area.markers.map((marker) => terrainMarkerPosition(area, marker))
-  const offsets = [
-    { x: 0, y: 0 },
-    { x: 0, y: -3 },
-    { x: 3, y: 0 },
-    { x: 0, y: 3 },
-    { x: -3, y: 0 },
-    { x: 2.2, y: -2.2 },
-    { x: 2.2, y: 2.2 },
-    { x: -2.2, y: 2.2 },
-    { x: -2.2, y: -2.2 },
-  ]
-  return (
-    offsets
-      .map((offset) => ({ x: centre.x + offset.x, y: centre.y + offset.y }))
-      .find(
-        (candidate) =>
-          markerPositionIsOpen(area, candidate, 1.15) &&
-          terrainMarkers.every((marker) => Math.hypot(candidate.x - marker.x, candidate.y - marker.y) >= 2.5),
-      ) ?? centre
-  )
-}
-
 export function objectiveTerrainMarkers(geometry: TerrainGeometry) {
-  const objectiveAreas = geometry.areas.filter((area) => area.markers.length)
-  return objectiveAreas.flatMap((area, index) => {
-    if (!area.objectiveGroup) return [{ key: area.id, position: objectiveTerrainMarkerPosition(area) }]
-    if (objectiveAreas.findIndex((candidate) => candidate.objectiveGroup === area.objectiveGroup) !== index) return []
-    const group = objectiveAreas.filter((candidate) => candidate.objectiveGroup === area.objectiveGroup)
-    const positions = group.map(objectiveTerrainMarkerPosition)
+  const objectives = geometry.areas.flatMap((area) => (area.objective ? [{ id: area.id, ...area.objective }] : []))
+  return objectives.flatMap((objective, index) => {
+    if (!objective.group) return [{ key: objective.id, position: objective.position }]
+    if (objectives.findIndex((candidate) => candidate.group === objective.group) !== index) return []
+    const group = objectives.filter((candidate) => candidate.group === objective.group)
     return [
       {
-        key: `group-${area.objectiveGroup}`,
+        key: `group-${objective.group}`,
         position: {
-          x: positions.reduce((total, position) => total + position.x, 0) / positions.length,
-          y: positions.reduce((total, position) => total + position.y, 0) / positions.length,
+          x: group.reduce((total, candidate) => total + candidate.position.x, 0) / group.length,
+          y: group.reduce((total, candidate) => total + candidate.position.y, 0) / group.length,
         },
       },
     ]
@@ -117,6 +92,7 @@ export function terrainMarkerPosition(area: TerrainGeometry['areas'][number], ma
 
 function markerPositionIsOpen(area: TerrainGeometry['areas'][number], candidate: { x: number; y: number }, clearance: number) {
   if (!pointInPolygon(candidate, area.points)) return false
+  if (area.objective && Math.hypot(candidate.x - area.objective.position.x, candidate.y - area.objective.position.y) < 2.4) return false
   if (area.parts.some((part) => part.roof?.length && pointInPolygon(candidate, part.roof))) return false
   return area.parts.every((part) =>
     part.walls.every((wall) =>
@@ -155,40 +131,6 @@ export function svgPoints(points: { x: number; y: number }[]) {
   return points.map((point) => `${point.x},${point.y}`).join(' ')
 }
 
-export function measurementAnchor(points: { x: number; y: number }[], axis: 'x' | 'y', edge: number, otherEdge: number) {
-  const perpendicular = axis === 'x' ? 'y' : 'x'
-  const segments = points.flatMap((point, index) => {
-    const next = points[(index + 1) % points.length]
-    if (!next) return []
-    const acrossEdge = Math.abs(next[axis] - point[axis])
-    const alongEdge = Math.abs(next[perpendicular] - point[perpendicular])
-    if (alongEdge < 0.5 || acrossEdge > Math.max(0.03, alongEdge * 0.03)) return []
-    const anchor = Math.abs(point[perpendicular] - otherEdge) <= Math.abs(next[perpendicular] - otherEdge) ? point : next
-    return [{ point: anchor }]
-  })
-  if (!segments.length) {
-    const corners = points.filter((point, index) => {
-      const previous = points[(index - 1 + points.length) % points.length]
-      const next = points[(index + 1) % points.length]
-      if (!previous || !next) return false
-      return Math.hypot(point.x - previous.x, point.y - previous.y) >= 0.5 || Math.hypot(next.x - point.x, next.y - point.y) >= 0.5
-    })
-    const candidates = corners.length ? corners : points
-    return candidates.toSorted((left, right) => measurementAnchorScore(left, axis, edge) - measurementAnchorScore(right, axis, edge))[0]
-  }
-  return segments.toSorted((left, right) => {
-    const leftScore = measurementAnchorScore(left.point, axis, edge) + Math.abs(left.point[perpendicular] - otherEdge) * 0.02
-    const rightScore = measurementAnchorScore(right.point, axis, edge) + Math.abs(right.point[perpendicular] - otherEdge) * 0.02
-    return leftScore - rightScore
-  })[0]?.point
-}
-
-function measurementAnchorScore(point: { x: number; y: number }, axis: 'x' | 'y', edge: number) {
-  const value = Math.abs(point[axis] - edge)
-  const wholeInchError = Math.abs(value - Math.round(value))
-  return wholeInchError * 20 + value * 0.01
-}
-
 export type LabelBox = { left: number; right: number; top: number; bottom: number }
 
 export function placeMeasurementLabel(
@@ -204,7 +146,7 @@ export function placeMeasurementLabel(
   const perpendicular = { x: -direction.y, y: direction.x }
   const inlineDistance = (vertical ? height : width) / 2 + 1.05
   const offsets = [0, 0.9, -0.9, 1.8, -1.8].flatMap((sideways) =>
-    [0, 1.5, 3].map((back) => ({
+    [0, 1.5, 3, 4.5, 6].map((back) => ({
       x: direction.x * (inlineDistance + back) + perpendicular.x * sideways,
       y: direction.y * (inlineDistance + back) + perpendicular.y * sideways,
     })),
@@ -220,10 +162,10 @@ export function placeMeasurementLabel(
     }
   }
 
-  return {
-    x: Math.min(44 - width / 2 - 0.25, Math.max(width / 2 + 0.25, arrow.x + direction.x * inlineDistance)),
-    y: Math.min(60 - height / 2 - 0.25, Math.max(height / 2 + 0.25, arrow.y + direction.y * inlineDistance)),
-  }
+  const x = Math.min(44 - width / 2 - 0.25, Math.max(width / 2 + 0.25, arrow.x + direction.x * inlineDistance))
+  const y = Math.min(60 - height / 2 - 0.25, Math.max(height / 2 + 0.25, arrow.y + direction.y * inlineDistance))
+  occupied.push({ left: x - width / 2, right: x + width / 2, top: y - height / 2, bottom: y + height / 2 })
+  return { x, y }
 }
 
 export function measurementLabelSize(text: string) {
@@ -250,8 +192,7 @@ export function portraitPoint(point: { x: number; y: number }, flipped: boolean)
 }
 
 export function formatInches(value: number) {
-  const rounded = Math.round(value * 4) / 4
-  return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(2).replace(/0$/, '')}″`
+  return `${Math.round(value * 100) / 100}″`
 }
 
 export function polygonCentroid(points: { x: number; y: number }[]) {

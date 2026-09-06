@@ -46,7 +46,9 @@ type RawTerrainLayout = {
     mirror?: string
     parent_area_id?: string
     is_objective?: boolean
+    objective?: { position?: Point }
     link_group?: string
+    keystones?: { edge: string; ref: { kind: string; index?: number } }[]
   }[]
 }
 
@@ -97,7 +99,9 @@ export type TerrainGeometry = {
     name: string
     points: Point[]
     markers: { label: string; position: Point }[]
+    objective: { position: Point; group: string | null } | null
     objectiveGroup: string | null
+    measurements: { from: Point; to: Point }[]
     parts: {
       id: string
       name: string
@@ -164,6 +168,9 @@ export type TerrainLayout = {
 /** Layouts without a matchup are skipped: nothing in the app can reach one. */
 export function loadTerrainLayouts(core: string, battlemasterDirectory: string): TerrainLayout[] {
   const battlemasterIds = battlemasterLayoutIds(battlemasterDirectory)
+  const templates = new Map(
+    readOptionalList<RawTerrainTemplate>(path.join(core, 'terrain-templates.json')).map((template) => [template.id, template]),
+  )
   return readOptionalList<RawTerrainLayout>(path.join(core, 'terrain-layouts.json'))
     .filter((layout) => layout.mission_matchup_id)
     .map((layout) => ({
@@ -173,7 +180,7 @@ export function loadTerrainLayouts(core: string, battlemasterDirectory: string):
       matchupId: layout.mission_matchup_id!,
       variant: layout.variant ?? null,
       deploymentId: layout.deployment_pattern_id ?? null,
-      geometry: battlemasterGeometry(battlemasterDirectory, battlemasterIds, layout.description, layout.pieces ?? []),
+      geometry: battlemasterGeometry(battlemasterDirectory, battlemasterIds, layout.description, layout.pieces ?? [], templates),
       pieces: (layout.pieces ?? [])
         .filter((piece) => piece.position)
         .map((piece) => ({
@@ -218,6 +225,7 @@ function battlemasterGeometry(
   ids: ReadonlyMap<string, string | null>,
   description: string | undefined,
   pieces: NonNullable<RawTerrainLayout['pieces']>,
+  templates: ReadonlyMap<string, RawTerrainTemplate>,
 ): TerrainGeometry | null {
   const directId = description?.match(/Battlemaster layout (terrain-[0-9a-f-]+)/)?.[1]
   const reference = description?.match(/Battlemaster REST API layout ([\w-]+)\/([\w-]+)\.?$/)
@@ -233,12 +241,17 @@ function battlemasterGeometry(
       const areaId = area.id ?? `area-${areaIndex + 1}`
       const sourceId = area.id ?? `area-${String(areaIndex + 1).padStart(2, '0')}`
       const piece = pieces.find((candidate) => candidate.id === sourceId) ?? pieces[areaIndex]
+      const objectivePosition = piece?.is_objective ? (piece.objective?.position ?? piece.position) : undefined
+      const objective = objectivePosition ? { position: objectivePosition, group: piece?.link_group ?? null } : null
       return {
         id: areaId,
         name: area.name,
         points: area.outline.points.map((point) => battlemasterBoardPoint(point, area.footprint)),
         markers: terrainReferenceMarkers(area),
-        objectiveGroup: piece?.is_objective ? (piece.link_group ?? null) : null,
+        objective,
+        // Already-open clients use this field to combine linked objectives.
+        objectiveGroup: objective?.group ?? null,
+        measurements: terrainMeasurements(area, piece, piece ? templates.get(piece.template) : undefined),
         parts: area.parts.map((part, partIndex) => ({
           id: part.id ?? `area-${areaIndex + 1}-part-${partIndex + 1}`,
           name: part.name,
@@ -253,6 +266,36 @@ function battlemasterGeometry(
       }
     }),
   }
+}
+
+function terrainMeasurements(
+  area: RawBattlemasterTerrain,
+  piece: NonNullable<RawTerrainLayout['pieces']>[number] | undefined,
+  template: RawTerrainTemplate | undefined,
+): { from: Point; to: Point }[] {
+  const points = template?.footprint.points
+  // References index the rules template, not an independently revised Battlemaster outline.
+  if (
+    !points?.length ||
+    points.length !== area.outline.points.length ||
+    points.some((point, index) => {
+      const other = area.outline.points[index]!
+      return Math.abs(point.x - other.x) > 0.002 || Math.abs(point.y - (area.footprint.heightIn - other.y)) > 0.002
+    })
+  )
+    return []
+
+  return (piece?.keystones ?? []).flatMap(({ edge, ref }) => {
+    if (ref.kind !== 'vertex' || !Number.isInteger(ref.index)) return []
+    const point = area.outline.points[ref.index!]
+    if (!point) return []
+    const to = battlemasterBoardPoint(point, area.footprint)
+    if (edge === 'left') return [{ from: { x: 0, y: to.y }, to }]
+    if (edge === 'right') return [{ from: { x: 60, y: to.y }, to }]
+    if (edge === 'top') return [{ from: { x: to.x, y: 0 }, to }]
+    if (edge === 'bottom') return [{ from: { x: to.x, y: 44 }, to }]
+    return []
+  })
 }
 
 function battlemasterLayoutIds(directory: string) {

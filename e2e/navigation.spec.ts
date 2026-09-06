@@ -399,7 +399,16 @@ test('terrain layouts open with measurement guidance', async ({ page }) => {
     await page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click({ timeout: 1_000 })
     await expect(guidance).toBeVisible({ timeout: 1_000 })
   }).toPass({ timeout: 10_000 })
-  await expect(dialog.locator('svg[aria-label]').first()).toBeVisible()
+  const board = dialog.locator('svg[aria-label]').first()
+  await expect(board).toBeVisible()
+  await expect(board.locator('line[marker-end]').first()).toBeAttached()
+  await expect(board.locator('text').filter({ hasText: /″$/ }).first()).toBeVisible()
+  await expect(
+    board
+      .locator('g')
+      .filter({ has: page.locator('title', { hasText: /^Objective terrain$/ }) })
+      .last(),
+  ).toBeVisible()
 })
 
 test('a matchup keeps each action in the column of the side whose mission asks for it', async ({ page }) => {
