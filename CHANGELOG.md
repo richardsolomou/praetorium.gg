@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.61.4
+
+### Patch Changes
+
+- 8eaf278: Keep available wargear abilities on standalone datasheets.
+
 ## 0.61.3
 
 ### Patch Changes
