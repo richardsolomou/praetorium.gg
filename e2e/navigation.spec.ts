@@ -411,6 +411,39 @@ test('terrain layouts open with measurement guidance', async ({ page }) => {
   ).toBeVisible()
 })
 
+test('a mission opens while its terrain layouts load', async ({ page }) => {
+  await page.goto('/mission-packs/chapter-approved-2026-2027')
+
+  let releaseTerrain: () => void = () => undefined
+  const terrainHeld = new Promise<void>((resolve) => {
+    releaseTerrain = resolve
+  })
+  let terrainStarted: () => void = () => undefined
+  const started = new Promise<void>((resolve) => {
+    terrainStarted = resolve
+  })
+  await page.route('**/_serverFn/**', async (route) => {
+    const url = decodeURIComponent(route.request().url())
+    if (url.includes('"matchupIds"') && url.includes('"geometryVersion"')) {
+      terrainStarted()
+      await terrainHeld
+    }
+    await route.continue()
+  })
+
+  const opening = page.locator('a[href^="/mission-matchups/"]').first().click()
+  await started
+  try {
+    await expect(page.getByText('Mission matchup', { exact: true })).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByRole('heading', { name: 'Loading terrain layouts' })).toBeVisible()
+    await expect(page.getByText('Mission pack', { exact: true })).toHaveCount(0)
+  } finally {
+    releaseTerrain()
+  }
+  await opening
+  await expect(page.getByRole('button', { name: /Enlarge terrain layout/ }).first()).toBeVisible()
+})
+
 test('a matchup keeps each action in the column of the side whose mission asks for it', async ({ page }) => {
   // Priority Assets asks for the action here, and it is the side drawn second, so an
   // action packed into the first free column would read as the other side's.

@@ -19,7 +19,10 @@ export const Route = createFileRoute('/mission-matchups/$packId/$you/$opponent')
       mission.matchups.some((pair) => pair[0]?.id === params.you && pair[1]?.id === params.opponent),
     )
     if (!valid) throw notFound()
-    await context.queryClient.ensureQueryData(terrainReferencesQuery(terrainMatchupIds([params.you, params.opponent])))
+    const terrainQuery = terrainReferencesQuery(terrainMatchupIds([params.you, params.opponent]))
+    // Server-rendered links include terrain; client transitions show the mission without waiting for it.
+    if (typeof window === 'undefined') await context.queryClient.ensureQueryData(terrainQuery)
+    else void context.queryClient.prefetchQuery(terrainQuery)
   },
   component: MissionMatchupPage,
 })
@@ -27,7 +30,8 @@ export const Route = createFileRoute('/mission-matchups/$packId/$you/$opponent')
 function MissionMatchupPage() {
   const { packId, you, opponent } = Route.useParams()
   const { data } = useQuery(gameReferencesQuery())
-  const { data: terrain } = useQuery(terrainReferencesQuery(terrainMatchupIds([you, opponent])))
+  const terrainQuery = useQuery(terrainReferencesQuery(terrainMatchupIds([you, opponent])))
+  const terrain = terrainQuery.data
   const pack = data?.packs.find((entry) => entry.id === packId)
   const yours = pack?.missions.find((mission) => mission.matchups.some((pair) => pair[0]?.id === you && pair[1]?.id === opponent))
   const theirs = pack?.missions.find((mission) => mission.matchups.some((pair) => pair[0]?.id === opponent && pair[1]?.id === you))
@@ -108,9 +112,30 @@ function MissionMatchupPage() {
         <section className="mt-7">
           <h2 className="rubric flex justify-between border-b border-edge pb-2">
             <span>Terrain layouts</span>
-            <span className="readout">{layouts.length}</span>
+            <span className="readout" aria-label={terrainQuery.isPending ? 'Loading terrain layout count' : undefined}>
+              {terrainQuery.isPending ? '…' : terrainQuery.isError ? '—' : layouts.length}
+            </span>
           </h2>
-          {layouts.length ? (
+          {terrainQuery.isPending ? (
+            <PageState
+              className="mt-3 min-h-64"
+              headingLevel={2}
+              loading
+              eyebrow="Terrain layouts"
+              title="Loading terrain layouts"
+              explanation="Layouts for this mission will be available shortly."
+              icon={MapPinned}
+            />
+          ) : terrainQuery.isError ? (
+            <PageState
+              className="mt-3 min-h-64"
+              headingLevel={2}
+              eyebrow="Terrain layouts"
+              title="Terrain layouts unavailable"
+              explanation="The layouts could not be loaded. Try again shortly."
+              icon={MapPinned}
+            />
+          ) : layouts.length ? (
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               {layouts.map((layout, index) => (
                 <TerrainLayout
