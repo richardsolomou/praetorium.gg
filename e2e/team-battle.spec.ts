@@ -124,8 +124,8 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   await expect(host.getByRole('button', { name: new RegExp(`^Remove the battle ready bonus for ${allyName}$`) })).toBeVisible()
   await chooseBattlefield(host)
   await setupStep(host, 'Secondaries')
-  // One seat writes the side's cards. The other is told so, rather than racing it with its own.
-  await expect(partner.getByText(new RegExp(`${allyName} sets the cards and stratagems your side plays`))).toBeVisible()
+  // Either device records derived cards; only the side writer chooses the draw mode.
+  await expect(partner.getByText(new RegExp(`${allyName} chooses how your side draws its cards`))).toBeVisible()
   await expect(partner.getByRole('group', { name: 'Secondary play' })).toHaveCount(0)
   await recordFirstTurn(host)
   await host.getByRole('button', { name: 'Start battle' }).click()
