@@ -5,6 +5,7 @@ import { routeSlug } from '../core/slug'
 import { localizedField, stratagemText } from './datacards'
 import { actionsIn, type MissionAction } from './missionActions'
 import { criteriaIn, criteriaKey, pairCriteria, type Payout } from './missionCriteria'
+import { descriptionsIn } from './missionDescriptions'
 import { type MissionPack, readMissionPacks } from './missionPacks'
 import { byName, readOptionalList, titleCase } from './rulesSource'
 
@@ -44,7 +45,6 @@ type RawCard = {
   id: string
   name: string
   card_type?: string
-  text?: string
   awards?: RawAward[]
   when_drawn?: {
     operation?: string
@@ -151,6 +151,7 @@ export type WhenDrawn = {
 export type MissionCard = {
   key: string
   name: string
+  /** The pack's instructions, excluding its lore. */
   text: string | null
   awards: Award[]
   /** What the card asks a unit to do to earn what it pays. */
@@ -178,9 +179,16 @@ export function loadCards(
   const coreStratagems = readOptionalList<RawStratagem>(path.join(core, 'stratagems.json'))
   // What a payout asks for is the mission pack's to say; when it is due is this file's.
   const criteria = criteriaIn(packs)
-  // Only the pack prints the actions its missions turn on, under the same card name.
+  // Only the pack prints the actions and instructions, joined under the same card name.
   const actions = actionsIn(packs)
-  const card = (raw: RawCard) => toCard(raw, criteria.get(criteriaKey(raw.name)) ?? [], actions.get(criteriaKey(raw.name)) ?? [])
+  const descriptions = descriptionsIn(packs)
+  const card = (raw: RawCard) =>
+    toCard(
+      raw,
+      criteria.get(criteriaKey(raw.name)) ?? [],
+      actions.get(criteriaKey(raw.name)) ?? [],
+      descriptions.get(criteriaKey(raw.name)) ?? null,
+    )
   const coreCards = coreCardsByName(datacardsDirectory)
   const loadedCore = [
     ...coreStratagems.map((raw) => {
@@ -307,7 +315,7 @@ export function missionForIn(
  * counting; one that pays a flat amount does not. Anything with no number at all is
  * dropped: a button that scores nothing is worse than no button.
  */
-function toCard(raw: RawCard, payouts: Payout[], actions: MissionAction[]): MissionCard {
+function toCard(raw: RawCard, payouts: Payout[], actions: MissionAction[], description: string | null): MissionCard {
   const awards = (raw.awards ?? [])
     .map((award) => ({
       vp: award.vp ?? award.vp_per ?? 0,
@@ -333,7 +341,7 @@ function toCard(raw: RawCard, payouts: Payout[], actions: MissionAction[]): Miss
   return {
     key: raw.id,
     name: raw.name,
-    text: raw.text ?? null,
+    text: description,
     awards: dedupe(described),
     actions,
     whenDrawn: toWhenDrawn(raw.when_drawn),

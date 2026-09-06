@@ -568,6 +568,22 @@ describe('mission cards', () => {
     ])
   })
 
+  it('carry the instructions their pack prints without falling back to a paraphrase', () => {
+    const missions = path.join(directory, 'datacards', '11th', 'gdc', 'missions')
+    fs.mkdirSync(missions, { recursive: true })
+    write(path.join(missions, 'pack-a.json'), {
+      secondaryMissions: [
+        {
+          name: { en: 'Assassination' },
+          description: { en: '**WHEN DRAWN:** Select one enemy unit.' },
+          lore: { en: 'Atmospheric flavour.' },
+        },
+      ],
+    })
+
+    expect(load().secondaries[0]?.text).toBe('**WHEN DRAWN:** Select one enemy unit.')
+  })
+
   it('carry no action for a card whose pack prints none', () => {
     expect(load().secondaries[0]?.actions).toEqual([])
   })
