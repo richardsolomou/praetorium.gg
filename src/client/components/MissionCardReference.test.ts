@@ -24,12 +24,12 @@ const award = (vp: number, criteria: string, group: string | null): MissionAward
 })
 
 describe('mission card reference', () => {
-  it('labels alternative and additional objectives without flavour text', () => {
+  it('shows the card instructions and labels alternative and additional objectives', () => {
     const markup = renderToStaticMarkup(
       createElement(MissionCardReference, {
         card: {
           name: 'Reconnaissance Sweep',
-          text: 'Atmospheric mission flavour.',
+          text: '**WHEN DRAWN:** Select one friendly unit on the battlefield or embarked within a **TRANSPORT** on the battlefield to be your **beacon** unit.',
           awards: [
             award(3, 'Have a presence in three table quarters.', 'table-quarters'),
             award(6, 'Have a presence in four table quarters.', 'table-quarters'),
@@ -41,10 +41,13 @@ describe('mission card reference', () => {
     )
 
     expect(markup).toContain('aria-label="Alternative objective"')
+    expect(markup).toContain('WHEN DRAWN:')
+    expect(markup).toContain('Select one friendly unit on the battlefield or embarked within a')
+    expect(markup).toContain('TRANSPORT')
+    expect(markup).toContain('beacon')
     expect(markup).toContain('>or</span>')
     expect(markup).toContain('aria-label="Additional objective"')
     expect(markup).toContain('>plus</span>')
-    expect(markup).not.toContain('Atmospheric mission flavour.')
   })
 
   it('uses the relationship label instead of legacy plus marks on a cumulative payout', () => {
