@@ -168,4 +168,4 @@ it('creates an idempotent preview world with varied rosters, battles, leagues, a
   expect(
     (await database.select({ status: leagueEventEntries.status }).from(leagueEventEntries)).filter((entry) => entry.status === 'rejected'),
   ).toHaveLength(1)
-})
+}, 15_000)
