@@ -204,6 +204,12 @@ describe('the abilities and wargear a datasheet lists', () => {
       ],
       sharedSelectionEntries: [
         {
+          id: 'orb',
+          name: 'Resurrection Orb',
+          type: 'upgrade',
+          profiles: [ability('orb-ability', 'Resurrection Orb')],
+        },
+        {
           id: 'detachment',
           name: 'Detachment',
           type: 'upgrade',
@@ -225,6 +231,7 @@ describe('the abilities and wargear a datasheet lists', () => {
           name: 'Nightbringer',
           type: 'unit',
           infoLinks: [{ id: 'distortion-fields-link', targetId: 'distortion-fields', type: 'profile' }],
+          entryLinks: [{ id: 'orb-link', targetId: 'orb', name: 'Resurrection Orb', type: 'selectionEntry' }],
         },
       ],
     })
@@ -237,7 +244,7 @@ describe('the abilities and wargear a datasheet lists', () => {
     expect(abilityNames('hypercrypt')).toEqual([])
     expect(abilityNames('pantheon')).toEqual(['Distortion Fields (Aura)'])
     const reference = describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'nightbringer'), null, { reference: true })
-    expect(reference?.abilities.map(({ name }) => name)).toEqual([])
+    expect(reference?.abilities.map(({ name }) => name)).toEqual(['Resurrection Orb'])
     expect(reference?.detachments.map(({ name, abilities }) => [name, abilities.map((entry) => entry.name)])).toEqual([
       ['Pantheon of Woe', ['Distortion Fields (Aura)']],
     ])

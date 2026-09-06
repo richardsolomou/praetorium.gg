@@ -685,6 +685,7 @@ export function detachmentAbilitiesIn(loaded: LoadedCatalogue, catalogueId: stri
       walk(loaded, catalogueId, entryId, {
         selections: [...selectedDetachments, unit],
         unitSelectionIndex: selectedDetachments.length,
+        everyWargearAbility: true,
       })?.abilities ?? []
     )
   }
