@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.61.8
+
+### Patch Changes
+
+- ea93795: Keep detachment-only abilities off standalone datasheets.
+
 ## 0.61.7
 
 ### Patch Changes
