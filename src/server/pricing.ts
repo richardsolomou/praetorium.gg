@@ -316,6 +316,16 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     const detail = detachmentNamed(details, option.name)
     return { option, detail, ...describedEnhancements(loaded, data.catalogueId, option, detail) }
   })
+  const strategicReserveFactsComplete =
+    Boolean(rules) &&
+    detachmentSpecials.every(({ option, detail, catalogue, described }) => {
+      if (!detail || detail.rules.some((rule) => !rule.description)) return false
+      const offered = [...detail.enhancements, ...detail.upgrades]
+      return (
+        offered.every((enhancement) => described.has(descriptionKey(option.name, enhancement.name))) &&
+        (catalogue?.forcedEnhancements ?? []).every((enhancement) => Boolean(enhancement.description))
+      )
+    })
   const reserveExemptionSelectors = strategicReserveExemptionSelectors(
     detachmentSpecials.flatMap(({ detail }) => detail?.rules.map((rule) => rule.description) ?? []),
   )
@@ -490,6 +500,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     dispositionError,
     borrowedDetachment: borrowedDetachment?.name ?? null,
     borrowedError,
+    strategicReserveFactsComplete,
     points: whole.points,
     errors,
     unhandled: [

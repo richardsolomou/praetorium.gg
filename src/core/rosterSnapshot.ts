@@ -18,6 +18,7 @@ type SavedRoster = {
 type PricedRoster = {
   points: number
   revision: string
+  strategicReserveFactsComplete?: boolean
   /** What an unnamed list is called, frozen here: a battle keeps the name it was fielded under. */
   label: string
   detachment: string | null
@@ -74,7 +75,7 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds:
       catalogueId: saved.catalogueId,
       revision: priced.revision,
       limit: saved.limit,
-      strategicReserveLimit: strategicReserveLimit(saved.limit),
+      ...(priced.strategicReserveFactsComplete ? { strategicReserveLimit: strategicReserveLimit(saved.limit) } : {}),
       detachment: priced.detachment,
       detachments: [...priced.detachments],
       detachmentPointBudget: priced.detachmentPointBudget,

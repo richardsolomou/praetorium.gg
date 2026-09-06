@@ -428,7 +428,43 @@ describe('catalogue-backed deployment rules', () => {
       flyboyzRules(),
     )
 
-    expect(priced?.units[0]).toMatchObject({ name: 'Dakkajet', strategicReserveExempt: true })
+    expect(priced).toMatchObject({
+      strategicReserveFactsComplete: true,
+      units: [expect.objectContaining({ name: 'Dakkajet', strategicReserveExempt: true })],
+    })
+  })
+
+  it('does not treat a selected detachment without joined rules detail as complete', () => {
+    const loaded = detachmentBook({ id: 'dakkajet', name: 'Dakkajet', type: 'unit', costs: pointsCost(135) })
+    const rules = { ...flyboyzRules(), detachmentDetails: new Map() }
+
+    const priced = calculateRosterPrice(
+      { catalogueId: 'cat', detachmentIds: ['flyboyz'], disposition: null, limit: 2_000, units: [{ entryId: 'dakkajet' }] },
+      loaded,
+      rules,
+    )
+
+    expect(priced?.strategicReserveFactsComplete).toBe(false)
+  })
+
+  it('does not treat a selected detachment with a missing enhancement description as complete', () => {
+    const loaded = detachmentBook({ id: 'warboss', name: 'Warboss', type: 'unit', costs: pointsCost(75) })
+    const rules = flyboyzRules([
+      {
+        name: 'Master of Manoeuvre',
+        points: 30,
+        description: '',
+        keywordRestrictions: [],
+      },
+    ])
+
+    const priced = calculateRosterPrice(
+      { catalogueId: 'cat', detachmentIds: ['flyboyz'], disposition: null, limit: 2_000, units: [{ entryId: 'warboss' }] },
+      loaded,
+      rules,
+    )
+
+    expect(priced?.strategicReserveFactsComplete).toBe(false)
   })
 
   it('marks the unit carrying a selected reserve-limit enhancement', () => {
@@ -471,10 +507,13 @@ describe('catalogue-backed deployment rules', () => {
       rules,
     )
 
-    expect(priced?.units).toMatchObject([
-      { name: 'Warboss', enhancements: ['Master of Manoeuvre'], strategicReserveExempt: true },
-      { name: 'Boyz', enhancements: [] },
-    ])
+    expect(priced).toMatchObject({
+      strategicReserveFactsComplete: true,
+      units: [
+        expect.objectContaining({ name: 'Warboss', enhancements: ['Master of Manoeuvre'], strategicReserveExempt: true }),
+        expect.objectContaining({ name: 'Boyz', enhancements: [] }),
+      ],
+    })
     expect(priced?.units[1]).not.toHaveProperty('strategicReserveExempt')
   })
 })

@@ -1842,6 +1842,43 @@ describe('battle management', () => {
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' })).toBeNull()
   })
 
+  it('counts a non-exempt attached unit as one combined reserve formation', () => {
+    const command = attachedRoster()
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    command.roster.built.strategicReserveLimit = 150
+    const state = reduceBattle(PLAYERS, log([ALICE, command]))
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' })).toBe(
+      'no more than 150 points of this army can start in strategic reserves',
+    )
+  })
+
+  it('moves and validates a whole attached unit through the legacy deployment command', () => {
+    const command = attachedRoster()
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    command.roster.built.strategicReserveLimit = 150
+    command.roster.built.units[1]!.strategicReserveExempt = true
+    const state = reduceBattle(PLAYERS, log([ALICE, command]))
+    const deployment: Command = { kind: 'deploy-unit', unitKey: 'u0', deployed: false }
+
+    expect(validate(state, ALICE, deployment)).toBeNull()
+    const deployed = reduceBattle(PLAYERS, log([ALICE, command], [ALICE, deployment]))
+    expect(deployed.players[0]?.units.map((unit) => unit.formation)).toEqual(['strategic-reserves', 'strategic-reserves'])
+  })
+
+  it('does not let a battlefield exemption hide a malformed split reserve formation', () => {
+    const command = attachedRoster()
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    command.roster.built.strategicReserveLimit = 50
+    command.roster.built.units[1]!.strategicReserveExempt = true
+    const state = reduceBattle(PLAYERS, log([ALICE, command], [BOB, roster('Death Guard')]))
+    state.players[0]!.units[0]!.formation = 'strategic-reserves'
+
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe(
+      'no more than 50 points of this army can start in strategic reserves',
+    )
+  })
+
   it('refuses to begin with a known setup over the strategic reserves limit', () => {
     const command = builtRoster('Ultramarines', ['Intercessors'])
     if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
@@ -1928,6 +1965,21 @@ describe('battle management', () => {
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' })).toBe(
       'no more than 0 points of this army can start in strategic reserves',
     )
+  })
+
+  it('invalidates the roll-off history when a setup roster is replaced', () => {
+    const replacement = builtRoster('Ultramarines', ['Intercessors'])
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, builtRoster('Ultramarines', ['Hellblasters'])],
+        [ALICE, { kind: 'set-first-turn', firstPlayerId: ALICE }],
+        [ALICE, replacement],
+      ),
+    )
+
+    expect(state.firstPlayerId).toBeNull()
+    expect(state.players[0]?.units[0]?.deployedAtRollOff).toBeUndefined()
   })
 
   it('refuses a deep strike formation absent from catalogue data', () => {

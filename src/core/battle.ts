@@ -157,8 +157,9 @@ export function strategicReservePoints(units: readonly ReserveUnit[]): number {
     else groups.set(group, [unit])
   }
   return [...groups.values()].reduce((total, attached) => {
-    if (attached.some((unit) => unit.strategicReserveExempt || unit.postDeploymentReserve)) return total
-    return total + attached.reduce((points, unit) => points + (startsInStrategicReserves(unit.formation) ? unit.points : 0), 0)
+    const reserved = attached.filter((unit) => startsInStrategicReserves(unit.formation))
+    if (reserved.some((unit) => unit.strategicReserveExempt || unit.postDeploymentReserve)) return total
+    return total + reserved.reduce((points, unit) => points + unit.points, 0)
   }, 0)
 }
 
@@ -1129,13 +1130,12 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'deploy-unit': {
       if (state.status === 'finished') return 'the battle is over'
-      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      if (!unit) return 'that is not one of your units'
+      const attached = attachedUnits(player.units, command.unitKey)
+      if (!attached.length) return 'that is not one of your units'
       const reserveLimit = player.roster?.built?.strategicReserveLimit
       if (state.status === 'setup' && !command.deployed && reserveLimit !== undefined) {
-        const changed = player.units.map((candidate) =>
-          candidate.key === unit.key ? { ...candidate, formation: 'strategic-reserves' as const } : candidate,
-        )
+        const keys = new Set(attached.map((unit) => unit.key))
+        const changed = player.units.map((unit) => (keys.has(unit.key) ? changedFormation(unit, 'strategic-reserves') : unit))
         const reserveError = strategicReserveChangeError(player.units, changed, reserveLimit)
         if (reserveError) return reserveError
       }
@@ -1413,6 +1413,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'attach-roster': {
+      if (state.status === 'setup') state.firstPlayerId = null
       player.roster = { ...command.roster, name: command.roster.name.trim() }
       // A replaced list is a different army, so nothing about the old one survives.
       player.units = (command.roster.built?.units ?? []).map((unit) =>
@@ -1430,6 +1431,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'detach-roster': {
+      state.firstPlayerId = null
       player.roster = null
       player.units = []
       // The cards followed from the army, and the battlefield from both armies'
@@ -1455,8 +1457,9 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'deploy-unit': {
-      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      if (unit) Object.assign(unit, changedFormation(unit, command.deployed ? 'battlefield' : 'strategic-reserves'))
+      for (const unit of attachedUnits(player.units, command.unitKey)) {
+        Object.assign(unit, changedFormation(unit, command.deployed ? 'battlefield' : 'strategic-reserves'))
+      }
       return
     }
     case 'set-unit-formation': {

@@ -1,5 +1,8 @@
-import { expect, it } from 'vitest'
-import { rosterUseError } from './rosterUsage'
+import { expect, it, vi } from 'vitest'
+import { app } from './app'
+import { rosterForUse, rosterUseError } from './rosterUsage'
+
+vi.mock('./app', () => ({ app: vi.fn() }))
 
 const priced = {
   points: 2_000,
@@ -25,4 +28,16 @@ it('rejects rosters over their points limit', () => {
 
 it('rejects rosters without a valid force disposition', () => {
   expect(rosterUseError({ ...priced, dispositionError: 'Pick a disposition.' }, 2_000)).toBe('Pick a disposition.')
+})
+
+it('does not snapshot a roster when the rules source is unavailable', async () => {
+  vi.mocked(app).mockReturnValue({
+    service: {
+      ownRoster: vi.fn().mockResolvedValue({ id: 'roster' }),
+    },
+    catalogue: () => ({}),
+    rules: () => null,
+  } as never)
+
+  await expect(rosterForUse('player', 'roster')).rejects.toMatchObject({ status: 409 })
 })

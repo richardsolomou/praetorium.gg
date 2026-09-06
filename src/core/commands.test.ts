@@ -43,6 +43,7 @@ describe('command schema', () => {
               enhancements: ['Veil of Darkness'],
               upgrades: [],
               joined: [{ label: 'Leading', name: 'Immortals' }],
+              strategicReserveExempt: true,
             },
           ],
         },
