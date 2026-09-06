@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.61.1
+
+### Patch Changes
+
+- 059bd9c: Let either player continue battle setup without waiting for the other player to open the secondaries screen.
+
 ## 0.61.0
 
 ### Minor Changes
