@@ -682,7 +682,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: /Datasheet abilities/ })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Reanimation Protocols' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'My Will Be Done' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: /Wargear abilities/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Wargear abilities/ })).toHaveCount(0)
   await expect(page.getByText('1 model', { exact: true }).first()).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Unit configuration' })).toBeVisible()
   await expect(page.getByText('1 Overlord', { exact: true })).toBeVisible()
