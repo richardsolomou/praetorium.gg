@@ -148,6 +148,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                   .array(z.enum(['infiltrators', 'scouts']))
                   .max(2)
                   .optional(),
+                strategicReserveExempt: z.boolean().optional(),
               }),
             )
             .max(200),
@@ -162,7 +163,13 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     playerId: id.optional(),
   }),
   z.object({ kind: z.literal('deploy-unit'), unitKey: id, deployed: z.boolean(), playerId: id.optional() }),
-  z.object({ kind: z.literal('set-unit-formation'), unitKey: id, formation: z.enum(UNIT_FORMATIONS), playerId: id.optional() }),
+  z.object({
+    kind: z.literal('set-unit-formation'),
+    unitKey: id,
+    formation: z.enum(UNIT_FORMATIONS),
+    reserveExemption: z.literal('redeploy').optional(),
+    playerId: id.optional(),
+  }),
   z.object({ kind: z.literal('set-painted'), painted: z.boolean(), playerId: id.optional() }),
   z.object({ kind: z.literal('wound-unit'), unitKey: id, delta: z.number().int(), playerId: id.optional() }),
   z.object({ kind: z.literal('damage-unit'), unitKey: id, delta: z.number().int(), playerId: id.optional() }),

@@ -8,9 +8,11 @@ import {
   isCatalogueSelfContradiction,
   factionRestrictionViolations,
   findEnhancementDescription,
+  grantsStrategicReserveExemption,
   kotcViolations,
   savedRosterPriceInput,
   resolveDisposition,
+  strategicReserveExemptionSelectors,
   uniqueNames,
 } from './pricing'
 import { descriptionKey } from './datacards'
@@ -333,6 +335,20 @@ describe('catalogue-backed deployment rules', () => {
 
   it('does not invent deployment options without matching abilities', () => {
     expect(deploymentRules(['Leader', 'Stealth'])).toEqual({ formationOptions: [], prebattleRules: [] })
+  })
+
+  it('reads reserve-limit exemptions from detachment rules and enhancements', () => {
+    expect(
+      strategicReserveExemptionSelectors([
+        '- Friendly **Orks Aircraft** units do not count towards the combined points value of your **strategic reserves** units.',
+      ]),
+    ).toEqual(['Orks Aircraft'])
+    expect(
+      grantsStrategicReserveExemption(
+        "If the bearer's unit starts the battle in Strategic Reserves, its points value does not count towards the combined points limit for units from your army that are in Strategic Reserve.",
+      ),
+    ).toBe(true)
+    expect(grantsStrategicReserveExemption('This unit can be set up in Strategic Reserves.')).toBe(false)
   })
 })
 

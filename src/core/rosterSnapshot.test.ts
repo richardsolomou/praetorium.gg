@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { rosterSnapshot } from './rosterSnapshot'
 
-it('freezes unit wounds into a roster snapshot', () => {
+it('freezes unit wounds and reserve exemptions into a roster snapshot', () => {
   const roster = rosterSnapshot(
     {
       id: 'roster',
@@ -36,13 +36,14 @@ it('freezes unit wounds into a roster snapshot', () => {
           upgrades: [],
           formationOptions: ['battlefield'],
           prebattleRules: [],
+          strategicReserveExempt: true,
         },
       ],
     },
     [{ entryId: 'unit', wounds: 3 }],
   )
 
-  expect(roster.built?.units[0]?.wounds).toBe(3)
+  expect(roster.built?.units[0]).toMatchObject({ wounds: 3, strategicReserveExempt: true })
 })
 
 it('freezes catalogue-derived Warlord eligibility into a roster snapshot', () => {

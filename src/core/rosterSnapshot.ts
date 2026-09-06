@@ -39,6 +39,7 @@ type PricedRoster = {
     upgrades: readonly string[]
     formationOptions: readonly ('battlefield' | 'strategic-reserves' | 'deep-strike' | 'embarked')[]
     prebattleRules: readonly ('infiltrators' | 'scouts')[]
+    strategicReserveExempt?: boolean
   }[]
 }
 
@@ -100,6 +101,7 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds:
         ...(hostsByPick.has(unit.key) ? { attachedTo: hostsByPick.get(unit.key) } : {}),
         formationOptions: [...unit.formationOptions],
         prebattleRules: [...unit.prebattleRules],
+        ...(unit.strategicReserveExempt ? { strategicReserveExempt: true } : {}),
       })),
     },
   }

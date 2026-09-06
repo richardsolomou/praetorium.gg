@@ -37,7 +37,7 @@ A battle created from a revealed league event starts with the selected accepted 
 
 Setup settings, roster replacements, formation choices, painted-army bonuses, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack or format. A finished battle remains reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
 
-During setup, each catalogue-backed army can place at most half its battle-size points limit in Strategic Reserves. Deep Strike units count towards the same limit because the ability changes their ingress rather than removing them from Strategic Reserves. The limit is checked when a formation changes and again when the battle begins; moves into Strategic Reserves after the battle begins are not starting formations and do not consume it.
+During setup, each catalogue-backed army can place at most half its battle-size points limit in Strategic Reserves. Deep Strike units count towards the same limit because the ability changes their ingress rather than removing them from Strategic Reserves. Source-declared exemptions and units redeployed after deployment do not count. The limit is checked when a formation changes and again when the battle begins; moves into Strategic Reserves after the battle begins are not starting formations and do not consume it.
 
 The current setup section is also a command-derived shared value. When one seated player moves forward or back, realtime updates move every device to that section; setup navigation is never private browser state.
 

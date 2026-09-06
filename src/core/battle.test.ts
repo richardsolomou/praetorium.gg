@@ -1752,18 +1752,72 @@ describe('battle management', () => {
       PLAYERS,
       log(
         [ALICE, command],
+        [BOB, roster('Death Guard')],
         [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' }],
         [ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'deep-strike' }],
       ),
     )
 
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'deep-strike' })).toBeNull()
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBeNull()
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u2', formation: 'strategic-reserves' })).toBe(
       'no more than 500 points of this army can start in strategic reserves',
     )
     expect(validate(state, ALICE, { kind: 'deploy-unit', unitKey: 'u2', deployed: false })).toBe(
       'no more than 500 points of this army can start in strategic reserves',
     )
+  })
+
+  it('does not count source-declared or post-deployment reserve exemptions', () => {
+    const command = builtRoster('Orks', ['Boyz', 'Dakkajet', 'Kommandos'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    command.roster.built.limit = 2_000
+    command.roster.built.units[0]!.points = 1_000
+    command.roster.built.units[1]!.points = 600
+    command.roster.built.units[1]!.strategicReserveExempt = true
+    command.roster.built.units[2]!.points = 200
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, command],
+        [BOB, roster('Death Guard')],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' }],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'strategic-reserves' }],
+        [ALICE, { kind: 'set-first-turn', firstPlayerId: ALICE }],
+      ),
+    )
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u2', formation: 'strategic-reserves' })).toBe(
+      'no more than 1000 points of this army can start in strategic reserves',
+    )
+    expect(
+      validate(state, ALICE, {
+        kind: 'set-unit-formation',
+        unitKey: 'u2',
+        formation: 'strategic-reserves',
+        reserveExemption: 'redeploy',
+      }),
+    ).toBeNull()
+    const exempt = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, command],
+        [BOB, roster('Death Guard')],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' }],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'strategic-reserves' }],
+        [ALICE, { kind: 'set-first-turn', firstPlayerId: ALICE }],
+        [
+          ALICE,
+          {
+            kind: 'set-unit-formation',
+            unitKey: 'u2',
+            formation: 'strategic-reserves',
+            reserveExemption: 'redeploy',
+          },
+        ],
+      ),
+    )
+    expect(validate(exempt, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBeNull()
   })
 
   it('refuses to begin with a legacy setup over the strategic reserves limit', () => {
