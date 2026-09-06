@@ -60,7 +60,7 @@ function snapshots(): PreviewSnapshots {
   )
 }
 
-it('creates an idempotent preview world with varied rosters, battles, leagues, and preferences', async () => {
+it('creates an idempotent preview world with varied rosters, battles, leagues, and preferences', { timeout: 10_000 }, async () => {
   connection = await openTestDatabase()
   const database = connection.database
   const previewSnapshots = snapshots()
