@@ -57,13 +57,13 @@ export function MissionCardReference({
 function ScoringBlock({ awards }: { awards: Award[] }) {
   const first = awards[0]
   if (!first) return null
-  const round = roundLabel(first.trigger.roundMin, first.trigger.roundMax)
+  const round = roundLabel(first.trigger)
   const timing = timingLabel(first.trigger)
   return (
     <div className="border border-edge bg-sunken p-3">
       <div className="flex flex-wrap gap-1">
         {first.mode ? <span className="chip">{title(first.mode)}</span> : null}
-        <span className="chip">{round}</span>
+        {round ? <span className="chip">{round}</span> : null}
       </div>
       {timing ? (
         <p className="mt-3 text-base font-semibold text-bone">
