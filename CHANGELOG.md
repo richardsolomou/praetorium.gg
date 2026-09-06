@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.61.7
+
+### Patch Changes
+
+- e97c341: Open a mission immediately while its terrain layouts load.
+
 ## 0.61.6
 
 ### Patch Changes
