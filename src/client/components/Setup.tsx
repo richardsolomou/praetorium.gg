@@ -352,7 +352,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
 
           {at === 5 && youHaveAnArmy ? <SecondariesStep view={view} sides={table} send={send} pending={pending} /> : null}
 
-          {at === 6 && youHaveAnArmy ? <ReservesStep sides={table} send={send} /> : null}
+          {at === 6 && youHaveAnArmy ? <ReservesStep sides={table} redeploy={view.firstPlayerId !== null} send={send} /> : null}
 
           {at === 7 && youHaveAnArmy ? <DeployStep sides={table} defender={defender} /> : null}
 

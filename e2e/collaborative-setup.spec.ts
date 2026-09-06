@@ -95,7 +95,7 @@ test('battle setup stays in step and shows both players their shared choices', a
   await expect(alice.getByText(/\d+\/1000 reserve points/)).toHaveCount(2)
   const aliceArmy = alice.locator('article').filter({ hasText: aliceRoster })
   await expect(aliceArmy.getByText('0/1000 reserve points')).toBeVisible()
-  await aliceArmy.getByRole('button', { name: 'Strategic reserves', exact: true }).click()
+  await aliceArmy.getByRole('button', { name: 'Start Immortals in Strategic reserves', exact: true }).click()
   await expect(aliceArmy.getByText(/[1-9]\d*\/1000 reserve points/)).toBeVisible()
   expect(await alice.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
   await alice.screenshot({ path: 'test-results/setup-reserves.png', fullPage: true })

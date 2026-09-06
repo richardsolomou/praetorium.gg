@@ -1,6 +1,6 @@
 import type { Attachment } from './attach'
 import { attachmentRows } from './attachmentRows'
-import type { FormatRuleId, Roster } from './battle'
+import { type FormatRuleId, type Roster, strategicReserveLimit } from './battle'
 import type { RosterPick } from './roster'
 import type { UnitGroup } from './unitGroups'
 
@@ -74,6 +74,7 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds:
       catalogueId: saved.catalogueId,
       revision: priced.revision,
       limit: saved.limit,
+      strategicReserveLimit: strategicReserveLimit(saved.limit),
       detachment: priced.detachment,
       detachments: [...priced.detachments],
       detachmentPointBudget: priced.detachmentPointBudget,

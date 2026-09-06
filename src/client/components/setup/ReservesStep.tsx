@@ -2,27 +2,31 @@ import { MapPin } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import type { AttachedUnit } from '../../../core/attachedUnits'
-import { type Command, strategicReserveLimit, strategicReservePoints, UNIT_FORMATIONS } from '../../../core/battle'
+import { type Command, strategicReservePoints, UNIT_FORMATIONS } from '../../../core/battle'
 import type { Army, Side } from '../../sides'
 import { HEADING } from '../battle/tints'
 import { formationLabel, SetupNote, SetupSidePanel } from './chrome'
 import { reserveSections } from './reservesModel'
 
-type Props = { sides: Side[]; send: (command: Command) => void }
+type Props = { sides: Side[]; redeploy: boolean; send: (command: Command) => void }
 
 /** Where every unit starts: on the battlefield, or held back to arrive later. */
-export function ReservesStep({ sides, send }: Props) {
+export function ReservesStep({ sides, redeploy, send }: Props) {
   return (
     <div className="space-y-4">
       <div>
         {/* Setting the table is often done from one device, so nobody has to hand a phone across it. */}
-        <SetupNote>Anyone at the table can set the reserves for any army while the table is being set.</SetupNote>
+        <SetupNote>
+          {redeploy
+            ? 'If an army rule lets you redeploy a unit after the first-turn roll, record that move here. It does not count towards the limit.'
+            : 'Anyone at the table can set the reserves for any army while the table is being set.'}
+        </SetupNote>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         {sides.map((side) => (
           <SetupSidePanel key={side.index} side={side} className="space-y-3">
             {side.armies.map((army) => (
-              <ArmySetup key={army.playerId} army={army} multiple={side.armies.length > 1} send={send} />
+              <ArmySetup key={army.playerId} army={army} multiple={side.armies.length > 1} redeploy={redeploy} send={send} />
             ))}
           </SetupSidePanel>
         ))}
@@ -31,11 +35,21 @@ export function ReservesStep({ sides, send }: Props) {
   )
 }
 
-function ArmySetup({ army, multiple, send }: { army: Army; multiple: boolean; send: (command: Command) => void }) {
+function ArmySetup({
+  army,
+  multiple,
+  redeploy,
+  send,
+}: {
+  army: Army
+  multiple: boolean
+  redeploy: boolean
+  send: (command: Command) => void
+}) {
   const sections = reserveSections(army.units)
   // Counted the way the rows are: a character and the unit he joined are one unit.
   const listed = sections.reduce((total, section) => total + section.units.length, 0)
-  const pointsLimit = army.roster?.built?.limit
+  const reserveLimit = army.roster?.built?.strategicReserveLimit
   const reservePoints = strategicReservePoints(army.units)
 
   return (
@@ -47,9 +61,9 @@ function ArmySetup({ army, multiple, send }: { army: Army; multiple: boolean; se
         </span>
         <span className="flex shrink-0 flex-wrap justify-end gap-1">
           <span className="chip">{listed} units</span>
-          {pointsLimit === undefined ? null : (
+          {reserveLimit === undefined ? null : (
             <span className="chip">
-              {reservePoints}/{strategicReserveLimit(pointsLimit)} reserve points
+              {reservePoints}/{reserveLimit} reserve points
             </span>
           )}
         </span>
@@ -58,7 +72,7 @@ function ArmySetup({ army, multiple, send }: { army: Army; multiple: boolean; se
         <section key={section.label} className="space-y-1">
           <p className={HEADING}>{section.label}</p>
           {section.units.map((unit) => (
-            <UnitFormationRow key={unit.host.key} army={army} unit={unit} send={send} />
+            <UnitFormationRow key={unit.host.key} army={army} unit={unit} redeploy={redeploy} send={send} />
           ))}
         </section>
       ))}
@@ -76,10 +90,12 @@ function ArmySetup({ army, multiple, send }: { army: Army; multiple: boolean; se
 function UnitFormationRow({
   army,
   unit,
+  redeploy,
   send,
 }: {
   army: Army
   unit: AttachedUnit<Army['units'][number]>
+  redeploy: boolean
   send: (command: Command) => void
 }) {
   const { host, joined } = unit
@@ -115,17 +131,30 @@ function UnitFormationRow({
             <span className="flex flex-wrap gap-1">
               {offered
                 .filter((formation) => formation !== host.formation)
-                .map((formation) => (
-                  <Button
-                    key={formation}
-                    variant="outline"
-                    size="xs"
-                    aria-label={`Start ${host.name} in ${formationLabel(formation)}`}
-                    onClick={() => send({ kind: 'set-unit-formation', unitKey: host.key, formation, playerId: army.playerId })}
-                  >
-                    {formation === 'battlefield' ? 'Put on the battlefield' : `Start in ${formationLabel(formation).toLocaleLowerCase()}`}
-                  </Button>
-                ))}
+                .map((formation) => {
+                  const returning =
+                    redeploy && host.deployedAtRollOff === true && host.formation === 'battlefield' && formation === 'strategic-reserves'
+                  return (
+                    <Button
+                      key={formation}
+                      variant="outline"
+                      size="xs"
+                      aria-label={`${returning ? 'Redeploy' : 'Start'} ${host.name} ${returning ? 'into' : 'in'} ${formationLabel(formation)}`}
+                      onClick={() =>
+                        send({
+                          kind: 'set-unit-formation',
+                          unitKey: host.key,
+                          formation,
+                          playerId: army.playerId,
+                        })
+                      }
+                    >
+                      {formation === 'battlefield'
+                        ? 'Put on the battlefield'
+                        : `${returning ? 'Redeploy into' : 'Start in'} ${formationLabel(formation).toLocaleLowerCase()}`}
+                    </Button>
+                  )
+                })}
             </span>
           }
         />

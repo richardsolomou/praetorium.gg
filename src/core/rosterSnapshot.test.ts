@@ -43,7 +43,10 @@ it('freezes unit wounds and reserve exemptions into a roster snapshot', () => {
     [{ entryId: 'unit', wounds: 3 }],
   )
 
-  expect(roster.built?.units[0]).toMatchObject({ wounds: 3, strategicReserveExempt: true })
+  expect(roster.built).toMatchObject({
+    strategicReserveLimit: 1_000,
+    units: [expect.objectContaining({ wounds: 3, strategicReserveExempt: true })],
+  })
 })
 
 it('freezes catalogue-derived Warlord eligibility into a roster snapshot', () => {

@@ -105,6 +105,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
           catalogueId: id,
           revision: id,
           limit: z.number().int().min(0).max(10_000),
+          strategicReserveLimit: z.number().int().min(0).max(5_000).optional(),
           detachment: z.string().max(ROSTER_NAME_MAX_LENGTH).nullable(),
           detachments: z
             .array(z.object({ name: z.string().max(ROSTER_NAME_MAX_LENGTH), points: z.number().int().min(1).max(3).nullable() }))
@@ -167,7 +168,6 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     kind: z.literal('set-unit-formation'),
     unitKey: id,
     formation: z.enum(UNIT_FORMATIONS),
-    reserveExemption: z.literal('redeploy').optional(),
     playerId: id.optional(),
   }),
   z.object({ kind: z.literal('set-painted'), painted: z.boolean(), playerId: id.optional() }),

@@ -26,6 +26,7 @@ describe('command schema', () => {
           catalogueId: 'necrons',
           revision: 'revision',
           limit: 2_000,
+          strategicReserveLimit: 1_000,
           detachment: 'Awakened Dynasty',
           disposition: 'reconnaissance',
           detachmentIds: ['awakened-dynasty'],
@@ -73,6 +74,17 @@ describe('command schema', () => {
 
   it('accepts a shared setup section', () => {
     expect(commandSchema.parse({ kind: 'set-setup-step', step: 3 })).toEqual({ kind: 'set-setup-step', step: 3 })
+  })
+
+  it('does not trust a caller-supplied reserve exemption', () => {
+    expect(
+      commandSchema.parse({
+        kind: 'set-unit-formation',
+        unitKey: 'unit',
+        formation: 'strategic-reserves',
+        reserveExemption: 'redeploy',
+      }),
+    ).toEqual({ kind: 'set-unit-formation', unitKey: 'unit', formation: 'strategic-reserves' })
   })
 
   it('accepts a server-created league roster lock', () => {
