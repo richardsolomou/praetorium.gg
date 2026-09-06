@@ -51,6 +51,15 @@ describe('the abilities and wargear a datasheet lists', () => {
       'My Will Be Done',
       'Resurrection Orb',
     ])
+    expect(datasheetIn(book, 'cat', 'lord', { selections: [{ id: 'lord' }], unitSelectionIndex: 0 })?.abilities).not.toContainEqual(
+      expect.objectContaining({ name: 'Resurrection Orb' }),
+    )
+    expect(
+      datasheetIn(book, 'cat', 'lord', {
+        selections: [{ id: 'lord', selections: [{ id: 'orb-link' }] }],
+        unitSelectionIndex: 0,
+      })?.abilities,
+    ).toContainEqual(expect.objectContaining({ name: 'Resurrection Orb', kind: 'wargear' }))
   })
 
   it.each([
