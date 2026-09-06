@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.61.5
+
+### Patch Changes
+
+- 588e0e9: Show end-of-battle mission payouts without battle-round or turn qualifiers.
+
 ## 0.61.4
 
 ### Patch Changes
