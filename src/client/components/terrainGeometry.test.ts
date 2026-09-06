@@ -118,17 +118,11 @@ describe('placing a marker in a terrain area', () => {
 })
 
 describe('printing a measurement', () => {
-  it('prints a whole number without a decimal, and a quarter with one', () => {
+  it('prints placement guidance in whole inches', () => {
     expect(formatInches(6)).toBe('6\u2033')
-    expect(formatInches(6.5)).toBe('6.5\u2033')
-    expect(formatInches(6.25)).toBe('6.25\u2033')
-  })
-
-  it('preserves non-quarter-inch references while dropping coordinate noise', () => {
-    expect(formatInches(6.1)).toBe('6.1″')
-    expect(formatInches(6.402)).toBe('6.4″')
+    expect(formatInches(6.49)).toBe('6\u2033')
+    expect(formatInches(6.5)).toBe('7\u2033')
     expect(formatInches(6.003)).toBe('6″')
-    expect(formatInches(6.126)).toBe('6.13″')
   })
 })
 

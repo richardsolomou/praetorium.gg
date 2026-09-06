@@ -192,7 +192,7 @@ export function portraitPoint(point: { x: number; y: number }, flipped: boolean)
 }
 
 export function formatInches(value: number) {
-  return `${Math.round(value * 100) / 100}″`
+  return `${Math.round(value)}″`
 }
 
 export function polygonCentroid(points: { x: number; y: number }[]) {

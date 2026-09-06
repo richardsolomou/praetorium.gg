@@ -55,7 +55,7 @@ import {
 
 const SSR_STALE_TIME = 30_000
 // Version both the query and HTTP caches when the geometry response changes.
-const TERRAIN_GEOMETRY_VERSION = 2
+const TERRAIN_GEOMETRY_VERSION = 3
 
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(), staleTime: SSR_STALE_TIME })
 export const accountMethodsQuery = () =>

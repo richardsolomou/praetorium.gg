@@ -123,6 +123,12 @@ describe('source placement measurements', () => {
     ])
   })
 
+  it('uses the nearer end of the referenced outline edge', () => {
+    expect(load([{ ...piece, keystones: [{ edge: 'bottom', ref: { kind: 'vertex', index: 1 } }] }]).areas[0]!.measurements).toEqual([
+      { from: { x: 29, y: 44 }, to: { x: 29, y: 15 } },
+    ])
+  })
+
   it('does not invent measurements when the source supplies none', () => {
     expect(load([piece]).areas[0]!.measurements).toEqual([])
   })

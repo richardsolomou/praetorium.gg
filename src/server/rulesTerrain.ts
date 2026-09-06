@@ -285,17 +285,39 @@ function terrainMeasurements(
   )
     return []
 
+  const referencedByEdge = new Map<string, Set<number>>()
+  for (const { edge, ref } of piece?.keystones ?? []) {
+    if (ref.kind !== 'vertex' || !Number.isInteger(ref.index)) continue
+    const referenced = referencedByEdge.get(edge) ?? new Set<number>()
+    referenced.add(ref.index!)
+    referencedByEdge.set(edge, referenced)
+  }
+
   return (piece?.keystones ?? []).flatMap(({ edge, ref }) => {
     if (ref.kind !== 'vertex' || !Number.isInteger(ref.index)) return []
     const point = area.outline.points[ref.index!]
     if (!point) return []
-    const to = battlemasterBoardPoint(point, area.footprint)
+    const nextIndex = (ref.index! + 1) % area.outline.points.length
+    const next = area.outline.points[nextIndex]
+    const candidates = [point]
+    if (next && Math.hypot(next.x - point.x, next.y - point.y) >= 1 && !referencedByEdge.get(edge)?.has(nextIndex)) candidates.push(next)
+    const to = candidates
+      .map((candidate) => battlemasterBoardPoint(candidate, area.footprint))
+      .reduce((nearest, candidate) => (distanceFromBoardEdge(candidate, edge) < distanceFromBoardEdge(nearest, edge) ? candidate : nearest))
     if (edge === 'left') return [{ from: { x: 0, y: to.y }, to }]
     if (edge === 'right') return [{ from: { x: 60, y: to.y }, to }]
     if (edge === 'top') return [{ from: { x: to.x, y: 0 }, to }]
     if (edge === 'bottom') return [{ from: { x: to.x, y: 44 }, to }]
     return []
   })
+}
+
+function distanceFromBoardEdge(point: Point, edge: string) {
+  if (edge === 'left') return point.x
+  if (edge === 'right') return 60 - point.x
+  if (edge === 'top') return point.y
+  if (edge === 'bottom') return 44 - point.y
+  return Number.POSITIVE_INFINITY
 }
 
 function battlemasterLayoutIds(directory: string) {
