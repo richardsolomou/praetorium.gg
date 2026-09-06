@@ -60,7 +60,7 @@ function snapshots(): PreviewSnapshots {
   )
 }
 
-it('creates an idempotent preview world with varied rosters, battles, leagues, and preferences', { timeout: 10_000 }, async () => {
+it('creates an idempotent preview world with varied rosters, battles, leagues, and preferences', { timeout: 15_000 }, async () => {
   connection = await openTestDatabase()
   const database = connection.database
   const previewSnapshots = snapshots()
@@ -168,4 +168,4 @@ it('creates an idempotent preview world with varied rosters, battles, leagues, a
   expect(
     (await database.select({ status: leagueEventEntries.status }).from(leagueEventEntries)).filter((entry) => entry.status === 'rejected'),
   ).toHaveLength(1)
-}, 15_000)
+})
