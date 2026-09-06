@@ -87,6 +87,15 @@ test('battle setup stays in step and shows both players their shared choices', a
   await alice.screenshot({ path: 'test-results/setup-armies.png', fullPage: true })
   await alice.setViewportSize({ width: 390, height: 844 })
   await alice.screenshot({ path: 'test-results/setup-armies-phone.png', fullPage: true })
+
+  await alice.setViewportSize({ width: 1440, height: 900 })
+  await setupStep(alice, 'Reserves')
+  await expect(alice.getByText(/\d+\/1000 reserve points/)).toHaveCount(2)
+  expect(await alice.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
+  await alice.screenshot({ path: 'test-results/setup-reserves.png', fullPage: true })
+  await alice.setViewportSize({ width: 390, height: 844 })
+  expect(await alice.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await alice.screenshot({ path: 'test-results/setup-reserves-phone.png', fullPage: true })
 })
 
 test('both devices settle mandatory tactical cards without racing', async ({ browser }) => {

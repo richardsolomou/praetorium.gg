@@ -2,7 +2,7 @@ import { MapPin } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import type { AttachedUnit } from '../../../core/attachedUnits'
-import { type Command, UNIT_FORMATIONS } from '../../../core/battle'
+import { type Command, strategicReserveLimit, strategicReservePoints, UNIT_FORMATIONS } from '../../../core/battle'
 import type { Army, Side } from '../../sides'
 import { HEADING } from '../battle/tints'
 import { formationLabel, SetupNote, SetupSidePanel } from './chrome'
@@ -35,6 +35,8 @@ function ArmySetup({ army, multiple, send }: { army: Army; multiple: boolean; se
   const sections = reserveSections(army.units)
   // Counted the way the rows are: a character and the unit he joined are one unit.
   const listed = sections.reduce((total, section) => total + section.units.length, 0)
+  const pointsLimit = army.roster?.built?.limit
+  const reservePoints = strategicReservePoints(army.units)
 
   return (
     <article className="space-y-2">
@@ -43,7 +45,14 @@ function ArmySetup({ army, multiple, send }: { army: Army; multiple: boolean; se
           <span className="block break-words text-xs font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
           {multiple ? <span className="block text-[0.625rem] text-dim">{army.playerName}</span> : null}
         </span>
-        <span className="chip shrink-0">{listed} units</span>
+        <span className="flex shrink-0 flex-wrap justify-end gap-1">
+          <span className="chip">{listed} units</span>
+          {pointsLimit === undefined ? null : (
+            <span className="chip">
+              {reservePoints}/{strategicReserveLimit(pointsLimit)} reserve points
+            </span>
+          )}
+        </span>
       </div>
       {sections.map((section) => (
         <section key={section.label} className="space-y-1">

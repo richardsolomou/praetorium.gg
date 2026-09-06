@@ -138,6 +138,29 @@ type SubmittedUnit = {
 export const UNIT_FORMATIONS = ['battlefield', 'strategic-reserves', 'deep-strike', 'embarked'] as const
 export type UnitFormation = (typeof UNIT_FORMATIONS)[number]
 
+export const strategicReserveLimit = (pointsLimit: number) => pointsLimit / 2
+
+/** Deep Strike changes an ingress move; the unit still starts in Strategic Reserves. */
+export function strategicReservePoints(units: readonly Pick<UnitState, 'formation' | 'points'>[]): number {
+  return units.reduce(
+    (total, unit) => total + (unit.formation === 'strategic-reserves' || unit.formation === 'deep-strike' ? unit.points : 0),
+    0,
+  )
+}
+
+export function strategicReserveError(units: readonly Pick<UnitState, 'formation' | 'points'>[], pointsLimit: number): string | null {
+  const limit = strategicReserveLimit(pointsLimit)
+  return strategicReservePoints(units) > limit ? `no more than ${limit} points of this army can start in strategic reserves` : null
+}
+
+function strategicReserveChangeError(
+  current: readonly Pick<UnitState, 'formation' | 'points'>[],
+  changed: readonly Pick<UnitState, 'formation' | 'points'>[],
+  pointsLimit: number,
+): string | null {
+  return strategicReservePoints(changed) <= strategicReservePoints(current) ? null : strategicReserveError(changed, pointsLimit)
+}
+
 /** A unit's standing in the battle. Attached rosters begin on the battlefield. */
 export type UnitState = SubmittedUnit & {
   destroyed: boolean
@@ -947,6 +970,13 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       ) {
         return 'every roster must match the battle size'
       }
+      for (const candidate of state.players) {
+        const pointsLimit = candidate.roster?.built?.limit
+        if (pointsLimit !== undefined) {
+          const reserveError = strategicReserveError(candidate.units, pointsLimit)
+          if (reserveError) return reserveError
+        }
+      }
       return null
     }
     case 'adjust-cp': {
@@ -1068,7 +1098,15 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'deploy-unit': {
       if (state.status === 'finished') return 'the battle is over'
-      if (!player.units.some((unit) => unit.key === command.unitKey)) return 'that is not one of your units'
+      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
+      if (!unit) return 'that is not one of your units'
+      if (state.status === 'setup' && !command.deployed && player.roster?.built) {
+        const changed = player.units.map((candidate) =>
+          candidate.key === unit.key ? { ...candidate, formation: 'strategic-reserves' as const } : candidate,
+        )
+        const reserveError = strategicReserveChangeError(player.units, changed, player.roster.built.limit)
+        if (reserveError) return reserveError
+      }
       return null
     }
     case 'set-unit-formation': {
@@ -1083,6 +1121,12 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
         !attached.every((unit) => unit.formationOptions?.includes(command.formation))
       ) {
         return 'the roster data does not support that formation'
+      }
+      if (state.status === 'setup' && player.roster?.built) {
+        const keys = new Set(attached.map((unit) => unit.key))
+        const changed = player.units.map((unit) => (keys.has(unit.key) ? { ...unit, formation: command.formation } : unit))
+        const reserveError = strategicReserveChangeError(player.units, changed, player.roster.built.limit)
+        if (reserveError) return reserveError
       }
       return null
     }

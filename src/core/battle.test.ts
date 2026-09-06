@@ -1740,6 +1740,82 @@ describe('battle management', () => {
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' })).toBeNull()
   })
 
+  it('limits strategic reserves and deep strike to half the army points limit', () => {
+    const command = builtRoster('Death Guard', ['Plague Marines', 'Lord of Virulence', 'Foetid Bloat-drone'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    command.roster.built.limit = 1_000
+    command.roster.built.units[0]!.points = 400
+    command.roster.built.units[1]!.points = 100
+    command.roster.built.units[1]!.formationOptions = ['deep-strike']
+    command.roster.built.units[2]!.points = 1
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, command],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' }],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'deep-strike' }],
+      ),
+    )
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'deep-strike' })).toBeNull()
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u2', formation: 'strategic-reserves' })).toBe(
+      'no more than 500 points of this army can start in strategic reserves',
+    )
+    expect(validate(state, ALICE, { kind: 'deploy-unit', unitKey: 'u2', deployed: false })).toBe(
+      'no more than 500 points of this army can start in strategic reserves',
+    )
+  })
+
+  it('refuses to begin with a legacy setup over the strategic reserves limit', () => {
+    const command = builtRoster('Ultramarines', ['Intercessors'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    command.roster.built.limit = 1_000
+    command.roster.built.units[0]!.points = 501
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, command],
+        [BOB, roster('Death Guard')],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' }],
+      ),
+    )
+
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe(
+      'no more than 500 points of this army can start in strategic reserves',
+    )
+  })
+
+  it('allows an over-limit legacy setup to be corrected one unit at a time', () => {
+    const command = builtRoster('Ultramarines', ['Intercessors', 'Hellblasters'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    command.roster.built.limit = 1_000
+    command.roster.built.units[0]!.points = 600
+    command.roster.built.units[1]!.points = 100
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, command],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' }],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'strategic-reserves' }],
+      ),
+    )
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'battlefield' })).toBeNull()
+  })
+
+  it('does not apply the starting reserve limit to moves made during the battle', () => {
+    const command = builtRoster('Ultramarines', ['Intercessors'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    command.roster.built.limit = 1_000
+    command.roster.built.units[0]!.points = 501
+    const state = reduceBattle(
+      PLAYERS,
+      log([ALICE, command], [BOB, roster('Death Guard')], [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }]),
+    )
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' })).toBeNull()
+  })
+
   it('refuses a deep strike formation absent from catalogue data', () => {
     const state = reduceBattle(PLAYERS, log([ALICE, builtRoster('Ultramarines', ['Intercessors'])]))
 
