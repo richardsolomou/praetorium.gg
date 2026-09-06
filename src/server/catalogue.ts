@@ -345,7 +345,17 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   const keywordRules = new Map<string, Datasheet['keywordRules'][number]>()
   const visited = new Set<string>()
   const addProfile = (profile: Profile, kind: AbilityKind, lineage: string[], owner: string[], source?: string) => {
-    if (profile.typeName === 'Abilities' && profile.name && !profile.hidden) {
+    if (profile.typeName === 'Abilities' && profile.name) {
+      const profileLineage = [...lineage, profile.id]
+      const hidden = modifiedProfileField(
+        String(profile.hidden ?? false),
+        'hidden',
+        profile.typeName,
+        profileLineage,
+        owner,
+        modifiers,
+      ).value
+      if (hidden === 'true') return
       abilities.set(`${kind}:${profile.id}`, { id: profile.id, name: profile.name, source, description: abilityDescription(profile), kind })
     } else {
       profiles.set(profile.id, { profile, lineage, owner })
@@ -641,6 +651,42 @@ export function datasheetViewsIn(
     available: datasheetIn(loaded, catalogueId, entryId, { ...shared, everyWeapon: true }),
   }
 }
+
+export function detachmentAbilitiesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
+  const detachment = loaded.detachments.get(catalogueId)
+  const project = (detachmentId?: string) => {
+    const selectedDetachments: Selection[] =
+      detachment && detachmentId
+        ? [
+            {
+              id: detachment.wrapperId,
+              selections: [{ id: detachment.groupId, selections: [{ id: detachmentId }] }],
+            },
+          ]
+        : []
+    const unit = defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId, roster: selectedDetachments })
+    if (!unit) return []
+    return (
+      walk(loaded, catalogueId, entryId, {
+        selections: [...selectedDetachments, unit],
+        unitSelectionIndex: selectedDetachments.length,
+      })?.abilities ?? []
+    )
+  }
+  const abilities = project()
+  const base = new Set(abilities.map(abilitySignature))
+  return {
+    abilities,
+    detachments:
+      detachment?.options.flatMap((option) => {
+        const added = project(option.id).filter((ability) => !base.has(abilitySignature(ability)))
+        return added.length ? [{ id: option.id, name: option.name, abilities: added }] : []
+      }) ?? [],
+  }
+}
+
+const abilitySignature = (ability: Datasheet['abilities'][number]) =>
+  JSON.stringify({ id: ability.id, name: ability.name, source: ability.source, description: ability.description, kind: ability.kind })
 
 type GrantedWeaponAbility = { keyword: string; source: string; profileTypes: readonly string[] }
 type GrantedInvulnerableSave = { value: string; source: string; originIds: readonly string[] }

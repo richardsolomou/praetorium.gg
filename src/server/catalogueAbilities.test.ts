@@ -169,6 +169,71 @@ describe('the abilities and wargear a datasheet lists', () => {
     ).toEqual(['Necrodermis', 'Quantum Goad'])
   })
 
+  it('shows a detachment ability only when its detachment is selected', () => {
+    const book = bookOf({
+      sharedProfiles: [
+        {
+          ...ability('distortion-fields', 'Distortion Fields (Aura)'),
+          modifiers: [
+            {
+              type: 'set',
+              field: 'hidden',
+              value: true,
+              conditions: [
+                {
+                  type: 'lessThan',
+                  value: 1,
+                  field: 'selections',
+                  scope: 'force',
+                  childId: 'pantheon',
+                  includeChildSelections: true,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      sharedSelectionEntries: [
+        {
+          id: 'detachment',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'detachments',
+              name: 'Detachment',
+              selectionEntries: [
+                { id: 'hypercrypt', name: 'Hypercrypt Legion', type: 'upgrade' },
+                { id: 'pantheon', name: 'Pantheon of Woe', type: 'upgrade' },
+              ],
+            },
+          ],
+        },
+      ],
+      selectionEntries: [
+        {
+          id: 'nightbringer',
+          name: 'Nightbringer',
+          type: 'unit',
+          infoLinks: [{ id: 'distortion-fields-link', targetId: 'distortion-fields', type: 'profile' }],
+        },
+      ],
+    })
+    const abilityNames = (detachmentId: string) =>
+      datasheetIn(book, 'cat', 'nightbringer', {
+        selections: [{ id: detachmentId }, { id: 'nightbringer' }],
+        unitSelectionIndex: 1,
+      })?.abilities.map(({ name }) => name)
+
+    expect(abilityNames('hypercrypt')).toEqual([])
+    expect(abilityNames('pantheon')).toEqual(['Distortion Fields (Aura)'])
+    const reference = describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'nightbringer'), null, { reference: true })
+    expect(reference?.abilities.map(({ name }) => name)).toEqual([])
+    expect(reference?.detachments.map(({ name, abilities }) => [name, abilities.map((entry) => entry.name)])).toEqual([
+      ['Pantheon of Woe', ['Distortion Fields (Aura)']],
+    ])
+  })
+
   it('identifies a selected detachment unit upgrade separately from wargear', () => {
     const book = bookOf({
       sharedSelectionEntries: [
