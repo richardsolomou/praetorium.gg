@@ -45,6 +45,7 @@ export function MissionCardReference({
   return (
     <article>
       <span className="chip">{type}</span>
+      {card.text ? <RuleText text={card.text} className="mt-4 text-base text-bone" /> : null}
       <div className="mt-4 space-y-3">
         {[...groups.values()].map((awards) => (
           <ScoringBlock key={groupKey(awards[0]!)} awards={awards} />
