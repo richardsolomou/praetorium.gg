@@ -11,7 +11,7 @@ import {
   waitForRosterSave,
 } from './account'
 
-test('battle setup stays in step and shows both players their shared choices', async ({ browser }) => {
+test('battle setup stays shared and does not wait for the other device', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext()).newPage()
   const aliceName = uniqueName('Alice')
@@ -74,12 +74,10 @@ test('battle setup stays in step and shows both players their shared choices', a
   expect(await bob.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   await bob.screenshot({ path: 'test-results/setup-defender-phone.png', fullPage: true })
   await bob.setViewportSize({ width: 1440, height: 900 })
-  await setupStep(bob, 'Secondaries')
-  // The rail is the shared place in setup, so Bob moving it moves Alice's screen too.
-  await expect(alice.getByRole('navigation', { name: 'Setup sections' }).getByRole('button', { name: /Secondaries/ })).toHaveAttribute(
-    'aria-current',
-    'step',
-  )
+  await bob.close()
+  await setupStep(alice, 'Secondaries')
+  // One device settles both sides' derived cards, so an absent opponent cannot block setup.
+  await expect(alice.getByRole('button', { name: 'Next', exact: true })).toBeEnabled()
   // Both sides are drawn, so each name appears on the table strip and again on its own column.
   await expect(alice.getByRole('main').getByText(aliceName, { exact: true })).toHaveCount(2)
   await expect(alice.getByRole('main').getByText(bobName, { exact: true })).toHaveCount(2)

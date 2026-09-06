@@ -22,12 +22,9 @@ type Props = { view: BattleView; side: Side; missionId: string | null; send: Sen
  * detachment the side fields plus the core ones every army has, and the primary comes
  * from this side's ordered disposition matchup — so neither is offered as a choice.
  *
- * A 2v1 side reads both armies, because the pair share one pool and each ally brings
- * its own detachment to it. Only one seat writes that pool, though: the side's
- * `writer`. Letting both allies record their own into it left the survivor down to
- * whichever request landed last. A side of practice opponents has no seat that could
- * write them, so the table facing it does — the same rule, asked of who is actually
- * playing the side.
+ * A 2v1 side reads both armies because the pair share one pool and each ally brings
+ * its own detachment. The pool targets the side captain, while the `writer` owns the
+ * mode and fixed-card choices.
  */
 export function Prep({ view, side, missionId, send, pending }: Props) {
   const captain = side.captain
@@ -103,7 +100,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     // than from this side's rules, so an unanswered references request is as much a
     // reason to wait as an unanswered one for the stratagems: writing here without it
     // sends an empty tactical deck, which is refused, which leaves this asking again.
-    if (!writes || !rules || !references || pending) return
+    if (!rules || !references || pending) return
     // Compared against what would be sent, so a pool already written is left alone
     // and a pool an arriving ally changes is rewritten exactly once.
     const wrongStratagems = pooled && wanted.length > 0 && wanted !== recorded
@@ -111,7 +108,9 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     const missingDeck = deck.length > 0 && !captain.secondaryDeckReady
     const invalidMode = tacticalOnly && storedMode !== 'tactical'
     if (!wrongStratagems && !wrongPrimary && !missingDeck && !invalidMode) return
-    save({}, tacticalOnly ? { background: true } : undefined)
+    // Derived cards may be settled from either device; only the mode and fixed-card
+    // controls remain the side writer's choice.
+    save({}, { background: true })
     // Re-runs only when one of those facts changes, and every one is satisfied by the save.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -128,7 +127,6 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     storedMode,
     tacticalOnly,
     pending,
-    writes,
   ])
 
   if (!writes) {
@@ -138,9 +136,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
         <p className="text-xs text-dim">
           {mode === 'fixed' ? 'Chosen now and played for the whole battle.' : 'Drawn at random or selected as the battle runs.'}
         </p>
-        <p className="text-xs text-dim">
-          {side.writer.name} sets the cards and stratagems your side plays. You both draw from the one hand.
-        </p>
+        <p className="text-xs text-dim">{side.writer.name} chooses how your side draws its cards. You both draw from the one hand.</p>
       </div>
     )
   }
