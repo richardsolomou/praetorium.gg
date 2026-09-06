@@ -65,4 +65,26 @@ describe('mission card reference', () => {
     expect(markup).not.toContain('+2 VP')
     expect(markup).toContain('>2 VP</span>')
   })
+
+  it('shows an end-of-battle payout without battle-round or turn qualifiers', () => {
+    const markup = renderToStaticMarkup(
+      createElement(MissionCardReference, {
+        card: {
+          name: 'Vanguard Operation',
+          text: null,
+          awards: [
+            {
+              ...award(10, 'You control your opponent’s home objective.', null),
+              trigger: { ...trigger, timing: 'end-of-battle' },
+            },
+          ],
+        },
+        type: 'Priority Assets',
+      }),
+    )
+
+    expect(markup).toContain('When:</span> End of battle')
+    expect(markup).not.toContain('Any battle round')
+    expect(markup).not.toContain('Your turn')
+  })
 })

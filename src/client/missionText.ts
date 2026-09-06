@@ -70,6 +70,7 @@ export function awardTotal(award: Pick<MissionAward, 'vp' | 'max' | 'per'>, time
 }
 
 export function timingLabel(trigger: MissionAward['trigger']) {
+  if (trigger.timing === 'end-of-battle') return 'End of battle'
   const owner =
     trigger.playerTurn === 'your-turn'
       ? 'your'
@@ -100,7 +101,9 @@ export function timingLabel(trigger: MissionAward['trigger']) {
  */
 export const conditionLabel = (award: MissionAward): string | null => award.criteria
 
-export function roundLabel(min: number | null, max: number | null) {
+export function roundLabel(trigger: MissionAward['trigger']): string | null {
+  if (trigger.timing === 'end-of-battle') return null
+  const { roundMin: min, roundMax: max } = trigger
   if (min === null && max === null) return 'Any battle round'
   if (min === null && max === 2) return 'First & second battle rounds'
   if (min !== null && max !== null && min === max) return `Battle round ${min}`
