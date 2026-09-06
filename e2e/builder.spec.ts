@@ -32,6 +32,12 @@ async function expectInsideHorizontalBounds(container: Locator, elements: Locato
   }
 }
 
+/** Which ends of a scroller are masked, read from the gradient the header paints over it. */
+async function fadedEdges(element: Locator) {
+  const mask = await element.evaluate((node) => getComputedStyle(node).maskImage)
+  return { start: mask.includes('to right, rgba(0, 0, 0, 0)'), end: mask.endsWith('rgba(0, 0, 0, 0) 100%)') }
+}
+
 async function expectVerticalPanOnly(element: Locator) {
   const style = await element.evaluate((node) => {
     const computed = getComputedStyle(node)
@@ -154,6 +160,28 @@ test('the roster workspace reserves the desktop picker while its book loads', as
   await expectVerticalPanOnly(viewport)
   await expectNoHorizontalOverflow(loadout.locator('[data-slot="unit-profile"]'))
   await page.screenshot({ path: 'test-results/stable-roster-loadout-phone.png', fullPage: true })
+})
+
+test('the roster header fades whichever end of its facts it is hiding', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const page = await context.newPage()
+  await openBuilder(page)
+  const meta = page.locator('[data-slot="roster-meta"]')
+  await expect(meta).toBeVisible()
+  // The row grows as its pricing lands, so the cue is asserted once the facts have all arrived.
+  await expect.poll(() => meta.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true)
+  await expect.poll(() => fadedEdges(meta)).toEqual({ start: false, end: true })
+
+  await meta.evaluate((node) => node.scrollTo({ left: node.scrollWidth }))
+  await expect.poll(() => fadedEdges(meta)).toEqual({ start: true, end: false })
+  await context.close()
+})
+
+test('the roster header fades nothing when every fact fits', async ({ page }) => {
+  await openBuilder(page)
+  const meta = page.locator('[data-slot="roster-meta"]')
+  await expectNoHorizontalOverflow(meta)
+  await expect.poll(() => fadedEdges(meta)).toEqual({ start: false, end: false })
 })
 
 test('a native unit screen fills the WebView without a legacy tab inset', async ({ browser }) => {

@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import type { ChangeEventHandler, ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { ChangeEventHandler, CSSProperties, ReactNode } from 'react'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { GAME_SIZES, type FormatRule } from '../../core/battle'
@@ -43,6 +44,46 @@ type RosterHeaderProps = {
   children?: ReactNode
 }
 
+const FADE = '1.25rem'
+
+function edgeMask(start: boolean, end: boolean) {
+  if (!start && !end) return undefined
+  const opening = start ? `transparent 0, black ${FADE}` : 'black 0'
+  const closing = end ? `black calc(100% - ${FADE}), transparent 100%` : 'black 100%'
+  return `linear-gradient(to right, ${opening}, ${closing})`
+}
+
+/**
+ * Fades whichever end of a horizontal scroller still holds content, so a row that
+ * has more to say says so rather than ending in a hard clip mid-word.
+ */
+function useScrollEdges<T extends HTMLElement>() {
+  const ref = useRef<T>(null)
+  const [edges, setEdges] = useState({ start: false, end: false })
+  const measure = () => {
+    const node = ref.current
+    if (!node) return
+    const start = node.scrollLeft > 1
+    const end = Math.ceil(node.scrollLeft + node.clientWidth) < node.scrollWidth
+    setEdges((current) => (current.start === start && current.end === end ? current : { start, end }))
+  }
+  // Content decides the overflow as much as the viewport does, and a detachment can change under a row that never resized.
+  useEffect(measure)
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return
+    node.addEventListener('scroll', measure, { passive: true })
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => {
+      node.removeEventListener('scroll', measure)
+      observer.disconnect()
+    }
+  }, [])
+  const mask = edgeMask(edges.start, edges.end)
+  return { ref, style: mask ? ({ maskImage: mask, WebkitMaskImage: mask } satisfies CSSProperties) : undefined }
+}
+
 export function RosterHeader({
   name,
   nameId,
@@ -59,6 +100,7 @@ export function RosterHeader({
   actions,
   children,
 }: RosterHeaderProps) {
+  const meta = useScrollEdges<HTMLSpanElement>()
   const hasPoints = points !== null && points !== undefined
   const hasSummary = hasPoints || limit !== undefined
   const shownDisposition = disposition
@@ -92,7 +134,12 @@ export function RosterHeader({
 
       {faction || factionLoading || limit !== undefined ? (
         <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-dim">
-          <span className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <span
+            ref={meta.ref}
+            style={meta.style}
+            data-slot="roster-meta"
+            className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             {faction ? (
               <Link
                 to="/factions/$catalogueId"
