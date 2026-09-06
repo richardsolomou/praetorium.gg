@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.61.6
+
+### Patch Changes
+
+- 7b62124: Enforce the Strategic Reserves points limit during battle setup.
+
 ## 0.61.5
 
 ### Patch Changes
