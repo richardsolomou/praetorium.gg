@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.61.2
+
+### Patch Changes
+
+- 330d2d0: Keep wound-management controls stable while casualty changes save.
+- 42a1a6c: Separate detachment-specific datasheet abilities from intrinsic abilities and show them under their detachments.
+- 158383f: Show only selected wargear abilities and apply their granted abilities to unit profiles.
+
 ## 0.61.1
 
 ### Patch Changes
