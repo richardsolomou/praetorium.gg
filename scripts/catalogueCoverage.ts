@@ -130,8 +130,19 @@ const snapshot = loaded.factions.toSorted(byName).map((faction) => {
       const selections = priced?.selections ?? []
       const at = selections.findIndex((selection) => selection.id === entryId)
       const context = at < 0 ? undefined : { selections, unitSelectionIndex: at, everyWeapon: true }
-      const sheet = describeDatasheetAbilities(loaded, faction.id, datasheetIn(loaded, faction.id, entryId, context), rules)
-      if (!sheet) return []
+      const rawSheet = datasheetIn(loaded, faction.id, entryId, context)
+      const sheet = describeDatasheetAbilities(loaded, faction.id, rawSheet, rules)
+      const reference = describeDatasheetAbilities(loaded, faction.id, rawSheet, rules, {
+        reference: true,
+      })
+      if (!sheet || !reference) return []
+      const allAbilities = new Map(
+        [...sheet.abilities, ...reference.detachments.flatMap((detachment) => detachment.abilities)].map((ability) => [
+          `${ability.kind}:${ability.id}`,
+          ability,
+        ]),
+      )
+      const abilities = [...allAbilities.values()]
       return [
         {
           name: sheet.name,
@@ -139,10 +150,15 @@ const snapshot = loaded.factions.toSorted(byName).map((faction) => {
           points: sheet.points,
           keywords: sheet.keywords.length,
           profiles: sheet.profiles.map((profile) => `${profile.type}: ${profile.name}`).toSorted(),
-          abilities: described(sheet.abilities).map((ability) => ({
+          abilities: described(abilities).map((ability) => ({
             ...ability,
-            kind: sheet.abilities.find((candidate) => candidate.name === ability.name)?.kind,
+            kind: abilities.find((candidate) => candidate.name === ability.name)?.kind,
           })),
+          detachmentAbilities: reference.detachments
+            .flatMap((detachment) =>
+              detachment.abilities.length ? [{ name: detachment.name, abilities: described(detachment.abilities) }] : [],
+            )
+            .toSorted(byName),
           keywordRules: sheet.keywordRules.map((rule) => rule.name).toSorted(),
           composition: sheet.composition.length,
           loadout: Boolean(sheet.loadout),
@@ -197,6 +213,15 @@ const count = {
     0,
   ),
   abilities: snapshot.reduce((total, faction) => total + faction.datasheets.reduce((sum, sheet) => sum + sheet.abilities.length, 0), 0),
+  detachmentAbilities: snapshot.reduce(
+    (total, faction) =>
+      total +
+      faction.datasheets.reduce(
+        (sum, sheet) => sum + sheet.detachmentAbilities.reduce((abilities, detachment) => abilities + detachment.abilities.length, 0),
+        0,
+      ),
+    0,
+  ),
   detachments: snapshot.reduce((total, faction) => total + faction.detachments.length, 0),
   detachmentRules: snapshot.reduce(
     (total, faction) => total + faction.detachments.filter((detachment) => detachment.rules.length).length,
@@ -321,6 +346,15 @@ if (flag === '--compare' && previous) {
       if (sheet.points !== current.points) lost.push(`${where}: points ${sheet.points} → ${current.points}`)
       compareLists(`${where} profiles`, sheet.profiles, current.profiles)
       compareDescribed(`${where} abilities`, sheet.abilities, current.abilities)
+      const detachmentAbilityNames = new Set([
+        ...(sheet.detachmentAbilities ?? []).map((detachment) => detachment.name),
+        ...(current.detachmentAbilities ?? []).map((detachment) => detachment.name),
+      ])
+      for (const name of detachmentAbilityNames) {
+        const earlier = sheet.detachmentAbilities?.find((detachment) => detachment.name === name)
+        const later = current.detachmentAbilities?.find((detachment) => detachment.name === name)
+        compareDescribed(`${where} / ${name} detachment abilities`, earlier?.abilities ?? [], later?.abilities ?? [])
+      }
       compareLists(`${where} keyword rules`, sheet.keywordRules, current.keywordRules)
       compareLists(`${where} attachments`, sheet.attachments, current.attachments)
       compareLists(`${where} ability names`, sheet.abilityNames ?? [], current.abilityNames ?? [])
