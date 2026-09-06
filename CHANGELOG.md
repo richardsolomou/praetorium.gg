@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.61.8
+
+### Patch Changes
+
+- ea93795: Keep detachment-only abilities off standalone datasheets.
+
+## 0.61.7
+
+### Patch Changes
+
+- e97c341: Open a mission immediately while its terrain layouts load.
+
 ## 0.61.6
 
 ### Patch Changes

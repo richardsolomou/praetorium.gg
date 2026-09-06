@@ -3,24 +3,13 @@ import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
 import { applicationNavigationScript } from '../mobile/src/navigation'
 import { signUp } from './account'
 
-test('a standalone datasheet separates detachment abilities', async ({ page }) => {
+test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
   await page.goto('/factions/necrons/datasheets/ctan-shard-of-the-nightbringer')
   await expect(page.getByRole('heading', { name: "C'tan Shard of the Nightbringer", exact: true })).toBeVisible()
 
-  const datasheetAbilities = page.getByRole('heading', { name: /Datasheet abilities/ }).locator('..')
-  await expect(datasheetAbilities.getByText('Distortion Fields (Aura)', { exact: true })).toHaveCount(0)
-  const detachmentAbilities = page.getByRole('heading', { name: /Detachment abilities/ }).locator('..')
-  await expect(detachmentAbilities.getByRole('link', { name: 'Pantheon of Woe' })).toBeVisible()
-  await expect(detachmentAbilities.getByRole('heading', { name: 'Distortion Fields (Aura)' })).toBeVisible()
-  await expect(detachmentAbilities.getByRole('heading', { name: 'Quantum Goad' })).toBeVisible()
-  await detachmentAbilities.screenshot({ path: 'test-results/nightbringer-detachment-abilities.png' })
-
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  expect(await detachmentAbilities.evaluate((section) => section.scrollWidth)).toBe(
-    await detachmentAbilities.evaluate((section) => section.clientWidth),
-  )
-  await detachmentAbilities.screenshot({ path: 'test-results/nightbringer-detachment-abilities-phone.png' })
+  await expect(page.getByText('Distortion Fields (Aura)', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Quantum Goad', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: /Detachment abilities/ })).toHaveCount(0)
 })
 
 test('primary navigation collapses below 860 pixels', async ({ page }) => {
@@ -409,6 +398,39 @@ test('terrain layouts open with measurement guidance', async ({ page }) => {
       .filter({ has: page.locator('title', { hasText: /^Objective terrain$/ }) })
       .last(),
   ).toBeVisible()
+})
+
+test('a mission opens while its terrain layouts load', async ({ page }) => {
+  await page.goto('/mission-packs/chapter-approved-2026-2027')
+
+  let releaseTerrain: () => void = () => undefined
+  const terrainHeld = new Promise<void>((resolve) => {
+    releaseTerrain = resolve
+  })
+  let terrainStarted: () => void = () => undefined
+  const started = new Promise<void>((resolve) => {
+    terrainStarted = resolve
+  })
+  await page.route('**/_serverFn/**', async (route) => {
+    const url = decodeURIComponent(route.request().url())
+    if (url.includes('"matchupIds"') && url.includes('"geometryVersion"')) {
+      terrainStarted()
+      await terrainHeld
+    }
+    await route.continue()
+  })
+
+  const opening = page.locator('a[href^="/mission-matchups/"]').first().click()
+  await started
+  try {
+    await expect(page.getByText('Mission matchup', { exact: true })).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByRole('heading', { name: 'Loading terrain layouts' })).toBeVisible()
+    await expect(page.getByText('Mission pack', { exact: true })).toHaveCount(0)
+  } finally {
+    releaseTerrain()
+  }
+  await opening
+  await expect(page.getByRole('button', { name: /Enlarge terrain layout/ }).first()).toBeVisible()
 })
 
 test('terrain placement uses structural corners and whole-inch labels', async ({ page }) => {

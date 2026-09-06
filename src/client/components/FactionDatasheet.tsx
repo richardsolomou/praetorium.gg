@@ -90,7 +90,6 @@ export function FactionDatasheet() {
         {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
         {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
         <Abilities abilities={referenceAbilities(sheet.abilities, sheet.attachments)} rules={sheet.keywordRules} />
-        <DetachmentAbilities catalogueId={faction.slug} detachments={sheet.detachments} rules={sheet.keywordRules} />
         <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} />
         <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
         {sheet.transport ? (
@@ -161,63 +160,7 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
   })
 }
 
-type DatasheetDisplay = Datasheet & {
-  detachments: {
-    id: string
-    slug: string
-    name: string
-    rules: { name: string; description: string }[]
-    abilities: DisplayAbility[]
-    enhancements: { name: string; description: string | null }[]
-  }[]
-}
-
-function DetachmentAbilities({
-  catalogueId,
-  detachments,
-  rules,
-}: {
-  catalogueId: string
-  detachments: DatasheetDisplay['detachments']
-  rules: KeywordRule[]
-}) {
-  const found = detachments.filter((detachment) => detachment.abilities.length)
-  const count = found.reduce((total, detachment) => total + detachment.abilities.length, 0)
-  if (!count) return null
-  return (
-    <section>
-      <h2 className="rubric">
-        Detachment abilities <span className="readout text-faint">{count}</span>
-      </h2>
-      <div className="mt-2 space-y-2">
-        {found.map((detachment) => (
-          <article key={detachment.id} className="border border-edge bg-panel p-3">
-            <h3 className="text-sm">
-              <Link
-                to="/factions/$catalogueId/detachments/$detachmentId"
-                params={{ catalogueId, detachmentId: detachment.slug }}
-                className="text-info hover:text-bone"
-              >
-                {detachment.name}
-              </Link>
-            </h3>
-            <div className="mt-2 divide-y divide-edge">
-              {detachment.abilities.map((ability) => (
-                <div key={ability.id} className="py-2 first:pt-0 last:pb-0">
-                  <h4 className="eyebrow">{ability.source ?? ability.name}</h4>
-                  {ability.source ? <p className="mt-1 text-sm font-semibold">{ability.name}</p> : null}
-                  {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
-                </div>
-              ))}
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function UnitConfiguration({ sheet, rules }: { sheet: DatasheetDisplay; rules: KeywordRule[] }) {
+function UnitConfiguration({ sheet, rules }: { sheet: Datasheet; rules: KeywordRule[] }) {
   if (!sheet.composition.length && !sheet.loadout && !sheet.wargearOptions.length && !sheet.costs.length) return null
   return (
     <section>
@@ -274,7 +217,7 @@ function UnitConfiguration({ sheet, rules }: { sheet: DatasheetDisplay; rules: K
   )
 }
 
-function Relationships({ sheet }: { sheet: DatasheetDisplay }) {
+function Relationships({ sheet }: { sheet: Datasheet }) {
   const groups = attachmentGroups(sheet)
   if (!groups.length) return null
   return (
