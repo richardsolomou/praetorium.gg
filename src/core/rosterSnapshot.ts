@@ -1,6 +1,6 @@
 import type { Attachment } from './attach'
 import { attachmentRows } from './attachmentRows'
-import type { FormatRuleId, Roster } from './battle'
+import { type FormatRuleId, type Roster, strategicReserveLimit } from './battle'
 import type { RosterPick } from './roster'
 import type { UnitGroup } from './unitGroups'
 
@@ -18,6 +18,7 @@ type SavedRoster = {
 type PricedRoster = {
   points: number
   revision: string
+  strategicReserveFactsComplete?: boolean
   /** What an unnamed list is called, frozen here: a battle keeps the name it was fielded under. */
   label: string
   detachment: string | null
@@ -39,6 +40,7 @@ type PricedRoster = {
     upgrades: readonly string[]
     formationOptions: readonly ('battlefield' | 'strategic-reserves' | 'deep-strike' | 'embarked')[]
     prebattleRules: readonly ('infiltrators' | 'scouts')[]
+    strategicReserveExempt?: boolean
   }[]
 }
 
@@ -73,6 +75,7 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds:
       catalogueId: saved.catalogueId,
       revision: priced.revision,
       limit: saved.limit,
+      ...(priced.strategicReserveFactsComplete ? { strategicReserveLimit: strategicReserveLimit(saved.limit) } : {}),
       detachment: priced.detachment,
       detachments: [...priced.detachments],
       detachmentPointBudget: priced.detachmentPointBudget,
@@ -100,6 +103,7 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds:
         ...(hostsByPick.has(unit.key) ? { attachedTo: hostsByPick.get(unit.key) } : {}),
         formationOptions: [...unit.formationOptions],
         prebattleRules: [...unit.prebattleRules],
+        ...(unit.strategicReserveExempt ? { strategicReserveExempt: true } : {}),
       })),
     },
   }

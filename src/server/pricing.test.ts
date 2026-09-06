@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { OptionalRuleId } from '../core/battle'
+import type { SelectionEntry } from '../core/catalogue'
 import {
   calculateRosterPrice,
   choiceOptionsForPricing,
@@ -8,9 +9,11 @@ import {
   isCatalogueSelfContradiction,
   factionRestrictionViolations,
   findEnhancementDescription,
+  grantsStrategicReserveExemption,
   kotcViolations,
   savedRosterPriceInput,
   resolveDisposition,
+  strategicReserveExemptionSelectors,
   uniqueNames,
 } from './pricing'
 import { descriptionKey } from './datacards'
@@ -324,6 +327,64 @@ describe('enhancement descriptions', () => {
 })
 
 describe('catalogue-backed deployment rules', () => {
+  const detachmentBook = (...units: SelectionEntry[]) =>
+    bookOf({
+      name: 'Orks',
+      categoryEntries: [
+        { id: 'orks', name: 'Faction: Orks' },
+        { id: 'aircraft', name: 'Aircraft' },
+      ],
+      sharedSelectionEntries: [
+        {
+          id: 'detachment',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'detachments',
+              name: 'Detachment',
+              selectionEntries: [{ id: 'flyboyz', name: 'Flyboyz', type: 'upgrade' }],
+            },
+          ],
+        },
+      ],
+      selectionEntries: units,
+    })
+  const flyboyzRules = (enhancements: { name: string; points: number; description: string; keywordRestrictions: string[] }[] = []) =>
+    ({
+      factionKeys: new Map([['orks', 'orks']]),
+      detachmentReferences: new Map([
+        ['orks', new Map([['flyboyz', { enhancements: enhancements.length, upgrades: 0, stratagems: 0, points: 1, dispositions: [] }]])],
+      ]),
+      detachmentDetails: new Map([
+        [
+          'orks',
+          new Map([
+            [
+              'flyboyz',
+              {
+                id: 'flyboyz',
+                name: 'Flyboyz',
+                points: 1,
+                dispositions: [],
+                rules: [
+                  {
+                    name: 'Air Superiority',
+                    description:
+                      'Friendly **Orks Aircraft** units do not count towards the combined points value of your **Strategic Reserves** units.',
+                  },
+                ],
+                enhancements,
+                upgrades: [],
+                stratagems: [],
+              },
+            ],
+          ]),
+        ],
+      ]),
+      factionRestrictions: new Map(),
+    }) as Partial<LoadedRules> as LoadedRules
+
   it('derives every supported pre-battle option from ability names', () => {
     expect(deploymentRules(['Deep Strike', 'Infiltrators', 'Scouts 6"'])).toEqual({
       formationOptions: ['deep-strike'],
@@ -333,6 +394,127 @@ describe('catalogue-backed deployment rules', () => {
 
   it('does not invent deployment options without matching abilities', () => {
     expect(deploymentRules(['Leader', 'Stealth'])).toEqual({ formationOptions: [], prebattleRules: [] })
+  })
+
+  it('reads reserve-limit exemptions from detachment rules and enhancements', () => {
+    expect(
+      strategicReserveExemptionSelectors([
+        '- Friendly **Orks Aircraft** units do not count towards the combined points value of your **strategic reserves** units.',
+      ]),
+    ).toEqual(['Orks Aircraft'])
+    expect(
+      grantsStrategicReserveExemption(
+        "If the bearer's unit starts the battle in Strategic Reserves, its points value does not count towards the combined points limit for units from your army that are in Strategic Reserve.",
+      ),
+    ).toBe(true)
+    expect(grantsStrategicReserveExemption('This unit can be set up in Strategic Reserves.')).toBe(false)
+  })
+
+  it('marks a unit matching a compound detachment keyword exemption', () => {
+    const loaded = detachmentBook({
+      id: 'dakkajet',
+      name: 'Dakkajet',
+      type: 'unit',
+      costs: pointsCost(135),
+      categoryLinks: [
+        { id: 'orks-link', targetId: 'orks' },
+        { id: 'aircraft-link', targetId: 'aircraft' },
+      ],
+    })
+
+    const priced = calculateRosterPrice(
+      { catalogueId: 'cat', detachmentIds: ['flyboyz'], disposition: null, limit: 2_000, units: [{ entryId: 'dakkajet' }] },
+      loaded,
+      flyboyzRules(),
+    )
+
+    expect(priced).toMatchObject({
+      strategicReserveFactsComplete: true,
+      units: [expect.objectContaining({ name: 'Dakkajet', strategicReserveExempt: true })],
+    })
+  })
+
+  it('does not treat a selected detachment without joined rules detail as complete', () => {
+    const loaded = detachmentBook({ id: 'dakkajet', name: 'Dakkajet', type: 'unit', costs: pointsCost(135) })
+    const rules = { ...flyboyzRules(), detachmentDetails: new Map() }
+
+    const priced = calculateRosterPrice(
+      { catalogueId: 'cat', detachmentIds: ['flyboyz'], disposition: null, limit: 2_000, units: [{ entryId: 'dakkajet' }] },
+      loaded,
+      rules,
+    )
+
+    expect(priced?.strategicReserveFactsComplete).toBe(false)
+  })
+
+  it('does not treat a selected detachment with a missing enhancement description as complete', () => {
+    const loaded = detachmentBook({ id: 'warboss', name: 'Warboss', type: 'unit', costs: pointsCost(75) })
+    const rules = flyboyzRules([
+      {
+        name: 'Master of Manoeuvre',
+        points: 30,
+        description: '',
+        keywordRestrictions: [],
+      },
+    ])
+
+    const priced = calculateRosterPrice(
+      { catalogueId: 'cat', detachmentIds: ['flyboyz'], disposition: null, limit: 2_000, units: [{ entryId: 'warboss' }] },
+      loaded,
+      rules,
+    )
+
+    expect(priced?.strategicReserveFactsComplete).toBe(false)
+  })
+
+  it('marks the unit carrying a selected reserve-limit enhancement', () => {
+    const loaded = detachmentBook(
+      {
+        id: 'warboss',
+        name: 'Warboss',
+        type: 'unit',
+        costs: pointsCost(75),
+        selectionEntryGroups: [
+          {
+            id: 'enhancements',
+            name: 'Enhancements',
+            constraints: [{ id: 'enhancements-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            selectionEntries: [{ id: 'master', name: 'Master of Manoeuvre', type: 'upgrade', costs: enhancement() }],
+          },
+        ],
+      },
+      { id: 'boyz', name: 'Boyz', type: 'unit', costs: pointsCost(80) },
+    )
+    const rules = flyboyzRules([
+      {
+        name: 'Master of Manoeuvre',
+        points: 30,
+        description:
+          "If the bearer's unit starts the battle in Strategic Reserves, its points value does not count towards the combined points limit for units from your army that are in Strategic Reserve.",
+        keywordRestrictions: [],
+      },
+    ])
+
+    const priced = calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: ['flyboyz'],
+        disposition: null,
+        limit: 2_000,
+        units: [{ entryId: 'warboss', choices: { enhancements: 'master' } }, { entryId: 'boyz' }],
+      },
+      loaded,
+      rules,
+    )
+
+    expect(priced).toMatchObject({
+      strategicReserveFactsComplete: true,
+      units: [
+        expect.objectContaining({ name: 'Warboss', enhancements: ['Master of Manoeuvre'], strategicReserveExempt: true }),
+        expect.objectContaining({ name: 'Boyz', enhancements: [] }),
+      ],
+    })
+    expect(priced?.units[1]).not.toHaveProperty('strategicReserveExempt')
   })
 })
 

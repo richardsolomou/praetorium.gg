@@ -28,7 +28,7 @@ import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoic
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearKey, wargearOf } from '../core/wargear'
 import { app } from './app'
-import { contextualAbilityNamesIn, datasheetIn, rulesReferencedIn, toughnessOf } from './catalogue'
+import { contextualAbilityNamesIn, datasheetIn, matchesKeywordSelector, rulesReferencedIn, toughnessOf } from './catalogue'
 import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey, type FactionRestrictions, restrictedBy } from './datacards'
 import { factionDisplayName } from './factionNames'
@@ -316,6 +316,19 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     const detail = detachmentNamed(details, option.name)
     return { option, detail, ...describedEnhancements(loaded, data.catalogueId, option, detail) }
   })
+  const strategicReserveFactsComplete =
+    Boolean(rules) &&
+    detachmentSpecials.every(({ option, detail, catalogue, described }) => {
+      if (!detail || detail.rules.some((rule) => !rule.description)) return false
+      const offered = [...detail.enhancements, ...detail.upgrades]
+      return (
+        offered.every((enhancement) => described.has(descriptionKey(option.name, enhancement.name))) &&
+        (catalogue?.forcedEnhancements ?? []).every((enhancement) => Boolean(enhancement.description))
+      )
+    })
+  const reserveExemptionSelectors = strategicReserveExemptionSelectors(
+    detachmentSpecials.flatMap(({ detail }) => detail?.rules.map((rule) => rule.description) ?? []),
+  )
   const enhancementDescriptions = new Map(detachmentSpecials.flatMap(({ described }) => [...described]))
   const budget = detachmentPointBudget(data.limit)
   const spent = purchased.reduce((total, option) => total + (option.points ?? 0), 0)
@@ -487,6 +500,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     dispositionError,
     borrowedDetachment: borrowedDetachment?.name ?? null,
     borrowedError,
+    strategicReserveFactsComplete,
     points: whole.points,
     errors,
     unhandled: [
@@ -498,6 +512,10 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
       const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
       const unitSelectionIndex = selectionIndex.get(unit.selection)
+      const keywordNames = (unitSelectionIndex === undefined ? [] : keywordsFor(catalogueId, unitSelectionIndex)).flatMap((id) => {
+        const category = loaded.index.categories.get(id)
+        return category?.hidden || !category?.name ? [] : [category.name.replace(/^Faction:\s*/iu, '')]
+      })
       const host = data.units[unit.key]?.attachedTo ?? unit.key
       const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
         const index = pickedIndexByKey.get(key)
@@ -555,7 +573,18 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
           .filter((choice) => choice.kind)
           .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => routeSlug(option.name))),
       )
+      const selectedEnhancements = uniqueNames([
+        ...choices
+          .filter((choice) => choice.kind === 'enhancement')
+          .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
+        ...automaticEnhancements,
+      ])
       const specialSelections = new Set([...specialChoices, ...automaticEnhancements.map(routeSlug)])
+      const strategicReserveExempt =
+        reserveExemptionSelectors.some((selector) => matchesKeywordSelector(selector, keywordNames)) ||
+        selectedEnhancements.some((enhancement) =>
+          grantsStrategicReserveExemption(findEnhancementDescription(enhancementDescriptions, chosen, enhancement)),
+        )
       const wargear = heldWargear(models, choices, catalogued)
       const attachment = attachmentOf(definition, loaded.index, unit.selection)
       return {
@@ -571,15 +600,11 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
           resizable: unit.size.max > unit.size.min,
         },
         ...deployment,
+        ...(strategicReserveExempt ? { strategicReserveExempt: true } : {}),
         choices,
         models,
         toggles: unit.toggles,
-        enhancements: uniqueNames([
-          ...choices
-            .filter((choice) => choice.kind === 'enhancement')
-            .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
-          ...automaticEnhancements,
-        ]),
+        enhancements: selectedEnhancements,
         upgrades: choices
           .filter((choice) => choice.kind === 'upgrade')
           .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
@@ -759,6 +784,30 @@ export function deploymentRules(abilityNames: readonly string[]) {
       ...(abilities.some((ability) => ability.startsWith('scouts')) ? (['scouts'] as const) : []),
     ],
   }
+}
+
+const normalizedRuleText = (description: string) =>
+  description
+    .normalize('NFKC')
+    .replaceAll(/\*\*|<\/?[bkiu]>/giu, '')
+    .replaceAll(/\s+/g, ' ')
+    .trim()
+
+export function strategicReserveExemptionSelectors(descriptions: readonly string[]): string[] {
+  return descriptions.flatMap((description) => {
+    const normalized = normalizedRuleText(description)
+    const matches = normalized.matchAll(
+      /friendly (.+?) units do not count towards the combined points value of your strategic reserves units/giu,
+    )
+    return [...matches].flatMap((match) => (match[1] ? [match[1]] : []))
+  })
+}
+
+export function grantsStrategicReserveExemption(description: string | null): boolean {
+  if (!description) return false
+  return /points value does not count towards the combined points (?:value|limit).+strategic reserves?/iu.test(
+    normalizedRuleText(description),
+  )
 }
 
 export const findEnhancementDescription = (

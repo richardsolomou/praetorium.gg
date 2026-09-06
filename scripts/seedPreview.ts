@@ -152,7 +152,7 @@ export const PREVIEW_OPPONENT_ROSTERS: readonly PreviewRoster[] = [
       { entryId: '9af5-6820-1ff2-6c01' },
       { entryId: '6c12-6df4-9d3a-2cc' },
       { entryId: '6c12-6df4-9d3a-2cc' },
-      { entryId: '8a76-5b36-455d-2c49' },
+      { entryId: 'bd8-4180-6880-1f45' },
     ],
   },
   {

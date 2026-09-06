@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { rosterSnapshot } from './rosterSnapshot'
 
-it('freezes unit wounds into a roster snapshot', () => {
+it('freezes unit wounds and reserve exemptions into a roster snapshot', () => {
   const roster = rosterSnapshot(
     {
       id: 'roster',
@@ -16,6 +16,7 @@ it('freezes unit wounds into a roster snapshot', () => {
     {
       points: 80,
       revision: 'revision',
+      strategicReserveFactsComplete: true,
       label: 'GTF 2K',
       detachment: null,
       detachments: [],
@@ -36,13 +37,17 @@ it('freezes unit wounds into a roster snapshot', () => {
           upgrades: [],
           formationOptions: ['battlefield'],
           prebattleRules: [],
+          strategicReserveExempt: true,
         },
       ],
     },
     [{ entryId: 'unit', wounds: 3 }],
   )
 
-  expect(roster.built?.units[0]?.wounds).toBe(3)
+  expect(roster.built).toMatchObject({
+    strategicReserveLimit: 1_000,
+    units: [expect.objectContaining({ wounds: 3, strategicReserveExempt: true })],
+  })
 })
 
 it('freezes catalogue-derived Warlord eligibility into a roster snapshot', () => {
@@ -87,6 +92,35 @@ it('freezes catalogue-derived Warlord eligibility into a roster snapshot', () =>
   )
 
   expect(roster.built?.units[0]).toMatchObject({ warlord: true, warlordEligible: true })
+})
+
+it('does not freeze a reserve limit from incomplete rules facts', () => {
+  const roster = rosterSnapshot(
+    {
+      id: 'roster',
+      name: 'Army',
+      catalogueId: 'catalogue',
+      detachmentIds: [],
+      disposition: null,
+      limit: 2_000,
+      waivedRules: [],
+      picks: [],
+    },
+    {
+      points: 0,
+      revision: 'revision',
+      strategicReserveFactsComplete: false,
+      label: 'Empty army',
+      detachment: null,
+      detachments: [],
+      detachmentPointBudget: null,
+      disposition: null,
+      units: [],
+    },
+    [],
+  )
+
+  expect(roster.built).not.toHaveProperty('strategicReserveLimit')
 })
 
 it('freezes the unit a character joined into a roster snapshot', () => {

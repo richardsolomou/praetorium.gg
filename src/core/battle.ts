@@ -73,6 +73,8 @@ type BuiltRoster = {
   revision: string
   /** The game size agreed for the battle, so both players see the same ceiling. */
   limit: number
+  /** Frozen when reserve-limit facts are known; absent from older snapshots. */
+  strategicReserveLimit?: number
   /** Named for display, since an opponent's device may have no catalogue loaded. */
   detachment: string | null
   /** Ordered detachment purchases. */
@@ -133,16 +135,69 @@ type SubmittedUnit = {
   attachedTo?: string
   formationOptions?: UnitFormation[]
   prebattleRules?: ('infiltrators' | 'scouts')[]
+  /** A selected rule says this unit's points do not count towards the starting reserve limit. */
+  strategicReserveExempt?: boolean
 }
 
 export const UNIT_FORMATIONS = ['battlefield', 'strategic-reserves', 'deep-strike', 'embarked'] as const
 export type UnitFormation = (typeof UNIT_FORMATIONS)[number]
+
+export const strategicReserveLimit = (pointsLimit: number) => pointsLimit / 2
+const startsInStrategicReserves = (formation: UnitFormation) => formation === 'strategic-reserves' || formation === 'deep-strike'
+
+type ReserveUnit = Pick<UnitState, 'key' | 'attachedTo' | 'formation' | 'points' | 'strategicReserveExempt' | 'postDeploymentReserve'>
+
+/** Deep Strike changes an ingress move; the unit still starts in Strategic Reserves. */
+export function strategicReservePoints(units: readonly ReserveUnit[]): number {
+  const groups = new Map<string, ReserveUnit[]>()
+  for (const unit of units) {
+    const group = unit.attachedTo ?? unit.key
+    const attached = groups.get(group)
+    if (attached) attached.push(unit)
+    else groups.set(group, [unit])
+  }
+  return [...groups.values()].reduce((total, attached) => {
+    const reserved = attached.filter((unit) => startsInStrategicReserves(unit.formation))
+    if (reserved.some((unit) => unit.strategicReserveExempt || unit.postDeploymentReserve)) return total
+    return total + reserved.reduce((points, unit) => points + unit.points, 0)
+  }, 0)
+}
+
+export function strategicReserveError(units: readonly ReserveUnit[], reserveLimit: number): string | null {
+  return strategicReservePoints(units) > reserveLimit
+    ? `no more than ${reserveLimit} points of this army can start in strategic reserves`
+    : null
+}
+
+function strategicReserveChangeError(
+  current: readonly ReserveUnit[],
+  changed: readonly ReserveUnit[],
+  reserveLimit: number,
+): string | null {
+  // Old logs may already be over the limit. A change that reduces their total must
+  // stay legal so the table can repair the setup one unit at a time.
+  return strategicReservePoints(changed) <= strategicReservePoints(current) ? null : strategicReserveError(changed, reserveLimit)
+}
+
+function changedFormation(unit: UnitState, formation: UnitFormation, redeployed = false): UnitState {
+  const remainsInReserves = startsInStrategicReserves(unit.formation) && startsInStrategicReserves(formation)
+  return {
+    ...unit,
+    formation,
+    deployed: formation === 'battlefield',
+    postDeploymentReserve: startsInStrategicReserves(formation) && (redeployed || (remainsInReserves && unit.postDeploymentReserve)),
+  }
+}
 
 /** A unit's standing in the battle. Attached rosters begin on the battlefield. */
 export type UnitState = SubmittedUnit & {
   destroyed: boolean
   deployed: boolean
   formation: UnitFormation
+  /** Whether the unit was on the battlefield when the first-turn roll was recorded. */
+  deployedAtRollOff?: boolean
+  /** The unit entered reserves after deployment, when the mission rules exempt it from the starting cap. */
+  postDeploymentReserve?: boolean
   /**
    * Models still standing in the unit. A unit is destroyed when this reaches zero,
    * so losing the last model and losing the unit are the same event rather than two
@@ -947,6 +1002,13 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       ) {
         return 'every roster must match the battle size'
       }
+      for (const candidate of state.players) {
+        const reserveLimit = candidate.roster?.built?.strategicReserveLimit
+        if (reserveLimit !== undefined) {
+          const reserveError = strategicReserveError(candidate.units, reserveLimit)
+          if (reserveError) return reserveError
+        }
+      }
       return null
     }
     case 'adjust-cp': {
@@ -1068,7 +1130,15 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'deploy-unit': {
       if (state.status === 'finished') return 'the battle is over'
-      if (!player.units.some((unit) => unit.key === command.unitKey)) return 'that is not one of your units'
+      const attached = attachedUnits(player.units, command.unitKey)
+      if (!attached.length) return 'that is not one of your units'
+      const reserveLimit = player.roster?.built?.strategicReserveLimit
+      if (state.status === 'setup' && !command.deployed && reserveLimit !== undefined) {
+        const keys = new Set(attached.map((unit) => unit.key))
+        const changed = player.units.map((unit) => (keys.has(unit.key) ? changedFormation(unit, 'strategic-reserves') : unit))
+        const reserveError = strategicReserveChangeError(player.units, changed, reserveLimit)
+        if (reserveError) return reserveError
+      }
       return null
     }
     case 'set-unit-formation': {
@@ -1083,6 +1153,17 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
         !attached.every((unit) => unit.formationOptions?.includes(command.formation))
       ) {
         return 'the roster data does not support that formation'
+      }
+      const reserveLimit = player.roster?.built?.strategicReserveLimit
+      if (state.status === 'setup' && reserveLimit !== undefined) {
+        const keys = new Set(attached.map((unit) => unit.key))
+        const redeployed =
+          Boolean(state.firstPlayerId) &&
+          command.formation === 'strategic-reserves' &&
+          attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
+        const changed = player.units.map((unit) => (keys.has(unit.key) ? changedFormation(unit, command.formation, redeployed) : unit))
+        const reserveError = strategicReserveChangeError(player.units, changed, reserveLimit)
+        if (reserveError) return reserveError
       }
       return null
     }
@@ -1319,6 +1400,11 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
      * a private answer would have let two devices show the table different ones.
      */
     case 'set-first-turn': {
+      if (!state.firstPlayerId) {
+        for (const candidate of state.players) {
+          for (const unit of candidate.units) unit.deployedAtRollOff = unit.formation === 'battlefield'
+        }
+      }
       state.firstPlayerId = command.firstPlayerId
       return
     }
@@ -1327,6 +1413,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'attach-roster': {
+      if (state.status === 'setup') state.firstPlayerId = null
       player.roster = { ...command.roster, name: command.roster.name.trim() }
       // A replaced list is a different army, so nothing about the old one survives.
       player.units = (command.roster.built?.units ?? []).map((unit) =>
@@ -1344,6 +1431,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'detach-roster': {
+      state.firstPlayerId = null
       player.roster = null
       player.units = []
       // The cards followed from the army, and the battlefield from both armies'
@@ -1369,18 +1457,21 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'deploy-unit': {
-      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      if (unit) {
-        unit.deployed = command.deployed
-        unit.formation = command.deployed ? 'battlefield' : 'strategic-reserves'
+      for (const unit of attachedUnits(player.units, command.unitKey)) {
+        Object.assign(unit, changedFormation(unit, command.deployed ? 'battlefield' : 'strategic-reserves'))
       }
       return
     }
     case 'set-unit-formation': {
       // The character and the unit he joined start together, so one press moves both.
-      for (const unit of attachedUnits(player.units, command.unitKey)) {
-        unit.formation = command.formation
-        unit.deployed = command.formation === 'battlefield'
+      const attached = attachedUnits(player.units, command.unitKey)
+      const redeployed =
+        state.status === 'setup' &&
+        Boolean(state.firstPlayerId) &&
+        command.formation === 'strategic-reserves' &&
+        attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
+      for (const unit of attached) {
+        Object.assign(unit, changedFormation(unit, command.formation, redeployed))
       }
       return
     }
