@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contextualAbilityNamesIn, datasheetIn } from './catalogue'
+import { contextualAbilityNamesIn, datasheetIn, datasheetViewsIn } from './catalogue'
 import { bookOf, profileOperationCases } from './catalogue.fixtures'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 
@@ -854,6 +854,84 @@ describe('the profile modifiers on a datasheet', () => {
       kind: 'core',
     })
     expect(contextualAbilityNamesIn(book, 'cat', 'warriors', { selections, unitSelectionIndex: 0 })).toContain('Scouts 5"')
+  })
+
+  it('shows and applies only the wargear abilities a unit selected', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'rifle-profile',
+              name: 'Rifle',
+              typeName: 'Ranged Weapons',
+              characteristics: [{ name: 'Keywords', $text: 'Lethal Hits' }],
+            },
+          ],
+          selectionEntries: [
+            {
+              id: 'scope',
+              name: 'Targeting scope',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'scope-ability',
+                  name: 'Targeting scope',
+                  typeName: 'Abilities',
+                  characteristics: [
+                    { name: 'Description', $text: 'Ranged weapons equipped by the bearer have the [IGNORES COVER] ability.' },
+                  ],
+                },
+              ],
+            },
+            {
+              id: 'cloak',
+              name: 'Shadow cloak',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'cloak-ability',
+                  name: 'Shadow cloak',
+                  typeName: 'Abilities',
+                  characteristics: [{ name: 'Description', $text: 'The bearer has the Stealth ability.' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const unselected = datasheetIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }], unitSelectionIndex: 0 })!
+    const unselectedViews = datasheetViewsIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }], unitSelectionIndex: 0 })
+    const scope = datasheetIn(book, 'cat', 'unit', {
+      selections: [{ id: 'unit', selections: [{ id: 'scope' }] }],
+      unitSelectionIndex: 0,
+    })!
+    const cloak = datasheetIn(book, 'cat', 'unit', {
+      selections: [{ id: 'unit', selections: [{ id: 'cloak' }] }],
+      unitSelectionIndex: 0,
+    })!
+
+    expect(unselected.abilities).toEqual([])
+    expect(unselectedViews.selected?.abilities).toEqual([])
+    expect(unselectedViews.available?.abilities.map(({ name }) => name)).toEqual(['Targeting scope', 'Shadow cloak'])
+    expect(scope.abilities).toEqual([expect.objectContaining({ name: 'Targeting scope', kind: 'wargear' })])
+    expect(scope.profiles[0]?.values).toContainEqual({
+      name: 'Keywords',
+      value: 'Lethal Hits, Ignores Cover',
+      baseValue: 'Lethal Hits',
+      modifiers: ['Targeting scope'],
+    })
+    expect(cloak.abilities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'Shadow cloak', kind: 'wargear' }),
+        expect.objectContaining({ name: 'Stealth', kind: 'core', source: 'Shadow cloak' }),
+      ]),
+    )
+    expect(cloak.abilities).not.toContainEqual(expect.objectContaining({ name: 'Targeting scope' }))
   })
 
   it.each([

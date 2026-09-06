@@ -287,7 +287,9 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
       cacheUntilSnapshotChanges()
       const loaded = app().catalogue()
       return loaded
-        ? describeDatasheetAbilities(loaded, data.catalogueId, datasheetInBySlug(loaded, data.catalogueId, data.slug), app().rules())
+        ? describeDatasheetAbilities(loaded, data.catalogueId, datasheetInBySlug(loaded, data.catalogueId, data.slug), app().rules(), {
+            reference: true,
+          })
         : null
     }),
   )
