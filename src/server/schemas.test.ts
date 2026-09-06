@@ -19,7 +19,8 @@ describe('terrain reference input', () => {
     const legacy = { matchupIds: ['take-vs-purge'] }
     expect(terrainReferencesSchema.parse(legacy)).toEqual(legacy)
     expect(terrainReferencesSchema.parse({ ...legacy, geometryVersion: 2 })).toEqual({ ...legacy, geometryVersion: 2 })
-    expect(terrainReferencesSchema.safeParse({ ...legacy, geometryVersion: 3 }).success).toBe(false)
+    expect(terrainReferencesSchema.parse({ ...legacy, geometryVersion: 3 })).toEqual({ ...legacy, geometryVersion: 3 })
+    expect(terrainReferencesSchema.safeParse({ ...legacy, geometryVersion: 4 }).success).toBe(false)
   })
 })
 

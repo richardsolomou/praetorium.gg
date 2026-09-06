@@ -411,6 +411,30 @@ test('terrain layouts open with measurement guidance', async ({ page }) => {
   ).toBeVisible()
 })
 
+test('terrain placement uses structural corners and whole-inch labels', async ({ page }) => {
+  await page.goto('/mission-matchups/chapter-approved-2026-2027/take-and-hold/priority-assets')
+  const dialog = page.getByRole('dialog')
+  await expect(async () => {
+    if (await dialog.isVisible()) return
+    await page.getByRole('button', { name: 'Enlarge terrain layout C: Dawn of War' }).click({ timeout: 1_000 })
+    await expect(dialog).toBeVisible({ timeout: 1_000 })
+  }).toPass({ timeout: 10_000 })
+  const board = dialog.locator('svg[aria-label]').first()
+  await expect(
+    board
+      .locator('text')
+      .filter({ hasText: /^3″$/ })
+      .first(),
+  ).toBeVisible()
+  await expect(
+    board
+      .locator('text')
+      .filter({ hasText: /^5″$/ })
+      .first(),
+  ).toBeVisible()
+  await expect(board.locator('text').filter({ hasText: /\d\.\d+″$/ })).toHaveCount(0)
+})
+
 test('a matchup keeps each action in the column of the side whose mission asks for it', async ({ page }) => {
   // Priority Assets asks for the action here, and it is the side drawn second, so an
   // action packed into the first free column would read as the other side's.

@@ -137,7 +137,7 @@ describe('source-backed battlefield annotations', () => {
     )
     expect(markup).toContain('>18″</text>')
     expect(markup).toContain('>10″</text>')
-    expect(markup).toContain('>27.6″</text>')
+    expect(markup).toContain('>28″</text>')
   })
 
   it('keeps preview maps free of setup rulers', () => {
