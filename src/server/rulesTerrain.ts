@@ -100,6 +100,7 @@ export type TerrainGeometry = {
     points: Point[]
     markers: { label: string; position: Point }[]
     objective: { position: Point; group: string | null } | null
+    objectiveGroup: string | null
     measurements: { from: Point; to: Point }[]
     parts: {
       id: string
@@ -241,12 +242,15 @@ function battlemasterGeometry(
       const sourceId = area.id ?? `area-${String(areaIndex + 1).padStart(2, '0')}`
       const piece = pieces.find((candidate) => candidate.id === sourceId) ?? pieces[areaIndex]
       const objectivePosition = piece?.is_objective ? (piece.objective?.position ?? piece.position) : undefined
+      const objective = objectivePosition ? { position: objectivePosition, group: piece?.link_group ?? null } : null
       return {
         id: areaId,
         name: area.name,
         points: area.outline.points.map((point) => battlemasterBoardPoint(point, area.footprint)),
         markers: terrainReferenceMarkers(area),
-        objective: objectivePosition ? { position: objectivePosition, group: piece?.link_group ?? null } : null,
+        objective,
+        // Already-open clients use this field to combine linked objectives.
+        objectiveGroup: objective?.group ?? null,
         measurements: terrainMeasurements(area, piece, piece ? templates.get(piece.template) : undefined),
         parts: area.parts.map((part, partIndex) => ({
           id: part.id ?? `area-${areaIndex + 1}-part-${partIndex + 1}`,

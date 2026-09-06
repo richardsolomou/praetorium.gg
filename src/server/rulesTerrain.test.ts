@@ -69,6 +69,22 @@ describe('source objective metadata', () => {
   it('uses the piece position when the source omits an objective position', () => {
     expect(load([{ ...piece, is_objective: true }]).areas[0]!.objective).toEqual({ position: piece.position, group: null })
   })
+
+  it('retains the objective grouping field used by already-open clients', () => {
+    const geometry = load(
+      [
+        { ...piece, id: 'first', is_objective: true, link_group: 'center' },
+        { ...piece, id: 'second', is_objective: true, link_group: 'center' },
+        { ...piece, id: 'disabled', is_objective: false, link_group: 'center' },
+      ],
+      [
+        { ...area, id: 'first' },
+        { ...area, id: 'second' },
+        { ...area, id: 'disabled' },
+      ],
+    )
+    expect(geometry.areas.map((entry) => entry.objectiveGroup)).toEqual(['center', 'center', null])
+  })
 })
 
 describe('source placement measurements', () => {
