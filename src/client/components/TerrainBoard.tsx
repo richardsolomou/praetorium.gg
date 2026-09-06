@@ -3,7 +3,6 @@ import { useId } from 'react'
 import {
   deploymentNeedsFlip,
   formatInches,
-  measurementAnchor,
   measurementLabelSize,
   objectiveTerrainMarkers,
   placeMeasurementLabel,
@@ -38,7 +37,6 @@ export function TerrainBoard({
 }) {
   const patternId = useId().replaceAll(':', '')
   const flipped = deploymentNeedsFlip(deployment?.zones ?? [])
-  const hasObjectiveTerrain = layout.geometry?.areas.some((area) => area.markers?.length) ?? false
 
   return (
     <svg viewBox="0 0 44 60" className={`border border-edge bg-sunken ${className ?? ''}`} aria-label={ariaLabel ?? layout.name}>
@@ -80,7 +78,7 @@ export function TerrainBoard({
           />
         ))}
         {layout.geometry ? (
-          <ExactTerrainGeometry geometry={layout.geometry} detailed={detailed} flipped={flipped} zones={deployment?.zones ?? []} />
+          <ExactTerrainGeometry geometry={layout.geometry} detailed={detailed} />
         ) : (
           layout.pieces
             .filter((piece) => !piece.parentAreaId)
@@ -96,7 +94,7 @@ export function TerrainBoard({
             ))
         )}
         {deployment?.objectives.map((objective) => {
-          if (hasObjectiveTerrain) return null
+          if (layout.geometry) return null
           const homeZone = deployment.zones.find((zone) => pointInPolygon(objective, zone.points))
           return (
             <g key={`${objective.x}-${objective.y}`} transform={`translate(${objective.x} ${objective.y})`}>
@@ -113,11 +111,57 @@ export function TerrainBoard({
       {detailed && layout.geometry ? (
         <TerrainMeasurements geometry={layout.geometry} flipped={flipped} arrowId={`${patternId}-arrow`} />
       ) : null}
+      {layout.geometry ? (
+        <g transform={flipped ? 'translate(44 0) rotate(90)' : 'translate(0 60) rotate(-90)'}>
+          <TerrainAnnotations geometry={layout.geometry} detailed={detailed} flipped={flipped} zones={deployment?.zones ?? []} />
+        </g>
+      ) : null}
     </svg>
   )
 }
 
-function ExactTerrainGeometry({
+function ExactTerrainGeometry({ geometry, detailed }: { geometry: TerrainGeometry; detailed: boolean }) {
+  return (
+    <>
+      {geometry.areas.map((area) => (
+        <g key={area.id}>
+          <polygon points={svgPoints(area.points)} className="fill-raised/90 stroke-azure" strokeWidth={detailed ? '.18' : '.25'}>
+            <title>{area.name}</title>
+          </polygon>
+          {area.parts.map((part) => {
+            const colour =
+              part.material === 'dense'
+                ? 'fill-achieved/20 stroke-achieved'
+                : part.material === 'light'
+                  ? 'fill-discarded/20 stroke-discarded'
+                  : 'fill-bone/10 stroke-bone'
+            return (
+              <g key={part.id} className={colour}>
+                {part.roof?.length ? (
+                  <polygon points={svgPoints(part.roof)} strokeOpacity=".55" strokeWidth=".12" strokeDasharray=".3 .2" />
+                ) : null}
+                {part.walls.map((wall) => (
+                  <polyline
+                    key={wall.id}
+                    points={svgPoints(wall.points)}
+                    fill="none"
+                    strokeWidth={wall.thickness}
+                    strokeLinejoin="miter"
+                    strokeLinecap="square"
+                  >
+                    <title>{part.name}</title>
+                  </polyline>
+                ))}
+              </g>
+            )
+          })}
+        </g>
+      ))}
+    </>
+  )
+}
+
+function TerrainAnnotations({
   geometry,
   detailed,
   flipped,
@@ -130,65 +174,31 @@ function ExactTerrainGeometry({
 }) {
   return (
     <>
-      {geometry.areas.map((area) => (
-        <g key={area.id}>
-          <polygon points={svgPoints(area.points)} className="fill-raised/90 stroke-azure" strokeWidth={detailed ? '.18' : '.25'}>
-            <title>{area.name}</title>
-          </polygon>
-          {area.parts.map((part, partIndex) => {
-            const stroke = partIndex % 2 === 0 ? 'stroke-discarded' : 'stroke-achieved'
-            return (
-              <g key={part.id}>
-                {part.roof?.length ? (
-                  <polygon
-                    points={svgPoints(part.roof)}
-                    className="fill-bone/10 stroke-bone/55"
-                    strokeWidth=".12"
-                    strokeDasharray=".3 .2"
-                  />
-                ) : null}
-                {part.walls.map((wall) => (
-                  <polyline
-                    key={wall.id}
-                    points={svgPoints(wall.points)}
-                    fill="none"
-                    className={stroke}
-                    strokeWidth={wall.thickness}
-                    strokeLinejoin="miter"
-                    strokeLinecap="square"
-                  >
-                    <title>{part.name}</title>
-                  </polyline>
-                ))}
-              </g>
-            )
-          })}
-          {detailed
-            ? (area.markers ?? []).map((marker) => (
-                <g
-                  key={marker.label}
-                  transform={`translate(${terrainMarkerPosition(area, marker).x} ${terrainMarkerPosition(area, marker).y}) rotate(${flipped ? -90 : 90})`}
-                >
+      {detailed
+        ? geometry.areas.flatMap((area) =>
+            area.markers.map((marker) => {
+              const position = terrainMarkerPosition(area, marker)
+              return (
+                <g key={`${area.id}-${marker.label}`} transform={`translate(${position.x} ${position.y}) rotate(${flipped ? -90 : 90})`}>
                   <circle r="1" className="fill-raised stroke-bone" strokeWidth=".18" />
                   <text textAnchor="middle" dominantBaseline="middle" className="fill-bone" fontSize=".62" fontWeight="700">
                     {marker.label}
                   </text>
                   <title>{`${marker.label} terrain`}</title>
                 </g>
-              ))
-            : null}
-        </g>
-      ))}
-      {detailed
-        ? objectiveTerrainMarkers(geometry).map((objective) => (
-            <ObjectiveTerrainMarker
-              key={objective.key}
-              position={objective.position}
-              counterRotation={flipped ? -90 : 90}
-              homePlayer={zones.find((zone) => pointInPolygon(objective.position, zone.points))?.player}
-            />
-          ))
+              )
+            }),
+          )
         : null}
+      {objectiveTerrainMarkers(geometry).map((objective) => (
+        <ObjectiveTerrainMarker
+          key={objective.key}
+          position={objective.position}
+          counterRotation={flipped ? -90 : 90}
+          homePlayer={zones.find((zone) => pointInPolygon(objective.position, zone.points))?.player}
+          detailed={detailed}
+        />
+      ))}
     </>
   )
 }
@@ -197,10 +207,12 @@ function ObjectiveTerrainMarker({
   position,
   counterRotation,
   homePlayer,
+  detailed,
 }: {
   position: { x: number; y: number }
   counterRotation: number
   homePlayer?: string
+  detailed: boolean
 }) {
   return (
     <g transform={`translate(${position.x} ${position.y}) rotate(${counterRotation})`}>
@@ -209,12 +221,16 @@ function ObjectiveTerrainMarker({
         className={homePlayer ? `fill-raised ${deploymentZoneStroke(homePlayer)}` : 'fill-raised stroke-bone'}
         strokeWidth={homePlayer ? '.28' : '.18'}
       />
-      <circle r=".54" fill="none" className="stroke-bone" strokeWidth=".14" />
-      <circle r=".16" className="fill-bone" />
-      <rect x="-1.08" y=".78" width="2.16" height=".5" rx=".1" className="fill-bone" />
-      <text x="0" y="1.04" textAnchor="middle" dominantBaseline="middle" className="fill-void" fontSize=".28" fontWeight="800">
-        OBJECTIVE
-      </text>
+      {detailed ? (
+        <>
+          <circle r=".54" fill="none" className="stroke-bone" strokeWidth=".14" />
+          <circle r=".16" className="fill-bone" />
+          <rect x="-1.08" y=".78" width="2.16" height=".5" rx=".1" className="fill-bone" />
+          <text x="0" y="1.04" textAnchor="middle" dominantBaseline="middle" className="fill-void" fontSize=".28" fontWeight="800">
+            OBJECTIVE
+          </text>
+        </>
+      ) : null}
       <title>Objective terrain</title>
     </g>
   )
@@ -233,45 +249,20 @@ function deploymentZoneStroke(player: string) {
 }
 
 function TerrainMeasurements({ geometry, flipped, arrowId }: { geometry: TerrainGeometry; flipped: boolean; arrowId: string }) {
-  const measurements = geometry.areas
-    .flatMap((area) => {
-      const centre = polygonCentroid(area.points)
-      const verticalEdge = centre.x < 30 ? 0 : 60
-      const horizontalEdge = centre.y < 22 ? 0 : 44
-      const verticalPivot = measurementAnchor(area.points, 'x', verticalEdge, horizontalEdge)
-      const horizontalPivot = measurementAnchor(area.points, 'y', horizontalEdge, verticalEdge)
-      if (!verticalPivot || !horizontalPivot) return []
-      return [
-        {
-          areaId: area.id,
-          from: { x: verticalEdge, y: verticalPivot.y },
-          to: verticalPivot,
-          value: Math.abs(verticalPivot.x - verticalEdge),
-        },
-        {
-          areaId: area.id,
-          from: { x: horizontalPivot.x, y: horizontalEdge },
-          to: horizontalPivot,
-          value: Math.abs(horizontalPivot.y - horizontalEdge),
-        },
-      ]
-    })
-    .filter((measurement) => measurement.value >= 0.5)
-    .filter((measurement, index, all) => {
-      const sameRuler = (other: typeof measurement) =>
-        Math.abs(other.from.x - measurement.from.x) < 0.05 &&
-        Math.abs(other.from.y - measurement.from.y) < 0.05 &&
-        Math.abs(other.to.x - measurement.to.x) < 0.05 &&
-        Math.abs(other.to.y - measurement.to.y) < 0.05
-      return all.findIndex(sameRuler) === index
-    })
+  const measurements = [
+    ...new Map(
+      geometry.areas
+        .flatMap((area) => area.measurements)
+        .map((measurement) => [`${measurement.from.x}-${measurement.from.y}-${measurement.to.x}-${measurement.to.y}`, measurement]),
+    ).values(),
+  ]
 
   const occupied: LabelBox[] = []
   const annotations = measurements.map((measurement, index) => {
     const from = portraitPoint(measurement.from, flipped)
     const to = portraitPoint(measurement.to, flipped)
     const vertical = Math.abs(from.x - to.x) < Math.abs(from.y - to.y)
-    const text = formatInches(measurement.value)
+    const text = formatInches(Math.hypot(to.x - from.x, to.y - from.y))
     const label = placeMeasurementLabel(to, from, vertical, text, occupied)
     const { width: labelWidth, height: labelHeight } = measurementLabelSize(text)
     return {

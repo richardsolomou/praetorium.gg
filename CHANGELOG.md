@@ -1,5 +1,27 @@
 # praetorium
 
+## 0.61.3
+
+### Patch Changes
+
+- affb854: Keep optional wargear abilities visible on public datasheet reference pages.
+- affb854: Show dense terrain in green and light terrain in yellow across battlefield layouts.
+- affb854: Correct battlefield objective markers and include all supplied terrain placement measurements.
+
+## 0.61.2
+
+### Patch Changes
+
+- 330d2d0: Keep wound-management controls stable while casualty changes save.
+- 42a1a6c: Separate detachment-specific datasheet abilities from intrinsic abilities and show them under their detachments.
+- 158383f: Show only selected wargear abilities and apply their granted abilities to unit profiles.
+
+## 0.61.1
+
+### Patch Changes
+
+- 059bd9c: Let either player continue battle setup without waiting for the other player to open the secondaries screen.
+
 ## 0.61.0
 
 ### Minor Changes

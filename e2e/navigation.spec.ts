@@ -3,6 +3,26 @@ import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
 import { applicationNavigationScript } from '../mobile/src/navigation'
 import { signUp } from './account'
 
+test('a standalone datasheet separates detachment abilities', async ({ page }) => {
+  await page.goto('/factions/necrons/datasheets/ctan-shard-of-the-nightbringer')
+  await expect(page.getByRole('heading', { name: "C'tan Shard of the Nightbringer", exact: true })).toBeVisible()
+
+  const datasheetAbilities = page.getByRole('heading', { name: /Datasheet abilities/ }).locator('..')
+  await expect(datasheetAbilities.getByText('Distortion Fields (Aura)', { exact: true })).toHaveCount(0)
+  const detachmentAbilities = page.getByRole('heading', { name: /Detachment abilities/ }).locator('..')
+  await expect(detachmentAbilities.getByRole('link', { name: 'Pantheon of Woe' })).toBeVisible()
+  await expect(detachmentAbilities.getByRole('heading', { name: 'Distortion Fields (Aura)' })).toBeVisible()
+  await expect(detachmentAbilities.getByRole('heading', { name: 'Quantum Goad' })).toBeVisible()
+  await detachmentAbilities.screenshot({ path: 'test-results/nightbringer-detachment-abilities.png' })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  expect(await detachmentAbilities.evaluate((section) => section.scrollWidth)).toBe(
+    await detachmentAbilities.evaluate((section) => section.clientWidth),
+  )
+  await detachmentAbilities.screenshot({ path: 'test-results/nightbringer-detachment-abilities-phone.png' })
+})
+
 test('primary navigation collapses below 860 pixels', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
@@ -379,7 +399,16 @@ test('terrain layouts open with measurement guidance', async ({ page }) => {
     await page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click({ timeout: 1_000 })
     await expect(guidance).toBeVisible({ timeout: 1_000 })
   }).toPass({ timeout: 10_000 })
-  await expect(dialog.locator('svg[aria-label]').first()).toBeVisible()
+  const board = dialog.locator('svg[aria-label]').first()
+  await expect(board).toBeVisible()
+  await expect(board.locator('line[marker-end]').first()).toBeAttached()
+  await expect(board.locator('text').filter({ hasText: /″$/ }).first()).toBeVisible()
+  await expect(
+    board
+      .locator('g')
+      .filter({ has: page.locator('title', { hasText: /^Objective terrain$/ }) })
+      .last(),
+  ).toBeVisible()
 })
 
 test('a matchup keeps each action in the column of the side whose mission asks for it', async ({ page }) => {

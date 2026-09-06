@@ -5,6 +5,7 @@ Praetorium reads stratagem and mission data from [40kdc-data](https://github.com
 ## Rules data
 
 - Players choose stratagems, missions, secondaries, and loadouts from fetched data. A missing data field remains unavailable rather than becoming free text.
+- Terrain objective flags, positions, grouping, and placement references come from the rules source. A placement reference indexes a template vertex, so it is applied to exact Battlemaster geometry only when the paired outlines have matching vertex order.
 - Stratagem timing comes from the rules source; every description comes from Game Datacards (core cards from `11th/gdc/core.json`, faction cards from their faction file). Exact references take priority, every name fallback is reported, and an unmatched or conflicting card remains undescribed.
 - Faction army rules come from Game Datacards. A datasheet's faction ability is described by its own faction's card first, then by the one card of that name the files agree on.
 - An unknown stratagem timing maps to `unlimited`, so an absent source limit never becomes an invented product limit.

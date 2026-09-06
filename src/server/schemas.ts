@@ -274,7 +274,7 @@ export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_V
 export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })
 export const favouriteFactionSchema = z.object({ catalogueId: id, favourite: z.boolean() })
 export const favouriteDetachmentSchema = z.object({ catalogueId: id, detachmentId: id, favourite: z.boolean() })
-export const terrainReferencesSchema = z.object({ matchupIds: z.array(slug).min(1).max(2) })
+export const terrainReferencesSchema = z.object({ matchupIds: z.array(slug).min(1).max(2), geometryVersion: z.literal(2).optional() })
 /** One section of one rules document, which is as much as a rules page reads. */
 export const ruleSectionSchema = z.object({ documentId: slug, sectionId: slug })
 /** A faction page addresses its faction by route slug, older links by catalogue id. */

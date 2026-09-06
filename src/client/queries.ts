@@ -54,6 +54,8 @@ import {
 } from '../server/functions'
 
 const SSR_STALE_TIME = 30_000
+// Version both the query and HTTP caches when the geometry response changes.
+const TERRAIN_GEOMETRY_VERSION = 2
 
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(), staleTime: SSR_STALE_TIME })
 export const accountMethodsQuery = () =>
@@ -248,8 +250,8 @@ export const terrainMatchupIds = (dispositions: readonly string[]) => {
 
 export const terrainReferencesQuery = (matchupIds: readonly string[]) =>
   queryOptions({
-    queryKey: ['terrain-references', ...matchupIds],
-    queryFn: () => terrainReferences({ data: { matchupIds: [...matchupIds] } }),
+    queryKey: ['terrain-references', TERRAIN_GEOMETRY_VERSION, ...matchupIds],
+    queryFn: () => terrainReferences({ data: { matchupIds: [...matchupIds], geometryVersion: TERRAIN_GEOMETRY_VERSION } }),
     enabled: Boolean(matchupIds.length),
     staleTime: Infinity,
   })

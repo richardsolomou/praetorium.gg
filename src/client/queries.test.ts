@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest'
-import { gameReferencesRefreshInterval, loadoutDatasheetsQuery, newestBattleScreen } from './queries'
+import { QueryClient } from '@tanstack/react-query'
+import { describe, expect, it, vi } from 'vitest'
+import * as functions from '../server/functions'
+import { gameReferencesRefreshInterval, loadoutDatasheetsQuery, newestBattleScreen, terrainReferencesQuery } from './queries'
 
 describe('battle query ordering', () => {
   it('keeps the newer cached battle when an older refetch finishes late', () => {
@@ -44,5 +46,22 @@ describe('game reference queries', () => {
   it('retries while startup data is unavailable', () => {
     expect(gameReferencesRefreshInterval(null)).toBe(1_000)
     expect(gameReferencesRefreshInterval({ packs: [] })).toBe(false)
+  })
+
+  it('fetches versioned terrain instead of reusing cached geometry without objectives or measurements', async () => {
+    const client = new QueryClient()
+    const matchupIds = ['take-vs-purge']
+    const legacy = { layouts: [{ geometry: { areas: [{ objectiveGroup: null }] } }], templates: [] }
+    const current = { layouts: [], templates: [] }
+    client.setQueryData(['terrain-references', ...matchupIds], legacy)
+    const request = vi.spyOn(functions, 'terrainReferences').mockResolvedValue(current)
+    try {
+      expect(await client.fetchQuery(terrainReferencesQuery(matchupIds))).toEqual(current)
+      expect(request).toHaveBeenCalledExactlyOnceWith({ data: { matchupIds, geometryVersion: 2 } })
+      expect(client.getQueryData(['terrain-references', ...matchupIds])).toEqual(legacy)
+    } finally {
+      request.mockRestore()
+      client.clear()
+    }
   })
 })

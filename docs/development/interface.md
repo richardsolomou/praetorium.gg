@@ -40,6 +40,10 @@ Battle setup has the visible sections Format, Armies, Mission, Battlefield, Defe
 
 Saved rosters are chosen in a dialog ordered like the roster library. Battlefield selection remains stable while it saves, and each battlefield opens in a full-size dialog without changing the selection.
 
+Battlefield previews and expanded layouts colour physical terrain from each part's source material: dense terrain is green and light terrain is yellow. Unrecognised materials remain neutral. The expanded layout includes the terrain colour key.
+
+Objective markers use the source's objective flags and positions, not terrain component letters. Linked objective pieces share one marker in previews and expanded layouts. Expanded setup distances follow every supplied placement reference, including the additional vertex that fixes an angled piece. Distances come from the drawn geometry and are rounded to hundredths of an inch; missing or unsupported references are not guessed.
+
 The live tracker shows only stratagems valid for the current turn and phase. The CP badge spends the printed cost, the overflow menu handles modified costs, and each stratagem opens the same `detachmentRules` text shown on its detachment page. Missions and stratagems sit together in the side panel because both are read throughout play. Mission references omit flavour text; grouped payouts are alternatives and ungrouped payouts are additional.
 
 Scoring controls appear only when a card's own data says its phase or turn has ended. `src/client/scoring.ts` determines which cards are due and which draws remain. A scoring prompt follows the card's wording, with one row per condition, its payout, and an option to score nothing. Grouped rows behave as tiers, ungrouped rows can score together, and counted payouts are bounded by the card's ceiling.

@@ -1,7 +1,8 @@
 import { routeSlug } from '../core/slug'
-import { datasheetIn, rulesNamed, rulesReferencedIn, weaponKeywordsOf } from './catalogue'
+import { datasheetIn, detachmentAbilitiesIn, rulesNamed, rulesReferencedIn, weaponKeywordsOf } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
+import { joinKey } from './rulesSource'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { factionContentOf } from './factionNames'
 
@@ -10,6 +11,7 @@ export function describeDatasheetAbilities(
   catalogueId: string,
   sheet: ReturnType<typeof datasheetIn>,
   loadedRules: LoadedRules | null | undefined,
+  options: { reference?: boolean } = {},
 ) {
   if (!sheet) return null
   const descriptions = loadedRules?.abilityDescriptions
@@ -21,7 +23,8 @@ export function describeDatasheetAbilities(
     ? new Set([...factionContent.armyRules.map((rule) => routeSlug(rule.name)), ...[...factionContent.factionAbilityNames].map(routeSlug)])
     : null
   const upgradeNames = new Set(detachmentDetails.flatMap((detachment) => detachment.upgrades.map((upgrade) => routeSlug(upgrade.name))))
-  const visibleAbilities = sheet.abilities.filter(
+  const referenceAbilities = options.reference ? detachmentAbilitiesIn(loaded, catalogueId, sheet.id) : null
+  const visibleAbilities = (referenceAbilities?.abilities ?? sheet.abilities).filter(
     (ability) => ability.kind !== 'faction' || !factionAbilityNames || factionAbilityNames.has(routeSlug(ability.name)),
   )
   // An army rule is printed on the datasheet by name alone. Its own faction's card is
@@ -31,18 +34,24 @@ export function describeDatasheetAbilities(
     descriptions?.get(routeSlug(name)) ??
     null
   const supplied = visibleAbilities.some((ability) => !ability.description && armyRule(ability.name))
-  const abilities = visibleAbilities.map((ability) => ({
+  const describeAbility = (ability: (typeof visibleAbilities)[number]) => ({
     ...ability,
     kind: ability.kind === 'wargear' && upgradeNames.has(routeSlug(ability.name)) ? ('upgrade' as const) : ability.kind,
     description: ability.description ?? armyRule(ability.name),
-  }))
+  })
+  const abilities = visibleAbilities.map(describeAbility)
   const keywords = new Set(sheet.keywords.map((keyword) => routeSlug(keyword.replace(/^faction:\s*/i, ''))))
   const character = keywords.has('character')
+  const abilitiesByDetachment = new Map(
+    referenceAbilities?.detachments.map((detachment) => [joinKey(detachment.name), detachment] as const) ?? [],
+  )
   const detachments = faction
     ? detachmentDetails.map((detachment) => ({
         id: detachment.id,
+        slug: routeSlug(detachment.name),
         name: detachment.name,
         rules: detachment.rules,
+        abilities: (abilitiesByDetachment.get(joinKey(detachment.name))?.abilities ?? []).map(describeAbility),
         enhancements: character
           ? detachment.enhancements.filter(
               (enhancement) =>
@@ -52,6 +61,18 @@ export function describeDatasheetAbilities(
           : [],
       }))
     : []
+  const describedDetachmentNames = new Set(detachments.map((detachment) => joinKey(detachment.name)))
+  for (const detachment of referenceAbilities?.detachments ?? []) {
+    if (describedDetachmentNames.has(joinKey(detachment.name))) continue
+    detachments.push({
+      id: detachment.id,
+      slug: routeSlug(detachment.name),
+      name: detachment.name,
+      rules: [],
+      abilities: detachment.abilities.map(describeAbility),
+      enhancements: [],
+    })
+  }
   const suppliedDetachmentDescriptions = detachments.some((detachment) =>
     [...detachment.rules, ...detachment.enhancements].some((entry) => entry.description),
   )
