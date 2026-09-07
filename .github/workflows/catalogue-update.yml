@@ -29,7 +29,7 @@ jobs:
       CATALOGUE_SNAPSHOT_POINTER_FILE: /tmp/catalogue-current.json
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.0
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.5
       # Baselines report here rather than fail. They measure agreement between sources this
       # job does not control, so an upstream addition trips one and holds every unrelated
       # part of the refresh back until two upstreams agree about a name again. A shortfall
