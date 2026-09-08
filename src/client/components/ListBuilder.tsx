@@ -465,6 +465,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const shareRoster = async () => {
     setShareProblem(null)
     try {
+      if (editable) await save.mutateAsync()
       const result = await shareLink(`${window.location.origin}${workspacePath}`, shownName || 'Roster')
       posthog.capture('roster_shared', { visibility_changed: false })
       setShareFeedback(result)
