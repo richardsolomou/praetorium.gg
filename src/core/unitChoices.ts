@@ -326,7 +326,7 @@ export function unitToggles(entryId: string, selection: Selection, index: Catalo
   const root = index.definitions.get(entryId)
   if (!root) return []
   const roster = [...(options.roster ?? []), selection]
-  const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster })
+  const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster }, root)
   const found: UnitToggle[] = []
   const walk = (definition: Definition, trail: string[], seen: Set<string>) => {
     const target = resolve(definition, index)

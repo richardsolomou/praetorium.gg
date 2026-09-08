@@ -1629,6 +1629,36 @@ describe('who the data lets a list nominate as its Warlord', () => {
     expect(buildUnit('captain', index)!.toggles.map((toggle) => toggle.name)).toEqual(['Warlord'])
   })
 
+  it('evaluates a shared crown against its enclosing root entry', () => {
+    const rootEntryIndex = indexOf({
+      categoryEntries: [{ id: 'character', name: 'Character' }],
+      sharedSelectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          categoryLinks: [{ id: 'captain-character', targetId: 'character' }],
+          entryLinks: [{ id: 'captain-warlord', targetId: 'warlord', type: 'selectionEntry' }],
+        },
+        {
+          id: 'warlord',
+          name: 'Warlord',
+          type: 'upgrade',
+          modifiers: [
+            {
+              type: 'set',
+              field: 'hidden',
+              value: true,
+              conditions: [{ type: 'notInstanceOf', value: 1, field: 'selections', scope: 'root-entry', childId: 'character' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(buildUnit('captain', rootEntryIndex)!.toggles.map((toggle) => toggle.name)).toEqual(['Warlord'])
+  })
+
   it('keeps it from a tank whose detachment does not make it a character', () => {
     expect(buildUnit('tank', index)!.toggles).toEqual([])
   })

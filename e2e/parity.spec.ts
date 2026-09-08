@@ -66,10 +66,28 @@ test('a private roster can be shared and made private again', async ({ browser }
   // Polled, because the link is copied only once the visibility change comes back.
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/rosters\/[^/]+$/)
   const sharedUrl = await page.evaluate(() => navigator.clipboard.readText())
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(sharedUrl)
+  await page.evaluate(() => {
+    window.PraetoriumNative = { bridgeVersion: 3, capabilities: ['share'] }
+    window.ReactNativeWebView = {
+      postMessage: (message) => document.documentElement.setAttribute('data-native-message', message),
+    }
+  })
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  const rosterShare = page.getByRole('menuitem', { name: 'Share link' })
+  await expect(rosterShare).toBeEnabled()
+  await rosterShare.click()
+  await expect
+    .poll(() => page.locator('html').getAttribute('data-native-message'))
+    .toBe(JSON.stringify({ version: 3, type: 'native-share', url: sharedUrl, title: 'Shareable roster' }))
+
   const anonymous = await (await browser.newContext()).newPage()
   await anonymous.goto(sharedUrl)
   await expect(anonymous.getByRole('textbox', { name: 'List name' })).toHaveValue('Shareable roster')
 
+  await page.goto('/rosters')
   await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
   await page.getByRole('menuitem', { name: 'Make private' }).click()
   await expect(row.getByText('Private')).toBeVisible()

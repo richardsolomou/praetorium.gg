@@ -7,6 +7,7 @@ import {
   Download,
   EllipsisVertical,
   ExternalLink,
+  Link2,
   Pencil,
   Plus,
   Printer,
@@ -26,7 +27,9 @@ import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { Datasheet } from '../../server/catalogue'
 import { exportRoster, saveRoster } from '../../server/functions'
+import { shareLink } from '../nativeBridge'
 import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery } from '../queries'
+import { errorMessage } from '../queryClient'
 import { type KeyedPick, picksAfterDetachmentChange } from '../rosterPicks'
 import { useCollectionMutation } from '../useCollection'
 import { useSettled } from '../useSettled'
@@ -121,6 +124,8 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
   const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<string | null>(null)
+  const [shareFeedback, setShareFeedback] = useState<'copied' | 'shared' | null>(null)
+  const [shareProblem, setShareProblem] = useState<string | null>(null)
   const workspacePath = `/rosters/${initial.id}`
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
   const [dismissedWaivers, setDismissedWaivers] = useState<string | null>(null)
@@ -457,6 +462,18 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   // A name the player typed is never one of its inputs and never replaced by it.
   const label = priced?.label ?? ''
   const shownName = listName || label
+  const shareRoster = async () => {
+    setShareProblem(null)
+    try {
+      const result = await shareLink(`${window.location.origin}${workspacePath}`, shownName || 'Roster')
+      posthog.capture('roster_shared', { visibility_changed: false })
+      setShareFeedback(result)
+    } catch (error) {
+      posthog.captureException(error, { operation: 'roster_share' })
+      setShareProblem(errorMessage(error))
+    }
+  }
+  const shareLabel = shareFeedback === 'shared' ? 'Link shared' : shareFeedback === 'copied' ? 'Link copied' : 'Share link'
   const rosterLoading = priceLoading && picks.length > 0
   const edit = useMemo(() => pickEditor(setPicks, { catalogueId, units }, allocateKey), [allocateKey, catalogueId, setPicks, units])
   const editor = useRef({ edit, pickCount: picks.length })
@@ -673,6 +690,11 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                   >
                     <Pencil /> Edit roster setup
                   </DropdownMenuItem>
+                  {visibility !== 'private' ? (
+                    <DropdownMenuItem onClick={() => void shareRoster()}>
+                      <Link2 /> {shareLabel}
+                    </DropdownMenuItem>
+                  ) : null}
                   <DropdownMenuItem disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
                     <Download /> Export GW text
                   </DropdownMenuItem>
@@ -727,6 +749,11 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                     <Copy /> Sign in to duplicate
                   </DropdownMenuItem>
                 )}
+                {visibility !== 'private' && !battle ? (
+                  <DropdownMenuItem onClick={() => void shareRoster()}>
+                    <Link2 /> {shareLabel}
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuItem disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
                   <Download /> Export GW text
                 </DropdownMenuItem>
@@ -741,6 +768,11 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         {!editable && duplicateRoster.isError ? (
           <p role="alert" className="mt-1 text-xs text-destructive">
             That roster could not be duplicated. Try again.
+          </p>
+        ) : null}
+        {shareProblem ? (
+          <p role="alert" className="mt-1 text-xs text-destructive">
+            Could not share the link: {shareProblem}
           </p>
         ) : null}
         {editable && priced?.dispositionError ? (
