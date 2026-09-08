@@ -47,7 +47,6 @@ platform :ios do
       result_bundle_path: File.join(output_directory, "Praetorium-#{channel}.xcresult"),
       skip_profile_detection: true,
       xcargs: "DEVELOPMENT_TEAM=#{Shellwords.escape(team_id)} CODE_SIGN_STYLE=Automatic #{authentication}",
-      export_xcargs: authentication,
       export_options: {
         method: 'app-store',
         signingStyle: 'automatic',
