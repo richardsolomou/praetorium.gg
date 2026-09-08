@@ -1,0 +1,68 @@
+require 'shellwords'
+
+default_platform(:ios)
+opt_out_usage
+
+platform :ios do
+  lane :build_and_upload do
+    app_identifier = 'gg.praetorium'
+    key_path = ENV.fetch('APP_STORE_CONNECT_KEY_PATH')
+    team_id = ENV.fetch('APPLE_TEAM_ID')
+    channel = ENV.fetch('MOBILE_UPDATE_CHANNEL')
+    output_directory = File.join(ENV.fetch('RUNNER_TEMP'), 'mobile-build')
+    project = 'mobile/ios/Praetorium.xcodeproj'
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV.fetch('APP_STORE_CONNECT_KEY_ID'),
+      issuer_id: ENV.fetch('APP_STORE_CONNECT_ISSUER_ID'),
+      key_filepath: key_path
+    )
+    version = get_info_plist_value(
+      path: 'mobile/ios/Praetorium/Info.plist',
+      key: 'CFBundleShortVersionString'
+    )
+    build_number = latest_testflight_build_number(
+      api_key: api_key,
+      app_identifier: app_identifier,
+      version: version,
+      initial_build_number: 0
+    ) + 1
+    increment_build_number(xcodeproj: project, build_number: build_number)
+
+    authentication = [
+      '-allowProvisioningUpdates',
+      "-authenticationKeyPath #{Shellwords.escape(key_path)}",
+      "-authenticationKeyID #{Shellwords.escape(ENV.fetch('APP_STORE_CONNECT_KEY_ID'))}",
+      "-authenticationKeyIssuerID #{Shellwords.escape(ENV.fetch('APP_STORE_CONNECT_ISSUER_ID'))}"
+    ].join(' ')
+
+    ipa = build_app(
+      workspace: 'mobile/ios/Praetorium.xcworkspace',
+      scheme: 'Praetorium',
+      configuration: 'Release',
+      clean: true,
+      output_directory: output_directory,
+      output_name: "praetorium-#{channel}",
+      result_bundle: true,
+      result_bundle_path: File.join(output_directory, "Praetorium-#{channel}.xcresult"),
+      skip_profile_detection: true,
+      xcargs: "DEVELOPMENT_TEAM=#{Shellwords.escape(team_id)} CODE_SIGN_STYLE=Automatic #{authentication}",
+      export_xcargs: authentication,
+      export_options: {
+        method: 'app-store-connect',
+        signingStyle: 'automatic',
+        teamID: team_id,
+        uploadSymbols: true
+      }
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      app_identifier: app_identifier,
+      ipa: ipa,
+      distribute_external: false,
+      skip_waiting_for_build_processing: false,
+      wait_processing_timeout_duration: 3600
+    )
+  end
+end
