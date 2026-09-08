@@ -147,7 +147,7 @@ export const PREVIEW_OPPONENT_ROSTERS: readonly PreviewRoster[] = [
     warlord: true,
     picks: [
       { entryId: '4dc0-5822-5cfb-6a02' },
-      { entryId: '473e-73f9-493d-6a0a' },
+      { entryId: '473e-73f9-493d-6a0a', toggles: { 'b963-64cd-ff80-9cb5': 1 } },
       { entryId: 'c5a3-4245-9b6a-fb8' },
       { entryId: '9af5-6820-1ff2-6c01' },
       { entryId: '6c12-6df4-9d3a-2cc' },
