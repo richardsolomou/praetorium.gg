@@ -49,7 +49,7 @@ platform :ios do
       xcargs: "DEVELOPMENT_TEAM=#{Shellwords.escape(team_id)} CODE_SIGN_STYLE=Automatic #{authentication}",
       export_xcargs: authentication,
       export_options: {
-        method: 'app-store-connect',
+        method: 'app-store',
         signingStyle: 'automatic',
         teamID: team_id,
         uploadSymbols: true
