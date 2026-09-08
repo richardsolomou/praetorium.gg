@@ -1,0 +1,47 @@
+name: Mobile iOS validation
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/mobile.yml
+      - .github/workflows/mobile-validation.yml
+      - fastlane/**
+      - Gemfile
+      - Gemfile.lock
+      - mobile/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      MOBILE_UPDATE_CHANNEL: canary
+      POSTHOG_CLI_DRY_RUN: 'true'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      - name: Validate Fastlane
+        run: bundle exec fastlane lanes
+      - name: Generate the iOS project
+        run: pnpm --dir mobile exec expo prebuild --clean --platform ios --no-install
+      - name: Install iOS dependencies
+        working-directory: mobile/ios
+        run: bundle exec pod install
+      - name: Build the Release application
+        run: xcodebuild -workspace mobile/ios/Praetorium.xcworkspace -scheme Praetorium -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build

@@ -1,0 +1,112 @@
+name: Mobile iOS delivery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/mobile.yml
+      - fastlane/**
+      - Gemfile
+      - Gemfile.lock
+      - mobile/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-ios-delivery
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deliver:
+    name: Deliver iOS
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-26
+    timeout-minutes: 360
+    env:
+      APPLE_TEAM_ID: A3X8464573
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      - name: Create the App Store Connect key
+        env:
+          APP_STORE_CONNECT_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
+        run: |
+          key_path="$RUNNER_TEMP/AuthKey_$APP_STORE_CONNECT_KEY_ID.p8"
+          printf '%s' "$APP_STORE_CONNECT_KEY_BASE64" | base64 --decode > "$key_path"
+          chmod 600 "$key_path"
+          echo "APP_STORE_CONNECT_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+      - name: Generate the canary iOS project
+        env:
+          EAS_ENVIRONMENT: preview
+          MOBILE_UPDATE_CHANNEL: canary
+          POSTHOG_CLI_DRY_RUN: 'true'
+        working-directory: mobile
+        run: pnpm dlx eas-cli@23.2.0 env:exec "$EAS_ENVIRONMENT" "pnpm exec expo prebuild --clean --platform ios --no-install" --non-interactive
+      - name: Install canary iOS dependencies
+        working-directory: mobile/ios
+        run: bundle exec pod install
+      - name: Build and upload the canary iOS application
+        env:
+          EAS_ENVIRONMENT: preview
+          MOBILE_UPDATE_CHANNEL: canary
+          POSTHOG_CLI_DRY_RUN: 'true'
+        working-directory: mobile
+        run: pnpm dlx eas-cli@23.2.0 env:exec "$EAS_ENVIRONMENT" "cd .. && bundle exec fastlane ios build_and_upload" --non-interactive
+      - name: Publish the compatible canary update
+        env:
+          EAS_ENVIRONMENT: preview
+          MOBILE_UPDATE_CHANNEL: canary
+          POSTHOG_CLI_DRY_RUN: 'true'
+        working-directory: mobile
+        run: pnpm dlx eas-cli@23.2.0 update --platform ios --channel "$MOBILE_UPDATE_CHANNEL" --environment "$EAS_ENVIRONMENT" --message "$GITHUB_SHA" --non-interactive
+      - name: Generate the stable iOS project
+        env:
+          EAS_ENVIRONMENT: production
+          MOBILE_UPDATE_CHANNEL: stable
+          POSTHOG_CLI_DRY_RUN: 'false'
+        working-directory: mobile
+        run: pnpm dlx eas-cli@23.2.0 env:exec "$EAS_ENVIRONMENT" "pnpm exec expo prebuild --clean --platform ios --no-install" --non-interactive
+      - name: Install stable iOS dependencies
+        working-directory: mobile/ios
+        run: bundle exec pod install
+      - name: Build and upload the stable iOS application
+        env:
+          EAS_ENVIRONMENT: production
+          MOBILE_UPDATE_CHANNEL: stable
+          POSTHOG_CLI_DRY_RUN: 'false'
+        working-directory: mobile
+        run: pnpm dlx eas-cli@23.2.0 env:exec "$EAS_ENVIRONMENT" "cd .. && bundle exec fastlane ios build_and_upload" --non-interactive
+      - name: Publish the compatible stable update
+        env:
+          EAS_ENVIRONMENT: production
+          MOBILE_UPDATE_CHANNEL: stable
+          POSTHOG_CLI_DRY_RUN: 'false'
+        working-directory: mobile
+        run: pnpm dlx eas-cli@23.2.0 update --platform ios --channel "$MOBILE_UPDATE_CHANNEL" --environment "$EAS_ENVIRONMENT" --message "$GITHUB_SHA" --non-interactive
+      - name: Sync App Store metadata
+        working-directory: mobile
+        run: pnpm dlx eas-cli@23.2.0 metadata:push --profile production --non-interactive
+      - name: Store Xcode diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-diagnostics
+          path: |
+            ${{ runner.temp }}/mobile-build/*.xcresult
+            ~/Library/Logs/gym
+          retention-days: 7
+          if-no-files-found: ignore

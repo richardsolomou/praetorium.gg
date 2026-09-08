@@ -16,8 +16,10 @@ This is the release gate for the `gg.praetorium` iOS and Android applications. A
 4. Create a Sign in with Apple key for the primary App ID. Configure `APPLE_CLIENT_ID=gg.praetorium.web`, `APPLE_TEAM_ID`, `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY` in production so the server generates current client-secret JWTs. Keep the one-time `.p8` download outside the repository and back it up securely.
 5. Register `https://praetorium.gg/api/apple-notifications` as the primary App ID's server-to-server notification endpoint. Register the SMTP sending domain and addresses with Apple's private email relay before sending to relay addresses.
 6. Create the Android app as `gg.praetorium` in Play Console and enable Play App Signing. Record the Play app-signing certificate SHA-256 fingerprint, not only an upload-key fingerprint.
-7. Link `mobile/` to an Expo project with `pnpm dlx eas-cli@latest init`. Connect the GitHub repository with `/mobile` as its base directory. Do not commit generated credentials or a review-account password.
-8. Set `ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS` in the production deployment. Keep multiple Android fingerprints comma-separated only during a signing transition.
+7. Link `mobile/` to an Expo project with `pnpm dlx eas-cli@23.2.0 init`. Do not commit generated credentials or a review-account password.
+8. Create an App Store Connect team API key with Admin access. Give the key access to Certificates, Identifiers & Profiles.
+9. Add `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY_BASE64`, and `EXPO_TOKEN` as GitHub Actions secrets. Store the base64-encoded contents of the API key in `APP_STORE_CONNECT_KEY_BASE64`.
+10. Set `ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS` in the production deployment. Keep multiple Android fingerprints comma-separated only during a signing transition.
 
 ## Build and upload
 
@@ -27,29 +29,25 @@ Run the repository gate first:
 just check
 ```
 
-The checked-in GitHub and EAS workflows are the normal iOS delivery path. A mobile change merged to `main` queues both canary and stable delivery; an open pull request only runs validation. GitHub dispatches each merged revision through a temporary tag and waits for EAS to finish before dispatching the next change. Every delivery creates and uploads a new iOS binary, then publishes an over-the-air iOS update for compatible installed builds. Canary jobs use the preview EAS environment, which must not contain private upload credentials, while stable jobs use the production environment. A delivery runs to completion so a later push cannot strand an App Store submission or let an older update finish last. Android builds, updates, and Play uploads remain manual and disabled until the release gate passes on a physical Android device and the Google account requirements are complete.
+The checked-in GitHub workflow is the normal iOS delivery path. A mobile change merged to `main` queues one canary build and one stable build. The workflow builds canary first and stable second on macOS 26. Fastlane signs each application, uploads it to TestFlight, and waits for App Store Connect to process it. EAS Update then publishes the same revision on the matching channel. A running delivery completes before the next delivery starts. GitHub replaces an older queued delivery when a newer mobile revision reaches `main`. The canary delivery uses the preview EAS environment. The stable delivery uses the production EAS environment and syncs `mobile/store.config.json`. Android builds, updates, and Play uploads remain manual. Android delivery stays disabled until the physical-device release gate and Google account requirements are complete.
 
-Use the following commands only to recover or inspect the automated flow. Create a signed iOS production build from `mobile/` with:
-
-```sh
-pnpm dlx eas-cli@latest build --platform ios --profile production
-```
-
-Upload the iOS build and its checked-in App Store metadata:
+Use the following command to restart both iOS deliveries from `main`:
 
 ```sh
-pnpm dlx eas-cli@latest submit --platform ios --profile production
+gh workflow run mobile.yml --ref main
 ```
 
-After completing physical-device verification and the Google account requirements, configure a Google Play service account in EAS before enabling Android automation. EAS Submit can create the first internal-testing release after the app exists in Play Console; a manual first upload is optional. Build and upload manually with:
+Inspect the workflow run before you restart it. Do not start a second delivery while one is running.
+
+After completing physical-device verification and the Google account requirements, configure a Google Play service account in EAS. Run these commands from `mobile/`:
 
 ```sh
-pnpm dlx eas-cli@latest build --platform android --profile production
-pnpm dlx eas-cli@latest submit --platform android --profile production
-pnpm dlx eas-cli@latest update --platform android --channel stable --environment production
+pnpm dlx eas-cli@23.2.0 build --platform android --profile production
+pnpm dlx eas-cli@23.2.0 submit --platform android --profile production
+pnpm dlx eas-cli@23.2.0 update --platform android --channel stable --environment production
 ```
 
-EAS manages `CFBundleVersion` and `versionCode` remotely and increments them for canary and production builds. Change the user-facing version in `mobile/app.json` and `mobile/package.json` together for each public application release. The native shell reads that version from the installed binary. EAS Update uses the native fingerprint as its runtime version, so incompatible binaries never receive the same over-the-air bundle.
+Fastlane reads the latest TestFlight build number for the user-facing version and increments it before each iOS build. EAS manages Android `versionCode` remotely. Change the user-facing version in `mobile/app.json` and `mobile/package.json` together for each public application release. The native shell reads that version from the installed binary. EAS Update uses the native fingerprint as its runtime version, so incompatible binaries never receive the same over-the-air bundle.
 
 ## Production identity checks
 
