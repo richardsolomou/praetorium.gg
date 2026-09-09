@@ -191,7 +191,7 @@ it('keeps league rosters sealed until every accepted entrant has submitted', asy
       })
     ).outcome,
   ).toBe('sealed')
-  expect(await repository.leagueRoster('league-token', 'user-001')).toBeNull()
+  expect(await repository.leagueRosters('league-token', 'user-001')).toMatchObject([{ revealedAt: null }])
   expect(await repository.revealLeague('league-token', 'user-000', 6)).toEqual({ outcome: 'not-ready' })
   expect(
     (
@@ -207,7 +207,7 @@ it('keeps league rosters sealed until every accepted entrant has submitted', asy
     ).outcome,
   ).toBe('sealed')
   expect(await repository.revealLeague('league-token', 'user-000', 8)).toEqual({ outcome: 'revealed' })
-  expect(await repository.leagueRoster('league-token', 'user-001')).toBe(firstSnapshot)
+  expect(await repository.leagueRosters('league-token', 'user-001')).toMatchObject([{ snapshot: firstSnapshot, revealedAt: 8 }])
   expect(await repository.joinLeague('league-token', 'user-000', 9, 128)).toBe('closed')
 })
 
@@ -632,7 +632,7 @@ it('replaces a league roster snapshot until reveal', async () => {
   expect((await repository.submitLeagueRoster({ ...input, snapshot: firstSnapshot })).outcome).toBe('sealed')
   expect((await repository.submitLeagueRoster({ ...input, snapshot: replacementSnapshot })).outcome).toBe('sealed')
   expect(await repository.revealLeague('league-token', 'user-000', 5)).toEqual({ outcome: 'revealed' })
-  expect(await repository.leagueRoster('league-token', 'user-001')).toBe(replacementSnapshot)
+  expect(await repository.leagueRosters('league-token', 'user-001')).toMatchObject([{ snapshot: replacementSnapshot }])
   expect((await repository.submitLeagueRoster({ ...input, snapshot: standardSnapshot('Late') })).outcome).toBe('missing')
 })
 
@@ -814,7 +814,7 @@ it('starts a league event without copying prior entrants', async () => {
     ])
   ).toSorted()
   const current = await repository.leagueByToken('league-token', 'user-001')
-  const previousRoster = await repository.leagueRoster('league-token', 'user-001', 'league-token')
+  const previousRoster = (await repository.leagueRosters('league-token', 'user-001', 'league-token'))[0]?.snapshot ?? null
   const [listed] = await repository.leaguesVisibleTo('user-001')
   await repository.joinLeague('league-token', 'user-001', 7, 128)
   const previous = await repository.leagueByToken('league-token', 'user-001', 'league-token')

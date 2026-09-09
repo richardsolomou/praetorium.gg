@@ -40,6 +40,7 @@ import {
   type LeagueAdmission,
   type LeagueEntryStatus,
   type LeagueVisibility,
+  readsAlliedLeagueRoster,
   visibleLeagueEntries,
 } from '../core/league'
 import type { TableShape } from '../core/tableShape'
@@ -393,10 +394,21 @@ export class PraetoriumService {
     throw new Response('no such revealed event roster', { status: 404 })
   }
 
-  async leagueRoster(token: string, userId: string, eventToken?: string) {
-    const stored = await this.repository.leagueRoster(token, userId, eventToken)
-    if (!stored) return null
-    return parseRosterSnapshot(stored)
+  /**
+   * One entrant's sealed list, from the newest event this reader may read it in.
+   *
+   * Reveal opens a snapshot to everyone who can open the league; before it, an ally reads
+   * the list they will field a force beside, and nobody else does.
+   */
+  async leagueRoster(token: string, userId: string, eventToken?: string, readerId?: string | null) {
+    const candidates = await this.repository.leagueRosters(token, userId, eventToken, readerId)
+    const readable = candidates.find(
+      (candidate) =>
+        candidate.revealedAt !== null ||
+        readsAlliedLeagueRoster(candidate.format, candidate.rosterLimit, candidate.reader, candidate.sealed),
+    )
+    if (!readable) return null
+    return parseRosterSnapshot(readable.snapshot)
   }
 
   async createLeagueBattle(
