@@ -83,9 +83,9 @@ export function replacementChoice(
   row: ModelRow,
   model: LoadoutModel,
   choices: readonly LoadoutChoice[],
-  modelCount: number,
+  models: number,
 ): LoadoutChoice | null {
-  if (loadoutRowCount(row, choices) >= modelCount) return null
+  if (loadoutRowCount(row, choices) >= models) return null
   for (const candidate of model.rows) {
     if (candidate === row || !candidate.pieces?.some((piece) => sameWargear(row.name, piece))) continue
     const selected = loadoutRowSources(candidate, choices).find(
@@ -284,6 +284,18 @@ export function orderedChoices<T extends { options: readonly { name: string }[] 
 export const wholeSquadTakes = (choice: LoadoutChoice, optionId: string): SpreadCounts =>
   Object.fromEntries(choice.options.map((option) => [option.id, option.id === optionId ? choice.room : 0]))
 
+const takenIn = (choice: LoadoutChoice) => choice.options.reduce((total, option) => total + option.count, 0)
+
+/**
+ * Whether a group may simply give a slot up, or has to hand it to one of its own.
+ *
+ * A squad of ten always holds ten weapons, so putting one down means picking another
+ * up. A group the datasheet only offers — two of the five may take a special weapon —
+ * is under no such obligation, and moving the slot sideways there arms a squadmate the
+ * player never asked to arm.
+ */
+const shedsSlot = (choice: LoadoutChoice) => choice.optional || takenIn(choice) < choice.room
+
 /**
  * A group the squad divides between its options, a count at a time.
  *
@@ -292,7 +304,7 @@ export const wholeSquadTakes = (choice: LoadoutChoice, optionId: string): Spread
  * datasheet says in words: each model may replace its blaster with a carbine.
  */
 export function spreadHandlers(choice: LoadoutChoice) {
-  const taken = choice.options.reduce((total, option) => total + option.count, 0)
+  const taken = takenIn(choice)
   const room = choice.room - taken
 
   const donor = (exclude: string) =>
@@ -307,7 +319,7 @@ export function spreadHandlers(choice: LoadoutChoice) {
 
   const less = (option: LoadoutOption): SpreadCounts | null => {
     if (option.count <= option.min) return null
-    if (choice.optional || taken < choice.room) return { [option.id]: option.count - 1 }
+    if (shedsSlot(choice)) return { [option.id]: option.count - 1 }
     // A full group has to hand the freed slot to a sibling, and only one still
     // under its own cap can take it. Nine bolt rifles and a special weapon cannot
     // become ten bolt rifles.
@@ -323,4 +335,95 @@ export function spreadHandlers(choice: LoadoutChoice) {
 /** A press that hands a group the counts it would then hold, or nothing to press. */
 export function changeBy(counts: SpreadCounts | null, key: string, onSpread: (key: string, counts: SpreadCounts) => void) {
   return counts ? () => onSpread(key, counts) : undefined
+}
+
+/** Whether an option is one of the bodies this card counts, rather than wargear on one. */
+export const addsModel = (model: LoadoutModel, source: LoadoutRowSource) =>
+  model.members.some((member) => member.choiceKey === source.choice.key && member.id === source.option.id)
+
+/** The counts a press leaves behind, group by group. */
+export type PoolChange = [string, SpreadCounts][]
+
+/** How many models of this kind the unit holds, read from the choices its members point at. */
+export function modelCount(model: LoadoutModel, choices: readonly LoadoutChoice[]) {
+  return model.members.reduce((total, member) => {
+    if (!member.choiceKey) return total + member.baseCount
+    const choice = choices.find((candidate) => candidate.key === member.choiceKey)
+    return total + (choice?.options.find((candidate) => candidate.id === member.id)?.count ?? 0)
+  }, 0)
+}
+
+/**
+ * Giving and taking a weapon on one card, where every row draws on the same bodies.
+ *
+ * Every weapon this kind of model counts by is one of its bodies holding that weapon,
+ * so they all draw on the same pool however the catalogue files them. Rebalancing
+ * within a single group would leave a veteran unable to put down a pyrecannon and pick
+ * his bolt rifle back up, because the two are written in different places.
+ */
+export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoice[], weapons: readonly WeaponProfileData[]) {
+  const count = modelCount(model, choices)
+  const rowCount = (row: ModelRow) => loadoutRowCount(row, choices)
+  const bandOf = (row: ModelRow) => loadoutRowBand(row, weapons)
+  const shared = model.rows.flatMap((row) =>
+    loadoutRowSources(row, choices).flatMap((found) => (found.choice.room > 1 || found.choice.carried ? [{ row, ...found }] : [])),
+  )
+  type Entry = (typeof shared)[number]
+
+  const move = (from: readonly Entry[], to: readonly Entry[]): PoolChange => {
+    const wanted = new Map<string, SpreadCounts>()
+    for (const [entry, delta] of [...from.map((one) => [one, -1] as const), ...to.map((one) => [one, 1] as const)]) {
+      const counts = wanted.get(entry.choice.key) ?? {}
+      counts[entry.option.id] = entry.option.count + delta
+      wanted.set(entry.choice.key, counts)
+    }
+    return [...wanted]
+  }
+  const sameSource = (one: Entry, other: Entry) => one.choice.key === other.choice.key && one.option.id === other.option.id
+
+  const spend = (taker: Entry) => {
+    // A group with no room left gives up one of its own: the veteran holding the
+    // pyrecannon is the one who puts it down for a heavy bolter, and asking a
+    // squadmate with a bolt rifle instead would put a second special weapon in a
+    // squad allowed one.
+    const kin = shared.filter((entry) => entry.choice.key === taker.choice.key)
+    const full = kin.reduce((total, entry) => total + entry.option.count, 0) >= taker.choice.room
+    const band = bandOf(taker.row)
+    const pool = full ? kin : shared.filter((entry) => bandOf(entry.row) === band)
+    const occupied = model.rows.filter((row) => bandOf(row) === band).reduce((total, row) => total + rowCount(row), 0)
+    // A model option with room joins the squad; it does not replace another
+    // specialist on this card. The squad's model group supplies the body.
+    if (!full && addsModel(model, taker) && canAddPooledOption(taker.option)) return move([], [taker])
+    const giver = pool
+      .filter((entry) => !sameSource(entry, taker) && entry.option.count > 0 && canAddPooledOption(taker.option, entry))
+      .toSorted((one, other) => donorPriority(one.option, other.option))[0]
+    if (!full && occupied < count) return canAddPooledOption(taker.option) ? move([], [taker]) : null
+    if (giver) return move([giver], [taker])
+    return !full && canAddPooledOption(taker.option) ? move([], [taker]) : null
+  }
+
+  const free = (giver: Entry) => {
+    if (giver.option.count <= 0 || giver.option.count <= giver.option.min) return null
+    const taker = shared
+      .filter((entry) => !sameSource(entry, giver) && canAddPooledOption(entry.option, giver))
+      .toSorted((one, other) => donorPriority(one.option, other.option))[0]
+    // A group that has to stay full hands the slot to one of its own, and a group that
+    // does not hands it back to the loadout the catalogue starts the squad with. Where
+    // a group is nothing but specialists — the two Plague Marines who may take a
+    // special weapon — there is nobody to hand it to, and arming a squadmate the
+    // player never asked to arm is not what putting a weapon down means.
+    const handed = taker && (!shedsSlot(giver.choice) || taker.option.default)
+    return handed ? move([giver], [taker]) : move([giver], [])
+  }
+
+  /** The change a row's button makes, or nothing when that row cannot give or take. */
+  const press = (decide: (entry: Entry) => PoolChange | null) => (row: ModelRow) => {
+    for (const entry of shared.filter((candidate) => candidate.row === row)) {
+      const changes = decide(entry)
+      if (changes) return changes
+    }
+    return null
+  }
+
+  return { spend: press(spend), free: press(free) }
 }

@@ -8,7 +8,9 @@ import {
   type LoadoutChoice,
   type LoadoutModel,
   loadoutRowCount,
+  modelCount,
   ordered,
+  poolHandlers,
   orderedChoices,
   replacementChoice,
   sameWeapon,
@@ -374,5 +376,57 @@ describe('dividing a group between its options', () => {
   it('has nothing to remove from an empty option', () => {
     const group = choice([option('blaster', 10, 10), option('special', 0, 1)], 10)
     expect(spreadHandlers(group).less(group.options[1]!)).toBeNull()
+  })
+})
+
+describe('putting a weapon down on a model card', () => {
+  const card = (rows: LoadoutModel['rows'], members: LoadoutModel['members'] = []): LoadoutModel => ({
+    name: 'Card',
+    fixed: [],
+    members,
+    rows,
+  })
+  const rowFor = (id: string, name = id) => ({ name, choiceKey: 'group', optionId: id })
+
+  it('leaves the squad an ordinary model where the group holds nothing but specialists', () => {
+    const group = choice([option('meltagun', 1, 2), option('plasma', 1, 2), option('belcher', 0, 2)], 2, true)
+    const model = card([rowFor('meltagun'), rowFor('plasma'), rowFor('belcher')])
+
+    expect(poolHandlers(model, [group], []).free(model.rows[0]!)).toEqual([['group', { meltagun: 0 }]])
+  })
+
+  it('hands the freed place back to the loadout the squad starts with', () => {
+    const rifle = { ...option('rifle', 2, 3), default: true }
+    const group = choice([rifle, option('melta', 1, 1)], 3, true)
+    const model = card([rowFor('rifle'), rowFor('melta')])
+
+    expect(poolHandlers(model, [group], []).free(model.rows[1]!)).toEqual([['group', { melta: 0, rifle: 3 }]])
+  })
+
+  it('hands the freed place to a sibling where the group has to stay full', () => {
+    const group = choice([option('ordinary', 2, 3), option('special', 1, 3)], 3)
+    const model = card([rowFor('ordinary'), rowFor('special')])
+
+    expect(poolHandlers(model, [group], []).free(model.rows[1]!)).toEqual([['group', { special: 0, ordinary: 3 }]])
+  })
+
+  it('has nothing to put down on an empty row', () => {
+    const group = choice([option('meltagun', 0, 2), option('plasma', 1, 2)], 2, true)
+    const model = card([rowFor('meltagun'), rowFor('plasma')])
+
+    expect(poolHandlers(model, [group], []).free(model.rows[0]!)).toBeNull()
+  })
+
+  it('counts the models a card stands for from the choices its members point at', () => {
+    const group = choice([option('meltagun', 1, 2), option('plasma', 1, 2)], 2, true)
+    const model = card(
+      [rowFor('meltagun'), rowFor('plasma')],
+      [
+        { id: 'meltagun', choiceKey: 'group', baseCount: 0 },
+        { id: 'plasma', choiceKey: 'group', baseCount: 0 },
+      ],
+    )
+
+    expect(modelCount(model, [group])).toBe(2)
   })
 })
