@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.62.0
+
+### Minor Changes
+
+- 57b9b2c: Share unlisted roster links from the roster screen.
+
+### Patch Changes
+
+- 6ffde79: Correct terrain setup rulers to use the intended corners and whole-inch labels.
+- 3f2b45e: Show mission card instructions, including which units can be chosen when a card is drawn.
+- a099830: Remove a special weapon without arming a squadmate with it: the model goes back to the squad's ordinary loadout.
+- f9413c6: Fade the roster header's faction line where it holds a detachment too wide to show, so a narrow screen shows there is more to scroll to.
+
 ## 0.61.8
 
 ### Patch Changes
