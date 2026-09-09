@@ -105,6 +105,8 @@ export type LeagueBattleCandidate = {
 
 const ADMIN_USERS_PAGE_SIZE = 50
 const LEAGUE_BATTLE_CANDIDATE_MAX = 50
+/** How far back a roster read looks for the newest event its reader may read. */
+const LEAGUE_ROSTER_EVENT_CANDIDATES = 20
 
 function warlordSelection(snapshots: readonly Roster[], trustLegacySelection = false) {
   const selected = snapshots.flatMap((snapshot) => snapshot.built?.units.filter((unit) => unit.warlord) ?? [])
@@ -1882,25 +1884,61 @@ export class Repository {
     })
   }
 
-  async leagueRoster(token: string, userId: string, eventToken?: string) {
-    const [row] = await this.database
-      .select({ snapshot: leagueEventEntries.rosterSnapshot })
+  /**
+   * One entrant's sealed entries, newest event first, each with its event shape and the
+   * reader's own entry in the same event beside it.
+   *
+   * Reveal is not a condition here, because before it an ally still reads the snapshot and
+   * `readsAlliedLeagueRoster` is the one place that decides which reader that is. That is
+   * also why this returns the candidates rather than one row: without a named event the
+   * answer is the newest event this reader may read, which reveal alone no longer decides.
+   */
+  async leagueRosters(token: string, userId: string, eventToken?: string, readerId?: string | null) {
+    const reader = alias(leagueEventEntries, 'reader_entry')
+    const rows = await this.database
+      .select({
+        snapshot: leagueEventEntries.rosterSnapshot,
+        requiredLimit: leagueEventEntries.requiredLimit,
+        teamId: leagueEventEntries.teamId,
+        format: leagueEvents.format,
+        rosterLimit: leagueEvents.rosterLimit,
+        revealedAt: leagueEvents.revealedAt,
+        readerStatus: reader.status,
+        readerRequiredLimit: reader.requiredLimit,
+        readerTeamId: reader.teamId,
+      })
       .from(leagueEventEntries)
       .innerJoin(leagueEvents, eq(leagueEvents.id, leagueEventEntries.eventId))
       .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
+      .leftJoin(reader, and(eq(reader.eventId, leagueEventEntries.eventId), eq(reader.userId, readerId ?? '')))
       .where(
         and(
           eq(leagues.token, token),
           eventToken ? eq(leagueEvents.token, eventToken) : undefined,
-          isNotNull(leagueEvents.revealedAt),
           eq(leagueEventEntries.userId, userId),
           eq(leagueEventEntries.status, 'accepted'),
           isNotNull(leagueEventEntries.rosterSnapshot),
         ),
       )
       .orderBy(desc(leagueEvents.number))
-      .limit(1)
-    return row?.snapshot ?? null
+      .limit(LEAGUE_ROSTER_EVENT_CANDIDATES)
+    return rows.flatMap((row) =>
+      row.snapshot === null
+        ? []
+        : [
+            {
+              snapshot: row.snapshot,
+              format: row.format,
+              rosterLimit: row.rosterLimit,
+              revealedAt: row.revealedAt,
+              sealed: { userId, status: 'accepted' as const, requiredLimit: row.requiredLimit, teamId: row.teamId },
+              reader:
+                readerId && row.readerStatus
+                  ? { userId: readerId, status: row.readerStatus, requiredLimit: row.readerRequiredLimit, teamId: row.readerTeamId }
+                  : null,
+            },
+          ],
+    )
   }
 
   async createLeagueBattle<T>(

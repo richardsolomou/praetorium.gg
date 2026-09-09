@@ -102,7 +102,7 @@ export const revealLeague = createServerFn({ method: 'POST' })
 
 export const openLeagueRoster = createServerFn({ method: 'GET' })
   .validator(leagueRosterSchema)
-  .handler(({ data }) => rpc(() => app().service.leagueRoster(data.token, data.userId, data.eventToken)))
+  .handler(({ data }) => rpc(async () => app().service.leagueRoster(data.token, data.userId, data.eventToken, await currentUserId())))
 
 export const unsealLeagueRoster = createServerFn({ method: 'POST' })
   .validator(leagueRosterSchema)

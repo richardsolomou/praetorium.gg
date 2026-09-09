@@ -920,6 +920,21 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await allied.reload()
   const ownEntrantRow = allied.locator(`[data-person="${alliedName}"]`).filter({ hasText: alliedLabel })
   await expect(ownEntrantRow.getByText('1,000-point roster · allied', { exact: true })).toBeVisible()
+  // A 2v1 seats the allied rosters together and never against each other, so each ally reads the other's
+  // before reveal, while the solo roster they will both face stays sealed.
+  const secondAlliedRow = allied.locator(`[data-person="${alliedName}"]`).filter({ hasText: secondAlliedLabel })
+  await expect(secondAlliedRow.getByRole('button', { name: 'View roster' })).toBeVisible()
+  await expect(ownEntrantRow.getByRole('button', { name: 'View roster' })).toHaveCount(0)
+  await expect(allied.locator(`[data-person="${ownerName}"]`).getByRole('button', { name: 'View roster' })).toHaveCount(0)
+  await expect(allied.getByText(`${secondAlliedLabel} sees your list, because you field a force together.`)).toBeVisible()
+  await expectNoHorizontalOverflow(allied, ...(await allied.locator('[data-person]').all()))
+  await allied.screenshot({ path: 'test-results/league-2v1-ally-roster-phone.png', fullPage: true })
+  const allyRosterTab = allied.waitForEvent('popup')
+  await secondAlliedRow.getByRole('button', { name: 'View roster' }).click()
+  const allyRoster = await allyRosterTab
+  await expect(allyRoster.locator('[data-unit="Test unit"]')).toBeVisible()
+  await allyRoster.close()
+
   await allied.getByRole('button', { name: 'Change roster' }).click()
   const chooser = allied.getByRole('dialog', { name: 'Seal a roster' })
   await expect(chooser.locator(`[data-roster="${alliedRoster}"]`)).toBeVisible()
@@ -1092,7 +1107,30 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await teammate.keyboard.press('Escape')
 
   await sealDoublesEventRosters(leagueToken, true)
+  // A sealed list reaches the one entrant who will field a force alongside it, before any reveal.
+  await teammate.reload()
+  const teammateRow = (name: string) => teammate.locator(`[data-person="${name}"]`)
+  await expect(teammateRow(names[0]).getByRole('button', { name: 'View roster' })).toBeVisible()
+  for (const sealed of [names[1], names[2], names[3]]) {
+    await expect(teammateRow(sealed).getByRole('button', { name: 'View roster' })).toHaveCount(0)
+  }
+  await expect(teammate.getByRole('button', { name: /^Unseal / })).toHaveCount(0)
+  await expect(teammate.getByText(`${names[0]} sees your list, because you field a force together.`)).toBeVisible()
+  await expectNoHorizontalOverflow(teammate, ...(await teammate.locator('[data-person]').all()))
+  await teammate.screenshot({ path: 'test-results/doubles-ally-roster-phone.png', fullPage: true })
+  const allyRosterTab = teammate.waitForEvent('popup')
+  await teammateRow(names[0]).getByRole('button', { name: 'View roster' }).click()
+  const allyRoster = await allyRosterTab
+  await expect(allyRoster.locator('[data-unit="Test character"]')).toBeVisible()
+  await allyRoster.close()
+
+  // The organizer's row carries pairing, removal and the sealed lists together at both widths.
   await owner.reload()
+  await expect(owner.getByRole('button', { name: `Remove ${names[0]}`, exact: true })).toBeVisible()
+  await expectNoHorizontalOverflow(owner, ...(await owner.locator('[data-person]').all()))
+  await owner.screenshot({ path: 'test-results/doubles-organizer-entrant-controls-phone.png', fullPage: true })
+  await owner.setViewportSize({ width: 1440, height: 900 })
+  await owner.screenshot({ path: 'test-results/doubles-organizer-entrant-controls-desktop.png', fullPage: true })
   await owner.getByRole('button', { name: `Re-pair ${names[0]}`, exact: true }).click()
   const rePair = owner.getByRole('dialog', { name: `Assign ${names[0]}’s team` })
   await expect(rePair).toContainText(`Currently paired with ${names[1]}`)
