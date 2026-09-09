@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.63.0
+
+### Minor Changes
+
+- 6ef4d10: Let league allies read each other's sealed lists before the event reveals.
+
+### Patch Changes
+
+- 6ef4d10: Recede the league organizer's remove control to a muted icon.
+
 ## 0.62.0
 
 ### Minor Changes
