@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.63.4
+
+### Patch Changes
+
+- 21f3076: Simplify model loadouts with default wargear first, stable visible weapon profiles, source instructions, formatted rule tooltips, and clearer controls that preserve required weapons.
+
 ## 0.63.3
 
 ### Patch Changes
