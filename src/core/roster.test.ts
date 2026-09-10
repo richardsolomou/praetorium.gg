@@ -102,6 +102,36 @@ const keyworded = (): Partial<Catalogue> => ({
       ],
     },
     {
+      id: 'warlord',
+      name: 'Warlord',
+      type: 'model',
+      categoryLinks: [{ id: 'warlord-link', targetId: 'faction' }],
+      selectionEntryGroups: [
+        {
+          id: 'enhancements-3',
+          name: 'Enhancements',
+          constraints: [{ id: 'enh-max-3', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+          selectionEntries: [
+            {
+              id: 'relic-3',
+              name: 'Relic',
+              type: 'upgrade',
+              // Hidden unless the bearer carries the faction keyword, asked of the parent
+              // rather than of every ancestor: the book writes the gate both ways.
+              modifiers: [
+                {
+                  type: 'set',
+                  field: 'hidden',
+                  value: true,
+                  conditions: [{ type: 'notInstanceOf', value: 1, field: 'selections', scope: 'parent', childId: 'faction' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
       id: 'grunt',
       name: 'Grunt',
       type: 'model',
@@ -1215,6 +1245,14 @@ describe('options the data restricts by keyword', () => {
     const built = buildUnit('grunt', index)!
     expect(built.choices.map((choice) => ({ name: choice.name, options: choice.options.map((option) => option.name) }))).toEqual([
       { name: 'Enhancements', options: ['Banner'] },
+    ])
+  })
+
+  it('offers an option gated on the bearer, which is what its parent means', () => {
+    const index = indexOf(catalogue())
+    const built = buildUnit('warlord', index)!
+    expect(built.choices.map((choice) => ({ name: choice.name, options: choice.options.map((option) => option.name) }))).toEqual([
+      { name: 'Enhancements', options: ['Relic'] },
     ])
   })
 

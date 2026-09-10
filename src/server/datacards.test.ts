@@ -149,6 +149,48 @@ it('reads every structured army rule', () => {
   ])
 })
 
+it('names a section the card leaves empty, and takes its words from the catalogue', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'aeldari.json'),
+    JSON.stringify({
+      name: 'Aeldari',
+      datasheets: [],
+      detachments: [],
+      rules: {
+        army: [
+          {
+            name: { en: 'Battle Focus' },
+            rules: [
+              { order: 1, type: 'text', text: { en: 'Spend a token to perform an Agile Manoeuvre.' } },
+              { order: 2, type: 'header', text: { en: 'Agile Manoeuvres' } },
+              { order: 3, type: 'triggerEffectAccordion', title: { en: 'Swift as the Wind' } },
+              { order: 4, type: 'triggerEffectAccordion', title: { en: 'Fade Back' } },
+            ],
+          },
+        ],
+      },
+    }),
+  )
+
+  const asked: string[] = []
+  const sections = ({ faction, entry, titles }: { faction: string; entry: string; titles: readonly string[] }) => {
+    asked.push(`${faction} / ${entry}`)
+    return new Map(titles.flatMap((title) => (title === 'Fade Back' ? [] : [[title, 'Add 2" to Move.']])))
+  }
+  const loaded = loadDatacards(directory, sections)
+
+  // The card and the heading its empty titles sit under name the entry to ask for.
+  expect(asked).toEqual(['Aeldari / Battle Focus - Agile Manoeuvres'])
+  expect(loaded.factions.get('aeldari')?.armyRules).toEqual([
+    {
+      name: 'Battle Focus',
+      description:
+        'Spend a token to perform an Agile Manoeuvre.\n\n### Agile Manoeuvres\n\n### Swift as the Wind\n\nAdd 2" to Move.\n\n### Fade Back',
+    },
+  ])
+})
+
 it('reads army-construction numbers without trusting malformed alternatives', () => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
   fs.writeFileSync(

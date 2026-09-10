@@ -13,6 +13,7 @@ import {
 import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
 import { type FactionContent, type LoadedDatacards, loadDatacards } from './datacards'
+import { catalogueSections } from './catalogueSections'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { type ExternalReferences, loadExternalReferences } from './externalReferences'
 
@@ -54,7 +55,8 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
 
   const index = buildIndex(files, revision.definitions)
   const detachments = detachmentsOf(files, index)
-  const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'))
+  // The cards name sections they do not describe, and the catalogue is where those words are.
+  const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index))
   const sourceReferences = loadExternalReferences(path.join(directory, 'rules', 'data', 'core'))
   return {
     index,
