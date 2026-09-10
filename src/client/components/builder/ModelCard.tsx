@@ -8,8 +8,9 @@ import {
   type LoadoutOption,
   loadoutRowCount,
   loadoutRowSources,
+  loadoutInstructions,
   modelCount,
-  ordered,
+  orderedModelWargear,
   type PoolChange,
   poolHandlers,
   replacementChoice,
@@ -38,6 +39,8 @@ export function ModelCard({
   weapons,
   abilities,
   rules,
+  wargearGroups,
+  models,
   onChoose,
   onSpread,
   editable,
@@ -51,6 +54,8 @@ export function ModelCard({
   weapons: WeaponProfileData[]
   abilities: Datasheet['abilities']
   rules: Datasheet['keywordRules']
+  wargearGroups?: Datasheet['wargearGroups']
+  models?: readonly LoadoutModel[]
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: SpreadCounts) => void
   editable: boolean
@@ -91,10 +96,11 @@ export function ModelCard({
   }
   const counted = heading()
   if (!showOptions && !count) return null
+  const statedInstructions = new Set<string>()
 
   return (
-    <section className="border border-edge-strong bg-panel/40">
-      <p className="eyebrow flex items-center justify-between gap-2 border-b border-edge px-2.5 py-2 text-bone">
+    <section>
+      <p className="eyebrow mb-2 flex items-center justify-between gap-2 text-bone">
         <span className="min-w-0">{model.name}</span>
         {stands && counted ? (
           <PoolStepper name={model.name} count={stands.option.count} editable={editable} disabled={controlsDisabled} {...counted} />
@@ -104,12 +110,8 @@ export function ModelCard({
           </span>
         )}
       </p>
-      <ul className="divide-y divide-edge">
-        {ordered(
-          [...model.fixed.map((entry) => ({ name: entry.name, fixed: entry })), ...model.rows.map((row) => ({ name: row.name, row }))],
-          weapons,
-          (entry) => ('row' in entry ? `choice:${entry.row.choiceKey}` : `wargear:${entry.name}`),
-        ).map((entry) => {
+      <ul className="space-y-3">
+        {orderedModelWargear(model, choices, weapons).map((entry) => {
           if ('fixed' in entry) {
             const fixedCount = entry.fixed.count ?? count
             if (!showLoadoutEntry(fixedCount, showOptions)) return null
@@ -126,6 +128,8 @@ export function ModelCard({
             )
           }
           const row = entry.row
+          const pieces = entry.pieces
+          if (!pieces.length) return null
           const found = optionOf(row.choiceKey, row.optionId)
           if (!found) return null
           const { choice, option } = found
@@ -154,21 +158,29 @@ export function ModelCard({
           const remove =
             press(free(row)) ?? (removeDirect ? () => onChoose(removeDirect.source.choice.key, removeDirect.replacement ?? '') : undefined)
           const picked = choice.uniform || (choice.optional && choice.room === 1 && choice.options.length === 1)
+          const instructions = showOptions
+            ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], wargearGroups ?? []).filter((instruction) => {
+                if (statedInstructions.has(instruction)) return false
+                statedInstructions.add(instruction)
+                return true
+              })
+            : []
           return (
             <WargearRow
-              key={`${row.choiceKey}/${row.optionId}/${row.name}`}
-              name={row.name}
-              pieces={row.pieces}
+              key={`${row.choiceKey}/${row.optionId}/${entry.name}`}
+              name={entry.name}
+              pieces={pieces}
               count={displayed}
               points={option.points}
               weapons={weapons}
               abilities={abilities}
               rules={rules}
               highlightSelection={showOptions}
+              instructions={instructions}
               control={
                 picked ? (
                   <PickControl
-                    name={row.name}
+                    name={entry.name}
                     count={displayed}
                     editable={editable}
                     disabled={controlsDisabled}
@@ -182,7 +194,7 @@ export function ModelCard({
                   />
                 ) : (
                   <PoolStepper
-                    name={row.name}
+                    name={entry.name}
                     count={displayed}
                     editable={editable}
                     disabled={controlsDisabled}

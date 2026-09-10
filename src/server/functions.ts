@@ -203,6 +203,7 @@ function rosterLoadoutDatasheets(
   const context = rosterDatasheetContext(loaded, data)
   const views = context ? datasheetViewsIn(loaded, data.catalogueId, data.entryId, context) : null
   return {
+    controlledChoices: views?.controlledChoices ?? [],
     selected: views
       ? describeDatasheetAbilities(loaded, data.catalogueId, views.selected, app().rules())
       : rosterDatasheet(loaded, data, undefined, false),

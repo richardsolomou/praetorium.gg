@@ -1,8 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
+import { wargearBaseName } from '../../core/wargear'
 import type { Datasheet } from '../../server/catalogue'
-import { abilitySections, attachmentGroups, compositionCount, referenceAbilities } from '../datasheet'
+import {
+  abilitySections,
+  attachmentGroups,
+  compositionCount,
+  referenceAbilities,
+  weaponProfileGroups,
+  weaponProfileMode,
+} from '../datasheet'
 import { datasheetSlugQuery, factionQuery } from '../queries'
 import { FactionMark, factionColour } from './FactionMark'
 import { CollectionToggle } from './CollectionToggle'
@@ -252,7 +260,7 @@ function Relationships({ sheet }: { sheet: Datasheet }) {
   )
 }
 
-type DisplayProfile = { id: string; name: string; values: { name: string; value: string }[] }
+type DisplayProfile = Datasheet['profiles'][number]
 
 function UnitCharacteristics({ profile }: { profile: DisplayProfile }) {
   const invulnerable = profile.values.find((value) => value.name === 'InSv')?.value
@@ -303,10 +311,14 @@ function ProfileTable({
   const columns = [...new Set(profiles.flatMap((profile) => profile.values.map((value) => value.name)))].filter(
     (column) => !omit.includes(column),
   )
+  const groups =
+    profiles[0]?.type === 'Ranged Weapons' || profiles[0]?.type === 'Melee Weapons'
+      ? weaponProfileGroups(profiles)
+      : profiles.map((profile) => [profile])
   return (
     <section>
       <h2 className="rubric">
-        {title} <span className="readout text-faint">{profiles.length}</span>
+        {title} <span className="readout text-faint">{groups.length}</span>
       </h2>
       <div className="mt-2 overflow-x-auto border border-edge bg-panel">
         <table className="w-full min-w-max text-left text-sm">
@@ -320,26 +332,46 @@ function ProfileTable({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-edge">
-            {profiles.map((profile) => (
-              <tr key={profile.id}>
-                <th className="px-3 py-2 font-semibold">{profile.name}</th>
-                {columns.map((column) => (
-                  <td key={column} className="readout px-3 py-2 text-center text-dim">
-                    {column === 'Keywords' && profile.values.find((value) => value.name === column)?.value ? (
-                      <KeywordList
-                        value={profile.values.find((value) => value.name === column)!.value}
-                        rules={keywordRules}
-                        className="text-bone"
-                      />
-                    ) : (
-                      (profile.values.find((value) => value.name === column)?.value ?? '—')
-                    )}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
+          {groups.map((group) => (
+            <tbody
+              key={group[0]!.id}
+              aria-label={group.length > 1 ? `${wargearBaseName(group[0]!.name)} profiles` : undefined}
+              className="divide-y divide-edge border-t border-edge"
+            >
+              {group.length > 1 ? (
+                <tr>
+                  <th colSpan={columns.length + 1} className="bg-raised/50 px-3 py-2">
+                    <span className="font-semibold uppercase">{wargearBaseName(group[0]!.name)}</span>
+                    <span className="ml-3 text-xs font-normal text-faint">{group.length} profiles</span>
+                  </th>
+                </tr>
+              ) : null}
+              {group.map((profile) => (
+                <tr key={profile.id}>
+                  <th
+                    className={
+                      group.length > 1 ? 'border-l-2 border-edge-strong py-2 pr-3 pl-10 font-normal text-dim' : 'px-3 py-2 font-semibold'
+                    }
+                  >
+                    {group.length > 1 ? weaponProfileMode(profile) : profile.name}
+                  </th>
+                  {columns.map((column) => (
+                    <td key={column} className="readout px-3 py-2 text-center text-dim">
+                      {column === 'Keywords' && profile.values.find((value) => value.name === column)?.value ? (
+                        <KeywordList
+                          value={profile.values.find((value) => value.name === column)!.value}
+                          rules={keywordRules}
+                          className="text-bone"
+                        />
+                      ) : (
+                        (profile.values.find((value) => value.name === column)?.value ?? '—')
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          ))}
         </table>
       </div>
     </section>

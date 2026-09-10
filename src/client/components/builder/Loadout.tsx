@@ -83,6 +83,7 @@ export function Loadout({
   )
   const { data: sheets, dataUpdatedAt } = useQuery({
     ...request,
+    enabled: request.enabled && (pickIndex === null || settledPicks[pickIndex]?.entryId === unit?.entryId),
     placeholderData: (previous, previousQuery) => (forSameUnit(previousQuery) ? previous : undefined),
   })
   useEffect(() => {
@@ -120,7 +121,9 @@ export function Loadout({
   const abilities = availableSheet.abilities
 
   const equipped = (type: string) =>
-    sheet.profiles.filter((profile) => profile.type === type && (profile.count ?? 1) > controlledProfileCount(unit.choices, profile.name))
+    sheet.profiles.filter(
+      (profile) => profile.type === type && (profile.count ?? 1) > controlledProfileCount(sheets.controlledChoices, profile.name),
+    )
   const equippedRanged = equipped('Ranged Weapons')
   const equippedMelee = equipped('Melee Weapons')
   const profile = primaryUnitProfile(sheet)
@@ -137,13 +140,15 @@ export function Loadout({
         <div className="w-full min-w-0 space-y-4">
           {profile ? <UnitProfile profile={profile} /> : null}
           {unit.models.length ? (
-            <div className="space-y-3">
+            <div className="space-y-6">
               {unit.models.map((model) => (
                 <ModelCard
                   // A datasheet can name two kinds of model the same, so what tells
                   // the cards apart is the models they hold rather than the heading.
                   key={model.members.map((member) => member.id).join('/')}
                   model={model}
+                  models={unit.models}
+                  wargearGroups={availableSheet.wargearGroups}
                   choices={unit.choices}
                   stands={models.get(model) ?? null}
                   onChoose={onChoose}
@@ -231,14 +236,6 @@ type Stood = { choice: LoadoutUnit['choices'][number]; option: LoadoutUnit['choi
  * control, whichever of the two places it ends up in.
  */
 function divide(unit: LoadoutUnit): { models: Map<LoadoutModel, Stood>; loose: LoadoutUnit['choices'] } {
-  /**
-   * The option a card stands for, where the card is the whole of it.
-   *
-   * A loadout that pairs two weapons cannot be drawn as a row for each — the pairing
-   * is what the catalogue sells — so it keeps a card of its own, and the card is then
-   * the only honest place to ask how many of it the squad has. Its heading takes the
-   * count, rather than the card saying one thing and a wargear option below it another.
-   */
   const standingFor = (model: LoadoutModel): Stood | null => {
     const [member, ...rest] = model.members
     if (!member || rest.length || !member.choiceKey) return null

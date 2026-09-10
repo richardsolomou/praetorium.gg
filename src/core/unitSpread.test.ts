@@ -612,3 +612,77 @@ describe('a weapon request beside a squad that may still grow', () => {
     })
   })
 })
+
+describe('a loadout with nested weapon choices', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'leader',
+            name: 'Leader',
+            type: 'model',
+            constraints: [...mandatory('leader-min'), { id: 'leader-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+            selectionEntryGroups: [
+              {
+                id: 'loadout',
+                name: 'Loadout',
+                defaultSelectionEntryId: 'pair',
+                constraints: [
+                  ...mandatory('loadout-min'),
+                  { id: 'loadout-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  {
+                    id: 'pair',
+                    name: 'Blade and gun',
+                    type: 'upgrade',
+                    selectionEntries: [{ id: 'blade', name: 'Blade', type: 'upgrade', constraints: mandatory('blade-min') }],
+                    selectionEntryGroups: [
+                      {
+                        id: 'gun',
+                        name: 'Gun',
+                        defaultSelectionEntryId: 'pistol',
+                        constraints: [
+                          ...mandatory('gun-min'),
+                          { id: 'gun-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                        ],
+                        selectionEntries: [
+                          { id: 'pistol', name: 'Pistol', type: 'upgrade' },
+                          { id: 'rifle', name: 'Rifle', type: 'upgrade' },
+                        ],
+                      },
+                    ],
+                  },
+                  { id: 'axe', name: 'Axe', type: 'upgrade' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const held = (spreads: Record<string, Record<string, number>>) =>
+    wargearOf(buildUnit('squad', index, 1, undefined, { spreads })!.selection, index)
+      .toSorted((left, right) => left.name.localeCompare(right.name))
+      .map(({ name, count }) => [name, count])
+
+  it('restores a parent loadout while retaining its saved weapon choice', () => {
+    expect(held({ 'leader/loadout': { pair: 1, axe: 0 }, 'leader/loadout/pair/gun': { pistol: 0, rifle: 1 } })).toEqual([
+      ['Blade', 1],
+      ['Rifle', 1],
+    ])
+  })
+
+  it('keeps saved nested weapons out of a replaced loadout', () => {
+    expect(held({ 'leader/loadout': { pair: 0, axe: 1 }, 'leader/loadout/pair/gun': { pistol: 0, rifle: 1 } })).toEqual([['Axe', 1]])
+  })
+
+  it('does not restore a nested weapon explicitly removed from the chosen loadout', () => {
+    expect(held({ 'leader/loadout': { pair: 1, axe: 0 }, 'leader/loadout/pair/gun': { pistol: 0, rifle: 0 } })).toEqual([['Blade', 1]])
+  })
+})

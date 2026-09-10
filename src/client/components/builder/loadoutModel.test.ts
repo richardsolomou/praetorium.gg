@@ -8,8 +8,10 @@ import {
   type LoadoutChoice,
   type LoadoutModel,
   loadoutRowCount,
+  loadoutInstructions,
   modelCount,
   ordered,
+  orderedModelWargear,
   poolHandlers,
   orderedChoices,
   replacementChoice,
@@ -39,6 +41,53 @@ const choice = (options: LoadoutChoice['options'], room: number, optional = fals
 })
 
 const weapon = (name: string, type: string) => ({ id: name, name, type, values: [] })
+
+describe('loadout instructions', () => {
+  const trooper: LoadoutModel = { name: 'Trooper', fixed: [], members: [], rows: [] }
+  const leader: LoadoutModel = { ...trooper, name: 'Leader' }
+
+  it('uses the rule for the complete pair rather than another loadout sharing its blade', () => {
+    expect(
+      loadoutInstructions(
+        { name: 'Rifle and Blade', pieces: ['Rifle', 'Blade'] },
+        trooper,
+        [trooper],
+        [
+          { instruction: 'Take Rifle and Blade together.', options: ['Rifle', 'Blade'] },
+          { instruction: 'Take Cannon and Blade together.', options: ['Cannon', 'Blade'] },
+        ],
+      ),
+    ).toEqual(['Take Rifle and Blade together.'])
+  })
+
+  it('keeps a leader restriction off the same weapon offered to ordinary troops', () => {
+    expect(
+      loadoutInstructions(
+        { name: 'Plasma gun' },
+        trooper,
+        [trooper, leader],
+        [
+          { instruction: 'The Leader can replace their rifle with a plasma gun.', options: ['Plasma gun'] },
+          { instruction: 'One Trooper can take one of these weapons.', options: ['Plasma gun', 'Meltagun'] },
+        ],
+      ),
+    ).toEqual(['One Trooper can take one of these weapons.'])
+  })
+
+  it('matches a wargear ability with a source suffix without inventing a rule for a default weapon', () => {
+    expect(
+      loadoutInstructions(
+        { name: 'Rifle and Icon', pieces: ['Rifle', 'Icon'] },
+        trooper,
+        [trooper],
+        [
+          { instruction: 'Default Wargear', options: ['Rifle'] },
+          { instruction: 'One model can carry an icon.', options: ['Icon (Aura)'] },
+        ],
+      ),
+    ).toEqual(['One model can carry an icon.'])
+  })
+})
 
 describe('showing loadout entries', () => {
   it('hides empty wargear from a finished roster', () => {
@@ -388,6 +437,17 @@ describe('putting a weapon down on a model card', () => {
   })
   const rowFor = (id: string, name = id) => ({ name, choiceKey: 'group', optionId: id })
 
+  it('replaces a melee loadout with a ranged pairing from the same choice', () => {
+    const group = { ...choice([option('axe', 1, 2), option('pair', 0, 2)], 2), carried: true }
+    const model = card(
+      [rowFor('axe'), { ...rowFor('pair'), pieces: ['Rifle', 'Blade'] }],
+      [{ id: 'leader', choiceKey: null, baseCount: 1 }],
+    )
+    expect(poolHandlers(model, [group], [weapon('axe', 'Melee Weapons'), weapon('Rifle', 'Ranged Weapons')]).spend(model.rows[1]!)).toEqual(
+      [['group', { axe: 0, pair: 1 }]],
+    )
+  })
+
   it('leaves the squad an ordinary model where the group holds nothing but specialists', () => {
     const group = choice([option('meltagun', 1, 2), option('plasma', 1, 2), option('belcher', 0, 2)], 2, true)
     const model = card([rowFor('meltagun'), rowFor('plasma'), rowFor('belcher')])
@@ -429,4 +489,118 @@ describe('putting a weapon down on a model card', () => {
 
     expect(modelCount(model, [group])).toBe(2)
   })
+})
+
+it('keeps default and fixed wargear before alternatives even after they are replaced', () => {
+  const model: LoadoutModel = {
+    name: 'Trooper',
+    members: [],
+    fixed: [{ name: 'Combat knife', count: 0 }],
+    rows: [
+      { name: 'Plasma pistol', choiceKey: 'group', optionId: 'pistol' },
+      { name: 'Bolt carbine', choiceKey: 'group', optionId: 'carbine' },
+    ],
+  }
+  const choices = [
+    choice(
+      [
+        { ...option('pistol', 1, 1), name: 'Plasma pistol' },
+        { ...option('carbine', 0, 1), name: 'Bolt carbine', default: true },
+      ],
+      1,
+    ),
+  ]
+  const weapons = [
+    weapon('Plasma pistol', 'Ranged Weapons'),
+    weapon('Bolt carbine', 'Ranged Weapons'),
+    weapon('Combat knife', 'Melee Weapons'),
+  ]
+  expect(orderedModelWargear(model, choices, weapons).map((entry) => entry.name)).toEqual(['Bolt carbine', 'Combat knife', 'Plasma pistol'])
+})
+
+it.each([
+  ['spend', 0, 1],
+  ['free', 1, 0],
+] as const)('%s changes only an optional nested weapon, leaving its parent and other weapon slots intact', (action, count, expected) => {
+  const gun = { name: 'Gun', choiceKey: 'loadout/pair/guns', optionId: 'gun' }
+  const model: LoadoutModel = {
+    name: 'Leader',
+    fixed: [],
+    members: [{ id: 'leader', choiceKey: null, baseCount: 1 }],
+    rows: [
+      { name: 'Blade and Gun', pieces: ['Blade', 'Gun'], choiceKey: 'loadout', optionId: 'pair' },
+      { name: 'Blade', choiceKey: 'loadout/pair/blades', optionId: 'blade' },
+      gun,
+    ],
+  }
+  const choices = [
+    { ...choice([{ ...option('pair', 1, 2), default: true }], 2), key: 'loadout' },
+    { ...choice([{ ...option('blade', 0, 2), default: true }], 2), key: 'loadout/pair/blades' },
+    { ...choice([{ ...option('gun', count, 2), default: true }], 2, true), key: gun.choiceKey },
+  ]
+  expect(poolHandlers(model, choices, [weapon('Gun', 'Ranged Weapons'), weapon('Blade', 'Melee Weapons')])[action](gun)).toEqual([
+    [gun.choiceKey, { gun: expected }],
+  ])
+})
+
+it.each([true, false])('cannot empty a required weapon slot with default=%s', (isDefault) => {
+  const row = { name: 'Blade', choiceKey: 'weapons', optionId: 'blade' }
+  const model: LoadoutModel = { name: 'Leader', fixed: [], members: [{ id: 'leader', choiceKey: null, baseCount: 1 }], rows: [row] }
+  const group = { ...choice([{ ...option('blade', 1, 2), default: isDefault }], 2), key: row.choiceKey }
+  expect(poolHandlers(model, [group], []).free(row)).toBeNull()
+})
+
+it('returns a required replacement to the default weapon without emptying the slot', () => {
+  const rows = [
+    { name: 'Blade', choiceKey: 'weapons', optionId: 'blade' },
+    { name: 'Axe', choiceKey: 'weapons', optionId: 'axe' },
+  ]
+  const model: LoadoutModel = { name: 'Leader', fixed: [], members: [{ id: 'leader', choiceKey: null, baseCount: 1 }], rows }
+  const group = { ...choice([{ ...option('blade', 0, 2), default: true }, option('axe', 1, 2)], 2), key: 'weapons' }
+  expect(poolHandlers(model, [group], []).free(rows[1]!)).toEqual([['weapons', { axe: 0, blade: 1 }]])
+})
+
+it.each([
+  [1, 'free'],
+  [2, 'free'],
+  [1, 'spend'],
+  [2, 'spend'],
+  [0, 'restore'],
+  [1, 'restore'],
+] as const)('updating %s specialists through %s keeps sibling weapon allocations in step', (specialists, action) => {
+  const rows = [
+    { name: 'Rifle and Knife', pieces: ['Rifle', 'Knife'], choiceKey: 'models', optionId: 'regular' },
+    { name: 'Cannon', choiceKey: 'models/specialist/ranged', optionId: 'cannon' },
+    { name: 'Blade', choiceKey: 'models/specialist/melee', optionId: 'blade' },
+  ]
+  const model: LoadoutModel = {
+    name: 'Trooper',
+    fixed: [],
+    rows,
+    members: ['regular', 'specialist'].map((id) => ({ id, choiceKey: 'models', baseCount: 0 })),
+  }
+  const owner = { id: 'specialist', name: 'Specialist', profile: null }
+  const choices = [
+    { ...choice([{ ...option('regular', 4 - specialists, 4), default: true }, option('specialist', specialists, 2)], 4), key: 'models' },
+    { ...choice([option('cannon', specialists, 2)], 2), key: rows[1]!.choiceKey, owner, carried: true },
+    { ...choice([{ ...option('blade', specialists, 2), default: true }], 2), key: rows[2]!.choiceKey, owner, carried: true },
+    { ...choice([option('scope', Math.max(0, specialists - 1), 2)], 2, true), key: 'models/specialist/extras', owner, carried: true },
+  ]
+  expect(
+    poolHandlers(model, choices, [weapon('Rifle', 'Ranged Weapons'), weapon('Cannon', 'Ranged Weapons'), weapon('Blade', 'Melee Weapons')])[
+      action === 'restore' ? 'spend' : action
+    ](rows[action === 'spend' ? 0 : 1]!),
+  ).toEqual(
+    action === 'restore'
+      ? [
+          ['models', { regular: 3 - specialists }],
+          ['models/specialist/ranged', { cannon: specialists + 1 }],
+          ['models/specialist/melee', { blade: specialists + 1 }],
+        ]
+      : [
+          ['models/specialist/ranged', { cannon: specialists - 1 }],
+          ['models', { regular: 5 - specialists }],
+          ['models/specialist/melee', { blade: specialists - 1 }],
+        ],
+  )
 })

@@ -11,6 +11,7 @@ import {
 } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
+import { choiceOptionWargear } from '../core/modelKinds'
 import { wargearOf } from '../core/wargear'
 import { bracketedRuleReferences, normalizeRuleReference, ruleReferenceKeys, ruleReferenceMatches } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
@@ -46,6 +47,7 @@ export type Datasheet = {
   composition: string[]
   loadout: string | null
   wargearOptions: string[]
+  wargearGroups?: DatasheetDetails['wargearGroups']
   baseSize: string | null
   transport: string | null
   costs: DatasheetDetails['points']
@@ -269,6 +271,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
     wargearOptions: details?.wargear.length
       ? details.wargear
       : catalogueOptions.map(({ name: optionName, options }) => `**${optionName}:** ${options}.`),
+    ...(details?.wargearGroups?.length ? { wargearGroups: details.wargearGroups } : {}),
     baseSize: details?.baseSize ?? null,
     transport: details?.transport ?? null,
     costs: details?.points ?? [],
@@ -661,7 +664,19 @@ export function datasheetViewsIn(
     context.companions ?? [],
   )
   const shared = { ...context, modifiers }
+  const selection = context.unitSelectionIndex === undefined ? undefined : context.selections[context.unitSelectionIndex]
+  const options = { primaryCatalogueId: catalogueId, roster: context.selections.filter((entry) => entry !== selection) }
+  const controlledChoices = selection
+    ? unitChoices(entryId, selection, loaded.index, options).map((choice) => ({
+        options: choice.options.map((option) => ({
+          name: option.name,
+          count: option.count,
+          pieceCounts: choiceOptionWargear(choice.key, option.id, selection, loaded.index, options),
+        })),
+      }))
+    : []
   return {
+    controlledChoices,
     selected: datasheetIn(loaded, catalogueId, entryId, shared),
     available: datasheetIn(loaded, catalogueId, entryId, { ...shared, everyWeapon: true, everyWargearAbility: true }),
   }

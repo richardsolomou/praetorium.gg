@@ -20,6 +20,32 @@ it('folds accents and repeated construction suffixes into one join key', () => {
 
 let directory: string | null = null
 
+it('reads source instructions with their equipment names and skips incomplete groups', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'test.json'),
+    JSON.stringify({
+      name: 'Test',
+      detachments: [],
+      datasheets: [
+        {
+          id: 'troopers',
+          name: { en: 'Troopers' },
+          wargearOptions: [
+            { instruction: { en: 'One trooper can replace their rifle.' }, options: [{ name: { en: 'Cannon' } }] },
+            { instruction: { fr: 'Instruction' }, options: [{ name: { en: 'Blade' } }] },
+            { instruction: { en: 'Missing equipment' }, options: [{ name: { fr: 'Arme' } }] },
+          ],
+        },
+      ],
+    }),
+  )
+
+  expect(loadDatacards(directory).factions.get('test')?.datasheetDetails.get('Troopers')?.wargearGroups).toEqual([
+    { instruction: 'One trooper can replace their rifle.', options: ['Cannon'] },
+  ])
+})
+
 afterEach(() => {
   if (directory) fs.rmSync(directory, { recursive: true, force: true })
   directory = null

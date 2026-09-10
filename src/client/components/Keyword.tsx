@@ -30,7 +30,7 @@ export function Keyword({
     <HoverTooltip
       className={`${className} ${note && highlightNote ? 'font-semibold text-info' : 'text-azure'} hover:text-bone`}
       title={rule?.name ?? name}
-      body={rule ? rule.description.replaceAll(/\^\^|\*/g, '') : undefined}
+      body={rule?.description}
       note={note}
     >
       {name}

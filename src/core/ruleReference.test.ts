@@ -32,6 +32,14 @@ describe('rule references', () => {
     expect(ruleReferenceMatches(reference, 'Anti')).toBe(true)
   })
 
+  it('matches a rule with a colon-delimited target condition', () => {
+    expect(ruleReferenceMatches('LETHAL HITS: non-MONSTER/VEHICLE', 'Lethal Hits')).toBe(true)
+  })
+
+  it('discovers a bracketed rule with a target condition', () => {
+    expect(bracketedRuleReferences('Gain [LETHAL HITS: non-MONSTER/VEHICLE].')).toEqual(['LETHAL HITS: non-MONSTER/VEHICLE'])
+  })
+
   it('matches parameterized rules separated by spaces', () => {
     expect(ruleReferenceMatches('[SUSTAINED HITS D3]', 'Sustained Hits')).toBe(true)
   })
@@ -64,6 +72,7 @@ describe('rule references', () => {
   /** An index keyed by normalized rule name must answer exactly what the matcher answers. */
   describe('ruleReferenceKeys', () => {
     const references = [
+      '[LETHAL HITS: non-MONSTER/VEHICLE]',
       '[ANTI-INFANTRY 4+]',
       '[SUSTAINED HITS D3]',
       'Rapid Fire D6+3',
