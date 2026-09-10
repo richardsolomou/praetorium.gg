@@ -230,7 +230,7 @@ beforeEach(() => {
       },
     ],
   })
-  write(path.join(root, 'secondary-cards.json'), [
+  write(path.join(root, 'mission-cards.json'), [
     {
       id: 'assassination',
       name: 'Assassination',

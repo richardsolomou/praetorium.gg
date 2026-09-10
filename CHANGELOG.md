@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.63.3
+
+### Patch Changes
+
+- 39fb1e3: Fix missing primary mission scoring text and secondary objective cards after the rules source renamed its card file.
+
 ## 0.63.2
 
 ### Patch Changes
