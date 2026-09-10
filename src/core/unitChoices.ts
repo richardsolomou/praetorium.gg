@@ -114,11 +114,11 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
   // The unit's own selection has to be in the roster it is judged against, or a
   // question about its surroundings has nothing to look at.
   const roster = [...(options.roster ?? []), selection]
-  const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster })
-  const minimum = (definition: Definition) =>
-    requiredCount(definition, index, { primaryCatalogueId: options.primaryCatalogueId, mustering: options.mustering, roster })
   const entry = index.definitions.get(entryId)
   if (!entry) return []
+  const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster }, entry)
+  const minimum = (definition: Definition) =>
+    requiredCount(definition, index, { primaryCatalogueId: options.primaryCatalogueId, mustering: options.mustering, roster })
   const resizingGroup = sizeOf(selection, index).path.slice(0, -1)
 
   /**
