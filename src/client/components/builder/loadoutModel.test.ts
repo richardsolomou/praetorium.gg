@@ -559,3 +559,48 @@ it('returns a required replacement to the default weapon without emptying the sl
   const group = { ...choice([{ ...option('blade', 0, 2), default: true }, option('axe', 1, 2)], 2), key: 'weapons' }
   expect(poolHandlers(model, [group], []).free(rows[1]!)).toEqual([['weapons', { axe: 0, blade: 1 }]])
 })
+
+it.each([
+  [1, 'free'],
+  [2, 'free'],
+  [1, 'spend'],
+  [2, 'spend'],
+  [0, 'restore'],
+  [1, 'restore'],
+] as const)('updating %s specialists through %s keeps sibling weapon allocations in step', (specialists, action) => {
+  const rows = [
+    { name: 'Rifle and Knife', pieces: ['Rifle', 'Knife'], choiceKey: 'models', optionId: 'regular' },
+    { name: 'Cannon', choiceKey: 'models/specialist/ranged', optionId: 'cannon' },
+    { name: 'Blade', choiceKey: 'models/specialist/melee', optionId: 'blade' },
+  ]
+  const model: LoadoutModel = {
+    name: 'Trooper',
+    fixed: [],
+    rows,
+    members: ['regular', 'specialist'].map((id) => ({ id, choiceKey: 'models', baseCount: 0 })),
+  }
+  const owner = { id: 'specialist', name: 'Specialist', profile: null }
+  const choices = [
+    { ...choice([{ ...option('regular', 4 - specialists, 4), default: true }, option('specialist', specialists, 2)], 4), key: 'models' },
+    { ...choice([option('cannon', specialists, 2)], 2), key: rows[1]!.choiceKey, owner, carried: true },
+    { ...choice([{ ...option('blade', specialists, 2), default: true }], 2), key: rows[2]!.choiceKey, owner, carried: true },
+    { ...choice([option('scope', Math.max(0, specialists - 1), 2)], 2, true), key: 'models/specialist/extras', owner, carried: true },
+  ]
+  expect(
+    poolHandlers(model, choices, [weapon('Rifle', 'Ranged Weapons'), weapon('Cannon', 'Ranged Weapons'), weapon('Blade', 'Melee Weapons')])[
+      action === 'restore' ? 'spend' : action
+    ](rows[action === 'spend' ? 0 : 1]!),
+  ).toEqual(
+    action === 'restore'
+      ? [
+          ['models', { regular: 3 - specialists }],
+          ['models/specialist/ranged', { cannon: specialists + 1 }],
+          ['models/specialist/melee', { blade: specialists + 1 }],
+        ]
+      : [
+          ['models/specialist/ranged', { cannon: specialists - 1 }],
+          ['models', { regular: 5 - specialists }],
+          ['models/specialist/melee', { blade: specialists - 1 }],
+        ],
+  )
+})

@@ -83,6 +83,7 @@ export function Loadout({
   )
   const { data: sheets, dataUpdatedAt } = useQuery({
     ...request,
+    enabled: request.enabled && (pickIndex === null || settledPicks[pickIndex]?.entryId === unit?.entryId),
     placeholderData: (previous, previousQuery) => (forSameUnit(previousQuery) ? previous : undefined),
   })
   useEffect(() => {

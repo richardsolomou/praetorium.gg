@@ -414,6 +414,23 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
       counts[entry.option.id] = entry.option.count + delta
       wanted.set(entry.choice.key, counts)
     }
+    for (const [entry, delta, others] of [
+      ...from.map((source) => [source, -1, to] as const),
+      ...to.map((source) => [source, 1, from] as const),
+    ]) {
+      const carrier = model.members.find((member) => member.id === entry.choice.owner?.id && member.choiceKey)
+      if (!carrier || !others.some((other) => addsModel(model, other) && other.option.id !== carrier.id)) continue
+      const held =
+        choices.find((choice) => choice.key === carrier.choiceKey)?.options.find((option) => option.id === carrier.id)?.count ?? 0
+      for (const choice of choices) {
+        if (choice.owner?.id !== carrier.id || wanted.has(choice.key)) continue
+        if (delta < 0 ? takenIn(choice) < held : choice.optional || takenIn(choice) > held) continue
+        const sibling = choice.options
+          .filter((option) => (delta < 0 ? option.count > 0 : option.count < option.max))
+          .toSorted(donorPriority)[0]
+        if (sibling) wanted.set(choice.key, { [sibling.id]: sibling.count + delta })
+      }
+    }
     return [...wanted]
   }
   const sameSource = (one: Entry, other: Entry) => one.choice.key === other.choice.key && one.option.id === other.option.id
@@ -424,10 +441,11 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
     // squadmate with a bolt rifle instead would put a second special weapon in a
     // squad allowed one.
     const kin = shared.filter((entry) => entry.choice.key === taker.choice.key)
-    const full = kin.reduce((total, entry) => total + entry.option.count, 0) >= taker.choice.room
+    const full = takenIn(taker.choice) >= taker.choice.room
     const band = bandOf(taker.row)
     const sharesPool = (row: ModelRow) => row.choiceKey === taker.choice.key || bandOf(row) === band
-    const pool = full ? kin : shared.filter((entry) => sharesPool(entry.row) && participates(entry.row, taker.choice.key))
+    const pool =
+      full && !addsModel(model, taker) ? kin : shared.filter((entry) => sharesPool(entry.row) && participates(entry.row, taker.choice.key))
     const occupied = model.rows
       .filter((row) => sharesPool(row) && participates(row, taker.choice.key))
       .reduce((total, row) => total + rowCount(row), 0)
