@@ -175,7 +175,7 @@ export function loadCards(
   datacardsDirectory: string,
   packs: readonly MissionPack[] = readMissionPacks(datacardsDirectory),
 ): LoadedCards {
-  const cards = readOptionalList<RawCard>(path.join(core, 'secondary-cards.json'))
+  const cards = readOptionalList<RawCard>(path.join(core, 'mission-cards.json'))
   const coreStratagems = readOptionalList<RawStratagem>(path.join(core, 'stratagems.json'))
   // What a payout asks for is the mission pack's to say; when it is due is this file's.
   const criteria = criteriaIn(packs)
