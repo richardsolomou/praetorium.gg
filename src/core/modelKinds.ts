@@ -12,7 +12,7 @@ import type { CatalogueIndex, Definition } from './catalogue'
 import { childrenOf, MAX_DEPTH, modelProfileOf, resolve } from './definitions'
 import { hiddenByRules, type Selection } from './evaluate'
 import { defaultSelection } from './expand'
-import { allAt, countAt } from './selection'
+import { allAt, countAt, updateSelection } from './selection'
 import { type ChoiceOptions, unitChoices } from './unitChoices'
 import { wargearOf } from './wargear'
 
@@ -111,11 +111,25 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
   // left out of that: its default answer is one of the rows below, not something the
   // model carries whatever is chosen, and a sergeant's default laspistol was drawn as
   // fixed beside the combination that had replaced it.
+  //
+  // Only the options that choice offers, though, and not the group holding them. A
+  // catalogue can file a model's whole loadout in one group and leave the player a
+  // choice of a single item out of it, and dropping the group took a Pathfinder
+  // Shas'ui's pulse carbine and pistol along with the grenade launcher he may add.
   const carriedBy = new Map(
     found.map(({ member }) => {
       const base = defaultSelection(member.id, index, options)
-      const owned = new Set(choices.filter((choice) => choice.owner?.id === member.id).map((choice) => choice.key.split('/').at(-1)))
-      const outside = base ? { ...base, selections: base.selections?.filter((child) => !owned.has(child.id)) } : null
+      const owned = choices.filter((choice) => choice.owner?.id === member.id)
+      const outside = base
+        ? owned.reduce((tree, choice) => {
+            const trail = choice.key.split('/')
+            const offered = new Set(choice.options.map((option) => option.id))
+            return updateSelection(tree, trail.slice(trail.indexOf(member.id) + 1), (held) => ({
+              ...held,
+              selections: held.selections?.filter((child) => !offered.has(child.id)),
+            }))
+          }, base)
+        : null
       return [member.id, outside ? wargearOf(outside, index).map((piece) => piece.name) : []] as const
     }),
   )
@@ -192,6 +206,21 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
       }
     })
 
+    // A weapon only some of this kind carry, held by a model the data stands rather
+    // than one a choice offers, has no choice to be counted by — so it is stated as
+    // the wargear of however many of that model there are. An ordinary Tactical
+    // Marine's boltgun is the case: his squadmates gave theirs up for a flamer or a
+    // lascannon, so the boltgun is not the whole kind's, and naming it nowhere left
+    // a ten-man squad reading as though only the sergeant had one.
+    const apart = new Map<string, number>()
+    members.forEach((member, position) => {
+      if (member.choiceKey || !member.baseCount) return
+      for (const name of carried[position] ?? []) {
+        if (shared.includes(name) || rows.some((row) => row.name === name)) continue
+        apart.set(name, (apart.get(name) ?? 0) + member.baseCount)
+      }
+    })
+
     return {
       name:
         named ??
@@ -199,7 +228,10 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
           members.map((member) => member.name),
           profile,
         ),
-      fixed: shared.filter((name) => !rows.some((row) => row.name === name)).map((name) => ({ name })),
+      fixed: [
+        ...shared.filter((name) => !rows.some((row) => row.name === name)).map((name) => ({ name })),
+        ...[...apart].map(([name, count]) => ({ name, count })),
+      ],
       members: members.map(({ id, choiceKey, baseCount }) => ({ id, choiceKey, baseCount })),
       rows,
     }

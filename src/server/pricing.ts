@@ -20,13 +20,13 @@ import {
   keywordIdsBySelection,
   type Selection,
 } from '../core/evaluate'
-import { type ModelKind, modelKindsOf, modelRowCount, modelRowSources, optionWargear } from '../core/modelKinds'
+import { type ModelKind, modelKindsOf, type ModelRow, modelRowCount, modelRowSources, optionWargear } from '../core/modelKinds'
 import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
 import { buildUnit } from '../core/roster'
 import { allAt } from '../core/selection'
 import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
-import { wargearKey, wargearOf } from '../core/wargear'
+import { sameWargear, wargearKey, wargearOf } from '../core/wargear'
 import { app } from './app'
 import { contextualAbilityNamesIn, datasheetIn, matchesKeywordSelector, rulesReferencedIn, toughnessOf } from './catalogue'
 import { describedEnhancements } from './catalogueDescriptions'
@@ -714,6 +714,22 @@ export function isCatalogueSelfContradiction(
 const hasKeyword = (unit: KotcUnit, keyword: string) => unit.keywords.some((candidate) => candidate.trim().toLocaleLowerCase() === keyword)
 
 /**
+ * Whether a weapon this row names is named again by a row of its own choices.
+ *
+ * An option can be the pairing that opens two further choices — a Nob's "Kustom
+ * Choppa and Kombi-skorcha" is what puts each of those two in front of the player —
+ * and each of them is drawn as a row beneath it. The row below is where the count
+ * comes from, so counting the pairing as well armed one Nob like two.
+ */
+const statedBelow = (row: ModelRow, piece: string, rows: readonly ModelRow[]) =>
+  rows.some(
+    (other) =>
+      other !== row &&
+      sameWargear(other.name, piece) &&
+      modelRowSources(row).some((source) => other.choiceKey.startsWith(`${source.choiceKey}/${source.optionId}/`)),
+  )
+
+/**
  * What a unit is carrying, counted the way its loadout is drawn.
  *
  * The roster card and the loadout panel answer the same question, so they read the
@@ -752,7 +768,9 @@ export function heldWargear(
     for (const piece of kind.fixed) add(piece.name, piece.count ?? bodies)
     for (const row of kind.rows) {
       const count = modelRowCount(row, ({ choiceKey, optionId }) => countOf(choiceKey, optionId))
-      for (const name of row.pieces ?? [row.name]) add(name, count)
+      for (const name of row.pieces ?? [row.name]) {
+        if (!statedBelow(row, name, kind.rows)) add(name, count)
+      }
     }
   }
   const modeled = new Set(

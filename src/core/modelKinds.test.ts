@@ -574,6 +574,135 @@ describe('models the datasheet stands in the unit itself', () => {
   })
 
   /**
+   * A weapon only some of a kind carry, held by a model the data stands rather than one
+   * a choice offers, is counted from however many of that model there are. An ordinary
+   * Tactical Marine's boltgun is the case — his squadmates gave theirs up for a flamer
+   * or a lascannon — and naming it nowhere left a ten-man squad reading as though only
+   * the sergeant had one.
+   */
+  it('states a weapon only some of a standing kind carry, counted from those models', () => {
+    const specialist = (id: string, name: string, weapons: [string, string][]) => ({
+      id,
+      name,
+      type: 'model' as const,
+      profiles: [{ id: `${id}-profile`, name: 'Tactical Squad', typeName: 'Unit' }],
+      constraints: [{ id: `${id}-max`, type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
+      selectionEntries: [{ id: `${id}-pistol`, name: 'Bolt pistol', type: 'upgrade' as const, constraints: mandatory(`${id}-pistol-min`) }],
+      selectionEntryGroups: [
+        {
+          id: `${id}-weapon`,
+          name: 'Weapon',
+          constraints: bounded(`${id}-weapon`, 1, 1),
+          defaultSelectionEntryId: weapons[0]?.[0],
+          selectionEntries: weapons.map(([weaponId, weaponName]) => ({ id: weaponId, name: weaponName, type: 'upgrade' as const })),
+        },
+      ],
+    })
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Tactical Squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'models',
+              name: 'Tactical Marines',
+              constraints: bounded('models', 10, 10),
+              defaultSelectionEntryId: 'marine',
+              selectionEntries: [
+                model('marine', 'Tactical Marine', ['Bolt pistol', 'Boltgun'], 'Tactical Squad', bounded('marine', 7, 9)),
+                model('sergeant', 'Tactical Marine Sergeant', ['Bolt pistol', 'Chainsword'], 'Sergeant', bounded('sergeant', 1, 1)),
+                specialist('special', 'Tactical Marine w/ special weapon', [
+                  ['flamer', 'Flamer'],
+                  ['meltagun', 'Meltagun'],
+                ]),
+                specialist('heavy', 'Tactical Marine w/ heavy weapon', [
+                  ['heavy-bolter', 'Heavy bolter'],
+                  ['lascannon', 'Lascannon'],
+                ]),
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const marines = modelKindsOf('squad', buildUnit('squad', index)!.selection, index).find((kind) => kind.name === 'Tactical Marine')
+
+    expect(marines?.fixed).toEqual([{ name: 'Bolt pistol' }, { name: 'Boltgun', count: 9 }])
+    expect(marines?.rows.map((row) => row.name)).toEqual(['Flamer', 'Meltagun', 'Heavy bolter', 'Lascannon'])
+  })
+
+  /**
+   * A catalogue can file a model's whole loadout in one group and leave the player a
+   * choice of a single item out of it. Reading the group as the choice's own took a
+   * Pathfinder Shas'ui's pulse carbine and pistol away with the grenade launcher he
+   * may add, and the team's card counted nine carbines for ten models carrying one.
+   */
+  it('keeps the wargear a group holds beside the one item that group offers', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'team',
+          name: 'Pathfinder Team',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'shasui',
+              name: "Pathfinder Shas'ui",
+              type: 'model',
+              profiles: [{ id: 'shasui-profile', name: "Pathfinder Shas'ui", typeName: 'Unit' }],
+              constraints: mandatory('shasui-min'),
+              selectionEntryGroups: [
+                {
+                  id: 'shasui-wargear',
+                  name: 'Wargear',
+                  selectionEntries: [
+                    { id: 'shasui-carbine', name: 'Pulse carbine', type: 'upgrade', constraints: mandatory('shasui-carbine-min') },
+                    { id: 'shasui-pistol', name: 'Pulse pistol', type: 'upgrade', constraints: mandatory('shasui-pistol-min') },
+                    {
+                      id: 'launcher',
+                      name: 'Grenade launcher',
+                      type: 'upgrade',
+                      constraints: [{ id: 'launcher-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+          selectionEntryGroups: [
+            {
+              id: 'models',
+              name: 'Pathfinders',
+              constraints: bounded('models', 9, 9),
+              defaultSelectionEntryId: 'pathfinder',
+              selectionEntries: [
+                model('pathfinder', 'Pathfinder', ['Pulse carbine', 'Pulse pistol'], 'Pathfinders', bounded('pathfinder', 6, 9)),
+              ],
+            },
+            {
+              id: 'special',
+              name: 'Special Weapons',
+              constraints: bounded('special', 0, 3),
+              selectionEntries: [
+                model('ion', 'Pathfinder w/ ion rifle', ['Ion rifle', 'Pulse pistol'], 'Pathfinders', bounded('ion', 0, 3)),
+                model('rail', 'Pathfinder w/ rail rifle', ['Rail rifle', 'Pulse pistol'], 'Pathfinders', bounded('rail', 0, 3)),
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const team = modelKindsOf('team', buildUnit('team', index)!.selection, index)
+    const shasui = team.find((kind) => kind.name === "Pathfinder Shas'ui")
+
+    expect(shasui?.fixed).toEqual([{ name: 'Pulse carbine' }, { name: 'Pulse pistol' }])
+    expect(shasui?.rows.map((row) => row.name)).toEqual(['Grenade launcher'])
+    expect(team.find((kind) => kind.name === 'Pathfinder')?.fixed).toEqual([{ name: 'Pulse pistol' }, { name: 'Pulse carbine', count: 9 }])
+  })
+
+  /**
    * A datasheet whose loadouts are fixed per squad size asks the player nothing at all,
    * and the rules source describes it better — it names the weapons and abilities a
    * card needs. Standing models are what completes a set of cards, not what starts one,
