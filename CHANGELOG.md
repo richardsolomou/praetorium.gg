@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.63.2
+
+### Patch Changes
+
+- f202add: Show the wargear a model carries alongside the single item its loadout group offers, such as a Pathfinder Shas'ui's pulse carbine and pistol.
+- f202add: Count a paired loadout once on a unit card, so a Boyz mob shows one Nob's weapons rather than two.
+- f202add: Count the weapon an ordinary squad member carries when their squadmates swapped theirs, so a Tactical Squad shows ten boltguns rather than one.
+
 ## 0.63.1
 
 ### Patch Changes
