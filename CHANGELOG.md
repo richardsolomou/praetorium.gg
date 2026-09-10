@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.63.1
+
+### Patch Changes
+
+- f7e8607: Show each Agile Manoeuvre under the Aeldari Battle Focus ability with its trigger and effect.
+- f7e8607: Offer the enhancements a detachment gates on the model carrying them, such as the Aeldari Warhost's.
+
 ## 0.63.0
 
 ### Minor Changes
