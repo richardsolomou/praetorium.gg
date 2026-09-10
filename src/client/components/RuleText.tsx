@@ -15,7 +15,7 @@ const components: Components = {
 }
 
 export function RuleText({ text, rules = noRules, className }: { text: string; rules?: KeywordRule[]; className?: string }) {
-  const cleaned = text.replaceAll('^^', '')
+  const cleaned = text.replaceAll('^^', '').replaceAll(/^[ \t\u00a0]+/gm, (indent) => indent.replaceAll('\u00a0', ' '))
   const markdown = cleaned.replaceAll(/(?<!\*)\[([\p{L}\p{N} +'"’\p{Pd}]+)\](?!\*)/gu, '**[$1]**')
   return (
     <Rules value={rules}>

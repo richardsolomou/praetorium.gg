@@ -266,6 +266,7 @@ export type Catalogue = {
   sharedProfiles?: Profile[]
   sharedInfoGroups?: InfoGroup[]
   sharedRules?: Rule[]
+  rules?: Rule[]
   categoryEntries?: CategoryEntry[]
 }
 
@@ -387,7 +388,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     for (const force of root.forceEntries ?? []) forces.push({ ...force, name: force.name ?? force.id })
     for (const profile of root.sharedProfiles ?? []) shared.set(profile.id, profile)
     for (const group of root.sharedInfoGroups ?? []) shared.set(group.id, group)
-    for (const rule of root.sharedRules ?? []) {
+    for (const rule of [...(root.rules ?? []), ...(root.sharedRules ?? [])]) {
       rules.set(rule.id, rule)
       ruleCatalogueOf.set(rule.id, root.id)
     }

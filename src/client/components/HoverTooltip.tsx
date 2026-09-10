@@ -1,5 +1,6 @@
 import { type ReactNode, useRef, useState } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { RuleText } from './RuleText'
 
 export function HoverTooltip({
   children,
@@ -33,12 +34,20 @@ export function HoverTooltip({
         render={
           <button
             type="button"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && open) {
+                event.stopPropagation()
+                openedByPress.current = false
+                setOpen(false)
+                return
+              }
+            }}
             aria-label={label}
             onClick={(event) => {
               openedByPress.current = event.detail > 0
               setOpen(true)
             }}
-            className={`${className} inline-flex cursor-help items-center justify-center underline decoration-dotted underline-offset-2`}
+            className={`${className} inline-flex items-center justify-center cursor-help underline decoration-dotted underline-offset-2`}
           />
         }
       >
@@ -53,7 +62,11 @@ export function HoverTooltip({
         <strong className="block border-b border-edge px-2.5 py-1.5 text-xs font-bold tracking-[0.06em] text-bone uppercase">
           {title}
         </strong>
-        {body ? <span className="block max-h-56 overflow-y-auto px-2.5 py-1.5 font-rules text-xs whitespace-pre-line">{body}</span> : null}
+        {body ? (
+          <div className="max-h-56 overflow-y-auto px-2.5 py-1.5 font-rules text-xs">
+            {typeof body === 'string' ? <RuleText text={body} className="mt-0 text-xs" /> : body}
+          </div>
+        ) : null}
         {note ? <span className="eyebrow block border-t border-edge px-2.5 py-1 text-faint">{note}</span> : null}
       </TooltipContent>
     </Tooltip>

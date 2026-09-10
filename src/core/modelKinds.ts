@@ -12,9 +12,9 @@ import type { CatalogueIndex, Definition } from './catalogue'
 import { childrenOf, MAX_DEPTH, modelProfileOf, resolve } from './definitions'
 import { hiddenByRules, type Selection } from './evaluate'
 import { defaultSelection } from './expand'
-import { allAt, countAt, updateSelection } from './selection'
+import { allAt, updateSelection } from './selection'
 import { type ChoiceOptions, unitChoices } from './unitChoices'
-import { wargearOf } from './wargear'
+import { sameWargear, wargearOf } from './wargear'
 
 /**
  * A kind of model in a unit, as the datasheet names it, and the wargear it carries.
@@ -28,6 +28,7 @@ export type ModelRow = ModelRowSource & {
   name: string
   alternatives?: ModelRowSource[]
   pieces?: string[]
+  separatePieces?: boolean
 }
 
 export type ModelKind = {
@@ -47,6 +48,18 @@ export const modelRowSources = (row: ModelRow): readonly ModelRowSource[] => [ro
 export const modelRowCount = (row: ModelRow, countOf: (source: ModelRowSource) => number) =>
   modelRowSources(row).reduce((total, source) => total + countOf(source), 0)
 
+/** Nested choices own their equipment; their container must not count it again. */
+export const modelRowPieces = (row: ModelRow, rows: readonly ModelRow[]) =>
+  (row.pieces ?? [row.name]).filter(
+    (piece) =>
+      !rows.some(
+        (other) =>
+          other !== row &&
+          sameWargear(other.name, piece) &&
+          modelRowSources(row).some((source) => other.choiceKey.startsWith(`${source.choiceKey}/${source.optionId}/`)),
+      ),
+  )
+
 export function optionPieces(
   optionId: string,
   index: CatalogueIndex,
@@ -55,6 +68,19 @@ export function optionPieces(
 ): string[] | undefined {
   const pieces = optionWargear(optionId, index, options, selected).map((piece) => piece.name)
   return pieces.length ? pieces : undefined
+}
+
+export function choiceOptionWargear(
+  choiceKey: string,
+  optionId: string,
+  selection: Selection,
+  index: CatalogueIndex,
+  options: ChoiceOptions = {},
+) {
+  const path = choiceKey.split('/')
+  const nested = allAt(selection, [...path, optionId])
+  const direct = allAt(selection, path).filter((entry) => entry.id === optionId)
+  return optionWargear(optionId, index, options, nested.length ? nested : direct)
 }
 
 export function optionWargear(optionId: string, index: CatalogueIndex, options: ChoiceOptions = {}, selected: readonly Selection[] = []) {
@@ -99,23 +125,14 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
       id: owner.id,
       name: owner.name,
       choiceKey: null,
-      baseCount: depth < 0 ? 0 : countAt(selection, trail.slice(0, depth + 1)),
+      baseCount: depth < 0 ? 0 : allAt(selection, trail.slice(0, depth + 1)).reduce((total, model) => total + (model.count ?? 1), 0),
     })
   }
   // The models the data insists on complete a set of cards; they do not begin one.
   if (!found.length) return []
   for (const standing of standingModels(entryId, selection, index, options)) remember(standing.profile, standing.member)
 
-  // What each loadout carries on its own, read from its own defaults so that a
-  // loadout nobody has taken yet still knows its weapon. A choice the model owns is
-  // left out of that: its default answer is one of the rows below, not something the
-  // model carries whatever is chosen, and a sergeant's default laspistol was drawn as
-  // fixed beside the combination that had replaced it.
-  //
-  // Only the options that choice offers, though, and not the group holding them. A
-  // catalogue can file a model's whole loadout in one group and leave the player a
-  // choice of a single item out of it, and dropping the group took a Pathfinder
-  // Shas'ui's pulse carbine and pistol along with the grenade launcher he may add.
+  // Read defaults for unselected variants, excluding owned choices but retaining their fixed siblings.
   const carriedBy = new Map(
     found.map(({ member }) => {
       const base = defaultSelection(member.id, index, options)
@@ -135,11 +152,7 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
   )
   const carriedOf = (id: string) => carriedBy.get(id) ?? []
   const owns = (id: string) => choices.some((choice) => choice.owner?.id === id)
-  // The widest set that still says what the entries said is the one gathered, so the
-  // unit gives way to the group and the group to the loadouts, and a pairing that
-  // cannot be drawn as rows costs only its own card. Only the entries a choice offers:
-  // a model standing in the unit by itself is counted on its own card rather than by a
-  // row, so gathering it under a shared name would leave its weapon nowhere to appear.
+  // Standing models have no editable source, so only offered variants join a named pool.
   const loose = found.filter((entry) => !entry.profile && entry.member.choiceKey)
   const nameOf = (entry: Loadout) => {
     const siblings = loose.filter((other) => other.member.choiceKey === entry.member.choiceKey)
@@ -163,7 +176,14 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
   const kinds = new Map<string, { profile: string | null; named: string | null; members: Member[] }>()
   for (const entry of found) {
     const gathering = gathered.get(entry.member.id)
-    const key = entry.profile ?? gathering?.key ?? entry.member.id
+    const definition = index.definitions.get(entry.member.id)
+    const embeddedProfile = definition && resolve(definition, index).profiles?.some((profile) => profile.typeName === 'Unit')
+    // A shared stat line does not make one model's nested choices available to its squadmates.
+    const standingApart =
+      !entry.member.choiceKey &&
+      !plainName(found.filter((other) => other.profile === entry.profile && !owns(other.member.id)).map((other) => other.member.name))
+    const separateLinkedModel = entry.profile && !embeddedProfile && (standingApart || owns(entry.member.id))
+    const key = separateLinkedModel ? entry.member.id : (entry.profile ?? gathering?.key ?? entry.member.id)
     const kind = kinds.get(key) ?? { profile: entry.profile, named: entry.profile ? null : (gathering?.named ?? null), members: [] }
     kind.members.push(entry.member)
     kinds.set(key, kind)
@@ -173,8 +193,6 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
     const carried = members.map((member) => carriedOf(member.id))
     const shared = (carried[0] ?? []).filter((name) => carried.every((list) => list.includes(name)))
 
-    // One loadout at a time, in the order the data holds them, so the weapons read
-    // down the card the way the datasheet lists them.
     const rows: ModelKind['rows'] = []
     const addRow = (row: ModelKind['rows'][number]) => {
       const existing = rows.find((candidate) => candidate.name.trim().toLocaleLowerCase() === row.name.trim().toLocaleLowerCase())
@@ -192,18 +210,28 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
         for (const choice of owned) {
           for (const option of choice.options) {
             const pieces = optionPieces(option.id, index, options)
-            addRow({ name: option.name, choiceKey: choice.key, optionId: option.id, ...(pieces ? { pieces } : {}) })
+            const base = pieces && pieces.length > 1 ? defaultSelection(option.id, index, options) : null
+            const nested = base ? unitChoices(option.id, base, index, options) : []
+            const separatePieces =
+              pieces?.every((piece) =>
+                nested.some((slot) => slot.options.some((candidate) => candidate.default && sameWargear(candidate.name, piece))),
+              ) && nested.length > 1
+            addRow({
+              name: option.name,
+              choiceKey: choice.key,
+              optionId: option.id,
+              ...(pieces ? { pieces } : {}),
+              ...(separatePieces ? { separatePieces: true } : {}),
+            })
           }
         }
         return
       }
-      // A loadout holding no choice of its own *is* the choice: taking one is taking
-      // the weapon that tells it apart from its siblings.
+      // One variant is one allocation, including weapons that must be taken together.
       if (!member.choiceKey) return
-      for (const name of carried[position] ?? []) {
-        if (shared.includes(name)) continue
-        addRow({ name, choiceKey: member.choiceKey, optionId: member.id })
-      }
+      const pieces = (carried[position] ?? []).filter((name) => !shared.includes(name))
+      if (pieces.length)
+        addRow({ name: pieces.join(' and '), choiceKey: member.choiceKey, optionId: member.id, ...(pieces.length > 1 ? { pieces } : {}) })
     })
 
     // A weapon only some of this kind carry, held by a model the data stands rather
@@ -351,20 +379,13 @@ function sharedName(names: readonly string[]): string | null {
   return named.join(' ') || null
 }
 
-/**
- * Whether these loadouts are one kind of model the catalogue filed a weapon at a time.
- *
- * They are the same model when a row per weapon says everything the separate entries
- * said: each differs from the rest by exactly one weapon, and no two by the same one.
- * A loadout pairing two weapons is a pairing the player cannot break, and one holding
- * a choice of its own has more to say than a row, so both stay as they were written.
- */
+/** Distinct equipment bundles can share a card; nested choices need their own model identity. */
 function gathers(group: readonly Loadout[], carried: (id: string) => readonly string[], owns: (id: string) => boolean): boolean {
   if (group.length < 2 || group.some((entry) => owns(entry.member.id))) return false
   const lists = group.map((entry) => carried(entry.member.id))
   const shared = new Set((lists[0] ?? []).filter((name) => lists.every((list) => list.includes(name))))
   const apart = lists.map((list) => list.filter((name) => !shared.has(name)))
-  if (apart.some((list) => list.length !== 1)) return false
-  const weapons = apart.map((list) => list[0])
+  if (apart.some((list) => !list.length)) return false
+  const weapons = apart.map((list) => JSON.stringify(list.toSorted()))
   return new Set(weapons).size === weapons.length
 }

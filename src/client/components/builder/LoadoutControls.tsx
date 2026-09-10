@@ -1,11 +1,12 @@
-import { Check, Minus, Plus } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { Minus, Plus } from 'lucide-react'
+import { type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { Toggle } from '@/components/ui/toggle'
 import type { Datasheet } from '../../../server/catalogue'
 import { RuleText } from '../RuleText'
-import { WeaponProfile } from './DatasheetPanel'
+import { WeaponProfiles } from './DatasheetPanel'
+import { weaponProfileGroups } from '../../datasheet'
 import {
+  defaultFirst,
   type LoadoutChoice,
   type LoadoutOption,
   type SpreadCounts,
@@ -102,17 +103,7 @@ export function PickControl({
       <span className="readout text-sm tabular-nums" aria-label={`${name} count`}>
         {count}
       </span>
-      <Toggle
-        variant="outline"
-        size="sm"
-        aria-label={`${taken ? 'Remove' : 'Select'} ${name}`}
-        pressed={taken}
-        disabled={disabled || !onPick}
-        onPressedChange={() => onPick?.()}
-        className={`size-6 p-0 ${taken ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong text-dim'}`}
-      >
-        <Check className="size-3.5" />
-      </Toggle>
+      <CountButton label={`${taken ? 'Remove' : 'Select'} ${name}`} decrease={taken} onClick={disabled ? undefined : onPick} />
     </span>
   )
 }
@@ -136,16 +127,30 @@ export function Stepper({
 }) {
   return (
     <span className="grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
-      <Button variant="outline" size="icon-sm" className="size-6" aria-label={`Fewer ${label}`} disabled={!onRemove} onClick={onRemove}>
-        <Minus />
-      </Button>
+      <CountButton label={`Fewer ${label}`} decrease onClick={onRemove} />
       <span className="readout text-center text-sm tabular-nums" aria-label={countLabel}>
         {count}
       </span>
-      <Button variant="outline" size="icon-sm" className="size-6" aria-label={`More ${label}`} disabled={!onAdd} onClick={onAdd}>
-        <Plus />
-      </Button>
+      <CountButton label={`More ${label}`} onClick={onAdd} />
     </span>
+  )
+}
+
+function CountButton({ label, decrease = false, onClick }: { label: string; decrease?: boolean; onClick?: () => void }) {
+  const color = decrease
+    ? 'border-destructive/60 bg-destructive/15 text-destructive hover:bg-destructive/25 hover:text-destructive dark:border-destructive/60 dark:bg-destructive/15 dark:hover:bg-destructive/25'
+    : 'border-primary/60 bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary dark:border-primary/60 dark:bg-primary/15 dark:hover:bg-primary/25'
+  return (
+    <Button
+      variant="outline"
+      size="icon-sm"
+      className={`size-6 ${onClick ? color : ''}`}
+      aria-label={label}
+      disabled={!onClick}
+      onClick={onClick}
+    >
+      {decrease ? <Minus strokeWidth={2.5} /> : <Plus strokeWidth={2.5} />}
+    </Button>
   )
 }
 
@@ -160,6 +165,7 @@ export function WargearRow({
   control,
   note,
   highlightSelection = true,
+  instructions,
 }: Described & {
   name: string
   pieces?: readonly string[]
@@ -168,26 +174,33 @@ export function WargearRow({
   control?: ReactNode
   note?: string
   highlightSelection?: boolean
+  instructions?: readonly string[]
 }) {
   const matching = weaponProfilesFor({ name, pieces }, weapons)
+  const label = (
+    <span className="min-w-0 flex-1">
+      <span className="block text-[0.8125rem] font-semibold">{name}</span>
+      {note ? <span className="block text-[0.6875rem] text-faint">{note}</span> : null}
+      {points ? <span className="readout text-[0.6875rem] text-info">+{points} each</span> : null}
+    </span>
+  )
   return (
-    <li className={count && highlightSelection ? 'bg-azure/5' : undefined}>
-      <div className="flex items-center gap-2 px-2.5 py-1.5">
-        <span className="min-w-0 flex-1">
-          <span className="block text-xs font-semibold">{name}</span>
-          {note ? <span className="block text-[0.6875rem] text-faint">{note}</span> : null}
-          {points ? <span className="readout text-[0.6875rem] text-info">+{points} each</span> : null}
-        </span>
+    <li className={`border border-l-[5px] bg-panel/40 ${count && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'}`}>
+      {instructions?.map((instruction) => (
+        <RuleText key={instruction} text={instruction} rules={rules} className="!mt-0 p-2.5 text-xs leading-[1.125rem]" />
+      ))}
+      <div className="flex items-center gap-2 px-2.5 py-1.5" data-equipped={count > 0}>
+        {label}
         {control ?? (
           <span className="chip readout" aria-label={`${name} count`}>
             {count}
           </span>
         )}
       </div>
-      {matching.map((weapon) => (
-        <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} showName={matching.length > 1} showCount={false} embedded />
-      ))}
-      <OptionAbilities option={{ name, pieces: pieces ? [...pieces] : undefined }} abilities={abilities} rules={rules} />
+      <div>
+        <WeaponProfiles weapons={matching} rules={rules} showName={weaponProfileGroups(matching).length > 1} showCount={false} embedded />
+        <OptionAbilities option={{ name, pieces: pieces ? [...pieces] : undefined }} abilities={abilities} rules={rules} />
+      </div>
     </li>
   )
 }
@@ -233,7 +246,7 @@ function ChoiceOption({
 }) {
   return (
     <article
-      className={`relative border ${selected && highlightSelection ? 'border-parchment bg-parchment/10' : `border-edge bg-card ${onSelect && !disabled ? 'hover:border-dim' : ''}`}`}
+      className={`relative border border-l-[5px] bg-card ${selected && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'}`}
     >
       {onSelect ? (
         <button
@@ -247,10 +260,9 @@ function ChoiceOption({
       ) : null}
       <div className="pointer-events-none relative z-10 [&_button]:pointer-events-auto">
         <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
-          <span className="text-sm font-semibold text-bone">{option.name}</span>
+          <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{option.name}</span>
           <span className="flex shrink-0 items-center gap-1.5">
             {option.points ? <span className="chip text-info">+{option.points} pts</span> : null}
-            {selected && highlightSelection ? <Check className="size-3.5 text-parchment" aria-hidden /> : null}
           </span>
         </div>
         {children}
@@ -265,28 +277,28 @@ function DeclineButton({
   chosen,
   editable,
   disabled = false,
+  highlightSelection = true,
   onDecline,
 }: {
   label: string
   chosen: boolean
   editable: boolean
   disabled?: boolean
+  highlightSelection?: boolean
   onDecline: () => void
 }) {
-  const cursor = disabled ? 'cursor-wait' : editable ? '' : 'cursor-not-allowed'
-  const hover = editable && !disabled ? 'hover:border-dim hover:text-bone' : ''
+  const cursor = disabled ? 'cursor-wait' : editable ? 'hover:bg-raised' : 'cursor-not-allowed'
   return (
     <button
       type="button"
       aria-pressed={!chosen}
       disabled={!editable || disabled}
       onClick={onDecline}
-      className={`flex w-full items-center justify-between border px-2.5 py-2 text-left text-xs font-semibold uppercase ${cursor} ${
-        chosen ? `border-edge bg-card text-dim ${hover}` : 'border-parchment bg-parchment/10 text-parchment'
+      className={`w-full border border-l-[5px] bg-card px-2.5 py-2 text-left text-xs font-semibold uppercase text-bone ${cursor} ${
+        !chosen && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'
       }`}
     >
       {label}
-      {!chosen ? <Check className="size-3.5" aria-hidden /> : null}
     </button>
   )
 }
@@ -310,7 +322,7 @@ export function SpecialChoice({
   highlightSelection?: boolean
 }) {
   const heading = choice.kind === 'upgrade' ? 'Unit upgrades' : choice.name
-  const options = showOptions ? choice.options : choice.options.filter((option) => choice.chosen === option.id)
+  const options = showOptions ? defaultFirst(choice.options) : choice.options.filter((option) => choice.chosen === option.id)
   if (!showOptions && !choice.chosen) return null
   return (
     <fieldset aria-label={`${unitName} ${heading}`} className="m-0 min-w-0 border-0">
@@ -320,6 +332,7 @@ export function SpecialChoice({
           <DeclineButton
             label={`No ${choice.kind === 'upgrade' ? 'upgrade' : 'enhancement'}`}
             chosen={Boolean(choice.chosen)}
+            highlightSelection={highlightSelection}
             editable={editable}
             disabled={controlsDisabled}
             onDecline={() => onChoose(choice.key, '')}
@@ -367,7 +380,7 @@ export function EitherChoice({
   showOptions?: boolean
   highlightSelection?: boolean
 }) {
-  const options = showOptions ? choice.options : choice.options.filter((option) => choice.chosen === option.id)
+  const options = showOptions ? defaultFirst(choice.options) : choice.options.filter((option) => choice.chosen === option.id)
   return (
     <fieldset aria-label={`${unitName} ${choice.name}`} className="m-0 min-w-0 border-0 p-0">
       <legend className="eyebrow p-0">{choice.name}</legend>
@@ -376,6 +389,7 @@ export function EitherChoice({
           <DeclineButton
             label="None"
             chosen={Boolean(choice.chosen)}
+            highlightSelection={highlightSelection}
             editable={editable}
             disabled={controlsDisabled}
             onDecline={() => onChoose(choice.key, '')}
@@ -435,10 +449,10 @@ export function SpreadChoice({
         </span>
       </p>
       <ul className="mt-1.5 space-y-1">
-        {(showOptions ? choice.options : choice.options.filter((option) => option.count)).map((option) => (
+        {(showOptions ? defaultFirst(choice.options) : choice.options.filter((option) => option.count)).map((option) => (
           <li
             key={option.id}
-            className={`border ${option.count && highlightSelection ? 'border-parchment bg-parchment/10' : 'border-edge bg-card'}`}
+            className={`border border-l-[5px] bg-card ${option.count && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'}`}
           >
             <div className="flex items-center gap-2 px-2 py-1.5">
               <span className="min-w-0 flex-1">
@@ -502,9 +516,7 @@ function OptionProfiles({
   const matching = weaponProfilesFor(option, weapons)
   return matching.length ? (
     <div className="border-t border-edge">
-      {matching.map((weapon) => (
-        <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} showName={matching.length > 1} showCount={false} embedded />
-      ))}
+      <WeaponProfiles weapons={matching} rules={rules} showName={weaponProfileGroups(matching).length > 1} showCount={false} embedded />
     </div>
   ) : null
 }

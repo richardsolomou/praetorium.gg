@@ -76,8 +76,8 @@ export function Pane({
   useEffect(() => {
     if (!open) return
     const escape = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
-    document.addEventListener('keydown', escape)
-    return () => document.removeEventListener('keydown', escape)
+    window.addEventListener('keydown', escape)
+    return () => window.removeEventListener('keydown', escape)
   }, [open, onClose])
 
   useEffect(() => {

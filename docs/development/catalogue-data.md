@@ -67,19 +67,24 @@ Core catalogue code is split by question:
 
 ## Building units
 
+- Required model weapon capacity follows the selected carrier count. Only optional specialists can enter the unit through a weapon choice; excess saved weapon counts cannot create extra required models. Count every selected variant when a required model kind is split between loadouts.
 - A `collective` count is the total for the unit. Constraints with `scope: parent` are per model and must scale with the number of carriers.
 - An aggregated model's unmarked mandatory child is stored once as the model template. Its parent-scoped minimum is satisfied once per model even though the stored selection count is one; parent-scoped maximums still scale to allow choices across the squad.
 - `collective.ts` alone says whether a stored count is the unit's total or one model's share. `expand`, `unitChoices`, `violations`, and `wargearOf` all read it and none re-derives it.
 - `refit` fills required per-model upgrade groups after a model-count change. It uses the declared default, then the cheapest option. It does not fill optional groups or groups of models.
 - Increasing one option in a full group reduces an available sibling. Decreasing an option lets `refit` return the freed count to the default.
-- `spreads` survive pricing, saving, import, and export.
+- `spreads` survive pricing, saving, import, and export. Apply upgrade loadouts before their nested weapon counts, then model allocations after their specialists. A removed loadout suppresses its saved nested weapons; restoring it retains those weapon choices. Only model allocations are governed by descendant weapon counts.
 - A model-count override clears the other model slots first because the default selection already contains the minimum models.
 - A squad-size constraint can live on the group or its occupants. `unitSize` applies the bound to their total.
 - Default construction inspects required entries inside selection groups.
 - A required group's count is distributed across its options within each option cap, preferring the declared default and then the cheapest option.
+- Empty upgrade containers are not equipped weapons; identify containers from their catalogue definitions even when their selected contents are empty.
 - Wargear counts multiply through ordinary selection ancestors. Collective counts already represent the unit total and do not multiply again.
 - A unit's models come from the datasheet rather than only from its choices. A mandatory model is not reported as a choice; it is counted from the selection and has no editable rows. A squad's sergeant is usually represented this way.
 - A model kind takes its name from its own entries before the catalogue profile. Eleventh-edition profiles often use the squad name, so the preferred name is the one shared by the loadouts, followed by the entry that plainly names the model.
+- The datacards `wargearOptions` groups retain their instruction and equipment names for display beside matching loadout choices. These instructions describe the source rules; catalogue evaluation still decides legality.
+- Index rules declared at the catalogue root as well as shared rules, so links to faction abilities retain their descriptions.
+- Model grouping reads both embedded and linked Unit profiles. Each model variant contributes one row for its equipment bundle, so paired weapons remain one choice. A linked stat line does not merge distinct standing models or models that own separate equipment choices. Nested equipment choices own their displayed pieces; their container does not add another control or another copy to the wargear summary. When a customizable loadout is replaced, its default weapons remain separate boxes; either control restores the shared loadout.
 
 ## Pricing and legality
 

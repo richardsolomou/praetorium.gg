@@ -111,23 +111,28 @@ function assemble(
       : withModelComposition(entryId, chosen, requestedModels, new Set(Object.keys(choices ?? {})), index, context)
   const measured = sizeOf(composed, index)
   const composedSize = fixedSizes.length ? { ...measured, min: fixedSizes[0]!, max: fixedSizes.at(-1)!, options: fixedSizes } : measured
-  // Then the spreads, which say how many of each option rather than which one.
-  //
-  // Deepest first, because a model's own wargear is what puts that model in the
-  // squad: settle the specialists and the body each one costs, and the group above
-  // then shares out what is left. Applied the other way round the group divides all
-  // the bodies first, a specialist takes one back from whichever option happens to
-  // hold the most, and a squad asked for five combi-weapons and a pyrecannon quietly
-  // comes back with four. A count the group keeps for a model that arms itself is
-  // never honoured either way, which is what makes the order safe to choose.
-  const requests = Object.entries(context?.spreads ?? {}).toSorted(([left], [right]) => right.split('/').length - left.split('/').length)
-  // How many of a model there are is settled by that model's own wargear, when it
-  // has any: a veteran is in the squad because he is carrying the heavy bolter. The
-  // group above may still say how many of everything else it holds, but a count it
-  // keeps for that model is a leftover opinion, and honouring it costs a body the
-  // rest of the squad then cannot have.
-  const governed = (key: string, optionId: string) => requests.some(([other]) => other.startsWith(`${key}/${optionId}/`))
+  const modelOption = (optionId: string) => {
+    const definition = index.definitions.get(optionId)
+    return definition && resolve(definition, index).type === 'model'
+  }
+  const modelGroup = (key: string) => {
+    const definition = index.definitions.get(key.split('/').at(-1) ?? '')
+    return definition && childrenOf(resolve(definition, index), index).some((option) => modelOption(option.id))
+  }
+  // Expand loadouts before their nested weapons; settle model allocations afterwards,
+  // because a specialist's weapons determine how many bodies its parent group needs.
+  const requests = Object.entries(context?.spreads ?? {}).toSorted(([left], [right]) => {
+    const leftModels = Boolean(modelGroup(left))
+    const rightModels = Boolean(modelGroup(right))
+    return Number(leftModels) - Number(rightModels) || (left.split('/').length - right.split('/').length) * (leftModels ? -1 : 1)
+  })
+  const governed = (key: string, optionId: string) =>
+    modelOption(optionId) && requests.some(([other]) => other.startsWith(`${key}/${optionId}/`))
   const spread = requests.reduce((tree, [key, counts]) => {
+    const removedParent = requests.some(([parent, held]) =>
+      Object.entries(held).some(([optionId, count]) => count === 0 && !modelOption(optionId) && key.startsWith(`${parent}/${optionId}/`)),
+    )
+    if (removedParent) return tree
     const own = Object.entries(counts).filter(([optionId]) => !governed(key, optionId))
     return own.length ? withUnitSpread(tree, key, Object.fromEntries(own), index, context) : tree
   }, composed)

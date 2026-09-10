@@ -5,6 +5,26 @@ import { ability, bookOf, points, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'
 
 describe('the abilities and wargear a datasheet lists', () => {
+  it('resolves a faction ability linked to a rule declared at the catalogue root', () => {
+    const book = bookOf({
+      rules: [{ id: 'rally', name: 'Rally!', description: 'Friendly units can advance.' }],
+      selectionEntries: [
+        {
+          id: 'trooper',
+          name: 'Trooper',
+          type: 'unit',
+          infoLinks: [{ id: 'rally-link', name: 'Rally!', type: 'rule', targetId: 'rally' }],
+        },
+      ],
+    })
+    expect(datasheetIn(book, 'cat', 'trooper')?.abilities).toContainEqual({
+      id: 'rally-link',
+      name: 'Rally!',
+      kind: 'faction',
+      description: 'Friendly units can advance.',
+    })
+  })
+
   it('separates faction, core, datasheet, rule and wargear abilities', () => {
     const book = bookOf({
       sharedProfiles: [ability('shared-ability', 'My Will Be Done')],

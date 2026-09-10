@@ -36,7 +36,7 @@ describe('the wargear a unit is carrying', () => {
     ])
   })
 
-  it('leaves out an upgrade that only holds other upgrades', () => {
+  it.each([true, false])('leaves out a container with its weapon selected=%s', (selected) => {
     const index = indexOf({
       sharedSelectionEntries: [
         {
@@ -54,8 +54,8 @@ describe('the wargear a unit is carrying', () => {
         },
       ],
     })
-    const selection = { id: 'captain', selections: [{ id: 'ranged', selections: [{ id: 'bolt', count: 1 }] }] }
-    expect(wargearOf(selection, index)).toEqual([{ name: 'Bolt rifle', count: 1 }])
+    const selection = { id: 'captain', selections: [{ id: 'ranged', selections: selected ? [{ id: 'bolt', count: 1 }] : [] }] }
+    expect(wargearOf(selection, index)).toEqual(selected ? [{ name: 'Bolt rifle', count: 1 }] : [])
   })
 
   it('keeps a described weapon when it holds a selected upgrade', () => {

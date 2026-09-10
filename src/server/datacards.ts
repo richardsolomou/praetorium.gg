@@ -20,6 +20,7 @@ export type DatasheetDetails = {
   composition: string[]
   loadout: string | null
   wargear: string[]
+  wargearGroups?: { instruction: string; options: string[] }[]
   baseSize: string | null
   transport: string | null
   points: { models: string; cost: string; keyword: string | null; faction: string | null; detachment: string | null }[]
@@ -616,10 +617,19 @@ function localizedList(value: unknown, field: string): string[] {
 }
 
 function datasheetDetails(value: unknown): DatasheetDetails {
+  const wargearGroups = records(value, 'wargearOptions').flatMap((group) => {
+    const instruction = localizedField(group, 'instruction')
+    const options = records(group, 'options').flatMap((option) => {
+      const name = localizedField(option, 'name')
+      return name ? [name] : []
+    })
+    return instruction && options.length ? [{ instruction, options }] : []
+  })
   return {
     composition: localizedList(value, 'composition'),
     loadout: localizedField(value, 'loadout'),
     wargear: localizedList(value, 'wargear'),
+    ...(wargearGroups.length ? { wargearGroups } : {}),
     baseSize: displayBaseSize(localizedField(value, 'baseSize')),
     transport: localizedField(value, 'transport'),
     points: records(value, 'points').flatMap((point) => {

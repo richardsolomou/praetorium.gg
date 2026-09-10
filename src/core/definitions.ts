@@ -126,7 +126,12 @@ const isSelectionMinimum = (constraint: Constraint) =>
 
 /** The unit profile a model entry carries, which is what names its kind. */
 export function modelProfileOf(definition: Definition, index: CatalogueIndex): string | null {
-  return resolve(definition, index).profiles?.find((profile) => profile.typeName === 'Unit')?.name ?? null
+  const target = resolve(definition, index)
+  const linked = (target.infoLinks ?? []).flatMap((link) => {
+    const profile = link.type === 'profile' ? index.shared.get(link.targetId) : undefined
+    return profile && 'typeName' in profile ? [profile] : []
+  })
+  return [...(target.profiles ?? []), ...linked].find((profile) => profile.typeName === 'Unit')?.name ?? null
 }
 
 /** Optional single entries with roster meaning rather than loadout meaning. */
