@@ -56,7 +56,7 @@ describe('game reference queries', () => {
     client.setQueryData(['terrain-references', ...matchupIds], legacy)
     const request = vi.spyOn(functions, 'terrainReferences').mockResolvedValue(current)
     try {
-      expect(await client.fetchQuery(terrainReferencesQuery(matchupIds))).toEqual(current)
+      expect(await client.query(terrainReferencesQuery(matchupIds))).toEqual(current)
       expect(request).toHaveBeenCalledExactlyOnceWith({ data: { matchupIds, geometryVersion: 3 } })
       expect(client.getQueryData(['terrain-references', ...matchupIds])).toEqual(legacy)
     } finally {

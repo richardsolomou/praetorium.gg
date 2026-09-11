@@ -55,11 +55,11 @@ export const Route = createFileRoute('/users/$userId')({
   loaderDeps: ({ search }) => recordFilter(search),
   loader: ({ context, params, deps }) =>
     Promise.all([
-      context.queryClient.ensureQueryData(meQuery()),
-      context.queryClient.ensureQueryData(userProfileQuery(params.userId)),
-      context.queryClient.ensureQueryData(playerProfileQuery(params.userId, deps)),
-      context.queryClient.ensureQueryData(playerRankingsQuery(params.userId)),
-      context.queryClient.ensureQueryData(playerRostersQuery(params.userId)),
+      context.queryClient.query({ ...meQuery(), staleTime: 'static' }),
+      context.queryClient.query({ ...userProfileQuery(params.userId), staleTime: 'static' }),
+      context.queryClient.query({ ...playerProfileQuery(params.userId, deps), staleTime: 'static' }),
+      context.queryClient.query({ ...playerRankingsQuery(params.userId), staleTime: 'static' }),
+      context.queryClient.query({ ...playerRostersQuery(params.userId), staleTime: 'static' }),
     ]),
   component: PlayerProfile,
 })

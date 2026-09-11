@@ -57,7 +57,7 @@ export const Route = createFileRoute('/rosters/')({
     }
   },
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(meQuery())
+    await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
   },
   component: RosterLibrary,
 })

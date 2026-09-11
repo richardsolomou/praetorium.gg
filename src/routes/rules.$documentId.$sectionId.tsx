@@ -5,8 +5,8 @@ import { ruleIndexQuery, ruleSectionQuery } from '../client/queries'
 export const Route = createFileRoute('/rules/$documentId/$sectionId')({
   loader: async ({ context, params }) => {
     const [, section] = await Promise.all([
-      context.queryClient.ensureQueryData(ruleIndexQuery()),
-      context.queryClient.ensureQueryData(ruleSectionQuery(params.documentId, params.sectionId)),
+      context.queryClient.query({ ...ruleIndexQuery(), staleTime: 'static' }),
+      context.queryClient.query({ ...ruleSectionQuery(params.documentId, params.sectionId), staleTime: 'static' }),
     ])
     if (!section) throw notFound()
   },

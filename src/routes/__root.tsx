@@ -41,7 +41,7 @@ const posthog = postHogEnvironment({
 })
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  loader: ({ context }) => context.queryClient.ensureQueryData(meQuery()),
+  loader: ({ context }) => context.queryClient.query({ ...meQuery(), staleTime: 'static' }),
   head: () => ({
     meta: [
       { charSet: 'utf-8' },

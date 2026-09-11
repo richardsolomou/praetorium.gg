@@ -14,9 +14,12 @@ export const Route = createFileRoute('/factions/$catalogueId')({
   loader: async ({ context, location, params }) => {
     const direct = location.pathname === `/factions/${params.catalogueId}`
     const [faction] = await Promise.all([
-      context.queryClient.ensureQueryData(factionQuery(params.catalogueId)),
+      context.queryClient.query({ ...factionQuery(params.catalogueId), staleTime: 'static' }),
       ...(direct
-        ? [context.queryClient.ensureQueryData(favouriteFactionsQuery()), context.queryClient.ensureQueryData(favouriteDetachmentsQuery())]
+        ? [
+            context.queryClient.query({ ...favouriteFactionsQuery(), staleTime: 'static' }),
+            context.queryClient.query({ ...favouriteDetachmentsQuery(), staleTime: 'static' }),
+          ]
         : []),
     ])
     if (!faction) throw notFound()

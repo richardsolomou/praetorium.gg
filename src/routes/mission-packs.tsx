@@ -6,7 +6,7 @@ import { PageState } from '../client/components/PageState'
 
 export const Route = createFileRoute('/mission-packs')({
   loader: async ({ context, location }) => {
-    const data = await context.queryClient.ensureQueryData(gameReferencesQuery())
+    const data = await context.queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
     const pack = data?.packs[0]
     if (location.pathname === '/mission-packs' && pack) {
       throw redirect({ to: '/mission-packs/$packId', params: { packId: pack.id }, replace: true })

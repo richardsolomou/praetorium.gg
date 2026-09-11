@@ -13,8 +13,8 @@ export const Route = createFileRoute('/factions')({
   loader: ({ context, location }) =>
     location.pathname === '/factions'
       ? Promise.all([
-          context.queryClient.ensureQueryData(factionIndexQuery()),
-          context.queryClient.ensureQueryData(favouriteFactionsQuery()),
+          context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' }),
+          context.queryClient.query({ ...favouriteFactionsQuery(), staleTime: 'static' }),
         ])
       : undefined,
   component: Factions,

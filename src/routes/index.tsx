@@ -12,11 +12,14 @@ import { battlesQuery, friendBattlesQuery, meQuery, publicBattlesQuery } from '.
  */
 export const Route = createFileRoute('/')({
   loader: async ({ context }) => {
-    const me = await context.queryClient.ensureQueryData(meQuery())
+    const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
     await Promise.all([
-      context.queryClient.ensureInfiniteQueryData(publicBattlesQuery()),
+      context.queryClient.infiniteQuery({ ...publicBattlesQuery(), staleTime: 'static' }),
       ...(me
-        ? [context.queryClient.ensureInfiniteQueryData(battlesQuery()), context.queryClient.ensureInfiniteQueryData(friendBattlesQuery())]
+        ? [
+            context.queryClient.infiniteQuery({ ...battlesQuery(), staleTime: 'static' }),
+            context.queryClient.infiniteQuery({ ...friendBattlesQuery(), staleTime: 'static' }),
+          ]
         : []),
     ])
   },

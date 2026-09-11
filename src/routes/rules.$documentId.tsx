@@ -4,7 +4,7 @@ import { ruleIndexQuery } from '../client/queries'
 
 export const Route = createFileRoute('/rules/$documentId')({
   loader: async ({ context, location, params }) => {
-    const index = await context.queryClient.ensureQueryData(ruleIndexQuery())
+    const index = await context.queryClient.query({ ...ruleIndexQuery(), staleTime: 'static' })
     const known = index?.documents.some((document) => document.slug === params.documentId)
     // A document only the child route needs is checked there, against its section.
     if (!known && location.pathname === `/rules/${params.documentId}`) throw notFound()

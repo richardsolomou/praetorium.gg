@@ -41,8 +41,8 @@ export const Route = createFileRoute('/profile')({
     return result
   },
   loader: async ({ context }) => {
-    const me = await context.queryClient.ensureQueryData(meQuery())
-    if (me) await context.queryClient.ensureQueryData(battleAudienceQuery())
+    const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
+    if (me) await context.queryClient.query({ ...battleAudienceQuery(), staleTime: 'static' })
   },
   component: Profile,
 })

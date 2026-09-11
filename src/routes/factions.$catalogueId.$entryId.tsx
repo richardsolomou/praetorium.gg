@@ -7,8 +7,9 @@ export const Route = createFileRoute('/factions/$catalogueId/$entryId')({
     throw redirect({ to: '/factions/$catalogueId/datasheets/$entryId', params, replace: true })
   },
   loader: async ({ context, params }) => {
-    const faction = await context.queryClient.ensureQueryData(factionQuery(params.catalogueId))
-    if (!faction || !(await context.queryClient.ensureQueryData(datasheetSlugQuery(faction.id, params.entryId)))) throw notFound()
+    const faction = await context.queryClient.query({ ...factionQuery(params.catalogueId), staleTime: 'static' })
+    if (!faction || !(await context.queryClient.query({ ...datasheetSlugQuery(faction.id, params.entryId), staleTime: 'static' })))
+      throw notFound()
   },
   component: FactionDatasheet,
 })

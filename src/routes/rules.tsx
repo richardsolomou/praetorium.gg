@@ -3,7 +3,8 @@ import { RulesIndex } from '../client/components/RulesIndex'
 import { ruleIndexQuery } from '../client/queries'
 
 export const Route = createFileRoute('/rules')({
-  loader: ({ context, location }) => (location.pathname === '/rules' ? context.queryClient.ensureQueryData(ruleIndexQuery()) : undefined),
+  loader: ({ context, location }) =>
+    location.pathname === '/rules' ? context.queryClient.query({ ...ruleIndexQuery(), staleTime: 'static' }) : undefined,
   component: Rules,
 })
 

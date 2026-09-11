@@ -13,7 +13,10 @@ import { useLiveBattles } from '../client/useLiveBattle'
 
 export const Route = createFileRoute('/battles/')({
   loader: ({ context }) =>
-    Promise.all([context.queryClient.ensureQueryData(meQuery()), context.queryClient.ensureInfiniteQueryData(battlesQuery())]),
+    Promise.all([
+      context.queryClient.query({ ...meQuery(), staleTime: 'static' }),
+      context.queryClient.infiniteQuery({ ...battlesQuery(), staleTime: 'static' }),
+    ]),
   component: Battles,
 })
 

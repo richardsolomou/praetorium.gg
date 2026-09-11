@@ -4,7 +4,7 @@ import { meQuery } from './queries'
 type AccountQuery = ReturnType<typeof meQuery>
 
 export async function signedInDestination(queryClient: QueryClient, next?: string, fetchAccount?: AccountQuery['queryFn']) {
-  const account = await queryClient.fetchQuery({
+  const account = await queryClient.query({
     ...meQuery(),
     ...(fetchAccount ? { queryFn: fetchAccount } : {}),
     staleTime: 0,

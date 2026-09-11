@@ -31,11 +31,11 @@ export const Route = createFileRoute('/battles/$token')({
      * failure — a page that never looks must not bring down the loader.
      */
     const instanceData = [
-      context.queryClient.ensureQueryData(gameReferencesQuery()),
-      context.queryClient.ensureQueryData(deploymentsQuery()),
+      context.queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' }),
+      context.queryClient.query({ ...deploymentsQuery(), staleTime: 'static' }),
     ].map((pending) => pending.catch(() => undefined))
     // Only a loader may throw this: from a render it lands in the error boundary.
-    const screen = await context.queryClient.ensureQueryData(battleQuery(params.token))
+    const screen = await context.queryClient.query({ ...battleQuery(params.token), staleTime: 'static' })
     if (!screen) throw notFound()
     if (screen.kind === 'unavailable') return
     const dispositions = [...new Set(screen.view.players.map((player) => player.side))]
@@ -45,16 +45,16 @@ export const Route = createFileRoute('/battles/$token')({
     // The battle decides which independent reads are needed; start them together once it is known.
     await Promise.all([
       ...instanceData,
-      ...(matchupIds.length ? [context.queryClient.ensureQueryData(terrainReferencesQuery(matchupIds))] : []),
+      ...(matchupIds.length ? [context.queryClient.query({ ...terrainReferencesQuery(matchupIds), staleTime: 'static' })] : []),
       ...screen.view.players.flatMap((player) => {
         const { catalogueId, detachmentNames } = armyRulesRequest(player.roster)
         return catalogueId && detachmentNames.length
-          ? [context.queryClient.ensureQueryData(detachmentRulesQuery(catalogueId, detachmentNames))]
+          ? [context.queryClient.query({ ...detachmentRulesQuery(catalogueId, detachmentNames), staleTime: 'static' })]
           : []
       }),
       // Each army's own faction, instead of every faction the instance knows.
       ...[...new Set(screen.view.players.flatMap((player) => (player.roster?.built ? [player.roster.built.catalogueId] : [])))].map(
-        (catalogueId) => context.queryClient.ensureQueryData(factionQuery(catalogueId)),
+        (catalogueId) => context.queryClient.query({ ...factionQuery(catalogueId), staleTime: 'static' }),
       ),
     ])
   },

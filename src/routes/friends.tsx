@@ -12,7 +12,10 @@ import { errorMessage } from '../client/queryClient'
 
 export const Route = createFileRoute('/friends')({
   loader: ({ context }) =>
-    Promise.all([context.queryClient.ensureQueryData(meQuery()), context.queryClient.ensureQueryData(friendshipsQuery())]),
+    Promise.all([
+      context.queryClient.query({ ...meQuery(), staleTime: 'static' }),
+      context.queryClient.query({ ...friendshipsQuery(), staleTime: 'static' }),
+    ]),
   component: Friends,
 })
 
