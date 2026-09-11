@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import type { MissionAction } from '../../server/missionActions'
+import type { MissionAction } from '../../contracts/missions'
 import { RuleText } from './RuleText'
 
 /**

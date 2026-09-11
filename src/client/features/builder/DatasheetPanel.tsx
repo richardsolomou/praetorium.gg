@@ -1,0 +1,386 @@
+import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { wargearBaseName } from '../../../core/wargear'
+import type { RosterPick } from '../../../core/roster'
+import type { Datasheet, DatasheetRelationship } from '../../../contracts/catalogue'
+import { datasheetQuery } from '../../queries'
+import { useSettled } from '../../useSettled'
+import { HoverTooltip } from '../../components/HoverTooltip'
+import { Keyword, KEYWORD_TAG_CLASS, KeywordList } from '../../components/Keyword'
+import {
+  abilitySections,
+  addedKeywords,
+  attachmentGroups,
+  primaryUnitProfile,
+  referenceAbilities,
+  weaponProfileGroups,
+  weaponProfileMode,
+} from '../../datasheet'
+import { RuleText } from '../../components/RuleText'
+import { ProfileRules } from '../../components/ProfileRules'
+
+type Props = {
+  catalogueId: string
+  entryId: string | null
+  detachmentIds: readonly string[]
+  picks: readonly RosterPick[]
+  pickIndex: number | null
+  showWeapons?: boolean
+  embedded?: boolean
+  hideSummary?: boolean
+  providedSheet?: Datasheet | null
+  showRelationships?: boolean
+  onRelationshipSelect?: (entryId: string, name: string) => void
+  onReferenceRoute?: (reference: { entryId: string; route: Datasheet['referenceRoute'] } | null) => void
+}
+
+export function DatasheetPanel({
+  catalogueId,
+  entryId,
+  detachmentIds,
+  picks,
+  pickIndex,
+  showWeapons = false,
+  embedded = false,
+  hideSummary = false,
+  providedSheet,
+  showRelationships = true,
+  onRelationshipSelect,
+  onReferenceRoute,
+}: Props) {
+  // Only once the player stops changing the list, so a held stepper asks once.
+  const detachments = useSettled(detachmentIds)
+  const settledPicks = useSettled(picks)
+  const settledIndex = useSettled(pickIndex)
+  // A picker preview is not one of the roster's selections, so the server cannot
+  // apply roster context to it. Do not put a roster it will discard in the URL.
+  const contextualDetachments = settledIndex === null ? [] : detachments
+  const contextualPicks = settledIndex === null ? [] : settledPicks
+  const { data: fetchedSheet } = useQuery({
+    ...datasheetQuery(catalogueId, entryId ?? '', contextualDetachments, contextualPicks, settledIndex),
+    enabled: providedSheet === undefined && Boolean(catalogueId && entryId),
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === entryId ? previous : undefined),
+  })
+  const sheet = providedSheet === undefined ? fetchedSheet : providedSheet
+  const referenceRoute = sheet?.referenceRoute ?? null
+
+  useEffect(() => {
+    onReferenceRoute?.(entryId ? { entryId, route: referenceRoute } : null)
+    return () => onReferenceRoute?.(null)
+  }, [entryId, onReferenceRoute, referenceRoute])
+
+  if (!entryId) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <p className="max-w-52 text-center text-xs text-faint">Select a unit to see its datasheet.</p>
+      </div>
+    )
+  }
+  if (!sheet) return <DatasheetLoading />
+
+  const model = primaryUnitProfile(sheet)
+  const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
+  const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
+  const content = (
+    <div data-slot="datasheet-content" className="w-full min-w-0 space-y-4">
+      {!hideSummary && model ? <UnitProfile profile={model} /> : null}
+      {!hideSummary && showWeapons && ranged.length ? (
+        <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} />
+      ) : null}
+      {!hideSummary && showWeapons && melee.length ? (
+        <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} />
+      ) : null}
+      <AbilitySummary abilities={referenceAbilities(sheet.abilities, sheet.attachments)} rules={sheet.keywordRules} />
+      <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} compact />
+      {sheet.referenceRoute ? (
+        <div className="border-t border-edge pt-3">
+          <div className="flex min-w-0 flex-wrap gap-1">
+            {sheet.keywords.map((keyword) => (
+              <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {showRelationships ? <RelationshipSummary sheet={sheet} onSelect={onRelationshipSelect} /> : null}
+    </div>
+  )
+  return embedded ? (
+    <div className="border-t border-edge pt-4">{content}</div>
+  ) : (
+    <ScrollArea className="h-full min-w-0 max-w-full overflow-hidden [&_[data-slot=scroll-area-viewport]]:touch-pan-y [&_[data-slot=scroll-area-viewport]]:!overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:overscroll-x-none [&_[data-slot=scroll-area-viewport]]:p-3">
+      {content}
+    </ScrollArea>
+  )
+}
+
+function RelationshipSummary({
+  sheet,
+  onSelect,
+}: {
+  sheet: Pick<Datasheet, 'attachments' | 'leaders' | 'supporters'>
+  onSelect?: (entryId: string, name: string) => void
+}) {
+  const groups = attachmentGroups(sheet)
+  if (!groups.length) return null
+  return (
+    <section className="min-w-0 border-t border-edge pt-3">
+      <h2 className="rubric">Attachments</h2>
+      <div className="mt-2 space-y-2">
+        {groups.map(({ title, relationships }) => (
+          <div key={title} className="min-w-0">
+            <h3 className="eyebrow mb-1.5">{title}</h3>
+            <div className="flex w-full min-w-0 max-w-full flex-wrap gap-1">
+              {relationships.map((relationship) => (
+                <Relationship key={relationship.name} relationship={relationship} onSelect={onSelect} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function Relationship({
+  relationship,
+  onSelect,
+}: {
+  relationship: DatasheetRelationship
+  onSelect?: (entryId: string, name: string) => void
+}) {
+  const className = `${KEYWORD_TAG_CLASS} min-w-0 max-w-full whitespace-normal break-words text-left`
+  if (!relationship.entryId || !onSelect) return <span className={className}>{relationship.name}</span>
+  return (
+    <button type="button" className={`${className} hover:text-bone`} onClick={() => onSelect(relationship.entryId!, relationship.name)}>
+      {relationship.name}
+    </button>
+  )
+}
+
+/** Holds the pane's visual rhythm while a different datasheet is fetched. */
+function DatasheetLoading() {
+  return (
+    <output className="block space-y-4 p-3" aria-label="Loading datasheet">
+      <div className="flex gap-1">
+        <span className="h-5 w-16 animate-pulse bg-raised" />
+        <span className="h-5 w-24 animate-pulse bg-raised" />
+      </div>
+      <div className="grid grid-cols-6 gap-2">
+        {Array.from({ length: 6 }, (_, index) => (
+          <span key={index} className="h-10 animate-pulse bg-raised" />
+        ))}
+      </div>
+      {Array.from({ length: 3 }, (_, index) => (
+        <div key={index} className="space-y-2 border-t border-edge pt-2">
+          <span className="block h-3 w-28 animate-pulse bg-raised" />
+          <span className="block h-20 animate-pulse bg-card" />
+        </div>
+      ))}
+      <span className="sr-only">Loading datasheet…</span>
+    </output>
+  )
+}
+
+type Profile = Datasheet['profiles'][number]
+
+export function UnitProfile({ profile }: { profile: Profile }) {
+  const invulnerable = profile.values.find((value) => value.name === 'InSv')
+  const values = profile.values.filter((value) => value.name !== 'InSv')
+  return (
+    <section data-slot="unit-profile">
+      <div className="grid grid-cols-6 gap-1">
+        {values.map((value) => (
+          <div key={value.name} className="border border-edge bg-card px-2 py-1.5 text-center">
+            <p className="eyebrow">{value.name}</p>
+            <p className="readout mt-0.5 text-base">
+              <ProfileValue value={value} />
+            </p>
+          </div>
+        ))}
+      </div>
+      {invulnerable ? (
+        <div className="mt-1.5 flex items-center justify-between border border-edge bg-card px-2 py-1.5">
+          <span className="text-xs font-bold uppercase">Invulnerable save</span>
+          <span className="readout text-base">
+            <ProfileValue value={invulnerable} />
+          </span>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+export function WeaponSummary({ title, weapons, rules }: { title: string; weapons: Profile[]; rules: Datasheet['keywordRules'] }) {
+  const count = weaponProfileGroups(weapons).reduce((total, profiles) => total + (profiles[0]?.count ?? 1), 0)
+  return (
+    <section>
+      <h2 className="rubric flex items-baseline justify-between">
+        <span>{title}</span>
+        <span className="readout text-faint">{count}</span>
+      </h2>
+      <div className="mt-2 space-y-1.5">
+        <WeaponProfiles weapons={weapons} rules={rules} />
+      </div>
+    </section>
+  )
+}
+
+export function WeaponProfiles({
+  weapons,
+  rules,
+  showName = true,
+  showCount = true,
+  embedded = false,
+}: {
+  weapons: readonly Profile[]
+  rules: Datasheet['keywordRules']
+  showName?: boolean
+  showCount?: boolean
+  embedded?: boolean
+}) {
+  return weaponProfileGroups(weapons).map((profiles) => {
+    const first = profiles[0]!
+    if (profiles.length === 1) {
+      return <WeaponProfile key={first.id} weapon={first} rules={rules} showName={showName} showCount={showCount} embedded={embedded} />
+    }
+    const name = wargearBaseName(first.name)
+    return (
+      <section key={first.id} aria-label={`${name} profiles`} className={embedded ? 'mx-2 my-1.5' : 'border border-edge bg-card p-2'}>
+        <h3 className="flex items-baseline justify-between gap-2 text-xs">
+          {showName ? <span>{showCount && first.count && first.count > 1 ? `${first.count}× ${name}` : name}</span> : null}
+          <span className="shrink-0 font-rules font-normal normal-case text-faint">{profiles.length} profiles</span>
+        </h3>
+        <div className="mt-1 ml-3 border-l-2 border-edge-strong pl-3">
+          {profiles.map((weapon) => (
+            <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} label={weaponProfileMode(weapon)} showCount={false} embedded />
+          ))}
+        </div>
+      </section>
+    )
+  })
+}
+
+export function WeaponProfile({
+  weapon,
+  rules,
+  label,
+  showName = true,
+  showCount = true,
+  embedded = false,
+}: {
+  weapon: Profile
+  rules: Datasheet['keywordRules']
+  label?: string
+  showName?: boolean
+  showCount?: boolean
+  embedded?: boolean
+}) {
+  const keywords = weapon.values.find((value) => value.name === 'Keywords')
+  const keywordText = keywords?.value.trim()
+  return (
+    <div className={`${embedded ? '' : 'border border-edge bg-card '}px-2 py-1.5`}>
+      {showName ? (
+        <h3 className={label ? 'font-rules text-xs font-medium normal-case text-dim' : 'text-xs'}>
+          {showCount && weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : (label ?? weapon.name)}
+        </h3>
+      ) : null}
+      <div className={`${showName ? 'mt-1 ' : ''}grid grid-cols-6 gap-1`}>
+        {weapon.values
+          .filter((value) => value.name !== 'Keywords')
+          .map((value) => (
+            <div key={value.name} className="min-w-0 text-center">
+              <p className="eyebrow text-[0.6875rem]">{value.name}</p>
+              <p className="readout text-base text-bone">
+                <ProfileValue value={value} />
+              </p>
+            </div>
+          ))}
+      </div>
+      {keywordText && keywordText !== '-' && keywordText !== '—' ? (
+        <p className="mt-1 text-xs text-bone">
+          <KeywordList value={keywordText} rules={rules} added={addedKeywords(keywords!)} note={addedBy(keywords!)} />
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities']; rules: Datasheet['keywordRules'] }) {
+  return Object.entries(abilitySections).map(([kind, title]) => {
+    const found = abilities.filter((ability) => ability.kind === kind)
+    if (!found.length) return null
+    if (kind === 'core' || kind === 'faction') {
+      const described = [
+        ...found.flatMap((ability) => (ability.description ? [{ name: ability.name, description: ability.description }] : [])),
+        ...rules,
+      ]
+      return (
+        <section key={kind}>
+          <h2 className="rubric">
+            {title} <span className="readout text-faint">{found.length}</span>
+          </h2>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {found.map((ability) => (
+              <Keyword
+                key={ability.id}
+                name={ability.name}
+                rules={described}
+                className={
+                  ability.source
+                    ? 'chip inline-flex min-h-6 items-center justify-center border-info/50 bg-info/10 py-0.5 leading-none !text-info hover:!text-bone'
+                    : KEYWORD_TAG_CLASS
+                }
+                note={ability.source ? `Added by ${ability.source}` : undefined}
+                highlightNote={false}
+              />
+            ))}
+          </div>
+        </section>
+      )
+    }
+    return (
+      <section key={kind}>
+        <h2 className="rubric">
+          {title} <span className="readout text-faint">{found.length}</span>
+        </h2>
+        <div className="mt-2 space-y-1.5">
+          {found.map((ability) => (
+            <article key={ability.id} className="border border-edge bg-card px-2 py-1.5">
+              <h3 className="text-xs">{ability.source ?? ability.name}</h3>
+              {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
+              {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
+            </article>
+          ))}
+        </div>
+      </section>
+    )
+  })
+}
+
+type DisplayValue = Profile['values'][number]
+
+/** What put a keyword on a weapon, in the words the tooltip footer says it in. */
+const addedBy = (keywords: DisplayValue) => (keywords.modifiers?.length ? `Added by ${keywords.modifiers.join(', ')}` : undefined)
+
+function ProfileValue({ value }: { value: DisplayValue }) {
+  if (value.baseValue === undefined || !value.modifiers?.length) return value.value
+  const sources = value.modifiers.join(', ')
+  const name = value.name === 'InSv' ? 'Invulnerable save' : value.name
+  const baseValue = value.baseValue || '—'
+  return (
+    <HoverTooltip
+      className="font-semibold text-info"
+      label={`${name} ${value.value}, modified from ${baseValue} by ${sources}`}
+      title={`Modified ${name}`}
+      body={
+        <>
+          {baseValue} → <span className="text-info">{value.value}</span>
+        </>
+      }
+      note={`Modified by ${sources}`}
+    >
+      {value.value}
+    </HoverTooltip>
+  )
+}

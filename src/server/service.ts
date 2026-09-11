@@ -6,50 +6,29 @@ import {
   type Command,
   commandArmy,
   FIXED_SECONDARIES,
-  FORMAT_RULE_IDS,
-  type FormatRuleId,
-  OPTIONAL_RULE_IDS,
-  type OptionalRuleId,
   GAME_SIZES,
   type PlayerId,
-  type Roster,
   reduceBattle,
   type Secondary,
   scoringTarget,
   sideCaptain,
   sideDisposition,
   sidePaintedPoints,
-  type Stratagem,
   type SubmitResult,
 } from '../core/battle'
 import { type BattleAudience, battleAudience, maySpectate } from '../core/battleAudience'
-import { attachedUnitCount } from '../core/attachedUnits'
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import type { MissionAward } from '../core/scoring'
-import type { RosterPick } from '../core/roster'
-import type { RosterSource, RosterVisibility } from '../core/savedRoster'
 import { filterBattles, type RecordFilter, recordFacets, serviceRecord } from '../core/serviceRecord'
 import { factionsPlayed, type Standing, type StandingFaction, standings } from '../core/standings'
-import {
-  alliedLeagueRosterLimit,
-  leagueTableShape,
-  LEAGUE_DEFAULT_ROSTER_LIMIT,
-  LEAGUE_MEMBER_MAX,
-  LEAGUE_TEAM_ROSTER_LIMITS,
-  type LeagueAdmission,
-  type LeagueEntryStatus,
-  type LeagueVisibility,
-  readsAlliedLeagueRoster,
-  visibleLeagueEntries,
-} from '../core/league'
-import type { TableShape } from '../core/tableShape'
-import { commandSchema, parseRosterSnapshot } from '../core/commands'
+import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
 import type { BattleHistory, BattleSeats, BattlesCursor, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
-import { picksSchema, savedPrepSchema } from './schemas'
+import { LeagueService } from './services/leagueService'
+import { RosterService } from './services/rosterService'
+import { SocialService, sortedFriends } from './services/socialService'
 
-type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
 type BattleFaction = { id: string; slug: string; displayName: string; icon: string | null }
 
 /**
@@ -111,7 +90,6 @@ const STANDINGS_ROWS = 50
 
 /** How many of a player's battles a profile folds, how many it lists, and its lists. */
 const PROFILE_BATTLE_LIMIT = 200
-const PROFILE_ROSTER_LIMIT = 50
 const PROFILE_BATTLE_PAGE = 25
 
 /**
@@ -132,29 +110,169 @@ function newBattleSeats(input?: string | NewBattlePlayers) {
   return { allyIds, opponentIds, invited: [...allyIds, ...opponentIds] }
 }
 
-/** A library row as the client reads it: picks counted rather than sent. */
-function rosterSummaries<T extends { detachmentId: string | null; waivedRules: string; optionalRules: string; picks: string }>(
-  rows: readonly T[],
-) {
-  return rows.map(({ detachmentId, waivedRules, optionalRules, picks, ...row }) => {
-    const units = picksSchema.parse(JSON.parse(picks))
-    return {
-      ...row,
-      detachmentIds: detachmentIds(detachmentId),
-      waivedRules: waivedRulesFrom(waivedRules),
-      optionalRules: optionalRulesFrom(optionalRules),
-      unitCount: attachedUnitCount(units.map((unit, key) => ({ key, attachedTo: unit.attachedTo }))),
-    }
-  })
-}
-
 export class PraetoriumService {
+  private readonly leagueService: LeagueService
+  private readonly rosterService: RosterService
+  private readonly socialService: SocialService
+
   constructor(
     private readonly repository: Repository,
     private readonly clock: () => number,
     private readonly events: BattleEvents,
     private readonly randomIndex: (limit: number) => number,
-  ) {}
+  ) {
+    this.leagueService = new LeagueService(repository, clock, events)
+    this.rosterService = new RosterService(repository, clock)
+    this.socialService = new SocialService(repository, clock)
+  }
+
+  createLeague(...args: Parameters<LeagueService['createLeague']>) {
+    return this.leagueService.createLeague(...args)
+  }
+
+  updateLeagueEvent(...args: Parameters<LeagueService['updateLeagueEvent']>) {
+    return this.leagueService.updateLeagueEvent(...args)
+  }
+
+  createLeagueEvent(...args: Parameters<LeagueService['createLeagueEvent']>) {
+    return this.leagueService.createLeagueEvent(...args)
+  }
+
+  makeLeagueRecurring(...args: Parameters<LeagueService['makeLeagueRecurring']>) {
+    return this.leagueService.makeLeagueRecurring(...args)
+  }
+
+  updateLeague(...args: Parameters<LeagueService['updateLeague']>) {
+    return this.leagueService.updateLeague(...args)
+  }
+
+  deleteLeague(...args: Parameters<LeagueService['deleteLeague']>) {
+    return this.leagueService.deleteLeague(...args)
+  }
+
+  leagues(...args: Parameters<LeagueService['leagues']>) {
+    return this.leagueService.leagues(...args)
+  }
+
+  league(...args: Parameters<LeagueService['league']>) {
+    return this.leagueService.league(...args)
+  }
+
+  joinLeague(...args: Parameters<LeagueService['joinLeague']>) {
+    return this.leagueService.joinLeague(...args)
+  }
+
+  moderateLeagueEntry(...args: Parameters<LeagueService['moderateLeagueEntry']>) {
+    return this.leagueService.moderateLeagueEntry(...args)
+  }
+
+  assignLeagueRosterRequirement(...args: Parameters<LeagueService['assignLeagueRosterRequirement']>) {
+    return this.leagueService.assignLeagueRosterRequirement(...args)
+  }
+
+  assignLeagueTeam(...args: Parameters<LeagueService['assignLeagueTeam']>) {
+    return this.leagueService.assignLeagueTeam(...args)
+  }
+
+  ownRoster(...args: Parameters<LeagueService['ownRoster']>) {
+    return this.leagueService.ownRoster(...args)
+  }
+
+  submitLeagueRoster(...args: Parameters<LeagueService['submitLeagueRoster']>) {
+    return this.leagueService.submitLeagueRoster(...args)
+  }
+
+  revealLeague(...args: Parameters<LeagueService['revealLeague']>) {
+    return this.leagueService.revealLeague(...args)
+  }
+
+  unsealLeagueRoster(...args: Parameters<LeagueService['unsealLeagueRoster']>) {
+    return this.leagueService.unsealLeagueRoster(...args)
+  }
+
+  leagueRoster(...args: Parameters<LeagueService['leagueRoster']>) {
+    return this.leagueService.leagueRoster(...args)
+  }
+
+  createLeagueBattle(...args: Parameters<LeagueService['createLeagueBattle']>) {
+    return this.leagueService.createLeagueBattle(...args)
+  }
+
+  saveRoster(...args: Parameters<RosterService['saveRoster']>) {
+    return this.rosterService.saveRoster(...args)
+  }
+
+  savedRosters(...args: Parameters<RosterService['savedRosters']>) {
+    return this.rosterService.savedRosters(...args)
+  }
+
+  savedRosterSummaries(...args: Parameters<RosterService['savedRosterSummaries']>) {
+    return this.rosterService.savedRosterSummaries(...args)
+  }
+
+  publicRosters(...args: Parameters<RosterService['publicRosters']>) {
+    return this.rosterService.publicRosters(...args)
+  }
+
+  rosterAccess(...args: Parameters<RosterService['rosterAccess']>) {
+    return this.rosterService.rosterAccess(...args)
+  }
+
+  sharedRoster(...args: Parameters<RosterService['sharedRoster']>) {
+    return this.rosterService.sharedRoster(...args)
+  }
+
+  setRosterVisibility(...args: Parameters<RosterService['setRosterVisibility']>) {
+    return this.rosterService.setRosterVisibility(...args)
+  }
+
+  deleteRoster(...args: Parameters<RosterService['deleteRoster']>) {
+    return this.rosterService.deleteRoster(...args)
+  }
+
+  collection(...args: Parameters<RosterService['collection']>) {
+    return this.rosterService.collection(...args)
+  }
+
+  setOwned(...args: Parameters<RosterService['setOwned']>) {
+    return this.rosterService.setOwned(...args)
+  }
+
+  favouriteFactions(...args: Parameters<RosterService['favouriteFactions']>) {
+    return this.rosterService.favouriteFactions(...args)
+  }
+
+  setFavouriteFaction(...args: Parameters<RosterService['setFavouriteFaction']>) {
+    return this.rosterService.setFavouriteFaction(...args)
+  }
+
+  favouriteDetachments(...args: Parameters<RosterService['favouriteDetachments']>) {
+    return this.rosterService.favouriteDetachments(...args)
+  }
+
+  setFavouriteDetachment(...args: Parameters<RosterService['setFavouriteDetachment']>) {
+    return this.rosterService.setFavouriteDetachment(...args)
+  }
+
+  opponents(...args: Parameters<SocialService['opponents']>) {
+    return this.socialService.opponents(...args)
+  }
+
+  friendships(...args: Parameters<SocialService['friendships']>) {
+    return this.socialService.friendships(...args)
+  }
+
+  requestFriend(...args: Parameters<SocialService['requestFriend']>) {
+    return this.socialService.requestFriend(...args)
+  }
+
+  acceptFriend(...args: Parameters<SocialService['acceptFriend']>) {
+    return this.socialService.acceptFriend(...args)
+  }
+
+  removeFriend(...args: Parameters<SocialService['removeFriend']>) {
+    return this.socialService.removeFriend(...args)
+  }
 
   /** The last standings folded, and when they stop being offered. See `standings`. */
   private standingsHeld: { until: number; fold: StandingsFold } | null = null
@@ -173,382 +291,6 @@ export class PraetoriumService {
    * Registration is what creation is for, so the shape of the games is asked once the
    * league exists and only until an entrant seals a list against it.
    */
-  async createLeague(
-    ownerId: string,
-    input: {
-      name: string
-      description: string
-      visibility: LeagueVisibility
-      admission: LeagueAdmission
-      playerLimit: number | null
-    },
-  ) {
-    const token = randomToken()
-    const eventToken = randomToken()
-    await this.repository.createLeague({
-      id: randomId(),
-      token,
-      eventId: randomId(),
-      eventToken,
-      ownerId,
-      ...input,
-      recurring: true,
-      format: '1v1',
-      rosterLimit: LEAGUE_DEFAULT_ROSTER_LIMIT,
-      now: this.clock(),
-    })
-    return { token, eventToken }
-  }
-
-  async updateLeagueEvent(token: string, ownerId: string, rule: { format?: TableShape; rosterLimit?: number }, eventToken?: string) {
-    const format = leagueTableShape(rule.format)
-    const rosterLimit = rule.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
-    if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
-      throw new Response(`choose a supported ${format} roster size`, { status: 400 })
-    }
-    const result = await this.repository.updateLeagueEvent(token, ownerId, { format, rosterLimit }, eventToken)
-    if (result === 'updated') return { format, rosterLimit }
-    if (result === 'missing') throw new Response('no such league event', { status: 404 })
-    if (result === 'forbidden') throw new Response('only the organizer can change the event rules', { status: 403 })
-    if (result === 'closed') throw new Response('the event rules cannot change after reveal', { status: 409 })
-    if (result === 'sealed') throw new Response('the event rules cannot change once a roster is sealed', { status: 409 })
-    throw new Response(
-      format === '2v2' ? 'a 2v2 event needs an even number of at least four places' : 'a 2v1 event needs at least three places',
-      { status: 409 },
-    )
-  }
-
-  async createLeagueEvent(token: string, ownerId: string, rule: { format?: TableShape; rosterLimit?: number } = {}) {
-    const eventToken = randomToken()
-    const format = leagueTableShape(rule.format)
-    const rosterLimit = rule.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
-    if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
-      throw new Response(`choose a supported ${format} roster size`, { status: 400 })
-    }
-    const result = await this.repository.createLeagueEvent({
-      id: randomId(),
-      token: eventToken,
-      leagueToken: token,
-      ownerId,
-      format,
-      rosterLimit,
-      now: this.clock(),
-    })
-    if (result === 'created') return { eventToken }
-    if (result === 'missing') throw new Response('no such league', { status: 404 })
-    if (result === 'forbidden') throw new Response('only the organizer can start an event', { status: 403 })
-    if (result === 'too-small')
-      throw new Response(
-        format === '2v2' ? 'a 2v2 event needs an even number of at least four places' : 'a 2v1 event needs at least three places',
-        {
-          status: 409,
-        },
-      )
-    throw new Response('reveal the current event before starting another', { status: 409 })
-  }
-
-  async makeLeagueRecurring(token: string, ownerId: string) {
-    const result = await this.repository.makeLeagueRecurring(token, ownerId)
-    if (result === 'updated') return
-    if (result === 'missing') throw new Response('no such league', { status: 404 })
-    throw new Response('only the organizer can make a league recurring', { status: 403 })
-  }
-
-  async updateLeague(
-    token: string,
-    ownerId: string,
-    input: {
-      name: string
-      description: string
-      visibility: LeagueVisibility
-      admission: LeagueAdmission
-      playerLimit: number | null
-    },
-  ) {
-    const result = await this.repository.updateLeague(token, ownerId, input)
-    if (result === 'updated') return
-    if (result === 'missing') throw new Response('no such league', { status: 404 })
-    if (result === 'forbidden') throw new Response('only the organizer can edit this league', { status: 403 })
-    if (result === 'team-minimum') throw new Response('the open team event needs a supported number of places', { status: 409 })
-    throw new Response('the player limit cannot be lower than the accepted entrant count', { status: 409 })
-  }
-
-  async deleteLeague(token: string, ownerId: string) {
-    const result = await this.repository.deleteLeague(token, ownerId)
-    if (result === 'deleted') return
-    if (result === 'missing') throw new Response('no such league', { status: 404 })
-    throw new Response('only the organizer can delete this league', { status: 403 })
-  }
-
-  leagues(userId: string | null) {
-    return this.repository.leaguesVisibleTo(userId)
-  }
-
-  async league(token: string, viewerId: string | null, eventToken?: string) {
-    const league = await this.repository.leagueByToken(token, viewerId, eventToken)
-    if (!league) return null
-    return { ...league, entries: visibleLeagueEntries(league.entries, league.ownerId, viewerId) }
-  }
-
-  async joinLeague(token: string, userId: string, eventToken?: string) {
-    const result = await this.repository.joinLeague(token, userId, this.clock(), LEAGUE_MEMBER_MAX, eventToken)
-    if (result === 'missing') throw new Response('no such league', { status: 404 })
-    if (result === 'closed') throw new Response('this event has already revealed its rosters', { status: 409 })
-    if (result === 'full') throw new Response('this event is full', { status: 409 })
-    return result
-  }
-
-  async moderateLeagueEntry(
-    token: string,
-    ownerId: string,
-    userId: string,
-    status: Extract<LeagueEntryStatus, 'accepted' | 'rejected'>,
-    eventToken?: string,
-  ) {
-    const result = await this.repository.moderateLeagueEntry(token, ownerId, userId, status, LEAGUE_MEMBER_MAX, eventToken)
-    if (result === 'updated') return
-    if (result === 'forbidden') throw new Response('only the organizer can change entrants', { status: 403 })
-    if (result === 'closed') throw new Response('this event has already revealed its rosters', { status: 409 })
-    if (result === 'full') throw new Response('this event is full', { status: 409 })
-    throw new Response('no such event entrant', { status: 404 })
-  }
-
-  async assignLeagueRosterRequirement(token: string, ownerId: string, userId: string, requiredLimit: number, eventToken?: string) {
-    const result = await this.repository.assignLeagueRosterRequirement(token, ownerId, userId, requiredLimit, eventToken)
-    if (result === 'updated') return { requiredLimit }
-    if (result === 'forbidden') throw new Response('only the organizer can assign roster sizes', { status: 403 })
-    if (result === 'closed') throw new Response('roster sizes cannot change after reveal', { status: 409 })
-    if (result === 'wrong-format') throw new Response('1v1 roster sizes are assigned automatically', { status: 409 })
-    if (result === 'wrong-limit') throw new Response('choose a roster size configured for this event', { status: 400 })
-    throw new Response('no such accepted event entrant', { status: 404 })
-  }
-
-  async assignLeagueTeam(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
-    const result = await this.repository.assignLeagueTeam(token, ownerId, userIds, randomId(), eventToken)
-    if (result === 'updated') return { teamSize: userIds.length }
-    if (result === 'forbidden') throw new Response('only the organizer can assign teams', { status: 403 })
-    if (result === 'closed') throw new Response('teams cannot change after reveal', { status: 409 })
-    if (result === 'wrong-format') throw new Response('teams are assigned only for 2v2 events', { status: 409 })
-    throw new Response('choose accepted event entrants', { status: 404 })
-  }
-
-  async ownRoster(userId: string, rosterId: string) {
-    const row = await this.repository.roster(rosterId)
-    if (!row || row.userId !== userId) return null
-    return rosterFromRow(row)
-  }
-
-  async submitLeagueRoster(
-    token: string,
-    userId: string,
-    roster: { id: string; limit: number; updatedAt: number },
-    snapshot: Roster,
-    eventToken?: string,
-  ) {
-    const command = commandSchema.parse({ kind: 'attach-roster', roster: snapshot })
-    if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
-    const { id: _savedRosterId, ...sealed } = command.roster
-    const result = await this.repository.submitLeagueRoster({
-      token,
-      userId,
-      rosterId: roster.id,
-      rosterName: sealed.name,
-      rosterLimit: roster.limit,
-      rosterUpdatedAt: roster.updatedAt,
-      snapshot: JSON.stringify(sealed),
-      now: this.clock(),
-      eventToken,
-    })
-    if (result.outcome === 'sealed') return result
-    if (result.outcome === 'unassigned') throw new Response('wait for the organizer to assign your event role or team', { status: 409 })
-    if (result.outcome === 'wrong-limit') throw new Response('choose a roster built for your assigned size', { status: 409 })
-    if (result.outcome === 'invalid-warlords')
-      throw new Response(
-        result.format === '2v2'
-          ? 'a doubles team must seal exactly one Character or Epic Hero Warlord between both rosters'
-          : 'a league roster must seal exactly one Character or Epic Hero Warlord',
-        { status: 409 },
-      )
-    throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
-  }
-
-  async revealLeague(token: string, ownerId: string, eventToken?: string) {
-    const result = await this.repository.revealLeague(token, ownerId, this.clock(), eventToken)
-    if (result.outcome === 'revealed') return
-    if (result.outcome === 'invalid-warlords')
-      throw new Response(
-        result.format === '2v2'
-          ? 'each doubles team must select exactly one eligible Warlord before reveal'
-          : 'each league roster must select exactly one eligible Warlord before reveal',
-        { status: 409 },
-      )
-    throw new Response('fill every configured place and wait for every accepted roster before reveal', { status: 409 })
-  }
-
-  /** Send one revealed list back to its owner so a mistake can be corrected in place. */
-  async unsealLeagueRoster(token: string, ownerId: string, userId: string, eventToken?: string) {
-    const result = await this.repository.unsealLeagueRoster(token, ownerId, userId, eventToken)
-    if (result === 'unsealed') return
-    if (result === 'forbidden') throw new Response('only the organizer can unseal a roster', { status: 403 })
-    if (result === 'not-revealed') throw new Response('an entrant can swap their own roster until reveal', { status: 409 })
-    throw new Response('no such revealed event roster', { status: 404 })
-  }
-
-  /**
-   * One entrant's sealed list, from the newest event this reader may read it in.
-   *
-   * Reveal opens a snapshot to everyone who can open the league; before it, an ally reads
-   * the list they will field a force beside, and nobody else does.
-   */
-  async leagueRoster(token: string, userId: string, eventToken?: string, readerId?: string | null) {
-    const candidates = await this.repository.leagueRosters(token, userId, eventToken, readerId)
-    const readable = candidates.find(
-      (candidate) =>
-        candidate.revealedAt !== null ||
-        readsAlliedLeagueRoster(candidate.format, candidate.rosterLimit, candidate.reader, candidate.sealed),
-    )
-    if (!readable) return null
-    return parseRosterSnapshot(readable.snapshot)
-  }
-
-  async createLeagueBattle(
-    userId: string,
-    leagueToken: string,
-    opponentId: string,
-    missionPackId: string | null,
-    eventToken?: string,
-    allyId?: string,
-    secondOpponentId?: string,
-  ) {
-    const invited = [opponentId, allyId, secondOpponentId].filter((id): id is string => Boolean(id))
-    if (new Set([userId, ...invited]).size !== invited.length + 1) throw new Response('choose different league entrants', { status: 400 })
-    const token = randomToken()
-    const id = randomId()
-    const result = await this.repository.createLeagueBattle(
-      { id, token, leagueToken, eventToken, userId, userIds: [userId, ...invited], now: this.clock() },
-      (league) => {
-        if (league.revealedAt === null) throw new Response('reveal the league rosters before starting a battle', { status: 409 })
-        const expectedPlayers = league.format === '2v2' ? 4 : league.format === '2v1' ? 3 : 2
-        if (league.format === '2v2' && !LEAGUE_TEAM_ROSTER_LIMITS.some((candidate) => candidate === league.rosterLimit)) {
-          throw new Response('sealed rosters use an unsupported doubles force size', { status: 409 })
-        }
-        if (league.format !== '2v2' && (league.entries.length !== expectedPlayers || invited.length !== expectedPlayers - 1)) {
-          throw new Response('choose accepted entrants with sealed rosters', { status: 403 })
-        }
-        const rosters = new Map(
-          league.entries.map((entry) => {
-            if (!entry.snapshot) throw new Error('accepted league entrant has no roster snapshot')
-            return [entry.userId, parseRosterSnapshot(entry.snapshot)] as const
-          }),
-        )
-        let participantIds = [userId, ...invited]
-        let allyIds: string[] = []
-        let opponentIds = [opponentId]
-        if (league.format === '2v2') {
-          if (invited.length !== 1 || allyId || secondOpponentId) throw new Response('choose one opposing doubles team', { status: 400 })
-          const ownTeamId = league.entries.find((entry) => entry.userId === userId)?.teamId
-          const opposingTeamId = league.entries.find((entry) => entry.userId === opponentId)?.teamId
-          if (!ownTeamId || !opposingTeamId || ownTeamId === opposingTeamId)
-            throw new Response('choose an opposing doubles team', { status: 409 })
-          const ownTeam = league.entries.filter((entry) => entry.teamId === ownTeamId)
-          const opposingTeam = league.entries.filter((entry) => entry.teamId === opposingTeamId)
-          if (ownTeam.length !== 2 || opposingTeam.length !== 2)
-            throw new Response('doubles teams must contain exactly two entrants', { status: 409 })
-          allyIds = ownTeam.filter((entry) => entry.userId !== userId).map((entry) => entry.userId)
-          opponentIds = [opponentId, ...opposingTeam.filter((entry) => entry.userId !== opponentId).map((entry) => entry.userId)]
-          participantIds = [userId, ...allyIds, ...opponentIds]
-        }
-        const ownRoster = rosters.get(userId)
-        const opponentRoster = rosters.get(opponentIds[0]!)
-        const limit = league.format === null ? ownRoster?.built?.limit : league.rosterLimit
-        if (!ownRoster || !opponentRoster || limit === null || limit === undefined)
-          throw new Response('sealed rosters use an invalid battle size', { status: 409 })
-        if (
-          league.format !== '2v1' &&
-          league.format !== '2v2' &&
-          (ownRoster.built?.limit !== limit || opponentRoster.built?.limit !== limit)
-        ) {
-          throw new Response('sealed rosters must use the same battle size', { status: 409 })
-        }
-        if (!GAME_SIZES.some((size) => size.limit === limit))
-          throw new Response('sealed rosters use an unsupported battle size', { status: 409 })
-
-        if (league.format === '2v1') {
-          const requirements = new Map(league.entries.map((entry) => [entry.userId, entry.requiredLimit]))
-          const alliedLimit = alliedLeagueRosterLimit(limit)
-          const creatorLimit = requirements.get(userId)
-          if (creatorLimit === limit) {
-            if (
-              allyId ||
-              !secondOpponentId ||
-              requirements.get(opponentId) !== alliedLimit ||
-              requirements.get(secondOpponentId) !== alliedLimit
-            ) {
-              throw new Response('a solo entrant must face two allied entrants', { status: 409 })
-            }
-            opponentIds = [opponentId, secondOpponentId]
-          } else {
-            if (
-              creatorLimit !== alliedLimit ||
-              !allyId ||
-              secondOpponentId ||
-              requirements.get(allyId) !== alliedLimit ||
-              requirements.get(opponentId) !== limit
-            ) {
-              throw new Response('an allied entrant must choose one allied teammate and one solo opponent', { status: 409 })
-            }
-            allyIds = [allyId]
-          }
-          for (const entry of league.entries) {
-            const rosterLimit = rosters.get(entry.userId)?.built?.limit
-            if (rosterLimit !== entry.requiredLimit) throw new Response('a sealed roster does not match its assigned size', { status: 409 })
-          }
-        }
-        if (league.format === '2v2') {
-          const requiredLimit = alliedLeagueRosterLimit(limit)
-          if (participantIds.some((playerId) => rosters.get(playerId)?.built?.limit !== requiredLimit))
-            throw new Response('every doubles roster must use half the force size', { status: 409 })
-        }
-
-        const initialCommands: Command[] = [
-          {
-            kind: 'configure-battle',
-            limit,
-            missionPackId,
-            terrainLayoutId: null,
-            twistId: null,
-            teamBattle: league.format === '2v1' || league.format === '2v2',
-            playerCount: expectedPlayers,
-            clockLimitMinutes: null,
-          },
-          { kind: 'attach-roster', playerId: userId, roster: ownRoster, prep: null, painted: true },
-          { kind: 'attach-roster', playerId: opponentIds[0]!, roster: opponentRoster, prep: null, painted: true },
-          ...participantIds
-            .filter((playerId) => playerId !== userId && playerId !== opponentIds[0])
-            .map((playerId) => ({ kind: 'attach-roster' as const, playerId, roster: rosters.get(playerId)!, prep: null, painted: true })),
-          { kind: 'lock-league-rosters', leagueToken, eventToken: league.eventToken },
-        ]
-        return {
-          allyIds,
-          opponentIds,
-          initialCommands,
-          result: {
-            token,
-            format: league.format,
-            requiredLimit:
-              league.format === '2v2'
-                ? alliedLeagueRosterLimit(limit)
-                : (league.entries.find((entry) => entry.userId === userId)?.requiredLimit ?? limit),
-            participantIds,
-          },
-        }
-      },
-    )
-    if (!result) throw new Response('no such league', { status: 404 })
-    this.events.publish(id, result.participantIds)
-    return result
-  }
-
   unlinkAccount(userId: string, providerId: string, availableProviders: readonly string[]) {
     return this.repository.unlinkAccount(userId, providerId, availableProviders)
   }
@@ -859,202 +601,6 @@ export class PraetoriumService {
     return (await this.repository.profileByUserId(userId)) ?? null
   }
 
-  async saveRoster(
-    userId: string,
-    roster: {
-      id?: string
-      name: string
-      catalogueId: string
-      detachmentIds: readonly string[]
-      disposition: string | null
-      limit: number
-      picks: readonly RosterPick[]
-      prep: SavedPrep | null
-      waivedRules?: readonly FormatRuleId[]
-      optionalRules?: readonly OptionalRuleId[]
-      borrowedDetachmentId?: string | null
-      visibility: RosterVisibility
-      source: RosterSource
-    },
-  ) {
-    const id = roster.id ?? randomId()
-    const saved = await this.repository.saveRoster({
-      ...roster,
-      detachmentId: JSON.stringify(roster.detachmentIds),
-      id,
-      userId,
-      picks: JSON.stringify(roster.picks),
-      prep: roster.prep ? JSON.stringify(roster.prep) : null,
-      tags: '[]',
-      waivedRules: JSON.stringify(roster.waivedRules ?? []),
-      optionalRules: JSON.stringify(roster.optionalRules ?? []),
-      borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
-      now: this.clock(),
-    })
-    if (!saved) throw new Response('you do not own this roster', { status: 403 })
-    return { id }
-  }
-
-  /** A user's own saved lists, newest first. Their picks come back parsed. */
-  async savedRosters(userId: string) {
-    const rows = await this.repository.rostersByUser(userId)
-    return rows.map((row) => rosterFromRow(row, true))
-  }
-
-  async savedRosterSummaries(userId: string) {
-    return rosterSummaries(await this.repository.rosterSummariesByUser(userId))
-  }
-
-  /**
-   * The lists this player has published, for anybody reading their profile.
-   *
-   * No viewer is asked for, because a public list is public: the only credential is
-   * the owner having chosen it. Private and unlisted lists are absent — an unlisted
-   * one is a link its owner handed out, and listing it here would hand it to
-   * everybody.
-   *
-   * One read answers both shapes: `summaries` is what the library row draws, and
-   * `priceable` is the same lists in the form the points cache takes. The picks stay
-   * on the server, which is why the caller gets them separately rather than the
-   * summaries carrying them.
-   */
-  async publicRosters(userId: string) {
-    const rows = await this.repository.publicRostersByUser(userId, PROFILE_ROSTER_LIMIT)
-    return { summaries: rosterSummaries(rows), priceable: rows.map((row) => rosterFromRow(row)) }
-  }
-
-  /**
-   * A shared roster, its owner's private roster, or a list fielded in a battle the
-   * reader is seated in.
-   *
-   * Unlisted and public read alike: holding the opaque id is the whole credential for
-   * both, and what a public one adds is being listed on its owner's profile rather
-   * than any further access.
-   *
-   * The last case widens nothing: a battle already shows every seat the opposing army
-   * and its units, so the reader can see this list either way. The battle has to be
-   * named, so the check stays one log rather than a scan of every battle they play.
-   */
-  async rosterAccess(id: string, userId: string | null = null, token: string | null = null) {
-    const row = await this.repository.roster(id)
-    if (!row) return null
-    if (row.userId === userId) return { roster: rosterFromRow(row, true), editable: true }
-    // Named rather than "anything but private", so a value added later is refused
-    // until somebody decides it should not be.
-    if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: rosterFromRow(row), editable: false }
-    if (!userId || !token) return null
-    return (await this.fieldedIn(token, userId, id)) ? { roster: rosterFromRow(row), editable: false } : null
-  }
-
-  async sharedRoster(id: string, userId: string | null = null, token: string | null = null) {
-    return (await this.rosterAccess(id, userId, token))?.roster ?? null
-  }
-
-  /** Whether a reader shares a battle with the list they are asking about. */
-  private async fieldedIn(token: string, userId: string, rosterId: string) {
-    const history = await this.repository.battleHistoryByToken(token)
-    if (!history?.players.some((player) => player.id === userId)) return false
-    return history.log.some((entry) => entry.command.kind === 'attach-roster' && entry.command.roster.id === rosterId)
-  }
-
-  async setRosterVisibility(userId: string, id: string, visibility: RosterVisibility) {
-    if (!(await this.repository.setRosterVisibility(id, userId, visibility, this.clock()))) {
-      throw new Response('you do not own this roster', { status: 403 })
-    }
-  }
-
-  async deleteRoster(userId: string, id: string) {
-    await this.repository.deleteRoster(id, userId)
-  }
-
-  /** The datasheets a user owns, as a set the picker can ask about directly. */
-  async collection(userId: string) {
-    const rows = await this.repository.collectionByUser(userId)
-    return rows.map((row) => row.entryId)
-  }
-
-  async setOwned(userId: string, entryId: string, owned: boolean) {
-    if (owned) await this.repository.addToCollection({ userId, entryId, now: this.clock() })
-    else await this.repository.removeFromCollection(userId, entryId)
-  }
-
-  async favouriteFactions(userId: string) {
-    const rows = await this.repository.favouriteFactionsByUser(userId)
-    return rows.map((row) => row.catalogueId)
-  }
-
-  async setFavouriteFaction(userId: string, catalogueId: string, favourite: boolean) {
-    if (favourite) await this.repository.addFavouriteFaction({ userId, catalogueId, now: this.clock() })
-    else await this.repository.removeFavouriteFaction(userId, catalogueId)
-  }
-
-  async favouriteDetachments(userId: string) {
-    const rows = await this.repository.favouriteDetachmentsByUser(userId)
-    return rows.map(({ catalogueId, detachmentId }) => ({ catalogueId, detachmentId }))
-  }
-
-  async setFavouriteDetachment(userId: string, catalogueId: string, detachmentId: string, favourite: boolean) {
-    if (favourite) await this.repository.addFavouriteDetachment({ userId, catalogueId, detachmentId, now: this.clock() })
-    else await this.repository.removeFavouriteDetachment(userId, catalogueId, detachmentId)
-  }
-
-  /**
-   * The players this one may open a battle with: their friends, and the practice
-   * opponents the instance seats.
-   *
-   * One list rather than two, because `createBattle` asks exactly this question of
-   * exactly this answer. Splitting them would put a second rule about who may be
-   * in a battle next to the first, and the two would eventually disagree.
-   *
-   * Asked for on its own rather than taken out of the friends page, because the
-   * page also offers strangers to invite — and reaching for that here put a scan
-   * of every account on the instance behind every battle opened and every link
-   * followed, to answer a question about a handful of rows.
-   */
-  async opponents(userId: string): Promise<{ id: string; name: string; image: string | null; automated: boolean }[]> {
-    const [relationships, practice] = await Promise.all([this.repository.relationships(userId), this.repository.practiceOpponents()])
-    return [
-      ...sortedFriends(relationships, userId).friends.map((friend) => ({ ...friend, automated: false })),
-      ...practice.map((opponent) => ({ ...opponent, automated: true })),
-    ]
-  }
-
-  /**
-   * Everyone this player is connected to, waiting on, or could ask.
-   *
-   * Two queries whatever the count: the relationships with the other party
-   * already named, and the strangers, whom the database excludes rather than
-   * this code filtering a fetched page down to whatever survives.
-   */
-  async friendships(userId: string) {
-    const [relationships, people] = await Promise.all([this.repository.relationships(userId), this.repository.unrelatedUsers(userId)])
-    return { ...sortedFriends(relationships, userId), people }
-  }
-
-  async requestFriend(userId: string, friendId: string) {
-    if (friendId === userId || !(await this.repository.userById(friendId))) throw new Response('choose another player', { status: 400 })
-    if (!(await this.repository.requestFriend(userId, friendId, this.clock())))
-      throw new Response('a connection already exists', { status: 409 })
-  }
-
-  async acceptFriend(userId: string, requesterId: string) {
-    if (!(await this.repository.acceptFriend(requesterId, userId, this.clock())))
-      throw new Response('no such friend request', { status: 404 })
-  }
-
-  async removeFriend(userId: string, friendId: string) {
-    if (!(await this.repository.removeFriend(userId, friendId))) throw new Response('no such friendship', { status: 404 })
-  }
-
-  /**
-   * Opens a battle with its whole table already seated.
-   *
-   * The creator says which side each player is on: `allyId` sits beside them and
-   * `opponentIds` face them. Everyone named is checked once, together — who may be
-   * in a battle is one question, and asking it of the ally and the opponents
-   * separately would be two rules about it. Every named player takes their seat in
-   * the same transaction, so a battle is never a room with a chair free in it.
-   */
   async createBattle(userId: string, input?: string | CreateBattleInput) {
     const settings = typeof input === 'object' && input.limit !== undefined ? { ...input, limit: input.limit } : null
     const { allyIds, opponentIds, invited } = newBattleSeats(input)
@@ -1375,42 +921,6 @@ function resolvedMissionForSide(state: BattleState, rules: NonNullable<Parameter
   return missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId)
 }
 
-/**
- * One player's relationships sorted into what the interface asks about: settled
- * friends, requests waiting on them, and requests they are waiting on.
- *
- * The only place that split is made, so `opponents` and the friends page cannot
- * disagree about who counts as a friend.
- */
-function sortedFriends(relationships: Awaited<ReturnType<Repository['relationships']>>, userId: string) {
-  const named = (row: (typeof relationships)[number]) => ({ id: row.otherId, name: row.otherName, image: row.otherImage })
-  return {
-    friends: relationships.filter((row) => row.acceptedAt !== null).map(named),
-    incoming: relationships.filter((row) => row.acceptedAt === null && row.addresseeId === userId).map(named),
-    outgoing: relationships.filter((row) => row.acceptedAt === null && row.requesterId === userId).map(named),
-  }
-}
-
-function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>>>, includePrep = false) {
-  return {
-    id: row.id,
-    name: row.name,
-    catalogueId: row.catalogueId,
-    detachmentIds: detachmentIds(row.detachmentId),
-    disposition: row.disposition,
-    limit: row.limit,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    picks: picksSchema.parse(JSON.parse(row.picks)),
-    prep: includePrep && row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
-    waivedRules: waivedRulesFrom(row.waivedRules),
-    optionalRules: optionalRulesFrom(row.optionalRules),
-    borrowedDetachmentId: row.borrowedDetachmentId,
-    visibility: row.visibility,
-    source: row.source,
-  }
-}
-
 function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonNullable<Parameters<typeof missionFor>[0]>): string | null {
   // A matchup is between the two sides, so it is read off each side's captain. Taking
   // the first two seats instead held while side 0 was always one player, and put a 2v1
@@ -1566,21 +1076,3 @@ function scoringCapError(
  * restriction the roster believes is off while every check still enforces it, so an
  * unrecognised name is dropped and the rule goes on being played.
  */
-function optionalRulesFrom(value: string | null): OptionalRuleId[] {
-  if (!value) return []
-  const parsed: unknown = JSON.parse(value)
-  return Array.isArray(parsed) ? parsed.filter((id): id is OptionalRuleId => OPTIONAL_RULE_IDS.some((known) => known === id)) : []
-}
-
-function waivedRulesFrom(value: string | null): FormatRuleId[] {
-  if (!value) return []
-  const parsed: unknown = JSON.parse(value)
-  return Array.isArray(parsed) ? parsed.filter((id): id is FormatRuleId => FORMAT_RULE_IDS.some((known) => known === id)) : []
-}
-
-function detachmentIds(value: string | null): string[] {
-  if (!value) return []
-  if (!value.startsWith('[')) return [value]
-  const parsed: unknown = JSON.parse(value)
-  return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : []
-}

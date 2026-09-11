@@ -1,7 +1,7 @@
 import { Info } from 'lucide-react'
 import type { ReactElement, ReactNode } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { CARD_NAME } from './battle/tints'
+import { CARD_NAME } from '../features/battle/tints'
 import { RuleText } from './RuleText'
 
 /** An optional twist a mission pack prints, which changes one rule for the whole battle. */

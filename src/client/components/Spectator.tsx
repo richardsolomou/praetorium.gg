@@ -14,10 +14,10 @@ import { sides, type Side, type SideMission } from '../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { PlayerName } from './PlayerName'
 import { Report, type ReportPlayer } from './Report'
-import { ArmyRoster } from './battle/ArmyRoster'
-import { PrimaryMission, type ReferenceCard, SecondaryMissions } from './battle/MissionCards'
-import { Scoreboard } from './battle/Scoreboard'
-import { HEADING, tint } from './battle/tints'
+import { ArmyRoster } from '../features/battle/ArmyRoster'
+import { PrimaryMission, type ReferenceCard, SecondaryMissions } from '../features/battle/MissionCards'
+import { Scoreboard } from '../features/battle/Scoreboard'
+import { HEADING, tint } from '../features/battle/tints'
 
 type Props = {
   view: BattleView

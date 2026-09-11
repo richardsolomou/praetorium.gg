@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { Roster } from '../../core/battle'
 import { factionQuery } from '../queries'
 import { rosterWaivers } from './FormatWaivers'
-import type { FrozenRoster } from './ListBuilder'
+import type { FrozenRoster } from '../features/rosters/ListBuilder'
 import { RosterEditor } from './RosterEditor'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
 

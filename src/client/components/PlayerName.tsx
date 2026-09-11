@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import type { Army, Side } from '../sides'
 import { PlayerAvatar } from './PlayerAvatar'
-import { tint } from './battle/tints'
+import { tint } from '../features/battle/tints'
 
 /**
  * A player, pictured and named, and the way out to their profile.

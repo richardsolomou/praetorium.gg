@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { wargearBaseName } from '../../core/wargear'
-import type { Datasheet } from '../../server/catalogue'
+import type { Datasheet } from '../../contracts/catalogue'
 import {
   abilitySections,
   attachmentGroups,

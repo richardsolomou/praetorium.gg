@@ -22,7 +22,7 @@ Compact roster panes use browser history. A back gesture or Android system Back 
 
 Headings are compact and uppercase, section counts and points use small chips, and player ownership uses consistent red and blue tints. Attacker deployment zones use theme red, defender zones use theme green, and neutral zones use primary green.
 
-The desktop roster builder has picker, roster, and loadout columns. On phones, the roster remains visible while the picker or loadout occupies a sheet. Each picker or loadout pane has one component instance; `src/client/components/builder/Pane.tsx` moves it between desktop and mobile layouts. The server-rendered workspace reserves the desktop picker column so hydration does not shift the roster or loadout.
+The desktop roster builder has picker, roster, and loadout columns. On phones, the roster remains visible while the picker or loadout occupies a sheet. Each picker or loadout pane has one component instance; `src/client/features/builder/Pane.tsx` moves it between desktop and mobile layouts. The server-rendered workspace reserves the desktop picker column so hydration does not shift the roster or loadout.
 
 Squad size is edited on the roster card rather than duplicated in the loadout pane. Unit lists use collapsible primary-category shelves in the same order across rosters, the picker, and faction datasheet pages. Empty shelves are absent, while allied shelves carry their short faction name and begin collapsed.
 

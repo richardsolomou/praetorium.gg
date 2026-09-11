@@ -9,8 +9,8 @@ import { primaryCards, secondaryCards } from '../missionDeck'
 import { armyRulesRequest, sideStratagems } from '../sideRules'
 import { canWritePrep } from '../sides'
 import type { SendCommand } from '../useCommand'
-import { MissionName, type ReferenceCard } from './battle/MissionCards'
-import { CHOOSABLE, CHOSEN } from './setup/chrome'
+import { MissionName, type ReferenceCard } from '../features/battle/MissionCards'
+import { CHOOSABLE, CHOSEN } from '../features/setup/chrome'
 import type { Side } from '../sides'
 
 type Props = { view: BattleView; side: Side; missionId: string | null; send: SendCommand; pending: boolean }

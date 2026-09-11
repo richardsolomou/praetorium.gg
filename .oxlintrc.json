@@ -70,8 +70,24 @@
           {
             "patterns": [
               {
-                "regex": "^(?:\\.\\./)+(?:adapters|db|routes)/",
-                "message": "Client modules must not depend on adapters, database, or route modules."
+                "regex": "^(?:(?:\\.\\./)+|@/)(?:(?:adapters|db|routes)/|server/(?!functions(?:/|$)))",
+                "message": "Client modules may depend on server functions and shared contracts, not server implementations, adapters, database, or routes."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/contracts/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(?:(?:\\.\\./)+|@/)(?:adapters|client|components|db|lib|routes|server)/",
+                "message": "Shared contracts must remain free of application-layer dependencies."
               }
             ]
           }

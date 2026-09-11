@@ -1,53 +1,24 @@
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  exists,
-  ilike,
-  inArray,
-  isNotNull,
-  isNull,
-  lt,
-  ne,
-  not,
-  notExists,
-  or,
-  type SQL,
-  sql,
-} from 'drizzle-orm'
-import type { AdminUserPage, AdminUsersCursor } from '../admin'
-import { type Command, type LoggedCommand, reduceBattle, type Roster, type SubmitResult, validate } from '../core/battle'
-import { commandSchema, parseRosterSnapshot } from '../core/commands'
+import { and, asc, desc, eq, exists, inArray, isNotNull, lt, ne, not, or, type SQL, sql } from 'drizzle-orm'
+import { type Command, type LoggedCommand, reduceBattle, type SubmitResult, validate } from '../core/battle'
+import { commandSchema } from '../core/commands'
 import { type BattleAudience, DEFAULT_BATTLE_AUDIENCE } from '../core/battleAudience'
-import type { RosterSource, RosterVisibility } from '../core/savedRoster'
-import {
-  alliedLeagueRosterLimit,
-  requiredLeagueRosterLimit,
-  type LeagueAdmission,
-  type LeagueEntryStatus,
-  type LeagueVisibility,
-} from '../core/league'
+import type { LeagueEntryStatus } from '../core/league'
 import type { TableShape } from '../core/tableShape'
 import { alias } from 'drizzle-orm/pg-core'
 import type { PraetoriumDatabase } from './connection'
+import { LeagueRepository } from './repositories/leagueRepository'
+import { AccountRepository } from './repositories/accountRepository'
+import { RosterRepository } from './repositories/rosterRepository'
 import {
   battleSharing,
   battleUsers,
   battles,
-  account,
-  collection,
   commands,
-  favouriteDetachments,
-  favouriteFactions,
   friendships,
   leagueEventBattles,
-  leagueEventEntries,
   leagueEvents,
   leagues,
   practiceOpponents,
-  rosters,
   user,
 } from './schema'
 
@@ -103,30 +74,6 @@ export type LeagueBattleCandidate = {
   entries: { userId: string; requiredLimit: number | null; sealedLimit: number | null; teamId: string | null }[]
 }
 
-const ADMIN_USERS_PAGE_SIZE = 50
-const LEAGUE_BATTLE_CANDIDATE_MAX = 50
-/** How far back a roster read looks for the newest event its reader may read. */
-const LEAGUE_ROSTER_EVENT_CANDIDATES = 20
-
-function warlordSelection(snapshots: readonly Roster[], trustLegacySelection = false) {
-  const selected = snapshots.flatMap((snapshot) => snapshot.built?.units.filter((unit) => unit.warlord) ?? [])
-  return {
-    count: selected.length,
-    eligible: selected.every(
-      (unit) => unit.warlordEligible ?? (trustLegacySelection || unit.group === 'character' || unit.group === 'epic-hero'),
-    ),
-  }
-}
-
-function frozenRosterLimit(snapshot: string | null) {
-  if (snapshot === null) return null
-  try {
-    return parseRosterSnapshot(snapshot).built?.limit ?? null
-  } catch {
-    return null
-  }
-}
-
 /**
  * Whether the account in a seat is a practice opponent.
  *
@@ -136,7 +83,193 @@ function frozenRosterLimit(snapshot: string | null) {
 const AUTOMATED = sql<boolean>`${practiceOpponents.userId} is not null`
 
 export class Repository {
-  constructor(private readonly database: PraetoriumDatabase) {}
+  private readonly accountRepository: AccountRepository
+  private readonly leagueRepository: LeagueRepository
+  private readonly rosterRepository: RosterRepository
+  readonly createLeagueBattle: LeagueRepository['createLeagueBattle']
+
+  constructor(private readonly database: PraetoriumDatabase) {
+    this.accountRepository = new AccountRepository(database)
+    this.leagueRepository = new LeagueRepository(database, (tx, input) => this.insertBattle(tx, input))
+    this.rosterRepository = new RosterRepository(database)
+    this.createLeagueBattle = this.leagueRepository.createLeagueBattle.bind(this.leagueRepository)
+  }
+
+  createLeague(...args: Parameters<LeagueRepository['createLeague']>) {
+    return this.leagueRepository.createLeague(...args)
+  }
+
+  createLeagueEvent(...args: Parameters<LeagueRepository['createLeagueEvent']>) {
+    return this.leagueRepository.createLeagueEvent(...args)
+  }
+
+  updateLeagueEvent(...args: Parameters<LeagueRepository['updateLeagueEvent']>) {
+    return this.leagueRepository.updateLeagueEvent(...args)
+  }
+
+  makeLeagueRecurring(...args: Parameters<LeagueRepository['makeLeagueRecurring']>) {
+    return this.leagueRepository.makeLeagueRecurring(...args)
+  }
+
+  updateLeague(...args: Parameters<LeagueRepository['updateLeague']>) {
+    return this.leagueRepository.updateLeague(...args)
+  }
+
+  deleteLeague(...args: Parameters<LeagueRepository['deleteLeague']>) {
+    return this.leagueRepository.deleteLeague(...args)
+  }
+
+  leaguesVisibleTo(...args: Parameters<LeagueRepository['leaguesVisibleTo']>) {
+    return this.leagueRepository.leaguesVisibleTo(...args)
+  }
+
+  leagueBattleCandidates(...args: Parameters<LeagueRepository['leagueBattleCandidates']>) {
+    return this.leagueRepository.leagueBattleCandidates(...args)
+  }
+
+  leagueByToken(...args: Parameters<LeagueRepository['leagueByToken']>) {
+    return this.leagueRepository.leagueByToken(...args)
+  }
+
+  joinLeague(...args: Parameters<LeagueRepository['joinLeague']>) {
+    return this.leagueRepository.joinLeague(...args)
+  }
+
+  moderateLeagueEntry(...args: Parameters<LeagueRepository['moderateLeagueEntry']>) {
+    return this.leagueRepository.moderateLeagueEntry(...args)
+  }
+
+  assignLeagueRosterRequirement(...args: Parameters<LeagueRepository['assignLeagueRosterRequirement']>) {
+    return this.leagueRepository.assignLeagueRosterRequirement(...args)
+  }
+
+  assignLeagueTeam(...args: Parameters<LeagueRepository['assignLeagueTeam']>) {
+    return this.leagueRepository.assignLeagueTeam(...args)
+  }
+
+  submitLeagueRoster(...args: Parameters<LeagueRepository['submitLeagueRoster']>) {
+    return this.leagueRepository.submitLeagueRoster(...args)
+  }
+
+  revealLeague(...args: Parameters<LeagueRepository['revealLeague']>) {
+    return this.leagueRepository.revealLeague(...args)
+  }
+
+  unsealLeagueRoster(...args: Parameters<LeagueRepository['unsealLeagueRoster']>) {
+    return this.leagueRepository.unsealLeagueRoster(...args)
+  }
+
+  leagueRosters(...args: Parameters<LeagueRepository['leagueRosters']>) {
+    return this.leagueRepository.leagueRosters(...args)
+  }
+
+  userById(...args: Parameters<AccountRepository['userById']>) {
+    return this.accountRepository.userById(...args)
+  }
+
+  adminUsers(...args: Parameters<AccountRepository['adminUsers']>) {
+    return this.accountRepository.adminUsers(...args)
+  }
+
+  unlinkAccount(...args: Parameters<AccountRepository['unlinkAccount']>) {
+    return this.accountRepository.unlinkAccount(...args)
+  }
+
+  profileByUserId(...args: Parameters<AccountRepository['profileByUserId']>) {
+    return this.accountRepository.profileByUserId(...args)
+  }
+
+  namesByIds(...args: Parameters<AccountRepository['namesByIds']>) {
+    return this.accountRepository.namesByIds(...args)
+  }
+
+  unrelatedUsers(...args: Parameters<AccountRepository['unrelatedUsers']>) {
+    return this.accountRepository.unrelatedUsers(...args)
+  }
+
+  practiceOpponents(...args: Parameters<AccountRepository['practiceOpponents']>) {
+    return this.accountRepository.practiceOpponents(...args)
+  }
+
+  relationships(...args: Parameters<AccountRepository['relationships']>) {
+    return this.accountRepository.relationships(...args)
+  }
+
+  requestFriend(...args: Parameters<AccountRepository['requestFriend']>) {
+    return this.accountRepository.requestFriend(...args)
+  }
+
+  acceptFriend(...args: Parameters<AccountRepository['acceptFriend']>) {
+    return this.accountRepository.acceptFriend(...args)
+  }
+
+  removeFriend(...args: Parameters<AccountRepository['removeFriend']>) {
+    return this.accountRepository.removeFriend(...args)
+  }
+
+  saveRoster(...args: Parameters<RosterRepository['saveRoster']>) {
+    return this.rosterRepository.saveRoster(...args)
+  }
+
+  rostersByUser(...args: Parameters<RosterRepository['rostersByUser']>) {
+    return this.rosterRepository.rostersByUser(...args)
+  }
+
+  publicRostersByUser(...args: Parameters<RosterRepository['publicRostersByUser']>) {
+    return this.rosterRepository.publicRostersByUser(...args)
+  }
+
+  rosterSummariesByUser(...args: Parameters<RosterRepository['rosterSummariesByUser']>) {
+    return this.rosterRepository.rosterSummariesByUser(...args)
+  }
+
+  roster(...args: Parameters<RosterRepository['roster']>) {
+    return this.rosterRepository.roster(...args)
+  }
+
+  setRosterVisibility(...args: Parameters<RosterRepository['setRosterVisibility']>) {
+    return this.rosterRepository.setRosterVisibility(...args)
+  }
+
+  collectionByUser(...args: Parameters<RosterRepository['collectionByUser']>) {
+    return this.rosterRepository.collectionByUser(...args)
+  }
+
+  addToCollection(...args: Parameters<RosterRepository['addToCollection']>) {
+    return this.rosterRepository.addToCollection(...args)
+  }
+
+  removeFromCollection(...args: Parameters<RosterRepository['removeFromCollection']>) {
+    return this.rosterRepository.removeFromCollection(...args)
+  }
+
+  favouriteFactionsByUser(...args: Parameters<RosterRepository['favouriteFactionsByUser']>) {
+    return this.rosterRepository.favouriteFactionsByUser(...args)
+  }
+
+  addFavouriteFaction(...args: Parameters<RosterRepository['addFavouriteFaction']>) {
+    return this.rosterRepository.addFavouriteFaction(...args)
+  }
+
+  removeFavouriteFaction(...args: Parameters<RosterRepository['removeFavouriteFaction']>) {
+    return this.rosterRepository.removeFavouriteFaction(...args)
+  }
+
+  favouriteDetachmentsByUser(...args: Parameters<RosterRepository['favouriteDetachmentsByUser']>) {
+    return this.rosterRepository.favouriteDetachmentsByUser(...args)
+  }
+
+  addFavouriteDetachment(...args: Parameters<RosterRepository['addFavouriteDetachment']>) {
+    return this.rosterRepository.addFavouriteDetachment(...args)
+  }
+
+  removeFavouriteDetachment(...args: Parameters<RosterRepository['removeFavouriteDetachment']>) {
+    return this.rosterRepository.removeFavouriteDetachment(...args)
+  }
+
+  deleteRoster(...args: Parameters<RosterRepository['deleteRoster']>) {
+    return this.rosterRepository.deleteRoster(...args)
+  }
 
   /**
    * Opens a battle and seats everyone in it.
@@ -226,216 +359,6 @@ export class Repository {
         ),
       )
       .returning({ id: battles.id })
-    return removed.length > 0
-  }
-
-  async userById(id: string) {
-    const [row] = await this.database.select().from(user).where(eq(user.id, id)).limit(1)
-    return row
-  }
-
-  async adminUsers(input: { query?: string; cursor?: AdminUsersCursor | null; limit?: number } = {}): Promise<AdminUserPage> {
-    const limit = Math.min(Math.max(input.limit ?? ADMIN_USERS_PAGE_SIZE, 1), 100)
-    const query = input.query?.trim()
-    const conditions = [
-      notExists(
-        this.database.select({ id: practiceOpponents.userId }).from(practiceOpponents).where(eq(practiceOpponents.userId, user.id)),
-      ),
-    ]
-    if (query) {
-      const escaped = query.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')
-      conditions.push(or(ilike(user.name, `%${escaped}%`), ilike(user.email, `%${escaped}%`))!)
-    }
-    if (input.cursor) {
-      conditions.push(
-        or(lt(user.createdAt, input.cursor.createdAt), and(eq(user.createdAt, input.cursor.createdAt), lt(user.id, input.cursor.id)))!,
-      )
-    }
-    const rows = await this.database
-      .select({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        role: user.role,
-        banned: user.banned,
-        twoFactorEnabled: user.twoFactorEnabled,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      })
-      .from(user)
-      .where(and(...conditions))
-      .orderBy(desc(user.createdAt), desc(user.id))
-      .limit(limit + 1)
-    const users = rows.slice(0, limit)
-    if (!users.length) return { users: [], nextCursor: null }
-    const ids = users.map(({ id }) => id)
-    const [rosterCounts, battleCounts, methods] = await Promise.all([
-      this.database
-        .select({ userId: rosters.userId, count: count() })
-        .from(rosters)
-        .where(inArray(rosters.userId, ids))
-        .groupBy(rosters.userId),
-      this.database
-        .select({ userId: battleUsers.userId, count: count() })
-        .from(battleUsers)
-        .where(inArray(battleUsers.userId, ids))
-        .groupBy(battleUsers.userId),
-      this.database.select({ userId: account.userId, providerId: account.providerId }).from(account).where(inArray(account.userId, ids)),
-    ])
-    const rosterCountByUser = new Map(rosterCounts.map((row) => [row.userId, row.count]))
-    const battleCountByUser = new Map(battleCounts.map((row) => [row.userId, row.count]))
-    const methodsByUser = new Map<string, Set<string>>()
-    for (const method of methods) {
-      const providers = methodsByUser.get(method.userId) ?? new Set<string>()
-      providers.add(method.providerId)
-      methodsByUser.set(method.userId, providers)
-    }
-    const entries = users.map((entry) => ({
-      ...entry,
-      rosterCount: rosterCountByUser.get(entry.id) ?? 0,
-      battleCount: battleCountByUser.get(entry.id) ?? 0,
-      signInMethods: [...(methodsByUser.get(entry.id) ?? [])].sort((left, right) => left.localeCompare(right)),
-    }))
-    const last = users.at(-1)!
-    return { users: entries, nextCursor: rows.length > limit ? { createdAt: last.createdAt, id: last.id } : null }
-  }
-
-  async unlinkAccount(userId: string, providerId: string, availableProviders: readonly string[]): Promise<UnlinkAccountResult> {
-    return this.database.transaction(async (tx) => {
-      const [owner] = await tx.select({ twoFactorEnabled: user.twoFactorEnabled }).from(user).where(eq(user.id, userId)).for('update')
-      const methods = await tx.select({ providerId: account.providerId }).from(account).where(eq(account.userId, userId))
-      if (!methods.some((method) => method.providerId === providerId)) return { status: 'missing' }
-      if (providerId === 'credential' && owner?.twoFactorEnabled) return { status: 'two-factor' }
-      const available = new Set(availableProviders)
-      if (!methods.some((method) => method.providerId !== providerId && available.has(method.providerId))) return { status: 'last-method' }
-      const [removed] = await tx
-        .delete(account)
-        .where(and(eq(account.userId, userId), eq(account.providerId, providerId)))
-        .returning({ accessToken: account.accessToken, refreshToken: account.refreshToken })
-      return removed ? { status: 'removed', account: removed } : { status: 'missing' }
-    })
-  }
-
-  async profileByUserId(id: string) {
-    const [row] = await this.database.select({ id: user.id, name: user.name, image: user.image }).from(user).where(eq(user.id, id)).limit(1)
-    return row
-  }
-
-  /** Names for many ids at once, so a friend list is one query rather than one per row. */
-  async namesByIds(ids: readonly string[]) {
-    if (!ids.length) return new Map<string, { id: string; name: string }>()
-    const rows = await this.database
-      .select({ id: user.id, name: user.name })
-      .from(user)
-      .where(inArray(user.id, [...new Set(ids)]))
-    return new Map(rows.map((row) => [row.id, row]))
-  }
-
-  /**
-   * Players this one has no relationship with yet, so there is someone to ask.
-   *
-   * The exclusion is the database's: filtering a fetched page in memory returns
-   * fewer than a page as soon as a player has connections, and a well-connected
-   * one could be offered nobody at all while the instance is full of strangers.
-   */
-  async unrelatedUsers(userId: string, limit = 100) {
-    const relationship = this.database
-      .select({ one: sql`1` })
-      .from(friendships)
-      .where(
-        or(
-          and(eq(friendships.requesterId, userId), eq(friendships.addresseeId, user.id)),
-          and(eq(friendships.addresseeId, userId), eq(friendships.requesterId, user.id)),
-        ),
-      )
-    const practice = this.database
-      .select({ one: sql`1` })
-      .from(practiceOpponents)
-      .where(eq(practiceOpponents.userId, user.id))
-    // A practice opponent is nobody to befriend: it is offered as a seat, not a player.
-    return this.database
-      .select({ id: user.id, name: user.name })
-      .from(user)
-      .where(and(ne(user.id, userId), notExists(relationship), notExists(practice)))
-      .orderBy(asc(user.name))
-      .limit(limit)
-  }
-
-  /** The practice opponents this instance seats, in the order they are offered. */
-  async practiceOpponents() {
-    return this.database
-      .select({ id: user.id, name: user.name, image: user.image })
-      .from(practiceOpponents)
-      .innerJoin(user, eq(user.id, practiceOpponents.userId))
-      .orderBy(asc(user.id))
-  }
-
-  /**
-   * Every relationship this player is in, with the other party already named.
-   *
-   * The name comes from the join rather than a second lookup keyed on the ids
-   * this query just returned, which is the same answer for one round trip.
-   */
-  async relationships(userId: string) {
-    const other = alias(user, 'other')
-    return this.database
-      .select({
-        requesterId: friendships.requesterId,
-        addresseeId: friendships.addresseeId,
-        acceptedAt: friendships.acceptedAt,
-        otherId: other.id,
-        otherName: other.name,
-        otherImage: other.image,
-      })
-      .from(friendships)
-      .innerJoin(other, or(eq(other.id, friendships.requesterId), eq(other.id, friendships.addresseeId)))
-      .where(and(ne(other.id, userId), or(eq(friendships.requesterId, userId), eq(friendships.addresseeId, userId))))
-      .orderBy(asc(other.name))
-  }
-
-  /**
-   * A request in either direction already answers this, so the pair is checked
-   * before it is written. The primary key refuses a repeat of the same direction;
-   * the mirrored pair is a different key, so it cannot be left to an upsert.
-   */
-  async requestFriend(requesterId: string, addresseeId: string, now: number) {
-    return this.database.transaction(async (tx) => {
-      const [existing] = await tx
-        .select({ requesterId: friendships.requesterId })
-        .from(friendships)
-        .where(
-          or(
-            and(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, addresseeId)),
-            and(eq(friendships.requesterId, addresseeId), eq(friendships.addresseeId, requesterId)),
-          ),
-        )
-        .limit(1)
-      if (existing) return false
-      await tx.insert(friendships).values({ requesterId, addresseeId, requestedAt: now })
-      return true
-    })
-  }
-
-  async acceptFriend(requesterId: string, addresseeId: string, now: number) {
-    const updated = await this.database
-      .update(friendships)
-      .set({ acceptedAt: now })
-      .where(and(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, addresseeId), isNull(friendships.acceptedAt)))
-      .returning({ requesterId: friendships.requesterId })
-    return updated.length > 0
-  }
-
-  async removeFriend(leftId: string, rightId: string) {
-    const removed = await this.database
-      .delete(friendships)
-      .where(
-        or(
-          and(eq(friendships.requesterId, leftId), eq(friendships.addresseeId, rightId)),
-          and(eq(friendships.requesterId, rightId), eq(friendships.addresseeId, leftId)),
-        ),
-      )
-      .returning({ requesterId: friendships.requesterId })
     return removed.length > 0
   }
 
@@ -796,1290 +719,6 @@ export class Repository {
         .values({ battleId: input.battleId, seq, userId: input.userId, at: input.now, body: JSON.stringify(command) })
       return { result: { outcome: 'appended', seq }, log: [...log, { seq, by: input.userId, at: input.now, command }] }
     })
-  }
-
-  async saveRoster(input: {
-    id: string
-    userId: string
-    name: string
-    catalogueId: string
-    detachmentId: string | null
-    disposition: string | null
-    limit: number
-    picks: string
-    prep: string | null
-    tags: string
-    waivedRules: string
-    optionalRules?: string
-    borrowedDetachmentId?: string | null
-    visibility: RosterVisibility
-    source: RosterSource
-    now: number
-  }) {
-    // Everything a later save may change. `id` identifies the row and `userId`
-    // owns it, so neither is here: an upsert must not be able to reassign a list.
-    const updatable = {
-      name: input.name,
-      catalogueId: input.catalogueId,
-      detachmentId: input.detachmentId,
-      disposition: input.disposition,
-      limit: input.limit,
-      picks: input.picks,
-      prep: input.prep,
-      tags: input.tags,
-      waivedRules: input.waivedRules,
-      optionalRules: input.optionalRules ?? '[]',
-      borrowedDetachmentId: input.borrowedDetachmentId ?? null,
-      visibility: input.visibility,
-      source: input.source,
-      updatedAt: input.now,
-    }
-    const updated = await this.database
-      .update(rosters)
-      .set(updatable)
-      .where(and(eq(rosters.id, input.id), eq(rosters.userId, input.userId)))
-      .returning({ id: rosters.id })
-    if (updated.length) return true
-    const inserted = await this.database
-      .insert(rosters)
-      .values({ id: input.id, userId: input.userId, createdAt: input.now, ...updatable })
-      .onConflictDoNothing()
-      .returning({ id: rosters.id })
-    return inserted.length > 0
-  }
-
-  async rostersByUser(userId: string) {
-    return this.database.select().from(rosters).where(eq(rosters.userId, userId)).orderBy(desc(rosters.createdAt))
-  }
-
-  /**
-   * The lists this player has made public, newest first.
-   *
-   * The owner-and-date index answers it: this narrows to one player before it looks
-   * at visibility, so no second index is needed. A private or unlisted list is
-   * absent — unlisted means a link its owner handed somebody, not a list to find.
-   */
-  async publicRostersByUser(userId: string, limit: number) {
-    return this.database
-      .select()
-      .from(rosters)
-      .where(and(eq(rosters.userId, userId), eq(rosters.visibility, 'public')))
-      .orderBy(desc(rosters.createdAt))
-      .limit(limit)
-  }
-
-  async rosterSummariesByUser(userId: string) {
-    return this.database
-      .select({
-        id: rosters.id,
-        name: rosters.name,
-        catalogueId: rosters.catalogueId,
-        detachmentId: rosters.detachmentId,
-        disposition: rosters.disposition,
-        limit: rosters.limit,
-        waivedRules: rosters.waivedRules,
-        optionalRules: rosters.optionalRules,
-        borrowedDetachmentId: rosters.borrowedDetachmentId,
-        picks: rosters.picks,
-        visibility: rosters.visibility,
-        source: rosters.source,
-        createdAt: rosters.createdAt,
-        updatedAt: rosters.updatedAt,
-      })
-      .from(rosters)
-      .where(eq(rosters.userId, userId))
-      .orderBy(desc(rosters.createdAt))
-  }
-
-  async roster(id: string) {
-    const [row] = await this.database.select().from(rosters).where(eq(rosters.id, id)).limit(1)
-    return row
-  }
-
-  async createLeague(input: {
-    id: string
-    token: string
-    eventId?: string
-    eventToken?: string
-    ownerId: string
-    name: string
-    description: string
-    visibility: LeagueVisibility
-    admission: LeagueAdmission
-    playerLimit?: number | null
-    recurring?: boolean
-    format?: TableShape
-    rosterLimit?: number
-    now: number
-  }) {
-    await this.database.transaction(async (tx) => {
-      await tx.insert(leagues).values({
-        id: input.id,
-        token: input.token,
-        ownerId: input.ownerId,
-        name: input.name,
-        description: input.description,
-        visibility: input.visibility,
-        admission: input.admission,
-        playerLimit: input.playerLimit ?? null,
-        recurring: input.recurring ?? true,
-        createdAt: input.now,
-      })
-      await tx.insert(leagueEvents).values({
-        id: input.eventId ?? input.id,
-        token: input.eventToken ?? input.token,
-        leagueId: input.id,
-        number: 1,
-        format: input.format,
-        rosterLimit: input.rosterLimit,
-        createdAt: input.now,
-      })
-    })
-  }
-
-  async createLeagueEvent(input: {
-    id: string
-    token: string
-    leagueToken: string
-    ownerId: string
-    format?: TableShape
-    rosterLimit?: number
-    now: number
-  }): Promise<CreateLeagueEventResult> {
-    return this.database.transaction(async (tx) => {
-      const [league] = await tx
-        .select({ id: leagues.id, ownerId: leagues.ownerId, playerLimit: leagues.playerLimit })
-        .from(leagues)
-        .where(eq(leagues.token, input.leagueToken))
-        .for('update')
-      if (!league) return 'missing'
-      if (league.ownerId !== input.ownerId) return 'forbidden'
-      if (input.format === '2v1' && league.playerLimit !== null && league.playerLimit < 3) return 'too-small'
-      if (input.format === '2v2' && league.playerLimit !== null && (league.playerLimit < 4 || league.playerLimit % 2 !== 0))
-        return 'too-small'
-      const [latest] = await tx
-        .select({ number: leagueEvents.number, revealedAt: leagueEvents.revealedAt })
-        .from(leagueEvents)
-        .where(eq(leagueEvents.leagueId, league.id))
-        .orderBy(desc(leagueEvents.number))
-        .limit(1)
-        .for('update')
-      if (!latest || latest.revealedAt === null) return 'open'
-      await tx.insert(leagueEvents).values({
-        id: input.id,
-        token: input.token,
-        leagueId: league.id,
-        number: latest.number + 1,
-        format: input.format,
-        rosterLimit: input.rosterLimit,
-        createdAt: input.now,
-      })
-      return 'created'
-    })
-  }
-
-  /**
-   * The rules an open event registers against, changeable until the first list is sealed.
-   *
-   * A change to the shape or the size makes every size assignment and team meaningless,
-   * so they go with it rather than being carried into rules they were not made under.
-   */
-  async updateLeagueEvent(
-    token: string,
-    ownerId: string,
-    rule: { format: TableShape; rosterLimit: number },
-    eventToken?: string,
-  ): Promise<UpdateLeagueEventResult> {
-    return this.database.transaction(async (tx) => {
-      const [league] = await tx
-        .select({ id: leagues.id, ownerId: leagues.ownerId, playerLimit: leagues.playerLimit })
-        .from(leagues)
-        .where(eq(leagues.token, token))
-        .for('update')
-      if (!league) return 'missing'
-      if (league.ownerId !== ownerId) return 'forbidden'
-      if (rule.format === '2v1' && league.playerLimit !== null && league.playerLimit < 3) return 'too-small'
-      if (rule.format === '2v2' && league.playerLimit !== null && (league.playerLimit < 4 || league.playerLimit % 2 !== 0))
-        return 'too-small'
-      const [event] = await tx
-        .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
-        .from(leagueEvents)
-        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
-        .orderBy(desc(leagueEvents.number))
-        .limit(1)
-        .for('update')
-      if (!event) return 'missing'
-      if (event.revealedAt !== null) return 'closed'
-      const [sealed] = await tx
-        .select({ total: count() })
-        .from(leagueEventEntries)
-        .where(and(eq(leagueEventEntries.eventId, event.id), isNotNull(leagueEventEntries.rosterSnapshot)))
-      if ((sealed?.total ?? 0) > 0) return 'sealed'
-      await tx.update(leagueEvents).set({ format: rule.format, rosterLimit: rule.rosterLimit }).where(eq(leagueEvents.id, event.id))
-      await tx.update(leagueEventEntries).set({ requiredLimit: null, teamId: null }).where(eq(leagueEventEntries.eventId, event.id))
-      return 'updated'
-    })
-  }
-
-  async makeLeagueRecurring(token: string, ownerId: string): Promise<MakeLeagueRecurringResult> {
-    return this.database.transaction(async (tx) => {
-      const [league] = await tx
-        .select({ id: leagues.id, ownerId: leagues.ownerId, recurring: leagues.recurring })
-        .from(leagues)
-        .where(eq(leagues.token, token))
-        .for('update')
-      if (!league) return 'missing'
-      if (league.ownerId !== ownerId) return 'forbidden'
-      if (!league.recurring) await tx.update(leagues).set({ recurring: true }).where(eq(leagues.id, league.id))
-      return 'updated'
-    })
-  }
-
-  async updateLeague(
-    token: string,
-    ownerId: string,
-    input: {
-      name: string
-      description: string
-      visibility: LeagueVisibility
-      admission: LeagueAdmission
-      playerLimit: number | null
-    },
-  ): Promise<UpdateLeagueResult> {
-    return this.database.transaction(async (tx) => {
-      const [league] = await tx
-        .select({
-          id: leagues.id,
-          ownerId: leagues.ownerId,
-          admission: leagues.admission,
-          playerLimit: leagues.playerLimit,
-        })
-        .from(leagues)
-        .where(eq(leagues.token, token))
-        .for('update')
-      if (!league) return 'missing'
-      if (league.ownerId !== ownerId) return 'forbidden'
-      const [current] = await tx
-        .select({
-          id: leagueEvents.id,
-          format: leagueEvents.format,
-          rosterLimit: leagueEvents.rosterLimit,
-          revealedAt: leagueEvents.revealedAt,
-        })
-        .from(leagueEvents)
-        .where(eq(leagueEvents.leagueId, league.id))
-        .orderBy(desc(leagueEvents.number))
-        .limit(1)
-        .for('update')
-      if (!current) return 'missing'
-      const [entries] = await tx
-        .select({ total: count(), accepted: count(sql`case when ${leagueEventEntries.status} = 'accepted' then 1 end`) })
-        .from(leagueEventEntries)
-        .where(eq(leagueEventEntries.eventId, current.id))
-      if (input.playerLimit !== league.playerLimit && current.revealedAt === null) {
-        if (current.format === '2v1' && input.playerLimit !== null && input.playerLimit < 3) return 'team-minimum'
-        if (current.format === '2v2' && input.playerLimit !== null && (input.playerLimit < 4 || input.playerLimit % 2 !== 0))
-          return 'team-minimum'
-        if (input.playerLimit !== null && input.playerLimit < (entries?.accepted ?? 0)) return 'below-accepted'
-      }
-      await tx.update(leagues).set(input).where(eq(leagues.id, league.id))
-      // Automatic joining means nobody waits, so the requests already in the queue are
-      // taken in the order they arrived until the configured places run out.
-      if (input.admission === 'automatic' && league.admission === 'approval' && current.revealedAt === null) {
-        const waiting = await tx
-          .select({ userId: leagueEventEntries.userId })
-          .from(leagueEventEntries)
-          .where(and(eq(leagueEventEntries.eventId, current.id), eq(leagueEventEntries.status, 'pending')))
-          .orderBy(asc(leagueEventEntries.joinedAt), asc(leagueEventEntries.userId))
-        const places = input.playerLimit === null ? waiting.length : Math.max(0, input.playerLimit - (entries?.accepted ?? 0))
-        const admitted = waiting.slice(0, places).map((entry) => entry.userId)
-        if (admitted.length) {
-          await tx
-            .update(leagueEventEntries)
-            .set({ status: 'accepted' })
-            .where(and(eq(leagueEventEntries.eventId, current.id), inArray(leagueEventEntries.userId, admitted)))
-        }
-      }
-      return 'updated'
-    })
-  }
-
-  async deleteLeague(token: string, ownerId: string): Promise<DeleteLeagueResult> {
-    return this.database.transaction(async (tx) => {
-      const [league] = await tx
-        .select({ id: leagues.id, ownerId: leagues.ownerId })
-        .from(leagues)
-        .where(eq(leagues.token, token))
-        .for('update')
-      if (!league) return 'missing'
-      if (league.ownerId !== ownerId) return 'forbidden'
-      await tx.delete(leagues).where(eq(leagues.id, league.id))
-      return 'deleted'
-    })
-  }
-
-  async leaguesVisibleTo(userId: string | null, limit = 100) {
-    return this.database.transaction(async (tx) => {
-      const personal = userId
-        ? or(
-            eq(leagues.ownerId, userId),
-            exists(
-              tx
-                .select({ one: sql`1` })
-                .from(leagueEventEntries)
-                .innerJoin(leagueEvents, eq(leagueEvents.id, leagueEventEntries.eventId))
-                .where(and(eq(leagueEvents.leagueId, leagues.id), eq(leagueEventEntries.userId, userId))),
-            ),
-          )
-        : undefined
-      const visible = userId ? or(eq(leagues.visibility, 'public'), personal) : eq(leagues.visibility, 'public')
-      const rows = await tx
-        .select({
-          id: leagues.id,
-          token: leagues.token,
-          ownerId: leagues.ownerId,
-          ownerName: user.name,
-          ownerImage: user.image,
-          name: leagues.name,
-          description: leagues.description,
-          visibility: leagues.visibility,
-          admission: leagues.admission,
-          playerLimit: leagues.playerLimit,
-          recurring: leagues.recurring,
-          createdAt: leagues.createdAt,
-          personal: personal ? sql<boolean>`${personal}` : sql<boolean>`false`,
-        })
-        .from(leagues)
-        .innerJoin(user, eq(user.id, leagues.ownerId))
-        .where(visible)
-        .orderBy(
-          ...(personal ? [asc(sql<number>`case when ${personal} then 0 else 1 end`), desc(leagues.createdAt)] : [desc(leagues.createdAt)]),
-        )
-        .limit(Math.min(Math.max(limit, 1), 100))
-        .for('share', { of: leagues })
-      if (!rows.length) return []
-      const ids = rows.map((row) => row.id)
-      const latestEvents = await tx
-        .selectDistinctOn([leagueEvents.leagueId], {
-          id: leagueEvents.id,
-          token: leagueEvents.token,
-          leagueId: leagueEvents.leagueId,
-          number: leagueEvents.number,
-          format: leagueEvents.format,
-          rosterLimit: leagueEvents.rosterLimit,
-          revealedAt: leagueEvents.revealedAt,
-        })
-        .from(leagueEvents)
-        .where(inArray(leagueEvents.leagueId, ids))
-        .orderBy(leagueEvents.leagueId, desc(leagueEvents.number))
-      const eventIds = latestEvents.map((event) => event.id)
-      const [counts, ownEntries] = await Promise.all([
-        tx
-          .select({
-            eventId: leagueEventEntries.eventId,
-            joined: count(),
-            accepted: count(sql`case when ${leagueEventEntries.status} = 'accepted' then 1 end`),
-            occupied: count(sql`case when ${leagueEventEntries.status} <> 'rejected' then 1 end`),
-          })
-          .from(leagueEventEntries)
-          .where(inArray(leagueEventEntries.eventId, eventIds))
-          .groupBy(leagueEventEntries.eventId),
-        userId
-          ? tx
-              .select({
-                eventId: leagueEventEntries.eventId,
-                status: leagueEventEntries.status,
-                submitted: sql<boolean>`${leagueEventEntries.rosterSnapshot} is not null`,
-                rosterName: leagueEventEntries.rosterName,
-              })
-              .from(leagueEventEntries)
-              .where(and(inArray(leagueEventEntries.eventId, eventIds), eq(leagueEventEntries.userId, userId)))
-          : Promise.resolve([]),
-      ])
-      const eventByLeague = new Map(latestEvents.map((event) => [event.leagueId, event]))
-      const countByEvent = new Map(
-        counts.map((entry) => [entry.eventId, { joined: entry.joined, accepted: entry.accepted, occupied: entry.occupied }]),
-      )
-      const ownByEvent = new Map(
-        ownEntries.map((entry) => [entry.eventId, { status: entry.status, submitted: entry.submitted, rosterName: entry.rosterName }]),
-      )
-      return rows.flatMap((row) => {
-        const event = eventByLeague.get(row.id)
-        if (!event) return []
-        return {
-          ...row,
-          eventToken: event.token,
-          eventNumber: event.number,
-          format: event.format,
-          rosterLimit: event.rosterLimit,
-          revealedAt: event.revealedAt,
-          entrantCount: countByEvent.get(event.id)?.accepted ?? 0,
-          currentEntrantCount: countByEvent.get(event.id)?.joined ?? 0,
-          occupiedCount: countByEvent.get(event.id)?.occupied ?? 0,
-          ownEntry: ownByEvent.get(event.id) ?? null,
-        }
-      })
-    })
-  }
-
-  async leagueBattleCandidates(userId: string, participantIds: readonly string[]): Promise<LeagueBattleCandidate[]> {
-    return this.database.transaction(async (tx) => {
-      const ownEntry = alias(leagueEventEntries, 'own_entry')
-      const participantEntry = alias(leagueEventEntries, 'participant_entry')
-      const events = await tx
-        .select({
-          id: leagueEvents.id,
-          token: leagues.token,
-          name: leagues.name,
-          eventToken: leagueEvents.token,
-          eventNumber: leagueEvents.number,
-          format: leagueEvents.format,
-          rosterLimit: leagueEvents.rosterLimit,
-        })
-        .from(ownEntry)
-        .innerJoin(leagueEvents, eq(leagueEvents.id, ownEntry.eventId))
-        .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
-        .innerJoin(
-          participantEntry,
-          and(
-            eq(participantEntry.eventId, leagueEvents.id),
-            inArray(participantEntry.userId, participantIds),
-            eq(participantEntry.status, 'accepted'),
-            isNotNull(participantEntry.rosterSnapshot),
-          ),
-        )
-        .where(
-          and(
-            eq(ownEntry.userId, userId),
-            eq(ownEntry.status, 'accepted'),
-            isNotNull(ownEntry.rosterSnapshot),
-            isNotNull(leagueEvents.revealedAt),
-          ),
-        )
-        .groupBy(leagueEvents.id, leagues.id)
-        .having(sql`count(${participantEntry.userId}) = ${participantIds.length}`)
-        .orderBy(desc(leagueEvents.revealedAt), desc(leagueEvents.number))
-        .limit(LEAGUE_BATTLE_CANDIDATE_MAX)
-      if (!events.length) return []
-      const entries = await tx
-        .select({
-          eventId: leagueEventEntries.eventId,
-          userId: leagueEventEntries.userId,
-          requiredLimit: leagueEventEntries.requiredLimit,
-          snapshot: leagueEventEntries.rosterSnapshot,
-          teamId: leagueEventEntries.teamId,
-        })
-        .from(leagueEventEntries)
-        .where(
-          and(
-            inArray(
-              leagueEventEntries.eventId,
-              events.map((event) => event.id),
-            ),
-            inArray(leagueEventEntries.userId, participantIds),
-            eq(leagueEventEntries.status, 'accepted'),
-            isNotNull(leagueEventEntries.rosterSnapshot),
-          ),
-        )
-      const entriesByEvent = new Map<string, typeof entries>()
-      for (const entry of entries) {
-        const grouped = entriesByEvent.get(entry.eventId) ?? []
-        grouped.push(entry)
-        entriesByEvent.set(entry.eventId, grouped)
-      }
-      return events.flatMap((event) => {
-        const eventEntries = entriesByEvent.get(event.id) ?? []
-        if (eventEntries.length !== participantIds.length) return []
-        const { id: _eventId, ...candidate } = event
-        return [
-          {
-            ...candidate,
-            entries: eventEntries.map(({ eventId: _entryEventId, snapshot, ...entry }) => ({
-              ...entry,
-              sealedLimit: event.format === null ? frozenRosterLimit(snapshot) : null,
-            })),
-          },
-        ]
-      })
-    })
-  }
-
-  async leagueByToken(token: string, viewerId: string | null = null, eventToken?: string) {
-    return this.database.transaction(async (tx) => {
-      const [league] = await tx
-        .select({
-          id: leagues.id,
-          token: leagues.token,
-          ownerId: leagues.ownerId,
-          ownerName: user.name,
-          ownerImage: user.image,
-          name: leagues.name,
-          description: leagues.description,
-          visibility: leagues.visibility,
-          admission: leagues.admission,
-          playerLimit: leagues.playerLimit,
-          recurring: leagues.recurring,
-          createdAt: leagues.createdAt,
-        })
-        .from(leagues)
-        .innerJoin(user, eq(user.id, leagues.ownerId))
-        .where(eq(leagues.token, token))
-        .limit(1)
-        .for('share', { of: leagues })
-      if (!league) return undefined
-      const [events, [eventTotal]] = await Promise.all([
-        tx
-          .select({
-            id: leagueEvents.id,
-            token: leagueEvents.token,
-            number: leagueEvents.number,
-            format: leagueEvents.format,
-            rosterLimit: leagueEvents.rosterLimit,
-            createdAt: leagueEvents.createdAt,
-            revealedAt: leagueEvents.revealedAt,
-          })
-          .from(leagueEvents)
-          .where(eq(leagueEvents.leagueId, league.id))
-          .orderBy(desc(leagueEvents.number))
-          .limit(100),
-        tx.select({ value: count() }).from(leagueEvents).where(eq(leagueEvents.leagueId, league.id)),
-      ])
-      let selected = eventToken ? events.find((event) => event.token === eventToken) : events[0]
-      if (!selected && eventToken) {
-        const [older] = await tx
-          .select({
-            id: leagueEvents.id,
-            token: leagueEvents.token,
-            number: leagueEvents.number,
-            format: leagueEvents.format,
-            rosterLimit: leagueEvents.rosterLimit,
-            createdAt: leagueEvents.createdAt,
-            revealedAt: leagueEvents.revealedAt,
-          })
-          .from(leagueEvents)
-          .where(and(eq(leagueEvents.leagueId, league.id), eq(leagueEvents.token, eventToken)))
-          .limit(1)
-        selected = older
-      }
-      const current = events[0]
-      if (!selected || !current) return undefined
-      const visibleEvents = events.some((event) => event.id === selected.id)
-        ? events
-        : [selected, ...events.slice(0, 99)].toSorted((left, right) => right.number - left.number)
-      const [entries, [currentCounts]] = await Promise.all([
-        tx
-          .select({
-            userId: leagueEventEntries.userId,
-            name: user.name,
-            image: user.image,
-            status: leagueEventEntries.status,
-            joinedAt: leagueEventEntries.joinedAt,
-            submitted: sql<boolean>`${leagueEventEntries.rosterSnapshot} is not null`,
-            assignedLimit: leagueEventEntries.requiredLimit,
-            snapshot: leagueEventEntries.rosterSnapshot,
-            teamId: leagueEventEntries.teamId,
-            rosterName: viewerId
-              ? sql<string | null>`case when ${leagueEventEntries.userId} = ${viewerId} then ${leagueEventEntries.rosterName} else null end`
-              : sql<string | null>`null`,
-          })
-          .from(leagueEventEntries)
-          .innerJoin(user, eq(user.id, leagueEventEntries.userId))
-          .where(
-            and(
-              eq(leagueEventEntries.eventId, selected.id),
-              viewerId
-                ? or(ne(leagueEventEntries.status, 'rejected'), eq(leagueEventEntries.userId, viewerId))
-                : ne(leagueEventEntries.status, 'rejected'),
-            ),
-          )
-          .orderBy(asc(leagueEventEntries.joinedAt), asc(leagueEventEntries.userId)),
-        tx
-          .select({ total: count(), accepted: count(sql`case when ${leagueEventEntries.status} = 'accepted' then 1 end`) })
-          .from(leagueEventEntries)
-          .where(eq(leagueEventEntries.eventId, current.id)),
-      ])
-      return {
-        ...league,
-        eventToken: selected.token,
-        eventNumber: selected.number,
-        eventCreatedAt: selected.createdAt,
-        format: selected.format,
-        rosterLimit: selected.rosterLimit,
-        revealedAt: selected.revealedAt,
-        eventCount: eventTotal?.value ?? events.length,
-        currentEventFormat: current.format,
-        currentEventRevealedAt: current.revealedAt,
-        currentEntrantCount: currentCounts?.total ?? 0,
-        currentAcceptedCount: currentCounts?.accepted ?? 0,
-        events: visibleEvents.map(({ id: _id, ...event }) => event),
-        occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
-        entries: entries.map(({ assignedLimit, snapshot, ...entry }) => ({
-          ...entry,
-          requiredLimit: requiredLeagueRosterLimit(selected.format, selected.rosterLimit, assignedLimit, entry.teamId),
-          sealedLimit: selected.format === null && selected.revealedAt !== null ? frozenRosterLimit(snapshot) : null,
-        })),
-      }
-    })
-  }
-
-  async joinLeague(token: string, userId: string, now: number, memberLimit: number, eventToken?: string): Promise<JoinLeagueResult> {
-    return this.database.transaction(async (tx) => {
-      const [league] = await tx
-        .select({ id: leagues.id, ownerId: leagues.ownerId, admission: leagues.admission, playerLimit: leagues.playerLimit })
-        .from(leagues)
-        .where(eq(leagues.token, token))
-        .for('update')
-      if (!league) return 'missing'
-      const [event] = await tx
-        .select({ id: leagueEvents.id, format: leagueEvents.format, revealedAt: leagueEvents.revealedAt })
-        .from(leagueEvents)
-        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
-        .orderBy(desc(leagueEvents.number))
-        .limit(1)
-        .for('update')
-      if (!event) return 'missing'
-      if (event.revealedAt !== null) return 'closed'
-      const [existing] = await tx
-        .select({ status: leagueEventEntries.status })
-        .from(leagueEventEntries)
-        .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, userId)))
-        .limit(1)
-      if (existing?.status && existing.status !== 'rejected') return existing.status
-      const [members] = await tx
-        .select({ active: count(), accepted: count(sql`case when ${leagueEventEntries.status} = 'accepted' then 1 end`) })
-        .from(leagueEventEntries)
-        .where(and(eq(leagueEventEntries.eventId, event.id), ne(leagueEventEntries.status, 'rejected')))
-      const full =
-        league.admission === 'approval' && league.playerLimit !== null
-          ? (members?.accepted ?? 0) >= league.playerLimit || (members?.active ?? 0) >= memberLimit
-          : (members?.active ?? 0) >= (league.playerLimit ?? memberLimit)
-      if (full) return 'full'
-      // The organizer approves entrants, so approving themselves is a click with no question in it.
-      const status = league.admission === 'automatic' || league.ownerId === userId ? 'accepted' : 'pending'
-      if (existing) {
-        await tx
-          .update(leagueEventEntries)
-          .set({ status, joinedAt: now })
-          .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, userId)))
-      } else {
-        await tx.insert(leagueEventEntries).values({ eventId: event.id, userId, status, joinedAt: now })
-      }
-      return status
-    })
-  }
-
-  async moderateLeagueEntry(
-    token: string,
-    ownerId: string,
-    userId: string,
-    status: Extract<LeagueEntryStatus, 'accepted' | 'rejected'>,
-    memberLimit: number,
-    eventToken?: string,
-  ): Promise<ModerateLeagueResult> {
-    return this.database.transaction(async (tx) => {
-      const [league] = await tx
-        .select({ id: leagues.id, ownerId: leagues.ownerId, playerLimit: leagues.playerLimit })
-        .from(leagues)
-        .where(eq(leagues.token, token))
-        .for('update')
-      if (!league) return 'missing'
-      if (league.ownerId !== ownerId) return 'forbidden'
-      const [event] = await tx
-        .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
-        .from(leagueEvents)
-        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
-        .orderBy(desc(leagueEvents.number))
-        .limit(1)
-        .for('update')
-      if (!event) return 'missing'
-      if (event.revealedAt !== null) return 'closed'
-      const [entry] = await tx
-        .select({ status: leagueEventEntries.status, teamId: leagueEventEntries.teamId })
-        .from(leagueEventEntries)
-        .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, userId)))
-        .limit(1)
-      if (!entry) return 'missing'
-      if (status === 'accepted' && entry.status !== 'accepted') {
-        const [members] = await tx
-          .select({ active: count(), accepted: count(sql`case when ${leagueEventEntries.status} = 'accepted' then 1 end`) })
-          .from(leagueEventEntries)
-          .where(and(eq(leagueEventEntries.eventId, event.id), ne(leagueEventEntries.status, 'rejected')))
-        if (league.playerLimit !== null && (members?.accepted ?? 0) >= league.playerLimit) return 'full'
-        if (entry.status === 'rejected' && (members?.active ?? 0) >= memberLimit) return 'full'
-      }
-      if (status === 'rejected' && entry.teamId) {
-        await tx
-          .update(leagueEventEntries)
-          .set({ teamId: null, requiredLimit: null, rosterId: null, rosterName: null, rosterSnapshot: null, submittedAt: null })
-          .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.teamId, entry.teamId)))
-      }
-      const updated = await tx
-        .update(leagueEventEntries)
-        .set(
-          status === 'rejected'
-            ? { status, rosterId: null, rosterName: null, rosterSnapshot: null, submittedAt: null, requiredLimit: null, teamId: null }
-            : { status },
-        )
-        .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, userId)))
-        .returning({ userId: leagueEventEntries.userId })
-      return updated.length ? 'updated' : 'missing'
-    })
-  }
-
-  async assignLeagueRosterRequirement(
-    token: string,
-    ownerId: string,
-    userId: string,
-    requiredLimit: number,
-    eventToken?: string,
-  ): Promise<AssignLeagueRosterRequirementResult> {
-    return this.database.transaction(async (tx) => {
-      const [league] = await tx
-        .select({ id: leagues.id, ownerId: leagues.ownerId })
-        .from(leagues)
-        .where(eq(leagues.token, token))
-        .for('update')
-      if (!league) return 'missing'
-      if (league.ownerId !== ownerId) return 'forbidden'
-      const [event] = await tx
-        .select({
-          id: leagueEvents.id,
-          format: leagueEvents.format,
-          rosterLimit: leagueEvents.rosterLimit,
-          revealedAt: leagueEvents.revealedAt,
-        })
-        .from(leagueEvents)
-        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
-        .orderBy(desc(leagueEvents.number))
-        .limit(1)
-        .for('update')
-      if (!event) return 'missing'
-      if (event.revealedAt !== null) return 'closed'
-      if (event.format !== '2v1') return 'wrong-format'
-      if (requiredLimit !== event.rosterLimit && requiredLimit !== alliedLeagueRosterLimit(event.rosterLimit ?? 0)) return 'wrong-limit'
-      const [entry] = await tx
-        .select({ requiredLimit: leagueEventEntries.requiredLimit })
-        .from(leagueEventEntries)
-        .where(
-          and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, userId), eq(leagueEventEntries.status, 'accepted')),
-        )
-        .limit(1)
-        .for('update')
-      if (!entry) return 'missing'
-      if (entry.requiredLimit !== requiredLimit) {
-        await tx
-          .update(leagueEventEntries)
-          .set({ requiredLimit, rosterId: null, rosterName: null, rosterSnapshot: null, submittedAt: null })
-          .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, userId)))
-      }
-      return 'updated'
-    })
-  }
-
-  async assignLeagueTeam(
-    token: string,
-    ownerId: string,
-    userIds: readonly string[],
-    teamId: string,
-    eventToken?: string,
-  ): Promise<AssignLeagueTeamResult> {
-    return this.database.transaction(async (tx) => {
-      const [league] = await tx
-        .select({ id: leagues.id, ownerId: leagues.ownerId })
-        .from(leagues)
-        .where(eq(leagues.token, token))
-        .for('update')
-      if (!league) return 'missing'
-      if (league.ownerId !== ownerId) return 'forbidden'
-      const [event] = await tx
-        .select({
-          id: leagueEvents.id,
-          format: leagueEvents.format,
-          rosterLimit: leagueEvents.rosterLimit,
-          revealedAt: leagueEvents.revealedAt,
-        })
-        .from(leagueEvents)
-        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
-        .orderBy(desc(leagueEvents.number))
-        .limit(1)
-        .for('update')
-      if (!event) return 'missing'
-      if (event.revealedAt !== null) return 'closed'
-      if (event.format !== '2v2' || event.rosterLimit === null) return 'wrong-format'
-      const uniqueIds = [...new Set(userIds)]
-      if (uniqueIds.length < 1 || uniqueIds.length > 2) return 'missing'
-      const targets = await tx
-        .select({ userId: leagueEventEntries.userId, teamId: leagueEventEntries.teamId })
-        .from(leagueEventEntries)
-        .where(
-          and(
-            eq(leagueEventEntries.eventId, event.id),
-            inArray(leagueEventEntries.userId, uniqueIds),
-            eq(leagueEventEntries.status, 'accepted'),
-          ),
-        )
-        .for('update')
-      if (targets.length !== uniqueIds.length) return 'missing'
-      const previousTeamId = targets[0]?.teamId
-      if (uniqueIds.length === 2 && previousTeamId && targets.every((entry) => entry.teamId === previousTeamId)) return 'updated'
-      const oldTeamIds = targets.flatMap((entry) => (entry.teamId ? [entry.teamId] : []))
-      const formerPartners = oldTeamIds.length
-        ? await tx
-            .select({ userId: leagueEventEntries.userId })
-            .from(leagueEventEntries)
-            .where(and(eq(leagueEventEntries.eventId, event.id), inArray(leagueEventEntries.teamId, oldTeamIds)))
-            .for('update')
-        : []
-      const affectedIds = [...new Set([...uniqueIds, ...formerPartners.map((entry) => entry.userId)])]
-      await tx
-        .update(leagueEventEntries)
-        .set({ teamId: null, requiredLimit: null, rosterId: null, rosterName: null, rosterSnapshot: null, submittedAt: null })
-        .where(and(eq(leagueEventEntries.eventId, event.id), inArray(leagueEventEntries.userId, affectedIds)))
-      if (uniqueIds.length === 2) {
-        await tx
-          .update(leagueEventEntries)
-          .set({ teamId, requiredLimit: alliedLeagueRosterLimit(event.rosterLimit) })
-          .where(and(eq(leagueEventEntries.eventId, event.id), inArray(leagueEventEntries.userId, uniqueIds)))
-      }
-      return 'updated'
-    })
-  }
-
-  async submitLeagueRoster(input: {
-    token: string
-    userId: string
-    rosterId: string
-    rosterName: string
-    rosterLimit?: number
-    rosterUpdatedAt: number
-    snapshot: string
-    now: number
-    eventToken?: string
-  }): Promise<SubmitLeagueRosterResult> {
-    return this.database.transaction(async (tx) => {
-      const [league] = await tx.select({ id: leagues.id }).from(leagues).where(eq(leagues.token, input.token)).for('update')
-      if (!league) return { outcome: 'missing' }
-      const [event] = await tx
-        .select({
-          id: leagueEvents.id,
-          format: leagueEvents.format,
-          rosterLimit: leagueEvents.rosterLimit,
-          revealedAt: leagueEvents.revealedAt,
-        })
-        .from(leagueEvents)
-        .where(and(eq(leagueEvents.leagueId, league.id), input.eventToken ? eq(leagueEvents.token, input.eventToken) : undefined))
-        .orderBy(desc(leagueEvents.number))
-        .limit(1)
-        .for('update')
-      if (!event) return { outcome: 'missing' }
-      const [entry] = await tx
-        .select({
-          status: leagueEventEntries.status,
-          requiredLimit: leagueEventEntries.requiredLimit,
-          teamId: leagueEventEntries.teamId,
-          snapshot: leagueEventEntries.rosterSnapshot,
-        })
-        .from(leagueEventEntries)
-        .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, input.userId)))
-        .limit(1)
-        .for('update')
-      if (!entry || entry.status !== 'accepted') return { outcome: 'missing' }
-      // Reveal closes submission, so after it the absence of a snapshot is the whole
-      // record that the organizer unsealed this entry and asked for another list.
-      if (event.revealedAt !== null && entry.snapshot !== null) return { outcome: 'missing' }
-      const requiredLimit = requiredLeagueRosterLimit(event.format, event.rosterLimit, entry.requiredLimit, entry.teamId)
-      if ((event.format === '2v1' || event.format === '2v2') && requiredLimit === null) return { outcome: 'unassigned' }
-      if (requiredLimit !== null && input.rosterLimit !== requiredLimit) return { outcome: 'wrong-limit' }
-      let submitted: Roster
-      try {
-        submitted = parseRosterSnapshot(input.snapshot)
-      } catch {
-        return { outcome: 'missing' }
-      }
-      const submittedWarlords = warlordSelection([submitted])
-      if (event.format !== '2v2' && (!submittedWarlords.eligible || submittedWarlords.count !== 1))
-        return { outcome: 'invalid-warlords', format: event.format }
-      if (event.format === '2v2') {
-        const [teammate] = await tx
-          .select({ snapshot: leagueEventEntries.rosterSnapshot })
-          .from(leagueEventEntries)
-          .where(
-            and(
-              eq(leagueEventEntries.eventId, event.id),
-              eq(leagueEventEntries.teamId, entry.teamId!),
-              ne(leagueEventEntries.userId, input.userId),
-              eq(leagueEventEntries.status, 'accepted'),
-            ),
-          )
-          .limit(1)
-          .for('update')
-        if (!teammate) return { outcome: 'unassigned' }
-        if (!submittedWarlords.eligible || submittedWarlords.count > 1) return { outcome: 'invalid-warlords', format: event.format }
-        if (teammate.snapshot !== null) {
-          let teammateRoster: Roster
-          try {
-            teammateRoster = parseRosterSnapshot(teammate.snapshot)
-          } catch {
-            return { outcome: 'missing' }
-          }
-          const teamWarlords = warlordSelection([submitted, teammateRoster])
-          if (!teamWarlords.eligible || teamWarlords.count !== 1) return { outcome: 'invalid-warlords', format: event.format }
-        }
-      }
-      const updated = await tx
-        .update(leagueEventEntries)
-        .set({ rosterId: input.rosterId, rosterName: input.rosterName, rosterSnapshot: input.snapshot, submittedAt: input.now })
-        .where(
-          and(
-            eq(leagueEventEntries.eventId, event.id),
-            eq(leagueEventEntries.userId, input.userId),
-            eq(leagueEventEntries.status, 'accepted'),
-            exists(
-              tx
-                .select({ one: sql`1` })
-                .from(rosters)
-                .where(
-                  and(
-                    eq(rosters.id, input.rosterId),
-                    eq(rosters.userId, input.userId),
-                    eq(rosters.updatedAt, input.rosterUpdatedAt),
-                    requiredLimit === null ? undefined : eq(rosters.limit, requiredLimit),
-                  ),
-                ),
-            ),
-          ),
-        )
-        .returning({ userId: leagueEventEntries.userId })
-      return updated.length ? { outcome: 'sealed', format: event.format, requiredLimit } : { outcome: 'missing' }
-    })
-  }
-
-  async revealLeague(token: string, ownerId: string, now: number, eventToken?: string): Promise<RevealLeagueResult> {
-    return this.database.transaction(async (tx) => {
-      const [league] = await tx
-        .select({ id: leagues.id, ownerId: leagues.ownerId, playerLimit: leagues.playerLimit })
-        .from(leagues)
-        .where(eq(leagues.token, token))
-        .for('update')
-      if (!league || league.ownerId !== ownerId) return { outcome: 'not-ready' }
-      const [event] = await tx
-        .select({
-          id: leagueEvents.id,
-          format: leagueEvents.format,
-          rosterLimit: leagueEvents.rosterLimit,
-          revealedAt: leagueEvents.revealedAt,
-        })
-        .from(leagueEvents)
-        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
-        .orderBy(desc(leagueEvents.number))
-        .limit(1)
-        .for('update')
-      if (!event || event.revealedAt !== null) return { outcome: 'not-ready' }
-      const entries = await tx
-        .select({
-          requiredLimit: leagueEventEntries.requiredLimit,
-          teamId: leagueEventEntries.teamId,
-          snapshot: leagueEventEntries.rosterSnapshot,
-        })
-        .from(leagueEventEntries)
-        .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'accepted')))
-      if (!entries.length || (league.playerLimit !== null && entries.length !== league.playerLimit)) return { outcome: 'not-ready' }
-      if (entries.some((entry) => entry.snapshot === null || (event.format === '2v1' && entry.requiredLimit === null)))
-        return { outcome: 'not-ready' }
-      let snapshots: ReturnType<typeof parseRosterSnapshot>[] = []
-      if (event.format !== null) {
-        try {
-          snapshots = entries.map((entry) => parseRosterSnapshot(entry.snapshot!))
-        } catch {
-          return { outcome: 'not-ready' }
-        }
-      }
-      if (event.format === '2v1') {
-        const solo = entries.filter((entry) => entry.requiredLimit === event.rosterLimit).length
-        const allied = entries.filter((entry) => entry.requiredLimit === alliedLeagueRosterLimit(event.rosterLimit ?? 0)).length
-        if (!solo || allied < 2) return { outcome: 'not-ready' }
-      }
-      if (event.format !== null && event.format !== '2v2') {
-        const invalidWarlord = snapshots.some((snapshot) => {
-          const selection = warlordSelection([snapshot], true)
-          return !selection.eligible || selection.count !== 1
-        })
-        if (invalidWarlord) return { outcome: 'invalid-warlords', format: event.format }
-      }
-      if (event.format === '2v2') {
-        if (entries.length < 4 || entries.length % 2 !== 0 || entries.some((entry) => entry.teamId === null))
-          return { outcome: 'not-ready' }
-        const teams = new Map<string, Roster[]>()
-        entries.forEach((entry, index) => {
-          const teamRosters = teams.get(entry.teamId!) ?? []
-          teamRosters.push(snapshots[index]!)
-          teams.set(entry.teamId!, teamRosters)
-        })
-        if (teams.size < 2 || [...teams.values()].some((teamRosters) => teamRosters.length !== 2)) return { outcome: 'not-ready' }
-        const invalidWarlord = [...teams.values()].some((teamRosters) => {
-          const selection = warlordSelection(teamRosters)
-          return !selection.eligible || selection.count !== 1
-        })
-        if (invalidWarlord) return { outcome: 'invalid-warlords', format: event.format }
-        const [pending] = await tx
-          .select({ value: count() })
-          .from(leagueEventEntries)
-          .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'pending')))
-        if ((pending?.value ?? 0) > 0) return { outcome: 'not-ready' }
-      }
-      if (
-        event.format !== null &&
-        entries.some((entry, index) => {
-          const requiredLimit = requiredLeagueRosterLimit(event.format, event.rosterLimit, entry.requiredLimit, entry.teamId)
-          return requiredLimit === null || snapshots[index]!.built?.limit !== requiredLimit
-        })
-      )
-        return { outcome: 'not-ready' }
-      await tx
-        .update(leagueEventEntries)
-        .set({ status: 'rejected' })
-        .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'pending')))
-      await tx.update(leagueEvents).set({ revealedAt: now }).where(eq(leagueEvents.id, event.id))
-      return { outcome: 'revealed' }
-    })
-  }
-
-  /**
-   * Reopen submission for one revealed entrant.
-   *
-   * Reveal is still one-way for the event; clearing a single snapshot lets the
-   * organizer send a mistaken list back without unrevealing everyone else's.
-   */
-  async unsealLeagueRoster(token: string, ownerId: string, userId: string, eventToken?: string): Promise<UnsealLeagueRosterResult> {
-    return this.database.transaction(async (tx) => {
-      const [league] = await tx
-        .select({ id: leagues.id, ownerId: leagues.ownerId })
-        .from(leagues)
-        .where(eq(leagues.token, token))
-        .for('update')
-      if (!league) return 'missing'
-      if (league.ownerId !== ownerId) return 'forbidden'
-      const [event] = await tx
-        .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
-        .from(leagueEvents)
-        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
-        .orderBy(desc(leagueEvents.number))
-        .limit(1)
-        .for('update')
-      if (!event) return 'missing'
-      if (event.revealedAt === null) return 'not-revealed'
-      const cleared = await tx
-        .update(leagueEventEntries)
-        .set({ rosterId: null, rosterName: null, rosterSnapshot: null, submittedAt: null })
-        .where(
-          and(
-            eq(leagueEventEntries.eventId, event.id),
-            eq(leagueEventEntries.userId, userId),
-            eq(leagueEventEntries.status, 'accepted'),
-            isNotNull(leagueEventEntries.rosterSnapshot),
-          ),
-        )
-        .returning({ userId: leagueEventEntries.userId })
-      return cleared.length ? 'unsealed' : 'missing'
-    })
-  }
-
-  /**
-   * One entrant's sealed entries, newest event first, each with its event shape and the
-   * reader's own entry in the same event beside it.
-   *
-   * Reveal is not a condition here, because before it an ally still reads the snapshot and
-   * `readsAlliedLeagueRoster` is the one place that decides which reader that is. That is
-   * also why this returns the candidates rather than one row: without a named event the
-   * answer is the newest event this reader may read, which reveal alone no longer decides.
-   */
-  async leagueRosters(token: string, userId: string, eventToken?: string, readerId?: string | null) {
-    const reader = alias(leagueEventEntries, 'reader_entry')
-    const rows = await this.database
-      .select({
-        snapshot: leagueEventEntries.rosterSnapshot,
-        requiredLimit: leagueEventEntries.requiredLimit,
-        teamId: leagueEventEntries.teamId,
-        format: leagueEvents.format,
-        rosterLimit: leagueEvents.rosterLimit,
-        revealedAt: leagueEvents.revealedAt,
-        readerStatus: reader.status,
-        readerRequiredLimit: reader.requiredLimit,
-        readerTeamId: reader.teamId,
-      })
-      .from(leagueEventEntries)
-      .innerJoin(leagueEvents, eq(leagueEvents.id, leagueEventEntries.eventId))
-      .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
-      .leftJoin(reader, and(eq(reader.eventId, leagueEventEntries.eventId), eq(reader.userId, readerId ?? '')))
-      .where(
-        and(
-          eq(leagues.token, token),
-          eventToken ? eq(leagueEvents.token, eventToken) : undefined,
-          eq(leagueEventEntries.userId, userId),
-          eq(leagueEventEntries.status, 'accepted'),
-          isNotNull(leagueEventEntries.rosterSnapshot),
-        ),
-      )
-      .orderBy(desc(leagueEvents.number))
-      .limit(LEAGUE_ROSTER_EVENT_CANDIDATES)
-    return rows.flatMap((row) =>
-      row.snapshot === null
-        ? []
-        : [
-            {
-              snapshot: row.snapshot,
-              format: row.format,
-              rosterLimit: row.rosterLimit,
-              revealedAt: row.revealedAt,
-              sealed: { userId, status: 'accepted' as const, requiredLimit: row.requiredLimit, teamId: row.teamId },
-              reader:
-                readerId && row.readerStatus
-                  ? { userId: readerId, status: row.readerStatus, requiredLimit: row.readerRequiredLimit, teamId: row.readerTeamId }
-                  : null,
-            },
-          ],
-    )
-  }
-
-  async createLeagueBattle<T>(
-    input: {
-      id: string
-      token: string
-      leagueToken: string
-      eventToken?: string
-      userId: string
-      userIds: string[]
-      now: number
-    },
-    prepare: (league: {
-      eventToken: string
-      format: TableShape | null
-      rosterLimit: number | null
-      revealedAt: number | null
-      entries: { userId: string; requiredLimit: number | null; snapshot: string | null; teamId: string | null }[]
-    }) =>
-      | { allyIds: string[]; opponentIds: string[]; initialCommands: Command[]; result: T }
-      | Promise<{ allyIds: string[]; opponentIds: string[]; initialCommands: Command[]; result: T }>,
-  ): Promise<T | undefined> {
-    return this.database.transaction(async (tx) => {
-      const [event] = await tx
-        .select({
-          id: leagueEvents.id,
-          token: leagueEvents.token,
-          format: leagueEvents.format,
-          rosterLimit: leagueEvents.rosterLimit,
-          revealedAt: leagueEvents.revealedAt,
-        })
-        .from(leagues)
-        .innerJoin(leagueEvents, eq(leagueEvents.leagueId, leagues.id))
-        .where(and(eq(leagues.token, input.leagueToken), input.eventToken ? eq(leagueEvents.token, input.eventToken) : undefined))
-        .orderBy(desc(leagueEvents.number))
-        .limit(1)
-        .for('share', { of: leagues })
-      if (!event) return undefined
-      const entries = await tx
-        .select({
-          userId: leagueEventEntries.userId,
-          requiredLimit: leagueEventEntries.requiredLimit,
-          snapshot: leagueEventEntries.rosterSnapshot,
-          teamId: leagueEventEntries.teamId,
-        })
-        .from(leagueEventEntries)
-        .where(
-          and(
-            eq(leagueEventEntries.eventId, event.id),
-            event.format === '2v2' ? undefined : inArray(leagueEventEntries.userId, input.userIds),
-            eq(leagueEventEntries.status, 'accepted'),
-            isNotNull(leagueEventEntries.rosterSnapshot),
-          ),
-        )
-        .orderBy(asc(leagueEventEntries.joinedAt), asc(leagueEventEntries.userId))
-      const prepared = await prepare({
-        eventToken: event.token,
-        format: event.format,
-        rosterLimit: event.rosterLimit,
-        revealedAt: event.revealedAt,
-        entries,
-      })
-      await this.insertBattle(tx, {
-        id: input.id,
-        token: input.token,
-        userId: input.userId,
-        allyIds: prepared.allyIds,
-        opponentIds: prepared.opponentIds,
-        initialCommands: prepared.initialCommands,
-        now: input.now,
-      })
-      await tx.insert(leagueEventBattles).values({ battleId: input.id, eventId: event.id })
-      return prepared.result
-    })
-  }
-
-  async setRosterVisibility(id: string, userId: string, visibility: RosterVisibility, now: number) {
-    const updated = await this.database
-      .update(rosters)
-      .set({ visibility, updatedAt: now })
-      .where(and(eq(rosters.id, id), eq(rosters.userId, userId)))
-      .returning({ id: rosters.id })
-    return updated.length > 0
-  }
-
-  /** The datasheets this player owns models for. */
-  async collectionByUser(userId: string) {
-    return this.database.select().from(collection).where(eq(collection.userId, userId))
-  }
-
-  /** Owning something twice is owning it once, so a repeat is not an error. */
-  async addToCollection(input: { userId: string; entryId: string; now: number }) {
-    await this.database.insert(collection).values({ userId: input.userId, entryId: input.entryId, at: input.now }).onConflictDoNothing()
-  }
-
-  async removeFromCollection(userId: string, entryId: string) {
-    await this.database.delete(collection).where(and(eq(collection.userId, userId), eq(collection.entryId, entryId)))
-  }
-
-  async favouriteFactionsByUser(userId: string) {
-    return this.database.select().from(favouriteFactions).where(eq(favouriteFactions.userId, userId))
-  }
-
-  async addFavouriteFaction(input: { userId: string; catalogueId: string; now: number }) {
-    await this.database
-      .insert(favouriteFactions)
-      .values({ userId: input.userId, catalogueId: input.catalogueId, at: input.now })
-      .onConflictDoNothing()
-  }
-
-  async removeFavouriteFaction(userId: string, catalogueId: string) {
-    await this.database
-      .delete(favouriteFactions)
-      .where(and(eq(favouriteFactions.userId, userId), eq(favouriteFactions.catalogueId, catalogueId)))
-  }
-
-  async favouriteDetachmentsByUser(userId: string) {
-    return this.database.select().from(favouriteDetachments).where(eq(favouriteDetachments.userId, userId))
-  }
-
-  async addFavouriteDetachment(input: { userId: string; catalogueId: string; detachmentId: string; now: number }) {
-    await this.database
-      .insert(favouriteDetachments)
-      .values({ userId: input.userId, catalogueId: input.catalogueId, detachmentId: input.detachmentId, at: input.now })
-      .onConflictDoNothing()
-  }
-
-  async removeFavouriteDetachment(userId: string, catalogueId: string, detachmentId: string) {
-    await this.database
-      .delete(favouriteDetachments)
-      .where(
-        and(
-          eq(favouriteDetachments.userId, userId),
-          eq(favouriteDetachments.catalogueId, catalogueId),
-          eq(favouriteDetachments.detachmentId, detachmentId),
-        ),
-      )
-  }
-
-  async deleteRoster(id: string, userId: string) {
-    await this.database.delete(rosters).where(and(eq(rosters.id, id), eq(rosters.userId, userId)))
   }
 
   private async logQuery(battleId: string, tx: PraetoriumDatabase = this.database): Promise<LoggedCommand[]> {

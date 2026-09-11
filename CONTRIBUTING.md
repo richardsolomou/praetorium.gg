@@ -28,6 +28,8 @@ This command checks formatting, lint, documentation, database migrations, catalo
 
 Run `just e2e` for rendered behavior or complete user flows. It builds the production container and runs Playwright. Sync the catalogue before list-building tests.
 
+Use `just test-unit` for a fast loop without database or subprocess-backed tests. Use `just test-integration` for the repository, application service, authentication, and snapshot boundaries. `just check` runs the complete suite.
+
 Run `just points` after changes to points or roster legality. The result is a ratchet. A lower match rate is a regression unless the set of generated checks changed and the new baseline is explained.
 
 Browser tests account for three repository behaviours:
@@ -39,9 +41,11 @@ Browser tests account for three repository behaviours:
 ## Layout
 
 - `src/core` contains the domain model for battles, catalogues, evaluation, and rosters. It has no IO or framework imports.
-- `src/db` contains the Drizzle repository, Postgres schema, and database connection.
-- `src/server` contains application setup, authentication, server functions, catalogue loading, and realtime publishing.
-- `src/client` contains React components, hooks, and query definitions.
+- `src/contracts` contains serializable types shared by the client and server.
+- `src/db` contains the Drizzle repository facade, bounded repositories, Postgres schema, and database connection.
+- `src/server` contains the application-service facade and bounded services, authentication, server functions, catalogue loading, and realtime publishing.
+- `src/client/queries` groups React Query options by feature; `src/client/queries.ts` is their public barrel.
+- `src/client/features` groups browser code by product area, while `src/client/components` contains shared components.
 - `src/routes` contains thin TanStack Router route files.
 - `catalogue` records community source locations. Snapshot manifests outside Git pin their revisions and checksums; the repository contains no game data.
 - `e2e` contains Playwright coverage against the production container.
@@ -56,6 +60,8 @@ Browser tests account for three repository behaviours:
 - Reference documentation describes current behavior in the present tense. Imperative wording is reserved for procedures, checklists, and required contributor actions.
 - Rendered changes are inspected at desktop and phone widths.
 - New behavior and negative paths have test coverage.
+
+See [Architecture](docs/development/architecture.md) for dependency direction and code-placement rules.
 
 ## Pull requests
 

@@ -13,7 +13,7 @@ import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
 import { choiceOptionWargear } from '../core/modelKinds'
 import { wargearOf } from '../core/wargear'
-import { bracketedRuleReferences, normalizeRuleReference, ruleReferenceKeys, ruleReferenceMatches } from '../core/ruleReference'
+import { normalizeRuleReference, ruleReferenceMatches } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
 import {
   datasheetIdBySlug,
@@ -25,44 +25,12 @@ import {
 } from './catalogueIndex'
 import { type DatasheetSearchFields, dedupeWeapons } from './datasheetSearch'
 import { isMatchedPlayDatasheet, priceOf } from './cataloguePicker'
-import type { DatasheetDetails } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { mergeDetachmentRules } from './catalogueDescriptions'
+import type { AbilityKind, Datasheet, DatasheetRelationship } from '../contracts/catalogue'
 
-export type Datasheet = {
-  id: string
-  slug: string
-  referenceRoute: { catalogueId: string; slug: string } | null
-  name: string
-  points: number | null
-  keywords: string[]
-  profiles: {
-    id: string
-    name: string
-    type: string
-    count?: number
-    values: { name: string; value: string; baseValue?: string; modifiers?: string[] }[]
-  }[]
-  abilities: { id: string; name: string; source?: string; description: string | null; kind: AbilityKind }[]
-  composition: string[]
-  loadout: string | null
-  wargearOptions: string[]
-  wargearGroups?: DatasheetDetails['wargearGroups']
-  baseSize: string | null
-  transport: string | null
-  costs: DatasheetDetails['points']
-  attachments: DatasheetRelationship[]
-  leaders: DatasheetRelationship[]
-  supporters: DatasheetRelationship[]
-  keywordRules: { name: string; description: string }[]
-}
-
-export type DatasheetRelationship = {
-  kind?: DatasheetDetails['attachesTo'][number]['kind']
-  name: string
-  entryId: string | null
-  route: { catalogueId: string; slug: string } | null
-}
+export type { Datasheet, DatasheetRelationship } from '../contracts/catalogue'
+export { rulesNamed, rulesReferencedIn } from './catalogueRules'
 
 export function toughnessOf(profiles: readonly { type: string; values: readonly { name: string; value: string }[] }[]): number | null {
   const values = profiles
@@ -102,8 +70,6 @@ export function unitWoundsIn(loaded: LoadedCatalogue, catalogueId: string, entry
     return wounds === null ? [] : [{ entryId, wounds }]
   })
 }
-
-type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'upgrade' | 'wargear'
 
 /** The keywords a weapon profile prints as one comma-joined characteristic, none where it prints a dash. */
 export const weaponKeywordsOf = (value: string | undefined) =>
@@ -1610,60 +1576,3 @@ function replaceAt(value: string, pattern: RegExp, position: number | string | u
 }
 
 const escapeRegExp = (value: string) => value.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
-export function rulesReferencedIn(loaded: LoadedCatalogue, texts: readonly (string | null)[]) {
-  return rulesNamed(
-    loaded,
-    texts.flatMap((text) => [
-      ...[...(text ?? '').matchAll(/\*\*(.*?)\*\*|\^\^(.*?)\^\^/g)].flatMap((match) => {
-        const name = (match[1] ?? match[2] ?? '').replaceAll(/\*\*|\^\^/g, '')
-        return name ? [name] : []
-      }),
-      ...bracketedRuleReferences(text ?? '').filter((name): name is string => Boolean(name)),
-    ]),
-  )
-}
-
-/**
- * The rules these names are asking for, by name alone.
- *
- * A keyword a detachment appends to a weapon arrives as a bare word — the entry that
- * printed the profile links the rules it was printed with, and nothing links the one
- * that was added. Looking it up by name is how [ASSAULT] on a modified profile reads
- * the same as [ASSAULT] on a printed one. A name two catalogues describe differently
- * is dropped rather than guessed between.
- */
-type NamedRule = { name: string; descriptions: Set<string>; order: number }
-const ruleNameIndexCache = new WeakMap<LoadedCatalogue, Map<string, NamedRule[]>>()
-
-/** Every catalogue rule, indexed once by its normalized name for lookup by `ruleReferenceKeys`. */
-function ruleNameIndex(loaded: LoadedCatalogue) {
-  const cached = ruleNameIndexCache.get(loaded)
-  if (cached) return cached
-  const index = new Map<string, NamedRule[]>()
-  let order = 0
-  for (const rule of loaded.index.rules.values()) {
-    if (!rule.name || !rule.description) continue
-    const key = normalizeRuleReference(rule.name)
-    const bucket = index.get(key) ?? []
-    if (!index.has(key)) index.set(key, bucket)
-    const existing = bucket.find((candidate) => candidate.name === rule.name)
-    if (existing) existing.descriptions.add(rule.description)
-    else bucket.push({ name: rule.name, descriptions: new Set([rule.description]), order: order++ })
-  }
-  ruleNameIndexCache.set(loaded, index)
-  return index
-}
-
-export function rulesNamed(loaded: LoadedCatalogue, names: readonly string[]) {
-  const index = ruleNameIndex(loaded)
-  const matched = new Set<NamedRule>()
-  for (const reference of names) {
-    for (const key of ruleReferenceKeys(reference)) {
-      for (const candidate of index.get(key) ?? []) matched.add(candidate)
-    }
-  }
-  return [...matched]
-    .toSorted((left, right) => left.order - right.order)
-    .flatMap(({ name, descriptions }) => (descriptions.size === 1 ? [{ name, description: descriptions.values().next().value! }] : []))
-}

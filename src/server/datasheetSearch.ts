@@ -23,10 +23,9 @@ export type DatasheetSearchFields = {
   wargear: string[]
 }
 
-export type DatasheetSearchReason = {
-  kind: 'keyword' | 'ability' | 'weapon' | 'weapon keyword' | 'wargear'
-  value: string
-}
+import type { DatasheetSearchReason } from '../contracts/catalogue'
+
+export type { DatasheetSearchReason } from '../contracts/catalogue'
 
 export type DatasheetSearchMatch = { score: number; reasons: DatasheetSearchReason[] }
 

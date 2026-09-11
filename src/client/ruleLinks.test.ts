@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { RuleIndex } from '../server/rulesCore'
+import type { RuleIndex } from '../contracts/rules'
 import { ruleLinks } from './ruleLinks'
 
 const reference = (document: string, code: string) => ({ code, document, section: 'moving', anchor: code, title: code })

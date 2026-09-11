@@ -3,12 +3,12 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { UserX } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { ServiceRecord } from '../core/serviceRecord'
-import { BattleShelf } from '../client/components/battles/BattleShelf'
+import { BattleShelf } from '../client/features/battles/BattleShelf'
 import { PageState } from '../client/components/PageState'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
-import { PlayerRankings } from '../client/components/profile/PlayerRankings'
-import { PlayerRosters } from '../client/components/profile/PlayerRosters'
-import { ServiceRecordPanel } from '../client/components/profile/ServiceRecordPanel'
+import { PlayerRankings } from '../client/features/profile/PlayerRankings'
+import { PlayerRosters } from '../client/features/profile/PlayerRosters'
+import { ServiceRecordPanel } from '../client/features/profile/ServiceRecordPanel'
 import {
   factionIndexQuery,
   meQuery,
