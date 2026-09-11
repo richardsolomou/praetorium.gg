@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.64.4
+
+### Patch Changes
+
+- aa42b17: Keep the unit sidebar visible in an owner's roster View mode.
+
 ## 0.64.3
 
 ### Patch Changes
