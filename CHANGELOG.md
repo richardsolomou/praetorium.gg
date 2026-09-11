@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.64.3
+
+### Patch Changes
+
+- 9756548: Count a character inside the unit it joined in the roster header, matching the library.
+
 ## 0.64.2
 
 ### Patch Changes
