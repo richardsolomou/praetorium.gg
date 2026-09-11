@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.64.0
+
+### Minor Changes
+
+- 300e815: Read every roster on one screen: a fielded list keeps its points total, unit count, actions and full datasheet link, and View mode now shows an owner exactly what another reader sees.
+
 ## 0.63.4
 
 ### Patch Changes
