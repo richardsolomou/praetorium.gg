@@ -114,11 +114,11 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
   // The unit's own selection has to be in the roster it is judged against, or a
   // question about its surroundings has nothing to look at.
   const roster = [...(options.roster ?? []), selection]
-  const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster })
-  const minimum = (definition: Definition) =>
-    requiredCount(definition, index, { primaryCatalogueId: options.primaryCatalogueId, mustering: options.mustering, roster })
   const entry = index.definitions.get(entryId)
   if (!entry) return []
+  const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster }, entry)
+  const minimum = (definition: Definition) =>
+    requiredCount(definition, index, { primaryCatalogueId: options.primaryCatalogueId, mustering: options.mustering, roster })
   const resizingGroup = sizeOf(selection, index).path.slice(0, -1)
 
   /**
@@ -326,7 +326,7 @@ export function unitToggles(entryId: string, selection: Selection, index: Catalo
   const root = index.definitions.get(entryId)
   if (!root) return []
   const roster = [...(options.roster ?? []), selection]
-  const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster })
+  const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster }, root)
   const found: UnitToggle[] = []
   const walk = (definition: Definition, trail: string[], seen: Set<string>) => {
     const target = resolve(definition, index)
@@ -368,6 +368,8 @@ function effectiveCount(
   const ceiling = Math.max(1, modelCountOf(selection, index))
   const size = sizeOf(selection, index)
   const existing = allAt(selection, path).reduce((total, model) => total + (model.count ?? 1), 0)
+  // Required models are already counted; only optional specialists can join through a weapon choice.
+  if (requiredCount(definition, index, { ...context, roster: [...(context.roster ?? []), selection] }) > 0) return existing
   for (let count = Math.max(1, existing + 1); count <= ceiling; count++) {
     let candidate = withCounts(selection, [{ path, count }])
     if (size.path.length && size.path.join('/') !== path.join('/')) {

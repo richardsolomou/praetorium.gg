@@ -20,10 +20,9 @@ import {
   keywordIdsBySelection,
   type Selection,
 } from '../core/evaluate'
-import { type ModelKind, modelKindsOf, modelRowCount, modelRowSources, optionWargear } from '../core/modelKinds'
+import { type ModelKind, modelKindsOf, modelRowPieces, modelRowCount, modelRowSources, choiceOptionWargear } from '../core/modelKinds'
 import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
 import { buildUnit } from '../core/roster'
-import { allAt } from '../core/selection'
 import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearKey, wargearOf } from '../core/wargear'
@@ -534,11 +533,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       )
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         const choiceOptions = choiceOptionsForPricing(choice).map((option) => {
-          const path = choice.key.split('/')
-          const nested = allAt(unit.selection, [...path, option.id])
-          const direct = allAt(unit.selection, path).filter((selection) => selection.id === option.id)
-          const selected = nested.length ? nested : direct
-          const pieceCounts = optionWargear(option.id, loaded.index, options, selected)
+          const pieceCounts = choiceOptionWargear(choice.key, option.id, unit.selection, loaded.index, options)
           return pieceCounts.length ? { ...option, pieces: pieceCounts.map((piece) => piece.name), pieceCounts } : option
         })
         if (!choice.name.toLowerCase().includes('enhancement')) return { ...choice, options: choiceOptions }
@@ -752,7 +747,7 @@ export function heldWargear(
     for (const piece of kind.fixed) add(piece.name, piece.count ?? bodies)
     for (const row of kind.rows) {
       const count = modelRowCount(row, ({ choiceKey, optionId }) => countOf(choiceKey, optionId))
-      for (const name of row.pieces ?? [row.name]) add(name, count)
+      for (const name of modelRowPieces(row, kind.rows)) add(name, count)
     }
   }
   const modeled = new Set(

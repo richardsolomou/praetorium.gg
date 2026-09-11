@@ -1,3 +1,4 @@
+import { wargearBaseName } from '../core/wargear'
 import type { Datasheet } from '../server/catalogue'
 import { normalizedName, normalizedNameVariants } from '../core/name'
 
@@ -41,7 +42,8 @@ export function compositionCount(composition: readonly string[]) {
       alternatives.push([])
       continue
     }
-    for (const count of line.matchAll(/(\d+)(?:\s*[-–]\s*(\d+))?/g)) {
+    // Any dash the source writes, non-breaking hyphens included, joins one range.
+    for (const count of line.matchAll(/(\d+)(?:\s*\p{Pd}\s*(\d+))?/gu)) {
       alternatives.at(-1)?.push({ minimum: Number(count[1]), maximum: Number(count[2] ?? count[1]) })
     }
   }
@@ -99,4 +101,25 @@ export function attachmentGroups(sheet: AttachmentSheet) {
     { title: 'Can be led by', relationships: sheet.leaders },
     { title: 'Can be supported by', relationships: sheet.supporters },
   ].filter(({ relationships }) => relationships.length)
+}
+
+export function weaponProfileGroups(weapons: readonly Profile[]) {
+  const groups = new Map<string, Profile[]>()
+  for (const weapon of weapons) {
+    const key = `${weapon.type}/${weapon.count ?? 1}/${wargearBaseName(weapon.name)}`
+    const group = groups.get(key)
+    if (group) group.push(weapon)
+    else groups.set(key, [weapon])
+  }
+  return [...groups.values()]
+}
+
+export function weaponProfileMode(profile: Profile) {
+  return (
+    profile.name
+      .replace(/^[^\p{L}\p{N}]+/u, '')
+      .slice(wargearBaseName(profile.name).length)
+      .replace(/^\s*[-–—(]\s*|\)\s*$/g, '')
+      .trim() || profile.name
+  )
 }

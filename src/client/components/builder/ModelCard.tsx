@@ -1,16 +1,18 @@
 import type { Datasheet } from '../../../server/catalogue'
 import {
-  canAddPooledOption,
+  addsModel,
   changeBy,
   choiceRemoval,
-  donorPriority,
   type LoadoutChoice,
   type LoadoutModel,
   type LoadoutOption,
-  loadoutRowBand,
   loadoutRowCount,
   loadoutRowSources,
-  ordered,
+  loadoutInstructions,
+  modelCount,
+  orderedModelWargear,
+  type PoolChange,
+  poolHandlers,
   replacementChoice,
   sameWeapon,
   showLoadoutEntry,
@@ -37,6 +39,8 @@ export function ModelCard({
   weapons,
   abilities,
   rules,
+  wargearGroups,
+  models,
   onChoose,
   onSpread,
   editable,
@@ -50,6 +54,8 @@ export function ModelCard({
   weapons: WeaponProfileData[]
   abilities: Datasheet['abilities']
   rules: Datasheet['keywordRules']
+  wargearGroups?: Datasheet['wargearGroups']
+  models?: readonly LoadoutModel[]
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: SpreadCounts) => void
   editable: boolean
@@ -62,77 +68,9 @@ export function ModelCard({
     return choice && option ? { choice, option } : null
   }
 
-  const count = model.members.reduce(
-    (total, member) => total + (member.choiceKey ? (optionOf(member.choiceKey, member.id)?.option.count ?? 0) : member.baseCount),
-    0,
-  )
-
-  const sourcesOf = (row: LoadoutModel['rows'][number]) => loadoutRowSources(row, choices)
-  const rowCount = (row: LoadoutModel['rows'][number]) => loadoutRowCount(row, choices)
-  const bandOf = (row: LoadoutModel['rows'][number]) => loadoutRowBand(row, weapons)
-
-  /**
-   * Every weapon this kind of model counts by is one of its bodies holding that
-   * weapon, so they all draw on the same pool however the catalogue files them.
-   * Rebalancing within a single group would leave a veteran unable to put down a
-   * pyrecannon and pick his bolt rifle back up, because the two are written in
-   * different places.
-   */
-  const shared = model.rows.flatMap((row) =>
-    sourcesOf(row).flatMap((found) => (found.choice.room > 1 || found.choice.carried ? [{ row, ...found }] : [])),
-  )
-  const move = (from: typeof shared, to: typeof shared) => {
-    const wanted = new Map<string, Record<string, number>>()
-    for (const [entry, delta] of [...from.map((one) => [one, -1] as const), ...to.map((one) => [one, 1] as const)]) {
-      const counts = wanted.get(entry.choice.key) ?? {}
-      counts[entry.option.id] = entry.option.count + delta
-      wanted.set(entry.choice.key, counts)
-    }
-    return [...wanted]
-  }
-  const sameSource = (one: (typeof shared)[number], other: (typeof shared)[number]) =>
-    one.choice.key === other.choice.key && one.option.id === other.option.id
-  const addsModel = (entry: { choice: LoadoutChoice; option: LoadoutOption }) =>
-    model.members.some((member) => member.choiceKey === entry.choice.key && member.id === entry.option.id)
-
-  const spend = (taker: (typeof shared)[number]) => {
-    // A group with no room left gives up one of its own: the veteran holding the
-    // pyrecannon is the one who puts it down for a heavy bolter, and asking a
-    // squadmate with a bolt rifle instead would put a second special weapon in a
-    // squad allowed one.
-    const kin = shared.filter((entry) => entry.choice.key === taker.choice.key)
-    const full = kin.reduce((total, entry) => total + entry.option.count, 0) >= taker.choice.room
-    const band = bandOf(taker.row)
-    const pool = full ? kin : shared.filter((entry) => bandOf(entry.row) === band)
-    const occupied = model.rows.filter((row) => bandOf(row) === band).reduce((total, row) => total + rowCount(row), 0)
-    // A model option with room joins the squad; it does not replace another
-    // specialist on this card. The squad's model group supplies the body.
-    if (!full && addsModel(taker) && canAddPooledOption(taker.option)) return move([], [taker])
-    const giver = pool
-      .filter((entry) => !sameSource(entry, taker) && entry.option.count > 0 && canAddPooledOption(taker.option, entry))
-      .toSorted((one, other) => donorPriority(one.option, other.option))[0]
-    if (!full && occupied < count) return canAddPooledOption(taker.option) ? move([], [taker]) : null
-    if (giver) return move([giver], [taker])
-    return !full && canAddPooledOption(taker.option) ? move([], [taker]) : null
-  }
-
-  const free = (giver: (typeof shared)[number]) => {
-    if (giver.option.count <= 0) return null
-    const taker = shared
-      .filter((entry) => !sameSource(entry, giver) && canAddPooledOption(entry.option, giver))
-      .toSorted((one, other) => donorPriority(one.option, other.option))[0]
-    if (giver.option.count <= giver.option.min) return null
-    return taker ? move([giver], [taker]) : move([giver], [])
-  }
-
-  /** The handler for a row's button, or nothing when that row cannot give or take. */
-  const pooled = (row: LoadoutModel['rows'][number], decide: (entry: (typeof shared)[number]) => ReturnType<typeof move> | null) => {
-    for (const entry of shared.filter((candidate) => candidate.row === row)) {
-      const changes = decide(entry)
-      if (changes) return () => changes.forEach(([key, counts]) => onSpread(key, counts))
-    }
-    return undefined
-  }
+  const count = modelCount(model, choices)
+  const { spend, free } = poolHandlers(model, choices, weapons)
+  const press = (changes: PoolChange | null) => (changes ? () => changes.forEach(([key, counts]) => onSpread(key, counts)) : undefined)
 
   /**
    * How many of this card there are, where the card is one option of a group.
@@ -158,10 +96,11 @@ export function ModelCard({
   }
   const counted = heading()
   if (!showOptions && !count) return null
+  const statedInstructions = new Set<string>()
 
   return (
-    <section className="border border-edge-strong bg-panel/40">
-      <p className="eyebrow flex items-center justify-between gap-2 border-b border-edge px-2.5 py-2 text-bone">
+    <section>
+      <p className="eyebrow mb-2 flex items-center justify-between gap-2 text-bone">
         <span className="min-w-0">{model.name}</span>
         {stands && counted ? (
           <PoolStepper name={model.name} count={stands.option.count} editable={editable} disabled={controlsDisabled} {...counted} />
@@ -171,12 +110,8 @@ export function ModelCard({
           </span>
         )}
       </p>
-      <ul className="divide-y divide-edge">
-        {ordered(
-          [...model.fixed.map((entry) => ({ name: entry.name, fixed: entry })), ...model.rows.map((row) => ({ name: row.name, row }))],
-          weapons,
-          (entry) => ('row' in entry ? `choice:${entry.row.choiceKey}` : `wargear:${entry.name}`),
-        ).map((entry) => {
+      <ul className="space-y-3">
+        {orderedModelWargear(model, choices, weapons).map((entry) => {
           if ('fixed' in entry) {
             const fixedCount = entry.fixed.count ?? count
             if (!showLoadoutEntry(fixedCount, showOptions)) return null
@@ -193,14 +128,16 @@ export function ModelCard({
             )
           }
           const row = entry.row
+          const pieces = entry.pieces
+          if (!pieces.length) return null
           const found = optionOf(row.choiceKey, row.optionId)
           if (!found) return null
           const { choice, option } = found
-          const displayed = rowCount(row)
+          const displayed = loadoutRowCount(row, choices)
           if (!showLoadoutEntry(displayed, showOptions)) return null
           const replacement = replacementChoice(row, model, choices, count)
-          const sources = sourcesOf(row)
-          const addsModelRow = sources.some(addsModel)
+          const sources = loadoutRowSources(row, choices)
+          const addsModelRow = sources.some((source) => addsModel(model, source))
           const exceedsModelCount = sources.some(({ option: candidate }) => candidate.max > count)
           const direct = sources.filter(({ choice: source }) => source.room <= 1 && !source.carried)
           const replacesAnotherRow = Boolean(
@@ -217,25 +154,33 @@ export function ModelCard({
               ? undefined
               : replacement
                 ? () => onChoose(replacement.key, '')
-                : (pooled(row, spend) ?? (addDirect ? () => onChoose(addDirect.choice.key, addDirect.option.id) : undefined))
+                : (press(spend(row)) ?? (addDirect ? () => onChoose(addDirect.choice.key, addDirect.option.id) : undefined))
           const remove =
-            pooled(row, free) ?? (removeDirect ? () => onChoose(removeDirect.source.choice.key, removeDirect.replacement ?? '') : undefined)
+            press(free(row)) ?? (removeDirect ? () => onChoose(removeDirect.source.choice.key, removeDirect.replacement ?? '') : undefined)
           const picked = choice.uniform || (choice.optional && choice.room === 1 && choice.options.length === 1)
+          const instructions = showOptions
+            ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], wargearGroups ?? []).filter((instruction) => {
+                if (statedInstructions.has(instruction)) return false
+                statedInstructions.add(instruction)
+                return true
+              })
+            : []
           return (
             <WargearRow
-              key={`${row.choiceKey}/${row.optionId}/${row.name}`}
-              name={row.name}
-              pieces={row.pieces}
+              key={`${row.choiceKey}/${row.optionId}/${entry.name}`}
+              name={entry.name}
+              pieces={pieces}
               count={displayed}
               points={option.points}
               weapons={weapons}
               abilities={abilities}
               rules={rules}
               highlightSelection={showOptions}
+              instructions={instructions}
               control={
                 picked ? (
                   <PickControl
-                    name={row.name}
+                    name={entry.name}
                     count={displayed}
                     editable={editable}
                     disabled={controlsDisabled}
@@ -249,7 +194,7 @@ export function ModelCard({
                   />
                 ) : (
                   <PoolStepper
-                    name={row.name}
+                    name={entry.name}
                     count={displayed}
                     editable={editable}
                     disabled={controlsDisabled}

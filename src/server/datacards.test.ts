@@ -20,6 +20,59 @@ it('folds accents and repeated construction suffixes into one join key', () => {
 
 let directory: string | null = null
 
+it('reads source instructions with their equipment names and skips incomplete groups', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'test.json'),
+    JSON.stringify({
+      name: 'Test',
+      detachments: [],
+      datasheets: [
+        {
+          id: 'troopers',
+          name: { en: 'Troopers' },
+          wargearOptions: [
+            { instruction: { en: 'One trooper can replace their rifle.' }, options: [{ name: { en: 'Cannon' } }] },
+            { instruction: { fr: 'Instruction' }, options: [{ name: { en: 'Blade' } }] },
+            { instruction: { en: 'Missing equipment' }, options: [{ name: { fr: 'Arme' } }] },
+          ],
+        },
+      ],
+    }),
+  )
+
+  expect(loadDatacards(directory).factions.get('test')?.datasheetDetails.get('Troopers')?.wargearGroups).toEqual([
+    { instruction: 'One trooper can replace their rifle.', options: ['Cannon'] },
+  ])
+})
+
+it('reads a composition written as the source\u2019s own list, keeping the equipment sentence as the loadout', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'orks.json'),
+    JSON.stringify({
+      name: 'Orks',
+      detachments: [],
+      datasheets: [
+        {
+          id: 'beast-snagga-boyz',
+          name: { en: 'Beast Snagga Boyz' },
+          composition: [
+            {
+              en: '<ul><li>1-2 Nob models</li>\r<li>9\u201118 Beast Snagga Boy models</li></ul>\rEvery Nob is equipped with: 1 Power Snappa.',
+            },
+          ],
+          loadout: { en: '' },
+        },
+      ],
+    }),
+  )
+
+  const details = loadDatacards(directory).factions.get('orks')?.datasheetDetails.get('Beast Snagga Boyz')
+  expect(details?.composition).toEqual(['1-2 Nob models', '9\u201118 Beast Snagga Boy models'])
+  expect(details?.loadout).toBe('Every Nob is equipped with: 1 Power Snappa.')
+})
+
 afterEach(() => {
   if (directory) fs.rmSync(directory, { recursive: true, force: true })
   directory = null
@@ -146,6 +199,48 @@ it('reads every structured army rule', () => {
 
   expect(loadDatacards(directory).factions.get('adeptus-custodes')?.armyRules).toEqual([
     { name: 'Martial Ka’tah', description: 'Select a stance.\n\n### Rendax Stance\n\nWeapons gain **[LETHAL HITS]**.' },
+  ])
+})
+
+it('names a section the card leaves empty, and takes its words from the catalogue', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'aeldari.json'),
+    JSON.stringify({
+      name: 'Aeldari',
+      datasheets: [],
+      detachments: [],
+      rules: {
+        army: [
+          {
+            name: { en: 'Battle Focus' },
+            rules: [
+              { order: 1, type: 'text', text: { en: 'Spend a token to perform an Agile Manoeuvre.' } },
+              { order: 2, type: 'header', text: { en: 'Agile Manoeuvres' } },
+              { order: 3, type: 'triggerEffectAccordion', title: { en: 'Swift as the Wind' } },
+              { order: 4, type: 'triggerEffectAccordion', title: { en: 'Fade Back' } },
+            ],
+          },
+        ],
+      },
+    }),
+  )
+
+  const asked: string[] = []
+  const sections = ({ faction, entry, titles }: { faction: string; entry: string; titles: readonly string[] }) => {
+    asked.push(`${faction} / ${entry}`)
+    return new Map(titles.flatMap((title) => (title === 'Fade Back' ? [] : [[title, 'Add 2" to Move.']])))
+  }
+  const loaded = loadDatacards(directory, sections)
+
+  // The card and the heading its empty titles sit under name the entry to ask for.
+  expect(asked).toEqual(['Aeldari / Battle Focus - Agile Manoeuvres'])
+  expect(loaded.factions.get('aeldari')?.armyRules).toEqual([
+    {
+      name: 'Battle Focus',
+      description:
+        'Spend a token to perform an Agile Manoeuvre.\n\n### Agile Manoeuvres\n\n### Swift as the Wind\n\nAdd 2" to Move.\n\n### Fade Back',
+    },
   ])
 })
 
@@ -446,4 +541,10 @@ describe('army-construction restrictions', () => {
       restrictedBy(restrictions, 'Marshal', ['Character']),
     ]).toEqual([{ keyword: null }, null, { keyword: 'Psyker' }, null])
   })
+})
+
+it('hands a card\u2019s table on as the source wrote it', () => {
+  expect(prose('Roll one D6:\r<table>\r<tr><td>1‑2</td>\r<td>+1<b> A</b></td></tr></table>\rThen <b>fight</b>.')).toBe(
+    'Roll one D6:\n<table>\r<tr><td>1‑2</td>\r<td>+1<b> A</b></td></tr></table>\nThen **fight**.',
+  )
 })

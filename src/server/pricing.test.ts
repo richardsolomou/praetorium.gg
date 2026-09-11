@@ -809,6 +809,93 @@ describe('what a unit is carrying', () => {
     ])
   })
 
+  /**
+   * A pairing a player takes by name is what opens a choice for each weapon in it, and
+   * each of those is drawn as a row of its own below. The row below is where the count
+   * comes from, and counting the pairing as well armed one Nob like two.
+   */
+  it('counts a weapon once when a pairing and the choice it opens both name it', () => {
+    const models = [
+      kind({
+        name: 'Nob',
+        members: [{ id: 'nob', choiceKey: null, baseCount: 1 }],
+        rows: [
+          {
+            name: 'Kustom Choppa and Kombi-skorcha',
+            choiceKey: 'nob/weapons',
+            optionId: 'pairing',
+            pieces: ['Kustom Choppa', 'Kombi-skorcha'],
+          },
+          { name: 'Kustom Choppa', choiceKey: 'nob/weapons/pairing/choppa', optionId: 'kustom-choppa' },
+          { name: 'Power Klaw', choiceKey: 'nob/weapons/pairing/choppa', optionId: 'power-klaw' },
+          { name: 'Kombi-skorcha', choiceKey: 'nob/weapons/pairing/skorcha', optionId: 'kombi-skorcha' },
+        ],
+      }),
+    ]
+    const choices = [
+      { key: 'nob/weapons', options: [{ id: 'pairing', count: 1 }] },
+      {
+        key: 'nob/weapons/pairing/choppa',
+        options: [
+          { id: 'kustom-choppa', count: 1 },
+          { id: 'power-klaw', count: 0 },
+        ],
+      },
+      { key: 'nob/weapons/pairing/skorcha', options: [{ id: 'kombi-skorcha', count: 1 }] },
+    ]
+
+    expect(
+      heldWargear(models, choices, [
+        { name: 'Kustom Choppa', count: 1 },
+        { name: 'Kombi-skorcha', count: 1 },
+      ]),
+    ).toEqual([
+      { name: 'Kustom Choppa', count: 1 },
+      { name: 'Kombi-skorcha', count: 1 },
+    ])
+  })
+
+  it('takes the weapon the opened choice settled on rather than the pairing’s own name for it', () => {
+    const models = [
+      kind({
+        name: 'Nob',
+        members: [{ id: 'nob', choiceKey: null, baseCount: 1 }],
+        rows: [
+          {
+            name: 'Kustom Choppa and Kombi-skorcha',
+            choiceKey: 'nob/weapons',
+            optionId: 'pairing',
+            pieces: ['Kustom Choppa', 'Kombi-skorcha'],
+          },
+          { name: 'Kustom Choppa', choiceKey: 'nob/weapons/pairing/choppa', optionId: 'kustom-choppa' },
+          { name: 'Power Klaw', choiceKey: 'nob/weapons/pairing/choppa', optionId: 'power-klaw' },
+          { name: 'Kombi-skorcha', choiceKey: 'nob/weapons/pairing/skorcha', optionId: 'kombi-skorcha' },
+        ],
+      }),
+    ]
+    const choices = [
+      { key: 'nob/weapons', options: [{ id: 'pairing', count: 1 }] },
+      {
+        key: 'nob/weapons/pairing/choppa',
+        options: [
+          { id: 'kustom-choppa', count: 0 },
+          { id: 'power-klaw', count: 1 },
+        ],
+      },
+      { key: 'nob/weapons/pairing/skorcha', options: [{ id: 'kombi-skorcha', count: 1 }] },
+    ]
+
+    expect(
+      heldWargear(models, choices, [
+        { name: 'Power Klaw', count: 1 },
+        { name: 'Kombi-skorcha', count: 1 },
+      ]),
+    ).toEqual([
+      { name: 'Power Klaw', count: 1 },
+      { name: 'Kombi-skorcha', count: 1 },
+    ])
+  })
+
   it('falls back to the catalogue for a unit with no kinds at all', () => {
     expect(heldWargear([], [], [{ name: 'Relic blade', count: 1 }])).toEqual([{ name: 'Relic blade', count: 1 }])
   })

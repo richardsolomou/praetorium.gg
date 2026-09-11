@@ -36,6 +36,8 @@ type RosterHeaderProps = {
   factionLoading?: boolean
   points?: number | null
   limit?: number
+  /** How many units the list holds, said the way the library says it. */
+  unitCount?: number
   detachments?: readonly PresentedDetachment[]
   disposition?: string | null
   /** The format restrictions this list is not playing, named beside it wherever it is read. */
@@ -94,6 +96,7 @@ export function RosterHeader({
   factionLoading = false,
   points,
   limit,
+  unitCount,
   detachments = NO_DETACHMENTS,
   disposition,
   waivers = NO_WAIVERS,
@@ -157,6 +160,14 @@ export function RosterHeader({
             {limit !== undefined ? (
               <span className="shrink-0">{GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`}</span>
             ) : null}
+            {unitCount === undefined ? null : (
+              <span className="contents">
+                <span aria-hidden>·</span>
+                <span className="shrink-0">
+                  {unitCount} {unitCount === 1 ? 'unit' : 'units'}
+                </span>
+              </span>
+            )}
             {detachments.map((detachment) => {
               const reference = faction?.detachments.find((candidate) => candidate.id === detachment.id)
               const label = `${detachment.name}${detachment.points === null || detachment.points === undefined ? '' : ` · ${detachment.points} DP`}`

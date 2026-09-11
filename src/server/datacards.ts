@@ -20,6 +20,7 @@ export type DatasheetDetails = {
   composition: string[]
   loadout: string | null
   wargear: string[]
+  wargearGroups?: { instruction: string; options: string[] }[]
   baseSize: string | null
   transport: string | null
   points: { models: string; cost: string; keyword: string | null; faction: string | null; detachment: string | null }[]
@@ -29,6 +30,20 @@ export type DatasheetDetails = {
 }
 
 export type RuleCard = { name: string; description: string }
+
+/**
+ * What a section the cards name and leave empty actually says, by title.
+ *
+ * The files write the Aeldari Agile Manoeuvres as six titles with no words at all, so
+ * the card is asking for prose it does not carry. `entry` is the name the section is
+ * asking under — the card and the section it headed, as the catalogue names the entry
+ * holding them — and a title nothing answers for keeps its heading and nothing beneath
+ * it. `catalogueSections` is the only thing that can answer, because those words are in
+ * the community catalogue rather than here.
+ */
+export type SectionProse = (section: { faction: string; entry: string; titles: readonly string[] }) => ReadonlyMap<string, string>
+
+const NO_SECTIONS: SectionProse = () => new Map()
 
 export type ConstructionDetachment = {
   name: string
@@ -107,7 +122,7 @@ export const descriptionKey = (detachment: string, name: string) => `${routeSlug
 /** The source's own faction name and the catalogue name already declared for it. */
 export const datacardsFactionKeys = (name: string) => new Set([routeSlug(name), routeSlug(catalogueFactionName(name))])
 
-export function loadDatacards(directory: string): LoadedDatacards {
+export function loadDatacards(directory: string, sections: SectionProse = NO_SECTIONS): LoadedDatacards {
   const factions = new Map<string, FactionContent>()
   const detachmentRules = new Map<string, Map<string, Set<string>>>()
   const enhancements = new Map<string, Set<string>>()
@@ -136,7 +151,7 @@ export function loadDatacards(directory: string): LoadedDatacards {
   for (const fileName of fs.readdirSync(directory).filter((entry) => entry.endsWith('.json'))) {
     const parsed = JSON.parse(fs.readFileSync(path.join(directory, fileName), 'utf8')) as DatacardsFaction
     if (typeof parsed.name !== 'string' || !Array.isArray(parsed.datasheets) || !Array.isArray(parsed.detachments)) continue
-    const content = factionContent(parsed.name, parsed)
+    const content = factionContent(parsed.name, parsed, sections)
     for (const key of datacardsFactionKeys(parsed.name)) factions.set(key, content)
     for (const rule of content.armyRules) remember(armyRules, routeSlug(rule.name), rule.description)
     for (const detachment of records(parsed, 'detachments')) {
@@ -174,7 +189,7 @@ export function loadDatacards(directory: string): LoadedDatacards {
       ])
     }
 
-    for (const entry of detachmentRuleCards(parsed.rules)) {
+    for (const entry of detachmentRuleCards(parsed.rules, parsed.name, sections)) {
       const rules = detachmentRules.get(routeSlug(entry.detachment)) ?? new Map<string, Set<string>>()
       for (const rule of entry.rules) {
         const texts = rules.get(rule.name) ?? new Set<string>()
@@ -271,7 +286,7 @@ export const enhancementPoints = (datacards: LoadedDatacards, detachment: string
 const unique = (candidates: ReadonlyMap<string, Set<string>>) =>
   new Map([...candidates].flatMap(([key, texts]) => (texts.size === 1 ? [[key, texts.values().next().value!] as const] : [])))
 
-function factionContent(name: string, parsed: DatacardsFaction): FactionContent {
+function factionContent(name: string, parsed: DatacardsFaction, sections: SectionProse): FactionContent {
   const datasheets = records(parsed, 'datasheets').flatMap((entry) => {
     const datasheetName = localizedField(entry, 'name')
     return datasheetName ? [{ id: stringField(entry, 'id'), name: datasheetName, details: datasheetDetails(entry) }] : []
@@ -329,7 +344,7 @@ function factionContent(name: string, parsed: DatacardsFaction): FactionContent 
     enhancements.set(key, [...(enhancements.get(key) ?? []), resolved])
   }
   const detachmentRules = new Map<string, Map<string, Set<string>>>()
-  for (const entry of detachmentRuleCards(parsed.rules)) {
+  for (const entry of detachmentRuleCards(parsed.rules, name, sections)) {
     const key = joinKey(entry.detachment)
     const cards = detachmentRules.get(key) ?? new Map<string, Set<string>>()
     for (const rule of entry.rules) cards.set(rule.name, new Set([...(cards.get(rule.name) ?? []), rule.description]))
@@ -361,32 +376,58 @@ function factionContent(name: string, parsed: DatacardsFaction): FactionContent 
     ),
     armyRules: records(parsed.rules, 'army').flatMap((card) => {
       const title = localizedField(card, 'name')
-      const description = ruleText(card)
+      const description = ruleText(card, name, sections)
       return title && description ? [{ name: title, description }] : []
     }),
   }
 }
 
-/** A rule card's ordered blocks as one markdown text, headers and all. */
-function ruleText(card: Record<string, unknown>) {
-  return records(card, 'rules')
-    .toSorted((left, right) => Number(left.order ?? 0) - Number(right.order ?? 0))
+/**
+ * A rule card's ordered blocks as one markdown text, headers and all.
+ *
+ * A block the file titles and says nothing about is a section of the card the file
+ * does not carry: the six Agile Manoeuvres under the Aeldari Battle Focus heading are
+ * titles alone. The title is the source's own word for it and is kept, and the heading
+ * those titles sit under says which entry `sections` should ask — the catalogue names
+ * it for the card and the section together, `Battle Focus - Agile Manoeuvres`. A title
+ * under no heading is named and left at that.
+ */
+function ruleText(card: Record<string, unknown>, faction: string, sections: SectionProse) {
+  const name = localizedField(card, 'name')
+  const blocks = records(card, 'rules').toSorted((left, right) => Number(left.order ?? 0) - Number(right.order ?? 0))
+  const titles = new Map<string, string[]>()
+  let heading: string | null = null
+  for (const rule of blocks) {
+    const text = localizedField(rule, 'text')
+    const title = localizedField(rule, 'title')
+    if (rule.type === 'header' && text) heading = text
+    else if (title && !text && heading) titles.set(heading, [...(titles.get(heading) ?? []), title])
+  }
+  const described = new Map(
+    name ? [...titles].flatMap(([section, named]) => [...sections({ faction, entry: `${name} - ${section}`, titles: named })]) : [],
+  )
+  return blocks
     .flatMap((rule) => {
+      if (rule.type === 'image') return []
       const text = localizedField(rule, 'text')
-      if (!text || rule.type === 'image') return []
       const title = localizedField(rule, 'title')
+      if (!text) {
+        if (!title) return []
+        const description = described.get(title)
+        return [`### ${title}`, ...(description ? [prose(description)] : [])]
+      }
       return rule.type === 'header' || title ? [`### ${title ?? text}`, ...(title ? [prose(text)] : [])] : [prose(text)]
     })
     .join('\n\n')
 }
 
-function detachmentRuleCards(rules: unknown): { detachment: string; rules: RuleCard[] }[] {
+function detachmentRuleCards(rules: unknown, faction: string, sections: SectionProse): { detachment: string; rules: RuleCard[] }[] {
   return records(rules, 'detachment').flatMap((entry) => {
     const detachment = stringField(entry, 'detachment')
     if (!detachment) return []
     const cards = records(entry, 'rules').flatMap((card) => {
       const name = localizedField(card, 'name')
-      const description = ruleText(card)
+      const description = ruleText(card, faction, sections)
       return name && description ? [{ name, description }] : []
     })
     return cards.length ? [{ detachment, rules: cards }] : []
@@ -394,6 +435,7 @@ function detachmentRuleCards(rules: unknown): { detachment: string; rules: RuleC
 }
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' }
+const TABLE = /<table>[^]*?(?:<\/table>|$)/g
 
 /**
  * Card prose as the app's markdown.
@@ -402,9 +444,15 @@ const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"'
  * `<b>` around emphasis, which `RuleText` reads as `**…**` the way the catalogues
  * already write them; `<ul>`/`<li>` for the lists a card prints; `<u>` and `<i>`
  * that carry nothing the app renders. Line breaks are the card's own and are kept.
+ *
+ * A table is the one thing Markdown has no reading for, so its rows are held back
+ * whole and handed on as the source wrote them: `RuleText` draws those with the
+ * reader that knows the source's own markup.
  */
 export function prose(text: string) {
+  const tables: string[] = []
   const converted = text
+    .replaceAll(TABLE, (table) => `\uE000${tables.push(table) - 1}\uE000`)
     .replaceAll('\r', '\n')
     .replaceAll(/<\/?(?:k|b)>/g, '**')
     .replaceAll(/<\/?(?:u|i)>/g, '')
@@ -423,7 +471,7 @@ export function prose(text: string) {
     previous = tight
     tight = tight.replace(/(^|\n)(- [^\n]*)\n\n(?=- )/, '$1$2\n')
   }
-  return tight.trim()
+  return tight.trim().replaceAll(/\uE000(\d+)\uE000/g, (_, at: string) => tables[Number(at)] ?? '')
 }
 
 /** A stratagem's card, section by section, in the order the card prints them. */
@@ -575,11 +623,46 @@ function localizedList(value: unknown, field: string): string[] {
   })
 }
 
+const LIST_ITEM = /<li>([^]*?)<\/li>/g
+
+/**
+ * Composition as the lines a datasheet prints, and the loadout some of them carry.
+ *
+ * Nearly every entry is one line per model type, but a few factions write the whole
+ * thing as the source's own `<ul>` list with the equipment sentence loose after it
+ * and the loadout field left empty. The bullets are the composition — a count read
+ * from the sentence beside them would count weapons as models — and what follows
+ * them is the loadout the entry did not fill in.
+ */
+function composition(value: unknown): { lines: string[]; loadout: string | null } {
+  const lines: string[] = []
+  const loose: string[] = []
+  for (const entry of localizedList(value, 'composition')) {
+    if (!entry.includes('<li>')) {
+      lines.push(entry)
+      continue
+    }
+    for (const item of entry.matchAll(LIST_ITEM)) lines.push(prose(item[1]!))
+    loose.push(prose(entry.replaceAll(LIST_ITEM, '').replaceAll(/<\/?ul>/g, '')))
+  }
+  return { lines: lines.filter(Boolean), loadout: loose.filter(Boolean).join('\n\n') || null }
+}
+
 function datasheetDetails(value: unknown): DatasheetDetails {
+  const wargearGroups = records(value, 'wargearOptions').flatMap((group) => {
+    const instruction = localizedField(group, 'instruction')
+    const options = records(group, 'options').flatMap((option) => {
+      const name = localizedField(option, 'name')
+      return name ? [name] : []
+    })
+    return instruction && options.length ? [{ instruction, options }] : []
+  })
+  const { lines, loadout } = composition(value)
   return {
-    composition: localizedList(value, 'composition'),
-    loadout: localizedField(value, 'loadout'),
+    composition: lines,
+    loadout: localizedField(value, 'loadout') || loadout,
     wargear: localizedList(value, 'wargear'),
+    ...(wargearGroups.length ? { wargearGroups } : {}),
     baseSize: displayBaseSize(localizedField(value, 'baseSize')),
     transport: localizedField(value, 'transport'),
     points: records(value, 'points').flatMap((point) => {

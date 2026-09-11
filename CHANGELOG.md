@@ -1,5 +1,86 @@
 # praetorium
 
+## 0.64.4
+
+### Patch Changes
+
+- aa42b17: Keep the unit sidebar visible in an owner's roster View mode.
+
+## 0.64.3
+
+### Patch Changes
+
+- 9756548: Count a character inside the unit it joined in the roster header, matching the library.
+
+## 0.64.2
+
+### Patch Changes
+
+- cca1d67: Draw the table a detachment rule rolls on instead of printing its markup.
+
+## 0.64.1
+
+### Patch Changes
+
+- 83a9386: Show the unit composition and model count correctly on datasheets whose source writes the composition as an HTML list.
+- 83a9386: Read the underline the catalogue writes around a word in an ability instead of printing the tag.
+
+## 0.64.0
+
+### Minor Changes
+
+- 300e815: Read every roster on one screen: a fielded list keeps its points total, unit count, actions and full datasheet link, and View mode now shows an owner exactly what another reader sees.
+
+## 0.63.4
+
+### Patch Changes
+
+- 21f3076: Simplify model loadouts with default wargear first, stable visible weapon profiles, source instructions, formatted rule tooltips, and clearer controls that preserve required weapons.
+
+## 0.63.3
+
+### Patch Changes
+
+- 39fb1e3: Fix missing primary mission scoring text and secondary objective cards after the rules source renamed its card file.
+
+## 0.63.2
+
+### Patch Changes
+
+- f202add: Show the wargear a model carries alongside the single item its loadout group offers, such as a Pathfinder Shas'ui's pulse carbine and pistol.
+- f202add: Count a paired loadout once on a unit card, so a Boyz mob shows one Nob's weapons rather than two.
+- f202add: Count the weapon an ordinary squad member carries when their squadmates swapped theirs, so a Tactical Squad shows ten boltguns rather than one.
+
+## 0.63.1
+
+### Patch Changes
+
+- f7e8607: Show each Agile Manoeuvre under the Aeldari Battle Focus ability with its trigger and effect.
+- f7e8607: Offer the enhancements a detachment gates on the model carrying them, such as the Aeldari Warhost's.
+
+## 0.63.0
+
+### Minor Changes
+
+- 6ef4d10: Let league allies read each other's sealed lists before the event reveals.
+
+### Patch Changes
+
+- 6ef4d10: Recede the league organizer's remove control to a muted icon.
+
+## 0.62.0
+
+### Minor Changes
+
+- 57b9b2c: Share unlisted roster links from the roster screen.
+
+### Patch Changes
+
+- 6ffde79: Correct terrain setup rulers to use the intended corners and whole-inch labels.
+- 3f2b45e: Show mission card instructions, including which units can be chosen when a card is drawn.
+- a099830: Remove a special weapon without arming a squadmate with it: the model goes back to the squad's ordinary loadout.
+- f9413c6: Fade the roster header's faction line where it holds a detachment too wide to show, so a narrow screen shows there is more to scroll to.
+
 ## 0.61.8
 
 ### Patch Changes

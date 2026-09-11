@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { alliedLeagueRosterLimit, leagueTableShape, requiredLeagueRosterLimit, visibleLeagueEntries, type LeagueEntryView } from './league'
+import {
+  alliedLeagueRosterLimit,
+  leagueTableShape,
+  readsAlliedLeagueRoster,
+  requiredLeagueRosterLimit,
+  visibleLeagueEntries,
+  type LeagueAllyEntry,
+  type LeagueEntryView,
+} from './league'
 
 const entries: LeagueEntryView[] = [
   {
@@ -78,5 +86,56 @@ describe('league roster requirements', () => {
 
   it('keeps legacy events unrestricted', () => {
     expect(requiredLeagueRosterLimit(null, null, null)).toBeNull()
+  })
+})
+
+describe('readsAlliedLeagueRoster', () => {
+  const ally = (userId: string, over: Partial<LeagueAllyEntry> = {}): LeagueAllyEntry => ({
+    userId,
+    status: 'accepted',
+    requiredLimit: 1_000,
+    teamId: null,
+    ...over,
+  })
+
+  it('pairs a doubles entrant with the teammate the organizer gave them', () => {
+    const reader = ally('alice', { teamId: 'team-a' })
+    expect(readsAlliedLeagueRoster('2v2', 2_000, reader, ally('bob', { teamId: 'team-a' }))).toBe(true)
+    expect(readsAlliedLeagueRoster('2v2', 2_000, reader, ally('carol', { teamId: 'team-b' }))).toBe(false)
+  })
+
+  it('withholds a doubles roster until the organizer has paired both readers', () => {
+    expect(readsAlliedLeagueRoster('2v2', 2_000, ally('alice'), ally('bob'))).toBe(false)
+  })
+
+  it('joins every 2v1 allied entrant, who can never be seated against each other', () => {
+    expect(readsAlliedLeagueRoster('2v1', 2_000, ally('bob'), ally('carol'))).toBe(true)
+  })
+
+  it('keeps the 2v1 solo roster away from the pair who will face it', () => {
+    const solo = ally('alice', { requiredLimit: 2_000 })
+    expect(readsAlliedLeagueRoster('2v1', 2_000, ally('bob'), solo)).toBe(false)
+    expect(readsAlliedLeagueRoster('2v1', 2_000, solo, ally('bob'))).toBe(false)
+  })
+
+  it('waits for the 2v1 assignment that says which side an entrant is on', () => {
+    expect(readsAlliedLeagueRoster('2v1', 2_000, ally('bob', { requiredLimit: null }), ally('carol'))).toBe(false)
+  })
+
+  it('gives a 1v1 entrant nothing, because anybody there could be the opponent', () => {
+    expect(readsAlliedLeagueRoster('1v1', 2_000, ally('alice', { requiredLimit: 2_000 }), ally('bob', { requiredLimit: 2_000 }))).toBe(
+      false,
+    )
+    expect(readsAlliedLeagueRoster(null, 2_000, ally('alice'), ally('bob'))).toBe(false)
+  })
+
+  it('is not a way to read your own sealed list, or to read one as a visitor', () => {
+    expect(readsAlliedLeagueRoster('2v1', 2_000, ally('bob'), ally('bob'))).toBe(false)
+    expect(readsAlliedLeagueRoster('2v1', 2_000, null, ally('bob'))).toBe(false)
+  })
+
+  it('ignores an ally who is not in the event yet', () => {
+    expect(readsAlliedLeagueRoster('2v1', 2_000, ally('bob', { status: 'pending' }), ally('carol'))).toBe(false)
+    expect(readsAlliedLeagueRoster('2v1', 2_000, ally('bob'), ally('carol', { status: 'rejected' }))).toBe(false)
   })
 })

@@ -65,3 +65,42 @@ export type LeagueEntryView = {
 export function visibleLeagueEntries(entries: readonly LeagueEntryView[], ownerId: string, viewerId: string | null) {
   return entries.filter((entry) => entry.status === 'accepted' || viewerId === ownerId || entry.userId === viewerId)
 }
+
+/** The two facts about an entry that decide whether its reader is on the same side of the table. */
+export type LeagueAllyEntry = {
+  userId: string
+  status: LeagueEntryStatus
+  requiredLimit: number | null
+  teamId: string | null
+}
+
+/**
+ * Whether one entrant reads another's sealed roster before the event reveals.
+ *
+ * A sealed roster is withheld from the people who might play against it, and the format
+ * alone says who those are. A doubles entrant reads the teammate the organizer paired them
+ * with. A 2v1 allied entrant reads every other allied entrant, because a 2v1 seats allied
+ * rosters together and against the solo roster — never against each other — so an allied
+ * pair is either forced, when the event holds the three entrants it needs, or still only
+ * ever an alliance in a larger event. A solo entrant has no ally and a 1v1 entrant can face
+ * anybody, so neither reads another roster until reveal.
+ *
+ * This is the only answer to the question: the entrant list offers the link from it and the
+ * roster read enforces it.
+ */
+export function readsAlliedLeagueRoster(
+  format: TableShape | null,
+  eventLimit: number | null,
+  reader: LeagueAllyEntry | null,
+  sealed: LeagueAllyEntry,
+) {
+  if (!reader || reader.userId === sealed.userId) return false
+  if (reader.status !== 'accepted' || sealed.status !== 'accepted') return false
+  if (format === '2v2') return reader.teamId !== null && reader.teamId === sealed.teamId
+  if (format === '2v1') {
+    if (eventLimit === null) return false
+    const allied = alliedLeagueRosterLimit(eventLimit)
+    return reader.requiredLimit === allied && sealed.requiredLimit === allied
+  }
+  return false
+}

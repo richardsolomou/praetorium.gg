@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { addedKeywords, attachmentGroups, compositionCount, primaryUnitProfile, referenceAbilities, ruleProfileSections } from './datasheet'
+import {
+  addedKeywords,
+  attachmentGroups,
+  compositionCount,
+  primaryUnitProfile,
+  referenceAbilities,
+  ruleProfileSections,
+  weaponProfileGroups,
+} from './datasheet'
 
 describe('primary unit profile', () => {
   const profile = (id: string, name: string, type = 'Unit') => ({ id, name, type, values: [] })
@@ -52,6 +60,10 @@ describe('primary unit profile', () => {
 describe('datasheet composition count', () => {
   it('adds fixed and ranged model groups', () => {
     expect(compositionCount(['**1 Deathwing Sergeant**', '**4-9 Deathwing Terminators**'])).toBe('5–10 models')
+  })
+
+  it('reads a range the source wrote with a non-breaking hyphen', () => {
+    expect(compositionCount(['1-2 Nob models', '9\u201118 Beast Snagga Boy models'])).toBe('10\u201320 models')
   })
 
   it('keeps a single-model datasheet singular', () => {
@@ -145,4 +157,20 @@ describe('the keywords something in the list added to a weapon', () => {
   it('reads a non-breaking space as the separator the catalogue joined with', () => {
     expect(addedKeywords({ value: 'Lethal Hits,\u00a0Assault', baseValue: 'Lethal Hits' })).toEqual(['Assault'])
   })
+})
+
+it('keeps weapons with different attack types or carried counts in separate profile groups', () => {
+  const profiles = [
+    { id: 'focused', name: '➤ Blaster - Focused', type: 'Ranged Weapons', count: 1, values: [] },
+    { id: 'dispersed', name: '➤ Blaster - Dispersed', type: 'Ranged Weapons', count: 1, values: [] },
+    { id: 'melee', name: 'Blaster (Strike)', type: 'Melee Weapons', count: 1, values: [] },
+    { id: 'pair', name: '➤ Blaster - Focused', type: 'Ranged Weapons', count: 2, values: [] },
+    { id: 'other', name: 'Heavy blaster', type: 'Ranged Weapons', count: 1, values: [] },
+  ]
+  expect(weaponProfileGroups(profiles).map((group) => group.map((profile) => profile.id))).toEqual([
+    ['focused', 'dispersed'],
+    ['melee'],
+    ['pair'],
+    ['other'],
+  ])
 })

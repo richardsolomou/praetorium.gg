@@ -10,7 +10,7 @@
 
 import type { CatalogueIndex } from './catalogue'
 import { storesUnitTotal } from './collective'
-import { isRosterToggle, resolve } from './definitions'
+import { childrenOf, isRosterToggle, resolve } from './definitions'
 import type { Selection } from './evaluate'
 import { routeSlug } from './slug'
 
@@ -46,13 +46,12 @@ export function wargearOf(selection: Selection, index: CatalogueIndex, carriers 
       const kind = definition ? resolve(definition, index).type : undefined
       const own = child.count ?? 1
       const count = definition && storesUnitTotal(definition, parent, index) ? own : carried * own
-      const grandchildren = child.selections ?? []
       const target = definition && resolve(definition, index)
       // Most upgrades with children are only headings, but a described weapon can
       // also hold another choice. The Overlord's weapon holds its resurrection-orb
       // option, for example; taking the orb must not turn the weapon into a heading.
       const described = Boolean(target?.profiles?.length || target?.infoLinks?.some((link) => link.type === 'profile'))
-      if (kind === 'upgrade' && (!grandchildren.length || described) && count > 0) {
+      if (kind === 'upgrade' && (described || (target && childrenOf(target, index).length === 0)) && count > 0) {
         const name = target?.name ?? definition?.name
         if (name && !isRosterToggle(name)) found.set(name, (found.get(name) ?? 0) + count)
       }

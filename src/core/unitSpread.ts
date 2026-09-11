@@ -58,7 +58,7 @@ export function withUnitSpread(
   if (group && maximumCount(group, index) === null) {
     return spreadIndependentRepeatedGroup(selection, path, counts, repeating, group, index)
   }
-  return spreadRepeatedGroup(selection, path, counts, repeating, index)
+  return spreadRepeatedGroup(selection, path, counts, repeating, index, options)
 }
 
 export function withUnitChoice(
@@ -201,6 +201,7 @@ function spreadRepeatedGroup(
   counts: Readonly<Record<string, number>>,
   repeating: { path: string[]; definition: Definition },
   index: CatalogueIndex,
+  options: EvaluateOptions,
 ) {
   const modelId = repeating.path.at(-1)
   if (!modelId) return selection
@@ -216,7 +217,8 @@ function spreadRepeatedGroup(
   // weapon is put down. Shieldvanes are the other case: the models were always
   // there and the upgrade is what is optional, so an unequipped one has to remain.
   const group = index.definitions.get(path.at(-1) ?? '')
-  const disposable = requiredCount(repeating.definition, index) === 0 && Boolean(group) && requiredCount(group!, index) > 0
+  const optionalCarrier = requiredCount(repeating.definition, index, { ...options, roster: [...(options.roster ?? []), selection] }) === 0
+  const disposable = optionalCarrier && Boolean(group) && requiredCount(group!, index) > 0
 
   for (const model of models) {
     const base = withoutSelectionAt(model, withinModel)
@@ -233,6 +235,7 @@ function spreadRepeatedGroup(
     if (remaining > 0 && !disposable) variants.push({ ...base, count: remaining })
   }
   for (; requestAt < requested.length; requestAt += 1) {
+    if (!optionalCarrier) break
     const request = requested[requestAt]
     if (!request || request.remaining <= 0) continue
     const base = expand(modelId, repeating.definition, index, MAX_DEPTH, request.remaining, new Set(), 1)

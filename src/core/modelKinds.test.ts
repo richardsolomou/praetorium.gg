@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildIndex, type Catalogue, type CatalogueFile, type Constraint } from './catalogue'
+import { buildIndex, type Catalogue, type CatalogueFile, type Constraint, type SelectionEntry } from './catalogue'
 import { modelKindsOf, optionWargear } from './modelKinds'
 import { buildUnit } from './roster'
 import { allAt } from './selection'
@@ -12,6 +12,69 @@ const indexOf = (catalogue: Partial<Catalogue>) =>
   buildIndex([system, { catalogue: { id: 'cat', name: 'Test catalogue', ...catalogue } }], 'test-revision')
 
 const mandatory = (id: string) => [{ id, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' }]
+
+it('identifies separately customizable weapons even when their parent loadout is unselected', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'banner',
+            name: 'Banner',
+            type: 'upgrade',
+            constraints: [{ id: 'banner-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+          },
+          {
+            id: 'leader',
+            name: 'Leader',
+            type: 'model',
+            constraints: mandatory('leader-min'),
+            selectionEntryGroups: [
+              {
+                id: 'loadout',
+                name: 'Loadout',
+                defaultSelectionEntryId: 'axe',
+                constraints: [
+                  ...mandatory('loadout-min'),
+                  { id: 'loadout-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  { id: 'axe', name: 'Great axe', type: 'upgrade' },
+                  {
+                    id: 'pair',
+                    name: 'Blade and Rifle',
+                    type: 'upgrade',
+                    selectionEntryGroups: ['Blade', 'Rifle'].map((name) => ({
+                      id: `${name}-slot`,
+                      name: `${name} slot`,
+                      defaultSelectionEntryId: name,
+                      constraints: [
+                        ...mandatory(`${name}-min`),
+                        { id: `${name}-max`, type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                      ],
+                      selectionEntries: [
+                        { id: name, name, type: 'upgrade' },
+                        { id: `${name}-replacement`, name: `Other ${name}`, type: 'upgrade' },
+                      ],
+                    })),
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const unit = buildUnit('squad', index)!
+  const rows = modelKindsOf('squad', unit.selection, index).flatMap((model) => model.rows)
+
+  expect(rows.find((row) => row.optionId === 'pair')).toMatchObject({ pieces: ['Blade', 'Rifle'], separatePieces: true })
+  expect(rows.map((row) => row.name)).toEqual(['Great axe', 'Blade and Rifle'])
+})
 
 it('totals wargear across repeated selections of one option', () => {
   const index = indexOf({
@@ -161,7 +224,7 @@ describe('loadouts the catalogue files a weapon at a time', () => {
     })),
   })
 
-  const squadOf = (groups: { id: string; name: string; models: ReturnType<typeof loadout>[] }[]) =>
+  const squadOf = (groups: { id: string; name: string; models: SelectionEntry[] }[]) =>
     indexOf({
       sharedSelectionEntries: [
         {
@@ -232,11 +295,7 @@ describe('loadouts the catalogue files a weapon at a time', () => {
     expect(kinds[0]?.rows.map((row) => row.name)).toEqual(['Gauss flayer', 'Gauss reaper', 'Heavy cannon', 'Plasma beamer'])
   })
 
-  /**
-   * A pairing is not a weapon. A row per weapon would offer a gauntlet and a firepike
-   * as two answers the player can mix, when the catalogue sells them as one model.
-   */
-  it('leaves loadouts that pair two weapons as the catalogue wrote them', () => {
+  it('groups paired loadouts as indivisible rows under their model type', () => {
     const index = squadOf([
       {
         id: 'models',
@@ -248,7 +307,106 @@ describe('loadouts the catalogue files a weapon at a time', () => {
       },
     ])
 
-    expect(kindsOf(index).map((kind) => kind.name)).toEqual(['Custodian w/ gauntlet and bolter', 'Custodian w/ talon and firepike'])
+    expect(kindsOf(index).map((kind) => ({ name: kind.name, rows: kind.rows }))).toEqual([
+      {
+        name: 'Custodian',
+        rows: [
+          {
+            name: 'Solerite gauntlet and Lastrum bolter',
+            pieces: ['Solerite gauntlet', 'Lastrum bolter'],
+            choiceKey: 'models',
+            optionId: 'spear',
+          },
+          {
+            name: 'Solerite talon and Infernus firepike',
+            pieces: ['Solerite talon', 'Infernus firepike'],
+            choiceKey: 'models',
+            optionId: 'axe',
+          },
+        ],
+      },
+    ])
+  })
+
+  it('groups linked profiles while keeping the champion separate', () => {
+    const index = squadOf([
+      {
+        id: 'models',
+        name: 'Models',
+        models: [
+          loadout('regular', 'Trooper', ['Rifle', 'Knife']),
+          loadout('special', 'Trooper w/ cannon', ['Cannon', 'Knife']),
+          loadout('champion', 'Champion', ['Sword']),
+        ],
+      },
+    ])
+    index.shared.set('trooper-profile', { id: 'trooper-profile', name: 'Trooper', typeName: 'Unit' })
+    index.shared.set('champion-profile', { id: 'champion-profile', name: 'Champion', typeName: 'Unit' })
+    for (const id of ['regular', 'special', 'champion']) {
+      index.definitions.get(id)!.infoLinks = [
+        { id: `${id}-link`, type: 'profile', targetId: id === 'champion' ? 'champion-profile' : 'trooper-profile' },
+      ]
+    }
+
+    expect(kindsOf(index).map((kind) => ({ name: kind.name, members: kind.members.map((member) => member.id) }))).toEqual([
+      { name: 'Trooper', members: ['regular', 'special'] },
+      { name: 'Champion', members: ['champion'] },
+    ])
+  })
+
+  it('keeps a linked-profile leader’s nested equipment separate from ordinary loadouts', () => {
+    const index = squadOf([
+      {
+        id: 'models',
+        name: 'Models',
+        models: [
+          loadout('regular', 'Trooper w/ rifle', ['Rifle', 'Knife']),
+          loadout('special', 'Trooper w/ cannon', ['Cannon', 'Knife']),
+          {
+            ...loadout('leader', 'Leader', []),
+            selectionEntryGroups: [
+              {
+                id: 'leader-weapons',
+                name: 'Weapons',
+                defaultSelectionEntryId: 'leader-rifle',
+                constraints: [{ id: 'leader-max', type: 'max', field: 'selections', scope: 'parent', value: 1 }],
+                selectionEntries: [
+                  { id: 'leader-rifle', name: 'Rifle', type: 'upgrade' },
+                  { id: 'leader-pistol', name: 'Pistol', type: 'upgrade' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ])
+    index.shared.set('stats', { id: 'stats', name: 'Trooper', typeName: 'Unit' })
+    for (const id of ['regular', 'special', 'leader'])
+      index.definitions.get(id)!.infoLinks = [{ id: `${id}-stats`, type: 'profile', targetId: 'stats' }]
+
+    expect(kindsOf(index).map((kind) => kind.members.map((member) => member.id))).toEqual([['regular', 'special'], ['leader']])
+  })
+
+  it('keeps a standing leader separate when its linked stats match editable variants', () => {
+    const index = squadOf([
+      {
+        id: 'models',
+        name: 'Models',
+        models: [loadout('regular', 'Trooper w/ rifle', ['Rifle', 'Knife']), loadout('special', 'Trooper w/ cannon', ['Cannon', 'Knife'])],
+      },
+    ])
+    const leader = {
+      ...loadout('leader', 'Leader', ['Rifle', 'Knife']),
+      constraints: mandatory('leader-min'),
+      infoLinks: [{ id: 'leader-stats', type: 'profile' as const, targetId: 'stats' }],
+    }
+    index.definitions.get('squad')!.selectionEntries = [leader]
+    index.definitions.set('leader', leader)
+    for (const weapon of leader.selectionEntries) index.definitions.set(weapon.id, weapon)
+    index.shared.set('stats', { id: 'stats', name: 'Trooper', typeName: 'Unit' })
+    for (const id of ['regular', 'special'])
+      index.definitions.get(id)!.infoLinks = [{ id: `${id}-stats`, type: 'profile', targetId: 'stats' }]
+    expect(kindsOf(index).map((kind) => kind.members.map((member) => member.id))).toEqual([['leader'], ['regular', 'special']])
   })
 
   it('leaves loadouts two of which carry the same weapon as the catalogue wrote them', () => {
@@ -571,6 +729,135 @@ describe('models the datasheet stands in the unit itself', () => {
 
     expect(packed.map((kind) => kind.name)).toEqual(['Jakhal', 'Gunner'])
     expect(packed[0]?.members).toEqual([{ id: 'jakhal', choiceKey: null, baseCount: 8 }])
+  })
+
+  /**
+   * A weapon only some of a kind carry, held by a model the data stands rather than one
+   * a choice offers, is counted from however many of that model there are. An ordinary
+   * Tactical Marine's boltgun is the case — his squadmates gave theirs up for a flamer
+   * or a lascannon — and naming it nowhere left a ten-man squad reading as though only
+   * the sergeant had one.
+   */
+  it('states a weapon only some of a standing kind carry, counted from those models', () => {
+    const specialist = (id: string, name: string, weapons: [string, string][]) => ({
+      id,
+      name,
+      type: 'model' as const,
+      profiles: [{ id: `${id}-profile`, name: 'Tactical Squad', typeName: 'Unit' }],
+      constraints: [{ id: `${id}-max`, type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
+      selectionEntries: [{ id: `${id}-pistol`, name: 'Bolt pistol', type: 'upgrade' as const, constraints: mandatory(`${id}-pistol-min`) }],
+      selectionEntryGroups: [
+        {
+          id: `${id}-weapon`,
+          name: 'Weapon',
+          constraints: bounded(`${id}-weapon`, 1, 1),
+          defaultSelectionEntryId: weapons[0]?.[0],
+          selectionEntries: weapons.map(([weaponId, weaponName]) => ({ id: weaponId, name: weaponName, type: 'upgrade' as const })),
+        },
+      ],
+    })
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Tactical Squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'models',
+              name: 'Tactical Marines',
+              constraints: bounded('models', 10, 10),
+              defaultSelectionEntryId: 'marine',
+              selectionEntries: [
+                model('marine', 'Tactical Marine', ['Bolt pistol', 'Boltgun'], 'Tactical Squad', bounded('marine', 7, 9)),
+                model('sergeant', 'Tactical Marine Sergeant', ['Bolt pistol', 'Chainsword'], 'Sergeant', bounded('sergeant', 1, 1)),
+                specialist('special', 'Tactical Marine w/ special weapon', [
+                  ['flamer', 'Flamer'],
+                  ['meltagun', 'Meltagun'],
+                ]),
+                specialist('heavy', 'Tactical Marine w/ heavy weapon', [
+                  ['heavy-bolter', 'Heavy bolter'],
+                  ['lascannon', 'Lascannon'],
+                ]),
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const marines = modelKindsOf('squad', buildUnit('squad', index)!.selection, index).find((kind) => kind.name === 'Tactical Marine')
+
+    expect(marines?.fixed).toEqual([{ name: 'Bolt pistol' }, { name: 'Boltgun', count: 9 }])
+    expect(marines?.rows.map((row) => row.name)).toEqual(['Flamer', 'Meltagun', 'Heavy bolter', 'Lascannon'])
+  })
+
+  /**
+   * A catalogue can file a model's whole loadout in one group and leave the player a
+   * choice of a single item out of it. Reading the group as the choice's own took a
+   * Pathfinder Shas'ui's pulse carbine and pistol away with the grenade launcher he
+   * may add, and the team's card counted nine carbines for ten models carrying one.
+   */
+  it('keeps the wargear a group holds beside the one item that group offers', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'team',
+          name: 'Pathfinder Team',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'shasui',
+              name: "Pathfinder Shas'ui",
+              type: 'model',
+              profiles: [{ id: 'shasui-profile', name: "Pathfinder Shas'ui", typeName: 'Unit' }],
+              constraints: mandatory('shasui-min'),
+              selectionEntryGroups: [
+                {
+                  id: 'shasui-wargear',
+                  name: 'Wargear',
+                  selectionEntries: [
+                    { id: 'shasui-carbine', name: 'Pulse carbine', type: 'upgrade', constraints: mandatory('shasui-carbine-min') },
+                    { id: 'shasui-pistol', name: 'Pulse pistol', type: 'upgrade', constraints: mandatory('shasui-pistol-min') },
+                    {
+                      id: 'launcher',
+                      name: 'Grenade launcher',
+                      type: 'upgrade',
+                      constraints: [{ id: 'launcher-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+          selectionEntryGroups: [
+            {
+              id: 'models',
+              name: 'Pathfinders',
+              constraints: bounded('models', 9, 9),
+              defaultSelectionEntryId: 'pathfinder',
+              selectionEntries: [
+                model('pathfinder', 'Pathfinder', ['Pulse carbine', 'Pulse pistol'], 'Pathfinders', bounded('pathfinder', 6, 9)),
+              ],
+            },
+            {
+              id: 'special',
+              name: 'Special Weapons',
+              constraints: bounded('special', 0, 3),
+              selectionEntries: [
+                model('ion', 'Pathfinder w/ ion rifle', ['Ion rifle', 'Pulse pistol'], 'Pathfinders', bounded('ion', 0, 3)),
+                model('rail', 'Pathfinder w/ rail rifle', ['Rail rifle', 'Pulse pistol'], 'Pathfinders', bounded('rail', 0, 3)),
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const team = modelKindsOf('team', buildUnit('team', index)!.selection, index)
+    const shasui = team.find((kind) => kind.name === "Pathfinder Shas'ui")
+
+    expect(shasui?.fixed).toEqual([{ name: 'Pulse carbine' }, { name: 'Pulse pistol' }])
+    expect(shasui?.rows.map((row) => row.name)).toEqual(['Grenade launcher'])
+    expect(team.find((kind) => kind.name === 'Pathfinder')?.fixed).toEqual([{ name: 'Pulse pistol' }, { name: 'Pulse carbine', count: 9 }])
   })
 
   /**

@@ -1196,6 +1196,138 @@ it('withholds an unsealed roster from the revealed event', async () => {
   expect(await service.leagueRoster(token, 'dave')).toBeNull()
 })
 
+describe('an ally reads a sealed roster before the event reveals', () => {
+  async function sealedDoublesEvent() {
+    await enrol('dave', 'Dave')
+    const { token, eventToken } = await service.createLeague('alice', {
+      name: 'Doubles league',
+      description: '',
+      visibility: 'private',
+      admission: 'automatic',
+      playerLimit: 4,
+    })
+    await service.updateLeagueEvent(token, 'alice', { format: '2v2', rosterLimit: 2_000 })
+    for (const userId of ['alice', 'bob', 'carol', 'dave']) await service.joinLeague(token, userId)
+    await service.assignLeagueTeam(token, 'alice', ['alice', 'bob'])
+    await service.assignLeagueTeam(token, 'alice', ['carol', 'dave'])
+    for (const userId of ['alice', 'bob', 'carol', 'dave']) {
+      await saveAndSealLeagueRoster(token, userId, 1_000, '', userId === 'alice' || userId === 'carol')
+    }
+    return { token, eventToken }
+  }
+
+  async function sealedSoloVersusPairEvent() {
+    const { token, eventToken } = await service.createLeague('alice', {
+      name: 'Team league',
+      description: '',
+      visibility: 'private',
+      admission: 'automatic',
+      playerLimit: 3,
+    })
+    await service.updateLeagueEvent(token, 'alice', { format: '2v1', rosterLimit: 2_000 })
+    for (const userId of ['alice', 'bob', 'carol']) await service.joinLeague(token, userId)
+    await service.assignLeagueRosterRequirement(token, 'alice', 'alice', 2_000)
+    await service.assignLeagueRosterRequirement(token, 'alice', 'bob', 1_000)
+    await service.assignLeagueRosterRequirement(token, 'alice', 'carol', 1_000)
+    for (const [userId, limit] of [
+      ['alice', 2_000],
+      ['bob', 1_000],
+      ['carol', 1_000],
+    ] as const) {
+      await saveAndSealLeagueRoster(token, userId, limit)
+    }
+    return { token, eventToken }
+  }
+
+  // Bob organizes nothing, so reading Alice's list is the pairing alone.
+  it('gives a doubles entrant the teammate list they must build around', async () => {
+    const { token } = await sealedDoublesEvent()
+
+    expect(await service.leagueRoster(token, 'alice', undefined, 'bob')).toMatchObject({ name: 'alice sealed' })
+  })
+
+  it('keeps the opposing doubles team sealed until reveal', async () => {
+    const { token } = await sealedDoublesEvent()
+
+    expect(await service.leagueRoster(token, 'carol', undefined, 'bob')).toBeNull()
+    expect(await service.leagueRoster(token, 'dave', undefined, 'bob')).toBeNull()
+  })
+
+  it('follows the pairing when the organizer moves an entrant to another team', async () => {
+    const { token } = await sealedDoublesEvent()
+
+    // Re-pairing discards both teams' seals, so Alice seals again beside her new teammate.
+    await service.assignLeagueTeam(token, 'alice', ['alice', 'carol'])
+    await saveAndSealLeagueRoster(token, 'alice', 1_000, '-repaired')
+
+    expect(await service.leagueRoster(token, 'alice', undefined, 'carol')).toMatchObject({ name: 'alice-repaired sealed' })
+    expect(await service.leagueRoster(token, 'alice', undefined, 'bob')).toBeNull()
+  })
+
+  it('joins the two 2v1 allies who are forced to play together', async () => {
+    const { token } = await sealedSoloVersusPairEvent()
+
+    expect(await service.leagueRoster(token, 'carol', undefined, 'bob')).toMatchObject({ name: 'carol sealed' })
+    expect(await service.leagueRoster(token, 'bob', undefined, 'carol')).toMatchObject({ name: 'bob sealed' })
+  })
+
+  it('keeps the 2v1 solo list from the pair, and their lists from the solo player', async () => {
+    const { token } = await sealedSoloVersusPairEvent()
+
+    expect(await service.leagueRoster(token, 'alice', undefined, 'bob')).toBeNull()
+    expect(await service.leagueRoster(token, 'bob', undefined, 'alice')).toBeNull()
+  })
+
+  it('gives a 1v1 entrant no early sight of the list they will face', async () => {
+    const { token } = await service.createLeague('alice', {
+      name: 'League',
+      description: '',
+      visibility: 'private',
+      admission: 'automatic',
+      playerLimit: 2,
+    })
+    await service.joinLeague(token, 'alice')
+    await service.joinLeague(token, 'bob')
+    await saveAndSealLeagueRoster(token, 'alice', 2_000)
+    await saveAndSealLeagueRoster(token, 'bob', 2_000)
+
+    expect(await service.leagueRoster(token, 'bob', undefined, 'alice')).toBeNull()
+  })
+
+  it('is closed to the organizer and to a visitor, who are nobody’s ally', async () => {
+    const { token } = await sealedDoublesEvent()
+
+    // Alice organizes and plays; she reads Bob because they are paired, not because she runs the event.
+    expect(await service.leagueRoster(token, 'carol', undefined, 'alice')).toBeNull()
+    expect(await service.leagueRoster(token, 'bob', undefined, null)).toBeNull()
+  })
+
+  it('does not hand a submitter back their own sealed list', async () => {
+    const { token } = await sealedDoublesEvent()
+
+    expect(await service.leagueRoster(token, 'alice', undefined, 'alice')).toBeNull()
+  })
+
+  // Without a named event the read has to pick one, and reveal is no longer what narrows the query.
+  it('still reaches the last revealed event once the league has opened another', async () => {
+    const league = await revealedLeague()
+    const next = await service.createLeagueEvent(league.token, 'alice', { format: '1v1', rosterLimit: 2_000 })
+    await service.joinLeague(league.token, 'dave', next.eventToken)
+    await saveAndSealLeagueRoster(league.token, 'dave', 2_000, '-event-two')
+
+    expect(await service.leagueRoster(league.token, 'dave')).toMatchObject({ name: 'Dave sealed' })
+    expect(await service.leagueRoster(league.token, 'dave', next.eventToken)).toBeNull()
+  })
+
+  it('follows the ally to their replacement list', async () => {
+    const { token } = await sealedSoloVersusPairEvent()
+
+    await saveAndSealLeagueRoster(token, 'carol', 1_000, '-replacement')
+
+    expect(await service.leagueRoster(token, 'carol', undefined, 'bob')).toMatchObject({ name: 'carol-replacement sealed' })
+  })
+})
+
 it('keeps a revealed roster sealed against its own owner', async () => {
   const { token } = await revealedLeague()
 

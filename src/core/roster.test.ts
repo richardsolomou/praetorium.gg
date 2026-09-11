@@ -4,6 +4,7 @@ import { evaluate } from './evaluate'
 import { defaultSelection, withChoice } from './expand'
 import { buildUnit } from './roster'
 import { unitChoices } from './unitChoices'
+import { modelKindsOf } from './modelKinds'
 import { withUnitSpread } from './unitSpread'
 import { modelCountOf, sizeOf } from './unitSize'
 import { wargearOf } from './wargear'
@@ -97,6 +98,36 @@ const keyworded = (): Partial<Catalogue> => ({
           selectionEntries: [
             { id: 'relic', name: 'Relic', type: 'upgrade' },
             { id: 'banner', name: 'Banner', type: 'upgrade' },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'warlord',
+      name: 'Warlord',
+      type: 'model',
+      categoryLinks: [{ id: 'warlord-link', targetId: 'faction' }],
+      selectionEntryGroups: [
+        {
+          id: 'enhancements-3',
+          name: 'Enhancements',
+          constraints: [{ id: 'enh-max-3', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+          selectionEntries: [
+            {
+              id: 'relic-3',
+              name: 'Relic',
+              type: 'upgrade',
+              // Hidden unless the bearer carries the faction keyword, asked of the parent
+              // rather than of every ancestor: the book writes the gate both ways.
+              modifiers: [
+                {
+                  type: 'set',
+                  field: 'hidden',
+                  value: true,
+                  conditions: [{ type: 'notInstanceOf', value: 1, field: 'selections', scope: 'parent', childId: 'faction' }],
+                },
+              ],
+            },
           ],
         },
       ],
@@ -1218,6 +1249,14 @@ describe('options the data restricts by keyword', () => {
     ])
   })
 
+  it('offers an option gated on the bearer, which is what its parent means', () => {
+    const index = indexOf(catalogue())
+    const built = buildUnit('warlord', index)!
+    expect(built.choices.map((choice) => ({ name: choice.name, options: choice.options.map((option) => option.name) }))).toEqual([
+      { name: 'Enhancements', options: ['Relic'] },
+    ])
+  })
+
   it('takes an option and can put it back', () => {
     const index = indexOf(catalogue())
     const built = buildUnit('captain', index)!
@@ -1629,6 +1668,36 @@ describe('who the data lets a list nominate as its Warlord', () => {
     expect(buildUnit('captain', index)!.toggles.map((toggle) => toggle.name)).toEqual(['Warlord'])
   })
 
+  it('evaluates a shared crown against its enclosing root entry', () => {
+    const rootEntryIndex = indexOf({
+      categoryEntries: [{ id: 'character', name: 'Character' }],
+      sharedSelectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          categoryLinks: [{ id: 'captain-character', targetId: 'character' }],
+          entryLinks: [{ id: 'captain-warlord', targetId: 'warlord', type: 'selectionEntry' }],
+        },
+        {
+          id: 'warlord',
+          name: 'Warlord',
+          type: 'upgrade',
+          modifiers: [
+            {
+              type: 'set',
+              field: 'hidden',
+              value: true,
+              conditions: [{ type: 'notInstanceOf', value: 1, field: 'selections', scope: 'root-entry', childId: 'character' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(buildUnit('captain', rootEntryIndex)!.toggles.map((toggle) => toggle.name)).toEqual(['Warlord'])
+  })
+
   it('keeps it from a tank whose detachment does not make it a character', () => {
     expect(buildUnit('tank', index)!.toggles).toEqual([])
   })
@@ -1775,5 +1844,90 @@ describe('an upgrade the data hangs on the unit rather than in a group', () => {
     const disarmed = buildUnit('squad', index, undefined, { charge: '' })!
     expect(evaluate([disarmed.selection], index).points).toBe(20)
     expect(disarmed.choices[0]?.chosen).toBe('')
+  })
+})
+
+describe('weapon capacity on required leaders', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'trooper',
+            name: 'Trooper',
+            type: 'model',
+            constraints: [{ id: 'trooper-min', type: 'min', value: 9, field: 'selections', scope: 'parent' }],
+            selectionEntryGroups: [
+              {
+                id: 'equipment',
+                name: 'Equipment',
+                constraints: [{ id: 'equipment-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  { id: 'scope', name: 'Scope', type: 'upgrade' },
+                  { id: 'scanner', name: 'Scanner', type: 'upgrade' },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'leader',
+            name: 'Leader',
+            type: 'model',
+            constraints: [
+              { id: 'leader-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'leader-max', type: 'max', value: 2, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'weapons',
+                name: 'Weapons',
+                defaultSelectionEntryId: 'blade',
+                constraints: [
+                  { id: 'weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                  { id: 'weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  { id: 'blade', name: 'Blade', type: 'upgrade' },
+                  { id: 'axe', name: 'Axe', type: 'upgrade' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('does not create another required leader from excess saved weapon counts', () => {
+    const built = buildUnit('squad', index, 10, undefined, { spreads: { 'leader/weapons': { blade: 2, axe: 0 } } })!
+    expect({ models: modelCountOf(built.selection, index), weapons: wargearOf(built.selection, index) }).toEqual({
+      models: 10,
+      weapons: [{ name: 'Blade', count: 1 }],
+    })
+  })
+
+  it('counts both selected leaders when their weapons differ', () => {
+    const base = defaultSelection('squad', index)!
+    const selection = { ...base, selections: base.selections!.map((model) => (model.id === 'leader' ? { ...model, count: 2 } : model)) }
+    const split = withUnitSpread(selection, 'leader/weapons', { blade: 1, axe: 1 }, index)
+    expect(modelKindsOf('squad', split, index).find((model) => model.name === 'Leader')?.members).toEqual([
+      { id: 'leader', choiceKey: null, baseCount: 2 },
+    ])
+  })
+
+  it.each([1, 2])('offers one weapon slot per selected leader with %s leaders', (leaders) => {
+    const base = defaultSelection('squad', index)!
+    const selection = {
+      ...base,
+      selections: base.selections!.map((model) => (model.id === 'leader' ? { ...model, count: leaders } : model)),
+    }
+    const choice = unitChoices('squad', selection, index).find((candidate) => candidate.key === 'leader/weapons')!
+    expect({ room: choice.room, maximums: choice.options.map((option) => option.max) }).toEqual({
+      room: leaders,
+      maximums: [leaders, leaders],
+    })
   })
 })

@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Swords,
   TriangleAlert,
+  UserMinus,
   UserPlus,
   X,
 } from 'lucide-react'
@@ -65,6 +66,8 @@ import {
   leagueTableShape,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
   LEAGUE_MEMBER_MAX,
+  type LeagueEntryView,
+  readsAlliedLeagueRoster,
 } from '../../../core/league'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { seatedPlayers, seatsFor, type Seat } from '../../seats'
@@ -245,6 +248,21 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
     ? teamMembers.get(removingEntry.teamId)?.find((entry) => entry.userId !== removingEntry.userId)
     : undefined
   const ownTeam = league.format === '2v2' && ownEntry?.teamId ? (teamMembers.get(ownEntry.teamId) ?? []) : []
+  // Reveal opens every sealed list; before it, an ally reads the list they will field beside.
+  const readsRoster = (entry: LeagueEntryView) =>
+    entry.status === 'accepted' &&
+    entry.submitted &&
+    (Boolean(league.revealedAt) || readsAlliedLeagueRoster(league.format, league.rosterLimit, ownEntry ?? null, entry))
+  // Who already reads your own list, asked of the same rule that offers each View roster link.
+  const ownRosterReaders =
+    ownEntry && !league.revealedAt
+      ? accepted.filter((entry) => readsAlliedLeagueRoster(league.format, league.rosterLimit, entry, ownEntry))
+      : []
+  // A 2v1 can hold any number of allied entrants, and a list of them all says less than the count.
+  const ownRosterReaderPhrase =
+    ownRosterReaders.length > 2
+      ? `${ownRosterReaders.length} other allied entrants`
+      : formatNames(ownRosterReaders.map((entry) => entrantLabels.get(entry.userId) ?? entry.name))
   // A doubles battle carries both teammates' lists, so an unsealed teammate has nothing to play with.
   const ownSideSealed = league.format !== '2v2' || (ownTeam.length === 2 && ownTeam.every((entry) => entry.submitted))
   const doublesReady =
@@ -443,9 +461,11 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
                           </Button>
                         ) : null}
                         {entry.status !== 'rejected' ? (
+                          // Removing an entrant is rare and recedes to an icon; the confirmation says the word.
                           <Button
-                            size="sm"
-                            variant={entry.status === 'accepted' ? 'outline' : 'ghost'}
+                            size="icon-sm"
+                            variant="ghost"
+                            className="text-dim hover:text-destructive"
                             aria-label={`${entry.status === 'accepted' ? 'Remove' : 'Reject'} ${entrantLabel}`}
                             disabled={moderate.isPending}
                             onClick={() => {
@@ -457,12 +477,12 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
                               }
                             }}
                           >
-                            <X /> {entry.status === 'accepted' ? 'Remove' : null}
+                            {entry.status === 'accepted' ? <UserMinus /> : <X />}
                           </Button>
                         ) : null}
                       </div>
                     ) : null}
-                    {league.revealedAt && entry.status === 'accepted' && entry.submitted ? (
+                    {readsRoster(entry) ? (
                       <div className="flex w-full min-w-0 flex-wrap justify-end gap-1 sm:w-auto">
                         <Button
                           variant="outline"
@@ -480,7 +500,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
                         >
                           <Eye /> View roster
                         </Button>
-                        {isOwner ? (
+                        {isOwner && league.revealedAt ? (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -544,7 +564,10 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
               <h2 className="font-bold uppercase">Sealed rosters</h2>
             </div>
             <p className="mt-2 text-sm text-dim">
-              Nobody sees your list until the organizer reveals every list at once. You can swap it for another until then.
+              {ownRosterReaders.length
+                ? `${ownRosterReaderPhrase} ${ownRosterReaders.length === 1 ? 'sees' : 'see'} your list, because you field a force together. Nobody else does until the organizer reveals every list at once.`
+                : 'Nobody sees your list until the organizer reveals every list at once.'}{' '}
+              You can swap it for another until then.
             </p>
             <p className="mt-3 text-sm text-dim">
               It is checked for points and legality, then copied here. Editing the saved list afterwards does not change the copy.

@@ -2,7 +2,7 @@
 
 Praetorium uses PostHog for analytics, replay, flags, errors, performance, and server logs. The integration is optional. Every product path works without PostHog variables.
 
-The browser integration inside the mobile WebView owns identified product events and masked session replay. The Expo shell uses a separate native client for application lifecycle events and native-shell exceptions when `EXPO_PUBLIC_POSTHOG_API_KEY` is set. Native screenshot replay stays disabled because it cannot redact the WebView DOM without masking the whole view. Production EAS Build uploads the native JavaScript source maps through the PostHog Expo and Metro plugins. Canary builds exercise the same tooling in dry-run mode because preview jobs do not receive the source-map upload credential.
+The browser integration inside the mobile WebView owns identified product events and masked session replay. The Expo shell uses a separate native client for application lifecycle events and native-shell exceptions when `EXPO_PUBLIC_POSTHOG_API_KEY` is set. Native screenshot replay stays disabled because it cannot redact the WebView DOM without masking the whole view. Production iOS builds upload native JavaScript source maps through the PostHog Expo and Metro plugins. Canary builds exercise the same tooling in dry-run mode because the preview environment does not contain the source-map upload credential.
 
 ## Event contract
 
@@ -22,6 +22,8 @@ ordinary clicks remain autocaptured.
 | Quality    | `roster_datasheet_loaded`, `roster_datasheet_rendered`, sampled `roster_priced`, `$exception`, and structured server error logs                                                                                                                                                                                                          |
 
 `battle_command_submitted` contains the command kind and outcome. It does not contain the command payload. Datasheet metrics separate server work, request time, and render time. Performance events contain durations and workload counts only.
+
+`unit_count` on a roster event is how many units the list fields, counting a character inside the unit it joined, as `attachedUnitCount` folds it. The events that measure a request rather than a list — `roster_priced`, `roster_imported`, `roster_exported`, `roster_datasheet_loaded` — count the picks in that payload instead.
 
 Builder events cover structural roster changes, not autosave or each loadout
 stepper click. Search events carry only the bounded result group and result count;

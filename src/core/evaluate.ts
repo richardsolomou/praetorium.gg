@@ -475,14 +475,18 @@ function modifierErrors(node: Node, root: Node, index: CatalogueIndex, census: C
  * hanging off every datasheet. Without asking, a list builder offers a player
  * fourteen choices that have nothing to do with the game they are playing.
  *
- * The candidate is judged beside the roster rather than inside its own unit, which
- * is enough for the gates that matter — they ask about the roster and about the
- * keywords of what holds them, and the holder is in the roster. A gate written
- * against `parent` or `self` would need the candidate placed properly first.
+ * The candidate is judged inside its root entry when one is known, and beside the
+ * roster otherwise. A gate written against a deeper parent would need the complete
+ * path to the candidate.
  */
-export function hiddenByRules(definition: Definition, index: CatalogueIndex, options: EvaluateOptions = {}): boolean {
+export function hiddenByRules(
+  definition: Definition,
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+  enclosingRoot?: Definition,
+): boolean {
   const census = new Census()
-  const { root, node } = candidateContext(definition, index, options, census)
+  const { root, node } = candidateContext(definition, index, options, census, enclosingRoot)
 
   let hidden = Boolean(definition.hidden || node.target.hidden)
   for (const modifier of modifiersOf(node)) {
@@ -661,7 +665,13 @@ export function rosterLimit(definition: Definition, index: CatalogueIndex, optio
  * army" never arrives. Ancestors stop at a force node, so the identity is carried by the
  * root rather than by a layer beneath it.
  */
-function candidateContext(definition: Definition, index: CatalogueIndex, options: EvaluateOptions, census: Census) {
+function candidateContext(
+  definition: Definition,
+  index: CatalogueIndex,
+  options: EvaluateOptions,
+  census: Census,
+  enclosingRoot?: Definition,
+) {
   const counter = { next: 0 }
   const root: Node = {
     target: options.mustering ? { id: index.forces[0]?.id ?? 'roster', name: index.forces[0]?.name } : { id: 'roster' },
@@ -678,8 +688,24 @@ function candidateContext(definition: Definition, index: CatalogueIndex, options
   root.children = (options.roster ?? [])
     .map((selection) => build(selection, root, index, census, counter))
     .filter((each): each is Node => each !== null)
-  const node: Node = { target, order: counter.next++, link, id: definition.id, count: 1, parent: root, children: [] }
-  root.children = [...root.children, node]
+  let parent = root
+  if (enclosingRoot) {
+    const enclosingLink = isLink(enclosingRoot) ? enclosingRoot : null
+    const enclosingTarget = enclosingLink ? (index.definitions.get(enclosingLink.targetId) ?? enclosingRoot) : enclosingRoot
+    parent = {
+      target: enclosingTarget,
+      order: counter.next++,
+      link: enclosingLink,
+      id: enclosingRoot.id,
+      count: 1,
+      parent: root,
+      children: [],
+    }
+    root.children = [...root.children, parent]
+  }
+  const node: Node = { target, order: counter.next++, link, id: definition.id, count: 1, parent, children: [] }
+  if (parent === root) root.children = [...root.children, node]
+  else parent.children = [node]
   return { root, node }
 }
 

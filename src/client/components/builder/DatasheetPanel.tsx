@@ -1,13 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { wargearBaseName } from '../../../core/wargear'
 import type { RosterPick } from '../../../core/roster'
 import type { Datasheet, DatasheetRelationship } from '../../../server/catalogue'
 import { datasheetQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { HoverTooltip } from '../HoverTooltip'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList } from '../Keyword'
-import { abilitySections, addedKeywords, attachmentGroups, primaryUnitProfile, referenceAbilities } from '../../datasheet'
+import {
+  abilitySections,
+  addedKeywords,
+  attachmentGroups,
+  primaryUnitProfile,
+  referenceAbilities,
+  weaponProfileGroups,
+  weaponProfileMode,
+} from '../../datasheet'
 import { RuleText } from '../RuleText'
 import { ProfileRules } from '../ProfileRules'
 
@@ -203,7 +212,7 @@ export function UnitProfile({ profile }: { profile: Profile }) {
 }
 
 export function WeaponSummary({ title, weapons, rules }: { title: string; weapons: Profile[]; rules: Datasheet['keywordRules'] }) {
-  const count = weapons.reduce((total, weapon) => total + (weapon.count ?? 1), 0)
+  const count = weaponProfileGroups(weapons).reduce((total, profiles) => total + (profiles[0]?.count ?? 1), 0)
   return (
     <section>
       <h2 className="rubric flex items-baseline justify-between">
@@ -211,23 +220,58 @@ export function WeaponSummary({ title, weapons, rules }: { title: string; weapon
         <span className="readout text-faint">{count}</span>
       </h2>
       <div className="mt-2 space-y-1.5">
-        {weapons.map((weapon) => (
-          <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} />
-        ))}
+        <WeaponProfiles weapons={weapons} rules={rules} />
       </div>
     </section>
   )
 }
 
+export function WeaponProfiles({
+  weapons,
+  rules,
+  showName = true,
+  showCount = true,
+  embedded = false,
+}: {
+  weapons: readonly Profile[]
+  rules: Datasheet['keywordRules']
+  showName?: boolean
+  showCount?: boolean
+  embedded?: boolean
+}) {
+  return weaponProfileGroups(weapons).map((profiles) => {
+    const first = profiles[0]!
+    if (profiles.length === 1) {
+      return <WeaponProfile key={first.id} weapon={first} rules={rules} showName={showName} showCount={showCount} embedded={embedded} />
+    }
+    const name = wargearBaseName(first.name)
+    return (
+      <section key={first.id} aria-label={`${name} profiles`} className={embedded ? 'mx-2 my-1.5' : 'border border-edge bg-card p-2'}>
+        <h3 className="flex items-baseline justify-between gap-2 text-xs">
+          {showName ? <span>{showCount && first.count && first.count > 1 ? `${first.count}× ${name}` : name}</span> : null}
+          <span className="shrink-0 font-rules font-normal normal-case text-faint">{profiles.length} profiles</span>
+        </h3>
+        <div className="mt-1 ml-3 border-l-2 border-edge-strong pl-3">
+          {profiles.map((weapon) => (
+            <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} label={weaponProfileMode(weapon)} showCount={false} embedded />
+          ))}
+        </div>
+      </section>
+    )
+  })
+}
+
 export function WeaponProfile({
   weapon,
   rules,
+  label,
   showName = true,
   showCount = true,
   embedded = false,
 }: {
   weapon: Profile
   rules: Datasheet['keywordRules']
+  label?: string
   showName?: boolean
   showCount?: boolean
   embedded?: boolean
@@ -237,15 +281,17 @@ export function WeaponProfile({
   return (
     <div className={`${embedded ? '' : 'border border-edge bg-card '}px-2 py-1.5`}>
       {showName ? (
-        <h3 className="text-xs">{showCount && weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : weapon.name}</h3>
+        <h3 className={label ? 'font-rules text-xs font-medium normal-case text-dim' : 'text-xs'}>
+          {showCount && weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : (label ?? weapon.name)}
+        </h3>
       ) : null}
       <div className={`${showName ? 'mt-1 ' : ''}grid grid-cols-6 gap-1`}>
         {weapon.values
           .filter((value) => value.name !== 'Keywords')
           .map((value) => (
             <div key={value.name} className="min-w-0 text-center">
-              <p className="eyebrow text-[0.625rem]">{value.name}</p>
-              <p className="readout text-[0.8125rem] text-faint">
+              <p className="eyebrow text-[0.6875rem]">{value.name}</p>
+              <p className="readout text-base text-bone">
                 <ProfileValue value={value} />
               </p>
             </div>

@@ -7,6 +7,7 @@ import {
   Download,
   EllipsisVertical,
   ExternalLink,
+  Link2,
   Pencil,
   Plus,
   Printer,
@@ -20,13 +21,16 @@ import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import type { FormatRuleId, Secondary, Stratagem } from '../../core/battle'
+import { attachedUnitCount } from '../../core/attachedUnits'
+import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../core/battle'
 import { type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { Datasheet } from '../../server/catalogue'
 import { exportRoster, saveRoster } from '../../server/functions'
+import { shareLink } from '../nativeBridge'
 import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery } from '../queries'
+import { errorMessage } from '../queryClient'
 import { type KeyedPick, picksAfterDetachmentChange } from '../rosterPicks'
 import { useCollectionMutation } from '../useCollection'
 import { useSettled } from '../useSettled'
@@ -66,11 +70,26 @@ type Props = {
     source: RosterSource
   }
   initialFaction?: RosterSetupFaction | null
+  /**
+   * A list as a battle froze it.
+   *
+   * The cards, the total and the detachments are the ones that were fielded rather
+   * than whatever the catalogue says today, and the price is only asked for when a
+   * unit is opened — a frozen list may be read on an instance that cannot price it
+   * at all.
+   */
+  frozen?: FrozenRoster
   editable?: boolean
   /** A battle token may entitle a read-only viewer to resolve a private roster. */
   battle?: string
   /** Resolve read-only details by saved id; false when the supplied picks are themselves the snapshot. */
   resolvePersistedRoster?: boolean
+}
+
+export type FrozenRoster = {
+  units: NonNullable<Roster['built']>['units']
+  points: number
+  detachments: readonly { id?: string; name: string; points?: number | null }[]
 }
 
 type RosterPaneHistory =
@@ -86,6 +105,8 @@ const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
 /** Which set of waived restrictions this workspace has already been told about. */
 const WAIVERS_DISMISSED = 'waivers-dismissed'
 const NO_UNITS = [] as const
+const NO_JOINED: { label: string; name: string }[] = []
+const modelCount = (models: number) => `${models} ${models === 1 ? 'model' : 'models'}`
 const ROSTER_PANE_HASH = 'roster-pane'
 
 /**
@@ -99,7 +120,7 @@ const ROSTER_PANE_HASH = 'roster-pane'
  * The price and the legality both come from the server, because the catalogue is
  * 90MB and the browser has no business holding it.
  */
-export function ListBuilder({ prep, initial, initialFaction, editable = true, battle, resolvePersistedRoster = true }: Props) {
+export function ListBuilder({ prep, initial, initialFaction, frozen, editable = true, battle, resolvePersistedRoster = true }: Props) {
   const navigate = useNavigate()
   const router = useRouter()
   const path = useRouterState({ select: (state) => state.location.href.split('#', 1)[0] ?? state.location.pathname })
@@ -121,7 +142,10 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
   const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<string | null>(null)
-  const workspacePath = `/rosters/${initial.id}`
+  const [shareFeedback, setShareFeedback] = useState<'copied' | 'shared' | null>(null)
+  const [shareProblem, setShareProblem] = useState<string | null>(null)
+  // A frozen list has no saved row to be keyed by, so it is keyed by where it is read.
+  const workspacePath = initial.id ? `/rosters/${initial.id}` : path
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
   const [dismissedWaivers, setDismissedWaivers] = useState<string | null>(null)
   const [wideWorkspace, setWideWorkspace] = useState(true)
@@ -143,12 +167,15 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   /** The history entry this workspace opened on, which nothing here may step behind. */
   const openedAt = useRef(router.history.location.state.__TSR_index)
   const editingSetup = setupDraft !== null
-  const { data: loadedFaction } = useQuery({
+  const { data: loadedFaction, isLoading: factionLoading } = useQuery({
     ...factionQuery(catalogueId),
     enabled: Boolean(catalogueId) && initialFaction?.id !== catalogueId,
   })
   const faction = loadedFaction ?? (initialFaction?.id === catalogueId ? initialFaction : null)
-  const pickerOpen = wideWorkspace || showing === 'picker'
+  // View mode simplifies the owner's roster cards and loadouts without taking away
+  // their unit picker. Other readers still get the roster without builder controls.
+  const building = editable && !readOnly
+  const pickerOpen = editable && (wideWorkspace || showing === 'picker')
   const pickerEnabled = workspaceMeasured && pickerOpen
 
   const setSetupDraft = (draft: RosterSetup | null) => {
@@ -253,6 +280,8 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const setReadOnlyMode = (next: boolean) => {
     setReadOnly(next)
     localStorage.setItem(READ_ONLY_PREFERENCE, String(next))
+    // Viewing is reading the list as anybody else would, and the picker is not part of that.
+    if (next && showing === 'picker') closePane()
   }
   const toggleWaivedRule = useCallback(
     (rule: FormatRuleId) =>
@@ -410,7 +439,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         },
       }),
     onSuccess: async ({ id }) => {
-      posthog.capture('roster_duplicated', { unit_count: positioned.length, shared: true })
+      posthog.capture('roster_duplicated', { unit_count: attachedUnitCount(picks), shared: true })
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id } })
     },
@@ -423,6 +452,9 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     isPending: priceLoading,
   } = useQuery({
     ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned, waivedRules, borrowedDetachmentId, optionalRules),
+    // A frozen list already carries its cards and its total; the price is only the
+    // applied datasheet behind a unit somebody opened.
+    enabled: Boolean(catalogueId) && (!frozen || selected !== null),
     /**
      * The last answer, with whatever the list has since let go of taken out of it.
      *
@@ -457,20 +489,44 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   // A name the player typed is never one of its inputs and never replaced by it.
   const label = priced?.label ?? ''
   const shownName = listName || label
-  const rosterLoading = priceLoading && picks.length > 0
+  const shareRoster = async () => {
+    setShareProblem(null)
+    try {
+      if (editable) await save.mutateAsync()
+      const result = await shareLink(`${window.location.origin}${workspacePath}`, shownName || 'Roster')
+      posthog.capture('roster_shared', { visibility_changed: false })
+      setShareFeedback(result)
+    } catch (error) {
+      posthog.captureException(error, { operation: 'roster_share' })
+      setShareProblem(errorMessage(error))
+    }
+  }
+  const shareLabel = shareFeedback === 'shared' ? 'Link shared' : shareFeedback === 'copied' ? 'Link copied' : 'Share link'
+  const rosterLoading = !frozen && priceLoading && picks.length > 0
   const edit = useMemo(() => pickEditor(setPicks, { catalogueId, units }, allocateKey), [allocateKey, catalogueId, setPicks, units])
-  const editor = useRef({ edit, pickCount: picks.length })
+  const editor = useRef(edit)
+  /**
+   * What an edit reports is the list it leaves behind, read once the edit has landed.
+   * The size of a list is not the number of picks in it, so no edit is a reliable
+   * step of one: duplicating an attached character adds a pick to a unit that was
+   * already there, and dropping the unit it joined leaves it standing on its own.
+   */
+  const reporting = useRef<'roster_unit_added' | 'roster_unit_removed' | 'roster_unit_duplicated' | null>(null)
   useLayoutEffect(() => {
-    editor.current = { edit, pickCount: picks.length }
-  }, [edit, picks.length])
+    editor.current = edit
+    const event = reporting.current
+    if (!event) return
+    reporting.current = null
+    posthog.capture(event, { unit_count: attachedUnitCount(picks) })
+  }, [edit, picks])
   const drop = useCallback((index: number) => {
-    editor.current.edit.drop(index)
-    posthog.capture('roster_unit_removed', { unit_count: editor.current.pickCount - 1 })
+    editor.current.drop(index)
+    reporting.current = 'roster_unit_removed'
     setSelected(null)
   }, [])
   const add = useCallback((entryId: string) => {
-    editor.current.edit.add(entryId)
-    posthog.capture('roster_unit_added', { unit_count: editor.current.pickCount + 1 })
+    editor.current.add(entryId)
+    reporting.current = 'roster_unit_added'
   }, [])
   const inspect = useCallback(
     (previewCatalogueId: string, entryId: string, unitName: string) => {
@@ -484,11 +540,11 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   )
   const previewUnit = useCallback((entryId: string, unitName: string) => inspect(catalogueId, entryId, unitName), [catalogueId, inspect])
   const duplicate = useCallback((index: number) => {
-    editor.current.edit.duplicate(index)
-    posthog.capture('roster_unit_duplicated', { unit_count: editor.current.pickCount + 1 })
+    editor.current.duplicate(index)
+    reporting.current = 'roster_unit_duplicated'
   }, [])
   const join = useCallback((index: number, targetKey: number | undefined) => {
-    editor.current.edit.join(index, targetKey)
+    editor.current.join(index, targetKey)
     posthog.capture('roster_attachment_updated', { attached: targetKey !== undefined })
   }, [])
   const selection = useRef({ picks, updateLoadoutHistory, workspacePath })
@@ -509,7 +565,9 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   )
   const cardRelationships = useCardRelationships(picks, units)
 
-  if (!faction) {
+  // A frozen list carries everything its cards print, which is what lets an opponent
+  // read it on an instance that has never loaded this catalogue.
+  if (!faction && !frozen) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center border border-edge bg-sunken p-8 text-center">
         <div>
@@ -520,8 +578,33 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     )
   }
 
-  const over = Boolean(priced && priced.points > limit)
+  const points = frozen ? frozen.points : (priced?.points ?? 0)
+  const over = frozen ? frozen.points > limit : Boolean(priced && priced.points > limit)
+  const cards = frozen
+    ? frozen.units.map((unit, index) => ({
+        index,
+        group: unit.group ?? ('other' as const),
+        joined: unit.joined ?? [],
+        unit: {
+          entryId: unit.entryId ?? unit.key,
+          name: unit.name,
+          points: unit.points,
+          modelCount: unit.models,
+          wargear: unit.wargear ?? [],
+          attachment: null,
+          enhancements: unit.enhancements ?? [],
+          upgrades: unit.upgrades ?? [],
+        },
+      }))
+    : units.map((unit, index) => ({ index, group: unit.group, joined: NO_JOINED, unit }))
+  // The shelves draw a card per datasheet; the header says how many units the list
+  // brings, which is the same fold the library and the battle count it by.
+  const fieldedUnitCount = frozen ? attachedUnitCount(frozen.units) : attachedUnitCount(picks)
   const selectedUnit = selected === null ? null : (units[selected] ?? null)
+  const frozenSelected = frozen && selected !== null ? (frozen.units[selected] ?? null) : null
+  // Frozen selections are what a datasheet is applied to; a log written without them
+  // leaves cards that say what was fielded and nothing to open behind them.
+  const loadoutAvailable = !frozen || picks.length > 0
   const selectedPick = selected === null ? null : (picks[selected] ?? null)
   const selectedUnitLoading = selected !== null && !selectedUnit
   const evaluatedPick = selectedPick ? (evaluatedPicks.current.get(selectedPick.key) ?? null) : null
@@ -555,7 +638,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
    * acknowledged yet and the warning comes back.
    */
   const waiverKey = waivers.map((rule) => rule.id).join(',')
-  const inspectorView = editable && !readOnly ? 'edit' : 'readonly'
+  const inspectorView = building ? 'edit' : 'readonly'
   const warlord = optimisticUnit?.toggles.find((toggle) => toggle.name === 'Warlord')
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
   const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : null
@@ -610,7 +693,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           showWeapons
           embedded
           hideSummary
-          showRelationships={!readOnly}
+          showRelationships
           onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
           onReferenceRoute={setReference}
         />
@@ -625,7 +708,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
       picks={positioned}
       pickIndex={preview ? null : selected}
       showWeapons
-      showRelationships={!readOnly}
+      showRelationships
       onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
       onReferenceRoute={setReference}
     />
@@ -640,13 +723,18 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         maxLength={ROSTER_NAME_MAX_LENGTH}
         placeholder={label || 'Named from what is in it'}
         faction={faction}
-        factionLoading={Boolean(catalogueId) && !faction}
+        factionLoading={factionLoading}
         limit={limit}
-        detachments={detachmentIds.flatMap((id) => {
-          const detachment = faction.detachments.find((candidate) => candidate.id === id)
-          return detachment ? [{ id, name: detachment.name }] : []
-        })}
-        disposition={priced?.disposition}
+        unitCount={fieldedUnitCount}
+        detachments={
+          frozen
+            ? frozen.detachments
+            : detachmentIds.flatMap((id) => {
+                const detachment = faction?.detachments.find((candidate) => candidate.id === id)
+                return detachment ? [{ id, name: detachment.name }] : []
+              })
+        }
+        disposition={frozen ? disposition : priced?.disposition}
         waivers={waivers}
         actions={
           editable ? (
@@ -673,8 +761,16 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                   >
                     <Pencil /> Edit roster setup
                   </DropdownMenuItem>
-                  <DropdownMenuItem disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
+                  {visibility !== 'private' ? (
+                    <DropdownMenuItem onClick={() => void shareRoster()}>
+                      <Link2 /> {shareLabel}
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
                     <Download /> Export GW text
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => window.print()}>
+                    <Printer /> Print
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -709,7 +805,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                     </div>
                   }
                 />
-                <TooltipContent side="bottom">Build edits your roster. View shows only what’s selected.</TooltipContent>
+                <TooltipContent side="bottom">Build shows roster editing controls. View simplifies cards and loadouts.</TooltipContent>
               </Tooltip>
             </>
           ) : (
@@ -719,7 +815,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-52">
                 {me ? (
-                  <DropdownMenuItem disabled={duplicateRoster.isPending} onClick={() => duplicateRoster.mutate()}>
+                  <DropdownMenuItem disabled={duplicateRoster.isPending || !positioned.length} onClick={() => duplicateRoster.mutate()}>
                     <Copy /> Duplicate to my rosters
                   </DropdownMenuItem>
                 ) : (
@@ -727,7 +823,12 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                     <Copy /> Sign in to duplicate
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
+                {visibility !== 'private' && !battle ? (
+                  <DropdownMenuItem onClick={() => void shareRoster()}>
+                    <Link2 /> {shareLabel}
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
                   <Download /> Export GW text
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => window.print()}>
@@ -741,6 +842,11 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         {!editable && duplicateRoster.isError ? (
           <p role="alert" className="mt-1 text-xs text-destructive">
             That roster could not be duplicated. Try again.
+          </p>
+        ) : null}
+        {shareProblem ? (
+          <p role="alert" className="mt-1 text-xs text-destructive">
+            Could not share the link: {shareProblem}
           </p>
         ) : null}
         {editable && priced?.dispositionError ? (
@@ -838,36 +944,46 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         ) : null}
 
         <RosterUnits>
-          {units.length ? (
+          {cards.length ? (
             GROUPS.map(({ id, plural }) => {
-              const rows = units
-                .map((unit, index) => ({ unit, index }))
-                .filter(({ unit }) => unit.group === id)
+              const rows = cards
+                .filter((card) => card.group === id)
                 .toSorted((left, right) => left.unit.name.localeCompare(right.unit.name))
               return rows.length ? (
                 <Section key={id} title={plural} count={rows.length}>
-                  {rows.map(({ unit, index }) => (
-                    <BuilderUnitCard
-                      key={picks[index]?.key ?? unit.entryId}
-                      unit={unit}
-                      index={index}
-                      joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
-                      canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
-                      alliedFaction={
-                        picks[index]?.catalogueId === catalogueId
-                          ? undefined
-                          : factionIndex?.factions.find((entry) => entry.id === picks[index]?.catalogueId)
-                      }
-                      selected={selected === index}
-                      owned={collection.has(unit.entryId)}
-                      onSelect={selectUnit}
-                      onRemove={drop}
-                      onDuplicate={duplicate}
-                      onOwned={setUnitOwned}
-                      onJoin={join}
-                      editable={editable}
-                    />
-                  ))}
+                  {rows.map(({ unit, index, joined }) =>
+                    frozen ? (
+                      <UnitCard
+                        key={unit.entryId + index}
+                        unit={unit}
+                        joined={joined}
+                        selected={selected === index}
+                        onSelect={loadoutAvailable ? () => selectUnit(index) : undefined}
+                        editable={false}
+                      />
+                    ) : (
+                      <BuilderUnitCard
+                        key={picks[index]?.key ?? unit.entryId}
+                        unit={unit}
+                        index={index}
+                        joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
+                        canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
+                        alliedFaction={
+                          picks[index]?.catalogueId === catalogueId
+                            ? undefined
+                            : factionIndex?.factions.find((entry) => entry.id === picks[index]?.catalogueId)
+                        }
+                        selected={selected === index}
+                        owned={collection.has(unit.entryId)}
+                        onSelect={selectUnit}
+                        onRemove={drop}
+                        onDuplicate={duplicate}
+                        onOwned={setUnitOwned}
+                        onJoin={join}
+                        editable={building}
+                      />
+                    ),
+                  )}
                 </Section>
               ) : null
             })
@@ -881,93 +997,102 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                 ))}
               </span>
             </output>
-          ) : faction ? (
-            <p className="py-6 text-sm text-faint">{editable ? 'Pick a unit to start building.' : 'This roster has no units.'}</p>
+          ) : faction || frozen ? (
+            <p className="py-6 text-sm text-faint">{building ? 'Pick a unit to start building.' : 'This roster has no units.'}</p>
           ) : (
             <p className="py-6 text-sm text-faint">Pick a book to start building.</p>
           )}
         </RosterUnits>
 
-        <Pane
-          variant="loadout"
-          open={showing === 'loadout' && Boolean(selected !== null || preview)}
-          threeColumn={editable}
-          title={preview?.name ?? selectedUnit?.name ?? 'Unit'}
-          ariaLabel={preview ? 'Datasheet' : 'Loadout'}
-          backLabel={paneHistory?.pane === 'loadout' && paneHistory.returnToPicker ? 'Back to units' : undefined}
-          onClose={closePane}
-          actions={
-            <>
-              {preview && editable ? (
-                <Button size="sm" className="h-7 px-2 text-[0.6875rem]" onClick={() => add(preview.entryId)}>
-                  <Plus className="size-3" />
-                  Add to list
-                </Button>
-              ) : optimisticUnit ? (
-                <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
-                  {warlord && inspectorView === 'edit' ? (
-                    <Toggle
-                      variant="outline"
-                      size="sm"
-                      title={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
-                      aria-label={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
-                      pressed={warlord.selected}
-                      className={`!h-auto !min-h-0 !min-w-0 gap-1 rounded-sm !px-1.5 !py-px !text-[0.6875rem] !font-semibold !tracking-[0.06em] uppercase ${
-                        warlord.selected
-                          ? 'border-parchment bg-parchment/15 text-parchment'
-                          : 'border-edge-strong text-dim hover:border-info hover:text-bone'
-                      }`}
-                      onPressedChange={(pressed) => selected !== null && edit.toggle(selected, warlord.key, warlord.name, pressed)}
-                    >
-                      <Crown className={warlord.selected ? 'fill-current' : undefined} />
-                      Warlord
-                    </Toggle>
-                  ) : null}
-                  {warlord?.selected && inspectorView === 'readonly' ? (
-                    <span className="chip gap-1 text-info">
-                      <Crown className="size-3.5 fill-current" /> Warlord
-                    </span>
-                  ) : null}
-                  <span className="chip w-[4.5rem] justify-center text-info">{optimisticUnit.points} pts</span>
-                  {optimisticUnit.size.resizable && inspectorView === 'edit' ? (
-                    <Stepper
-                      label={`models in ${optimisticUnit.name}`}
-                      countLabel={`${optimisticUnit.name} models`}
-                      count={optimisticUnit.size.models}
-                      onRemove={
-                        optimisticUnit.size.models > optimisticUnit.size.min
-                          ? () =>
-                              selected !== null &&
-                              edit.resize(
-                                selected,
-                                optimisticUnit.size.options?.findLast((size) => size < optimisticUnit.size.models) ??
-                                  optimisticUnit.size.models - 1,
-                              )
-                          : undefined
-                      }
-                      onAdd={
-                        optimisticUnit.size.models < optimisticUnit.size.max
-                          ? () =>
-                              selected !== null &&
-                              edit.resize(
-                                selected,
-                                optimisticUnit.size.options?.find((size) => size > optimisticUnit.size.models) ??
-                                  optimisticUnit.size.models + 1,
-                              )
-                          : undefined
-                      }
-                    />
-                  ) : (
-                    <span className="chip normal-case">{optimisticUnit.size.models} models</span>
-                  )}
-                </span>
-              ) : null}
-              {inspectedEntryId ? referenceRoute ? <FullDatasheetLink route={referenceRoute} /> : <FullDatasheetLinkLoading /> : null}
-            </>
-          }
-        >
-          {preview ? datasheet : loadout}
-        </Pane>
+        {/* A list with no frozen selections has nothing to open, so it offers nothing. */}
+        {loadoutAvailable ? (
+          <Pane
+            variant="loadout"
+            open={showing === 'loadout' && Boolean(selected !== null || preview)}
+            threeColumn={editable}
+            title={preview?.name ?? frozenSelected?.name ?? selectedUnit?.name ?? 'Unit'}
+            ariaLabel={preview ? 'Datasheet' : 'Loadout'}
+            backLabel={paneHistory?.pane === 'loadout' && paneHistory.returnToPicker ? 'Back to units' : undefined}
+            onClose={closePane}
+            actions={
+              <>
+                {preview && building ? (
+                  <Button size="sm" className="h-7 px-2 text-[0.6875rem]" onClick={() => add(preview.entryId)}>
+                    <Plus className="size-3" />
+                    Add to list
+                  </Button>
+                ) : optimisticUnit ? (
+                  <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
+                    {warlord && inspectorView === 'edit' ? (
+                      <Toggle
+                        variant="outline"
+                        size="sm"
+                        title={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
+                        aria-label={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
+                        pressed={warlord.selected}
+                        className={`!h-auto !min-h-0 !min-w-0 gap-1 rounded-sm !px-1.5 !py-px !text-[0.6875rem] !font-semibold !tracking-[0.06em] uppercase ${
+                          warlord.selected
+                            ? 'border-parchment bg-parchment/15 text-parchment'
+                            : 'border-edge-strong text-dim hover:border-info hover:text-bone'
+                        }`}
+                        onPressedChange={(pressed) => selected !== null && edit.toggle(selected, warlord.key, warlord.name, pressed)}
+                      >
+                        <Crown className={warlord.selected ? 'fill-current' : undefined} />
+                        Warlord
+                      </Toggle>
+                    ) : null}
+                    {warlord?.selected && inspectorView === 'readonly' ? (
+                      <span className="chip gap-1 text-info">
+                        <Crown className="size-3.5 fill-current" /> Warlord
+                      </span>
+                    ) : null}
+                    <span className="chip w-[4.5rem] justify-center text-info">{optimisticUnit.points} pts</span>
+                    {optimisticUnit.size.resizable && inspectorView === 'edit' ? (
+                      <Stepper
+                        label={`models in ${optimisticUnit.name}`}
+                        countLabel={`${optimisticUnit.name} models`}
+                        count={optimisticUnit.size.models}
+                        onRemove={
+                          optimisticUnit.size.models > optimisticUnit.size.min
+                            ? () =>
+                                selected !== null &&
+                                edit.resize(
+                                  selected,
+                                  optimisticUnit.size.options?.findLast((size) => size < optimisticUnit.size.models) ??
+                                    optimisticUnit.size.models - 1,
+                                )
+                            : undefined
+                        }
+                        onAdd={
+                          optimisticUnit.size.models < optimisticUnit.size.max
+                            ? () =>
+                                selected !== null &&
+                                edit.resize(
+                                  selected,
+                                  optimisticUnit.size.options?.find((size) => size > optimisticUnit.size.models) ??
+                                    optimisticUnit.size.models + 1,
+                                )
+                            : undefined
+                        }
+                      />
+                    ) : (
+                      <span className="chip normal-case">{modelCount(optimisticUnit.size.models)}</span>
+                    )}
+                  </span>
+                ) : frozenSelected ? (
+                  // The list as fought, before the price behind it has said anything.
+                  <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
+                    <span className="chip w-[4.5rem] justify-center text-info">{frozenSelected.points} pts</span>
+                    <span className="chip normal-case">{modelCount(frozenSelected.models)}</span>
+                  </span>
+                ) : null}
+                {inspectedEntryId ? referenceRoute ? <FullDatasheetLink route={referenceRoute} /> : <FullDatasheetLinkLoading /> : null}
+              </>
+            }
+          >
+            {preview ? datasheet : loadout}
+          </Pane>
+        ) : null}
       </RosterBody>
 
       <footer className="sticky bottom-0 z-20 border-t border-edge bg-panel px-3 py-2">
@@ -978,7 +1103,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
             ) : over ? (
               <TriangleAlert className="size-5 text-destructive" aria-hidden />
             ) : (
-              <Check className={`size-5 ${units.length ? 'text-achieved' : 'text-faint'}`} aria-hidden />
+              <Check className={`size-5 ${cards.length ? 'text-achieved' : 'text-faint'}`} aria-hidden />
             )}
             {/*
              * The mark is the legality statement, and a mark alone says nothing to
@@ -986,7 +1111,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
              */}
             {rosterLoading ? null : <span className="sr-only">{over ? 'Over the points limit' : 'Within the points limit'}</span>}
             <span data-stat="points" className={`readout text-xl font-bold ${over ? 'text-destructive' : 'text-info'}`}>
-              {rosterLoading ? <span aria-label="Loading roster points">…</span> : (priced?.points ?? 0)}/{limit}
+              {rosterLoading ? <span aria-label="Loading roster points">…</span> : points}/{limit}
             </span>
             <span className="eyebrow">points</span>
           </span>
@@ -1009,7 +1134,8 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
             </Button>
           </div>
         ) : null}
-        {priced?.errors.length ? (
+        {/* A frozen list was priced when it was fielded; today's catalogue does not get to re-judge it. */}
+        {!frozen && priced?.errors.length ? (
           <ul className="mt-2 space-y-1 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive">
             {priced.errors.slice(0, 8).map((error) => (
               <li key={`${error.entryId}-${error.message}`}>
@@ -1018,7 +1144,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
             ))}
           </ul>
         ) : null}
-        {priced?.unhandled.length ? (
+        {!frozen && priced?.unhandled.length ? (
           <div className="mt-2 border border-discarded/40 bg-discarded/5 p-2.5 text-xs text-discarded">
             <p className="font-semibold uppercase">Could not check every rule</p>
             <ul className="mt-1 list-inside list-disc">
