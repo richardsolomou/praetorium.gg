@@ -1,18 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
-import {
-  Check,
-  Copy,
-  Crown,
-  Download,
-  EllipsisVertical,
-  Link2,
-  Pencil,
-  Plus,
-  Printer,
-  SlidersHorizontal,
-  TriangleAlert,
-} from 'lucide-react'
+import { Copy, Crown, Download, EllipsisVertical, Link2, Pencil, Plus, Printer, SlidersHorizontal, TriangleAlert } from 'lucide-react'
 import posthog from 'posthog-js'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -44,13 +32,13 @@ import { Pane } from '../builder/Pane'
 import { UnitCard } from '../builder/UnitCard'
 import { survivingUnits } from '../builder/pricePlaceholder'
 import { pickEditor, usePicks } from '../builder/usePicks'
-import { WaiverWarning } from '../../components/FormatWaivers'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from '../../components/RosterSetupDialog'
 import { RosterExportDialog } from '../../components/RosterExportDialog'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from '../../components/RosterPresentation'
 import { readWorkspaceState, writeWorkspaceState } from '../../components/workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
 import { BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
+import { RosterBuilderFooter } from './RosterBuilderFooter'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -1095,70 +1083,25 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
         ) : null}
       </RosterBody>
 
-      <footer className="sticky bottom-0 z-20 border-t border-edge bg-panel px-3 py-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-2">
-            {rosterLoading ? (
-              <span className="size-5 animate-pulse bg-raised" aria-hidden />
-            ) : over ? (
-              <TriangleAlert className="size-5 text-destructive" aria-hidden />
-            ) : (
-              <Check className={`size-5 ${cards.length ? 'text-achieved' : 'text-faint'}`} aria-hidden />
-            )}
-            {/*
-             * The mark is the legality statement, and a mark alone says nothing to
-             * anyone who cannot see it: it is the whole answer to "can I play this".
-             */}
-            {rosterLoading ? null : <span className="sr-only">{over ? 'Over the points limit' : 'Within the points limit'}</span>}
-            <span data-stat="points" className={`readout text-xl font-bold ${over ? 'text-destructive' : 'text-info'}`}>
-              {rosterLoading ? <span aria-label="Loading roster points">…</span> : points}/{limit}
-            </span>
-            <span className="eyebrow">points</span>
-          </span>
-
-          {editable ? (
-            <Button variant="outline" size="sm" className="ml-auto min-[1300px]:hidden" onClick={openPicker} disabled={!faction}>
-              Add units
-            </Button>
-          ) : null}
-        </div>
-        {editable && save.isError ? (
-          <div
-            role="alert"
-            className="mt-2 flex items-center gap-2 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive"
-          >
-            <TriangleAlert className="size-4 shrink-0" aria-hidden />
-            <span className="min-w-0 flex-1">Your latest changes have not been saved.</span>
-            <Button variant="outline" size="xs" onClick={() => save.mutate()} disabled={save.isPending}>
-              Try again
-            </Button>
-          </div>
-        ) : null}
-        {/* A frozen list was priced when it was fielded; today's catalogue does not get to re-judge it. */}
-        {!frozen && priced?.errors.length ? (
-          <ul className="mt-2 space-y-1 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive">
-            {priced.errors.slice(0, 8).map((error) => (
-              <li key={`${error.entryId}-${error.message}`}>
-                {error.entryName}: {error.message}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {!frozen && priced?.unhandled.length ? (
-          <div className="mt-2 border border-discarded/40 bg-discarded/5 p-2.5 text-xs text-discarded">
-            <p className="font-semibold uppercase">Could not check every rule</p>
-            <ul className="mt-1 list-inside list-disc">
-              {priced.unhandled.slice(0, 8).map((message) => (
-                <li key={message}>{message}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {/* Under the errors, because a restriction switched off is why one of them is not there. */}
-        {dismissedWaivers === waiverKey ? null : (
-          <WaiverWarning rules={waivers} onDismiss={() => dismissWaivers(waiverKey)} editable={editable} />
-        )}
-      </footer>
+      <RosterBuilderFooter
+        loading={rosterLoading}
+        over={over}
+        points={points}
+        limit={limit}
+        hasUnits={Boolean(cards.length)}
+        editable={editable}
+        canAddUnits={Boolean(faction)}
+        onAddUnits={openPicker}
+        saveFailed={save.isError}
+        saving={save.isPending}
+        onRetrySave={() => save.mutate()}
+        errors={priced?.errors ?? []}
+        unhandled={priced?.unhandled ?? []}
+        frozen={Boolean(frozen)}
+        waivers={waivers}
+        waiversDismissed={dismissedWaivers === waiverKey}
+        onDismissWaivers={() => dismissWaivers(waiverKey)}
+      />
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
     </RosterShell>
   )

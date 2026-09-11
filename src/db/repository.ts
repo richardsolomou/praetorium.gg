@@ -1,47 +1,24 @@
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  exists,
-  ilike,
-  inArray,
-  isNotNull,
-  isNull,
-  lt,
-  ne,
-  not,
-  notExists,
-  or,
-  type SQL,
-  sql,
-} from 'drizzle-orm'
-import type { AdminUserPage, AdminUsersCursor } from '../admin'
+import { and, asc, desc, eq, exists, inArray, isNotNull, lt, ne, not, or, type SQL, sql } from 'drizzle-orm'
 import { type Command, type LoggedCommand, reduceBattle, type SubmitResult, validate } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import { type BattleAudience, DEFAULT_BATTLE_AUDIENCE } from '../core/battleAudience'
-import type { RosterSource, RosterVisibility } from '../core/savedRoster'
 import type { LeagueEntryStatus } from '../core/league'
 import type { TableShape } from '../core/tableShape'
 import { alias } from 'drizzle-orm/pg-core'
 import type { PraetoriumDatabase } from './connection'
 import { LeagueRepository } from './repositories/leagueRepository'
+import { AccountRepository } from './repositories/accountRepository'
+import { RosterRepository } from './repositories/rosterRepository'
 import {
   battleSharing,
   battleUsers,
   battles,
-  account,
-  collection,
   commands,
-  favouriteDetachments,
-  favouriteFactions,
   friendships,
   leagueEventBattles,
   leagueEvents,
   leagues,
   practiceOpponents,
-  rosters,
   user,
 } from './schema'
 
@@ -97,7 +74,6 @@ export type LeagueBattleCandidate = {
   entries: { userId: string; requiredLimit: number | null; sealedLimit: number | null; teamId: string | null }[]
 }
 
-const ADMIN_USERS_PAGE_SIZE = 50
 /**
  * Whether the account in a seat is a practice opponent.
  *
@@ -107,11 +83,15 @@ const ADMIN_USERS_PAGE_SIZE = 50
 const AUTOMATED = sql<boolean>`${practiceOpponents.userId} is not null`
 
 export class Repository {
+  private readonly accountRepository: AccountRepository
   private readonly leagueRepository: LeagueRepository
+  private readonly rosterRepository: RosterRepository
   readonly createLeagueBattle: LeagueRepository['createLeagueBattle']
 
   constructor(private readonly database: PraetoriumDatabase) {
+    this.accountRepository = new AccountRepository(database)
     this.leagueRepository = new LeagueRepository(database, (tx, input) => this.insertBattle(tx, input))
+    this.rosterRepository = new RosterRepository(database)
     this.createLeagueBattle = this.leagueRepository.createLeagueBattle.bind(this.leagueRepository)
   }
 
@@ -181,6 +161,114 @@ export class Repository {
 
   leagueRosters(...args: Parameters<LeagueRepository['leagueRosters']>) {
     return this.leagueRepository.leagueRosters(...args)
+  }
+
+  userById(...args: Parameters<AccountRepository['userById']>) {
+    return this.accountRepository.userById(...args)
+  }
+
+  adminUsers(...args: Parameters<AccountRepository['adminUsers']>) {
+    return this.accountRepository.adminUsers(...args)
+  }
+
+  unlinkAccount(...args: Parameters<AccountRepository['unlinkAccount']>) {
+    return this.accountRepository.unlinkAccount(...args)
+  }
+
+  profileByUserId(...args: Parameters<AccountRepository['profileByUserId']>) {
+    return this.accountRepository.profileByUserId(...args)
+  }
+
+  namesByIds(...args: Parameters<AccountRepository['namesByIds']>) {
+    return this.accountRepository.namesByIds(...args)
+  }
+
+  unrelatedUsers(...args: Parameters<AccountRepository['unrelatedUsers']>) {
+    return this.accountRepository.unrelatedUsers(...args)
+  }
+
+  practiceOpponents(...args: Parameters<AccountRepository['practiceOpponents']>) {
+    return this.accountRepository.practiceOpponents(...args)
+  }
+
+  relationships(...args: Parameters<AccountRepository['relationships']>) {
+    return this.accountRepository.relationships(...args)
+  }
+
+  requestFriend(...args: Parameters<AccountRepository['requestFriend']>) {
+    return this.accountRepository.requestFriend(...args)
+  }
+
+  acceptFriend(...args: Parameters<AccountRepository['acceptFriend']>) {
+    return this.accountRepository.acceptFriend(...args)
+  }
+
+  removeFriend(...args: Parameters<AccountRepository['removeFriend']>) {
+    return this.accountRepository.removeFriend(...args)
+  }
+
+  saveRoster(...args: Parameters<RosterRepository['saveRoster']>) {
+    return this.rosterRepository.saveRoster(...args)
+  }
+
+  rostersByUser(...args: Parameters<RosterRepository['rostersByUser']>) {
+    return this.rosterRepository.rostersByUser(...args)
+  }
+
+  publicRostersByUser(...args: Parameters<RosterRepository['publicRostersByUser']>) {
+    return this.rosterRepository.publicRostersByUser(...args)
+  }
+
+  rosterSummariesByUser(...args: Parameters<RosterRepository['rosterSummariesByUser']>) {
+    return this.rosterRepository.rosterSummariesByUser(...args)
+  }
+
+  roster(...args: Parameters<RosterRepository['roster']>) {
+    return this.rosterRepository.roster(...args)
+  }
+
+  setRosterVisibility(...args: Parameters<RosterRepository['setRosterVisibility']>) {
+    return this.rosterRepository.setRosterVisibility(...args)
+  }
+
+  collectionByUser(...args: Parameters<RosterRepository['collectionByUser']>) {
+    return this.rosterRepository.collectionByUser(...args)
+  }
+
+  addToCollection(...args: Parameters<RosterRepository['addToCollection']>) {
+    return this.rosterRepository.addToCollection(...args)
+  }
+
+  removeFromCollection(...args: Parameters<RosterRepository['removeFromCollection']>) {
+    return this.rosterRepository.removeFromCollection(...args)
+  }
+
+  favouriteFactionsByUser(...args: Parameters<RosterRepository['favouriteFactionsByUser']>) {
+    return this.rosterRepository.favouriteFactionsByUser(...args)
+  }
+
+  addFavouriteFaction(...args: Parameters<RosterRepository['addFavouriteFaction']>) {
+    return this.rosterRepository.addFavouriteFaction(...args)
+  }
+
+  removeFavouriteFaction(...args: Parameters<RosterRepository['removeFavouriteFaction']>) {
+    return this.rosterRepository.removeFavouriteFaction(...args)
+  }
+
+  favouriteDetachmentsByUser(...args: Parameters<RosterRepository['favouriteDetachmentsByUser']>) {
+    return this.rosterRepository.favouriteDetachmentsByUser(...args)
+  }
+
+  addFavouriteDetachment(...args: Parameters<RosterRepository['addFavouriteDetachment']>) {
+    return this.rosterRepository.addFavouriteDetachment(...args)
+  }
+
+  removeFavouriteDetachment(...args: Parameters<RosterRepository['removeFavouriteDetachment']>) {
+    return this.rosterRepository.removeFavouriteDetachment(...args)
+  }
+
+  deleteRoster(...args: Parameters<RosterRepository['deleteRoster']>) {
+    return this.rosterRepository.deleteRoster(...args)
   }
 
   /**
@@ -271,216 +359,6 @@ export class Repository {
         ),
       )
       .returning({ id: battles.id })
-    return removed.length > 0
-  }
-
-  async userById(id: string) {
-    const [row] = await this.database.select().from(user).where(eq(user.id, id)).limit(1)
-    return row
-  }
-
-  async adminUsers(input: { query?: string; cursor?: AdminUsersCursor | null; limit?: number } = {}): Promise<AdminUserPage> {
-    const limit = Math.min(Math.max(input.limit ?? ADMIN_USERS_PAGE_SIZE, 1), 100)
-    const query = input.query?.trim()
-    const conditions = [
-      notExists(
-        this.database.select({ id: practiceOpponents.userId }).from(practiceOpponents).where(eq(practiceOpponents.userId, user.id)),
-      ),
-    ]
-    if (query) {
-      const escaped = query.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')
-      conditions.push(or(ilike(user.name, `%${escaped}%`), ilike(user.email, `%${escaped}%`))!)
-    }
-    if (input.cursor) {
-      conditions.push(
-        or(lt(user.createdAt, input.cursor.createdAt), and(eq(user.createdAt, input.cursor.createdAt), lt(user.id, input.cursor.id)))!,
-      )
-    }
-    const rows = await this.database
-      .select({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        role: user.role,
-        banned: user.banned,
-        twoFactorEnabled: user.twoFactorEnabled,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      })
-      .from(user)
-      .where(and(...conditions))
-      .orderBy(desc(user.createdAt), desc(user.id))
-      .limit(limit + 1)
-    const users = rows.slice(0, limit)
-    if (!users.length) return { users: [], nextCursor: null }
-    const ids = users.map(({ id }) => id)
-    const [rosterCounts, battleCounts, methods] = await Promise.all([
-      this.database
-        .select({ userId: rosters.userId, count: count() })
-        .from(rosters)
-        .where(inArray(rosters.userId, ids))
-        .groupBy(rosters.userId),
-      this.database
-        .select({ userId: battleUsers.userId, count: count() })
-        .from(battleUsers)
-        .where(inArray(battleUsers.userId, ids))
-        .groupBy(battleUsers.userId),
-      this.database.select({ userId: account.userId, providerId: account.providerId }).from(account).where(inArray(account.userId, ids)),
-    ])
-    const rosterCountByUser = new Map(rosterCounts.map((row) => [row.userId, row.count]))
-    const battleCountByUser = new Map(battleCounts.map((row) => [row.userId, row.count]))
-    const methodsByUser = new Map<string, Set<string>>()
-    for (const method of methods) {
-      const providers = methodsByUser.get(method.userId) ?? new Set<string>()
-      providers.add(method.providerId)
-      methodsByUser.set(method.userId, providers)
-    }
-    const entries = users.map((entry) => ({
-      ...entry,
-      rosterCount: rosterCountByUser.get(entry.id) ?? 0,
-      battleCount: battleCountByUser.get(entry.id) ?? 0,
-      signInMethods: [...(methodsByUser.get(entry.id) ?? [])].sort((left, right) => left.localeCompare(right)),
-    }))
-    const last = users.at(-1)!
-    return { users: entries, nextCursor: rows.length > limit ? { createdAt: last.createdAt, id: last.id } : null }
-  }
-
-  async unlinkAccount(userId: string, providerId: string, availableProviders: readonly string[]): Promise<UnlinkAccountResult> {
-    return this.database.transaction(async (tx) => {
-      const [owner] = await tx.select({ twoFactorEnabled: user.twoFactorEnabled }).from(user).where(eq(user.id, userId)).for('update')
-      const methods = await tx.select({ providerId: account.providerId }).from(account).where(eq(account.userId, userId))
-      if (!methods.some((method) => method.providerId === providerId)) return { status: 'missing' }
-      if (providerId === 'credential' && owner?.twoFactorEnabled) return { status: 'two-factor' }
-      const available = new Set(availableProviders)
-      if (!methods.some((method) => method.providerId !== providerId && available.has(method.providerId))) return { status: 'last-method' }
-      const [removed] = await tx
-        .delete(account)
-        .where(and(eq(account.userId, userId), eq(account.providerId, providerId)))
-        .returning({ accessToken: account.accessToken, refreshToken: account.refreshToken })
-      return removed ? { status: 'removed', account: removed } : { status: 'missing' }
-    })
-  }
-
-  async profileByUserId(id: string) {
-    const [row] = await this.database.select({ id: user.id, name: user.name, image: user.image }).from(user).where(eq(user.id, id)).limit(1)
-    return row
-  }
-
-  /** Names for many ids at once, so a friend list is one query rather than one per row. */
-  async namesByIds(ids: readonly string[]) {
-    if (!ids.length) return new Map<string, { id: string; name: string }>()
-    const rows = await this.database
-      .select({ id: user.id, name: user.name })
-      .from(user)
-      .where(inArray(user.id, [...new Set(ids)]))
-    return new Map(rows.map((row) => [row.id, row]))
-  }
-
-  /**
-   * Players this one has no relationship with yet, so there is someone to ask.
-   *
-   * The exclusion is the database's: filtering a fetched page in memory returns
-   * fewer than a page as soon as a player has connections, and a well-connected
-   * one could be offered nobody at all while the instance is full of strangers.
-   */
-  async unrelatedUsers(userId: string, limit = 100) {
-    const relationship = this.database
-      .select({ one: sql`1` })
-      .from(friendships)
-      .where(
-        or(
-          and(eq(friendships.requesterId, userId), eq(friendships.addresseeId, user.id)),
-          and(eq(friendships.addresseeId, userId), eq(friendships.requesterId, user.id)),
-        ),
-      )
-    const practice = this.database
-      .select({ one: sql`1` })
-      .from(practiceOpponents)
-      .where(eq(practiceOpponents.userId, user.id))
-    // A practice opponent is nobody to befriend: it is offered as a seat, not a player.
-    return this.database
-      .select({ id: user.id, name: user.name })
-      .from(user)
-      .where(and(ne(user.id, userId), notExists(relationship), notExists(practice)))
-      .orderBy(asc(user.name))
-      .limit(limit)
-  }
-
-  /** The practice opponents this instance seats, in the order they are offered. */
-  async practiceOpponents() {
-    return this.database
-      .select({ id: user.id, name: user.name, image: user.image })
-      .from(practiceOpponents)
-      .innerJoin(user, eq(user.id, practiceOpponents.userId))
-      .orderBy(asc(user.id))
-  }
-
-  /**
-   * Every relationship this player is in, with the other party already named.
-   *
-   * The name comes from the join rather than a second lookup keyed on the ids
-   * this query just returned, which is the same answer for one round trip.
-   */
-  async relationships(userId: string) {
-    const other = alias(user, 'other')
-    return this.database
-      .select({
-        requesterId: friendships.requesterId,
-        addresseeId: friendships.addresseeId,
-        acceptedAt: friendships.acceptedAt,
-        otherId: other.id,
-        otherName: other.name,
-        otherImage: other.image,
-      })
-      .from(friendships)
-      .innerJoin(other, or(eq(other.id, friendships.requesterId), eq(other.id, friendships.addresseeId)))
-      .where(and(ne(other.id, userId), or(eq(friendships.requesterId, userId), eq(friendships.addresseeId, userId))))
-      .orderBy(asc(other.name))
-  }
-
-  /**
-   * A request in either direction already answers this, so the pair is checked
-   * before it is written. The primary key refuses a repeat of the same direction;
-   * the mirrored pair is a different key, so it cannot be left to an upsert.
-   */
-  async requestFriend(requesterId: string, addresseeId: string, now: number) {
-    return this.database.transaction(async (tx) => {
-      const [existing] = await tx
-        .select({ requesterId: friendships.requesterId })
-        .from(friendships)
-        .where(
-          or(
-            and(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, addresseeId)),
-            and(eq(friendships.requesterId, addresseeId), eq(friendships.addresseeId, requesterId)),
-          ),
-        )
-        .limit(1)
-      if (existing) return false
-      await tx.insert(friendships).values({ requesterId, addresseeId, requestedAt: now })
-      return true
-    })
-  }
-
-  async acceptFriend(requesterId: string, addresseeId: string, now: number) {
-    const updated = await this.database
-      .update(friendships)
-      .set({ acceptedAt: now })
-      .where(and(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, addresseeId), isNull(friendships.acceptedAt)))
-      .returning({ requesterId: friendships.requesterId })
-    return updated.length > 0
-  }
-
-  async removeFriend(leftId: string, rightId: string) {
-    const removed = await this.database
-      .delete(friendships)
-      .where(
-        or(
-          and(eq(friendships.requesterId, leftId), eq(friendships.addresseeId, rightId)),
-          and(eq(friendships.requesterId, rightId), eq(friendships.addresseeId, leftId)),
-        ),
-      )
-      .returning({ requesterId: friendships.requesterId })
     return removed.length > 0
   }
 
@@ -841,171 +719,6 @@ export class Repository {
         .values({ battleId: input.battleId, seq, userId: input.userId, at: input.now, body: JSON.stringify(command) })
       return { result: { outcome: 'appended', seq }, log: [...log, { seq, by: input.userId, at: input.now, command }] }
     })
-  }
-
-  async saveRoster(input: {
-    id: string
-    userId: string
-    name: string
-    catalogueId: string
-    detachmentId: string | null
-    disposition: string | null
-    limit: number
-    picks: string
-    prep: string | null
-    tags: string
-    waivedRules: string
-    optionalRules?: string
-    borrowedDetachmentId?: string | null
-    visibility: RosterVisibility
-    source: RosterSource
-    now: number
-  }) {
-    // Everything a later save may change. `id` identifies the row and `userId`
-    // owns it, so neither is here: an upsert must not be able to reassign a list.
-    const updatable = {
-      name: input.name,
-      catalogueId: input.catalogueId,
-      detachmentId: input.detachmentId,
-      disposition: input.disposition,
-      limit: input.limit,
-      picks: input.picks,
-      prep: input.prep,
-      tags: input.tags,
-      waivedRules: input.waivedRules,
-      optionalRules: input.optionalRules ?? '[]',
-      borrowedDetachmentId: input.borrowedDetachmentId ?? null,
-      visibility: input.visibility,
-      source: input.source,
-      updatedAt: input.now,
-    }
-    const updated = await this.database
-      .update(rosters)
-      .set(updatable)
-      .where(and(eq(rosters.id, input.id), eq(rosters.userId, input.userId)))
-      .returning({ id: rosters.id })
-    if (updated.length) return true
-    const inserted = await this.database
-      .insert(rosters)
-      .values({ id: input.id, userId: input.userId, createdAt: input.now, ...updatable })
-      .onConflictDoNothing()
-      .returning({ id: rosters.id })
-    return inserted.length > 0
-  }
-
-  async rostersByUser(userId: string) {
-    return this.database.select().from(rosters).where(eq(rosters.userId, userId)).orderBy(desc(rosters.createdAt))
-  }
-
-  /**
-   * The lists this player has made public, newest first.
-   *
-   * The owner-and-date index answers it: this narrows to one player before it looks
-   * at visibility, so no second index is needed. A private or unlisted list is
-   * absent — unlisted means a link its owner handed somebody, not a list to find.
-   */
-  async publicRostersByUser(userId: string, limit: number) {
-    return this.database
-      .select()
-      .from(rosters)
-      .where(and(eq(rosters.userId, userId), eq(rosters.visibility, 'public')))
-      .orderBy(desc(rosters.createdAt))
-      .limit(limit)
-  }
-
-  async rosterSummariesByUser(userId: string) {
-    return this.database
-      .select({
-        id: rosters.id,
-        name: rosters.name,
-        catalogueId: rosters.catalogueId,
-        detachmentId: rosters.detachmentId,
-        disposition: rosters.disposition,
-        limit: rosters.limit,
-        waivedRules: rosters.waivedRules,
-        optionalRules: rosters.optionalRules,
-        borrowedDetachmentId: rosters.borrowedDetachmentId,
-        picks: rosters.picks,
-        visibility: rosters.visibility,
-        source: rosters.source,
-        createdAt: rosters.createdAt,
-        updatedAt: rosters.updatedAt,
-      })
-      .from(rosters)
-      .where(eq(rosters.userId, userId))
-      .orderBy(desc(rosters.createdAt))
-  }
-
-  async roster(id: string) {
-    const [row] = await this.database.select().from(rosters).where(eq(rosters.id, id)).limit(1)
-    return row
-  }
-
-  async setRosterVisibility(id: string, userId: string, visibility: RosterVisibility, now: number) {
-    const updated = await this.database
-      .update(rosters)
-      .set({ visibility, updatedAt: now })
-      .where(and(eq(rosters.id, id), eq(rosters.userId, userId)))
-      .returning({ id: rosters.id })
-    return updated.length > 0
-  }
-
-  /** The datasheets this player owns models for. */
-  async collectionByUser(userId: string) {
-    return this.database.select().from(collection).where(eq(collection.userId, userId))
-  }
-
-  /** Owning something twice is owning it once, so a repeat is not an error. */
-  async addToCollection(input: { userId: string; entryId: string; now: number }) {
-    await this.database.insert(collection).values({ userId: input.userId, entryId: input.entryId, at: input.now }).onConflictDoNothing()
-  }
-
-  async removeFromCollection(userId: string, entryId: string) {
-    await this.database.delete(collection).where(and(eq(collection.userId, userId), eq(collection.entryId, entryId)))
-  }
-
-  async favouriteFactionsByUser(userId: string) {
-    return this.database.select().from(favouriteFactions).where(eq(favouriteFactions.userId, userId))
-  }
-
-  async addFavouriteFaction(input: { userId: string; catalogueId: string; now: number }) {
-    await this.database
-      .insert(favouriteFactions)
-      .values({ userId: input.userId, catalogueId: input.catalogueId, at: input.now })
-      .onConflictDoNothing()
-  }
-
-  async removeFavouriteFaction(userId: string, catalogueId: string) {
-    await this.database
-      .delete(favouriteFactions)
-      .where(and(eq(favouriteFactions.userId, userId), eq(favouriteFactions.catalogueId, catalogueId)))
-  }
-
-  async favouriteDetachmentsByUser(userId: string) {
-    return this.database.select().from(favouriteDetachments).where(eq(favouriteDetachments.userId, userId))
-  }
-
-  async addFavouriteDetachment(input: { userId: string; catalogueId: string; detachmentId: string; now: number }) {
-    await this.database
-      .insert(favouriteDetachments)
-      .values({ userId: input.userId, catalogueId: input.catalogueId, detachmentId: input.detachmentId, at: input.now })
-      .onConflictDoNothing()
-  }
-
-  async removeFavouriteDetachment(userId: string, catalogueId: string, detachmentId: string) {
-    await this.database
-      .delete(favouriteDetachments)
-      .where(
-        and(
-          eq(favouriteDetachments.userId, userId),
-          eq(favouriteDetachments.catalogueId, catalogueId),
-          eq(favouriteDetachments.detachmentId, detachmentId),
-        ),
-      )
-  }
-
-  async deleteRoster(id: string, userId: string) {
-    await this.database.delete(rosters).where(and(eq(rosters.id, id), eq(rosters.userId, userId)))
   }
 
   private async logQuery(battleId: string, tx: PraetoriumDatabase = this.database): Promise<LoggedCommand[]> {

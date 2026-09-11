@@ -6,8 +6,6 @@ import {
   type Command,
   commandArmy,
   FIXED_SECONDARIES,
-  type FormatRuleId,
-  type OptionalRuleId,
   GAME_SIZES,
   type PlayerId,
   reduceBattle,
@@ -16,26 +14,21 @@ import {
   sideCaptain,
   sideDisposition,
   sidePaintedPoints,
-  type Stratagem,
   type SubmitResult,
 } from '../core/battle'
 import { type BattleAudience, battleAudience, maySpectate } from '../core/battleAudience'
-import { attachedUnitCount } from '../core/attachedUnits'
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import type { MissionAward } from '../core/scoring'
-import type { RosterPick } from '../core/roster'
-import type { RosterSource, RosterVisibility } from '../core/savedRoster'
 import { filterBattles, type RecordFilter, recordFacets, serviceRecord } from '../core/serviceRecord'
 import { factionsPlayed, type Standing, type StandingFaction, standings } from '../core/standings'
 import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
 import type { BattleHistory, BattleSeats, BattlesCursor, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
-import { picksSchema } from './schemas'
-import { detachmentIds, optionalRulesFrom, rosterFromRow, waivedRulesFrom } from './rosterPersistence'
 import { LeagueService } from './services/leagueService'
+import { RosterService } from './services/rosterService'
+import { SocialService, sortedFriends } from './services/socialService'
 
-type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
 type BattleFaction = { id: string; slug: string; displayName: string; icon: string | null }
 
 /**
@@ -97,7 +90,6 @@ const STANDINGS_ROWS = 50
 
 /** How many of a player's battles a profile folds, how many it lists, and its lists. */
 const PROFILE_BATTLE_LIMIT = 200
-const PROFILE_ROSTER_LIMIT = 50
 const PROFILE_BATTLE_PAGE = 25
 
 /**
@@ -118,24 +110,10 @@ function newBattleSeats(input?: string | NewBattlePlayers) {
   return { allyIds, opponentIds, invited: [...allyIds, ...opponentIds] }
 }
 
-/** A library row as the client reads it: picks counted rather than sent. */
-function rosterSummaries<T extends { detachmentId: string | null; waivedRules: string; optionalRules: string; picks: string }>(
-  rows: readonly T[],
-) {
-  return rows.map(({ detachmentId, waivedRules, optionalRules, picks, ...row }) => {
-    const units = picksSchema.parse(JSON.parse(picks))
-    return {
-      ...row,
-      detachmentIds: detachmentIds(detachmentId),
-      waivedRules: waivedRulesFrom(waivedRules),
-      optionalRules: optionalRulesFrom(optionalRules),
-      unitCount: attachedUnitCount(units.map((unit, key) => ({ key, attachedTo: unit.attachedTo }))),
-    }
-  })
-}
-
 export class PraetoriumService {
   private readonly leagueService: LeagueService
+  private readonly rosterService: RosterService
+  private readonly socialService: SocialService
 
   constructor(
     private readonly repository: Repository,
@@ -144,6 +122,8 @@ export class PraetoriumService {
     private readonly randomIndex: (limit: number) => number,
   ) {
     this.leagueService = new LeagueService(repository, clock, events)
+    this.rosterService = new RosterService(repository, clock)
+    this.socialService = new SocialService(repository, clock)
   }
 
   createLeague(...args: Parameters<LeagueService['createLeague']>) {
@@ -216,6 +196,82 @@ export class PraetoriumService {
 
   createLeagueBattle(...args: Parameters<LeagueService['createLeagueBattle']>) {
     return this.leagueService.createLeagueBattle(...args)
+  }
+
+  saveRoster(...args: Parameters<RosterService['saveRoster']>) {
+    return this.rosterService.saveRoster(...args)
+  }
+
+  savedRosters(...args: Parameters<RosterService['savedRosters']>) {
+    return this.rosterService.savedRosters(...args)
+  }
+
+  savedRosterSummaries(...args: Parameters<RosterService['savedRosterSummaries']>) {
+    return this.rosterService.savedRosterSummaries(...args)
+  }
+
+  publicRosters(...args: Parameters<RosterService['publicRosters']>) {
+    return this.rosterService.publicRosters(...args)
+  }
+
+  rosterAccess(...args: Parameters<RosterService['rosterAccess']>) {
+    return this.rosterService.rosterAccess(...args)
+  }
+
+  sharedRoster(...args: Parameters<RosterService['sharedRoster']>) {
+    return this.rosterService.sharedRoster(...args)
+  }
+
+  setRosterVisibility(...args: Parameters<RosterService['setRosterVisibility']>) {
+    return this.rosterService.setRosterVisibility(...args)
+  }
+
+  deleteRoster(...args: Parameters<RosterService['deleteRoster']>) {
+    return this.rosterService.deleteRoster(...args)
+  }
+
+  collection(...args: Parameters<RosterService['collection']>) {
+    return this.rosterService.collection(...args)
+  }
+
+  setOwned(...args: Parameters<RosterService['setOwned']>) {
+    return this.rosterService.setOwned(...args)
+  }
+
+  favouriteFactions(...args: Parameters<RosterService['favouriteFactions']>) {
+    return this.rosterService.favouriteFactions(...args)
+  }
+
+  setFavouriteFaction(...args: Parameters<RosterService['setFavouriteFaction']>) {
+    return this.rosterService.setFavouriteFaction(...args)
+  }
+
+  favouriteDetachments(...args: Parameters<RosterService['favouriteDetachments']>) {
+    return this.rosterService.favouriteDetachments(...args)
+  }
+
+  setFavouriteDetachment(...args: Parameters<RosterService['setFavouriteDetachment']>) {
+    return this.rosterService.setFavouriteDetachment(...args)
+  }
+
+  opponents(...args: Parameters<SocialService['opponents']>) {
+    return this.socialService.opponents(...args)
+  }
+
+  friendships(...args: Parameters<SocialService['friendships']>) {
+    return this.socialService.friendships(...args)
+  }
+
+  requestFriend(...args: Parameters<SocialService['requestFriend']>) {
+    return this.socialService.requestFriend(...args)
+  }
+
+  acceptFriend(...args: Parameters<SocialService['acceptFriend']>) {
+    return this.socialService.acceptFriend(...args)
+  }
+
+  removeFriend(...args: Parameters<SocialService['removeFriend']>) {
+    return this.socialService.removeFriend(...args)
   }
 
   /** The last standings folded, and when they stop being offered. See `standings`. */
@@ -545,202 +601,6 @@ export class PraetoriumService {
     return (await this.repository.profileByUserId(userId)) ?? null
   }
 
-  async saveRoster(
-    userId: string,
-    roster: {
-      id?: string
-      name: string
-      catalogueId: string
-      detachmentIds: readonly string[]
-      disposition: string | null
-      limit: number
-      picks: readonly RosterPick[]
-      prep: SavedPrep | null
-      waivedRules?: readonly FormatRuleId[]
-      optionalRules?: readonly OptionalRuleId[]
-      borrowedDetachmentId?: string | null
-      visibility: RosterVisibility
-      source: RosterSource
-    },
-  ) {
-    const id = roster.id ?? randomId()
-    const saved = await this.repository.saveRoster({
-      ...roster,
-      detachmentId: JSON.stringify(roster.detachmentIds),
-      id,
-      userId,
-      picks: JSON.stringify(roster.picks),
-      prep: roster.prep ? JSON.stringify(roster.prep) : null,
-      tags: '[]',
-      waivedRules: JSON.stringify(roster.waivedRules ?? []),
-      optionalRules: JSON.stringify(roster.optionalRules ?? []),
-      borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
-      now: this.clock(),
-    })
-    if (!saved) throw new Response('you do not own this roster', { status: 403 })
-    return { id }
-  }
-
-  /** A user's own saved lists, newest first. Their picks come back parsed. */
-  async savedRosters(userId: string) {
-    const rows = await this.repository.rostersByUser(userId)
-    return rows.map((row) => rosterFromRow(row, true))
-  }
-
-  async savedRosterSummaries(userId: string) {
-    return rosterSummaries(await this.repository.rosterSummariesByUser(userId))
-  }
-
-  /**
-   * The lists this player has published, for anybody reading their profile.
-   *
-   * No viewer is asked for, because a public list is public: the only credential is
-   * the owner having chosen it. Private and unlisted lists are absent — an unlisted
-   * one is a link its owner handed out, and listing it here would hand it to
-   * everybody.
-   *
-   * One read answers both shapes: `summaries` is what the library row draws, and
-   * `priceable` is the same lists in the form the points cache takes. The picks stay
-   * on the server, which is why the caller gets them separately rather than the
-   * summaries carrying them.
-   */
-  async publicRosters(userId: string) {
-    const rows = await this.repository.publicRostersByUser(userId, PROFILE_ROSTER_LIMIT)
-    return { summaries: rosterSummaries(rows), priceable: rows.map((row) => rosterFromRow(row)) }
-  }
-
-  /**
-   * A shared roster, its owner's private roster, or a list fielded in a battle the
-   * reader is seated in.
-   *
-   * Unlisted and public read alike: holding the opaque id is the whole credential for
-   * both, and what a public one adds is being listed on its owner's profile rather
-   * than any further access.
-   *
-   * The last case widens nothing: a battle already shows every seat the opposing army
-   * and its units, so the reader can see this list either way. The battle has to be
-   * named, so the check stays one log rather than a scan of every battle they play.
-   */
-  async rosterAccess(id: string, userId: string | null = null, token: string | null = null) {
-    const row = await this.repository.roster(id)
-    if (!row) return null
-    if (row.userId === userId) return { roster: rosterFromRow(row, true), editable: true }
-    // Named rather than "anything but private", so a value added later is refused
-    // until somebody decides it should not be.
-    if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: rosterFromRow(row), editable: false }
-    if (!userId || !token) return null
-    return (await this.fieldedIn(token, userId, id)) ? { roster: rosterFromRow(row), editable: false } : null
-  }
-
-  async sharedRoster(id: string, userId: string | null = null, token: string | null = null) {
-    return (await this.rosterAccess(id, userId, token))?.roster ?? null
-  }
-
-  /** Whether a reader shares a battle with the list they are asking about. */
-  private async fieldedIn(token: string, userId: string, rosterId: string) {
-    const history = await this.repository.battleHistoryByToken(token)
-    if (!history?.players.some((player) => player.id === userId)) return false
-    return history.log.some((entry) => entry.command.kind === 'attach-roster' && entry.command.roster.id === rosterId)
-  }
-
-  async setRosterVisibility(userId: string, id: string, visibility: RosterVisibility) {
-    if (!(await this.repository.setRosterVisibility(id, userId, visibility, this.clock()))) {
-      throw new Response('you do not own this roster', { status: 403 })
-    }
-  }
-
-  async deleteRoster(userId: string, id: string) {
-    await this.repository.deleteRoster(id, userId)
-  }
-
-  /** The datasheets a user owns, as a set the picker can ask about directly. */
-  async collection(userId: string) {
-    const rows = await this.repository.collectionByUser(userId)
-    return rows.map((row) => row.entryId)
-  }
-
-  async setOwned(userId: string, entryId: string, owned: boolean) {
-    if (owned) await this.repository.addToCollection({ userId, entryId, now: this.clock() })
-    else await this.repository.removeFromCollection(userId, entryId)
-  }
-
-  async favouriteFactions(userId: string) {
-    const rows = await this.repository.favouriteFactionsByUser(userId)
-    return rows.map((row) => row.catalogueId)
-  }
-
-  async setFavouriteFaction(userId: string, catalogueId: string, favourite: boolean) {
-    if (favourite) await this.repository.addFavouriteFaction({ userId, catalogueId, now: this.clock() })
-    else await this.repository.removeFavouriteFaction(userId, catalogueId)
-  }
-
-  async favouriteDetachments(userId: string) {
-    const rows = await this.repository.favouriteDetachmentsByUser(userId)
-    return rows.map(({ catalogueId, detachmentId }) => ({ catalogueId, detachmentId }))
-  }
-
-  async setFavouriteDetachment(userId: string, catalogueId: string, detachmentId: string, favourite: boolean) {
-    if (favourite) await this.repository.addFavouriteDetachment({ userId, catalogueId, detachmentId, now: this.clock() })
-    else await this.repository.removeFavouriteDetachment(userId, catalogueId, detachmentId)
-  }
-
-  /**
-   * The players this one may open a battle with: their friends, and the practice
-   * opponents the instance seats.
-   *
-   * One list rather than two, because `createBattle` asks exactly this question of
-   * exactly this answer. Splitting them would put a second rule about who may be
-   * in a battle next to the first, and the two would eventually disagree.
-   *
-   * Asked for on its own rather than taken out of the friends page, because the
-   * page also offers strangers to invite — and reaching for that here put a scan
-   * of every account on the instance behind every battle opened and every link
-   * followed, to answer a question about a handful of rows.
-   */
-  async opponents(userId: string): Promise<{ id: string; name: string; image: string | null; automated: boolean }[]> {
-    const [relationships, practice] = await Promise.all([this.repository.relationships(userId), this.repository.practiceOpponents()])
-    return [
-      ...sortedFriends(relationships, userId).friends.map((friend) => ({ ...friend, automated: false })),
-      ...practice.map((opponent) => ({ ...opponent, automated: true })),
-    ]
-  }
-
-  /**
-   * Everyone this player is connected to, waiting on, or could ask.
-   *
-   * Two queries whatever the count: the relationships with the other party
-   * already named, and the strangers, whom the database excludes rather than
-   * this code filtering a fetched page down to whatever survives.
-   */
-  async friendships(userId: string) {
-    const [relationships, people] = await Promise.all([this.repository.relationships(userId), this.repository.unrelatedUsers(userId)])
-    return { ...sortedFriends(relationships, userId), people }
-  }
-
-  async requestFriend(userId: string, friendId: string) {
-    if (friendId === userId || !(await this.repository.userById(friendId))) throw new Response('choose another player', { status: 400 })
-    if (!(await this.repository.requestFriend(userId, friendId, this.clock())))
-      throw new Response('a connection already exists', { status: 409 })
-  }
-
-  async acceptFriend(userId: string, requesterId: string) {
-    if (!(await this.repository.acceptFriend(requesterId, userId, this.clock())))
-      throw new Response('no such friend request', { status: 404 })
-  }
-
-  async removeFriend(userId: string, friendId: string) {
-    if (!(await this.repository.removeFriend(userId, friendId))) throw new Response('no such friendship', { status: 404 })
-  }
-
-  /**
-   * Opens a battle with its whole table already seated.
-   *
-   * The creator says which side each player is on: `allyId` sits beside them and
-   * `opponentIds` face them. Everyone named is checked once, together — who may be
-   * in a battle is one question, and asking it of the ally and the opponents
-   * separately would be two rules about it. Every named player takes their seat in
-   * the same transaction, so a battle is never a room with a chair free in it.
-   */
   async createBattle(userId: string, input?: string | CreateBattleInput) {
     const settings = typeof input === 'object' && input.limit !== undefined ? { ...input, limit: input.limit } : null
     const { allyIds, opponentIds, invited } = newBattleSeats(input)
@@ -1059,22 +919,6 @@ function resolvedMissionForSide(state: BattleState, rules: NonNullable<Parameter
   const opposingSide = state.players.find((player) => player.side !== side)?.side
   const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
   return missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId)
-}
-
-/**
- * One player's relationships sorted into what the interface asks about: settled
- * friends, requests waiting on them, and requests they are waiting on.
- *
- * The only place that split is made, so `opponents` and the friends page cannot
- * disagree about who counts as a friend.
- */
-function sortedFriends(relationships: Awaited<ReturnType<Repository['relationships']>>, userId: string) {
-  const named = (row: (typeof relationships)[number]) => ({ id: row.otherId, name: row.otherName, image: row.otherImage })
-  return {
-    friends: relationships.filter((row) => row.acceptedAt !== null).map(named),
-    incoming: relationships.filter((row) => row.acceptedAt === null && row.addresseeId === userId).map(named),
-    outgoing: relationships.filter((row) => row.acceptedAt === null && row.requesterId === userId).map(named),
-  }
 }
 
 function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonNullable<Parameters<typeof missionFor>[0]>): string | null {

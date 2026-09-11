@@ -59,7 +59,8 @@ import { rosterWaivers, WaiverList } from '../../components/FormatWaivers'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { BattleShelf } from '../battles/BattleShelf'
 import { LeaguePageActions } from './LeagueActions'
-import { LeagueEventRuleFields, type LeagueEventRuleValue } from './LeagueEventRuleFields'
+import type { LeagueEventRuleValue } from './LeagueEventRuleFields'
+import { LeagueEventRuleDialog } from './LeagueEventRuleDialog'
 import {
   DoublesBattleChooser,
   entryStatus,
@@ -905,58 +906,38 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AlertDialog open={editingRule} onOpenChange={(open) => !changeRule.isPending && setEditingRule(open)}>
-        <AlertDialogContent aria-busy={changeRule.isPending} className="rounded-none border border-edge bg-panel text-bone">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Change the battle format?</AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
-              {accepted.length
-                ? 'Every size and team you have handed out is cleared. You can change this until the first list is sealed.'
-                : 'What every entrant builds for. You can change it until the first list is sealed.'}
-            </AlertDialogDescription>
-            <LeagueEventRuleFields value={eventRule} disabled={changeRule.isPending} onChange={setEventRule} />
-            {eventRuleBlocked ? (
-              <p className="text-sm text-parchment">
-                {eventRule.format === '2v2'
-                  ? 'Raise the player limit to an even number of at least 4 in Edit league first.'
-                  : 'Raise the player limit to at least 3 in Edit league first.'}
-              </p>
-            ) : null}
-            {changeRule.error ? <p className="text-sm text-destructive">{errorMessage(changeRule.error)}</p> : null}
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={changeRule.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={changeRule.isPending || eventRuleBlocked} onClick={() => changeRule.mutate()}>
-              {changeRule.isPending ? 'Saving…' : 'Save format'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog open={starting} onOpenChange={(open) => !startEvent.isPending && setStarting(open)}>
-        <AlertDialogContent aria-busy={startEvent.isPending} className="rounded-none border border-edge bg-panel text-bone">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Create a new event?</AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
-              Registration opens again with nobody in it. Everyone joins again and seals a new list, including you.
-            </AlertDialogDescription>
-            <LeagueEventRuleFields value={eventRule} disabled={startEvent.isPending} onChange={setEventRule} />
-            {eventRuleBlocked ? (
-              <p className="text-sm text-parchment">
-                {eventRule.format === '2v2'
-                  ? 'Raise the player limit to an even number of at least 4 in Edit league first.'
-                  : 'Raise the player limit to at least 3 in Edit league first.'}
-              </p>
-            ) : null}
-            {startEvent.error ? <p className="text-sm text-destructive">{errorMessage(startEvent.error)}</p> : null}
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={startEvent.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={startEvent.isPending || eventRuleBlocked} onClick={() => startEvent.mutate()}>
-              {startEvent.isPending ? 'Creating…' : 'Create event'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <LeagueEventRuleDialog
+        open={editingRule}
+        title="Change the battle format?"
+        description={
+          accepted.length
+            ? 'Every size and team you have handed out is cleared. You can change this until the first list is sealed.'
+            : 'What every entrant builds for. You can change it until the first list is sealed.'
+        }
+        value={eventRule}
+        blocked={eventRuleBlocked}
+        pending={changeRule.isPending}
+        error={changeRule.error}
+        action="Save format"
+        pendingAction="Saving…"
+        onOpenChange={(open) => !changeRule.isPending && setEditingRule(open)}
+        onChange={setEventRule}
+        onSubmit={() => changeRule.mutate()}
+      />
+      <LeagueEventRuleDialog
+        open={starting}
+        title="Create a new event?"
+        description="Registration opens again with nobody in it. Everyone joins again and seals a new list, including you."
+        value={eventRule}
+        blocked={eventRuleBlocked}
+        pending={startEvent.isPending}
+        error={startEvent.error}
+        action="Create event"
+        pendingAction="Creating…"
+        onOpenChange={(open) => !startEvent.isPending && setStarting(open)}
+        onChange={setEventRule}
+        onSubmit={() => startEvent.mutate()}
+      />
       {battleFormat === '1v1' && ownEntry?.status === 'accepted' ? (
         <OneOnOneBattleChooser
           key={league.eventToken}

@@ -14,6 +14,20 @@ export default defineConfig(({ mode }) => {
   const proxy = posthog ? postHogIngestProxy(posthog, { path: POSTHOG_INGEST_PATH }) : undefined
   return {
     resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
+    build: {
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                name: 'telemetry',
+                test: (id) => id.includes('posthog-js') || id.includes('@posthog') || /ras-stack.*posthog/.test(id),
+              },
+            ],
+          },
+        },
+      },
+    },
     // Centrifugo runs beside the dev server rather than behind Caddy, so the proxy
     // is what keeps the browser on one origin — the same origin it has in
     // production, which is why the content policy needs no exception anywhere.
