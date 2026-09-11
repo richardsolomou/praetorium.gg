@@ -171,11 +171,10 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
     enabled: Boolean(catalogueId) && initialFaction?.id !== catalogueId,
   })
   const faction = loadedFaction ?? (initialFaction?.id === catalogueId ? initialFaction : null)
-  // Building is what the picker, the card menus and the third column are for; every
-  // other reader of this screen — View mode, a shared link, a frozen snapshot — gets
-  // the same page without them.
+  // View mode simplifies the owner's roster cards and loadouts without taking away
+  // their unit picker. Other readers still get the roster without builder controls.
   const building = editable && !readOnly
-  const pickerOpen = building && (wideWorkspace || showing === 'picker')
+  const pickerOpen = editable && (wideWorkspace || showing === 'picker')
   const pickerEnabled = workspaceMeasured && pickerOpen
 
   const setSetupDraft = (draft: RosterSetup | null) => {
@@ -629,7 +628,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
   const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : null
   const picker =
-    building && faction ? (
+    editable && faction ? (
       <div className="flex h-full flex-col">
         <div className="min-h-0 flex-1">
           <Picker
@@ -791,7 +790,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
                     </div>
                   }
                 />
-                <TooltipContent side="bottom">Build edits your roster. View shows only what’s selected.</TooltipContent>
+                <TooltipContent side="bottom">Build shows roster editing controls. View simplifies cards and loadouts.</TooltipContent>
               </Tooltip>
             </>
           ) : (
@@ -896,8 +895,8 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
         ) : null}
       </RosterHeader>
 
-      <RosterBody threeColumn={building}>
-        {building ? (
+      <RosterBody threeColumn={editable}>
+        {editable ? (
           <div className="contents min-[1300px]:flex min-[1300px]:min-h-0 min-[1300px]:min-w-0">
             <Pane
               variant="picker"
@@ -995,7 +994,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
           <Pane
             variant="loadout"
             open={showing === 'loadout' && Boolean(selected !== null || preview)}
-            threeColumn={building}
+            threeColumn={editable}
             title={preview?.name ?? frozenSelected?.name ?? selectedUnit?.name ?? 'Unit'}
             ariaLabel={preview ? 'Datasheet' : 'Loadout'}
             backLabel={paneHistory?.pane === 'loadout' && paneHistory.returnToPicker ? 'Back to units' : undefined}
@@ -1102,7 +1101,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
             <span className="eyebrow">points</span>
           </span>
 
-          {building ? (
+          {editable ? (
             <Button variant="outline" size="sm" className="ml-auto min-[1300px]:hidden" onClick={openPicker} disabled={!faction}>
               Add units
             </Button>
