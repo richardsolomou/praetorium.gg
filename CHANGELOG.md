@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.64.2
+
+### Patch Changes
+
+- cca1d67: Draw the table a detachment rule rolls on instead of printing its markup.
+
 ## 0.64.1
 
 ### Patch Changes
