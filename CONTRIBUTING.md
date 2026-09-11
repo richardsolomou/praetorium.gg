@@ -42,8 +42,9 @@ Browser tests account for three repository behaviours:
 
 - `src/core` contains the domain model for battles, catalogues, evaluation, and rosters. It has no IO or framework imports.
 - `src/contracts` contains serializable types shared by the client and server.
-- `src/db` contains the Drizzle repository, Postgres schema, and database connection.
-- `src/server` contains application setup, authentication, server functions, catalogue loading, and realtime publishing.
+- `src/db` contains the Drizzle repository facade, bounded repositories, Postgres schema, and database connection.
+- `src/server` contains the application-service facade and bounded services, authentication, server functions, catalogue loading, and realtime publishing.
+- `src/client/queries` groups React Query options by feature; `src/client/queries.ts` is their public barrel.
 - `src/client/features` groups browser code by product area, while `src/client/components` contains shared components.
 - `src/routes` contains thin TanStack Router route files.
 - `catalogue` records community source locations. Snapshot manifests outside Git pin their revisions and checksums; the repository contains no game data.

@@ -6,7 +6,6 @@ import {
   Crown,
   Download,
   EllipsisVertical,
-  ExternalLink,
   Link2,
   Pencil,
   Plus,
@@ -15,8 +14,8 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import posthog from 'posthog-js'
-import { type ComponentProps, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -31,7 +30,7 @@ import { exportRoster, saveRoster } from '../../../server/functions'
 import { shareLink } from '../../nativeBridge'
 import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { type KeyedPick, picksAfterDetachmentChange } from '../../rosterPicks'
+import { picksAfterDetachmentChange } from '../../rosterPicks'
 import { useCollectionMutation } from '../../useCollection'
 import { useSettled } from '../../useSettled'
 import { DatasheetPanel } from '../builder/DatasheetPanel'
@@ -44,13 +43,14 @@ import { Section } from '../builder/Section'
 import { Pane } from '../builder/Pane'
 import { UnitCard } from '../builder/UnitCard'
 import { survivingUnits } from '../builder/pricePlaceholder'
-import { attachmentRows, joinableUnits } from '../builder/attachments'
 import { pickEditor, usePicks } from '../builder/usePicks'
 import { WaiverWarning } from '../../components/FormatWaivers'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from '../../components/RosterSetupDialog'
 import { RosterExportDialog } from '../../components/RosterExportDialog'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from '../../components/RosterPresentation'
 import { readWorkspaceState, writeWorkspaceState } from '../../components/workspaceState'
+import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
+import { BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -1161,124 +1161,5 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
       </footer>
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
     </RosterShell>
-  )
-}
-
-type BuilderUnitCardProps = {
-  unit: ComponentProps<typeof UnitCard>['unit']
-  index: number
-  joined: ReturnType<typeof attachmentRows>
-  canJoin: ReturnType<typeof joinableUnits>
-  alliedFaction: ComponentProps<typeof UnitCard>['alliedFaction']
-  selected: boolean
-  owned: boolean
-  editable: boolean
-  onSelect: (index: number) => void
-  onRemove: (index: number) => void
-  onDuplicate: (index: number) => void
-  onOwned: (entryId: string, owned: boolean) => void
-  onJoin: (index: number, targetKey: number | undefined) => void
-}
-
-const BuilderUnitCard = memo(function BuilderUnitCard({
-  unit,
-  index,
-  joined,
-  canJoin,
-  alliedFaction,
-  selected,
-  owned,
-  editable,
-  onSelect,
-  onRemove,
-  onDuplicate,
-  onOwned,
-  onJoin,
-}: BuilderUnitCardProps) {
-  return (
-    <UnitCard
-      unit={unit}
-      alliedFaction={alliedFaction}
-      selected={selected}
-      onSelect={() => onSelect(index)}
-      onRemove={() => onRemove(index)}
-      onDuplicate={() => onDuplicate(index)}
-      owned={owned}
-      onOwned={() => onOwned(unit.entryId, !owned)}
-      joined={joined.map((row) => ({ ...row, onAct: () => onJoin(row.detach, undefined) }))}
-      canJoin={canJoin}
-      onJoin={(targetKey) => onJoin(index, targetKey)}
-      editable={editable}
-    />
-  )
-})
-
-type CardRelationships = {
-  joined: ReturnType<typeof attachmentRows>
-  canJoin: ReturnType<typeof joinableUnits>
-}
-
-function useCardRelationships(picks: readonly KeyedPick[], units: Parameters<typeof attachmentRows>[1]) {
-  const previous = useRef(new Map<number, CardRelationships>())
-  const relationships = useMemo(() => {
-    const next = new Map<number, CardRelationships>()
-    for (const [index, pick] of picks.entries()) {
-      const candidate = { joined: attachmentRows(picks, units, index), canJoin: joinableUnits(picks, units, index) }
-      const current = previous.current.get(pick.key)
-      next.set(pick.key, current && sameRelationships(current, candidate) ? current : candidate)
-    }
-    return next
-  }, [picks, units])
-  useLayoutEffect(() => {
-    previous.current = relationships
-  }, [relationships])
-  return relationships
-}
-
-function sameRelationships(left: CardRelationships, right: CardRelationships) {
-  return (
-    left.joined.length === right.joined.length &&
-    left.joined.every((row, index) => {
-      const other = right.joined[index]
-      return Boolean(
-        other && row.label === other.label && row.name === other.name && row.action === other.action && row.detach === other.detach,
-      )
-    }) &&
-    left.canJoin.length === right.canJoin.length &&
-    left.canJoin.every((unit, index) => unit.key === right.canJoin[index]?.key && unit.name === right.canJoin[index]?.name)
-  )
-}
-
-function FullDatasheetLink({ route }: { route: NonNullable<Datasheet['referenceRoute']> }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        closeOnClick={false}
-        render={
-          <Link
-            data-slot="full-datasheet-link"
-            to="/factions/$catalogueId/datasheets/$entryId"
-            params={{ catalogueId: route.catalogueId, entryId: route.slug }}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Open full datasheet in a new tab"
-            className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
-          />
-        }
-      >
-        <ExternalLink />
-      </TooltipTrigger>
-      <TooltipContent role="tooltip" side="bottom">
-        Open full datasheet in a new tab
-      </TooltipContent>
-    </Tooltip>
-  )
-}
-
-function FullDatasheetLinkLoading() {
-  return (
-    <span data-slot="full-datasheet-link" aria-hidden className={`${buttonVariants({ variant: 'ghost', size: 'icon-sm' })} text-faint`}>
-      <ExternalLink />
-    </span>
   )
 }
