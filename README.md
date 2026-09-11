@@ -59,10 +59,13 @@ just dev
 
 - Each battle is stored as an append-only command log. The current score, round, phase, and other state are derived from that history, and every command is validated before it is added.
 - `src/core` contains the IO-free battle, catalogue, and roster domain.
+- `src/contracts` contains serializable types shared across runtime boundaries.
 - `src/db` contains the Postgres schema and Drizzle repository.
 - `src/server` contains authentication, application services, catalogue loading, and server functions.
-- `src/client` contains React components, hooks, and queries.
+- `src/client/features` groups React code by product area; `src/client/components` holds shared components.
 - `src/routes` contains thin TanStack Router route files.
+
+[Architecture](docs/development/architecture.md) describes the dependency direction and placement rules.
 
 ## Data and trademarks
 

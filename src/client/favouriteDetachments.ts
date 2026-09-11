@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import type { z } from 'zod'
 import { setFavouriteDetachment } from '../server/functions'
-import type { favouriteDetachmentSchema } from '../server/schemas'
 import { useOptimisticFavourites } from './favourites'
 import { favouriteDetachmentsQuery } from './queries'
 
-type FavouriteDetachment = Omit<z.infer<typeof favouriteDetachmentSchema>, 'favourite'>
+type FavouriteDetachment = { catalogueId: string; detachmentId: string }
 
 export const favouriteDetachmentKey = (catalogueId: string, detachmentId: string) => JSON.stringify([catalogueId, detachmentId])
 

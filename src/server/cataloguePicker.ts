@@ -4,24 +4,15 @@ import { battleSizeSelection, evaluate, rosterLimit, type Selection } from '../c
 import { buildUnit } from '../core/roster'
 import { isNonMatchedPlayName } from '../core/name'
 import type { UnitGroup } from '../core/unitGroups'
+import type { UnitSummary } from '../contracts/catalogue'
 import { datasheetSearchFieldsIn, datasheetIn, keywordsIn, toughnessOf } from './catalogue'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
-import { matchDatasheet, type DatasheetSearchReason } from './datasheetSearch'
+import { matchDatasheet } from './datasheetSearch'
 import { type FactionRestrictions, restrictedBy } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { factionContentOf } from './factionNames'
 
-export type UnitSummary = {
-  id: string
-  slug: string
-  name: string
-  points: number | null
-  group: UnitGroup
-  limit: number | null
-  allied: boolean
-  alliedFaction: string | null
-  matchReasons?: DatasheetSearchReason[]
-}
+export type { UnitSummary } from '../contracts/catalogue'
 
 /** Derived from one immutable catalogue snapshot. Search filters this list in memory. */
 const unitSummaryCache = new WeakMap<LoadedCatalogue, Map<string, UnitSummary[]>>()

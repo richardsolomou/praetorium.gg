@@ -1,5 +1,5 @@
 import { wargearBaseName } from '../core/wargear'
-import type { Datasheet } from '../server/catalogue'
+import type { Datasheet } from '../contracts/catalogue'
 import { normalizedName, normalizedNameVariants } from '../core/name'
 
 type AbilityKind = Datasheet['abilities'][number]['kind']

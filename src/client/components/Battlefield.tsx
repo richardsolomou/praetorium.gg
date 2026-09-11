@@ -7,7 +7,7 @@ import { Dialog } from '@/components/ui/dialog'
 import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
 import { deploymentsQuery, terrainMatchupIds, terrainReferencesQuery } from '../queries'
-import { CHOOSABLE, CHOSEN } from './setup/chrome'
+import { CHOOSABLE, CHOSEN } from '../features/setup/chrome'
 import { TerrainBoard } from './TerrainBoard'
 import { TerrainLayoutDialogContent } from './TerrainLayoutDialogContent'
 

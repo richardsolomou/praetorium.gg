@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import { LeaguePage } from '../client/components/leagues/LeaguePage'
+import { LeaguePage } from '../client/features/leagues/LeaguePage'
 import { leagueQuery } from '../client/queries'
 
 export const Route = createFileRoute('/leagues/$token')({

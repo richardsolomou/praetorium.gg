@@ -20,6 +20,8 @@
     "policy:check": "ras policy check",
     "check": "pnpm format:check && pnpm lint && pnpm docs:lint && pnpm policy:check && pnpm db:check && pnpm catalogue:check && pnpm check:changesets && pnpm build && pnpm typecheck && pnpm test",
     "test": "vitest run",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "check:changesets": "tsx scripts/checkChangesets.ts",
     "changeset": "changeset",
     "version-packages": "changeset version",

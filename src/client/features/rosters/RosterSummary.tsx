@@ -1,0 +1,83 @@
+import { GAME_SIZES } from '../../../core/battle'
+import { rosterLabel } from '../../../core/rosterLabel'
+import { formatDate } from '../../dates'
+import { Skeleton } from '@/components/ui/skeleton'
+import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
+import { rosterWaivers, WaiverChip } from '../../components/FormatWaivers'
+import type { SavedRoster } from './rosterLibrary'
+import { VISIBILITY_NAME } from './visibility'
+
+export type RosterSummaryFaction = FactionPresentation & { detachments: { id: string; name: string }[] }
+
+/**
+ * What to call this list on screen: its own name, or the label folded from it.
+ *
+ * The units are the expensive half of a label and arrive with the totals, so a row
+ * that is still waiting says what its setup alone can — the same fold, with less to
+ * fold. Exported because the row's menu and its heading must agree.
+ */
+export function rosterTitle(roster: SavedRoster, faction?: RosterSummaryFaction, label?: string) {
+  if (roster.name) return roster.name
+  if (label) return label
+  return rosterLabel({
+    factionName: faction?.displayName,
+    detachmentNames: detachmentNames(roster, faction),
+    limit: roster.limit,
+  })
+}
+
+const detachmentNames = (roster: SavedRoster, faction?: RosterSummaryFaction) =>
+  roster.detachmentIds
+    .map((id) => faction?.detachments.find((entry) => entry.id === id)?.name)
+    .filter((name): name is string => Boolean(name))
+
+export function RosterSummary({
+  roster,
+  faction,
+  points,
+  label,
+  factionLoading = false,
+  pointsLoading = false,
+}: {
+  roster: SavedRoster
+  faction?: RosterSummaryFaction
+  points?: number | null
+  /** What an unnamed list is called, folded from its units. Absent until the totals land. */
+  label?: string
+  factionLoading?: boolean
+  pointsLoading?: boolean
+}) {
+  const detachments = detachmentNames(roster, faction)
+  const size = GAME_SIZES.find((entry) => entry.limit === roster.limit)
+  const waivers = rosterWaivers(roster)
+
+  return (
+    <>
+      <span className="min-w-0 basis-full flex-1 text-left sm:basis-auto">
+        <span className="block truncate font-bold uppercase">{rosterTitle(roster, faction, label)}</span>
+        <span className="mt-1 flex flex-wrap gap-1">
+          {faction ? <FactionLabel faction={faction} chip /> : factionLoading ? <Skeleton className="h-5 w-24" /> : null}
+          {detachments.map((name) => (
+            <span key={name} className="chip">
+              {name}
+            </span>
+          ))}
+          <WaiverChip rules={waivers} />
+        </span>
+        <span className="mt-1 block text-xs text-dim">
+          11th edition · {size?.name ?? `${roster.limit} points`} · {roster.unitCount} units · updated {formatDate(roster.updatedAt)}
+        </span>
+      </span>
+      <span className="ml-auto shrink-0 text-right">
+        {pointsLoading ? (
+          <Skeleton className="ml-auto h-5 w-20" />
+        ) : (
+          <span className="readout block text-lg font-bold">
+            {points ?? '—'}/{roster.limit}
+          </span>
+        )}
+        <span className="text-xs text-dim">{VISIBILITY_NAME[roster.visibility]}</span>
+      </span>
+    </>
+  )
+}

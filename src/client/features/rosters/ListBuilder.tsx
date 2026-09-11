@@ -1,0 +1,1284 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
+import {
+  Check,
+  Copy,
+  Crown,
+  Download,
+  EllipsisVertical,
+  ExternalLink,
+  Link2,
+  Pencil,
+  Plus,
+  Printer,
+  SlidersHorizontal,
+  TriangleAlert,
+} from 'lucide-react'
+import posthog from 'posthog-js'
+import { type ComponentProps, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { Toggle } from '@/components/ui/toggle'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { attachedUnitCount } from '../../../core/attachedUnits'
+import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
+import { type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
+import type { RosterPick } from '../../../core/roster'
+import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
+import type { Datasheet } from '../../../contracts/catalogue'
+import { exportRoster, saveRoster } from '../../../server/functions'
+import { shareLink } from '../../nativeBridge'
+import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery } from '../../queries'
+import { errorMessage } from '../../queryClient'
+import { type KeyedPick, picksAfterDetachmentChange } from '../../rosterPicks'
+import { useCollectionMutation } from '../../useCollection'
+import { useSettled } from '../../useSettled'
+import { DatasheetPanel } from '../builder/DatasheetPanel'
+import { GROUPS } from '../builder/groups'
+import { Loadout } from '../builder/Loadout'
+import { Stepper } from '../builder/LoadoutControls'
+import { changedDraftSpreadCounts, withDraftSpreadCounts } from '../builder/loadoutModel'
+import { Picker, type PickerFilter } from '../builder/Picker'
+import { Section } from '../builder/Section'
+import { Pane } from '../builder/Pane'
+import { UnitCard } from '../builder/UnitCard'
+import { survivingUnits } from '../builder/pricePlaceholder'
+import { attachmentRows, joinableUnits } from '../builder/attachments'
+import { pickEditor, usePicks } from '../builder/usePicks'
+import { WaiverWarning } from '../../components/FormatWaivers'
+import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from '../../components/RosterSetupDialog'
+import { RosterExportDialog } from '../../components/RosterExportDialog'
+import { RosterBody, RosterHeader, RosterShell, RosterUnits } from '../../components/RosterPresentation'
+import { readWorkspaceState, writeWorkspaceState } from '../../components/workspaceState'
+
+type Props = {
+  /** What the player has written down, so a saved list carries it and restores it. */
+  prep: { stratagems: Stratagem[]; secondaries: Secondary[] }
+  initial: {
+    id: string
+    name: string
+    catalogueId: string
+    detachmentIds: string[]
+    disposition: string | null
+    limit: number
+    picks: RosterPick[]
+    waivedRules: FormatRuleId[]
+    optionalRules?: OptionalRuleId[]
+    borrowedDetachmentId?: string | null
+    visibility: RosterVisibility
+    source: RosterSource
+  }
+  initialFaction?: RosterSetupFaction | null
+  /**
+   * A list as a battle froze it.
+   *
+   * The cards, the total and the detachments are the ones that were fielded rather
+   * than whatever the catalogue says today, and the price is only asked for when a
+   * unit is opened — a frozen list may be read on an instance that cannot price it
+   * at all.
+   */
+  frozen?: FrozenRoster
+  editable?: boolean
+  /** A battle token may entitle a read-only viewer to resolve a private roster. */
+  battle?: string
+  /** Resolve read-only details by saved id; false when the supplied picks are themselves the snapshot. */
+  resolvePersistedRoster?: boolean
+}
+
+export type FrozenRoster = {
+  units: NonNullable<Roster['built']>['units']
+  points: number
+  detachments: readonly { id?: string; name: string; points?: number | null }[]
+}
+
+type RosterPaneHistory =
+  | { workspace: string; pane: 'picker' }
+  | ({ workspace: string; pane: 'loadout'; returnToPicker?: boolean } & (
+      | { selectedKey: number }
+      | { preview: { catalogueId: string; entryId: string; name: string } }
+    ))
+
+type RosterLocationState = { rosterPane?: RosterPaneHistory }
+
+const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
+/** Which set of waived restrictions this workspace has already been told about. */
+const WAIVERS_DISMISSED = 'waivers-dismissed'
+const NO_UNITS = [] as const
+const NO_JOINED: { label: string; name: string }[] = []
+const modelCount = (models: number) => `${models} ${models === 1 ? 'model' : 'models'}`
+const ROSTER_PANE_HASH = 'roster-pane'
+
+/**
+ * Building a list from the catalogue rather than pasting one.
+ *
+ * Three panes: the book on the left, the roster in the middle, the selected unit's
+ * loadout on the right. On a phone the roster is the whole screen and the other two
+ * arrive as sheets, because the roster is the thing being read and the other two are
+ * things being done to it.
+ *
+ * The price and the legality both come from the server, because the catalogue is
+ * 90MB and the browser has no business holding it.
+ */
+export function ListBuilder({ prep, initial, initialFaction, frozen, editable = true, battle, resolvePersistedRoster = true }: Props) {
+  const navigate = useNavigate()
+  const router = useRouter()
+  const path = useRouterState({ select: (state) => state.location.href.split('#', 1)[0] ?? state.location.pathname })
+  const { data: me } = useQuery(meQuery())
+  const { data: factionIndex } = useQuery(factionIndexQuery())
+  const [catalogueId, setCatalogueId] = useState(initial.catalogueId)
+  const { picks, setPicks, positioned, held, allocateKey } = usePicks(initial.picks)
+  const [limit, setLimit] = useState(initial.limit)
+  const [detachmentIds, setDetachmentIds] = useState<string[]>(initial.detachmentIds)
+  const [disposition, setDisposition] = useState<string | null>(initial.disposition)
+  const [waivedRules, setWaivedRules] = useState<FormatRuleId[]>(initial.waivedRules)
+  const [optionalRules, setOptionalRules] = useState<OptionalRuleId[]>(initial.optionalRules ?? [])
+  const [borrowedDetachmentId, setBorrowedDetachmentId] = useState<string | null>(initial.borrowedDetachmentId ?? null)
+  const [name, setName] = useState(initial.name)
+  const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
+  const [selected, setSelected] = useState<number | null>(null)
+  const [preview, setPreview] = useState<{ catalogueId: string; entryId: string; name: string } | null>(null)
+  const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
+  const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
+  const [readOnly, setReadOnly] = useState(!editable)
+  const [exportText, setExportText] = useState<string | null>(null)
+  const [shareFeedback, setShareFeedback] = useState<'copied' | 'shared' | null>(null)
+  const [shareProblem, setShareProblem] = useState<string | null>(null)
+  // A frozen list has no saved row to be keyed by, so it is keyed by where it is read.
+  const workspacePath = initial.id ? `/rosters/${initial.id}` : path
+  const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
+  const [dismissedWaivers, setDismissedWaivers] = useState<string | null>(null)
+  const [wideWorkspace, setWideWorkspace] = useState(true)
+  const [loadoutInline, setLoadoutInline] = useState(true)
+  const [workspaceMeasured, setWorkspaceMeasured] = useState(false)
+  const [pickerQuery, setPickerQuery] = useState('')
+  const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
+  const paneHistory = useRouterState({
+    select: (state) => {
+      if (state.location.hash !== ROSTER_PANE_HASH) return null
+      const pane = (state.location.state as RosterLocationState).rosterPane
+      return pane?.workspace === workspacePath ? pane : null
+    },
+  })
+  const paneHistoryRef = useRef<RosterPaneHistory | null>(null)
+  const paneAfterHistoryBack = useRef<RosterPaneHistory | null>(null)
+  const paneHistoryBackPending = useRef(false)
+  const paneClosing = useRef(false)
+  /** The history entry this workspace opened on, which nothing here may step behind. */
+  const openedAt = useRef(router.history.location.state.__TSR_index)
+  const editingSetup = setupDraft !== null
+  const { data: loadedFaction, isLoading: factionLoading } = useQuery({
+    ...factionQuery(catalogueId),
+    enabled: Boolean(catalogueId) && initialFaction?.id !== catalogueId,
+  })
+  const faction = loadedFaction ?? (initialFaction?.id === catalogueId ? initialFaction : null)
+  // View mode simplifies the owner's roster cards and loadouts without taking away
+  // their unit picker. Other readers still get the roster without builder controls.
+  const building = editable && !readOnly
+  const pickerOpen = editable && (wideWorkspace || showing === 'picker')
+  const pickerEnabled = workspaceMeasured && pickerOpen
+
+  const setSetupDraft = (draft: RosterSetup | null) => {
+    setSetupDraftState(draft)
+    writeWorkspaceState(workspacePath, 'roster-setup', draft)
+  }
+
+  const dismissWaivers = (key: string) => {
+    setDismissedWaivers(key)
+    writeWorkspaceState(workspacePath, WAIVERS_DISMISSED, key)
+  }
+
+  const savedId = initial.id
+  const queryClient = useQueryClient()
+  const { data: owned } = useQuery({ ...collectionQuery(), enabled: editable && pickerEnabled })
+  const collection = useMemo(() => new Set(owned ?? []), [owned])
+  const { mutate: mutateCollection } = useCollectionMutation()
+  /*
+   * Leave the pane entry, keeping `next` open behind it.
+   *
+   * Stepping back is only safe over an entry stacked on top of the one this workspace
+   * opened on. A restored tab, a reload or a shared link mounts straight onto an open
+   * pane, and what sits behind that belongs to whatever opened the roster — the same
+   * step would leave the roster altogether. That entry is replaced in place instead.
+   */
+  const backFromPane = useCallback(
+    (next: RosterPaneHistory | null = null) => {
+      if (paneHistoryBackPending.current) return
+      paneHistoryBackPending.current = true
+      paneAfterHistoryBack.current = next
+      if (router.history.location.state.__TSR_index > openedAt.current) router.history.back()
+      else void navigate({ href: path, replace: true, resetScroll: false, state: (current) => ({ ...current, rosterPane: undefined }) })
+    },
+    [navigate, path, router],
+  )
+
+  useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
+  useEffect(() => setDismissedWaivers(readWorkspaceState<string>(workspacePath, WAIVERS_DISMISSED)), [workspacePath])
+  useLayoutEffect(() => {
+    const wide = window.matchMedia('(min-width: 1300px)')
+    const inline = window.matchMedia('(min-width: 1024px)')
+    const sync = () => {
+      setWideWorkspace(wide.matches)
+      setLoadoutInline(inline.matches)
+      setWorkspaceMeasured(true)
+    }
+    sync()
+    wide.addEventListener('change', sync)
+    inline.addEventListener('change', sync)
+    return () => {
+      wide.removeEventListener('change', sync)
+      inline.removeEventListener('change', sync)
+    }
+  }, [])
+  useEffect(() => {
+    if (!paneHistory) {
+      paneHistoryBackPending.current = false
+      const closed = paneHistoryRef.current
+      if (!closed) return
+      paneHistoryRef.current = null
+      const next = paneAfterHistoryBack.current
+      paneAfterHistoryBack.current = null
+      if (next) {
+        paneClosing.current = false
+        setShowing(next.pane)
+        return
+      }
+      paneClosing.current = true
+      setShowing(null)
+      if (closed.pane === 'loadout' && loadoutInline) {
+        setSelected(null)
+        setPreview(null)
+      }
+      return
+    }
+
+    paneHistoryRef.current = paneHistory
+    setShowing(paneHistory.pane)
+    if (paneHistory.pane === 'picker') return
+    if ('preview' in paneHistory) {
+      setPreview(paneHistory.preview)
+      setSelected(null)
+      return
+    }
+    const selectedIndex = picks.findIndex((pick) => pick.key === paneHistory.selectedKey)
+    if (selectedIndex !== -1) {
+      setPreview(null)
+      setSelected(selectedIndex)
+      return
+    }
+    paneHistoryRef.current = null
+    setShowing(null)
+    setPreview(null)
+    setSelected(null)
+    backFromPane()
+  }, [backFromPane, loadoutInline, paneHistory, picks])
+  useEffect(() => {
+    if (!editable) return
+    setReadOnly(localStorage.getItem(READ_ONLY_PREFERENCE) === 'true')
+  }, [editable])
+
+  const setReadOnlyMode = (next: boolean) => {
+    setReadOnly(next)
+    localStorage.setItem(READ_ONLY_PREFERENCE, String(next))
+    // Viewing is reading the list as anybody else would, and the picker is not part of that.
+    if (next && showing === 'picker') closePane()
+  }
+  const toggleWaivedRule = useCallback(
+    (rule: FormatRuleId) =>
+      setWaivedRules((current) => (current.includes(rule) ? current.filter((candidate) => candidate !== rule) : [...current, rule])),
+    [],
+  )
+  const togglePickerFilter = useCallback(
+    (filter: PickerFilter) =>
+      setPickerFilters((current) => {
+        const next = new Set(current)
+        if (!next.delete(filter)) next.add(filter)
+        return next
+      }),
+    [],
+  )
+
+  const pushPaneHistory = useCallback(
+    (pane: RosterPaneHistory, stack = false) => {
+      paneHistoryRef.current = pane
+      void navigate({
+        href: `${path}#${ROSTER_PANE_HASH}`,
+        hashScrollIntoView: false,
+        replace: Boolean(paneHistory) && !stack,
+        resetScroll: false,
+        state: (current) => ({ ...current, rosterPane: pane }) as typeof current,
+      })
+    },
+    [navigate, paneHistory, path],
+  )
+
+  const closePane = useCallback(() => {
+    if (paneHistory) backFromPane()
+    else {
+      paneHistoryRef.current = null
+      setShowing(null)
+    }
+  }, [backFromPane, paneHistory])
+
+  const openPicker = useCallback(() => {
+    setShowing('picker')
+    if (!wideWorkspace) pushPaneHistory({ workspace: workspacePath, pane: 'picker' })
+  }, [pushPaneHistory, wideWorkspace, workspacePath])
+
+  const updateLoadoutHistory = useCallback(
+    (pane: Extract<RosterPaneHistory, { pane: 'loadout' }>) => {
+      const returnToPicker = paneHistory?.pane === 'picker' || (paneHistory?.pane === 'loadout' && Boolean(paneHistory.returnToPicker))
+      const next = returnToPicker ? { ...pane, returnToPicker: true } : pane
+      if (!loadoutInline) pushPaneHistory(next, paneHistory?.pane === 'picker')
+      else if (paneHistory?.pane === 'picker') {
+        backFromPane(next)
+      }
+    },
+    [backFromPane, loadoutInline, paneHistory, pushPaneHistory],
+  )
+
+  // A pane the workspace is wide enough to draw in place no longer needs a history
+  // entry of its own. The widths are the desktop defaults until the layout effect
+  // above measures them, so a mount that lands on an open pane has to wait for that.
+  useEffect(() => {
+    if (!paneHistory || !workspaceMeasured) return
+    const becameInline = paneHistory.pane === 'picker' ? wideWorkspace : loadoutInline
+    if (!becameInline) return
+    backFromPane(paneHistory)
+  }, [backFromPane, loadoutInline, paneHistory, wideWorkspace, workspaceMeasured])
+
+  useEffect(() => {
+    if (showing === null) {
+      paneClosing.current = false
+      return
+    }
+    if (!workspaceMeasured || paneHistoryRef.current || paneClosing.current) return
+    if (showing === 'picker' && !wideWorkspace) pushPaneHistory({ workspace: workspacePath, pane: 'picker' })
+    if (showing !== 'loadout' || loadoutInline) return
+    if (preview) pushPaneHistory({ workspace: workspacePath, pane: 'loadout', preview })
+    else if (selected !== null && picks[selected]) {
+      pushPaneHistory({ workspace: workspacePath, pane: 'loadout', selectedKey: picks[selected].key })
+    }
+  }, [loadoutInline, paneHistory, picks, preview, pushPaneHistory, selected, showing, wideWorkspace, workspaceMeasured, workspacePath])
+
+  // A name the player typed, which may be nothing at all.
+  const listName = name.trim()
+  const save = useMutation({
+    scope: { id: 'roster-autosave' },
+    mutationFn: () =>
+      saveRoster({
+        data: {
+          id: savedId,
+          name: listName,
+          catalogueId,
+          detachmentIds,
+          disposition,
+          limit,
+          picks: positioned,
+          prep,
+          waivedRules,
+          optionalRules,
+          borrowedDetachmentId,
+          visibility,
+          source: initial.source,
+        },
+      }),
+    onSuccess: () => invalidateSavedRosters(queryClient),
+  })
+
+  // Held steppers and typed names change many times a second; the settled values
+  // trigger one save per pause while the mutation still reads the newest draft.
+  const settledPicks = useSettled(positioned)
+  const settledListName = useSettled(listName)
+  useEffect(() => {
+    if (!editable || !catalogueId) return
+    save.mutate()
+    // The mutation reads the complete rendered draft. A later render queues behind
+    // this one, so the final request always contains the newest state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    borrowedDetachmentId,
+    optionalRules,
+    catalogueId,
+    detachmentIds,
+    disposition,
+    editable,
+    limit,
+    settledListName,
+    settledPicks,
+    prep,
+    visibility,
+    waivedRules,
+  ])
+
+  /** Hands the list to another tool, in the format every one of them reads. */
+  const take = useMutation({
+    mutationFn: () =>
+      exportRoster({
+        data: { catalogueId, detachmentIds, disposition, limit, name: shownName || 'Roster', units: positioned, waivedRules },
+      }),
+    onSuccess: ({ text }) => setExportText(text),
+  })
+
+  const duplicateRoster = useMutation({
+    mutationFn: () =>
+      saveRoster({
+        data: {
+          name: listName ? `Copy of ${listName}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '',
+          catalogueId,
+          detachmentIds,
+          disposition,
+          limit,
+          picks: positioned,
+          prep,
+          waivedRules,
+          optionalRules,
+          borrowedDetachmentId,
+          visibility: 'private',
+          source: initial.source,
+        },
+      }),
+    onSuccess: async ({ id }) => {
+      posthog.capture('roster_duplicated', { unit_count: attachedUnitCount(picks), shared: true })
+      await invalidateSavedRosters(queryClient)
+      await navigate({ to: '/rosters/$id', params: { id } })
+    },
+  })
+
+  const {
+    data: priced,
+    dataUpdatedAt: pricedAt,
+    isPlaceholderData: pricePending,
+    isPending: priceLoading,
+  } = useQuery({
+    ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned, waivedRules, borrowedDetachmentId, optionalRules),
+    // A frozen list already carries its cards and its total; the price is only the
+    // applied datasheet behind a unit somebody opened.
+    enabled: Boolean(catalogueId) && (!frozen || selected !== null),
+    /**
+     * The last answer, with whatever the list has since let go of taken out of it.
+     *
+     * The total stays as it was until the new one lands, the same way an added unit
+     * is not counted until then: a number one request behind corrects itself, and a
+     * number this page worked out for itself could be wrong in ways it cannot know.
+     */
+    placeholderData: (previous, previousQuery) => {
+      if (!previous) return undefined
+      const kept = survivingUnits(previousQuery?.queryKey.at(-1), picks)
+      if (!kept) return undefined
+      if (kept.length === previous.units.length && kept.every((at, index) => at === index)) return previous
+      const units = []
+      for (const at of kept) {
+        const unit = previous.units[at]
+        if (!unit) break
+        units.push(unit)
+      }
+      return { ...previous, units }
+    },
+  })
+  const evaluatedPicks = useRef(new Map(picks.map((pick) => [pick.key, pick])))
+  const evaluatedAt = useRef(0)
+  useLayoutEffect(() => {
+    if (!priced || pricePending || pricedAt <= evaluatedAt.current) return
+    evaluatedAt.current = pricedAt
+    evaluatedPicks.current = new Map(picks.map((pick) => [pick.key, pick]))
+  }, [picks, pricePending, priced, pricedAt])
+
+  const units = priced?.units ?? NO_UNITS
+  // What an unnamed list is called, folded by the price beside the units it reads.
+  // A name the player typed is never one of its inputs and never replaced by it.
+  const label = priced?.label ?? ''
+  const shownName = listName || label
+  const shareRoster = async () => {
+    setShareProblem(null)
+    try {
+      if (editable) await save.mutateAsync()
+      const result = await shareLink(`${window.location.origin}${workspacePath}`, shownName || 'Roster')
+      posthog.capture('roster_shared', { visibility_changed: false })
+      setShareFeedback(result)
+    } catch (error) {
+      posthog.captureException(error, { operation: 'roster_share' })
+      setShareProblem(errorMessage(error))
+    }
+  }
+  const shareLabel = shareFeedback === 'shared' ? 'Link shared' : shareFeedback === 'copied' ? 'Link copied' : 'Share link'
+  const rosterLoading = !frozen && priceLoading && picks.length > 0
+  const edit = useMemo(() => pickEditor(setPicks, { catalogueId, units }, allocateKey), [allocateKey, catalogueId, setPicks, units])
+  const editor = useRef(edit)
+  /**
+   * What an edit reports is the list it leaves behind, read once the edit has landed.
+   * The size of a list is not the number of picks in it, so no edit is a reliable
+   * step of one: duplicating an attached character adds a pick to a unit that was
+   * already there, and dropping the unit it joined leaves it standing on its own.
+   */
+  const reporting = useRef<'roster_unit_added' | 'roster_unit_removed' | 'roster_unit_duplicated' | null>(null)
+  useLayoutEffect(() => {
+    editor.current = edit
+    const event = reporting.current
+    if (!event) return
+    reporting.current = null
+    posthog.capture(event, { unit_count: attachedUnitCount(picks) })
+  }, [edit, picks])
+  const drop = useCallback((index: number) => {
+    editor.current.drop(index)
+    reporting.current = 'roster_unit_removed'
+    setSelected(null)
+  }, [])
+  const add = useCallback((entryId: string) => {
+    editor.current.add(entryId)
+    reporting.current = 'roster_unit_added'
+  }, [])
+  const inspect = useCallback(
+    (previewCatalogueId: string, entryId: string, unitName: string) => {
+      const nextPreview = { catalogueId: previewCatalogueId, entryId, name: unitName }
+      setPreview(nextPreview)
+      setSelected(null)
+      setShowing('loadout')
+      updateLoadoutHistory({ workspace: workspacePath, pane: 'loadout', preview: nextPreview })
+    },
+    [updateLoadoutHistory, workspacePath],
+  )
+  const previewUnit = useCallback((entryId: string, unitName: string) => inspect(catalogueId, entryId, unitName), [catalogueId, inspect])
+  const duplicate = useCallback((index: number) => {
+    editor.current.duplicate(index)
+    reporting.current = 'roster_unit_duplicated'
+  }, [])
+  const join = useCallback((index: number, targetKey: number | undefined) => {
+    editor.current.join(index, targetKey)
+    posthog.capture('roster_attachment_updated', { attached: targetKey !== undefined })
+  }, [])
+  const selection = useRef({ picks, updateLoadoutHistory, workspacePath })
+  useLayoutEffect(() => {
+    selection.current = { picks, updateLoadoutHistory, workspacePath }
+  }, [picks, updateLoadoutHistory, workspacePath])
+  const selectUnit = useCallback((index: number) => {
+    setPreview(null)
+    setSelected(index)
+    setShowing('loadout')
+    const { picks: currentPicks, updateLoadoutHistory: updateHistory, workspacePath: currentWorkspace } = selection.current
+    const selectedKey = currentPicks[index]?.key
+    if (selectedKey !== undefined) updateHistory({ workspace: currentWorkspace, pane: 'loadout', selectedKey })
+  }, [])
+  const setUnitOwned = useCallback(
+    (entryId: string, nextOwned: boolean) => mutateCollection({ entryId, owned: nextOwned }),
+    [mutateCollection],
+  )
+  const cardRelationships = useCardRelationships(picks, units)
+
+  // A frozen list carries everything its cards print, which is what lets an opponent
+  // read it on an instance that has never loaded this catalogue.
+  if (!faction && !frozen) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center border border-edge bg-sunken p-8 text-center">
+        <div>
+          <p className="eyebrow">Army data unavailable</p>
+          <p className="mt-2 text-sm text-dim">Army data is still loading. Try this page again shortly.</p>
+        </div>
+      </div>
+    )
+  }
+
+  const points = frozen ? frozen.points : (priced?.points ?? 0)
+  const over = frozen ? frozen.points > limit : Boolean(priced && priced.points > limit)
+  const cards = frozen
+    ? frozen.units.map((unit, index) => ({
+        index,
+        group: unit.group ?? ('other' as const),
+        joined: unit.joined ?? [],
+        unit: {
+          entryId: unit.entryId ?? unit.key,
+          name: unit.name,
+          points: unit.points,
+          modelCount: unit.models,
+          wargear: unit.wargear ?? [],
+          attachment: null,
+          enhancements: unit.enhancements ?? [],
+          upgrades: unit.upgrades ?? [],
+        },
+      }))
+    : units.map((unit, index) => ({ index, group: unit.group, joined: NO_JOINED, unit }))
+  // The shelves draw a card per datasheet; the header says how many units the list
+  // brings, which is the same fold the library and the battle count it by.
+  const fieldedUnitCount = frozen ? attachedUnitCount(frozen.units) : attachedUnitCount(picks)
+  const selectedUnit = selected === null ? null : (units[selected] ?? null)
+  const frozenSelected = frozen && selected !== null ? (frozen.units[selected] ?? null) : null
+  // Frozen selections are what a datasheet is applied to; a log written without them
+  // leaves cards that say what was fielded and nothing to open behind them.
+  const loadoutAvailable = !frozen || picks.length > 0
+  const selectedPick = selected === null ? null : (picks[selected] ?? null)
+  const selectedUnitLoading = selected !== null && !selectedUnit
+  const evaluatedPick = selectedPick ? (evaluatedPicks.current.get(selectedPick.key) ?? null) : null
+  const loadoutConstraintsPending = Boolean(
+    selectedUnit && selectedPick?.models !== undefined && selectedPick.models !== selectedUnit.size.models,
+  )
+  const optimisticUnit =
+    selectedUnit && selectedPick
+      ? {
+          ...selectedUnit,
+          size: { ...selectedUnit.size, models: selectedPick.models ?? selectedUnit.size.models },
+          // Pending counts build on the draft; the evaluated allocation wins once
+          // it arrives because changing one group can rebalance another.
+          choices: withDraftSpreadCounts(
+            selectedUnit.choices.map((choice) => ({
+              ...choice,
+              chosen: Object.hasOwn(selectedPick.choices ?? {}, choice.key) ? (selectedPick.choices?.[choice.key] ?? '') : choice.chosen,
+            })),
+            pricePending ? changedDraftSpreadCounts(selectedPick.spreads, evaluatedPick?.spreads) : undefined,
+          ),
+          toggles: selectedUnit.toggles.map((toggle) => ({
+            ...toggle,
+            selected: Object.hasOwn(selectedPick.toggles ?? {}, toggle.key) ? Boolean(selectedPick.toggles?.[toggle.key]) : toggle.selected,
+          })),
+        }
+      : selectedUnit
+  const waivers = waivedFormatRules(limit, waivedRules)
+  /*
+   * Dismissing says "I know", not "never tell me": the key is the set of waived
+   * restrictions, so switching another one off says something the player has not
+   * acknowledged yet and the warning comes back.
+   */
+  const waiverKey = waivers.map((rule) => rule.id).join(',')
+  const inspectorView = building ? 'edit' : 'readonly'
+  const warlord = optimisticUnit?.toggles.find((toggle) => toggle.name === 'Warlord')
+  const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
+  const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : null
+  const picker =
+    editable && faction ? (
+      <div className="flex h-full flex-col">
+        <div className="min-h-0 flex-1">
+          <Picker
+            enabled={pickerEnabled}
+            catalogueId={catalogueId}
+            onAdd={add}
+            onPreview={previewUnit}
+            inRoster={held}
+            room={priced ? limit - priced.points : null}
+            battleSize={limit}
+            waivedRules={waivedRules}
+            onWaiveToggle={toggleWaivedRule}
+            query={pickerQuery}
+            onQueryChange={setPickerQuery}
+            active={pickerFilters}
+            onFilterToggle={togglePickerFilter}
+          />
+        </div>
+      </div>
+    ) : (
+      <p className="p-2.5 text-xs text-faint">Pick a book first.</p>
+    )
+
+  const loadoutCatalogueId = selected === null ? catalogueId : (picks[selected]?.catalogueId ?? catalogueId)
+  const datasheetCatalogueId = preview?.catalogueId ?? loadoutCatalogueId
+  const loadout = (
+    <Loadout
+      catalogueId={loadoutCatalogueId}
+      unit={optimisticUnit}
+      loading={selectedUnitLoading}
+      detachmentIds={detachmentIds}
+      picks={positioned}
+      pickIndex={selected}
+      onChoose={(key, optionId) => selected !== null && edit.choose(selected, key, optionId)}
+      onSpread={(key, counts) => selected !== null && edit.spread(selected, key, counts)}
+      editable={editable && inspectorView === 'edit'}
+      controlsDisabled={loadoutConstraintsPending}
+      showOptions={inspectorView !== 'readonly'}
+      persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId, ...(battle ? { battle } : {}) }}
+      reference={
+        <DatasheetPanel
+          catalogueId={datasheetCatalogueId}
+          entryId={selectedUnit?.entryId ?? null}
+          detachmentIds={detachmentIds}
+          picks={positioned}
+          pickIndex={selected}
+          showWeapons
+          embedded
+          hideSummary
+          showRelationships
+          onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
+          onReferenceRoute={setReference}
+        />
+      }
+    />
+  )
+  const datasheet = (
+    <DatasheetPanel
+      catalogueId={datasheetCatalogueId}
+      entryId={preview?.entryId ?? selectedUnit?.entryId ?? null}
+      detachmentIds={detachmentIds}
+      picks={positioned}
+      pickIndex={preview ? null : selected}
+      showWeapons
+      showRelationships
+      onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
+      onReferenceRoute={setReference}
+    />
+  )
+
+  return (
+    <RosterShell saving={save.isPending || settledPicks !== positioned || settledListName !== listName} saveError={save.isError}>
+      <RosterHeader
+        name={name}
+        nameId="listname"
+        onNameChange={editable ? (event) => setName(event.target.value) : undefined}
+        maxLength={ROSTER_NAME_MAX_LENGTH}
+        placeholder={label || 'Named from what is in it'}
+        faction={faction}
+        factionLoading={factionLoading}
+        limit={limit}
+        unitCount={fieldedUnitCount}
+        detachments={
+          frozen
+            ? frozen.detachments
+            : detachmentIds.flatMap((id) => {
+                const detachment = faction?.detachments.find((candidate) => candidate.id === id)
+                return detachment ? [{ id, name: detachment.name }] : []
+              })
+        }
+        disposition={frozen ? disposition : priced?.disposition}
+        waivers={waivers}
+        actions={
+          editable ? (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger aria-label="Roster actions" className="grid h-7 w-10 place-items-center hover:text-bone">
+                  <EllipsisVertical className="size-4 translate-y-px" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-48">
+                  <DropdownMenuItem
+                    onClick={() =>
+                      setSetupDraft({
+                        name: listName,
+                        catalogueId,
+                        detachmentIds,
+                        disposition,
+                        limit,
+                        waivedRules,
+                        optionalRules,
+                        borrowedDetachmentId,
+                        visibility,
+                      })
+                    }
+                  >
+                    <Pencil /> Edit roster setup
+                  </DropdownMenuItem>
+                  {visibility !== 'private' ? (
+                    <DropdownMenuItem onClick={() => void shareRoster()}>
+                      <Link2 /> {shareLabel}
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
+                    <Download /> Export GW text
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => window.print()}>
+                    <Printer /> Print
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger
+                  closeOnClick={false}
+                  render={
+                    <div>
+                      <ToggleGroup
+                        value={[readOnly ? 'view' : 'build']}
+                        onValueChange={(value) => {
+                          if (value[0] === 'view' || value[0] === 'build') setReadOnlyMode(value[0] === 'view')
+                        }}
+                        variant="outline"
+                        size="sm"
+                        spacing={0}
+                        aria-label="Roster mode"
+                      >
+                        <ToggleGroupItem
+                          value="build"
+                          className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                        >
+                          Build
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="view"
+                          className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                        >
+                          View
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
+                  }
+                />
+                <TooltipContent side="bottom">Build shows roster editing controls. View simplifies cards and loadouts.</TooltipContent>
+              </Tooltip>
+            </>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger aria-label="Roster actions" className="grid h-7 w-10 place-items-center hover:text-bone">
+                <EllipsisVertical className="size-4 translate-y-px" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-52">
+                {me ? (
+                  <DropdownMenuItem disabled={duplicateRoster.isPending || !positioned.length} onClick={() => duplicateRoster.mutate()}>
+                    <Copy /> Duplicate to my rosters
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem render={<Link to="/sign-in" search={{ next: path }} />}>
+                    <Copy /> Sign in to duplicate
+                  </DropdownMenuItem>
+                )}
+                {visibility !== 'private' && !battle ? (
+                  <DropdownMenuItem onClick={() => void shareRoster()}>
+                    <Link2 /> {shareLabel}
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
+                  <Download /> Export GW text
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => window.print()}>
+                  <Printer /> Print
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
+        }
+      >
+        {!editable && duplicateRoster.isError ? (
+          <p role="alert" className="mt-1 text-xs text-destructive">
+            That roster could not be duplicated. Try again.
+          </p>
+        ) : null}
+        {shareProblem ? (
+          <p role="alert" className="mt-1 text-xs text-destructive">
+            Could not share the link: {shareProblem}
+          </p>
+        ) : null}
+        {editable && priced?.dispositionError ? (
+          <p role="alert" className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
+            <TriangleAlert className="size-3 shrink-0" aria-hidden />
+            {priced.dispositionError} Its detachments disagree, so a battle cannot pick a mission for it.
+            <Button
+              variant="ghost"
+              size="xs"
+              className="h-auto p-0 text-destructive underline hover:text-destructive"
+              onClick={() =>
+                setSetupDraft({
+                  name: listName,
+                  catalogueId,
+                  detachmentIds,
+                  disposition,
+                  limit,
+                  waivedRules,
+                  optionalRules,
+                  borrowedDetachmentId,
+                  visibility,
+                })
+              }
+            >
+              Choose one
+            </Button>
+          </p>
+        ) : null}
+
+        {editable && editingSetup ? (
+          <RosterSetupDialog
+            open={editingSetup}
+            onOpenChange={(open) => !open && setSetupDraft(null)}
+            factionOptions={factionIndex?.factions ?? []}
+            initialFaction={faction}
+            value={setupDraft}
+            onDraftChange={setSetupDraft}
+            hasUnits={Boolean(picks.length)}
+            namePlaceholder={label}
+            onSave={(setup) => {
+              const changedFaction = setup.catalogueId !== catalogueId
+              if (!changedFaction) {
+                setPicks((current) => picksAfterDetachmentChange(current, units, detachmentIds, setup.detachmentIds))
+              }
+              setName(setup.name)
+              setCatalogueId(setup.catalogueId)
+              setDetachmentIds(setup.detachmentIds)
+              setDisposition(setup.disposition)
+              setLimit(setup.limit)
+              setWaivedRules(setup.waivedRules)
+              setOptionalRules(setup.optionalRules)
+              setBorrowedDetachmentId(setup.borrowedDetachmentId)
+              setVisibility(setup.visibility)
+              if (changedFaction) {
+                edit.clear()
+                setSelected(null)
+              }
+              setSetupDraft(null)
+            }}
+          />
+        ) : null}
+      </RosterHeader>
+
+      <RosterBody threeColumn={editable}>
+        {editable ? (
+          <div className="contents min-[1300px]:flex min-[1300px]:min-h-0 min-[1300px]:min-w-0">
+            <Pane
+              variant="picker"
+              open={pickerOpen}
+              drawer={!wideWorkspace}
+              hideBelowDesktop
+              title="Add units"
+              onClose={closePane}
+              actions={
+                selectedUnit ? (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => {
+                      setPreview(null)
+                      setShowing('loadout')
+                      if (selected !== null && picks[selected]) {
+                        updateLoadoutHistory({ workspace: workspacePath, pane: 'loadout', selectedKey: picks[selected].key })
+                      }
+                    }}
+                  >
+                    <SlidersHorizontal /> Loadout
+                  </Button>
+                ) : null
+              }
+            >
+              {pickerOpen ? picker : null}
+            </Pane>
+          </div>
+        ) : null}
+
+        <RosterUnits>
+          {cards.length ? (
+            GROUPS.map(({ id, plural }) => {
+              const rows = cards
+                .filter((card) => card.group === id)
+                .toSorted((left, right) => left.unit.name.localeCompare(right.unit.name))
+              return rows.length ? (
+                <Section key={id} title={plural} count={rows.length}>
+                  {rows.map(({ unit, index, joined }) =>
+                    frozen ? (
+                      <UnitCard
+                        key={unit.entryId + index}
+                        unit={unit}
+                        joined={joined}
+                        selected={selected === index}
+                        onSelect={loadoutAvailable ? () => selectUnit(index) : undefined}
+                        editable={false}
+                      />
+                    ) : (
+                      <BuilderUnitCard
+                        key={picks[index]?.key ?? unit.entryId}
+                        unit={unit}
+                        index={index}
+                        joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
+                        canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
+                        alliedFaction={
+                          picks[index]?.catalogueId === catalogueId
+                            ? undefined
+                            : factionIndex?.factions.find((entry) => entry.id === picks[index]?.catalogueId)
+                        }
+                        selected={selected === index}
+                        owned={collection.has(unit.entryId)}
+                        onSelect={selectUnit}
+                        onRemove={drop}
+                        onDuplicate={duplicate}
+                        onOwned={setUnitOwned}
+                        onJoin={join}
+                        editable={building}
+                      />
+                    ),
+                  )}
+                </Section>
+              ) : null
+            })
+          ) : rosterLoading ? (
+            <output className="block py-3" aria-label="Loading roster units">
+              <span className="sr-only">Loading roster units…</span>
+              <span className="mb-3 block h-4 w-28 animate-pulse bg-raised" />
+              <span className="grid gap-2">
+                {picks.map((pick) => (
+                  <span key={pick.key} className="block h-24 animate-pulse border border-edge bg-card" />
+                ))}
+              </span>
+            </output>
+          ) : faction || frozen ? (
+            <p className="py-6 text-sm text-faint">{building ? 'Pick a unit to start building.' : 'This roster has no units.'}</p>
+          ) : (
+            <p className="py-6 text-sm text-faint">Pick a book to start building.</p>
+          )}
+        </RosterUnits>
+
+        {/* A list with no frozen selections has nothing to open, so it offers nothing. */}
+        {loadoutAvailable ? (
+          <Pane
+            variant="loadout"
+            open={showing === 'loadout' && Boolean(selected !== null || preview)}
+            threeColumn={editable}
+            title={preview?.name ?? frozenSelected?.name ?? selectedUnit?.name ?? 'Unit'}
+            ariaLabel={preview ? 'Datasheet' : 'Loadout'}
+            backLabel={paneHistory?.pane === 'loadout' && paneHistory.returnToPicker ? 'Back to units' : undefined}
+            onClose={closePane}
+            actions={
+              <>
+                {preview && building ? (
+                  <Button size="sm" className="h-7 px-2 text-[0.6875rem]" onClick={() => add(preview.entryId)}>
+                    <Plus className="size-3" />
+                    Add to list
+                  </Button>
+                ) : optimisticUnit ? (
+                  <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
+                    {warlord && inspectorView === 'edit' ? (
+                      <Toggle
+                        variant="outline"
+                        size="sm"
+                        title={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
+                        aria-label={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
+                        pressed={warlord.selected}
+                        className={`!h-auto !min-h-0 !min-w-0 gap-1 rounded-sm !px-1.5 !py-px !text-[0.6875rem] !font-semibold !tracking-[0.06em] uppercase ${
+                          warlord.selected
+                            ? 'border-parchment bg-parchment/15 text-parchment'
+                            : 'border-edge-strong text-dim hover:border-info hover:text-bone'
+                        }`}
+                        onPressedChange={(pressed) => selected !== null && edit.toggle(selected, warlord.key, warlord.name, pressed)}
+                      >
+                        <Crown className={warlord.selected ? 'fill-current' : undefined} />
+                        Warlord
+                      </Toggle>
+                    ) : null}
+                    {warlord?.selected && inspectorView === 'readonly' ? (
+                      <span className="chip gap-1 text-info">
+                        <Crown className="size-3.5 fill-current" /> Warlord
+                      </span>
+                    ) : null}
+                    <span className="chip w-[4.5rem] justify-center text-info">{optimisticUnit.points} pts</span>
+                    {optimisticUnit.size.resizable && inspectorView === 'edit' ? (
+                      <Stepper
+                        label={`models in ${optimisticUnit.name}`}
+                        countLabel={`${optimisticUnit.name} models`}
+                        count={optimisticUnit.size.models}
+                        onRemove={
+                          optimisticUnit.size.models > optimisticUnit.size.min
+                            ? () =>
+                                selected !== null &&
+                                edit.resize(
+                                  selected,
+                                  optimisticUnit.size.options?.findLast((size) => size < optimisticUnit.size.models) ??
+                                    optimisticUnit.size.models - 1,
+                                )
+                            : undefined
+                        }
+                        onAdd={
+                          optimisticUnit.size.models < optimisticUnit.size.max
+                            ? () =>
+                                selected !== null &&
+                                edit.resize(
+                                  selected,
+                                  optimisticUnit.size.options?.find((size) => size > optimisticUnit.size.models) ??
+                                    optimisticUnit.size.models + 1,
+                                )
+                            : undefined
+                        }
+                      />
+                    ) : (
+                      <span className="chip normal-case">{modelCount(optimisticUnit.size.models)}</span>
+                    )}
+                  </span>
+                ) : frozenSelected ? (
+                  // The list as fought, before the price behind it has said anything.
+                  <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
+                    <span className="chip w-[4.5rem] justify-center text-info">{frozenSelected.points} pts</span>
+                    <span className="chip normal-case">{modelCount(frozenSelected.models)}</span>
+                  </span>
+                ) : null}
+                {inspectedEntryId ? referenceRoute ? <FullDatasheetLink route={referenceRoute} /> : <FullDatasheetLinkLoading /> : null}
+              </>
+            }
+          >
+            {preview ? datasheet : loadout}
+          </Pane>
+        ) : null}
+      </RosterBody>
+
+      <footer className="sticky bottom-0 z-20 border-t border-edge bg-panel px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-2">
+            {rosterLoading ? (
+              <span className="size-5 animate-pulse bg-raised" aria-hidden />
+            ) : over ? (
+              <TriangleAlert className="size-5 text-destructive" aria-hidden />
+            ) : (
+              <Check className={`size-5 ${cards.length ? 'text-achieved' : 'text-faint'}`} aria-hidden />
+            )}
+            {/*
+             * The mark is the legality statement, and a mark alone says nothing to
+             * anyone who cannot see it: it is the whole answer to "can I play this".
+             */}
+            {rosterLoading ? null : <span className="sr-only">{over ? 'Over the points limit' : 'Within the points limit'}</span>}
+            <span data-stat="points" className={`readout text-xl font-bold ${over ? 'text-destructive' : 'text-info'}`}>
+              {rosterLoading ? <span aria-label="Loading roster points">…</span> : points}/{limit}
+            </span>
+            <span className="eyebrow">points</span>
+          </span>
+
+          {editable ? (
+            <Button variant="outline" size="sm" className="ml-auto min-[1300px]:hidden" onClick={openPicker} disabled={!faction}>
+              Add units
+            </Button>
+          ) : null}
+        </div>
+        {editable && save.isError ? (
+          <div
+            role="alert"
+            className="mt-2 flex items-center gap-2 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive"
+          >
+            <TriangleAlert className="size-4 shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1">Your latest changes have not been saved.</span>
+            <Button variant="outline" size="xs" onClick={() => save.mutate()} disabled={save.isPending}>
+              Try again
+            </Button>
+          </div>
+        ) : null}
+        {/* A frozen list was priced when it was fielded; today's catalogue does not get to re-judge it. */}
+        {!frozen && priced?.errors.length ? (
+          <ul className="mt-2 space-y-1 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive">
+            {priced.errors.slice(0, 8).map((error) => (
+              <li key={`${error.entryId}-${error.message}`}>
+                {error.entryName}: {error.message}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {!frozen && priced?.unhandled.length ? (
+          <div className="mt-2 border border-discarded/40 bg-discarded/5 p-2.5 text-xs text-discarded">
+            <p className="font-semibold uppercase">Could not check every rule</p>
+            <ul className="mt-1 list-inside list-disc">
+              {priced.unhandled.slice(0, 8).map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {/* Under the errors, because a restriction switched off is why one of them is not there. */}
+        {dismissedWaivers === waiverKey ? null : (
+          <WaiverWarning rules={waivers} onDismiss={() => dismissWaivers(waiverKey)} editable={editable} />
+        )}
+      </footer>
+      <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
+    </RosterShell>
+  )
+}
+
+type BuilderUnitCardProps = {
+  unit: ComponentProps<typeof UnitCard>['unit']
+  index: number
+  joined: ReturnType<typeof attachmentRows>
+  canJoin: ReturnType<typeof joinableUnits>
+  alliedFaction: ComponentProps<typeof UnitCard>['alliedFaction']
+  selected: boolean
+  owned: boolean
+  editable: boolean
+  onSelect: (index: number) => void
+  onRemove: (index: number) => void
+  onDuplicate: (index: number) => void
+  onOwned: (entryId: string, owned: boolean) => void
+  onJoin: (index: number, targetKey: number | undefined) => void
+}
+
+const BuilderUnitCard = memo(function BuilderUnitCard({
+  unit,
+  index,
+  joined,
+  canJoin,
+  alliedFaction,
+  selected,
+  owned,
+  editable,
+  onSelect,
+  onRemove,
+  onDuplicate,
+  onOwned,
+  onJoin,
+}: BuilderUnitCardProps) {
+  return (
+    <UnitCard
+      unit={unit}
+      alliedFaction={alliedFaction}
+      selected={selected}
+      onSelect={() => onSelect(index)}
+      onRemove={() => onRemove(index)}
+      onDuplicate={() => onDuplicate(index)}
+      owned={owned}
+      onOwned={() => onOwned(unit.entryId, !owned)}
+      joined={joined.map((row) => ({ ...row, onAct: () => onJoin(row.detach, undefined) }))}
+      canJoin={canJoin}
+      onJoin={(targetKey) => onJoin(index, targetKey)}
+      editable={editable}
+    />
+  )
+})
+
+type CardRelationships = {
+  joined: ReturnType<typeof attachmentRows>
+  canJoin: ReturnType<typeof joinableUnits>
+}
+
+function useCardRelationships(picks: readonly KeyedPick[], units: Parameters<typeof attachmentRows>[1]) {
+  const previous = useRef(new Map<number, CardRelationships>())
+  const relationships = useMemo(() => {
+    const next = new Map<number, CardRelationships>()
+    for (const [index, pick] of picks.entries()) {
+      const candidate = { joined: attachmentRows(picks, units, index), canJoin: joinableUnits(picks, units, index) }
+      const current = previous.current.get(pick.key)
+      next.set(pick.key, current && sameRelationships(current, candidate) ? current : candidate)
+    }
+    return next
+  }, [picks, units])
+  useLayoutEffect(() => {
+    previous.current = relationships
+  }, [relationships])
+  return relationships
+}
+
+function sameRelationships(left: CardRelationships, right: CardRelationships) {
+  return (
+    left.joined.length === right.joined.length &&
+    left.joined.every((row, index) => {
+      const other = right.joined[index]
+      return Boolean(
+        other && row.label === other.label && row.name === other.name && row.action === other.action && row.detach === other.detach,
+      )
+    }) &&
+    left.canJoin.length === right.canJoin.length &&
+    left.canJoin.every((unit, index) => unit.key === right.canJoin[index]?.key && unit.name === right.canJoin[index]?.name)
+  )
+}
+
+function FullDatasheetLink({ route }: { route: NonNullable<Datasheet['referenceRoute']> }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        closeOnClick={false}
+        render={
+          <Link
+            data-slot="full-datasheet-link"
+            to="/factions/$catalogueId/datasheets/$entryId"
+            params={{ catalogueId: route.catalogueId, entryId: route.slug }}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Open full datasheet in a new tab"
+            className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
+          />
+        }
+      >
+        <ExternalLink />
+      </TooltipTrigger>
+      <TooltipContent role="tooltip" side="bottom">
+        Open full datasheet in a new tab
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function FullDatasheetLinkLoading() {
+  return (
+    <span data-slot="full-datasheet-link" aria-hidden className={`${buttonVariants({ variant: 'ghost', size: 'icon-sm' })} text-faint`}>
+      <ExternalLink />
+    </span>
+  )
+}

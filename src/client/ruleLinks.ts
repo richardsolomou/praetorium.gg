@@ -1,4 +1,4 @@
-import type { RuleIndex, RuleReference } from '../server/rulesCore'
+import type { RuleIndex, RuleReference } from '../contracts/rules'
 
 /**
  * Where each number a rule can quote leads, answered from the document quoting it.

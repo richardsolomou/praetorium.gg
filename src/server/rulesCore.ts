@@ -1,8 +1,22 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
+import type { RuleBlock, RuleDocument, RuleEntry, RuleFact, RuleIndex, RuleReference, RuleSection } from '../contracts/rules'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { english } from './missionPacks'
+
+export type {
+  RuleBlock,
+  RuleDocument,
+  RuleDocumentSummary,
+  RuleEntry,
+  RuleEntrySummary,
+  RuleFact,
+  RuleIndex,
+  RuleReference,
+  RuleSection,
+  RuleSectionSummary,
+} from '../contracts/rules'
 
 /**
  * The rules documents the datacards source ships beside its cards: the core rules
@@ -24,37 +38,6 @@ const RULES_CARD_TYPE = 'coreRules'
 
 /** Read first, because it is the document the other four amend. */
 const CORE_RULES_SLUG = 'core-rules'
-
-export type RuleBlock =
-  | { kind: 'prose'; markup: string }
-  | { kind: 'heading'; text: string }
-  | { kind: 'clarification'; code: string | null; anchor: string | null; title: string; markup: string }
-
-/** One labelled field of a movement behaviour or core stratagem, as the source labels it. */
-export type RuleFact = { label: string; markup: string }
-
-export type RuleEntry = {
-  id: string
-  /** The number the source prints against this rule, such as `09.04`. */
-  code: string | null
-  /** Where the rule sits on its section's page, and what a reference to it links to. */
-  anchor: string
-  title: string
-  blocks: RuleBlock[]
-  facts: RuleFact[]
-  cost: number | null
-  lore: string | null
-}
-
-export type RuleSection = { id: string; slug: string; title: string; entries: RuleEntry[] }
-export type RuleDocument = { id: string; slug: string; title: string; updated: string | null; sections: RuleSection[] }
-
-export type RuleEntrySummary = { anchor: string; code: string | null; title: string }
-export type RuleSectionSummary = { id: string; slug: string; title: string; entries: RuleEntrySummary[] }
-export type RuleDocumentSummary = { id: string; slug: string; title: string; updated: string | null; sections: RuleSectionSummary[] }
-/** Where the number one rule quotes in another is written down, so prose can link to it. */
-export type RuleReference = { code: string; document: string; section: string; anchor: string; title: string }
-export type RuleIndex = { documents: RuleDocumentSummary[]; references: RuleReference[]; attribution: string }
 
 /** What a stratagem and a movement behaviour each state, in the order they state it. */
 const STRATAGEM_FACTS = ['when', 'target', 'effect', 'restrictions']

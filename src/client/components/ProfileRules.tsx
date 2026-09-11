@@ -1,4 +1,4 @@
-import type { Datasheet } from '../../server/catalogue'
+import type { Datasheet } from '../../contracts/catalogue'
 import { ruleProfileSections } from '../datasheet'
 import type { KeywordRule } from './Keyword'
 import { RuleText } from './RuleText'

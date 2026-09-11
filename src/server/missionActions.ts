@@ -1,5 +1,8 @@
 import { criteriaKey } from './missionCriteria'
 import { english, type MissionPack, missionCards, readMissionPacks } from './missionPacks'
+import type { MissionAction } from '../contracts/missions'
+
+export type { MissionAction } from '../contracts/missions'
 
 /**
  * The action a mission card puts a unit up to, in the words the pack prints.
@@ -13,18 +16,6 @@ import { english, type MissionPack, missionCards, readMissionPacks } from './mis
  * Every field is the pack's own sentence. A field the pack leaves out is absent
  * rather than filled in, so an action with no stated limit states none.
  */
-export type MissionAction = {
-  name: string
-  starts: string | null
-  completes: string | null
-  effect: string | null
-  /** Which units may start it. */
-  units: string | null
-  /** How often it may be started. */
-  useLimit: string | null
-  restriction: string | null
-}
-
 /** Every card's actions in every pack under `missions`, keyed by card name. */
 export function loadMissionActions(directory: string): Map<string, MissionAction[]> {
   return actionsIn(readMissionPacks(directory))

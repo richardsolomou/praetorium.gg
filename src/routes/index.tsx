@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Home } from '../client/components/home/Home'
+import { Home } from '../client/features/home/Home'
 import { battlesQuery, friendBattlesQuery, meQuery, publicBattlesQuery } from '../client/queries'
 
 /**

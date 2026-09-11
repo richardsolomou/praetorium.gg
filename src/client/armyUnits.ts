@@ -1,5 +1,5 @@
 import type { UnitState } from '../core/battle'
-import { GROUPS } from './components/builder/groups'
+import { GROUPS } from './features/builder/groups'
 
 /** The models an army still has on the table, out of the ones it brought. */
 export function armyModels(units: readonly UnitState[]) {

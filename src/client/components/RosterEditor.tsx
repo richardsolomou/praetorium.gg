@@ -1,5 +1,5 @@
 import type { Secondary, Stratagem } from '../../core/battle'
-import { type FrozenRoster, ListBuilder } from './ListBuilder'
+import { type FrozenRoster, ListBuilder } from '../features/rosters/ListBuilder'
 
 type Roster = {
   id: string
