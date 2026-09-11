@@ -42,7 +42,8 @@ export function compositionCount(composition: readonly string[]) {
       alternatives.push([])
       continue
     }
-    for (const count of line.matchAll(/(\d+)(?:\s*[-–]\s*(\d+))?/g)) {
+    // Any dash the source writes, non-breaking hyphens included, joins one range.
+    for (const count of line.matchAll(/(\d+)(?:\s*\p{Pd}\s*(\d+))?/gu)) {
       alternatives.at(-1)?.push({ minimum: Number(count[1]), maximum: Number(count[2] ?? count[1]) })
     }
   }

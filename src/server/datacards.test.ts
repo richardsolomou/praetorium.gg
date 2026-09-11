@@ -46,6 +46,33 @@ it('reads source instructions with their equipment names and skips incomplete gr
   ])
 })
 
+it('reads a composition written as the source\u2019s own list, keeping the equipment sentence as the loadout', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'orks.json'),
+    JSON.stringify({
+      name: 'Orks',
+      detachments: [],
+      datasheets: [
+        {
+          id: 'beast-snagga-boyz',
+          name: { en: 'Beast Snagga Boyz' },
+          composition: [
+            {
+              en: '<ul><li>1-2 Nob models</li>\r<li>9\u201118 Beast Snagga Boy models</li></ul>\rEvery Nob is equipped with: 1 Power Snappa.',
+            },
+          ],
+          loadout: { en: '' },
+        },
+      ],
+    }),
+  )
+
+  const details = loadDatacards(directory).factions.get('orks')?.datasheetDetails.get('Beast Snagga Boyz')
+  expect(details?.composition).toEqual(['1-2 Nob models', '9\u201118 Beast Snagga Boy models'])
+  expect(details?.loadout).toBe('Every Nob is equipped with: 1 Power Snappa.')
+})
+
 afterEach(() => {
   if (directory) fs.rmSync(directory, { recursive: true, force: true })
   directory = null
