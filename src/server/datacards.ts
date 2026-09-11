@@ -616,6 +616,31 @@ function localizedList(value: unknown, field: string): string[] {
   })
 }
 
+const LIST_ITEM = /<li>([^]*?)<\/li>/g
+
+/**
+ * Composition as the lines a datasheet prints, and the loadout some of them carry.
+ *
+ * Nearly every entry is one line per model type, but a few factions write the whole
+ * thing as the source's own `<ul>` list with the equipment sentence loose after it
+ * and the loadout field left empty. The bullets are the composition — a count read
+ * from the sentence beside them would count weapons as models — and what follows
+ * them is the loadout the entry did not fill in.
+ */
+function composition(value: unknown): { lines: string[]; loadout: string | null } {
+  const lines: string[] = []
+  const loose: string[] = []
+  for (const entry of localizedList(value, 'composition')) {
+    if (!entry.includes('<li>')) {
+      lines.push(entry)
+      continue
+    }
+    for (const item of entry.matchAll(LIST_ITEM)) lines.push(prose(item[1]!))
+    loose.push(prose(entry.replaceAll(LIST_ITEM, '').replaceAll(/<\/?ul>/g, '')))
+  }
+  return { lines: lines.filter(Boolean), loadout: loose.filter(Boolean).join('\n\n') || null }
+}
+
 function datasheetDetails(value: unknown): DatasheetDetails {
   const wargearGroups = records(value, 'wargearOptions').flatMap((group) => {
     const instruction = localizedField(group, 'instruction')
@@ -625,9 +650,10 @@ function datasheetDetails(value: unknown): DatasheetDetails {
     })
     return instruction && options.length ? [{ instruction, options }] : []
   })
+  const { lines, loadout } = composition(value)
   return {
-    composition: localizedList(value, 'composition'),
-    loadout: localizedField(value, 'loadout'),
+    composition: lines,
+    loadout: localizedField(value, 'loadout') || loadout,
     wargear: localizedList(value, 'wargear'),
     ...(wargearGroups.length ? { wargearGroups } : {}),
     baseSize: displayBaseSize(localizedField(value, 'baseSize')),

@@ -62,6 +62,10 @@ describe('datasheet composition count', () => {
     expect(compositionCount(['**1 Deathwing Sergeant**', '**4-9 Deathwing Terminators**'])).toBe('5–10 models')
   })
 
+  it('reads a range the source wrote with a non-breaking hyphen', () => {
+    expect(compositionCount(['1-2 Nob models', '9\u201118 Beast Snagga Boy models'])).toBe('10\u201320 models')
+  })
+
   it('keeps a single-model datasheet singular', () => {
     expect(compositionCount(['**1 Overlord**'])).toBe('1 model')
   })
