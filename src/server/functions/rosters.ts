@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { attachedUnitCount } from '../../core/attachedUnits'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
 import { calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../pricing'
@@ -189,7 +190,7 @@ export const saveRoster = createServerFn({ method: 'POST' })
       const result = await app().service.saveRoster(player.id, data)
       if (!data.id)
         await app().telemetry.capture(player.id, 'roster_created', {
-          unit_count: data.picks.length,
+          unit_count: attachedUnitCount(data.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
           source: data.source,
           visibility: data.visibility,
         })
