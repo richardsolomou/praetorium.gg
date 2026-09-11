@@ -502,6 +502,7 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
     .poll(() => page.locator('[data-slot="drawer-popup"]').evaluate((element) => getComputedStyle(element).transform))
     .toBe('matrix(1, 0, 0, 1, 0, 0)')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  expect(await compactPicker.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/owner-view-sidebar-phone.png', fullPage: true })
   await compactPicker.getByRole('button', { name: 'Close' }).click()
 
