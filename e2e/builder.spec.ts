@@ -475,16 +475,26 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   await expect(page.getByLabel('Add a unit')).toHaveValue('Immortals')
   await expect(page.getByRole('button', { name: 'Owned', exact: true })).toHaveAttribute('aria-pressed', 'true')
 
+  await page.reload()
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+
   await page.getByRole('button', { name: 'View', exact: true }).click()
   await page.reload()
   await expect(page.getByRole('button', { name: 'View', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('button', { name: 'Add Immortals', exact: true }).click()
+  // Viewing shows the list the way anybody else reading it does: no picker, no card menus.
+  await expect(page.getByLabel('Add a unit')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Add units', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Unit actions for Immortals/ })).toHaveCount(0)
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByRole('button', { name: /More models in Immortals/ })).toHaveCount(0)
+  // What the datasheet says about the unit is a fact about it, not an edit.
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByRole('heading', { name: 'Attachments' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Build', exact: true }).click()
   await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Build', exact: true }).click()
+  await expect(page.getByLabel('Add a unit')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Unit actions for Immortals/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /More models in Immortals/ })).toBeVisible()
 })
 
 test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
