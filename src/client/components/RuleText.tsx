@@ -14,9 +14,23 @@ const components: Components = {
   strong: RuleReference,
 }
 
+/**
+ * Source prose as the Markdown the page draws.
+ *
+ * The catalogues underline the odd word with `<ins>`, which says nothing this page
+ * renders, so the words inside it stay and the tag goes — unread, it would print
+ * itself in the middle of a sentence.
+ */
+export function ruleMarkdown(text: string) {
+  return text
+    .replaceAll('^^', '')
+    .replaceAll(/<\/?ins>/g, '')
+    .replaceAll(/^[ \t\u00a0]+/gm, (indent) => indent.replaceAll('\u00a0', ' '))
+    .replaceAll(/(?<!\*)\[([\p{L}\p{N} +'"’\p{Pd}]+)\](?!\*)/gu, '**[$1]**')
+}
+
 export function RuleText({ text, rules = noRules, className }: { text: string; rules?: KeywordRule[]; className?: string }) {
-  const cleaned = text.replaceAll('^^', '').replaceAll(/^[ \t\u00a0]+/gm, (indent) => indent.replaceAll('\u00a0', ' '))
-  const markdown = cleaned.replaceAll(/(?<!\*)\[([\p{L}\p{N} +'"’\p{Pd}]+)\](?!\*)/gu, '**[$1]**')
+  const markdown = ruleMarkdown(text)
   return (
     <Rules value={rules}>
       <div className={cn('mt-2 space-y-2 font-rules text-sm text-dim', className)}>
