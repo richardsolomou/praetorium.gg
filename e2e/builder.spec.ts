@@ -1550,7 +1550,12 @@ test('a character joins the unit it leads, and both cards say so', async ({ page
 
   await attach(page, 'Plasmancer', 'Immortals')
 
+  // Three cards on the shelves, one unit on the table: the header counts what the
+  // list brings, the same way the library and the battle count it.
+  await expect(page.locator('header').getByText('1 unit', { exact: true })).toBeVisible()
+
   await add(page, 'Chronomancer')
+  await expect(page.locator('header').getByText('2 units', { exact: true })).toBeVisible()
   await expect(page.locator('[data-unit="Chronomancer"]').getByRole('button', { name: 'Attach Chronomancer to unit' })).toHaveCount(0)
 
   // The unit states both, from its own side.
