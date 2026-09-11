@@ -1,5 +1,5 @@
 import type { Secondary, Stratagem } from '../../core/battle'
-import { ListBuilder } from './ListBuilder'
+import { type FrozenRoster, ListBuilder } from './ListBuilder'
 
 type Roster = {
   id: string
@@ -21,11 +21,13 @@ type Props = {
   editable: boolean
   battle?: string
   resolvePersistedRoster?: boolean
+  /** The units and total a battle froze, for a list that is read rather than priced. */
+  frozen?: FrozenRoster
 }
 
 const NO_PREP = { stratagems: [], secondaries: [] }
 
-export function RosterEditor({ roster, faction, editable, battle, resolvePersistedRoster = true }: Props) {
+export function RosterEditor({ roster, faction, editable, battle, resolvePersistedRoster = true, frozen }: Props) {
   return (
     <main className="flex h-full w-full min-w-0 max-w-full flex-col overflow-x-hidden">
       <ListBuilder
@@ -36,6 +38,7 @@ export function RosterEditor({ roster, faction, editable, battle, resolvePersist
         editable={editable}
         battle={battle}
         resolvePersistedRoster={resolvePersistedRoster}
+        frozen={frozen}
       />
     </main>
   )

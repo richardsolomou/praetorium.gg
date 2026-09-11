@@ -553,7 +553,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await expect(header.getByText('Purge the Foe', { exact: true })).toHaveClass(/chip/)
 
   await guest.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
-  const unit = guest.locator('aside[aria-label="Datasheet"]')
+  const unit = guest.locator('aside[aria-label="Loadout"]')
   await expect(unit.getByText('Mark of the Nekrosor', { exact: true })).toBeVisible()
   await guest.locator('[data-unit="Lokhust Destroyers"]').getByRole('button', { name: 'Lokhust Destroyers', exact: true }).click()
   await expect(unit.getByText('Deepening Madness', { exact: true })).toBeVisible()
