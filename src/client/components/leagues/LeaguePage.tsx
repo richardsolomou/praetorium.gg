@@ -153,7 +153,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
   })
   const battle = useMutation({
     mutationFn: async (players: { opponentId: string; allyId?: string; secondOpponentId?: string }) => {
-      const references = await queryClient.ensureQueryData(gameReferencesQuery())
+      const references = await queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
       return createLeagueBattle({
         data: { token, eventToken: selectedEventToken, ...players, missionPackId: references?.packs[0]?.id ?? null },
       })

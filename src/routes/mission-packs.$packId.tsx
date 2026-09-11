@@ -9,7 +9,7 @@ import { gameReferencesQuery } from '../client/queries'
 
 export const Route = createFileRoute('/mission-packs/$packId')({
   loader: async ({ context, params }) => {
-    const data = await context.queryClient.ensureQueryData(gameReferencesQuery())
+    const data = await context.queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
     if (!data?.packs.some((pack) => pack.id === params.packId)) throw notFound()
   },
   component: MissionPackPage,

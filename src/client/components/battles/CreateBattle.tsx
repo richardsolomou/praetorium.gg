@@ -88,7 +88,7 @@ export function CreateBattle() {
         const matches = await leagueBattleOptions({ data: playerData })
         if (matches.length) return { kind: 'league' as const, matches }
       }
-      const references = await queryClient.ensureQueryData(gameReferencesQuery())
+      const references = await queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
       let battle
       try {
         battle = await createBattle({

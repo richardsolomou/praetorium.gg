@@ -7,7 +7,7 @@ export const Route = createFileRoute('/leaderboard')({
   validateSearch: (search: Record<string, unknown>) => ({
     faction: typeof search.faction === 'string' && search.faction ? search.faction : undefined,
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(standingsQuery()),
+  loader: ({ context }) => context.queryClient.query({ ...standingsQuery(), staleTime: 'static' }),
   component: Leaderboard,
 })
 

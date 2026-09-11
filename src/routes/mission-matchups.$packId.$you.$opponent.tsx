@@ -13,7 +13,7 @@ import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '
 
 export const Route = createFileRoute('/mission-matchups/$packId/$you/$opponent')({
   loader: async ({ context, params }) => {
-    const data = await context.queryClient.ensureQueryData(gameReferencesQuery())
+    const data = await context.queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
     const pack = data?.packs.find((entry) => entry.id === params.packId)
     const valid = pack?.missions.some((mission) =>
       mission.matchups.some((pair) => pair[0]?.id === params.you && pair[1]?.id === params.opponent),
@@ -21,8 +21,8 @@ export const Route = createFileRoute('/mission-matchups/$packId/$you/$opponent')
     if (!valid) throw notFound()
     const terrainQuery = terrainReferencesQuery(terrainMatchupIds([params.you, params.opponent]))
     // Server-rendered links include terrain; client transitions show the mission without waiting for it.
-    if (typeof window === 'undefined') await context.queryClient.ensureQueryData(terrainQuery)
-    else void context.queryClient.prefetchQuery(terrainQuery)
+    if (typeof window === 'undefined') await context.queryClient.query({ ...terrainQuery, staleTime: 'static' })
+    else void context.queryClient.query(terrainQuery).catch(() => undefined)
   },
   component: MissionMatchupPage,
 })

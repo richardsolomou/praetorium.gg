@@ -4,9 +4,9 @@ import { factionDatasheetsQuery, factionQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/datasheets')({
   loader: async ({ context, params }) => {
-    const faction = await context.queryClient.ensureQueryData(factionQuery(params.catalogueId))
+    const faction = await context.queryClient.query({ ...factionQuery(params.catalogueId), staleTime: 'static' })
     if (!faction) throw notFound()
-    await context.queryClient.ensureQueryData(factionDatasheetsQuery(faction.id, ''))
+    await context.queryClient.query({ ...factionDatasheetsQuery(faction.id, ''), staleTime: 'static' })
   },
   component: FactionDatasheets,
 })

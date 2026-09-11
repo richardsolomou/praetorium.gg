@@ -5,10 +5,13 @@ import { detachmentDetailQuery, factionQuery, favouriteDetachmentsQuery } from '
 export const Route = createFileRoute('/factions/$catalogueId/detachments/$detachmentId')({
   loader: async ({ context, params }) => {
     const [faction] = await Promise.all([
-      context.queryClient.ensureQueryData(factionQuery(params.catalogueId)),
-      context.queryClient.ensureQueryData(favouriteDetachmentsQuery()),
+      context.queryClient.query({ ...factionQuery(params.catalogueId), staleTime: 'static' }),
+      context.queryClient.query({ ...favouriteDetachmentsQuery(), staleTime: 'static' }),
     ])
-    if (!faction || !(await context.queryClient.ensureQueryData(detachmentDetailQuery(faction.id, params.detachmentId)))) {
+    if (
+      !faction ||
+      !(await context.queryClient.query({ ...detachmentDetailQuery(faction.id, params.detachmentId), staleTime: 'static' }))
+    ) {
       throw notFound()
     }
   },
