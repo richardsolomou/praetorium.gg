@@ -481,16 +481,33 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   await page.getByRole('button', { name: 'View', exact: true }).click()
   await page.reload()
   await expect(page.getByRole('button', { name: 'View', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  // Viewing shows the list the way anybody else reading it does: no picker, no card menus.
-  await expect(page.getByLabel('Add a unit')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Add units', exact: true })).toHaveCount(0)
+  // The owner keeps the picker while viewing the roster without its card or loadout controls.
+  await expect(page.getByLabel('Add a unit')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add Immortals', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /Unit actions for Immortals/ })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/owner-view-sidebar.png', fullPage: true })
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByRole('button', { name: /More models in Immortals/ })).toHaveCount(0)
   // What the datasheet says about the unit is a fact about it, not an edit.
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
 
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('dialog', { name: 'Loadout' }).getByRole('button', { name: 'Back to roster' }).click()
+  await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Add units', exact: true }).click()
+  const compactPicker = page.getByRole('dialog', { name: 'Add units' })
+  await expect(compactPicker.getByLabel('Add a unit')).toBeVisible()
+  await expect
+    .poll(() => page.locator('[data-slot="drawer-popup"]').evaluate((element) => getComputedStyle(element).transform))
+    .toBe('matrix(1, 0, 0, 1, 0, 0)')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  expect(await compactPicker.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/owner-view-sidebar-phone.png', fullPage: true })
+  await compactPicker.getByRole('button', { name: 'Close' }).click()
+
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await page.getByRole('button', { name: 'Build', exact: true }).click()
   await expect(page.getByLabel('Add a unit')).toBeVisible()
   await expect(page.getByRole('button', { name: /Unit actions for Immortals/ })).toBeVisible()
