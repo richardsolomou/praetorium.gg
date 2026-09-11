@@ -97,7 +97,7 @@ function Welcome({ name, newBattle }: { name: string; newBattle?: ReactNode }) {
         </div>
         <div className="flex flex-wrap gap-2">
           {newBattle}
-          <Button render={<Link to="/rosters/new" />} variant="outline">
+          <Button render={<Link to="/rosters/new" />} variant="outline" nativeButton={false}>
             Build a roster
           </Button>
         </div>
@@ -187,7 +187,7 @@ function FriendTables({ battles, explain }: { battles: readonly Battle[]; explai
       <p className="rubric border-b border-edge pb-2">Friends' games</p>
       <div className="mt-2 flex flex-col gap-4 border border-edge bg-panel p-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-dim">Your friends' games appear here, apart from the ones you are already sitting in.</p>
-        <Button render={<Link to="/friends" />} variant="outline" className="shrink-0">
+        <Button render={<Link to="/friends" />} variant="outline" className="shrink-0" nativeButton={false}>
           <Users /> Your friends
         </Button>
       </div>
