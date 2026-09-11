@@ -435,6 +435,7 @@ function detachmentRuleCards(rules: unknown, faction: string, sections: SectionP
 }
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' }
+const TABLE = /<table>[^]*?(?:<\/table>|$)/g
 
 /**
  * Card prose as the app's markdown.
@@ -443,9 +444,15 @@ const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"'
  * `<b>` around emphasis, which `RuleText` reads as `**…**` the way the catalogues
  * already write them; `<ul>`/`<li>` for the lists a card prints; `<u>` and `<i>`
  * that carry nothing the app renders. Line breaks are the card's own and are kept.
+ *
+ * A table is the one thing Markdown has no reading for, so its rows are held back
+ * whole and handed on as the source wrote them: `RuleText` draws those with the
+ * reader that knows the source's own markup.
  */
 export function prose(text: string) {
+  const tables: string[] = []
   const converted = text
+    .replaceAll(TABLE, (table) => `\uE000${tables.push(table) - 1}\uE000`)
     .replaceAll('\r', '\n')
     .replaceAll(/<\/?(?:k|b)>/g, '**')
     .replaceAll(/<\/?(?:u|i)>/g, '')
@@ -464,7 +471,7 @@ export function prose(text: string) {
     previous = tight
     tight = tight.replace(/(^|\n)(- [^\n]*)\n\n(?=- )/, '$1$2\n')
   }
-  return tight.trim()
+  return tight.trim().replaceAll(/\uE000(\d+)\uE000/g, (_, at: string) => tables[Number(at)] ?? '')
 }
 
 /** A stratagem's card, section by section, in the order the card prints them. */

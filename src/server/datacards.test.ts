@@ -542,3 +542,9 @@ describe('army-construction restrictions', () => {
     ]).toEqual([{ keyword: null }, null, { keyword: 'Psyker' }, null])
   })
 })
+
+it('hands a card\u2019s table on as the source wrote it', () => {
+  expect(prose('Roll one D6:\r<table>\r<tr><td>1‑2</td>\r<td>+1<b> A</b></td></tr></table>\rThen <b>fight</b>.')).toBe(
+    'Roll one D6:\n<table>\r<tr><td>1‑2</td>\r<td>+1<b> A</b></td></tr></table>\nThen **fight**.',
+  )
+})
