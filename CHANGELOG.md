@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.64.1
+
+### Patch Changes
+
+- 83a9386: Show the unit composition and model count correctly on datasheets whose source writes the composition as an HTML list.
+- 83a9386: Read the underline the catalogue writes around a word in an ability instead of printing the tag.
+
 ## 0.64.0
 
 ### Minor Changes
