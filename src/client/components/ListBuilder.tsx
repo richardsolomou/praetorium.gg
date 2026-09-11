@@ -21,6 +21,7 @@ import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { attachedUnitCount } from '../../core/attachedUnits'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../core/battle'
 import { type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
@@ -439,7 +440,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
         },
       }),
     onSuccess: async ({ id }) => {
-      posthog.capture('roster_duplicated', { unit_count: positioned.length, shared: true })
+      posthog.capture('roster_duplicated', { unit_count: attachedUnitCount(picks), shared: true })
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id } })
     },
@@ -504,18 +505,29 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   const shareLabel = shareFeedback === 'shared' ? 'Link shared' : shareFeedback === 'copied' ? 'Link copied' : 'Share link'
   const rosterLoading = !frozen && priceLoading && picks.length > 0
   const edit = useMemo(() => pickEditor(setPicks, { catalogueId, units }, allocateKey), [allocateKey, catalogueId, setPicks, units])
-  const editor = useRef({ edit, pickCount: picks.length })
+  const editor = useRef(edit)
+  /**
+   * What an edit reports is the list it leaves behind, read once the edit has landed.
+   * The size of a list is not the number of picks in it, so no edit is a reliable
+   * step of one: duplicating an attached character adds a pick to a unit that was
+   * already there, and dropping the unit it joined leaves it standing on its own.
+   */
+  const reporting = useRef<'roster_unit_added' | 'roster_unit_removed' | 'roster_unit_duplicated' | null>(null)
   useLayoutEffect(() => {
-    editor.current = { edit, pickCount: picks.length }
-  }, [edit, picks.length])
+    editor.current = edit
+    const event = reporting.current
+    if (!event) return
+    reporting.current = null
+    posthog.capture(event, { unit_count: attachedUnitCount(picks) })
+  }, [edit, picks])
   const drop = useCallback((index: number) => {
-    editor.current.edit.drop(index)
-    posthog.capture('roster_unit_removed', { unit_count: editor.current.pickCount - 1 })
+    editor.current.drop(index)
+    reporting.current = 'roster_unit_removed'
     setSelected(null)
   }, [])
   const add = useCallback((entryId: string) => {
-    editor.current.edit.add(entryId)
-    posthog.capture('roster_unit_added', { unit_count: editor.current.pickCount + 1 })
+    editor.current.add(entryId)
+    reporting.current = 'roster_unit_added'
   }, [])
   const inspect = useCallback(
     (previewCatalogueId: string, entryId: string, unitName: string) => {
@@ -529,11 +541,11 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   )
   const previewUnit = useCallback((entryId: string, unitName: string) => inspect(catalogueId, entryId, unitName), [catalogueId, inspect])
   const duplicate = useCallback((index: number) => {
-    editor.current.edit.duplicate(index)
-    posthog.capture('roster_unit_duplicated', { unit_count: editor.current.pickCount + 1 })
+    editor.current.duplicate(index)
+    reporting.current = 'roster_unit_duplicated'
   }, [])
   const join = useCallback((index: number, targetKey: number | undefined) => {
-    editor.current.edit.join(index, targetKey)
+    editor.current.join(index, targetKey)
     posthog.capture('roster_attachment_updated', { attached: targetKey !== undefined })
   }, [])
   const selection = useRef({ picks, updateLoadoutHistory, workspacePath })
@@ -586,6 +598,9 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
         },
       }))
     : units.map((unit, index) => ({ index, group: unit.group, joined: NO_JOINED, unit }))
+  // The shelves draw a card per datasheet; the header says how many units the list
+  // brings, which is the same fold the library and the battle count it by.
+  const fieldedUnitCount = frozen ? attachedUnitCount(frozen.units) : attachedUnitCount(picks)
   const selectedUnit = selected === null ? null : (units[selected] ?? null)
   const frozenSelected = frozen && selected !== null ? (frozen.units[selected] ?? null) : null
   // Frozen selections are what a datasheet is applied to; a log written without them
@@ -711,7 +726,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
         faction={faction}
         factionLoading={factionLoading}
         limit={limit}
-        unitCount={cards.length}
+        unitCount={fieldedUnitCount}
         detachments={
           frozen
             ? frozen.detachments

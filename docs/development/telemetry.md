@@ -23,6 +23,8 @@ ordinary clicks remain autocaptured.
 
 `battle_command_submitted` contains the command kind and outcome. It does not contain the command payload. Datasheet metrics separate server work, request time, and render time. Performance events contain durations and workload counts only.
 
+`unit_count` on a roster event is how many units the list fields, counting a character inside the unit it joined, as `attachedUnitCount` folds it. The events that measure a request rather than a list — `roster_priced`, `roster_imported`, `roster_exported`, `roster_datasheet_loaded` — count the picks in that payload instead.
+
 Builder events cover structural roster changes, not autosave or each loadout
 stepper click. Search events carry only the bounded result group and result count;
 import failures carry only a bounded reason and input kind.
