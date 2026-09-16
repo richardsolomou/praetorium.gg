@@ -46,7 +46,8 @@ test('a fielded roster opens as the frozen read-only roster view', async ({ page
   await expect(loadout).toBeHidden()
   await expect(unit).toBeVisible()
 
-  await page.getByRole('banner', { name: 'Application' }).getByRole('button', { name: 'Back to battle' }).click()
+  await expect(page.getByRole('button', { name: 'Back to battle' })).toHaveCount(0)
+  await page.goBack()
   await expect(page).toHaveURL(`/battles/${token}`)
   await expect(page.getByRole('navigation', { name: 'Setup sections' })).toBeVisible()
 })

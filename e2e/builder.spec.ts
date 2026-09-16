@@ -288,7 +288,7 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await context.close()
 })
 
-test('native roster details keep back actions in one place and participate in browser history', async ({ page }) => {
+test('native roster details use pane history without adding a route back action', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
   await add(page, 'Lychguard')
@@ -299,9 +299,8 @@ test('native roster details keep back actions in one place and participate in br
   const rosterUrl = page.url()
   const unit = page.locator('[data-unit="Lychguard"]')
   const unitButton = unit.getByRole('button', { name: 'Lychguard', exact: true })
-  const nativeHeader = page.getByRole('banner', { name: 'Application' })
   const sections = page.getByRole('navigation', { name: 'Application sections' })
-  await expect(nativeHeader).toBeVisible()
+  await expect(page.getByRole('banner', { name: 'Application' })).toHaveCount(0)
   await expect(sections).toBeVisible()
   await expect(sections.getByRole('link', { name: 'Rosters' })).toHaveAttribute('aria-current', 'page')
 
@@ -325,8 +324,7 @@ test('native roster details keep back actions in one place and participate in br
   await expect(loadout).toBeHidden()
   await expect(unit).toBeVisible()
   await expect(unitButton).toBeFocused()
-  const routeBack = nativeHeader.getByRole('button', { name: 'Back to rosters' })
-  expect((await routeBack.boundingBox())?.x).toBe(backBox?.x)
+  await expect(page.getByRole('button', { name: 'Back to rosters' })).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   expect(await page.locator('[data-slot="roster-units"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/compact-roster-after-back-phone.png', fullPage: true })
