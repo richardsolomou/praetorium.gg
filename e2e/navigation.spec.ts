@@ -879,8 +879,10 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   const page = await context.newPage()
   const sections = page.getByRole('navigation', { name: 'Application sections' })
 
-  await page.goto('/factions/necrons/datasheets/overlord')
-  await page.mouse.wheel(0, 600)
+  await page.goto('/factions/dark-angels/datasheets/deathwing-terminator-squad')
+  const viewportHeight = await page.evaluate(() => window.innerHeight)
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeGreaterThan(viewportHeight)
+  await page.evaluate(() => window.scrollTo(0, 600))
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
   const factionScroll = await page.evaluate(() => window.scrollY)
   // The missions tab lands on the current pack, so its memory is that redirect.
@@ -888,7 +890,7 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   await expect(page).toHaveURL(/\/mission-packs\//)
 
   await sections.getByRole('link', { name: 'Factions' }).click()
-  await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
+  await expect(page).toHaveURL('/factions/dark-angels/datasheets/deathwing-terminator-squad')
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(factionScroll)
 
   // The section you are already in has one obvious destination left: its top.
