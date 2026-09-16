@@ -55,22 +55,27 @@ export function Pane({
   const returnFocus = useRef<HTMLElement>(null)
   const [compactLoadout, setCompactLoadout] = useState(false)
   /*
-   * A compact loadout is a dialog on the website and a screen in the application,
-   * where the tab bar stays beside it. A screen does not take the page hostage:
+   * A compact loadout is a screen wherever the application tab bar is visible and
+   * a dialog at intermediate web widths. A screen does not take the page hostage:
    * keeping `aria-modal` and a focus trap here would hide tabs a thumb can reach.
    */
   const [screen, setScreen] = useState(false)
 
   useLayoutEffect(() => {
     if (variant !== 'loadout') return
-    const media = window.matchMedia('(max-width: 1023px)')
+    const compact = window.matchMedia('(max-width: 1023px)')
+    const applicationNavigation = window.matchMedia('(max-width: 859px)')
     const sync = () => {
-      setCompactLoadout(media.matches)
-      setScreen(media.matches && document.documentElement.dataset.nativeApp === 'true')
+      setCompactLoadout(compact.matches)
+      setScreen(compact.matches && (applicationNavigation.matches || document.documentElement.dataset.nativeApp === 'true'))
     }
     sync()
-    media.addEventListener('change', sync)
-    return () => media.removeEventListener('change', sync)
+    compact.addEventListener('change', sync)
+    applicationNavigation.addEventListener('change', sync)
+    return () => {
+      compact.removeEventListener('change', sync)
+      applicationNavigation.removeEventListener('change', sync)
+    }
   }, [variant])
 
   useEffect(() => {

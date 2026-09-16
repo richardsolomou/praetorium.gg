@@ -218,6 +218,31 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await context.close()
 })
 
+test('a mobile web unit screen keeps the tab bar beside it', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
+  const page = await context.newPage()
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await add(page, 'Intercessor Squad')
+  await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
+  await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
+  await expect(loadout).toBeVisible()
+  await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
+  await expect(loadout).not.toHaveAttribute('aria-modal', 'true')
+  expect(await loadout.evaluate((pane) => Math.round(pane.getBoundingClientRect().bottom))).toBe(
+    await sections.evaluate((tabs) => Math.round(tabs.getBoundingClientRect().top)),
+  )
+  expect(await sections.evaluate((tabs) => (tabs as HTMLElement).inert)).toBe(false)
+  await page.screenshot({ path: 'test-results/intercessor-web-phone.png', fullPage: true })
+
+  await sections.getByRole('link', { name: 'Factions' }).click()
+  await expect(page).toHaveURL('/factions')
+
+  await context.close()
+})
+
 test('the roster tab comes back to the unit it was left on', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript({
@@ -362,9 +387,19 @@ test('portrait tablets keep roster details as a full-screen view', async ({ page
   await page.setViewportSize({ width: 820, height: 1180 })
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
   await expect(loadout).toHaveCSS('position', 'fixed')
+  await expect(loadout).not.toHaveAttribute('aria-modal', 'true')
+  await expect(sections).toBeVisible()
+  expect(await sections.evaluate((tabs) => (tabs as HTMLElement).inert)).toBe(false)
+  expect(await loadout.evaluate((pane) => Math.round(pane.getBoundingClientRect().bottom))).toBe(
+    await sections.evaluate((tabs) => Math.round(tabs.getBoundingClientRect().top)),
+  )
+  await page.setViewportSize({ width: 900, height: 1180 })
+  await expect(loadout).toHaveAttribute('aria-modal', 'true')
+  await expect(sections).toBeHidden()
   await expect(loadout.getByRole('button', { name: 'Back to roster' })).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(820)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(900)
   expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/compact-roster-details-tablet.png', fullPage: true })
 
@@ -501,7 +536,7 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
 
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.getByRole('dialog', { name: 'Loadout' }).getByRole('button', { name: 'Back to roster' }).click()
+  await loadout.getByRole('button', { name: 'Back to roster' }).click()
   await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   const compactPicker = page.getByRole('dialog', { name: 'Add units' })

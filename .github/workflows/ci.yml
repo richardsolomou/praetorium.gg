@@ -42,6 +42,7 @@ jobs:
       - name: Name the image
         id: image
         env:
+          HEAD_REF: ${{ github.head_ref }}
           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_SHA: ${{ github.event.pull_request.head.sha }}
@@ -49,7 +50,7 @@ jobs:
           {
             if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
               echo "local-image=praetorium.gg:preview-pr-$PR_NUMBER-sha-$PR_SHA"
-              if [[ "$HEAD_REPOSITORY" != "$GITHUB_REPOSITORY" ]]; then
+              if [[ "$HEAD_REPOSITORY" != "$GITHUB_REPOSITORY" || "$HEAD_REF" == release-candidate/* ]]; then
                 echo "artifact-name=preview-image-$PR_NUMBER"
                 echo "source=artifact"
               else
