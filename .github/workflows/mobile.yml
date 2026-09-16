@@ -89,6 +89,8 @@ jobs:
         working-directory: mobile
         run: pnpm dlx eas-cli@23.2.0 update --platform ios --channel "$MOBILE_UPDATE_CHANNEL" --environment "$EAS_ENVIRONMENT" --message "$GITHUB_SHA" --non-interactive
       - name: Sync App Store metadata
+        env:
+          EXPO_APPLE_TEAM_ID: A3X8464573
         working-directory: mobile
         run: pnpm dlx eas-cli@23.2.0 metadata:push --profile production --non-interactive
       - name: Store Xcode diagnostics
