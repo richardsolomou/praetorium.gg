@@ -296,6 +296,14 @@ const drawPrompt = (page: Page) => page.getByRole('dialog', { name: /secondary m
 /** What the turn the other side just finished owed this one, asked as the turn arrives. */
 const owedPrompt = (page: Page) => page.getByRole('dialog', { name: /^Scoring end of their turn/ })
 
+export async function dismissBattleReminder(page: Page) {
+  const reminder = page.getByRole('dialog', { name: /^Battle reminders?$/ })
+  if (!(await reminder.isVisible().catch(() => false))) return false
+  await reminder.getByRole('button', { name: /^(Dismiss|End the phase|Continue to end of turn)$/ }).click()
+  await expect(reminder).toBeHidden()
+  return true
+}
+
 async function clearDrawPrompt(prompt: Locator) {
   const done = prompt.getByRole('button', { name: 'Take the turn' })
   const mustReturn = prompt
@@ -376,12 +384,15 @@ export async function takeTheTurn(page: Page) {
 /**
  * Ends the current phase, clearing whatever stands in front of it.
  *
- * A tactical hand is dealt as a turn opens, and a card that pays at the end of the
- * phase or turn asks for its points as that moment passes. Both are modal, which
- * takes the board out of the accessibility tree until they are answered.
+ * A tactical hand is dealt as a turn opens, a personal reminder can appear at a
+ * phase boundary, and a card that pays at the end of the phase or turn asks for
+ * its points as that moment passes. Each is modal, which takes the board out of
+ * the accessibility tree until it is answered.
  */
-export async function advance(page: Page) {
+export async function advance(page: Page, { dismissReminders = true }: { dismissReminders?: boolean } = {}) {
+  const reminder = page.getByRole('dialog', { name: /^Battle reminders?$/ })
   for (let guard = 0; guard < 3; guard += 1) {
+    if (dismissReminders && (await dismissBattleReminder(page))) continue
     for (const [kind, prompt] of [
       ['owed', owedPrompt(page)],
       ['draw', drawPrompt(page)],
@@ -406,18 +417,21 @@ export async function advance(page: Page) {
       for (let promptGuard = 0; promptGuard < 8; promptGuard += 1) {
         await expect
           .poll(async () =>
-            (await scoring.isVisible().catch(() => false))
-              ? 'scoring'
-              : (await discard.isVisible().catch(() => false))
-                ? 'discard'
-                : (await owed.isVisible().catch(() => false))
-                  ? 'owed'
-                  : (await phase.textContent()) === before
-                    ? 'waiting'
-                    : 'advanced',
+            dismissReminders && (await reminder.isVisible().catch(() => false))
+              ? 'reminder'
+              : (await scoring.isVisible().catch(() => false))
+                ? 'scoring'
+                : (await discard.isVisible().catch(() => false))
+                  ? 'discard'
+                  : (await owed.isVisible().catch(() => false))
+                    ? 'owed'
+                    : (await phase.textContent()) === before
+                      ? 'waiting'
+                      : 'advanced',
           )
           .not.toBe('waiting')
         if ((await phase.textContent()) !== before) break
+        if (dismissReminders && (await dismissBattleReminder(page))) continue
         if (await scoring.isVisible().catch(() => false)) {
           await scoring.getByRole('button', { name: /^(Pass the turn|End the phase)$/ }).click({ timeout: 3_000 })
           await expect(scoring).toBeHidden()
@@ -438,7 +452,7 @@ export async function advance(page: Page) {
   }
 }
 
-export async function startBattle(page: Page, firstSide?: string, takeOpeningTurn = true) {
+export async function startBattle(page: Page, firstSide?: string, takeOpeningTurn = true, openingSecondaries: readonly string[] = []) {
   await chooseBattlefield(page)
   await setupStep(page, 'Secondaries')
   // One per side this table settles cards for, so every one of them has to be ready.
@@ -455,6 +469,14 @@ export async function startBattle(page: Page, firstSide?: string, takeOpeningTur
       .first(),
   ).toBeVisible()
   if (takeOpeningTurn) {
+    if (openingSecondaries.length) {
+      const prompt = page.getByRole('dialog', { name: /secondary missions$/ })
+      await prompt.getByRole('button', { name: 'Select missions' }).click()
+      for (const card of openingSecondaries) await prompt.getByRole('button', { name: `Select ${card}`, exact: true }).click()
+      await prompt.getByRole('button', { name: 'Add selected missions' }).click()
+      await expect(prompt.locator('[data-drawn]')).toHaveCount(openingSecondaries.length)
+      await expect(prompt.getByRole('button', { name: 'Draw at random' })).toBeHidden()
+    }
     await takeTheTurn(page)
     await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
   }
@@ -468,7 +490,14 @@ export async function setupBattle(
     hostRoster,
     guestRoster,
     beforeStart,
-  }: { opponent: string; hostRoster: string; guestRoster: string; beforeStart?: () => Promise<void> },
+    openingSecondaries,
+  }: {
+    opponent: string
+    hostRoster: string
+    guestRoster: string
+    beforeStart?: () => Promise<void>
+    openingSecondaries?: readonly string[]
+  },
 ) {
   await befriend(host, guest)
   const url = await createBattle(host, { opponent })
@@ -485,7 +514,7 @@ export async function setupBattle(
     await setupStep(host, 'Secondaries')
     await beforeStart()
   }
-  await startBattle(host)
+  await startBattle(host, undefined, true, openingSecondaries)
   await expect(guest.getByRole('heading', { name: 'command phase' })).toBeVisible()
   return url
 }

@@ -86,9 +86,16 @@ describe('the environment a preview runs with', () => {
     })
   })
 
-  it('passes the snapshot mirror through when one is configured', () => {
-    const entries = built({ PREVIEW_DATABASE_ADMIN_URL: ADMIN, S3_PUBLIC_BASE_URL: 'https://example.test/c' })
-    expect(entries.S3_PUBLIC_BASE_URL).toBe('https://example.test/c')
+  it('passes public storage and the catalogue mirror through independently', () => {
+    const entries = built({
+      PREVIEW_DATABASE_ADMIN_URL: ADMIN,
+      S3_PUBLIC_BASE_URL: 'https://example.test/pictures',
+      CATALOGUE_BASE_URL: 'https://example.test/catalogue',
+    })
+    expect(entries).toMatchObject({
+      S3_PUBLIC_BASE_URL: 'https://example.test/pictures',
+      CATALOGUE_BASE_URL: 'https://example.test/catalogue',
+    })
   })
 
   // A preview is one replica, and a shared Valkey would put every preview's

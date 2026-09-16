@@ -18,6 +18,7 @@ import {
 } from './loadoutModel'
 import { EitherChoice, LoadoutLoading, SpecialChoice, SpreadChoice } from './LoadoutControls'
 import { ModelCard } from './ModelCard'
+import type { ReminderControls } from '../rosters/ReminderButton'
 
 type Props = {
   catalogueId: string
@@ -34,6 +35,7 @@ type Props = {
   reference?: ReactElement<{ providedSheet?: Datasheet | null }>
   /** A persisted read-only roster can be resolved without sending its picks. */
   persistedRoster?: { id: string; battle?: string }
+  reminders?: ReminderControls
 }
 
 /**
@@ -58,6 +60,7 @@ export function Loadout({
   showOptions = true,
   reference,
   persistedRoster,
+  reminders,
 }: Props) {
   const posthog = usePostHog()
   const timing = useRef<{ request: number; resolvedAt: number } | null>(null)
@@ -184,6 +187,7 @@ export function Loadout({
                       onChoose={onChoose}
                       showOptions={showOptions}
                       highlightSelection={showOptions}
+                      reminders={reminders}
                     />
                   ) : choice.room > 1 && !choice.uniform ? (
                     <SpreadChoice

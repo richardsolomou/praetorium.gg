@@ -50,6 +50,42 @@ it('freezes unit wounds and reserve exemptions into a roster snapshot', () => {
   })
 })
 
+it('freezes enabled reminders into a roster snapshot', () => {
+  const reminder = {
+    key: 'faction:oath-of-moment:army',
+    ability: 'Oath of Moment',
+    description: 'At the start of your Command phase, select one enemy unit.',
+    timings: [{ moment: 'phase-start' as const, phase: 'command' as const, turn: 'your-turn' as const }],
+  }
+  const roster = rosterSnapshot(
+    {
+      id: 'roster',
+      name: 'Army',
+      catalogueId: 'catalogue',
+      detachmentIds: [],
+      disposition: null,
+      limit: 2_000,
+      waivedRules: [],
+      picks: [],
+      reminders: [reminder],
+      remindersEnabled: true,
+    },
+    {
+      points: 0,
+      revision: 'revision',
+      label: 'GTF 2K',
+      detachment: null,
+      detachments: [],
+      detachmentPointBudget: null,
+      disposition: null,
+      units: [],
+    },
+    [],
+  )
+
+  expect(roster).toMatchObject({ reminders: [reminder], remindersEnabled: true })
+})
+
 it('freezes catalogue-derived Warlord eligibility into a roster snapshot', () => {
   const roster = rosterSnapshot(
     {

@@ -6,8 +6,15 @@ import { type BattleEvents, RealtimePublisher } from '../adapters/events'
 import { serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type LoadedRules, loadRules } from './rules'
-import { fetchCurrentSnapshot, installedSnapshot } from './catalogueSnapshot'
-import { DEFAULT_S3_PUBLIC_BASE_URL } from './objectStorage'
+import {
+  catalogueBaseUrl,
+  catalogueLock,
+  catalogueUpdateMode,
+  fetchCurrentSnapshot,
+  fetchPinnedSnapshot,
+  installSnapshotArchive,
+  installedSnapshot,
+} from './catalogueSnapshot'
 import type { SyncState } from './sync'
 import { databaseUrl, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
@@ -61,11 +68,26 @@ const sync = {
   running: false,
   begin(directory: string, onReady: () => void) {
     if (this.running) return
+    const archive = process.env.CATALOGUE_SNAPSHOT_FILE?.trim()
+    if (archive && installedSnapshot(directory)?.id !== catalogueLock.pointer.id) {
+      try {
+        installSnapshotArchive(directory, archive)
+      } catch (error) {
+        this.state = { status: 'failed', detail: error instanceof Error ? error.message : 'the offline catalogue could not be installed' }
+        return
+      }
+    }
     const authoritativeReady = Boolean(installedSnapshot(directory))
-    const baseUrl = process.env.S3_PUBLIC_BASE_URL || DEFAULT_S3_PUBLIC_BASE_URL
+    const mode = catalogueUpdateMode()
+    if (mode === 'off') {
+      this.state = authoritativeReady ? { status: 'ready', detail: null } : { status: 'absent', detail: null }
+      return
+    }
+    const baseUrl = catalogueBaseUrl()
+    const fetch = mode === 'pinned' ? fetchPinnedSnapshot : fetchCurrentSnapshot
     this.running = true
     this.state = authoritativeReady ? { status: 'ready', detail: null } : { status: 'working', detail: 'fetching the community data' }
-    void fetchCurrentSnapshot(directory, baseUrl, (message) => {
+    void fetch(directory, baseUrl, (message) => {
       if (!authoritativeReady) this.state = { status: 'working', detail: message }
     })
       .then(() => {
@@ -73,7 +95,7 @@ const sync = {
         onReady()
       })
       .catch((error: unknown) => {
-        this.state = authoritativeReady
+        this.state = installedSnapshot(directory)
           ? { status: 'ready', detail: null }
           : { status: 'failed', detail: error instanceof Error ? error.message : 'the fetch failed' }
       })

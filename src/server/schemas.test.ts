@@ -175,4 +175,22 @@ describe('saved roster input', () => {
   it('still refuses a name longer than a list can carry', () => {
     expect(saveRosterSchema.safeParse({ ...roster, name: 'a'.repeat(81) }).success).toBe(false)
   })
+
+  it('keeps ability reminders with their roster', () => {
+    const reminder = {
+      key: 'datasheet:living-lightning:0',
+      ability: 'Living Lightning',
+      description: 'In your Shooting phase, select one enemy unit.',
+      unit: { index: 0, name: 'Plasmancer' },
+      timings: [{ moment: 'phase-start', phase: 'shooting', turn: 'your-turn' }],
+    }
+
+    expect(
+      saveRosterSchema.parse({
+        ...roster,
+        name: 'Awakened Dynasty',
+        prep: { stratagems: [], secondaries: [], reminders: [reminder], remindersEnabled: false },
+      }).prep,
+    ).toMatchObject({ reminders: [reminder], remindersEnabled: false })
+  })
 })

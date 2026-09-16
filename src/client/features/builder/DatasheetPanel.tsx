@@ -19,6 +19,7 @@ import {
 } from '../../datasheet'
 import { RuleText } from '../../components/RuleText'
 import { ProfileRules } from '../../components/ProfileRules'
+import { ReminderButton, type ReminderControls } from '../rosters/ReminderButton'
 
 type Props = {
   catalogueId: string
@@ -33,6 +34,7 @@ type Props = {
   showRelationships?: boolean
   onRelationshipSelect?: (entryId: string, name: string) => void
   onReferenceRoute?: (reference: { entryId: string; route: Datasheet['referenceRoute'] } | null) => void
+  abilityReminders?: ReminderControls
 }
 
 export function DatasheetPanel({
@@ -48,6 +50,7 @@ export function DatasheetPanel({
   showRelationships = true,
   onRelationshipSelect,
   onReferenceRoute,
+  abilityReminders,
 }: Props) {
   // Only once the player stops changing the list, so a held stepper asks once.
   const detachments = useSettled(detachmentIds)
@@ -91,7 +94,12 @@ export function DatasheetPanel({
       {!hideSummary && showWeapons && melee.length ? (
         <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} />
       ) : null}
-      <AbilitySummary abilities={referenceAbilities(sheet.abilities, sheet.attachments)} rules={sheet.keywordRules} />
+      <AbilitySummary
+        abilities={referenceAbilities(sheet.abilities, sheet.attachments)}
+        rules={sheet.keywordRules}
+        unitName={sheet.name}
+        reminders={abilityReminders}
+      />
       <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} compact />
       {sheet.referenceRoute ? (
         <div className="border-t border-edge pt-3">
@@ -306,7 +314,17 @@ export function WeaponProfile({
   )
 }
 
-function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities']; rules: Datasheet['keywordRules'] }) {
+function AbilitySummary({
+  abilities,
+  rules,
+  unitName,
+  reminders,
+}: {
+  abilities: Datasheet['abilities']
+  rules: Datasheet['keywordRules']
+  unitName: string
+  reminders?: ReminderControls
+}) {
   return Object.entries(abilitySections).map(([kind, title]) => {
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
@@ -322,18 +340,20 @@ function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities'
           </h2>
           <div className="mt-2 flex flex-wrap gap-1">
             {found.map((ability) => (
-              <Keyword
-                key={ability.id}
-                name={ability.name}
-                rules={described}
-                className={
-                  ability.source
-                    ? 'chip inline-flex min-h-6 items-center justify-center border-info/50 bg-info/10 py-0.5 leading-none !text-info hover:!text-bone'
-                    : KEYWORD_TAG_CLASS
-                }
-                note={ability.source ? `Added by ${ability.source}` : undefined}
-                highlightNote={false}
-              />
+              <span key={ability.id} className="inline-flex items-center gap-0.5">
+                <Keyword
+                  name={ability.name}
+                  rules={described}
+                  className={
+                    ability.source
+                      ? 'chip inline-flex min-h-6 items-center justify-center border-info/50 bg-info/10 py-0.5 leading-none !text-info hover:!text-bone'
+                      : KEYWORD_TAG_CLASS
+                  }
+                  note={ability.source ? `Added by ${ability.source}` : undefined}
+                  highlightNote={false}
+                />
+                {reminders ? <ReminderButton subject={ability} unitName={unitName} controls={reminders} /> : null}
+              </span>
             ))}
           </div>
         </section>
@@ -346,8 +366,11 @@ function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities'
         </h2>
         <div className="mt-2 space-y-1.5">
           {found.map((ability) => (
-            <article key={ability.id} className="border border-edge bg-card px-2 py-1.5">
-              <h3 className="text-xs">{ability.source ?? ability.name}</h3>
+            <article key={ability.id} className="relative border border-edge bg-card px-2 py-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="text-xs">{ability.source ?? ability.name}</h3>
+                {reminders ? <ReminderButton subject={ability} unitName={unitName} controls={reminders} /> : null}
+              </div>
               {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
               {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
             </article>

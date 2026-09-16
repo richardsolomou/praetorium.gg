@@ -75,8 +75,10 @@ export function previewEnv(prNumber: string, previewUrl: string, source: Source 
     ['DATABASE_URL', previewDatabaseUrl(admin, prNumber)],
     ['PRAETORIUM_PREVIEW_ADMIN_DATABASE_URL', admin],
   ]
-  const snapshot = value(source, 'S3_PUBLIC_BASE_URL')
-  if (snapshot) entries.push(['S3_PUBLIC_BASE_URL', snapshot])
+  const publicStore = value(source, 'S3_PUBLIC_BASE_URL')
+  if (publicStore) entries.push(['S3_PUBLIC_BASE_URL', publicStore])
+  const catalogue = value(source, 'CATALOGUE_BASE_URL')
+  if (catalogue) entries.push(['CATALOGUE_BASE_URL', catalogue])
   // No VALKEY_URL: a preview is one replica, so sessions and the limiter belong in
   // Postgres and Centrifugo fans out in process. Sharing one Valkey across previews
   // would put every preview's sessions in the same keyspace.

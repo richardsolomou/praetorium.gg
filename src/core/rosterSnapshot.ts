@@ -2,6 +2,7 @@ import type { Attachment } from './attach'
 import { attachmentRows } from './attachmentRows'
 import { type FormatRuleId, type Roster, strategicReserveLimit } from './battle'
 import type { RosterPick } from './roster'
+import type { RosterReminder } from './reminders'
 import type { UnitGroup } from './unitGroups'
 
 type SavedRoster = {
@@ -13,6 +14,8 @@ type SavedRoster = {
   limit: number
   picks: readonly RosterPick[]
   waivedRules: readonly FormatRuleId[]
+  reminders?: readonly RosterReminder[]
+  remindersEnabled?: boolean
 }
 
 type PricedRoster = {
@@ -63,6 +66,12 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds:
     // log and the seat then keep saying that, whatever the library later folds.
     name: saved.name || priced.label,
     id: saved.id,
+    reminders: saved.reminders?.map((reminder) => ({
+      ...reminder,
+      ...(reminder.unit ? { unit: { ...reminder.unit } } : {}),
+      timings: reminder.timings.map((timing) => ({ ...timing })),
+    })),
+    remindersEnabled: saved.remindersEnabled ?? true,
     text: [
       `${priced.points} / ${saved.limit} pts`,
       ...priced.detachments.map(

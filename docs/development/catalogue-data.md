@@ -4,12 +4,12 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 
 ## Sources and loading
 
-- `catalogue/sources.json` defines each upstream source. Revisions and file hashes live in immutable snapshot manifests outside Git.
+- `catalogue/sources.json` defines each upstream source, including its declared licence and attribution. `catalogue/lock.json` pins one verified snapshot for releases and `catalogue/revocations.json` withdraws snapshots or sources. Revisions, provenance, source inventory, and file hashes also live inside each immutable snapshot manifest.
 - The Game Datacards source extracts only `11th/gdc`; data for other games and editions is excluded from snapshots.
 - Mission cards are read from both sources: the rules source says when a payout is due and how a card's payouts relate, and the Game Datacards mission pack says what each one asks for. Game Datacards names army-construction choices; the rules source only adds semantics it uniquely carries. Nothing is joined by a fuzzy match.
 - `catalogue-data/` contains fetched data and is gitignored. Game data and copied rules text never enter version control.
-- An hourly automation checks upstream revisions and publishes a complete immutable snapshot. It replaces the remote `current.json` pointer only after reading and verifying the published archive. A source disagreeing with another about a name is reported there rather than blocking the publish; see [Points ratchet](#points-ratchet).
-- Running instances check that pointer hourly, download a changed snapshot from the shared store, and swap it into place atomically. They never contact an upstream data provider.
+- An hourly automation checks upstream revisions and publishes a complete immutable snapshot. It excludes source-repository files no product or verification reader consumes, publishes revocations, and replaces the remote `current.json` pointer only after reading and verifying the published archive. A source disagreeing with another about a name is reported there rather than blocking the publish; see [Points ratchet](#points-ratchet).
+- The hosted service checks that pointer hourly. Released self-hosted instances use the committed pin unless their operator selects the latest channel. Developers activate the pin from one platform cache shared by every worktree. All three verify a changed snapshot and swap it into place atomically; none contacts an upstream data provider.
 - Community-data requests have a per-attempt timeout and retry only transient network failures, timeouts, rate limits, and server errors. Checksums and invalid data fail immediately.
 - `src/server/sync.ts` fetches upstream data only for the snapshot publisher. `src/server/catalogueSnapshot.ts` owns packing, verification, and instance downloads.
 - Repository sources extract only their configured path. The sync checks archive size, output size, paths, and required contents before replacement.
@@ -84,6 +84,7 @@ Core catalogue code is split by question:
 - A model kind takes its name from its own entries before the catalogue profile. Eleventh-edition profiles often use the squad name, so the preferred name is the one shared by the loadouts, followed by the entry that plainly names the model.
 - The datacards `wargearOptions` groups retain their instruction and equipment names for display beside matching loadout choices. These instructions describe the source rules; catalogue evaluation still decides legality.
 - Index rules declared at the catalogue root as well as shared rules, so links to faction abilities retain their descriptions.
+- Ability, enhancement, and unit-upgrade timing is prose, not structured catalogue data. Roster reminders may suggest one or more phase or turn triggers from familiar wording, including a different turn scope for each trigger, but the player confirms or replaces every suggestion; unfamiliar wording is left blank rather than guessed.
 - Model grouping reads both embedded and linked Unit profiles. Each model variant contributes one row for its equipment bundle, so paired weapons remain one choice. A linked stat line does not merge distinct standing models or models that own separate equipment choices. Nested equipment choices own their displayed pieces; their container does not add another control or another copy to the wargear summary. When a customizable loadout is replaced, its default weapons remain separate boxes; either control restores the shared loadout.
 
 ## Pricing and legality
@@ -143,7 +144,7 @@ That covers agreement between sources and nothing else. An unresolvable upstream
 
 A change that withdraws a choice on purpose reads the same to this job as a field dropped by accident, so `catalogue/accepted-coverage-losses.json` states the withdrawn lines whole, each group with the reason it was withdrawn, and `--accept` takes them out of the count. A line listed there that has stopped being lost fails the run, so the file empties itself rather than growing quietly.
 
-The `coverage` CI job runs this on every pull request. It syncs the catalogue once, snapshots the base and the head against that one `revision.json`, and fails when the head lost any of what the base could say. Construction-name comparisons first discard stale base names that the current Game Datacards snapshot does not enumerate; rules-source-only names are a reported source gap, not coverage the app preserves. A dropped field on an authoritative card still renders, so this gate is the only signal that catches it.
+The `coverage` CI job runs this on every pull request. It syncs the catalogue once, snapshots the base and the head in parallel against that one `revision.json`, and fails when the head lost any of what the base could say. Each snapshot splits the factions between three local workers, then merges their deterministically ordered output. The base result is cached by commit and catalogue snapshot, so another run against the same inputs only measures the head. Construction-name comparisons first discard stale base names that the current Game Datacards snapshot does not enumerate; rules-source-only names are a reported source gap, not coverage the app preserves. A dropped field on an authoritative card still renders, so this gate is the only signal that catches it.
 
 ## 40kdc parity
 

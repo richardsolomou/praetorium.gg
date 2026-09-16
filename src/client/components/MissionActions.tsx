@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import type { MissionAction } from '../../contracts/missions'
+import { missionActionText } from '../missionActionReminders'
 import { RuleText } from './RuleText'
 
 /**
@@ -21,15 +22,7 @@ export function MissionActions({ actions, className }: { actions: MissionAction[
 }
 
 function ActionBlock({ action }: { action: MissionAction }) {
-  const lines: [string, string | null][] = [
-    ['Starts', action.starts],
-    ['Completes', action.completes],
-    ['Effect', action.effect],
-    ['Units', action.units],
-    ['Use limit', action.useLimit],
-    ['Restriction', action.restriction],
-  ]
-  const text = lines.flatMap(([label, line]) => (line ? [`**${label}:** ${line}`] : [])).join('\n\n')
+  const text = missionActionText(action)
   return (
     <div className="border border-edge bg-sunken p-3">
       <div className="flex flex-wrap items-baseline gap-2">

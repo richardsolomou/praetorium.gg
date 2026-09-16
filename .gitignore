@@ -12,6 +12,6 @@ src/routeTree.gen.ts
 .DS_Store
 .claude/settings.local.json
 test-results/
-catalogue-data/
+catalogue-data
 catalogue-current.json
 catalogue-snapshot.zip

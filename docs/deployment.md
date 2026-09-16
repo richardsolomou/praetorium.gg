@@ -17,7 +17,7 @@ docker compose up -d
 
 `VALKEY_URL` is optional. Valkey holds sessions, sign-in rate limits, and realtime fan-out. One-replica deployments work without it; multiple replicas require it.
 
-`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` point the app at an S3-compatible store — Compose's bundled MinIO by default. A profile picture is uploaded there, keyed by its own hash, and only that short URL is written to the database; without this set, uploading one fails with a clear error instead of storing the picture somewhere it should not be. `S3_PUBLIC_BASE_URL` is where a browser reads those pictures (and, unset, the community catalogue) back from — Compose points it at MinIO's published port; production behind a proxy should point it at that store's public hostname instead.
+`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` point the app at an S3-compatible store — Compose's bundled MinIO by default. A profile picture is uploaded there, keyed by its own hash, and only that short URL is written to the database; without this set, uploading one fails with a clear error instead of storing the picture somewhere it should not be. `S3_PUBLIC_BASE_URL` is where a browser reads those pictures. Compose points it at MinIO's published port; production behind a proxy should point it at that store's public hostname instead.
 
 The `/data` volume no longer holds game data. What remains is:
 
@@ -39,9 +39,17 @@ just db-migrate
 
 ## Catalogue sync
 
-At startup and once an hour, the app reads `current.json` from Praetorium's shared public snapshot service, or from `S3_PUBLIC_BASE_URL` when an operator configures a mirror. It downloads an archive only when that immutable snapshot ID differs from its local cache, verifies the archive, manifest, and every file, then swaps the complete directory into place atomically. Battles remain available while an initial snapshot downloads.
+Docker Compose defaults `CATALOGUE_UPDATE_MODE` to `pinned`, so a released application reads the snapshot in `catalogue/lock.json`. Set it to `latest` to check `current.json` hourly, or `off` to use only an installed snapshot. The hosted service follows `latest`. `CATALOGUE_BASE_URL` can point at an operator's mirror and otherwise defaults to Praetorium's shared snapshot service independently of profile-picture storage. A download occurs only when the requested immutable snapshot differs from the local cache; the app verifies the archive, manifest, source inventory, revisions, revocations, and every file before swapping the complete directory into place atomically. Battles remain available while an initial snapshot downloads.
 
 Running instances never contact upstream data providers. A separate hourly publisher resolves their latest revisions, validates a complete candidate, uploads its immutable archive, and replaces `current.json` only after a public read-back succeeds.
+
+### Offline catalogue
+
+Run `just catalogue-bundle` on an internet-connected checkout, copy `catalogue-snapshot.zip` to `DATA_HOST_DIR`, and set `CATALOGUE_SNAPSHOT_FILE=/data/catalogue-snapshot.zip`. The container verifies and installs that release-pinned archive before applying its update mode. With `CATALOGUE_UPDATE_MODE=pinned`, a matching installed bundle starts without requesting the archive again.
+
+### Withdrawal controls
+
+`catalogue/revocations.json` rejects individual snapshot IDs and every snapshot that declares a named source. `CATALOGUE_DISABLED_SOURCES` accepts a comma-separated subset of `definitions`, `points`, `rules`, `datacards`, and `battlemaster`; a snapshot containing one is rejected. The publisher uses the same setting to omit a source from the next snapshot. Removing `definitions` leaves battles available but disables catalogue-backed roster work.
 
 ## One container, three processes
 

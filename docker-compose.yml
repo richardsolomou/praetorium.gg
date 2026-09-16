@@ -23,10 +23,9 @@ services:
       APP_URL: ${APP_URL:-}
       APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
       ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS: ${ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS:-}
-      # Where profile pictures are uploaded to, and (unset) the community catalogue
-      # is mirrored from. Compose's own MinIO by default; point at any
-      # S3-compatible store instead, with S3_PUBLIC_BASE_URL set to wherever it is
-      # publicly reachable.
+      # Where profile pictures are uploaded. Compose's own MinIO by default;
+      # point at any S3-compatible store instead, with S3_PUBLIC_BASE_URL set to
+      # wherever it is publicly reachable.
       S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
       S3_BUCKET: ${S3_BUCKET:-praetorium}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-praetorium}
@@ -35,6 +34,13 @@ services:
       # deployment behind a domain must set this to wherever the store is
       # actually publicly reachable, and set S3_BUCKET to match if it differs.
       S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-http://localhost:9000/praetorium}
+      # Self-hosted releases stay on their tested catalogue until the operator
+      # explicitly chooses the publisher's hourly channel.
+      CATALOGUE_BASE_URL: ${CATALOGUE_BASE_URL:-}
+      CATALOGUE_UPDATE_MODE: ${CATALOGUE_UPDATE_MODE:-pinned}
+      # An optional verified archive copied into DATA_HOST_DIR for an offline boot.
+      CATALOGUE_SNAPSHOT_FILE: ${CATALOGUE_SNAPSHOT_FILE:-}
+      CATALOGUE_DISABLED_SOURCES: ${CATALOGUE_DISABLED_SOURCES:-}
       # Signs account sessions. Generated into /data when unset; changing it
       # signs every player out, but does not remove their data.
       AUTH_SECRET: ${AUTH_SECRET:-}
@@ -64,7 +70,7 @@ services:
       # Connections each replica keeps open against Postgres.
       DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
     volumes:
-      # Secrets and the catalogue cache. The game data lives in Postgres now, so
+      # Secrets, an optional offline snapshot, and the catalogue cache. The game data lives in Postgres now, so
       # this holds nothing that cannot be rebuilt except the signing secrets.
       - ${DATA_HOST_DIR:-./praetorium-data}:/data
 

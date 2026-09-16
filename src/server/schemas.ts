@@ -13,6 +13,7 @@ import {
   STRATAGEM_LIMITS,
   STRATAGEMS_MAX,
 } from '../core/battle'
+import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
 import { commandSchema, rosterPickSchema } from '../core/commands'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 import {
@@ -235,6 +236,8 @@ const prepSchema = z.object({
     )
     .max(STRATAGEMS_MAX),
   secondaries: z.array(z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })).max(SECONDARIES_MAX),
+  reminders: z.array(rosterReminderSchema).max(ROSTER_REMINDERS_MAX).default([]),
+  remindersEnabled: z.boolean().default(true),
 })
 
 export const saveRosterSchema = z.object({

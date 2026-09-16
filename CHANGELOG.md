@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.66.0
+
+### Minor Changes
+
+- ec3e442: Add configurable multi-phase reminders for roster rules and active mission actions, with scoped dismissals and battle controls.
+
+## 0.65.0
+
+### Minor Changes
+
+- ac2882f: Pin verified catalogue releases and support shared development caches, offline installation, provenance, and emergency withdrawal.
+
 ## 0.64.4
 
 ### Patch Changes

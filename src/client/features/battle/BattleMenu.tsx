@@ -11,7 +11,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 type Ending = { key: string; label: string; description: string; destructive: boolean; act: () => void }
 
@@ -19,7 +25,9 @@ type Props = {
   finished: boolean
   canDelete: boolean
   pending: boolean
+  actionRemindersEnabled: boolean
   players: readonly { id: string; name: string; isViewer: boolean; automated: boolean }[]
+  onActionRemindersChange: (enabled: boolean) => void
   onFinishEarly: () => void
   onConcede: (playerId: string) => void
   onReopen: () => void
@@ -27,12 +35,23 @@ type Props = {
 }
 
 /**
- * The ways a battle stops.
+ * Personal battle preferences and the ways a battle stops.
  *
  * Each is rare, and none is undone by pressing the same button again, so they sit
  * behind a menu and a confirmation rather than in reach of a thumb all game.
  */
-export function BattleMenu({ finished, canDelete, pending, players, onFinishEarly, onConcede, onReopen, onDelete }: Props) {
+export function BattleMenu({
+  finished,
+  canDelete,
+  pending,
+  actionRemindersEnabled,
+  players,
+  onActionRemindersChange,
+  onFinishEarly,
+  onConcede,
+  onReopen,
+  onDelete,
+}: Props) {
   const [confirming, setConfirming] = useState<Ending | null>(null)
   // Reopening is undone by finishing again, so it asks for nothing. Ending and deleting cannot be.
   const endings: Ending[] = finished
@@ -66,7 +85,10 @@ export function BattleMenu({ finished, canDelete, pending, players, onFinishEarl
           <EllipsisVertical />
           Battle options
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="min-w-44">
+          <DropdownMenuCheckboxItem checked={actionRemindersEnabled} onCheckedChange={onActionRemindersChange}>
+            Action reminders
+          </DropdownMenuCheckboxItem>
           {endings.map((ending) => (
             <DropdownMenuItem
               key={ending.key}

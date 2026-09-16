@@ -5,6 +5,24 @@ import { battleView } from './battleView'
 import { ALICE, BOB, NAMES, PLAYERS, attachedRoster, builtRoster, log, roster, started, text, turns } from './battle.fixtures'
 
 describe('the view', () => {
+  it('shows roster reminders only to their owner', () => {
+    const command = builtRoster('Ultramarines', [])
+    if (command.kind !== 'attach-roster') throw new Error('expected a roster command')
+    command.roster.reminders = [
+      {
+        key: 'faction:oath-of-moment:army',
+        ability: 'Oath of Moment',
+        description: 'At the start of your Command phase, select one enemy unit.',
+        timings: [{ moment: 'phase-start', phase: 'command', turn: 'your-turn' }],
+      },
+    ]
+    command.roster.remindersEnabled = true
+    const state = reduceBattle(PLAYERS, log([ALICE, command]))
+
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.roster?.reminders).toHaveLength(1)
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.roster).not.toHaveProperty('reminders')
+  })
+
   it('shows every tactical deck to the table', () => {
     const cards = [
       { key: 'a', name: 'Area Denial' },

@@ -1,6 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
-import { Copy, Crown, Download, EllipsisVertical, Link2, Pencil, Plus, Printer, SlidersHorizontal, TriangleAlert } from 'lucide-react'
+import {
+  BellOff,
+  BellRing,
+  Copy,
+  Crown,
+  Download,
+  EllipsisVertical,
+  Link2,
+  Pencil,
+  Plus,
+  Printer,
+  SlidersHorizontal,
+  TriangleAlert,
+} from 'lucide-react'
 import posthog from 'posthog-js'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -12,6 +25,14 @@ import { attachedUnitCount } from '../../../core/attachedUnits'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
 import { type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
+import {
+  reminderKey,
+  remindersAfterUnitInserted,
+  remindersAfterUnitRemoved,
+  suggestReminderTimings,
+  type ReminderSubject,
+  type RosterReminder,
+} from '../../../core/reminders'
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import type { Datasheet } from '../../../contracts/catalogue'
 import { exportRoster, saveRoster } from '../../../server/functions'
@@ -39,10 +60,11 @@ import { readWorkspaceState, writeWorkspaceState } from '../../components/worksp
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
 import { BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
+import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
-  prep: { stratagems: Stratagem[]; secondaries: Secondary[] }
+  prep: { stratagems: Stratagem[]; secondaries: Secondary[]; reminders?: RosterReminder[]; remindersEnabled?: boolean }
   initial: {
     id: string
     name: string
@@ -124,6 +146,9 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   const [borrowedDetachmentId, setBorrowedDetachmentId] = useState<string | null>(initial.borrowedDetachmentId ?? null)
   const [name, setName] = useState(initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
+  const [reminders, setReminders] = useState<RosterReminder[]>(prep.reminders ?? [])
+  const [remindersEnabled, setRemindersEnabled] = useState(prep.remindersEnabled ?? true)
+  const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const [selected, setSelected] = useState<number | null>(null)
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string; name: string } | null>(null)
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
@@ -351,6 +376,10 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
 
   // A name the player typed, which may be nothing at all.
   const listName = name.trim()
+  const storedPrep = useMemo(
+    () => ({ stratagems: prep.stratagems, secondaries: prep.secondaries, reminders, remindersEnabled }),
+    [prep.secondaries, prep.stratagems, reminders, remindersEnabled],
+  )
   const save = useMutation({
     scope: { id: 'roster-autosave' },
     mutationFn: () =>
@@ -363,7 +392,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
           disposition,
           limit,
           picks: positioned,
-          prep,
+          prep: storedPrep,
           waivedRules,
           optionalRules,
           borrowedDetachmentId,
@@ -394,7 +423,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
     limit,
     settledListName,
     settledPicks,
-    prep,
+    storedPrep,
     visibility,
     waivedRules,
   ])
@@ -418,7 +447,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
           disposition,
           limit,
           picks: positioned,
-          prep,
+          prep: storedPrep,
           waivedRules,
           optionalRules,
           borrowedDetachmentId,
@@ -509,6 +538,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   }, [edit, picks])
   const drop = useCallback((index: number) => {
     editor.current.drop(index)
+    setReminders((current) => remindersAfterUnitRemoved(current, index))
     reporting.current = 'roster_unit_removed'
     setSelected(null)
   }, [])
@@ -529,6 +559,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   const previewUnit = useCallback((entryId: string, unitName: string) => inspect(catalogueId, entryId, unitName), [catalogueId, inspect])
   const duplicate = useCallback((index: number) => {
     editor.current.duplicate(index)
+    setReminders((current) => remindersAfterUnitInserted(current, index + 1))
     reporting.current = 'roster_unit_duplicated'
   }, [])
   const join = useCallback((index: number, targetKey: number | undefined) => {
@@ -550,6 +581,35 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   const setUnitOwned = useCallback(
     (entryId: string, nextOwned: boolean) => mutateCollection({ entryId, owned: nextOwned }),
     [mutateCollection],
+  )
+  const editReminder = useCallback(
+    (subject: ReminderSubject, unitName: string) => {
+      if (subject.kind !== 'faction' && selected === null) return
+      const key = reminderKey(subject, subject.kind === 'faction' ? null : selected)
+      const existing = reminders.find((reminder) => reminder.key === key)
+      setReminderDraft(
+        existing ?? {
+          key,
+          ability: subject.name,
+          description: subject.description ?? '',
+          ...(subject.kind === 'faction' || selected === null ? {} : { unit: { index: selected, name: unitName } }),
+          timings: suggestReminderTimings(subject.description ?? ''),
+        },
+      )
+    },
+    [reminders, selected],
+  )
+  const reminderControls = useMemo(
+    () => ({
+      active: (subject: ReminderSubject) =>
+        reminders.some((reminder) => reminder.key === reminderKey(subject, subject.kind === 'faction' ? null : selected)),
+      onSelect: editReminder,
+      onRemove: (subject: ReminderSubject) => {
+        const key = reminderKey(subject, subject.kind === 'faction' ? null : selected)
+        setReminders((current) => current.filter((reminder) => reminder.key !== key))
+      },
+    }),
+    [editReminder, reminders, selected],
   )
   const cardRelationships = useCardRelationships(picks, units)
 
@@ -671,6 +731,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
       controlsDisabled={loadoutConstraintsPending}
       showOptions={inspectorView !== 'readonly'}
       persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId, ...(battle ? { battle } : {}) }}
+      reminders={building && selected !== null ? reminderControls : undefined}
       reference={
         <DatasheetPanel
           catalogueId={datasheetCatalogueId}
@@ -684,6 +745,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
           showRelationships
           onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
           onReferenceRoute={setReference}
+          abilityReminders={building && selected !== null ? reminderControls : undefined}
         />
       }
     />
@@ -699,6 +761,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
       showRelationships
       onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
       onReferenceRoute={setReference}
+      abilityReminders={building && !preview && selected !== null ? reminderControls : undefined}
     />
   )
 
@@ -727,6 +790,17 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
         actions={
           editable ? (
             <>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={!reminders.length}
+                aria-label={reminders.length ? `${remindersEnabled ? 'Disable' : 'Enable'} all alerts` : 'No alerts set'}
+                title={reminders.length ? `${remindersEnabled ? 'Disable' : 'Enable'} all alerts` : 'No alerts set'}
+                className={remindersEnabled && reminders.length ? 'text-parchment' : 'text-faint'}
+                onClick={() => setRemindersEnabled((enabled) => !enabled)}
+              >
+                {remindersEnabled && reminders.length ? <BellRing /> : <BellOff />}
+              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger aria-label="Roster actions" className="grid h-7 w-10 place-items-center hover:text-bone">
                   <EllipsisVertical className="size-4 translate-y-px" />
@@ -890,6 +964,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
               setVisibility(setup.visibility)
               if (changedFaction) {
                 edit.clear()
+                setReminders([])
                 setSelected(null)
               }
               setSetupDraft(null)
@@ -1103,6 +1178,25 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
         onDismissWaivers={() => dismissWaivers(waiverKey)}
       />
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
+      {reminderDraft ? (
+        <ReminderEditorDialog
+          draft={reminderDraft}
+          onClose={() => setReminderDraft(null)}
+          onSave={(reminder) => {
+            setReminders((current) => [...current.filter((candidate) => candidate.key !== reminder.key), reminder])
+            setRemindersEnabled(true)
+            setReminderDraft(null)
+          }}
+          onRemove={
+            reminders.some((reminder) => reminder.key === reminderDraft.key)
+              ? () => {
+                  setReminders((current) => current.filter((reminder) => reminder.key !== reminderDraft.key))
+                  setReminderDraft(null)
+                }
+              : undefined
+          }
+        />
+      ) : null}
     </RosterShell>
   )
 }
