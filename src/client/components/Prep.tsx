@@ -111,7 +111,8 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     // Derived cards may be settled from either device; only the mode and fixed-card
     // controls remain the side writer's choice.
     save({}, { background: true })
-    // Re-runs only when one of those facts changes, and every one is satisfied by the save.
+    // A stale automatic write redraws at a newer sequence, where the still-missing
+    // fact retries instead of remaining blocked behind the command another device won.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     rules,
@@ -127,6 +128,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     storedMode,
     tacticalOnly,
     pending,
+    view.seq,
   ])
 
   if (!writes) {
