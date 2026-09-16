@@ -5,6 +5,12 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
 import { missionCardsByKey, primaryCards, secondaryCards } from '../missionDeck'
+import {
+  MISSION_ACTION_REMINDER_PREFIX,
+  missionActionReminderStorageKey,
+  missionActionReminders,
+  missionActionRemindersEnabled as storedMissionActionRemindersEnabled,
+} from '../missionActionReminders'
 import { appliesInMode } from '../missionText'
 import { automaticAttemptsExhausted, claimAutomaticAttempt } from '../automaticAttempts'
 import { errorMessage } from '../queryClient'
@@ -75,6 +81,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
   const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
   const [dismissalsReady, setDismissalsReady] = useState(false)
+  const [actionRemindersEnabled, setActionRemindersEnabled] = useState(true)
   const reminderPrompt = reminderPrompts[0] ?? null
   const dismissedReminders = useRef(new Set<string>())
   // Refetches that change nothing keep their object identity through the query
@@ -91,6 +98,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     [view.activePlayerId, view.phase, view.round],
   )
   const dismissalStorageKey = reminderDismissalStorageKey(view.token)
+  const actionReminderStorageKey = missionActionReminderStorageKey(view.token)
   useEffect(() => {
     setDismissalsReady(false)
     setReminderPrompts([])
@@ -99,8 +107,31 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     } catch {
       dismissedReminders.current = new Set()
     }
+    try {
+      setActionRemindersEnabled(storedMissionActionRemindersEnabled(localStorage.getItem(actionReminderStorageKey)))
+    } catch {
+      setActionRemindersEnabled(true)
+    }
     setDismissalsReady(true)
-  }, [dismissalStorageKey])
+  }, [actionReminderStorageKey, dismissalStorageKey])
+  const updateActionReminders = useCallback(
+    (enabled: boolean) => {
+      setActionRemindersEnabled(enabled)
+      try {
+        localStorage.setItem(actionReminderStorageKey, enabled ? 'on' : 'off')
+      } catch {
+        // The in-memory preference still applies for this page when storage is unavailable.
+      }
+      if (!enabled)
+        setReminderPrompts((current) =>
+          current.flatMap((prompt) => {
+            const reminders = prompt.reminders.filter((reminder) => !reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX))
+            return reminders.length ? [{ ...prompt, reminders }] : []
+          }),
+        )
+    },
+    [actionReminderStorageKey],
+  )
   const reminderDismissed = useCallback(
     (reminderKey: string, context: ReminderDismissalContext) =>
       reminderDismissalKeys(reminderKey, context).some((key) => dismissedReminders.current.has(key)),
@@ -189,6 +220,10 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     [cardsByKey],
   )
   const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(key), [cardsByKey])
+  const activeMissionActionReminders = useMemo(
+    () => (active?.isViewer ? missionActionReminders(active, referenceFor) : EMPTY_REMINDERS),
+    [active, referenceFor],
+  )
   const writtenFor = useCallback(
     (side: Side, key: string): StratagemText | undefined => {
       const rules = rulesFor(side).find((candidate) => candidate.written.some((entry) => entry.key === key))
@@ -410,7 +445,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   }, [dismissalStorageKey, dismissalsReady, reminderContext])
 
   useEffect(() => {
-    if (!dismissalsReady || view.status !== 'playing' || reminderPrompt || !reminderTurn || !viewerReminders.length) return
+    if (!dismissalsReady || view.status !== 'playing' || reminderPrompt || !reminderTurn) return
     const moments: ReminderTiming[] =
       view.phase === 'end'
         ? [{ moment: 'turn-end', phase: null, turn: reminderTurn }]
@@ -419,7 +454,11 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             ...(view.phase === 'command' ? ([{ moment: 'turn-start', phase: null, turn: reminderTurn }] as const) : []),
           ]
     const context = { round: view.round, activePlayerId: view.activePlayerId, phase: view.phase }
-    const reminders = remindersAt(moments, context)
+    const actionReminders =
+      actionRemindersEnabled && view.phase === 'shooting' && reminderTurn === 'your-turn'
+        ? activeMissionActionReminders.filter((reminder) => !reminderDismissed(reminder.key, context))
+        : EMPTY_REMINDERS
+    const reminders = [...remindersAt(moments, context), ...actionReminders]
     if (!reminders.length) return
     enqueueReminderPrompt({
       reminders,
@@ -431,16 +470,18 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
       context,
     })
   }, [
+    actionRemindersEnabled,
+    activeMissionActionReminders,
     dismissalsReady,
     enqueueReminderPrompt,
     reminderPrompt,
     reminderTurn,
+    reminderDismissed,
     remindersAt,
     view.activePlayerId,
     view.phase,
     view.round,
     view.status,
-    viewerReminders.length,
   ])
 
   return (
@@ -530,7 +571,21 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             </dl>
 
             <div className="border-t border-edge pt-3">
-              <p className={HEADING}>Battle events</p>
+              <div className="flex items-center justify-between gap-3">
+                <p className={HEADING}>Battle events</p>
+                <BattleMenu
+                  finished={finished}
+                  canDelete={view.creatorId === view.viewerId}
+                  pending={pending || remove.isPending}
+                  actionRemindersEnabled={actionRemindersEnabled}
+                  players={view.players}
+                  onActionRemindersChange={updateActionReminders}
+                  onFinishEarly={() => send({ kind: 'end-battle', reason: 'finished-early' })}
+                  onConcede={(playerId) => send({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
+                  onReopen={() => send({ kind: 'reopen-battle' })}
+                  onDelete={() => remove.mutate()}
+                />
+              </div>
               <Report token={view.token} open players={reportPlayers} />
             </div>
 
@@ -546,25 +601,6 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
               </button>
             ) : null}
             {remove.error ? <p className="text-sm text-destructive">{errorMessage(remove.error)}</p> : null}
-
-            {/*
-             * Finishing, conceding, reopening and deleting, under the log rather than
-             * beside the round. Each is rare and none is pressed mid-turn, and up there
-             * it pushed the round and the phase off the centre of every screen to make
-             * room for something nobody was reaching for.
-             */}
-            <div className="flex justify-end border-t border-edge pt-3">
-              <BattleMenu
-                finished={finished}
-                canDelete={view.creatorId === view.viewerId}
-                pending={pending || remove.isPending}
-                players={view.players}
-                onFinishEarly={() => send({ kind: 'end-battle', reason: 'finished-early' })}
-                onConcede={(playerId) => send({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
-                onReopen={() => send({ kind: 'reopen-battle' })}
-                onDelete={() => remove.mutate()}
-              />
-            </div>
           </section>
         </div>
       </div>

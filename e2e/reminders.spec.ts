@@ -73,7 +73,31 @@ test('roster reminders cover selected rules and advances from another device', a
   await expect(page.getByRole('button', { name: 'Enable all alerts' })).toBeVisible()
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Enable all alerts' }).click())
 
-  await setupBattle(page, opponent, { opponent: opponentName, hostRoster: roster, guestRoster: opponentRoster })
+  await setupBattle(page, opponent, {
+    opponent: opponentName,
+    hostRoster: roster,
+    guestRoster: opponentRoster,
+    openingSecondaries: ['Cleanse', 'Assassination'],
+  })
+
+  await page.getByRole('button', { name: 'Battle options' }).click()
+  const actionReminders = page.getByRole('menuitemcheckbox', { name: 'Action reminders' })
+  await expect(actionReminders).toHaveAttribute('aria-checked', 'true')
+  await actionReminders.click()
+  await page.reload()
+  await page.getByRole('button', { name: 'Battle options' }).click()
+  await expect(actionReminders).toHaveAttribute('aria-checked', 'false')
+  await page.screenshot({ path: 'test-results/reminder-action-toggle-desktop.png', fullPage: true })
+  await actionReminders.click()
+  await page.keyboard.press('Escape')
+  await expect(actionReminders).toBeHidden()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('tab', { name: 'Battle', exact: true }).click()
+  await page.getByRole('button', { name: 'Battle options' }).click()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/reminder-action-toggle-phone.png', fullPage: true })
+  await page.keyboard.press('Escape')
+  await page.setViewportSize(desktopContext.viewport)
   await advance(page)
   await advance(opponent)
 
@@ -81,11 +105,19 @@ test('roster reminders cover selected rules and advances from another device', a
   await expect(reminder).toContainText('End of your Movement phase')
   await reminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
   await expect(reminder).toContainText('Living Lightning')
+  await expect(reminder.getByRole('heading', { name: 'Cleanse', exact: true })).toBeVisible()
+  await expect(reminder).toContainText('One friendly unit within range of one objective')
   await expect(reminder).toContainText('Start of your Shooting phase')
   await page.screenshot({ path: 'test-results/reminder-battle-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  expect(await reminder.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/reminder-action-battle-phone.png', fullPage: true })
+  await page.setViewportSize(desktopContext.viewport)
   await reminder.getByRole('button', { name: 'Dismiss Living Lightning for a period' }).click()
   await page.screenshot({ path: 'test-results/reminder-dismissal-menu-desktop.png', fullPage: true })
   await page.getByRole('menuitem', { name: 'This turn' }).click()
+  await reminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
   await expect(reminder).toBeHidden()
   await page.reload()
   await expect(reminder).toBeHidden()
