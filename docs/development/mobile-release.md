@@ -132,7 +132,7 @@ Complete this matrix on the exact TestFlight and Play internal-testing builds:
 - Complete a battle from an iPhone and an Android phone. Observe the other device update after every command.
 - Background each app long enough to close the live connection, change the battle on the other device, foreground it, and observe a reconnect and refetch before acting.
 - Disable the network during a read and a mutation, restore it, retry, and confirm that no command appears twice.
-- Open internal and external links, share roster and league links, print a roster, upload a profile picture, copy an export, and verify the Android back action and iOS back gesture.
+- Open internal and external links, share roster and league links, print a roster, upload a profile picture, copy an export, verify the Android system Back action, and confirm that iOS cannot swipe into an empty WebView document.
 - Confirm that the screen stays awake only while a seated battle is open and that a successful battle command gives one light haptic response.
 - Check phone and tablet safe areas, software keyboards, portrait orientation, text scaling, VoiceOver, TalkBack, contrast, and touch targets.
 - Run the current web deployment against the oldest supported installed shell and the release shell against the deployed web application.

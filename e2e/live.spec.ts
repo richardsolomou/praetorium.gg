@@ -43,11 +43,17 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await expect(alice.getByText(new RegExp(`${bobName} ends the command phase for ${aliceName}`))).toBeVisible()
   await alice.screenshot({ path: 'test-results/tracker-events.png', fullPage: true })
 
-  // Pinned flush to the bottom at every width that pins it. A margin between a fixed
-  // box and the edge it is pinned to is invisible in the markup and obvious on a phone.
+  // Pinned flush to the application tabs on mobile and the viewport otherwise. A
+  // margin between fixed controls is invisible in the markup and obvious on a phone.
   for (const width of [390, 768, 1023]) {
     await alice.setViewportSize({ width, height: 844 })
-    const gap = await alice.locator('[data-turn-control]').evaluate((node) => window.innerHeight - node.getBoundingClientRect().bottom)
+    const tabs = alice.getByRole('navigation', { name: 'Application sections' })
+    const boundary = (await tabs.isVisible())
+      ? await tabs.evaluate((node) => node.getBoundingClientRect().top)
+      : await alice.evaluate(() => window.innerHeight)
+    const gap = await alice
+      .locator('[data-turn-control]')
+      .evaluate((node, bottom) => bottom - node.getBoundingClientRect().bottom, boundary)
     expect(gap, `turn control at ${width}px`).toBe(0)
   }
   await alice.setViewportSize({ width: 390, height: 844 })

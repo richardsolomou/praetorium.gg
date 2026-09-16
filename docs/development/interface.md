@@ -10,13 +10,11 @@ Useful status copy explains what is happening and what the player can do next. F
 
 Free and open source is prominent in public documentation but secondary to the player benefit in product marketing. Contributor documentation, operator guidance, legal disclosures, data attribution, and actionable support instructions retain the technical detail their audiences need. Sentences are short and direct, without slogans about one record, one log, every device, or a single source of truth.
 
-## Native application layout
+## Application navigation
 
-Feature screens stay shared between the website and native applications. The native shell replaces the website header with a fixed top bar and section tabs. Phones use bottom tabs. Layouts that are at least 1024 pixels wide use a left rail. Each tab returns to the screen it was left on, and tapping the section you are already in goes to its top.
+Feature screens stay shared between the website and native applications. Mobile web and native phones use a compact utility bar for Home, search, and the player's account, plus a bottom bar with Battles, Rosters, Factions, Missions, and More. More is an application page for Home, Leagues, Leaderboard, Rules, and secondary destinations such as Friends, Admin, and Feedback. The homepage belongs to no tab, so none is selected there. Native layouts that are at least 1024 pixels wide move the bottom navigation into a left rail, while the website returns to its desktop header at 860 pixels. Immersive roster screens omit the utility bar. Each section returns to the URL, route state, and scroll position where it was left, and tapping the section you are already in goes to its top. This memory lasts for the browser session.
 
-The top bar keeps the Back action in a fixed location. A detail screen returns to the previous application route. A direct link without application history returns to its mapped parent route. A section root returns to the home page.
-
-Compact roster panes use browser history. A back gesture or Android system Back action dismisses the top pane before it leaves the roster. A datasheet opened from the unit picker returns to that picker. A datasheet opened from a roster unit returns to the roster. In the native applications a compact unit pane is a screen inside the roster tab: it stops above the tab bar and leaves it reachable, where the website treats the same pane as a modal dialog.
+Compact roster panes use browser history. Their own close action or the Android system Back action dismisses the top pane before it leaves the roster. A datasheet opened from the unit picker returns to that picker. A datasheet opened from a roster unit returns to the roster. In the native applications a compact unit pane is a screen inside the roster tab: it stops above the tab bar and leaves it reachable, where the website treats the same pane as a modal dialog.
 
 ## Roster layout
 

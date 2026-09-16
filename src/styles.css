@@ -68,11 +68,12 @@ html[data-native-app='true'] [data-web-app-chrome] {
   display: none;
 }
 
-html[data-native-app='true'] [data-native-app-header] {
-  display: grid;
+html[data-native-app='true'] [data-native-app-tabs] {
+  display: flex;
 }
 
-html[data-native-app='true'] [data-native-app-tabs] {
+html[data-native-app='true'] [data-mobile-app-header],
+html[data-native-app='true'] [data-mobile-app-header-spacer] {
   display: flex;
 }
 
@@ -100,23 +101,49 @@ html[data-native-app='true'] [data-native-app-frame] {
 }
 
 html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
-  height: calc(100dvh - 7rem);
+  height: calc(100dvh - 4rem);
+}
+
+@media (max-width: 859px) {
+  html:not([data-native-app='true']) [data-web-app-chrome] {
+    display: none;
+  }
+
+  html:not([data-native-app='true']) [data-mobile-app-header],
+  html:not([data-native-app='true']) [data-mobile-app-header-spacer] {
+    display: flex;
+  }
+
+  html:not([data-native-app='true']) [data-native-app-tabs] {
+    display: flex;
+    height: calc(4rem + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  html:not([data-native-app='true']) [data-native-app-frame] {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+
+  html:not([data-native-app='true']) [data-native-app-content][data-immersive='true'] {
+    height: calc(100dvh - 4rem - env(safe-area-inset-bottom));
+  }
+
+  html:not([data-native-app='true']) [data-turn-control],
+  html:not([data-native-app='true']) [data-pane='loadout'],
+  html:not([data-native-app='true']) [data-setup-next] {
+    bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+
+  html:not([data-native-app='true']) [data-battle-tracker] {
+    padding-bottom: calc(12rem + env(safe-area-inset-bottom));
+  }
 }
 
 html[data-native-shell='true'] [data-native-app-chrome],
+html[data-native-shell='true'] [data-mobile-app-header],
+html[data-native-shell='true'] [data-mobile-app-header-spacer],
 html[data-native-shell='true'] [data-web-app-footer] {
   display: none !important;
-}
-
-html[data-native-shell='true'] [data-native-app-header] {
-  position: fixed;
-  top: 0;
-  right: 0;
-  left: 0;
-  display: grid !important;
-  visibility: hidden;
-  transform: translateY(-3rem);
-  pointer-events: none;
 }
 
 html[data-native-shell='true'] {
@@ -149,6 +176,10 @@ html[data-native-shell='true'] [data-scoreboard] {
 }
 
 @media (min-width: 1024px) {
+  html[data-native-app='true'] [data-mobile-app-header] {
+    left: 5rem;
+  }
+
   html[data-native-app='true'] [data-native-app-frame] {
     padding-bottom: 0;
     padding-left: 5rem;
@@ -164,7 +195,8 @@ html[data-native-shell='true'] [data-scoreboard] {
     border-right: 1px solid var(--color-edge);
   }
 
-  html[data-native-app='true'] [data-native-app-tabs] a {
+  html[data-native-app='true'] [data-native-app-tabs] > a,
+  html[data-native-app='true'] [data-native-app-tabs] > button {
     width: 100%;
     min-height: 4.5rem;
     flex: 0 0 auto;
@@ -173,7 +205,7 @@ html[data-native-shell='true'] [data-scoreboard] {
   }
 
   html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
-    height: calc(100dvh - 3rem);
+    height: 100dvh;
   }
 }
 

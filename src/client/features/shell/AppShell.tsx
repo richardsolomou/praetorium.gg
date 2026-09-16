@@ -1,128 +1,22 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { HeadContent, Link, Outlet, Scripts, useLocation, useNavigate } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
+import { HeadContent, Link, Outlet, Scripts, useLocation } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { CircleUserRound, LogIn, LogOut, Menu, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users, X } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { useEffect, useRef, useState } from 'react'
 import { POSTHOG_BROWSER_OPTIONS, POSTHOG_INGEST_PATH } from '../../../posthog'
 import { authClient } from '../../authClient'
+import { Account } from '../../components/Account'
 import { GlobalSearch, GlobalSearchProvider } from '../../components/GlobalSearch'
 import { ImpersonationBanner } from '../../components/ImpersonationBanner'
-import { NativeAppHeader, NativeAppTabs } from '../../components/NativeAppNavigation'
-import { PlayerAvatar } from '../../components/PlayerAvatar'
-import { setNativeAccountMenuOpen } from '../../nativeBridge'
+import { NativeAppNavigation } from '../../components/NativeAppNavigation'
 import { meQuery } from '../../queries'
 const posthog = postHogEnvironment({
   projectToken: import.meta.env.VITE_POSTHOG_PROJECT_TOKEN,
   host: import.meta.env.VITE_POSTHOG_HOST,
 })
-
-function Account({ native = false }: { native?: boolean }) {
-  const { data: me } = useQuery(meQuery())
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
-  const [nativeOpen, setNativeOpen] = useState(false)
-
-  useEffect(() => {
-    if (!native) return
-    const setOpen = (event: Event) => setNativeOpen(Boolean((event as CustomEvent<{ open?: unknown }>).detail?.open))
-    document.addEventListener('praetorium:set-account-menu', setOpen)
-    return () => document.removeEventListener('praetorium:set-account-menu', setOpen)
-  }, [native])
-
-  return (
-    <DropdownMenu
-      open={native ? nativeOpen : undefined}
-      onOpenChange={
-        native
-          ? (open) => {
-              setNativeOpen(open)
-              setNativeAccountMenuOpen(open)
-            }
-          : undefined
-      }
-    >
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size={native ? 'icon' : 'icon-sm'}
-            className={`${native ? 'size-12' : ''} shrink-0 text-dim hover:bg-raised hover:text-info`}
-            aria-label={me ? `Account menu for ${me.name}` : 'Account menu'}
-          />
-        }
-      >
-        {me ? <PlayerAvatar name={me.name} image={me.image} className="size-7 text-xs" /> : <CircleUserRound className="size-5" />}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52 rounded-none border border-edge bg-panel">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="px-2 py-2">
-            <span className="eyebrow block">{me ? 'Profile' : 'Account'}</span>
-            <span className="mt-0.5 block truncate text-sm font-semibold text-bone">{me?.name ?? 'Not signed in'}</span>
-          </DropdownMenuLabel>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        {me ? (
-          <>
-            <DropdownMenuItem render={<Link to="/users/$userId" params={{ userId: me.id }} search={{}} />}>
-              <UserRound /> My profile
-            </DropdownMenuItem>
-            <DropdownMenuItem render={<Link to="/profile" />}>
-              <UserRoundPen /> Edit profile
-            </DropdownMenuItem>
-            <DropdownMenuItem render={<Link to="/friends" />}>
-              <Users /> Friends
-            </DropdownMenuItem>
-            {me.role === 'admin' ? (
-              <DropdownMenuItem render={<Link to="/admin" />}>
-                <ShieldCheck /> Admin
-              </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuItem
-              render={
-                <a
-                  href="https://github.com/richardsolomou/praetorium.gg/issues"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Send feedback"
-                />
-              }
-            >
-              <MessageSquareWarning /> Send feedback
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                void (async () => {
-                  await authClient.signOut()
-                  await queryClient.invalidateQueries()
-                  await navigate({ to: '/' })
-                })()
-              }}
-            >
-              <LogOut /> Sign out
-            </DropdownMenuItem>
-          </>
-        ) : (
-          <DropdownMenuItem render={<Link to="/sign-in" search={{ next: undefined }} />}>
-            <LogIn /> Sign in
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
 
 function PrimaryNavigation({ path }: { path: string }) {
   const [open, setOpen] = useState(false)
@@ -260,7 +154,27 @@ export function AppShell() {
                     <Account />
                   </div>
                 </header>
-                <NativeAppHeader path={path} search={location.search} account={<Account native />} />
+                {immersive ? null : (
+                  <header
+                    data-mobile-app-header
+                    data-print-hide
+                    className="fixed inset-x-0 top-0 z-30 hidden h-12 items-center border-b border-edge bg-panel/95 px-2 backdrop-blur"
+                  >
+                    <Link
+                      to="/"
+                      aria-label="Praetorium home"
+                      className="group flex min-w-0 items-center gap-2 font-bold tracking-[0.04em] text-bone uppercase hover:text-info"
+                    >
+                      <img src="/logo.svg" alt="" className="size-7 shrink-0 transition-transform group-hover:rotate-180" />
+                      <span className="truncate">Praetorium</span>
+                    </Link>
+                    <span className="ml-auto flex items-center">
+                      <GlobalSearch compact />
+                      <Account />
+                    </span>
+                  </header>
+                )}
+                {immersive ? null : <div data-mobile-app-header-spacer className="hidden h-12 shrink-0" />}
                 <div
                   data-native-app-content
                   data-immersive={immersive || undefined}
@@ -268,7 +182,13 @@ export function AppShell() {
                 >
                   <Outlet />
                 </div>
-                <NativeAppTabs href={location.href} state={location.state} />
+                <NativeAppNavigation
+                  accountBridge={<Account native />}
+                  href={location.href}
+                  path={path}
+                  search={location.search}
+                  state={location.state}
+                />
                 <Impersonation />
                 {/*
                  * Said plainly and on every page, because the name is drawn from Games

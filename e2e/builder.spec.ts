@@ -1,6 +1,5 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
 import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
-import { applicationNavigationScript } from '../mobile/src/navigation'
 import { createRoster, signUp, waitForRosterSave } from './account'
 
 /**
@@ -54,10 +53,6 @@ async function expectVerticalPanOnly(element: Locator) {
 async function openBuilder(page: Page, faction = 'Necrons', detachment = /Awakened Dynasty/) {
   await signUp(page, 'Richard')
   await createRoster(page, { faction, detachment })
-}
-
-function navigateNativeTab(page: Page, path: string) {
-  return page.evaluate(applicationNavigationScript(`https://praetorium.gg${path}`)!)
 }
 
 async function add(page: Page, name: string) {
@@ -184,7 +179,7 @@ test('the roster header fades nothing when every fact fits', async ({ page }) =>
   await expect.poll(() => fadedEdges(meta)).toEqual({ start: false, end: false })
 })
 
-test('a native unit screen fills the WebView without a legacy tab inset', async ({ browser }) => {
+test('a native unit screen keeps the tab bar beside it', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
   await context.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
@@ -201,11 +196,14 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
   await expect(loadout).toBeVisible()
+  // A screen inside the roster tab, not a sheet over the application.
   await expect(loadout).not.toHaveAttribute('aria-modal', 'true')
   expect(await loadout.evaluate((pane) => Math.round(pane.getBoundingClientRect().bottom))).toBe(
-    await page.evaluate(() => window.innerHeight),
+    await sections.evaluate((tabs) => Math.round(tabs.getBoundingClientRect().top)),
   )
+  expect(await sections.evaluate((tabs) => (tabs as HTMLElement).inert)).toBe(false)
   await expectNoHorizontalOverflow(page.locator('html'))
   await expectNoHorizontalOverflow(loadout)
   const viewport = loadout.locator('[data-slot="scroll-area-viewport"]')
@@ -214,7 +212,7 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await expectNoHorizontalOverflow(loadout.locator('[data-slot="unit-profile"]'))
   await page.screenshot({ path: 'test-results/intercessor-native-phone.png', fullPage: true })
 
-  await navigateNativeTab(page, '/factions')
+  await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions')
 
   await context.close()
@@ -236,13 +234,24 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await expect(loadout).toBeVisible()
   await expect(page).toHaveURL(`${rosterUrl}#roster-pane`)
 
-  await navigateNativeTab(page, '/battles')
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
+  await sections.getByRole('link', { name: 'Battles' }).click()
   await expect(page).toHaveURL('/battles')
 
   // The tab mounts straight onto the open pane, with nothing of the roster's behind it.
-  await navigateNativeTab(page, '/rosters')
+  await sections.getByRole('link', { name: 'Rosters' }).click()
   await expect(page).toHaveURL(`${rosterUrl}#roster-pane`)
   await expect(loadout).toBeVisible()
+
+  // The tablet draws the same unit beside the roster, so the pane entry is replaced
+  // where it stands rather than stepped back over and out of the tab.
+  await sections.getByRole('link', { name: 'Battles' }).click()
+  await expect(page).toHaveURL('/battles')
+  await page.setViewportSize({ width: 1194, height: 834 })
+  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await expect(page).toHaveURL(rosterUrl)
+  await expect(loadout).toBeVisible()
+  await expect(loadout).not.toHaveCSS('position', 'fixed')
 
   await context.close()
 })
@@ -267,18 +276,19 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await page.locator('[data-unit="Lychguard"]').getByRole('button', { name: 'Lychguard', exact: true }).click()
   await expect(page.locator('aside[aria-label="Loadout"]')).toBeVisible()
 
-  await navigateNativeTab(page, '/battles')
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
+  await sections.getByRole('link', { name: 'Battles' }).click()
   await expect(page).toHaveURL('/battles')
 
-  // The pane may close if its position can no longer be restored, but it stays in its roster tab.
-  await navigateNativeTab(page, '/rosters')
-  await expect(page).toHaveURL((url) => url.href === rosterUrl || url.href === `${rosterUrl}#roster-pane`)
+  // The unit is unresolvable, so the roster it belongs to is what is left of the tab.
+  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await expect(page).toHaveURL(rosterUrl)
   await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
 
   await context.close()
 })
 
-test('native roster details keep back actions in one place and participate in browser history', async ({ page }) => {
+test('native roster details use pane history without adding a route back action', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
   await add(page, 'Lychguard')
@@ -289,9 +299,8 @@ test('native roster details keep back actions in one place and participate in br
   const rosterUrl = page.url()
   const unit = page.locator('[data-unit="Lychguard"]')
   const unitButton = unit.getByRole('button', { name: 'Lychguard', exact: true })
-  const nativeHeader = page.getByRole('banner', { name: 'Application' })
   const sections = page.getByRole('navigation', { name: 'Application sections' })
-  await expect(nativeHeader).toBeVisible()
+  await expect(page.getByRole('banner', { name: 'Application' })).toHaveCount(0)
   await expect(sections).toBeVisible()
   await expect(sections.getByRole('link', { name: 'Rosters' })).toHaveAttribute('aria-current', 'page')
 
@@ -315,8 +324,7 @@ test('native roster details keep back actions in one place and participate in br
   await expect(loadout).toBeHidden()
   await expect(unit).toBeVisible()
   await expect(unitButton).toBeFocused()
-  const routeBack = nativeHeader.getByRole('button', { name: 'Back to rosters' })
-  expect((await routeBack.boundingBox())?.x).toBe(backBox?.x)
+  await expect(page.getByRole('button', { name: 'Back to rosters' })).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   expect(await page.locator('[data-slot="roster-units"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/compact-roster-after-back-phone.png', fullPage: true })

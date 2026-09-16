@@ -36,13 +36,8 @@ export function requestNativeHaptic() {
   return send('haptic', { type: 'native-haptic' })
 }
 
-/**
- * Whether the iOS back gesture may fire, which only the web application knows.
- *
- * The shell holds one history stack for every tab, so a swipe can only be offered
- * where going back one entry stays in the tab the player is looking at.
- */
-export function setNativeBackGesture(enabled: boolean) {
+/** Whether the shell may take one history step without leaving the current tab. */
+export function setNativeHistoryBack(enabled: boolean) {
   return send('back-gesture', { type: 'native-back-gesture', enabled })
 }
 

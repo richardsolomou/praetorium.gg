@@ -1,6 +1,5 @@
 import { devices, expect, test } from '@playwright/test'
 import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
-import { applicationNavigationScript } from '../mobile/src/navigation'
 import { signUp } from './account'
 
 test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
@@ -12,7 +11,7 @@ test('a standalone datasheet omits detachment-only abilities', async ({ page }) 
   await expect(page.getByRole('heading', { name: /Detachment abilities/ })).toHaveCount(0)
 })
 
-test('primary navigation collapses below 860 pixels', async ({ page }) => {
+test('the mobile website uses application navigation below 860 pixels', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
 
@@ -20,40 +19,50 @@ test('primary navigation collapses below 860 pixels', async ({ page }) => {
   await expect(page.locator('head link[rel="preload"][as="font"]')).toHaveCount(6)
   expect(await page.evaluate(() => document.fonts.check('400 16px "Barlow Semi Condensed"'))).toBe(true)
   const primary = page.locator('#primary-navigation')
-  await expect(primary).toBeHidden()
-  await page.getByRole('button', { name: 'Open primary navigation' }).click()
-  await expect(primary.getByRole('link', { name: 'Battles' })).toBeVisible()
-  await expect(primary.getByRole('link', { name: 'Rosters' })).toBeVisible()
-  await expect(primary.getByRole('link', { name: 'Factions' })).toBeVisible()
-  await expect(primary.getByRole('link', { name: 'Mission packs' })).toBeVisible()
-  await expect(primary.getByRole('link', { name: 'Leaderboard' })).toBeVisible()
-  await expect(primary.getByRole('link', { name: 'Rules' })).toBeVisible()
   const webHeader = page.locator('[data-web-app-chrome]')
-  await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
+  const mobileHeader = page.locator('[data-mobile-app-header]')
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
+  const more = sections.getByRole('link', { name: 'More' })
+  await expect(webHeader).toBeHidden()
+  await expect(mobileHeader).toBeVisible()
+  await expect(mobileHeader).toHaveCSS('position', 'fixed')
+  expect(await page.locator('[data-mobile-app-header-spacer]').evaluate((element) => element.getBoundingClientRect().height)).toBe(
+    await mobileHeader.evaluate((element) => element.getBoundingClientRect().height),
+  )
+  await expect(mobileHeader.getByRole('link', { name: 'Praetorium home' })).toBeVisible()
+  await expect(mobileHeader.getByRole('button', { name: 'Search Praetorium' })).toBeVisible()
+  await expect(mobileHeader.getByRole('button', { name: 'Account menu' })).toBeVisible()
+  await expect(primary).toBeHidden()
+  await expect(sections).toBeVisible()
+  await expect(sections.locator('[aria-current="page"]')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/navigation-phone.png', fullPage: true })
 
-  await page.keyboard.press('Control+K')
+  await more.click()
+  await expect(page).toHaveURL('/more')
+  await expect(more).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('link', { name: /^Home/ })).toBeVisible()
+  await mobileHeader.getByRole('button', { name: 'Search Praetorium' }).click()
   await expect(page.getByPlaceholder('Search everything…')).toHaveCount(1)
   await page.keyboard.press('Escape')
   await expect(page.getByPlaceholder('Search everything…')).toHaveCount(0)
 
-  await primary.getByRole('link', { name: 'Rosters' }).click()
+  await sections.getByRole('link', { name: 'Rosters' }).click()
   await expect(page.getByRole('button', { name: 'Go back' })).toHaveCount(0)
   await page.setViewportSize({ width: 320, height: 568 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
-  expect(await webHeader.evaluate((header) => header.scrollWidth)).toBe(320)
 
-  await page.getByRole('button', { name: 'Open primary navigation' }).click()
-  await primary.getByRole('link', { name: 'Mission packs' }).click()
+  await sections.getByRole('link', { name: 'Missions' }).click()
   await expect(page).toHaveURL(/\/mission-packs\//)
-  await expect(primary).toBeHidden()
 
   await page.setViewportSize({ width: 859, height: 844 })
-  await expect(page.getByRole('button', { name: 'Open primary navigation' })).toBeVisible()
-  await expect(primary).toBeHidden()
+  await expect(webHeader).toBeHidden()
+  await expect(mobileHeader).toBeVisible()
+  await expect(sections).toBeVisible()
   await page.setViewportSize({ width: 860, height: 844 })
   await expect(page.getByRole('button', { name: 'Open primary navigation' })).toBeHidden()
   await expect(primary).toBeVisible()
+  await expect(sections).toBeHidden()
+  await expect(mobileHeader).toBeHidden()
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
 
   // The wordmark and the wider gap arrive at 1000, which is the other width the
@@ -64,7 +73,7 @@ test('primary navigation collapses below 860 pixels', async ({ page }) => {
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
 })
 
-test('the native shell leaves stable web content in portrait and landscape', async ({ browser }) => {
+test('the native application has stable route-aware phone and tablet navigation', async ({ browser }) => {
   const loadingContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await loadingContext.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
@@ -74,12 +83,26 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await loadingPage.route('**/*', (route) => (route.request().resourceType() === 'script' ? route.abort() : route.continue()))
   await loadingPage.goto('/factions/necrons/datasheets/overlord')
   await expect(loadingPage.locator('[data-web-app-chrome]')).toBeHidden()
-  await expect(loadingPage.locator('[data-native-app-header]')).toBeHidden()
-  await expect(loadingPage.locator('[data-native-app-tabs]')).toBeHidden()
+  await expect(loadingPage.locator('[data-mobile-app-header]')).toBeVisible()
+  await expect(loadingPage.locator('[data-native-app-header]')).toHaveCount(0)
+  await expect(loadingPage.locator('[data-native-app-tabs]')).toBeVisible()
   expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   await loadingPage.setViewportSize({ width: 1024, height: 768 })
   expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(1024)
   await loadingContext.close()
+
+  const legacyContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  await legacyContext.addInitScript({
+    content: `window.ReactNativeWebView = { postMessage: () => {} };
+${NATIVE_BRIDGE_SCRIPT}
+document.addEventListener('DOMContentLoaded', () => { document.documentElement.dataset.nativeShell = 'true' }, { once: true });`,
+  })
+  const legacyPage = await legacyContext.newPage()
+  await legacyPage.goto('/factions')
+  await expect(legacyPage.locator('[data-native-app-header]')).toHaveCount(0)
+  await expect(legacyPage.locator('[data-mobile-app-header]')).toBeHidden()
+  await expect(legacyPage.locator('[data-native-app-tabs]')).toBeHidden()
+  await legacyContext.close()
 
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript({
@@ -94,18 +117,64 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await page.goto('/factions/necrons/datasheets/overlord')
 
   const webHeader = page.locator('[data-web-app-chrome]')
+  const mobileHeader = page.locator('[data-mobile-app-header]')
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
+  const more = sections.getByRole('link', { name: 'More' })
   await expect(webHeader).toBeHidden()
-  await expect(page.locator('[data-native-app-header]')).toBeHidden()
-  await expect(page.locator('[data-native-app-tabs]')).toBeHidden()
-  await expect(page.locator('[data-native-app-content]')).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expect(mobileHeader).toBeVisible()
+  await expect(mobileHeader).toHaveCSS('position', 'fixed')
+  await expect(page.getByRole('banner', { name: 'Application' })).toHaveCount(0)
+  await expect(sections).toBeVisible()
+  await expect(sections.getByRole('link', { name: 'Factions' })).toHaveAttribute('aria-current', 'page')
+  await expect(sections.getByRole('link', { name: 'Battles' })).toBeVisible()
+  await expect(sections.getByRole('link', { name: 'Rosters' })).toBeVisible()
+  await expect(sections.getByRole('link', { name: 'Missions' })).toBeVisible()
+  await expect(sections.getByRole('link', { name: 'Leagues' })).toHaveCount(0)
+  expect((await more.boundingBox())?.width).toBeGreaterThanOrEqual(44)
   expect(hydrationErrors).toEqual([])
   await page.screenshot({ path: 'test-results/native-navigation-phone.png', fullPage: true })
 
+  await more.click()
+  await expect(page).toHaveURL('/more')
+  const morePage = page.getByRole('main')
+  await expect(morePage.getByRole('heading', { name: 'More' })).toBeVisible()
+  await expect(morePage.getByRole('link', { name: /^Leagues/ })).toBeVisible()
+  await expect(morePage.getByRole('link', { name: /^Leaderboard/ })).toBeVisible()
+  await expect(morePage.getByRole('link', { name: /^Rules/ })).toBeVisible()
+  await expect(morePage.getByRole('button', { name: 'Search Praetorium' })).toHaveCount(0)
+  await expect(morePage.getByRole('link', { name: /^Sign in/ })).toHaveCount(0)
+  await expect(mobileHeader.getByRole('button', { name: 'Search Praetorium' })).toBeVisible()
+  await expect(mobileHeader.getByRole('button', { name: 'Account menu' })).toBeVisible()
+  await expect(morePage.getByRole('button', { name: /^Back/ })).toHaveCount(0)
+  await expect(sections.getByRole('link', { name: 'Factions' })).not.toHaveAttribute('aria-current', 'page')
+  await expect(more).toHaveAttribute('aria-current', 'page')
+  await page.screenshot({ path: 'test-results/native-navigation-more.png' })
+
+  await mobileHeader.getByRole('button', { name: 'Search Praetorium' }).click()
+  await page.getByPlaceholder('Search everything…').fill('Overlord')
+  await page
+    .getByRole('option', { name: /Overlord/ })
+    .first()
+    .click()
+  await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
+
+  await more.click()
+  await expect(page).toHaveURL('/more')
+  await morePage.getByRole('link', { name: /^Rules/ }).click()
+  await expect(page).toHaveURL('/rules')
+  await expect(more).toHaveAttribute('aria-current', 'page')
+  await more.click()
+  await morePage.getByRole('link', { name: /^Leagues/ }).click()
+  await expect(page).toHaveURL('/leagues')
+
   await page.setViewportSize({ width: 1024, height: 768 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1024)
-  await expect(page.locator('[data-native-app-header]')).toBeHidden()
-  await expect(page.locator('[data-native-app-tabs]')).toBeHidden()
+  await expect(sections).toHaveCSS('flex-direction', 'column')
+  expect((await sections.boundingBox())?.x).toBe(0)
+  expect((await page.locator('[data-native-app-content]').boundingBox())?.x).toBeGreaterThanOrEqual(80)
+  await more.click()
+  await expect(page).toHaveURL('/more')
+  expect((await morePage.boundingBox())?.x).toBeGreaterThanOrEqual(80)
+  await expect(morePage.getByRole('link', { name: /^Leaderboard/ })).toBeVisible()
   await page.screenshot({ path: 'test-results/native-navigation-tablet.png', fullPage: true })
 
   await context.close()
@@ -805,29 +874,32 @@ test('an officer datasheet shows how many orders it can issue', async ({ page })
   await page.screenshot({ path: 'test-results/officer-orders-datasheet-phone.png', fullPage: true })
 })
 
-test('each native application tab returns to where it was left', async ({ browser }) => {
+test('each application tab returns to where it was left', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
-  await context.addInitScript({
-    content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BRIDGE_SCRIPT}`,
-  })
   const page = await context.newPage()
-  const navigate = (path: string) => page.evaluate(applicationNavigationScript(`https://praetorium.gg${path}`)!)
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
 
-  await page.goto('/factions/necrons/datasheets/overlord')
+  await page.goto('/factions/dark-angels/datasheets/deathwing-terminator-squad')
+  const viewportHeight = await page.evaluate(() => window.innerHeight)
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeGreaterThan(viewportHeight)
+  await page.mouse.move(195, 400)
+  await page.mouse.wheel(0, 600)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+  const factionScroll = await page.evaluate(() => window.scrollY)
   // The missions tab lands on the current pack, so its memory is that redirect.
-  await navigate('/mission-packs')
+  await sections.getByRole('link', { name: 'Missions' }).click()
   await expect(page).toHaveURL(/\/mission-packs\//)
 
-  await navigate('/factions')
-  await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
+  await sections.getByRole('link', { name: 'Factions' }).click()
+  await expect(page).toHaveURL('/factions/dark-angels/datasheets/deathwing-terminator-squad')
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(factionScroll)
 
   // The section you are already in has one obvious destination left: its top.
-  await navigate('/factions')
+  await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions')
 
-  await navigate('/mission-packs')
-  await navigate('/factions')
+  await sections.getByRole('link', { name: 'Missions' }).click()
+  await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions')
 
   await context.close()
