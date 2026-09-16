@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.66.1
+
+### Patch Changes
+
+- 23a659b: Use shared mobile utility and navigation bars with remembered tabs and a dedicated More page.
+
 ## 0.66.0
 
 ### Minor Changes
