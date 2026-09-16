@@ -1,0 +1,15 @@
+{
+  "format": "praetorium.catalogue-lock.v1",
+  "pointer": {
+    "format": "praetorium.catalogue-pointer.v1",
+    "id": "84c15721ac8c3835eb92946e2e46e852bb8352ee551c0fe39bf8bea913dad8df",
+    "archiveSha256": "e91c5654b267182503042337ad7667fe2d1231a17c42cd29b83068c7db923cd3"
+  },
+  "revisions": {
+    "definitions": "a2ab65b8ef876e36519b56955b222c19b4edae4b",
+    "points": "61a687e858c00a4ad205d564959c622a5605ef3d",
+    "rules": "6a2aa2d284cd677bb963a9e3d228d9964212991e",
+    "datacards": "98185fa612844d89b0d6ffef91a62e23258d7b63",
+    "battlemaster": "0e6f2d5dae14e6c139f9ae664d770f9cb1d91b80fe2475a82a79829d20213616"
+  }
+}

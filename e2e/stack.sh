@@ -86,6 +86,7 @@ exec docker run --rm --name "$app" --network "$network" \
     --env VALKEY_URL="redis://${valkey}:6379" \
     --env CATALOGUE_DIR=/catalogue \
     --env RULES_DIR=/catalogue/rules \
+    --env CATALOGUE_UPDATE_MODE=off \
     --env AUTH_RATE_LIMIT=off \
     --env APP_URL="${app_url}" \
     --env GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}" \

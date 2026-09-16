@@ -12,7 +12,7 @@ just catalogue-sync
 just dev
 ```
 
-The catalogue sync is optional unless you work on list building. The app can run without catalogue data and still serve battles.
+The catalogue sync is optional unless you work on list building. It downloads the release-pinned snapshot once into `CATALOGUE_CACHE_DIR`, or the platform cache directory when that variable is unset, and points `catalogue-data/` at the immutable cached copy. Every worktree reuses it. Set `CATALOGUE_CACHE_DIR=off` for a worktree-local copy, or run `just catalogue-latest` to follow the hourly publisher. The app can run without catalogue data and still serve battles.
 
 See [Running locally](docs/development/running-locally.md) for individual commands and end-to-end test setup.
 
@@ -74,3 +74,7 @@ Vulnerability reports follow the private process in [SECURITY.md](SECURITY.md).
 Changes to released application behavior carry a `pnpm changeset` entry for the exact package name from `package.json` (`praetorium.gg`). New capabilities use `minor`, fixes use `patch`, and the note is one imperative, user-visible sentence. Documentation, tests, refactors, and tooling-only changes need no changeset.
 
 When a changeset reaches `main`, CI updates `package.json` and `CHANGELOG.md`, then creates the matching tag and GitHub Release.
+
+## Repository backup
+
+`just repository-backup /absolute/destination` creates and verifies a complete Git bundle containing every local ref. The command refuses a destination inside the repository. Store that bundle on infrastructure independent of GitHub; uncommitted working-tree files are not part of a Git backup.

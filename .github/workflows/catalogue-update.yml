@@ -27,6 +27,7 @@ jobs:
       S3_PUBLIC_BASE_URL: ${{ vars.S3_PUBLIC_BASE_URL }}
       CATALOGUE_SNAPSHOT_FILE: /tmp/catalogue-snapshot.zip
       CATALOGUE_SNAPSHOT_POINTER_FILE: /tmp/catalogue-current.json
+      CATALOGUE_DISABLED_SOURCES: ${{ vars.CATALOGUE_DISABLED_SOURCES }}
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.9
@@ -67,5 +68,10 @@ jobs:
             echo "published catalogue snapshot did not verify yet (attempt $attempt/5) — retrying"
             sleep 5
           done
+          aws s3 cp catalogue/revocations.json "s3://$SNAPSHOT_BUCKET/revocations.json" \
+            --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
           aws s3 cp "$CATALOGUE_SNAPSHOT_POINTER_FILE" "s3://$SNAPSHOT_BUCKET/current.json" \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
+          jq -r '.snapshots[]' catalogue/revocations.json | while read -r revoked; do
+            aws s3 rm "s3://$SNAPSHOT_BUCKET/snapshots/$revoked.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
+          done

@@ -131,3 +131,16 @@ it('keeps the current source when an archive lacks its configured subpath', asyn
 
   expect(fs.existsSync(path.join(directory, 'rules', 'current.json'))).toBe(true)
 })
+
+it('removes disabled sources without fetching them', async () => {
+  fs.mkdirSync(path.join(directory, 'battlemaster', 'layouts'), { recursive: true })
+  fs.writeFileSync(path.join(directory, 'battlemaster', 'layouts', 'test.json'), '{}')
+  const fetch = vi.fn()
+  vi.stubGlobal('fetch', fetch)
+
+  await syncSources(directory, sources, undefined, new Set(['datacards', 'battlemaster']))
+
+  expect(fs.existsSync(path.join(directory, 'datacards'))).toBe(false)
+  expect(fs.existsSync(path.join(directory, 'battlemaster'))).toBe(false)
+  expect(fetch).not.toHaveBeenCalled()
+})
