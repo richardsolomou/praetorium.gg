@@ -10,6 +10,7 @@ describe('native application navigation', () => {
     ['/mission-packs', { section: 'missions', title: 'Mission packs' }],
     ['/rules', { section: 'rules', title: 'Rules' }],
     ['/leaderboard', { section: 'leaderboard', title: 'Leaderboard' }],
+    ['/more', { title: 'More' }],
   ])('leaves %s without a back action, because it is the bottom of its tab', (path, expected) => {
     expect(nativeNavigation(path)).toEqual(expected)
   })

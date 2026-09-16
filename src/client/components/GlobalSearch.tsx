@@ -129,9 +129,29 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   )
 }
 
-export function GlobalSearch({ compact = false }: { compact?: boolean }) {
+export function GlobalSearch({ compact = false, onOpen, panel = false }: { compact?: boolean; onOpen?: () => void; panel?: boolean }) {
   const search = useContext(GlobalSearchContext)
   if (!search) throw new Error('GlobalSearch must be rendered inside GlobalSearchProvider.')
+
+  if (panel) {
+    return (
+      <button
+        type="button"
+        className="flex min-h-28 flex-col justify-between border border-edge bg-panel p-3 text-left text-bone hover:border-info hover:bg-raised"
+        aria-label="Search Praetorium"
+        onClick={() => {
+          onOpen?.()
+          search.open()
+        }}
+      >
+        <Search className="size-6 text-info" />
+        <span>
+          <span className="block font-semibold uppercase">Search</span>
+          <span className="mt-0.5 block text-xs text-dim">Everything</span>
+        </span>
+      </button>
+    )
+  }
 
   return (
     <Button

@@ -9,9 +9,8 @@ type NativeNavigation = {
 /**
  * A tab's own top screen, which is the bottom of that tab.
  *
- * There is nothing behind it inside the tab, so it carries no Back action and the
- * shell turns the iOS back gesture off there: the tabs, not a back stack, are how a
- * player leaves one section for another.
+ * There is nothing behind it inside the tab, so it carries no Back action: the tabs,
+ * not a back stack, are how a player leaves one section for another.
  */
 
 export function nativeNavigation(path: string, search: Record<string, unknown> = {}): NativeNavigation {
@@ -88,6 +87,7 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
       title: 'Mission',
     }
   }
+  if (root === 'more') return { title: 'More' }
   if (root === 'profile') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }
   if (root === 'leaderboard') return { section: 'leaderboard', title: 'Leaderboard' }
   if (root === 'users') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }

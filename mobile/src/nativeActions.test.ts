@@ -17,27 +17,6 @@ describe('parseNativeActionRequest', () => {
   })
 
   it('accepts battle, haptic, and print actions', () => {
-    expect(
-      parseNativeActionRequest(
-        JSON.stringify({ version: 3, type: 'native-account', name: 'Rogal Dorn', image: 'https://cdn.example/dorn.webp' }),
-      ),
-    ).toEqual({ kind: 'account', name: 'Rogal Dorn', image: 'https://cdn.example/dorn.webp' })
-    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-account' }))).toEqual({ kind: 'account' })
-    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-account-menu', open: false }))).toEqual({
-      kind: 'account-menu',
-      open: false,
-    })
-    expect(
-      parseNativeActionRequest(
-        JSON.stringify({
-          version: 3,
-          type: 'native-navigation',
-          title: 'Roster',
-          backUrl: '/rosters',
-          preferHistory: true,
-        }),
-      ),
-    ).toEqual({ kind: 'navigation', title: 'Roster', backUrl: 'https://praetorium.gg/rosters', preferHistory: true })
     expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-battle-active', active: true }))).toEqual({
       kind: 'battle-active',
       active: true,
@@ -76,13 +55,14 @@ describe('parseNativeActionRequest', () => {
 describe('NATIVE_BRIDGE_SCRIPT', () => {
   it('publishes only the version 3 capabilities the shell handles', () => {
     expect(NATIVE_BRIDGE_SCRIPT).toContain(
-      "const capabilities = ['account', 'app-navigation', 'back-gesture', 'battle-active', 'haptic', 'open-window', 'print', 'share']",
+      "const capabilities = ['app-navigation', 'back-gesture', 'battle-active', 'haptic', 'open-window', 'print', 'share']",
     )
     expect(NATIVE_BRIDGE_SCRIPT).toContain('bridgeVersion: 3')
   })
 
   it('marks documents for the native application layout before they render', () => {
     expect(NATIVE_BRIDGE_SCRIPT).toContain("document.documentElement.dataset.nativeApp = 'true'")
+    expect(NATIVE_BRIDGE_SCRIPT).not.toContain('dataset.nativeShell')
   })
 
   it('disables document zoom in the native application', () => {

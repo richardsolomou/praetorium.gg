@@ -6,9 +6,6 @@ const MAX_OPEN_WINDOW_URL_LENGTH = 2_048
 const MAX_PRINT_HTML_LENGTH = 2_000_000
 
 export type NativeActionRequest =
-  | { kind: 'account'; name?: string; image?: string }
-  | { kind: 'account-menu'; open: boolean }
-  | { kind: 'navigation'; title: string; backUrl?: string; preferHistory: boolean }
   | { kind: 'back-gesture'; enabled: boolean }
   | { kind: 'battle-active'; active: boolean }
   | { kind: 'haptic' }
@@ -20,24 +17,6 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
   try {
     const value = JSON.parse(message) as Record<string, unknown>
     if (value.version !== 3) return null
-    if (value.type === 'native-account-menu' && typeof value.open === 'boolean') return { kind: 'account-menu', open: value.open }
-    if (value.type === 'native-account') {
-      if (value.name !== undefined && (typeof value.name !== 'string' || value.name.length > 100)) return null
-      if (value.image !== undefined) {
-        if (typeof value.image !== 'string' || value.image.length > 2_048) return null
-        const image = classifyNavigation(new URL(value.image, APP_URL).href)
-        if (image.kind === 'blocked' || !image.url.startsWith('http')) return null
-        return { kind: 'account', ...(typeof value.name === 'string' ? { name: value.name } : {}), image: image.url }
-      }
-      return { kind: 'account', ...(typeof value.name === 'string' ? { name: value.name } : {}) }
-    }
-    if (value.type === 'native-navigation' && typeof value.title === 'string' && value.title.length <= 80) {
-      if (value.backUrl === undefined) return { kind: 'navigation', title: value.title, preferHistory: false }
-      if (typeof value.backUrl !== 'string' || typeof value.preferHistory !== 'boolean') return null
-      const back = classifyNavigation(new URL(value.backUrl, APP_URL).href)
-      if (back.kind !== 'internal') return null
-      return { kind: 'navigation', title: value.title, backUrl: back.url, preferHistory: value.preferHistory }
-    }
     if (value.type === 'native-back-gesture' && typeof value.enabled === 'boolean') {
       return { kind: 'back-gesture', enabled: value.enabled }
     }
@@ -65,7 +44,7 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
 }
 
 export const NATIVE_BRIDGE_SCRIPT = `(() => {
-  const capabilities = ['account', 'app-navigation', 'back-gesture', 'battle-active', 'haptic', 'open-window', 'print', 'share'];
+  const capabilities = ['app-navigation', 'back-gesture', 'battle-active', 'haptic', 'open-window', 'print', 'share'];
   window.PraetoriumNative = Object.freeze({ bridgeVersion: 3, capabilities });
   const disableZoom = () => {
     const viewport = document.querySelector('meta[name="viewport"]');
@@ -77,7 +56,6 @@ export const NATIVE_BRIDGE_SCRIPT = `(() => {
   const markNativeApp = () => {
     if (!document.documentElement) return false;
     document.documentElement.dataset.nativeApp = 'true';
-    document.documentElement.dataset.nativeShell = 'true';
     return true;
   };
   if (!markNativeApp()) {
