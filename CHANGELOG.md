@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.65.0
+
+### Minor Changes
+
+- ac2882f: Pin verified catalogue releases and support shared development caches, offline installation, provenance, and emergency withdrawal.
+
 ## 0.64.4
 
 ### Patch Changes
