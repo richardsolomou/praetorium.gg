@@ -282,7 +282,7 @@ jobs:
           key: catalogue-coverage-${{ matrix.sha }}-${{ hashFiles('catalogue-data/.snapshot.json') }}
       - name: Snapshot the ${{ matrix.revision }}
         if: matrix.revision == 'head' || steps.base-cache.outputs.cache-hit != 'true'
-        run: pnpm catalogue:coverage ${{ matrix.revision }}.json
+        run: pnpm catalogue:coverage:parallel ${{ matrix.revision }}.json
       - uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.revision }}

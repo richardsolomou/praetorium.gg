@@ -27,11 +27,19 @@ process.env.DATABASE_URL ??= 'postgres://coverage:coverage@localhost/coverage'
 // Only the secret lands here: CATALOGUE_DIR and RULES_DIR already say where the data is.
 process.env.DATA_DIR ??= path.join(os.tmpdir(), 'praetorium-coverage')
 
-const [output, flag, previous] = process.argv.slice(2)
+const arguments_ = process.argv.slice(2)
+const output = arguments_[0]
 if (!output) throw new Error('usage: catalogueCoverage.ts <out.json> [--compare <before.json>] [--accept <withdrawn.json>]')
+const compareAt = arguments_.indexOf('--compare')
+const previous = compareAt < 0 ? undefined : arguments_[compareAt + 1]
 const acceptAt = process.argv[process.argv.indexOf('--accept') + 1]
 const accepted: { reason: string; entries: string[] }[] =
   process.argv.includes('--accept') && acceptAt ? JSON.parse(fs.readFileSync(acceptAt, 'utf8')) : []
+const shardAt = arguments_.indexOf('--shard')
+const shard = shardAt < 0 ? null : arguments_[shardAt + 1]?.match(/^(\d+)\/(\d+)$/)
+if (shardAt >= 0 && (!shard || Number(shard[2]) < 1 || Number(shard[1]) >= Number(shard[2]))) {
+  throw new Error('--shard must be a zero-based index and count, for example 0/3')
+}
 
 const loaded = loadCatalogue(process.env.CATALOGUE_DIR)
 if (!loaded) throw new Error('catalogue unavailable')
@@ -44,7 +52,8 @@ const described = (entries: readonly { name: string; description: string | null 
 const byName = (left: { name: string }, right: { name: string }) => left.name.localeCompare(right.name)
 
 const factions = factionsFor(loaded, rules).factions
-const snapshot = loaded.factions.toSorted(byName).map((faction) => {
+const snapshotFactions = loaded.factions.toSorted(byName).filter((_, index) => !shard || index % Number(shard[2]) === Number(shard[1]))
+const snapshot = snapshotFactions.map((faction) => {
   const full = factions.find((candidate) => candidate.id === faction.id)!
   const detachments = full.detachments
     .filter((detachment) => full.referenceDetachmentIds.includes(detachment.id))
@@ -198,4 +207,4 @@ const count = {
 }
 console.log(count)
 
-if (flag === '--compare' && previous) compareCatalogueCoverage(previous, output, accepted)
+if (previous) compareCatalogueCoverage(previous, output, accepted)
