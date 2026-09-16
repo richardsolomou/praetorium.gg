@@ -536,7 +536,7 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
 
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.getByRole('dialog', { name: 'Loadout' }).getByRole('button', { name: 'Back to roster' }).click()
+  await loadout.getByRole('button', { name: 'Back to roster' }).click()
   await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   const compactPicker = page.getByRole('dialog', { name: 'Add units' })
