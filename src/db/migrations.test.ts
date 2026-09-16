@@ -159,6 +159,52 @@ it('keeps account inserts compatible during a rolling deployment', async () => {
   }
 })
 
+it('accepts accounts without an issuer after the Better Auth rollback', async () => {
+  const client = new PGlite()
+  try {
+    const target = '0018_steep_mystique.sql'
+    await executeMigrationsBefore(client, target)
+    await executeMigration(client, target)
+    await client.exec(`
+      INSERT INTO "user" ("id", "name", "email", "emailVerified", "createdAt", "updatedAt")
+      VALUES ('user', 'User', 'user@example.test', false, now(), now());
+      INSERT INTO "account" ("id", "accountId", "providerId", "userId", "createdAt", "updatedAt")
+      VALUES ('account', 'subject', 'custom', 'user', now(), now());
+    `)
+
+    const result = await client.query<{ issuer: string | null }>('SELECT "issuer" FROM "account" WHERE "id" = \'account\'')
+
+    expect(result.rows[0]?.issuer).toBeNull()
+  } finally {
+    await client.close()
+  }
+})
+
+it('keeps Better Auth account identities unique after the issuer rollback', async () => {
+  const client = new PGlite()
+  try {
+    const target = '0018_steep_mystique.sql'
+    await executeMigrationsBefore(client, target)
+    await executeMigration(client, target)
+    await client.exec(`
+      INSERT INTO "user" ("id", "name", "email", "emailVerified", "createdAt", "updatedAt") VALUES
+        ('first', 'First', 'first@example.test', false, now(), now()),
+        ('second', 'Second', 'second@example.test', false, now(), now());
+      INSERT INTO "account" ("id", "accountId", "providerId", "userId", "createdAt", "updatedAt")
+      VALUES ('first-account', 'shared-subject', 'custom', 'first', now(), now());
+    `)
+
+    await expect(
+      client.exec(`
+        INSERT INTO "account" ("id", "accountId", "providerId", "userId", "createdAt", "updatedAt")
+        VALUES ('second-account', 'shared-subject', 'custom', 'second', now(), now());
+      `),
+    ).rejects.toThrow()
+  } finally {
+    await client.close()
+  }
+})
+
 it('backfills league event battles from their roster lock command', async () => {
   const client = new PGlite()
   try {
