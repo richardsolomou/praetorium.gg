@@ -30,7 +30,7 @@ jobs:
       CATALOGUE_DISABLED_SOURCES: ${{ vars.CATALOGUE_DISABLED_SOURCES }}
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.9
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.11
       # Baselines report here rather than fail. They measure agreement between sources this
       # job does not control, so an upstream addition trips one and holds every unrelated
       # part of the refresh back until two upstreams agree about a name again. A shortfall
