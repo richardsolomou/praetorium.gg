@@ -789,10 +789,10 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
     .first()
     .click()
   const unit = page.locator('aside[aria-label="Loadout"]')
-  await expect(unit.getByRole('button', { name: 'Feel No Pain 5+' })).toBeVisible()
-  await expect(unit.getByRole('button', { name: 'Deadly Demise D6' })).toBeVisible()
+  await expect(unit.getByRole('button', { name: 'Feel No Pain 5+', exact: true })).toBeVisible()
+  await expect(unit.getByRole('button', { name: 'Deadly Demise D6', exact: true })).toBeVisible()
   await shot(unit, 'test-results/pantheon-datasheet-abilities.png')
-  const matrix = unit.getByRole('heading', { name: 'Singularity Matrix' }).locator('..')
+  const matrix = unit.getByRole('heading', { name: 'Singularity Matrix' }).locator('xpath=ancestor::article')
   await expect(matrix).toContainText('Lord of Deceit (Aura)')
   await shot(matrix, 'test-results/pantheon-singularity-matrix.png')
 
