@@ -28,7 +28,6 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 360
     env:
-      APPLE_TEAM_ID: A3X8464573
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -49,23 +48,16 @@ jobs:
           printf '%s' "$APP_STORE_CONNECT_KEY_BASE64" | base64 --decode > "$key_path"
           chmod 600 "$key_path"
           echo "APP_STORE_CONNECT_KEY_PATH=$key_path" >> "$GITHUB_ENV"
-      - name: Generate the canary iOS project
+      - name: Build the canary iOS application
         env:
-          EAS_ENVIRONMENT: preview
-          MOBILE_UPDATE_CHANNEL: canary
-          POSTHOG_CLI_DRY_RUN: 'true'
+          EAS_LOCAL_BUILD_SKIP_CLEANUP: '1'
+          EAS_LOCAL_BUILD_WORKINGDIR: ${{ runner.temp }}/eas-local-build-canary
         working-directory: mobile
-        run: pnpm dlx eas-cli@23.2.0 env:exec "$EAS_ENVIRONMENT" "pnpm exec expo prebuild --clean --platform ios --no-install" --non-interactive
-      - name: Install canary iOS dependencies
-        working-directory: mobile/ios
-        run: bundle exec pod install
-      - name: Build and upload the canary iOS application
-        env:
-          EAS_ENVIRONMENT: preview
-          MOBILE_UPDATE_CHANNEL: canary
-          POSTHOG_CLI_DRY_RUN: 'true'
-        working-directory: mobile
-        run: pnpm dlx eas-cli@23.2.0 env:exec "$EAS_ENVIRONMENT" "cd .. && bundle exec fastlane ios build_and_upload" --non-interactive
+        run: |
+          mkdir -p "$RUNNER_TEMP/mobile-build"
+          pnpm dlx eas-cli@23.2.0 build --platform ios --profile canary-ios --local --output "$RUNNER_TEMP/mobile-build/praetorium-canary.ipa" --freeze-credentials --non-interactive
+      - name: Upload the canary iOS application
+        run: bundle exec fastlane ios upload ipa:"$RUNNER_TEMP/mobile-build/praetorium-canary.ipa"
       - name: Publish the compatible canary update
         env:
           EAS_ENVIRONMENT: preview
@@ -73,23 +65,16 @@ jobs:
           POSTHOG_CLI_DRY_RUN: 'true'
         working-directory: mobile
         run: pnpm dlx eas-cli@23.2.0 update --platform ios --channel "$MOBILE_UPDATE_CHANNEL" --environment "$EAS_ENVIRONMENT" --message "$GITHUB_SHA" --non-interactive
-      - name: Generate the stable iOS project
+      - name: Remove the canary build workspace
+        run: rm -rf "${RUNNER_TEMP:?}/eas-local-build-canary"
+      - name: Build the stable iOS application
         env:
-          EAS_ENVIRONMENT: production
-          MOBILE_UPDATE_CHANNEL: stable
-          POSTHOG_CLI_DRY_RUN: 'false'
+          EAS_LOCAL_BUILD_SKIP_CLEANUP: '1'
+          EAS_LOCAL_BUILD_WORKINGDIR: ${{ runner.temp }}/eas-local-build-stable
         working-directory: mobile
-        run: pnpm dlx eas-cli@23.2.0 env:exec "$EAS_ENVIRONMENT" "pnpm exec expo prebuild --clean --platform ios --no-install" --non-interactive
-      - name: Install stable iOS dependencies
-        working-directory: mobile/ios
-        run: bundle exec pod install
-      - name: Build and upload the stable iOS application
-        env:
-          EAS_ENVIRONMENT: production
-          MOBILE_UPDATE_CHANNEL: stable
-          POSTHOG_CLI_DRY_RUN: 'false'
-        working-directory: mobile
-        run: pnpm dlx eas-cli@23.2.0 env:exec "$EAS_ENVIRONMENT" "cd .. && bundle exec fastlane ios build_and_upload" --non-interactive
+        run: pnpm dlx eas-cli@23.2.0 build --platform ios --profile production --local --output "$RUNNER_TEMP/mobile-build/praetorium-stable.ipa" --freeze-credentials --non-interactive
+      - name: Upload the stable iOS application
+        run: bundle exec fastlane ios upload ipa:"$RUNNER_TEMP/mobile-build/praetorium-stable.ipa"
       - name: Publish the compatible stable update
         env:
           EAS_ENVIRONMENT: production
@@ -106,7 +91,8 @@ jobs:
         with:
           name: ios-diagnostics
           path: |
-            ${{ runner.temp }}/mobile-build/*.xcresult
+            ${{ runner.temp }}/eas-local-build-*/**/*.xcresult
+            ${{ runner.temp }}/eas-local-build-*/**/*.log
             ~/Library/Logs/gym
           retention-days: 7
           if-no-files-found: ignore

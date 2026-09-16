@@ -11,6 +11,15 @@
       },
       "channel": "preview"
     },
+    "canary-ios": {
+      "autoIncrement": true,
+      "channel": "canary",
+      "environment": "preview",
+      "env": {
+        "MOBILE_UPDATE_CHANNEL": "canary",
+        "POSTHOG_CLI_DRY_RUN": "true"
+      }
+    },
     "canary-android": {
       "autoIncrement": true,
       "channel": "canary",
@@ -26,7 +35,10 @@
     "production": {
       "autoIncrement": true,
       "channel": "stable",
-      "environment": "production"
+      "environment": "production",
+      "env": {
+        "MOBILE_UPDATE_CHANNEL": "stable"
+      }
     }
   },
   "submit": {
