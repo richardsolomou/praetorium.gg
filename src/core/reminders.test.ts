@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   reminderDue,
   reminderKey,
+  remindersAfterUnitInserted,
   remindersAfterUnitRemoved,
   remindersDueAt,
   reminderTimingLabel,
@@ -105,10 +106,10 @@ it('describes configured timing in player-facing words', () => {
   expect(reminderTimingLabel({ moment: 'phase-start', phase: 'command', turn: 'your-turn' })).toBe('Start of your Command phase')
 })
 
-it('removes a deleted units reminders and shifts the units after it', () => {
-  const reminder = (key: string, index?: number) => ({
-    key,
-    ability: key,
+it('removes a deleted units reminders and rekeys the units after it', () => {
+  const reminder = (ability: string, index?: number) => ({
+    key: index === undefined ? `faction:${ability}:army` : `datasheet:${ability}:${index}`,
+    ability,
     description: '',
     ...(index === undefined ? {} : { unit: { index, name: `Unit ${index}` } }),
     timings: [{ moment: 'turn-start' as const, phase: null, turn: 'your-turn' as const }],
@@ -116,6 +117,20 @@ it('removes a deleted units reminders and shifts the units after it', () => {
 
   expect(remindersAfterUnitRemoved([reminder('army'), reminder('deleted', 1), reminder('kept', 2)], 1)).toEqual([
     reminder('army'),
-    { ...reminder('kept', 2), unit: { index: 1, name: 'Unit 2' } },
+    { ...reminder('kept', 1), unit: { index: 1, name: 'Unit 2' } },
+  ])
+})
+
+it('rekeys reminders when a preceding unit is inserted', () => {
+  const reminder = {
+    key: 'upgrade:dimensional-overseer:1',
+    ability: 'Dimensional Overseer',
+    description: '',
+    unit: { index: 1, name: 'Hexmark Destroyer' },
+    timings: [{ moment: 'turn-start' as const, phase: null, turn: 'your-turn' as const }],
+  }
+
+  expect(remindersAfterUnitInserted([reminder], 1)).toEqual([
+    { ...reminder, key: 'upgrade:dimensional-overseer:2', unit: { ...reminder.unit, index: 2 } },
   ])
 })

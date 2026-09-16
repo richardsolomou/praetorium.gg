@@ -1,6 +1,6 @@
-import type { Secondary, Stratagem } from '../../core/battle'
-import type { RosterReminder } from '../../core/reminders'
 import { type FrozenRoster, ListBuilder } from '../features/rosters/ListBuilder'
+
+type ListBuilderProps = Parameters<typeof ListBuilder>[0]
 
 type Roster = {
   id: string
@@ -9,21 +9,16 @@ type Roster = {
   detachmentIds: string[]
   disposition: string | null
   limit: number
-  picks: Parameters<typeof ListBuilder>[0]['initial']['picks']
-  waivedRules: Parameters<typeof ListBuilder>[0]['initial']['waivedRules']
-  prep?: {
-    stratagems: Stratagem[]
-    secondaries: Secondary[]
-    reminders?: RosterReminder[]
-    remindersEnabled?: boolean
-  } | null
-  visibility: Parameters<typeof ListBuilder>[0]['initial']['visibility']
-  source: Parameters<typeof ListBuilder>[0]['initial']['source']
+  picks: ListBuilderProps['initial']['picks']
+  waivedRules: ListBuilderProps['initial']['waivedRules']
+  prep?: ListBuilderProps['prep'] | null
+  visibility: ListBuilderProps['initial']['visibility']
+  source: ListBuilderProps['initial']['source']
 }
 
 type Props = {
   roster: Roster
-  faction: Parameters<typeof ListBuilder>[0]['initialFaction']
+  faction: ListBuilderProps['initialFaction']
   editable: boolean
   battle?: string
   resolvePersistedRoster?: boolean

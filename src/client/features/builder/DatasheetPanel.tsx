@@ -1,7 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Bell, BellRing } from 'lucide-react'
 import { useEffect } from 'react'
-import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { wargearBaseName } from '../../../core/wargear'
 import type { RosterPick } from '../../../core/roster'
@@ -21,6 +19,7 @@ import {
 } from '../../datasheet'
 import { RuleText } from '../../components/RuleText'
 import { ProfileRules } from '../../components/ProfileRules'
+import { ReminderButton, type ReminderControls } from '../rosters/ReminderButton'
 
 type Props = {
   catalogueId: string
@@ -35,10 +34,7 @@ type Props = {
   showRelationships?: boolean
   onRelationshipSelect?: (entryId: string, name: string) => void
   onReferenceRoute?: (reference: { entryId: string; route: Datasheet['referenceRoute'] } | null) => void
-  abilityReminders?: {
-    active: (ability: Datasheet['abilities'][number]) => boolean
-    onSelect: (ability: Datasheet['abilities'][number], unitName: string) => void
-  }
+  abilityReminders?: ReminderControls
 }
 
 export function DatasheetPanel({
@@ -318,33 +314,6 @@ export function WeaponProfile({
   )
 }
 
-type AbilityReminderControls = NonNullable<Props['abilityReminders']>
-
-function ReminderButton({
-  ability,
-  unitName,
-  controls,
-}: {
-  ability: Datasheet['abilities'][number]
-  unitName: string
-  controls: AbilityReminderControls
-}) {
-  const active = controls.active(ability)
-  const label = `${active ? 'Edit' : 'Set'} alert for ${ability.name}`
-  return (
-    <Button
-      variant="ghost"
-      size="icon-xs"
-      className={active ? 'text-parchment' : 'text-faint hover:text-bone'}
-      aria-label={label}
-      title={label}
-      onClick={() => controls.onSelect(ability, unitName)}
-    >
-      {active ? <BellRing /> : <Bell />}
-    </Button>
-  )
-}
-
 function AbilitySummary({
   abilities,
   rules,
@@ -354,7 +323,7 @@ function AbilitySummary({
   abilities: Datasheet['abilities']
   rules: Datasheet['keywordRules']
   unitName: string
-  reminders?: AbilityReminderControls
+  reminders?: ReminderControls
 }) {
   return Object.entries(abilitySections).map(([kind, title]) => {
     const found = abilities.filter((ability) => ability.kind === kind)
@@ -383,7 +352,7 @@ function AbilitySummary({
                   note={ability.source ? `Added by ${ability.source}` : undefined}
                   highlightNote={false}
                 />
-                {reminders ? <ReminderButton ability={ability} unitName={unitName} controls={reminders} /> : null}
+                {reminders ? <ReminderButton subject={ability} unitName={unitName} controls={reminders} /> : null}
               </span>
             ))}
           </div>
@@ -400,7 +369,7 @@ function AbilitySummary({
             <article key={ability.id} className="relative border border-edge bg-card px-2 py-1.5">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="text-xs">{ability.source ?? ability.name}</h3>
-                {reminders ? <ReminderButton ability={ability} unitName={unitName} controls={reminders} /> : null}
+                {reminders ? <ReminderButton subject={ability} unitName={unitName} controls={reminders} /> : null}
               </div>
               {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
               {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}

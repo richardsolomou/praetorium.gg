@@ -1,19 +1,16 @@
 import { expect, test } from '@playwright/test'
-import {
-  advance,
-  attachRoster,
-  createBattle,
-  createRoster,
-  desktopContext,
-  PRACTICE_OPPONENT,
-  signUp,
-  startBattle,
-  uniqueName,
-  waitForRosterSave,
-} from './account'
+import { advance, createRoster, desktopContext, setupBattle, signUp, uniqueName, waitForRosterSave } from './account'
 
-test('an ability reminder can cover phases with different turn scopes', async ({ browser }) => {
+test('roster reminders cover selected rules and advances from another device', async ({ browser }) => {
   const page = await (await browser.newContext(desktopContext)).newPage()
+  const opponent = await (await browser.newContext(desktopContext)).newPage()
+  const opponentName = uniqueName('Reminder opponent')
+  await signUp(opponent, opponentName)
+  const opponentRoster = await createRoster(opponent, {
+    faction: 'Death Guard',
+    detachment: /Shamblerot Vectorium/,
+    name: 'Reminder opponent test',
+  })
   await signUp(page, uniqueName('Reminder player'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Reminder test' })
 
@@ -24,6 +21,19 @@ test('an ability reminder can cover phases with different turn scopes', async ({
     .first()
     .click()
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Make Plasmancer Warlord' }).click())
+
+  const enhancements = page.getByRole('group', { name: 'Plasmancer Enhancements' })
+  await waitForRosterSave(page, () => enhancements.getByRole('button', { name: 'Select Nether-realm Casket' }).click())
+  await page.screenshot({ path: 'test-results/reminder-enhancement-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  expect(await enhancements.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/reminder-enhancement-phone.png', fullPage: true })
+  await page.setViewportSize(desktopContext.viewport)
+  await enhancements.getByLabel('Set alert for Nether-realm Casket').click()
+  await expect(page.getByRole('dialog', { name: 'Nether-realm Casket' })).toBeVisible()
+  await page.getByRole('dialog', { name: 'Nether-realm Casket' }).getByRole('button', { name: 'Cancel' }).click()
+
   await page.getByLabel('Set alert for Living Lightning').click()
 
   const editor = page.getByRole('dialog', { name: 'Living Lightning' })
@@ -37,6 +47,14 @@ test('an ability reminder can cover phases with different turn scopes', async ({
   await editor.getByRole('combobox', { name: 'Whose turn' }).nth(1).click()
   await page.getByRole('option', { name: 'Either turn' }).click()
   await expect(editor.getByText('Alert: Start of either Fight phase')).toBeVisible()
+  await editor.getByRole('button', { name: 'Add trigger' }).click()
+  await editor.getByRole('combobox', { name: 'When' }).nth(2).click()
+  await page.getByRole('option', { name: 'End of phase' }).click()
+  await editor.getByRole('combobox', { name: 'Phase' }).nth(2).click()
+  await page.getByRole('option', { name: 'Movement' }).click()
+  await editor.getByRole('combobox', { name: 'Whose turn' }).nth(2).click()
+  await page.getByRole('option', { name: 'Your turn' }).click()
+  await expect(editor.getByText('Alert: End of your Movement phase')).toBeVisible()
   await page.screenshot({ path: 'test-results/reminder-editor-desktop.png', fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
@@ -55,14 +73,13 @@ test('an ability reminder can cover phases with different turn scopes', async ({
   await expect(page.getByRole('button', { name: 'Enable all alerts' })).toBeVisible()
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Enable all alerts' }).click())
 
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
-  await startBattle(page)
+  await setupBattle(page, opponent, { opponent: opponentName, hostRoster: roster, guestRoster: opponentRoster })
   await advance(page)
-  await advance(page)
+  await advance(opponent)
 
   const reminder = page.getByRole('dialog', { name: 'Battle reminder' })
+  await expect(reminder).toContainText('End of your Movement phase')
+  await reminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
   await expect(reminder).toContainText('Living Lightning')
   await expect(reminder).toContainText('Start of your Shooting phase')
   await page.screenshot({ path: 'test-results/reminder-battle-desktop.png', fullPage: true })

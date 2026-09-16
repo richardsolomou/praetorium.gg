@@ -9,8 +9,12 @@ import { appliesInMode } from '../missionText'
 import { automaticAttemptsExhausted, claimAutomaticAttempt } from '../automaticAttempts'
 import { errorMessage } from '../queryClient'
 import {
+  parseReminderDismissals,
+  pruneReminderDismissals,
   reminderDismissalKey,
   reminderDismissalKeys,
+  reminderDismissalStorageKey,
+  serializeReminderDismissals,
   type ReminderDismissalContext,
   type ReminderDismissalScope,
 } from '../reminderDismissals'
@@ -69,7 +73,9 @@ type Focus = (typeof VIEWS)[number]
  */
 export function Tracker({ view, missions, send, pending, problem }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
-  const [reminderPrompt, setReminderPrompt] = useState<ReminderPrompt | null>(null)
+  const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
+  const [dismissalsReady, setDismissalsReady] = useState(false)
+  const reminderPrompt = reminderPrompts[0] ?? null
   const dismissedReminders = useRef(new Set<string>())
   // Refetches that change nothing keep their object identity through the query
   // cache's structural sharing, so these memos hold between commands too.
@@ -78,40 +84,64 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   const active = table.find((side) => side.isActive)
   const viewer = view.players.find((player) => player.isViewer)
   const viewerReminders = viewer?.roster?.remindersEnabled === false ? EMPTY_REMINDERS : (viewer?.roster?.reminders ?? EMPTY_REMINDERS)
-  const reminderTurn = viewer && active ? (viewer.side === active.index ? 'your-turn' : 'opponent-turn') : null
+  const reminderTurn: ReminderTiming['turn'] | null =
+    viewer && active ? (viewer.side === active.index ? 'your-turn' : 'opponent-turn') : null
+  const reminderContext = useMemo(
+    () => ({ round: view.round, activePlayerId: view.activePlayerId, phase: view.phase }),
+    [view.activePlayerId, view.phase, view.round],
+  )
+  const dismissalStorageKey = reminderDismissalStorageKey(view.token)
+  useEffect(() => {
+    setDismissalsReady(false)
+    setReminderPrompts([])
+    try {
+      dismissedReminders.current = parseReminderDismissals(localStorage.getItem(dismissalStorageKey))
+    } catch {
+      dismissedReminders.current = new Set()
+    }
+    setDismissalsReady(true)
+  }, [dismissalStorageKey])
   const reminderDismissed = useCallback(
     (reminderKey: string, context: ReminderDismissalContext) =>
-      reminderDismissalKeys(view.token, reminderKey, context).some((storageKey) => {
-        if (dismissedReminders.current.has(storageKey)) return true
-        try {
-          if (localStorage.getItem(storageKey)) {
-            dismissedReminders.current.add(storageKey)
-            return true
-          }
-        } catch {
-          return false
-        }
-        return false
-      }),
-    [view.token],
+      reminderDismissalKeys(reminderKey, context).some((key) => dismissedReminders.current.has(key)),
+    [],
   )
   const rememberReminder = useCallback(
     (reminderKey: string, scope: ReminderDismissalScope, context: ReminderDismissalContext) => {
-      const storageKey = reminderDismissalKey(view.token, reminderKey, scope, context)
-      dismissedReminders.current.add(storageKey)
+      dismissedReminders.current.add(reminderDismissalKey(reminderKey, scope, context))
       try {
-        localStorage.setItem(storageKey, 'dismissed')
+        localStorage.setItem(dismissalStorageKey, serializeReminderDismissals(dismissedReminders.current))
       } catch {
         // The in-memory record still keeps the dismissal for this page when storage is unavailable.
       }
+      setReminderPrompts((current) =>
+        current.flatMap((prompt) => {
+          const reminders = prompt.reminders.filter(
+            (candidate) => !reminderDismissalKeys(candidate.key, prompt.context).some((key) => dismissedReminders.current.has(key)),
+          )
+          return reminders.length ? [{ ...prompt, reminders }] : []
+        }),
+      )
     },
-    [view.token],
+    [dismissalStorageKey],
   )
   const remindersAt = useCallback(
     (moments: readonly ReminderTiming[], context: ReminderDismissalContext) =>
       remindersDueAt(viewerReminders, moments).filter((reminder) => !reminderDismissed(reminder.key, context)),
     [reminderDismissed, viewerReminders],
   )
+  const enqueueReminderPrompt = useCallback((prompt: ReminderPrompt) => {
+    setReminderPrompts((current) => {
+      const duplicate = current.some(
+        (queued) =>
+          queued.moment === prompt.moment &&
+          queued.context.round === prompt.context.round &&
+          queued.context.activePlayerId === prompt.context.activePlayerId &&
+          queued.context.phase === prompt.context.phase,
+      )
+      return duplicate ? current : [...current, prompt]
+    })
+  }, [])
   const ruleRequests = useMemo(
     () =>
       table.flatMap((side) =>
@@ -288,7 +318,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
       advanceNow()
       return
     }
-    setReminderPrompt({
+    enqueueReminderPrompt({
       reminders,
       moment: reminderTimingLabel(moment),
       confirmLabel: view.phase === 'fight' ? 'Continue to end of turn' : 'End the phase',
@@ -334,8 +364,53 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
   const discardable = active ? discardableSecondaries(active) : []
 
+  const previousReminderMoment = useRef<{
+    status: BattleView['status']
+    round: number
+    activePlayerId: string | null
+    phase: BattleView['phase']
+    turn: ReminderTiming['turn'] | null
+  } | null>(null)
   useEffect(() => {
-    if (view.status !== 'playing' || reminderPrompt || !reminderTurn || !viewerReminders.length) return
+    const current = {
+      status: view.status,
+      round: view.round,
+      activePlayerId: view.activePlayerId,
+      phase: view.phase,
+      turn: reminderTurn,
+    }
+    const previous = previousReminderMoment.current
+    previousReminderMoment.current = current
+    if (
+      !dismissalsReady ||
+      !previous ||
+      previous.status !== 'playing' ||
+      current.status !== 'playing' ||
+      previous.phase === 'end' ||
+      !previous.turn ||
+      (previous.round === current.round && previous.activePlayerId === current.activePlayerId && previous.phase === current.phase)
+    )
+      return
+    const moment: ReminderTiming = { moment: 'phase-end', phase: previous.phase, turn: previous.turn }
+    const context = { round: previous.round, activePlayerId: previous.activePlayerId, phase: previous.phase }
+    const reminders = remindersAt([moment], context)
+    if (!reminders.length) return
+    enqueueReminderPrompt({ reminders, moment: reminderTimingLabel(moment), confirmLabel: 'Dismiss', context })
+  }, [dismissalsReady, enqueueReminderPrompt, reminderTurn, remindersAt, view.activePlayerId, view.phase, view.round, view.status])
+
+  useEffect(() => {
+    if (!dismissalsReady) return
+    const pruned = pruneReminderDismissals(dismissedReminders.current, reminderContext)
+    dismissedReminders.current = pruned
+    try {
+      localStorage.setItem(dismissalStorageKey, serializeReminderDismissals(pruned))
+    } catch {
+      // The in-memory record still keeps dismissals for this page when storage is unavailable.
+    }
+  }, [dismissalStorageKey, dismissalsReady, reminderContext])
+
+  useEffect(() => {
+    if (!dismissalsReady || view.status !== 'playing' || reminderPrompt || !reminderTurn || !viewerReminders.length) return
     const moments: ReminderTiming[] =
       view.phase === 'end'
         ? [{ moment: 'turn-end', phase: null, turn: reminderTurn }]
@@ -346,7 +421,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     const context = { round: view.round, activePlayerId: view.activePlayerId, phase: view.phase }
     const reminders = remindersAt(moments, context)
     if (!reminders.length) return
-    setReminderPrompt({
+    enqueueReminderPrompt({
       reminders,
       moment:
         view.phase === 'command'
@@ -355,7 +430,18 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
       confirmLabel: 'Dismiss',
       context,
     })
-  }, [reminderPrompt, reminderTurn, remindersAt, view.activePlayerId, view.phase, view.round, view.status, viewerReminders.length])
+  }, [
+    dismissalsReady,
+    enqueueReminderPrompt,
+    reminderPrompt,
+    reminderTurn,
+    remindersAt,
+    view.activePlayerId,
+    view.phase,
+    view.round,
+    view.status,
+    viewerReminders.length,
+  ])
 
   return (
     <main data-battle-tracker className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
@@ -589,14 +675,10 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           moment={reminderPrompt.moment}
           confirmLabel={reminderPrompt.confirmLabel}
           onDismiss={(reminder, scope) => {
+            const last = reminderPrompt.reminders.length === 1
             rememberReminder(reminder.key, scope, reminderPrompt.context)
-            const reminders = reminderPrompt.reminders.filter((candidate) => candidate.key !== reminder.key)
-            if (reminders.length) {
-              setReminderPrompt({ ...reminderPrompt, reminders })
-              return
-            }
-            setReminderPrompt(null)
             if (
+              last &&
               reminderPrompt.advanceAfterDismissal &&
               reminderPrompt.context.round === view.round &&
               reminderPrompt.context.activePlayerId === view.activePlayerId &&
@@ -607,7 +689,6 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           }}
           onDone={() => {
             for (const reminder of reminderPrompt.reminders) rememberReminder(reminder.key, 'phase', reminderPrompt.context)
-            setReminderPrompt(null)
             if (
               reminderPrompt.advanceAfterDismissal &&
               reminderPrompt.context.round === view.round &&

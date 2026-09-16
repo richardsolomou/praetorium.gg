@@ -3,7 +3,7 @@ import type { Repository } from '../db/repository'
 import { picksSchema, savedPrepSchema } from './schemas'
 
 export function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>>>, includePrep = false) {
-  const prep = row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null
+  const prep = includePrep && row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null
   return {
     id: row.id,
     name: row.name,

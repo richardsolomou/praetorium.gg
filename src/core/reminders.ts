@@ -36,9 +36,9 @@ export const rosterReminderSchema = z.object({
 })
 export type RosterReminder = z.infer<typeof rosterReminderSchema>
 
-type ReminderAbility = { id?: string; kind: string; name: string }
+export type ReminderSubject = { id?: string; kind: string; name: string; description?: string | null }
 
-export function reminderKey(ability: ReminderAbility, unitIndex: number | null): string {
+export function reminderKey(ability: ReminderSubject, unitIndex: number | null): string {
   const owner = ability.kind === 'faction' ? 'army' : (unitIndex ?? 'reference')
   const abilityKey = ability.kind === 'faction' ? routeSlug(ability.name) : (ability.id ?? routeSlug(ability.name))
   return `${ability.kind}:${abilityKey}:${owner}`
@@ -123,6 +123,19 @@ export function remindersAfterUnitRemoved(reminders: readonly RosterReminder[], 
   return reminders.flatMap((reminder) => {
     if (!reminder.unit) return [reminder]
     if (reminder.unit.index === removedIndex) return []
-    return [reminder.unit.index > removedIndex ? { ...reminder, unit: { ...reminder.unit, index: reminder.unit.index - 1 } } : reminder]
+    return [reminder.unit.index > removedIndex ? reminderAtUnitIndex(reminder, reminder.unit.index - 1) : reminder]
   })
+}
+
+export function remindersAfterUnitInserted(reminders: readonly RosterReminder[], insertedIndex: number): RosterReminder[] {
+  return reminders.map((reminder) =>
+    reminder.unit && reminder.unit.index >= insertedIndex ? reminderAtUnitIndex(reminder, reminder.unit.index + 1) : reminder,
+  )
+}
+
+function reminderAtUnitIndex(reminder: RosterReminder, index: number): RosterReminder {
+  if (!reminder.unit) return reminder
+  const separator = reminder.key.lastIndexOf(':')
+  const key = separator < 0 ? reminder.key : `${reminder.key.slice(0, separator + 1)}${index}`
+  return { ...reminder, key, unit: { ...reminder.unit, index } }
 }
