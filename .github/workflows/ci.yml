@@ -228,10 +228,25 @@ jobs:
     # A dropped field still renders, so it throws no exception and moves no event
     # count. This job snapshots what the app can say about the data before and
     # after the change and fails when the change drops any of it.
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    outputs:
+      base-sha: ${{ steps.revisions.outputs.base-sha }}
+      head-sha: ${{ steps.revisions.outputs.head-sha }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Resolve compared revisions
+        id: revisions
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          base_sha="${PR_BASE_SHA:-$(git rev-parse "$GITHUB_SHA^")}"
+          {
+            echo "base-sha=$base_sha"
+            echo "head-sha=$GITHUB_SHA"
+          } >> "$GITHUB_OUTPUT"
       - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.9
       - run: pnpm catalogue:sync
       # Both snapshots must read one revision.json, or an upstream change between
@@ -246,7 +261,6 @@ jobs:
           if-no-files-found: error
 
   coverage-snapshot:
-    if: github.event_name == 'pull_request'
     needs: [coverage-data]
     runs-on: ubuntu-latest
     strategy:
@@ -254,9 +268,9 @@ jobs:
       matrix:
         include:
           - revision: base
-            sha: ${{ github.event.pull_request.base.sha }}
+            sha: ${{ needs.coverage-data.outputs.base-sha }}
           - revision: head
-            sha: ${{ github.sha }}
+            sha: ${{ needs.coverage-data.outputs.head-sha }}
     # Pricing a unit boots the app, which keeps its auth secret on disk. The deployed
     # default is /data, which the runner cannot write to.
     env:
@@ -291,7 +305,7 @@ jobs:
           if-no-files-found: error
 
   coverage:
-    if: always() && github.event_name == 'pull_request'
+    if: always()
     needs: [coverage-snapshot]
     runs-on: ubuntu-latest
     steps:
