@@ -143,7 +143,7 @@ That covers agreement between sources and nothing else. An unresolvable upstream
 
 A change that withdraws a choice on purpose reads the same to this job as a field dropped by accident, so `catalogue/accepted-coverage-losses.json` states the withdrawn lines whole, each group with the reason it was withdrawn, and `--accept` takes them out of the count. A line listed there that has stopped being lost fails the run, so the file empties itself rather than growing quietly.
 
-The `coverage` CI job runs this on every pull request. It syncs the catalogue once, snapshots the base and the head against that one `revision.json`, and fails when the head lost any of what the base could say. Construction-name comparisons first discard stale base names that the current Game Datacards snapshot does not enumerate; rules-source-only names are a reported source gap, not coverage the app preserves. A dropped field on an authoritative card still renders, so this gate is the only signal that catches it.
+The `coverage` CI job runs this on every pull request. It syncs the catalogue once, snapshots the base and the head in parallel against that one `revision.json`, and fails when the head lost any of what the base could say. The base result is cached by commit and catalogue snapshot, so another run against the same inputs only measures the head. Construction-name comparisons first discard stale base names that the current Game Datacards snapshot does not enumerate; rules-source-only names are a reported source gap, not coverage the app preserves. A dropped field on an authoritative card still renders, so this gate is the only signal that catches it.
 
 ## 40kdc parity
 

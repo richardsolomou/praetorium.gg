@@ -224,46 +224,95 @@ jobs:
           test "$head_checked" -ge 1500
           test "$((head_matched * base_checked))" -ge "$((base_matched * head_checked))"
 
-  coverage:
+  coverage-data:
     # A dropped field still renders, so it throws no exception and moves no event
     # count. This job snapshots what the app can say about the data before and
     # after the change and fails when the change drops any of it.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    # Pricing a unit boots the app, which keeps its auth secret on disk. The deployed
-    # default is /data, which the runner cannot write to. Set here rather than only in
-    # the script, because the base snapshot runs the base revision of that script.
-    # The runner context is not available to a job-level env, only to a step.
-    env:
-      DATA_DIR: ${{ github.workspace }}/.coverage-data
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
       - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.9
       - run: pnpm catalogue:sync
       # Both snapshots must read one revision.json, or an upstream change between
-      # the runs reads back as a phantom loss. app() refetches the catalogue when
-      # it starts, so keep a pristine copy and restore it before each snapshot.
-      - name: Pin the catalogue snapshot
-        run: cp -a catalogue-data catalogue-data.pinned
+      # the runs reads back as a phantom loss.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage-catalogue
+          path: catalogue-data
+          retention-days: 1
+          compression-level: 1
+          include-hidden-files: true
+          if-no-files-found: error
+
+  coverage-snapshot:
+    if: github.event_name == 'pull_request'
+    needs: [coverage-data]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - revision: base
+            sha: ${{ github.event.pull_request.base.sha }}
+          - revision: head
+            sha: ${{ github.sha }}
+    # Pricing a unit boots the app, which keeps its auth secret on disk. The deployed
+    # default is /data, which the runner cannot write to.
+    env:
+      DATA_DIR: ${{ github.workspace }}/.coverage-data
+    steps:
       # Each snapshot installs the dependencies of the revision it measures, so a
       # dependency bump is compared honestly instead of running both sides on the
       # head's node_modules, which is where a parser bump would drop fields unseen.
-      - name: Snapshot the base
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.sha }}
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.9
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-catalogue
+          path: catalogue-data
+      - name: Restore the base snapshot
+        if: matrix.revision == 'base'
+        id: base-cache
+        uses: actions/cache@v5
+        with:
+          path: base.json
+          key: catalogue-coverage-${{ matrix.sha }}-${{ hashFiles('catalogue-data/.snapshot.json') }}
+      - name: Snapshot the ${{ matrix.revision }}
+        if: matrix.revision == 'head' || steps.base-cache.outputs.cache-hit != 'true'
+        run: pnpm catalogue:coverage ${{ matrix.revision }}.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.revision }}
+          path: ${{ matrix.revision }}.json
+          retention-days: 1
+          if-no-files-found: error
+
+  coverage:
+    if: always() && github.event_name == 'pull_request'
+    needs: [coverage-snapshot]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require both snapshots
+        run: test '${{ needs.coverage-snapshot.result }}' = success
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.9
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-catalogue
+          path: catalogue-data
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-base
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-head
+      - name: Compare snapshots
         run: |
           set -euo pipefail
-          git checkout --quiet --force ${{ github.event.pull_request.base.sha }}
-          pnpm install --frozen-lockfile
-          rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
-          pnpm catalogue:coverage base.json
-      - name: Snapshot the head and compare
-        run: |
-          set -euo pipefail
-          git checkout --quiet --force ${{ github.sha }}
-          pnpm install --frozen-lockfile
-          rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
-          pnpm catalogue:coverage head.json --compare base.json --accept catalogue/accepted-coverage-losses.json | tee coverage.txt
+          pnpm catalogue:coverage:compare base.json head.json --accept catalogue/accepted-coverage-losses.json | tee coverage.txt
       - name: Require no lost coverage
         run: |
           set -euo pipefail
