@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.66.2
+
+### Patch Changes
+
+- 42c106e: Deliver releases through protected-branch validation.
+
 ## 0.66.1
 
 ### Patch Changes
