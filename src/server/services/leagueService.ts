@@ -187,7 +187,7 @@ export class LeagueService {
   async ownRoster(userId: string, rosterId: string) {
     const row = await this.repository.roster(rosterId)
     if (!row || row.userId !== userId) return null
-    return rosterFromRow(row)
+    return rosterFromRow(row, true)
   }
 
   async submitLeagueRoster(
@@ -260,7 +260,8 @@ export class LeagueService {
         readsAlliedLeagueRoster(candidate.format, candidate.rosterLimit, candidate.reader, candidate.sealed),
     )
     if (!readable) return null
-    return parseRosterSnapshot(readable.snapshot)
+    const { reminders: _reminders, remindersEnabled: _remindersEnabled, ...roster } = parseRosterSnapshot(readable.snapshot)
+    return roster
   }
 
   async createLeagueBattle(

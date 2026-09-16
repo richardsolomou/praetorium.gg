@@ -1,0 +1,92 @@
+import { expect, test } from '@playwright/test'
+import {
+  advance,
+  attachRoster,
+  createBattle,
+  createRoster,
+  desktopContext,
+  PRACTICE_OPPONENT,
+  signUp,
+  startBattle,
+  uniqueName,
+  waitForRosterSave,
+} from './account'
+
+test('an ability reminder can cover phases with different turn scopes', async ({ browser }) => {
+  const page = await (await browser.newContext(desktopContext)).newPage()
+  await signUp(page, uniqueName('Reminder player'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Reminder test' })
+
+  await page.getByLabel('Add a unit').fill('Plasmancer')
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Plasmancer', exact: true }).first().click())
+  await page
+    .getByRole('button', { name: /^Plasmancer/ })
+    .first()
+    .click()
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Make Plasmancer Warlord' }).click())
+  await page.getByLabel('Set alert for Living Lightning').click()
+
+  const editor = page.getByRole('dialog', { name: 'Living Lightning' })
+  await expect(editor).toBeVisible()
+  await expect(editor.getByText('Alert: Start of your Shooting phase')).toBeVisible()
+  await editor.getByRole('button', { name: 'Add trigger' }).click()
+  await editor.getByRole('combobox', { name: 'When' }).nth(1).click()
+  await page.getByRole('option', { name: 'Start of phase' }).click()
+  await editor.getByRole('combobox', { name: 'Phase' }).nth(1).click()
+  await page.getByRole('option', { name: 'Fight' }).click()
+  await editor.getByRole('combobox', { name: 'Whose turn' }).nth(1).click()
+  await page.getByRole('option', { name: 'Either turn' }).click()
+  await expect(editor.getByText('Alert: Start of either Fight phase')).toBeVisible()
+  await page.screenshot({ path: 'test-results/reminder-editor-desktop.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(editor).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  expect(await editor.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/reminder-editor-phone.png', fullPage: true })
+  await editor.getByRole('button', { name: 'Save alert' }).scrollIntoViewIfNeeded()
+  await expect(editor.getByRole('button', { name: 'Save alert' })).toBeVisible()
+  await page.screenshot({ path: 'test-results/reminder-editor-phone-bottom.png', fullPage: true })
+  await page.setViewportSize(desktopContext.viewport)
+
+  await waitForRosterSave(page, () => editor.getByRole('button', { name: 'Save alert' }).click(), 'Living Lightning')
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Disable all alerts' }).click())
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Enable all alerts' })).toBeVisible()
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Enable all alerts' }).click())
+
+  await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await startBattle(page)
+  await advance(page)
+  await advance(page)
+
+  const reminder = page.getByRole('dialog', { name: 'Battle reminder' })
+  await expect(reminder).toContainText('Living Lightning')
+  await expect(reminder).toContainText('Start of your Shooting phase')
+  await page.screenshot({ path: 'test-results/reminder-battle-desktop.png', fullPage: true })
+  await reminder.getByRole('button', { name: 'Dismiss Living Lightning for a period' }).click()
+  await page.screenshot({ path: 'test-results/reminder-dismissal-menu-desktop.png', fullPage: true })
+  await page.getByRole('menuitem', { name: 'This turn' }).click()
+  await expect(reminder).toBeHidden()
+  await page.reload()
+  await expect(reminder).toBeHidden()
+
+  await advance(page)
+  await advance(page)
+  await expect(reminder).toBeHidden()
+  await advance(page)
+  await advance(page)
+  await advance(page)
+  await advance(page)
+  await expect(reminder).toBeHidden()
+  await advance(page)
+  await advance(page)
+  await expect(reminder).toContainText("Start of opponent's Fight phase")
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  expect(await reminder.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/reminder-battle-phone.png', fullPage: true })
+})

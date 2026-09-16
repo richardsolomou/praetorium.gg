@@ -1141,6 +1141,34 @@ describe('saved rosters', () => {
     expect(await service.rosterAccess(id, 'bob')).toMatchObject({ editable: false, roster: { name: 'Recon force' } })
   })
 
+  it('keeps reminders for the owner and out of shared roster reads', async () => {
+    const reminder = {
+      key: 'datasheet:living-lightning:0',
+      ability: 'Living Lightning',
+      description: 'In your Shooting phase, select one enemy unit.',
+      unit: { index: 0, name: 'Plasmancer' },
+      timings: [
+        { moment: 'phase-start' as const, phase: 'shooting' as const, turn: 'your-turn' as const },
+        { moment: 'phase-start' as const, phase: 'fight' as const, turn: 'either' as const },
+      ],
+    }
+    const { id } = await service.saveRoster('alice', {
+      name: 'Alert force',
+      catalogueId: 'necrons',
+      detachmentIds: ['awakened-dynasty'],
+      disposition: null,
+      limit: 2_000,
+      picks: [],
+      prep: { stratagems: [], secondaries: [], reminders: [reminder], remindersEnabled: false },
+      visibility: 'unlisted',
+      source: 'editable',
+    })
+
+    expect(await service.sharedRoster(id, 'alice')).toMatchObject({ reminders: [reminder], remindersEnabled: false })
+    const shared = await service.sharedRoster(id, 'bob')
+    expect(shared).not.toHaveProperty('reminders')
+  })
+
   it('shows a private roster to another player seated in the battle where it is fielded', async () => {
     const { id } = await save()
     const { token } = await service.createBattle('alice', 'bob')

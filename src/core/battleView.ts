@@ -47,7 +47,11 @@ import { battleUnitCounts } from './attachedUnits'
  * every submitted field plus the battle state, so shipping `built.units` beside
  * it sent both armies twice in every read of every battle.
  */
-export type RosterView = Omit<Roster, 'built'> & { built?: Omit<NonNullable<Roster['built']>, 'units'> }
+export type RosterView = Omit<Roster, 'built' | 'reminders' | 'remindersEnabled'> & {
+  built?: Omit<NonNullable<Roster['built']>, 'units'>
+  reminders?: Roster['reminders']
+  remindersEnabled?: boolean
+}
 
 export type BattleView = {
   token: string
@@ -247,7 +251,7 @@ export function battleView(
           secondary: resources.secondaryByRound[round] ?? 0,
           total: (resources.primaryByRound[round] ?? 0) + (resources.secondaryByRound[round] ?? 0),
         })),
-        roster: viewRoster(player.roster),
+        roster: viewRoster(player.roster, player.id === viewerId),
         units: player.units,
         unitCount: units.total,
         standing: units.standing,
@@ -325,10 +329,13 @@ export function battleView(
  * mission to the other.
  */
 /** The roster without its frozen units, which travel once as the player's `units`. */
-function viewRoster(roster: Roster | null): RosterView | null {
-  if (!roster?.built) return roster
+function viewRoster(roster: Roster | null, own: boolean): RosterView | null {
+  if (!roster) return null
+  const { reminders, remindersEnabled, ...visible } = roster
+  const privateFields = own ? { reminders, remindersEnabled } : {}
+  if (!roster.built) return { ...visible, ...privateFields }
   const { units: _frozen, ...built } = roster.built
-  return { ...roster, built }
+  return { ...visible, ...privateFields, built }
 }
 
 function secretMissionActionPlayerId(state: BattleState): PlayerId | null {

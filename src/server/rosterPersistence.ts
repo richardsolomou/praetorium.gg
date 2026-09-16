@@ -3,6 +3,7 @@ import type { Repository } from '../db/repository'
 import { picksSchema, savedPrepSchema } from './schemas'
 
 export function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>>>, includePrep = false) {
+  const prep = row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null
   return {
     id: row.id,
     name: row.name,
@@ -13,7 +14,13 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['ro
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     picks: picksSchema.parse(JSON.parse(row.picks)),
-    prep: includePrep && row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
+    ...(includePrep
+      ? {
+          prep,
+          reminders: prep?.reminders ?? [],
+          remindersEnabled: prep?.remindersEnabled ?? true,
+        }
+      : { prep: null }),
     waivedRules: waivedRulesFrom(row.waivedRules),
     optionalRules: optionalRulesFrom(row.optionalRules),
     borrowedDetachmentId: row.borrowedDetachmentId,

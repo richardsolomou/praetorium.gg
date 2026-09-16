@@ -1,4 +1,5 @@
 import type { Secondary, Stratagem } from '../../core/battle'
+import type { RosterReminder } from '../../core/reminders'
 import { type FrozenRoster, ListBuilder } from '../features/rosters/ListBuilder'
 
 type Roster = {
@@ -10,7 +11,12 @@ type Roster = {
   limit: number
   picks: Parameters<typeof ListBuilder>[0]['initial']['picks']
   waivedRules: Parameters<typeof ListBuilder>[0]['initial']['waivedRules']
-  prep?: { stratagems: Stratagem[]; secondaries: Secondary[] } | null
+  prep?: {
+    stratagems: Stratagem[]
+    secondaries: Secondary[]
+    reminders?: RosterReminder[]
+    remindersEnabled?: boolean
+  } | null
   visibility: Parameters<typeof ListBuilder>[0]['initial']['visibility']
   source: Parameters<typeof ListBuilder>[0]['initial']['source']
 }
@@ -25,7 +31,7 @@ type Props = {
   frozen?: FrozenRoster
 }
 
-const NO_PREP = { stratagems: [], secondaries: [] }
+const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true }
 
 export function RosterEditor({ roster, faction, editable, battle, resolvePersistedRoster = true, frozen }: Props) {
   return (

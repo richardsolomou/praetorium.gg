@@ -3,11 +3,17 @@ import { attachedUnitCount } from '../../core/attachedUnits'
 import type { FormatRuleId, OptionalRuleId, Secondary, Stratagem } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
+import type { RosterReminder } from '../../core/reminders'
 import type { Repository } from '../../db/repository'
 import { picksSchema } from '../schemas'
 import { detachmentIds, optionalRulesFrom, rosterFromRow, waivedRulesFrom } from '../rosterPersistence'
 
-type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
+type SavedPrep = {
+  stratagems: Stratagem[]
+  secondaries: Secondary[]
+  reminders?: RosterReminder[]
+  remindersEnabled?: boolean
+}
 const PROFILE_ROSTER_LIMIT = 50
 
 function rosterSummaries<T extends { detachmentId: string | null; waivedRules: string; optionalRules: string; picks: string }>(
@@ -56,7 +62,13 @@ export class RosterService {
       id,
       userId,
       picks: JSON.stringify(roster.picks),
-      prep: roster.prep ? JSON.stringify(roster.prep) : null,
+      prep: roster.prep
+        ? JSON.stringify({
+            ...roster.prep,
+            reminders: roster.prep.reminders ?? [],
+            remindersEnabled: roster.prep.remindersEnabled ?? true,
+          })
+        : null,
       tags: '[]',
       waivedRules: JSON.stringify(roster.waivedRules ?? []),
       optionalRules: JSON.stringify(roster.optionalRules ?? []),
