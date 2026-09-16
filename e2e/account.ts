@@ -438,7 +438,7 @@ export async function advance(page: Page) {
   }
 }
 
-export async function startBattle(page: Page, firstSide?: string, takeOpeningTurn = true) {
+export async function startBattle(page: Page, firstSide?: string, takeOpeningTurn = true, openingSecondaries: readonly string[] = []) {
   await chooseBattlefield(page)
   await setupStep(page, 'Secondaries')
   // One per side this table settles cards for, so every one of them has to be ready.
@@ -455,6 +455,14 @@ export async function startBattle(page: Page, firstSide?: string, takeOpeningTur
       .first(),
   ).toBeVisible()
   if (takeOpeningTurn) {
+    if (openingSecondaries.length) {
+      const prompt = page.getByRole('dialog', { name: /secondary missions$/ })
+      await prompt.getByRole('button', { name: 'Select missions' }).click()
+      for (const card of openingSecondaries) await prompt.getByRole('button', { name: `Select ${card}`, exact: true }).click()
+      await prompt.getByRole('button', { name: 'Add selected missions' }).click()
+      await expect(prompt.locator('[data-drawn]')).toHaveCount(openingSecondaries.length)
+      await expect(prompt.getByRole('button', { name: 'Draw at random' })).toBeHidden()
+    }
     await takeTheTurn(page)
     await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
   }
@@ -468,7 +476,14 @@ export async function setupBattle(
     hostRoster,
     guestRoster,
     beforeStart,
-  }: { opponent: string; hostRoster: string; guestRoster: string; beforeStart?: () => Promise<void> },
+    openingSecondaries,
+  }: {
+    opponent: string
+    hostRoster: string
+    guestRoster: string
+    beforeStart?: () => Promise<void>
+    openingSecondaries?: readonly string[]
+  },
 ) {
   await befriend(host, guest)
   const url = await createBattle(host, { opponent })
@@ -485,7 +500,7 @@ export async function setupBattle(
     await setupStep(host, 'Secondaries')
     await beforeStart()
   }
-  await startBattle(host)
+  await startBattle(host, undefined, true, openingSecondaries)
   await expect(guest.getByRole('heading', { name: 'command phase' })).toBeVisible()
   return url
 }

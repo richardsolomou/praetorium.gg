@@ -910,6 +910,16 @@ it('stores a readable league snapshot without the saved roster capability', asyn
     id: 'bob-roster',
     name: 'Bob army',
     text: '2,000 pts',
+    reminders: [
+      {
+        key: 'datasheet:living-lightning:0',
+        ability: 'Living Lightning',
+        description: 'In your Shooting phase, select one enemy unit.',
+        unit: { index: 0, name: 'Plasmancer' },
+        timings: [{ moment: 'phase-start', phase: 'shooting', turn: 'your-turn' }],
+      },
+    ],
+    remindersEnabled: true,
     built: {
       catalogueId: 'catalogue',
       revision: 'revision',

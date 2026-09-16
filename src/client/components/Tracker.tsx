@@ -5,16 +5,34 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
 import { missionCardsByKey, primaryCards, secondaryCards } from '../missionDeck'
+import {
+  MISSION_ACTION_REMINDER_PREFIX,
+  missionActionReminderStorageKey,
+  missionActionReminders,
+  missionActionRemindersEnabled as storedMissionActionRemindersEnabled,
+} from '../missionActionReminders'
 import { appliesInMode } from '../missionText'
 import { automaticAttemptsExhausted, claimAutomaticAttempt } from '../automaticAttempts'
 import { errorMessage } from '../queryClient'
+import {
+  parseReminderDismissals,
+  pruneReminderDismissals,
+  reminderDismissalKey,
+  reminderDismissalKeys,
+  reminderDismissalStorageKey,
+  serializeReminderDismissals,
+  type ReminderDismissalContext,
+  type ReminderDismissalScope,
+} from '../reminderDismissals'
 import { armyRulesRequest } from '../sideRules'
 import { celebrateVictory } from '../victory'
 import { type Side, type SideMission, sides } from '../sides'
 import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
+import { remindersDueAt, reminderTimingLabel, type ReminderTiming, type RosterReminder } from '../../core/reminders'
 import { battleOutcome, battleResult } from '../battleOutcome'
 import { BattleMenu } from '../features/battle/BattleMenu'
+import { ReminderDialog } from '../features/battle/ReminderDialog'
 import { DrawDialog, type WhenDrawn } from '../features/battle/DrawDialog'
 import { DiscardSecondaryDialog } from '../features/battle/DiscardSecondaryDialog'
 import type { Award, ReferenceCard, StratagemText } from '../features/battle/MissionCards'
@@ -38,6 +56,15 @@ type Props = {
 }
 
 const EMPTY_KEYS: ReadonlySet<string> = new Set()
+const EMPTY_REMINDERS: readonly RosterReminder[] = []
+
+type ReminderPrompt = {
+  reminders: RosterReminder[]
+  moment: string
+  confirmLabel: string
+  context: ReminderDismissalContext
+  advanceAfterDismissal?: boolean
+}
 
 /** Narrow screens cannot hold three columns, so they hold one at a time. */
 const VIEWS = ['yours', 'battle', 'theirs'] as const
@@ -52,11 +79,100 @@ type Focus = (typeof VIEWS)[number]
  */
 export function Tracker({ view, missions, send, pending, problem }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
+  const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
+  const [dismissalsReady, setDismissalsReady] = useState(false)
+  const [actionRemindersEnabled, setActionRemindersEnabled] = useState(true)
+  const reminderPrompt = reminderPrompts[0] ?? null
+  const dismissedReminders = useRef(new Set<string>())
   // Refetches that change nothing keep their object identity through the query
   // cache's structural sharing, so these memos hold between commands too.
   const table = useMemo(() => sides(view, missions), [view, missions])
   const yours = table.find((side) => side.isViewer)
   const active = table.find((side) => side.isActive)
+  const viewer = view.players.find((player) => player.isViewer)
+  const viewerReminders = viewer?.roster?.remindersEnabled === false ? EMPTY_REMINDERS : (viewer?.roster?.reminders ?? EMPTY_REMINDERS)
+  const reminderTurn: ReminderTiming['turn'] | null =
+    viewer && active ? (viewer.side === active.index ? 'your-turn' : 'opponent-turn') : null
+  const reminderContext = useMemo(
+    () => ({ round: view.round, activePlayerId: view.activePlayerId, phase: view.phase }),
+    [view.activePlayerId, view.phase, view.round],
+  )
+  const dismissalStorageKey = reminderDismissalStorageKey(view.token)
+  const actionReminderStorageKey = missionActionReminderStorageKey(view.token)
+  useEffect(() => {
+    setDismissalsReady(false)
+    setReminderPrompts([])
+    try {
+      dismissedReminders.current = parseReminderDismissals(localStorage.getItem(dismissalStorageKey))
+    } catch {
+      dismissedReminders.current = new Set()
+    }
+    try {
+      setActionRemindersEnabled(storedMissionActionRemindersEnabled(localStorage.getItem(actionReminderStorageKey)))
+    } catch {
+      setActionRemindersEnabled(true)
+    }
+    setDismissalsReady(true)
+  }, [actionReminderStorageKey, dismissalStorageKey])
+  const updateActionReminders = useCallback(
+    (enabled: boolean) => {
+      setActionRemindersEnabled(enabled)
+      try {
+        localStorage.setItem(actionReminderStorageKey, enabled ? 'on' : 'off')
+      } catch {
+        // The in-memory preference still applies for this page when storage is unavailable.
+      }
+      if (!enabled)
+        setReminderPrompts((current) =>
+          current.flatMap((prompt) => {
+            const reminders = prompt.reminders.filter((reminder) => !reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX))
+            return reminders.length ? [{ ...prompt, reminders }] : []
+          }),
+        )
+    },
+    [actionReminderStorageKey],
+  )
+  const reminderDismissed = useCallback(
+    (reminderKey: string, context: ReminderDismissalContext) =>
+      reminderDismissalKeys(reminderKey, context).some((key) => dismissedReminders.current.has(key)),
+    [],
+  )
+  const rememberReminder = useCallback(
+    (reminderKey: string, scope: ReminderDismissalScope, context: ReminderDismissalContext) => {
+      dismissedReminders.current.add(reminderDismissalKey(reminderKey, scope, context))
+      try {
+        localStorage.setItem(dismissalStorageKey, serializeReminderDismissals(dismissedReminders.current))
+      } catch {
+        // The in-memory record still keeps the dismissal for this page when storage is unavailable.
+      }
+      setReminderPrompts((current) =>
+        current.flatMap((prompt) => {
+          const reminders = prompt.reminders.filter(
+            (candidate) => !reminderDismissalKeys(candidate.key, prompt.context).some((key) => dismissedReminders.current.has(key)),
+          )
+          return reminders.length ? [{ ...prompt, reminders }] : []
+        }),
+      )
+    },
+    [dismissalStorageKey],
+  )
+  const remindersAt = useCallback(
+    (moments: readonly ReminderTiming[], context: ReminderDismissalContext) =>
+      remindersDueAt(viewerReminders, moments).filter((reminder) => !reminderDismissed(reminder.key, context)),
+    [reminderDismissed, viewerReminders],
+  )
+  const enqueueReminderPrompt = useCallback((prompt: ReminderPrompt) => {
+    setReminderPrompts((current) => {
+      const duplicate = current.some(
+        (queued) =>
+          queued.moment === prompt.moment &&
+          queued.context.round === prompt.context.round &&
+          queued.context.activePlayerId === prompt.context.activePlayerId &&
+          queued.context.phase === prompt.context.phase,
+      )
+      return duplicate ? current : [...current, prompt]
+    })
+  }, [])
   const ruleRequests = useMemo(
     () =>
       table.flatMap((side) =>
@@ -104,6 +220,10 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     [cardsByKey],
   )
   const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(key), [cardsByKey])
+  const activeMissionActionReminders = useMemo(
+    () => (active?.isViewer ? missionActionReminders(active, referenceFor) : EMPTY_REMINDERS),
+    [active, referenceFor],
+  )
   const writtenFor = useCallback(
     (side: Side, key: string): StratagemText | undefined => {
       const rules = rulesFor(side).find((candidate) => candidate.written.some((entry) => entry.key === key))
@@ -211,7 +331,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             ? 'Loading the active side’s mission cards…'
             : null
   const advanceBlocked = Boolean(blockReason)
-  const advance = () => {
+  const advanceNow = () => {
     if (advanceBlocked || !active) return
     const discardable = discardableSecondaries(active)
     const activeSecretMissionAction = view.settlementRound === null && view.secretMissionActionPlayerId === active.captain.id
@@ -220,6 +340,26 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
       return
     }
     send({ kind: 'advance', playerId: active.captain.id })
+  }
+  const advance = () => {
+    if (advanceBlocked || !active || !reminderTurn || view.phase === 'end') {
+      advanceNow()
+      return
+    }
+    const moment: ReminderTiming = { moment: 'phase-end', phase: view.phase, turn: reminderTurn }
+    const context = { round: view.round, activePlayerId: view.activePlayerId, phase: view.phase }
+    const reminders = remindersAt([moment], context)
+    if (!reminders.length) {
+      advanceNow()
+      return
+    }
+    enqueueReminderPrompt({
+      reminders,
+      moment: reminderTimingLabel(moment),
+      confirmLabel: view.phase === 'fight' ? 'Continue to end of turn' : 'End the phase',
+      context,
+      advanceAfterDismissal: true,
+    })
   }
   const settlementSide = table.find((side) => side.captain.id === view.settlementPlayerId)
   const secretMissionActionSide = table.find((side) => side.captain.id === view.secretMissionActionPlayerId)
@@ -258,6 +398,91 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   }, [view.token, wonHere, wonSide])
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
   const discardable = active ? discardableSecondaries(active) : []
+
+  const previousReminderMoment = useRef<{
+    status: BattleView['status']
+    round: number
+    activePlayerId: string | null
+    phase: BattleView['phase']
+    turn: ReminderTiming['turn'] | null
+  } | null>(null)
+  useEffect(() => {
+    const current = {
+      status: view.status,
+      round: view.round,
+      activePlayerId: view.activePlayerId,
+      phase: view.phase,
+      turn: reminderTurn,
+    }
+    const previous = previousReminderMoment.current
+    previousReminderMoment.current = current
+    if (
+      !dismissalsReady ||
+      !previous ||
+      previous.status !== 'playing' ||
+      current.status !== 'playing' ||
+      previous.phase === 'end' ||
+      !previous.turn ||
+      (previous.round === current.round && previous.activePlayerId === current.activePlayerId && previous.phase === current.phase)
+    )
+      return
+    const moment: ReminderTiming = { moment: 'phase-end', phase: previous.phase, turn: previous.turn }
+    const context = { round: previous.round, activePlayerId: previous.activePlayerId, phase: previous.phase }
+    const reminders = remindersAt([moment], context)
+    if (!reminders.length) return
+    enqueueReminderPrompt({ reminders, moment: reminderTimingLabel(moment), confirmLabel: 'Dismiss', context })
+  }, [dismissalsReady, enqueueReminderPrompt, reminderTurn, remindersAt, view.activePlayerId, view.phase, view.round, view.status])
+
+  useEffect(() => {
+    if (!dismissalsReady) return
+    const pruned = pruneReminderDismissals(dismissedReminders.current, reminderContext)
+    dismissedReminders.current = pruned
+    try {
+      localStorage.setItem(dismissalStorageKey, serializeReminderDismissals(pruned))
+    } catch {
+      // The in-memory record still keeps dismissals for this page when storage is unavailable.
+    }
+  }, [dismissalStorageKey, dismissalsReady, reminderContext])
+
+  useEffect(() => {
+    if (!dismissalsReady || view.status !== 'playing' || reminderPrompt || !reminderTurn) return
+    const moments: ReminderTiming[] =
+      view.phase === 'end'
+        ? [{ moment: 'turn-end', phase: null, turn: reminderTurn }]
+        : [
+            { moment: 'phase-start', phase: view.phase, turn: reminderTurn },
+            ...(view.phase === 'command' ? ([{ moment: 'turn-start', phase: null, turn: reminderTurn }] as const) : []),
+          ]
+    const context = { round: view.round, activePlayerId: view.activePlayerId, phase: view.phase }
+    const actionReminders =
+      actionRemindersEnabled && view.phase === 'shooting' && reminderTurn === 'your-turn'
+        ? activeMissionActionReminders.filter((reminder) => !reminderDismissed(reminder.key, context))
+        : EMPTY_REMINDERS
+    const reminders = [...remindersAt(moments, context), ...actionReminders]
+    if (!reminders.length) return
+    enqueueReminderPrompt({
+      reminders,
+      moment:
+        view.phase === 'command'
+          ? `${reminderTurn === 'your-turn' ? 'Your' : "Opponent's"} turn · Command phase`
+          : reminderTimingLabel(moments[0]!),
+      confirmLabel: 'Dismiss',
+      context,
+    })
+  }, [
+    actionRemindersEnabled,
+    activeMissionActionReminders,
+    dismissalsReady,
+    enqueueReminderPrompt,
+    reminderPrompt,
+    reminderTurn,
+    reminderDismissed,
+    remindersAt,
+    view.activePlayerId,
+    view.phase,
+    view.round,
+    view.status,
+  ])
 
   return (
     <main data-battle-tracker className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
@@ -346,7 +571,21 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             </dl>
 
             <div className="border-t border-edge pt-3">
-              <p className={HEADING}>Battle events</p>
+              <div className="flex items-center justify-between gap-3">
+                <p className={HEADING}>Battle events</p>
+                <BattleMenu
+                  finished={finished}
+                  canDelete={view.creatorId === view.viewerId}
+                  pending={pending || remove.isPending}
+                  actionRemindersEnabled={actionRemindersEnabled}
+                  players={view.players}
+                  onActionRemindersChange={updateActionReminders}
+                  onFinishEarly={() => send({ kind: 'end-battle', reason: 'finished-early' })}
+                  onConcede={(playerId) => send({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
+                  onReopen={() => send({ kind: 'reopen-battle' })}
+                  onDelete={() => remove.mutate()}
+                />
+              </div>
               <Report token={view.token} open players={reportPlayers} />
             </div>
 
@@ -362,30 +601,12 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
               </button>
             ) : null}
             {remove.error ? <p className="text-sm text-destructive">{errorMessage(remove.error)}</p> : null}
-
-            {/*
-             * Finishing, conceding, reopening and deleting, under the log rather than
-             * beside the round. Each is rare and none is pressed mid-turn, and up there
-             * it pushed the round and the phase off the centre of every screen to make
-             * room for something nobody was reaching for.
-             */}
-            <div className="flex justify-end border-t border-edge pt-3">
-              <BattleMenu
-                finished={finished}
-                canDelete={view.creatorId === view.viewerId}
-                pending={pending || remove.isPending}
-                players={view.players}
-                onFinishEarly={() => send({ kind: 'end-battle', reason: 'finished-early' })}
-                onConcede={(playerId) => send({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
-                onReopen={() => send({ kind: 'reopen-battle' })}
-                onDelete={() => remove.mutate()}
-              />
-            </div>
           </section>
         </div>
       </div>
 
       {settlementRound === null &&
+      !reminderPrompt &&
       !needsDraw &&
       !needsDrawAcknowledgement &&
       view.advanceRequested &&
@@ -418,6 +639,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
       ) : null}
 
       {secretMissionActionSide &&
+      !reminderPrompt &&
       ((view.advanceRequested && activeSecretMissionAction && !needsDraw && !needsDrawAcknowledgement) || settlementSecretMissionAction) ? (
         <SecretMissionHandoff
           side={secretMissionActionSide}
@@ -432,7 +654,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
         />
       ) : null}
 
-      {prompt === 'owed' && settlementSide && !settlementSecretMissionAction ? (
+      {!reminderPrompt && prompt === 'owed' && settlementSide && !settlementSecretMissionAction ? (
         <ScoringDialog
           side={settlementSide}
           due={owedCards}
@@ -449,6 +671,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
       ) : null}
 
       {settlementRound === null &&
+      !reminderPrompt &&
       view.advanceRequested &&
       (view.scoringAcknowledged || !due.length) &&
       view.phase === 'end' &&
@@ -467,7 +690,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
         />
       ) : null}
 
-      {prompt === 'draw' && active ? (
+      {!reminderPrompt && prompt === 'draw' && active ? (
         <DrawDialog
           key={turnKey}
           side={active}
@@ -479,6 +702,38 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           referenceFor={referenceFor}
           whenDrawnFor={whenDrawnFor}
           onDone={() => send({ kind: 'acknowledge-draw', playerId: active.captain.id })}
+        />
+      ) : null}
+
+      {reminderPrompt ? (
+        <ReminderDialog
+          reminders={reminderPrompt.reminders}
+          moment={reminderPrompt.moment}
+          confirmLabel={reminderPrompt.confirmLabel}
+          onDismiss={(reminder, scope) => {
+            const last = reminderPrompt.reminders.length === 1
+            rememberReminder(reminder.key, scope, reminderPrompt.context)
+            if (
+              last &&
+              reminderPrompt.advanceAfterDismissal &&
+              reminderPrompt.context.round === view.round &&
+              reminderPrompt.context.activePlayerId === view.activePlayerId &&
+              reminderPrompt.context.phase === view.phase
+            ) {
+              advanceNow()
+            }
+          }}
+          onDone={() => {
+            for (const reminder of reminderPrompt.reminders) rememberReminder(reminder.key, 'phase', reminderPrompt.context)
+            if (
+              reminderPrompt.advanceAfterDismissal &&
+              reminderPrompt.context.round === view.round &&
+              reminderPrompt.context.activePlayerId === view.activePlayerId &&
+              reminderPrompt.context.phase === view.phase
+            ) {
+              advanceNow()
+            }
+          }}
         />
       ) : null}
     </main>

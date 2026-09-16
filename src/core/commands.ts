@@ -17,6 +17,7 @@ import {
   type Roster,
 } from './battle'
 import { UNIT_GROUPS } from './unitGroups'
+import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from './reminders'
 
 const id = z.string().min(1).max(64)
 export const rosterPickSchema = z.object({
@@ -66,7 +67,6 @@ const battlePrep = z.object({
   primary: secondary.nullable(),
   secondaryMode: z.enum(SECONDARY_MODES),
 })
-
 /**
  * The wire and storage contract for a command, in both directions: what a client
  * may send, and what the log is trusted to contain when it is read back. Length
@@ -100,6 +100,8 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
       name: z.string().max(ROSTER_NAME_MAX_LENGTH),
       text: z.string().max(ROSTER_MAX_LENGTH),
       id: id.optional(),
+      reminders: z.array(rosterReminderSchema).max(ROSTER_REMINDERS_MAX).optional(),
+      remindersEnabled: z.boolean().optional(),
       built: z
         .object({
           catalogueId: id,

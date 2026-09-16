@@ -15,6 +15,7 @@ import {
   wargearMatches,
 } from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
+import { ReminderButton, type ReminderControls } from '../rosters/ReminderButton'
 
 /**
  * Rules prose inside the pane, at the size of the labels it sits between.
@@ -235,6 +236,7 @@ function ChoiceOption({
   highlightSelection = true,
   disabled = false,
   onSelect,
+  action,
   children,
 }: {
   option: LoadoutOption
@@ -242,6 +244,7 @@ function ChoiceOption({
   highlightSelection?: boolean
   disabled?: boolean
   onSelect?: () => void
+  action?: ReactNode
   children: ReactNode
 }) {
   return (
@@ -263,6 +266,7 @@ function ChoiceOption({
           <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{option.name}</span>
           <span className="flex shrink-0 items-center gap-1.5">
             {option.points ? <span className="chip text-info">+{option.points} pts</span> : null}
+            {action}
           </span>
         </div>
         {children}
@@ -312,6 +316,7 @@ export function SpecialChoice({
   onChoose,
   showOptions = true,
   highlightSelection = true,
+  reminders,
 }: {
   choice: LoadoutChoice
   unitName: string
@@ -320,9 +325,21 @@ export function SpecialChoice({
   onChoose: (key: string, optionId: string) => void
   showOptions?: boolean
   highlightSelection?: boolean
+  reminders?: ReminderControls
 }) {
   const heading = choice.kind === 'upgrade' ? 'Unit upgrades' : choice.name
   const options = showOptions ? defaultFirst(choice.options) : choice.options.filter((option) => choice.chosen === option.id)
+  const selectedOption = choice.options.find((option) => option.id === choice.chosen)
+  const subject = (option: LoadoutOption) => ({
+    id: option.id,
+    kind: choice.kind ?? 'upgrade',
+    name: option.name,
+    description: option.description,
+  })
+  const choose = (optionId: string) => {
+    if (selectedOption && selectedOption.id !== optionId) reminders?.onRemove(subject(selectedOption))
+    onChoose(choice.key, optionId)
+  }
   if (!showOptions && !choice.chosen) return null
   return (
     <fieldset aria-label={`${unitName} ${heading}`} className="m-0 min-w-0 border-0">
@@ -335,7 +352,7 @@ export function SpecialChoice({
             highlightSelection={highlightSelection}
             editable={editable}
             disabled={controlsDisabled}
-            onDecline={() => onChoose(choice.key, '')}
+            onDecline={() => choose('')}
           />
         ) : null}
         {options.map((option) => (
@@ -345,7 +362,12 @@ export function SpecialChoice({
             selected={choice.chosen === option.id}
             highlightSelection={highlightSelection}
             disabled={controlsDisabled}
-            onSelect={editable ? () => onChoose(choice.key, option.id) : undefined}
+            onSelect={editable ? () => choose(option.id) : undefined}
+            action={
+              reminders && choice.chosen === option.id ? (
+                <ReminderButton subject={subject(option)} unitName={unitName} controls={reminders} />
+              ) : undefined
+            }
           >
             {option.description ? (
               <div className="border-t border-edge px-2.5 pb-2">

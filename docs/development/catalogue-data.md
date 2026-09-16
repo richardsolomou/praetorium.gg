@@ -84,6 +84,7 @@ Core catalogue code is split by question:
 - A model kind takes its name from its own entries before the catalogue profile. Eleventh-edition profiles often use the squad name, so the preferred name is the one shared by the loadouts, followed by the entry that plainly names the model.
 - The datacards `wargearOptions` groups retain their instruction and equipment names for display beside matching loadout choices. These instructions describe the source rules; catalogue evaluation still decides legality.
 - Index rules declared at the catalogue root as well as shared rules, so links to faction abilities retain their descriptions.
+- Ability, enhancement, and unit-upgrade timing is prose, not structured catalogue data. Roster reminders may suggest one or more phase or turn triggers from familiar wording, including a different turn scope for each trigger, but the player confirms or replaces every suggestion; unfamiliar wording is left blank rather than guessed.
 - Model grouping reads both embedded and linked Unit profiles. Each model variant contributes one row for its equipment bundle, so paired weapons remain one choice. A linked stat line does not merge distinct standing models or models that own separate equipment choices. Nested equipment choices own their displayed pieces; their container does not add another control or another copy to the wargear summary. When a customizable loadout is replaced, its default weapons remain separate boxes; either control restores the shared loadout.
 
 ## Pricing and legality

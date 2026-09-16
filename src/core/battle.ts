@@ -13,6 +13,7 @@ import { attachedUnits } from './attachedUnits'
 import { appliesInMode, cardsDue, cardsDueFromTheirTurn, type MissionAward } from './scoring'
 import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
+import type { RosterReminder } from './reminders'
 
 /** The phases of a battle round, in the order 11th edition plays them. */
 export const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
@@ -56,6 +57,9 @@ export type Roster = {
   name: string
   text: string
   /** The saved list this came from, when it came from one. */ id?: string
+  /** Player-authored prompts frozen with the army, hidden from the other side. */
+  reminders?: RosterReminder[]
+  remindersEnabled?: boolean
   built?: BuiltRoster
 }
 
