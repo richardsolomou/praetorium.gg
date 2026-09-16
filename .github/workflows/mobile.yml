@@ -40,6 +40,12 @@ jobs:
         with:
           ruby-version: '3.4'
           bundler-cache: true
+      - name: Expose Fastlane to EAS local builds
+        env:
+          BUNDLE_BIN: ${{ runner.temp }}/bundle-bin
+        run: |
+          bundle binstubs fastlane
+          echo "$BUNDLE_BIN" >> "$GITHUB_PATH"
       - name: Create the App Store Connect key
         env:
           APP_STORE_CONNECT_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}

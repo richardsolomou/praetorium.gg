@@ -8,7 +8,6 @@ import {
   createBattle,
   createRoster,
   desktopContext,
-  dismissBattleReminder,
   PRACTICE_OPPONENT,
   setupBattle,
   setupStep,
@@ -69,10 +68,7 @@ test('a running battle restores mission prompts when its tactical prep is missin
   await expect(draw.locator('[data-drawn]')).toHaveCount(2)
   await page.screenshot({ path: 'test-results/repaired-secondary-draw.png', fullPage: true })
   await takeTheTurn(page)
-  for (const phase of ['command', 'movement', 'shooting', 'charge', 'fight']) {
-    await dismissBattleReminder(page)
-    await page.getByRole('button', { name: `End the ${phase} phase` }).click()
-  }
+  for (let step = 0; step < 5; step += 1) await advance(page)
   await page.getByRole('button', { name: 'Pass the turn' }).click()
   await expect(page.getByRole('dialog', { name: /^Scoring end of turn points/ })).toContainText('Primary mission')
   await page.screenshot({ path: 'test-results/repaired-primary-scoring.png', fullPage: true })
@@ -261,8 +257,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(alice.getByRole('button', { name: /plus \d/ })).toHaveCount(0)
   await expect(alice.getByRole('button', { name: 'Achieve' })).toHaveCount(0)
   for (const phase of ['command', 'movement', 'shooting', 'charge', 'fight']) {
-    await dismissBattleReminder(alice)
-    await alice.getByRole('button', { name: `End the ${phase} phase` }).click()
+    await advance(alice)
     await expect(alice.getByRole('heading', { name: new RegExp(`${phase} phase`) })).toHaveCount(0)
   }
 
