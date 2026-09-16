@@ -3,6 +3,7 @@
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import {
   catalogueSourcesSchema,
@@ -10,8 +11,14 @@ import {
   type CatalogueSourceConfig,
   type ResolvedCatalogueSources,
 } from '../src/server/catalogueSources'
-import { fetchCurrentSnapshot } from '../src/server/catalogueSnapshot'
-import { DEFAULT_S3_PUBLIC_BASE_URL } from '../src/server/objectStorage'
+import {
+  activateCachedSnapshot,
+  catalogueBaseUrl,
+  catalogueLock,
+  fetchCurrentPointer,
+  fetchCurrentSnapshot,
+  fetchPinnedSnapshot,
+} from '../src/server/catalogueSnapshot'
 import { isComplete, syncSources } from '../src/server/sync'
 
 const root = path.join(import.meta.dirname, '..')
@@ -54,7 +61,26 @@ if (argument === '--check') {
   const resolved = await resolve(readSources())
   await syncSources(dataDirectory, resolved, (message) => console.log(message))
   if (!isComplete(dataDirectory, resolved)) throw new Error('refusing to publish an incomplete catalogue snapshot')
+} else if (argument === undefined || argument === '--latest') {
+  const base = catalogueBaseUrl()
+  const shared = process.env.CATALOGUE_CACHE_DIR?.trim()
+  const cacheRoot =
+    shared === 'off'
+      ? null
+      : path.resolve(
+          shared || path.join(process.env.XDG_CACHE_HOME?.trim() || path.join(os.homedir(), '.cache'), 'praetorium', 'catalogues'),
+        )
+  if (!cacheRoot) {
+    const fetch = argument === '--latest' ? fetchCurrentSnapshot : fetchPinnedSnapshot
+    await fetch(dataDirectory, base, (message) => console.log(message))
+  } else {
+    const pointer = argument === '--latest' ? await fetchCurrentPointer(base) : catalogueLock.pointer
+    const cached = path.join(cacheRoot, pointer.id)
+    const fetch = argument === '--latest' ? fetchCurrentSnapshot : fetchPinnedSnapshot
+    await fetch(cached, base, (message) => console.log(message))
+    activateCachedSnapshot(dataDirectory, cached)
+    console.log(`catalogue-data -> ${cached}`)
+  }
 } else {
-  const base = process.env.S3_PUBLIC_BASE_URL || DEFAULT_S3_PUBLIC_BASE_URL
-  await fetchCurrentSnapshot(dataDirectory, base, (message) => console.log(message))
+  throw new Error('expected --check, --update, --latest, or no argument')
 }

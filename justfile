@@ -29,7 +29,7 @@ dev:
     export S3_SECRET_ACCESS_KEY="${S3_SECRET_ACCESS_KEY:-praetorium-storage}"
     export S3_PUBLIC_BASE_URL="${S3_PUBLIC_BASE_URL:-http://127.0.0.1:9000/praetorium}"
     pnpm db:migrate
-    DATA_DIR=./data-dev CATALOGUE_DIR=./catalogue-data RULES_DIR=./catalogue-data/rules pnpm dev
+    DATA_DIR=./data-dev CATALOGUE_DIR=./catalogue-data RULES_DIR=./catalogue-data/rules CATALOGUE_UPDATE_MODE=pinned pnpm dev
 
 # The native application against the local development service
 mobile *args:
@@ -80,9 +80,21 @@ test-integration *args:
 check:
     pnpm check
 
-# Fetch the community catalogues (about 130MB, gitignored)
+# Activate the release-pinned catalogue from one cache shared by every worktree
 catalogue-sync:
     pnpm catalogue:sync
+
+# Follow the publisher's newest catalogue instead of the release pin
+catalogue-latest:
+    pnpm catalogue:sync --latest
+
+# Download the verified release-pinned archive for an offline deployment
+catalogue-bundle output="catalogue-snapshot.zip":
+    CATALOGUE_SNAPSHOT_FILE="{{ output }}" pnpm catalogue:snapshot download
+
+# Create a complete Git bundle at an explicit location outside this worktree
+repository-backup destination:
+    sh scripts/backupRepository.sh "{{ destination }}"
 
 # Verify the pinned revisions without fetching
 catalogue-check:

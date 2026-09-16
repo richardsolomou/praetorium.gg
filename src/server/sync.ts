@@ -2,7 +2,14 @@ import fs from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { unzipSync } from 'fflate'
-import { type BattlemasterSource, type ResolvedCatalogueSources, SOURCE_NAMES, type SourceName } from './catalogueSources'
+import {
+  type BattlemasterSource,
+  disabledCatalogueSources,
+  type ResolvedCatalogueSources,
+  SOURCE_NAMES,
+  type SnapshotSourceName,
+  type SourceName,
+} from './catalogueSources'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 import { fetchWithRetry } from './fetch'
 
@@ -18,13 +25,15 @@ export type SyncState = { status: 'absent' | 'working' | 'ready' | 'failed'; det
 
 const REVISION_FILE = 'revision.json'
 
-function pinnedRevisions(sources: ResolvedCatalogueSources): Record<SourceName, string> {
-  return {
-    definitions: sources.definitions.revision,
-    points: sources.points.revision,
-    rules: sources.rules.revision,
-    datacards: sources.datacards.revision,
+function pinnedRevisions(
+  sources: ResolvedCatalogueSources,
+  disabled: ReadonlySet<SnapshotSourceName>,
+): Partial<Record<SourceName | 'battlemaster', string>> {
+  const revisions: Partial<Record<SourceName | 'battlemaster', string>> = {}
+  for (const name of SOURCE_NAMES) {
+    if (!disabled.has(name)) revisions[name] = sources[name].revision
   }
+  return revisions
 }
 
 /** What is on disk, or nothing when this instance has never synced. */
@@ -39,16 +48,19 @@ function localRevisions(directory: string): Partial<Record<SourceName | 'battlem
   }
 }
 
-export const isCurrent = (directory: string, sources: ResolvedCatalogueSources) => {
+export const isCurrent = (directory: string, sources: ResolvedCatalogueSources, disabled = disabledCatalogueSources()) => {
   const local = localRevisions(directory)
-  const pinned = pinnedRevisions(sources)
-  return SOURCE_NAMES.every((name) => local[name] === pinned[name] && fs.existsSync(path.join(directory, name)))
+  const pinned = pinnedRevisions(sources, disabled)
+  return SOURCE_NAMES.filter((name) => !disabled.has(name)).every(
+    (name) => local[name] === pinned[name] && fs.existsSync(path.join(directory, name)),
+  )
 }
 
 /** Publication gate: every optional source must be complete too. */
-export const isComplete = (directory: string, sources: ResolvedCatalogueSources) => {
+export const isComplete = (directory: string, sources: ResolvedCatalogueSources, disabled = disabledCatalogueSources()) => {
   const local = localRevisions(directory)
-  if (!isCurrent(directory, sources)) return false
+  if (!isCurrent(directory, sources, disabled)) return false
+  if (disabled.has('battlemaster')) return true
   if (local.battlemaster !== sources.battlemaster.revision) return false
   const layouts = path.join(directory, 'battlemaster', 'layouts')
   if (!fs.existsSync(layouts) || !fs.readdirSync(layouts).length) return false
@@ -65,18 +77,21 @@ export async function syncSources(
   directory: string,
   sources: ResolvedCatalogueSources,
   report: (message: string) => void = () => {},
+  disabled = disabledCatalogueSources(),
 ): Promise<void> {
-  if (isCurrent(directory, sources)) {
+  for (const name of disabled) fs.rmSync(path.join(directory, name), { recursive: true, force: true })
+
+  if (isCurrent(directory, sources, disabled)) {
     await syncFactionIcons(directory, report)
-    await syncBattlemaster(directory, report, sources.battlemaster)
+    if (!disabled.has('battlemaster')) await syncBattlemaster(directory, report, sources.battlemaster)
     report('catalogue is already at the pinned revisions')
     return
   }
 
   fs.mkdirSync(directory, { recursive: true })
   const local = localRevisions(directory)
-  const pinned = pinnedRevisions(sources)
-  for (const name of SOURCE_NAMES) {
+  const pinned = pinnedRevisions(sources, disabled)
+  for (const name of SOURCE_NAMES.filter((candidate) => !disabled.has(candidate))) {
     const target = path.join(directory, name)
     if (local[name] === pinned[name] && fs.existsSync(target)) {
       report(`${name}: already at the pinned revision`)
@@ -90,7 +105,7 @@ export async function syncSources(
   }
   fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(pinned, null, 2)}\n`)
   await syncFactionIcons(directory, report)
-  await syncBattlemaster(directory, report, sources.battlemaster)
+  if (!disabled.has('battlemaster')) await syncBattlemaster(directory, report, sources.battlemaster)
   report('catalogue is ready')
 }
 

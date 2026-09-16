@@ -1,6 +1,6 @@
 # Catalogue sources
 
-Praetorium packages community Warhammer 40,000 data into verified snapshots. This directory defines the upstream sources. Snapshot manifests contain revisions and checksums. Fetched data stays in `catalogue-data/` and the snapshot store.
+Praetorium packages community Warhammer 40,000 data into verified snapshots. This directory defines the upstream sources, the release pin, and emergency revocations. Snapshot manifests contain revisions, source inventory, provenance, and checksums. Fetched data stays in `catalogue-data/`, the shared development cache, and the snapshot store.
 
 No game data is committed to this repository.
 
@@ -16,11 +16,17 @@ The points source tests the evaluator and is not loaded by the product. Evaluato
 ## Commands
 
 - `pnpm catalogue:check` validates the source definitions. It runs as part of `pnpm check`.
-- `pnpm catalogue:sync` fetches and verifies the snapshot named by the remote `current.json` pointer.
+- `pnpm catalogue:sync` activates the release-pinned snapshot from a cache shared by every worktree.
+- `pnpm catalogue:sync --latest` follows the remote `current.json` pointer.
 - `pnpm catalogue:update` resolves and downloads the latest upstream revisions for snapshot publication.
 - `pnpm catalogue:snapshot pack` creates an immutable snapshot and checksummed pointer from the downloaded data.
+- `pnpm catalogue:snapshot download` writes the release-pinned archive for an offline installation.
+- `pnpm catalogue:snapshot install` installs that archive into `CATALOGUE_DIR` without a network request.
+- `pnpm catalogue:snapshot lock` updates `lock.json` to the publisher's current verified snapshot.
 - `pnpm catalogue:points` compares generated unit costs with the points source.
 
 ## Snapshot revisions
 
-The publisher records every upstream revision and file checksum in the snapshot manifest before atomically replacing `current.json`. Saved rosters continue to record the definitions revision used for validation.
+The publisher records every included upstream revision, source, licence declaration, attribution, modification notice, and file checksum before atomically replacing `current.json`. It omits repository metadata, reports, examples, Combat Patrol exports, and layout exports that neither the product nor its verification checks read. Saved rosters continue to record the definitions revision used for validation.
+
+`lock.json` is the catalogue tested with a released application. `revocations.json` blocks named snapshots or every snapshot containing a named source. The publisher uploads revocations before moving `current.json` and removes revoked archives after the pointer has moved. `CATALOGUE_DISABLED_SOURCES` provides the same fail-closed source switch to an operator or publisher.

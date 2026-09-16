@@ -4,12 +4,12 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 
 ## Sources and loading
 
-- `catalogue/sources.json` defines each upstream source. Revisions and file hashes live in immutable snapshot manifests outside Git.
+- `catalogue/sources.json` defines each upstream source, including its declared licence and attribution. `catalogue/lock.json` pins one verified snapshot for releases and `catalogue/revocations.json` withdraws snapshots or sources. Revisions, provenance, source inventory, and file hashes also live inside each immutable snapshot manifest.
 - The Game Datacards source extracts only `11th/gdc`; data for other games and editions is excluded from snapshots.
 - Mission cards are read from both sources: the rules source says when a payout is due and how a card's payouts relate, and the Game Datacards mission pack says what each one asks for. Game Datacards names army-construction choices; the rules source only adds semantics it uniquely carries. Nothing is joined by a fuzzy match.
 - `catalogue-data/` contains fetched data and is gitignored. Game data and copied rules text never enter version control.
-- An hourly automation checks upstream revisions and publishes a complete immutable snapshot. It replaces the remote `current.json` pointer only after reading and verifying the published archive. A source disagreeing with another about a name is reported there rather than blocking the publish; see [Points ratchet](#points-ratchet).
-- Running instances check that pointer hourly, download a changed snapshot from the shared store, and swap it into place atomically. They never contact an upstream data provider.
+- An hourly automation checks upstream revisions and publishes a complete immutable snapshot. It excludes source-repository files no product or verification reader consumes, publishes revocations, and replaces the remote `current.json` pointer only after reading and verifying the published archive. A source disagreeing with another about a name is reported there rather than blocking the publish; see [Points ratchet](#points-ratchet).
+- The hosted service checks that pointer hourly. Released self-hosted instances use the committed pin unless their operator selects the latest channel. Developers activate the pin from one platform cache shared by every worktree. All three verify a changed snapshot and swap it into place atomically; none contacts an upstream data provider.
 - Community-data requests have a per-attempt timeout and retry only transient network failures, timeouts, rate limits, and server errors. Checksums and invalid data fail immediately.
 - `src/server/sync.ts` fetches upstream data only for the snapshot publisher. `src/server/catalogueSnapshot.ts` owns packing, verification, and instance downloads.
 - Repository sources extract only their configured path. The sync checks archive size, output size, paths, and required contents before replacement.
