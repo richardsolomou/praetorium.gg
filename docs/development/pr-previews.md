@@ -1,6 +1,6 @@
 # Pull request previews
 
-Each pull request gets a temporary Praetorium instance. One workflow builds a commit-specific image. The preview and CI use that image. The pull request comment names the deployed commit.
+Each pull request except an automated release candidate gets a temporary Praetorium instance. One workflow builds a commit-specific image. The preview and CI use that image. The pull request comment names the deployed commit. A release candidate builds its own CI image and goes directly to the production-image gate after validation, so it does not publish a redundant preview.
 
 One pull request comment shows the current state:
 

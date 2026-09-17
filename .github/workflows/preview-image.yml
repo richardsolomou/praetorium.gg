@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   mark-deploying:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository && !startsWith(github.head_ref, 'release-candidate/')
     permissions:
       contents: read
       checks: write
@@ -31,6 +31,7 @@ jobs:
       token: ${{ secrets.GITHUB_TOKEN }}
 
   build:
+    if: startsWith(github.head_ref, 'release-candidate/') == false
     runs-on: ubuntu-latest
     permissions:
       contents: read
