@@ -260,7 +260,7 @@ test('server-rendered reference pages keep route-shaped payloads', async ({ requ
   expect(ruleSection.byteLength).toBeLessThan(250_000)
 })
 
-test('a rule is read by the number the source prints against it', async ({ page }) => {
+test('a rule is read by the number the source prints against it', async ({ browser, page }) => {
   await page.goto('/rules')
   await page.locator('a[href="/rules/core-rules"]').first().click()
   await expect(page).toHaveURL('/rules/core-rules')
@@ -294,6 +294,14 @@ test('a rule is read by the number the source prints against it', async ({ page 
   expect(await clarification.evaluate((element: HTMLDetailsElement) => element.open)).toBe(false)
   await page.goto('/rules/core-rules/core-concepts#01.02.03')
   await expect.poll(() => clarification.evaluate((element: HTMLDetailsElement) => element.open)).toBe(true)
+
+  const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const mobilePage = await mobileContext.newPage()
+  await mobilePage.goto('/rules/core-rules/core-abilities#24.33')
+  await mobilePage.waitForTimeout(3_100)
+  await expect(mobilePage.locator('[id="24.33"]')).toBeInViewport()
+  await mobilePage.screenshot({ path: 'test-results/rules-anchor-phone.png' })
+  await mobileContext.close()
 
   // The filter answers a number as well as a name, because one rule quotes the other.
   await page.goto('/rules')

@@ -72,8 +72,10 @@ export function NativeAppNavigation({
     const usesApplicationNavigation =
       document.documentElement.dataset.nativeApp === 'true' || window.matchMedia('(max-width: 859px)').matches
     if (!usesApplicationNavigation) return
-    rememberTab(href, { state })
     const memory = active ? recallTab(active) : null
+    const followsHash = href.includes('#') && memory?.href !== href
+    rememberTab(href, { state })
+    if (followsHash) return
     if (!memory || memory.href !== href) return
     return restoreNativeTabScroll(memory.scrollY, memory.regions, SCROLL_REGIONS)
   }, [active, href, state])

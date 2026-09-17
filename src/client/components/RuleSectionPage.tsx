@@ -23,6 +23,7 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
   useEffect(() => {
     const target = hash ? document.getElementById(hash) : null
     if (target instanceof HTMLDetailsElement) target.open = true
+    target?.scrollIntoView()
   }, [hash])
   if (!data || !index) return null
 
