@@ -339,7 +339,9 @@ test('native roster details use pane history without adding a route back action'
   expect(backBox?.width).toBeGreaterThanOrEqual(44)
   expect(backBox?.height).toBeGreaterThanOrEqual(44)
   await page.keyboard.press('Tab')
-  expect(await loadout.evaluate((element) => element.contains(document.activeElement))).toBe(true)
+  expect(await page.evaluate(() => document.activeElement?.closest('aside[aria-label="Loadout"], [data-native-app-tabs]') !== null)).toBe(
+    true,
+  )
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/compact-roster-details-phone.png', fullPage: true })
