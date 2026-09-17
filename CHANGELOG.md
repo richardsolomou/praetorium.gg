@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.66.5
+
+### Patch Changes
+
+- 7c2f3e1: Open a feedback or other external link in an in-app browser when the device has no external handler, instead of showing a dead-end alert.
+
 ## 0.66.4
 
 ### Patch Changes
