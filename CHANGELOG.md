@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.66.3
+
+### Patch Changes
+
+- a6d8e8f: Keep mobile web navigation available while viewing a roster unit.
+
 ## 0.66.2
 
 ### Patch Changes
