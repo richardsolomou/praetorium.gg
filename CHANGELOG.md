@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.66.4
+
+### Patch Changes
+
+- ad52c7b: Open shared rule links at the rule they name on small screens.
+
 ## 0.66.3
 
 ### Patch Changes
