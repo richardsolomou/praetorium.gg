@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { APP_URL, applicationNavigationScript, classifyNavigation, initialApplicationUrl, resolveApplicationUrl } from './navigation'
+import {
+  APP_URL,
+  applicationNavigationScript,
+  classifyNavigation,
+  externalOpenStrategies,
+  initialApplicationUrl,
+  isMainFrameHttpError,
+  resolveApplicationUrl,
+} from './navigation'
 
 describe('application URL', () => {
   it('uses production unless a simulator test origin is configured', () => {
@@ -48,6 +56,43 @@ describe('classifyNavigation', () => {
 
   it('blocks malformed URLs', () => {
     expect(classifyNavigation('not a url')).toEqual({ kind: 'blocked' })
+  })
+})
+
+describe('externalOpenStrategies', () => {
+  it('prefers the operating system and keeps the in-app browser as a web fallback', () => {
+    expect(externalOpenStrategies('https://github.com/richardsolomou/praetorium.gg/issues', true)).toEqual(['system', 'in-app-browser'])
+  })
+
+  it('falls back to the in-app browser for a web page the system cannot open', () => {
+    expect(externalOpenStrategies('https://github.com/richardsolomou/praetorium.gg/issues', false)).toEqual(['in-app-browser'])
+  })
+
+  it('has no in-app fallback for a non-web link', () => {
+    expect(externalOpenStrategies('mailto:support@praetorium.gg', true)).toEqual(['system'])
+    expect(externalOpenStrategies('tel:+441234567890', false)).toEqual([])
+  })
+})
+
+describe('isMainFrameHttpError', () => {
+  it('fails the load when the main document answers with an error status', () => {
+    expect(isMainFrameHttpError('https://praetorium.gg/battles/abc', 503, 'https://praetorium.gg/battles/abc')).toBe(true)
+  })
+
+  it('ignores the fragment when matching the main document', () => {
+    expect(isMainFrameHttpError('https://praetorium.gg/battles/abc', 500, 'https://praetorium.gg/battles/abc#score')).toBe(true)
+  })
+
+  it('leaves the page in place when a sub-resource fails', () => {
+    expect(isMainFrameHttpError('https://praetorium.gg/api/roster', 404, 'https://praetorium.gg/battles/abc')).toBe(false)
+  })
+
+  it('does not fail before the main frame URL is known', () => {
+    expect(isMainFrameHttpError('https://praetorium.gg/battles/abc', 500, null)).toBe(false)
+  })
+
+  it('does not fail on a success status', () => {
+    expect(isMainFrameHttpError('https://praetorium.gg/battles/abc', 304, 'https://praetorium.gg/battles/abc')).toBe(false)
   })
 })
 
