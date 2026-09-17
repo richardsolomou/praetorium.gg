@@ -33,7 +33,7 @@ import {
 } from './src/appShellState'
 import { appStateChanged, initialAppLifecycle, WEB_RESUME_SCRIPT } from './src/lifecycle'
 import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest, type NativeActionRequest } from './src/nativeActions'
-import { applicationNavigationScript, classifyNavigation } from './src/navigation'
+import { applicationNavigationScript, classifyNavigation, externalOpenStrategies, isMainFrameHttpError } from './src/navigation'
 import {
   NATIVE_AUTH_CALLBACK_URL,
   nativeAuthCompletionScript,
@@ -83,6 +83,14 @@ function captureNativeException(operation: string, cause?: unknown) {
   posthog?.captureException(exception, { operation })
 }
 
+async function systemCanOpen(url: string) {
+  try {
+    return await Linking.canOpenURL(url)
+  } catch {
+    return false
+  }
+}
+
 WebBrowser.maybeCompleteAuthSession()
 
 function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
@@ -118,6 +126,7 @@ function AppShell() {
   const shellRef = useRef(initialAppShellState(AppState.currentState === 'active'))
   const loadDrainTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadGeneration = useRef(0)
+  const mainFrameUrl = useRef<string | null>(null)
   const [renderedShell, setRenderedShell] = useState(() => appShellRenderState(shellRef.current))
 
   const commitShell = useCallback((state: AppShellState) => {
@@ -211,12 +220,16 @@ function AppShell() {
   )
 
   const openExternal = useCallback(async (url: string) => {
-    try {
-      await Linking.openURL(url)
-    } catch (error) {
-      captureNativeException('external_link', error)
-      Alert.alert('Could not open link', 'No application on this device can open that link.')
+    for (const strategy of externalOpenStrategies(url, await systemCanOpen(url))) {
+      try {
+        if (strategy === 'system') await Linking.openURL(url)
+        else await WebBrowser.openBrowserAsync(url)
+        return
+      } catch (error) {
+        captureNativeException('external_link', error)
+      }
     }
+    Alert.alert('Could not open link', 'No application on this device can open that link.')
   }, [])
 
   const setBattleActive = useCallback((active: boolean) => {
@@ -422,10 +435,12 @@ function AppShell() {
           renderLoading={() => <StateView />}
           renderError={() => <StateView error retry={() => webView.current?.reload()} />}
           onLoadStart={({ nativeEvent }) => {
+            mainFrameUrl.current = nativeEvent.url
             cancelScheduledDrain()
             commitShell(webNavigationStarted(shellRef.current, Platform.OS, nativeEvent.loading))
           }}
           onLoad={({ nativeEvent }) => {
+            mainFrameUrl.current = nativeEvent.url
             finishWebLoad(nativeEvent.url)
           }}
           onError={({ nativeEvent }) => {
@@ -434,6 +449,9 @@ function AppShell() {
             commitShell(webLoadFailed(shellRef.current))
           }}
           onHttpError={({ nativeEvent }) => {
+            // A failing sub-resource must not tear down the loaded document; only
+            // an error on the main frame itself is a load failure.
+            if (!isMainFrameHttpError(nativeEvent.url, nativeEvent.statusCode, mainFrameUrl.current)) return
             captureNativeException('web_http', new Error(`WebView HTTP error ${nativeEvent.statusCode}: ${nativeEvent.description}`))
             cancelScheduledDrain()
             commitShell(webLoadFailed(shellRef.current))

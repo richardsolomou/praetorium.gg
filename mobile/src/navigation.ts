@@ -15,7 +15,46 @@ export const APP_URL = resolveApplicationUrl()
 
 type NavigationDecision = { kind: 'internal'; url: string } | { kind: 'external'; url: string } | { kind: 'blocked' }
 
-const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:'])
+const WEB_PROTOCOLS = new Set(['http:', 'https:'])
+const EXTERNAL_PROTOCOLS = new Set([...WEB_PROTOCOLS, 'mailto:', 'tel:'])
+
+export type ExternalOpenStrategy = 'system' | 'in-app-browser'
+
+// An external link opens in the operating system when a handler exists. A web
+// page also lists the in-app browser as a fallback, so a device that cannot
+// hand the link to the system still reaches the page instead of a dead end.
+export function externalOpenStrategies(url: string, canOpenWithSystem: boolean): ExternalOpenStrategy[] {
+  const strategies: ExternalOpenStrategy[] = []
+  if (canOpenWithSystem) strategies.push('system')
+  if (isWebPageUrl(url)) strategies.push('in-app-browser')
+  return strategies
+}
+
+function isWebPageUrl(url: string) {
+  try {
+    return WEB_PROTOCOLS.has(new URL(url).protocol)
+  } catch {
+    return false
+  }
+}
+
+// A WebView HTTP error tears down the shell only for the main document. A
+// sub-resource that answers with an error status must leave the loaded page in
+// place. The main document is the resource whose URL matches the frame the
+// WebView is loading, ignoring the fragment because it sends no request.
+export function isMainFrameHttpError(errorUrl: string, statusCode: number, mainFrameUrl: string | null) {
+  if (statusCode < 400 || mainFrameUrl === null) return false
+  return documentKey(errorUrl) === documentKey(mainFrameUrl)
+}
+
+function documentKey(url: string) {
+  try {
+    const parsed = new URL(url)
+    return `${parsed.origin}${parsed.pathname}${parsed.search}`
+  } catch {
+    return url
+  }
+}
 
 export function classifyNavigation(url: string): NavigationDecision {
   try {
