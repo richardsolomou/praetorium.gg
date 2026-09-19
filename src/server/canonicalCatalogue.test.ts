@@ -321,7 +321,7 @@ describe('canonical catalogue', () => {
                   characteristics: [
                     {
                       name: 'Description',
-                      $text: 'This model can be attached to the following units:\n■ OLD GUARD [LEGENDS]\n■ CURRENT GUARD',
+                      $text: 'This model can be attached to the following units:\n■ OLD GUARD [LEGENDS]\n■ CURRENT\u00a0GUARD',
                     },
                   ],
                 },

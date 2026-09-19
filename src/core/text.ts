@@ -1,4 +1,5 @@
-export const normalizedText = (value: string) => value.normalize('NFC').toLowerCase()
+export const normalizedText = (value: string) =>
+  value.normalize('NFC').toLowerCase().replaceAll('\u00a0', ' ').replaceAll(/\s+/g, ' ').trim()
 
 export const sameText = (left: string, right: string) => normalizedText(left) === normalizedText(right)
 
