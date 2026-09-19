@@ -15,7 +15,7 @@ import {
   sharedBattles,
   standings,
 } from '../../server/functions'
-import { PLAYER_SEARCH_MIN_LENGTH } from '../../server/schemas'
+import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../server/schemas'
 import { SSR_STALE_TIME } from './shared'
 
 export type BattlesCursor = { at: number; id: string }
@@ -90,7 +90,7 @@ export const playerSearchQuery = (query: string) =>
   queryOptions({
     queryKey: [...playerSearchKey, query],
     queryFn: () => searchPlayers({ data: { query } }),
-    enabled: query.trim().length >= PLAYER_SEARCH_MIN_LENGTH,
+    enabled: query.trim().length >= PLAYER_SEARCH_MIN_LENGTH && query.trim().length <= PLAYER_SEARCH_MAX_LENGTH,
     staleTime: 30_000,
   })
 

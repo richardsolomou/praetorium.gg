@@ -11,6 +11,7 @@ import { SignInRequired } from '../client/components/SignInRequired'
 import { friendshipsQuery, meQuery, opponentsQuery, playerSearchKey, playerSearchQuery } from '../client/queries'
 import { useSettled } from '../client/useSettled'
 import { acceptFriend, removeFriend, requestFriend } from '../server/functions'
+import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../server/schemas'
 import { errorMessage } from '../client/queryClient'
 
 export const Route = createFileRoute('/friends')({
@@ -46,9 +47,15 @@ function Friends() {
   const inFlight = (mutation: { isPending: boolean; variables: string | undefined }) =>
     mutation.isPending ? (mutation.variables ?? null) : null
   if (!me) return <SignInRequired title="Your friends" explanation="Sign in to connect with the people you play against." />
-  // Results from the last name searched stay up while the next one is answered.
-  const found = search.enabled ? matches : []
-  const searching = search.enabled && isFetching && !found.length
+  const typed = query.trim()
+  const tooShort = typed.length < PLAYER_SEARCH_MIN_LENGTH
+  // Results from the last name searched stay up while the next one is answered, and
+  // `keepPreviousData` keeps them even once the query is disabled, so a name cut back
+  // below the minimum has to drop them here.
+  const found = search.enabled && !tooShort ? matches : []
+  // Judged from what is typed rather than what has settled, so the invitation does
+  // not stay up for the length of a burst of typing.
+  const searching = !tooShort && (typed !== settledQuery || isFetching) && !found.length
 
   return (
     <main className="w-full">
@@ -96,6 +103,7 @@ function Friends() {
             placeholder="Search by account name"
             label="Search by account name"
             clearLabel="Empty the player search"
+            maxLength={PLAYER_SEARCH_MAX_LENGTH}
           />
           <div className="mt-2 space-y-2">
             {found.map((person) => (
@@ -114,10 +122,12 @@ function Friends() {
                 <PersonRowSkeleton />
               </>
             ) : null}
-            {!search.enabled ? (
-              <p className="border border-edge bg-panel p-4 text-sm text-dim">Type a player’s name to find them.</p>
+            {tooShort ? (
+              <p className="border border-edge bg-panel p-4 text-sm text-dim">
+                {typed ? `Type at least ${PLAYER_SEARCH_MIN_LENGTH} letters of a player’s name.` : 'Type a player’s name to find them.'}
+              </p>
             ) : null}
-            {search.enabled && !searching && !found.length ? (
+            {!tooShort && !searching && !found.length ? (
               <p className="border border-edge bg-panel p-4 text-sm text-dim">No player matches that name.</p>
             ) : null}
           </div>

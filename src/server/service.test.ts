@@ -76,6 +76,19 @@ describe('friends', () => {
     expect([await service.searchPlayers('alice', ''), await service.searchPlayers('alice', 'd')]).toEqual([[], []])
   })
 
+  it('answers as soon as the name is long enough to narrow anything', async () => {
+    await enrol('dave', 'Dave')
+
+    expect(await service.searchPlayers('alice', 'da')).toEqual([{ id: 'dave', name: 'Dave', image: null }])
+  })
+
+  it('reads a typed wildcard as the character it is', async () => {
+    await enrol('vex', 'Vex_Prime')
+    await enrol('vexa', 'VexaPrime')
+
+    expect(await service.searchPlayers('alice', 'x_p')).toEqual([{ id: 'vex', name: 'Vex_Prime', image: null }])
+  })
+
   it('answers with a page of matches rather than every player on the instance', async () => {
     for (let index = 0; index < 30; index += 1) await enrol(`p${index}`, `Player ${String(index).padStart(3, '0')}`)
 

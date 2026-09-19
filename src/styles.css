@@ -452,8 +452,8 @@ html[data-native-shell='true'] [data-scoreboard] {
   }
 }
 
-/* A placeholder stands in for a square panel or a line of text; neither is rounded. */
-[data-slot='skeleton'] {
+/* A placeholder is square like the panel or line it stands in for, unless it stands in for a round avatar. */
+[data-slot='skeleton']:not(.rounded-full) {
   border-radius: 0;
 }
 

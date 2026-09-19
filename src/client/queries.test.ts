@@ -1,10 +1,12 @@
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import * as functions from '../server/functions'
+import { PLAYER_SEARCH_MAX_LENGTH } from '../server/schemas'
 import {
   gameReferencesRefreshInterval,
   loadoutDatasheetsQuery,
   newestBattleScreen,
+  playerSearchKey,
   playerSearchQuery,
   terrainReferencesQuery,
 } from './queries'
@@ -56,6 +58,15 @@ describe('player search queries', () => {
 
   it('ignores the spaces around a typed name', () => {
     expect(playerSearchQuery(' a ').enabled).toBe(false)
+  })
+
+  it('does not ask about a name longer than the server accepts', () => {
+    expect(playerSearchQuery('a'.repeat(PLAYER_SEARCH_MAX_LENGTH)).enabled).toBe(true)
+    expect(playerSearchQuery('a'.repeat(PLAYER_SEARCH_MAX_LENGTH + 1)).enabled).toBe(false)
+  })
+
+  it('keys each name separately so one search cannot answer another', () => {
+    expect(playerSearchQuery('alice').queryKey).toEqual([...playerSearchKey, 'alice'])
   })
 })
 

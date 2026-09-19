@@ -86,7 +86,7 @@ The phase control also has one component instance. CSS moves it between the cent
 
 Global search keeps a stable panel height while typing. The query settles before the server request, and prior results remain visible during loading.
 
-Finding a player on the friends page works the same way: the typed name settles, the server answers with a bounded set of matching players who are not already friends or waiting on a request, and until a name is typed the panel invites one rather than listing the instance.
+Finding a player on the friends page works the same way: the typed name settles, the server answers with a bounded set of matching players who are not already friends or waiting on a request, and until at least two letters of a name are typed the panel invites one rather than listing the instance.
 
 Top-level home, account, library, faction, and mission pages have a clear introduction, useful summaries, and next actions. Empty states explain how the first item is added.
 

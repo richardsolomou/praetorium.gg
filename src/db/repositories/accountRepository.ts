@@ -123,7 +123,7 @@ export class AccountRepository {
    * account to filter it afterwards costs the whole user table to answer a
    * question about twenty rows, and grows with the instance.
    */
-  async searchPlayers(userId: string, query: string, limit = PLAYER_SEARCH_LIMIT) {
+  async searchPlayers(userId: string, query: string) {
     const relationship = this.database
       .select({ one: sql`1` })
       .from(friendships)
@@ -143,7 +143,7 @@ export class AccountRepository {
       .from(user)
       .where(and(ne(user.id, userId), ilike(user.name, contains(query)), notExists(relationship), notExists(practice)))
       .orderBy(asc(user.name))
-      .limit(limit)
+      .limit(PLAYER_SEARCH_LIMIT)
   }
 
   /** The practice opponents this instance seats, in the order they are offered. */
