@@ -3,6 +3,7 @@ import path from 'node:path'
 import { z } from 'zod'
 import { targetOf } from '../core/catalogue'
 import { structureDatasheetProfiles } from '../core/datasheetStructure'
+import { compareText, sameText } from '../core/text'
 import type {
   CanonicalCatalogue,
   CanonicalCatalogueIssue,
@@ -14,10 +15,18 @@ import type { RuleDocument } from '../contracts/rules'
 import { datasheetIn } from './catalogue'
 import { catalogueDirectory, datasheetsOf, isReferenceDatasheet, loadCatalogue, type LoadedCatalogue } from './catalogueIndex'
 import { isMatchedPlayDatasheet } from './cataloguePicker'
-import { sourceBaseSize, sourceComposition, sourceCosts, sourceUnitOf, type SourceUnitJoin } from './catalogueSourceUnits'
+import {
+  loadSourceUnits,
+  sourceBaseSize,
+  sourceComposition,
+  sourceCosts,
+  sourceUnitOf,
+  type SourceUnit,
+  type SourceUnitJoin,
+} from './catalogueSourceUnits'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { datacardOf } from './datasheetJoin'
-import { describeDatasheetAbilities } from './datasheetDescriptions'
+import { describeDatasheetAbilitiesWithContributions } from './datasheetDescriptions'
 import { factionDisplayName } from './factionNames'
 import { loadRules, type LoadedRules, RULES_DATA_ATTRIBUTION } from './rules'
 import { joinKey } from './rulesSource'
@@ -205,8 +214,6 @@ const sourceOrUnresolved = (source: CanonicalSourceName | null, fallback = false
 
 const uniqueSources = (sources: readonly CanonicalSourceName[]) => [...new Set(sources)]
 
-const sameIdentity = (left: string, right: string) => left.localeCompare(right, undefined, { sensitivity: 'accent' }) === 0
-
 function singleUnqualifiedPoint(costs: readonly CanonicalDatasheet['costs'][number][]) {
   const unqualified = costs.filter((cost) => !cost.keyword && !cost.faction && !cost.detachment)
   if (unqualified.length !== 1 || !/^\d+$/.test(unqualified[0]!.cost)) return null
@@ -223,7 +230,7 @@ function declaredCompositionRange(composition: readonly string[]): ModelCountRan
       continue
     }
     if (!/^\*{0,2}\s*\d/.test(line.trim())) return null
-    const counts = [...line.matchAll(/(\d+)(?:\s*\p{Pd}\s*(\d+))?/gu)]
+    const counts = [...line.matchAll(/(?<![\p{L}\p{N}])(\d+)(?:\s*\p{Pd}\s*(\d+))?(?![\p{L}\p{N}])/gu)]
     if (!counts.length) return null
     alternatives.at(-1)!.push(...counts.map((count) => ({ minimum: Number(count[1]), maximum: Number(count[2] ?? count[1]) })))
   }
@@ -257,7 +264,7 @@ const comparableBaseSize = (value: string) => {
     return null
   }
   return trimmed
-    .toLocaleLowerCase()
+    .toLowerCase()
     .replaceAll(/\s+/g, '')
     .replace(/ovalbase$/, 'oval')
 }
@@ -301,7 +308,7 @@ function sourceStat(kind: keyof typeof sourceStatKeys, raw: string | number) {
 const comparableStat = (value: string) =>
   value
     .trim()
-    .toLocaleLowerCase()
+    .toLowerCase()
     .replaceAll(/[″”]/g, '"')
     .replaceAll('*', '')
     .replaceAll(/\s+/g, '')
@@ -352,7 +359,7 @@ function issuesFor(
       path: '/provenance/rules',
       message: `${sheet.name} has no unambiguous 40kdc record linked by an external reference`,
     })
-  } else if (!sameIdentity(sourceJoin.unit.name, sheet.name)) {
+  } else if (!sameText(sourceJoin.unit.name, sheet.name)) {
     issues.push({
       kind: 'source-field-conflict',
       severity: 'warning',
@@ -490,6 +497,7 @@ export function compileCanonicalCatalogue(
   loaded: LoadedCatalogue,
   revisions: Record<string, string>,
   rules: LoadedRules | null = null,
+  sourceUnits: ReadonlyMap<string, readonly SourceUnit[]> = new Map(),
 ): CanonicalCatalogue {
   const datasheets: CanonicalDatasheet[] = []
   const issues: CanonicalCatalogueIssue[] = []
@@ -500,9 +508,10 @@ export function compileCanonicalCatalogue(
       const projected = datasheetIn(loaded, faction.id, entryId)
       if (!projected) continue
       const joined = datacardOf(loaded, faction.id, entryId)
-      const sourceJoin = sourceUnitOf(loaded, targetOf(entry, loaded.index.definitions).id)
-      const described = describeDatasheetAbilities(loaded, faction.id, projected, rules, { reference: true })
-      if (!described) continue
+      const sourceJoin = sourceUnitOf(sourceUnits, targetOf(entry, loaded.index.definitions).id)
+      const description = describeDatasheetAbilitiesWithContributions(loaded, faction.id, projected, rules, { reference: true })
+      if (!description) continue
+      const { datasheet: described, contributions: abilityContributions } = description
       const cardsBaseSize = described.baseSize
       const rulesBaseSize = sourceBaseSize(sourceJoin?.unit.baseSize ?? null)
       const cardsComposition = described.composition
@@ -522,11 +531,6 @@ export function compileCanonicalCatalogue(
         (!cardsBaseSize && Boolean(rulesBaseSize)) ||
         (!cardsComposition.length && Boolean(rulesComposition.length)) ||
         (!cardsCosts.length && Boolean(rulesCosts.length))
-      const projectedAbilities = new Map(projected.abilities.map((ability) => [ability.id, ability]))
-      const datacardsContributeAbilities =
-        described.abilities.length !== projected.abilities.length ||
-        described.abilities.some((ability) => projectedAbilities.get(ability.id)?.description !== ability.description)
-      const rulesContributeAbilities = described.abilities.some((ability) => projectedAbilities.get(ability.id)?.kind !== ability.kind)
       const usesDatacards = Boolean(
         cardsBaseSize ||
         cardsComposition.length ||
@@ -535,15 +539,20 @@ export function compileCanonicalCatalogue(
         described.transport ||
         joined?.details.wargear.length ||
         joined?.details.wargearGroups?.length ||
-        datacardsContributeAbilities,
+        abilityContributions.datacards,
       )
-      const attribution = [...new Set([usesDatacards ? DATACARDS_ATTRIBUTION : null, usesRulesDisplayData ? RULES_DATA_ATTRIBUTION : null])]
+      const attribution = [
+        ...new Set([
+          usesDatacards ? DATACARDS_ATTRIBUTION : null,
+          usesRulesDisplayData || abilityContributions.rules ? RULES_DATA_ATTRIBUTION : null,
+        ]),
+      ]
         .filter((value): value is string => Boolean(value))
         .join('. ')
       const abilitySources = uniqueSources([
         'definitions',
-        ...(datacardsContributeAbilities ? (['datacards'] as const) : []),
-        ...(rulesContributeAbilities ? (['rules'] as const) : []),
+        ...(abilityContributions.datacards ? (['datacards'] as const) : []),
+        ...(abilityContributions.rules ? (['rules'] as const) : []),
       ])
       const costSources: CanonicalSourceName[] = [
         ...(cardsCosts.length ? (['datacards'] as const) : []),
@@ -584,10 +593,7 @@ export function compileCanonicalCatalogue(
           rules: sourceJoin ? { revision: revisions.rules ?? 'unknown', unitId: sourceJoin.unit.id, resolution: sourceJoin.method } : null,
           fields: {
             identity: sourceJoin
-              ? resolution(
-                  ['definitions', 'rules'],
-                  sameIdentity(sourceJoin.unit.name, described.name) ? 'sources-agree' : 'source-priority',
-                )
+              ? resolution(['definitions', 'rules'], sameText(sourceJoin.unit.name, described.name) ? 'sources-agree' : 'source-priority')
               : sourceOrUnresolved('definitions'),
             points: pointsResolution,
             keywords: sourceOrUnresolved('definitions'),
@@ -650,16 +656,14 @@ export function compileCanonicalCatalogue(
   return canonicalCatalogueSchema.parse({
     format: CANONICAL_CATALOGUE_FORMAT,
     compilerVersion: 1,
-    revisions: Object.fromEntries(Object.entries(revisions).toSorted(([left], [right]) => left.localeCompare(right))),
+    revisions: Object.fromEntries(Object.entries(revisions).toSorted(([left], [right]) => compareText(left, right))),
     datasheets: routedDatasheets.toSorted(
-      (left, right) => left.faction.localeCompare(right.faction) || left.name.localeCompare(right.name) || left.id.localeCompare(right.id),
+      (left, right) => compareText(left.faction, right.faction) || compareText(left.name, right.name) || compareText(left.id, right.id),
     ),
     ruleDocuments: compileCanonicalRuleDocuments(rules?.ruleDocuments ?? [], revisions.datacards ?? 'unknown'),
     issues: issues.toSorted(
       (left, right) =>
-        left.catalogueId.localeCompare(right.catalogueId) ||
-        left.entryId.localeCompare(right.entryId) ||
-        left.path.localeCompare(right.path),
+        compareText(left.catalogueId, right.catalogueId) || compareText(left.entryId, right.entryId) || compareText(left.path, right.path),
     ),
   })
 }
@@ -667,7 +671,7 @@ export function compileCanonicalCatalogue(
 export function compileCanonicalRuleDocuments(documents: readonly RuleDocument[], revision: string) {
   return documents
     .map((document) => ({ ...document, provenance: { datacards: { revision } } }))
-    .toSorted((left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id))
+    .toSorted((left, right) => compareText(left.title, right.title) || compareText(left.id, right.id))
 }
 
 export function canonicalCataloguePath(directory: string) {
@@ -686,7 +690,8 @@ export function writeCanonicalCatalogue(directory: string, output = canonicalCat
     loaded.datacards,
     loaded.sourceReferences,
   )
-  const catalogue = compileCanonicalCatalogue(loaded, revisions, rules)
+  const sourceUnits = loadSourceUnits(path.join(directory, 'rules', 'data', 'core'))
+  const catalogue = compileCanonicalCatalogue(loaded, revisions, rules, sourceUnits)
   fs.mkdirSync(path.dirname(output), { recursive: true })
   fs.writeFileSync(output, `${JSON.stringify(catalogue, null, 2)}\n`)
   return catalogue
@@ -698,5 +703,16 @@ export function readCanonicalCatalogue(file: string): CanonicalCatalogue {
 
 export function loadCanonicalCatalogue(directory = catalogueDirectory()): CanonicalCatalogue | null {
   const file = canonicalCataloguePath(directory)
-  return fs.existsSync(file) ? readCanonicalCatalogue(file) : null
+  if (!fs.existsSync(file)) return null
+  const candidate: unknown = JSON.parse(fs.readFileSync(file, 'utf8'))
+  if (
+    candidate &&
+    typeof candidate === 'object' &&
+    'format' in candidate &&
+    typeof candidate.format === 'string' &&
+    candidate.format !== CANONICAL_CATALOGUE_FORMAT
+  ) {
+    return null
+  }
+  return canonicalCatalogueSchema.parse(candidate)
 }

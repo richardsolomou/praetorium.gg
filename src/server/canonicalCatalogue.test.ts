@@ -1,9 +1,19 @@
+import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { bookOf, card, categories, points, withCards } from './catalogue.fixtures'
-import { compileCanonicalCatalogue, compileCanonicalRuleDocuments } from './canonicalCatalogue'
+import { ability, bookOf, card, categories, points, withCards } from './catalogue.fixtures'
+import {
+  CANONICAL_CATALOGUE_FORMAT,
+  compileCanonicalCatalogue,
+  compileCanonicalRuleDocuments,
+  loadCanonicalCatalogue,
+} from './canonicalCatalogue'
 import type { SourceUnit } from './catalogueSourceUnits'
-import { DATACARDS_ATTRIBUTION } from './datacards'
+import { DATACARDS_ATTRIBUTION, type DatasheetDetails } from './datacards'
 import { indexExternalReferences } from './externalReferences'
+import { type LoadedRules, RULES_DATA_ATTRIBUTION } from './rules'
 
 const revisions = { definitions: 'definitions-revision', datacards: 'datacards-revision' }
 
@@ -44,7 +54,11 @@ function catalogue() {
   return loaded
 }
 
-function withSourceUnit(loaded: ReturnType<typeof catalogue>, over: Partial<SourceUnit> = {}) {
+function compileWithSourceUnit(
+  loaded: ReturnType<typeof catalogue>,
+  over: Partial<SourceUnit> = {},
+  sourceRevisions: Record<string, string> = { ...revisions, rules: 'rules-revision' },
+) {
   const unit: SourceUnit = {
     id: 'source-squad',
     name: 'Squad',
@@ -56,9 +70,8 @@ function withSourceUnit(loaded: ReturnType<typeof catalogue>, over: Partial<Sour
     baseSize: { shape: 'round', diameter: 32, draft: false },
     ...over,
   }
-  loaded.sourceUnits = new Map([['squad', [unit]]])
   loaded.sourceReferences.units = indexExternalReferences([{ id: unit.id, external_refs: [{ namespace: 'bsdata', id: 'squad' }] }])
-  return loaded
+  return compileCanonicalCatalogue(loaded, sourceRevisions, null, new Map([['squad', [unit]]]))
 }
 
 describe('canonical catalogue', () => {
@@ -94,6 +107,74 @@ describe('canonical catalogue', () => {
     })
   })
 
+  it.each([
+    ['base size', { baseSize: '32mm' }],
+    ['composition', { composition: ['1 Squad'] }],
+    ['costs', { points: [{ models: '1', cost: '100', keyword: null, faction: null, detachment: null }] }],
+    ['loadout', { loadout: 'This unit is equipped with one rifle.' }],
+    ['transport', { transport: 'This model can transport 6 models.' }],
+    ['wargear', { wargear: ['One rifle'] }],
+    ['wargear groups', { wargearGroups: [{ instruction: 'Choose one.', options: ['One rifle'] }] }],
+  ] as [string, Partial<DatasheetDetails>][])('attributes Game Datacards when it solely supplies %s', (_, details) => {
+    const loaded = catalogue()
+    loaded.factionContents.get('test-catalogue')!.datasheetDetails.set('Squad', card(details))
+
+    expect(compileCanonicalCatalogue(loaded, revisions).datasheets[0]?.attribution).toBe(DATACARDS_ATTRIBUTION)
+  })
+
+  it('attributes a rules-backed ability reclassification', () => {
+    const loaded = bookOf({
+      selectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          costs: points(100),
+          categoryLinks: categories('Faction: Test catalogue'),
+          selectionEntries: [
+            {
+              id: 'upgrade',
+              name: 'Death in the Dark',
+              type: 'upgrade',
+              profiles: [ability('upgrade-ability', 'Death in the Dark')],
+            },
+          ],
+        },
+      ],
+    })
+    const rules = {
+      abilityDescriptions: new Map(),
+      factionKeys: new Map(),
+      factionNames: new Map(),
+      ruleDocuments: [],
+      detachmentDetails: new Map([
+        [
+          'test-catalogue',
+          new Map([
+            [
+              'detachment',
+              {
+                id: 'detachment',
+                name: 'Detachment',
+                points: null,
+                dispositions: [],
+                rules: [],
+                enhancements: [],
+                upgrades: [{ name: 'Death in the Dark', points: 15, description: 'Strike from concealment.' }],
+                stratagems: [],
+              },
+            ],
+          ]),
+        ],
+      ]),
+    } as Partial<LoadedRules> as LoadedRules
+
+    const sheet = compileCanonicalCatalogue(loaded, revisions, rules).datasheets[0]
+
+    expect(sheet?.provenance.fields.abilities.sources).toEqual(['definitions', 'rules'])
+    expect(sheet?.attribution).toBe(RULES_DATA_ATTRIBUTION)
+  })
+
   it('reports uncertain joins and fields rather than guessing', () => {
     expect(compileCanonicalCatalogue(catalogue(), revisions).issues).toEqual(
       expect.arrayContaining([
@@ -107,7 +188,7 @@ describe('canonical catalogue', () => {
   it('resolves safe display gaps from an exactly linked 40kdc unit', () => {
     const loaded = catalogue()
     loaded.factionContents.get('test-catalogue')!.datasheetDetails.get('Squad')!.composition = []
-    const compiled = compileCanonicalCatalogue(withSourceUnit(loaded), { ...revisions, rules: 'rules-revision' })
+    const compiled = compileWithSourceUnit(loaded)
 
     expect(compiled.datasheets[0]).toMatchObject({
       baseSize: '32mm',
@@ -133,10 +214,7 @@ describe('canonical catalogue', () => {
   })
 
   it('does not publish draft source base sizes', () => {
-    const compiled = compileCanonicalCatalogue(withSourceUnit(catalogue(), { baseSize: { shape: 'hull', draft: true } }), {
-      ...revisions,
-      rules: 'rules-revision',
-    })
+    const compiled = compileWithSourceUnit(catalogue(), { baseSize: { shape: 'hull', draft: true } })
 
     expect(compiled.datasheets[0]?.baseSize).toBeNull()
     expect(compiled.issues).not.toContainEqual(expect.objectContaining({ kind: 'source-field-fallback', path: '/baseSize' }))
@@ -152,13 +230,10 @@ describe('canonical catalogue', () => {
         points: [{ models: '5', cost: '90', keyword: null, faction: null, detachment: null }],
       }),
     )
-    const compiled = compileCanonicalCatalogue(
-      withSourceUnit(loaded, { name: 'Source Squad', profiles: [{ name: 'Squad', values: { T: 5 } }] }),
-      {
-        ...revisions,
-        rules: 'rules-revision',
-      },
-    )
+    const compiled = compileWithSourceUnit(loaded, {
+      name: 'Source Squad',
+      profiles: [{ name: 'Squad', values: { T: 5 } }],
+    })
 
     expect(compiled.datasheets[0]).toMatchObject({
       points: 90,
@@ -210,13 +285,19 @@ describe('canonical catalogue', () => {
       .get('test-catalogue')!
       .datasheetDetails.set('Squad', card({ composition: ['**1 Squad Leader and 9 Squad models**'] }))
 
-    const compiled = compileCanonicalCatalogue(withSourceUnit(loaded, { modelCount: { min: 10, max: 20 } }), {
-      ...revisions,
-      rules: 'rules-revision',
-    })
+    const compiled = compileWithSourceUnit(loaded, { modelCount: { min: 10, max: 20 } })
 
     expect(compiled.datasheets[0]?.composition).toEqual(['**1 Squad Leader and 9 Squad models**'])
     expect(compiled.issues).toContainEqual(expect.objectContaining({ kind: 'source-field-conflict', path: '/composition' }))
+  })
+
+  it('does not read digits embedded in a model name as a composition count', () => {
+    const loaded = catalogue()
+    loaded.factionContents.get('test-catalogue')!.datasheetDetails.set('Squad', card({ composition: ['**1 XV8 Crisis Battlesuit**'] }))
+
+    const compiled = compileWithSourceUnit(loaded, { modelCount: { min: 1, max: 1 } })
+
+    expect(compiled.issues).not.toContainEqual(expect.objectContaining({ kind: 'source-field-conflict', path: '/composition' }))
   })
 
   it('does not link relationships to datasheets omitted from the canonical catalogue', () => {
@@ -240,7 +321,7 @@ describe('canonical catalogue', () => {
                   characteristics: [
                     {
                       name: 'Description',
-                      $text: 'This model can be attached to the following units:\n■ OLD GUARD [LEGENDS]',
+                      $text: 'This model can be attached to the following units:\n■ OLD GUARD [LEGENDS]\n■ CURRENT GUARD',
                     },
                   ],
                 },
@@ -255,11 +336,20 @@ describe('canonical catalogue', () => {
           costs: points(100),
           categoryLinks: categories('Faction: Test catalogue'),
         },
+        {
+          id: 'current-guard',
+          name: 'Current Guard',
+          type: 'unit',
+          costs: points(100),
+          categoryLinks: categories('Faction: Test catalogue'),
+        },
       ],
     })
 
-    expect(compileCanonicalCatalogue(loaded, revisions).datasheets.find((sheet) => sheet.id === 'leader')?.attachments).toContainEqual(
-      expect.objectContaining({ name: 'OLD GUARD [LEGENDS]', route: null }),
+    const attachments = compileCanonicalCatalogue(loaded, revisions).datasheets.find((sheet) => sheet.id === 'leader')?.attachments
+    expect(attachments).toContainEqual(expect.objectContaining({ name: 'OLD GUARD [LEGENDS]', route: null }))
+    expect(attachments).toContainEqual(
+      expect.objectContaining({ name: 'Current Guard', route: { catalogueId: 'test-catalogue', slug: 'current-guard' } }),
     )
   })
 
@@ -305,5 +395,80 @@ describe('canonical catalogue', () => {
   it('is deterministic for the same source snapshot', () => {
     const loaded = catalogue()
     expect(compileCanonicalCatalogue(loaded, revisions)).toEqual(compileCanonicalCatalogue(loaded, revisions))
+  })
+
+  it('is byte-identical across publisher locales', () => {
+    const root = path.join(import.meta.dirname, '../..')
+    const script = `
+      import { bookOf, categories, points } from './src/server/catalogue.fixtures.ts'
+      import { compileCanonicalCatalogue } from './src/server/canonicalCatalogue.ts'
+      const loaded = bookOf({
+        name: 'Test catalogue',
+        selectionEntries: [
+          {
+            id: 'leader',
+            name: 'Leader',
+            type: 'model',
+            costs: points(100),
+            categoryLinks: categories('Faction: Test catalogue'),
+            infoGroups: [{
+              id: 'leader-group',
+              name: 'Leader',
+              profiles: [{
+                id: 'leader-profile',
+                name: 'Leader',
+                characteristics: [{
+                  name: 'Description',
+                  $text: 'This model can be attached to the following units:\\n■ IMPERIAL GUARD',
+                }],
+              }],
+            }],
+          },
+          {
+            id: 'guard',
+            name: 'Imperial Guard',
+            type: 'unit',
+            costs: points(100),
+            categoryLinks: categories('Faction: Test catalogue'),
+          },
+        ],
+      })
+      process.stdout.write(JSON.stringify(compileCanonicalCatalogue(loaded, { definitions: 'definitions-revision' })))
+    `
+    const compile = (locale: string) =>
+      execFileSync('pnpm', ['tsx', '-e', script], {
+        cwd: root,
+        encoding: 'utf8',
+        env: { ...process.env, LC_ALL: locale },
+      })
+
+    expect(compile('tr_TR.UTF-8')).toBe(compile('C.UTF-8'))
+  })
+
+  it('falls back when a snapshot carries a newer canonical format', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-format-'))
+    try {
+      fs.mkdirSync(path.join(root, 'canonical'))
+      fs.writeFileSync(path.join(root, 'canonical', 'catalogue.json'), '{"format":"praetorium.canonical-catalogue.v2"}\n')
+
+      expect(loadCanonicalCatalogue(root)).toBeNull()
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a malformed catalogue in the supported format', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-format-'))
+    try {
+      fs.mkdirSync(path.join(root, 'canonical'))
+      fs.writeFileSync(
+        path.join(root, 'canonical', 'catalogue.json'),
+        `${JSON.stringify({ format: CANONICAL_CATALOGUE_FORMAT, compilerVersion: 1 })}\n`,
+      )
+
+      expect(() => loadCanonicalCatalogue(root)).toThrow()
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
   })
 })

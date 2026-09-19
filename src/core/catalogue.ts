@@ -522,7 +522,7 @@ function datasheetsIn(
       for (const faction of factionCategories(entry, definitions)) factionCounts.set(faction, (factionCounts.get(faction) ?? 0) + 1)
     }
     const most = Math.max(0, ...factionCounts.values())
-    const namedFactions = [...factionCounts.keys()].filter((faction) => book.name.toLocaleLowerCase().includes(faction))
+    const namedFactions = [...factionCounts.keys()].filter((faction) => book.name.toLowerCase().includes(faction))
     const primaryFactions = new Set(
       namedFactions.length ? namedFactions : [...factionCounts].flatMap(([faction, count]) => (count === most ? [faction] : [])),
     )
@@ -557,6 +557,6 @@ function factionCategories(entry: { id: string; targetId: string }, definitions:
   const target = targetOf(source, definitions)
   return [...('categoryLinks' in source ? (source.categoryLinks ?? []) : []), ...(target.categoryLinks ?? [])].flatMap((category) => {
     const faction = category.name?.match(/^Faction:\s*(.+)$/i)?.[1]
-    return faction ? [faction.trim().toLocaleLowerCase()] : []
+    return faction ? [faction.trim().toLowerCase()] : []
   })
 }

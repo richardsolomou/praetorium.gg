@@ -51,7 +51,7 @@ function booksOf(index: CatalogueIndex, faction: string) {
   const keys = datacardsFactionKeys(faction)
   return new Set(
     [...index.catalogues.values()].flatMap((catalogue) =>
-      catalogue.name.split(' - ').some((segment) => segment.toLocaleLowerCase() !== 'library' && keys.has(routeSlug(segment)))
+      catalogue.name.split(' - ').some((segment) => segment.toLowerCase() !== 'library' && keys.has(routeSlug(segment)))
         ? [catalogue.id]
         : [],
     ),

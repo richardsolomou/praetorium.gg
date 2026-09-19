@@ -1,4 +1,4 @@
-export const normalizedName = (name: string) => name.toLocaleLowerCase().replaceAll('\u00a0', ' ').replaceAll(/\s+/g, ' ').trim()
+export const normalizedName = (name: string) => name.toLowerCase().replaceAll('\u00a0', ' ').replaceAll(/\s+/g, ' ').trim()
 
 export function normalizedNameVariants(name: string): string[] {
   const normalized = normalizedName(name)

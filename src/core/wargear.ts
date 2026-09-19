@@ -32,7 +32,7 @@ export const wargearBaseName = (name: string) => {
   return withoutMarkedMode
     .replace(/\s*\([^)]*\)\s*$/, '')
     .trim()
-    .toLocaleLowerCase()
+    .toLowerCase()
 }
 
 export function wargearOf(selection: Selection, index: CatalogueIndex, carriers = 1): Wargear[] {

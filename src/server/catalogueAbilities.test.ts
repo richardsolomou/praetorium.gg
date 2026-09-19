@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { abilityNamesIn, datasheetIn, rulesReferencedIn } from './catalogue'
-import { describeDatasheetAbilities } from './datasheetDescriptions'
+import { describeDatasheetAbilities, describeDatasheetAbilitiesWithContributions } from './datasheetDescriptions'
 import { ability, bookOf, points, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'
 
@@ -71,9 +71,11 @@ describe('the abilities and wargear a datasheet lists', () => {
       'My Will Be Done',
       'Resurrection Orb',
     ])
-    expect(describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'lord'), null, { reference: true })?.abilities).toContainEqual(
-      expect.objectContaining({ name: 'Resurrection Orb', kind: 'wargear' }),
-    )
+    const described = describeDatasheetAbilitiesWithContributions(book, 'cat', datasheetIn(book, 'cat', 'lord'), null, {
+      reference: true,
+    })
+    expect(described?.datasheet.abilities).toContainEqual(expect.objectContaining({ name: 'Resurrection Orb', kind: 'wargear' }))
+    expect(described?.contributions).toEqual({ datacards: false, rules: false })
     expect(datasheetIn(book, 'cat', 'lord', { selections: [{ id: 'lord' }], unitSelectionIndex: 0 })?.abilities).not.toContainEqual(
       expect.objectContaining({ name: 'Resurrection Orb' }),
     )
@@ -134,9 +136,9 @@ describe('the abilities and wargear a datasheet lists', () => {
       factionKeys: new Map([[factionSlug, rulesFaction]]),
     } as Partial<LoadedRules> as LoadedRules
 
-    expect(describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'judiciar'), rules)?.abilities.map(({ name }) => name)).toEqual(
-      [expected],
-    )
+    const described = describeDatasheetAbilitiesWithContributions(book, 'cat', datasheetIn(book, 'cat', 'judiciar'), rules)
+    expect(described?.datasheet.abilities.map(({ name }) => name)).toEqual([expected])
+    expect(described?.contributions.datacards).toBe(true)
   })
 
   it('shows a unit enhancement ability only when the enhancement is selected', () => {
@@ -326,9 +328,9 @@ describe('the abilities and wargear a datasheet lists', () => {
     const sheet = datasheetIn(book, 'cat', 'incursors', { selections, unitSelectionIndex: 0 })
 
     expect(datasheetIn(book, 'cat', 'incursors', { selections: [{ id: 'incursors' }], unitSelectionIndex: 0 })?.abilities).toEqual([])
-    expect(describeDatasheetAbilities(book, 'cat', sheet, rules)?.abilities).toContainEqual(
-      expect.objectContaining({ name: 'Death in the Dark', kind: 'upgrade' }),
-    )
+    const described = describeDatasheetAbilitiesWithContributions(book, 'cat', sheet, rules)
+    expect(described?.datasheet.abilities).toContainEqual(expect.objectContaining({ name: 'Death in the Dark', kind: 'upgrade' }))
+    expect(described?.contributions.rules).toBe(true)
   })
 
   it('does not offer an enhancement when its eligibility semantics are unavailable', () => {

@@ -102,7 +102,6 @@ export function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
     factionContents: datacards.factions,
     datacards,
     sourceReferences: emptyExternalReferences(),
-    sourceUnits: new Map(),
   }
 }
 

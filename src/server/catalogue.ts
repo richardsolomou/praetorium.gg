@@ -15,6 +15,7 @@ import { choiceOptionWargear } from '../core/modelKinds'
 import { wargearOf } from '../core/wargear'
 import { normalizeRuleReference, ruleReferenceMatches } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
+import { sameText } from '../core/text'
 import {
   datasheetIdBySlug,
   datasheetSlug,
@@ -34,9 +35,9 @@ export { rulesNamed, rulesReferencedIn } from './catalogueRules'
 
 export function toughnessOf(profiles: readonly { type: string; values: readonly { name: string; value: string }[] }[]): number | null {
   const values = profiles
-    .filter((profile) => profile.type.toLocaleLowerCase() === 'unit')
+    .filter((profile) => profile.type.toLowerCase() === 'unit')
     .flatMap((profile) => profile.values)
-    .filter((value) => ['t', 'toughness'].includes(value.name.trim().toLocaleLowerCase()))
+    .filter((value) => ['t', 'toughness'].includes(value.name.trim().toLowerCase()))
     .map((value) => Number.parseInt(value.value, 10))
     .filter(Number.isFinite)
   return values.length ? Math.max(...values) : null
@@ -54,9 +55,9 @@ export function toughnessOf(profiles: readonly { type: string; values: readonly 
 export function woundsOf(profiles: readonly { type: string; values: readonly { name: string; value: string }[] }[]): number | null {
   const values = new Set(
     profiles
-      .filter((profile) => profile.type.toLocaleLowerCase() === 'unit')
+      .filter((profile) => profile.type.toLowerCase() === 'unit')
       .flatMap((profile) => profile.values)
-      .filter((value) => ['w', 'wounds'].includes(value.name.trim().toLocaleLowerCase()))
+      .filter((value) => ['w', 'wounds'].includes(value.name.trim().toLowerCase()))
       .map((value) => Number.parseInt(value.value, 10))
       .filter((value) => Number.isFinite(value) && value > 0),
   )
@@ -370,7 +371,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     for (const link of definition.infoLinks ?? []) {
       const linkedRule = link.type === 'rule' ? loaded.index.rules.get(link.targetId) : undefined
       if (!weaponsOnly && !link.hidden && !linkedRule?.hidden && link.name && linkedRule?.description) {
-        keywordRules.set(link.name.toLocaleLowerCase(), { name: link.name, description: linkedRule.description })
+        keywordRules.set(link.name.toLowerCase(), { name: link.name, description: linkedRule.description })
       }
       if (ownRules) addRule(link, 'faction')
       const shared = loaded.index.shared.get(link.targetId)
@@ -395,7 +396,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     const enhancementEntry =
       enhancement ||
       (!isRoot && Boolean(definition.hidden ?? resolved.hidden)) ||
-      (resolved.type === undefined && (definition.name ?? resolved.name)?.toLocaleLowerCase().includes('enhancement'))
+      (resolved.type === undefined && (definition.name ?? resolved.name)?.toLowerCase().includes('enhancement'))
     const selectedUpgrade = selected.has(definition.id) || selected.has(resolved.id)
     const kind = !isRoot && resolved.type === 'upgrade' ? 'wargear' : 'datasheet'
     if (!enhancementEntry || selectedUpgrade) {
@@ -734,7 +735,7 @@ function weaponAbilitiesFromDetachments(
         if (!matchesKeywordSelector(grant.recipients, keywordNames)) continue
         if (grant.exclusions && matchesKeywordSelector(grant.exclusions, keywordNames)) continue
         const granted = { keyword: grant.keyword, source: rule.name, profileTypes: grant.profileTypes }
-        found.set(`${grant.keyword.toLocaleLowerCase()}:${grant.profileTypes.join(',')}:${rule.name}`, granted)
+        found.set(`${grant.keyword.toLowerCase()}:${grant.profileTypes.join(',')}:${rule.name}`, granted)
       }
     }
   }
@@ -747,7 +748,7 @@ function unconditionalWeaponAbilityGrants(description: string) {
     /(?:^|[.!?]\s+)(?:[-■]\s*)?(?:In addition,\s+)?(?:(ranged|melee)\s+)?weapons equipped by (.+?) models(?: \((?:excluding|except) (.+?) models\))? from your army have the \[([^\]]+)\] ability(?=[.,]|$)/giu
   const normalized = description.normalize('NFKC').replaceAll(/\^\^|\*\*/g, '')
   for (const match of normalized.matchAll(pattern)) {
-    const weaponType = match[1]?.toLocaleLowerCase()
+    const weaponType = match[1]?.toLowerCase()
     grants.push({
       keyword: titleCaseAbility(match[4]!),
       recipients: match[2]!,
@@ -765,7 +766,7 @@ const normalizeKeywordSelector = (value: string) =>
     .replaceAll(/[‐‑‒–—]/g, '-')
     .replaceAll(/[^\p{L}\p{N}+'’-]+/gu, ' ')
     .trim()
-    .toLocaleLowerCase()
+    .toLowerCase()
 
 export function matchesKeywordSelector(selector: string, keywordNames: readonly string[]) {
   const alternatives = selector
@@ -796,7 +797,7 @@ function grantedAbilitiesInAttachedUnit(
     ? (rosterKeywordIds ?? keywordIdsBySelection(selections, index, { primaryCatalogueId: catalogueId }))
     : []
   const character = (selectedKeywordIds ?? keywordsBySelection[unitSelectionIndex] ?? []).some(
-    (id) => index.categories.get(id)?.name?.trim().toLocaleLowerCase() === 'character',
+    (id) => index.categories.get(id)?.name?.trim().toLowerCase() === 'character',
   )
   const referencesAt = (at: number, keywordIdsAt: readonly string[]) => {
     const selection = selections[at]
@@ -842,7 +843,7 @@ function grantedAbilitiesInAttachedUnit(
           for (const grant of grants) {
             if (grant.recipient === 'bearer' && origin !== 'self') continue
             if (grant.recipient === 'leader' && (origin !== 'companion' || !character)) continue
-            const key = grant.name.toLocaleLowerCase()
+            const key = grant.name.toLowerCase()
             const granted = found.get(key) ?? { name: grant.name, sources: new Set(), ids: new Set() }
             granted.sources.add(profile.name)
             granted.ids.add(profile.id)
@@ -1160,8 +1161,8 @@ const titleCaseAbility = (name: string) =>
     .normalize('NFKC')
     .replaceAll(/\s+/g, ' ')
     .trim()
-    .toLocaleLowerCase()
-    .replaceAll(/(^|[\s-])\p{L}/gu, (letter) => letter.toLocaleUpperCase())
+    .toLowerCase()
+    .replaceAll(/(^|[\s-])\p{L}/gu, (letter) => letter.toUpperCase())
 
 function weaponAbilitiesInSelectedUnit(
   selections: readonly Selection[],
@@ -1183,7 +1184,7 @@ function weaponAbilitiesInSelectedUnit(
           source: profile.name,
           profileTypes: [`${titleCaseAbility(match[1]!)} Weapons`],
         }
-        found.set(`${granted.keyword.toLocaleLowerCase()}:${granted.profileTypes.join(',')}:${granted.source}`, granted)
+        found.set(`${granted.keyword.toLowerCase()}:${granted.profileTypes.join(',')}:${granted.source}`, granted)
       }
     }
   }
@@ -1207,9 +1208,9 @@ function weaponAbilitiesInAttachedUnit(
           /^While this model is leading a unit, (?:(melee|ranged) )?weapons equipped by models in that unit have the \[([\p{L}\p{N} +'’\p{Pd}]+)\] ability\.$/iu,
         )
         if (!match) continue
-        const keyword = match[2]!.toLocaleLowerCase().replaceAll(/(^|[\s-])\p{L}/gu, (letter) => letter.toLocaleUpperCase())
+        const keyword = match[2]!.toLowerCase().replaceAll(/(^|[\s-])\p{L}/gu, (letter) => letter.toUpperCase())
         const profileTypes = match[1]
-          ? [`${match[1][0]!.toLocaleUpperCase()}${match[1].slice(1).toLocaleLowerCase()} Weapons`]
+          ? [`${match[1][0]!.toUpperCase()}${match[1].slice(1).toLowerCase()} Weapons`]
           : ['Ranged Weapons', 'Melee Weapons']
         found.set(`${profile.name}:${keyword}:${profileTypes.join(',')}`, { keyword, source: profile.name, profileTypes })
       }
@@ -1288,8 +1289,8 @@ function addGrantedWeaponAbilities(
       },
     ]
   }
-  const printed = new Set(keywords.value.split(',').map((keyword) => keyword.trim().toLocaleLowerCase()))
-  const additions = granted.filter((ability) => !printed.has(ability.keyword.toLocaleLowerCase()))
+  const printed = new Set(keywords.value.split(',').map((keyword) => keyword.trim().toLowerCase()))
+  const additions = granted.filter((ability) => !printed.has(ability.keyword.toLowerCase()))
   if (!additions.length) return values
   const changed = {
     ...keywords,
@@ -1321,11 +1322,7 @@ function relationshipFor(
     ? [knownEntryId]
     : [...datasheetsOf(loaded.index, catalogueId)].filter((entryId) => {
         const entry = loaded.index.definitions.get(entryId)
-        return (
-          entry &&
-          isMatchedPlayDatasheet(loaded.index, entry) &&
-          nameOf(entry, loaded.index.definitions).localeCompare(name, undefined, { sensitivity: 'accent' }) === 0
-        )
+        return entry && isMatchedPlayDatasheet(loaded.index, entry) && sameText(nameOf(entry, loaded.index.definitions), name)
       })
   const resolved = matches.length === 1 ? matches[0]! : null
   const entry = resolved ? loaded.index.definitions.get(resolved) : undefined
@@ -1350,7 +1347,7 @@ function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, entryId:
     const candidate = loaded.index.definitions.get(candidateId)
     if (!candidate || !isMatchedPlayDatasheet(loaded.index, candidate)) continue
     const attachment = attachmentOf(candidate, loaded.index)
-    if (!attachment?.targets.some((target) => target.localeCompare(name, undefined, { sensitivity: 'accent' }) === 0)) continue
+    if (!attachment?.targets.some((target) => sameText(target, name))) continue
     const found = attachment.kind === 'leader' ? leaders : supporters
     found.set(candidateId, { entryId: candidateId, name: nameOf(candidate, loaded.index.definitions) })
   }
@@ -1365,7 +1362,7 @@ function uniqueProfiles(profiles: Datasheet['profiles']) {
   const seen = new Set<string>()
   return profiles.filter((profile) => {
     const signature = JSON.stringify({
-      name: profile.name.toLocaleLowerCase(),
+      name: profile.name.toLowerCase(),
       type: profile.type,
       count: profile.count,
       values: profile.values,
@@ -1378,12 +1375,12 @@ function uniqueProfiles(profiles: Datasheet['profiles']) {
 
 function uniqueAbilities(abilities: Datasheet['abilities']) {
   const wargearNames = new Set(
-    abilities.filter((ability) => ability.kind === 'wargear').map((ability) => ability.name.trim().toLocaleLowerCase()),
+    abilities.filter((ability) => ability.kind === 'wargear').map((ability) => ability.name.trim().toLowerCase()),
   )
   const seen = new Set<string>()
   return abilities.filter((ability) => {
-    if (ability.kind !== 'wargear' && wargearNames.has(ability.name.trim().toLocaleLowerCase())) return false
-    const signature = JSON.stringify({ name: ability.name.toLocaleLowerCase(), description: ability.description })
+    if (ability.kind !== 'wargear' && wargearNames.has(ability.name.trim().toLowerCase())) return false
+    const signature = JSON.stringify({ name: ability.name.toLowerCase(), description: ability.description })
     if (seen.has(signature)) return false
     seen.add(signature)
     return true
@@ -1546,7 +1543,7 @@ function joinedDisplayText(value: string, defaultJoin: string) {
     .split(',')
     .map((part) => part.trim())
     .filter((part) => {
-      const key = part.toLocaleLowerCase()
+      const key = part.toLowerCase()
       if (seen.has(key)) return false
       seen.add(key)
       return true

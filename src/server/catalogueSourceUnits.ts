@@ -1,6 +1,5 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { LoadedCatalogue } from './catalogueIndex'
 import { factionDirectories } from './rulesSource'
 
 export type SourceUnit = {
@@ -114,8 +113,8 @@ export function loadSourceUnits(core: string): ReadonlyMap<string, readonly Sour
 
 export type SourceUnitJoin = { unit: SourceUnit; method: 'external-reference' }
 
-export function sourceUnitOf(loaded: LoadedCatalogue, definitionId: string): SourceUnitJoin | null {
-  const candidates = loaded.sourceUnits.get(definitionId) ?? []
+export function sourceUnitOf(units: ReadonlyMap<string, readonly SourceUnit[]>, definitionId: string): SourceUnitJoin | null {
+  const candidates = units.get(definitionId) ?? []
   if (!candidates.length) return null
   const first = candidates[0]!
   return candidates.every((candidate) => JSON.stringify(candidate) === JSON.stringify(first))

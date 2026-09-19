@@ -3,7 +3,7 @@ export const routeSlug = (name: string) =>
   name
     .split(' - ')
     .at(-1)!
-    .toLocaleLowerCase()
+    .toLowerCase()
     .replaceAll(/['’]/g, '')
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')

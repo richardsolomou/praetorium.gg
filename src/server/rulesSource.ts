@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { compareText } from '../core/text'
 
 /**
  * Reading the rules files, and the two ways this app keys what it finds in them.
@@ -40,13 +41,11 @@ export const joinKey = (nameOrSlug: string) =>
   nameOrSlug
     .normalize('NFD')
     .replaceAll(/\p{M}+/gu, '')
-    .toLocaleLowerCase()
+    .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, '')
 
 // An apostrophe is not a word boundary: "Mortarion's Teachings", never "Mortarion'S".
 export const titleCase = (name: string) =>
-  name
-    .toLocaleLowerCase()
-    .replaceAll(/(^|[\s(\-–—])([a-z])/g, (_, before: string, letter: string) => `${before}${letter.toLocaleUpperCase()}`)
+  name.toLowerCase().replaceAll(/(^|[\s(\-–—])([a-z])/g, (_, before: string, letter: string) => `${before}${letter.toUpperCase()}`)
 
-export const byName = (left: { name: string }, right: { name: string }) => left.name.localeCompare(right.name)
+export const byName = (left: { name: string }, right: { name: string }) => compareText(left.name, right.name)
