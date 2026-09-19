@@ -533,9 +533,10 @@ test('a card names its own condition, and what their turn owed is asked as the t
           await expect(button).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
         }).toPass({ timeout: 10_000 })
       }
-      await press(alice.getByRole('group', { name: 'Secondary play' }).getByRole('button', { name: 'Fixed' }))
+      const prep = alice.getByRole('group', { name: 'Secondary play' }).first().locator('..')
+      await press(prep.getByRole('button', { name: 'Fixed' }))
       for (const card of ['Assassination', 'Engage on All Fronts']) {
-        await press(alice.getByRole('button', { name: new RegExp(`^(Select|Remove) ${card}$`) }))
+        await press(prep.getByRole('button', { name: new RegExp(`^(Select|Remove) ${card}$`) }))
       }
     },
   })
