@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { PageContent, PageHeader } from '../client/components/Page'
 import { FactionFilter, Standings } from '../client/components/Standings'
 import { standingsQuery } from '../client/queries'
 
@@ -28,23 +29,19 @@ function Leaderboard() {
   const table = chosen ?? data?.overall ?? EMPTY
   return (
     <main className="w-full">
-      <section className="border-b border-edge bg-panel">
-        <div className="mx-auto max-w-5xl px-3 py-5 sm:px-4">
-          <p className="eyebrow text-parchment">Who is winning</p>
-          <h1 className="mt-1 text-3xl">Leaderboard</h1>
-          <p className="mt-2 max-w-2xl text-sm text-dim">
-            Public battles from the last {data?.days ?? 90} days, ranked by wins and then win rate.
-          </p>
-        </div>
-      </section>
-      <div className="mx-auto max-w-5xl space-y-6 px-3 py-8 sm:px-4">
+      <PageHeader
+        eyebrow="Who is winning"
+        title="Leaderboard"
+        description={`Public battles from the last ${data?.days ?? 90} days, ranked by wins and then win rate.`}
+      />
+      <PageContent className="space-y-6">
         <FactionFilter factions={data?.factions.map((entry) => entry.faction) ?? []} selected={chosen?.faction?.slug} />
         <Standings table={table} />
         {/* Under the table, because it answers "why is my game not here" rather than "what am I reading". */}
         <p className="text-sm text-faint">
           Conceding is a loss whatever the score. Allies share their side's result. Practice games and battles kept private are not counted.
         </p>
-      </div>
+      </PageContent>
     </main>
   )
 }

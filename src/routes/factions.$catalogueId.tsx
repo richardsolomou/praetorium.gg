@@ -9,6 +9,7 @@ import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { RuleText } from '../client/components/RuleText'
 import { PageState } from '../client/components/PageState'
+import { PageContent, PageHeader } from '../client/components/Page'
 
 export const Route = createFileRoute('/factions/$catalogueId')({
   loader: async ({ context, location, params }) => {
@@ -44,21 +45,14 @@ function FactionPage() {
 
   return (
     <main className="w-full">
-      <section
-        className="relative overflow-hidden border-t-[3px] border-b border-edge bg-panel"
-        style={{ borderTopColor: factionColour(faction.slug) }}
-      >
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto flex max-w-5xl items-center gap-4 px-3 pt-[17px] pb-5 sm:px-4 sm:pt-[25px] sm:pb-7">
-          <FactionMark id={faction.slug} icon={faction.icon} size="lg" />
-          <div className="min-w-0 flex-1">
-            <p className="eyebrow text-parchment">Faction</p>
-            <h1 className="text-3xl">{faction.displayName}</h1>
-          </div>
-          <FavouriteFactionToggle catalogueId={faction.id} name={faction.displayName} />
-        </div>
-      </section>
-      <div className="mx-auto max-w-5xl px-3 pt-4 pb-8 sm:px-4">
+      <PageHeader
+        tint={factionColour(faction.slug)}
+        eyebrow="Faction"
+        title={faction.displayName}
+        media={<FactionMark id={faction.slug} icon={faction.icon} size="lg" />}
+        actions={<FavouriteFactionToggle catalogueId={faction.id} name={faction.displayName} />}
+      />
+      <PageContent>
         <Link to="/factions" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
           <ChevronLeft className="size-3.5" /> Factions
         </Link>
@@ -119,7 +113,7 @@ function FactionPage() {
                     )}
                   </span>
                   {detachment.reference && (detachment.reference.dispositions.length || detachment.reference.points !== null) ? (
-                    <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                    <span className="flex shrink-0 flex-wrap justify-end gap-1 max-sm:order-last max-sm:basis-full max-sm:justify-start">
                       {detachment.reference.dispositions.map((disposition) => (
                         <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
                           {disposition}
@@ -136,7 +130,7 @@ function FactionPage() {
                   <Link
                     to="/factions/$catalogueId/reference/detachments/$detachmentId"
                     params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                    className="flex min-w-0 flex-1 items-center justify-between gap-4"
+                    className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 sm:flex-nowrap"
                   >
                     {content}
                   </Link>
@@ -144,14 +138,16 @@ function FactionPage() {
                 </div>
               ) : (
                 <div key={detachment.id} className="flex items-center gap-1 px-3 py-2.5">
-                  <div className="flex min-w-0 flex-1 items-center justify-between gap-4">{content}</div>
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 sm:flex-nowrap">
+                    {content}
+                  </div>
                   <FavouriteDetachmentToggle catalogueId={faction.id} detachmentId={detachment.id} name={detachment.name} />
                 </div>
               )
             })}
           </div>
         </section>
-      </div>
+      </PageContent>
     </main>
   )
 }

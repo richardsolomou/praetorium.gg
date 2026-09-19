@@ -10,6 +10,7 @@ import {
   favouriteFactionSchema,
   friendSchema,
   adminUsersSchema,
+  playerSearchSchema,
   ownedSchema,
   setAdminRoleSchema,
   userSchema,
@@ -124,9 +125,14 @@ export const opponents = createServerFn({ method: 'GET' }).handler(() =>
 export const friendships = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    return id ? app().service.friendships(id) : { friends: [], incoming: [], outgoing: [], people: [] }
+    return id ? app().service.friendships(id) : { friends: [], incoming: [], outgoing: [] }
   }),
 )
+
+/** The players a name could mean, for someone with a friend to add. */
+export const searchPlayers = createServerFn({ method: 'GET' })
+  .validator(playerSearchSchema)
+  .handler(({ data }) => rpc(async () => app().service.searchPlayers(await requireUserId(), data.query)))
 
 export const requestFriend = createServerFn({ method: 'POST' })
   .validator(friendSchema)

@@ -133,11 +133,11 @@ export function CreateBattle() {
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger render={<Button />}>New battle</DialogTrigger>
-      <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] overflow-y-auto rounded-none border-edge bg-panel p-4 sm:max-w-md">
+      <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] overflow-y-auto p-4 sm:max-w-md">
         {leagueMatches.length ? (
           <>
             <DialogHeader>
-              <DialogTitle className="text-xl uppercase">You are both in a league event</DialogTitle>
+              <DialogTitle className="text-2xl">You are both in a league event</DialogTitle>
               <DialogDescription>
                 Pick the event to play it there: the sealed lists go on the table for you, and the battle joins the event history.
               </DialogDescription>
@@ -147,7 +147,8 @@ export function CreateBattle() {
                 <button
                   key={match.eventToken}
                   type="button"
-                  className="flex w-full items-center gap-3 border border-edge bg-sunken p-3 text-left hover:border-info hover:bg-raised"
+                  className="flex w-full items-center gap-3 border border-edge bg-sunken p-3 text-left hover:border-info hover:bg-raised disabled:cursor-wait disabled:opacity-70"
+                  disabled={create.isPending}
                   onClick={() =>
                     navigate({
                       to: '/leagues/$token',
@@ -177,7 +178,7 @@ export function CreateBattle() {
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle className="text-xl uppercase">Start a battle</DialogTitle>
+              <DialogTitle className="text-2xl">Start a battle</DialogTitle>
               <DialogDescription>Choose who is playing. A practice opponent lets you play on your own.</DialogDescription>
             </DialogHeader>
             <div>

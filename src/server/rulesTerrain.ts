@@ -48,6 +48,7 @@ type RawTerrainLayout = {
     parent_area_id?: string
     is_objective?: boolean
     objective?: { position?: Point }
+    objective_role?: string
     link_group?: string
     keystones?: { edge: string; ref: { kind: string; index?: number } }[]
   }[]
@@ -237,18 +238,22 @@ function battlemasterGeometry(
   const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as RawBattlemasterLayout
   if (!battlemasterLayoutMatches(raw.layout, id) || !raw.terrain?.length) return null
 
+  const areas = raw.terrain.map((area, areaIndex) => {
+    const sourceId = area.id ?? `area-${String(areaIndex + 1).padStart(2, '0')}`
+    return { area, piece: pieces.find((candidate) => candidate.id === sourceId) ?? pieces[areaIndex] }
+  })
+  const resolveMarkerCollision = hasCollidingTerrainReferenceMarkers(areas)
+
   return {
-    areas: raw.terrain.map((area, areaIndex) => {
+    areas: areas.map(({ area, piece }, areaIndex) => {
       const areaId = area.id ?? `area-${areaIndex + 1}`
-      const sourceId = area.id ?? `area-${String(areaIndex + 1).padStart(2, '0')}`
-      const piece = pieces.find((candidate) => candidate.id === sourceId) ?? pieces[areaIndex]
       const objectivePosition = piece?.is_objective ? (piece.objective?.position ?? piece.position) : undefined
       const objective = objectivePosition ? { position: objectivePosition, group: piece?.link_group ?? null } : null
       return {
         id: areaId,
         name: area.name,
         points: area.outline.points.map((point) => battlemasterBoardPoint(point, area.footprint)),
-        markers: terrainReferenceMarkers(area),
+        markers: terrainReferenceMarkers(area, resolveMarkerCollision ? piece?.objective_role : undefined),
         objective,
         // Already-open clients use this field to combine linked objectives.
         objectiveGroup: objective?.group ?? null,
@@ -353,8 +358,32 @@ function battlemasterLayoutMatches(layout: RawBattlemasterLayout['layout'], id: 
   }
 }
 
-function terrainReferenceMarkers(area: RawBattlemasterTerrain) {
-  const labels = area.name.match(/\b(?:AB|CD|EF|GH)\b/g) ?? []
+function hasCollidingTerrainReferenceMarkers(
+  areas: { area: RawBattlemasterTerrain; piece: NonNullable<RawTerrainLayout['pieces']>[number] | undefined }[],
+) {
+  const labels = areas.flatMap(({ area }) => terrainReferenceLabels(area))
+  const count = (label: string) => labels.filter((candidate) => candidate === label).length
+  const home = areas.filter(({ piece }) => piece?.objective_role === 'home')
+  const expansion = areas.filter(({ piece }) => piece?.objective_role === 'expansion')
+
+  // The official cards use one mirrored pair of every label. Battlemaster can
+  // reuse one component name across the home and expansion pairs; their roles
+  // preserve which pair the card calls EF and which it calls CD/GH.
+  return (
+    count('AB') === 2 &&
+    ['CD', 'EF', 'GH']
+      .map(count)
+      .toSorted((left, right) => left - right)
+      .join() === '0,2,4' &&
+    home.length === 2 &&
+    home.every(({ area }) => terrainReferenceLabels(area).length === 1 && !terrainReferenceLabels(area).includes('AB')) &&
+    expansion.length === 2 &&
+    expansion.every(({ area }) => terrainReferenceLabels(area).length === 2 && terrainReferenceLabels(area).includes('GH'))
+  )
+}
+
+function terrainReferenceMarkers(area: RawBattlemasterTerrain, objectiveRole?: string) {
+  const labels = terrainReferenceLabels(area)
   const areaPoints = area.outline.points.map((point) => battlemasterBoardPoint(point, area.footprint))
   const areaCentre = averagePoint(areaPoints)
   return labels.map((label, index) => {
@@ -369,13 +398,17 @@ function terrainReferenceMarkers(area: RawBattlemasterTerrain) {
     const towardCentre = partCentre ? { x: areaCentre.x - partCentre.x, y: areaCentre.y - partCentre.y } : null
     const towardCentreLength = towardCentre ? Math.hypot(towardCentre.x, towardCentre.y) : 0
     return {
-      label,
+      label: objectiveRole === 'home' ? 'EF' : objectiveRole === 'expansion' && label !== 'GH' ? 'CD' : label,
       position:
         partCentre && towardCentre && towardCentreLength
           ? boardPoint(partCentre.x + (towardCentre.x / towardCentreLength) * 2, partCentre.y + (towardCentre.y / towardCentreLength) * 2)
           : battlemasterBoardPoint({ x: area.footprint.widthIn * fraction, y: area.footprint.heightIn / 2 }, area.footprint),
     }
   })
+}
+
+function terrainReferenceLabels(area: RawBattlemasterTerrain): string[] {
+  return area.name.match(/\b(?:AB|CD|EF|GH)\b/g) ?? []
 }
 
 function averagePoint(points: Point[]) {

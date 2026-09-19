@@ -11,7 +11,7 @@ export function seatOption(candidate: SeatCandidate, labels: ReadonlyMap<string,
   return {
     label: labels.get(candidate.id) ?? candidate.name,
     value: candidate.id,
-    icon: <PlayerAvatar name={candidate.name} image={candidate.image} className="size-6 text-[0.65rem]" />,
+    icon: <PlayerAvatar name={candidate.name} image={candidate.image} className="size-6 text-3xs" />,
   }
 }
 
@@ -59,7 +59,7 @@ export function SeatRows({
               onValueChange={(id) => onPick(seat, id)}
               placeholder={seat.placeholder}
               searchPlaceholder="Search players…"
-              className="mt-1 h-11 rounded-none border-edge bg-sunken"
+              className="mt-1 h-11"
             />
           </div>
         )
@@ -78,12 +78,12 @@ export function SeatMatchup({ seats, labelFor }: { seats: readonly Seat[]; label
       <p className="eyebrow mb-2">Matchup</p>
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 text-sm">
         <div className="min-w-0">
-          <span className="block text-[0.625rem] font-bold text-dim uppercase">Your side</span>
+          <span className="block text-3xs font-bold text-dim uppercase">Your side</span>
           <span className="block text-balance">{yours.join(' + ')}</span>
         </div>
-        <span className="pt-3 text-[0.625rem] font-bold text-dim uppercase">vs</span>
+        <span className="pt-3 text-3xs font-bold text-dim uppercase">vs</span>
         <div className="min-w-0 text-right">
-          <span className="block text-[0.625rem] font-bold text-dim uppercase">Opposing side</span>
+          <span className="block text-3xs font-bold text-dim uppercase">Opposing side</span>
           <span className="block text-balance">{theirs.join(' + ')}</span>
         </div>
       </div>

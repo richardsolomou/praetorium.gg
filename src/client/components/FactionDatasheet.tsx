@@ -20,6 +20,7 @@ import { CollectionToggle } from './CollectionToggle'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from './Keyword'
 import { ProfileRules } from './ProfileRules'
 import { RuleText } from './RuleText'
+import { PageContent, PageHeader } from './Page'
 
 export function FactionDatasheet() {
   const params = useParams({ strict: false })
@@ -37,32 +38,26 @@ export function FactionDatasheet() {
 
   return (
     <main className="w-full">
-      <header
-        className="relative overflow-hidden border-t-[3px] border-b border-edge bg-panel"
-        style={{ borderTopColor: factionColour(faction.slug) }}
-      >
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto flex max-w-5xl items-start gap-3 px-3 pt-[17px] pb-5 sm:px-4 sm:pt-[25px] sm:pb-7">
-          <FactionMark id={faction.slug} icon={faction.icon} />
-          <div className="min-w-0 flex-1">
-            <p className="eyebrow text-parchment">{faction.displayName} · Datasheet</p>
-            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-              <h1 className="min-w-0 text-3xl break-words">{sheet.name}</h1>
-              <div className="flex flex-wrap items-center gap-1 sm:shrink-0 sm:justify-end">
-                {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
-                {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
-                <CollectionToggle entryId={sheet.id} name={sheet.name} />
-              </div>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1">
-              {sheet.keywords.map((keyword) => (
-                <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
-              ))}
-            </div>
+      <PageHeader
+        tint={factionColour(faction.slug)}
+        eyebrow={`${faction.displayName} · Datasheet`}
+        title={sheet.name}
+        media={<FactionMark id={faction.slug} icon={faction.icon} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-1">
+            {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
+            {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
+            <CollectionToggle entryId={sheet.id} name={sheet.name} />
           </div>
+        }
+      >
+        <div className="mt-2 flex flex-wrap gap-1">
+          {sheet.keywords.map((keyword) => (
+            <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
+          ))}
         </div>
-      </header>
-      <div className="mx-auto max-w-5xl space-y-6 px-3 pt-4 pb-8 sm:px-4">
+      </PageHeader>
+      <PageContent className="space-y-6">
         <Breadcrumb>
           <BreadcrumbList className="eyebrow gap-1 text-info">
             <BreadcrumbItem>
@@ -115,7 +110,7 @@ export function FactionDatasheet() {
         ) : null}
         <Relationships sheet={sheet} />
         {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
-      </div>
+      </PageContent>
     </main>
   )
 }

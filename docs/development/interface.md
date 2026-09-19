@@ -86,6 +86,8 @@ The phase control also has one component instance. CSS moves it between the cent
 
 Global search keeps a stable panel height while typing. The query settles before the server request, and prior results remain visible during loading.
 
+Finding a player on the friends page works the same way: the typed name settles, the server answers with a bounded set of matching players who are not already friends or waiting on a request, and until at least two letters of a name are typed the panel invites one rather than listing the instance.
+
 Top-level home, account, library, faction, and mission pages have a clear introduction, useful summaries, and next actions. Empty states explain how the first item is added.
 
 The home page uses one content width and one section pattern. Below the top band, each block is a rubric heading over its content and small option sets use the same hairline grid. A signed-in player sees a short welcome band and their own games first; a visitor sees the hero. The shelves run outwards from the reader in a fixed order: `Your games`, `Games you have played`, `Friends' games`, then `Public games`. `Your games` holds the battles that are setting up or live, and `Games you have played` holds the five most recent finished ones above a link to the battles page. A visitor sees `Friends' games` and `Public games` only. Practice games are absent from every home-page shelf and hero.
@@ -119,6 +121,10 @@ Muted green represents primary actions, rules references, success, and selection
 The loadout pane is divided by responsibility. `loadoutModel.ts` contains screen-free shapes and decisions, `LoadoutControls.tsx` contains controls, `ModelCard.tsx` renders one model kind, and `Loadout.tsx` assigns choices to model or unit cards.
 
 Route files contain loaders, search parameters, and page shells; stateful interface code lives in `src/client/components`. `src/components/ui` contains generated shadcn Base UI components and changes only through the shadcn CLI. `src/styles.css` maps root tokens to Tailwind utilities through `@theme inline`.
+
+Every top-level page opens with `PageHeader` from `src/client/components/Page.tsx`: an eyebrow naming the area, the page's name, a line on what it is for, and the page's primary actions beside them. The reading column beneath it is `PageContent`, one width and one gutter for every page. The roster builder, the battle tracker, setup, and the sign-in screens have their own structure and share only the label styles below.
+
+Dialogs, alert dialogs, menus, selects, and comboboxes are panels: square, one hairline edge, on the panel surface, with dialog footers on the sunken surface. A tooltip is a small raised panel without a pointer, and a skeleton is square like the panel or line it stands in for. The stylesheet gives the generated components that treatment by their `data-slot` attributes, so a caller passes only its own size or a side tint for the edge. Small labels use two sizes below `text-xs`, `text-2xs` and `text-3xs`, and two tracks, `tracking-label` and `tracking-eyebrow`; the `eyebrow`, `rubric`, and `chip` utilities are those combinations named, and a label that is one of them uses the utility rather than spelling it out.
 
 Barlow Semi Condensed provides the display hierarchy and regular Barlow handles paragraph-length rules. Both OFL-licensed fonts are registered in the main stylesheet and preloaded by the root route.
 

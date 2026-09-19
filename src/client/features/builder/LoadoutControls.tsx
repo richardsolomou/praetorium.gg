@@ -1,6 +1,7 @@
 import { Minus, Plus } from 'lucide-react'
 import { type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { Datasheet } from '../../../contracts/catalogue'
 import { RuleText } from '../../components/RuleText'
 import { WeaponProfiles } from './DatasheetPanel'
@@ -180,9 +181,9 @@ export function WargearRow({
   const matching = weaponProfilesFor({ name, pieces }, weapons)
   const label = (
     <span className="min-w-0 flex-1">
-      <span className="block text-[0.8125rem] font-semibold">{name}</span>
-      {note ? <span className="block text-[0.6875rem] text-faint">{note}</span> : null}
-      {points ? <span className="readout text-[0.6875rem] text-info">+{points} each</span> : null}
+      <span className="block text-sm font-semibold">{name}</span>
+      {note ? <span className="block text-2xs text-faint">{note}</span> : null}
+      {points ? <span className="readout text-2xs text-info">+{points} each</span> : null}
     </span>
   )
   return (
@@ -211,17 +212,17 @@ export function LoadoutLoading() {
   return (
     <output className="block h-full" aria-label="Loading loadout">
       <div className="space-y-2 border-b border-edge p-2.5">
-        <span className="block h-4 w-32 animate-pulse bg-raised" />
+        <Skeleton className="h-4 w-32" />
         <div className="flex gap-2">
-          <span className="h-6 w-14 animate-pulse bg-raised" />
-          <span className="h-6 w-20 animate-pulse bg-raised" />
+          <Skeleton className="h-6 w-14" />
+          <Skeleton className="h-6 w-20" />
         </div>
       </div>
       <div className="space-y-4 p-2.5">
         {Array.from({ length: 3 }, (_, index) => (
           <div key={index} className="space-y-2 border-t border-edge pt-2">
-            <span className="block h-3 w-28 animate-pulse bg-raised" />
-            <span className="block h-20 animate-pulse bg-card" />
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-20" />
           </div>
         ))}
       </div>
@@ -479,7 +480,7 @@ export function SpreadChoice({
             <div className="flex items-center gap-2 px-2 py-1.5">
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-semibold">{option.name}</span>
-                {option.points ? <span className="readout text-[0.6875rem] text-info">+{option.points} each</span> : null}
+                {option.points ? <span className="readout text-2xs text-info">+{option.points} each</span> : null}
               </span>
               <PoolStepper
                 name={option.name}

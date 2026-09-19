@@ -92,9 +92,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
               <article key={army.playerId} className="space-y-2 rounded-sm border border-edge bg-sunken p-2.5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="min-w-0 flex-1">
-                    {side.armies.length > 1 ? (
-                      <span className="block text-[0.6875rem] font-semibold text-dim uppercase">{army.playerName}</span>
-                    ) : null}
+                    {side.armies.length > 1 ? <span className="eyebrow block">{army.playerName}</span> : null}
                     <span className="block break-words font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
                     {/* What the army is, named the same way the battle will name it. */}
                     {army.roster ? <ArmyIdentity army={army} token={view.token} list={false} className="mt-0.5" /> : null}
@@ -209,13 +207,13 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
         error={rosterQuery.error ? errorMessage(rosterQuery.error) : problem}
       />
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
-        <AlertDialogContent className="rounded-none border border-discarded/50 bg-panel text-bone sm:max-w-lg [&>*]:min-w-0">
+        <AlertDialogContent className="border-discarded/50 sm:max-w-lg [&>*]:min-w-0">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-discarded uppercase">
+            <AlertDialogTitle className="flex items-center gap-2 text-discarded">
               <TriangleAlert className="size-5 shrink-0" aria-hidden />
               {confirmingWaivers.length === 1 ? 'This list waives a rule' : `This list waives ${confirmingWaivers.length} rules`}
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
+            <AlertDialogDescription>
               {confirming?.name} is not playing {oneWaiver ? 'one of' : 'some of'} the rules of its battle size:
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -275,12 +273,12 @@ function RosterChooser({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-2xl">
+      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl uppercase">
+          <DialogTitle className="text-2xl">
             {forArmy?.automated ? `Choose ${forArmy.playerName}’s roster` : 'Choose your roster'}
           </DialogTitle>
-          <DialogDescription className="text-dim">
+          <DialogDescription>
             {/* A practice opponent owns no lists, so the army it brings comes from yours. */}
             {forArmy?.automated ? 'One of your own lists, played by the side across the table. ' : ''}
             {requiredLimit === null

@@ -56,19 +56,20 @@ export function OneOnOneBattleChooser({
     .map((entry) => ({
       label: labels.get(entry.userId) ?? entry.name,
       value: entry.userId,
-      icon: <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-[0.65rem]" />,
+      icon: <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-3xs" />,
     }))
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
-      <DialogContent className="rounded-none border border-edge bg-panel text-bone sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-2xl uppercase">{startBattleLabel('1v1')}</DialogTitle>
-          <DialogDescription className="text-dim">Pick who you are playing. Both sealed lists are added for you.</DialogDescription>
+          <DialogTitle className="text-2xl">{startBattleLabel('1v1')}</DialogTitle>
+          <DialogDescription>Pick who you are playing. Both sealed lists are added for you.</DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">
           <Label htmlFor="league-opponent">Opponent</Label>
           <SearchableSelect
             id="league-opponent"
+            className="h-11"
             groups={[{ label: '', items: options }]}
             value={opponentId ?? ''}
             onValueChange={(id) => {
@@ -77,7 +78,6 @@ export function OneOnOneBattleChooser({
             }}
             placeholder="Choose an opponent"
             searchPlaceholder="Search entrants…"
-            className="h-11 rounded-none border-edge bg-sunken"
           />
         </div>
         {error ? (
@@ -155,13 +155,10 @@ export function LeagueBattleChooser({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
-      <DialogContent
-        aria-busy={pending}
-        className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg"
-      >
+      <DialogContent aria-busy={pending} className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-2xl uppercase">{startBattleLabel('2v1')}</DialogTitle>
-          <DialogDescription className="text-dim">
+          <DialogTitle className="text-2xl">{startBattleLabel('2v1')}</DialogTitle>
+          <DialogDescription>
             {isSolo ? 'Pick the two allied entrants you are facing.' : 'Pick your teammate and the solo entrant you are facing.'}
           </DialogDescription>
         </DialogHeader>
@@ -250,13 +247,10 @@ export function LeagueTeamChooser({
   return (
     <>
       <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
-        <DialogContent
-          aria-busy={pending}
-          className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg"
-        >
+        <DialogContent aria-busy={pending} className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-2xl uppercase">Assign {entrantName}’s team</DialogTitle>
-            <DialogDescription className="text-dim">
+            <DialogTitle className="text-2xl">Assign {entrantName}’s team</DialogTitle>
+            <DialogDescription>
               {currentTeam && currentTeammate
                 ? `Currently paired with ${labels.get(currentTeammate.userId) ?? currentTeammate.name}. `
                 : ''}
@@ -267,6 +261,7 @@ export function LeagueTeamChooser({
             <Label htmlFor="league-team-teammate">Teammate</Label>
             <SearchableSelect
               id="league-team-teammate"
+              className="h-11"
               ariaLabel={`Teammate for ${entrantName}`}
               groups={[
                 {
@@ -282,7 +277,7 @@ export function LeagueTeamChooser({
                         : ''
                     }`,
                     value: entry.userId,
-                    icon: <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-[0.65rem]" />,
+                    icon: <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-3xs" />,
                   })),
                 },
               ]}
@@ -293,7 +288,6 @@ export function LeagueTeamChooser({
               }}
               placeholder="Choose a teammate"
               searchPlaceholder="Search entrants…"
-              className="h-11 rounded-none border-edge bg-sunken"
             />
           </div>
           {error ? (
@@ -326,10 +320,10 @@ export function LeagueTeamChooser({
           }
         }}
       >
-        <AlertDialogContent aria-busy={pending} className="rounded-none border border-edge bg-panel text-bone">
+        <AlertDialogContent aria-busy={pending}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Clear sealed doubles rosters?</AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
+            <AlertDialogTitle>Clear sealed doubles rosters?</AlertDialogTitle>
+            <AlertDialogDescription>
               This clears the sealed {confirmation?.sealedNames.length === 1 ? 'list' : 'lists'} for{' '}
               {confirmation ? formatNames(confirmation.sealedNames) : ''}. They have to seal another before you can reveal.
             </AlertDialogDescription>
@@ -394,32 +388,23 @@ export function DoublesBattleChooser({
       icon: (
         <span className="flex shrink-0 -space-x-2">
           {team.entries.map((entry) => (
-            <PlayerAvatar
-              key={entry.userId}
-              name={entry.name}
-              image={entry.image}
-              className="size-6 border-2 border-panel text-[0.65rem]"
-            />
+            <PlayerAvatar key={entry.userId} name={entry.name} image={entry.image} className="size-6 border-2 border-panel text-3xs" />
           ))}
         </span>
       ),
     }))
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
-      <DialogContent
-        aria-busy={pending}
-        className="max-h-[85dvh] overflow-x-hidden overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg [&>*]:min-w-0"
-      >
+      <DialogContent aria-busy={pending} className="max-h-[85dvh] overflow-x-hidden overflow-y-auto sm:max-w-lg [&>*]:min-w-0">
         <DialogHeader>
-          <DialogTitle className="text-2xl uppercase">{startBattleLabel('2v2')}</DialogTitle>
-          <DialogDescription className="text-dim">
-            Pick the team you are playing. Your teammate and all four sealed lists are added for you.
-          </DialogDescription>
+          <DialogTitle className="text-2xl">{startBattleLabel('2v2')}</DialogTitle>
+          <DialogDescription>Pick the team you are playing. Your teammate and all four sealed lists are added for you.</DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">
           <Label htmlFor="league-doubles-opponents">Opposing team</Label>
           <SearchableSelect
             id="league-doubles-opponents"
+            className="h-11"
             groups={[{ label: '', items: options }]}
             value={opponentId ?? ''}
             onValueChange={(id) => {
@@ -428,7 +413,6 @@ export function DoublesBattleChooser({
             }}
             placeholder="Choose an opposing team"
             searchPlaceholder="Search teams or entrants…"
-            className="h-11 rounded-none border-edge bg-sunken"
           />
         </div>
         {error ? (

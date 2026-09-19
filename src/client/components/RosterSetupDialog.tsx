@@ -257,10 +257,10 @@ export function RosterSetupDialog({
         onChooseBorrowed={(detachmentId) => changeDraft({ ...draft, borrowedDetachmentId: detachmentId, disposition: null })}
       />
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-2xl">
+        <DialogContent className="p-0 sm:max-w-2xl">
           <DialogHeader className="border-b border-edge px-5 py-4">
-            <DialogTitle className="text-2xl uppercase">{mode === 'create' ? 'Create roster' : 'Edit roster setup'}</DialogTitle>
-            <DialogDescription className="text-dim">
+            <DialogTitle className="text-2xl">{mode === 'create' ? 'Create roster' : 'Edit roster setup'}</DialogTitle>
+            <DialogDescription>
               {mode === 'create'
                 ? 'Set the roster identity and army rules before adding units.'
                 : 'Set the roster identity and the rules that shape its available units.'}
@@ -288,7 +288,7 @@ export function RosterSetupDialog({
                   }}
                   placeholder="Pick a faction"
                   searchPlaceholder="Search factions…"
-                  className="mt-1 h-11 rounded-none border-edge bg-sunken font-semibold uppercase"
+                  className="mt-1 h-11"
                 />
               </div>
               <div>
@@ -310,7 +310,7 @@ export function RosterSetupDialog({
                     })
                   }}
                   placeholder="Battle size"
-                  className="mt-1 h-11 rounded-none border-edge bg-sunken font-semibold uppercase"
+                  className="mt-1 h-11"
                 />
               </div>
             </div>
@@ -331,7 +331,7 @@ export function RosterSetupDialog({
                   placeholder="Find a detachment"
                   label="Find a detachment"
                   clearLabel="Empty the detachment filter"
-                  inputClassName="h-10 rounded-none border-edge bg-sunken"
+                  inputClassName="h-11"
                 />
               ) : null}
               <div className="mt-2 grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">
@@ -340,7 +340,7 @@ export function RosterSetupDialog({
                   return (
                     <div
                       key={detachment.id}
-                      className={`flex min-h-20 items-stretch rounded-none border ${chosen ? 'border-parchment bg-raised' : 'border-edge bg-sunken'}`}
+                      className={`flex min-h-20 items-stretch border ${chosen ? 'border-parchment bg-raised' : 'border-edge bg-sunken'}`}
                     >
                       <div className="flex w-10 shrink-0 flex-col border-r border-edge">
                         <button
@@ -477,7 +477,7 @@ export function RosterSetupDialog({
                 onChange={(event) => changeDraft({ ...draft, name: event.target.value })}
                 placeholder={placeholder}
                 maxLength={ROSTER_NAME_MAX_LENGTH}
-                className="mt-2 h-11 rounded-none border-edge bg-sunken text-base"
+                className="mt-2 h-11 text-base"
               />
               <p className="mt-1.5 text-xs text-dim">Leave this empty to name the list from your army.</p>
             </div>
@@ -490,7 +490,7 @@ export function RosterSetupDialog({
                 value={draft.visibility}
                 onValueChange={(visibility: RosterVisibility | null) => changeDraft({ ...draft, visibility: visibility ?? 'private' })}
               >
-                <SelectTrigger id="setup-visibility" className="mt-2 h-11 w-full rounded-none border-edge bg-sunken">
+                <SelectTrigger id="setup-visibility" className="mt-2 h-11 w-full">
                   <SelectValue>
                     {(visibility: unknown) => VISIBILITY_DETAIL[visibility as RosterVisibility] ?? VISIBILITY_DETAIL.private}
                   </SelectValue>
@@ -514,7 +514,7 @@ export function RosterSetupDialog({
             ) : null}
           </div>
 
-          <DialogFooter className="m-0 rounded-none border-edge bg-sunken px-5 py-4">
+          <DialogFooter className="m-0 px-5 py-4">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
@@ -544,11 +544,7 @@ export function RosterSetupDialog({
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(reference)} onOpenChange={(next) => !next && setReference(null)}>
-        <DialogContent
-          id="detachment-reference-dialog"
-          initialFocus={false}
-          className="rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-5xl"
-        >
+        <DialogContent id="detachment-reference-dialog" initialFocus={false} className="p-0 sm:max-w-5xl">
           <DialogHeader className="sr-only">
             <DialogTitle>{reference?.name ?? 'Detachment reference'}</DialogTitle>
             <DialogDescription>Detachment rules, enhancements, and stratagems.</DialogDescription>

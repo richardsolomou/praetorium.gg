@@ -127,7 +127,7 @@ export const Picker = memo(function Picker({
               title={filter.hint}
               pressed={active.has(filter.id)}
               onPressedChange={() => onFilterToggle(filter.id)}
-              className={`rounded-sm border px-1.5 py-px text-[0.6875rem] font-semibold tracking-[0.06em] uppercase transition-colors ${
+              className={`rounded-sm border px-1.5 py-px text-2xs font-semibold tracking-label uppercase transition-colors ${
                 active.has(filter.id)
                   ? 'border-parchment bg-parchment/15 text-parchment'
                   : 'border-edge-strong text-dim hover:border-dim hover:text-bone'
@@ -144,30 +144,36 @@ export const Picker = memo(function Picker({
            */}
           <DropdownMenu>
             <DropdownMenuTrigger
-              aria-label="Format restrictions"
-              className={`ml-auto grid size-6 shrink-0 place-items-center ${waived.length ? 'text-discarded' : 'text-faint hover:text-bone'}`}
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Format restrictions"
+                  className={`ml-auto shrink-0 ${waived.length ? 'text-discarded' : 'text-faint hover:text-bone'}`}
+                />
+              }
             >
-              <EllipsisVertical className="size-3.5" />
+              <EllipsisVertical />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="max-w-[min(20rem,calc(100vw-2rem))] min-w-64">
               <DropdownMenuGroup>
-                <DropdownMenuLabel className="text-[0.6875rem] tracking-[0.06em] uppercase">Format restrictions</DropdownMenuLabel>
+                <DropdownMenuLabel className="eyebrow text-faint">Format restrictions</DropdownMenuLabel>
                 {rules.length ? (
                   rules.map((rule) => (
                     <DropdownMenuCheckboxItem
                       key={rule.id}
-                      className="items-start rounded-none py-1.5"
+                      className="items-start py-1.5"
                       checked={enforces(waivedRules, rule.id)}
                       onCheckedChange={() => onWaiveToggle(rule.id)}
                     >
                       <span className="min-w-0">
                         <span className="block text-xs font-semibold uppercase">{rule.label}</span>
-                        <span className="mt-0.5 block text-[0.6875rem] leading-tight text-wrap text-dim">{rule.hint}</span>
+                        <span className="mt-0.5 block text-2xs leading-tight text-wrap text-dim">{rule.hint}</span>
                       </span>
                     </DropdownMenuCheckboxItem>
                   ))
                 ) : (
-                  <DropdownMenuItem disabled className="rounded-none text-xs">
+                  <DropdownMenuItem disabled className="text-xs">
                     This battle size adds no restrictions.
                   </DropdownMenuItem>
                 )}
@@ -216,7 +222,7 @@ export const Picker = memo(function Picker({
           })
         ) : (
           <p className="py-3 text-xs text-faint">
-            {found?.length ? 'Everything is filtered out.' : query ? 'No matching units.' : 'Loading the book…'}
+            {found?.length ? 'Everything is filtered out.' : query ? 'No matching units.' : 'No units available.'}
           </p>
         )}
       </ScrollArea>
@@ -236,7 +242,7 @@ function PickerSkeleton() {
           </div>
           <Skeleton className="size-6 shrink-0" />
           <Skeleton className="h-5 w-[4.5rem] shrink-0" />
-          <Skeleton className="h-7 w-14 shrink-0 rounded-none" />
+          <Skeleton className="h-7 w-14 shrink-0" />
         </div>
       ))}
     </div>
@@ -282,10 +288,10 @@ const PickerRow = memo(function PickerRow({
         onClick={() => onPreview(unit.id, unit.name)}
       >
         <span className="min-w-0 flex-1">
-          <span className="block text-sm leading-tight font-semibold tracking-[0.02em] uppercase">{unit.name}</span>
+          <span className="block text-sm leading-tight font-semibold tracking-wide uppercase">{unit.name}</span>
           <DatasheetMatchReasons query={query} reasons={unit.matchReasons} />
           {held ? (
-            <span className={`readout block text-[0.6875rem] ${full ? 'text-discarded' : 'text-faint'}`}>
+            <span className={`readout block text-2xs ${full ? 'text-discarded' : 'text-faint'}`}>
               {held}
               {unit.limit === null ? '' : `/${unit.limit}`} in roster
             </span>
@@ -307,7 +313,7 @@ const PickerRow = memo(function PickerRow({
         {unit.points === null ? null : <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{unit.points} pts</span>}
         <Button
           size="sm"
-          className="h-7 shrink-0 px-2 text-[0.6875rem]"
+          className="shrink-0 px-2"
           aria-label={`Add ${unit.name}`}
           disabled={isKotcLimit(battleSize) && enforces(waivedRules, 'kotc-datasheet-copies') && full}
           onClick={() => onAdd(unit.id)}

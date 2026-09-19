@@ -22,14 +22,14 @@ export function DrawUndoAlert({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+      <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle className="uppercase">Undo mission draw?</AlertDialogTitle>
-          <AlertDialogDescription className="text-dim">
+          <AlertDialogTitle>Undo mission draw?</AlertDialogTitle>
+          <AlertDialogDescription>
             This returns those secondary missions to the deck. You can draw replacements at random or select them yourself.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter className="rounded-none border-edge bg-sunken">
+        <AlertDialogFooter>
           <AlertDialogCancel>Keep missions</AlertDialogCancel>
           <AlertDialogAction variant="destructive" disabled={pending} onClick={onConfirm}>
             Undo draw

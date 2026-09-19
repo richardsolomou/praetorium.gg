@@ -160,7 +160,7 @@ function NativeAuth() {
     <main className="grid place-items-center p-6 text-center">
       <div className="max-w-sm border border-edge bg-panel p-6">
         <p className="eyebrow text-parchment">Praetorium account</p>
-        <h1 className="mt-2 text-2xl">{failed ? 'Sign-in did not finish' : 'Completing secure sign-in'}</h1>
+        <h1 className="mt-1 text-2xl">{failed ? 'Sign-in did not finish' : 'Completing secure sign-in'}</h1>
         <p className="mt-3 text-sm text-dim">
           {failed ? 'Close this window, return to Praetorium and try again.' : 'You will return to the application automatically.'}
         </p>

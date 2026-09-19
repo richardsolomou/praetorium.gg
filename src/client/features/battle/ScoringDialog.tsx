@@ -177,21 +177,15 @@ export function ScoringDialog({
   return (
     <>
       <Dialog open onOpenChange={(open) => !open && onCancel?.()}>
-        {/*
-         * Edged and titled in the side's own tint. Points go to one side and cannot be
-         * taken back without an undo, so which side is being paid should be readable
-         * before the sentence naming them is — a prompt that looked the same for both
-         * left the name doing that work alone.
-         */}
-        <DialogContent className={`max-h-[85dvh] overflow-y-auto rounded-none border bg-panel text-bone sm:max-w-2xl ${colours.border}`}>
+        {/* Edged and titled in the side's own tint: points cannot be taken back without an
+          undo, so which side is being paid is readable before the sentence naming them. */}
+        <DialogContent className={`max-h-[85dvh] overflow-y-auto sm:max-w-2xl ${colours.border}`}>
           <DialogHeader className="text-center">
             <p className="eyebrow text-discarded">Now</p>
-            <DialogTitle className={`uppercase ${colours.text}`}>
+            <DialogTitle className={colours.text}>
               Scoring {moment} points · {sideName(side)}
             </DialogTitle>
-            <DialogDescription className="text-dim">
-              Recording points for {sideName(side)}. Press what the board actually paid on each card.
-            </DialogDescription>
+            <DialogDescription>Recording points for {sideName(side)}. Press what the board actually paid on each card.</DialogDescription>
             {allowances.length ? (
               <p className="readout flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-xs text-dim">
                 {allowances.map((allowance) => (
@@ -260,7 +254,7 @@ export function ScoringDialog({
             })}
           </div>
 
-          <DialogFooter className="flex-col items-stretch gap-2 rounded-none border-edge bg-sunken sm:flex-row sm:items-center">
+          <DialogFooter className="flex-col items-stretch gap-2 sm:flex-row sm:items-center">
             {/* The result of the calculation above it, so a reader who cannot watch the
               number move is told when a cap has quietly taken a piece of it. */}
             <output className="mr-auto block space-y-1">
@@ -268,7 +262,7 @@ export function ScoringDialog({
                 Scoring <span className="font-bold text-bone">{total}</span> VP
               </p>
               {capNotes.map((note) => (
-                <p key={note} className="max-w-prose text-[0.625rem] text-discarded">
+                <p key={note} className="max-w-prose text-3xs text-discarded">
                   {note}
                 </p>
               ))}
@@ -327,7 +321,7 @@ function AwardRow({
         {/* The pack's own sentence, so the keywords it marks up read as keywords here too. */}
         <RuleText text={label} className="mt-0 space-y-1 text-sm text-bone" />
         {counted(award) ? (
-          <span className="mt-0.5 block text-[0.625rem] text-faint">
+          <span className="mt-0.5 block text-3xs text-faint">
             {award.vp} VP each{award.max === null ? '' : `, up to ${award.max} VP`}
           </span>
         ) : null}

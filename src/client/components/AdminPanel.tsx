@@ -13,6 +13,7 @@ import { PASSWORD_MIN_LENGTH } from '../../authConfig'
 import { setAdminRole } from '../../server/functions'
 import { authClient } from '../authClient'
 import { ADMIN_USERS_QUERY_KEY, adminUsersQuery } from '../queries'
+import { PageContent, PageHeader } from './Page'
 import { PlayerAvatar } from './PlayerAvatar'
 
 type Action = 'impersonate' | 'role' | 'password'
@@ -27,115 +28,116 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
 
   return (
     <main className="ph-no-capture w-full">
-      <section className="relative overflow-hidden border-b border-edge bg-panel">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto flex max-w-6xl items-center gap-4 px-3 py-5 sm:px-4 sm:py-7">
+      <PageHeader
+        eyebrow="Administration"
+        title="Users"
+        description="Manage accounts, access, passwords and support sessions."
+        media={
           <span className="grid size-12 shrink-0 place-items-center border border-edge-strong bg-sunken text-parchment">
             <ShieldCheck className="size-5" aria-hidden />
           </span>
-          <div className="min-w-0 flex-1">
-            <p className="eyebrow text-parchment">Administration</p>
-            <h1 className="text-3xl">Users</h1>
-            <p className="mt-1 text-sm text-dim">Manage accounts, access, passwords and support sessions.</p>
-          </div>
+        }
+        actions={
           <Button type="button" onClick={() => setAdding(true)}>
             <UserPlus /> Add user
           </Button>
-        </div>
-      </section>
+        }
+      />
 
-      <section className="mx-auto mt-4 mb-8 max-w-6xl border-y border-edge bg-panel sm:border">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-edge p-4">
-          <div className="w-full max-w-sm space-y-2">
-            <Label htmlFor="admin-user-search">Search users</Label>
-            <Input
-              id="admin-user-search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Name or email…"
-              className="rounded-none border-edge bg-sunken"
-            />
+      <PageContent>
+        <section className="border border-edge bg-panel">
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-edge p-4">
+            <div className="w-full max-w-sm space-y-2">
+              <Label htmlFor="admin-user-search">Search users</Label>
+              <Input
+                id="admin-user-search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Name or email…"
+              />
+            </div>
+            {usersResult.isPending ? (
+              <Skeleton className="h-4 w-24" aria-label="Loading user count" />
+            ) : (
+              <p className="text-sm text-dim">{users.length} users shown</p>
+            )}
           </div>
-          {usersResult.isPending ? (
-            <Skeleton className="h-4 w-24" aria-label="Loading user count" />
-          ) : (
-            <p className="text-sm text-dim">{users.length} users shown</p>
-          )}
-        </div>
-        {usersResult.error ? <p className="p-5 text-sm text-destructive">The user list could not be loaded.</p> : null}
-        {!usersResult.isPending && !usersResult.error && !users.length ? (
-          <p className="p-5 text-sm text-dim">No users match this search.</p>
-        ) : null}
-        {usersResult.isPending || users.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-sm">
-              <thead className="bg-sunken text-xs tracking-wide text-dim uppercase">
-                <tr>
-                  <th className="px-4 py-2 font-semibold">User</th>
-                  <th className="px-4 py-2 font-semibold">Role</th>
-                  <th className="hidden px-4 py-2 font-semibold md:table-cell">Security</th>
-                  <th className="hidden px-4 py-2 font-semibold lg:table-cell">Activity</th>
-                  <th className="hidden px-4 py-2 font-semibold xl:table-cell">Created</th>
-                  <th className="w-12 px-4 py-2">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {usersResult.isPending
-                  ? Array.from({ length: 4 }, (_, index) => <AdminUserSkeleton key={index} />)
-                  : users.map((user) => (
-                      <tr key={user.id} className="border-t border-edge hover:bg-raised/60">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <PlayerAvatar name={user.name} image={user.image} className="size-9 text-xs" />
-                            <div className="min-w-0">
-                              <p className="font-semibold text-bone">{user.name}</p>
-                              <p className="text-xs text-dim">{user.email}</p>
+          {usersResult.error ? <p className="p-5 text-sm text-destructive">The user list could not be loaded.</p> : null}
+          {!usersResult.isPending && !usersResult.error && !users.length ? (
+            <p className="p-5 text-sm text-dim">No users match this search.</p>
+          ) : null}
+          {/* The scroller is positioned, so the actions column's hidden label cannot widen the page. */}
+          {usersResult.isPending || users.length ? (
+            <div className="relative overflow-x-auto">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead className="eyebrow bg-sunken">
+                  <tr>
+                    <th className="px-4 py-2">User</th>
+                    <th className="px-4 py-2">Role</th>
+                    <th className="hidden px-4 py-2 md:table-cell">Security</th>
+                    <th className="hidden px-4 py-2 lg:table-cell">Activity</th>
+                    <th className="hidden px-4 py-2 xl:table-cell">Created</th>
+                    <th className="w-12 px-4 py-2">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usersResult.isPending
+                    ? Array.from({ length: 4 }, (_, index) => <AdminUserSkeleton key={index} />)
+                    : users.map((user) => (
+                        <tr key={user.id} className="border-t border-edge hover:bg-raised/60">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <PlayerAvatar name={user.name} image={user.image} className="size-9 text-xs" />
+                              <div className="min-w-0">
+                                <p className="font-semibold text-bone">{user.name}</p>
+                                <p className="text-xs text-dim">{user.email}</p>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="chip">{user.role === 'admin' ? 'Admin' : 'User'}</span>
-                        </td>
-                        <td className="hidden px-4 py-3 text-dim md:table-cell">
-                          <p>{user.twoFactorEnabled ? '2FA enabled' : 'No 2FA'}</p>
-                          <p className="text-xs">{methodNames(user.signInMethods)}</p>
-                        </td>
-                        <td className="hidden px-4 py-3 text-dim lg:table-cell">
-                          {user.rosterCount} rosters · {user.battleCount} battles
-                        </td>
-                        <td className="hidden px-4 py-3 text-dim xl:table-cell">
-                          <time dateTime={new Date(user.createdAt).toISOString()}>
-                            {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(user.createdAt))}
-                          </time>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <UserActions
-                            user={user}
-                            current={user.id === currentUserId}
-                            onAction={(action) => setSelection({ action, user })}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-        {usersResult.hasNextPage ? (
-          <div className="border-t border-edge p-4 text-center">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={usersResult.isFetchingNextPage}
-              onClick={() => void usersResult.fetchNextPage()}
-            >
-              {usersResult.isFetchingNextPage ? 'Loading…' : 'Load more'}
-            </Button>
-          </div>
-        ) : null}
-      </section>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="chip">{user.role === 'admin' ? 'Admin' : 'User'}</span>
+                          </td>
+                          <td className="hidden px-4 py-3 text-dim md:table-cell">
+                            <p>{user.twoFactorEnabled ? '2FA enabled' : 'No 2FA'}</p>
+                            <p className="text-xs">{methodNames(user.signInMethods)}</p>
+                          </td>
+                          <td className="hidden px-4 py-3 text-dim lg:table-cell">
+                            {user.rosterCount} rosters · {user.battleCount} battles
+                          </td>
+                          <td className="hidden px-4 py-3 text-dim xl:table-cell">
+                            <time dateTime={new Date(user.createdAt).toISOString()}>
+                              {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(user.createdAt))}
+                            </time>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <UserActions
+                              user={user}
+                              current={user.id === currentUserId}
+                              onAction={(action) => setSelection({ action, user })}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+          {usersResult.hasNextPage ? (
+            <div className="border-t border-edge p-4 text-center">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={usersResult.isFetchingNextPage}
+                onClick={() => void usersResult.fetchNextPage()}
+              >
+                {usersResult.isFetchingNextPage ? 'Loading…' : 'Load more'}
+              </Button>
+            </div>
+          ) : null}
+        </section>
+      </PageContent>
 
       {adding ? <CreateUserDialog onClose={() => setAdding(false)} /> : null}
       {selection ? <UserActionDialog selection={selection} onClose={() => setSelection(undefined)} /> : null}
@@ -168,7 +170,7 @@ function AdminUserSkeleton() {
         <Skeleton className="h-4 w-20" />
       </td>
       <td className="px-4 py-3">
-        <Skeleton className="size-8" />
+        <Skeleton className="size-7" />
       </td>
     </tr>
   )
@@ -198,7 +200,7 @@ function UserActions({ user, current, onAction }: { user: AdminUser; current: bo
       <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label={`Actions for ${user.name}`} />}>
         <Ellipsis />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52 rounded-none border border-edge bg-panel">
+      <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuItem disabled={current || user.role === 'admin'} onClick={() => onAction('impersonate')}>
           <Eye /> View as user
         </DropdownMenuItem>
@@ -222,7 +224,7 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState('')
   return (
     <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
-      <DialogContent className="ph-no-capture rounded-none border border-edge bg-panel sm:max-w-md" showCloseButton={!busy}>
+      <DialogContent className="ph-no-capture sm:max-w-md" showCloseButton={!busy}>
         <DialogHeader>
           <DialogTitle>Add user</DialogTitle>
           <DialogDescription>
@@ -266,7 +268,7 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
             />
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <DialogFooter className="rounded-none border-edge bg-sunken">
+          <DialogFooter>
             <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
               Cancel
             </Button>
@@ -329,7 +331,7 @@ function UserActionDialog({ selection, onClose }: { selection: { action: Action;
   }
   return (
     <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
-      <DialogContent className="ph-no-capture rounded-none border border-edge bg-panel sm:max-w-md" showCloseButton={!busy}>
+      <DialogContent className="ph-no-capture sm:max-w-md" showCloseButton={!busy}>
         <DialogHeader>
           <DialogTitle>{copy.title}</DialogTitle>
           <DialogDescription>{copy.description}</DialogDescription>
@@ -356,7 +358,7 @@ function UserActionDialog({ selection, onClose }: { selection: { action: Action;
           </div>
         ) : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <DialogFooter className="rounded-none border-edge bg-sunken">
+        <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
             Cancel
           </Button>

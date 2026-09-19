@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import type { RuleDocumentSummary } from '../../contracts/rules'
 import { ruleIndexQuery } from '../queries'
+import { PageContent, PageHeader } from './Page'
 import { PageState } from './PageState'
 import { SearchField } from './SearchField'
 
@@ -39,32 +40,20 @@ export function RulesIndex() {
   const matches = matchingRules(data.documents, wanted)
   return (
     <main className="w-full">
-      <section className="relative overflow-hidden border-b border-edge bg-panel">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-7">
-          <p className="eyebrow text-parchment">Reference</p>
-          <h1 className="mt-1 text-3xl">Rules</h1>
-          <p className="mt-2 max-w-2xl text-sm text-dim">
-            The core rules, the mission sequence, and the event and Combat Patrol rules, as the community data writes them.
-          </p>
-        </div>
-      </section>
-      <div className="mx-auto max-w-5xl px-3 pb-8 sm:px-4">
-        <SearchField
-          className="mt-4"
-          value={wanted}
-          onChange={setWanted}
-          placeholder="Find a rule"
-          label="Find a rule"
-          clearLabel="Empty the rule filter"
-        />
+      <PageHeader
+        eyebrow="Reference"
+        title="Rules"
+        description="The core rules, the mission sequence, and the event and Combat Patrol rules, as the community data writes them."
+      />
+      <PageContent>
+        <SearchField value={wanted} onChange={setWanted} placeholder="Find a rule" label="Find a rule" clearLabel="Empty the rule filter" />
         {matches ? (
           <FoundRules matches={matches} />
         ) : (
           data.documents.map((document) => <DocumentShelf key={document.id} document={document} />)
         )}
         <p className="mt-8 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
-      </div>
+      </PageContent>
     </main>
   )
 }
@@ -129,13 +118,13 @@ function DocumentShelf({ document }: { document: RuleDocumentSummary }) {
   const rules = document.sections.reduce((count, section) => count + section.entries.length, 0)
   return (
     <section className="mt-6">
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="flex items-baseline justify-between gap-3 border-b border-edge pb-2">
         <h2 className="rubric">
           <Link to="/rules/$documentId" params={{ documentId: document.slug }} className="hover:text-bone">
             {document.title}
           </Link>
         </h2>
-        <p className="readout text-xs text-faint">{rules} rules</p>
+        <p className="rubric readout">{rules} rules</p>
       </div>
       <div className="mt-2 grid gap-px border border-edge bg-edge sm:grid-cols-2 lg:grid-cols-3">
         {document.sections.map((section) => (

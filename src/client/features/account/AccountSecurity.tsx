@@ -47,24 +47,22 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
 
   if (methodsResult.isError) {
     return (
-      <div className="mx-auto mt-6 max-w-5xl px-3 pb-8 sm:px-0">
-        <PageState
-          headingLevel={2}
-          eyebrow="Account security"
-          title="Could not load sign-in methods"
-          explanation="Your security settings could not be loaded. Try again."
-          action={
-            <Button variant="outline" onClick={() => void methodsResult.refetch()} disabled={methodsResult.isFetching}>
-              Try again
-            </Button>
-          }
-        />
-      </div>
+      <PageState
+        headingLevel={2}
+        eyebrow="Account security"
+        title="Could not load sign-in methods"
+        explanation="Your security settings could not be loaded. Try again."
+        action={
+          <Button variant="outline" onClick={() => void methodsResult.refetch()} disabled={methodsResult.isFetching}>
+            Try again
+          </Button>
+        }
+      />
     )
   }
 
   return (
-    <div className="ph-no-capture mx-auto mt-6 grid max-w-5xl gap-6 px-3 pb-8 sm:px-0 lg:grid-cols-2">
+    <div className="ph-no-capture grid gap-6 lg:grid-cols-2">
       <section className="border border-edge bg-panel p-5 md:p-7">
         <p className="rubric border-b border-edge pb-2">Two-factor authentication</p>
         <div className="mt-4 flex items-start gap-3">
@@ -99,7 +97,7 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
           </div>
         </div>
         {methodsPending ? (
-          <Skeleton className="mt-4 h-9 w-40 rounded-none" />
+          <Skeleton className="mt-4 h-8 w-40" />
         ) : (
           <Button
             type="button"
@@ -315,7 +313,7 @@ function AccountMethodsSkeleton() {
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-3 w-16" />
           </div>
-          <Skeleton className="h-8 w-20 rounded-none" />
+          <Skeleton className="h-7 w-20" />
         </div>
       ))}
     </div>
@@ -376,7 +374,7 @@ function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
         <span>I understand that my account and its battles cannot be recovered.</span>
       </label>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <DialogFooter className="rounded-none border-edge bg-sunken">
+      <DialogFooter>
         <Button type="submit" variant="destructive" disabled={busy || !confirmed || (hasPassword && !password)}>
           {busy ? 'Deleting…' : 'Permanently delete account'}
         </Button>
@@ -425,7 +423,7 @@ function AccountDialog({
 }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="ph-no-capture rounded-none border border-edge bg-panel sm:max-w-lg">
+      <DialogContent className="ph-no-capture sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
@@ -470,7 +468,7 @@ function CreatePasswordForm({ onDone }: { onDone: () => void | Promise<void> }) 
         />
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <DialogFooter className="rounded-none border-edge bg-sunken">
+      <DialogFooter>
         <Button type="submit" disabled={busy || password.length < PASSWORD_MIN_LENGTH}>
           {busy ? 'Creating…' : 'Create password'}
         </Button>
@@ -526,7 +524,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
         />
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <DialogFooter className="rounded-none border-edge bg-sunken">
+      <DialogFooter>
         <Button type="submit" disabled={busy || newPassword.length < PASSWORD_MIN_LENGTH}>
           {busy ? 'Changing…' : 'Change password'}
         </Button>
@@ -551,7 +549,7 @@ function RemoveMethodDialog({
     <AccountDialog title={method === 'credential' ? 'Remove password sign-in' : `Unlink ${label}`} onClose={onClose}>
       <p className="text-sm text-dim">You will no longer be able to sign in with {label}. Your other linked method will keep working.</p>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <DialogFooter className="rounded-none border-edge bg-sunken">
+      <DialogFooter>
         <Button
           type="button"
           variant="destructive"
@@ -600,27 +598,29 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
             <span key={backupCode}>{backupCode}</span>
           ))}
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={async () => {
-            await navigator.clipboard.writeText(backupCodes.join('\n'))
-            posthog.capture('two_factor_recovery_codes_copied')
-            setCopied(true)
-          }}
-        >
-          {copied ? (
-            <>
-              <Check /> Recovery codes copied
-            </>
-          ) : (
-            'Copy recovery codes'
-          )}
-        </Button>
-        <Button type="button" className="w-full" onClick={() => void onDone()}>
-          I saved my recovery codes
-        </Button>
+        {/* Reading order on a phone: copying comes before the button that puts the codes away for good. */}
+        <DialogFooter className="flex-col">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={async () => {
+              await navigator.clipboard.writeText(backupCodes.join('\n'))
+              posthog.capture('two_factor_recovery_codes_copied')
+              setCopied(true)
+            }}
+          >
+            {copied ? (
+              <>
+                <Check /> Recovery codes copied
+              </>
+            ) : (
+              'Copy recovery codes'
+            )}
+          </Button>
+          <Button type="button" onClick={() => void onDone()}>
+            I saved my recovery codes
+          </Button>
+        </DialogFooter>
       </div>
     )
   }
@@ -656,9 +656,11 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
           />
         </div>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button type="submit" className="w-full" disabled={busy || !password}>
-          {busy ? 'Starting…' : 'Continue'}
-        </Button>
+        <DialogFooter>
+          <Button type="submit" disabled={busy || !password}>
+            {busy ? 'Starting…' : 'Continue'}
+          </Button>
+        </DialogFooter>
       </form>
     )
   }
@@ -697,9 +699,11 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
         />
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <Button type="submit" className="w-full" disabled={busy || !code.trim()}>
-        {busy ? 'Verifying…' : 'Verify and enable'}
-      </Button>
+      <DialogFooter>
+        <Button type="submit" disabled={busy || !code.trim()}>
+          {busy ? 'Verifying…' : 'Verify and enable'}
+        </Button>
+      </DialogFooter>
     </form>
   )
 }
@@ -737,7 +741,7 @@ function DisableTwoFactorForm({ onDone }: { onDone: () => void | Promise<void> }
         />
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <DialogFooter className="rounded-none border-edge bg-sunken">
+      <DialogFooter>
         <Button type="submit" variant="destructive" disabled={busy || !password}>
           {busy ? 'Turning off…' : 'Turn off two-factor authentication'}
         </Button>

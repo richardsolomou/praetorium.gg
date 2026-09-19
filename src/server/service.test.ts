@@ -45,17 +45,54 @@ describe('friends', () => {
     expect(await service.opponents('alice')).toContainEqual({ id: 'dave', name: 'Dave', image: null, automated: false })
   })
 
-  it('offers only players with no relationship yet, and does not run out of them', async () => {
-    // More strangers than a page, so a page filtered after the fact would come
-    // back short — or empty — rather than simply excluding the connections.
-    for (let index = 0; index < 120; index += 1) await enrol(`p${index}`, `Player ${String(index).padStart(3, '0')}`)
+  it('finds a player by any part of their name, in any case', async () => {
+    await enrol('dave', 'Dave Thousandsons')
+    await enrol('erin', 'Erin Ultramar')
 
-    const { people } = await service.friendships('alice')
+    expect(await service.searchPlayers('alice', 'SANDSON')).toEqual([{ id: 'dave', name: 'Dave Thousandsons', image: null }])
+  })
 
-    expect(people).toHaveLength(100)
-    expect(people.map((player) => player.id)).not.toContain('bob')
-    expect(people.map((player) => player.id)).not.toContain('carol')
-    expect(people.map((player) => player.id)).not.toContain('alice')
+  it('offers nobody who is already a friend or already asked, in either direction', async () => {
+    await enrol('dana', 'Dana Vex')
+    await enrol('eli', 'Eli Vex')
+    await enrol('finn', 'Finn Vex')
+    await enrol('gus', 'Gus Vex')
+    await befriend('alice', 'dana')
+    await service.requestFriend('alice', 'eli')
+    await service.requestFriend('gus', 'alice')
+
+    expect(await service.searchPlayers('alice', 'vex')).toEqual([{ id: 'finn', name: 'Finn Vex', image: null }])
+  })
+
+  it('does not offer the searcher themselves', async () => {
+    await enrol('alistair', 'Alistair')
+
+    expect(await service.searchPlayers('alice', 'ali')).toEqual([{ id: 'alistair', name: 'Alistair', image: null }])
+  })
+
+  it('answers a name too short to narrow anything with nothing', async () => {
+    await enrol('dave', 'Dave')
+
+    expect([await service.searchPlayers('alice', ''), await service.searchPlayers('alice', 'd')]).toEqual([[], []])
+  })
+
+  it('answers as soon as the name is long enough to narrow anything', async () => {
+    await enrol('dave', 'Dave')
+
+    expect(await service.searchPlayers('alice', 'da')).toEqual([{ id: 'dave', name: 'Dave', image: null }])
+  })
+
+  it('reads a typed wildcard as the character it is', async () => {
+    await enrol('vex', 'Vex_Prime')
+    await enrol('vexa', 'VexaPrime')
+
+    expect(await service.searchPlayers('alice', 'x_p')).toEqual([{ id: 'vex', name: 'Vex_Prime', image: null }])
+  })
+
+  it('answers with a page of matches rather than every player on the instance', async () => {
+    for (let index = 0; index < 30; index += 1) await enrol(`p${index}`, `Player ${String(index).padStart(3, '0')}`)
+
+    expect(await service.searchPlayers('alice', 'player')).toHaveLength(20)
   })
 
   it('names an opponent without reading the players nobody is connected to', async () => {
@@ -76,10 +113,7 @@ describe('friends', () => {
   })
 
   it('does not offer a practice opponent as someone to befriend', async () => {
-    const { people } = await service.friendships('alice')
-
-    expect(people.map((player) => player.id)).not.toContain('practice-opponent-1')
-    expect(people.map((player) => player.id)).not.toContain('practice-opponent-2')
+    expect(await service.searchPlayers('alice', 'practice opponent')).toEqual([])
   })
 
   it('does not let another player accept someone else’s request', async () => {

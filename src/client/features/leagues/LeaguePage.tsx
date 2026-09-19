@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { errorMessage } from '../../queryClient'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
@@ -292,66 +293,56 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
 
   return (
     <main className="w-full">
-      <section className="border-b border-edge bg-panel">
-        <div className="mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-7">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="eyebrow text-parchment">
-                {viewingLatest ? 'Current event' : `Archived event ${league.eventNumber}`} ·{' '}
-                {league.revealedAt ? 'Rosters revealed' : registrationFull ? 'Registration full' : 'Registration open'}
-              </p>
-              <h1 className="mt-1 text-3xl">{league.name}</h1>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs text-dim">
-                <span className="chip inline-flex items-center gap-1">
-                  {league.visibility === 'private' ? <LockKeyhole className="size-3" /> : <Eye className="size-3" />}
-                  {league.visibility === 'private' ? 'Private link' : 'Public'}
-                </span>
-                <span className="chip">{league.admission === 'approval' ? 'Approval required' : 'Automatic entry'}</span>
-                {league.format && league.rosterLimit ? (
-                  <span className="chip">
-                    {TABLE_SHAPE_LABELS[league.format].name} ·{' '}
-                    {leagueRosterSplit(league.format, league.rosterLimit) ?? `${league.rosterLimit.toLocaleString()} points`}
-                  </span>
-                ) : null}
-                <span className="chip">
-                  {accepted.length}
-                  {league.playerLimit ? ` / ${league.playerLimit}` : ''} accepted
-                </span>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {isOwner ? <LeaguePageActions league={league} onDeleted={() => navigate({ to: '/leagues' })} /> : null}
-              {!league.revealedAt && me && (!ownEntry || ownEntry.status === 'rejected') && !registrationFull ? (
-                <Button onClick={() => join.mutate()} disabled={join.isPending}>
-                  <UserPlus /> {ownEntry ? 'Request to join again' : 'Join league'}
-                </Button>
-              ) : null}
-              {!league.revealedAt && me && (!ownEntry || ownEntry.status === 'rejected') && registrationFull ? (
-                <span className="chip self-center">League full</span>
-              ) : null}
-              {!league.revealedAt && !me ? (
-                <Button nativeButton={false} render={<Link to="/sign-in" search={{ next: `/leagues/${token}` }} />}>
-                  Sign in to join
-                </Button>
-              ) : null}
-            </div>
-          </div>
-          {league.description ? (
-            <p className="mt-5 max-w-3xl whitespace-pre-wrap font-rules text-sm text-dim">{league.description}</p>
+      <PageHeader
+        eyebrow={`${viewingLatest ? 'Current event' : `Archived event ${league.eventNumber}`} · ${
+          league.revealedAt ? 'Rosters revealed' : registrationFull ? 'Registration full' : 'Registration open'
+        }`}
+        title={league.name}
+        actions={
+          <>
+            {isOwner ? <LeaguePageActions league={league} onDeleted={() => navigate({ to: '/leagues' })} /> : null}
+            {!league.revealedAt && me && (!ownEntry || ownEntry.status === 'rejected') && !registrationFull ? (
+              <Button onClick={() => join.mutate()} disabled={join.isPending}>
+                <UserPlus /> {ownEntry ? 'Request to join again' : 'Join league'}
+              </Button>
+            ) : null}
+            {!league.revealedAt && me && (!ownEntry || ownEntry.status === 'rejected') && registrationFull ? (
+              <span className="chip self-center">League full</span>
+            ) : null}
+            {!league.revealedAt && !me ? (
+              <Button nativeButton={false} render={<Link to="/sign-in" search={{ next: `/leagues/${token}` }} />}>
+                Sign in to join
+              </Button>
+            ) : null}
+          </>
+        }
+      >
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="chip inline-flex items-center gap-1">
+            {league.visibility === 'private' ? <LockKeyhole className="size-3" /> : <Eye className="size-3" />}
+            {league.visibility === 'private' ? 'Private link' : 'Public'}
+          </span>
+          <span className="chip">{league.admission === 'approval' ? 'Approval required' : 'Automatic entry'}</span>
+          {league.format && league.rosterLimit ? (
+            <span className="chip">
+              {TABLE_SHAPE_LABELS[league.format].name} ·{' '}
+              {leagueRosterSplit(league.format, league.rosterLimit) ?? `${league.rosterLimit.toLocaleString()} points`}
+            </span>
           ) : null}
-          <Link
-            to="/users/$userId"
-            params={{ userId: league.ownerId }}
-            className="group mt-5 flex w-fit items-center gap-2 text-sm text-dim"
-          >
-            <span>Organized by</span>
-            <PlayerAvatar name={league.ownerName} image={league.ownerImage} className="size-7 text-xs" />
-            <span className="text-bone group-hover:underline">{league.ownerName}</span>
-          </Link>
+          <span className="chip">
+            {accepted.length}
+            {league.playerLimit ? ` / ${league.playerLimit}` : ''} accepted
+          </span>
         </div>
-      </section>
+        {league.description ? <p className="mt-3 max-w-2xl whitespace-pre-wrap font-rules text-sm text-dim">{league.description}</p> : null}
+        <Link to="/users/$userId" params={{ userId: league.ownerId }} className="group mt-3 flex w-fit items-center gap-2 text-sm text-dim">
+          <span>Organized by</span>
+          <PlayerAvatar name={league.ownerName} image={league.ownerImage} className="size-7 text-3xs" />
+          <span className="text-bone group-hover:underline">{league.ownerName}</span>
+        </Link>
+      </PageHeader>
 
-      <div className="mx-auto grid max-w-5xl gap-5 px-3 py-5 sm:px-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <PageContent className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <section className="min-w-0">
           <div className="rubric mb-2 flex items-baseline justify-between border-b border-edge pb-2">
             <h2>{viewingLatest ? 'Entrants' : `Event ${league.eventNumber} entrants`}</h2>
@@ -516,7 +507,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
               })}
             </div>
           ) : (
-            <div className="border border-dashed border-edge bg-panel px-5 py-9 text-center">
+            <div className="border border-edge bg-panel px-5 py-9 text-center">
               <UserPlus className="mx-auto size-7 text-faint" />
               <p className="mt-3 font-bold uppercase">No entrants yet</p>
               <p className="mt-1 text-sm text-dim">Share the invite link to fill the event.</p>
@@ -530,10 +521,11 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
                   <BattleShelf title="Battles" battles={eventBattles} />
                   {battleHistory.hasNextPage ? (
                     <Button
-                      className="mt-3 w-full"
+                      className="mt-2"
                       variant="outline"
+                      size="sm"
                       disabled={battleHistory.isFetchingNextPage}
-                      onClick={() => battleHistory.fetchNextPage()}
+                      onClick={() => void battleHistory.fetchNextPage()}
                     >
                       {battleHistory.isFetchingNextPage ? 'Loading…' : 'Show more battles'}
                     </Button>
@@ -542,7 +534,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
               ) : battleHistory.isPending ? (
                 <LeagueBattleSkeleton />
               ) : (
-                <div className="border border-dashed border-edge bg-panel px-5 py-7 text-center">
+                <div className="border border-edge bg-panel px-5 py-7 text-center">
                   <Swords className="mx-auto size-7 text-faint" />
                   <p className="mt-3 font-bold uppercase">No battles yet</p>
                   <p className="mt-1 text-sm text-dim">Battles started from this event show up here to watch or read back.</p>
@@ -713,7 +705,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
             ) : null}
           </section>
         </aside>
-      </div>
+      </PageContent>
 
       <RosterChooser
         open={choosing}
@@ -734,16 +726,13 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           if (!open) setSealing(null)
         }}
       >
-        <AlertDialogContent
-          aria-busy={submit.isPending}
-          className="rounded-none border border-discarded/50 bg-panel text-bone sm:max-w-lg [&>*]:min-w-0"
-        >
+        <AlertDialogContent aria-busy={submit.isPending} className="border-discarded/50 sm:max-w-lg [&>*]:min-w-0">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-discarded uppercase">
+            <AlertDialogTitle className="flex items-center gap-2 text-discarded">
               <TriangleAlert className="size-5 shrink-0" aria-hidden />
               {sealWaivers.length === 1 ? 'This roster waives a rule' : `This roster waives ${sealWaivers.length} rules`}
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
+            <AlertDialogDescription>
               {sealing?.name} is not playing {sealWaivers.length === 1 ? 'one of' : 'some of'} the rules of its battle size:
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -784,10 +773,10 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           setRevealing(open)
         }}
       >
-        <AlertDialogContent aria-busy={reveal.isPending} className="rounded-none border border-edge bg-panel text-bone">
+        <AlertDialogContent aria-busy={reveal.isPending}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Reveal every roster?</AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
+            <AlertDialogTitle>Reveal every roster?</AlertDialogTitle>
+            <AlertDialogDescription>
               Every accepted list becomes visible and the event closes to new players.{' '}
               {pendingCount ? `${pendingCount} request${pendingCount === 1 ? '' : 's'} still waiting will be turned down. ` : ''}
               You cannot undo this.
@@ -817,10 +806,10 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           }
         }}
       >
-        <AlertDialogContent aria-busy={moderate.isPending} className="rounded-none border border-edge bg-panel text-bone">
+        <AlertDialogContent aria-busy={moderate.isPending}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Remove {removing?.name}?</AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
+            <AlertDialogTitle>Remove {removing?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
               {removingTeammate
                 ? `This also unpairs ${entrantLabels.get(removingTeammate.userId) ?? removingTeammate.name} and clears both their sealed lists. ${removing?.name} has to join again and seal another list to come back.`
                 : 'Their sealed list goes with them. They have to join again and seal another to come back.'}
@@ -853,10 +842,10 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           }
         }}
       >
-        <AlertDialogContent aria-busy={unseal.isPending} className="rounded-none border border-edge bg-panel text-bone">
+        <AlertDialogContent aria-busy={unseal.isPending}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Unseal {unsealing?.name}’s roster?</AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
+            <AlertDialogTitle>Unseal {unsealing?.name}’s roster?</AlertDialogTitle>
+            <AlertDialogDescription>
               Their revealed list is discarded and they can seal another one for this event. Battles already started keep the list they were
               created with.
             </AlertDialogDescription>
@@ -876,10 +865,10 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={reassigning !== null} onOpenChange={(open) => !assign.isPending && !open && setReassigning(null)}>
-        <AlertDialogContent aria-busy={assign.isPending} className="rounded-none border border-edge bg-panel text-bone">
+        <AlertDialogContent aria-busy={assign.isPending}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Change {reassigning?.name}’s roster size?</AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
+            <AlertDialogTitle>Change {reassigning?.name}’s roster size?</AlertDialogTitle>
+            <AlertDialogDescription>
               Their sealed list is cleared. They have to seal one at the new size before you can reveal.
             </AlertDialogDescription>
             {assign.isPending ? <output className="sr-only">Changing roster size…</output> : null}

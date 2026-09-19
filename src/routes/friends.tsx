@@ -1,13 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { PageContent, PageHeader } from '../client/components/Page'
 import { SearchField } from '../client/components/SearchField'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { friendshipsQuery, meQuery, opponentsQuery } from '../client/queries'
+import { friendshipsQuery, meQuery, opponentsQuery, playerSearchKey, playerSearchQuery } from '../client/queries'
+import { useSettled } from '../client/useSettled'
 import { acceptFriend, removeFriend, requestFriend } from '../server/functions'
+import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../server/schemas'
 import { errorMessage } from '../client/queryClient'
 
 export const Route = createFileRoute('/friends')({
@@ -23,93 +27,122 @@ type Person = { id: string; name: string; image?: string | null }
 
 function Friends() {
   const { data: me } = useQuery(meQuery())
-  const { data = { friends: [], incoming: [], outgoing: [], people: [] } } = useQuery(friendshipsQuery())
+  const { data = { friends: [], incoming: [], outgoing: [] } } = useQuery(friendshipsQuery())
   const [query, setQuery] = useState('')
+  const settledQuery = useSettled(query.trim())
+  const search = playerSearchQuery(settledQuery)
+  const { data: matches = [], isFetching } = useQuery({ ...search, placeholderData: keepPreviousData })
   const queryClient = useQueryClient()
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: friendshipsQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: opponentsQuery().queryKey }),
+      queryClient.invalidateQueries({ queryKey: playerSearchKey }),
     ])
   }
   const request = useMutation({ mutationFn: (userId: string) => requestFriend({ data: { userId } }), onSuccess: refresh })
   const accept = useMutation({ mutationFn: (userId: string) => acceptFriend({ data: { userId } }), onSuccess: refresh })
   const remove = useMutation({ mutationFn: (userId: string) => removeFriend({ data: { userId } }), onSuccess: refresh })
+  // Only the pressed row waits: one mutation serves every row in its list.
+  const inFlight = (mutation: { isPending: boolean; variables: string | undefined }) =>
+    mutation.isPending ? (mutation.variables ?? null) : null
   if (!me) return <SignInRequired title="Your friends" explanation="Sign in to connect with the people you play against." />
-  const people = data.people.filter((person) => person.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+  const typed = query.trim()
+  const tooShort = typed.length < PLAYER_SEARCH_MIN_LENGTH
+  // Results from the last name searched stay up while the next one is answered, and
+  // `keepPreviousData` keeps them even once the query is disabled, so a name cut back
+  // below the minimum has to drop them here.
+  const found = search.enabled && !tooShort ? matches : []
+  // Judged from what is typed rather than what has settled, so the invitation does
+  // not stay up for the length of a burst of typing.
+  const searching = !tooShort && (typed !== settledQuery || isFetching) && !found.length
 
   return (
     <main className="w-full">
-      <section className="relative overflow-hidden border-b border-edge bg-panel">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-7">
-          <p className="eyebrow text-parchment">Your account</p>
-          <h1 className="mt-1 text-3xl">Friends</h1>
-          <p className="mt-2 max-w-2xl text-sm text-dim">
-            Connect with the people you know, then invite confirmed friends to private battles.
+      <PageHeader
+        eyebrow="Your account"
+        title="Friends"
+        description="Connect with the people you know, then invite confirmed friends to private battles."
+      />
+      <PageContent className="space-y-6">
+        {request.error || accept.error || remove.error ? (
+          <p role="alert" className="border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            {errorMessage(request.error ?? accept.error ?? remove.error)}
           </p>
+        ) : null}
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <People
+            title="Friend requests"
+            empty="No requests are waiting for you."
+            people={data.incoming}
+            action="Accept"
+            pendingId={inFlight(accept)}
+            onAction={(person) => accept.mutate(person.id)}
+          />
+          <People
+            title="Friends"
+            empty="Add a player below before you create a shared battle."
+            people={data.friends}
+            action="Remove"
+            destructive
+            pendingId={inFlight(remove)}
+            onAction={(person) => remove.mutate(person.id)}
+          />
         </div>
-      </section>
 
-      {request.error || accept.error || remove.error ? (
-        <p className="mx-auto mt-4 max-w-5xl border-y border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive sm:border-x">
-          {errorMessage(request.error ?? accept.error ?? remove.error)}
-        </p>
-      ) : null}
+        <section>
+          <div className="flex items-baseline justify-between border-b border-edge pb-2">
+            <p className="rubric">Find players</p>
+            <UserPlus className="size-4 text-parchment" aria-hidden />
+          </div>
+          <SearchField
+            className="mt-2"
+            value={query}
+            onChange={setQuery}
+            placeholder="Search by account name"
+            label="Search by account name"
+            clearLabel="Empty the player search"
+            maxLength={PLAYER_SEARCH_MAX_LENGTH}
+          />
+          <div className="mt-2 space-y-2">
+            {found.map((person) => (
+              <PersonRow
+                key={person.id}
+                person={person}
+                action="Add friend"
+                pending={inFlight(request) === person.id}
+                onAction={() => request.mutate(person.id)}
+              />
+            ))}
+            {searching ? (
+              <>
+                <output className="sr-only">Searching</output>
+                <PersonRowSkeleton />
+                <PersonRowSkeleton />
+              </>
+            ) : null}
+            {tooShort ? (
+              <p className="border border-edge bg-panel p-4 text-sm text-dim">
+                {typed ? `Type at least ${PLAYER_SEARCH_MIN_LENGTH} letters of a player’s name.` : 'Type a player’s name to find them.'}
+              </p>
+            ) : null}
+            {!tooShort && !searching && !found.length ? (
+              <p className="border border-edge bg-panel p-4 text-sm text-dim">No player matches that name.</p>
+            ) : null}
+          </div>
+        </section>
 
-      <div className="mx-auto mt-4 grid max-w-5xl gap-6 px-3 sm:px-4 md:grid-cols-2 md:gap-8">
-        <People
-          title="Friend requests"
-          empty="No requests are waiting for you."
-          people={data.incoming}
-          action="Accept"
-          onAction={(person) => accept.mutate(person.id)}
-        />
-        <People
-          title="Friends"
-          empty="Add a player below before you create a shared battle."
-          people={data.friends}
-          action="Remove"
-          destructive
-          onAction={(person) => remove.mutate(person.id)}
-        />
-      </div>
-
-      <section className="mx-auto mt-7 max-w-5xl px-3 sm:px-4">
-        <div className="flex items-baseline justify-between border-b border-edge pb-2">
-          <p className="rubric">Find players</p>
-          <UserPlus className="size-4 text-parchment" aria-hidden />
-        </div>
-        <SearchField
-          className="mt-3"
-          inputClassName="rounded-none border-edge bg-sunken"
-          value={query}
-          onChange={setQuery}
-          placeholder="Search by account name"
-          label="Search by account name"
-          clearLabel="Empty the player filter"
-        />
-        <div className="mt-2 space-y-2">
-          {people.map((person) => (
-            <PersonRow key={person.id} person={person} action="Add friend" onAction={() => request.mutate(person.id)} />
-          ))}
-          {query && !people.length ? <p className="text-sm text-dim">No matching players.</p> : null}
-          {!query && !people.length ? (
-            <p className="border border-edge bg-sunken p-4 text-sm text-dim">No other players are available.</p>
-          ) : null}
-        </div>
-      </section>
-
-      <div className="mx-auto mt-7 max-w-5xl px-3 pb-8 sm:px-4">
         <People
           title="Sent requests"
           empty="You have no pending requests."
           people={data.outgoing}
           action="Cancel"
           destructive
+          pendingId={inFlight(remove)}
           onAction={(person) => remove.mutate(person.id)}
         />
-      </div>
+      </PageContent>
     </main>
   )
 }
@@ -120,6 +153,7 @@ function People({
   action,
   empty,
   destructive = false,
+  pendingId,
   onAction,
 }: {
   title: string
@@ -127,6 +161,7 @@ function People({
   action: string
   empty: string
   destructive?: boolean
+  pendingId: string | null
   onAction: (person: Person) => void
 }) {
   return (
@@ -138,13 +173,32 @@ function People({
       <div className="mt-2 space-y-2">
         {people.length ? (
           people.map((person) => (
-            <PersonRow key={person.id} person={person} action={action} destructive={destructive} onAction={() => onAction(person)} />
+            <PersonRow
+              key={person.id}
+              person={person}
+              action={action}
+              destructive={destructive}
+              pending={pendingId === person.id}
+              onAction={() => onAction(person)}
+            />
           ))
         ) : (
-          <p className="border border-edge bg-sunken p-4 text-sm text-dim">{empty}</p>
+          <p className="border border-edge bg-panel p-4 text-sm text-dim">{empty}</p>
         )}
       </div>
     </section>
+  )
+}
+
+function PersonRowSkeleton() {
+  return (
+    <div className="flex items-center justify-between gap-3 border border-edge bg-panel p-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <Skeleton className="size-9 rounded-full" />
+        <Skeleton className="h-4 w-32" />
+      </div>
+      <Skeleton className="h-8 w-24" />
+    </div>
   )
 }
 
@@ -152,11 +206,13 @@ function PersonRow({
   person,
   action,
   destructive = false,
+  pending,
   onAction,
 }: {
   person: Person
   action: string
   destructive?: boolean
+  pending: boolean
   onAction: () => void
 }) {
   return (
@@ -168,7 +224,7 @@ function PersonRow({
         <PlayerAvatar name={person.name} image={person.image} className="size-9 text-xs" />
         <span className="truncate font-bold uppercase">{person.name}</span>
       </Link>
-      <Button variant={destructive ? 'destructive' : 'outline'} size="sm" onClick={onAction}>
+      <Button variant={destructive ? 'destructive' : 'outline'} size="sm" disabled={pending} onClick={onAction}>
         {action}
       </Button>
     </div>

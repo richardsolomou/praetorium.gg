@@ -49,7 +49,7 @@ export function LeagueCardActions({ league, children }: { league: ManageableLeag
         >
           {children(<LeagueMenu actions={actions} showView />)}
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-56 rounded-none border border-edge bg-panel text-bone">
+        <ContextMenuContent className="w-56">
           <LeagueActionItems Item={ContextMenuItem} actions={actions} showView />
         </ContextMenuContent>
       </ContextMenu>
@@ -76,7 +76,7 @@ function LeagueMenu({ actions, showView = false }: { actions: Controller; showVi
       <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${actions.league.name}`} />}>
         <EllipsisVertical />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56 rounded-none border border-edge bg-panel text-bone">
+      <DropdownMenuContent align="end" className="w-56">
         <LeagueActionItems Item={DropdownMenuItem} actions={actions} showView={showView} />
       </DropdownMenuContent>
     </DropdownMenu>
@@ -117,14 +117,10 @@ function LeagueActionDialogs({ actions }: { actions: Controller }) {
   return (
     <>
       <Dialog open={actions.editing} onOpenChange={(open) => !actions.update.isPending && actions.setEditing(open)}>
-        <DialogContent
-          showCloseButton={!actions.update.isPending}
-          aria-busy={actions.update.isPending}
-          className="rounded-none border border-edge bg-panel text-bone sm:max-w-xl"
-        >
+        <DialogContent showCloseButton={!actions.update.isPending} aria-busy={actions.update.isPending} className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle className="text-2xl uppercase">Edit league</DialogTitle>
-            <DialogDescription className="text-dim">
+            <DialogTitle className="text-2xl">Edit league</DialogTitle>
+            <DialogDescription>
               Applies from now on. Nothing already entered, sealed, or played changes. Switching to automatic lets in anyone still waiting.
             </DialogDescription>
           </DialogHeader>
@@ -170,10 +166,10 @@ function LeagueActionDialogs({ actions }: { actions: Controller }) {
         </DialogContent>
       </Dialog>
       <AlertDialog open={actions.deleting} onOpenChange={(open) => !actions.remove.isPending && actions.setDeleting(open)}>
-        <AlertDialogContent aria-busy={actions.remove.isPending} className="rounded-none border border-edge bg-panel text-bone">
+        <AlertDialogContent aria-busy={actions.remove.isPending}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Delete {actions.league.name}?</AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
+            <AlertDialogTitle>Delete {actions.league.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
               Every event, entrant, and sealed list goes with it, for good. Battles already started from it stay where they are.
             </AlertDialogDescription>
           </AlertDialogHeader>

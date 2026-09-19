@@ -4,6 +4,7 @@ import { Check, Eye, Shuffle } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
 import { deploymentsQuery, terrainMatchupIds, terrainReferencesQuery } from '../queries'
@@ -22,14 +23,16 @@ type Props = {
 
 export function Battlefield({ view, send, pending, allowedIds, matchup }: Props) {
   const [inspecting, setInspecting] = useState<string | null>(null)
-  const { data: allPatterns } = useQuery(deploymentsQuery())
+  const patternsQuery = useQuery(deploymentsQuery())
+  const allPatterns = patternsQuery.data
   // The card each side plays, as the domain folded it: an allied pair fields one army
   // and plays one card, so this is not the same as reading the first seat's list.
   const dispositions = [...new Set(view.players.map((player) => player.side))]
     .map((side) => view.players.find((player) => player.side === side)?.disposition)
     .filter((value): value is string => Boolean(value))
   const matchupIds = terrainMatchupIds(dispositions)
-  const { data: references } = useQuery(terrainReferencesQuery(matchupIds))
+  const referencesQuery = useQuery(terrainReferencesQuery(matchupIds))
+  const references = referencesQuery.data
   const options =
     references?.layouts.flatMap((terrain) => {
       const deployment = allPatterns?.find((pattern) => pattern.id === terrain.deploymentId)
@@ -57,7 +60,8 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
     }
     return <p className="text-sm text-dim">Both armies determine the three deployment and terrain layouts.</p>
   }
-  if (!options.length) return <p className="text-sm text-dim">No combined battlefield layouts match these armies and mission.</p>
+  const loading = patternsQuery.isPending || referencesQuery.isPending
+  const failed = patternsQuery.isError || referencesQuery.isError
 
   return (
     <section>
@@ -81,53 +85,62 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
           <Shuffle /> Select random
         </Button>
       </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        {options.map(({ terrain, deployment }, index) => {
-          const selected = view.settings.terrainLayoutId === terrain.id && view.deploymentId === deployment.id
-          const label = String.fromCharCode(65 + index)
-          return (
-            <article key={terrain.id} className={`flex flex-col border bg-sunken p-2 transition-colors ${selected ? CHOSEN : CHOOSABLE}`}>
-              <span className="block text-center text-lg font-bold">{label}</span>
-              {/* Taking a layout is the deliberate act, so it is the one button on the card. */}
-              <Button
-                variant={selected ? 'secondary' : 'outline'}
-                className="mt-2 w-full"
-                disabled={!terrain.geometry}
-                aria-label={`${selected ? 'Selected' : 'Select'} layout ${label}: ${deployment.name}`}
-                onClick={() => {
-                  if (!pending) send({ kind: 'set-battlefield', patternId: deployment.id, terrainLayoutId: terrain.id })
-                }}
-              >
-                {selected ? <Check /> : null}
-                {selected ? 'Selected' : terrain.geometry ? 'Select' : 'Loading'}
-              </Button>
-              {/*
-               * The board itself opens the board, the way the mission pack pages do it.
-               * A third of a column cannot hold the measurements the exact geometry
-               * carries, so this draws the plain one and a press enlarges it.
-               */}
-              <button
-                type="button"
-                className="group mt-2 block w-full flex-1 text-left"
-                aria-label={`Enlarge terrain layout ${label}: ${deployment.name} battlefield with ${terrain.name}`}
-                onClick={() => setInspecting(terrain.id)}
-              >
-                <TerrainBoard
-                  layout={terrain}
-                  deployment={deployment}
-                  templates={references?.templates ?? []}
-                  className="w-full"
-                  ariaLabel={`Layout ${label}: ${deployment.name} battlefield with ${terrain.name}`}
-                />
-                <span className="mt-2 flex items-center justify-center gap-1 text-xs font-bold text-bone uppercase group-hover:text-azure">
-                  <Eye className="size-3.5 shrink-0 text-dim group-hover:text-azure" />
-                  {deployment.name}
-                </span>
-              </button>
-            </article>
-          )
-        })}
-      </div>
+      {/* An unanswered request is not an empty pack, so the three cards are reserved until one of them is. */}
+      {loading ? (
+        <LayoutsLoading />
+      ) : failed ? (
+        <p className="mt-3 text-sm text-dim">Battlefield layouts are unavailable right now. Try again shortly.</p>
+      ) : !options.length ? (
+        <p className="mt-3 text-sm text-dim">No combined battlefield layouts match these armies and mission.</p>
+      ) : (
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          {options.map(({ terrain, deployment }, index) => {
+            const selected = view.settings.terrainLayoutId === terrain.id && view.deploymentId === deployment.id
+            const label = String.fromCharCode(65 + index)
+            return (
+              <article key={terrain.id} className={`flex flex-col border bg-sunken p-2 transition-colors ${selected ? CHOSEN : CHOOSABLE}`}>
+                <span className="block text-center text-lg font-bold">{label}</span>
+                {/* Taking a layout is the deliberate act, so it is the one button on the card. */}
+                <Button
+                  variant={selected ? 'secondary' : 'outline'}
+                  className="mt-2 w-full"
+                  disabled={!terrain.geometry}
+                  aria-label={`${selected ? 'Selected' : 'Select'} layout ${label}: ${deployment.name}`}
+                  onClick={() => {
+                    if (!pending) send({ kind: 'set-battlefield', patternId: deployment.id, terrainLayoutId: terrain.id })
+                  }}
+                >
+                  {selected ? <Check /> : null}
+                  {selected ? 'Selected' : terrain.geometry ? 'Select' : 'Loading'}
+                </Button>
+                {/*
+                 * The board itself opens the board, the way the mission pack pages do it.
+                 * A third of a column cannot hold the measurements the exact geometry
+                 * carries, so this draws the plain one and a press enlarges it.
+                 */}
+                <button
+                  type="button"
+                  className="group mt-2 block w-full flex-1 text-left"
+                  aria-label={`Enlarge terrain layout ${label}: ${deployment.name} battlefield with ${terrain.name}`}
+                  onClick={() => setInspecting(terrain.id)}
+                >
+                  <TerrainBoard
+                    layout={terrain}
+                    deployment={deployment}
+                    templates={references?.templates ?? []}
+                    className="w-full"
+                    ariaLabel={`Layout ${label}: ${deployment.name} battlefield with ${terrain.name}`}
+                  />
+                  <span className="mt-2 flex items-center justify-center gap-1 text-xs font-bold text-bone uppercase group-hover:text-azure">
+                    <Eye className="size-3.5 shrink-0 text-dim group-hover:text-azure" />
+                    {deployment.name}
+                  </span>
+                </button>
+              </article>
+            )
+          })}
+        </div>
+      )}
       {options.some((option) => !option.terrain.geometry) ? (
         <p role="alert" className="mt-2 text-xs text-destructive">
           Terrain labels and measurements are still loading. Those layouts cannot be selected yet.
@@ -146,5 +159,21 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
         ) : null}
       </Dialog>
     </section>
+  )
+}
+
+/** The three layout cards at their final geometry, while the pack is still being read. */
+function LayoutsLoading() {
+  return (
+    <div className="mt-3 grid gap-3 sm:grid-cols-3" aria-label="Loading battlefield layouts">
+      {Array.from({ length: 3 }, (_, index) => (
+        <div key={index} className="flex flex-col border border-edge bg-sunken p-2" aria-hidden>
+          <Skeleton className="mx-auto h-7 w-6" />
+          <Skeleton className="mt-2 h-8 w-full" />
+          <Skeleton className="mt-2 aspect-[44/60] w-full" />
+          <Skeleton className="mx-auto mt-2 h-4 w-2/3" />
+        </div>
+      ))}
+    </div>
   )
 }

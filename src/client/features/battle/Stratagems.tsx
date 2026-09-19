@@ -9,7 +9,7 @@ import type { Side } from '../../sides'
 import { hiddenThisPhase, stratagemVisibleNow } from '../../stratagemVisibility'
 import { RuleText } from '../../components/RuleText'
 import type { StratagemText } from './MissionCards'
-import { CARD, CARD_NAME, HEADING } from './tints'
+import { CARD, CARD_NAME } from './tints'
 
 type ViewStratagem = BattleView['players'][number]['stratagems'][number]
 
@@ -39,7 +39,7 @@ export function Stratagems({ side, phase, coreKeys, actionable, pending, send, w
        * army that brought them.
        */}
       {pooledDetachments(side.stratagems, coreKeys) > 1 ? (
-        <p className="rounded-sm border border-edge bg-sunken px-2.5 py-1.5 text-[0.6875rem] text-dim">
+        <p className="rounded-sm border border-edge bg-sunken px-2.5 py-1.5 text-2xs text-dim">
           Each detachment’s rules affect the army that brought it and the enemy — not your ally’s units.
         </p>
       ) : null}
@@ -48,7 +48,7 @@ export function Stratagems({ side, phase, coreKeys, actionable, pending, send, w
         if (!shown.length) return null
         return (
           <div key={group.label} className="space-y-1.5">
-            <p className={HEADING}>{group.label}</p>
+            <p className="eyebrow">{group.label}</p>
             {shown.map((stratagem) => (
               <StratagemCard
                 key={stratagem.key}
@@ -150,9 +150,9 @@ function StratagemCard({
         >
           {stratagem.name}
         </DialogTrigger>
-        <DialogContent className="max-h-[85dvh] overflow-y-auto border border-edge bg-panel text-bone sm:max-w-2xl">
+        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="uppercase">{stratagem.name}</DialogTitle>
+            <DialogTitle>{stratagem.name}</DialogTitle>
             <DialogDescription className="eyebrow">{timing}</DialogDescription>
           </DialogHeader>
           <p className="flex items-baseline justify-between gap-3">
@@ -172,10 +172,9 @@ function StratagemCard({
           {/* Some stratagems cost more or less depending on what is on the board, so the price is a choice. */}
           <DropdownMenu>
             <DropdownMenuTrigger
-              aria-label={`Spend a different amount on ${stratagem.name}`}
-              className="grid size-6 shrink-0 place-items-center text-dim hover:text-bone"
+              render={<Button variant="ghost" size="icon-xs" aria-label={`Spend a different amount on ${stratagem.name}`} />}
             >
-              <EllipsisVertical className="size-4" />
+              <EllipsisVertical />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {costChoices(stratagem.cp).map((cost) => (
@@ -185,22 +184,19 @@ function StratagemCard({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <button
-            type="button"
-            className={`readout shrink-0 rounded-sm px-2 py-1.5 text-sm font-bold uppercase ${
-              refusal ? 'bg-edge text-dim' : 'bg-azure text-void hover:bg-azure/80'
-            }`}
+          <Button
+            className={`readout font-bold uppercase ${refusal ? 'bg-edge text-dim' : 'bg-azure text-void hover:bg-azure/80'}`}
             disabled={pending || refusal !== null}
             title={refusal ?? undefined}
             aria-label={`Use ${stratagem.name}`}
             onClick={() => use()}
           >
             {stratagem.cp} CP
-          </button>
+          </Button>
         </>
       ) : (
         <span
-          className={`readout shrink-0 rounded-sm px-1.5 py-px text-[0.6875rem] font-bold uppercase ${
+          className={`readout shrink-0 rounded-sm px-1.5 py-px text-2xs font-bold uppercase ${
             refusal ? 'bg-edge text-dim' : 'bg-azure text-void'
           }`}
         >
@@ -208,15 +204,13 @@ function StratagemCard({
         </span>
       )}
       <Dialog open={newOrdersCost !== null} onOpenChange={(open) => !open && setNewOrdersCost(null)}>
-        <DialogContent className="rounded-none border border-parchment/60 bg-panel text-bone ring-0 sm:max-w-md">
+        <DialogContent className="border-parchment/60 sm:max-w-md">
           <DialogHeader className="pr-7">
             <div className="flex items-center justify-between gap-3">
-              <DialogTitle className="text-parchment uppercase">New Orders</DialogTitle>
+              <DialogTitle className="text-parchment">New Orders</DialogTitle>
               <span className="chip shrink-0">{newOrdersCost ?? stratagem.cp} CP</span>
             </div>
-            <DialogDescription className="text-dim">
-              Pick an active secondary mission to discard. Its replacement will be drawn at random.
-            </DialogDescription>
+            <DialogDescription>Pick an active secondary mission to discard. Its replacement will be drawn at random.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <p className="eyebrow">Choose a mission to replace</p>
@@ -225,7 +219,7 @@ function StratagemCard({
                 key={secondary.key}
                 variant="outline"
                 aria-label={`Discard ${secondary.name} and draw a replacement`}
-                className="group h-auto w-full justify-between rounded-none border-edge bg-sunken px-3 py-3 text-left hover:border-parchment hover:bg-raised"
+                className="group h-auto w-full justify-between border-edge bg-sunken px-3 py-3 text-left hover:border-parchment hover:bg-raised"
                 disabled={pending || !replacement || newOrdersCost === null}
                 onClick={() => {
                   if (!replacement || newOrdersCost === null) return
@@ -234,7 +228,7 @@ function StratagemCard({
                 }}
               >
                 <span className="min-w-0 whitespace-normal">
-                  <span className="block text-[0.6875rem] leading-none font-bold tracking-[0.1em] text-discarded uppercase">Discard</span>
+                  <span className="block text-2xs leading-none font-bold tracking-widest text-discarded uppercase">Discard</span>
                   <span className="mt-1 block text-sm leading-tight font-bold text-bone uppercase">{secondary.name}</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-parchment uppercase">

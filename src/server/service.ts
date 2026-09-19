@@ -262,6 +262,10 @@ export class PraetoriumService {
     return this.socialService.friendships(...args)
   }
 
+  searchPlayers(...args: Parameters<SocialService['searchPlayers']>) {
+    return this.socialService.searchPlayers(...args)
+  }
+
   requestFriend(...args: Parameters<SocialService['requestFriend']>) {
     return this.socialService.requestFriend(...args)
   }

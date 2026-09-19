@@ -137,7 +137,7 @@ function IdentityLine({
   return (
     // A block rather than an inline run, so a side of two armies reads as two lines
     // instead of one sentence with both of them in it.
-    <span className={`flex min-w-0 flex-wrap items-center gap-x-1 text-[0.6875rem] text-dim ${className}`}>
+    <span className={`flex min-w-0 flex-wrap items-center gap-x-1 text-2xs text-dim ${className}`}>
       {parts.map((part, at) => (
         // The separator trails what it separates, so a line that wraps starts with a
         // name rather than with a dot belonging to the line above it.

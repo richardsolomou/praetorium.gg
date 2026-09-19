@@ -4,6 +4,7 @@ import { UserX } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { ServiceRecord } from '../core/serviceRecord'
 import { BattleShelf } from '../client/features/battles/BattleShelf'
+import { PageContent, PageHeader } from '../client/components/Page'
 import { PageState } from '../client/components/PageState'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { PlayerRankings } from '../client/features/profile/PlayerRankings'
@@ -115,18 +116,13 @@ function PlayerProfile() {
   const tab = tabs.some((candidate) => candidate.value === search.tab) ? (search.tab as ProfileTab) : 'record'
   return (
     <main className="w-full">
-      <section className="relative overflow-hidden border-b border-edge bg-panel">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto flex max-w-5xl items-center gap-4 px-3 py-5 sm:px-4 sm:py-7">
-          <PlayerAvatar name={profile.name} image={profile.image} className="size-20 text-2xl" />
-          <div className="min-w-0">
-            <p className="eyebrow text-parchment">{yourself ? 'You' : 'Player'}</p>
-            <h1 className="truncate text-2xl">{profile.name}</h1>
-            <p className="mt-2 text-sm text-dim">{record ? summarise(record) : ''}</p>
-          </div>
-        </div>
-      </section>
-      <div className="mx-auto max-w-5xl px-3 pt-4 pb-8 sm:px-4">
+      <PageHeader
+        eyebrow={yourself ? 'You' : 'Player'}
+        title={profile.name}
+        description={record ? summarise(record) : undefined}
+        media={<PlayerAvatar name={profile.name} image={profile.image} className="size-20 text-2xl" />}
+      />
+      <PageContent>
         {/* The primitive's root is a flex row by default, which would sit the panel beside the tab bar. */}
         <Tabs
           value={tab}
@@ -194,7 +190,7 @@ function PlayerProfile() {
             </TabsContent>
           ) : null}
         </Tabs>
-      </div>
+      </PageContent>
     </main>
   )
 }

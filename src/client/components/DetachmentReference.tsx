@@ -6,6 +6,7 @@ import { dispositionTone } from './rosterSetup'
 import { FactionMark, factionColour, type FactionPresentation } from './FactionMark'
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
 import { PageState } from './PageState'
+import { PageContent, PageHeader } from './Page'
 
 export function DetachmentReference({
   catalogueId,
@@ -33,35 +34,28 @@ export function DetachmentReference({
 
   return (
     <div>
-      <section
-        className="relative overflow-hidden border-t-[3px] border-b border-edge bg-panel"
-        style={{ borderTopColor: faction ? factionColour(faction.slug) : undefined }}
-      >
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto flex max-w-5xl items-start gap-3 px-3 pt-[17px] pb-5 sm:px-4 sm:pt-[25px] sm:pb-7">
-          {faction ? <FactionMark id={faction.slug} icon={faction.icon} /> : null}
-          <div className="min-w-0 flex-1">
-            <p className="eyebrow text-parchment">{faction ? `${faction.displayName} · Detachment` : 'Detachment'}</p>
-            <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
-              <h1 className="text-3xl">{detachment.name}</h1>
-              {detachment.dispositions.length || detachment.points !== null || detachmentId ? (
-                <div className="flex flex-wrap gap-1 pt-1 sm:shrink-0 sm:justify-end">
-                  {detachment.dispositions.map((disposition) => (
-                    <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
-                      {disposition}
-                    </span>
-                  ))}
-                  {detachment.points === null ? null : <span className="chip">{detachment.points} DP</span>}
-                  {detachmentId ? (
-                    <FavouriteDetachmentToggle catalogueId={catalogueId} detachmentId={detachmentId} name={detachment.name} />
-                  ) : null}
-                </div>
+      <PageHeader
+        tint={faction ? factionColour(faction.slug) : undefined}
+        eyebrow={faction ? `${faction.displayName} · Detachment` : 'Detachment'}
+        title={detachment.name}
+        media={faction ? <FactionMark id={faction.slug} icon={faction.icon} /> : undefined}
+        actions={
+          detachment.dispositions.length || detachment.points !== null || detachmentId ? (
+            <div className="flex flex-wrap items-center gap-1">
+              {detachment.dispositions.map((disposition) => (
+                <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
+                  {disposition}
+                </span>
+              ))}
+              {detachment.points === null ? null : <span className="chip">{detachment.points} DP</span>}
+              {detachmentId ? (
+                <FavouriteDetachmentToggle catalogueId={catalogueId} detachmentId={detachmentId} name={detachment.name} />
               ) : null}
             </div>
-          </div>
-        </div>
-      </section>
-      <div className="mx-auto max-w-5xl space-y-6 px-3 pt-4 pb-8 sm:px-4">
+          ) : null
+        }
+      />
+      <PageContent className="space-y-6">
         {afterHero}
 
         {detachment.rules.length ? (
@@ -136,7 +130,7 @@ export function DetachmentReference({
         </section>
 
         <p className="border-t border-edge pt-3 text-xs text-dim">{detachment.attribution}</p>
-      </div>
+      </PageContent>
     </div>
   )
 }

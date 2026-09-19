@@ -144,7 +144,7 @@ export function AppShell() {
                   <div className="flex h-12 items-center gap-2 px-2 sm:px-4 min-[860px]:gap-3 min-[1000px]:gap-5">
                     <Link
                       to="/"
-                      className="group flex shrink-0 items-center gap-1.5 text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-info sm:text-lg"
+                      className="group flex shrink-0 items-center gap-1.5 text-base leading-none font-bold tracking-wide text-bone uppercase hover:text-info sm:text-lg"
                     >
                       <img src="/logo.svg" alt="" className="size-7 transition-transform group-hover:rotate-180" />
                       <span className="min-[860px]:hidden min-[1000px]:inline">Praetorium</span>
@@ -163,7 +163,7 @@ export function AppShell() {
                     <Link
                       to="/"
                       aria-label="Praetorium home"
-                      className="group flex min-w-0 items-center gap-2 font-bold tracking-[0.04em] text-bone uppercase hover:text-info"
+                      className="group flex min-w-0 items-center gap-2 font-bold tracking-label text-bone uppercase hover:text-info"
                     >
                       <img src="/logo.svg" alt="" className="size-7 shrink-0 transition-transform group-hover:rotate-180" />
                       <span className="truncate">Praetorium</span>

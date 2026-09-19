@@ -61,7 +61,7 @@ export function RosterRow({
           <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${title}`} />}>
             <EllipsisVertical />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 rounded-none border border-edge bg-panel text-bone">
+          <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem render={<Link to="/rosters/$id" params={{ id: roster.id }} target="_blank" />}>
               <Eye /> View
             </DropdownMenuItem>
@@ -69,7 +69,7 @@ export function RosterRow({
           </DropdownMenuContent>
         </DropdownMenu>
       </ContextMenuTrigger>
-      <ContextMenuContent className="rounded-none border border-edge bg-panel text-bone">
+      <ContextMenuContent className="w-56">
         <RosterActionItems Item={ContextMenuItem} {...items} />
       </ContextMenuContent>
     </ContextMenu>

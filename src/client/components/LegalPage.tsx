@@ -1,16 +1,18 @@
 import type { ReactNode } from 'react'
+import { PageContent, PageHeader } from './Page'
 
 /**
- * The shell both legal documents render inside: one narrow column of Barlow
- * prose under the compact display heading the rest of the interface uses.
+ * The shell both legal documents render inside: the page band every other page
+ * opens with, over one narrow column of Barlow prose that a reader can follow.
  */
 export function LegalPage({ title, updated, children }: { title: string; updated: string; children: ReactNode }) {
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6">
-      <p className="eyebrow text-parchment">Praetorium</p>
-      <h1 className="mt-1 text-3xl">{title}</h1>
-      <p className="mt-2 font-rules text-xs text-faint">Last updated {updated}</p>
-      <div className="mt-10 space-y-10 font-rules">{children}</div>
+    <main className="w-full">
+      <PageHeader eyebrow="Praetorium" title={title} description={`Last updated ${updated}`} />
+      <PageContent className="pt-8">
+        {/* Narrower than the page, so a paragraph of legal prose keeps a readable measure. */}
+        <div className="max-w-2xl space-y-10 font-rules">{children}</div>
+      </PageContent>
     </main>
   )
 }

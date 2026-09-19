@@ -1,7 +1,15 @@
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import * as functions from '../server/functions'
-import { gameReferencesRefreshInterval, loadoutDatasheetsQuery, newestBattleScreen, terrainReferencesQuery } from './queries'
+import { PLAYER_SEARCH_MAX_LENGTH } from '../server/schemas'
+import {
+  gameReferencesRefreshInterval,
+  loadoutDatasheetsQuery,
+  newestBattleScreen,
+  playerSearchKey,
+  playerSearchQuery,
+  terrainReferencesQuery,
+} from './queries'
 
 describe('battle query ordering', () => {
   it('keeps the newer cached battle when an older refetch finishes late', () => {
@@ -39,6 +47,26 @@ describe('roster datasheet queries', () => {
     const query = loadoutDatasheetsQuery('catalogue', 'unit', ['detachment'], picks, 0)
 
     expect(query.queryKey).toEqual(['loadout-datasheets', 'catalogue', 'unit', ['detachment'], picks, 0])
+  })
+})
+
+describe('player search queries', () => {
+  it('waits for enough of a name to be worth asking about', () => {
+    expect(playerSearchQuery('a').enabled).toBe(false)
+    expect(playerSearchQuery('al').enabled).toBe(true)
+  })
+
+  it('ignores the spaces around a typed name', () => {
+    expect(playerSearchQuery(' a ').enabled).toBe(false)
+  })
+
+  it('does not ask about a name longer than the server accepts', () => {
+    expect(playerSearchQuery('a'.repeat(PLAYER_SEARCH_MAX_LENGTH)).enabled).toBe(true)
+    expect(playerSearchQuery('a'.repeat(PLAYER_SEARCH_MAX_LENGTH + 1)).enabled).toBe(false)
+  })
+
+  it('keys each name separately so one search cannot answer another', () => {
+    expect(playerSearchQuery('alice').queryKey).toEqual([...playerSearchKey, 'alice'])
   })
 })
 

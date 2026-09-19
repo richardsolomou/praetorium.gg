@@ -9,7 +9,7 @@ import { ArmyIdentity } from '../../components/ArmyIdentity'
 import { Section } from '../builder/Section'
 import { UnitCard } from '../builder/UnitCard'
 import { formationLabel } from '../setup/chrome'
-import { HEADING, tint } from './tints'
+import { tint } from './tints'
 
 type Props = {
   army: Army
@@ -50,7 +50,7 @@ export function ArmyRoster({ army, side, token, actionable, send }: Props) {
         </Button>
         {/* What is left of it, so the number worth glancing at needs no dialog to read. */}
         {army.units.length ? (
-          <span className="readout text-[0.625rem] text-faint">
+          <span className="readout text-3xs text-faint">
             <span data-army-units>
               {army.standing}/{army.unitCount}
             </span>{' '}
@@ -64,10 +64,10 @@ export function ArmyRoster({ army, side, token, actionable, send }: Props) {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent data-army-roster className={`rounded-none border bg-panel text-bone sm:max-w-xl ${tint(side.index).border}`}>
+        <DialogContent data-army-roster className={`max-h-[85dvh] overflow-y-auto sm:max-w-xl ${tint(side.index).border}`}>
           <DialogHeader className="text-center">
             <p className="eyebrow">{army.playerName}</p>
-            <DialogTitle className="uppercase">{roster.name}</DialogTitle>
+            <DialogTitle>{roster.name}</DialogTitle>
             <DialogDescription render={<div />}>
               <ArmyIdentity army={army} token={token} list={false} className="justify-center" />
             </DialogDescription>
@@ -261,7 +261,7 @@ function Counter({
       <span data-count={noun} className="readout text-xs font-semibold">
         {left}/{of}
       </span>
-      <span className={HEADING}>{noun}</span>
+      <span className="eyebrow">{noun}</span>
       {actionable ? (
         <Button variant="outline" size="icon-xs" disabled={whole} aria-label={returnLabel} onClick={() => onStep(1)}>
           <Plus aria-hidden />

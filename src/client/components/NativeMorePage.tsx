@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Gavel, House, Medal, MessageSquareWarning, ShieldCheck, Trophy, Users, type LucideIcon } from 'lucide-react'
 import { meQuery } from '../queries'
+import { PageContent, PageHeader } from './Page'
 
 type MoreLink = { description: string; icon: LucideIcon; label: string; to: '/' | '/leaderboard' | '/leagues' | '/rules' }
 
@@ -19,13 +20,8 @@ export function NativeMorePage() {
 
   return (
     <main className="w-full bg-sunken">
-      <header className="border-b border-edge bg-panel">
-        <div className="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6 sm:py-8">
-          <p className="eyebrow text-primary">Application</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight uppercase">More</h1>
-        </div>
-      </header>
-      <div className="mx-auto grid w-full max-w-3xl content-start gap-8 px-4 py-6 sm:px-6 sm:py-8">
+      <PageHeader eyebrow="Application" title="More" />
+      <PageContent className="grid content-start gap-8">
         <section aria-labelledby="more-navigation-heading">
           <h2 id="more-navigation-heading" className="eyebrow mb-3 text-dim">
             Explore
@@ -66,7 +62,7 @@ export function NativeMorePage() {
             </a>
           </div>
         </section>
-      </div>
+      </PageContent>
     </main>
   )
 }

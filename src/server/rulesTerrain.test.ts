@@ -87,6 +87,64 @@ describe('source objective metadata', () => {
   })
 })
 
+describe('source terrain reference markers', () => {
+  it.each([
+    { home: 'CD', expansion: 'CD GH' },
+    { home: 'EF', expansion: 'EF GH' },
+    { home: 'GH', expansion: 'CD GH' },
+  ])('resolves a duplicated $home marker from the objective roles', ({ home, expansion }) => {
+    const areas = [
+      { ...area, id: 'centre-a', name: 'Area AB' },
+      { ...area, id: 'home-a', name: `Area ${home}` },
+      { ...area, id: 'expansion-a', name: `Area ${expansion}` },
+      { ...area, id: 'centre-b', name: 'Area AB' },
+      { ...area, id: 'home-b', name: `Area ${home}` },
+      { ...area, id: 'expansion-b', name: `Area ${expansion}` },
+    ]
+    const pieces = areas.map((entry) => ({
+      ...piece,
+      id: entry.id,
+      name: entry.name,
+      objective_role: entry.id.startsWith('home') ? 'home' : entry.id.startsWith('expansion') ? 'expansion' : 'center',
+    }))
+
+    expect(load(pieces, areas).areas.map((entry) => entry.markers.map((marker) => marker.label))).toEqual([
+      ['AB'],
+      ['EF'],
+      ['CD', 'GH'],
+      ['AB'],
+      ['EF'],
+      ['CD', 'GH'],
+    ])
+  })
+
+  it('leaves a complete source marker set unchanged', () => {
+    const areas = [
+      { ...area, id: 'centre-a', name: 'Area AB' },
+      { ...area, id: 'home-a', name: 'Area CD' },
+      { ...area, id: 'expansion-a', name: 'Area EF GH' },
+      { ...area, id: 'centre-b', name: 'Area AB' },
+      { ...area, id: 'home-b', name: 'Area CD' },
+      { ...area, id: 'expansion-b', name: 'Area EF GH' },
+    ]
+    const pieces = areas.map((entry) => ({
+      ...piece,
+      id: entry.id,
+      name: entry.name,
+      objective_role: entry.id.startsWith('home') ? 'home' : entry.id.startsWith('expansion') ? 'expansion' : 'center',
+    }))
+
+    expect(load(pieces, areas).areas.map((entry) => entry.markers.map((marker) => marker.label))).toEqual([
+      ['AB'],
+      ['CD'],
+      ['EF', 'GH'],
+      ['AB'],
+      ['CD'],
+      ['EF', 'GH'],
+    ])
+  })
+})
+
 describe('source placement measurements', () => {
   it('keeps the third reference that fixes the rotation of a piece', () => {
     const geometry = load([

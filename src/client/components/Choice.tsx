@@ -39,7 +39,7 @@ export function Choice<T extends string>({
             onClick={() => onChange(option.value)}
           >
             <span className="block text-sm font-bold text-balance uppercase">{option.name}</span>
-            {option.count ? <span className="block text-[0.625rem] text-dim uppercase">{option.count}</span> : null}
+            {option.count ? <span className="block text-3xs text-dim uppercase">{option.count}</span> : null}
             {option.detail ? <span className="mt-1 block text-xs text-dim">{option.detail}</span> : null}
           </button>
         ))}
