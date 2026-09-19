@@ -138,6 +138,9 @@ export const battlesPageSchema = z.object({
 })
 export const battleAudienceSchema = z.object({ audience: z.enum(BATTLE_AUDIENCES) })
 export const userSchema = z.object({ userId: id })
+/** How much of a name has to be typed before the instance is searched for it. */
+export const PLAYER_SEARCH_MIN_LENGTH = 2
+export const playerSearchSchema = z.object({ query: z.string().trim().max(80) })
 export const friendSchema = z.object({ userId: id })
 
 /**

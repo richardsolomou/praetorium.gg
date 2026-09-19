@@ -6,6 +6,12 @@ import { account, battleUsers, friendships, practiceOpponents, rosters, user } f
 import type { UnlinkAccountResult } from '../repository'
 
 const ADMIN_USERS_PAGE_SIZE = 50
+const PLAYER_SEARCH_LIMIT = 20
+
+/** A typed name matched anywhere in a stored one, with the wildcards the player typed left as literals. */
+function contains(query: string) {
+  return `%${query.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
+}
 
 export class AccountRepository {
   constructor(private readonly database: PraetoriumDatabase) {}
@@ -23,10 +29,7 @@ export class AccountRepository {
         this.database.select({ id: practiceOpponents.userId }).from(practiceOpponents).where(eq(practiceOpponents.userId, user.id)),
       ),
     ]
-    if (query) {
-      const escaped = query.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')
-      conditions.push(or(ilike(user.name, `%${escaped}%`), ilike(user.email, `%${escaped}%`))!)
-    }
+    if (query) conditions.push(or(ilike(user.name, contains(query)), ilike(user.email, contains(query)))!)
     if (input.cursor) {
       conditions.push(
         or(lt(user.createdAt, input.cursor.createdAt), and(eq(user.createdAt, input.cursor.createdAt), lt(user.id, input.cursor.id)))!,
@@ -114,13 +117,13 @@ export class AccountRepository {
   }
 
   /**
-   * Players this one has no relationship with yet, so there is someone to ask.
+   * Players matching a typed name that this one has no relationship with yet.
    *
-   * The exclusion is the database's: filtering a fetched page in memory returns
-   * fewer than a page as soon as a player has connections, and a well-connected
-   * one could be offered nobody at all while the instance is full of strangers.
+   * The name, the exclusions and the bound are all the database's: reading every
+   * account to filter it afterwards costs the whole user table to answer a
+   * question about twenty rows, and grows with the instance.
    */
-  async unrelatedUsers(userId: string, limit = 100) {
+  async searchPlayers(userId: string, query: string, limit = PLAYER_SEARCH_LIMIT) {
     const relationship = this.database
       .select({ one: sql`1` })
       .from(friendships)
@@ -136,9 +139,9 @@ export class AccountRepository {
       .where(eq(practiceOpponents.userId, user.id))
     // A practice opponent is nobody to befriend: it is offered as a seat, not a player.
     return this.database
-      .select({ id: user.id, name: user.name })
+      .select({ id: user.id, name: user.name, image: user.image })
       .from(user)
-      .where(and(ne(user.id, userId), notExists(relationship), notExists(practice)))
+      .where(and(ne(user.id, userId), ilike(user.name, contains(query)), notExists(relationship), notExists(practice)))
       .orderBy(asc(user.name))
       .limit(limit)
   }

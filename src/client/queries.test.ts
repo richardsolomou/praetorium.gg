@@ -1,7 +1,13 @@
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import * as functions from '../server/functions'
-import { gameReferencesRefreshInterval, loadoutDatasheetsQuery, newestBattleScreen, terrainReferencesQuery } from './queries'
+import {
+  gameReferencesRefreshInterval,
+  loadoutDatasheetsQuery,
+  newestBattleScreen,
+  playerSearchQuery,
+  terrainReferencesQuery,
+} from './queries'
 
 describe('battle query ordering', () => {
   it('keeps the newer cached battle when an older refetch finishes late', () => {
@@ -39,6 +45,17 @@ describe('roster datasheet queries', () => {
     const query = loadoutDatasheetsQuery('catalogue', 'unit', ['detachment'], picks, 0)
 
     expect(query.queryKey).toEqual(['loadout-datasheets', 'catalogue', 'unit', ['detachment'], picks, 0])
+  })
+})
+
+describe('player search queries', () => {
+  it('waits for enough of a name to be worth asking about', () => {
+    expect(playerSearchQuery('a').enabled).toBe(false)
+    expect(playerSearchQuery('al').enabled).toBe(true)
+  })
+
+  it('ignores the spaces around a typed name', () => {
+    expect(playerSearchQuery(' a ').enabled).toBe(false)
   })
 })
 

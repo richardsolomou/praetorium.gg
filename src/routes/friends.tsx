@@ -1,13 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { PageContent, PageHeader } from '../client/components/Page'
 import { SearchField } from '../client/components/SearchField'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { friendshipsQuery, meQuery, opponentsQuery } from '../client/queries'
+import { friendshipsQuery, meQuery, opponentsQuery, playerSearchKey, playerSearchQuery } from '../client/queries'
+import { useSettled } from '../client/useSettled'
 import { acceptFriend, removeFriend, requestFriend } from '../server/functions'
 import { errorMessage } from '../client/queryClient'
 
@@ -24,13 +26,17 @@ type Person = { id: string; name: string; image?: string | null }
 
 function Friends() {
   const { data: me } = useQuery(meQuery())
-  const { data = { friends: [], incoming: [], outgoing: [], people: [] } } = useQuery(friendshipsQuery())
+  const { data = { friends: [], incoming: [], outgoing: [] } } = useQuery(friendshipsQuery())
   const [query, setQuery] = useState('')
+  const settledQuery = useSettled(query.trim())
+  const search = playerSearchQuery(settledQuery)
+  const { data: matches = [], isFetching } = useQuery({ ...search, placeholderData: keepPreviousData })
   const queryClient = useQueryClient()
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: friendshipsQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: opponentsQuery().queryKey }),
+      queryClient.invalidateQueries({ queryKey: playerSearchKey }),
     ])
   }
   const request = useMutation({ mutationFn: (userId: string) => requestFriend({ data: { userId } }), onSuccess: refresh })
@@ -40,7 +46,9 @@ function Friends() {
   const inFlight = (mutation: { isPending: boolean; variables: string | undefined }) =>
     mutation.isPending ? (mutation.variables ?? null) : null
   if (!me) return <SignInRequired title="Your friends" explanation="Sign in to connect with the people you play against." />
-  const people = data.people.filter((person) => person.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+  // Results from the last name searched stay up while the next one is answered.
+  const found = search.enabled ? matches : []
+  const searching = search.enabled && isFetching && !found.length
 
   return (
     <main className="w-full">
@@ -87,10 +95,10 @@ function Friends() {
             onChange={setQuery}
             placeholder="Search by account name"
             label="Search by account name"
-            clearLabel="Empty the player filter"
+            clearLabel="Empty the player search"
           />
           <div className="mt-2 space-y-2">
-            {people.map((person) => (
+            {found.map((person) => (
               <PersonRow
                 key={person.id}
                 person={person}
@@ -99,9 +107,18 @@ function Friends() {
                 onAction={() => request.mutate(person.id)}
               />
             ))}
-            {query && !people.length ? <p className="border border-edge bg-panel p-4 text-sm text-dim">No matching players.</p> : null}
-            {!query && !people.length ? (
-              <p className="border border-edge bg-panel p-4 text-sm text-dim">No other players are available.</p>
+            {searching ? (
+              <>
+                <output className="sr-only">Searching</output>
+                <PersonRowSkeleton />
+                <PersonRowSkeleton />
+              </>
+            ) : null}
+            {!search.enabled ? (
+              <p className="border border-edge bg-panel p-4 text-sm text-dim">Type a player’s name to find them.</p>
+            ) : null}
+            {search.enabled && !searching && !found.length ? (
+              <p className="border border-edge bg-panel p-4 text-sm text-dim">No player matches that name.</p>
             ) : null}
           </div>
         </section>
@@ -160,6 +177,18 @@ function People({
         )}
       </div>
     </section>
+  )
+}
+
+function PersonRowSkeleton() {
+  return (
+    <div className="flex items-center justify-between gap-3 border border-edge bg-panel p-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <Skeleton className="size-9 rounded-full" />
+        <Skeleton className="h-4 w-32" />
+      </div>
+      <Skeleton className="h-8 w-24" />
+    </div>
   )
 }
 
