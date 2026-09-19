@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.67.0
+
+### Minor Changes
+
+- d499779: Compile community sources into one audited catalogue for reference pages.
+
 ## 0.66.7
 
 ### Patch Changes
