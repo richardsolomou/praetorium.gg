@@ -162,6 +162,20 @@ describe('command schema', () => {
       }).success,
     ).toBe(false)
   })
+
+  it('accepts every active mission in one scoring settlement', () => {
+    const command = {
+      kind: 'score-settlement' as const,
+      scores: [
+        { category: 'primary' as const, delta: 5 },
+        { category: 'secondary' as const, key: 'behind-enemy-lines', delta: 3 },
+        { category: 'secondary' as const, key: 'engage-on-all-fronts', delta: 3 },
+        { category: 'secondary' as const, key: 'area-denial', delta: 2 },
+      ],
+    }
+
+    expect(commandSchema.parse(command)).toEqual(command)
+  })
 })
 
 describe('the round a settlement names', () => {
