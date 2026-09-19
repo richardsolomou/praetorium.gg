@@ -42,7 +42,8 @@ function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>
   }
 }
 
-const view = (players: ViewPlayer[], status: BattleView['status'] = 'playing') => ({ players, status }) as BattleView
+const view = (players: ViewPlayer[], status: BattleView['status'] = 'playing') =>
+  ({ players, status, viewerId: players.find((candidate) => candidate.isViewer)?.id ?? 'spectator' }) as BattleView
 
 describe('battle sides', () => {
   it('counts a side of practice opponents as one the viewer plays', () => {
@@ -66,22 +67,7 @@ describe('battle sides', () => {
     expect(theirs).toMatchObject({ automated: false, played: false })
   })
 
-  it('writes for a side from the first seat someone can sign in to, not the first seat', () => {
-    // A practice opponent never opens the app, so a side it happens to sit first on
-    // still has to be settled by the ally beside it rather than by nobody at all.
-    const [, theirs] = sides(
-      view([
-        player({ id: 'you', side: 0, isViewer: true }),
-        player({ id: 'practice', side: 1, automated: true }),
-        player({ id: 'them', side: 1 }),
-      ]),
-    )
-
-    expect(theirs?.captain.id).toBe('practice')
-    expect(theirs?.writer.id).toBe('them')
-  })
-
-  it('leaves a side of practice opponents alone writing for itself, since the table plays it', () => {
+  it('lets the table play a side of practice opponents', () => {
     const [, theirs] = sides(
       view([
         player({ id: 'you', side: 0, isViewer: true }),
@@ -91,7 +77,6 @@ describe('battle sides', () => {
     )
 
     expect(theirs).toMatchObject({ automated: true, played: true })
-    expect(theirs?.writer.id).toBe('practice')
   })
 
   it('folds a 2v1 allied pair into one side', () => {
@@ -197,20 +182,17 @@ describe('battle sides', () => {
 })
 
 describe('writing mission-card setup', () => {
-  const table = sides(
-    view([player({ id: 'you', side: 0, isViewer: true }), player({ id: 'them', side: 1 }), player({ id: 'their-ally', side: 1 })]),
+  const seated = view(
+    [player({ id: 'you', side: 0, isViewer: true }), player({ id: 'them', side: 1 }), player({ id: 'their-ally', side: 1 })],
+    'setup',
   )
 
-  it('lets the side writer settle its choices', () => {
-    expect(canWritePrep(table[0]!, 'you', false)).toBe(true)
+  it('lets a seated player settle either side choices', () => {
+    expect(canWritePrep(seated)).toBe(true)
   })
 
-  it('leaves another side choices to its writer', () => {
-    expect(canWritePrep(table[1]!, 'you', false)).toBe(false)
-  })
-
-  it('lets either device record a mandatory tactical configuration', () => {
-    expect(canWritePrep(table[1]!, 'you', true)).toBe(true)
+  it('keeps setup choices read-only for a spectator', () => {
+    expect(canWritePrep({ ...seated, viewerId: 'spectator' })).toBe(false)
   })
 })
 

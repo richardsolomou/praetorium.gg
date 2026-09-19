@@ -33,7 +33,7 @@ Every section shares one WebView history stack, so the web application records t
 
 Compact roster panes use browser history, which is inside the roster section. Their own close action or the Android system Back action dismisses the pane before it leaves the roster. A datasheet opened from the unit picker returns to that picker. A datasheet opened from a roster unit returns to the roster.
 
-A compact unit pane is a screen inside the roster tab whenever the application tab bar is visible: it stops above the tab bar, and the tab bar stays live beside it on mobile web and in the native application. At intermediate website widths that use the desktop header, the same compact pane remains a modal dialog.
+A compact unit pane is a screen inside the roster tab whenever the application tab bar is visible: it stops above the tab bar, and the tab bar stays live beside it on mobile web and in the native application. Required battle prompts block battle actions but leave the application tab bar live, so a player can inspect a roster, mission, or rule and return to the unanswered prompt. At intermediate website widths that use the desktop header, the same compact pane remains a modal dialog.
 
 After a real background cycle, the shell nudges the WebView's browser lifecycle. This closes and reconnects Centrifugo, then refetches active TanStack Query data through the web application's existing browser handlers. The shell holds no native battle state or lifecycle-specific fetch path.
 

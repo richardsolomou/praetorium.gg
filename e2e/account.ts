@@ -386,8 +386,8 @@ export async function takeTheTurn(page: Page) {
  *
  * A tactical hand is dealt as a turn opens, a personal reminder can appear at a
  * phase boundary, and a card that pays at the end of the phase or turn asks for
- * its points as that moment passes. Each is modal, which takes the board out of
- * the accessibility tree until it is answered.
+ * its points as that moment passes. Each blocks the board until it is answered,
+ * while application navigation remains available on compact screens.
  */
 export async function advance(page: Page, { dismissReminders = true }: { dismissReminders?: boolean } = {}) {
   const reminder = page.getByRole('dialog', { name: /^Battle reminders?$/ })

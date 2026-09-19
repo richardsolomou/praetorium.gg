@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import {
@@ -19,6 +19,7 @@ import { capRoom, cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore
 import { type Side, sideName } from '../../sides'
 import { RuleText } from '../../components/RuleText'
 import { MissionName, type ReferenceCard } from './MissionCards'
+import { BattlePromptDialog } from './BattlePromptDialog'
 import { tint } from './tints'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
 
@@ -176,7 +177,7 @@ export function ScoringDialog({
 
   return (
     <>
-      <Dialog open onOpenChange={(open) => !open && onCancel?.()}>
+      <BattlePromptDialog open onOpenChange={(open) => !open && onCancel?.()}>
         {/* Edged and titled in the side's own tint: points cannot be taken back without an
           undo, so which side is being paid is readable before the sentence naming them. */}
         <DialogContent className={`max-h-[85dvh] overflow-y-auto sm:max-w-2xl ${colours.border}`}>
@@ -278,7 +279,7 @@ export function ScoringDialog({
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </BattlePromptDialog>
       <UndoLatestConfirmation pending={pending} control={undo} />
     </>
   )

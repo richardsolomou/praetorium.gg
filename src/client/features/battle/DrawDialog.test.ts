@@ -19,6 +19,16 @@ describe('redrawOffer', () => {
     expect(redrawOffer(roundRule(1), 2, [])).toBeNull()
   })
 
+  it('offers paired-card redraws as optional', () => {
+    const rule: WhenDrawn = { operation: 'redraw', roundMax: null, heldCards: ['cleanse'], condition: null }
+    expect(redrawOffer(rule, 2, [{ key: 'cleanse' }])).toEqual({
+      message: 'You can put this back while its paired mission is active.',
+      status: 'returned',
+      label: 'Put back and draw another',
+      required: false,
+    })
+  })
+
   it('discards a mandatory conditional replacement instead of returning it', () => {
     const rule: WhenDrawn = {
       operation: 'replace',

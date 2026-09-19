@@ -37,10 +37,10 @@ export function redrawOffer(rule: WhenDrawn | undefined, round: number, held: re
   if (rule.heldCards.length) {
     return held.some((card) => rule.heldCards.includes(card.key))
       ? {
-          message: 'You must put this back while you hold the card it pairs with.',
+          message: 'You can put this back while its paired mission is active.',
           status: 'returned',
           label: 'Put back and draw another',
-          required: true,
+          required: false,
         }
       : null
   }

@@ -40,6 +40,22 @@ test('native battle controls leave the application tabs reachable', async ({ pag
   expect(controlBox && tabsBox).toBeTruthy()
   expect(controlBox!.y + controlBox!.height).toBeLessThanOrEqual(tabsBox!.y)
   await page.screenshot({ path: 'test-results/native-battle-controls-phone.png', fullPage: true })
+
+  const battleUrl = page.url()
+  for (let step = 0; step < 5; step += 1) await advance(page)
+  await page.getByRole('button', { name: 'Pass the turn' }).click()
+  const scoring = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
+  await expect(scoring).toBeVisible()
+  const scoringBox = await scoring.boundingBox()
+  expect(scoringBox).toBeTruthy()
+  expect(scoringBox!.y + scoringBox!.height).toBeLessThanOrEqual(tabsBox!.y)
+  await page.screenshot({ path: 'test-results/native-scoring-prompt-phone.png' })
+
+  await applicationTabs.getByRole('link', { name: 'Rosters' }).click()
+  await expect(page).toHaveURL(/\/rosters/)
+  await applicationTabs.getByRole('link', { name: 'Battles' }).click()
+  await expect(page).toHaveURL(battleUrl)
+  await expect(scoring).toBeVisible()
 })
 
 test('a running battle restores mission prompts when its tactical prep is missing', async ({ page }) => {
@@ -381,7 +397,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(alice.getByRole('heading', { name: aliceName })).toBeVisible()
 })
 
-test('a card the rules let you put back is offered back as it is drawn', async ({ browser }) => {
+test('paired secondary missions may be kept or put back as they are drawn', async ({ browser }) => {
   const alice = await (await browser.newContext(desktopContext)).newPage()
   const bob = await (await browser.newContext(desktopContext)).newPage()
   const aliceName = uniqueName('Alice')
@@ -406,17 +422,14 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   await expect(prompt).toBeVisible()
   await expect(alice.getByRole('dialog', { name: `${bobName}’s secondary missions` })).toBeVisible()
   await prompt.getByRole('button', { name: 'Select missions' }).click()
-  await prompt
-    .getByRole('button', { name: /^Select / })
-    .first()
-    .click()
-  await prompt
-    .getByRole('button', { name: /^Select / })
-    .first()
-    .click()
+  await prompt.getByRole('button', { name: 'Select Cleanse', exact: true }).click()
+  await prompt.getByRole('button', { name: 'Select Plunder', exact: true }).click()
   await bob.screenshot({ path: 'test-results/secondary-picker.png' })
   await prompt.getByRole('button', { name: 'Add selected missions' }).click()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
+  await expect(prompt.getByText('You can put this back while its paired mission is active.')).toHaveCount(2)
+  await expect(prompt.getByRole('button', { name: 'Take the turn' })).toBeEnabled()
+  await bob.screenshot({ path: 'test-results/paired-secondary-choice.png' })
   const firstCard = prompt.locator('[data-drawn]').first()
   const readCard = firstCard.getByRole('button', { name: /^Read / })
   const cardName = (await readCard.getAttribute('aria-label'))?.replace(/^Read /, '') ?? ''
@@ -576,9 +589,9 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
     hostRoster: aliceRoster,
     guestRoster: bobRoster,
     beforeStart: async () => {
-      await setupStep(bob, 'Secondaries')
-      const chooseFixed = async (page: typeof alice) => {
-        const fixed = page.getByRole('group', { name: 'Secondary play' }).getByRole('button', { name: 'Fixed' })
+      const chooseFixed = async (side: number) => {
+        const prep = alice.getByRole('group', { name: 'Secondary play' }).nth(side).locator('..')
+        const fixed = prep.getByRole('button', { name: 'Fixed' })
         const press = async (button: Locator) => {
           await expect(async () => {
             if ((await button.getAttribute('aria-pressed')) === 'true') return
@@ -587,12 +600,13 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
           }).toPass({ timeout: 10_000 })
         }
         await press(fixed)
-        await press(page.getByRole('button', { name: /^(Select|Remove) Engage on All Fronts$/ }))
-        await press(page.getByRole('button', { name: /^(Select|Remove) Bring It Down$/ }))
-        await expect(page.getByRole('group', { name: 'Secondary play' }).locator('..')).toHaveAttribute('data-secondary-deck-ready', 'true')
+        await press(prep.getByRole('button', { name: /^(Select|Remove) Engage on All Fronts$/ }))
+        await press(prep.getByRole('button', { name: /^(Select|Remove) Bring It Down$/ }))
+        await expect(prep).toHaveAttribute('data-secondary-deck-ready', 'true')
       }
-      await chooseFixed(alice)
-      await chooseFixed(bob)
+      await chooseFixed(0)
+      await chooseFixed(1)
+      await alice.screenshot({ path: 'test-results/opponent-secondary-setup.png', fullPage: true })
     },
   })
 
