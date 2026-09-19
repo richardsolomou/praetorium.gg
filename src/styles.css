@@ -51,6 +51,16 @@
   --color-achieved: #63b36f;
   --color-discarded: #d6a44f;
   --color-rust: #b85b46;
+
+  /*
+   * Two label sizes below `text-xs`, for chips, eyebrows and the counts on a
+   * roster card, and the two tracks that go with them. Every small label on
+   * screen is one of these, so a new one has nothing to invent.
+   */
+  --text-2xs: 0.6875rem;
+  --text-3xs: 0.625rem;
+  --tracking-label: 0.06em;
+  --tracking-eyebrow: 0.14em;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -259,7 +269,8 @@ html[data-native-shell='true'] [data-scoreboard] {
   --foreground: #eceff1;
   --card: #121417;
   --card-foreground: #eceff1;
-  --popover: #1a1d21;
+  /* A menu or dialog is a panel lifted off the page, not a lighter surface. */
+  --popover: #121417;
   --popover-foreground: #eceff1;
   --primary: #89b89d;
   --primary-foreground: #101a14;
@@ -401,6 +412,51 @@ html[data-native-shell='true'] [data-scoreboard] {
   }
 }
 
+/*
+ * Overlays are panels: square, one hairline edge, on the panel surface. The
+ * generated components ship rounded popovers behind a translucent ring, so this
+ * is unlayered to outrank the utilities they set; only the edge's width is
+ * stated, so a caller can still tint it for the side a dialog belongs to.
+ */
+[data-slot='dialog-content'],
+[data-slot='alert-dialog-content'],
+[data-slot='dropdown-menu-content'],
+[data-slot='dropdown-menu-sub-content'],
+[data-slot='context-menu-content'],
+[data-slot='context-menu-sub-content'],
+[data-slot='select-content'],
+[data-slot='combobox-content'] {
+  --tw-ring-shadow: 0 0 #0000;
+  border-width: 1px;
+  border-radius: 0;
+}
+
+/* The footer is the sunken strip a dialog's actions stand on. */
+[data-slot='dialog-footer'],
+[data-slot='alert-dialog-footer'] {
+  border-radius: 0;
+  background-color: var(--color-sunken);
+}
+
+/* A tooltip is a small raised panel, not the inverted pill the component ships. */
+[data-slot='tooltip-content'] {
+  border: 1px solid var(--color-edge-strong);
+  border-radius: 0;
+  background-color: var(--color-raised);
+  color: var(--color-bone);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+
+  /* The pill's arrow, drawn in the inverted colour; a panel needs no pointer. */
+  > [data-side] {
+    display: none;
+  }
+}
+
+/* A placeholder is square like the panel or line it stands in for, unless it stands in for a round avatar. */
+[data-slot='skeleton']:not(.rounded-full) {
+  border-radius: 0;
+}
+
 @media (max-width: 639px) {
   [data-slot='dialog-footer'],
   [data-slot='alert-dialog-footer'] {
@@ -434,12 +490,17 @@ html[data-native-shell='true'] [data-scoreboard] {
 
 /** A small tracked label above the thing it names. */
 @utility eyebrow {
-  @apply text-[0.6875rem] font-semibold tracking-[0.14em] text-dim uppercase;
+  @apply text-2xs font-semibold tracking-eyebrow text-dim uppercase;
 }
 
 /** A section heading with a count beside it, as every list on screen carries. */
 @utility rubric {
-  @apply text-[0.9375rem] font-bold tracking-[0.06em] text-dim uppercase;
+  @apply text-[0.9375rem] font-bold tracking-label text-dim uppercase;
+}
+
+/** The faint diagonal of parchment light behind a page's opening band. */
+@utility sheen {
+  @apply pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)];
 }
 
 /** Any number that changes during a game: fixed width, so it does not jitter. */
@@ -449,5 +510,5 @@ html[data-native-shell='true'] [data-scoreboard] {
 
 /** The bordered points chip that follows every datasheet name around. */
 @utility chip {
-  @apply inline-flex items-center rounded-sm border border-edge-strong px-1.5 py-px text-[0.6875rem] font-semibold tracking-[0.06em] text-dim uppercase tabular-nums;
+  @apply inline-flex items-center rounded-sm border border-edge-strong px-1.5 py-px text-2xs font-semibold tracking-label text-dim uppercase tabular-nums;
 }

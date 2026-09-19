@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { CreateRoster } from '../../components/CreateRoster'
+import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { RosterExportDialog } from '../../components/RosterExportDialog'
 import { RosterImport } from '../../components/RosterImport'
@@ -95,99 +96,94 @@ export function RosterLibraryPage({ search }: { search: RosterLibrarySearch }) {
 
   return (
     <main className="w-full">
-      <section className="relative overflow-hidden border-b border-edge bg-panel">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-4 px-3 py-5 sm:px-4 sm:py-7">
-          <div>
-            <p className="eyebrow text-parchment">Your rosters</p>
-            <h1 className="text-3xl">My rosters</h1>
-            <p className="mt-2 text-sm text-dim">Build, import, organize, and share the armies you bring to battle.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <PageHeader
+        eyebrow="Your rosters"
+        title="My rosters"
+        description="Build, import, organize, and share the armies you bring to battle."
+        actions={
+          <>
             <RosterImport />
             <CreateRoster factionOptions={available?.factions ?? []} />
-          </div>
-        </div>
-      </section>
-
-      <RosterFilters
-        value={{ limit: search.limit, faction: search.faction, visibility: search.visibility, sort: search.sort ?? 'created-desc' }}
-        factionGroups={factionGroups}
-        onChange={(next) =>
-          void navigate({ to: '/rosters', search: { ...next, sort: next.sort === 'created-desc' ? undefined : next.sort } })
+          </>
         }
       />
-      {actions.shareProblem ? (
-        <p className="mx-auto mt-3 max-w-5xl px-3 text-sm text-destructive sm:px-4">Could not copy the link: {actions.shareProblem}</p>
-      ) : null}
 
-      <section className="mx-auto mt-4 max-w-5xl px-3 pb-8 sm:px-4">
-        <div className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-          <span>Rosters</span>
-          {libraryPending ? (
-            <Skeleton className="h-4 w-5" aria-label="Loading roster count" />
-          ) : libraryError ? (
-            <span className="readout">—</span>
-          ) : (
-            <span className="readout">{shown.length}</span>
-          )}
-        </div>
-        <div className="mt-2 space-y-3">
-          {libraryError ? (
-            <PageState
-              headingLevel={2}
-              eyebrow="Roster library"
-              title="Could not load rosters"
-              explanation="The roster library could not be loaded. Try again."
-              action={
-                <Button
-                  variant="outline"
-                  onClick={() => void Promise.all([savedResult.refetch(), availableResult.refetch()])}
-                  disabled={savedResult.isFetching || availableResult.isFetching}
-                >
-                  Try again
-                </Button>
-              }
-            />
-          ) : libraryPending ? (
-            <RosterLibrarySkeleton />
-          ) : shown.length ? (
-            shown.map((roster) => (
-              <RosterRow
-                key={roster.id}
-                roster={roster}
-                faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
-                points={totalsById.get(roster.id)?.points}
-                label={totalsById.get(roster.id)?.label}
-                factionLoading={availableResult.isPending}
-                pointsLoading={totalsResult.isPending}
-                actions={actions}
-                origin={origin}
-                onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
-                onDelete={() => setDeleting(roster)}
+      <PageContent className="space-y-4">
+        <RosterFilters
+          value={{ limit: search.limit, faction: search.faction, visibility: search.visibility, sort: search.sort ?? 'created-desc' }}
+          factionGroups={factionGroups}
+          onChange={(next) =>
+            void navigate({ to: '/rosters', search: { ...next, sort: next.sort === 'created-desc' ? undefined : next.sort } })
+          }
+        />
+        {actions.shareProblem ? <p className="text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}
+
+        <section>
+          <div className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+            <span>Rosters</span>
+            {libraryPending ? (
+              <Skeleton className="h-4 w-5" aria-label="Loading roster count" />
+            ) : libraryError ? (
+              <span className="readout">—</span>
+            ) : (
+              <span className="readout">{shown.length}</span>
+            )}
+          </div>
+          <div className="mt-2 space-y-3">
+            {libraryError ? (
+              <PageState
+                headingLevel={2}
+                eyebrow="Roster library"
+                title="Could not load rosters"
+                explanation="The roster library could not be loaded. Try again."
+                action={
+                  <Button
+                    variant="outline"
+                    onClick={() => void Promise.all([savedResult.refetch(), availableResult.refetch()])}
+                    disabled={savedResult.isFetching || availableResult.isFetching}
+                  >
+                    Try again
+                  </Button>
+                }
               />
-            ))
-          ) : (
-            <PageState
-              headingLevel={2}
-              eyebrow={saved.length ? 'Roster filters' : 'Roster library'}
-              title={saved.length ? 'No rosters match' : 'No rosters yet'}
-              explanation={saved.length ? 'No rosters match these filters.' : 'No rosters yet. Create one or bring one from another app.'}
-              icon={ScrollText}
-            />
-          )}
-        </div>
-      </section>
+            ) : libraryPending ? (
+              <RosterLibrarySkeleton />
+            ) : shown.length ? (
+              shown.map((roster) => (
+                <RosterRow
+                  key={roster.id}
+                  roster={roster}
+                  faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
+                  points={totalsById.get(roster.id)?.points}
+                  label={totalsById.get(roster.id)?.label}
+                  factionLoading={availableResult.isPending}
+                  pointsLoading={totalsResult.isPending}
+                  actions={actions}
+                  origin={origin}
+                  onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
+                  onDelete={() => setDeleting(roster)}
+                />
+              ))
+            ) : (
+              <PageState
+                headingLevel={2}
+                eyebrow={saved.length ? 'Roster filters' : 'Roster library'}
+                title={saved.length ? 'No rosters match' : 'No rosters yet'}
+                explanation={saved.length ? 'No rosters match these filters.' : 'No rosters yet. Create one or bring one from another app.'}
+                icon={ScrollText}
+              />
+            )}
+          </div>
+        </section>
+      </PageContent>
 
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
-        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Delete {deleting?.name}?</AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
-              This removes the saved roster. Battles that already use it are not changed.
-            </AlertDialogDescription>
+            <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>This removes the saved roster. Battles that already use it are not changed.</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="rounded-none border-edge bg-sunken">
+          <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"

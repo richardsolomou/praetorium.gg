@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ReportEntry } from '../../core/battleReport'
@@ -78,7 +79,7 @@ export function Report({
               >
                 <span className="readout text-right text-xs text-dim">
                   {formatTime(entry.at)}
-                  <span className="block text-[0.625rem] text-faint">
+                  <span className="block text-3xs text-faint">
                     {entry.round ? `R${entry.round}` : '—'} {PHASE_LABELS[entry.phase] ?? entry.phase}
                   </span>
                 </span>
@@ -87,13 +88,9 @@ export function Report({
             ))}
             {hidden > 0 ? (
               <li>
-                <button
-                  type="button"
-                  className="mt-1 text-xs text-info hover:text-bone"
-                  onClick={() => setShownCount((current) => current + WINDOW)}
-                >
+                <Button variant="ghost" size="xs" className="mt-1 text-azure" onClick={() => setShownCount((current) => current + WINDOW)}>
                   Show earlier events ({hidden} more)
-                </button>
+                </Button>
               </li>
             ) : null}
           </ol>
@@ -108,7 +105,7 @@ export function Report({
 function ReportSkeleton() {
   return (
     <div className="mt-3" aria-label="Loading battle events">
-      <Skeleton className="h-8 w-28 rounded-none" />
+      <Skeleton className="h-7 w-28" />
       <div className="mt-3 space-y-2">
         {Array.from({ length: 6 }, (_, index) => (
           <div key={index} className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-2 sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3" aria-hidden>

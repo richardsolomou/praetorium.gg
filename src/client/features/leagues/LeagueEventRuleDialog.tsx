@@ -42,10 +42,10 @@ export function LeagueEventRuleDialog({
 }: Props) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent aria-busy={pending} className="rounded-none border border-edge bg-panel text-bone">
+      <AlertDialogContent aria-busy={pending}>
         <AlertDialogHeader>
-          <AlertDialogTitle className="uppercase">{title}</AlertDialogTitle>
-          <AlertDialogDescription className="text-dim">{description}</AlertDialogDescription>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
           <LeagueEventRuleFields value={value} disabled={pending} onChange={onChange} />
           {blocked ? (
             <p className="text-sm text-parchment">

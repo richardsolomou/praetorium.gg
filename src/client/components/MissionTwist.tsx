@@ -1,5 +1,6 @@
 import { Info } from 'lucide-react'
 import type { ReactElement, ReactNode } from 'react'
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { CARD_NAME } from '../features/battle/tints'
 import { RuleText } from './RuleText'
@@ -33,10 +34,10 @@ function TwistDialog({ twist, trigger, children }: { twist: Twist; trigger: Reac
   return (
     <Dialog>
       <DialogTrigger render={trigger}>{children}</DialogTrigger>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto border border-edge bg-panel text-bone sm:max-w-2xl">
+      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="uppercase">{twist.name}</DialogTitle>
-          <DialogDescription className="text-dim">{twist.lore ?? 'What this twist changes for the whole battle.'}</DialogDescription>
+          <DialogTitle>{twist.name}</DialogTitle>
+          <DialogDescription>{twist.lore ?? 'What this twist changes for the whole battle.'}</DialogDescription>
         </DialogHeader>
         {twist.rules ? <RuleText text={twist.rules} /> : null}
       </DialogContent>
@@ -71,15 +72,16 @@ export function TwistInfo({ twist }: { twist: Twist }) {
     <TwistDialog
       twist={twist}
       trigger={
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon-sm"
           aria-label={`Read ${twist.name}`}
           title={`What ${twist.name} changes`}
-          className="absolute top-1 right-1 grid size-7 place-items-center rounded-sm text-dim hover:bg-raised hover:text-bone"
+          className="absolute top-1 right-1 text-dim hover:text-bone"
         />
       }
     >
-      <Info className="size-4" />
+      <Info />
     </TwistDialog>
   )
 }

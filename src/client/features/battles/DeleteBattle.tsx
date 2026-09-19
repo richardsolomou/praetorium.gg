@@ -38,19 +38,17 @@ export function DeleteBattleDialog({ battle, onClose }: { battle: Battle | null;
         onClose()
       }}
     >
-      <AlertDialogContent aria-busy={remove.isPending} className="rounded-none border border-edge bg-panel text-bone ring-0">
+      <AlertDialogContent aria-busy={remove.isPending}>
         <AlertDialogHeader>
-          <AlertDialogTitle className="uppercase">Delete battle?</AlertDialogTitle>
-          <AlertDialogDescription className="text-dim">
-            The score and everything that happened in it go too, for good.
-          </AlertDialogDescription>
+          <AlertDialogTitle>Delete battle?</AlertDialogTitle>
+          <AlertDialogDescription>The score and everything that happened in it go too, for good.</AlertDialogDescription>
         </AlertDialogHeader>
         {remove.error ? (
           <p role="alert" className="text-sm text-destructive">
             {errorMessage(remove.error)}
           </p>
         ) : null}
-        <AlertDialogFooter className="rounded-none border-edge bg-sunken">
+        <AlertDialogFooter>
           <AlertDialogCancel disabled={remove.isPending}>Keep battle</AlertDialogCancel>
           <AlertDialogAction variant="destructive" disabled={remove.isPending} onClick={() => battle && remove.mutate(battle.token)}>
             {remove.isPending ? 'Deleting…' : 'Delete battle'}

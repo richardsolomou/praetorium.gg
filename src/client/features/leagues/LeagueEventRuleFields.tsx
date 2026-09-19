@@ -55,7 +55,7 @@ export function LeagueEventRuleFields({
           disabled={disabled}
           onValueChange={(limit) => limit && onChange({ ...value, rosterLimit: Number(limit) })}
         >
-          <SelectTrigger id="league-event-roster-limit" className="h-10 w-full rounded-none border-edge bg-sunken">
+          <SelectTrigger id="league-event-roster-limit" className="h-11 w-full">
             <SelectValue>{() => label(value.rosterLimit)}</SelectValue>
           </SelectTrigger>
           <SelectContent>

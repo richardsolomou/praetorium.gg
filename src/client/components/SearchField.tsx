@@ -17,6 +17,7 @@ type Props = {
   clearLabel: string
   className?: string
   inputClassName?: string
+  maxLength?: number
 }
 
 /**
@@ -27,7 +28,7 @@ type Props = {
  * control rather than a selection and a delete. Escape does the same for a
  * keyboard, and the cross is only there while there is something to clear.
  */
-export function SearchField({ value, onChange, placeholder, label, clearLabel, className, inputClassName }: Props) {
+export function SearchField({ value, onChange, placeholder, label, clearLabel, className, inputClassName, maxLength }: Props) {
   return (
     <div className={cn('relative', className)}>
       <Input
@@ -38,6 +39,7 @@ export function SearchField({ value, onChange, placeholder, label, clearLabel, c
         }}
         placeholder={placeholder}
         aria-label={label}
+        maxLength={maxLength}
         className={cn(value && 'pr-8', inputClassName)}
       />
       {value ? (

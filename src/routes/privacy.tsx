@@ -23,20 +23,20 @@ function PrivacyPolicy() {
       </LegalSection>
 
       <LegalSection title="What we collect">
-        <h3 className="text-[0.8125rem] tracking-[0.04em] text-bone">Account data</h3>
+        <h3 className="text-sm tracking-label text-bone">Account data</h3>
         <p>
           Your display name, email address, optional profile image, and sign-in credentials. You can sign in with a password or with Apple,
           Google or Discord; when you do, those providers share your name, email address and available profile image with us. Passwords are
           stored only as hashes. If you enable two-factor sign-in we store its secret and recovery codes.
         </p>
-        <h3 className="text-[0.8125rem] tracking-[0.04em] text-bone">Your content</h3>
+        <h3 className="text-sm tracking-label text-bone">Your content</h3>
         <p>
           Saved rosters — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
           and actions recorded during a game, friendships, datasheets you mark as owned, favourites, and practice opponents you seat.
         </p>
-        <h3 className="text-[0.8125rem] tracking-[0.04em] text-bone">Technical data</h3>
+        <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>Sessions record your IP address and browser user agent. Rate-limiting counters protect sign-in and other sensitive actions.</p>
-        <h3 className="text-[0.8125rem] tracking-[0.04em] text-bone">Usage data</h3>
+        <h3 className="text-sm tracking-label text-bone">Usage data</h3>
         <p>
           We measure how the product is used through PostHog: pages visited, buttons used, actions such as creating a roster, errors, and
           session replays. Measurements include counts, durations and outcomes — never names, email addresses, list contents, search text or

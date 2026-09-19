@@ -18,7 +18,7 @@ export function TableStrip({ sides }: { sides: Side[] }) {
     <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
       {sides.map((side, position) => (
         <Fragment key={side.index}>
-          {position ? <span className="text-xs font-bold tracking-[0.14em] text-faint uppercase">versus</span> : null}
+          {position ? <span className="text-xs font-bold tracking-eyebrow text-faint uppercase">versus</span> : null}
           <SidePlayers side={side} />
         </Fragment>
       ))}

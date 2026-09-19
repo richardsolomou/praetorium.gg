@@ -183,8 +183,8 @@ export class Repository {
     return this.accountRepository.namesByIds(...args)
   }
 
-  unrelatedUsers(...args: Parameters<AccountRepository['unrelatedUsers']>) {
-    return this.accountRepository.unrelatedUsers(...args)
+  searchPlayers(...args: Parameters<AccountRepository['searchPlayers']>) {
+    return this.accountRepository.searchPlayers(...args)
   }
 
   practiceOpponents(...args: Parameters<AccountRepository['practiceOpponents']>) {

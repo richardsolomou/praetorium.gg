@@ -7,6 +7,8 @@ import type { Battle } from '../client/features/battles/battle'
 import { BattleShelf } from '../client/features/battles/BattleShelf'
 import { CreateBattle } from '../client/features/battles/CreateBattle'
 import { DeleteBattleDialog } from '../client/features/battles/DeleteBattle'
+import { PageContent, PageHeader } from '../client/components/Page'
+import { PageState } from '../client/components/PageState'
 import { SignInRequired } from '../client/components/SignInRequired'
 import { battlesFrom, battlesQuery, meQuery } from '../client/queries'
 import { useLiveBattles } from '../client/useLiveBattle'
@@ -34,42 +36,35 @@ function Battles() {
 
   return (
     <main className="w-full">
-      <section className="relative overflow-hidden border-b border-edge bg-panel">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-4 px-3 py-5 sm:px-4 sm:py-7">
-          <div>
-            <p className="eyebrow text-parchment">Your battles</p>
-            <h1 className="mt-1 text-3xl">My battles</h1>
-            <p className="mt-2 max-w-2xl text-sm text-dim">Start a game, return to one in progress, or review a finished battle.</p>
-          </div>
-          {battles.length ? <CreateBattle /> : null}
-        </div>
-      </section>
-      {battles.length ? (
-        <div className="mx-auto mt-4 max-w-5xl space-y-6 px-3 pb-8 sm:px-4">
-          <BattleShelf title="Active" battles={active} viewerId={me.id} onDelete={setDeleting} />
-          <BattleShelf title="Setup" battles={setup} viewerId={me.id} onDelete={setDeleting} />
-          <BattleShelf title="Finished" battles={finished} viewerId={me.id} onDelete={setDeleting} />
-          {hasNextPage ? (
-            <div className="pb-2">
+      <PageHeader
+        eyebrow="Your battles"
+        title="My battles"
+        description="Start a game, return to one in progress, or review a finished battle."
+        actions={battles.length ? <CreateBattle /> : null}
+      />
+      <PageContent className="space-y-6">
+        {battles.length ? (
+          <>
+            <BattleShelf title="Active" battles={active} viewerId={me.id} onDelete={setDeleting} />
+            <BattleShelf title="Setup" battles={setup} viewerId={me.id} onDelete={setDeleting} />
+            <BattleShelf title="Finished" battles={finished} viewerId={me.id} onDelete={setDeleting} />
+            {hasNextPage ? (
               <Button variant="outline" size="sm" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
                 {isFetchingNextPage ? 'Loading…' : 'Show earlier battles'}
               </Button>
-            </div>
-          ) : null}
-        </div>
-      ) : (
-        <div className="mx-auto mt-4 grid max-w-5xl place-items-center border-y border-edge bg-panel px-6 py-10 text-center sm:border sm:py-12">
-          <span className="grid size-14 place-items-center rounded-full border border-edge-strong bg-sunken text-parchment">
-            <Swords className="size-6" aria-hidden />
-          </span>
-          <h2 className="mt-4 text-xl">No battles yet.</h2>
-          <p className="mt-2 max-w-md text-sm text-dim">Practise on your own, or add a friend and start a game together.</p>
-          <div className="mt-5">
-            <CreateBattle />
-          </div>
-        </div>
-      )}
+            ) : null}
+          </>
+        ) : (
+          <PageState
+            headingLevel={2}
+            eyebrow="Your battles"
+            title="No battles yet."
+            explanation="Practise on your own, or add a friend and start a game together."
+            icon={Swords}
+            action={<CreateBattle />}
+          />
+        )}
+      </PageContent>
       <DeleteBattleDialog battle={deleting} onClose={() => setDeleting(null)} />
     </main>
   )

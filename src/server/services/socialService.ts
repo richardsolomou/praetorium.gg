@@ -1,4 +1,5 @@
 import type { Repository } from '../../db/repository'
+import { PLAYER_SEARCH_MIN_LENGTH } from '../schemas'
 
 export class SocialService {
   constructor(
@@ -28,15 +29,26 @@ export class SocialService {
   }
 
   /**
-   * Everyone this player is connected to, waiting on, or could ask.
+   * Everyone this player is connected to or waiting on.
    *
-   * Two queries whatever the count: the relationships with the other party
-   * already named, and the strangers, whom the database excludes rather than
-   * this code filtering a fetched page down to whatever survives.
+   * One query whatever the count, with the other party already named. Strangers
+   * are not in it: who else exists is a search, because reading the instance's
+   * whole user table to open this page grows with the instance.
    */
   async friendships(userId: string) {
-    const [relationships, people] = await Promise.all([this.repository.relationships(userId), this.repository.unrelatedUsers(userId)])
-    return { ...sortedFriends(relationships, userId), people }
+    return sortedFriends(await this.repository.relationships(userId), userId)
+  }
+
+  /**
+   * The players a typed name could mean, minus everyone it would be pointless to ask.
+   *
+   * A name too short to narrow anything matches most of the instance, so it is
+   * answered with nothing rather than the first page of whoever is there.
+   */
+  async searchPlayers(userId: string, query: string) {
+    const term = query.trim()
+    if (term.length < PLAYER_SEARCH_MIN_LENGTH) return []
+    return this.repository.searchPlayers(userId, term)
   }
 
   async requestFriend(userId: string, friendId: string) {

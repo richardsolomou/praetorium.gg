@@ -99,7 +99,7 @@ export function NativeAppNavigation({
   }
 
   const tabClass = (selected: boolean) =>
-    `min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-t-2 text-[0.625rem] font-semibold tracking-[0.04em] uppercase ${
+    `min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-t-2 text-3xs font-semibold tracking-label uppercase ${
       selected ? 'border-parchment bg-raised text-parchment' : 'border-transparent text-dim hover:bg-raised hover:text-info'
     }`
 

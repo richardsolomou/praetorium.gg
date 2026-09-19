@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react'
 import { Check, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { WaiverWarning } from '../../components/FormatWaivers'
 
 type Props = {
@@ -47,7 +48,7 @@ export function RosterBuilderFooter({
       <div className="flex flex-wrap items-center gap-2">
         <span className="flex items-center gap-2">
           {loading ? (
-            <span className="size-5 animate-pulse bg-raised" aria-hidden />
+            <Skeleton className="size-5" aria-hidden />
           ) : over ? (
             <TriangleAlert className="size-5 text-destructive" aria-hidden />
           ) : (

@@ -34,9 +34,6 @@ const SIDE_TINTS = [
 
 export const tint = (index: number) => SIDE_TINTS[index] ?? SIDE_TINTS[0]
 
-/** Every named block in the tracker wears the same label. */
-export const HEADING = 'text-[0.6875rem] font-bold tracking-[0.1em] text-dim uppercase'
-
 /** A mission or stratagem: a named card you can act on. */
 export const CARD = 'rounded-sm border border-edge bg-sunken px-2.5 py-2'
 export const CARD_NAME = 'text-sm leading-tight font-bold text-azure uppercase'

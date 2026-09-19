@@ -6,7 +6,7 @@ import type { BattleView } from '../../../core/battleView'
 import type { Side } from '../../sides'
 import { MissionActions } from '../../components/MissionActions'
 import { MissionCardReference } from '../../components/MissionCardReference'
-import { CARD, CARD_NAME, HEADING } from './tints'
+import { CARD, CARD_NAME } from './tints'
 
 import type { MissionAction } from '../../../contracts/missions'
 import type { MissionAward as Award } from '../../missionText'
@@ -68,7 +68,7 @@ export function SecondaryMissions({ side, actionable, pending, send, referenceFo
           <div className="flex items-baseline gap-2">
             <span className="min-w-0 flex-1">
               <MissionName name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" mode={side.secondaryMode} />
-              <span className="mt-0.5 flex flex-wrap gap-1.5 text-[0.625rem] font-semibold uppercase">
+              <span className="mt-0.5 flex flex-wrap gap-1.5 text-3xs font-semibold uppercase">
                 {secondary.secret ? <span className="text-discarded">{secondary.revealed ? 'revealed' : 'secret'}</span> : null}
                 {secondary.status === 'active' ? null : (
                   <span className={secondary.status === 'achieved' ? 'text-achieved' : 'text-discarded'}>{secondary.status}</span>
@@ -119,12 +119,10 @@ function SecretMissionDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" size="xs" disabled={pending} />}>Select secret mission</DialogTrigger>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg">
+      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-discarded uppercase">Select a secret mission</DialogTitle>
-          <DialogDescription className="text-dim">
-            Held face down until you reveal it. Your opponent sees only that you hold one.
-          </DialogDescription>
+          <DialogTitle className="text-discarded">Select a secret mission</DialogTitle>
+          <DialogDescription>Held face down until you reveal it. Your opponent sees only that you hold one.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-1 sm:grid-cols-2">
           {cards.map((card) => (
@@ -151,7 +149,7 @@ function SecretMissionDialog({
 function Total({ label, scored, cap, stat }: { label: string; scored: number; cap: number; stat: string }) {
   return (
     <p className="flex items-baseline justify-between gap-2">
-      <span className={HEADING}>{label}</span>
+      <span className="eyebrow">{label}</span>
       <span className="readout text-xs text-dim">
         <span data-stat={stat} className="text-bone">
           {scored}
@@ -209,10 +207,10 @@ export function MissionDetailsDialog({ details, onOpenChange }: { details: Missi
 
 function MissionDetailsContent({ details }: { details: MissionDetails }) {
   return (
-    <DialogContent className="max-h-[85dvh] overflow-y-auto border border-edge bg-panel text-bone sm:max-w-2xl">
+    <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader>
-        <DialogTitle className="uppercase">{details.name}</DialogTitle>
-        <DialogDescription className="text-dim">What this mission asks you to do and when it scores.</DialogDescription>
+        <DialogTitle>{details.name}</DialogTitle>
+        <DialogDescription>What this mission asks you to do and when it scores.</DialogDescription>
       </DialogHeader>
       <MissionCardReference card={details.card} type={details.type} mode={details.mode} />
       <MissionActions actions={details.card.actions} />

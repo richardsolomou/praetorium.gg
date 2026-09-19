@@ -78,7 +78,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
         }}
         title="Search Praetorium"
         description="Search pages, factions, datasheets and their rules, detachments, missions, rosters and battles."
-        className="top-1/2 max-w-xl -translate-y-1/2 rounded-none! border border-edge bg-panel"
+        className="top-1/2 max-w-xl -translate-y-1/2 rounded-none!"
       >
         <Command shouldFilter={false}>
           <CommandInput value={query} onValueChange={setQuery} placeholder="Search everything…" />
@@ -112,7 +112,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
               )
             })}
           </CommandList>
-          <div className="flex items-center justify-end gap-3 border-t border-edge px-3 py-2 text-[0.625rem] text-dim" aria-hidden>
+          <div className="flex items-center justify-end gap-3 border-t border-edge px-3 py-2 text-3xs text-dim" aria-hidden>
             <span>
               <Kbd>↑</Kbd> <Kbd>↓</Kbd> navigate
             </span>
@@ -129,29 +129,9 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   )
 }
 
-export function GlobalSearch({ compact = false, onOpen, panel = false }: { compact?: boolean; onOpen?: () => void; panel?: boolean }) {
+export function GlobalSearch({ compact = false }: { compact?: boolean }) {
   const search = useContext(GlobalSearchContext)
   if (!search) throw new Error('GlobalSearch must be rendered inside GlobalSearchProvider.')
-
-  if (panel) {
-    return (
-      <button
-        type="button"
-        className="flex min-h-28 flex-col justify-between border border-edge bg-panel p-3 text-left text-bone hover:border-info hover:bg-raised"
-        aria-label="Search Praetorium"
-        onClick={() => {
-          onOpen?.()
-          search.open()
-        }}
-      >
-        <Search className="size-6 text-info" />
-        <span>
-          <span className="block font-semibold uppercase">Search</span>
-          <span className="mt-0.5 block text-xs text-dim">Everything</span>
-        </span>
-      </button>
-    )
-  }
 
   return (
     <Button
@@ -169,8 +149,8 @@ export function GlobalSearch({ compact = false, onOpen, panel = false }: { compa
       {compact ? null : <span className="hidden flex-1 text-left text-xs sm:inline">Search</span>}
       {compact ? null : (
         <KbdGroup className="hidden sm:inline-flex" aria-hidden>
-          <Kbd className="h-4 min-w-4 bg-raised px-0.5 text-[0.625rem] text-faint">{search.shortcutModifier}</Kbd>
-          <Kbd className="h-4 min-w-4 bg-raised px-0.5 text-[0.625rem] text-faint">K</Kbd>
+          <Kbd className="h-4 min-w-4 bg-raised px-0.5 text-3xs text-faint">{search.shortcutModifier}</Kbd>
+          <Kbd className="h-4 min-w-4 bg-raised px-0.5 text-3xs text-faint">K</Kbd>
         </KbdGroup>
       )}
     </Button>

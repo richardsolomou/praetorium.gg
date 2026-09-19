@@ -1,6 +1,7 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { Secondary, SecondaryMode } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
 import { FIXED_SECONDARIES, isKotcLimit, SECONDARY_MODES } from '../../core/battle'
@@ -143,6 +144,21 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     )
   }
 
+  // A request still in flight is not a missing pack, so the panel reserves its controls
+  // rather than telling the table the data is unavailable. Read as in-flight rather than
+  // pending, because a request this side never makes stays pending forever.
+  if (!rules && results.some((result) => result.isFetching)) {
+    return (
+      <div data-secondary-deck-ready={deckReady} className="space-y-3" aria-label="Loading mission data">
+        <div className="grid gap-2 sm:grid-cols-2" aria-hidden>
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+        </div>
+        <Skeleton className="h-4 w-2/3" />
+      </div>
+    )
+  }
+
   if (!rules) {
     return <p className="text-sm text-dim">Mission and stratagem data is unavailable right now. Try again shortly.</p>
   }
@@ -167,7 +183,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
               onClick={() => entry !== mode && save({ mode: entry })}
             >
               <span className="text-sm font-bold uppercase">{entry === 'fixed' ? 'Fixed' : 'Tactical'}</span>
-              <span className="text-[0.6875rem] leading-tight font-normal whitespace-normal text-dim">
+              <span className="text-2xs leading-tight font-normal whitespace-normal text-dim">
                 {entry === 'fixed'
                   ? `Select ${FIXED_SECONDARIES} secondary missions for the battle now`
                   : 'Draw secondary missions at random or select them during the battle'}
@@ -193,7 +209,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
         />
       ) : null}
 
-      <p className="text-[0.6875rem] text-dim">
+      <p className="text-2xs text-dim">
         {rules.attribution}
         {rules.dataslate ? ` · ${rules.dataslate.replaceAll('-', ' ')}` : ''}
       </p>

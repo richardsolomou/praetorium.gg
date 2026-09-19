@@ -6,6 +6,7 @@ import type { RuleEntry } from '../../contracts/rules'
 import { type RuleLinks, ruleLinks } from '../ruleLinks'
 import { ruleIndexQuery, ruleSectionQuery } from '../queries'
 import { RuleMarkup } from './RuleMarkup'
+import { PageContent, PageHeader } from './Page'
 
 /**
  * One section of one rules document, which is as much as anybody reads at a time.
@@ -33,14 +34,8 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
 
   return (
     <main className="w-full">
-      <section className="relative overflow-hidden border-b border-edge bg-panel">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-7">
-          <p className="eyebrow text-parchment">{data.document.title}</p>
-          <h1 className="mt-1 text-3xl">{data.section.title}</h1>
-        </div>
-      </section>
-      <div className="mx-auto max-w-5xl px-3 pt-4 pb-8 sm:px-4">
+      <PageHeader eyebrow={data.document.title} title={data.section.title} />
+      <PageContent>
         <Link to="/rules/$documentId" params={{ documentId }} className="eyebrow flex items-center gap-1 text-info hover:text-bone">
           <ChevronLeft className="size-3.5" aria-hidden /> {data.document.title}
         </Link>
@@ -66,7 +61,7 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
           )}
         </nav>
         <p className="mt-6 border-t border-edge pt-3 text-xs text-dim">{index.attribution}</p>
-      </div>
+      </PageContent>
     </main>
   )
 }

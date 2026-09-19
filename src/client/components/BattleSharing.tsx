@@ -47,7 +47,7 @@ export function BattleSharing() {
     },
   })
   return (
-    <section className="mx-auto mt-8 max-w-3xl space-y-4 border-t border-edge px-3 pt-6 sm:px-4">
+    <section className="space-y-4 border-t border-edge pt-6">
       <div>
         <p className="rubric border-b border-edge pb-2">Who can watch your battles</p>
         <p className="mt-3 text-xs text-dim">

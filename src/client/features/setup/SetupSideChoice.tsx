@@ -55,9 +55,7 @@ export function SetupSideChoice({
                 <ArmyIdentity key={army.playerId} army={army} token={token} linked={false} />
               ))}
               {role ? (
-                <span className={`text-[0.6875rem] font-bold tracking-[0.06em] uppercase ${picked ? tint(side.index).text : 'text-dim'}`}>
-                  {role}
-                </span>
+                <span className={`text-2xs font-bold tracking-label uppercase ${picked ? tint(side.index).text : 'text-dim'}`}>{role}</span>
               ) : null}
             </Button>
           )

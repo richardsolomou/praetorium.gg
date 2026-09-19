@@ -60,7 +60,7 @@ export function Standings({ table }: { table: StandingsTable }) {
                   <td className="readout p-3 text-faint">{place + 1}</td>
                   <td className="overflow-hidden p-3">
                     <Link to="/users/$userId" params={{ userId: row.id }} className="flex min-w-0 items-center gap-2 hover:text-info">
-                      <PlayerAvatar name={row.name} image={row.image} className="size-7 text-xs" />
+                      <PlayerAvatar name={row.name} image={row.image} className="size-7 text-3xs" />
                       <span className="truncate font-bold uppercase">{row.name}</span>
                     </Link>
                   </td>
@@ -112,7 +112,7 @@ export function FactionFilter({ factions, selected }: { factions: readonly Stand
       }}
       placeholder="Everyone"
       searchPlaceholder="Search factions…"
-      className="h-10 w-full rounded-none border-edge bg-sunken text-sm font-semibold uppercase sm:w-72"
+      className="w-full sm:w-72"
     />
   )
 }

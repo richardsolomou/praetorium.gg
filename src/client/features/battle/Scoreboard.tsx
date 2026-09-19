@@ -58,7 +58,7 @@ export function Scoreboard({ view, sides, outcome }: Props) {
                 of {view.rounds}
               </p>
               <h1 className="text-sm leading-tight font-bold uppercase sm:text-base">{view.phase} phase</h1>
-              <p className="truncate text-[0.6875rem] text-dim">{active ? `${active.name}’s turn` : 'Nobody’s turn'}</p>
+              <p className="truncate text-2xs text-dim">{active ? `${active.name}’s turn` : 'Nobody’s turn'}</p>
             </>
           )}
         </div>
@@ -146,7 +146,7 @@ function SideScore({
             <span key={army.playerId} className="inline-flex items-center gap-x-1">
               {at ? <span className="text-dim">&amp;</span> : null}
               <Link to="/users/$userId" params={{ userId: army.playerId }} className="group inline-flex items-center gap-1 align-middle">
-                <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-5 text-[0.625rem]" />
+                <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-5 text-3xs" />
                 <span className="sr-only whitespace-nowrap group-hover:underline sm:not-sr-only">{army.playerName}</span>
               </Link>
             </span>
@@ -154,9 +154,9 @@ function SideScore({
         </p>
         <p className={`readout mt-0.5 flex items-baseline gap-1.5 ${end ? 'justify-end' : ''}`}>
           <span className="text-2xl leading-none font-bold sm:text-3xl">{side.total}</span>
-          <span className="text-[0.625rem] text-dim uppercase">vp</span>
+          <span className="text-3xs text-dim uppercase">vp</span>
           <span className={`ml-1 text-base leading-none font-bold ${colours.text}`}>{side.cp}</span>
-          <span className="text-[0.625rem] text-dim uppercase">cp</span>
+          <span className="text-3xs text-dim uppercase">cp</span>
         </p>
         <div className={`mt-1 flex gap-0.5 ${end ? 'flex-row-reverse' : ''}`} aria-hidden>
           {side.rounds.map((entry) => (

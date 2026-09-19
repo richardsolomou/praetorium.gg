@@ -10,7 +10,7 @@ type Props = {
 export function DatasheetMatchReasons({ query, reasons }: Props) {
   if (!reasons?.length) return null
   return (
-    <span className="readout mt-0.5 flex min-w-0 items-start gap-1 text-[0.6875rem] leading-snug text-faint">
+    <span className="readout mt-0.5 flex min-w-0 items-start gap-1 text-2xs leading-snug text-faint">
       <Search className="mt-0.5 size-3 shrink-0 text-parchment" aria-hidden />
       <span className="min-w-0">
         Matches{' '}

@@ -10,6 +10,7 @@ import { PageState } from '../client/components/PageState'
 import { type TerrainGeometry, type TerrainPiece, type TerrainTemplate } from '../client/components/terrainGeometry'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../client/queries'
+import { PageContent, PageHeader } from '../client/components/Page'
 
 export const Route = createFileRoute('/mission-matchups/$packId/$you/$opponent')({
   loader: async ({ context, params }) => {
@@ -49,16 +50,8 @@ function MissionMatchupPage() {
 
   return (
     <main className="w-full">
-      <section className="relative overflow-hidden border-b border-edge bg-panel">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-7">
-          <p className="eyebrow text-parchment">Mission matchup</p>
-          <h1 className="mt-1 text-3xl">
-            {yourDisposition.name} vs {opponentDisposition.name}
-          </h1>
-        </div>
-      </section>
-      <div className="mx-auto max-w-5xl px-3 pt-4 pb-8 sm:px-4">
+      <PageHeader eyebrow="Mission matchup" title={`${yourDisposition.name} vs ${opponentDisposition.name}`} />
+      <PageContent>
         <Link to="/mission-packs/$packId" params={{ packId }} className="eyebrow text-info">
           {pack.name}
         </Link>
@@ -159,7 +152,7 @@ function MissionMatchupPage() {
           )}
         </section>
         <p className="mt-6 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
-      </div>
+      </PageContent>
     </main>
   )
 }

@@ -65,7 +65,8 @@ export function RosterSummary({
           <WaiverChip rules={waivers} />
         </span>
         <span className="mt-1 block text-xs text-dim">
-          11th edition · {size?.name ?? `${roster.limit} points`} · {roster.unitCount} units · updated {formatDate(roster.updatedAt)}
+          11th edition · {size?.name ?? `${roster.limit} points`} · {roster.unitCount} {roster.unitCount === 1 ? 'unit' : 'units'} · updated{' '}
+          {formatDate(roster.updatedAt)}
         </span>
       </span>
       <span className="ml-auto shrink-0 text-right">

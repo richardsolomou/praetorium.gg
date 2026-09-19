@@ -62,7 +62,7 @@ export function SearchableSelect({
         id={id}
         aria-label={ariaLabel}
         className={cn(
-          'flex h-9 w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-lg border border-input bg-transparent px-2.5 text-sm font-normal text-bone outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-muted data-placeholder:text-muted-foreground',
+          'flex h-8 w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-lg border border-input bg-transparent px-2.5 text-sm font-normal text-bone outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-muted data-placeholder:text-muted-foreground',
           className,
         )}
       >
@@ -70,8 +70,8 @@ export function SearchableSelect({
           <ComboboxValue placeholder={placeholder}>{selected ? <OptionLabel option={selected} /> : null}</ComboboxValue>
         </span>
       </ComboboxTrigger>
-      <ComboboxContent className="rounded-none border border-edge bg-panel text-bone ring-0 transition-none">
-        <ComboboxInput className="rounded-none" placeholder={searchPlaceholder} showTrigger={false} />
+      <ComboboxContent className="transition-none">
+        <ComboboxInput placeholder={searchPlaceholder} showTrigger={false} />
         <ComboboxEmpty className="text-dim">No matches.</ComboboxEmpty>
         <ComboboxList>
           {(group: SearchableGroup) => (
@@ -79,7 +79,7 @@ export function SearchableSelect({
               {group.label ? <ComboboxLabel className="eyebrow text-faint">{group.label}</ComboboxLabel> : null}
               <ComboboxCollection>
                 {(option: SearchableOption) => (
-                  <ComboboxItem key={option.value} value={option} className="rounded-none data-highlighted:bg-edge">
+                  <ComboboxItem key={option.value} value={option} className="data-highlighted:bg-edge">
                     <OptionLabel option={option} />
                   </ComboboxItem>
                 )}

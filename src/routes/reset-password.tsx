@@ -31,7 +31,7 @@ function ResetPassword() {
         <div className="relative ml-auto grid h-full w-full max-w-lg content-between p-8">
           <div>
             <p className="eyebrow text-parchment">Praetorium account</p>
-            <h2 className="mt-2 text-3xl">Return to the battle.</h2>
+            <h2 className="mt-1 text-3xl">Return to the battle.</h2>
           </div>
           <img src="/logo.svg" alt="" className="mx-auto size-40 drop-shadow-[0_0_2rem_rgba(137,184,157,0.18)]" />
           <p className="text-sm text-dim">Choose a new password for your Praetorium account.</p>
@@ -46,7 +46,11 @@ function ResetPassword() {
               <p role="alert" className="mt-6 border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                 This password reset link is invalid or has expired.
               </p>
-              <Link to="/sign-in" search={{ next, error: undefined, reset: undefined }} className={buttonVariants({ className: 'mt-6' })}>
+              <Link
+                to="/sign-in"
+                search={{ next, error: undefined, reset: undefined }}
+                className={buttonVariants({ className: 'mt-6 h-11 text-base' })}
+              >
                 Return to sign in
               </Link>
             </>

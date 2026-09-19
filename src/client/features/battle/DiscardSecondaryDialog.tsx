@@ -37,11 +37,11 @@ export function DiscardSecondaryDialog({
   return (
     <>
       <Dialog open>
-        <DialogContent className="rounded-none border border-discarded/60 bg-panel text-bone sm:max-w-lg">
+        <DialogContent className="border-discarded/60 sm:max-w-lg">
           <DialogHeader className="text-center">
             <p className="eyebrow text-discarded">End of turn</p>
-            <DialogTitle className="uppercase">Discard tactical secondaries?</DialogTitle>
-            <DialogDescription className="text-dim">
+            <DialogTitle>Discard tactical secondaries?</DialogTitle>
+            <DialogDescription>
               {sideName(side)} can discard any of their active tactical secondaries, or keep the hand as is. Discarding several at once
               still gains at most 1 CP.
             </DialogDescription>
@@ -71,7 +71,7 @@ export function DiscardSecondaryDialog({
               )
             })}
           </div>
-          <DialogFooter className="rounded-none border-edge bg-sunken">
+          <DialogFooter>
             <UndoLatestButton disabled={pending || undoable === null} onClick={undo.request} />
             <Button
               disabled={pending}
