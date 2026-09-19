@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.67.1
+
+### Patch Changes
+
+- c7711a2: Allow end-of-turn scoring to record every active mission together.
+
 ## 0.67.0
 
 ### Minor Changes
