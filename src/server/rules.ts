@@ -23,6 +23,7 @@ import { readMissionPacks } from './missionPacks'
 import { type RuleDocument, loadRuleDocuments } from './rulesCore'
 import { joinKey, rulesDirectory } from './rulesSource'
 import type { ExternalReferences } from './externalReferences'
+import { catalogueSources } from './catalogueSources'
 import {
   type Deployment,
   loadDeployments,
@@ -45,7 +46,7 @@ import {
  * This module only assembles. Each source is read by the `rules*` module named after
  * it, and an absent source leaves its part of `LoadedRules` empty rather than guessed.
  */
-const ATTRIBUTION = 'Stratagems and mission cards by the Tabletop Developer Consortium, CC BY 4.0'
+export const RULES_DATA_ATTRIBUTION = `${catalogueSources.rules.attribution}, CC BY 4.0`
 const BATTLEMASTER_ATTRIBUTION = 'Terrain geometry provided by Battlemaster'
 
 export type { Mission } from './rulesCards'
@@ -121,7 +122,9 @@ export function loadRules(
 
   const hasBattlemaster = terrainLayouts.some((layout) => layout.geometry)
   return {
-    attribution: [ATTRIBUTION, DATACARDS_ATTRIBUTION, hasBattlemaster ? BATTLEMASTER_ATTRIBUTION : null].filter(Boolean).join('. '),
+    attribution: [RULES_DATA_ATTRIBUTION, DATACARDS_ATTRIBUTION, hasBattlemaster ? BATTLEMASTER_ATTRIBUTION : null]
+      .filter(Boolean)
+      .join('. '),
     abilityDescriptions: datacards.armyRules,
     factionRestrictions: factionRestrictions(datacards),
     factionKeys: factions.factionKeys,

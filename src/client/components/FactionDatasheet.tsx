@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { wargearBaseName } from '../../core/wargear'
+import { datasheetCharacteristicKind, datasheetProfileKind, datasheetProfilesByKind } from '../../core/datasheetStructure'
 import type { Datasheet } from '../../contracts/catalogue'
 import {
   abilitySections,
@@ -23,14 +24,14 @@ export function FactionDatasheet() {
   const { data: faction } = useQuery(factionQuery(params.catalogueId ?? ''))
   const { data: sheet } = useQuery(datasheetSlugQuery(faction?.id ?? '', params.entryId ?? ''))
   if (!sheet || !faction) return null
-  const profiles = (type: string) => sheet.profiles.filter((profile) => profile.type === type)
-  const unit = uniqueCharacteristicProfiles(profiles('Unit'))
+  const structured = datasheetProfilesByKind(sheet)
+  const unit = uniqueCharacteristicProfiles(structured.unit)
   const invulnerable = unit.flatMap((profile) => {
-    const value = profile.values.find((characteristic) => characteristic.name === 'InSv')?.value
+    const value = profile.values.find((characteristic) => datasheetCharacteristicKind(characteristic.name) === 'invulnerable-save')?.value
     return value ? [{ name: profile.name, value }] : []
   })
-  const ranged = profiles('Ranged Weapons')
-  const melee = profiles('Melee Weapons')
+  const ranged = structured.ranged
+  const melee = structured.melee
 
   return (
     <main className="w-full">
@@ -263,8 +264,8 @@ function Relationships({ sheet }: { sheet: Datasheet }) {
 type DisplayProfile = Datasheet['profiles'][number]
 
 function UnitCharacteristics({ profile }: { profile: DisplayProfile }) {
-  const invulnerable = profile.values.find((value) => value.name === 'InSv')?.value
-  const values = profile.values.filter((value) => value.name !== 'InSv')
+  const invulnerable = profile.values.find((value) => datasheetCharacteristicKind(value.name) === 'invulnerable-save')?.value
+  const values = profile.values.filter((value) => datasheetCharacteristicKind(value.name) !== 'invulnerable-save')
   return (
     <section>
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
@@ -312,7 +313,7 @@ function ProfileTable({
     (column) => !omit.includes(column),
   )
   const groups =
-    profiles[0]?.type === 'Ranged Weapons' || profiles[0]?.type === 'Melee Weapons'
+    profiles[0] && ['ranged-weapon', 'melee-weapon'].includes(datasheetProfileKind(profiles[0].type))
       ? weaponProfileGroups(profiles)
       : profiles.map((profile) => [profile])
   return (
@@ -357,7 +358,8 @@ function ProfileTable({
                   </th>
                   {columns.map((column) => (
                     <td key={column} className="readout px-3 py-2 text-center text-dim">
-                      {column === 'Keywords' && profile.values.find((value) => value.name === column)?.value ? (
+                      {datasheetCharacteristicKind(column) === 'keywords' &&
+                      profile.values.find((value) => value.name === column)?.value ? (
                         <KeywordList
                           value={profile.values.find((value) => value.name === column)!.value}
                           rules={keywordRules}

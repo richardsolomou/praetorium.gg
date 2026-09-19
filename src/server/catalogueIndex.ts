@@ -16,6 +16,7 @@ import { type FactionContent, type LoadedDatacards, loadDatacards } from './data
 import { catalogueSections } from './catalogueSections'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { type ExternalReferences, loadExternalReferences } from './externalReferences'
+import { loadSourceUnits, type SourceUnit } from './catalogueSourceUnits'
 
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
@@ -30,6 +31,8 @@ export type LoadedCatalogue = {
   /** Game Datacards, read once here and handed to the rules loader. */
   datacards: LoadedDatacards
   sourceReferences: ExternalReferences
+  /** 40kdc unit records keyed by the BSData ids they explicitly reference. */
+  sourceUnits: ReadonlyMap<string, readonly SourceUnit[]>
 }
 
 const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
@@ -57,7 +60,9 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
   const detachments = detachmentsOf(files, index)
   // The cards name sections they do not describe, and the catalogue is where those words are.
   const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index))
-  const sourceReferences = loadExternalReferences(path.join(directory, 'rules', 'data', 'core'))
+  const rulesCore = path.join(directory, 'rules', 'data', 'core')
+  const sourceReferences = loadExternalReferences(rulesCore)
+  const sourceUnits = loadSourceUnits(rulesCore)
   return {
     index,
     characteristicNames: characteristicNamesOf(files),
@@ -66,6 +71,7 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
     factionContents: datacards.factions,
     datacards,
     sourceReferences,
+    sourceUnits,
   }
 }
 

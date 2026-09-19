@@ -286,6 +286,10 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       cacheUntilSnapshotChanges()
+      const canonical = app()
+        .canonicalCatalogue()
+        ?.datasheets.find((sheet) => sheet.catalogueId === data.catalogueId && sheet.slug === data.slug)
+      if (canonical) return canonical
       const loaded = app().catalogue()
       return loaded
         ? describeDatasheetAbilities(loaded, data.catalogueId, datasheetInBySlug(loaded, data.catalogueId, data.slug), app().rules(), {
@@ -368,6 +372,8 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
 export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
     cacheUntilSnapshotChanges()
+    const canonical = app().canonicalCatalogue()
+    if (canonical) return ruleIndexOf(canonical.ruleDocuments)
     const rules = app().rules()
     return rules ? ruleIndexOf(rules.ruleDocuments) : null
   }),
@@ -379,6 +385,8 @@ export const ruleSection = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       cacheUntilSnapshotChanges()
+      const canonical = app().canonicalCatalogue()
+      if (canonical) return ruleSectionOf(canonical.ruleDocuments, data.documentId, data.sectionId)
       const rules = app().rules()
       return rules ? ruleSectionOf(rules.ruleDocuments, data.documentId, data.sectionId) : null
     }),

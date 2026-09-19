@@ -1,4 +1,5 @@
 import type { UnitGroup } from '../core/unitGroups'
+import type { RuleDocument } from './rules'
 
 export type DatasheetSearchReason = {
   kind: 'keyword' | 'ability' | 'weapon' | 'weapon keyword' | 'wargear'
@@ -52,4 +53,90 @@ export type Datasheet = {
   leaders: DatasheetRelationship[]
   supporters: DatasheetRelationship[]
   keywordRules: { name: string; description: string }[]
+}
+
+export type DatasheetProfileKind = 'unit' | 'ranged-weapon' | 'melee-weapon' | 'transport' | 'rule' | 'other'
+
+export type DatasheetCharacteristicKind =
+  | 'movement'
+  | 'toughness'
+  | 'save'
+  | 'wounds'
+  | 'leadership'
+  | 'objective-control'
+  | 'invulnerable-save'
+  | 'range'
+  | 'attacks'
+  | 'ballistic-skill'
+  | 'weapon-skill'
+  | 'strength'
+  | 'armour-penetration'
+  | 'damage'
+  | 'keywords'
+  | 'other'
+
+export type StructuredDatasheetCharacteristic = Datasheet['profiles'][number]['values'][number] & {
+  kind: DatasheetCharacteristicKind
+}
+
+export type StructuredDatasheetProfile = Omit<Datasheet['profiles'][number], 'values'> & {
+  kind: DatasheetProfileKind
+  values: StructuredDatasheetCharacteristic[]
+}
+
+export type CanonicalSourceName = 'definitions' | 'points' | 'rules' | 'datacards' | 'battlemaster'
+
+export type CanonicalFieldResolution = {
+  sources: CanonicalSourceName[]
+  strategy: 'single-source' | 'sources-agree' | 'merged' | 'source-priority' | 'fallback' | 'unresolved'
+}
+
+export type CanonicalDatasheet = Omit<Datasheet, 'profiles'> & {
+  catalogueId: string
+  faction: string
+  attribution: string | null
+  profiles: StructuredDatasheetProfile[]
+  provenance: {
+    definitions: { revision: string; entryId: string }
+    datacards: { revision: string; resolution: 'external-reference' | 'normalized-name' } | null
+    rules: { revision: string; unitId: string; resolution: 'external-reference' } | null
+    fields: {
+      identity: CanonicalFieldResolution
+      points: CanonicalFieldResolution
+      keywords: CanonicalFieldResolution
+      profiles: CanonicalFieldResolution
+      abilities: CanonicalFieldResolution
+      composition: CanonicalFieldResolution
+      loadout: CanonicalFieldResolution
+      wargear: CanonicalFieldResolution
+      baseSize: CanonicalFieldResolution
+      transport: CanonicalFieldResolution
+      costs: CanonicalFieldResolution
+      relationships: CanonicalFieldResolution
+    }
+  }
+}
+
+export type CanonicalCatalogueIssue = {
+  kind:
+    | 'missing-source-record'
+    | 'source-name-fallback'
+    | 'source-field-conflict'
+    | 'source-field-fallback'
+    | 'unclassified-profile'
+    | 'unclassified-characteristic'
+  severity: 'notice' | 'warning'
+  catalogueId: string
+  entryId: string
+  path: string
+  message: string
+}
+
+export type CanonicalCatalogue = {
+  format: 'praetorium.canonical-catalogue.v1'
+  compilerVersion: 1
+  revisions: Record<string, string>
+  datasheets: CanonicalDatasheet[]
+  ruleDocuments: (RuleDocument & { provenance: { datacards: { revision: string } } })[]
+  issues: CanonicalCatalogueIssue[]
 }

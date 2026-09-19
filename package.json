@@ -33,6 +33,8 @@
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",
     "catalogue:check": "tsx scripts/syncCatalogue.ts --check",
+    "catalogue:compile": "tsx scripts/compileCatalogue.ts",
+    "catalogue:audit": "tsx scripts/auditCanonicalCatalogue.ts",
     "catalogue:descriptions": "tsx scripts/checkDescriptions.ts",
     "catalogue:terrain": "tsx scripts/checkTerrain.ts",
     "catalogue:parity": "node --max-old-space-size=8192 --import tsx scripts/check40kdcParity.ts",

@@ -31,6 +31,11 @@ function completeCatalogue(root: string) {
     fs.mkdirSync(path.join(catalogue, name), { recursive: true })
     fs.writeFileSync(path.join(catalogue, name, 'test.json'), '{"catalogue":true}\n')
   }
+  fs.writeFileSync(path.join(catalogue, 'definitions', 'test.json'), '{"catalogue":{"id":"cat","name":"Test"}}\n')
+  fs.writeFileSync(
+    path.join(catalogue, 'definitions', 'system.json'),
+    '{"gameSystem":{"id":"gs","name":"Test","costTypes":[{"id":"pts","name":"pts"}]}}\n',
+  )
   fs.mkdirSync(path.join(catalogue, 'battlemaster', 'layouts'), { recursive: true })
   fs.writeFileSync(path.join(catalogue, 'battlemaster', 'layouts', 'test.json'), '{}\n')
   fs.writeFileSync(
@@ -54,6 +59,7 @@ it('packs and verifies a complete catalogue', () => {
   const environment = { ...process.env, CATALOGUE_DIR: catalogue, CATALOGUE_SNAPSHOT_FILE: archive }
 
   execFileSync('pnpm', ['catalogue:snapshot', 'pack'], { env: environment })
+  expect(unzipSync(fs.readFileSync(archive))['catalogue/canonical/catalogue.json']).toBeDefined()
   expect(() => execFileSync('pnpm', ['catalogue:snapshot', 'verify'], { env: environment })).not.toThrow()
 })
 
@@ -132,6 +138,21 @@ it('records provenance and omits unused files from a packed snapshot', () => {
   expect(entries['catalogue/provenance.json']).toBeDefined()
   expect(entries['catalogue/definitions/README.md']).toBeUndefined()
   expect(entries['catalogue/rules/data/core/_reports/report.json']).toBeUndefined()
+})
+
+it('omits a compiled catalogue when one of its source datasets is disabled', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
+  roots.push(root)
+  const catalogue = completeCatalogue(root)
+  const archiveFile = path.join(root, 'snapshot.zip')
+  const pointerFile = path.join(root, 'pointer.json')
+  fs.mkdirSync(path.join(catalogue, 'canonical'))
+  fs.writeFileSync(path.join(catalogue, 'canonical', 'catalogue.json'), '{}')
+  process.env.CATALOGUE_DISABLED_SOURCES = 'rules'
+
+  packCatalogueSnapshot(catalogue, archiveFile, pointerFile)
+
+  expect(unzipSync(fs.readFileSync(archiveFile))['catalogue/canonical/catalogue.json']).toBeUndefined()
 })
 
 it('refuses a revoked snapshot before installing it', async () => {

@@ -166,7 +166,7 @@ function provenance(revisions: Record<string, string>, sources: readonly Snapsho
     format: PROVENANCE_FORMAT,
     policySha256: sha256(encoded(rawRevocations)),
     modifications:
-      'Praetorium selects the source paths its product and verification checks consume, packages them in one archive, and may join records across sources without changing their source text.',
+      'Praetorium selects the source paths its product and verification checks consume, packages them in one archive, and compiles a canonical catalogue with field provenance without changing the archived source text.',
     sources: sources.map((name) => {
       const source = catalogueSources[name]
       return {
@@ -188,6 +188,9 @@ function packedSnapshot(directory: string, disabled = new Set([...disabledCatalo
   for (const name of filesUnder(directory).filter(distributableCatalogueFile)) {
     const source = name.split('/')[0] ?? ''
     if ((SNAPSHOT_SOURCE_NAMES as readonly string[]).includes(source) && disabled.has(source as SnapshotSourceName)) continue
+    if (name.startsWith('canonical/') && (['definitions', 'rules', 'datacards'] as const).some((dependency) => disabled.has(dependency))) {
+      continue
+    }
     bytes.set(name, fs.readFileSync(path.join(directory, name)))
   }
   bytes.set('revision.json', encoded(revisions))

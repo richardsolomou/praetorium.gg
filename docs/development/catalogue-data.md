@@ -8,6 +8,7 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 - The Game Datacards source extracts only `11th/gdc`; data for other games and editions is excluded from snapshots.
 - Mission cards are read from both sources: the rules source says when a payout is due and how a card's payouts relate, and the Game Datacards mission pack says what each one asks for. Game Datacards names army-construction choices; the rules source only adds semantics it uniquely carries. Nothing is joined by a fuzzy match.
 - `catalogue-data/` contains fetched data and is gitignored. Game data and copied rules text never enter version control.
+- Snapshot publication compiles the source-specific records into `canonical/catalogue.json`. That artifact gives datasheets and rule documents one versioned, validated shape, retains the source labels used for display, adds semantic profile and characteristic kinds for UI decisions, and records source revisions and join methods as provenance.
 - An hourly automation checks upstream revisions and publishes a complete immutable snapshot. It excludes source-repository files no product or verification reader consumes, publishes revocations, and replaces the remote `current.json` pointer only after reading and verifying the published archive. A source disagreeing with another about a name is reported there rather than blocking the publish; see [Points ratchet](#points-ratchet).
 - The hosted service checks that pointer hourly. Released self-hosted instances use the committed pin unless their operator selects the latest channel. Developers activate the pin from one platform cache shared by every worktree. All three verify a changed snapshot and swap it into place atomically; none contacts an upstream data provider.
 - Community-data requests have a per-attempt timeout and retry only transient network failures, timeouts, rate limits, and server errors. Checksums and invalid data fail immediately.
@@ -26,6 +27,23 @@ Server catalogue code is split by responsibility:
 - `catalogueDescriptions.ts` resolves detachment and enhancement text without guessing between conflicting matches.
 - `datacards.ts` reads Game Datacards once per snapshot — the catalogue loader hands the result to the rules loader — and `datasheetJoin.ts` is the one join from a catalogue datasheet to its card. It follows an exact 40kdc BSData↔Game Datacards relationship first. Missing or unresolved references fall back to the book's own file by name, then any file where every copy agrees, with apostrophes folded and a trailing plural forgiven. `just points` reports exact joins, every fallback, and every name the join cannot carry across.
 - `sync.ts` owns downloads and atomic replacement. It does not interpret game data.
+
+## Canonical catalogue and audits
+
+`canonicalCatalogue.ts` is the boundary between source-specific formats and Praetorium's own catalogue. It resolves reference datasheets and parsed rule documents into one deterministic record, validates the full result before writing it, and records the sources and strategy used for each field. Reference datasheet and rules pages read this artifact when the snapshot provides it; contextual roster projections continue to use the catalogue evaluator because their values depend on the player's selections. UI code makes layout decisions from the semantic kinds in `datasheetStructure.ts`; upstream labels remain display data rather than control flow spread across components.
+
+The compiler follows field-specific policies instead of treating a whole source as universally correct. BSData remains authoritative for executable roster choices, profiles, keywords, and evaluated points. Game Datacards remains the preferred source for the printed composition, loadout, base, and points-table presentation. An exact BSData external reference joins the corresponding 40kdc unit, whose normalized structure cross-checks those fields and fills a safely representable display gap. The compiled value is the only value the reference UI consumes.
+
+The compiler never repairs an unknown or conflicting game fact by guessing. It records missing joins, normalized-name fallbacks, safe field fallbacks, source conflicts, unclassified profile types, and unclassified characteristics in the artifact's `issues` list. Every field also carries a resolution strategy such as `sources-agree`, `source-priority`, `merged`, `fallback`, or `unresolved`. `pnpm catalogue:audit` reports the counts and `pnpm catalogue:audit -- --details` prints every deterministic finding, making upstream drift a catalogue problem rather than a collection of UI edge cases.
+
+Unknown semantic labels remain unresolved until their mapping is reviewed, encoded in `datasheetStructure.ts`, and covered by a test.
+
+Use `CATALOGUE_CANONICAL_FILE` to write or inspect a canonical artifact outside the activated immutable development cache:
+
+```sh
+CATALOGUE_CANONICAL_FILE=/tmp/praetorium-catalogue.json pnpm catalogue:compile
+CATALOGUE_CANONICAL_FILE=/tmp/praetorium-catalogue.json pnpm catalogue:audit
+```
 
 The rules dataset is split the same way. `rules.ts` only assembles `LoadedRules`; `rulesSource.ts` reads the files and keys what it finds, and `rulesCards.ts`, `rulesFactions.ts` and `rulesTerrain.ts` each own one part of it. An absent source leaves its part empty rather than guessed.
 
