@@ -6,6 +6,7 @@ import {
   FORMAT_RULE_IDS,
   ROSTER_MAX_LENGTH,
   ROSTER_NAME_MAX_LENGTH,
+  SCORE_SETTLEMENT_MAX,
   SECONDARIES_MAX,
   SECONDARY_MODES,
   SETUP_STEP_MAX,
@@ -207,7 +208,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
         ]),
       )
       .min(1)
-      .max(3),
+      .max(SCORE_SETTLEMENT_MAX),
     round: z.number().int().min(1).max(BATTLE_ROUNDS).optional(),
     playerId: id.optional(),
   }),

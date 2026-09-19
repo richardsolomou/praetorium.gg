@@ -296,6 +296,8 @@ export const FIXED_SECONDARIES = 2
  */
 export const SECONDARIES_MAX = 6
 const SECONDARY_HISTORY_MAX = 30
+/** One primary score plus every secondary the bounded battle history can hold. */
+export const SCORE_SETTLEMENT_MAX = SECONDARY_HISTORY_MAX + 1
 
 /**
  * Fixed secondaries are chosen once and scored all game; tactical ones are drawn as
