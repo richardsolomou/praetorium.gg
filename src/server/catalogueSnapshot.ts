@@ -12,6 +12,7 @@ import {
   SNAPSHOT_SOURCE_NAMES,
   type SnapshotSourceName,
 } from './catalogueSources'
+import { CANONICAL_CATALOGUE_SOURCE_NAMES } from './canonicalCatalogueSources'
 import { fetchWithRetry } from './fetch'
 import { DEFAULT_S3_PUBLIC_BASE_URL } from './objectStorage'
 
@@ -188,7 +189,7 @@ function packedSnapshot(directory: string, disabled = new Set([...disabledCatalo
   for (const name of filesUnder(directory).filter(distributableCatalogueFile)) {
     const source = name.split('/')[0] ?? ''
     if ((SNAPSHOT_SOURCE_NAMES as readonly string[]).includes(source) && disabled.has(source as SnapshotSourceName)) continue
-    if (name.startsWith('canonical/') && (['definitions', 'rules', 'datacards'] as const).some((dependency) => disabled.has(dependency))) {
+    if (name.startsWith('canonical/') && CANONICAL_CATALOGUE_SOURCE_NAMES.some((dependency) => disabled.has(dependency))) {
       continue
     }
     bytes.set(name, fs.readFileSync(path.join(directory, name)))

@@ -1,5 +1,5 @@
 import { wargearBaseName } from '../core/wargear'
-import { datasheetProfileKindOf } from '../core/datasheetStructure'
+import { datasheetCharacteristicKindOf, datasheetProfileKindOf } from '../core/datasheetStructure'
 import type { Datasheet } from '../contracts/catalogue'
 import { normalizedName, normalizedNameVariants } from '../core/name'
 
@@ -24,6 +24,27 @@ export const abilitySections = {
 } satisfies Record<AbilityKind, string>
 
 type Profile = Datasheet['profiles'][number]
+type ProfileTableColumn = { key: string; characteristic: Profile['values'][number] }
+
+const profileCharacteristicKey = (characteristic: Profile['values'][number]) => {
+  const kind = datasheetCharacteristicKindOf(characteristic)
+  return kind === 'other' ? `other:${characteristic.name}` : kind
+}
+
+export function profileTableColumns(profiles: readonly Profile[]): ProfileTableColumn[] {
+  const columns = new Map<string, Profile['values'][number]>()
+  for (const profile of profiles) {
+    for (const characteristic of profile.values) {
+      const key = profileCharacteristicKey(characteristic)
+      if (!columns.has(key)) columns.set(key, characteristic)
+    }
+  }
+  return [...columns].map(([key, characteristic]) => ({ key, characteristic }))
+}
+
+export function profileTableValue(profile: Profile, column: ProfileTableColumn) {
+  return profile.values.find((characteristic) => profileCharacteristicKey(characteristic) === column.key)
+}
 
 export function ruleProfileSections(profiles: readonly Profile[]) {
   const sections = new Map<string, Profile[]>()

@@ -47,4 +47,27 @@ describe('catalogue source units', () => {
     expect(sourceBaseSize({ shape: 'round', diameter: 32, draft: false })).toBe('32mm')
     expect(sourceBaseSize({ shape: 'hull', draft: true })).toBeNull()
   })
+
+  it('rejects a draft base size read from a source file', () => {
+    const core = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-source-units-'))
+    try {
+      const directory = path.join(core, 'test')
+      fs.mkdirSync(directory)
+      fs.writeFileSync(
+        path.join(directory, 'units.json'),
+        JSON.stringify([
+          {
+            id: 'draft-unit',
+            name: 'Draft unit',
+            base_size_mm: { shape: 'hull', draft: true },
+            external_refs: [{ namespace: 'bsdata', id: 'draft-unit' }],
+          },
+        ]),
+      )
+
+      expect(sourceBaseSize(loadSourceUnits(core).get('draft-unit')?.[0]?.baseSize ?? null)).toBeNull()
+    } finally {
+      fs.rmSync(core, { recursive: true })
+    }
+  })
 })

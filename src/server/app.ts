@@ -110,11 +110,12 @@ const sync = {
 }
 
 /** Pays the one-time preparation cost after startup, before a player opens the catalogue. */
-export function warm(instance: Pick<App, 'catalogue' | 'rules'>): Promise<void> {
+export function warm(instance: Pick<App, 'catalogue' | 'canonicalCatalogue' | 'rules'>): Promise<void> {
   return new Promise((resolve) => {
     setImmediate(() => {
       try {
         prepareGlobalSearch(instance.catalogue(), instance.rules())
+        instance.canonicalCatalogue()
       } catch (error) {
         sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
       }

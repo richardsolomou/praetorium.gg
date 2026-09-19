@@ -140,13 +140,13 @@ it('records provenance and omits unused files from a packed snapshot', () => {
   expect(entries['catalogue/rules/data/core/_reports/report.json']).toBeUndefined()
 })
 
-it('omits a compiled catalogue when one of its source datasets is disabled', () => {
+it.each(['definitions', 'rules', 'datacards'] as const)('does not compile or pack a canonical catalogue without %s', (source) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
   roots.push(root)
   const catalogue = completeCatalogue(root)
   const archiveFile = path.join(root, 'snapshot.zip')
   const pointerFile = path.join(root, 'pointer.json')
-  fs.rmSync(path.join(catalogue, 'definitions'), { recursive: true })
+  fs.rmSync(path.join(catalogue, source), { recursive: true })
 
   execFileSync('pnpm', ['catalogue:snapshot', 'pack'], {
     env: {
@@ -154,10 +154,11 @@ it('omits a compiled catalogue when one of its source datasets is disabled', () 
       CATALOGUE_DIR: catalogue,
       CATALOGUE_SNAPSHOT_FILE: archiveFile,
       CATALOGUE_SNAPSHOT_POINTER_FILE: pointerFile,
-      CATALOGUE_DISABLED_SOURCES: 'definitions',
+      CATALOGUE_DISABLED_SOURCES: source,
     },
   })
 
+  expect(fs.existsSync(path.join(catalogue, 'canonical', 'catalogue.json'))).toBe(false)
   expect(unzipSync(fs.readFileSync(archiveFile))['catalogue/canonical/catalogue.json']).toBeUndefined()
 })
 

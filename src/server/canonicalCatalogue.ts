@@ -202,6 +202,16 @@ const resolution = (sources: readonly CanonicalSourceName[], strategy: Canonical
 const sourceOrUnresolved = (source: CanonicalSourceName | null, fallback = false) =>
   source ? resolution([source], fallback ? 'fallback' : 'single-source') : resolution([], 'unresolved')
 
+const uniqueSources = (sources: readonly CanonicalSourceName[]) => [...new Set(sources)]
+
+const sameIdentity = (left: string, right: string) => left.localeCompare(right, undefined, { sensitivity: 'accent' }) === 0
+
+function singleUnqualifiedPoint(costs: readonly CanonicalDatasheet['costs'][number][]) {
+  const unqualified = costs.filter((cost) => !cost.keyword && !cost.faction && !cost.detachment)
+  if (unqualified.length !== 1 || !/^\d+$/.test(unqualified[0]!.cost)) return null
+  return Number(unqualified[0]!.cost)
+}
+
 const comparableBaseSize = (value: string) => {
   const trimmed = value.trim()
   if (
@@ -223,6 +233,7 @@ function sharedCostConflicts(cards: readonly CanonicalDatasheet['costs'][number]
 }
 
 type SourceEvidence = {
+  definitionsPoints: number | null
   cardsBaseSize: string | null
   rulesBaseSize: string | null
   cardsComposition: readonly string[]
@@ -263,7 +274,7 @@ function issuesFor(
   evidence: SourceEvidence,
 ): CanonicalCatalogueIssue[] {
   const issues: CanonicalCatalogueIssue[] = []
-  const { cardsBaseSize, rulesBaseSize, cardsComposition, rulesComposition, cardsCosts, rulesCosts } = evidence
+  const { definitionsPoints, cardsBaseSize, rulesBaseSize, cardsComposition, rulesComposition, cardsCosts, rulesCosts } = evidence
   if (!joined) {
     issues.push({
       kind: 'missing-source-record',
@@ -291,6 +302,15 @@ function issuesFor(
       entryId: sheet.id,
       path: '/provenance/rules',
       message: `${sheet.name} has no unambiguous 40kdc record linked by an external reference`,
+    })
+  } else if (!sameIdentity(sourceJoin.unit.name, sheet.name)) {
+    issues.push({
+      kind: 'source-field-conflict',
+      severity: 'warning',
+      catalogueId: sheet.catalogueId,
+      entryId: sheet.id,
+      path: '/name',
+      message: `${sheet.name} keeps the BSData name ${JSON.stringify(sheet.name)} over 40kdc ${JSON.stringify(sourceJoin.unit.name)}`,
     })
   }
   if (!cardsBaseSize && rulesBaseSize) {
@@ -344,6 +364,16 @@ function issuesFor(
       entryId: sheet.id,
       path: '/costs',
       message: `${sheet.name} keeps Game Datacards points where 40kdc disagrees for ${conflictingCosts.map((cost) => `${cost.models} models`).join(', ')}`,
+    })
+  }
+  if (sheet.points !== null && definitionsPoints !== null && sheet.points !== definitionsPoints) {
+    issues.push({
+      kind: 'source-field-conflict',
+      severity: 'warning',
+      catalogueId: sheet.catalogueId,
+      entryId: sheet.id,
+      path: '/points',
+      message: `${sheet.name} uses ${cardsCosts.length ? 'Game Datacards' : '40kdc'} ${sheet.points} points for reference display over BSData ${definitionsPoints}`,
     })
   }
   const sheetUnitProfiles = sheet.profiles.filter((profile) => profile.kind === 'unit')
@@ -423,6 +453,8 @@ export function compileCanonicalCatalogue(
       const baseSize = cardsBaseSize ?? rulesBaseSize
       const composition = cardsComposition.length ? cardsComposition : rulesComposition
       const costs = cardsCosts.length ? cardsCosts : rulesCosts
+      const costPoint = singleUnqualifiedPoint(costs)
+      const points = costs.length ? costPoint : described.points
       const usesRulesDisplayData =
         (!cardsBaseSize && Boolean(rulesBaseSize)) ||
         (!cardsComposition.length && Boolean(rulesComposition.length)) ||
@@ -430,16 +462,40 @@ export function compileCanonicalCatalogue(
       const attribution = [...new Set([described.attribution, usesRulesDisplayData ? RULES_DATA_ATTRIBUTION : null].filter(Boolean))].join(
         '. ',
       )
-      const abilitySources: CanonicalSourceName[] = [
+      const projectedAbilities = new Map(projected.abilities.map((ability) => [ability.id, ability]))
+      const datacardsContributeAbilities =
+        described.abilities.length !== projected.abilities.length ||
+        described.abilities.some((ability) => projectedAbilities.get(ability.id)?.description !== ability.description)
+      const rulesContributeAbilities = described.abilities.some((ability) => projectedAbilities.get(ability.id)?.kind !== ability.kind)
+      const abilitySources = uniqueSources([
         'definitions',
-        ...(joined ? (['datacards'] as const) : []),
-        ...(rules ? (['rules'] as const) : []),
+        ...(datacardsContributeAbilities ? (['datacards'] as const) : []),
+        ...(rulesContributeAbilities ? (['rules'] as const) : []),
+      ])
+      const costSources: CanonicalSourceName[] = [
+        ...(cardsCosts.length ? (['datacards'] as const) : []),
+        ...(rulesCosts.length ? (['rules'] as const) : []),
       ]
+      const costsResolution = cardsCosts.length
+        ? resolution(costSources, rulesCosts.length ? 'source-priority' : 'single-source')
+        : sourceOrUnresolved(rulesCosts.length ? 'rules' : null, Boolean(rulesCosts.length))
+      const pointSources = uniqueSources([...(described.points === null ? [] : (['definitions'] as const)), ...costSources])
+      const pointsResolution = !costs.length
+        ? sourceOrUnresolved(described.points === null ? null : 'definitions')
+        : costPoint === null
+          ? resolution(pointSources, 'unresolved')
+          : described.points === null
+            ? resolution(costSources, costsResolution.strategy === 'source-priority' ? 'source-priority' : 'fallback')
+            : resolution(
+                pointSources,
+                described.points === costPoint && costsResolution.strategy !== 'source-priority' ? 'sources-agree' : 'source-priority',
+              )
       const sheet: CanonicalDatasheet = {
         ...described,
         catalogueId: faction.id,
         faction: factionDisplayName(faction.name, rules?.factionNames),
         attribution: attribution || null,
+        points,
         profiles: structureDatasheetProfiles(described.profiles),
         baseSize,
         composition,
@@ -457,13 +513,11 @@ export function compileCanonicalCatalogue(
             identity: sourceJoin
               ? resolution(
                   ['definitions', 'rules'],
-                  sourceJoin.unit.name.localeCompare(described.name, undefined, { sensitivity: 'accent' }) === 0
-                    ? 'sources-agree'
-                    : 'source-priority',
+                  sameIdentity(sourceJoin.unit.name, described.name) ? 'sources-agree' : 'source-priority',
                 )
               : sourceOrUnresolved('definitions'),
-            points: sourceOrUnresolved('definitions'),
-            keywords: sourceJoin ? resolution(['definitions', 'rules'], 'source-priority') : sourceOrUnresolved('definitions'),
+            points: pointsResolution,
+            keywords: sourceOrUnresolved('definitions'),
             profiles: sourceJoin?.unit.profiles.length
               ? resolution(['definitions', 'rules'], 'source-priority')
               : sourceOrUnresolved('definitions'),
@@ -484,19 +538,15 @@ export function compileCanonicalCatalogue(
                 )
               : sourceOrUnresolved(rulesBaseSize ? 'rules' : null, Boolean(rulesBaseSize)),
             transport: sourceOrUnresolved(joined && described.transport ? 'datacards' : null),
-            costs: cardsCosts.length
-              ? resolution(
-                  rulesCosts.length ? ['datacards', 'rules'] : ['datacards'],
-                  rulesCosts.length ? 'source-priority' : 'single-source',
-                )
-              : sourceOrUnresolved(rulesCosts.length ? 'rules' : null, Boolean(rulesCosts.length)),
-            relationships: joined ? resolution(['definitions', 'datacards'], 'merged') : sourceOrUnresolved('definitions'),
+            costs: costsResolution,
+            relationships: sourceOrUnresolved('definitions'),
           },
         },
       }
       datasheets.push(sheet)
       issues.push(
         ...issuesFor(sheet, joined, sourceJoin, {
+          definitionsPoints: described.points,
           cardsBaseSize,
           rulesBaseSize,
           cardsComposition,

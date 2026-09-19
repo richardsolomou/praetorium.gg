@@ -3,16 +3,13 @@ import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { wargearBaseName } from '../../core/wargear'
 import { datasheetCharacteristicKindOf, datasheetProfileKindOf, datasheetProfilesByKind } from '../../core/datasheetStructure'
-import type {
-  Datasheet,
-  DatasheetCharacteristicKind,
-  StructuredDatasheetCharacteristic,
-  StructuredDatasheetProfile,
-} from '../../contracts/catalogue'
+import type { Datasheet, DatasheetCharacteristicKind, StructuredDatasheetProfile } from '../../contracts/catalogue'
 import {
   abilitySections,
   attachmentGroups,
   compositionCount,
+  profileTableColumns,
+  profileTableValue,
   referenceAbilities,
   weaponProfileGroups,
   weaponProfileMode,
@@ -316,11 +313,9 @@ function ProfileTable({
   omit?: DatasheetCharacteristicKind[]
   keywordRules: KeywordRule[]
 }) {
-  const columns = [
-    ...new Map<string, StructuredDatasheetCharacteristic>(
-      profiles.flatMap((profile) => profile.values.map((value) => [value.name, value] as const)),
-    ).values(),
-  ].filter((column) => !omit.includes(datasheetCharacteristicKindOf(column)))
+  const columns = profileTableColumns(profiles).filter(
+    ({ characteristic }) => !omit.includes(datasheetCharacteristicKindOf(characteristic)),
+  )
   const groups =
     profiles[0] && ['ranged-weapon', 'melee-weapon'].includes(datasheetProfileKindOf(profiles[0]))
       ? weaponProfileGroups(profiles)
@@ -335,9 +330,9 @@ function ProfileTable({
           <thead className="eyebrow border-b border-edge bg-raised">
             <tr>
               <th className="px-3 py-2">Name</th>
-              {columns.map((column) => (
-                <th key={column.name} className="px-3 py-2 text-center">
-                  {column.name}
+              {columns.map(({ key, characteristic }) => (
+                <th key={key} className="px-3 py-2 text-center">
+                  {characteristic.name}
                 </th>
               ))}
             </tr>
@@ -365,20 +360,18 @@ function ProfileTable({
                   >
                     {group.length > 1 ? weaponProfileMode(profile) : profile.name}
                   </th>
-                  {columns.map((column) => (
-                    <td key={column.name} className="readout px-3 py-2 text-center text-dim">
-                      {datasheetCharacteristicKindOf(column) === 'keywords' &&
-                      profile.values.find((value) => value.name === column.name)?.value ? (
-                        <KeywordList
-                          value={profile.values.find((value) => value.name === column.name)!.value}
-                          rules={keywordRules}
-                          className="text-bone"
-                        />
-                      ) : (
-                        (profile.values.find((value) => value.name === column.name)?.value ?? '—')
-                      )}
-                    </td>
-                  ))}
+                  {columns.map((column) => {
+                    const value = profileTableValue(profile, column)
+                    return (
+                      <td key={column.key} className="readout px-3 py-2 text-center text-dim">
+                        {datasheetCharacteristicKindOf(column.characteristic) === 'keywords' && value?.value ? (
+                          <KeywordList value={value.value} rules={keywordRules} className="text-bone" />
+                        ) : (
+                          (value?.value ?? '—')
+                        )}
+                      </td>
+                    )
+                  })}
                 </tr>
               ))}
             </tbody>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bookOf, card, categories, withCards } from './catalogue.fixtures'
+import { bookOf, card, categories, points, withCards } from './catalogue.fixtures'
 import { compileCanonicalCatalogue, compileCanonicalRuleDocuments } from './canonicalCatalogue'
 import type { SourceUnit } from './catalogueSourceUnits'
 import { indexExternalReferences } from './externalReferences'
@@ -13,6 +13,7 @@ function catalogue() {
         id: 'squad',
         name: 'Squad',
         type: 'unit',
+        costs: points(100),
         categoryLinks: categories('Infantry', 'Battleline'),
         profiles: [
           {
@@ -82,6 +83,11 @@ describe('canonical catalogue', () => {
         definitions: { revision: 'definitions-revision', entryId: 'squad' },
         datacards: { revision: 'datacards-revision', resolution: 'normalized-name' },
         rules: null,
+        fields: {
+          keywords: { sources: ['definitions'], strategy: 'single-source' },
+          abilities: { sources: ['definitions'], strategy: 'single-source' },
+          relationships: { sources: ['definitions'], strategy: 'single-source' },
+        },
       },
     })
   })
@@ -144,18 +150,26 @@ describe('canonical catalogue', () => {
         points: [{ models: '5', cost: '90', keyword: null, faction: null, detachment: null }],
       }),
     )
-    const compiled = compileCanonicalCatalogue(withSourceUnit(loaded, { profiles: [{ name: 'Squad', values: { T: 5 } }] }), {
-      ...revisions,
-      rules: 'rules-revision',
-    })
+    const compiled = compileCanonicalCatalogue(
+      withSourceUnit(loaded, { name: 'Source Squad', profiles: [{ name: 'Squad', values: { T: 5 } }] }),
+      {
+        ...revisions,
+        rules: 'rules-revision',
+      },
+    )
 
     expect(compiled.datasheets[0]).toMatchObject({
+      points: 90,
       baseSize: '40mm',
       costs: [{ models: '5', cost: '90' }],
       provenance: {
         fields: {
+          identity: { sources: ['definitions', 'rules'], strategy: 'source-priority' },
+          points: { sources: ['definitions', 'datacards', 'rules'], strategy: 'source-priority' },
+          keywords: { sources: ['definitions'], strategy: 'single-source' },
           baseSize: { sources: ['datacards', 'rules'], strategy: 'source-priority' },
           costs: { sources: ['datacards', 'rules'], strategy: 'source-priority' },
+          relationships: { sources: ['definitions'], strategy: 'single-source' },
         },
       },
     })
@@ -163,9 +177,29 @@ describe('canonical catalogue', () => {
       expect.arrayContaining([
         expect.objectContaining({ kind: 'source-field-conflict', path: '/baseSize' }),
         expect.objectContaining({ kind: 'source-field-conflict', path: '/costs' }),
+        expect.objectContaining({ kind: 'source-field-conflict', path: '/name' }),
+        expect.objectContaining({ kind: 'source-field-conflict', path: '/points' }),
         expect.objectContaining({ kind: 'source-field-conflict', path: '/profiles/0/values/0' }),
       ]),
     )
+  })
+
+  it('omits a summary point when the printed table has more than one unconditional price', () => {
+    const loaded = catalogue()
+    loaded.factionContents.get('test-catalogue')!.datasheetDetails.set(
+      'Squad',
+      card({
+        points: [
+          { models: '5', cost: '100', keyword: null, faction: null, detachment: null },
+          { models: '10', cost: '180', keyword: null, faction: null, detachment: null },
+        ],
+      }),
+    )
+
+    expect(compileCanonicalCatalogue(loaded, revisions).datasheets[0]).toMatchObject({
+      points: null,
+      provenance: { fields: { points: { sources: ['definitions', 'datacards'], strategy: 'unresolved' } } },
+    })
   })
 
   it('reports a source-specific profile type while preserving it for generic rendering', () => {

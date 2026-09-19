@@ -3,7 +3,7 @@ import { app } from '../app'
 import { routeSlug } from '../../core/slug'
 import { attachedUnit } from '../../core/attach'
 import { buildUnit, type RosterPick } from '../../core/roster'
-import { datasheetIn, datasheetInBySlug, datasheetViewsIn, rulesReferencedIn, unitWoundsIn } from '../catalogue'
+import { datasheetIn, datasheetViewsIn, rulesReferencedIn, unitWoundsIn } from '../catalogue'
 import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
 import { detachmentReference } from '../detachmentReference'
@@ -12,7 +12,6 @@ import { factionDisplayName } from '../factionNames'
 import { unitsIn } from '../cataloguePicker'
 
 import { gameReferencesFor } from '../gameReferences'
-import { ruleIndexOf, ruleSectionOf } from '../rulesCore'
 import { rulesFaction } from '../rules'
 import { type GlobalSearchResult, searchEverything } from '../globalSearch'
 import { mutationRpc, rpc } from '../rpc'
@@ -20,6 +19,7 @@ import { rosterDetachments, rosterSetupLabel } from '../pricing'
 import { currentUserId } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { selectedDetachmentRules } from '../selectedDetachmentRules'
+import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
 import {
   datasheetSchema,
   datasheetSlugSchema,
@@ -286,16 +286,7 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       cacheUntilSnapshotChanges()
-      const canonical = app()
-        .canonicalCatalogue()
-        ?.datasheets.find((sheet) => sheet.catalogueId === data.catalogueId && sheet.slug === data.slug)
-      if (canonical) return canonical
-      const loaded = app().catalogue()
-      return loaded
-        ? describeDatasheetAbilities(loaded, data.catalogueId, datasheetInBySlug(loaded, data.catalogueId, data.slug), app().rules(), {
-            reference: true,
-          })
-        : null
+      return referenceDatasheetBySlug(app(), data)
     }),
   )
 
@@ -372,10 +363,7 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
 export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
     cacheUntilSnapshotChanges()
-    const canonical = app().canonicalCatalogue()
-    if (canonical) return ruleIndexOf(canonical.ruleDocuments)
-    const rules = app().rules()
-    return rules ? ruleIndexOf(rules.ruleDocuments) : null
+    return referenceRuleIndex(app())
   }),
 )
 
@@ -385,10 +373,7 @@ export const ruleSection = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       cacheUntilSnapshotChanges()
-      const canonical = app().canonicalCatalogue()
-      if (canonical) return ruleSectionOf(canonical.ruleDocuments, data.documentId, data.sectionId)
-      const rules = app().rules()
-      return rules ? ruleSectionOf(rules.ruleDocuments, data.documentId, data.sectionId) : null
+      return referenceRuleSection(app(), data)
     }),
   )
 

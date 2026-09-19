@@ -11,6 +11,7 @@ import {
   verifySnapshotArchive,
 } from '../src/server/catalogueSnapshot'
 import { writeCanonicalCatalogue } from '../src/server/canonicalCatalogue'
+import { canCompileCanonicalCatalogue } from '../src/server/canonicalCatalogueSources'
 import { disabledCatalogueSources } from '../src/server/catalogueSources'
 
 const root = path.join(import.meta.dirname, '..')
@@ -22,7 +23,7 @@ const command = process.argv[2]
 
 if (command === 'pack') {
   const disabled = disabledCatalogueSources()
-  if ((['definitions', 'rules', 'datacards'] as const).every((source) => !disabled.has(source))) {
+  if (canCompileCanonicalCatalogue(disabled)) {
     const catalogue = writeCanonicalCatalogue(directory)
     console.log(`canonical catalogue: ${catalogue.datasheets.length} datasheets, ${catalogue.issues.length} audit issues`)
   }
