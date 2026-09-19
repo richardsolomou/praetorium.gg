@@ -119,7 +119,7 @@ export function BattleMenu({
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">{confirming?.label}?</AlertDialogTitle>
+            <AlertDialogTitle>{confirming?.label}?</AlertDialogTitle>
             <AlertDialogDescription>{confirming?.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

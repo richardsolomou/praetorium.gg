@@ -23,7 +23,7 @@ export function ReminderDialog({
     <Dialog open>
       <DialogContent className="sm:max-w-lg" showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 uppercase">
+          <DialogTitle className="flex items-center gap-2">
             <BellRing className="size-4 text-parchment" /> Battle {reminders.length === 1 ? 'reminder' : 'reminders'}
           </DialogTitle>
           <DialogDescription>{moment}</DialogDescription>

@@ -39,7 +39,7 @@ export function OptionalRulesDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85dvh] overflow-y-auto p-0 sm:max-w-2xl">
         <DialogHeader className="border-b border-edge px-5 py-4">
-          <DialogTitle className="text-2xl uppercase">Optional rules</DialogTitle>
+          <DialogTitle className="text-2xl">Optional rules</DialogTitle>
           <DialogDescription>
             Homebrew this battle size can be played with. None of it is on unless this roster picks it, and what it picks is shown wherever
             the list is read.

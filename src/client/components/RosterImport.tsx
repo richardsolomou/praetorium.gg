@@ -112,7 +112,7 @@ export function RosterImport() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-xl uppercase">Import roster</DialogTitle>
+            <DialogTitle className="text-2xl">Import roster</DialogTitle>
             <DialogDescription>
               {review
                 ? 'Not everything this list states could be placed. Import it anyway and it arrives as named below.'

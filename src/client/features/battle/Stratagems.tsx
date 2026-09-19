@@ -152,7 +152,7 @@ function StratagemCard({
         </DialogTrigger>
         <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="uppercase">{stratagem.name}</DialogTitle>
+            <DialogTitle>{stratagem.name}</DialogTitle>
             <DialogDescription className="eyebrow">{timing}</DialogDescription>
           </DialogHeader>
           <p className="flex items-baseline justify-between gap-3">
@@ -207,7 +207,7 @@ function StratagemCard({
         <DialogContent className="border-parchment/60 sm:max-w-md">
           <DialogHeader className="pr-7">
             <div className="flex items-center justify-between gap-3">
-              <DialogTitle className="text-parchment uppercase">New Orders</DialogTitle>
+              <DialogTitle className="text-parchment">New Orders</DialogTitle>
               <span className="chip shrink-0">{newOrdersCost ?? stratagem.cp} CP</span>
             </div>
             <DialogDescription>Pick an active secondary mission to discard. Its replacement will be drawn at random.</DialogDescription>

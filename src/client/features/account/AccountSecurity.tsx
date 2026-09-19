@@ -308,7 +308,7 @@ function AccountMethodsSkeleton() {
     <div className="mt-4 space-y-3" aria-label="Loading sign-in methods">
       {Array.from({ length: 3 }, (_, index) => (
         <div key={index} className="flex items-center gap-3 border border-edge bg-sunken p-3" aria-hidden>
-          <Skeleton className="size-8 shrink-0 rounded-none" />
+          <Skeleton className="size-8 shrink-0" />
           <div className="min-w-0 flex-1 space-y-2">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-3 w-16" />

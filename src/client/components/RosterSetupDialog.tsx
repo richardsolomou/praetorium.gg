@@ -259,7 +259,7 @@ export function RosterSetupDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="p-0 sm:max-w-2xl">
           <DialogHeader className="border-b border-edge px-5 py-4">
-            <DialogTitle className="text-2xl uppercase">{mode === 'create' ? 'Create roster' : 'Edit roster setup'}</DialogTitle>
+            <DialogTitle className="text-2xl">{mode === 'create' ? 'Create roster' : 'Edit roster setup'}</DialogTitle>
             <DialogDescription>
               {mode === 'create'
                 ? 'Set the roster identity and army rules before adding units.'

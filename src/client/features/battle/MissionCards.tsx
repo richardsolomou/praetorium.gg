@@ -121,7 +121,7 @@ function SecretMissionDialog({
       <DialogTrigger render={<Button variant="outline" size="xs" disabled={pending} />}>Select secret mission</DialogTrigger>
       <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-discarded uppercase">Select a secret mission</DialogTitle>
+          <DialogTitle className="text-discarded">Select a secret mission</DialogTitle>
           <DialogDescription>Held face down until you reveal it. Your opponent sees only that you hold one.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-1 sm:grid-cols-2">
@@ -209,7 +209,7 @@ function MissionDetailsContent({ details }: { details: MissionDetails }) {
   return (
     <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader>
-        <DialogTitle className="uppercase">{details.name}</DialogTitle>
+        <DialogTitle>{details.name}</DialogTitle>
         <DialogDescription>What this mission asks you to do and when it scores.</DialogDescription>
       </DialogHeader>
       <MissionCardReference card={details.card} type={details.type} mode={details.mode} />

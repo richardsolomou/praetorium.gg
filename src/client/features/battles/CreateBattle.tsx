@@ -137,7 +137,7 @@ export function CreateBattle() {
         {leagueMatches.length ? (
           <>
             <DialogHeader>
-              <DialogTitle className="text-2xl uppercase">You are both in a league event</DialogTitle>
+              <DialogTitle className="text-2xl">You are both in a league event</DialogTitle>
               <DialogDescription>
                 Pick the event to play it there: the sealed lists go on the table for you, and the battle joins the event history.
               </DialogDescription>
@@ -178,7 +178,7 @@ export function CreateBattle() {
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle className="text-2xl uppercase">Start a battle</DialogTitle>
+              <DialogTitle className="text-2xl">Start a battle</DialogTitle>
               <DialogDescription>Choose who is playing. A practice opponent lets you play on your own.</DialogDescription>
             </DialogHeader>
             <div>

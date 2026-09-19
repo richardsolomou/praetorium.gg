@@ -182,7 +182,7 @@ export function ScoringDialog({
         <DialogContent className={`max-h-[85dvh] overflow-y-auto sm:max-w-2xl ${colours.border}`}>
           <DialogHeader className="text-center">
             <p className="eyebrow text-discarded">Now</p>
-            <DialogTitle className={`uppercase ${colours.text}`}>
+            <DialogTitle className={colours.text}>
               Scoring {moment} points · {sideName(side)}
             </DialogTitle>
             <DialogDescription>Recording points for {sideName(side)}. Press what the board actually paid on each card.</DialogDescription>

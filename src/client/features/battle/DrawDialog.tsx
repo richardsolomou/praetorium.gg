@@ -129,7 +129,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
       <Dialog open>
         <DialogContent showCloseButton={false} className="max-h-[85dvh] overflow-y-auto border-discarded/60 sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-discarded uppercase">
+            <DialogTitle className="text-discarded">
               {side.isViewer ? 'Your secondary missions' : `${sideName(side)}’s secondary missions`}
             </DialogTitle>
             <DialogDescription>

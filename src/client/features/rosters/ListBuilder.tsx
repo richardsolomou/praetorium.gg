@@ -1057,7 +1057,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
               <Skeleton className="mb-3 h-4 w-28" />
               <span className="grid gap-2">
                 {picks.map((pick) => (
-                  <Skeleton key={pick.key} className="h-24 rounded-none" />
+                  <Skeleton key={pick.key} className="h-24" />
                 ))}
               </span>
             </output>

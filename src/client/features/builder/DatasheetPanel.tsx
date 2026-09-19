@@ -187,13 +187,13 @@ function DatasheetLoading() {
       </div>
       <div className="grid grid-cols-6 gap-2">
         {Array.from({ length: 6 }, (_, index) => (
-          <Skeleton key={index} className="h-10 rounded-none" />
+          <Skeleton key={index} className="h-10" />
         ))}
       </div>
       {Array.from({ length: 3 }, (_, index) => (
         <div key={index} className="space-y-2 border-t border-edge pt-2">
           <Skeleton className="h-3 w-28" />
-          <Skeleton className="h-20 rounded-none" />
+          <Skeleton className="h-20" />
         </div>
       ))}
       <span className="sr-only">Loading datasheet…</span>

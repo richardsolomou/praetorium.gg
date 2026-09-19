@@ -40,7 +40,7 @@ export function DeleteBattleDialog({ battle, onClose }: { battle: Battle | null;
     >
       <AlertDialogContent aria-busy={remove.isPending}>
         <AlertDialogHeader>
-          <AlertDialogTitle className="uppercase">Delete battle?</AlertDialogTitle>
+          <AlertDialogTitle>Delete battle?</AlertDialogTitle>
           <AlertDialogDescription>The score and everything that happened in it go too, for good.</AlertDialogDescription>
         </AlertDialogHeader>
         {remove.error ? (

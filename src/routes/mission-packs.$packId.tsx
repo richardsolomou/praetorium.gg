@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { MissionActions } from '../client/components/MissionActions'
 import { MissionCardReference } from '../client/components/MissionCardReference'
 import { dispositionTone } from '../client/components/rosterSetup'
@@ -134,7 +134,6 @@ function MissionPackPage() {
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{secondary?.name}</DialogTitle>
-            <DialogDescription>Secondary mission</DialogDescription>
           </DialogHeader>
           {secondary ? <MissionCardReference card={secondary} type="Secondary mission" /> : null}
           {secondary ? <MissionActions actions={secondary.actions} /> : null}

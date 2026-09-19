@@ -209,7 +209,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent className="border-discarded/50 sm:max-w-lg [&>*]:min-w-0">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-discarded uppercase">
+            <AlertDialogTitle className="flex items-center gap-2 text-discarded">
               <TriangleAlert className="size-5 shrink-0" aria-hidden />
               {confirmingWaivers.length === 1 ? 'This list waives a rule' : `This list waives ${confirmingWaivers.length} rules`}
             </AlertDialogTitle>
@@ -275,7 +275,7 @@ function RosterChooser({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl uppercase">
+          <DialogTitle className="text-2xl">
             {forArmy?.automated ? `Choose ${forArmy.playerName}’s roster` : 'Choose your roster'}
           </DialogTitle>
           <DialogDescription>

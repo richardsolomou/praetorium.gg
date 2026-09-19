@@ -67,7 +67,7 @@ export function ArmyRoster({ army, side, token, actionable, send }: Props) {
         <DialogContent data-army-roster className={`max-h-[85dvh] overflow-y-auto sm:max-w-xl ${tint(side.index).border}`}>
           <DialogHeader className="text-center">
             <p className="eyebrow">{army.playerName}</p>
-            <DialogTitle className="uppercase">{roster.name}</DialogTitle>
+            <DialogTitle>{roster.name}</DialogTitle>
             <DialogDescription render={<div />}>
               <ArmyIdentity army={army} token={token} list={false} className="justify-center" />
             </DialogDescription>

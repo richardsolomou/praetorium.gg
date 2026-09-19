@@ -222,7 +222,7 @@ export function LoadoutLoading() {
         {Array.from({ length: 3 }, (_, index) => (
           <div key={index} className="space-y-2 border-t border-edge pt-2">
             <Skeleton className="h-3 w-28" />
-            <Skeleton className="h-20 rounded-none" />
+            <Skeleton className="h-20" />
           </div>
         ))}
       </div>

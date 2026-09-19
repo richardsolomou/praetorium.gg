@@ -82,7 +82,7 @@ export function ReminderEditorDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="uppercase">{draft.ability}</DialogTitle>
+          <DialogTitle>{draft.ability}</DialogTitle>
           <DialogDescription>{draft.unit ? `${draft.unit.name} · ` : ''}Choose when this alert appears during a battle.</DialogDescription>
         </DialogHeader>
 

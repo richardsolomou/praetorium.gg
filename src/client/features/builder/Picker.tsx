@@ -222,7 +222,7 @@ export const Picker = memo(function Picker({
           })
         ) : (
           <p className="py-3 text-xs text-faint">
-            {found?.length ? 'Everything is filtered out.' : query ? 'No matching units.' : 'Loading the book…'}
+            {found?.length ? 'Everything is filtered out.' : query ? 'No matching units.' : 'No units available.'}
           </p>
         )}
       </ScrollArea>

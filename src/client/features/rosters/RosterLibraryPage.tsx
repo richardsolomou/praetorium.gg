@@ -180,7 +180,7 @@ export function RosterLibraryPage({ search }: { search: RosterLibrarySearch }) {
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Delete {deleting?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
             <AlertDialogDescription>This removes the saved roster. Battles that already use it are not changed.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

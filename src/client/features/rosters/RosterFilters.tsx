@@ -116,7 +116,7 @@ export function RosterFilters({
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="uppercase">Filter rosters</DialogTitle>
+            <DialogTitle>Filter rosters</DialogTitle>
             <DialogDescription>Narrow the library to the lists you want to see.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">

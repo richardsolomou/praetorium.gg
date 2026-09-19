@@ -21,7 +21,7 @@ export function SecretMissionHandoff({ side, pending, onReveal, onCancel, undoab
       <Dialog open onOpenChange={(open) => !open && onCancel?.()}>
         <DialogContent showCloseButton={Boolean(onCancel)} className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="uppercase">Secret Mission action · {sideName(side)}</DialogTitle>
+            <DialogTitle>Secret Mission action · {sideName(side)}</DialogTitle>
             <DialogDescription>
               {side.played
                 ? 'Reveal the face-down mission to continue.'

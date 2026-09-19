@@ -119,7 +119,7 @@ function LeagueActionDialogs({ actions }: { actions: Controller }) {
       <Dialog open={actions.editing} onOpenChange={(open) => !actions.update.isPending && actions.setEditing(open)}>
         <DialogContent showCloseButton={!actions.update.isPending} aria-busy={actions.update.isPending} className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle className="text-2xl uppercase">Edit league</DialogTitle>
+            <DialogTitle className="text-2xl">Edit league</DialogTitle>
             <DialogDescription>
               Applies from now on. Nothing already entered, sealed, or played changes. Switching to automatic lets in anyone still waiting.
             </DialogDescription>
@@ -168,7 +168,7 @@ function LeagueActionDialogs({ actions }: { actions: Controller }) {
       <AlertDialog open={actions.deleting} onOpenChange={(open) => !actions.remove.isPending && actions.setDeleting(open)}>
         <AlertDialogContent aria-busy={actions.remove.isPending}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Delete {actions.league.name}?</AlertDialogTitle>
+            <AlertDialogTitle>Delete {actions.league.name}?</AlertDialogTitle>
             <AlertDialogDescription>
               Every event, entrant, and sealed list goes with it, for good. Battles already started from it stay where they are.
             </AlertDialogDescription>

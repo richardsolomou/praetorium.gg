@@ -62,7 +62,7 @@ export function OneOnOneBattleChooser({
     <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-2xl uppercase">{startBattleLabel('1v1')}</DialogTitle>
+          <DialogTitle className="text-2xl">{startBattleLabel('1v1')}</DialogTitle>
           <DialogDescription>Pick who you are playing. Both sealed lists are added for you.</DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">
@@ -157,7 +157,7 @@ export function LeagueBattleChooser({
     <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
       <DialogContent aria-busy={pending} className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-2xl uppercase">{startBattleLabel('2v1')}</DialogTitle>
+          <DialogTitle className="text-2xl">{startBattleLabel('2v1')}</DialogTitle>
           <DialogDescription>
             {isSolo ? 'Pick the two allied entrants you are facing.' : 'Pick your teammate and the solo entrant you are facing.'}
           </DialogDescription>
@@ -249,7 +249,7 @@ export function LeagueTeamChooser({
       <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
         <DialogContent aria-busy={pending} className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-2xl uppercase">Assign {entrantName}’s team</DialogTitle>
+            <DialogTitle className="text-2xl">Assign {entrantName}’s team</DialogTitle>
             <DialogDescription>
               {currentTeam && currentTeammate
                 ? `Currently paired with ${labels.get(currentTeammate.userId) ?? currentTeammate.name}. `
@@ -322,7 +322,7 @@ export function LeagueTeamChooser({
       >
         <AlertDialogContent aria-busy={pending}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Clear sealed doubles rosters?</AlertDialogTitle>
+            <AlertDialogTitle>Clear sealed doubles rosters?</AlertDialogTitle>
             <AlertDialogDescription>
               This clears the sealed {confirmation?.sealedNames.length === 1 ? 'list' : 'lists'} for{' '}
               {confirmation ? formatNames(confirmation.sealedNames) : ''}. They have to seal another before you can reveal.
@@ -397,7 +397,7 @@ export function DoublesBattleChooser({
     <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
       <DialogContent aria-busy={pending} className="max-h-[85dvh] overflow-x-hidden overflow-y-auto sm:max-w-lg [&>*]:min-w-0">
         <DialogHeader>
-          <DialogTitle className="text-2xl uppercase">{startBattleLabel('2v2')}</DialogTitle>
+          <DialogTitle className="text-2xl">{startBattleLabel('2v2')}</DialogTitle>
           <DialogDescription>Pick the team you are playing. Your teammate and all four sealed lists are added for you.</DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">

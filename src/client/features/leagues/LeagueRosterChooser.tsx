@@ -34,7 +34,7 @@ export function RosterChooser({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl uppercase">Seal a roster</DialogTitle>
+          <DialogTitle className="text-2xl">Seal a roster</DialogTitle>
           <DialogDescription>
             {requiredLimit === null
               ? 'Nobody sees it until reveal, and you can swap it until then.'

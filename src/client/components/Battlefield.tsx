@@ -170,7 +170,7 @@ function LayoutsLoading() {
         <div key={index} className="flex flex-col border border-edge bg-sunken p-2" aria-hidden>
           <Skeleton className="mx-auto h-7 w-6" />
           <Skeleton className="mt-2 h-8 w-full" />
-          <Skeleton className="mt-2 aspect-[44/60] w-full rounded-none" />
+          <Skeleton className="mt-2 aspect-[44/60] w-full" />
           <Skeleton className="mx-auto mt-2 h-4 w-2/3" />
         </div>
       ))}

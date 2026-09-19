@@ -36,7 +36,7 @@ function TwistDialog({ twist, trigger, children }: { twist: Twist; trigger: Reac
       <DialogTrigger render={trigger}>{children}</DialogTrigger>
       <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="uppercase">{twist.name}</DialogTitle>
+          <DialogTitle>{twist.name}</DialogTitle>
           <DialogDescription>{twist.lore ?? 'What this twist changes for the whole battle.'}</DialogDescription>
         </DialogHeader>
         {twist.rules ? <RuleText text={twist.rules} /> : null}

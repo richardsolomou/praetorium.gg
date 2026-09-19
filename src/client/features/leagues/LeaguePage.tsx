@@ -728,7 +728,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
       >
         <AlertDialogContent aria-busy={submit.isPending} className="border-discarded/50 sm:max-w-lg [&>*]:min-w-0">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-discarded uppercase">
+            <AlertDialogTitle className="flex items-center gap-2 text-discarded">
               <TriangleAlert className="size-5 shrink-0" aria-hidden />
               {sealWaivers.length === 1 ? 'This roster waives a rule' : `This roster waives ${sealWaivers.length} rules`}
             </AlertDialogTitle>
@@ -775,7 +775,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
       >
         <AlertDialogContent aria-busy={reveal.isPending}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Reveal every roster?</AlertDialogTitle>
+            <AlertDialogTitle>Reveal every roster?</AlertDialogTitle>
             <AlertDialogDescription>
               Every accepted list becomes visible and the event closes to new players.{' '}
               {pendingCount ? `${pendingCount} request${pendingCount === 1 ? '' : 's'} still waiting will be turned down. ` : ''}
@@ -808,7 +808,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
       >
         <AlertDialogContent aria-busy={moderate.isPending}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Remove {removing?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>Remove {removing?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
               {removingTeammate
                 ? `This also unpairs ${entrantLabels.get(removingTeammate.userId) ?? removingTeammate.name} and clears both their sealed lists. ${removing?.name} has to join again and seal another list to come back.`
@@ -844,7 +844,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
       >
         <AlertDialogContent aria-busy={unseal.isPending}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Unseal {unsealing?.name}’s roster?</AlertDialogTitle>
+            <AlertDialogTitle>Unseal {unsealing?.name}’s roster?</AlertDialogTitle>
             <AlertDialogDescription>
               Their revealed list is discarded and they can seal another one for this event. Battles already started keep the list they were
               created with.
@@ -867,7 +867,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
       <AlertDialog open={reassigning !== null} onOpenChange={(open) => !assign.isPending && !open && setReassigning(null)}>
         <AlertDialogContent aria-busy={assign.isPending}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Change {reassigning?.name}’s roster size?</AlertDialogTitle>
+            <AlertDialogTitle>Change {reassigning?.name}’s roster size?</AlertDialogTitle>
             <AlertDialogDescription>
               Their sealed list is cleared. They have to seal one at the new size before you can reveal.
             </AlertDialogDescription>

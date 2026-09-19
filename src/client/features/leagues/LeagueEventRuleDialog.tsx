@@ -44,7 +44,7 @@ export function LeagueEventRuleDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent aria-busy={pending}>
         <AlertDialogHeader>
-          <AlertDialogTitle className="uppercase">{title}</AlertDialogTitle>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
           <LeagueEventRuleFields value={value} disabled={pending} onChange={onChange} />
           {blocked ? (

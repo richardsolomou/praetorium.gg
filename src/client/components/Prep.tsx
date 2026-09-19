@@ -151,8 +151,8 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     return (
       <div data-secondary-deck-ready={deckReady} className="space-y-3" aria-label="Loading mission data">
         <div className="grid gap-2 sm:grid-cols-2" aria-hidden>
-          <Skeleton className="h-14 w-full rounded-none" />
-          <Skeleton className="h-14 w-full rounded-none" />
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
         </div>
         <Skeleton className="h-4 w-2/3" />
       </div>

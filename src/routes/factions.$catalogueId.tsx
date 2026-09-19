@@ -113,7 +113,7 @@ function FactionPage() {
                     )}
                   </span>
                   {detachment.reference && (detachment.reference.dispositions.length || detachment.reference.points !== null) ? (
-                    <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                    <span className="flex shrink-0 flex-wrap justify-end gap-1 max-sm:order-last max-sm:basis-full max-sm:justify-start">
                       {detachment.reference.dispositions.map((disposition) => (
                         <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
                           {disposition}
@@ -130,7 +130,7 @@ function FactionPage() {
                   <Link
                     to="/factions/$catalogueId/reference/detachments/$detachmentId"
                     params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                    className="flex min-w-0 flex-1 items-center justify-between gap-4"
+                    className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 sm:flex-nowrap"
                   >
                     {content}
                   </Link>
@@ -138,7 +138,9 @@ function FactionPage() {
                 </div>
               ) : (
                 <div key={detachment.id} className="flex items-center gap-1 px-3 py-2.5">
-                  <div className="flex min-w-0 flex-1 items-center justify-between gap-4">{content}</div>
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 sm:flex-nowrap">
+                    {content}
+                  </div>
                   <FavouriteDetachmentToggle catalogueId={faction.id} detachmentId={detachment.id} name={detachment.name} />
                 </div>
               )

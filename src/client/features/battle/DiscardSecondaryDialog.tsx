@@ -40,7 +40,7 @@ export function DiscardSecondaryDialog({
         <DialogContent className="border-discarded/60 sm:max-w-lg">
           <DialogHeader className="text-center">
             <p className="eyebrow text-discarded">End of turn</p>
-            <DialogTitle className="uppercase">Discard tactical secondaries?</DialogTitle>
+            <DialogTitle>Discard tactical secondaries?</DialogTitle>
             <DialogDescription>
               {sideName(side)} can discard any of their active tactical secondaries, or keep the hand as is. Discarding several at once
               still gains at most 1 CP.

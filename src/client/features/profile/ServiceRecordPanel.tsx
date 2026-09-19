@@ -139,7 +139,7 @@ function RecordFilters({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="uppercase">Filter record</DialogTitle>
+          <DialogTitle>Filter record</DialogTitle>
           <DialogDescription>Narrow the record to the battles you want it counted from.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3">
