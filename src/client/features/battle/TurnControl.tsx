@@ -38,7 +38,7 @@ export function TurnControl({ view, send, pending, blockReason, note, onAdvance,
           <li key={phase} className="min-w-0 flex-1" aria-current={phase === view.phase ? 'step' : undefined}>
             <span className={`block h-1 ${index <= at ? tint(activeSide).rail : 'bg-edge-strong'}`} />
             <span
-              className={`mt-1 block truncate text-center text-[0.5625rem] font-semibold tracking-[0.06em] uppercase ${
+              className={`mt-1 block truncate text-center text-3xs font-semibold tracking-label uppercase ${
                 phase === view.phase ? 'text-bone' : 'text-faint'
               }`}
             >

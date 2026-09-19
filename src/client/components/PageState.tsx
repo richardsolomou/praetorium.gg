@@ -25,7 +25,7 @@ export function PageState({
   const Heading = headingLevel === 1 ? 'h1' : 'h2'
   return (
     <div className={`${className} relative grid place-items-center overflow-hidden border border-edge bg-panel px-6 py-12 text-center`}>
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
+      <div className="sheen" />
       <div className="relative grid max-w-md justify-items-center">
         <span className="grid size-14 place-items-center rounded-full border border-edge-strong bg-sunken text-parchment">
           <Mark className={`size-6 ${loading ? 'animate-spin' : ''}`} aria-hidden />
@@ -33,7 +33,7 @@ export function PageState({
         <p className="eyebrow mt-4 text-parchment">{eyebrow}</p>
         <Heading className="mt-1 text-2xl">{title}</Heading>
         <p className="mt-2 text-sm text-dim">{explanation}</p>
-        {action ? <div className="mt-6 w-full">{action}</div> : null}
+        {action ? <div className="mt-6 flex w-full justify-center">{action}</div> : null}
       </div>
     </div>
   )

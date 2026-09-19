@@ -8,6 +8,7 @@ import { useFavouriteFactions } from '../client/favouriteFactions'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { SearchField } from '../client/components/SearchField'
 import { PageState } from '../client/components/PageState'
+import { PageContent, PageHeader } from '../client/components/Page'
 
 export const Route = createFileRoute('/factions')({
   loader: ({ context, location }) =>
@@ -57,17 +58,13 @@ function FactionIndex() {
 
   return (
     <main className="w-full">
-      <section className="relative overflow-hidden border-b border-edge bg-panel">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-7">
-          <p className="eyebrow text-parchment">Army reference</p>
-          <h1 className="mt-1 text-3xl">Factions</h1>
-          <p className="mt-2 max-w-2xl text-sm text-dim">Browse faction rules, detachments, datasheets, loadouts and points.</p>
-        </div>
-      </section>
-      <div className="mx-auto max-w-5xl px-3 pb-8 sm:px-4">
+      <PageHeader
+        eyebrow="Army reference"
+        title="Factions"
+        description="Browse faction rules, detachments, datasheets, loadouts and points."
+      />
+      <PageContent>
         <SearchField
-          className="mt-4"
           value={factionQueryText}
           onChange={setFactionQueryText}
           placeholder="Find a faction"
@@ -101,7 +98,7 @@ function FactionIndex() {
             explanation="Try a broader faction name or clear the search."
           />
         )}
-      </div>
+      </PageContent>
     </main>
   )
 }

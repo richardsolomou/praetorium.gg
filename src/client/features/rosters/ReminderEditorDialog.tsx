@@ -80,7 +80,7 @@ export function ReminderEditorDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="rounded-none border-edge bg-panel sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="uppercase">{draft.ability}</DialogTitle>
           <DialogDescription>{draft.unit ? `${draft.unit.name} · ` : ''}Choose when this alert appears during a battle.</DialogDescription>
@@ -125,7 +125,7 @@ export function ReminderEditorDialog({
                         })
                       }
                     >
-                      <SelectTrigger id={`${prefix}-moment`} className="mt-1.5 w-full rounded-none border-edge bg-sunken">
+                      <SelectTrigger id={`${prefix}-moment`} className="mt-1.5 w-full">
                         <SelectValue>{(value: unknown) => MOMENTS.find((entry) => entry.value === value)?.label ?? 'Choose'}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
@@ -147,7 +147,7 @@ export function ReminderEditorDialog({
                       disabled={timing.moment === 'turn-start' || timing.moment === 'turn-end'}
                       onValueChange={(value: ReminderPhase | null) => updateTiming(index, { phase: value })}
                     >
-                      <SelectTrigger id={`${prefix}-phase`} className="mt-1.5 w-full rounded-none border-edge bg-sunken">
+                      <SelectTrigger id={`${prefix}-phase`} className="mt-1.5 w-full">
                         <SelectValue>{(value: unknown) => (value ? phaseLabel(value as ReminderPhase) : 'Choose')}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
@@ -165,7 +165,7 @@ export function ReminderEditorDialog({
                       Whose turn
                     </Label>
                     <Select value={timing.turn} onValueChange={(value: ReminderTurn | null) => updateTiming(index, { turn: value })}>
-                      <SelectTrigger id={`${prefix}-turn`} className="mt-1.5 w-full rounded-none border-edge bg-sunken">
+                      <SelectTrigger id={`${prefix}-turn`} className="mt-1.5 w-full">
                         <SelectValue>{(value: unknown) => (value ? TURN_LABELS[value as ReminderTurn] : 'Choose')}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>

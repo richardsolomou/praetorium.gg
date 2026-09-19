@@ -49,7 +49,12 @@ export function TwoFactorSignIn({ onBack, onSuccess }: { onBack: () => void; onS
         </p>
       </div>
       <label className="flex items-center gap-2 text-sm text-dim">
-        <input type="checkbox" checked={trustDevice} onChange={(event) => setTrustDevice(event.target.checked)} />
+        <input
+          type="checkbox"
+          className="size-4 accent-primary"
+          checked={trustDevice}
+          onChange={(event) => setTrustDevice(event.target.checked)}
+        />
         Trust this device for 30 days
       </label>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -59,6 +64,7 @@ export function TwoFactorSignIn({ onBack, onSuccess }: { onBack: () => void; onS
       <Button
         type="button"
         variant="ghost"
+        size="sm"
         className="w-full"
         disabled={busy}
         onClick={() => {
@@ -69,7 +75,7 @@ export function TwoFactorSignIn({ onBack, onSuccess }: { onBack: () => void; onS
       >
         {recovery ? 'Use authenticator code' : 'Use a recovery code'}
       </Button>
-      <Button type="button" variant="ghost" className="w-full" disabled={busy} onClick={onBack}>
+      <Button type="button" variant="ghost" size="sm" className="w-full" disabled={busy} onClick={onBack}>
         Back to sign in
       </Button>
     </form>

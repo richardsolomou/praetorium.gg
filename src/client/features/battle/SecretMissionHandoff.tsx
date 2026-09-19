@@ -19,10 +19,10 @@ export function SecretMissionHandoff({ side, pending, onReveal, onCancel, undoab
   return (
     <>
       <Dialog open onOpenChange={(open) => !open && onCancel?.()}>
-        <DialogContent showCloseButton={Boolean(onCancel)} className="rounded-none border border-edge bg-panel text-bone sm:max-w-md">
+        <DialogContent showCloseButton={Boolean(onCancel)} className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="uppercase">Secret Mission action · {sideName(side)}</DialogTitle>
-            <DialogDescription className="text-dim">
+            <DialogDescription>
               {side.played
                 ? 'Reveal the face-down mission to continue.'
                 : `Hand this device to ${sideName(side)}. When they are ready, revealing the mission opens its scoring prompt.`}

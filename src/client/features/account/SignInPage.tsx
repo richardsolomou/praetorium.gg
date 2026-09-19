@@ -82,7 +82,7 @@ export function SignInPage({ error, next, reset }: { error?: string; next?: stri
         <div className="relative ml-auto grid h-full w-full max-w-lg content-between p-8">
           <div>
             <p className="eyebrow text-parchment">Build. Plan. Play.</p>
-            <h2 className="mt-2 text-3xl">Your armies and battles, ready when you are.</h2>
+            <h2 className="mt-1 text-3xl">Your armies and battles, ready when you are.</h2>
           </div>
           <img src="/logo.svg" alt="" className="mx-auto size-40 drop-shadow-[0_0_2rem_rgba(137,184,157,0.18)]" />
           <p className="text-sm text-dim">Sign in on any device to get back to your army lists and games.</p>

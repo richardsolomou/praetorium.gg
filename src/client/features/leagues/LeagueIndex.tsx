@@ -3,6 +3,8 @@ import { Link } from '@tanstack/react-router'
 import { Eye, LockKeyhole, Users } from 'lucide-react'
 import { alliedLeagueRosterLimit } from '../../../core/league'
 import { leaguesQuery, meQuery } from '../../queries'
+import { PageContent, PageHeader } from '../../components/Page'
+import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { CreateLeague } from './CreateLeague'
 import { LeagueCardActions } from './LeagueActions'
@@ -15,32 +17,27 @@ export function LeagueIndex() {
 
   return (
     <main className="w-full">
-      <section className="relative overflow-hidden border-b border-edge bg-panel">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-4 px-3 py-5 sm:px-4 sm:py-7">
-          <div>
-            <p className="eyebrow text-parchment">Organized play</p>
-            <h1 className="text-3xl">Leagues</h1>
-            <p className="mt-2 max-w-2xl text-sm text-dim">
-              Collect sealed rosters for a league, tournament, or private event, then reveal every accepted list together.
-            </p>
-          </div>
-          {me ? <CreateLeague /> : null}
-        </div>
-      </section>
-      <div className="mx-auto max-w-5xl space-y-7 px-3 py-5 sm:px-4">
+      <PageHeader
+        eyebrow="Organized play"
+        title="Leagues"
+        description="Collect sealed rosters for a league, tournament, or private event, then reveal every accepted list together."
+        actions={me ? <CreateLeague /> : null}
+      />
+      <PageContent className="space-y-6">
         {mine.length ? <LeagueShelf title="Your leagues" leagues={mine} viewerId={me?.id ?? null} /> : null}
         {publicLeagues.length ? <LeagueShelf title="Public leagues" leagues={publicLeagues} viewerId={me?.id ?? null} /> : null}
         {!leagues.length ? (
-          <section className="border border-dashed border-edge bg-panel px-5 py-10 text-center">
-            <Users className="mx-auto size-8 text-faint" />
-            <h2 className="mt-4 text-xl">No leagues yet.</h2>
-            <p className="mx-auto mt-2 max-w-lg text-sm text-dim">
-              {me ? 'Create the first event and share its registration link.' : 'Public leagues will appear here. Sign in to create one.'}
-            </p>
-          </section>
+          <PageState
+            headingLevel={2}
+            eyebrow="Organized play"
+            title="No leagues yet"
+            explanation={
+              me ? 'Create the first event and share its registration link.' : 'Public leagues will appear here. Sign in to create one.'
+            }
+            icon={Users}
+          />
         ) : null}
-      </div>
+      </PageContent>
     </main>
   )
 }
@@ -72,7 +69,7 @@ function LeagueShelf({
                   ) : (
                     <p className="mt-1 flex min-w-0 items-center gap-1 text-sm text-dim">
                       <span className="shrink-0">Organized by</span>
-                      <PlayerAvatar name={league.ownerName} image={league.ownerImage} className="size-5 text-[0.625rem]" />
+                      <PlayerAvatar name={league.ownerName} image={league.ownerImage} className="size-5 text-3xs" />
                       <span className="truncate">{league.ownerName}</span>
                     </p>
                   )}

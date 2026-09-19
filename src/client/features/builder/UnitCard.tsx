@@ -83,7 +83,7 @@ export function UnitCard({
       {onSelect ? (
         <Button
           variant="ghost"
-          className="absolute inset-0 h-full w-full rounded-none hover:bg-transparent dark:hover:bg-transparent"
+          className="absolute inset-0 h-full w-full hover:bg-transparent dark:hover:bg-transparent"
           onClick={onSelect}
           aria-pressed={selected}
           aria-label={unit.name}
@@ -95,11 +95,8 @@ export function UnitCard({
           {editable ? (
             <span data-print-hide>
               <DropdownMenu>
-                <DropdownMenuTrigger
-                  className="flex size-7 cursor-pointer items-center justify-center rounded-sm hover:bg-raised"
-                  aria-label={`Unit actions for ${unit.name}`}
-                >
-                  <EllipsisVertical className="size-4" />
+                <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Unit actions for ${unit.name}`} />}>
+                  <EllipsisVertical />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className={MENU}>
                   <UnitActions Item={DropdownMenuItem} Checkbox={DropdownMenuCheckboxItem} {...actions} />
@@ -110,7 +107,7 @@ export function UnitCard({
         </span>
         <div className="pointer-events-none text-left">
           <span className="w-full min-w-0">
-            <span className="block text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
+            <span className="rubric block leading-tight text-bone">{unit.name}</span>
             {alliedFaction ? (
               <span className="eyebrow mt-1 flex items-center gap-1 text-info">
                 Allied unit · <FactionLabel faction={alliedFaction} />
@@ -158,7 +155,7 @@ export function UnitCard({
               data-print-hide
               variant="ghost"
               size="xs"
-              className="shrink-0 text-[0.6875rem] tracking-[0.06em] text-azure uppercase"
+              className="shrink-0 text-2xs tracking-label text-azure uppercase"
               onClick={row.onAct}
             >
               {row.action}
@@ -175,7 +172,7 @@ export function UnitCard({
                 <Button
                   variant="ghost"
                   size="xs"
-                  className="!px-1 text-[0.6875rem] tracking-[0.06em] text-azure uppercase hover:bg-transparent hover:text-bone"
+                  className="!px-1 text-2xs tracking-label text-azure uppercase hover:bg-transparent hover:text-bone"
                   aria-label={`Attach ${unit.name} to unit`}
                 />
               }
@@ -221,8 +218,8 @@ const NONE: never[] = []
 
 /** A line under the unit's name: an enhancement, an upgrade, or who it is standing with. */
 const ROW = 'flex items-center border-t border-edge bg-raised px-2.5 py-1'
-const MENU = 'w-44 rounded-none border border-edge-strong bg-raised shadow-xl ring-0'
-const ITEM = 'rounded-none text-xs font-semibold uppercase focus:bg-edge'
+const MENU = 'w-44'
+const ITEM = 'text-xs font-semibold uppercase'
 
 /**
  * The same three actions, in whichever menu asked for them.
@@ -254,7 +251,7 @@ function UnitActions({
         <Heart className={`size-3.5 ${owned ? 'fill-rust text-rust' : ''}`} />
         {owned ? 'Remove from collection' : 'Add to collection'}
       </Checkbox>
-      <Item variant="destructive" className="rounded-none text-xs font-semibold uppercase" onClick={onRemove}>
+      <Item variant="destructive" className={ITEM} onClick={onRemove}>
         <X className="size-3.5" /> Delete unit
       </Item>
     </>

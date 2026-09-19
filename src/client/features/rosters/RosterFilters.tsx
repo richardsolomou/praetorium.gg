@@ -107,17 +107,17 @@ export function RosterFilters({
   const sortLabel = SORT_GROUPS.flatMap((group) => group.items).find((item) => item.value === value.sort)?.label ?? ''
 
   return (
-    <div className="mx-auto mt-4 flex max-w-5xl flex-wrap items-center gap-2 px-3 sm:px-4" aria-label="Roster filters">
+    <div className="flex flex-wrap items-center gap-2" aria-label="Roster filters">
       <Dialog>
-        <DialogTrigger render={<Button variant="outline" size="lg" className="rounded-none border-edge bg-sunken uppercase" />}>
+        <DialogTrigger render={<Button variant="outline" size="lg" />}>
           <ListFilter />
           Filter
           {active ? <span className="chip readout">{active}</span> : null}
         </DialogTrigger>
-        <DialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle className="uppercase">Filter rosters</DialogTitle>
-            <DialogDescription className="text-dim">Narrow the library to the lists you want to see.</DialogDescription>
+            <DialogDescription>Narrow the library to the lists you want to see.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <Field
@@ -139,41 +139,27 @@ export function RosterFilters({
               onChange={(chosen) => onChange({ ...value, visibility: chosen === 'all' ? undefined : (chosen as RosterVisibility) })}
             />
           </div>
-          <DialogFooter className="rounded-none border-edge bg-sunken">
-            <Button
-              variant="ghost"
-              disabled={!active}
-              onClick={() => onChange({ sort: value.sort })}
-              className="uppercase sm:mr-auto sm:ml-0"
-            >
+          <DialogFooter>
+            <Button variant="ghost" disabled={!active} onClick={() => onChange({ sort: value.sort })} className="sm:mr-auto sm:ml-0">
               Clear filters
             </Button>
-            <DialogClose render={<Button variant="outline" className="rounded-none border-edge uppercase" />}>Done</DialogClose>
+            <DialogClose render={<Button variant="outline" />}>Done</DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="outline"
-              size="lg"
-              aria-label={`Sort: ${sortLabel}`}
-              className="rounded-none border-edge bg-sunken uppercase"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button variant="outline" size="lg" aria-label={`Sort: ${sortLabel}`} />}>
           <ArrowDownUp />
           {sortLabel}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56 rounded-none border border-edge bg-panel text-bone">
+        <DropdownMenuContent align="start" className="w-56">
           <DropdownMenuRadioGroup value={value.sort} onValueChange={(chosen) => onChange({ ...value, sort: chosen as RosterSort })}>
             {SORT_GROUPS.map((group) => (
               <Fragment key={group.label}>
                 <DropdownMenuLabel className="eyebrow text-faint">{group.label}</DropdownMenuLabel>
                 {group.items.map((item) => (
-                  <DropdownMenuRadioItem key={item.value} value={item.value} closeOnClick className="rounded-none">
+                  <DropdownMenuRadioItem key={item.value} value={item.value} closeOnClick>
                     {item.label}
                   </DropdownMenuRadioItem>
                 ))}
@@ -200,14 +186,7 @@ function Field({
   return (
     <div>
       <Label className="eyebrow block">{label}</Label>
-      <SearchableSelect
-        ariaLabel={label}
-        groups={groups}
-        value={value}
-        onValueChange={onChange}
-        placeholder={label}
-        className="mt-1 h-9 rounded-none border-edge bg-sunken text-xs font-semibold uppercase"
-      />
+      <SearchableSelect ariaLabel={label} groups={groups} value={value} onValueChange={onChange} placeholder={label} className="mt-1" />
     </div>
   )
 }

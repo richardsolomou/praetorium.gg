@@ -1,6 +1,5 @@
 import { attachedUnitList } from '../../../core/attachedUnits'
 import type { Army, Side } from '../../sides'
-import { HEADING } from '../battle/tints'
 import { GROUPS } from '../builder/groups'
 import { formationLabel, SetupSidePanel } from './chrome'
 
@@ -43,7 +42,7 @@ function ArmyRules({ army, rule, empty, multiple }: { army: Army; rule: Rule; em
       <div className="flex items-baseline justify-between gap-2 border-b border-edge pb-1">
         <span className="min-w-0">
           <span className="block break-words text-xs font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
-          {multiple ? <span className="block text-[0.625rem] text-dim">{army.playerName}</span> : null}
+          {multiple ? <span className="block text-3xs text-dim">{army.playerName}</span> : null}
         </span>
         <span className="chip shrink-0">{onTable.length} on the table</span>
       </div>
@@ -53,15 +52,13 @@ function ArmyRules({ army, rule, empty, multiple }: { army: Army; rule: Rule; em
           return units.length
             ? [
                 <section key={group.id} className="space-y-1">
-                  <p className={HEADING}>{group.plural}</p>
+                  <p className="eyebrow">{group.plural}</p>
                   {units.map(({ host, joined }) => (
                     <div key={host.key} className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-sunken px-2.5 py-1.5">
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-semibold">{host.name}</span>
                         {joined.length ? (
-                          <span className="block text-[0.625rem] text-dim">
-                            with {joined.map((character) => character.name).join(', ')}
-                          </span>
+                          <span className="block text-3xs text-dim">with {joined.map((character) => character.name).join(', ')}</span>
                         ) : null}
                       </span>
                       <span className="chip shrink-0 border-discarded/60 text-discarded">{formationLabel(rule)}</span>

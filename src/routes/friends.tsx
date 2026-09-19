@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { PageContent, PageHeader } from '../client/components/Page'
 import { SearchField } from '../client/components/SearchField'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { SignInRequired } from '../client/components/SignInRequired'
@@ -40,76 +41,78 @@ function Friends() {
 
   return (
     <main className="w-full">
-      <section className="relative overflow-hidden border-b border-edge bg-panel">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-7">
-          <p className="eyebrow text-parchment">Your account</p>
-          <h1 className="mt-1 text-3xl">Friends</h1>
-          <p className="mt-2 max-w-2xl text-sm text-dim">
-            Connect with the people you know, then invite confirmed friends to private battles.
+      <PageHeader
+        eyebrow="Your account"
+        title="Friends"
+        description="Connect with the people you know, then invite confirmed friends to private battles."
+      />
+      <PageContent className="space-y-6">
+        {request.error || accept.error || remove.error ? (
+          <p role="alert" className="border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            {errorMessage(request.error ?? accept.error ?? remove.error)}
           </p>
+        ) : null}
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <People
+            title="Friend requests"
+            empty="No requests are waiting for you."
+            people={data.incoming}
+            action="Accept"
+            pending={accept.isPending}
+            onAction={(person) => accept.mutate(person.id)}
+          />
+          <People
+            title="Friends"
+            empty="Add a player below before you create a shared battle."
+            people={data.friends}
+            action="Remove"
+            destructive
+            pending={remove.isPending}
+            onAction={(person) => remove.mutate(person.id)}
+          />
         </div>
-      </section>
 
-      {request.error || accept.error || remove.error ? (
-        <p className="mx-auto mt-4 max-w-5xl border-y border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive sm:border-x">
-          {errorMessage(request.error ?? accept.error ?? remove.error)}
-        </p>
-      ) : null}
+        <section>
+          <div className="flex items-baseline justify-between border-b border-edge pb-2">
+            <p className="rubric">Find players</p>
+            <UserPlus className="size-4 text-parchment" aria-hidden />
+          </div>
+          <SearchField
+            className="mt-2"
+            value={query}
+            onChange={setQuery}
+            placeholder="Search by account name"
+            label="Search by account name"
+            clearLabel="Empty the player filter"
+          />
+          <div className="mt-2 space-y-2">
+            {people.map((person) => (
+              <PersonRow
+                key={person.id}
+                person={person}
+                action="Add friend"
+                pending={request.isPending}
+                onAction={() => request.mutate(person.id)}
+              />
+            ))}
+            {query && !people.length ? <p className="border border-edge bg-panel p-4 text-sm text-dim">No matching players.</p> : null}
+            {!query && !people.length ? (
+              <p className="border border-edge bg-panel p-4 text-sm text-dim">No other players are available.</p>
+            ) : null}
+          </div>
+        </section>
 
-      <div className="mx-auto mt-4 grid max-w-5xl gap-6 px-3 sm:px-4 md:grid-cols-2 md:gap-8">
-        <People
-          title="Friend requests"
-          empty="No requests are waiting for you."
-          people={data.incoming}
-          action="Accept"
-          onAction={(person) => accept.mutate(person.id)}
-        />
-        <People
-          title="Friends"
-          empty="Add a player below before you create a shared battle."
-          people={data.friends}
-          action="Remove"
-          destructive
-          onAction={(person) => remove.mutate(person.id)}
-        />
-      </div>
-
-      <section className="mx-auto mt-7 max-w-5xl px-3 sm:px-4">
-        <div className="flex items-baseline justify-between border-b border-edge pb-2">
-          <p className="rubric">Find players</p>
-          <UserPlus className="size-4 text-parchment" aria-hidden />
-        </div>
-        <SearchField
-          className="mt-3"
-          inputClassName="rounded-none border-edge bg-sunken"
-          value={query}
-          onChange={setQuery}
-          placeholder="Search by account name"
-          label="Search by account name"
-          clearLabel="Empty the player filter"
-        />
-        <div className="mt-2 space-y-2">
-          {people.map((person) => (
-            <PersonRow key={person.id} person={person} action="Add friend" onAction={() => request.mutate(person.id)} />
-          ))}
-          {query && !people.length ? <p className="text-sm text-dim">No matching players.</p> : null}
-          {!query && !people.length ? (
-            <p className="border border-edge bg-sunken p-4 text-sm text-dim">No other players are available.</p>
-          ) : null}
-        </div>
-      </section>
-
-      <div className="mx-auto mt-7 max-w-5xl px-3 pb-8 sm:px-4">
         <People
           title="Sent requests"
           empty="You have no pending requests."
           people={data.outgoing}
           action="Cancel"
           destructive
+          pending={remove.isPending}
           onAction={(person) => remove.mutate(person.id)}
         />
-      </div>
+      </PageContent>
     </main>
   )
 }
@@ -120,6 +123,7 @@ function People({
   action,
   empty,
   destructive = false,
+  pending,
   onAction,
 }: {
   title: string
@@ -127,6 +131,7 @@ function People({
   action: string
   empty: string
   destructive?: boolean
+  pending: boolean
   onAction: (person: Person) => void
 }) {
   return (
@@ -138,10 +143,17 @@ function People({
       <div className="mt-2 space-y-2">
         {people.length ? (
           people.map((person) => (
-            <PersonRow key={person.id} person={person} action={action} destructive={destructive} onAction={() => onAction(person)} />
+            <PersonRow
+              key={person.id}
+              person={person}
+              action={action}
+              destructive={destructive}
+              pending={pending}
+              onAction={() => onAction(person)}
+            />
           ))
         ) : (
-          <p className="border border-edge bg-sunken p-4 text-sm text-dim">{empty}</p>
+          <p className="border border-edge bg-panel p-4 text-sm text-dim">{empty}</p>
         )}
       </div>
     </section>
@@ -152,11 +164,13 @@ function PersonRow({
   person,
   action,
   destructive = false,
+  pending,
   onAction,
 }: {
   person: Person
   action: string
   destructive?: boolean
+  pending: boolean
   onAction: () => void
 }) {
   return (
@@ -168,7 +182,7 @@ function PersonRow({
         <PlayerAvatar name={person.name} image={person.image} className="size-9 text-xs" />
         <span className="truncate font-bold uppercase">{person.name}</span>
       </Link>
-      <Button variant={destructive ? 'destructive' : 'outline'} size="sm" onClick={onAction}>
+      <Button variant={destructive ? 'destructive' : 'outline'} size="sm" disabled={pending} onClick={onAction}>
         {action}
       </Button>
     </div>

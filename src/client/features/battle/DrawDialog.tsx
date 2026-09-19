@@ -127,15 +127,12 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
   return (
     <>
       <Dialog open>
-        <DialogContent
-          showCloseButton={false}
-          className="max-h-[85dvh] overflow-y-auto rounded-none border border-discarded/60 bg-panel text-bone sm:max-w-lg"
-        >
+        <DialogContent showCloseButton={false} className="max-h-[85dvh] overflow-y-auto border-discarded/60 sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-discarded uppercase">
               {side.isViewer ? 'Your secondary missions' : `${sideName(side)}’s secondary missions`}
             </DialogTitle>
-            <DialogDescription className="text-dim">
+            <DialogDescription>
               {needsDraw
                 ? `Draw ${owed} at random or select the exact ${owed === 1 ? 'mission' : 'missions'} from the deck. `
                 : carried.length
@@ -199,7 +196,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
                     />
                     {offer ? (
                       <>
-                        <p className="text-[0.6875rem] text-dim">{offer.message}</p>
+                        <p className="text-2xs text-dim">{offer.message}</p>
                         <Button
                           variant="outline"
                           size="xs"
@@ -239,7 +236,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
             ) : null}
             {!selecting && !paused && needsDraw ? <p className="text-sm text-discarded">Drawing…</p> : null}
           </div>
-          <DialogFooter className="rounded-none border-edge bg-sunken">
+          <DialogFooter>
             <UndoLatestButton disabled={pending || !canUndo} onClick={undo.request} />
             {selecting && needsDraw ? (
               <>

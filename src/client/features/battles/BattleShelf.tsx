@@ -70,7 +70,7 @@ export function BattleShelf({
                     <span className="mt-1 block text-xs text-dim">
                       {battle.status === 'playing' ? `Round ${battle.round} · ${battle.phase} phase` : formatDate(battle.lastActivity)}
                     </span>
-                    <span className="mt-1 block text-[0.625rem] text-faint">
+                    <span className="mt-1 block text-3xs text-faint">
                       {battle.settings.limit ? `${battle.settings.limit} pts` : 'Legacy format'}
                       {battle.mission ? ` · ${battle.mission.name}` : ''}
                       {battle.deploymentId ? ` · ${battle.deploymentId.replaceAll('-', ' ')}` : ''}
@@ -100,12 +100,10 @@ export function BattleShelf({
                   >
                     <EllipsisVertical />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="rounded-none border border-edge bg-panel text-bone">
-                    {actions}
-                  </DropdownMenuContent>
+                  <DropdownMenuContent align="end">{actions}</DropdownMenuContent>
                 </DropdownMenu>
               </ContextMenuTrigger>
-              <ContextMenuContent className="rounded-none border border-edge bg-panel text-bone">
+              <ContextMenuContent>
                 <ContextMenuItem render={<Link to="/battles/$token" params={{ token: battle.token }} />}>
                   <Eye /> Open battle
                 </ContextMenuItem>
@@ -161,7 +159,7 @@ function BattleSide({
                     key={player.id || player.name}
                     name={player.name}
                     image={player.image}
-                    className="size-7 border-2 border-panel text-[0.5625rem]"
+                    className="size-7 border-2 border-panel text-3xs"
                   />
                 ))}
               </span>

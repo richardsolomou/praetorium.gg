@@ -117,12 +117,12 @@ export function BattleMenu({
         </DropdownMenuContent>
       </DropdownMenu>
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
-        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="uppercase">{confirming?.label}?</AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">{confirming?.description}</AlertDialogDescription>
+            <AlertDialogDescription>{confirming?.description}</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="rounded-none border-edge bg-sunken">
+          <AlertDialogFooter>
             <AlertDialogCancel>Keep playing</AlertDialogCancel>
             <AlertDialogAction
               variant={confirming?.destructive ? 'destructive' : 'default'}

@@ -141,7 +141,7 @@ export function Account({ native = false }: { native?: boolean }) {
       >
         {me ? <PlayerAvatar name={me.name} image={me.image} className="size-7 text-xs" /> : <CircleUserRound className="size-5" />}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52 rounded-none border border-edge bg-panel">
+      <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuGroup>
           <AccountMenuItems />
         </DropdownMenuGroup>

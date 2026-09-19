@@ -58,7 +58,7 @@ export function StepRail({ steps, at, onGo }: Props) {
                 } ${step.reachable ? '' : 'opacity-45'}`}
               >
                 <span
-                  className={`readout grid size-5 shrink-0 place-items-center rounded-full text-[0.625rem] font-bold ${
+                  className={`readout grid size-5 shrink-0 place-items-center rounded-full text-3xs font-bold ${
                     step.complete ? 'bg-achieved text-void' : here ? 'bg-discarded text-void' : 'border border-edge-strong text-dim'
                   }`}
                 >
@@ -66,7 +66,7 @@ export function StepRail({ steps, at, onGo }: Props) {
                 </span>
                 <span className="min-w-0">
                   <span className={`block truncate text-xs font-bold uppercase ${here ? 'text-bone' : 'text-dim'}`}>{step.name}</span>
-                  <span className="block truncate text-[0.625rem] text-faint">{step.detail}</span>
+                  <span className="block truncate text-3xs text-faint">{step.detail}</span>
                 </span>
               </button>
             </li>

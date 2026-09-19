@@ -59,9 +59,7 @@ export function HoverTooltip({
         sideOffset={6}
         className="z-50 block max-h-[min(18rem,calc(100vh-1rem))] w-66 max-w-[calc(100vw-1rem)] overflow-hidden rounded-none border border-edge-strong bg-raised p-0 text-left text-dim shadow-xl"
       >
-        <strong className="block border-b border-edge px-2.5 py-1.5 text-xs font-bold tracking-[0.06em] text-bone uppercase">
-          {title}
-        </strong>
+        <strong className="block border-b border-edge px-2.5 py-1.5 text-xs font-bold tracking-label text-bone uppercase">{title}</strong>
         {body ? (
           <div className="max-h-56 overflow-y-auto px-2.5 py-1.5 font-rules text-xs">
             {typeof body === 'string' ? <RuleText text={body} className="mt-0 text-xs" /> : body}

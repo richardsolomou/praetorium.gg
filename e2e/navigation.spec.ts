@@ -428,8 +428,8 @@ test('account libraries share their page width and fit a phone', async ({ page }
   }
   expect(new Set(widths).size).toBe(1)
   await page.goto('/rosters')
-  const heroRail = await page.locator('main > section').first().locator('div.relative').last().boundingBox()
-  const contentRail = await page.getByLabel('Roster filters').boundingBox()
+  const heroRail = await page.locator('main > header').first().locator('div.relative').last().boundingBox()
+  const contentRail = await page.getByLabel('Roster filters').locator('..').boundingBox()
   expect(Math.abs((heroRail?.width ?? 0) - (contentRail?.width ?? 0))).toBeLessThan(4)
   await page.screenshot({ path: 'test-results/account-library-desktop.png', fullPage: true })
   const footer = await page.locator('footer').boundingBox()

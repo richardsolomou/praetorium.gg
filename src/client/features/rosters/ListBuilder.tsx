@@ -17,6 +17,7 @@ import {
 import posthog from 'posthog-js'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -802,8 +803,8 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
                 {remindersEnabled && reminders.length ? <BellRing /> : <BellOff />}
               </Button>
               <DropdownMenu>
-                <DropdownMenuTrigger aria-label="Roster actions" className="grid h-7 w-10 place-items-center hover:text-bone">
-                  <EllipsisVertical className="size-4 translate-y-px" />
+                <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
+                  <EllipsisVertical />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-48">
                   <DropdownMenuItem
@@ -872,8 +873,8 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
             </>
           ) : (
             <DropdownMenu>
-              <DropdownMenuTrigger aria-label="Roster actions" className="grid h-7 w-10 place-items-center hover:text-bone">
-                <EllipsisVertical className="size-4 translate-y-px" />
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
+                <EllipsisVertical />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-52">
                 {me ? (
@@ -1053,10 +1054,10 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
           ) : rosterLoading ? (
             <output className="block py-3" aria-label="Loading roster units">
               <span className="sr-only">Loading roster units…</span>
-              <span className="mb-3 block h-4 w-28 animate-pulse bg-raised" />
+              <Skeleton className="mb-3 h-4 w-28" />
               <span className="grid gap-2">
                 {picks.map((pick) => (
-                  <span key={pick.key} className="block h-24 animate-pulse border border-edge bg-card" />
+                  <Skeleton key={pick.key} className="h-24 rounded-none" />
                 ))}
               </span>
             </output>
@@ -1080,7 +1081,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
             actions={
               <>
                 {preview && building ? (
-                  <Button size="sm" className="h-7 px-2 text-[0.6875rem]" onClick={() => add(preview.entryId)}>
+                  <Button size="sm" className="px-2" onClick={() => add(preview.entryId)}>
                     <Plus className="size-3" />
                     Add to list
                   </Button>
@@ -1093,7 +1094,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
                         title={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
                         aria-label={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
                         pressed={warlord.selected}
-                        className={`!h-auto !min-h-0 !min-w-0 gap-1 rounded-sm !px-1.5 !py-px !text-[0.6875rem] !font-semibold !tracking-[0.06em] uppercase ${
+                        className={`!h-auto !min-h-0 !min-w-0 gap-1 rounded-sm !px-1.5 !py-px !text-2xs !font-semibold !tracking-label uppercase ${
                           warlord.selected
                             ? 'border-parchment bg-parchment/15 text-parchment'
                             : 'border-edge-strong text-dim hover:border-info hover:text-bone'

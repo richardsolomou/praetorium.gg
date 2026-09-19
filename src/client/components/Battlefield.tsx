@@ -4,6 +4,7 @@ import { Check, Eye, Shuffle } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
 import { deploymentsQuery, terrainMatchupIds, terrainReferencesQuery } from '../queries'
@@ -22,14 +23,16 @@ type Props = {
 
 export function Battlefield({ view, send, pending, allowedIds, matchup }: Props) {
   const [inspecting, setInspecting] = useState<string | null>(null)
-  const { data: allPatterns } = useQuery(deploymentsQuery())
+  const patternsQuery = useQuery(deploymentsQuery())
+  const allPatterns = patternsQuery.data
   // The card each side plays, as the domain folded it: an allied pair fields one army
   // and plays one card, so this is not the same as reading the first seat's list.
   const dispositions = [...new Set(view.players.map((player) => player.side))]
     .map((side) => view.players.find((player) => player.side === side)?.disposition)
     .filter((value): value is string => Boolean(value))
   const matchupIds = terrainMatchupIds(dispositions)
-  const { data: references } = useQuery(terrainReferencesQuery(matchupIds))
+  const referencesQuery = useQuery(terrainReferencesQuery(matchupIds))
+  const references = referencesQuery.data
   const options =
     references?.layouts.flatMap((terrain) => {
       const deployment = allPatterns?.find((pattern) => pattern.id === terrain.deploymentId)
@@ -57,6 +60,8 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
     }
     return <p className="text-sm text-dim">Both armies determine the three deployment and terrain layouts.</p>
   }
+  // An unanswered request is not an empty pack, so the three cards are reserved until one of them is.
+  if (patternsQuery.isPending || referencesQuery.isPending) return <LayoutsLoading />
   if (!options.length) return <p className="text-sm text-dim">No combined battlefield layouts match these armies and mission.</p>
 
   return (
@@ -146,5 +151,21 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
         ) : null}
       </Dialog>
     </section>
+  )
+}
+
+/** The three layout cards at their final geometry, while the pack is still being read. */
+function LayoutsLoading() {
+  return (
+    <div className="grid gap-3 sm:grid-cols-3" aria-label="Loading battlefield layouts">
+      {Array.from({ length: 3 }, (_, index) => (
+        <div key={index} className="flex flex-col border border-edge bg-sunken p-2" aria-hidden>
+          <Skeleton className="mx-auto h-7 w-6" />
+          <Skeleton className="mt-2 h-8 w-full" />
+          <Skeleton className="mt-2 aspect-[44/60] w-full rounded-none" />
+          <Skeleton className="mx-auto mt-2 h-4 w-2/3" />
+        </div>
+      ))}
+    </div>
   )
 }

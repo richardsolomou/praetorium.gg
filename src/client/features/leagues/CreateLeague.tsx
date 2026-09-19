@@ -34,14 +34,10 @@ export function CreateLeague() {
       <DialogTrigger render={<Button />}>
         <Plus /> New league
       </DialogTrigger>
-      <DialogContent
-        showCloseButton={!create.isPending}
-        aria-busy={create.isPending}
-        className="max-h-[90dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-xl"
-      >
+      <DialogContent showCloseButton={!create.isPending} aria-busy={create.isPending} className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-2xl uppercase">Create league</DialogTitle>
-          <DialogDescription className="text-dim">
+          <DialogDescription>
             Open registration for a league, tournament, or club night. You choose the game format and points once it exists.
           </DialogDescription>
         </DialogHeader>

@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import type { AttachedUnit } from '../../../core/attachedUnits'
 import { type Command, strategicReservePoints, UNIT_FORMATIONS } from '../../../core/battle'
 import type { Army, Side } from '../../sides'
-import { HEADING } from '../battle/tints'
 import { formationLabel, SetupNote, SetupSidePanel } from './chrome'
 import { reserveSections } from './reservesModel'
 
@@ -57,7 +56,7 @@ function ArmySetup({
       <div className="flex items-baseline justify-between gap-2 border-b border-edge pb-1">
         <span className="min-w-0">
           <span className="block break-words text-xs font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
-          {multiple ? <span className="block text-[0.625rem] text-dim">{army.playerName}</span> : null}
+          {multiple ? <span className="block text-3xs text-dim">{army.playerName}</span> : null}
         </span>
         <span className="flex shrink-0 flex-wrap justify-end gap-1">
           <span className="chip">{listed} units</span>
@@ -70,7 +69,7 @@ function ArmySetup({
       </div>
       {sections.map((section) => (
         <section key={section.label} className="space-y-1">
-          <p className={HEADING}>{section.label}</p>
+          <p className="eyebrow">{section.label}</p>
           {section.units.map((unit) => (
             <UnitFormationRow key={unit.host.key} army={army} unit={unit} redeploy={redeploy} send={send} />
           ))}
@@ -112,11 +111,11 @@ function UnitFormationRow({
           <span className="block text-sm font-semibold">{host.name}</span>
           {/* Named rather than counted, because which character is with them is the fact. */}
           {joined.length ? (
-            <span className="block text-[0.625rem] text-dim">with {joined.map((character) => character.name).join(', ')}</span>
+            <span className="block text-3xs text-dim">with {joined.map((character) => character.name).join(', ')}</span>
           ) : null}
         </span>
         {unit.prebattleRules.length ? (
-          <span className="text-[0.625rem] text-discarded uppercase">{unit.prebattleRules.map(formationLabel).join(' · ')}</span>
+          <span className="text-3xs text-discarded uppercase">{unit.prebattleRules.map(formationLabel).join(' · ')}</span>
         ) : null}
       </div>
       {/*

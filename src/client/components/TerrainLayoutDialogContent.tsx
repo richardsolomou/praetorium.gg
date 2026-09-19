@@ -18,7 +18,7 @@ type Props = {
 /** The one full-size terrain inspection surface used during setup and in mission references. */
 export function TerrainLayoutDialogContent({ title, description, layout, deployment, templates, ariaLabel }: Props) {
   return (
-    <DialogContent className="max-h-[92dvh] overflow-y-auto rounded-none border border-edge bg-panel p-4 text-bone ring-0 sm:max-w-6xl">
+    <DialogContent className="max-h-[92dvh] overflow-y-auto p-4 sm:max-w-6xl">
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>

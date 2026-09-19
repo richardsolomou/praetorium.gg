@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { wargearBaseName } from '../../../core/wargear'
 import type { RosterPick } from '../../../core/roster'
@@ -60,7 +61,7 @@ export function DatasheetPanel({
   // apply roster context to it. Do not put a roster it will discard in the URL.
   const contextualDetachments = settledIndex === null ? [] : detachments
   const contextualPicks = settledIndex === null ? [] : settledPicks
-  const { data: fetchedSheet } = useQuery({
+  const { data: fetchedSheet, isError } = useQuery({
     ...datasheetQuery(catalogueId, entryId ?? '', contextualDetachments, contextualPicks, settledIndex),
     enabled: providedSheet === undefined && Boolean(catalogueId && entryId),
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === entryId ? previous : undefined),
@@ -80,7 +81,17 @@ export function DatasheetPanel({
       </div>
     )
   }
-  if (!sheet) return <DatasheetLoading />
+  if (!sheet) {
+    return isError && providedSheet === undefined ? (
+      <div className="flex h-full items-center justify-center p-6">
+        <p role="alert" className="max-w-52 text-center text-xs text-destructive">
+          This datasheet could not be loaded. Try again shortly.
+        </p>
+      </div>
+    ) : (
+      <DatasheetLoading />
+    )
+  }
 
   const model = primaryUnitProfile(sheet)
   const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
@@ -171,18 +182,18 @@ function DatasheetLoading() {
   return (
     <output className="block space-y-4 p-3" aria-label="Loading datasheet">
       <div className="flex gap-1">
-        <span className="h-5 w-16 animate-pulse bg-raised" />
-        <span className="h-5 w-24 animate-pulse bg-raised" />
+        <Skeleton className="h-5 w-16" />
+        <Skeleton className="h-5 w-24" />
       </div>
       <div className="grid grid-cols-6 gap-2">
         {Array.from({ length: 6 }, (_, index) => (
-          <span key={index} className="h-10 animate-pulse bg-raised" />
+          <Skeleton key={index} className="h-10 rounded-none" />
         ))}
       </div>
       {Array.from({ length: 3 }, (_, index) => (
         <div key={index} className="space-y-2 border-t border-edge pt-2">
-          <span className="block h-3 w-28 animate-pulse bg-raised" />
-          <span className="block h-20 animate-pulse bg-card" />
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-20 rounded-none" />
         </div>
       ))}
       <span className="sr-only">Loading datasheet…</span>
@@ -298,7 +309,7 @@ export function WeaponProfile({
           .filter((value) => value.name !== 'Keywords')
           .map((value) => (
             <div key={value.name} className="min-w-0 text-center">
-              <p className="eyebrow text-[0.6875rem]">{value.name}</p>
+              <p className="eyebrow">{value.name}</p>
               <p className="readout text-base text-bone">
                 <ProfileValue value={value} />
               </p>

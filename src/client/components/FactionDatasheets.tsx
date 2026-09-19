@@ -11,6 +11,7 @@ import { SearchField } from './SearchField'
 import { GROUPS } from '../features/builder/groups'
 import { Section } from '../features/builder/Section'
 import { PageState } from './PageState'
+import { PageContent, PageHeader } from './Page'
 
 export function FactionDatasheets() {
   const { catalogueId } = useParams({ strict: false })
@@ -27,20 +28,13 @@ export function FactionDatasheets() {
 
   return (
     <main className="w-full">
-      <header
-        className="relative overflow-hidden border-t-[3px] border-b border-edge bg-panel"
-        style={{ borderTopColor: factionColour(faction.slug) }}
-      >
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto flex max-w-5xl items-center gap-3 px-3 pt-[17px] pb-5 sm:px-4 sm:pt-[25px] sm:pb-7">
-          <FactionMark id={faction.slug} icon={faction.icon} />
-          <span>
-            <p className="eyebrow text-parchment">{faction.displayName} · Reference</p>
-            <h1 className="text-3xl">Datasheets</h1>
-          </span>
-        </div>
-      </header>
-      <div className="mx-auto max-w-5xl px-3 pt-4 pb-8 sm:px-4">
+      <PageHeader
+        tint={factionColour(faction.slug)}
+        eyebrow={`${faction.displayName} · Reference`}
+        title="Datasheets"
+        media={<FactionMark id={faction.slug} icon={faction.icon} />}
+      />
+      <PageContent>
         <Link
           to="/factions/$catalogueId"
           params={{ catalogueId: faction.slug }}
@@ -85,7 +79,7 @@ export function FactionDatasheets() {
             />
           )}
         </div>
-      </div>
+      </PageContent>
     </main>
   )
 }

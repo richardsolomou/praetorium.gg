@@ -93,7 +93,7 @@ function Welcome({ name, newBattle }: { name: string; newBattle?: ReactNode }) {
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-3 py-4 sm:px-4">
         <div>
           <p className="eyebrow text-parchment">Praetorium</p>
-          <h1 className="mt-0.5 text-2xl">Welcome back, {name.trim().split(/\s+/)[0]}</h1>
+          <h1 className="mt-1 text-2xl">Welcome back, {name.trim().split(/\s+/)[0]}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           {newBattle}
@@ -134,10 +134,10 @@ function MyTable({
   ) : (
     <section data-my-table>
       <p className="rubric border-b border-edge pb-2">Your games</p>
-      <p className="mt-2 border border-edge bg-panel p-5 text-sm text-dim">
-        <Swords className="mt-0.5 size-5 shrink-0 text-parchment" aria-hidden />
-        <span className="mt-3 block">Start a game with a friend, or practise on your own against a practice opponent.</span>
-      </p>
+      <div className="mt-2 border border-edge bg-panel p-5">
+        <Swords className="size-5 text-parchment" aria-hidden />
+        <p className="mt-3 text-sm text-dim">Start a game with a friend, or practise on your own against a practice opponent.</p>
+      </div>
     </section>
   )
   if (!played.length) {

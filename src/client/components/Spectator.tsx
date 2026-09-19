@@ -17,7 +17,7 @@ import { Report, type ReportPlayer } from './Report'
 import { ArmyRoster } from '../features/battle/ArmyRoster'
 import { PrimaryMission, type ReferenceCard, SecondaryMissions } from '../features/battle/MissionCards'
 import { Scoreboard } from '../features/battle/Scoreboard'
-import { HEADING, tint } from '../features/battle/tints'
+import { tint } from '../features/battle/tints'
 
 type Props = {
   view: BattleView
@@ -114,7 +114,7 @@ export function Spectator({ view, missions, report }: Props) {
             <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
           </dl>
           <div className="border-t border-edge pt-3">
-            <p className={HEADING}>Battle events</p>
+            <p className="eyebrow">Battle events</p>
             <Report token={view.token} open players={reportPlayers} entries={report} />
           </div>
         </section>
@@ -171,7 +171,7 @@ function SpectatorSide({
       <SecondaryMissions {...cardProps} />
       {side.stratagems.some((stratagem) => stratagem.uses > 0) ? (
         <div>
-          <p className={HEADING}>Stratagems used</p>
+          <p className="eyebrow">Stratagems used</p>
           <ul className="mt-1 space-y-1 text-xs text-dim">
             {side.stratagems
               .filter((stratagem) => stratagem.uses > 0)
@@ -191,7 +191,7 @@ function SpectatorSide({
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <dt className={HEADING}>{label}</dt>
+      <dt className="eyebrow">{label}</dt>
       <dd className="truncate text-bone">{value}</dd>
     </div>
   )

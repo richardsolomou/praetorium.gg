@@ -8,7 +8,7 @@ import { ArmyIdentity } from '../../components/ArmyIdentity'
 import { ArmyRoster } from './ArmyRoster'
 import { type Award, PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemText } from './MissionCards'
 import { Stratagems } from './Stratagems'
-import { HEADING, tint } from './tints'
+import { tint } from './tints'
 
 type Props = {
   view: BattleView
@@ -98,20 +98,20 @@ export const SidePanel = memo(function SidePanel({
 
       <div className="grid grid-cols-2 gap-2 border-y border-edge py-2">
         <div className="min-w-0">
-          <p className={HEADING}>Victory points</p>
+          <p className="eyebrow">Victory points</p>
           <p data-stat="vp" className="readout text-4xl leading-none font-bold">
             {side.total}
           </p>
           {/* Chosen before the battle and paid as it begins, so the score above already holds it. */}
-          {bonus ? <p className="mt-1 text-[0.625rem] text-achieved">Battle ready included</p> : null}
+          {bonus ? <p className="mt-1 text-3xs text-achieved">Battle ready included</p> : null}
         </div>
         <div className="min-w-0">
-          <p className={HEADING}>Command points</p>
+          <p className="eyebrow">Command points</p>
           <p data-stat="cp" className={`readout text-4xl leading-none font-bold ${colours.text}`}>
             {side.cp}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <span className="readout text-[0.625rem] text-faint">
+            <span className="readout text-3xs text-faint">
               {side.cpGained} gained · {side.cpSpent} used
             </span>
             {actionable ? (

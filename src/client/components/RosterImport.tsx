@@ -110,10 +110,10 @@ export function RosterImport() {
         <FileUp /> Import roster
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl uppercase">Import roster</DialogTitle>
-            <DialogDescription className="text-dim">
+            <DialogDescription>
               {review
                 ? 'Not everything this list states could be placed. Import it anyway and it arrives as named below.'
                 : 'Paste Games Workshop roster text from Praetorium, BattleBase, or New Recruit.'}
@@ -149,7 +149,7 @@ export function RosterImport() {
                 value={text}
                 onChange={(event) => setText(event.target.value)}
                 placeholder="Paste Games Workshop roster text…"
-                className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto rounded-none border-edge bg-sunken font-mono text-xs"
+                className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto font-mono text-xs"
                 disabled={working}
               />
               <Button className="w-full" disabled={!text.trim() || working} onClick={() => bring.mutate(text)}>
@@ -164,7 +164,7 @@ export function RosterImport() {
               {errorMessage(failure)}
             </p>
           ) : null}
-          <DialogFooter className="rounded-none border-edge bg-sunken">
+          <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>

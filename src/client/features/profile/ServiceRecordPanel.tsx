@@ -132,15 +132,15 @@ function RecordFilters({
   if (!offered.length) return null
   return (
     <Dialog>
-      <DialogTrigger render={<Button variant="outline" size="sm" className="rounded-none border-edge bg-sunken uppercase" />}>
+      <DialogTrigger render={<Button variant="outline" size="sm" />}>
         <ListFilter />
         Filter
         {narrowed ? <span className="chip readout">{narrowed}</span> : null}
       </DialogTrigger>
-      <DialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="uppercase">Filter record</DialogTitle>
-          <DialogDescription className="text-dim">Narrow the record to the battles you want it counted from.</DialogDescription>
+          <DialogDescription>Narrow the record to the battles you want it counted from.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3">
           {offered.map((dimension) => (
@@ -158,7 +158,7 @@ function RecordFilters({
                         value: facet.value,
                         icon:
                           dimension.key === 'opponentId' ? (
-                            <PlayerAvatar name={facet.label} image={facet.image} className="size-6 text-[0.65rem]" />
+                            <PlayerAvatar name={facet.label} image={facet.image} className="size-6 text-3xs" />
                           ) : undefined,
                       })),
                     ],
@@ -172,16 +172,16 @@ function RecordFilters({
                   })
                 }
                 placeholder="All"
-                className="mt-1 h-9 rounded-none border-edge bg-sunken text-xs font-semibold uppercase"
+                className="mt-1"
               />
             </div>
           ))}
         </div>
-        <DialogFooter className="rounded-none border-edge bg-sunken">
-          <Button variant="ghost" disabled={!narrowed} onClick={() => onFilter({})} className="rounded-none uppercase">
+        <DialogFooter>
+          <Button variant="ghost" disabled={!narrowed} onClick={() => onFilter({})} className="sm:mr-auto sm:ml-0">
             Clear
           </Button>
-          <DialogClose render={<Button className="rounded-none uppercase" />}>Done</DialogClose>
+          <DialogClose render={<Button variant="outline" />}>Done</DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>

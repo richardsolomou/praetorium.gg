@@ -21,7 +21,7 @@ export function ReminderDialog({
 }) {
   return (
     <Dialog open>
-      <DialogContent className="rounded-none border-edge bg-panel sm:max-w-lg" showCloseButton={false}>
+      <DialogContent className="sm:max-w-lg" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 uppercase">
             <BellRing className="size-4 text-parchment" /> Battle {reminders.length === 1 ? 'reminder' : 'reminders'}
@@ -48,7 +48,7 @@ export function ReminderDialog({
                   >
                     Dismiss…
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40 rounded-none border border-edge bg-panel">
+                  <DropdownMenuContent align="end" className="w-40">
                     <DropdownMenuItem onClick={() => onDismiss(reminder, 'phase')}>This phase</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onDismiss(reminder, 'turn')}>This turn</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onDismiss(reminder, 'round')}>This round</DropdownMenuItem>

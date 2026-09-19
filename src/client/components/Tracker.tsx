@@ -1,6 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
@@ -41,7 +42,6 @@ import { SecretMissionHandoff } from '../features/battle/SecretMissionHandoff'
 import { turnPrompt } from '../scoring'
 import { dueForAdvance, dueFromTheirTurn, ScoringDialog } from '../features/battle/ScoringDialog'
 import { SidePanel } from '../features/battle/SidePanel'
-import { HEADING } from '../features/battle/tints'
 import { TurnControl } from '../features/battle/TurnControl'
 import { TwistName } from './MissionTwist'
 import { Report, type ReportPlayer } from './Report'
@@ -562,7 +562,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
                */}
               {twist ? (
                 <div className="min-w-0">
-                  <dt className={HEADING}>Twist</dt>
+                  <dt className="eyebrow">Twist</dt>
                   <dd>
                     <TwistName twist={twist} />
                   </dd>
@@ -572,7 +572,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
 
             <div className="border-t border-edge pt-3">
               <div className="flex items-center justify-between gap-3">
-                <p className={HEADING}>Battle events</p>
+                <p className="eyebrow">Battle events</p>
                 <BattleMenu
                   finished={finished}
                   canDelete={view.creatorId === view.viewerId}
@@ -591,14 +591,9 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
 
             {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
             {emptySettlementRetryNeeded ? (
-              <button
-                type="button"
-                className="text-sm font-medium text-link underline underline-offset-4"
-                disabled={pending}
-                onClick={() => send({ kind: 'settle-opponent-turn' })}
-              >
+              <Button variant="outline" size="sm" disabled={pending} onClick={() => send({ kind: 'settle-opponent-turn' })}>
                 Retry finishing the previous turn
-              </button>
+              </Button>
             ) : null}
             {remove.error ? <p className="text-sm text-destructive">{errorMessage(remove.error)}</p> : null}
           </section>
@@ -748,7 +743,7 @@ const discardableSecondaries = (side: Side) =>
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <dt className={HEADING}>{label}</dt>
+      <dt className="eyebrow">{label}</dt>
       <dd className="truncate text-bone" title={value}>
         {value}
       </dd>

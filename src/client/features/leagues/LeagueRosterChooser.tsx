@@ -32,10 +32,10 @@ export function RosterChooser({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-2xl">
+      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl uppercase">Seal a roster</DialogTitle>
-          <DialogDescription className="text-dim">
+          <DialogDescription>
             {requiredLimit === null
               ? 'Nobody sees it until reveal, and you can swap it until then.'
               : `Only your ${requiredLimit.toLocaleString()}-point lists. Nobody sees it until reveal, and you can swap it until then.`}
@@ -69,7 +69,7 @@ export function RosterChooser({
             ))}
           </div>
         ) : (
-          <div className="border border-dashed border-edge p-5 text-center">
+          <div className="border border-edge bg-panel p-5 text-center">
             <p className="text-sm text-dim">
               {requiredLimit === null
                 ? 'Build or import a list first.'
@@ -95,12 +95,12 @@ export function LeagueBattleSkeleton() {
       <Skeleton className="h-4 w-20" />
       {Array.from({ length: 2 }, (_, index) => (
         <div key={index} className="flex min-h-20 items-center gap-3 border border-edge bg-panel p-3" aria-hidden>
-          <Skeleton className="size-10 shrink-0" />
+          <Skeleton className="size-10 shrink-0 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-1/2" />
             <Skeleton className="h-3 w-2/3" />
           </div>
-          <Skeleton className="h-8 w-20 rounded-none" />
+          <Skeleton className="h-8 w-20" />
         </div>
       ))}
     </div>

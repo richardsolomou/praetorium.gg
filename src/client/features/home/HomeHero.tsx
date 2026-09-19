@@ -18,7 +18,7 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 export function HomeHero({ battle }: { battle?: Battle }) {
   return (
     <section className="relative overflow-hidden border-b border-edge bg-panel">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
+      <div className="sheen" />
       <div className="relative mx-auto grid w-full max-w-5xl gap-8 px-3 py-12 sm:px-4 md:grid-cols-[minmax(0,1fr)_19rem] md:items-center md:py-16">
         <div>
           <p className="eyebrow text-parchment">Warhammer 40,000 army builder and battle tracker</p>
@@ -63,7 +63,7 @@ function HeroBattle({ battle }: { battle: Battle }) {
       <HeroSide sideSummary={ours} score={ours?.score ?? 0} side="a" />
       <span className="my-2 block border-t border-edge" />
       <HeroSide sideSummary={theirs} score={theirs?.score ?? 0} side="b" />
-      <span className="mt-3 block text-[0.625rem] text-faint">
+      <span className="mt-3 block text-3xs text-faint">
         {battle.status === 'playing' ? `Round ${battle.round} · ${battle.phase} phase` : (battle.mission?.name ?? 'Casual battle')}
       </span>
     </Link>
@@ -82,7 +82,7 @@ function HeroSide({ sideSummary, score, side }: { sideSummary?: SummarySide; sco
                 key={player.id || player.name}
                 name={player.name}
                 image={player.image}
-                className="size-7 border-2 border-sunken text-[0.5625rem]"
+                className="size-7 border-2 border-sunken text-3xs"
               />
             ))}
           </span>
