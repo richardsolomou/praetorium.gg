@@ -52,7 +52,7 @@ export function pairCriteria(awards: readonly { vp: number }[], payouts: readonl
 }
 
 /** Cards are keyed by name because the two sources give them unrelated ids. */
-export const criteriaKey = (name: string) => name.toLocaleLowerCase().replaceAll(/\s+/g, ' ').trim()
+export const criteriaKey = (name: string) => name.toLowerCase().replaceAll(/\s+/g, ' ').trim()
 
 function cardName(card: Record<string, unknown>): string | null {
   const english = english_(card.name)

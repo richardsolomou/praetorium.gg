@@ -106,7 +106,7 @@ const MODEL_COUNT = /^\d+\s+models?$/i
  * unit and says so only in its options, which are model counts and nothing else.
  */
 export const isUnitCompositionChoice = ({ name, options }: { name: string; options: readonly { name?: string }[] }) =>
-  name.trim().toLocaleLowerCase() === 'unit composition' ||
+  name.trim().toLowerCase() === 'unit composition' ||
   (options.length > 0 && options.every((option) => MODEL_COUNT.test(option.name?.trim() ?? '')))
 
 export function unitChoices(entryId: string, selection: Selection, index: CatalogueIndex, options: ChoiceOptions = {}): UnitChoice[] {

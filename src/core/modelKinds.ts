@@ -89,7 +89,7 @@ export function optionWargear(optionId: string, index: CatalogueIndex, options: 
   const found = new Map<string, { name: string; count: number }>()
   for (const selection of selections) {
     for (const piece of wargearOf(selection, index, selection.count ?? 1)) {
-      const key = piece.name.trim().toLocaleLowerCase()
+      const key = piece.name.trim().toLowerCase()
       const present = found.get(key)
       found.set(key, { name: present?.name ?? piece.name, count: (present?.count ?? 0) + piece.count })
     }
@@ -195,7 +195,7 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
 
     const rows: ModelKind['rows'] = []
     const addRow = (row: ModelKind['rows'][number]) => {
-      const existing = rows.find((candidate) => candidate.name.trim().toLocaleLowerCase() === row.name.trim().toLocaleLowerCase())
+      const existing = rows.find((candidate) => candidate.name.trim().toLowerCase() === row.name.trim().toLowerCase())
       if (!existing) {
         rows.push(row)
         return
@@ -374,7 +374,7 @@ function sharedName(names: readonly string[]): string | null {
   // What a name is joined to its loadout by is written either way round — "w/" or
   // "with" — and neither is part of the name. A model is named in the case a datasheet
   // prints it in, so a trailing lowercase word is the sentence, not the model.
-  const joining = (word: string) => separator(word) || word === word.toLocaleLowerCase()
+  const joining = (word: string) => separator(word) || word === word.toLowerCase()
   while (named.length > 1 && joining(named.at(-1) ?? '')) named.pop()
   return named.join(' ') || null
 }

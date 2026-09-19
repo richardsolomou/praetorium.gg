@@ -8,7 +8,7 @@ export function normalizeRuleReference(value: string) {
     .replaceAll(/\p{Pd}/gu, '-')
     .replaceAll(/\s+/g, ' ')
     .trim()
-    .toLocaleLowerCase()
+    .toLowerCase()
 }
 
 /** A rule's parameter as a datasheet prints one: a number, a die, a threshold, a distance. */

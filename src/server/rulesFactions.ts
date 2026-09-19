@@ -60,7 +60,7 @@ function detachmentStratagems(detachment: RawDetachment, stratagems: readonly Ra
   const found = new Map<string, RawStratagem>()
   for (const stratagem of stratagems) {
     if (!named.has(stratagem.id) && stratagem.detachment_id !== detachment.id) continue
-    const key = stratagem.name.trim().toLocaleLowerCase()
+    const key = stratagem.name.trim().toLowerCase()
     if (!found.has(key) || stratagem.detachment_id === detachment.id) found.set(key, stratagem)
   }
   return [...found.values()]

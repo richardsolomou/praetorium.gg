@@ -100,6 +100,14 @@ repository-backup destination:
 catalogue-check:
     pnpm catalogue:check
 
+# Compile upstream sources into Praetorium's canonical datasheet catalogue
+catalogue-compile:
+    pnpm catalogue:compile
+
+# Report canonical catalogue gaps; pass --details for every finding
+catalogue-audit *args:
+    pnpm catalogue:audit -- {{ args }}
+
 # Ratchet description coverage across the fetched rules sources
 descriptions:
     pnpm catalogue:descriptions

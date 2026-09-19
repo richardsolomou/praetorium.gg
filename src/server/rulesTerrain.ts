@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
+import { compareText } from '../core/text'
 import { readOptionalList } from './rulesSource'
 
 /**
@@ -143,7 +144,7 @@ export function loadDeployments(core: string): Deployment[] {
       objectives: pattern.objectives ?? [],
     }))
     .filter((pattern) => pattern.zones.length)
-    .toSorted((left, right) => left.name.localeCompare(right.name))
+    .toSorted((left, right) => compareText(left.name, right.name))
 }
 
 export type TerrainLayout = {

@@ -13,6 +13,16 @@ export function describeDatasheetAbilities(
   loadedRules: LoadedRules | null | undefined,
   options: { reference?: boolean } = {},
 ) {
+  return describeDatasheetAbilitiesWithContributions(loaded, catalogueId, sheet, loadedRules, options)?.datasheet ?? null
+}
+
+export function describeDatasheetAbilitiesWithContributions(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  sheet: ReturnType<typeof datasheetIn>,
+  loadedRules: LoadedRules | null | undefined,
+  options: { reference?: boolean } = {},
+) {
   if (!sheet) return null
   const descriptions = loadedRules?.abilityDescriptions
   const faction = loaded.index.catalogues.get(catalogueId)
@@ -24,9 +34,11 @@ export function describeDatasheetAbilities(
     : null
   const upgradeNames = new Set(detachmentDetails.flatMap((detachment) => detachment.upgrades.map((upgrade) => routeSlug(upgrade.name))))
   const referenceAbilities = options.reference ? detachmentAbilitiesIn(loaded, catalogueId, sheet.id) : null
-  const visibleAbilities = (referenceAbilities?.abilities ?? sheet.abilities).filter(
+  const candidateAbilities = referenceAbilities?.abilities ?? sheet.abilities
+  const visibleAbilities = candidateAbilities.filter(
     (ability) => ability.kind !== 'faction' || !factionAbilityNames || factionAbilityNames.has(routeSlug(ability.name)),
   )
+  const filteredFactionAbility = visibleAbilities.length !== candidateAbilities.length
   // An army rule is printed on the datasheet by name alone. Its own faction's card is
   // asked first: the Deathwatch and the Space Marines each state Oath of Moment.
   const armyRule = (name: string) =>
@@ -34,6 +46,9 @@ export function describeDatasheetAbilities(
     descriptions?.get(routeSlug(name)) ??
     null
   const supplied = visibleAbilities.some((ability) => !ability.description && armyRule(ability.name))
+  const rulesContributeAbilities = visibleAbilities.some(
+    (ability) => ability.kind === 'wargear' && upgradeNames.has(routeSlug(ability.name)),
+  )
   const describeAbility = (ability: (typeof visibleAbilities)[number]) => ({
     ...ability,
     kind: ability.kind === 'wargear' && upgradeNames.has(routeSlug(ability.name)) ? ('upgrade' as const) : ability.kind,
@@ -77,24 +92,30 @@ export function describeDatasheetAbilities(
     [...detachment.rules, ...detachment.enhancements].some((entry) => entry.description),
   )
   return {
-    ...sheet,
-    abilities,
-    keywordRules: mergeKeywordRules(
-      [
-        ...rulesReferencedIn(
-          loaded,
-          abilities.map((ability) => ability.description),
-        ),
-        ...rulesNamed(
-          loaded,
-          abilities.filter((ability) => ability.source).map((ability) => ability.name),
-        ),
-        ...rulesNamed(loaded, weaponKeywords(sheet.profiles)),
-      ],
-      sheet.keywordRules,
-    ),
-    detachments,
-    attribution: supplied || suppliedDetachmentDescriptions ? DATACARDS_ATTRIBUTION : null,
+    datasheet: {
+      ...sheet,
+      abilities,
+      keywordRules: mergeKeywordRules(
+        [
+          ...rulesReferencedIn(
+            loaded,
+            abilities.map((ability) => ability.description),
+          ),
+          ...rulesNamed(
+            loaded,
+            abilities.filter((ability) => ability.source).map((ability) => ability.name),
+          ),
+          ...rulesNamed(loaded, weaponKeywords(sheet.profiles)),
+        ],
+        sheet.keywordRules,
+      ),
+      detachments,
+      attribution: supplied || suppliedDetachmentDescriptions ? DATACARDS_ATTRIBUTION : null,
+    },
+    contributions: {
+      datacards: filteredFactionAbility || supplied,
+      rules: rulesContributeAbilities,
+    },
   }
 }
 
@@ -106,5 +127,5 @@ const weaponKeywords = (profiles: NonNullable<ReturnType<typeof datasheetIn>>['p
   profiles.flatMap((profile) => profile.values.flatMap((value) => (value.name === 'Keywords' ? weaponKeywordsOf(value.value) : [])))
 
 function mergeKeywordRules<T extends { name: string }>(preferred: readonly T[], fallback: readonly T[]) {
-  return [...new Map([...fallback, ...preferred].map((rule) => [rule.name.toLocaleLowerCase(), rule])).values()]
+  return [...new Map([...fallback, ...preferred].map((rule) => [rule.name.toLowerCase(), rule])).values()]
 }

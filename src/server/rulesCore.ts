@@ -182,8 +182,8 @@ function facts(fields: Record<string, unknown>, preferred: readonly string[]): R
 
 /** `afterMoving` is what the source calls it; `After moving` is what a player reads. */
 const factLabel = (key: string) => {
-  const words = key.replaceAll(/([a-z0-9])([A-Z])/g, '$1 $2').toLocaleLowerCase()
-  return `${words.slice(0, 1).toLocaleUpperCase()}${words.slice(1)}`
+  const words = key.replaceAll(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase()
+  return `${words.slice(0, 1).toUpperCase()}${words.slice(1)}`
 }
 
 /** The source writes a field it has nothing to say in as a dash, which is not a rule. */

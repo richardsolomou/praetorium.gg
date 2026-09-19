@@ -12,6 +12,7 @@ import {
 } from '../core/catalogue'
 import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
+import { compareText, sameText } from '../core/text'
 import { type FactionContent, type LoadedDatacards, loadDatacards } from './datacards'
 import { catalogueSections } from './catalogueSections'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
@@ -57,7 +58,8 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
   const detachments = detachmentsOf(files, index)
   // The cards name sections they do not describe, and the catalogue is where those words are.
   const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index))
-  const sourceReferences = loadExternalReferences(path.join(directory, 'rules', 'data', 'core'))
+  const rulesCore = path.join(directory, 'rules', 'data', 'core')
+  const sourceReferences = loadExternalReferences(rulesCore)
   return {
     index,
     characteristicNames: characteristicNamesOf(files),
@@ -100,7 +102,7 @@ export function factionsIn(index: CatalogueIndex, detachments: Map<string, Detac
         },
       ],
     }))
-    .toSorted((left, right) => left.name.localeCompare(right.name))
+    .toSorted((left, right) => compareText(left.name, right.name))
 }
 
 export function detachmentsOf(files: readonly CatalogueFile[], index: CatalogueIndex): Map<string, DetachmentOptions> {
@@ -120,7 +122,7 @@ export function detachmentsOf(files: readonly CatalogueFile[], index: CatalogueI
           name: nameOf(option, index.definitions),
           disposition: dispositionOf(option, index),
         }))
-        .toSorted((left, right) => left.name.localeCompare(right.name))
+        .toSorted((left, right) => compareText(left.name, right.name))
       if (!options.length) continue
       found.set(book.id, { wrapperId: wrapper.wrapperId, groupId: wrapper.groupId, options })
       break
@@ -184,14 +186,14 @@ const factionNamesCache = new WeakMap<LoadedCatalogue, ReadonlySet<string>>()
 /** The owner must be unambiguous: a datasheet genuinely filed under two factions stays visible on both pages. */
 function referenceFactionOf(loaded: LoadedCatalogue, categories: readonly (string | undefined)[]) {
   const factionNames =
-    factionNamesCache.get(loaded) ?? new Set(loaded.factions.map((faction) => factionDisplayName(faction.name).toLocaleLowerCase()))
+    factionNamesCache.get(loaded) ?? new Set(loaded.factions.map((faction) => factionDisplayName(faction.name).toLowerCase()))
   if (!factionNamesCache.has(loaded)) factionNamesCache.set(loaded, factionNames)
   const candidates = new Set(
     categories.flatMap((category) => {
       const name = category?.match(FACTION_CATEGORY)?.[1]?.trim()
       if (!name) return []
       const canonical = catalogueFactionName(name)
-      return factionNames.has(canonical.toLocaleLowerCase()) ? [canonical] : []
+      return factionNames.has(canonical.toLowerCase()) ? [canonical] : []
     }),
   )
   return candidates.size === 1 ? [...candidates][0] : null
@@ -258,7 +260,7 @@ export function referenceDatasheetRoute(loaded: LoadedCatalogue, name: string, p
   const matches = loaded.factions.flatMap((faction) =>
     [...datasheetsOf(loaded.index, faction.id)].flatMap((entryId) => {
       const entry = loaded.index.definitions.get(entryId)
-      if (!entry || nameOf(entry, loaded.index.definitions).localeCompare(name, undefined, { sensitivity: 'accent' }) !== 0) return []
+      if (!entry || !sameText(nameOf(entry, loaded.index.definitions), name)) return []
       return isReferenceDatasheet(loaded, faction.id, entryId)
         ? [{ catalogueId: routeSlug(factionDisplayName(faction.name)), slug: datasheetSlug(loaded, faction.id, entryId) }]
         : []

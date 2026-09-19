@@ -10,6 +10,9 @@ import {
   packCatalogueSnapshot,
   verifySnapshotArchive,
 } from '../src/server/catalogueSnapshot'
+import { canonicalCataloguePath, writeCanonicalCatalogue } from '../src/server/canonicalCatalogue'
+import { canCompileCanonicalCatalogue } from '../src/server/canonicalCatalogueSources'
+import { disabledCatalogueSources } from '../src/server/catalogueSources'
 
 const root = path.join(import.meta.dirname, '..')
 const directory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
@@ -19,6 +22,13 @@ const lock = path.join(root, 'catalogue', 'lock.json')
 const command = process.argv[2]
 
 if (command === 'pack') {
+  const disabled = disabledCatalogueSources()
+  if (canCompileCanonicalCatalogue(disabled)) {
+    const catalogue = writeCanonicalCatalogue(directory)
+    console.log(`canonical catalogue: ${catalogue.datasheets.length} datasheets, ${catalogue.issues.length} audit issues`)
+  } else {
+    fs.rmSync(canonicalCataloguePath(directory), { force: true })
+  }
   const packed = packCatalogueSnapshot(directory, archive, pointer)
   console.log(`${packed.id} ${archive}`)
 } else if (command === 'verify') {

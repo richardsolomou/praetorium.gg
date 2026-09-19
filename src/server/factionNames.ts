@@ -23,7 +23,7 @@ const CATALOGUE_FACTION_NAMES = new Map([
   ['legiones daemonica', 'Chaos Daemons'],
 ])
 
-export const catalogueFactionName = (name: string) => CATALOGUE_FACTION_NAMES.get(name.trim().toLocaleLowerCase()) ?? name
+export const catalogueFactionName = (name: string) => CATALOGUE_FACTION_NAMES.get(name.trim().toLowerCase()) ?? name
 
 /**
  * The Game Datacards files a book can read, nearest first: its own, then those of the

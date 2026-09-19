@@ -215,7 +215,7 @@ export function loadDatacards(directory: string, sections: SectionProse = NO_SEC
       const detachment = stringField(stratagem, 'detachment')
       const description = stratagemText(stratagem)
       if (name && detachment && description) {
-        const card = { name: name === name.toLocaleLowerCase() ? titleCase(name) : name, description }
+        const card = { name: name === name.toLowerCase() ? titleCase(name) : name, description }
         remember(stratagems, descriptionKey(detachment, name), description)
         // A card printed entirely in lower case is a slip in the file, not how the name reads.
         stratagemNames.set(descriptionKey(detachment, name), card.name)

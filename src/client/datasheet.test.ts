@@ -4,6 +4,8 @@ import {
   attachmentGroups,
   compositionCount,
   primaryUnitProfile,
+  profileTableColumns,
+  profileTableValue,
   referenceAbilities,
   ruleProfileSections,
   weaponProfileGroups,
@@ -54,6 +56,27 @@ describe('primary unit profile', () => {
         profiles: [profile('weapon', 'Boltgun', 'Ranged Weapons'), champion, profile('chosen', 'Chosen Warrior')],
       }),
     ).toBe(champion)
+  })
+
+  it('uses the canonical profile kind instead of inferring behavior from its label', () => {
+    const commander = { ...profile('commander', 'Commander', 'Orders'), kind: 'unit' as const }
+
+    expect(primaryUnitProfile({ name: 'Commander', profiles: [commander] })).toBe(commander)
+  })
+})
+
+describe('datasheet profile tables', () => {
+  const profiles = [
+    { id: 'one', name: 'One', type: 'Unit', values: [{ name: 'M', value: '6"', kind: 'movement' as const }] },
+    { id: 'two', name: 'Two', type: 'Unit', values: [{ name: 'Movement', value: '5"', kind: 'movement' as const }] },
+  ]
+
+  it('uses one column for different labels with the same semantic kind', () => {
+    expect(profileTableColumns(profiles)).toEqual([{ key: 'movement', characteristic: profiles[0]!.values[0] }])
+  })
+
+  it('finds a row value through its semantic column', () => {
+    expect(profileTableValue(profiles[1]!, profileTableColumns(profiles)[0]!)).toBe(profiles[1]!.values[0])
   })
 })
 

@@ -19,6 +19,8 @@ The points source tests the evaluator and is not loaded by the product. Evaluato
 - `pnpm catalogue:sync` activates the release-pinned snapshot from a cache shared by every worktree.
 - `pnpm catalogue:sync --latest` follows the remote `current.json` pointer.
 - `pnpm catalogue:update` resolves and downloads the latest upstream revisions for snapshot publication.
+- `pnpm catalogue:compile` reconciles the upstream records into the canonical datasheet and rule-document structure included in snapshots. Set `CATALOGUE_CANONICAL_FILE` to write outside the active catalogue directory.
+- `pnpm catalogue:audit` reports missing records, field fallbacks, source conflicts, and unknown UI semantics. Add `-- --details` for every finding.
 - `pnpm catalogue:snapshot pack` creates an immutable snapshot and checksummed pointer from the downloaded data.
 - `pnpm catalogue:snapshot download` writes the release-pinned archive for an offline installation.
 - `pnpm catalogue:snapshot install` installs that archive into `CATALOGUE_DIR` without a network request.

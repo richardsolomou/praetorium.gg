@@ -24,6 +24,8 @@ import { openValkey, type ValkeyClient, valkeySecondaryStorage, valkeyUrl } from
 import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
 import { prepareGlobalSearch } from './globalSearch'
+import { loadCanonicalCatalogue } from './canonicalCatalogue'
+import type { CanonicalCatalogue } from '../contracts/catalogue'
 
 type App = {
   database: PraetoriumDatabase
@@ -33,6 +35,8 @@ type App = {
   events: BattleEvents
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
   catalogue: () => LoadedCatalogue | null
+  /** The validated, source-independent reference data compiled into the snapshot. */
+  canonicalCatalogue: () => CanonicalCatalogue | null
   /** Stratagems and mission cards, null when that source has not been synced. */
   rules: () => LoadedRules | null
   /** How the community data is doing, so the interface can say rather than guess. */
@@ -106,11 +110,12 @@ const sync = {
 }
 
 /** Pays the one-time preparation cost after startup, before a player opens the catalogue. */
-export function warm(instance: Pick<App, 'catalogue' | 'rules'>): Promise<void> {
+export function warm(instance: Pick<App, 'catalogue' | 'canonicalCatalogue' | 'rules'>): Promise<void> {
   return new Promise((resolve) => {
     setImmediate(() => {
       try {
         prepareGlobalSearch(instance.catalogue(), instance.rules())
+        instance.canonicalCatalogue()
       } catch (error) {
         sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
       }
@@ -139,6 +144,7 @@ export function app(): App {
       auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email),
       email,
       catalogue: memoize(loadCatalogue),
+      canonicalCatalogue: memoize(loadCanonicalCatalogue),
       rules: memoize(() => {
         const catalogue = instance.catalogue()
         return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
@@ -151,6 +157,7 @@ export function app(): App {
     // serve battles whether or not it has the catalogues yet.
     sync.begin(catalogueDirectory(dataDirectory), () => {
       instance.catalogue = memoize(loadCatalogue)
+      instance.canonicalCatalogue = memoize(loadCanonicalCatalogue)
       instance.rules = memoize(() => {
         const catalogue = instance.catalogue()
         return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
@@ -161,6 +168,7 @@ export function app(): App {
       () =>
         sync.begin(catalogueDirectory(dataDirectory), () => {
           instance.catalogue = memoize(loadCatalogue)
+          instance.canonicalCatalogue = memoize(loadCanonicalCatalogue)
           instance.rules = memoize(() => {
             const catalogue = instance.catalogue()
             return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)

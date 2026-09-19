@@ -1,5 +1,6 @@
 import type { Condition, ModifierGroup, SelectionEntry } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
+import { compareText } from '../core/text'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { cardName, descriptionKey } from './datacards'
 import type { DetachmentRulesDetail } from './rulesFactions'
@@ -59,14 +60,14 @@ export function detachmentCatalogueDetail(
         description: entry ? descriptionOf(entry) : null,
       }
     })
-    .toSorted((left, right) => left.name.localeCompare(right.name))
+    .toSorted((left, right) => compareText(left.name, right.name))
   const forcedEnhancements = (indexed.forced.get(`${catalogueId}:${detachmentId}`) ?? [])
     .map((entry) => ({
       name: entry.name ?? entry.id,
       points: entry.costs?.find((cost) => cost.typeId === loaded.index.pointsTypeId)?.value ?? null,
       description: descriptionOf(entry),
     }))
-    .toSorted((left, right) => left.name.localeCompare(right.name))
+    .toSorted((left, right) => compareText(left.name, right.name))
 
   return {
     rules,
@@ -161,8 +162,8 @@ export function describedEnhancements(
   const described = new Map<string, string>()
   for (const enhancement of named) {
     const description =
-      catalogue?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === enhancement.name.toLocaleLowerCase())
-        ?.description ?? enhancement.description
+      catalogue?.enhancements.find((candidate) => candidate.name.toLowerCase() === enhancement.name.toLowerCase())?.description ??
+      enhancement.description
     if (description) described.set(descriptionKey(option.name, enhancement.name), description)
   }
   for (const forced of catalogue?.forcedEnhancements ?? []) {

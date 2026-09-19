@@ -11,6 +11,7 @@ import {
 } from './catalogue'
 import type { EvaluationError, Selection } from './evaluate'
 import { normalizedName } from './name'
+import { sameText } from './text'
 
 /**
  * A character joining a unit, as eleventh edition writes it.
@@ -140,7 +141,7 @@ function attachmentFromAssociations(definition: Definition, selection: Selection
 }
 
 const associationKind = (association: Association): Attachment['kind'] | null => {
-  const name = association.name?.trim().toLocaleLowerCase()
+  const name = association.name?.trim().toLowerCase()
   if (name === 'leading') return 'leader'
   if (name === 'supporting') return 'support'
   return null
@@ -344,7 +345,7 @@ export function attachmentErrors(
       return
     }
     const hostName = index.definitions.get(host.entryId)?.name ?? host.entryId
-    if (!attachment.targets.some((target) => target.localeCompare(hostName, undefined, { sensitivity: 'accent' }) === 0)) {
+    if (!attachment.targets.some((target) => sameText(target, hostName))) {
       error(`cannot be attached to ${hostName}`)
     }
     const associationMax = definition?.constraints
