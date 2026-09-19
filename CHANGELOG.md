@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.67.2
+
+### Patch Changes
+
+- 13f59e8: Let either player choose both sides' secondary missions, keep optional paired missions when drawn, and leave mobile navigation available during battle prompts.
+
 ## 0.67.1
 
 ### Patch Changes
