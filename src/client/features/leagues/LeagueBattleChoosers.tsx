@@ -69,6 +69,7 @@ export function OneOnOneBattleChooser({
           <Label htmlFor="league-opponent">Opponent</Label>
           <SearchableSelect
             id="league-opponent"
+            className="h-11"
             groups={[{ label: '', items: options }]}
             value={opponentId ?? ''}
             onValueChange={(id) => {
@@ -260,6 +261,7 @@ export function LeagueTeamChooser({
             <Label htmlFor="league-team-teammate">Teammate</Label>
             <SearchableSelect
               id="league-team-teammate"
+              className="h-11"
               ariaLabel={`Teammate for ${entrantName}`}
               groups={[
                 {
@@ -402,6 +404,7 @@ export function DoublesBattleChooser({
           <Label htmlFor="league-doubles-opponents">Opposing team</Label>
           <SearchableSelect
             id="league-doubles-opponents"
+            className="h-11"
             groups={[{ label: '', items: options }]}
             value={opponentId ?? ''}
             onValueChange={(id) => {

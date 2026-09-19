@@ -414,10 +414,9 @@ html[data-native-shell='true'] [data-scoreboard] {
 
 /*
  * Overlays are panels: square, one hairline edge, on the panel surface. The
- * generated components ship rounded popovers behind a translucent ring, and
- * every caller was undoing that by hand, not always completely. Unlayered so it
- * outranks the utilities the components set; only the edge's width is stated,
- * so a caller can still tint it for the side a dialog belongs to.
+ * generated components ship rounded popovers behind a translucent ring, so this
+ * is unlayered to outrank the utilities they set; only the edge's width is
+ * stated, so a caller can still tint it for the side a dialog belongs to.
  */
 [data-slot='dialog-content'],
 [data-slot='alert-dialog-content'],

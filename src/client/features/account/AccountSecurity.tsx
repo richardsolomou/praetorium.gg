@@ -598,7 +598,8 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
             <span key={backupCode}>{backupCode}</span>
           ))}
         </div>
-        <DialogFooter>
+        {/* Reading order on a phone: copying comes before the button that puts the codes away for good. */}
+        <DialogFooter className="flex-col">
           <Button
             type="button"
             variant="outline"

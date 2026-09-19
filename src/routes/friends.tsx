@@ -36,6 +36,9 @@ function Friends() {
   const request = useMutation({ mutationFn: (userId: string) => requestFriend({ data: { userId } }), onSuccess: refresh })
   const accept = useMutation({ mutationFn: (userId: string) => acceptFriend({ data: { userId } }), onSuccess: refresh })
   const remove = useMutation({ mutationFn: (userId: string) => removeFriend({ data: { userId } }), onSuccess: refresh })
+  // Only the pressed row waits: one mutation serves every row in its list.
+  const inFlight = (mutation: { isPending: boolean; variables: string | undefined }) =>
+    mutation.isPending ? (mutation.variables ?? null) : null
   if (!me) return <SignInRequired title="Your friends" explanation="Sign in to connect with the people you play against." />
   const people = data.people.filter((person) => person.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
 
@@ -59,7 +62,7 @@ function Friends() {
             empty="No requests are waiting for you."
             people={data.incoming}
             action="Accept"
-            pending={accept.isPending}
+            pendingId={inFlight(accept)}
             onAction={(person) => accept.mutate(person.id)}
           />
           <People
@@ -68,7 +71,7 @@ function Friends() {
             people={data.friends}
             action="Remove"
             destructive
-            pending={remove.isPending}
+            pendingId={inFlight(remove)}
             onAction={(person) => remove.mutate(person.id)}
           />
         </div>
@@ -92,7 +95,7 @@ function Friends() {
                 key={person.id}
                 person={person}
                 action="Add friend"
-                pending={request.isPending}
+                pending={inFlight(request) === person.id}
                 onAction={() => request.mutate(person.id)}
               />
             ))}
@@ -109,7 +112,7 @@ function Friends() {
           people={data.outgoing}
           action="Cancel"
           destructive
-          pending={remove.isPending}
+          pendingId={inFlight(remove)}
           onAction={(person) => remove.mutate(person.id)}
         />
       </PageContent>
@@ -123,7 +126,7 @@ function People({
   action,
   empty,
   destructive = false,
-  pending,
+  pendingId,
   onAction,
 }: {
   title: string
@@ -131,7 +134,7 @@ function People({
   action: string
   empty: string
   destructive?: boolean
-  pending: boolean
+  pendingId: string | null
   onAction: (person: Person) => void
 }) {
   return (
@@ -148,7 +151,7 @@ function People({
               person={person}
               action={action}
               destructive={destructive}
-              pending={pending}
+              pending={pendingId === person.id}
               onAction={() => onAction(person)}
             />
           ))
