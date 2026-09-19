@@ -14,8 +14,8 @@ type Props = { view: BattleView; sides: Side[]; send: SendCommand; pending: bool
  * thing the table agrees before the roll-off and it is a different conversation —
  * the reserves are each army's, and this belongs to the side.
  *
- * Both sides stay visible so the table can see what is still outstanding. A player
- * chooses only for their side, except when the battle format mandates tactical play.
+ * Both sides stay visible so the table can see what is still outstanding and either
+ * player can referee the choices for both sides from one device.
  */
 export function SecondariesStep({ view, sides, send, pending }: Props) {
   return (

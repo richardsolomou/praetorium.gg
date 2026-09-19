@@ -82,6 +82,10 @@ html[data-native-app='true'] [data-native-app-tabs] {
   display: flex;
 }
 
+html:has([data-battle-prompt]) [data-native-app-tabs] {
+  z-index: 60;
+}
+
 html[data-native-app='true'] [data-mobile-app-header],
 html[data-native-app='true'] [data-mobile-app-header-spacer] {
   display: flex;
@@ -115,6 +119,11 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
 }
 
 @media (max-width: 859px) {
+  html:has([data-battle-prompt]) [data-slot='dialog-content'] {
+    top: calc((100dvh - 4rem - env(safe-area-inset-bottom)) / 2);
+    max-height: calc(100dvh - 6rem - env(safe-area-inset-bottom));
+  }
+
   html:not([data-native-app='true']) [data-web-app-chrome] {
     display: none;
   }

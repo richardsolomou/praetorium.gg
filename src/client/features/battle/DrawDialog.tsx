@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Command } from '../../../core/battle'
 import { nextDraw } from '../../scoring'
 import { type Side, sideName } from '../../sides'
@@ -9,6 +9,7 @@ import { redrawOffer, type WhenDrawn } from './drawOffer'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
 import { CARD } from './tints'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
+import { BattlePromptDialog } from './BattlePromptDialog'
 
 export type { WhenDrawn } from './drawOffer'
 
@@ -126,7 +127,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
 
   return (
     <>
-      <Dialog open>
+      <BattlePromptDialog open>
         <DialogContent showCloseButton={false} className="max-h-[85dvh] overflow-y-auto border-discarded/60 sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-discarded">
@@ -270,7 +271,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
             )}
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </BattlePromptDialog>
       {/* Base UI treats nested dialogs as one dismissible region, so details must be a sibling. */}
       {inspected ? <MissionDetailsDialog details={inspected} onOpenChange={(open) => !open && setInspected(null)} /> : null}
       <UndoLatestConfirmation pending={pending} control={undo} />

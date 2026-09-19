@@ -1,10 +1,11 @@
 import { BellRing } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { RosterReminder } from '../../../core/reminders'
 import type { ReminderDismissalScope } from '../../reminderDismissals'
 import { RuleText } from '../../components/RuleText'
+import { BattlePromptDialog } from './BattlePromptDialog'
 
 export function ReminderDialog({
   reminders,
@@ -20,7 +21,7 @@ export function ReminderDialog({
   onDone: () => void
 }) {
   return (
-    <Dialog open>
+    <BattlePromptDialog open>
       <DialogContent className="sm:max-w-lg" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -70,6 +71,6 @@ export function ReminderDialog({
           <Button onClick={onDone}>{confirmLabel}</Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+    </BattlePromptDialog>
   )
 }

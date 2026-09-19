@@ -1,8 +1,9 @@
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { type Side, sideName } from '../../sides'
 import type { Command } from '../../../core/battle'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
+import { BattlePromptDialog } from './BattlePromptDialog'
 
 type Props = {
   side: Side
@@ -18,7 +19,7 @@ export function SecretMissionHandoff({ side, pending, onReveal, onCancel, undoab
   const undo = useUndoLatest({ undoable, undoableDraw, send })
   return (
     <>
-      <Dialog open onOpenChange={(open) => !open && onCancel?.()}>
+      <BattlePromptDialog open onOpenChange={(open) => !open && onCancel?.()}>
         <DialogContent showCloseButton={Boolean(onCancel)} className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Secret Mission action · {sideName(side)}</DialogTitle>
@@ -40,7 +41,7 @@ export function SecretMissionHandoff({ side, pending, onReveal, onCancel, undoab
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </BattlePromptDialog>
       <UndoLatestConfirmation pending={pending} control={undo} />
     </>
   )

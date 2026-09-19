@@ -1,11 +1,12 @@
 import { Check } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Command } from '../../../core/battle'
 import type { Side } from '../../sides'
 import { sideName } from '../../sides'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
+import { BattlePromptDialog } from './BattlePromptDialog'
 
 export function DiscardSecondaryDialog({
   side,
@@ -36,7 +37,7 @@ export function DiscardSecondaryDialog({
 
   return (
     <>
-      <Dialog open>
+      <BattlePromptDialog open>
         <DialogContent className="border-discarded/60 sm:max-w-lg">
           <DialogHeader className="text-center">
             <p className="eyebrow text-discarded">End of turn</p>
@@ -84,7 +85,7 @@ export function DiscardSecondaryDialog({
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </BattlePromptDialog>
       <UndoLatestConfirmation pending={pending} control={undo} />
     </>
   )

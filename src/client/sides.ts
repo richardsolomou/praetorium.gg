@@ -66,19 +66,6 @@ export type Side = {
   armies: Army[]
   /** The seat the domain folds this side's shared resources onto. */
   captain: ViewPlayer
-  /**
-   * The seat whose device records what this side shares: its cards, its hand, and
-   * its settlements.
-   *
-   * Not always the captain. The domain folds a side's resources onto its first
-   * seat, but nobody signs in to a practice opponent — so a side that opens with
-   * one has a captain no device is ever behind, and asking for the captain's
-   * device left a side of a practice opponent and a player with no one able to
-   * settle its cards at all. The first seat someone can sign in to writes for the
-   * side. A side of practice opponents alone has none, and `played` is what says
-   * the table facing it writes instead.
-   */
-  writer: ViewPlayer
   /** The side the viewer is sitting on. */
   isViewer: boolean
   /** A side of practice opponents alone. Nobody signs in to it, so the table plays it. */
@@ -142,7 +129,6 @@ export function sides(view: BattleView, missions: readonly { side: number; missi
         index,
         armies: seated.map(toArmy),
         captain,
-        writer: seated.find((player) => !player.automated) ?? captain,
         isViewer: seated.some((player) => player.isViewer),
         automated: seated.every((player) => player.automated),
         played: seated.some((player) => player.isViewer) || seated.every((player) => player.automated),
@@ -200,8 +186,9 @@ export function sideName(side: { armies: readonly { playerName: string }[] }): s
   return side.armies.map((army) => army.playerName).join(' & ')
 }
 
-export function canWritePrep(side: Pick<Side, 'played' | 'writer' | 'automated'>, viewerId: string, tacticalOnly: boolean): boolean {
-  return tacticalOnly || (side.played && (side.writer.id === viewerId || side.automated))
+/** Any player at the table may settle setup choices for either side. */
+export function canWritePrep(view: Pick<BattleView, 'players' | 'viewerId'>): boolean {
+  return view.players.some((player) => player.id === view.viewerId)
 }
 
 export function missionCardsReady(

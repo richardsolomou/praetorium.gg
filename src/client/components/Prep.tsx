@@ -24,13 +24,13 @@ type Props = { view: BattleView; side: Side; missionId: string | null; send: Sen
  * from this side's ordered disposition matchup — so neither is offered as a choice.
  *
  * A 2v1 side reads both armies because the pair share one pool and each ally brings
- * its own detachment. The pool targets the side captain, while the `writer` owns the
- * mode and fixed-card choices.
+ * its own detachment. The pool and choices target the side captain, while any seated
+ * player may record them from the device at the table.
  */
 export function Prep({ view, side, missionId, send, pending }: Props) {
   const captain = side.captain
   const tacticalOnly = isKotcLimit(view.settings.limit)
-  const writes = canWritePrep(side, view.viewerId, tacticalOnly)
+  const writes = canWritePrep(view)
   const requests = side.armies.map((army) => armyRulesRequest(army.roster))
   const { data: references } = useQuery(gameReferencesQuery())
   const results = useQueries({ queries: requests.map((request) => detachmentRulesQuery(request.catalogueId, request.detachmentNames)) })
@@ -101,7 +101,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     // than from this side's rules, so an unanswered references request is as much a
     // reason to wait as an unanswered one for the stratagems: writing here without it
     // sends an empty tactical deck, which is refused, which leaves this asking again.
-    if (!rules || !references || pending) return
+    if (!writes || !rules || !references || pending) return
     // Compared against what would be sent, so a pool already written is left alone
     // and a pool an arriving ally changes is rewritten exactly once.
     const wrongStratagems = pooled && wanted.length > 0 && wanted !== recorded
@@ -109,8 +109,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     const missingDeck = deck.length > 0 && !captain.secondaryDeckReady
     const invalidMode = tacticalOnly && storedMode !== 'tactical'
     if (!wrongStratagems && !wrongPrimary && !missingDeck && !invalidMode) return
-    // Derived cards may be settled from either device; only the mode and fixed-card
-    // controls remain the side writer's choice.
+    // Any seated device may settle the derived cards and the side's choices.
     save({}, { background: true })
     // A stale automatic write redraws at a newer sequence, where the still-missing
     // fact retries instead of remaining blocked behind the command another device won.
@@ -128,6 +127,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     mode,
     storedMode,
     tacticalOnly,
+    writes,
     pending,
     view.seq,
   ])
@@ -139,7 +139,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
         <p className="text-xs text-dim">
           {mode === 'fixed' ? 'Chosen now and played for the whole battle.' : 'Drawn at random or selected as the battle runs.'}
         </p>
-        <p className="text-xs text-dim">{side.writer.name} chooses how your side draws its cards. You both draw from the one hand.</p>
+        <p className="text-xs text-dim">Only players at the table can choose how this side draws its cards.</p>
       </div>
     )
   }

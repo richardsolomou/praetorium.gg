@@ -544,6 +544,21 @@ describe('setup', () => {
     expect(validate(state, ALICE, prep)).toBe('the selected secondaries contain duplicates')
   })
 
+  it('lets either player settle the opposing side cards during setup', () => {
+    const command: Command = {
+      kind: 'set-prep',
+      playerId: BOB,
+      stratagems: [],
+      secondaries: [{ key: 'secondary', name: 'Behind Enemy Lines' }],
+      primary: null,
+      secondaryMode: 'fixed',
+    }
+    const state = reduceBattle(PLAYERS, log())
+
+    expect(validate(state, ALICE, command)).toBeNull()
+    expect(reduceBattle(PLAYERS, log([ALICE, command])).players[1]?.secondaries).toEqual(command.secondaries)
+  })
+
   it('allows a missing tactical deck to be restored after the battle begins', () => {
     const stratagem = { key: 'reroll', name: 'Command Re-roll', cp: 1, limit: 'phase' as const }
     const repair: Command = {
