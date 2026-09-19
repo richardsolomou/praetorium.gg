@@ -10,7 +10,7 @@ import {
   packCatalogueSnapshot,
   verifySnapshotArchive,
 } from '../src/server/catalogueSnapshot'
-import { writeCanonicalCatalogue } from '../src/server/canonicalCatalogue'
+import { canonicalCataloguePath, writeCanonicalCatalogue } from '../src/server/canonicalCatalogue'
 import { canCompileCanonicalCatalogue } from '../src/server/canonicalCatalogueSources'
 import { disabledCatalogueSources } from '../src/server/catalogueSources'
 
@@ -26,6 +26,8 @@ if (command === 'pack') {
   if (canCompileCanonicalCatalogue(disabled)) {
     const catalogue = writeCanonicalCatalogue(directory)
     console.log(`canonical catalogue: ${catalogue.datasheets.length} datasheets, ${catalogue.issues.length} audit issues`)
+  } else {
+    fs.rmSync(canonicalCataloguePath(directory), { force: true })
   }
   const packed = packCatalogueSnapshot(directory, archive, pointer)
   console.log(`${packed.id} ${archive}`)

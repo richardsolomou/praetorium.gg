@@ -146,6 +146,8 @@ it.each(['definitions', 'rules', 'datacards'] as const)('does not compile or pac
   const catalogue = completeCatalogue(root)
   const archiveFile = path.join(root, 'snapshot.zip')
   const pointerFile = path.join(root, 'pointer.json')
+  fs.mkdirSync(path.join(catalogue, 'canonical'))
+  fs.writeFileSync(path.join(catalogue, 'canonical', 'catalogue.json'), '{"stale":true}\n')
   fs.rmSync(path.join(catalogue, source), { recursive: true })
 
   execFileSync('pnpm', ['catalogue:snapshot', 'pack'], {

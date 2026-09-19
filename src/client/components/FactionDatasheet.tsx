@@ -302,7 +302,7 @@ function uniqueCharacteristicProfiles(profiles: DisplayProfile[]) {
 
 const noColumns: DatasheetCharacteristicKind[] = []
 
-function ProfileTable({
+export function ProfileTable({
   title,
   profiles,
   omit = noColumns,

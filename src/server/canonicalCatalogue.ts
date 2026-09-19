@@ -15,6 +15,7 @@ import { datasheetIn } from './catalogue'
 import { catalogueDirectory, datasheetsOf, isReferenceDatasheet, loadCatalogue, type LoadedCatalogue } from './catalogueIndex'
 import { isMatchedPlayDatasheet } from './cataloguePicker'
 import { sourceBaseSize, sourceComposition, sourceCosts, sourceUnitOf, type SourceUnitJoin } from './catalogueSourceUnits'
+import { DATACARDS_ATTRIBUTION } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { factionDisplayName } from './factionNames'
@@ -212,6 +213,42 @@ function singleUnqualifiedPoint(costs: readonly CanonicalDatasheet['costs'][numb
   return Number(unqualified[0]!.cost)
 }
 
+type ModelCountRange = { minimum: number; maximum: number }
+
+function declaredCompositionRange(composition: readonly string[]): ModelCountRange | null {
+  const alternatives: ModelCountRange[][] = [[]]
+  for (const line of composition) {
+    if (line.trim().toLowerCase() === 'or') {
+      alternatives.push([])
+      continue
+    }
+    if (!/^\*{0,2}\s*\d/.test(line.trim())) return null
+    const counts = [...line.matchAll(/(\d+)(?:\s*\p{Pd}\s*(\d+))?/gu)]
+    if (!counts.length) return null
+    alternatives.at(-1)!.push(...counts.map((count) => ({ minimum: Number(count[1]), maximum: Number(count[2] ?? count[1]) })))
+  }
+  const totals = alternatives.flatMap((groups) =>
+    groups.length
+      ? [
+          {
+            minimum: groups.reduce((total, group) => total + group.minimum, 0),
+            maximum: groups.reduce((total, group) => total + group.maximum, 0),
+          },
+        ]
+      : [],
+  )
+  return totals.length
+    ? {
+        minimum: Math.min(...totals.map((total) => total.minimum)),
+        maximum: Math.max(...totals.map((total) => total.maximum)),
+      }
+    : null
+}
+
+const sameModelCount = (left: ModelCountRange, right: ModelCountRange) => left.minimum === right.minimum && left.maximum === right.maximum
+
+const modelCountLabel = ({ minimum, maximum }: ModelCountRange) => (minimum === maximum ? String(minimum) : `${minimum}-${maximum}`)
+
 const comparableBaseSize = (value: string) => {
   const trimmed = value.trim()
   if (
@@ -238,6 +275,8 @@ type SourceEvidence = {
   rulesBaseSize: string | null
   cardsComposition: readonly string[]
   rulesComposition: readonly string[]
+  cardsModelCount: ModelCountRange | null
+  rulesModelCount: ModelCountRange | null
   cardsCosts: readonly CanonicalDatasheet['costs'][number][]
   rulesCosts: readonly CanonicalDatasheet['costs'][number][]
 }
@@ -274,7 +313,17 @@ function issuesFor(
   evidence: SourceEvidence,
 ): CanonicalCatalogueIssue[] {
   const issues: CanonicalCatalogueIssue[] = []
-  const { definitionsPoints, cardsBaseSize, rulesBaseSize, cardsComposition, rulesComposition, cardsCosts, rulesCosts } = evidence
+  const {
+    definitionsPoints,
+    cardsBaseSize,
+    rulesBaseSize,
+    cardsComposition,
+    rulesComposition,
+    cardsModelCount,
+    rulesModelCount,
+    cardsCosts,
+    rulesCosts,
+  } = evidence
   if (!joined) {
     issues.push({
       kind: 'missing-source-record',
@@ -331,6 +380,16 @@ function issuesFor(
       entryId: sheet.id,
       path: '/composition',
       message: `${sheet.name} uses 40kdc model counts because Game Datacards has no composition`,
+    })
+  }
+  if (cardsModelCount && rulesModelCount && !sameModelCount(cardsModelCount, rulesModelCount)) {
+    issues.push({
+      kind: 'source-field-conflict',
+      severity: 'warning',
+      catalogueId: sheet.catalogueId,
+      entryId: sheet.id,
+      path: '/composition',
+      message: `${sheet.name} keeps Game Datacards composition ${modelCountLabel(cardsModelCount)} over 40kdc ${modelCountLabel(rulesModelCount)}`,
     })
   }
   const cardsBaseKey = cardsBaseSize ? comparableBaseSize(cardsBaseSize) : null
@@ -448,6 +507,10 @@ export function compileCanonicalCatalogue(
       const rulesBaseSize = sourceBaseSize(sourceJoin?.unit.baseSize ?? null)
       const cardsComposition = described.composition
       const rulesComposition = sourceComposition(sourceJoin?.unit.modelCount ?? null)
+      const cardsModelCount = declaredCompositionRange(cardsComposition)
+      const rulesModelCount = sourceJoin?.unit.modelCount
+        ? { minimum: sourceJoin.unit.modelCount.min, maximum: sourceJoin.unit.modelCount.max }
+        : null
       const cardsCosts = described.costs
       const rulesCosts = sourceCosts(sourceJoin?.unit.points ?? [])
       const baseSize = cardsBaseSize ?? rulesBaseSize
@@ -459,14 +522,24 @@ export function compileCanonicalCatalogue(
         (!cardsBaseSize && Boolean(rulesBaseSize)) ||
         (!cardsComposition.length && Boolean(rulesComposition.length)) ||
         (!cardsCosts.length && Boolean(rulesCosts.length))
-      const attribution = [...new Set([described.attribution, usesRulesDisplayData ? RULES_DATA_ATTRIBUTION : null].filter(Boolean))].join(
-        '. ',
-      )
       const projectedAbilities = new Map(projected.abilities.map((ability) => [ability.id, ability]))
       const datacardsContributeAbilities =
         described.abilities.length !== projected.abilities.length ||
         described.abilities.some((ability) => projectedAbilities.get(ability.id)?.description !== ability.description)
       const rulesContributeAbilities = described.abilities.some((ability) => projectedAbilities.get(ability.id)?.kind !== ability.kind)
+      const usesDatacards = Boolean(
+        cardsBaseSize ||
+        cardsComposition.length ||
+        cardsCosts.length ||
+        described.loadout ||
+        described.transport ||
+        joined?.details.wargear.length ||
+        joined?.details.wargearGroups?.length ||
+        datacardsContributeAbilities,
+      )
+      const attribution = [...new Set([usesDatacards ? DATACARDS_ATTRIBUTION : null, usesRulesDisplayData ? RULES_DATA_ATTRIBUTION : null])]
+        .filter((value): value is string => Boolean(value))
+        .join('. ')
       const abilitySources = uniqueSources([
         'definitions',
         ...(datacardsContributeAbilities ? (['datacards'] as const) : []),
@@ -551,17 +624,34 @@ export function compileCanonicalCatalogue(
           rulesBaseSize,
           cardsComposition,
           rulesComposition,
+          cardsModelCount,
+          rulesModelCount,
           cardsCosts,
           rulesCosts,
         }),
       )
     }
   }
+  const canonicalRoutes = new Set(
+    datasheets.flatMap((sheet) => (sheet.referenceRoute ? [`${sheet.referenceRoute.catalogueId}\0${sheet.referenceRoute.slug}`] : [])),
+  )
+  const keepCanonicalRoutes = (relationships: CanonicalDatasheet['attachments']) =>
+    relationships.map((relationship) =>
+      relationship.route && !canonicalRoutes.has(`${relationship.route.catalogueId}\0${relationship.route.slug}`)
+        ? { ...relationship, route: null }
+        : relationship,
+    )
+  const routedDatasheets = datasheets.map((sheet) => ({
+    ...sheet,
+    attachments: keepCanonicalRoutes(sheet.attachments),
+    leaders: keepCanonicalRoutes(sheet.leaders),
+    supporters: keepCanonicalRoutes(sheet.supporters),
+  }))
   return canonicalCatalogueSchema.parse({
     format: CANONICAL_CATALOGUE_FORMAT,
     compilerVersion: 1,
     revisions: Object.fromEntries(Object.entries(revisions).toSorted(([left], [right]) => left.localeCompare(right))),
-    datasheets: datasheets.toSorted(
+    datasheets: routedDatasheets.toSorted(
       (left, right) => left.faction.localeCompare(right.faction) || left.name.localeCompare(right.name) || left.id.localeCompare(right.id),
     ),
     ruleDocuments: compileCanonicalRuleDocuments(rules?.ruleDocuments ?? [], revisions.datacards ?? 'unknown'),

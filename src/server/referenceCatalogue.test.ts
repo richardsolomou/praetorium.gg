@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { bookOf, categories } from './catalogue.fixtures'
 import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from './referenceCatalogue'
 
 const ruleDocument = {
@@ -59,6 +60,33 @@ describe('canonical reference boundaries', () => {
 
     expect(
       referenceRuleSection(sources as never, { documentId: 'canonical-document', sectionId: 'canonical-section' })?.section.title,
+    ).toBe('Canonical section')
+  })
+
+  it('falls back to source data for a snapshot without a canonical catalogue', () => {
+    const catalogue = bookOf({
+      selectionEntries: [
+        {
+          id: 'legacy-sheet',
+          name: 'Legacy sheet',
+          type: 'unit',
+          categoryLinks: categories('Faction: Test catalogue'),
+        },
+      ],
+    })
+    const datasheetSources = { canonicalCatalogue: () => null, catalogue: () => catalogue, rules: () => null }
+    const ruleSources = {
+      canonicalCatalogue: () => null,
+      catalogue: () => null,
+      rules: () => ({ ruleDocuments: [ruleDocument] }),
+    }
+
+    expect(referenceDatasheetBySlug(datasheetSources, { catalogueId: 'cat', slug: 'legacy-sheet' })?.name).toBe('Legacy sheet')
+    expect(referenceRuleIndex(ruleSources as never)?.documents).toContainEqual(
+      expect.objectContaining({ id: 'canonical-document', title: 'Canonical document' }),
+    )
+    expect(
+      referenceRuleSection(ruleSources as never, { documentId: 'canonical-document', sectionId: 'canonical-section' })?.section.title,
     ).toBe('Canonical section')
   })
 })

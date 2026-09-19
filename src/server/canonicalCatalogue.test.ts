@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { bookOf, card, categories, points, withCards } from './catalogue.fixtures'
 import { compileCanonicalCatalogue, compileCanonicalRuleDocuments } from './canonicalCatalogue'
 import type { SourceUnit } from './catalogueSourceUnits'
+import { DATACARDS_ATTRIBUTION } from './datacards'
 import { indexExternalReferences } from './externalReferences'
 
 const revisions = { definitions: 'definitions-revision', datacards: 'datacards-revision' }
@@ -68,6 +69,7 @@ describe('canonical catalogue', () => {
       catalogueId: 'cat',
       faction: 'Test catalogue',
       name: 'Squad',
+      attribution: DATACARDS_ATTRIBUTION,
       composition: ['1 Squad'],
       profiles: [
         {
@@ -200,6 +202,65 @@ describe('canonical catalogue', () => {
       points: null,
       provenance: { fields: { points: { sources: ['definitions', 'datacards'], strategy: 'unresolved' } } },
     })
+  })
+
+  it('reports a composition conflict while keeping Game Datacards presentation', () => {
+    const loaded = catalogue()
+    loaded.factionContents
+      .get('test-catalogue')!
+      .datasheetDetails.set('Squad', card({ composition: ['**1 Squad Leader and 9 Squad models**'] }))
+
+    const compiled = compileCanonicalCatalogue(withSourceUnit(loaded, { modelCount: { min: 10, max: 20 } }), {
+      ...revisions,
+      rules: 'rules-revision',
+    })
+
+    expect(compiled.datasheets[0]?.composition).toEqual(['**1 Squad Leader and 9 Squad models**'])
+    expect(compiled.issues).toContainEqual(expect.objectContaining({ kind: 'source-field-conflict', path: '/composition' }))
+  })
+
+  it('does not link relationships to datasheets omitted from the canonical catalogue', () => {
+    const loaded = bookOf({
+      name: 'Test catalogue',
+      selectionEntries: [
+        {
+          id: 'leader',
+          name: 'Leader',
+          type: 'model',
+          costs: points(100),
+          categoryLinks: categories('Faction: Test catalogue'),
+          infoGroups: [
+            {
+              id: 'leader-group',
+              name: 'Leader',
+              profiles: [
+                {
+                  id: 'leader-profile',
+                  name: 'Leader',
+                  characteristics: [
+                    {
+                      name: 'Description',
+                      $text: 'This model can be attached to the following units:\n■ OLD GUARD [LEGENDS]',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'old-guard',
+          name: 'Old Guard [Legends]',
+          type: 'unit',
+          costs: points(100),
+          categoryLinks: categories('Faction: Test catalogue'),
+        },
+      ],
+    })
+
+    expect(compileCanonicalCatalogue(loaded, revisions).datasheets.find((sheet) => sheet.id === 'leader')?.attachments).toContainEqual(
+      expect.objectContaining({ name: 'OLD GUARD [LEGENDS]', route: null }),
+    )
   })
 
   it('reports a source-specific profile type while preserving it for generic rendering', () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   datasheetCharacteristicKind,
   datasheetCharacteristicKindOf,
@@ -32,6 +32,18 @@ describe('datasheet structure', () => {
 
   it('keeps an unfamiliar characteristic visible and marks it as unknown', () => {
     expect(datasheetCharacteristicKind('Future stat')).toBe('other')
+  })
+
+  it('classifies identifiers independently of the browser locale', () => {
+    const spy = vi.spyOn(String.prototype, 'toLocaleLowerCase').mockImplementation(function (this: string) {
+      return this.replaceAll('I', 'ı').toLowerCase()
+    })
+
+    try {
+      expect(datasheetCharacteristicKind('InSv')).toBe('invulnerable-save')
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('adds semantic kinds without replacing source labels', () => {

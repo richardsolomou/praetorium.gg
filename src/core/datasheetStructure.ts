@@ -3,7 +3,7 @@ import type { Datasheet, DatasheetCharacteristicKind, DatasheetProfileKind, Stru
 const normalized = (value: string) =>
   value
     .trim()
-    .toLocaleLowerCase()
+    .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, '')
 
 export function datasheetProfileKind(type: string): DatasheetProfileKind {
