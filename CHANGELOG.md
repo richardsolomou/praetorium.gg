@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.66.7
+
+### Patch Changes
+
+- 332b8dd: Show full detachment names on the phone faction page, with their chips beneath.
+- d2405c7: Find players on the friends page by typing a name, instead of listing every account on the instance.
+- 332b8dd: Remove the duplicate "Secondary mission" label from the mission card dialog.
+- 332b8dd: Say when a faction has no units to pick instead of claiming to still be loading.
+- 6af4c07: Give every dialog, menu, page header and small label the same treatment across the interface.
+- 332b8dd: Draw every tooltip as the same small raised panel.
+
 ## 0.66.6
 
 ### Patch Changes
