@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.66.6
+
+### Patch Changes
+
+- 866dc1d: Show the correct terrain reference labels on affected battlefield maps.
+
 ## 0.66.5
 
 ### Patch Changes
