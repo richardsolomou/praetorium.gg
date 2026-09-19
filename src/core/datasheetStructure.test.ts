@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { datasheetCharacteristicKind, datasheetProfileKind, structureDatasheetProfiles } from './datasheetStructure'
+import {
+  datasheetCharacteristicKind,
+  datasheetCharacteristicKindOf,
+  datasheetProfileKind,
+  datasheetProfileKindOf,
+  structureDatasheetProfiles,
+} from './datasheetStructure'
 
 describe('datasheet structure', () => {
   it.each([
@@ -40,5 +46,22 @@ describe('datasheet structure', () => {
         values: [{ name: 'A', value: '2', kind: 'attacks' }],
       },
     ])
+  })
+
+  it('preserves canonical semantic kinds when source labels are unfamiliar', () => {
+    const profiles = structureDatasheetProfiles([
+      {
+        id: 'future',
+        name: 'Command cadre',
+        type: 'Orders',
+        kind: 'unit',
+        values: [{ name: 'Future stat', value: '2', kind: 'toughness' }],
+      },
+    ])
+
+    expect(profiles[0]?.kind).toBe('unit')
+    expect(profiles[0]?.values[0]?.kind).toBe('toughness')
+    expect(datasheetProfileKindOf(profiles[0]!)).toBe('unit')
+    expect(datasheetCharacteristicKindOf(profiles[0]!.values[0]!)).toBe('toughness')
   })
 })

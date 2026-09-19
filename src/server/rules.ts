@@ -47,6 +47,7 @@ import {
  * it, and an absent source leaves its part of `LoadedRules` empty rather than guessed.
  */
 export const RULES_DATA_ATTRIBUTION = `${catalogueSources.rules.attribution}, CC BY 4.0`
+const RULES_ATTRIBUTION = 'Stratagems and mission cards by the Tabletop Developer Consortium, CC BY 4.0'
 const BATTLEMASTER_ATTRIBUTION = 'Terrain geometry provided by Battlemaster'
 
 export type { Mission } from './rulesCards'
@@ -122,9 +123,7 @@ export function loadRules(
 
   const hasBattlemaster = terrainLayouts.some((layout) => layout.geometry)
   return {
-    attribution: [RULES_DATA_ATTRIBUTION, DATACARDS_ATTRIBUTION, hasBattlemaster ? BATTLEMASTER_ATTRIBUTION : null]
-      .filter(Boolean)
-      .join('. '),
+    attribution: [RULES_ATTRIBUTION, DATACARDS_ATTRIBUTION, hasBattlemaster ? BATTLEMASTER_ATTRIBUTION : null].filter(Boolean).join('. '),
     abilityDescriptions: datacards.armyRules,
     factionRestrictions: factionRestrictions(datacards),
     factionKeys: factions.factionKeys,

@@ -2,8 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { wargearBaseName } from '../../core/wargear'
-import { datasheetCharacteristicKind, datasheetProfileKind, datasheetProfilesByKind } from '../../core/datasheetStructure'
-import type { Datasheet } from '../../contracts/catalogue'
+import { datasheetCharacteristicKindOf, datasheetProfileKindOf, datasheetProfilesByKind } from '../../core/datasheetStructure'
+import type {
+  Datasheet,
+  DatasheetCharacteristicKind,
+  StructuredDatasheetCharacteristic,
+  StructuredDatasheetProfile,
+} from '../../contracts/catalogue'
 import {
   abilitySections,
   attachmentGroups,
@@ -27,7 +32,7 @@ export function FactionDatasheet() {
   const structured = datasheetProfilesByKind(sheet)
   const unit = uniqueCharacteristicProfiles(structured.unit)
   const invulnerable = unit.flatMap((profile) => {
-    const value = profile.values.find((characteristic) => datasheetCharacteristicKind(characteristic.name) === 'invulnerable-save')?.value
+    const value = profile.values.find((characteristic) => datasheetCharacteristicKindOf(characteristic) === 'invulnerable-save')?.value
     return value ? [{ name: profile.name, value }] : []
   })
   const ranged = structured.ranged
@@ -82,7 +87,9 @@ export function FactionDatasheet() {
         </Breadcrumb>
 
         {unit.length === 1 && unit[0] ? <UnitCharacteristics profile={unit[0]} /> : null}
-        {unit.length > 1 ? <ProfileTable title="Models" profiles={unit} omit={['InSv']} keywordRules={sheet.keywordRules} /> : null}
+        {unit.length > 1 ? (
+          <ProfileTable title="Models" profiles={unit} omit={['invulnerable-save']} keywordRules={sheet.keywordRules} />
+        ) : null}
         {unit.length > 1 && invulnerable.length ? (
           <section>
             <h2 className="rubric">Invulnerable save</h2>
@@ -261,11 +268,11 @@ function Relationships({ sheet }: { sheet: Datasheet }) {
   )
 }
 
-type DisplayProfile = Datasheet['profiles'][number]
+type DisplayProfile = StructuredDatasheetProfile
 
 function UnitCharacteristics({ profile }: { profile: DisplayProfile }) {
-  const invulnerable = profile.values.find((value) => datasheetCharacteristicKind(value.name) === 'invulnerable-save')?.value
-  const values = profile.values.filter((value) => datasheetCharacteristicKind(value.name) !== 'invulnerable-save')
+  const invulnerable = profile.values.find((value) => datasheetCharacteristicKindOf(value) === 'invulnerable-save')?.value
+  const values = profile.values.filter((value) => datasheetCharacteristicKindOf(value) !== 'invulnerable-save')
   return (
     <section>
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
@@ -296,7 +303,7 @@ function uniqueCharacteristicProfiles(profiles: DisplayProfile[]) {
   })
 }
 
-const noColumns: string[] = []
+const noColumns: DatasheetCharacteristicKind[] = []
 
 function ProfileTable({
   title,
@@ -306,14 +313,16 @@ function ProfileTable({
 }: {
   title: string
   profiles: DisplayProfile[]
-  omit?: string[]
+  omit?: DatasheetCharacteristicKind[]
   keywordRules: KeywordRule[]
 }) {
-  const columns = [...new Set(profiles.flatMap((profile) => profile.values.map((value) => value.name)))].filter(
-    (column) => !omit.includes(column),
-  )
+  const columns = [
+    ...new Map<string, StructuredDatasheetCharacteristic>(
+      profiles.flatMap((profile) => profile.values.map((value) => [value.name, value] as const)),
+    ).values(),
+  ].filter((column) => !omit.includes(datasheetCharacteristicKindOf(column)))
   const groups =
-    profiles[0] && ['ranged-weapon', 'melee-weapon'].includes(datasheetProfileKind(profiles[0].type))
+    profiles[0] && ['ranged-weapon', 'melee-weapon'].includes(datasheetProfileKindOf(profiles[0]))
       ? weaponProfileGroups(profiles)
       : profiles.map((profile) => [profile])
   return (
@@ -327,8 +336,8 @@ function ProfileTable({
             <tr>
               <th className="px-3 py-2">Name</th>
               {columns.map((column) => (
-                <th key={column} className="px-3 py-2 text-center">
-                  {column}
+                <th key={column.name} className="px-3 py-2 text-center">
+                  {column.name}
                 </th>
               ))}
             </tr>
@@ -357,16 +366,16 @@ function ProfileTable({
                     {group.length > 1 ? weaponProfileMode(profile) : profile.name}
                   </th>
                   {columns.map((column) => (
-                    <td key={column} className="readout px-3 py-2 text-center text-dim">
-                      {datasheetCharacteristicKind(column) === 'keywords' &&
-                      profile.values.find((value) => value.name === column)?.value ? (
+                    <td key={column.name} className="readout px-3 py-2 text-center text-dim">
+                      {datasheetCharacteristicKindOf(column) === 'keywords' &&
+                      profile.values.find((value) => value.name === column.name)?.value ? (
                         <KeywordList
-                          value={profile.values.find((value) => value.name === column)!.value}
+                          value={profile.values.find((value) => value.name === column.name)!.value}
                           rules={keywordRules}
                           className="text-bone"
                         />
                       ) : (
-                        (profile.values.find((value) => value.name === column)?.value ?? '—')
+                        (profile.values.find((value) => value.name === column.name)?.value ?? '—')
                       )}
                     </td>
                   ))}

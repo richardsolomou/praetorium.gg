@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { loadSourceUnits, sourceComposition, sourceCosts } from './catalogueSourceUnits'
+import { loadSourceUnits, sourceBaseSize, sourceComposition, sourceCosts } from './catalogueSourceUnits'
 
 describe('catalogue source units', () => {
   it('indexes reused source ids by their exact BSData references', () => {
@@ -41,5 +41,10 @@ describe('catalogue source units', () => {
 
   it('turns a source model-count range into a display fallback', () => {
     expect(sourceComposition({ min: 5, max: 10 })).toEqual(['5-10 models'])
+  })
+
+  it('only publishes verified base sizes', () => {
+    expect(sourceBaseSize({ shape: 'round', diameter: 32, draft: false })).toBe('32mm')
+    expect(sourceBaseSize({ shape: 'hull', draft: true })).toBeNull()
   })
 })

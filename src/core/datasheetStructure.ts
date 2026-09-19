@@ -60,11 +60,25 @@ export function datasheetCharacteristicKind(name: string): DatasheetCharacterist
   return characteristicKinds[normalized(name)] ?? 'other'
 }
 
-export function structureDatasheetProfiles(profiles: Datasheet['profiles']): StructuredDatasheetProfile[] {
+type DatasheetCharacteristic = Datasheet['profiles'][number]['values'][number] & { kind?: DatasheetCharacteristicKind }
+type DatasheetProfile = Omit<Datasheet['profiles'][number], 'values'> & {
+  kind?: DatasheetProfileKind
+  values: DatasheetCharacteristic[]
+}
+
+export function datasheetProfileKindOf(profile: Pick<DatasheetProfile, 'type' | 'kind'>): DatasheetProfileKind {
+  return profile.kind ?? datasheetProfileKind(profile.type)
+}
+
+export function datasheetCharacteristicKindOf(characteristic: Pick<DatasheetCharacteristic, 'name' | 'kind'>): DatasheetCharacteristicKind {
+  return characteristic.kind ?? datasheetCharacteristicKind(characteristic.name)
+}
+
+export function structureDatasheetProfiles(profiles: readonly DatasheetProfile[]): StructuredDatasheetProfile[] {
   return profiles.map((profile) => ({
     ...profile,
-    kind: datasheetProfileKind(profile.type),
-    values: profile.values.map((value) => ({ ...value, kind: datasheetCharacteristicKind(value.name) })),
+    kind: datasheetProfileKindOf(profile),
+    values: profile.values.map((value) => ({ ...value, kind: datasheetCharacteristicKindOf(value) })),
   }))
 }
 

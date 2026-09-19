@@ -51,7 +51,7 @@ function withSourceUnit(loaded: ReturnType<typeof catalogue>, over: Partial<Sour
     profiles: [{ name: 'Squad', values: { M: 6, T: 4 } }],
     points: [{ models: 5, modelsMax: null, cost: 100 }],
     modelCount: { min: 5, max: 10 },
-    baseSize: { shape: 'round', diameter: 32 },
+    baseSize: { shape: 'round', diameter: 32, draft: false },
     ...over,
   }
   loaded.sourceUnits = new Map([['squad', [unit]]])
@@ -122,6 +122,16 @@ describe('canonical catalogue', () => {
         expect.objectContaining({ kind: 'source-field-fallback', path: '/costs' }),
       ]),
     )
+  })
+
+  it('does not publish draft source base sizes', () => {
+    const compiled = compileCanonicalCatalogue(withSourceUnit(catalogue(), { baseSize: { shape: 'hull', draft: true } }), {
+      ...revisions,
+      rules: 'rules-revision',
+    })
+
+    expect(compiled.datasheets[0]?.baseSize).toBeNull()
+    expect(compiled.issues).not.toContainEqual(expect.objectContaining({ kind: 'source-field-fallback', path: '/baseSize' }))
   })
 
   it('keeps the declared source priority and reports conflicting facts', () => {

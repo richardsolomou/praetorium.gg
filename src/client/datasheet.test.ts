@@ -55,6 +55,12 @@ describe('primary unit profile', () => {
       }),
     ).toBe(champion)
   })
+
+  it('uses the canonical profile kind instead of inferring behavior from its label', () => {
+    const commander = { ...profile('commander', 'Commander', 'Orders'), kind: 'unit' as const }
+
+    expect(primaryUnitProfile({ name: 'Commander', profiles: [commander] })).toBe(commander)
+  })
 })
 
 describe('datasheet composition count', () => {

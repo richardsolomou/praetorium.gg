@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { wargearBaseName } from '../../../core/wargear'
-import { datasheetCharacteristicKind, datasheetProfilesByKind } from '../../../core/datasheetStructure'
+import { datasheetCharacteristicKindOf, datasheetProfilesByKind } from '../../../core/datasheetStructure'
 import type { RosterPick } from '../../../core/roster'
 import type { Datasheet, DatasheetRelationship } from '../../../contracts/catalogue'
 import { datasheetQuery } from '../../queries'
@@ -195,8 +195,8 @@ function DatasheetLoading() {
 type Profile = Datasheet['profiles'][number]
 
 export function UnitProfile({ profile }: { profile: Profile }) {
-  const invulnerable = profile.values.find((value) => datasheetCharacteristicKind(value.name) === 'invulnerable-save')
-  const values = profile.values.filter((value) => datasheetCharacteristicKind(value.name) !== 'invulnerable-save')
+  const invulnerable = profile.values.find((value) => datasheetCharacteristicKindOf(value) === 'invulnerable-save')
+  const values = profile.values.filter((value) => datasheetCharacteristicKindOf(value) !== 'invulnerable-save')
   return (
     <section data-slot="unit-profile">
       <div className="grid grid-cols-6 gap-1">
@@ -286,7 +286,7 @@ export function WeaponProfile({
   showCount?: boolean
   embedded?: boolean
 }) {
-  const keywords = weapon.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')
+  const keywords = weapon.values.find((value) => datasheetCharacteristicKindOf(value) === 'keywords')
   const keywordText = keywords?.value.trim()
   return (
     <div className={`${embedded ? '' : 'border border-edge bg-card '}px-2 py-1.5`}>
@@ -297,7 +297,7 @@ export function WeaponProfile({
       ) : null}
       <div className={`${showName ? 'mt-1 ' : ''}grid grid-cols-6 gap-1`}>
         {weapon.values
-          .filter((value) => datasheetCharacteristicKind(value.name) !== 'keywords')
+          .filter((value) => datasheetCharacteristicKindOf(value) !== 'keywords')
           .map((value) => (
             <div key={value.name} className="min-w-0 text-center">
               <p className="eyebrow text-[0.6875rem]">{value.name}</p>
@@ -391,7 +391,7 @@ const addedBy = (keywords: DisplayValue) => (keywords.modifiers?.length ? `Added
 function ProfileValue({ value }: { value: DisplayValue }) {
   if (value.baseValue === undefined || !value.modifiers?.length) return value.value
   const sources = value.modifiers.join(', ')
-  const name = datasheetCharacteristicKind(value.name) === 'invulnerable-save' ? 'Invulnerable save' : value.name
+  const name = datasheetCharacteristicKindOf(value) === 'invulnerable-save' ? 'Invulnerable save' : value.name
   const baseValue = value.baseValue || '—'
   return (
     <HoverTooltip

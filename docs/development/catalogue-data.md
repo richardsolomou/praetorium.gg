@@ -38,7 +38,7 @@ The compiler never repairs an unknown or conflicting game fact by guessing. It r
 
 Unknown semantic labels remain unresolved until their mapping is reviewed, encoded in `datasheetStructure.ts`, and covered by a test.
 
-Use `CATALOGUE_CANONICAL_FILE` to write or inspect a canonical artifact outside the activated immutable development cache:
+`pnpm catalogue:compile` writes `.output/canonical-catalogue.json`, outside the activated immutable development cache, and `pnpm catalogue:audit` inspects it. Set `CATALOGUE_CANONICAL_FILE` when a different output path is useful:
 
 ```sh
 CATALOGUE_CANONICAL_FILE=/tmp/praetorium-catalogue.json pnpm catalogue:compile

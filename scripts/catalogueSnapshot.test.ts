@@ -146,11 +146,17 @@ it('omits a compiled catalogue when one of its source datasets is disabled', () 
   const catalogue = completeCatalogue(root)
   const archiveFile = path.join(root, 'snapshot.zip')
   const pointerFile = path.join(root, 'pointer.json')
-  fs.mkdirSync(path.join(catalogue, 'canonical'))
-  fs.writeFileSync(path.join(catalogue, 'canonical', 'catalogue.json'), '{}')
-  process.env.CATALOGUE_DISABLED_SOURCES = 'rules'
+  fs.rmSync(path.join(catalogue, 'definitions'), { recursive: true })
 
-  packCatalogueSnapshot(catalogue, archiveFile, pointerFile)
+  execFileSync('pnpm', ['catalogue:snapshot', 'pack'], {
+    env: {
+      ...process.env,
+      CATALOGUE_DIR: catalogue,
+      CATALOGUE_SNAPSHOT_FILE: archiveFile,
+      CATALOGUE_SNAPSHOT_POINTER_FILE: pointerFile,
+      CATALOGUE_DISABLED_SOURCES: 'definitions',
+    },
+  })
 
   expect(unzipSync(fs.readFileSync(archiveFile))['catalogue/canonical/catalogue.json']).toBeUndefined()
 })

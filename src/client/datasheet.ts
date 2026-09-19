@@ -1,12 +1,12 @@
 import { wargearBaseName } from '../core/wargear'
-import { datasheetProfileKind } from '../core/datasheetStructure'
+import { datasheetProfileKindOf } from '../core/datasheetStructure'
 import type { Datasheet } from '../contracts/catalogue'
 import { normalizedName, normalizedNameVariants } from '../core/name'
 
 type AbilityKind = Datasheet['abilities'][number]['kind']
 
 export function primaryUnitProfile(sheet: Pick<Datasheet, 'name' | 'profiles'>) {
-  const profiles = sheet.profiles.filter((profile) => datasheetProfileKind(profile.type) === 'unit')
+  const profiles = sheet.profiles.filter((profile) => datasheetProfileKindOf(profile) === 'unit')
   for (const name of normalizedNameVariants(sheet.name)) {
     const profile = profiles.find((candidate) => normalizedName(candidate.name) === name)
     if (profile) return profile
@@ -28,7 +28,7 @@ type Profile = Datasheet['profiles'][number]
 export function ruleProfileSections(profiles: readonly Profile[]) {
   const sections = new Map<string, Profile[]>()
   for (const profile of profiles) {
-    if (!['rule', 'other'].includes(datasheetProfileKind(profile.type))) continue
+    if (!['rule', 'other'].includes(datasheetProfileKindOf(profile))) continue
     sections.set(profile.type, [...(sections.get(profile.type) ?? []), profile])
   }
   return [...sections].map(([title, sectionProfiles]) => ({ title, profiles: sectionProfiles }))

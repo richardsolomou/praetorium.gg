@@ -12,8 +12,8 @@ export type SourceUnit = {
   points: { models: number; modelsMax: number | null; cost: number }[]
   modelCount: { min: number; max: number } | null
   baseSize:
-    | { shape: 'round'; diameter: number }
-    | { shape: 'oval'; width: number; length: number }
+    | { shape: 'round'; diameter: number; draft: boolean }
+    | { shape: 'oval'; width: number; length: number; draft: boolean }
     | { shape: 'hull' | 'unique'; draft: boolean }
     | { shape: 'flying-base'; size: 'small' | 'large'; width: number | null; length: number | null; draft: boolean }
     | null
@@ -24,20 +24,22 @@ const stringList = (value: unknown) => (Array.isArray(value) ? value.filter((ent
 function parseBaseSize(value: unknown): SourceUnit['baseSize'] {
   if (!value || typeof value !== 'object') return null
   const base = value as Record<string, unknown>
-  if (base.shape === 'round' && typeof base.diameter === 'number') return { shape: 'round', diameter: base.diameter }
+  if (base.shape === 'round' && typeof base.diameter === 'number') {
+    return { shape: 'round', diameter: base.diameter, draft: base.draft === true }
+  }
   if (base.shape === 'oval' && typeof base.width === 'number' && typeof base.length === 'number') {
-    return { shape: 'oval', width: base.width, length: base.length }
+    return { shape: 'oval', width: base.width, length: base.length, draft: base.draft === true }
   }
-  if ((base.shape === 'hull' || base.shape === 'unique') && typeof base.draft === 'boolean') {
-    return { shape: base.shape, draft: base.draft }
+  if (base.shape === 'hull' || base.shape === 'unique') {
+    return { shape: base.shape, draft: base.draft === true }
   }
-  if (base.shape === 'flying-base' && (base.size === 'small' || base.size === 'large') && typeof base.draft === 'boolean') {
+  if (base.shape === 'flying-base' && (base.size === 'small' || base.size === 'large')) {
     return {
       shape: base.shape,
       size: base.size,
       width: typeof base.width === 'number' ? base.width : null,
       length: typeof base.length === 'number' ? base.length : null,
-      draft: base.draft,
+      draft: base.draft === true,
     }
   }
   return null
@@ -122,7 +124,7 @@ export function sourceUnitOf(loaded: LoadedCatalogue, definitionId: string): Sou
 }
 
 export function sourceBaseSize(base: SourceUnit['baseSize']): string | null {
-  if (!base) return null
+  if (!base || base.draft) return null
   if (base.shape === 'round') return `${base.diameter}mm`
   if (base.shape === 'oval') return `${base.width} x ${base.length}mm Oval Base`
   if (base.shape === 'flying-base') return `${base.size === 'small' ? 'Small' : 'Large'} Flying Base`
