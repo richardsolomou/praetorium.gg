@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { unzipSync, zipSync, type Zippable } from 'fflate'
 import rawLock from '../../catalogue/lock.json' with { type: 'json' }
-import rawRevocations from '../../catalogue/revocations.json' with { type: 'json' }
+import committedRevocations from '../../catalogue/revocations.json' with { type: 'json' }
 import {
   catalogueSources,
   disabledCatalogueSources,
@@ -59,6 +59,8 @@ type InstalledSnapshot = {
 
 const sha256 = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
 const encoded = (value: unknown) => new TextEncoder().encode(`${JSON.stringify(value, null, 2)}\n`)
+const revocationsFile = process.env.CATALOGUE_REVOCATIONS_FILE?.trim()
+const rawRevocations: unknown = revocationsFile ? JSON.parse(fs.readFileSync(revocationsFile, 'utf8')) : committedRevocations
 
 function filesUnder(directory: string, relative = ''): string[] {
   if (!fs.existsSync(path.join(directory, relative))) return []
@@ -163,6 +165,17 @@ export function distributableCatalogueFile(name: string) {
 }
 
 function provenance(revisions: Record<string, string>, sources: readonly SnapshotSourceName[]) {
+  const ledgerRepository = process.env.CATALOGUE_LEDGER_REPOSITORY?.trim()
+  const ledgerCommit = process.env.CATALOGUE_LEDGER_COMMIT?.trim()
+  if (Boolean(ledgerRepository) !== Boolean(ledgerCommit)) {
+    throw new Error('CATALOGUE_LEDGER_REPOSITORY and CATALOGUE_LEDGER_COMMIT must be set together')
+  }
+  if (ledgerRepository && !ledgerRepository.match(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/)) {
+    throw new Error('CATALOGUE_LEDGER_REPOSITORY must name a GitHub repository')
+  }
+  if (ledgerCommit && !ledgerCommit.match(/^[0-9a-f]{40}$/)) {
+    throw new Error('CATALOGUE_LEDGER_COMMIT must be a full Git commit SHA')
+  }
   return {
     format: PROVENANCE_FORMAT,
     policySha256: sha256(encoded(rawRevocations)),
@@ -180,6 +193,7 @@ function provenance(revisions: Record<string, string>, sources: readonly Snapsho
         ...(source.attribution ? { attribution: source.attribution } : {}),
       }
     }),
+    ...(ledgerRepository && ledgerCommit ? { catalogue: { repository: ledgerRepository, commit: ledgerCommit } } : {}),
   }
 }
 

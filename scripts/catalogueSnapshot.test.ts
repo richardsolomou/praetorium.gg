@@ -23,6 +23,8 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
   globalThis.fetch = originalFetch
   delete process.env.CATALOGUE_DISABLED_SOURCES
+  delete process.env.CATALOGUE_LEDGER_REPOSITORY
+  delete process.env.CATALOGUE_LEDGER_COMMIT
 })
 
 function completeCatalogue(root: string) {
@@ -138,6 +140,55 @@ it('records provenance and omits unused files from a packed snapshot', () => {
   expect(entries['catalogue/provenance.json']).toBeDefined()
   expect(entries['catalogue/definitions/README.md']).toBeUndefined()
   expect(entries['catalogue/rules/data/core/_reports/report.json']).toBeUndefined()
+})
+
+it('records the private catalogue revision in snapshot provenance', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
+  roots.push(root)
+  const archiveFile = path.join(root, 'snapshot.zip')
+  const pointerFile = path.join(root, 'pointer.json')
+  process.env.CATALOGUE_LEDGER_REPOSITORY = 'richardsolomou/praetorium-catalogue'
+  process.env.CATALOGUE_LEDGER_COMMIT = '0123456789abcdef0123456789abcdef01234567'
+
+  packCatalogueSnapshot(completeCatalogue(root), archiveFile, pointerFile)
+
+  const provenance = JSON.parse(new TextDecoder().decode(unzipSync(fs.readFileSync(archiveFile))['catalogue/provenance.json'])) as {
+    catalogue: unknown
+  }
+  expect(provenance.catalogue).toEqual({
+    repository: 'richardsolomou/praetorium-catalogue',
+    commit: '0123456789abcdef0123456789abcdef01234567',
+  })
+})
+
+it('rejects incomplete private catalogue provenance', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
+  roots.push(root)
+  process.env.CATALOGUE_LEDGER_REPOSITORY = 'richardsolomou/praetorium-catalogue'
+
+  expect(() => packCatalogueSnapshot(completeCatalogue(root), path.join(root, 'snapshot.zip'), path.join(root, 'pointer.json'))).toThrow(
+    /must be set together/,
+  )
+})
+
+it('rejects an invalid external revocation policy', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
+  roots.push(root)
+  const policy = path.join(root, 'revocations.json')
+  fs.writeFileSync(policy, '{}\n')
+
+  expect(() =>
+    execFileSync('pnpm', ['catalogue:snapshot', 'pack'], {
+      env: {
+        ...process.env,
+        CATALOGUE_DIR: completeCatalogue(root),
+        CATALOGUE_SNAPSHOT_FILE: path.join(root, 'snapshot.zip'),
+        CATALOGUE_SNAPSHOT_POINTER_FILE: path.join(root, 'pointer.json'),
+        CATALOGUE_REVOCATIONS_FILE: policy,
+      },
+      stdio: 'pipe',
+    }),
+  ).toThrow()
 })
 
 it.each(['definitions', 'rules', 'datacards'] as const)('does not compile or pack a canonical catalogue without %s', (source) => {

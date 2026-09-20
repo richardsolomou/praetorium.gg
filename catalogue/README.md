@@ -1,6 +1,6 @@
 # Catalogue sources
 
-Praetorium packages community Warhammer 40,000 data into verified snapshots. This directory defines the upstream sources, the release pin, and emergency revocations. Snapshot manifests contain revisions, source inventory, provenance, and checksums. Fetched data stays in `catalogue-data/`, the shared development cache, and the snapshot store.
+Praetorium packages community Warhammer 40,000 data into verified snapshots. This directory carries the public development defaults and release pin. The private `richardsolomou/praetorium-catalogue` repository owns publication source configuration, emergency revocations, catalogue verification, and the sharded canonical history. Snapshot manifests contain revisions, source inventory, provenance, and checksums. Fetched data stays in `catalogue-data/`, the shared development cache, and the snapshot store.
 
 No game data is committed to this repository.
 
@@ -20,6 +20,7 @@ The points source tests the evaluator and is not loaded by the product. Evaluato
 - `pnpm catalogue:sync --latest` follows the remote `current.json` pointer.
 - `pnpm catalogue:update` resolves and downloads the latest upstream revisions for snapshot publication.
 - `pnpm catalogue:compile` reconciles the upstream records into the canonical datasheet and rule-document structure included in snapshots. Set `CATALOGUE_CANONICAL_FILE` to write outside the active catalogue directory.
+- `pnpm catalogue:ledger` writes that canonical file as deterministic, reviewable records under `CATALOGUE_LEDGER_DIR`.
 - `pnpm catalogue:audit` reports missing records, field fallbacks, source conflicts, and unknown UI semantics. Add `-- --details` for every finding.
 - `pnpm catalogue:snapshot pack` creates an immutable snapshot and checksummed pointer from the downloaded data.
 - `pnpm catalogue:snapshot download` writes the release-pinned archive for an offline installation.
@@ -29,6 +30,6 @@ The points source tests the evaluator and is not loaded by the product. Evaluato
 
 ## Snapshot revisions
 
-The publisher records every included upstream revision, source, licence declaration, attribution, modification notice, and file checksum before atomically replacing `current.json`. It omits repository metadata, reports, examples, Combat Patrol exports, and layout exports that neither the product nor its verification checks read. Saved rosters continue to record the definitions revision used for validation.
+The publisher checks out the private catalogue repository, reads its source and revocation configuration, runs its verification, and records every included upstream revision, source, licence declaration, attribution, modification notice, and file checksum before atomically replacing `current.json`. It first commits the sharded canonical records, records that commit and the public compiler commit in provenance, and tags the catalogue commit with the published snapshot ID. It omits repository metadata, reports, examples, Combat Patrol exports, and layout exports that neither the product nor its verification checks read. Saved rosters continue to record the definitions revision used for validation.
 
 `lock.json` is the catalogue tested with a released application. `revocations.json` blocks named snapshots or every snapshot containing a named source. The publisher uploads revocations before moving `current.json` and removes revoked archives after the pointer has moved. `CATALOGUE_DISABLED_SOURCES` provides the same fail-closed source switch to an operator or publisher.

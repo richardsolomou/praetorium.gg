@@ -1,5 +1,6 @@
+import fs from 'node:fs'
 import { z } from 'zod'
-import rawSources from '../../catalogue/sources.json' with { type: 'json' }
+import committedSources from '../../catalogue/sources.json' with { type: 'json' }
 
 const repositorySourceSchema = z.object({
   repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'expected owner/name'),
@@ -47,6 +48,8 @@ export type ResolvedCatalogueSources = Omit<CatalogueSourceConfig, 'definitions'
 }
 export type BattlemasterSource = ResolvedCatalogueSources['battlemaster']
 
+const configuredSources = process.env.CATALOGUE_SOURCES_FILE?.trim()
+const rawSources: unknown = configuredSources ? JSON.parse(fs.readFileSync(configuredSources, 'utf8')) : committedSources
 export const catalogueSources = catalogueSourcesSchema.parse(rawSources)
 
 export function disabledCatalogueSources(value = process.env.CATALOGUE_DISABLED_SOURCES): ReadonlySet<SnapshotSourceName> {

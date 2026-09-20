@@ -22,7 +22,7 @@ import {
 import { isComplete, syncSources } from '../src/server/sync'
 
 const root = path.join(import.meta.dirname, '..')
-const sourcesFile = path.join(root, 'catalogue', 'sources.json')
+const sourcesFile = process.env.CATALOGUE_SOURCES_FILE?.trim() || path.join(root, 'catalogue', 'sources.json')
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
 const readSources = () => catalogueSourcesSchema.parse(JSON.parse(fs.readFileSync(sourcesFile, 'utf8')))
 const hash = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
