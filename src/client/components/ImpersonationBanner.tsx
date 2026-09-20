@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { LogOut } from 'lucide-react'
-import posthog from 'posthog-js'
+import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { authClient } from '../authClient'
 

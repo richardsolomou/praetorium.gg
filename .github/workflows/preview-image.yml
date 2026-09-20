@@ -54,6 +54,16 @@ jobs:
           tags: ghcr.io/${{ github.repository_owner }}/praetorium.gg:preview-pr-${{ github.event.pull_request.number }}-sha-${{ github.event.pull_request.head.sha }}
           push: true
           cache-from: type=gha,scope=e2e-image
+          build-args: |
+            POSTHOG_PROJECT_ID=${{ vars.POSTHOG_PROJECT_ID }}
+            POSTHOG_HOST=${{ vars.POSTHOG_HOST }}
+            GITHUB_ACTIONS=true
+            GITHUB_SHA=${{ github.event.pull_request.head.sha }}
+            GITHUB_REF_NAME=${{ github.head_ref }}
+            GITHUB_REPOSITORY=${{ github.repository }}
+            GITHUB_SERVER_URL=${{ github.server_url }}
+          secrets: |
+            POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }}
       - name: Build the fork preview image
         if: github.event.pull_request.head.repo.full_name != github.repository
         uses: docker/build-push-action@v7

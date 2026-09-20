@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, MailCheck, ShieldCheck, Trash2 } from 'lucide-react'
-import posthog from 'posthog-js'
+import { posthog } from 'posthog-js'
 import QRCode from 'qrcode'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { Button } from '@/components/ui/button'
