@@ -26,7 +26,7 @@ Each of these is a short read, and the one that matches what you are touching is
 
 ## Rules that hold everywhere
 
-- **No game data lives in this repository.** `catalogue/sources.json` defines upstream locations. Active revisions, checksums, and bytes live in verified snapshots outside Git; `catalogue-data/` is fetched and gitignored.
+- **No game data or publication configuration lives in this repository.** The public code consumes, validates, and can compile externally configured snapshots. Active revisions, checksums, bytes, source configuration, revocation policy, generated records, and publication history stay outside this repository; `catalogue-data/` is fetched and gitignored. Do not name or link the storage repository from public code or documentation.
 - **Verify fetched data before rendered work.** Confirm the current snapshot contains every source the feature needs, inspect the exact data path instead of a fallback, and never claim parity from a degraded rendering.
 - **Verify responsive roster changes before and after opening a unit.** Use the reported viewport and assert that the document and each affected pane have no horizontal overflow; a correct open pane does not prove the unopened roster is correct.
 - **Verify loading frames before hydration.** A hydrated query cache does not prove the first frame is stable: inspect the JavaScript-disabled page at each responsive layout, reserve the final geometry for every asynchronous region, and verify first navigation separately from hard requests.

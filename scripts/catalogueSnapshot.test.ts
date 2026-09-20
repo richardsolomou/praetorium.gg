@@ -15,6 +15,7 @@ import {
   installedSnapshot,
   packCatalogueSnapshot,
 } from '../src/server/catalogueSnapshot'
+import { catalogueSourceFixture } from '../src/server/catalogueSources.fixtures'
 
 const roots: string[] = []
 const originalFetch = globalThis.fetch
@@ -23,8 +24,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
   globalThis.fetch = originalFetch
   delete process.env.CATALOGUE_DISABLED_SOURCES
-  delete process.env.CATALOGUE_LEDGER_REPOSITORY
-  delete process.env.CATALOGUE_LEDGER_COMMIT
+  delete process.env.CATALOGUE_REVISION
 })
 
 function completeCatalogue(root: string) {
@@ -53,12 +53,25 @@ function completeCatalogue(root: string) {
   return catalogue
 }
 
+function publicationEnvironment(root: string) {
+  const sources = path.join(root, 'sources.json')
+  const revocations = path.join(root, 'revocations.json')
+  fs.writeFileSync(sources, `${JSON.stringify(catalogueSourceFixture)}\n`)
+  fs.writeFileSync(revocations, `${JSON.stringify({ format: 'praetorium.catalogue-revocations.v1', snapshots: [], sources: [] })}\n`)
+  return { CATALOGUE_SOURCES_FILE: sources, CATALOGUE_REVOCATIONS_FILE: revocations }
+}
+
 it('packs and verifies a complete catalogue', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
   roots.push(root)
   const catalogue = completeCatalogue(root)
   const archive = path.join(root, 'snapshot.zip')
-  const environment = { ...process.env, CATALOGUE_DIR: catalogue, CATALOGUE_SNAPSHOT_FILE: archive }
+  const environment = {
+    ...process.env,
+    ...publicationEnvironment(root),
+    CATALOGUE_DIR: catalogue,
+    CATALOGUE_SNAPSHOT_FILE: archive,
+  }
 
   execFileSync('pnpm', ['catalogue:snapshot', 'pack'], { env: environment })
   expect(unzipSync(fs.readFileSync(archive))['catalogue/canonical/catalogue.json']).toBeDefined()
@@ -134,7 +147,7 @@ it('records provenance and omits unused files from a packed snapshot', () => {
   fs.mkdirSync(path.join(catalogue, 'rules', 'data', 'core', '_reports'), { recursive: true })
   fs.writeFileSync(path.join(catalogue, 'rules', 'data', 'core', '_reports', 'report.json'), '{}')
 
-  packCatalogueSnapshot(catalogue, archiveFile, pointerFile)
+  packCatalogueSnapshot(catalogue, archiveFile, pointerFile, catalogueSourceFixture)
 
   const entries = unzipSync(fs.readFileSync(archiveFile))
   expect(entries['catalogue/provenance.json']).toBeDefined()
@@ -142,49 +155,53 @@ it('records provenance and omits unused files from a packed snapshot', () => {
   expect(entries['catalogue/rules/data/core/_reports/report.json']).toBeUndefined()
 })
 
-it('records the private catalogue revision in snapshot provenance', () => {
+it('records the catalogue revision in snapshot provenance without exposing its repository', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
   roots.push(root)
   const archiveFile = path.join(root, 'snapshot.zip')
   const pointerFile = path.join(root, 'pointer.json')
-  process.env.CATALOGUE_LEDGER_REPOSITORY = 'richardsolomou/praetorium-catalogue'
-  process.env.CATALOGUE_LEDGER_COMMIT = '0123456789abcdef0123456789abcdef01234567'
+  process.env.CATALOGUE_REVISION = '0123456789abcdef0123456789abcdef01234567'
 
-  packCatalogueSnapshot(completeCatalogue(root), archiveFile, pointerFile)
+  packCatalogueSnapshot(completeCatalogue(root), archiveFile, pointerFile, catalogueSourceFixture)
 
   const provenance = JSON.parse(new TextDecoder().decode(unzipSync(fs.readFileSync(archiveFile))['catalogue/provenance.json'])) as {
     catalogue: unknown
   }
   expect(provenance.catalogue).toEqual({
-    repository: 'richardsolomou/praetorium-catalogue',
-    commit: '0123456789abcdef0123456789abcdef01234567',
+    revision: '0123456789abcdef0123456789abcdef01234567',
   })
 })
 
-it('rejects incomplete private catalogue provenance', () => {
+it('rejects an invalid catalogue revision', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
   roots.push(root)
-  process.env.CATALOGUE_LEDGER_REPOSITORY = 'richardsolomou/praetorium-catalogue'
+  process.env.CATALOGUE_REVISION = 'not-a-commit'
 
-  expect(() => packCatalogueSnapshot(completeCatalogue(root), path.join(root, 'snapshot.zip'), path.join(root, 'pointer.json'))).toThrow(
-    /must be set together/,
-  )
+  expect(() =>
+    packCatalogueSnapshot(
+      completeCatalogue(root),
+      path.join(root, 'snapshot.zip'),
+      path.join(root, 'pointer.json'),
+      catalogueSourceFixture,
+    ),
+  ).toThrow(/full Git commit SHA/)
 })
 
 it('rejects an invalid external revocation policy', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
   roots.push(root)
-  const policy = path.join(root, 'revocations.json')
+  const environment = publicationEnvironment(root)
+  const policy = environment.CATALOGUE_REVOCATIONS_FILE
   fs.writeFileSync(policy, '{}\n')
 
   expect(() =>
     execFileSync('pnpm', ['catalogue:snapshot', 'pack'], {
       env: {
         ...process.env,
+        ...environment,
         CATALOGUE_DIR: completeCatalogue(root),
         CATALOGUE_SNAPSHOT_FILE: path.join(root, 'snapshot.zip'),
         CATALOGUE_SNAPSHOT_POINTER_FILE: path.join(root, 'pointer.json'),
-        CATALOGUE_REVOCATIONS_FILE: policy,
       },
       stdio: 'pipe',
     }),
@@ -204,6 +221,7 @@ it.each(['definitions', 'rules', 'datacards'] as const)('does not compile or pac
   execFileSync('pnpm', ['catalogue:snapshot', 'pack'], {
     env: {
       ...process.env,
+      ...publicationEnvironment(root),
       CATALOGUE_DIR: catalogue,
       CATALOGUE_SNAPSHOT_FILE: archiveFile,
       CATALOGUE_SNAPSHOT_POINTER_FILE: pointerFile,
@@ -220,7 +238,7 @@ it('refuses a revoked snapshot before installing it', async () => {
   roots.push(root)
   const archiveFile = path.join(root, 'snapshot.zip')
   const pointerFile = path.join(root, 'pointer.json')
-  const pointer = packCatalogueSnapshot(completeCatalogue(root), archiveFile, pointerFile)
+  const pointer = packCatalogueSnapshot(completeCatalogue(root), archiveFile, pointerFile, catalogueSourceFixture)
   const archive = fs.readFileSync(archiveFile)
   globalThis.fetch = async () => new Response(archive)
 
@@ -238,7 +256,7 @@ it('activates one immutable cached snapshot for a worktree', async () => {
   roots.push(root)
   const archiveFile = path.join(root, 'snapshot.zip')
   const pointerFile = path.join(root, 'pointer.json')
-  const pointer = packCatalogueSnapshot(completeCatalogue(root), archiveFile, pointerFile)
+  const pointer = packCatalogueSnapshot(completeCatalogue(root), archiveFile, pointerFile, catalogueSourceFixture)
   const archive = fs.readFileSync(archiveFile)
   globalThis.fetch = async () => new Response(archive)
   const cached = path.join(root, 'cache', pointer.id)

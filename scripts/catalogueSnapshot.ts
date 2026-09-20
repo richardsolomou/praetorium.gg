@@ -12,7 +12,7 @@ import {
 } from '../src/server/catalogueSnapshot'
 import { canonicalCataloguePath, writeCanonicalCatalogue } from '../src/server/canonicalCatalogue'
 import { canCompileCanonicalCatalogue } from '../src/server/canonicalCatalogueSources'
-import { disabledCatalogueSources } from '../src/server/catalogueSources'
+import { disabledCatalogueSources, readCatalogueSources } from '../src/server/catalogueSources'
 
 const root = path.join(import.meta.dirname, '..')
 const directory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
@@ -29,7 +29,7 @@ if (command === 'pack') {
   } else {
     fs.rmSync(canonicalCataloguePath(directory), { force: true })
   }
-  const packed = packCatalogueSnapshot(directory, archive, pointer)
+  const packed = packCatalogueSnapshot(directory, archive, pointer, readCatalogueSources())
   console.log(`${packed.id} ${archive}`)
 } else if (command === 'verify') {
   verifySnapshotArchive(archive, pointer)

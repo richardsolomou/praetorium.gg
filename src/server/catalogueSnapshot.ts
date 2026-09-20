@@ -4,12 +4,11 @@ import os from 'node:os'
 import path from 'node:path'
 import { unzipSync, zipSync, type Zippable } from 'fflate'
 import rawLock from '../../catalogue/lock.json' with { type: 'json' }
-import committedRevocations from '../../catalogue/revocations.json' with { type: 'json' }
 import {
-  catalogueSources,
   disabledCatalogueSources,
   isSnapshotSourceName,
   SNAPSHOT_SOURCE_NAMES,
+  type CatalogueSourceConfig,
   type SnapshotSourceName,
 } from './catalogueSources'
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from './canonicalCatalogueSources'
@@ -59,8 +58,6 @@ type InstalledSnapshot = {
 
 const sha256 = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
 const encoded = (value: unknown) => new TextEncoder().encode(`${JSON.stringify(value, null, 2)}\n`)
-const revocationsFile = process.env.CATALOGUE_REVOCATIONS_FILE?.trim()
-const rawRevocations: unknown = revocationsFile ? JSON.parse(fs.readFileSync(revocationsFile, 'utf8')) : committedRevocations
 
 function filesUnder(directory: string, relative = ''): string[] {
   if (!fs.existsSync(path.join(directory, relative))) return []
@@ -121,14 +118,17 @@ function parseRevocations(value: unknown): CatalogueRevocations {
 }
 
 export const catalogueLock = parseLock(rawLock)
-export const catalogueRevocations = parseRevocations(rawRevocations)
 
 export function catalogueBaseUrl(value = process.env.CATALOGUE_BASE_URL) {
   return (value?.trim() || DEFAULT_S3_PUBLIC_BASE_URL).replace(/\/$/, '')
 }
 
 function configuredRevocations() {
-  return mergeRevocations(catalogueRevocations, {
+  const file = process.env.CATALOGUE_REVOCATIONS_FILE?.trim()
+  const policy: CatalogueRevocations = file
+    ? parseRevocations(JSON.parse(fs.readFileSync(file, 'utf8')))
+    : { format: REVOCATIONS_FORMAT, snapshots: [], sources: [] }
+  return mergeRevocations(policy, {
     format: REVOCATIONS_FORMAT,
     snapshots: [],
     sources: [...disabledCatalogueSources()],
@@ -164,25 +164,23 @@ export function distributableCatalogueFile(name: string) {
   return true
 }
 
-function provenance(revisions: Record<string, string>, sources: readonly SnapshotSourceName[]) {
-  const ledgerRepository = process.env.CATALOGUE_LEDGER_REPOSITORY?.trim()
-  const ledgerCommit = process.env.CATALOGUE_LEDGER_COMMIT?.trim()
-  if (Boolean(ledgerRepository) !== Boolean(ledgerCommit)) {
-    throw new Error('CATALOGUE_LEDGER_REPOSITORY and CATALOGUE_LEDGER_COMMIT must be set together')
-  }
-  if (ledgerRepository && !ledgerRepository.match(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/)) {
-    throw new Error('CATALOGUE_LEDGER_REPOSITORY must name a GitHub repository')
-  }
-  if (ledgerCommit && !ledgerCommit.match(/^[0-9a-f]{40}$/)) {
-    throw new Error('CATALOGUE_LEDGER_COMMIT must be a full Git commit SHA')
+function provenance(
+  revisions: Record<string, string>,
+  sources: readonly SnapshotSourceName[],
+  config: CatalogueSourceConfig,
+  revocations: CatalogueRevocations,
+  catalogueRevision: string | undefined,
+) {
+  if (catalogueRevision && !catalogueRevision.match(/^[0-9a-f]{40}$/)) {
+    throw new Error('CATALOGUE_REVISION must be a full Git commit SHA')
   }
   return {
     format: PROVENANCE_FORMAT,
-    policySha256: sha256(encoded(rawRevocations)),
+    policySha256: sha256(encoded(revocations)),
     modifications:
       'Praetorium selects the source paths its product and verification checks consume, packages them in one archive, and compiles a canonical catalogue with field provenance without changing the archived source text.',
     sources: sources.map((name) => {
-      const source = catalogueSources[name]
+      const source = config[name]
       return {
         name,
         revision: revisions[name],
@@ -193,11 +191,17 @@ function provenance(revisions: Record<string, string>, sources: readonly Snapsho
         ...(source.attribution ? { attribution: source.attribution } : {}),
       }
     }),
-    ...(ledgerRepository && ledgerCommit ? { catalogue: { repository: ledgerRepository, commit: ledgerCommit } } : {}),
+    ...(catalogueRevision ? { catalogue: { revision: catalogueRevision } } : {}),
   }
 }
 
-function packedSnapshot(directory: string, disabled = new Set([...disabledCatalogueSources(), ...catalogueRevocations.sources])) {
+function packedSnapshot(
+  directory: string,
+  config: CatalogueSourceConfig,
+  revocations: CatalogueRevocations,
+  catalogueRevision: string | undefined,
+  disabled = new Set([...disabledCatalogueSources(), ...revocations.sources]),
+) {
   const { included, revisions } = includedSources(directory, disabled)
   const bytes = new Map<string, Uint8Array>()
   for (const name of filesUnder(directory).filter(distributableCatalogueFile)) {
@@ -209,14 +213,20 @@ function packedSnapshot(directory: string, disabled = new Set([...disabledCatalo
     bytes.set(name, fs.readFileSync(path.join(directory, name)))
   }
   bytes.set('revision.json', encoded(revisions))
-  bytes.set('provenance.json', encoded(provenance(revisions, included)))
+  bytes.set('provenance.json', encoded(provenance(revisions, included, config, revocations, catalogueRevision)))
   const files = Object.fromEntries([...bytes].map(([name, contents]) => [name, sha256(contents)]))
   const manifest: SnapshotManifest = { format: FORMAT, revisions, sources: included, files }
   return { manifest: encoded(manifest), bytes }
 }
 
-export function packCatalogueSnapshot(directory: string, archiveFile: string, pointerFile: string) {
-  const packed = packedSnapshot(directory)
+export function packCatalogueSnapshot(
+  directory: string,
+  archiveFile: string,
+  pointerFile: string,
+  config: CatalogueSourceConfig,
+  catalogueRevision = process.env.CATALOGUE_REVISION?.trim(),
+) {
+  const packed = packedSnapshot(directory, config, configuredRevocations(), catalogueRevision)
   const id = sha256(packed.manifest)
   const entries: Zippable = { 'manifest.json': packed.manifest }
   for (const [name, bytes] of packed.bytes) entries[`catalogue/${name}`] = bytes
@@ -296,7 +306,7 @@ function installArchive(
   directory: string,
   archive: Uint8Array,
   expected: SnapshotPointer,
-  revocations = catalogueRevocations,
+  revocations = configuredRevocations(),
   expectedRevisions?: Record<string, string>,
 ) {
   assertReplaceableDirectory(directory)

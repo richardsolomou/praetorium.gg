@@ -49,7 +49,7 @@ Run `just catalogue-bundle` on an internet-connected checkout, copy `catalogue-s
 
 ### Withdrawal controls
 
-`catalogue/revocations.json` rejects individual snapshot IDs and every snapshot that declares a named source. `CATALOGUE_DISABLED_SOURCES` accepts a comma-separated subset of `definitions`, `points`, `rules`, `datacards`, and `battlemaster`; a snapshot containing one is rejected. The publisher uses the same setting to omit a source from the next snapshot. Removing `definitions` leaves battles available but disables catalogue-backed roster work.
+The snapshot service's revocation policy rejects individual snapshot IDs and every snapshot that declares a named source. `CATALOGUE_DISABLED_SOURCES` accepts a comma-separated subset of `definitions`, `points`, `rules`, `datacards`, and `battlemaster`; a snapshot containing one is rejected. The publisher uses the same setting to omit a source from the next snapshot. Removing `definitions` leaves battles available but disables catalogue-backed roster work.
 
 ## One container, three processes
 

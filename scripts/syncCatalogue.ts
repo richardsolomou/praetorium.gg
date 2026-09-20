@@ -2,11 +2,10 @@
 
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {
-  catalogueSourcesSchema,
+  readCatalogueSources,
   SOURCE_NAMES,
   type CatalogueSourceConfig,
   type ResolvedCatalogueSources,
@@ -22,9 +21,7 @@ import {
 import { isComplete, syncSources } from '../src/server/sync'
 
 const root = path.join(import.meta.dirname, '..')
-const sourcesFile = process.env.CATALOGUE_SOURCES_FILE?.trim() || path.join(root, 'catalogue', 'sources.json')
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
-const readSources = () => catalogueSourcesSchema.parse(JSON.parse(fs.readFileSync(sourcesFile, 'utf8')))
 const hash = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
 
 const head = (repository: string, branch: string) =>
@@ -55,10 +52,10 @@ async function resolve(config: CatalogueSourceConfig): Promise<ResolvedCatalogue
 
 const argument = process.argv[2]
 if (argument === '--check') {
-  readSources()
+  readCatalogueSources()
   console.log('catalogue source definitions are well formed')
 } else if (argument === '--refresh' || argument === '--update') {
-  const resolved = await resolve(readSources())
+  const resolved = await resolve(readCatalogueSources())
   await syncSources(dataDirectory, resolved, (message) => console.log(message))
   if (!isComplete(dataDirectory, resolved)) throw new Error('refusing to publish an incomplete catalogue snapshot')
 } else if (argument === undefined || argument === '--latest') {

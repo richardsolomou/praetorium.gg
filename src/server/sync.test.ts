@@ -4,7 +4,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { zipSync } from 'fflate'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { catalogueSources as config, type ResolvedCatalogueSources } from './catalogueSources'
+import type { ResolvedCatalogueSources } from './catalogueSources'
+import { catalogueSourceFixture as config } from './catalogueSources.fixtures'
 import { syncSources } from './sync'
 
 let directory: string
