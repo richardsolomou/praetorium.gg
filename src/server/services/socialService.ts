@@ -1,5 +1,5 @@
 import type { Repository } from '../../db/repository'
-import { PLAYER_SEARCH_MIN_LENGTH } from '../schemas'
+import { PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
 
 export class SocialService {
   constructor(
