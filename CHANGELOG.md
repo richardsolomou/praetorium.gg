@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.68.0
+
+### Minor Changes
+
+- 29ac555: Add correlated PostHog request metrics, traces, browser telemetry, and source maps.
+
 ## 0.67.2
 
 ### Patch Changes
