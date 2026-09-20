@@ -133,6 +133,7 @@ export function app(): App {
     const valkey = valkeyUrl()
     const cache = valkey ? openValkey(valkey) : null
     const realtime = realtimeConfig()
+    if (!realtime) throw new Error('Realtime secret is not configured')
     const events = new RealtimePublisher(realtime.apiUrl, realtime.apiKey)
     const email = emailDelivery()
     let ready = Promise.resolve()

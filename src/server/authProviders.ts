@@ -8,9 +8,7 @@ type AuthEnvironment = NodeJS.ProcessEnv
 export function configuredAuthProviderOptions(
   environment: AuthEnvironment = process.env,
 ): NonNullable<BetterAuthOptions['socialProviders']> {
-  const options: NonNullable<BetterAuthOptions['socialProviders']> = configuredProviderOptions(['google', 'discord'], environment, {
-    rejectPartial: true,
-  })
+  const options: NonNullable<BetterAuthOptions['socialProviders']> = configuredProviderOptions(['google', 'discord'], environment)
   const apple = appleCredentials(environment)
   if (apple) options.apple = async () => ({ clientId: apple.clientId, clientSecret: await apple.clientSecret() })
   return options

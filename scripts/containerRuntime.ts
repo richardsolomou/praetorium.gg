@@ -1,19 +1,10 @@
 import { execFileSync } from 'node:child_process'
-import path from 'node:path'
-import { persistedSecret } from 'ras-stack/auth'
-import { runRealtimeStack } from 'ras-stack/runtime'
+import { persistedRealtimeSecret, runRealtimeStack } from 'ras-stack/runtime'
 // From the config module rather than the client: this file is bundled to ESM by
 // esbuild, which `iovalkey` does not survive.
 import { valkeyUrl } from '../src/adapters/valkeyConfig'
 
-const secretFile = process.env.REALTIME_SECRET_FILE?.trim() || '/data/realtime-secret'
-const secret = persistedSecret({
-  directory: path.dirname(secretFile),
-  filename: path.basename(secretFile),
-  environmentKey: 'REALTIME_SECRET',
-  bytes: 48,
-})
-process.env.REALTIME_SECRET = secret
+const secret = persistedRealtimeSecret()
 
 // A preview owns a database on a Postgres it shares with other previews, and the
 // database outlives the container, so it is emptied before anything migrates into it.

@@ -8,19 +8,7 @@
 type Source = Record<string, string | undefined>
 
 /** Only what a preview is allowed to be told. An unknown key is a mistake, not a passthrough. */
-const previewSecretNames = new Set(['PREVIEW_DATABASE_ADMIN_URL'])
-
-export function loadPreviewAppSecrets(source: Source = process.env, target: Source = process.env) {
-  const serialized = source.PREVIEW_APP_SECRETS?.trim()
-  if (!serialized) return
-  const parsed: unknown = JSON.parse(serialized)
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('PREVIEW_APP_SECRETS must be a JSON object')
-  for (const [name, secret] of Object.entries(parsed)) {
-    if (!previewSecretNames.has(name)) throw new Error(`PREVIEW_APP_SECRETS contains unsupported key ${name}`)
-    if (typeof secret !== 'string') throw new Error(`PREVIEW_APP_SECRETS.${name} must be a string`)
-    target[name] = secret
-  }
-}
+export const previewSecretNames = ['PREVIEW_DATABASE_ADMIN_URL']
 
 function value(source: Source, name: string) {
   return source[name]?.trim() || undefined
