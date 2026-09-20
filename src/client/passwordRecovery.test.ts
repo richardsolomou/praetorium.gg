@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const reset = vi.hoisted(() => vi.fn())
 
-vi.mock('posthog-js', () => ({ default: { reset } }))
+vi.mock('posthog-js', () => ({ posthog: { reset } }))
 
 import { finishPasswordRecovery } from './passwordRecovery'
 

@@ -1,3 +1,4 @@
+import { version } from '../../package.json'
 import { globalSingleton } from 'ras-stack/server'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { createManagedPostHogServerTelemetry, installPostHogServerTelemetryShutdown } from 'ras-stack/posthog/server'
@@ -10,6 +11,7 @@ export const serverTelemetry = () =>
         host: process.env.VITE_POSTHOG_HOST,
       }),
       serviceName: 'praetorium',
+      serviceVersion: version,
       deploymentEnvironment: process.env.NODE_ENV,
       onError: (error) => console.error({ event: 'telemetry_failed', error }),
     })

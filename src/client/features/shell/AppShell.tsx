@@ -1,3 +1,4 @@
+import { version } from '../../../../package.json'
 import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,7 @@ const posthog = postHogEnvironment({
   projectToken: import.meta.env.VITE_POSTHOG_PROJECT_TOKEN,
   host: import.meta.env.VITE_POSTHOG_HOST,
 })
+const posthogService = { name: 'praetorium', version, environment: import.meta.env.MODE }
 
 function PrimaryNavigation({ path }: { path: string }) {
   const [open, setOpen] = useState(false)
@@ -130,7 +132,7 @@ export function AppShell() {
         <HeadContent />
       </head>
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
-        <PostHogIntegration environment={posthog} options={POSTHOG_BROWSER_OPTIONS}>
+        <PostHogIntegration environment={posthog} options={POSTHOG_BROWSER_OPTIONS} service={posthogService}>
           <TooltipProvider delay={250} closeDelay={100}>
             {posthog && <PostHogBetterAuthIdentity authClient={authClient} />}
             <GlobalSearchProvider>

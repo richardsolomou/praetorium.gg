@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { localRedirectPath } from 'ras-stack/auth/client'
 import { useEffect, useRef, useState } from 'react'
-import posthog from 'posthog-js'
+import { posthog } from 'posthog-js'
 import { SOCIAL_PROVIDERS, type SocialAuthProvider } from '../authConfig'
 import { authClient } from '../client/authClient'
 import type { NativeAuthAction } from '../client/nativeAuth'

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft, Eye } from 'lucide-react'
-import posthog from 'posthog-js'
+import { posthog } from 'posthog-js'
 import { useEffect, useMemo, useRef } from 'react'
 import type { Command } from '../../core/battle'
 import type { ReportEntry } from '../../core/battleReport'

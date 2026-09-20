@@ -1,8 +1,8 @@
 # Telemetry
 
-Praetorium uses PostHog for analytics, replay, flags, errors, performance, and server logs. The integration is optional. Every product path works without PostHog variables.
+Praetorium uses PostHog for analytics, replay, flags, errors, performance, structured logs, metrics, and distributed traces. The integration is optional. Every product path works without PostHog variables.
 
-The browser integration inside the mobile WebView owns identified product events and masked session replay. The Expo shell uses a separate native client for application lifecycle events and native-shell exceptions when `EXPO_PUBLIC_POSTHOG_API_KEY` is set. Native screenshot replay stays disabled because it cannot redact the WebView DOM without masking the whole view. Production iOS builds upload native JavaScript source maps through the PostHog Expo and Metro plugins. Canary builds exercise the same tooling in dry-run mode because the preview environment does not contain the source-map upload credential.
+The browser integration inside the mobile WebView owns identified product events, masked session replay, browser logs, and browser metrics. Server functions propagate the validated browser session into structured error logs and stable request spans, while request counts and duration histograms use only the method and outcome as bounded dimensions. The Expo shell uses a separate native client for application lifecycle events and native-shell exceptions when `EXPO_PUBLIC_POSTHOG_API_KEY` is set. Native screenshot replay stays disabled because it cannot redact the WebView DOM without masking the whole view. Browser image builds upload JavaScript source maps when the PostHog personal API key and project id are configured; the key reaches the build through a BuildKit secret mount and is not stored in image metadata. Production iOS builds upload native JavaScript source maps through the PostHog Expo and Metro plugins. Canary builds exercise the same native tooling in dry-run mode because the preview environment does not contain the native source-map upload credential.
 
 ## Event contract
 
@@ -36,13 +36,8 @@ ids, catalogue ids, search text, unit names, list contents, command payloads, ru
 text, and error messages. They contain only bounded enums, booleans, counts,
 durations, and non-sensitive outcome labels.
 
-Errors may contain stack traces through PostHog Error Tracking. Manual exception
-captures add only an operation label. Server logs use stable messages and bounded
-request metadata rather than request bodies or URLs containing opaque ids.
+Errors may contain stack traces through PostHog Error Tracking. Manual exception captures add only an operation label. Server logs use stable messages and bounded request metadata rather than request bodies or URLs containing opaque ids. Request metrics contain a method, outcome, and duration; request spans use a stable name and never include the raw URL.
 
 ## Measuring success
 
-The core product funnel is account created → roster created or imported → battle
-created → roster attached → battle started → battle finished. Command outcomes,
-exceptions, replay, and sampled roster-pricing and datasheet-duration distributions
-explain drop-off between those stages.
+The core product funnel is account created → roster created or imported → battle created → roster attached → battle started → battle finished. Command outcomes, exceptions, replay, request metrics and traces, and sampled roster-pricing and datasheet-duration distributions explain drop-off between those stages.

@@ -7,9 +7,12 @@ concurrency:
   group: preview-image-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   preview:
-    if: "!startsWith(github.head_ref, 'release-candidate/')"
+    if: startsWith(github.head_ref, 'release-candidate/') == false
     permissions:
       contents: read
       packages: write
@@ -23,7 +26,6 @@ jobs:
       domain: praetorium.gg
       marker: <!-- praetorium-preview -->
       note: Test battles with `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Preview data is disposable and resets on every deployment.
-      # Shared with the E2E image build so pull requests warm one cache.
       cache-scope: e2e-image
       build-args: |
         VITE_POSTHOG_HOST=${{ vars.VITE_POSTHOG_HOST }}
