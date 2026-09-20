@@ -16,7 +16,7 @@ jobs:
       checks: write
       issues: write
       pull-requests: write
-    uses: richardsolomou/ras-stack/.github/workflows/build-dokploy-preview.yml@v1
+    uses: richardsolomou/ras-stack/.github/workflows/build-dokploy-preview.yml@v2
     with:
       package: praetorium.gg
       local-image: praetorium.gg
@@ -25,3 +25,16 @@ jobs:
       note: Test battles with `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Preview data is disposable and resets on every deployment.
       # Shared with the E2E image build so pull requests warm one cache.
       cache-scope: e2e-image
+      build-args: |
+        VITE_POSTHOG_HOST=${{ vars.VITE_POSTHOG_HOST }}
+        VITE_POSTHOG_PROJECT_TOKEN=${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
+        POSTHOG_PROJECT_ID=${{ vars.POSTHOG_PROJECT_ID }}
+        POSTHOG_HOST=${{ vars.POSTHOG_HOST }}
+        GITHUB_ACTIONS=true
+        GITHUB_SHA=${{ github.event.pull_request.head.sha }}
+        GITHUB_REF_NAME=${{ github.head_ref }}
+        GITHUB_REPOSITORY=${{ github.repository }}
+        GITHUB_SERVER_URL=${{ github.server_url }}
+      build-secret-id: POSTHOG_API_KEY
+    secrets:
+      build-secret: ${{ secrets.POSTHOG_API_KEY }}
