@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.68.1
+
+### Patch Changes
+
+- dd6a9ae: Serve internal loopback requests without redirecting to the public hostname.
+
 ## 0.68.0
 
 ### Minor Changes
