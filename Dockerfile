@@ -17,6 +17,7 @@ COPY catalogue ./catalogue
 COPY scripts/containerRuntime.ts scripts/migrate.ts scripts/previewDatabase.ts scripts/previewEnv.ts scripts/seedPreview.ts ./scripts/
 COPY ras-stack.assets.json tsconfig.json vite.config.ts vite.seed.config.ts ./
 ARG VITE_POSTHOG_HOST
+ARG VITE_POSTHOG_PROJECT_TOKEN
 ARG POSTHOG_PROJECT_ID
 ARG POSTHOG_HOST
 ARG GITHUB_ACTIONS
@@ -26,14 +27,14 @@ ARG GITHUB_REPOSITORY
 ARG GITHUB_SERVER_URL
 ENV POSTHOG_PROJECT_ID=$POSTHOG_PROJECT_ID \
     POSTHOG_HOST=$POSTHOG_HOST \
+    VITE_POSTHOG_HOST=$VITE_POSTHOG_HOST \
+    VITE_POSTHOG_PROJECT_TOKEN=$VITE_POSTHOG_PROJECT_TOKEN \
     GITHUB_ACTIONS=$GITHUB_ACTIONS \
     GITHUB_SHA=$GITHUB_SHA \
     GITHUB_REF_NAME=$GITHUB_REF_NAME \
     GITHUB_REPOSITORY=$GITHUB_REPOSITORY \
     GITHUB_SERVER_URL=$GITHUB_SERVER_URL
-RUN --mount=type=secret,id=POSTHOG_API_KEY,env=POSTHOG_API_KEY \
-    --mount=type=secret,id=VITE_POSTHOG_PROJECT_TOKEN,env=VITE_POSTHOG_PROJECT_TOKEN \
-    VITE_POSTHOG_HOST=$VITE_POSTHOG_HOST pnpm build
+RUN --mount=type=secret,id=POSTHOG_API_KEY,env=POSTHOG_API_KEY pnpm build
 
 FROM node:24-alpine
 LABEL org.opencontainers.image.title="Praetorium" \

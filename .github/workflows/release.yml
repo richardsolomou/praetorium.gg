@@ -44,6 +44,7 @@ jobs:
           token: ${{ github.token }}
           build-args: |
             VITE_POSTHOG_HOST=${{ vars.VITE_POSTHOG_HOST }}
+            VITE_POSTHOG_PROJECT_TOKEN=${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
             POSTHOG_PROJECT_ID=${{ vars.POSTHOG_PROJECT_ID }}
             POSTHOG_HOST=${{ vars.POSTHOG_HOST }}
             GITHUB_ACTIONS=true
@@ -53,7 +54,6 @@ jobs:
             GITHUB_SERVER_URL=${{ github.server_url }}
           secrets: |
             POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }}
-            VITE_POSTHOG_PROJECT_TOKEN=${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
       - name: Deploy production image
         if: vars.DOKPLOY_IMAGE_DEPLOY == 'true'
         uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v1

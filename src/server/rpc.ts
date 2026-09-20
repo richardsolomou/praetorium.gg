@@ -1,11 +1,9 @@
-import { getRequest } from '@tanstack/react-start/server'
 import { createTanStackRpc } from 'ras-stack/tanstack/server'
-import { createPostHogRpcLogger } from 'ras-stack/posthog/server'
-import type { RpcLogger } from 'ras-stack/server'
+import { createPostHogRpcLogger, createPostHogRpcObserver } from 'ras-stack/posthog/server'
+import type { RpcLogger, RpcObserver } from 'ras-stack/server'
 import { serverTelemetry } from '../adapters/posthog'
 import { app } from './app'
 import { requireMutationOrigin } from './mutationOrigin'
-import { observeServerFunction } from './rpcTelemetry'
 
 /** Only a deployed instance reports to the shared telemetry project. */
 const reportsToTelemetry = process.env.NODE_ENV === 'production'
@@ -24,26 +22,11 @@ const reportRpcError: RpcLogger = (error, context, request) => {
   return postHogRpcLogger(error, context, request)
 }
 
-const tanStackRpc = createTanStackRpc({
+const postHogRpcObserver = createPostHogRpcObserver(serverTelemetry())
+const observeRpc: RpcObserver = (request, work) => (reportsToTelemetry ? postHogRpcObserver(request, work) : work())
+
+export const { rpc, mutationRpc } = createTanStackRpc({
   requireMutation: requireMutationOrigin,
   logError: reportRpcError,
+  observe: observeRpc,
 })
-
-export function rpc<T>(work: () => T | Promise<T>) {
-  const request = currentRequest()
-  return request ? observeServerFunction(serverTelemetry(), request, () => tanStackRpc.rpc(work)) : tanStackRpc.rpc(work)
-}
-
-export function mutationRpc<T>(work: () => T | Promise<T>, request = currentRequest()) {
-  return request
-    ? observeServerFunction(serverTelemetry(), request, () => tanStackRpc.mutationRpc(work, request))
-    : tanStackRpc.mutationRpc(work, request)
-}
-
-function currentRequest() {
-  try {
-    return getRequest()
-  } catch {
-    return undefined
-  }
-}
