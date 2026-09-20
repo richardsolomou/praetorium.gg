@@ -18,7 +18,15 @@ export const POSTHOG_BROWSER_OPTIONS = {
 } satisfies Partial<PostHogConfig>
 
 export const postHogCoverage = definePostHogCoverage({
-  browser: { analytics: true, errorTracking: true, featureFlags: true, identity: true, sessionReplay: true },
-  server: { analytics: true, errorTracking: true, logs: true },
-  sourceMaps: { disabled: 'source-map upload requires a deployment personal API key' },
+  browser: {
+    analytics: true,
+    errorTracking: true,
+    featureFlags: true,
+    identity: true,
+    logs: true,
+    metrics: true,
+    sessionReplay: true,
+  },
+  server: { analytics: true, errorTracking: true, logs: true, metrics: true, tracing: true },
+  sourceMaps: true,
 })

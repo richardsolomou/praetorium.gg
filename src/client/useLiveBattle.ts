@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import posthog from 'posthog-js'
+import { posthog } from 'posthog-js'
 import {
   SubscriptionState,
   UnauthorizedError,

@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import path from 'node:path'
+import posthogRollup from '@posthog/rollup-plugin'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
@@ -10,8 +11,18 @@ import { POSTHOG_INGEST_PATH } from './src/posthog.ts'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  process.env = { ...process.env, ...env }
   const posthog = postHogEnvironment({ projectToken: env.VITE_POSTHOG_PROJECT_TOKEN, host: env.VITE_POSTHOG_HOST })
   const proxy = posthog ? postHogIngestProxy(posthog, { path: POSTHOG_INGEST_PATH }) : undefined
+  const sourceMapUpload =
+    env.GITHUB_ACTIONS === 'true' && env.POSTHOG_API_KEY && env.POSTHOG_PROJECT_ID
+      ? posthogRollup({
+          personalApiKey: env.POSTHOG_API_KEY,
+          projectId: env.POSTHOG_PROJECT_ID,
+          host: env.POSTHOG_HOST,
+          sourcemaps: { enabled: true, deleteAfterUpload: true },
+        })
+      : undefined
   return {
     resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
     build: {
@@ -55,6 +66,7 @@ export default defineConfig(({ mode }) => {
       }),
       viteReact(),
       tailwindcss(),
+      sourceMapUpload,
     ],
   }
 })

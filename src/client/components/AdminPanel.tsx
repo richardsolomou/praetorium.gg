@@ -1,4 +1,4 @@
-import posthog from 'posthog-js'
+import { posthog } from 'posthog-js'
 import { useDeferredValue, useState } from 'react'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { Ellipsis, Eye, KeyRound, ShieldCheck, UserPlus } from 'lucide-react'
