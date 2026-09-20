@@ -7,7 +7,7 @@ import { Menu, X } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { useEffect, useRef, useState } from 'react'
-import { POSTHOG_BROWSER_OPTIONS, POSTHOG_INGEST_PATH } from '../../../posthog'
+import { POSTHOG_BROWSER_OPTIONS } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from '../../components/Account'
 import { GlobalSearch, GlobalSearchProvider } from '../../components/GlobalSearch'
@@ -132,12 +132,7 @@ export function AppShell() {
         <HeadContent />
       </head>
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
-        <PostHogIntegration
-          environment={posthog}
-          ingestPath={POSTHOG_INGEST_PATH}
-          options={POSTHOG_BROWSER_OPTIONS}
-          service={posthogService}
-        >
+        <PostHogIntegration environment={posthog} options={POSTHOG_BROWSER_OPTIONS} service={posthogService}>
           <TooltipProvider delay={250} closeDelay={100}>
             {posthog && <PostHogBetterAuthIdentity authClient={authClient} />}
             <GlobalSearchProvider>

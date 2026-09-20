@@ -78,3 +78,7 @@ When a changeset reaches `main`, CI updates `package.json` and `CHANGELOG.md`, t
 ## Repository backup
 
 `just repository-backup /absolute/destination` creates and verifies a complete Git bundle containing every local ref. The command refuses a destination inside the repository. Store that bundle on infrastructure independent of GitHub; uncommitted working-tree files are not part of a Git backup.
+
+## Shared infrastructure checks
+
+`ras policy check` validates existing Changesets against workspace package names. The opt-in Oxlint domain and layer presets enforce the documented dependency direction, with test files excluded so integration tests can exercise real adapters. Search limits live in core and are shared by schemas and browser queries. The canonical-host middleware retains the health endpoint exception and serves loopback requests locally.

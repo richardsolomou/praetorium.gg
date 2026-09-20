@@ -1,4 +1,4 @@
-import { signRealtimeToken } from 'ras-stack/realtime'
+import { realtimeEnvironment, signRealtimeToken } from 'ras-stack/realtime'
 
 /**
  * Centrifugo, which is what "live" means here.
@@ -28,13 +28,7 @@ export function realtimeConfig(environment: NodeJS.ProcessEnv = process.env) {
   // The container writes one into /data on first boot. The fallback is for `pnpm
   // dev`, where `pnpm realtime` runs Centrifugo with the same well-known string;
   // production never reaches it, because the entrypoint always sets one.
-  const secret =
-    environment.REALTIME_SECRET?.trim() || (environment.NODE_ENV === 'production' ? undefined : 'praetorium-development-realtime-secret')
-  return {
-    apiUrl: (environment.REALTIME_API_URL?.trim() || 'http://127.0.0.1:8000/api').replace(/\/$/, ''),
-    apiKey: environment.REALTIME_API_KEY?.trim() || secret,
-    secret,
-  }
+  return realtimeEnvironment(environment, { developmentSecret: 'praetorium-development-realtime-secret' })
 }
 
 /** Proves who the connection is. It grants no channels by itself. */

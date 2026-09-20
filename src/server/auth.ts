@@ -13,7 +13,7 @@ import {
   standardSessionOptions,
   trustedOrigins,
 } from 'ras-stack/auth'
-import { createAuthEmailHandler, type EmailDelivery } from 'ras-stack/email'
+import { standardAuthEmails, type EmailDelivery } from 'ras-stack/email'
 import type { valkeySecondaryStorage } from '../adapters/valkey'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import type { PraetoriumDatabase } from '../db/connection'
@@ -50,22 +50,7 @@ function isNativeOAuthState(value: string, state: string, provider: string, base
 
 export function createAuth(database: PraetoriumDatabase, secret: string, storage?: AuthStorage, email?: EmailDelivery) {
   const configuredApple = appleCredentials()
-  const sendResetPassword = email
-    ? createAuthEmailHandler(email, ({ user: resetting, url }) => ({
-        to: resetting.email,
-        subject: 'Reset your Praetorium password',
-        text: `Reset your Praetorium password using this link: ${url}\n\nThis link expires in one hour.`,
-        html: `<p>Reset your Praetorium password using the link below.</p><p><a href="${url}">Reset password</a></p><p>This link expires in one hour.</p>`,
-      }))
-    : undefined
-  const sendVerificationEmail = email
-    ? createAuthEmailHandler(email, ({ user: verifying, url }) => ({
-        to: verifying.email,
-        subject: 'Verify your Praetorium email address',
-        text: `Verify your Praetorium email address using this link: ${url}\n\nThis link expires in one hour.`,
-        html: `<p>Verify your Praetorium email address using the link below.</p><p><a href="${url}">Verify email address</a></p><p>This link expires in one hour.</p>`,
-      }))
-    : undefined
+  const authEmails = email ? standardAuthEmails(email, { productName: 'Praetorium' }) : undefined
   const claimInitialAdmin = async (userId: string) => {
     const promoted = await database.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(4021970612)`)
@@ -158,14 +143,9 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
       minPasswordLength: PASSWORD_MIN_LENGTH,
       autoSignIn: true,
       requireEmailVerification: false,
-      ...(sendResetPassword ? { sendResetPassword } : {}),
+      ...(authEmails ? { sendResetPassword: authEmails.sendResetPassword } : {}),
     }),
-    emailVerification: sendVerificationEmail
-      ? {
-          sendOnSignUp: true,
-          sendVerificationEmail,
-        }
-      : undefined,
+    emailVerification: authEmails ? { sendOnSignUp: true, sendVerificationEmail: authEmails.sendVerificationEmail } : undefined,
     socialProviders: configuredAuthProviderOptions(),
     account: standardAccountOptions({
       accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS] },

@@ -19,8 +19,9 @@ export const Route = createFileRoute('/api/realtime/token')({
       GET: async ({ request }) => {
         const user = await currentUser(request)
         if (!user) return unauthorised()
-        const { secret } = realtimeConfig()
-        if (!secret) return new Response('realtime is not configured', { status: 503 })
+        const realtime = realtimeConfig()
+        if (!realtime) return new Response('realtime is not configured', { status: 503 })
+        const { secret } = realtime
         // Naming no battle asks for the user's own channel, which carries nothing but
         // "your battles moved" and needs no seat to justify it.
         if (!new URL(request.url).searchParams.get('battle')) {
@@ -35,8 +36,9 @@ export const Route = createFileRoute('/api/realtime/token')({
       POST: async ({ request }) => {
         const user = await currentUser(request)
         if (!user) return unauthorised()
-        const { secret } = realtimeConfig()
-        if (!secret) return new Response('realtime is not configured', { status: 503 })
+        const realtime = realtimeConfig()
+        if (!realtime) return new Response('realtime is not configured', { status: 503 })
+        const { secret } = realtime
 
         const asked = z.object({ channel: z.string() }).safeParse(await request.json())
         if (!asked.success) return new Response('channel required', { status: 400 })

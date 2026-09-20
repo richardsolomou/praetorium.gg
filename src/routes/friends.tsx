@@ -11,7 +11,7 @@ import { SignInRequired } from '../client/components/SignInRequired'
 import { friendshipsQuery, meQuery, opponentsQuery, playerSearchKey, playerSearchQuery } from '../client/queries'
 import { useSettled } from '../client/useSettled'
 import { acceptFriend, removeFriend, requestFriend } from '../server/functions'
-import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../server/schemas'
+import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../core/playerSearch'
 import { errorMessage } from '../client/queryClient'
 
 export const Route = createFileRoute('/friends')({

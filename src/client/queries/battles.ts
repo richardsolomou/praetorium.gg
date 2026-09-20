@@ -15,7 +15,7 @@ import {
   sharedBattles,
   standings,
 } from '../../server/functions'
-import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../server/schemas'
+import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
 import { SSR_STALE_TIME } from './shared'
 
 export type BattlesCursor = { at: number; id: string }

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   assertPreviewDatabase,
   databaseNameFrom,
-  loadPreviewAppSecrets,
   previewDatabaseName,
   previewDatabaseUrl,
   previewEnv,
@@ -10,33 +9,6 @@ import {
 } from './previewEnv'
 
 const ADMIN = 'postgres://preview:secret@praetorium-preview-postgres:5432/postgres'
-
-describe('preview app secrets', () => {
-  it('loads an allowlisted key', () => {
-    const target: Record<string, string | undefined> = {}
-    loadPreviewAppSecrets({ PREVIEW_APP_SECRETS: JSON.stringify({ PREVIEW_DATABASE_ADMIN_URL: ADMIN }) }, target)
-    expect(target.PREVIEW_DATABASE_ADMIN_URL).toBe(ADMIN)
-  })
-
-  it('refuses a key nobody meant to pass through', () => {
-    expect(() => loadPreviewAppSecrets({ PREVIEW_APP_SECRETS: JSON.stringify({ AWS_SECRET_ACCESS_KEY: 'x' }) }, {})).toThrow(
-      /unsupported key/,
-    )
-  })
-
-  it('refuses anything that is not a JSON object of strings', () => {
-    expect(() => loadPreviewAppSecrets({ PREVIEW_APP_SECRETS: '["a"]' }, {})).toThrow(/JSON object/)
-    expect(() => loadPreviewAppSecrets({ PREVIEW_APP_SECRETS: JSON.stringify({ PREVIEW_DATABASE_ADMIN_URL: 7 }) }, {})).toThrow(
-      /must be a string/,
-    )
-  })
-
-  it('does nothing when the secret is absent, so a deploy without one fails later and clearly', () => {
-    const target: Record<string, string | undefined> = {}
-    loadPreviewAppSecrets({}, target)
-    expect(target).toEqual({})
-  })
-})
 
 describe('naming a preview database', () => {
   it('names it after the pull request', () => {

@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import * as functions from '../server/functions'
-import { PLAYER_SEARCH_MAX_LENGTH } from '../server/schemas'
+import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
 import {
   gameReferencesRefreshInterval,
   loadoutDatasheetsQuery,

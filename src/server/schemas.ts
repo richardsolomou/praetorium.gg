@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
 import { BATTLE_AUDIENCES } from '../core/battleAudience'
 import {
   FORMAT_RULE_IDS,
@@ -138,9 +139,6 @@ export const battlesPageSchema = z.object({
 })
 export const battleAudienceSchema = z.object({ audience: z.enum(BATTLE_AUDIENCES) })
 export const userSchema = z.object({ userId: id })
-/** How much of a name has to be typed before the instance is searched for it. */
-export const PLAYER_SEARCH_MIN_LENGTH = 2
-export const PLAYER_SEARCH_MAX_LENGTH = 80
 export const playerSearchSchema = z.object({ query: z.string().trim().max(PLAYER_SEARCH_MAX_LENGTH) })
 export const friendSchema = z.object({ userId: id })
 
