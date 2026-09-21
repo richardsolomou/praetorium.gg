@@ -39,6 +39,7 @@ export function FactionDatasheet() {
   return (
     <main className="w-full">
       <PageHeader
+        onboarding="datasheet-detail"
         tint={factionColour(faction.slug)}
         eyebrow={`${faction.displayName} · Datasheet`}
         title={sheet.name}

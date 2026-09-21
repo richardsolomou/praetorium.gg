@@ -30,6 +30,7 @@ function Leaderboard() {
   return (
     <main className="w-full">
       <PageHeader
+        onboarding="leaderboard-overview"
         eyebrow="Who is winning"
         title="Leaderboard"
         description={`Public battles from the last ${data?.days ?? 90} days, ranked by wins and then win rate.`}

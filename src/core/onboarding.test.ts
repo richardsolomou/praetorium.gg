@@ -4,14 +4,26 @@ import {
   availableOnboardingTasks,
   EMPTY_ONBOARDING_PROGRESS,
   normalizeOnboardingTasks,
+  onboardingTaskIds,
   type OnboardingProgress,
 } from './onboarding'
 
 describe('onboarding', () => {
+  it('covers every major product area', () => {
+    expect(onboardingTaskIds).toEqual(['roster', 'friend', 'battle', 'league', 'reference', 'community'])
+  })
+
   it('offers the battle task after its preparation tasks are resolved', () => {
     const progress: OnboardingProgress = { ...EMPTY_ONBOARDING_PROGRESS, completedTasks: ['roster'], skippedTasks: ['friend'] }
 
-    expect(availableOnboardingTasks(progress).map((task) => task.id)).toEqual(['roster', 'friend', 'battle'])
+    expect(availableOnboardingTasks(progress).map((task) => task.id)).toEqual([
+      'roster',
+      'friend',
+      'battle',
+      'league',
+      'reference',
+      'community',
+    ])
   })
 
   it('completing a skipped task makes it complete instead', () => {

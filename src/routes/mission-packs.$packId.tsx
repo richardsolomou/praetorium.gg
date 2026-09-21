@@ -7,6 +7,7 @@ import { MissionCardReference } from '../client/components/MissionCardReference'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { gameReferencesQuery } from '../client/queries'
 import { PageContent, PageHeader } from '../client/components/Page'
+import { advanceOnboarding } from '../client/onboarding'
 
 export const Route = createFileRoute('/mission-packs/$packId')({
   loader: async ({ context, params }) => {
@@ -88,10 +89,12 @@ function MissionPackPage() {
                     )
                     return found ? (
                       <Link
+                        data-onboarding="mission-reference"
                         key={opponent.id}
                         to="/mission-matchups/$packId/$you/$opponent"
                         params={{ packId, you: you.id, opponent: opponent.id }}
                         className="grid min-h-16 place-items-center border border-edge bg-panel px-2 text-center text-sm font-bold text-info uppercase hover:border-info hover:bg-raised"
+                        onClick={() => advanceOnboarding('reference', 'reference-missions', 'reference-mission')}
                       >
                         {found.name}
                       </Link>

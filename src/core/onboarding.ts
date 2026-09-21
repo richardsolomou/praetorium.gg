@@ -1,4 +1,4 @@
-export const onboardingTaskIds = ['roster', 'friend', 'battle'] as const
+export const onboardingTaskIds = ['roster', 'friend', 'battle', 'league', 'reference', 'community'] as const
 
 export type OnboardingTaskId = (typeof onboardingTaskIds)[number]
 
@@ -27,6 +27,24 @@ export const onboardingTasks: readonly OnboardingTask[] = [
     title: 'Start a battle',
     description: 'Choose the players at the table, then work through armies, mission, deployment, and first turn together.',
     prerequisites: ['roster', 'friend'],
+  },
+  {
+    id: 'league',
+    title: 'Join or run a league',
+    description: 'Use registration, sealed rosters, shared reveal, and event battles for organized play.',
+    prerequisites: [],
+  },
+  {
+    id: 'reference',
+    title: 'Explore the game reference',
+    description: 'Search Praetorium, browse factions and datasheets, compare missions, and read the source rules.',
+    prerequisites: [],
+  },
+  {
+    id: 'community',
+    title: 'Follow games and players',
+    description: 'Watch shared battles, check the standings, and choose who can see your own games.',
+    prerequisites: [],
   },
 ]
 

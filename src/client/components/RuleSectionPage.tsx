@@ -34,7 +34,7 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
 
   return (
     <main className="w-full">
-      <PageHeader eyebrow={data.document.title} title={data.section.title} />
+      <PageHeader onboarding="rule-section" eyebrow={data.document.title} title={data.section.title} />
       <PageContent>
         <Link to="/rules/$documentId" params={{ documentId }} className="eyebrow flex items-center gap-1 text-info hover:text-bone">
           <ChevronLeft className="size-3.5" aria-hidden /> {data.document.title}

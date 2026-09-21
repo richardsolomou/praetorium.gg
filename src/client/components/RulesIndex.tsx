@@ -7,6 +7,7 @@ import { ruleIndexQuery } from '../queries'
 import { PageContent, PageHeader } from './Page'
 import { PageState } from './PageState'
 import { SearchField } from './SearchField'
+import { advanceOnboarding } from '../onboarding'
 
 /**
  * Every rules document the community data carries, and a way into any one rule.
@@ -96,11 +97,13 @@ function FoundRules({ matches }: { matches: Found[] }) {
     <div className="mt-4 border border-edge bg-panel">
       {matches.map((found) => (
         <Link
+          data-onboarding="rules-reference"
           key={found.key}
           to="/rules/$documentId/$sectionId"
           params={{ documentId: found.document.slug, sectionId: found.section.slug }}
           hash={found.anchor}
           className="flex items-center gap-3 border-b border-edge px-3 py-2 last:border-b-0 hover:bg-raised"
+          onClick={() => advanceOnboarding('reference', 'reference-rules', 'reference-rule-section')}
         >
           {found.code ? <span className="chip readout">{found.code}</span> : null}
           <span className="min-w-0 flex-1 truncate text-sm text-bone">{found.title}</span>
@@ -120,7 +123,13 @@ function DocumentShelf({ document }: { document: RuleDocumentSummary }) {
     <section className="mt-6">
       <div className="flex items-baseline justify-between gap-3 border-b border-edge pb-2">
         <h2 className="rubric">
-          <Link to="/rules/$documentId" params={{ documentId: document.slug }} className="hover:text-bone">
+          <Link
+            data-onboarding="rules-reference"
+            to="/rules/$documentId"
+            params={{ documentId: document.slug }}
+            className="hover:text-bone"
+            onClick={() => advanceOnboarding('reference', 'reference-rules', 'reference-rule-document')}
+          >
             {document.title}
           </Link>
         </h2>
@@ -129,10 +138,12 @@ function DocumentShelf({ document }: { document: RuleDocumentSummary }) {
       <div className="mt-2 grid gap-px border border-edge bg-edge sm:grid-cols-2 lg:grid-cols-3">
         {document.sections.map((section) => (
           <Link
+            data-onboarding="rules-reference"
             key={section.id}
             to="/rules/$documentId/$sectionId"
             params={{ documentId: document.slug, sectionId: section.slug }}
             className="flex items-center gap-2 bg-panel px-3 py-2 hover:bg-raised"
+            onClick={() => advanceOnboarding('reference', 'reference-rules', 'reference-rule-section')}
           >
             <span className="min-w-0 flex-1 truncate text-sm text-bone">{section.title}</span>
             <span className="readout text-xs text-faint">{section.entries.length}</span>

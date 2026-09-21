@@ -50,7 +50,7 @@ function MissionMatchupPage() {
 
   return (
     <main className="w-full">
-      <PageHeader eyebrow="Mission matchup" title={`${yourDisposition.name} vs ${opponentDisposition.name}`} />
+      <PageHeader onboarding="mission-detail" eyebrow="Mission matchup" title={`${yourDisposition.name} vs ${opponentDisposition.name}`} />
       <PageContent>
         <Link to="/mission-packs/$packId" params={{ packId }} className="eyebrow text-info">
           {pack.name}

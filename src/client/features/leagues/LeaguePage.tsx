@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { errorMessage } from '../../queryClient'
+import { signalOnboardingProgress } from '../../onboarding'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { battlesQuery, gameReferencesQuery, leagueBattlesFrom, leagueBattlesQuery, leagueQuery, leaguesQuery, meQuery } from '../../queries'
 import {
@@ -105,7 +106,13 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
     ])
   }
   const selectedEventToken = league?.eventToken ?? ''
-  const join = useMutation({ mutationFn: () => joinLeague({ data: { token, eventToken: selectedEventToken } }), onSuccess: refresh })
+  const join = useMutation({
+    mutationFn: () => joinLeague({ data: { token, eventToken: selectedEventToken } }),
+    onSuccess: async () => {
+      signalOnboardingProgress('league')
+      await refresh()
+    },
+  })
   const moderate = useMutation({
     mutationFn: (input: { userId: string; status: 'accepted' | 'rejected' }) =>
       moderateLeagueEntry({ data: { token, eventToken: selectedEventToken, ...input } }),
@@ -155,6 +162,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
       })
     },
     onSuccess: async ({ token: battleToken }) => {
+      signalOnboardingProgress('battle')
       await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
       await navigate({ to: '/battles/$token', params: { token: battleToken } })
     },
@@ -294,6 +302,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
   return (
     <main className="w-full">
       <PageHeader
+        onboarding="league-workspace"
         eyebrow={`${viewingLatest ? 'Current event' : `Archived event ${league.eventNumber}`} · ${
           league.revealedAt ? 'Rosters revealed' : registrationFull ? 'Registration full' : 'Registration open'
         }`}

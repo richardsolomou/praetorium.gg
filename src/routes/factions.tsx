@@ -9,6 +9,7 @@ import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { SearchField } from '../client/components/SearchField'
 import { PageState } from '../client/components/PageState'
 import { PageContent, PageHeader } from '../client/components/Page'
+import { advanceOnboarding } from '../client/onboarding'
 
 export const Route = createFileRoute('/factions')({
   loader: ({ context, location }) =>
@@ -139,9 +140,11 @@ function FactionShelf({
               style={{ borderLeftColor: factionColour(entry.slug) }}
             >
               <Link
+                data-onboarding="faction-reference"
                 to="/factions/$catalogueId"
                 params={{ catalogueId: entry.slug }}
                 className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left"
+                onClick={() => advanceOnboarding('reference', 'reference-factions', 'reference-faction')}
               >
                 <FactionMark id={entry.slug} icon={entry.icon} />
                 <span className="min-w-0">

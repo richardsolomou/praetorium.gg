@@ -89,7 +89,7 @@ export function HomeView({ me, mine, friends, open, newBattle, onDelete, more }:
  */
 function Welcome({ name, newBattle }: { name: string; newBattle?: ReactNode }) {
   return (
-    <section className="border-b border-edge bg-panel">
+    <section data-onboarding="home-activity" className="border-b border-edge bg-panel">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-3 py-4 sm:px-4">
         <div>
           <p className="eyebrow text-parchment">Praetorium</p>
