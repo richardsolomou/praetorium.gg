@@ -243,7 +243,7 @@ function attachmentSubstitutions(index: CatalogueIndex) {
 }
 
 function categoryTargets(name: string, index: CatalogueIndex) {
-  const required = normalizedName(name).replace('battleliine', 'battleline').split(' ').toSorted()
+  const required = normalizedName(name).split(' ').toSorted()
   if (required.join(' ') !== 'battleline imperium infantry') return []
 
   const cached = categoryTargetCache.get(index)

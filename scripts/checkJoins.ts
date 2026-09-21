@@ -81,14 +81,13 @@ if (process.argv.includes('--details')) {
 
 /*
  * A ratchet, so these only ever come down. At the pinned snapshot the catalogue names
- * fifteen datasheets the cards do not (each god's Soul Grinder against the cards' one,
- * the Tyranid units another unit spawns, and the four Speed Freeks buggies and the
- * Wurrboy that eleventh edition folded into Warbuggies and the Weirdboy) and the cards
- * file twenty-four where the catalogue does not (Space Marine heroes the cards keep in
- * the Adeptus Astartes file and the catalogue in their chapters' books, Sir Hekhtur, and
- * the Gunwagon, Nazdreg and Runtherd the catalogue has no datasheet for at all).
+ * ten datasheets the cards do not (each god's Soul Grinder against the cards' one,
+ * the Tyranid units another unit spawns, Chaos Spawn (Flesh Change), and Emperor's
+ * Champion (Anointed)) and the cards file twenty-one where the catalogue does not
+ * (Space Marine heroes the cards keep in the Adeptus Astartes file and the catalogue
+ * in their chapters' books, plus Sir Hekhtur).
  */
-if (report.catalogueOnly.length > 15 || report.datacardsOnly.length > 24) {
+if (report.catalogueOnly.length > 10 || report.datacardsOnly.length > 21) {
   baselineShortfall('datasheet name agreement fell below the pinned catalogue baseline')
 }
 if (rulesOnlyDetachments.length > 23 || rulesOnlyEnhancements.length > 90 || datacardsOnlyDetachments.size) {
