@@ -95,12 +95,15 @@ function join(loaded: LoadedCatalogue, catalogueId: string, entryId: string): Da
 export function datacardJoinReport(loaded: LoadedCatalogue, isReference: (catalogueId: string, entryId: string) => boolean) {
   const catalogueOnly: { faction: string; name: string }[] = []
   const datacardsOnly: { faction: string; name: string }[] = []
+  const factionsWithoutArmyRules: string[] = []
   const fallbacks: { faction: string; name: string }[] = []
+  const nonMatchedPlayCatalogueOnly: { faction: string; name: string }[] = []
   let exact = 0
   for (const book of loaded.factions) {
     const leaf = book.name.split(' - ').at(-1) ?? book.name
     const content = loaded.factionContents.get(routeSlug(leaf))
     if (!content) continue
+    if (!content.armyRules.length) factionsWithoutArmyRules.push(book.name)
     const matched = new Set<DatasheetDetails>()
     const nonMatchedPlay = new Set<string>()
     for (const entryId of datasheetsOf(loaded.index, book.id)) {
@@ -108,9 +111,12 @@ export function datacardJoinReport(loaded: LoadedCatalogue, isReference: (catalo
       if (found?.own) matched.add(found.details)
       const entry = loaded.index.definitions.get(entryId)
       const name = entry ? nameOf(entry, loaded.index.definitions) : entryId
-      if (isNonMatchedPlayName(name)) nonMatchedPlay.add(comparable(matchedPlayName(name)))
+      const isNonMatchedPlay = isNonMatchedPlayName(name)
+      if (isNonMatchedPlay) nonMatchedPlay.add(comparable(matchedPlayName(name)))
       if (!isReference(book.id, entryId)) continue
-      if (found?.method === 'external-ref') exact++
+      if (isNonMatchedPlay) {
+        if (!found) nonMatchedPlayCatalogueOnly.push({ faction: book.name, name })
+      } else if (found?.method === 'external-ref') exact++
       else if (found?.method === 'name') fallbacks.push({ faction: book.name, name })
       else if (!found) catalogueOnly.push({ faction: book.name, name })
     }
@@ -119,5 +125,5 @@ export function datacardJoinReport(loaded: LoadedCatalogue, isReference: (catalo
       datacardsOnly.push({ faction: book.name, name: cardName })
     }
   }
-  return { catalogueOnly, datacardsOnly, exact, fallbacks }
+  return { catalogueOnly, datacardsOnly, exact, factionsWithoutArmyRules, fallbacks, nonMatchedPlayCatalogueOnly }
 }

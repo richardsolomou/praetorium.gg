@@ -1,5 +1,7 @@
 import path from 'node:path'
 import { baselineShortfall } from './baselines'
+import { nameOf } from '../src/core/catalogue'
+import { isNonMatchedPlayName } from '../src/core/name'
 import { isReferenceDatasheet, loadCatalogue } from '../src/server/catalogueIndex'
 import { isMatchedPlayDatasheet } from '../src/server/cataloguePicker'
 import { datacardJoinReport } from '../src/server/datasheetJoin'
@@ -12,10 +14,16 @@ if (!loaded) throw new Error('catalogue data is unavailable')
 
 const report = datacardJoinReport(loaded, (catalogueId, entryId) => {
   const entry = loaded.index.definitions.get(entryId)
-  return Boolean(entry && isMatchedPlayDatasheet(loaded.index, entry) && isReferenceDatasheet(loaded, catalogueId, entryId))
+  return Boolean(
+    entry &&
+    (isMatchedPlayDatasheet(loaded.index, entry) || isNonMatchedPlayName(nameOf(entry, loaded.index.definitions))) &&
+    isReferenceDatasheet(loaded, catalogueId, entryId),
+  )
 })
 console.log(`catalogue datasheets without a card in their faction's file: ${report.catalogueOnly.length}`)
 console.log(`cards without a catalogue datasheet in their book: ${report.datacardsOnly.length}`)
+console.log(`non-matched-play datasheets without a card: ${report.nonMatchedPlayCatalogueOnly.length}`)
+console.log(`faction files without an army-rule card: ${report.factionsWithoutArmyRules.length}`)
 console.log(`datasheet joins using an exact reference: ${report.exact}`)
 console.log(`datasheet joins using a name fallback: ${report.fallbacks.length}`)
 const rules = loadRules(
@@ -61,6 +69,8 @@ console.log(`rules joins using a name fallback: ${rules.sourceJoinFallbacks.leng
 if (process.argv.includes('--details')) {
   for (const entry of report.catalogueOnly) console.log(`  catalogue only | ${entry.faction} | ${entry.name}`)
   for (const entry of report.datacardsOnly) console.log(`  cards only     | ${entry.faction} | ${entry.name}`)
+  for (const entry of report.nonMatchedPlayCatalogueOnly) console.log(`  non-matched    | ${entry.faction} | ${entry.name}`)
+  for (const faction of report.factionsWithoutArmyRules) console.log(`  rules missing  | ${faction}`)
   for (const entry of report.fallbacks) console.log(`  name fallback  | ${entry.faction} | ${entry.name}`)
   for (const issue of rulesOnlyDetachments) console.log(`  rules only     | ${issue.faction} | ${issue.detachment}`)
   for (const issue of rulesOnlyEnhancements) {
@@ -86,9 +96,14 @@ if (process.argv.includes('--details')) {
  * Champion (Anointed)) and the cards file twenty-one where the catalogue does not
  * (Space Marine heroes the cards keep in the Adeptus Astartes file and the catalogue
  * in their chapters' books, plus Sir Hekhtur).
+ * It also has 745 non-matched-play datasheets without cards and one faction file without
+ * an army-rule card.
  */
 if (report.catalogueOnly.length > 10 || report.datacardsOnly.length > 21) {
   baselineShortfall('datasheet name agreement fell below the pinned catalogue baseline')
+}
+if (report.nonMatchedPlayCatalogueOnly.length > 745 || report.factionsWithoutArmyRules.length > 1) {
+  baselineShortfall('datasheet prose coverage fell below the pinned catalogue baseline')
 }
 if (rulesOnlyDetachments.length > 23 || rulesOnlyEnhancements.length > 90 || datacardsOnlyDetachments.size) {
   baselineShortfall('army-construction name agreement fell below the pinned catalogue baseline')
