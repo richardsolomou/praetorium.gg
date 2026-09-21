@@ -13,7 +13,7 @@ import {
   type LoadoutModel,
   type LoadoutUnit,
   orderedChoices,
-  type SpreadCounts,
+  type SpreadUpdate,
   wholeSquadTakes,
 } from './loadoutModel'
 import { EitherChoice, LoadoutLoading, SpecialChoice, SpreadChoice } from './LoadoutControls'
@@ -28,7 +28,7 @@ type Props = {
   picks: readonly RosterPick[]
   pickIndex: number | null
   onChoose: (key: string, optionId: string) => void
-  onSpread: (key: string, counts: SpreadCounts) => void
+  onSpread: (key: string, update: SpreadUpdate) => void
   editable?: boolean
   controlsDisabled?: boolean
   showOptions?: boolean
@@ -211,7 +211,7 @@ export function Loadout({
                       editable={editable}
                       controlsDisabled={controlsDisabled}
                       // A squad that must match answers once, and every model follows.
-                      onChoose={choice.uniform ? (key, optionId) => onSpread(key, wholeSquadTakes(choice, optionId)) : onChoose}
+                      onChoose={choice.uniform ? (key, optionId) => onSpread(key, () => wholeSquadTakes(choice, optionId)) : onChoose}
                       weapons={weapons}
                       abilities={availableSheet.abilities}
                       rules={rules}

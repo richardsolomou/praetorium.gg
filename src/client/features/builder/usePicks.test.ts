@@ -20,6 +20,69 @@ function edited(spreads: Record<string, Record<string, number>>, run: (edit: Ret
   return picks[0]
 }
 
+function harness(models = 3) {
+  let picks: KeyedPick[] = [{ key: 0, entryId: 'squad', catalogueId: 'imperium' }]
+  const edit = pickEditor(
+    (update) => {
+      picks = typeof update === 'function' ? update(picks) : update
+    },
+    {
+      catalogueId: 'imperium',
+      units: [
+        {
+          size: { models, min: 1, max: 6 },
+          toggles: [],
+          choices: [
+            {
+              key: 'weapons',
+              options: [
+                { id: 'blaster', count: 3 },
+                { id: 'carbine', count: 0 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    () => 1,
+  )
+  return { edit, pick: () => picks[0] }
+}
+
+describe('consecutive counter presses', () => {
+  it('applies each spread press to the counts the pick already holds', () => {
+    const { edit, pick } = harness()
+    const moveToCarbine = (counts: Record<string, number>) => ({
+      blaster: (counts.blaster ?? 0) - 1,
+      carbine: (counts.carbine ?? 0) + 1,
+    })
+
+    edit.spread(0, 'weapons', moveToCarbine)
+    edit.spread(0, 'weapons', moveToCarbine)
+
+    expect(pick()?.spreads?.weapons).toEqual({ blaster: 1, carbine: 2 })
+  })
+
+  it('applies each size press to the model count the pick already holds', () => {
+    const { edit, pick } = harness()
+
+    edit.resize(0, (models) => models + 1)
+    edit.resize(0, (models) => models + 1)
+
+    expect(pick()?.models).toBe(5)
+    edit.resize(0, (models) => models + 10)
+    expect(pick()?.models).toBe(6)
+  })
+
+  it('leaves the pick unchanged when a spread press cannot act', () => {
+    const { edit, pick } = harness()
+
+    edit.spread(0, 'weapons', () => null)
+
+    expect(pick()?.spreads).toBeUndefined()
+  })
+})
+
 /**
  * The same group can be answered as one chosen option or as a spread of counts, and
  * only one of those is a choice. Clearing the choice alone left the count behind,

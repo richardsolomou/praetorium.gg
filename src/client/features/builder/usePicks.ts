@@ -1,6 +1,7 @@
 import { type Dispatch, type SetStateAction, useCallback, useMemo, useRef, useState } from 'react'
 import type { RosterPick } from '../../../core/roster'
 import { type KeyedPick, positionedPicks } from '../../rosterPicks'
+import type { SpreadUpdate } from './loadoutModel'
 
 /**
  * A group told to hold nothing holds nothing, however it came to be filled.
@@ -18,7 +19,11 @@ function emptied(spreads: Record<string, Record<string, number>> | undefined, ke
 }
 
 /** Only what an edit needs to read back off the priced list. */
-type SizedUnit = { size: { models: number }; toggles: { key: string; name: string }[] }
+type SizedUnit = {
+  size: { models: number; min: number; max: number }
+  toggles: { key: string; name: string }[]
+  choices: { key: string; options: { id: string; count: number }[] }[]
+}
 
 /**
  * The list being edited, in the two shapes the builder reads it in.
@@ -81,7 +86,12 @@ export function pickEditor(
         return current.flatMap((pick, at) => (at === index ? [] : [pick.attachedTo === going ? { ...pick, attachedTo: undefined } : pick]))
       }),
 
-    resize: (index: number, models: number) => editAt(index, (pick) => ({ ...pick, models })),
+    resize: (index: number, step: (models: number) => number) =>
+      editAt(index, (pick) => {
+        const unit = context.units[index]
+        const models = step(pick.models ?? unit?.size.models ?? 0)
+        return { ...pick, models: unit ? Math.min(Math.max(models, unit.size.min), unit.size.max) : models }
+      }),
 
     choose: (index: number, key: string, optionId: string) =>
       editAt(index, (pick) => {
@@ -92,12 +102,18 @@ export function pickEditor(
       }),
 
     /** How many of each option a group holds, leaving the unit's other groups alone. */
-    spread: (index: number, key: string, counts: Record<string, number>) =>
-      editAt(index, (pick) => ({
-        ...pick,
-        models: pick.models ?? context.units[index]?.size.models,
-        spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...counts } },
-      })),
+    spread: (index: number, key: string, update: SpreadUpdate) =>
+      editAt(index, (pick) => {
+        const unit = context.units[index]
+        const served = unit?.choices.find((choice) => choice.key === key)?.options ?? []
+        const counts = update({ ...Object.fromEntries(served.map((option) => [option.id, option.count])), ...pick.spreads?.[key] })
+        if (!counts) return pick
+        return {
+          ...pick,
+          models: pick.models ?? unit?.size.models,
+          spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...counts } },
+        }
+      }),
 
     /**
      * A toggle on one unit. The warlord is the army's one warlord, so claiming it
