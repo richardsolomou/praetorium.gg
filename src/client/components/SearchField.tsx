@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import type { OnboardingTarget } from '../onboarding'
 
 type Props = {
   value: string
@@ -18,6 +19,7 @@ type Props = {
   className?: string
   inputClassName?: string
   maxLength?: number
+  onboarding?: OnboardingTarget
 }
 
 /**
@@ -28,9 +30,9 @@ type Props = {
  * control rather than a selection and a delete. Escape does the same for a
  * keyboard, and the cross is only there while there is something to clear.
  */
-export function SearchField({ value, onChange, placeholder, label, clearLabel, className, inputClassName, maxLength }: Props) {
+export function SearchField({ value, onChange, placeholder, label, clearLabel, className, inputClassName, maxLength, onboarding }: Props) {
   return (
-    <div className={cn('relative', className)}>
+    <div data-onboarding={onboarding} className={cn('relative', className)}>
       <Input
         value={value}
         onChange={(event) => onChange(event.target.value)}

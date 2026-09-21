@@ -2,4 +2,4 @@
 'praetorium.gg': minor
 ---
 
-Learn roster building, battles, organized play, game references, and community features through a resumable getting-started guide.
+Add a resumable getting-started guide that walks you through roster building, battles, leagues, the game reference and the community pages, and counts the tasks you have already done.

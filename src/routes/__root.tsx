@@ -8,14 +8,18 @@ import rules400 from '@fontsource/barlow/files/barlow-latin-400-normal.woff2?url
 import rules600 from '@fontsource/barlow/files/barlow-latin-600-normal.woff2?url'
 import { PageState } from '../client/components/PageState'
 import { AppShell } from '../client/features/shell/AppShell'
-import { meQuery } from '../client/queries'
+import { meQuery, onboardingQuery } from '../client/queries'
 import appCss from '../styles.css?url'
 
 const TITLE = 'Praetorium'
 const DESCRIPTION = 'Build Warhammer 40,000 armies and track your games from setup to final score.'
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  loader: ({ context }) => context.queryClient.query({ ...meQuery(), staleTime: 'static' }),
+  loader: async ({ context }) => {
+    const player = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
+    // The guide sits in the shell on every page, so it is fetched with the shell rather than after it hydrates.
+    if (player) await context.queryClient.query({ ...onboardingQuery(), staleTime: 'static' })
+  },
   head: () => ({
     meta: [
       { charSet: 'utf-8' },

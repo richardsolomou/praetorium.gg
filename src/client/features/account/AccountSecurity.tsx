@@ -24,7 +24,7 @@ type AccountIdentity = {
 
 type DialogKind = 'create-password' | 'change-password' | 'delete-account' | 'two-factor-setup' | 'two-factor-disable'
 
-export function AccountSecurity({ me }: { me: AccountIdentity }) {
+export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy: ReactNode }) {
   const methodsResult = useQuery(accountMethodsQuery())
   const { data: methods, isPending: methodsPending } = methodsResult
   const queryClient = useQueryClient()
@@ -47,17 +47,20 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
 
   if (methodsResult.isError) {
     return (
-      <PageState
-        headingLevel={2}
-        eyebrow="Account security"
-        title="Could not load sign-in methods"
-        explanation="Your security settings could not be loaded. Try again."
-        action={
-          <Button variant="outline" onClick={() => void methodsResult.refetch()} disabled={methodsResult.isFetching}>
-            Try again
-          </Button>
-        }
-      />
+      <div className="grid gap-6">
+        <PageState
+          headingLevel={2}
+          eyebrow="Account security"
+          title="Could not load sign-in methods"
+          explanation="Your security settings could not be loaded. Try again."
+          action={
+            <Button variant="outline" onClick={() => void methodsResult.refetch()} disabled={methodsResult.isFetching}>
+              Try again
+            </Button>
+          }
+        />
+        {privacy}
+      </div>
     )
   }
 
@@ -227,6 +230,8 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
           </div>
         ) : null}
       </section>
+
+      {privacy}
 
       <section className="border border-destructive/40 bg-panel p-5 md:p-7 lg:col-span-2">
         <p className="rubric border-b border-edge pb-2 text-destructive">Delete account</p>

@@ -10,7 +10,6 @@ import { dispositionTone } from '../client/components/rosterSetup'
 import { RuleText } from '../client/components/RuleText'
 import { PageState } from '../client/components/PageState'
 import { PageContent, PageHeader } from '../client/components/Page'
-import { advanceOnboarding } from '../client/onboarding'
 
 export const Route = createFileRoute('/factions/$catalogueId')({
   loader: async ({ context, location, params }) => {
@@ -63,7 +62,6 @@ function FactionPage() {
             to="/factions/$catalogueId/datasheets"
             params={{ catalogueId: faction.slug }}
             className="flex items-center justify-between border border-edge bg-panel px-3 py-3 hover:bg-raised"
-            onClick={() => advanceOnboarding('reference', 'reference-faction', 'reference-datasheets')}
           >
             <span className="font-bold uppercase">Datasheets</span>
             <span className="flex items-center gap-3">
@@ -73,7 +71,7 @@ function FactionPage() {
           </Link>
         </section>
         {faction.armyRules.length ? (
-          <section className="mt-6">
+          <section data-onboarding="faction-army-rules" className="mt-6">
             <p className="rubric border-b border-edge pb-2">Faction abilities</p>
             <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
               {faction.armyRules.map((rule) => (
@@ -85,7 +83,7 @@ function FactionPage() {
             </div>
           </section>
         ) : null}
-        <section className="mt-6">
+        <section data-onboarding="faction-detachments" className="mt-6">
           <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
             <span>Detachments</span>
             <span className="readout">{detachments.length}</span>

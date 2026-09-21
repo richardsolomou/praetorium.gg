@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
+import type { OnboardingTarget } from '../../onboarding'
 
 type Props = {
   variant: 'picker' | 'loadout'
@@ -16,7 +17,7 @@ type Props = {
   drawer?: boolean
   threeColumn?: boolean
   hideBelowDesktop?: boolean
-  onboarding?: string
+  onboarding?: OnboardingTarget
 }
 
 /** One pane moves between sidebar and overlay so controls and labels stay unique. */
@@ -108,7 +109,7 @@ export function Pane({
         if (sibling === branch || !(sibling instanceof HTMLElement)) continue
         // The tab bar is the one thing beside this pane that stays on screen.
         if (screen && sibling.hasAttribute('data-native-app-tabs')) continue
-        if (sibling.matches('[data-onboarding-overlay]') || sibling.querySelector('[data-onboarding-overlay]')) continue
+        if (sibling.matches('[data-inert-exempt]')) continue
         backgrounds.push({ element: sibling, inert: sibling.inert })
         sibling.inert = true
       }

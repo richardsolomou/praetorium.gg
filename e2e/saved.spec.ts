@@ -195,7 +195,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await published
 
   await page.getByRole('button', { name: 'Account menu for Alice' }).click()
-  await page.getByRole('menuitem', { name: 'Profile Alice' }).click()
+  await page.getByRole('menuitem', { name: 'My profile' }).click()
   const rostersTab = page.getByRole('tab', { name: /rosters/i })
   await expect(async () => {
     await rostersTab.click()

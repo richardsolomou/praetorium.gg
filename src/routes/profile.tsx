@@ -216,8 +216,7 @@ function ProfileForm({
             {saved ? <output className="text-sm text-achieved">Profile saved.</output> : null}
           </div>
         </form>
-        <BattleSharing />
-        <AccountSecurity me={me} />
+        <AccountSecurity me={me} privacy={<BattleSharing />} />
       </PageContent>
     </main>
   )

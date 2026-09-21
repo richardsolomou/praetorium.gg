@@ -47,10 +47,11 @@ export function BattleSharing() {
     },
   })
   return (
-    <section data-onboarding="battle-sharing" className="space-y-4 border-t border-edge pt-6">
+    <section data-onboarding="battle-sharing" className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
       <div>
-        <p className="rubric border-b border-edge pb-2">Who can watch your battles</p>
-        <p className="mt-3 text-xs text-dim">
+        <p className="rubric border-b border-edge pb-2">Privacy</p>
+        <h2 className="mt-4 text-base">Who can watch your battles</h2>
+        <p className="mt-1 text-sm text-dim">
           The most private choice at the table applies to everyone. If one player chooses Players only, that battle stays private.
           Spectators cannot make changes or see a face-down Secret Mission.
         </p>

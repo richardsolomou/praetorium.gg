@@ -14,6 +14,7 @@ import {
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { FactionLabel, type FactionPresentation } from './FactionMark'
+import type { OnboardingTarget } from '../onboarding'
 
 /**
  * One choice, optionally with something drawn beside its name.
@@ -33,6 +34,7 @@ type Props = {
   placeholder: string
   searchPlaceholder?: string
   className?: string
+  onboarding?: OnboardingTarget
 }
 
 export function SearchableSelect({
@@ -44,6 +46,7 @@ export function SearchableSelect({
   placeholder,
   searchPlaceholder = 'Search…',
   className,
+  onboarding,
 }: Props) {
   const selected = groups.flatMap((group) => group.items).find((option) => option.value === value) ?? null
 
@@ -60,6 +63,7 @@ export function SearchableSelect({
     >
       <ComboboxTrigger
         id={id}
+        data-onboarding={onboarding}
         aria-label={ariaLabel}
         className={cn(
           'flex h-8 w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-lg border border-input bg-transparent px-2.5 text-sm font-normal text-bone outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-muted data-placeholder:text-muted-foreground',

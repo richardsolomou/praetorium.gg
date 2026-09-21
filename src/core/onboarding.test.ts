@@ -1,42 +1,55 @@
-import { describe, expect, it } from 'vitest'
+import { expect, it } from 'vitest'
 import {
-  applyOnboardingProgressOperation,
   availableOnboardingTasks,
   EMPTY_ONBOARDING_PROGRESS,
-  normalizeOnboardingTasks,
-  onboardingTaskIds,
-  type OnboardingProgress,
+  type OnboardingFacts,
+  onboardingProgress,
+  type StoredOnboarding,
 } from './onboarding'
 
-describe('onboarding', () => {
-  it('covers every major product area', () => {
-    expect(onboardingTaskIds).toEqual(['roster', 'friend', 'battle', 'league', 'reference', 'community'])
-  })
+const NOTHING_DONE: OnboardingFacts = { roster: false, friend: false, battle: false, league: false }
+const NOTHING_STORED: StoredOnboarding = { welcomed: false, tasks: [] }
 
-  it('offers the battle task after its preparation tasks are resolved', () => {
-    const progress: OnboardingProgress = { ...EMPTY_ONBOARDING_PROGRESS, completedTasks: ['roster'], skippedTasks: ['friend'] }
+it('completes a task the player has already done', () => {
+  const progress = onboardingProgress(NOTHING_STORED, { ...NOTHING_DONE, roster: true })
 
-    expect(availableOnboardingTasks(progress).map((task) => task.id)).toEqual([
-      'roster',
-      'friend',
-      'battle',
-      'league',
-      'reference',
-      'community',
-    ])
-  })
+  expect(progress.completedTasks).toEqual(['roster'])
+})
 
-  it('completing a skipped task makes it complete instead', () => {
-    const progress: OnboardingProgress = { ...EMPTY_ONBOARDING_PROGRESS, skippedTasks: ['roster'] }
+it('stops reporting a skip once the player does the thing anyway', () => {
+  const stored: StoredOnboarding = { welcomed: false, tasks: [{ task: 'roster', state: 'skipped' }] }
 
-    expect(applyOnboardingProgressOperation(progress, { operation: 'complete', task: 'roster' })).toEqual({
-      completedTasks: ['roster'],
-      skippedTasks: [],
-      welcomed: false,
-    })
-  })
+  expect(onboardingProgress(stored, { ...NOTHING_DONE, roster: true }).skippedTasks).toEqual([])
+})
 
-  it('keeps only unique tasks this release understands', () => {
-    expect(normalizeOnboardingTasks(['friend', 'future-task', 'friend', 'roster'])).toEqual(['friend', 'roster'])
-  })
+it('keeps a skip of a task the player has not done', () => {
+  const stored: StoredOnboarding = { welcomed: false, tasks: [{ task: 'league', state: 'skipped' }] }
+
+  expect(onboardingProgress(stored, NOTHING_DONE).skippedTasks).toEqual(['league'])
+})
+
+it('completes a tour nothing else records', () => {
+  const stored: StoredOnboarding = { welcomed: false, tasks: [{ task: 'reference', state: 'completed' }] }
+
+  expect(onboardingProgress(stored, NOTHING_DONE).completedTasks).toEqual(['reference'])
+})
+
+it('ignores a stored task this release does not know', () => {
+  const stored: StoredOnboarding = { welcomed: false, tasks: [{ task: 'painting', state: 'skipped' }] }
+
+  expect(onboardingProgress(stored, NOTHING_DONE).skippedTasks).toEqual([])
+})
+
+it('carries the welcome through the fold', () => {
+  expect(onboardingProgress({ welcomed: true, tasks: [] }, NOTHING_DONE).welcomed).toBe(true)
+})
+
+it('withholds the battle task until a list and a friend exist', () => {
+  expect(availableOnboardingTasks(EMPTY_ONBOARDING_PROGRESS)).not.toContain('battle')
+})
+
+it('offers the battle task once its preparation is resolved either way', () => {
+  const progress = onboardingProgress({ welcomed: false, tasks: [{ task: 'friend', state: 'skipped' }] }, { ...NOTHING_DONE, roster: true })
+
+  expect(availableOnboardingTasks(progress)).toContain('battle')
 })

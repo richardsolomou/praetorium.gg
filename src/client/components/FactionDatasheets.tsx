@@ -12,7 +12,6 @@ import { GROUPS } from '../features/builder/groups'
 import { Section } from '../features/builder/Section'
 import { PageState } from './PageState'
 import { PageContent, PageHeader } from './Page'
-import { advanceOnboarding } from '../onboarding'
 
 export function FactionDatasheets() {
   const { catalogueId } = useParams({ strict: false })
@@ -44,6 +43,7 @@ export function FactionDatasheets() {
           <ChevronLeft className="size-3.5" /> {faction.references[0]?.name ?? faction.displayName}
         </Link>
         <SearchField
+          onboarding="datasheet-search"
           className="mt-4"
           value={query}
           onChange={setQuery}
@@ -88,15 +88,14 @@ export function FactionDatasheets() {
 const FactionDatasheetRow = memo(function FactionDatasheetRow({ catalogueId, unit }: { catalogueId: string; unit: UnitSummary }) {
   return (
     <div
+      data-onboarding="datasheet-row"
       data-datasheet={unit.name}
       className="flex w-full min-w-0 items-center border border-edge bg-panel [contain:layout_style] hover:border-info"
     >
       <Link
-        data-onboarding="datasheet-index"
         to="/factions/$catalogueId/datasheets/$entryId"
         params={{ catalogueId, entryId: unit.slug }}
         className="flex min-w-0 flex-1 items-center justify-between px-3 py-2"
-        onClick={() => advanceOnboarding('reference', 'reference-datasheets', 'reference-datasheet')}
       >
         <span className="truncate text-sm font-bold uppercase">{unit.name}</span>
         {unit.points === null ? null : <span className="chip ml-2 shrink-0">{unit.points} pts</span>}

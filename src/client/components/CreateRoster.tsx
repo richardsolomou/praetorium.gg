@@ -36,7 +36,6 @@ export function CreateRoster({ factionOptions }: { factionOptions: RosterSetupFa
         },
       }),
     onSuccess: async ({ id }) => {
-      advanceOnboarding('roster', 'roster-setup', 'roster-picker')
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id } })
     },
@@ -47,7 +46,7 @@ export function CreateRoster({ factionOptions }: { factionOptions: RosterSetupFa
       <Button
         data-onboarding="create-roster"
         onClick={() => {
-          advanceOnboarding('roster', 'roster-start', 'roster-setup')
+          advanceOnboarding('roster', 'roster-start', 'roster-faction')
           setOpen(true)
         }}
       >

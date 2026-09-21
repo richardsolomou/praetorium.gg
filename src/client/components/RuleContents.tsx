@@ -4,7 +4,6 @@ import { ChevronLeft } from 'lucide-react'
 import { formatDate } from '../dates'
 import { ruleIndexQuery } from '../queries'
 import { PageContent, PageHeader } from './Page'
-import { advanceOnboarding } from '../onboarding'
 
 /** One document's contents: every section, and every rule in it by number and name. */
 export function RuleContents({ documentId }: { documentId: string }) {
@@ -30,14 +29,12 @@ export function RuleContents({ documentId }: { documentId: string }) {
           <ChevronLeft className="size-3.5" aria-hidden /> Rules
         </Link>
         {document.sections.map((section) => (
-          <section key={section.id} className="mt-5">
+          <section key={section.id} data-onboarding="rule-contents" className="mt-5">
             <h2 className="rubric flex items-baseline justify-between gap-3 border-b border-edge pb-2">
               <Link
-                data-onboarding="rule-document"
                 to="/rules/$documentId/$sectionId"
                 params={{ documentId: document.slug, sectionId: section.slug }}
                 className="hover:text-bone"
-                onClick={() => advanceOnboarding('reference', 'reference-rule-document', 'reference-rule-section')}
               >
                 {section.title}
               </Link>
@@ -46,13 +43,12 @@ export function RuleContents({ documentId }: { documentId: string }) {
             <div className="mt-2 grid gap-px border border-edge bg-edge sm:grid-cols-2">
               {section.entries.map((entry) => (
                 <Link
-                  data-onboarding="rule-document"
                   key={entry.anchor}
+                  data-onboarding="rule-entry"
                   to="/rules/$documentId/$sectionId"
                   params={{ documentId: document.slug, sectionId: section.slug }}
                   hash={entry.anchor}
                   className="flex items-center gap-2 bg-panel px-3 py-2 hover:bg-raised"
-                  onClick={() => advanceOnboarding('reference', 'reference-rule-document', 'reference-rule-section')}
                 >
                   {entry.code ? <span className="readout w-16 shrink-0 text-xs text-faint">{entry.code}</span> : null}
                   <span className="min-w-0 flex-1 truncate text-sm text-bone">{entry.title}</span>

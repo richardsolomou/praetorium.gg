@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { onboardingTaskIds } from '../core/onboarding'
+import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
 import { BATTLE_AUDIENCES } from '../core/battleAudience'
 import {
@@ -143,8 +143,9 @@ export const userSchema = z.object({ userId: id })
 export const playerSearchSchema = z.object({ query: z.string().trim().max(PLAYER_SEARCH_MAX_LENGTH) })
 export const friendSchema = z.object({ userId: id })
 const onboardingTaskSchema = z.enum(onboardingTaskIds)
+/** Only a tour can be completed by saying so; every other task is folded from what the player did. */
 export const onboardingUpdateSchema = z.discriminatedUnion('operation', [
-  z.object({ operation: z.literal('complete'), task: onboardingTaskSchema }),
+  z.object({ operation: z.literal('complete'), task: z.enum(tourTaskIds) }),
   z.object({ operation: z.literal('skip'), task: onboardingTaskSchema }),
   z.object({ operation: z.literal('restore'), task: onboardingTaskSchema }),
   z.object({ operation: z.literal('welcome') }),

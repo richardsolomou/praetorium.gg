@@ -6,7 +6,6 @@ import {
   gameReferencesRefreshInterval,
   loadoutDatasheetsQuery,
   newestBattleScreen,
-  onboardingQuery,
   playerSearchKey,
   playerSearchQuery,
   terrainReferencesQuery,
@@ -68,12 +67,6 @@ describe('player search queries', () => {
 
   it('keys each name separately so one search cannot answer another', () => {
     expect(playerSearchQuery('alice').queryKey).toEqual([...playerSearchKey, 'alice'])
-  })
-})
-
-describe('onboarding queries', () => {
-  it('keys progress by account', () => {
-    expect(onboardingQuery('alice').queryKey).not.toEqual(onboardingQuery('bob').queryKey)
   })
 })
 

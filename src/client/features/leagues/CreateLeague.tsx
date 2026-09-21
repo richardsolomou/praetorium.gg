@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { createLeague } from '../../../server/functions'
 import { leaguesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { advanceOnboarding, signalOnboardingProgress } from '../../onboarding'
+import { advanceOnboarding } from '../../onboarding'
 import { LeagueFormFields, type LeagueFormValue } from './LeagueForm'
 
 export function CreateLeague() {
@@ -24,8 +24,6 @@ export function CreateLeague() {
   const create = useMutation({
     mutationFn: () => createLeague({ data: value }),
     onSuccess: async ({ token, eventToken }) => {
-      advanceOnboarding('league', 'league-setup', 'league-workspace')
-      signalOnboardingProgress('league', true)
       await queryClient.invalidateQueries({ queryKey: leaguesQuery().queryKey })
       setOpen(false)
       await navigate({ to: '/leagues/$token', params: { token }, search: { event: eventToken } })
@@ -35,7 +33,7 @@ export function CreateLeague() {
   return (
     <Dialog open={open} onOpenChange={(next) => !create.isPending && setOpen(next)}>
       <DialogTrigger
-        render={<Button data-onboarding="create-league" onClick={() => advanceOnboarding('league', 'league-start', 'league-setup')} />}
+        render={<Button data-onboarding="create-league" onClick={() => advanceOnboarding('league', 'league-start', 'league-name')} />}
       >
         <Plus /> New league
       </DialogTrigger>
@@ -53,16 +51,14 @@ export function CreateLeague() {
             create.mutate()
           }}
         >
-          <div data-onboarding="league-setup">
-            <LeagueFormFields idPrefix="create-league" value={value} disabled={create.isPending} onChange={setValue} />
-          </div>
+          <LeagueFormFields idPrefix="create-league" value={value} disabled={create.isPending} onChange={setValue} />
           {create.isPending ? <output className="sr-only">Creating league…</output> : null}
           {create.error ? <p className="text-sm text-destructive">{errorMessage(create.error)}</p> : null}
           <DialogFooter>
             <Button type="button" variant="outline" disabled={create.isPending} onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={create.isPending || !value.name.trim()}>
+            <Button data-onboarding="league-create" type="submit" disabled={create.isPending || !value.name.trim()}>
               {create.isPending ? 'Creating…' : 'Create league'}
             </Button>
           </DialogFooter>

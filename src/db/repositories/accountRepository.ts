@@ -1,34 +1,30 @@
-import { and, asc, count, desc, eq, ilike, inArray, isNull, lt, ne, notExists, or, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, exists, ilike, inArray, isNotNull, isNull, lt, ne, notExists, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import type { AdminUserPage, AdminUsersCursor } from '../../admin'
 import {
-  applyOnboardingProgressOperation,
   EMPTY_ONBOARDING_PROGRESS,
-  normalizeOnboardingTasks,
+  onboardingProgress as foldOnboardingProgress,
   type OnboardingProgress,
   type OnboardingProgressOperation,
 } from '../../core/onboarding'
 import type { PraetoriumDatabase } from '../connection'
-import { account, battleUsers, friendInvites, friendships, practiceOpponents, rosters, user, userOnboarding } from '../schema'
+import {
+  account,
+  battleUsers,
+  friendInvites,
+  friendships,
+  leagueEventEntries,
+  leagues,
+  practiceOpponents,
+  rosters,
+  user,
+  userOnboarding,
+  userOnboardingTasks,
+} from '../schema'
 import type { UnlinkAccountResult } from '../repository'
 
 const ADMIN_USERS_PAGE_SIZE = 50
 const PLAYER_SEARCH_LIMIT = 20
-
-function storedOnboardingProgress(
-  row: { completedTasks: string; skippedTasks: string; welcomed: boolean } | undefined,
-): OnboardingProgress {
-  if (!row) return EMPTY_ONBOARDING_PROGRESS
-  const parse = (value: string) => {
-    try {
-      const parsed: unknown = JSON.parse(value)
-      return normalizeOnboardingTasks(Array.isArray(parsed) ? parsed.filter((task): task is string => typeof task === 'string') : [])
-    } catch {
-      return []
-    }
-  }
-  return { completedTasks: parse(row.completedTasks), skippedTasks: parse(row.skippedTasks), welcomed: row.welcomed }
-}
 
 type AccountTransaction = Parameters<Parameters<PraetoriumDatabase['transaction']>[0]>[0]
 
@@ -50,26 +46,78 @@ export class AccountRepository {
     return row
   }
 
-  async onboardingProgress(userId: string) {
-    const [row] = await this.database.select().from(userOnboarding).where(eq(userOnboarding.userId, userId)).limit(1)
-    return storedOnboardingProgress(row)
+  /**
+   * What the guide should show, asked of the rows the product already writes.
+   *
+   * One query answers every derived task at once and carries the welcome back
+   * with it; the second reads the handful of rows only the player could have
+   * written. Nothing here is a stored copy of a fact, so an account that predates
+   * the guide arrives with its history already counted.
+   */
+  async onboardingProgress(userId: string): Promise<OnboardingProgress> {
+    const anyRow = { one: sql`1` }
+    const [[row], tasks] = await Promise.all([
+      this.database
+        .select({
+          welcomed: userOnboarding.welcomed,
+          roster: sql<boolean>`${exists(
+            this.database
+              .select(anyRow)
+              .from(rosters)
+              .where(and(eq(rosters.userId, userId), ne(rosters.picks, '[]'))),
+          )}`,
+          friend: sql<boolean>`${exists(
+            this.database
+              .select(anyRow)
+              .from(friendships)
+              .where(and(isNotNull(friendships.acceptedAt), or(eq(friendships.requesterId, userId), eq(friendships.addresseeId, userId)))),
+          )}`,
+          battle: sql<boolean>`${exists(this.database.select(anyRow).from(battleUsers).where(eq(battleUsers.userId, userId)))}`,
+          league: sql<boolean>`${or(
+            exists(this.database.select(anyRow).from(leagues).where(eq(leagues.ownerId, userId))),
+            exists(this.database.select(anyRow).from(leagueEventEntries).where(eq(leagueEventEntries.userId, userId))),
+          )}`,
+        })
+        .from(user)
+        .leftJoin(userOnboarding, eq(userOnboarding.userId, user.id))
+        .where(eq(user.id, userId)),
+      this.database
+        .select({ task: userOnboardingTasks.task, state: userOnboardingTasks.state })
+        .from(userOnboardingTasks)
+        .where(eq(userOnboardingTasks.userId, userId)),
+    ])
+    if (!row) return EMPTY_ONBOARDING_PROGRESS
+    return foldOnboardingProgress({ welcomed: row.welcomed ?? false, tasks }, row)
   }
 
-  async updateOnboardingProgress(userId: string, operation: OnboardingProgressOperation) {
-    return this.database.transaction(async (tx) => {
-      await tx.insert(userOnboarding).values({ userId }).onConflictDoNothing()
-      const [row] = await tx.select().from(userOnboarding).where(eq(userOnboarding.userId, userId)).for('update')
-      const next = applyOnboardingProgressOperation(storedOnboardingProgress(row), operation)
-      await tx
-        .update(userOnboarding)
-        .set({
-          completedTasks: JSON.stringify(next.completedTasks),
-          skippedTasks: JSON.stringify(next.skippedTasks),
-          welcomed: next.welcomed,
-        })
-        .where(eq(userOnboarding.userId, userId))
-      return next
-    })
+  /**
+   * One row written the way the player left it. Every operation is idempotent and
+   * addresses a single primary key, so repeating one or racing two needs no lock.
+   */
+  async updateOnboardingProgress(userId: string, operation: OnboardingProgressOperation): Promise<OnboardingProgress> {
+    if (operation.operation === 'welcome') {
+      await this.database
+        .insert(userOnboarding)
+        .values({ userId, welcomed: true })
+        .onConflictDoUpdate({ target: userOnboarding.userId, set: { welcomed: true } })
+    } else if (operation.operation === 'restore') {
+      await this.database
+        .delete(userOnboardingTasks)
+        .where(
+          and(
+            eq(userOnboardingTasks.userId, userId),
+            eq(userOnboardingTasks.task, operation.task),
+            eq(userOnboardingTasks.state, 'skipped'),
+          ),
+        )
+    } else {
+      const state = operation.operation === 'complete' ? 'completed' : 'skipped'
+      await this.database
+        .insert(userOnboardingTasks)
+        .values({ userId, task: operation.task, state })
+        .onConflictDoUpdate({ target: [userOnboardingTasks.userId, userOnboardingTasks.task], set: { state } })
+    }
+    return this.onboardingProgress(userId)
   }
 
   async adminUsers(input: { query?: string; cursor?: AdminUsersCursor | null; limit?: number } = {}): Promise<AdminUserPage> {

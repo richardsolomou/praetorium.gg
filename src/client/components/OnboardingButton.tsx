@@ -1,18 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { Map } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { onboardingTasks } from '../../core/onboarding'
-import { openOnboarding } from '../onboarding'
+import { resolvedOnboardingTasks } from '../../core/onboarding'
+import { onboardingTasks, openOnboarding } from '../onboarding'
 import { meQuery, onboardingQuery } from '../queries'
 
 export function OnboardingButton() {
   const { data: me } = useQuery(meQuery())
-  return me ? <AccountOnboardingButton userId={me.id} /> : null
+  return me ? <AccountOnboardingButton /> : null
 }
 
-function AccountOnboardingButton({ userId }: { userId: string }) {
-  const { data } = useQuery(onboardingQuery(userId))
-  const resolved = data ? new Set([...data.completedTasks, ...data.skippedTasks]).size : 0
+function AccountOnboardingButton() {
+  const { data } = useQuery(onboardingQuery())
+  const resolved = data ? resolvedOnboardingTasks(data).size : 0
   const progress = (resolved / onboardingTasks.length) * 100
   const label = data ? `Getting started, ${resolved} of ${onboardingTasks.length} tasks resolved` : 'Getting started'
 

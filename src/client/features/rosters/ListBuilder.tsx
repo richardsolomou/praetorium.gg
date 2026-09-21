@@ -40,7 +40,7 @@ import { exportRoster, saveRoster } from '../../../server/functions'
 import { shareLink } from '../../nativeBridge'
 import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { advanceOnboarding, onboardingStepIsFocused, signalOnboardingProgress } from '../../onboarding'
+import { advanceOnboarding } from '../../onboarding'
 import { picksAfterDetachmentChange } from '../../rosterPicks'
 import { useCollectionMutation } from '../../useCollection'
 import { useSettled } from '../../useSettled'
@@ -544,16 +544,10 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
     reporting.current = 'roster_unit_removed'
     setSelected(null)
   }, [])
-  const add = useCallback(
-    (entryId: string) => {
-      editor.current.add(entryId)
-      reporting.current = 'roster_unit_added'
-      if (!wideWorkspace && me && onboardingStepIsFocused(me.id, 'roster', 'roster-picker')) closePane()
-      advanceOnboarding('roster', 'roster-picker', 'roster-list')
-      signalOnboardingProgress('roster', true)
-    },
-    [closePane, me, wideWorkspace],
-  )
+  const add = useCallback((entryId: string) => {
+    editor.current.add(entryId)
+    reporting.current = 'roster_unit_added'
+  }, [])
   const inspect = useCallback(
     (previewCatalogueId: string, entryId: string, unitName: string) => {
       const nextPreview = { catalogueId: previewCatalogueId, entryId, name: unitName }
@@ -585,7 +579,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
     const { picks: currentPicks, updateLoadoutHistory: updateHistory, workspacePath: currentWorkspace } = selection.current
     const selectedKey = currentPicks[index]?.key
     if (selectedKey !== undefined) updateHistory({ workspace: currentWorkspace, pane: 'loadout', selectedKey })
-    advanceOnboarding('roster', 'roster-list', 'roster-loadout')
+    advanceOnboarding('roster', 'roster-points', 'roster-loadout')
   }, [])
   const setUnitOwned = useCallback(
     (entryId: string, nextOwned: boolean) => mutateCollection({ entryId, owned: nextOwned }),
@@ -1119,9 +1113,12 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
                         <Crown className="size-3.5 fill-current" /> Warlord
                       </span>
                     ) : null}
-                    <span className="chip w-[4.5rem] justify-center text-info">{optimisticUnit.points} pts</span>
+                    <span data-onboarding="unit-points" className="chip w-[4.5rem] justify-center text-info">
+                      {optimisticUnit.points} pts
+                    </span>
                     {optimisticUnit.size.resizable && inspectorView === 'edit' ? (
                       <Stepper
+                        onboarding="unit-models"
                         label={`models in ${optimisticUnit.name}`}
                         countLabel={`${optimisticUnit.name} models`}
                         count={optimisticUnit.size.models}

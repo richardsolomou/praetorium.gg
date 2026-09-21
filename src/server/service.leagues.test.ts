@@ -40,29 +40,6 @@ it('creates a battle from the exact two sealed league snapshots', async () => {
   ])
 })
 
-it('completes battle onboarding when creating a league battle', async () => {
-  const league = await revealedLeague()
-
-  await service.createLeagueBattle('alice', league.token, 'dave', null)
-
-  await expect(service.onboardingProgress('alice')).resolves.toMatchObject({ completedTasks: ['league', 'battle'] })
-})
-
-it('completes league onboarding when creating or joining a league', async () => {
-  const league = await service.createLeague('alice', {
-    name: 'League',
-    description: '',
-    visibility: 'public',
-    admission: 'automatic',
-    playerLimit: null,
-  })
-
-  await service.joinLeague(league.token, 'bob')
-
-  await expect(service.onboardingProgress('alice')).resolves.toMatchObject({ completedTasks: ['league'] })
-  await expect(service.onboardingProgress('bob')).resolves.toMatchObject({ completedTasks: ['league'] })
-})
-
 it('finds a revealed league for the exact casual battle seats', async () => {
   const league = await revealedLeague()
 

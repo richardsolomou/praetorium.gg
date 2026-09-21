@@ -29,7 +29,7 @@ function MissionPacks() {
 
   if (path !== '/mission-packs') return <Outlet />
   return (
-    <main data-onboarding="mission-reference" className="flex w-full">
+    <main className="flex w-full">
       <PageState
         className="flex-1 border-x-0 border-t-0"
         loading={!data}

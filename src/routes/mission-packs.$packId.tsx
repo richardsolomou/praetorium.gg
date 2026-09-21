@@ -7,7 +7,6 @@ import { MissionCardReference } from '../client/components/MissionCardReference'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { gameReferencesQuery } from '../client/queries'
 import { PageContent, PageHeader } from '../client/components/Page'
-import { advanceOnboarding } from '../client/onboarding'
 
 export const Route = createFileRoute('/mission-packs/$packId')({
   loader: async ({ context, params }) => {
@@ -55,7 +54,7 @@ function MissionPackPage() {
         {allowances.length ? <p className="readout mt-1 text-xs text-dim">{allowances.join(' · ')}</p> : null}
       </PageHeader>
       <PageContent className="space-y-7">
-        <section>
+        <section data-onboarding="mission-dispositions">
           <h2 className="rubric border-b border-edge pb-2">Force dispositions</h2>
           <p className="mt-2 text-sm text-dim">Select the resulting mission to read its scoring rules.</p>
           {/* Bleeds to the window on a phone, so the cut-off column reads as a scroller. */}
@@ -89,12 +88,10 @@ function MissionPackPage() {
                     )
                     return found ? (
                       <Link
-                        data-onboarding="mission-reference"
                         key={opponent.id}
                         to="/mission-matchups/$packId/$you/$opponent"
                         params={{ packId, you: you.id, opponent: opponent.id }}
                         className="grid min-h-16 place-items-center border border-edge bg-panel px-2 text-center text-sm font-bold text-info uppercase hover:border-info hover:bg-raised"
-                        onClick={() => advanceOnboarding('reference', 'reference-missions', 'reference-mission')}
                       >
                         {found.name}
                       </Link>
@@ -110,7 +107,7 @@ function MissionPackPage() {
           </div>
         </section>
 
-        <section>
+        <section data-onboarding="mission-secondaries">
           <h2 className="rubric flex justify-between border-b border-edge pb-2">
             <span>Secondary missions</span>
             <span className="readout">{data.secondaries.length}</span>

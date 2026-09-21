@@ -79,13 +79,6 @@
   outline-offset: 3px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .react-joyride__floater {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-
 html[data-native-app='true'] [data-web-app-chrome] {
   display: none;
 }
@@ -446,7 +439,8 @@ html[data-native-shell='true'] [data-scoreboard] {
 [data-slot='context-menu-content'],
 [data-slot='context-menu-sub-content'],
 [data-slot='select-content'],
-[data-slot='combobox-content'] {
+[data-slot='combobox-content'],
+[data-slot='popover-content'] {
   --tw-ring-shadow: 0 0 #0000;
   border-width: 1px;
   border-radius: 0;

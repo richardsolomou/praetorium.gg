@@ -2,7 +2,18 @@ import { eq } from 'drizzle-orm'
 import { afterEach, expect, it } from 'vitest'
 import type { PraetoriumConnection } from './connection'
 import { Repository } from './repository'
-import { battleUsers, battles, commands, leagueEventEntries, leagueEvents, leagues, user } from './schema'
+import {
+  battleUsers,
+  battles,
+  commands,
+  friendships,
+  leagueEventEntries,
+  leagueEvents,
+  leagues,
+  rosters,
+  user,
+  userOnboardingTasks,
+} from './schema'
 import { openTestDatabase } from './testDatabase'
 
 let connection: PraetoriumConnection | undefined
@@ -44,21 +55,143 @@ it('searches users outside the first administrator page', async () => {
   expect(found.users.map((entry) => entry.name)).toEqual(['Needle Player'])
 })
 
-it('persists onboarding progress without losing simultaneous tasks', async () => {
+async function seedRoster(userId: string, picks: string) {
+  await connection!.database.insert(rosters).values({
+    id: `${userId}-roster`,
+    userId,
+    name: 'Army',
+    catalogueId: 'catalogue',
+    limit: 2000,
+    picks,
+    createdAt: 1,
+    updatedAt: 1,
+  })
+}
+
+it('counts a saved list as the roster task', async () => {
+  const repository = await users(1)
+  await seedRoster('user-000', '[{"entryId":"unit"}]')
+
+  expect((await repository.onboardingProgress('user-000')).completedTasks).toEqual(['roster'])
+})
+
+it('does not count a list with nothing in it', async () => {
+  const repository = await users(1)
+  await seedRoster('user-000', '[]')
+
+  expect((await repository.onboardingProgress('user-000')).completedTasks).toEqual([])
+})
+
+it('counts an accepted friendship as the friend task', async () => {
+  const repository = await users(2)
+  await connection!.database.insert(friendships).values({ requesterId: 'user-001', addresseeId: 'user-000', requestedAt: 1, acceptedAt: 2 })
+
+  expect((await repository.onboardingProgress('user-000')).completedTasks).toEqual(['friend'])
+})
+
+it('does not count a friend request nobody has accepted', async () => {
+  const repository = await users(2)
+  await connection!.database
+    .insert(friendships)
+    .values({ requesterId: 'user-000', addresseeId: 'user-001', requestedAt: 1, acceptedAt: null })
+
+  expect((await repository.onboardingProgress('user-000')).completedTasks).toEqual([])
+})
+
+it('counts a seat the player did not open as the battle task', async () => {
+  const repository = await users(1)
+  await seedBattles(1)
+
+  expect((await repository.onboardingProgress('user-000')).completedTasks).toEqual(['battle'])
+})
+
+it("counts an entry in somebody else's league as the league task", async () => {
+  const repository = await users(2)
+  await repository.createLeague({
+    id: 'league',
+    token: 'league-token',
+    ownerId: 'user-001',
+    name: 'Grand Tournament',
+    description: '',
+    visibility: 'public',
+    admission: 'automatic',
+    playerLimit: 4,
+    now: 1,
+  })
+  expect(await repository.joinLeague('league-token', 'user-000', 2, 2000)).toBe('accepted')
+
+  expect((await repository.onboardingProgress('user-000')).completedTasks).toEqual(['league'])
+})
+
+it('folds a done task without writing an onboarding row', async () => {
+  const repository = await users(1)
+  await seedRoster('user-000', '[{"entryId":"unit"}]')
+  await repository.onboardingProgress('user-000')
+
+  expect(await connection!.database.select().from(userOnboardingTasks)).toEqual([])
+})
+
+it('keeps a finished tour nothing else records', async () => {
   const repository = await users(1)
 
-  expect(await repository.onboardingProgress('user-000')).toEqual({ completedTasks: [], skippedTasks: [], welcomed: false })
-  await Promise.all([
-    repository.updateOnboardingProgress('user-000', { operation: 'complete', task: 'roster' }),
-    repository.updateOnboardingProgress('user-000', { operation: 'complete', task: 'friend' }),
-  ])
+  const progress = await repository.updateOnboardingProgress('user-000', { operation: 'complete', task: 'reference' })
+
+  expect(progress.completedTasks).toEqual(['reference'])
+})
+
+it('keeps a task the player waved away', async () => {
+  const repository = await users(1)
+
+  const progress = await repository.updateOnboardingProgress('user-000', { operation: 'skip', task: 'league' })
+
+  expect(progress.skippedTasks).toEqual(['league'])
+})
+
+it('finishing a tour the player waved away completes it', async () => {
+  const repository = await users(1)
+  await repository.updateOnboardingProgress('user-000', { operation: 'skip', task: 'reference' })
+
+  const progress = await repository.updateOnboardingProgress('user-000', { operation: 'complete', task: 'reference' })
+
+  expect(progress.completedTasks).toEqual(['reference'])
+})
+
+it('restoring a skip leaves a finished tour alone', async () => {
+  const repository = await users(1)
+  await repository.updateOnboardingProgress('user-000', { operation: 'complete', task: 'community' })
+
+  const progress = await repository.updateOnboardingProgress('user-000', { operation: 'restore', task: 'community' })
+
+  expect(progress.completedTasks).toEqual(['community'])
+})
+
+it('restoring a skip offers the task again', async () => {
+  const repository = await users(1)
+  await repository.updateOnboardingProgress('user-000', { operation: 'skip', task: 'league' })
+
+  const progress = await repository.updateOnboardingProgress('user-000', { operation: 'restore', task: 'league' })
+
+  expect(progress.skippedTasks).toEqual([])
+})
+
+it('leaves a task id it does not understand where it found it', async () => {
+  const repository = await users(1)
+  await connection!.database.insert(userOnboardingTasks).values({ userId: 'user-000', task: 'painting', state: 'skipped' })
+
+  await repository.updateOnboardingProgress('user-000', { operation: 'skip', task: 'league' })
+
+  expect(
+    await connection!.database.select({ task: userOnboardingTasks.task }).from(userOnboardingTasks).orderBy(userOnboardingTasks.task),
+  ).toEqual([{ task: 'league' }, { task: 'painting' }])
+})
+
+it('welcomes a player who is already welcome', async () => {
+  const repository = await users(1)
   await repository.updateOnboardingProgress('user-000', { operation: 'welcome' })
 
-  expect(await repository.onboardingProgress('user-000')).toEqual({
-    completedTasks: ['roster', 'friend'],
-    skippedTasks: [],
-    welcomed: true,
-  })
+  const progress = await repository.updateOnboardingProgress('user-000', { operation: 'welcome' })
+
+  expect(progress.welcomed).toBe(true)
 })
 
 it('reads a log past a command kind it does not recognise', async () => {

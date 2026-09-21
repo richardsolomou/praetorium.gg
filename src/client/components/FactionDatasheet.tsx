@@ -21,6 +21,7 @@ import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from './Key
 import { ProfileRules } from './ProfileRules'
 import { RuleText } from './RuleText'
 import { PageContent, PageHeader } from './Page'
+import type { OnboardingTarget } from '../onboarding'
 
 export function FactionDatasheet() {
   const params = useParams({ strict: false })
@@ -39,7 +40,6 @@ export function FactionDatasheet() {
   return (
     <main className="w-full">
       <PageHeader
-        onboarding="datasheet-detail"
         tint={factionColour(faction.slug)}
         eyebrow={`${faction.displayName} · Datasheet`}
         title={sheet.name}
@@ -52,7 +52,7 @@ export function FactionDatasheet() {
           </div>
         }
       >
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div data-onboarding="datasheet-keywords" className="mt-2 flex flex-wrap gap-1">
           {sheet.keywords.map((keyword) => (
             <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
           ))}
@@ -79,9 +79,15 @@ export function FactionDatasheet() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        {unit.length === 1 && unit[0] ? <UnitCharacteristics profile={unit[0]} /> : null}
+        {unit.length === 1 && unit[0] ? <UnitCharacteristics onboarding="datasheet-stats" profile={unit[0]} /> : null}
         {unit.length > 1 ? (
-          <ProfileTable title="Models" profiles={unit} omit={['invulnerable-save']} keywordRules={sheet.keywordRules} />
+          <ProfileTable
+            onboarding="datasheet-stats"
+            title="Models"
+            profiles={unit}
+            omit={['invulnerable-save']}
+            keywordRules={sheet.keywordRules}
+          />
         ) : null}
         {unit.length > 1 && invulnerable.length ? (
           <section>
@@ -96,11 +102,19 @@ export function FactionDatasheet() {
             </div>
           </section>
         ) : null}
-        {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
-        {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
-        <Abilities abilities={referenceAbilities(sheet.abilities, sheet.attachments)} rules={sheet.keywordRules} />
+        {ranged.length ? (
+          <ProfileTable onboarding="datasheet-weapons" title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} />
+        ) : null}
+        {melee.length ? (
+          <ProfileTable onboarding="datasheet-weapons" title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} />
+        ) : null}
+        <Abilities
+          onboarding="datasheet-abilities"
+          abilities={referenceAbilities(sheet.abilities, sheet.attachments)}
+          rules={sheet.keywordRules}
+        />
         <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} />
-        <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
+        <UnitConfiguration onboarding="datasheet-config" sheet={sheet} rules={sheet.keywordRules} />
         {sheet.transport ? (
           <section>
             <h2 className="rubric">Transport</h2>
@@ -118,7 +132,7 @@ export function FactionDatasheet() {
 
 type DisplayAbility = Datasheet['abilities'][number]
 
-function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: KeywordRule[] }) {
+function Abilities({ abilities, rules, onboarding }: { abilities: DisplayAbility[]; rules: KeywordRule[]; onboarding?: OnboardingTarget }) {
   return Object.entries(abilitySections).map(([kind, title]) => {
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
@@ -135,7 +149,7 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
     )
     if (kind === 'core' || kind === 'faction') {
       return (
-        <section key={kind}>
+        <section key={kind} data-onboarding={onboarding}>
           <h2 className="rubric">
             {title} <span className="readout text-faint">{found.length}</span>
           </h2>
@@ -159,7 +173,7 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
       )
     }
     return (
-      <section key={kind}>
+      <section key={kind} data-onboarding={onboarding}>
         <h2 className="rubric">
           {title} <span className="readout text-faint">{found.length}</span>
         </h2>
@@ -169,10 +183,10 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
   })
 }
 
-function UnitConfiguration({ sheet, rules }: { sheet: Datasheet; rules: KeywordRule[] }) {
+function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rules: KeywordRule[]; onboarding?: OnboardingTarget }) {
   if (!sheet.composition.length && !sheet.loadout && !sheet.wargearOptions.length && !sheet.costs.length) return null
   return (
-    <section>
+    <section data-onboarding={onboarding}>
       <h2 className="rubric">Unit configuration</h2>
       <div className="mt-2 overflow-hidden border border-edge bg-panel">
         <div className="grid md:grid-cols-2 md:divide-x md:divide-edge">
@@ -263,11 +277,11 @@ function Relationships({ sheet }: { sheet: Datasheet }) {
 
 type DisplayProfile = StructuredDatasheetProfile
 
-function UnitCharacteristics({ profile }: { profile: DisplayProfile }) {
+function UnitCharacteristics({ profile, onboarding }: { profile: DisplayProfile; onboarding?: OnboardingTarget }) {
   const invulnerable = profile.values.find((value) => datasheetCharacteristicKindOf(value) === 'invulnerable-save')?.value
   const values = profile.values.filter((value) => datasheetCharacteristicKindOf(value) !== 'invulnerable-save')
   return (
-    <section>
+    <section data-onboarding={onboarding}>
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
         {values.map((value) => (
           <div key={value.name} className="border border-edge bg-panel px-3 py-2 text-center">
@@ -303,11 +317,13 @@ export function ProfileTable({
   profiles,
   omit = noColumns,
   keywordRules,
+  onboarding,
 }: {
   title: string
   profiles: DisplayProfile[]
   omit?: DatasheetCharacteristicKind[]
   keywordRules: KeywordRule[]
+  onboarding?: OnboardingTarget
 }) {
   const columns = profileTableColumns(profiles).filter(
     ({ characteristic }) => !omit.includes(datasheetCharacteristicKindOf(characteristic)),
@@ -317,7 +333,7 @@ export function ProfileTable({
       ? weaponProfileGroups(profiles)
       : profiles.map((profile) => [profile])
   return (
-    <section>
+    <section data-onboarding={onboarding}>
       <h2 className="rubric">
         {title} <span className="readout text-faint">{groups.length}</span>
       </h2>

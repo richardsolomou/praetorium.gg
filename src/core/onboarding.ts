@@ -2,83 +2,69 @@ export const onboardingTaskIds = ['roster', 'friend', 'battle', 'league', 'refer
 
 export type OnboardingTaskId = (typeof onboardingTaskIds)[number]
 
-export type OnboardingTask = {
-  id: OnboardingTaskId
-  title: string
-  description: string
-  prerequisites: readonly OnboardingTaskId[]
+/** Tours that only a finished walkthrough can complete; every other task is folded from what the player has actually done. */
+export const tourTaskIds = ['reference', 'community'] as const
+
+export type TourTaskId = (typeof tourTaskIds)[number]
+
+const factTaskIds = ['roster', 'friend', 'battle', 'league'] as const
+
+/** What the rest of the database already says the player has done. */
+export type OnboardingFacts = Record<(typeof factTaskIds)[number], boolean>
+
+export const onboardingPrerequisites: Record<OnboardingTaskId, readonly OnboardingTaskId[]> = {
+  roster: [],
+  friend: [],
+  battle: ['roster', 'friend'],
+  league: [],
+  reference: [],
+  community: [],
 }
 
-export const onboardingTasks: readonly OnboardingTask[] = [
-  {
-    id: 'roster',
-    title: 'Build your first army',
-    description: 'Create a roster, choose its faction and detachment, then add the units you want to field.',
-    prerequisites: [],
-  },
-  {
-    id: 'friend',
-    title: 'Add someone you play with',
-    description: 'Find another player by account name. Once they accept, you can seat them in a battle.',
-    prerequisites: [],
-  },
-  {
-    id: 'battle',
-    title: 'Start a battle',
-    description: 'Choose the players at the table, then work through armies, mission, deployment, and first turn together.',
-    prerequisites: ['roster', 'friend'],
-  },
-  {
-    id: 'league',
-    title: 'Join or run a league',
-    description: 'Use registration, sealed rosters, shared reveal, and event battles for organized play.',
-    prerequisites: [],
-  },
-  {
-    id: 'reference',
-    title: 'Explore the game reference',
-    description: 'Search Praetorium, browse factions and datasheets, compare missions, and read the source rules.',
-    prerequisites: [],
-  },
-  {
-    id: 'community',
-    title: 'Follow games and players',
-    description: 'Watch shared battles, check the standings, and choose who can see your own games.',
-    prerequisites: [],
-  },
-]
+/** The only onboarding state worth keeping: a welcome, a finished tour, and a task the player waved away. */
+export type StoredOnboarding = { welcomed: boolean; tasks: readonly { task: string; state: 'completed' | 'skipped' }[] }
 
-export type OnboardingProgress = {
-  completedTasks: OnboardingTaskId[]
-  skippedTasks: OnboardingTaskId[]
-  welcomed: boolean
-}
-
-export type OnboardingProgressOperation = { operation: 'complete' | 'skip' | 'restore'; task: OnboardingTaskId } | { operation: 'welcome' }
+export type OnboardingProgress = { completedTasks: OnboardingTaskId[]; skippedTasks: OnboardingTaskId[]; welcomed: boolean }
 
 export const EMPTY_ONBOARDING_PROGRESS: OnboardingProgress = { completedTasks: [], skippedTasks: [], welcomed: false }
 
-export function normalizeOnboardingTasks(tasks: string[]): OnboardingTaskId[] {
-  const known = new Set<string>(onboardingTaskIds)
-  return [...new Set(tasks)].filter((task): task is OnboardingTaskId => known.has(task))
+export type OnboardingProgressOperation =
+  | { operation: 'complete'; task: TourTaskId }
+  | { operation: 'skip' | 'restore'; task: OnboardingTaskId }
+  | { operation: 'welcome' }
+
+function isTourTask(task: OnboardingTaskId): task is TourTaskId {
+  return (tourTaskIds as readonly string[]).includes(task)
 }
 
-export function availableOnboardingTasks(progress: OnboardingProgress) {
-  const resolved = new Set([...progress.completedTasks, ...progress.skippedTasks])
-  return onboardingTasks.filter((task) => resolved.has(task.id) || task.prerequisites.every((prerequisite) => resolved.has(prerequisite)))
-}
-
-export function applyOnboardingProgressOperation(current: OnboardingProgress, operation: OnboardingProgressOperation): OnboardingProgress {
-  if (operation.operation === 'welcome') return { ...current, welcomed: true }
-  const completed = new Set(current.completedTasks)
-  const skipped = new Set(current.skippedTasks)
-  if (operation.operation === 'complete') {
-    completed.add(operation.task)
-    skipped.delete(operation.task)
-  } else if (operation.operation === 'skip') {
-    if (!completed.has(operation.task)) skipped.add(operation.task)
-  } else {
-    skipped.delete(operation.task)
+/**
+ * The one fold. A task is complete because the player did the thing, not because
+ * something remembered to say so; only a tour, which leaves no trace anywhere
+ * else, is completed by storage. Task ids a later release invented are ignored.
+ */
+export function onboardingProgress(stored: StoredOnboarding, facts: OnboardingFacts): OnboardingProgress {
+  const completed = new Set<OnboardingTaskId>(factTaskIds.filter((task) => facts[task]))
+  const skipped = new Set<OnboardingTaskId>()
+  for (const row of stored.tasks) {
+    const task = onboardingTaskIds.find((known) => known === row.task)
+    if (!task) continue
+    if (row.state === 'skipped') skipped.add(task)
+    else if (isTourTask(task)) completed.add(task)
   }
-  return { ...current, completedTasks: [...completed], skippedTasks: [...skipped] }
+  return {
+    completedTasks: onboardingTaskIds.filter((task) => completed.has(task)),
+    skippedTasks: onboardingTaskIds.filter((task) => skipped.has(task) && !completed.has(task)),
+    welcomed: stored.welcomed,
+  }
+}
+
+export function resolvedOnboardingTasks(progress: OnboardingProgress): Set<OnboardingTaskId> {
+  return new Set([...progress.completedTasks, ...progress.skippedTasks])
+}
+
+export function availableOnboardingTasks(progress: OnboardingProgress): OnboardingTaskId[] {
+  const resolved = resolvedOnboardingTasks(progress)
+  return onboardingTaskIds.filter(
+    (task) => resolved.has(task) || onboardingPrerequisites[task].every((prerequisite) => resolved.has(prerequisite)),
+  )
 }

@@ -3,12 +3,27 @@ import { expect } from '@playwright/test'
 
 export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfies BrowserContextOptions
 
+/**
+ * Closes the panel a first sign-in opens, and leaves an account that has already
+ * seen it alone.
+ *
+ * The welcome is stored per account, so a shared fixture signing in for the
+ * second time never opens it and there is no response to wait for.
+ */
 export async function dismissOnboardingWelcome(page: Page) {
+  const close = page.getByRole('button', { name: 'Close getting started' })
+  const opened = await close
+    .waitFor({ state: 'visible', timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false)
+  if (!opened) return false
   const welcomeSaved = page.waitForResponse(
     (response) => response.ok() && response.request().method() === 'POST' && Boolean(response.request().postData()?.includes('"welcome"')),
   )
-  await page.getByRole('button', { name: 'Close getting started' }).click()
+  await close.click()
   await welcomeSaved
+  await expect(close).toBeHidden()
+  return true
 }
 
 /**
@@ -49,7 +64,8 @@ export async function retryUntilVisible(outcome: Locator, action: () => Promise<
   }).toPass({ timeout: 10_000 })
 }
 
-export async function befriend(requester: Page, recipient: Page) {
+/** `beforeAccept` runs while the request is still pending, which is the only moment a test can read that state. */
+export async function befriend(requester: Page, recipient: Page, { beforeAccept }: { beforeAccept?: () => Promise<void> } = {}) {
   const accountMenu = (page: Page) => page.locator('[data-web-app-chrome] button[aria-label^="Account menu for "]')
   const requesterName = (await accountMenu(requester).getAttribute('aria-label'))?.replace('Account menu for ', '')
   const recipientName = (await accountMenu(recipient).getAttribute('aria-label'))?.replace('Account menu for ', '')
@@ -65,6 +81,10 @@ export async function befriend(requester: Page, recipient: Page) {
   await recipient.goto('/friends')
   const request = recipient.locator('section').filter({ hasText: 'Friend requests' }).filter({ hasText: requesterName })
   const accepted = recipient.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: requesterName })
+  if (beforeAccept) {
+    await expect(request).toBeVisible()
+    await beforeAccept()
+  }
   await retryUntilVisible(accepted, () => request.getByRole('button', { name: 'Accept' }).click())
   await requester.goto('/friends')
   await expect(requester.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: recipientName })).toBeVisible()

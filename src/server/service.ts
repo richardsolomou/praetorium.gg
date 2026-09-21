@@ -135,10 +135,8 @@ export class PraetoriumService {
     return this.repository.updateOnboardingProgress(userId, operation)
   }
 
-  async createLeague(...args: Parameters<LeagueService['createLeague']>) {
-    const result = await this.leagueService.createLeague(...args)
-    await this.repository.updateOnboardingProgress(args[0], { operation: 'complete', task: 'league' }).catch(() => undefined)
-    return result
+  createLeague(...args: Parameters<LeagueService['createLeague']>) {
+    return this.leagueService.createLeague(...args)
   }
 
   updateLeagueEvent(...args: Parameters<LeagueService['updateLeagueEvent']>) {
@@ -169,10 +167,8 @@ export class PraetoriumService {
     return this.leagueService.league(...args)
   }
 
-  async joinLeague(...args: Parameters<LeagueService['joinLeague']>) {
-    const result = await this.leagueService.joinLeague(...args)
-    await this.repository.updateOnboardingProgress(args[1], { operation: 'complete', task: 'league' }).catch(() => undefined)
-    return result
+  joinLeague(...args: Parameters<LeagueService['joinLeague']>) {
+    return this.leagueService.joinLeague(...args)
   }
 
   moderateLeagueEntry(...args: Parameters<LeagueService['moderateLeagueEntry']>) {
@@ -207,10 +203,8 @@ export class PraetoriumService {
     return this.leagueService.leagueRoster(...args)
   }
 
-  async createLeagueBattle(...args: Parameters<LeagueService['createLeagueBattle']>) {
-    const result = await this.leagueService.createLeagueBattle(...args)
-    await this.repository.updateOnboardingProgress(args[0], { operation: 'complete', task: 'battle' }).catch(() => undefined)
-    return result
+  createLeagueBattle(...args: Parameters<LeagueService['createLeagueBattle']>) {
+    return this.leagueService.createLeagueBattle(...args)
   }
 
   saveRoster(...args: Parameters<RosterService['saveRoster']>) {

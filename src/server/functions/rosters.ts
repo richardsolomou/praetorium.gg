@@ -194,14 +194,13 @@ export const saveRoster = createServerFn({ method: 'POST' })
       const player = await requireUser()
       const instance = app()
       const result = await instance.service.saveRoster(player.id, data)
-      if (!data.id) {
+      if (!data.id)
         await instance.telemetry.capture(player.id, 'roster_created', {
           ...rosterTelemetryProperties(data, instance.catalogue(), instance.rules()),
           unit_count: attachedUnitCount(data.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
           source: data.source,
           visibility: data.visibility,
         })
-      }
       return result
     }),
   )

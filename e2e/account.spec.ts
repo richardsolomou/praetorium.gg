@@ -205,7 +205,15 @@ test('friends use the profile picture shown elsewhere', async ({ browser }) => {
   await alice.getByRole('button', { name: 'Save profile' }).click()
   await expect(alice.getByText('Profile saved.')).toBeVisible()
   await signUp(bob, uniqueName('Bob'))
-  await befriend(alice, bob)
+  // A sent request is not a friendship, so the folded task only resolves once it is accepted.
+  await befriend(alice, bob, {
+    beforeAccept: async () => {
+      await alice.reload()
+      await expect(alice.getByRole('button', { name: 'Getting started, 0 of 6 tasks resolved' })).toBeVisible()
+    },
+  })
+  await alice.reload()
+  await expect(alice.getByRole('button', { name: 'Getting started, 1 of 6 tasks resolved' })).toBeVisible()
 
   const friend = bob.locator(`[data-person="${aliceName}"]`)
   await expect(friend.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
@@ -269,7 +277,7 @@ test('the header keeps onboarding available and the account menu stays personal'
   await page.getByRole('button', { name: 'Close getting started' }).click()
   await page.getByRole('button', { name: /Account menu for/ }).click()
 
-  await expect(page.getByRole('menuitem', { name: `Profile ${name}` })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'My profile' })).toContainText(name)
   await expect(page.getByRole('menuitem', { name: /My battles|My rosters|Leagues|Getting started/ })).toHaveCount(0)
   const feedback = page.getByRole('menuitem', { name: 'Send feedback' })
   await expect(feedback).toHaveAttribute('href', 'https://github.com/richardsolomou/praetorium.gg/issues')
@@ -280,13 +288,13 @@ test('the header keeps onboarding available and the account menu stays personal'
     .locator('[data-web-app-chrome]')
     .getByRole('button', { name: `Account menu for ${name}` })
     .click()
-  await expect(page.getByRole('menuitem', { name: `Profile ${name}` })).toBeHidden()
+  await expect(page.getByRole('menuitem', { name: 'My profile' })).toBeHidden()
   await page.setViewportSize({ width: 390, height: 844 })
   const mobileHeader = page.locator('[data-mobile-app-header]')
   await expect(mobileHeader.getByRole('button', { name: 'Getting started, 0 of 6 tasks resolved' })).toBeVisible()
   await page.screenshot({ path: 'test-results/onboarding-progress-phone.png', fullPage: true })
   await mobileHeader.getByRole('button', { name: `Account menu for ${name}` }).click()
-  await expect(page.getByRole('menuitem', { name: `Profile ${name}` })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'My profile' })).toBeVisible()
   await page.screenshot({ path: 'test-results/account-menu-phone.png', fullPage: true })
 })
 
@@ -304,9 +312,14 @@ test('a list saved under an account is there on another device', async ({ browse
   await expect(page.getByRole('button', { name: 'Account menu for Alice' })).toBeVisible()
   await dismissOnboardingWelcome(page)
 
+  await expect(page.getByRole('button', { name: 'Getting started, 0 of 6 tasks resolved' })).toBeVisible()
   await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Kept list' })
   await page.getByLabel('Add a unit').fill('Plague Marines')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click())
+
+  // Nothing recorded that the task was done: a reload folds it from the list this account now owns.
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Getting started, 1 of 6 tasks resolved' })).toBeVisible()
 
   // A different browser entirely: no cookie, no storage, nothing but the account.
   const second = await browser.newContext()

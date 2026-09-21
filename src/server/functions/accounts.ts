@@ -22,6 +22,12 @@ import {
 
 export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentUser()))
 
+const ONBOARDING_TASK_EVENTS = {
+  complete: 'onboarding_task_completed',
+  skip: 'onboarding_task_skipped',
+  restore: 'onboarding_task_restored',
+} as const
+
 export const onboardingProgress = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => app().service.onboardingProgress(await requireUserId())),
 )
@@ -32,7 +38,8 @@ export const updateOnboardingProgress = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const progress = await app().service.updateOnboardingProgress(player.id, data)
-      if (data.operation !== 'welcome') await app().telemetry.capture(player.id, `onboarding_task_${data.operation}`, { task: data.task })
+      if (data.operation === 'welcome') await app().telemetry.capture(player.id, 'onboarding_welcomed')
+      else await app().telemetry.capture(player.id, ONBOARDING_TASK_EVENTS[data.operation], { task: data.task })
       return progress
     }),
   )
@@ -197,9 +204,6 @@ export const requestFriend = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.requestFriend(userId, data.userId)
-      await app()
-        .service.updateOnboardingProgress(userId, { operation: 'complete', task: 'friend' })
-        .catch(() => undefined)
       await app().telemetry.capture(userId, 'friend_request_sent')
       return result
     }),

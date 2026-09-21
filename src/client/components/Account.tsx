@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { CircleUserRound, LogIn, LogOut, MessageSquareWarning, ShieldCheck, UserRoundPen, Users } from 'lucide-react'
+import { CircleUserRound, LogIn, LogOut, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -39,9 +39,16 @@ function AccountMenuItems() {
   return (
     <>
       {me ? (
-        <DropdownMenuItem render={<Link to="/users/$userId" params={{ userId: me.id }} search={{}} />} className="block px-2 py-2">
-          <span className="eyebrow block">Profile</span>
-          <span className="mt-0.5 block truncate text-sm font-semibold text-bone">{me.name}</span>
+        <DropdownMenuItem
+          render={<Link to="/users/$userId" params={{ userId: me.id }} search={{}} />}
+          aria-label="My profile"
+          className="items-start px-2 py-2"
+        >
+          <UserRound className="mt-0.5" />
+          <span className="min-w-0">
+            <span className="eyebrow block">Profile</span>
+            <span className="mt-0.5 block truncate text-sm font-semibold text-bone">{me.name}</span>
+          </span>
         </DropdownMenuItem>
       ) : (
         <DropdownMenuLabel className="px-2 py-2">
