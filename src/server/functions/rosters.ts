@@ -6,6 +6,7 @@ import { calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } fr
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, importRosterFile } from '../rosterFiles'
 import { factionsFor } from '../factionReferences'
+import { rosterTelemetryProperties } from '../rosterTelemetry'
 import {
   exportRosterSchema,
   importRosterSchema,
@@ -22,10 +23,14 @@ export const priceRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const startedAt = performance.now()
-      const result = calculateRosterPrice(data)
+      const instance = app()
+      const loaded = instance.catalogue()
+      const rules = instance.rules()
+      const result = calculateRosterPrice(data, loaded, rules)
       const userId = await currentUserId()
       if (userId && Math.random() < 0.1)
-        await app().telemetry.capture(userId, 'roster_priced', {
+        await instance.telemetry.capture(userId, 'roster_priced', {
+          ...rosterTelemetryProperties(data, loaded, rules),
           sample_rate: 0.1,
           unit_count: data.units.length,
           duration_ms: Math.round(performance.now() - startedAt),
@@ -187,9 +192,11 @@ export const saveRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = await app().service.saveRoster(player.id, data)
+      const instance = app()
+      const result = await instance.service.saveRoster(player.id, data)
       if (!data.id)
-        await app().telemetry.capture(player.id, 'roster_created', {
+        await instance.telemetry.capture(player.id, 'roster_created', {
+          ...rosterTelemetryProperties(data, instance.catalogue(), instance.rules()),
           unit_count: attachedUnitCount(data.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
           source: data.source,
           visibility: data.visibility,
@@ -224,12 +231,20 @@ export const importRoster = createServerFn({ method: 'POST' })
   .validator(importRosterSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const loaded = app().catalogue()
+      const instance = app()
+      const loaded = instance.catalogue()
       if (!loaded) throw new Response('army data is not available', { status: 409 })
       const result = importRosterFile(data, loaded)
       const userId = await currentUserId()
       if (userId) {
-        await app().telemetry.capture(userId, 'roster_imported', {
+        await instance.telemetry.capture(userId, 'roster_imported', {
+          ...(result.catalogueId && typeof result.limit === 'number'
+            ? rosterTelemetryProperties(
+                { catalogueId: result.catalogueId, detachmentIds: result.detachmentIds, limit: result.limit },
+                loaded,
+                instance.rules(),
+              )
+            : {}),
           unit_count: result.units.length,
           source: result.source,
           missing_count: result.unknown.length,
@@ -244,14 +259,20 @@ export const exportRoster = createServerFn({ method: 'POST' })
   .validator(exportRosterSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const loaded = app().catalogue()
+      const instance = app()
+      const loaded = instance.catalogue()
       if (!loaded) throw new Response('army data is not available', { status: 409 })
-      const priced = calculateRosterPrice(data)
+      const rules = instance.rules()
+      const priced = calculateRosterPrice(data, loaded, rules)
       if (!priced) throw new Response('army data is not available', { status: 409 })
-      const dispositionNames = priced.dispositions.map((disposition) => app().rules()?.dispositions.get(disposition) ?? disposition)
+      const dispositionNames = priced.dispositions.map((disposition) => rules?.dispositions.get(disposition) ?? disposition)
       const result = exportRosterFile(data, loaded, { ...priced, disposition: priced.disposition ?? null }, dispositionNames)
       const userId = await currentUserId()
-      if (userId) await app().telemetry.capture(userId, 'roster_exported', { unit_count: data.units.length })
+      if (userId)
+        await instance.telemetry.capture(userId, 'roster_exported', {
+          ...rosterTelemetryProperties(data, loaded, rules),
+          unit_count: data.units.length,
+        })
       return result
     }),
   )
