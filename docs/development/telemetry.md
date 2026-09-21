@@ -25,6 +25,8 @@ ordinary clicks remain autocaptured.
 
 `unit_count` on a roster event is how many units the list fields, counting a character inside the unit it joined, as `attachedUnitCount` folds it. The events that measure a request rather than a list — `roster_priced`, `roster_imported`, `roster_exported`, `roster_datasheet_loaded` — count the picks in that payload instead.
 
+Server-side roster events that have setup data carry `limit`, `faction`, `detachment`, and `detachment_count`. Faction and detachment values are normalized source names, not catalogue ids. `detachment_rules_covered` says whether every selected detachment has the rules-source semantics that Game Datacards does not supply; it is absent when no detachment is selected.
+
 Builder events cover structural roster changes, not autosave or each loadout
 stepper click. Search events carry only the bounded result group and result count;
 import failures carry only a bounded reason and input kind.
