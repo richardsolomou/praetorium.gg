@@ -278,6 +278,26 @@ export class PraetoriumService {
     return this.socialService.removeFriend(...args)
   }
 
+  activeFriendInvite(...args: Parameters<SocialService['activeFriendInvite']>) {
+    return this.socialService.activeFriendInvite(...args)
+  }
+
+  friendInvite(...args: Parameters<SocialService['friendInvite']>) {
+    return this.socialService.friendInvite(...args)
+  }
+
+  createFriendInvite(...args: Parameters<SocialService['createFriendInvite']>) {
+    return this.socialService.createFriendInvite(...args)
+  }
+
+  cancelFriendInvite(...args: Parameters<SocialService['cancelFriendInvite']>) {
+    return this.socialService.cancelFriendInvite(...args)
+  }
+
+  acceptFriendInvite(...args: Parameters<SocialService['acceptFriendInvite']>) {
+    return this.socialService.acceptFriendInvite(...args)
+  }
+
   /** The last standings folded, and when they stop being offered. See `standings`. */
   private standingsHeld: { until: number; fold: StandingsFold } | null = null
 

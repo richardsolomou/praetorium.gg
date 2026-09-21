@@ -36,6 +36,58 @@ describe('favourite detachments', () => {
 })
 
 describe('friends', () => {
+  it('turns a one-time invite into a friendship when another player accepts it', async () => {
+    await enrol('dave', 'Dave')
+    await enrol('erin', 'Erin')
+    const invite = await service.createFriendInvite('alice')
+
+    expect(await service.friendInvite(invite.token)).toEqual({
+      token: invite.token,
+      inviter: { id: 'alice', name: 'Alice', image: null },
+    })
+    await service.acceptFriendInvite('dave', invite.token)
+
+    expect(await service.opponents('alice')).toContainEqual({ id: 'dave', name: 'Dave', image: null, automated: false })
+    expect(await service.friendInvite(invite.token)).toBeNull()
+    await expect(service.acceptFriendInvite('erin', invite.token)).rejects.toThrow(expect.objectContaining({ status: 404 }))
+    expect(await service.opponents('alice')).not.toContainEqual(expect.objectContaining({ id: 'erin' }))
+  })
+
+  it('replaces an unclaimed invite instead of leaving several active links', async () => {
+    const first = await service.createFriendInvite('alice')
+    const second = await service.createFriendInvite('alice')
+
+    expect(second.token).not.toBe(first.token)
+    expect(await service.friendInvite(first.token)).toBeNull()
+    expect(await service.activeFriendInvite('alice')).toEqual(second)
+  })
+
+  it('cancels an unclaimed invite', async () => {
+    const invite = await service.createFriendInvite('alice')
+
+    await service.cancelFriendInvite('alice')
+
+    expect(await service.activeFriendInvite('alice')).toBeNull()
+    expect(await service.friendInvite(invite.token)).toBeNull()
+  })
+
+  it('does not let the inviter accept their own link', async () => {
+    const invite = await service.createFriendInvite('alice')
+
+    await expect(service.acceptFriendInvite('alice', invite.token)).rejects.toThrow(expect.objectContaining({ status: 400 }))
+    expect(await service.friendInvite(invite.token)).not.toBeNull()
+  })
+
+  it('accepts an existing request when both players have already offered to connect', async () => {
+    await enrol('dave', 'Dave')
+    await service.requestFriend('dave', 'alice')
+    const invite = await service.createFriendInvite('alice')
+
+    await service.acceptFriendInvite('dave', invite.token)
+
+    expect((await service.friendships('alice')).friends).toContainEqual({ id: 'dave', name: 'Dave', image: null })
+  })
+
   it('requires the recipient to accept a request before the sender becomes a friend', async () => {
     await enrol('dave', 'Dave')
     await service.requestFriend('alice', 'dave')

@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { UserPlus } from 'lucide-react'
+import { Check, Link2, RotateCw, UserPlus, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -8,17 +8,20 @@ import { PageContent, PageHeader } from '../client/components/Page'
 import { SearchField } from '../client/components/SearchField'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { friendshipsQuery, meQuery, opponentsQuery, playerSearchKey, playerSearchQuery } from '../client/queries'
+import { activeFriendInviteQuery, friendshipsQuery, meQuery, opponentsQuery, playerSearchKey, playerSearchQuery } from '../client/queries'
 import { useSettled } from '../client/useSettled'
-import { acceptFriend, removeFriend, requestFriend } from '../server/functions'
+import { acceptFriend, cancelFriendInvite, createFriendInvite, removeFriend, requestFriend } from '../server/functions'
 import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../core/playerSearch'
 import { errorMessage } from '../client/queryClient'
+import { shareLink } from '../client/nativeBridge'
+import { useOrigin } from '../client/useOrigin'
 
 export const Route = createFileRoute('/friends')({
   loader: ({ context }) =>
     Promise.all([
       context.queryClient.query({ ...meQuery(), staleTime: 'static' }),
       context.queryClient.query({ ...friendshipsQuery(), staleTime: 'static' }),
+      context.queryClient.query({ ...activeFriendInviteQuery(), staleTime: 'static' }),
     ]),
   component: Friends,
 })
@@ -70,6 +73,8 @@ function Friends() {
             {errorMessage(request.error ?? accept.error ?? remove.error)}
           </p>
         ) : null}
+
+        <InviteFriend />
 
         <div className="grid gap-6 md:grid-cols-2">
           <People
@@ -144,6 +149,77 @@ function Friends() {
         />
       </PageContent>
     </main>
+  )
+}
+
+function InviteFriend() {
+  const { data: invite } = useQuery(activeFriendInviteQuery())
+  const queryClient = useQueryClient()
+  const origin = useOrigin()
+  const [feedback, setFeedback] = useState<'copied' | 'shared' | null>(null)
+  const [shareProblem, setShareProblem] = useState<string | null>(null)
+  const refresh = () => queryClient.invalidateQueries({ queryKey: activeFriendInviteQuery().queryKey })
+  const create = useMutation({ mutationFn: () => createFriendInvite(), onSuccess: refresh })
+  const cancel = useMutation({ mutationFn: () => cancelFriendInvite(), onSuccess: refresh })
+  const share = async (token: string) => {
+    setShareProblem(null)
+    try {
+      setFeedback(await shareLink(`${origin}/invite/${token}`, 'Join me on Praetorium'))
+    } catch (error) {
+      setShareProblem(errorMessage(error))
+    }
+  }
+  const createAndShare = async () => {
+    setFeedback(null)
+    try {
+      const created = await create.mutateAsync()
+      await share(created.token)
+    } catch {
+      // The mutation renders its own error.
+    }
+  }
+  const problem = create.error ?? cancel.error
+  const busy = create.isPending || cancel.isPending
+
+  return (
+    <section className="border border-edge bg-panel p-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="max-w-2xl">
+          <p className="rubric">Invite a friend</p>
+          <p className="mt-1 text-sm text-dim">
+            Share a one-time link with someone who is not here yet. They can make an account, then accept your invite to become friends.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {invite ? (
+            <>
+              <Button variant="outline" disabled={!origin || busy} onClick={() => void share(invite.token)}>
+                {feedback ? <Check /> : <Link2 />}
+                {feedback === 'shared' ? 'Invite shared' : feedback === 'copied' ? 'Link copied' : 'Share invite'}
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={() => void createAndShare()}>
+                <RotateCw /> New link
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => {
+                  setFeedback(null)
+                  cancel.mutate()
+                }}
+              >
+                <X /> Cancel
+              </Button>
+            </>
+          ) : (
+            <Button disabled={!origin || busy} onClick={() => void createAndShare()}>
+              <UserPlus /> {create.isPending ? 'Creating…' : 'Create invite link'}
+            </Button>
+          )}
+        </div>
+      </div>
+      {problem || shareProblem ? <p className="mt-3 text-sm text-destructive">{problem ? errorMessage(problem) : shareProblem}</p> : null}
+    </section>
   )
 }
 

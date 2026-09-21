@@ -28,12 +28,12 @@ const socialAuthErrorMessage = (error?: string) => {
  * An account is who you are here: battles, saved lists and every command in a log
  * point at it, and there is no other way to be anyone.
  */
-export function SignInPage({ error, next, reset }: { error?: string; next?: string; reset?: boolean }) {
+export function SignInPage({ error, next, reset, join }: { error?: string; next?: string; reset?: boolean; join?: boolean }) {
   const { data: options } = useQuery(signInOptionsQuery())
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
-  const [joining, setJoining] = useState(false)
+  const [joining, setJoining] = useState(Boolean(join))
   const [twoFactorPending, setTwoFactorPending] = useState(false)
   const [resetSent, setResetSent] = useState(false)
   const navigate = useNavigate()
@@ -209,7 +209,10 @@ export function SignInPage({ error, next, reset }: { error?: string; next?: stri
                           })
                         )
                           return
-                        const errorCallbackURL = next ? `/sign-in?${new URLSearchParams({ next })}` : '/sign-in'
+                        const errorSearch = new URLSearchParams()
+                        if (next) errorSearch.set('next', next)
+                        if (joining) errorSearch.set('join', 'true')
+                        const errorCallbackURL = errorSearch.size ? `/sign-in?${errorSearch}` : '/sign-in'
                         void authClient.signIn.social({
                           provider,
                           callbackURL: next ?? '/',

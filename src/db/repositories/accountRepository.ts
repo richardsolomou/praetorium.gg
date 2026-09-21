@@ -2,7 +2,7 @@ import { and, asc, count, desc, eq, ilike, inArray, isNull, lt, ne, notExists, o
 import { alias } from 'drizzle-orm/pg-core'
 import type { AdminUserPage, AdminUsersCursor } from '../../admin'
 import type { PraetoriumDatabase } from '../connection'
-import { account, battleUsers, friendships, practiceOpponents, rosters, user } from '../schema'
+import { account, battleUsers, friendInvites, friendships, practiceOpponents, rosters, user } from '../schema'
 import type { UnlinkAccountResult } from '../repository'
 
 const ADMIN_USERS_PAGE_SIZE = 50
@@ -221,5 +221,85 @@ export class AccountRepository {
       )
       .returning({ requesterId: friendships.requesterId })
     return removed.length > 0
+  }
+
+  async friendInviteByInviter(inviterId: string) {
+    const [invite] = await this.database
+      .select({ token: friendInvites.token })
+      .from(friendInvites)
+      .where(eq(friendInvites.inviterId, inviterId))
+      .limit(1)
+    return invite ?? null
+  }
+
+  async friendInviteByToken(token: string) {
+    const [invite] = await this.database
+      .select({
+        token: friendInvites.token,
+        inviterId: user.id,
+        inviterName: user.name,
+        inviterImage: user.image,
+      })
+      .from(friendInvites)
+      .innerJoin(user, eq(user.id, friendInvites.inviterId))
+      .where(eq(friendInvites.token, token))
+      .limit(1)
+    return invite ?? null
+  }
+
+  async replaceFriendInvite(inviterId: string, token: string, now: number) {
+    await this.database
+      .insert(friendInvites)
+      .values({ inviterId, token, createdAt: now })
+      .onConflictDoUpdate({ target: friendInvites.inviterId, set: { token, createdAt: now } })
+  }
+
+  async cancelFriendInvite(inviterId: string) {
+    const removed = await this.database
+      .delete(friendInvites)
+      .where(eq(friendInvites.inviterId, inviterId))
+      .returning({ token: friendInvites.token })
+    return removed.length > 0
+  }
+
+  async acceptFriendInvite(token: string, recipientId: string, now: number) {
+    return this.database.transaction(async (tx) => {
+      const [invite] = await tx
+        .select({ inviterId: friendInvites.inviterId })
+        .from(friendInvites)
+        .where(eq(friendInvites.token, token))
+        .for('update')
+      if (!invite) return 'missing' as const
+      if (invite.inviterId === recipientId) return 'self' as const
+
+      const [relationship] = await tx
+        .select({ requesterId: friendships.requesterId, addresseeId: friendships.addresseeId, acceptedAt: friendships.acceptedAt })
+        .from(friendships)
+        .where(
+          or(
+            and(eq(friendships.requesterId, invite.inviterId), eq(friendships.addresseeId, recipientId)),
+            and(eq(friendships.requesterId, recipientId), eq(friendships.addresseeId, invite.inviterId)),
+          ),
+        )
+        .limit(1)
+      if (relationship?.acceptedAt !== null && relationship?.acceptedAt !== undefined) return 'already-friends' as const
+
+      if (relationship) {
+        await tx
+          .update(friendships)
+          .set({ acceptedAt: now })
+          .where(
+            and(
+              eq(friendships.requesterId, relationship.requesterId),
+              eq(friendships.addresseeId, relationship.addresseeId),
+              isNull(friendships.acceptedAt),
+            ),
+          )
+      } else {
+        await tx.insert(friendships).values({ requesterId: invite.inviterId, addresseeId: recipientId, requestedAt: now, acceptedAt: now })
+      }
+      await tx.delete(friendInvites).where(eq(friendInvites.token, token))
+      return 'accepted' as const
+    })
   }
 }
