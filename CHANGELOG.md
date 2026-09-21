@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.69.0
+
+### Minor Changes
+
+- 3b506de: Invite a new player with a one-time link that connects you as friends after they join.
+
+### Patch Changes
+
+- cc2e7bf: Keep roster loadout and model counters accurate during consecutive presses.
+
 ## 0.68.2
 
 ### Patch Changes
