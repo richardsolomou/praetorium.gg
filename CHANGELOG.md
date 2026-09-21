@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.68.2
+
+### Patch Changes
+
+- 0899452: Report how each roster datasheet matched its data card.
+
 ## 0.68.1
 
 ### Patch Changes
