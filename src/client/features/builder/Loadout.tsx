@@ -99,6 +99,7 @@ export function Loadout({
         request_duration_ms: Math.round(measured.request),
         render_duration_ms: Math.round(performance.now() - measured.resolvedAt),
         editable,
+        datacard_join: sheets.datacardJoin,
       })
     })
     return () => cancelAnimationFrame(frame)

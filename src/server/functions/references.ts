@@ -6,6 +6,7 @@ import { buildUnit, type RosterPick } from '../../core/roster'
 import { datasheetIn, datasheetViewsIn, rulesReferencedIn, unitWoundsIn } from '../catalogue'
 import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
+import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
 import { factionIndexFor, factionsFor } from '../factionReferences'
 import { factionDisplayName } from '../factionNames'
@@ -157,6 +158,7 @@ export const loadoutDatasheets = createServerFn({ method: 'POST' })
           unit_count: data.picks.length,
           duration_ms: Math.round(performance.now() - startedAt),
           persisted: false,
+          datacard_join: result.datacardJoin,
         })
       return result
     }),
@@ -185,6 +187,7 @@ export const savedRosterLoadoutDatasheets = createServerFn({ method: 'GET' })
           unit_count: roster.picks.length,
           duration_ms: Math.round(performance.now() - startedAt),
           persisted: true,
+          datacard_join: result.datacardJoin,
         })
       return result
     }),
@@ -203,6 +206,7 @@ function rosterLoadoutDatasheets(
   const context = rosterDatasheetContext(loaded, data)
   const views = context ? datasheetViewsIn(loaded, data.catalogueId, data.entryId, context) : null
   return {
+    datacardJoin: datacardJoinOutcome(loaded, data.catalogueId, data.entryId),
     controlledChoices: views?.controlledChoices ?? [],
     selected: views
       ? describeDatasheetAbilities(loaded, data.catalogueId, views.selected, app().rules())
