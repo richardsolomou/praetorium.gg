@@ -215,6 +215,26 @@ export class Repository {
     return this.accountRepository.removeFriend(...args)
   }
 
+  friendInviteByInviter(...args: Parameters<AccountRepository['friendInviteByInviter']>) {
+    return this.accountRepository.friendInviteByInviter(...args)
+  }
+
+  friendInviteByToken(...args: Parameters<AccountRepository['friendInviteByToken']>) {
+    return this.accountRepository.friendInviteByToken(...args)
+  }
+
+  replaceFriendInvite(...args: Parameters<AccountRepository['replaceFriendInvite']>) {
+    return this.accountRepository.replaceFriendInvite(...args)
+  }
+
+  cancelFriendInvite(...args: Parameters<AccountRepository['cancelFriendInvite']>) {
+    return this.accountRepository.cancelFriendInvite(...args)
+  }
+
+  acceptFriendInvite(...args: Parameters<AccountRepository['acceptFriendInvite']>) {
+    return this.accountRepository.acceptFriendInvite(...args)
+  }
+
   saveRoster(...args: Parameters<RosterRepository['saveRoster']>) {
     return this.rosterRepository.saveRoster(...args)
   }

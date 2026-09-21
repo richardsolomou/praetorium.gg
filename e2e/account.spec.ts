@@ -214,6 +214,51 @@ test('friends use the profile picture shown elsewhere', async ({ browser }) => {
   await bob.screenshot({ path: 'test-results/friends-profile-picture-phone.png', fullPage: true })
 })
 
+test('a one-time link connects a new player after they create an account and accept', async ({ browser }) => {
+  const inviterContext = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })
+  const recipientContext = await browser.newContext()
+  const inviter = await inviterContext.newPage()
+  const recipient = await recipientContext.newPage()
+  const inviterName = uniqueName('Inviter')
+  const recipientName = uniqueName('Recipient')
+
+  await signUp(inviter, inviterName)
+  await inviter.goto('/friends')
+  await inviter.getByRole('button', { name: 'Create invite link' }).click()
+  await expect(inviter.getByRole('button', { name: 'Link copied' })).toBeVisible()
+  const inviteUrl = await inviter.evaluate(() => navigator.clipboard.readText())
+  await inviter.screenshot({ path: 'test-results/friend-invite-controls.png', fullPage: true })
+  await inviter.setViewportSize({ width: 390, height: 844 })
+  await inviter.screenshot({ path: 'test-results/friend-invite-controls-phone.png', fullPage: true })
+
+  await recipient.goto(inviteUrl)
+  await expect(recipient.getByRole('heading', { name: `${inviterName} invited you` })).toBeVisible()
+  await expect(recipient.getByRole('heading', { name: 'Create an account to accept' })).toBeVisible()
+  await recipient.screenshot({ path: 'test-results/friend-invite.png', fullPage: true })
+  await recipient.setViewportSize({ width: 390, height: 844 })
+  await recipient.screenshot({ path: 'test-results/friend-invite-phone.png', fullPage: true })
+
+  await recipient.getByRole('link', { name: 'Create an account' }).click()
+  await expect(recipient.getByRole('heading', { name: 'Make an account' })).toBeVisible()
+  await recipient.getByLabel('Your name').fill(recipientName)
+  await recipient.getByLabel('Email').fill(`friend-invite-${crypto.randomUUID()}@example.test`)
+  await recipient.getByLabel('Password').fill('a-long-enough-password')
+  await recipient.getByRole('button', { name: 'Create the account' }).click()
+
+  await expect(recipient.getByRole('heading', { name: `Become friends with ${inviterName}` })).toBeVisible()
+  await recipient.getByRole('button', { name: 'Accept invite' }).click()
+  await expect(recipient).toHaveURL(/\/friends$/)
+  await expect(recipient.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: inviterName })).toBeVisible()
+
+  await inviter.reload()
+  await expect(inviter.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: recipientName })).toBeVisible()
+  await recipient.goto(inviteUrl)
+  await expect(recipient.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
+
+  await inviterContext.close()
+  await recipientContext.close()
+})
+
 test('the account menu links feedback to GitHub Issues', async ({ page }) => {
   await signUp(page, uniqueName('Feedback'))
   await page.getByRole('button', { name: /Account menu for/ }).click()

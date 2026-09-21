@@ -735,7 +735,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
       picks={positioned}
       pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && edit.choose(selected, key, optionId)}
-      onSpread={(key, counts) => selected !== null && edit.spread(selected, key, counts)}
+      onSpread={(key, update) => selected !== null && edit.spread(selected, key, update)}
       editable={editable && inspectorView === 'edit'}
       controlsDisabled={loadoutConstraintsPending}
       showOptions={inspectorView !== 'readonly'}
@@ -1131,8 +1131,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
                                 selected !== null &&
                                 edit.resize(
                                   selected,
-                                  optimisticUnit.size.options?.findLast((size) => size < optimisticUnit.size.models) ??
-                                    optimisticUnit.size.models - 1,
+                                  (models) => optimisticUnit.size.options?.findLast((size) => size < models) ?? models - 1,
                                 )
                             : undefined
                         }
@@ -1140,11 +1139,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
                           optimisticUnit.size.models < optimisticUnit.size.max
                             ? () =>
                                 selected !== null &&
-                                edit.resize(
-                                  selected,
-                                  optimisticUnit.size.options?.find((size) => size > optimisticUnit.size.models) ??
-                                    optimisticUnit.size.models + 1,
-                                )
+                                edit.resize(selected, (models) => optimisticUnit.size.options?.find((size) => size > models) ?? models + 1)
                             : undefined
                         }
                       />

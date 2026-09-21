@@ -149,6 +149,7 @@ export const onboardingUpdateSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('restore'), task: onboardingTaskSchema }),
   z.object({ operation: z.literal('welcome') }),
 ])
+export const friendInviteSchema = z.object({ token })
 
 /**
  * A player's profile, and what to narrow their record by.

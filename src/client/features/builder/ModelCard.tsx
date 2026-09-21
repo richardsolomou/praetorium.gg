@@ -13,10 +13,11 @@ import {
   orderedModelWargear,
   type PoolChange,
   poolHandlers,
+  relativeSpread,
   replacementChoice,
   sameWeapon,
   showLoadoutEntry,
-  type SpreadCounts,
+  type SpreadUpdate,
   spreadHandlers,
   wholeSquadTakes,
 } from './loadoutModel'
@@ -57,7 +58,7 @@ export function ModelCard({
   wargearGroups?: Datasheet['wargearGroups']
   models?: readonly LoadoutModel[]
   onChoose: (key: string, optionId: string) => void
-  onSpread: (key: string, counts: SpreadCounts) => void
+  onSpread: (key: string, update: SpreadUpdate) => void
   editable: boolean
   controlsDisabled?: boolean
   showOptions?: boolean
@@ -70,7 +71,14 @@ export function ModelCard({
 
   const count = modelCount(model, choices)
   const { spend, free } = poolHandlers(model, choices, weapons)
-  const press = (changes: PoolChange | null) => (changes ? () => changes.forEach(([key, counts]) => onSpread(key, counts)) : undefined)
+  const press = (changes: PoolChange | null) =>
+    changes
+      ? () =>
+          changes.forEach(([key, counts]) => {
+            const choice = choices.find((candidate) => candidate.key === key)
+            if (choice) onSpread(key, relativeSpread(choice, counts))
+          })
+      : undefined
 
   /**
    * How many of this card there are, where the card is one option of a group.
@@ -187,9 +195,9 @@ export function ModelCard({
                     onPick={
                       option.count > 0
                         ? choice.optional
-                          ? () => onSpread(choice.key, wholeSquadTakes(choice, ''))
+                          ? () => onSpread(choice.key, () => wholeSquadTakes(choice, ''))
                           : undefined
-                        : () => onSpread(choice.key, wholeSquadTakes(choice, option.id))
+                        : () => onSpread(choice.key, () => wholeSquadTakes(choice, option.id))
                     }
                   />
                 ) : (

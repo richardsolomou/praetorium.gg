@@ -138,8 +138,15 @@
     {
       "idx": 19,
       "version": "7",
-      "when": 1789971058160,
-      "tag": "0019_thick_epoch",
+      "when": 1789971868648,
+      "tag": "0019_friendly_tusk",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1789981105402,
+      "tag": "0020_thick_epoch",
       "breakpoints": true
     }
   ]

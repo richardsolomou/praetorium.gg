@@ -9,7 +9,7 @@ import {
   type OnboardingProgressOperation,
 } from '../../core/onboarding'
 import type { PraetoriumDatabase } from '../connection'
-import { account, battleUsers, friendships, practiceOpponents, rosters, user, userOnboarding } from '../schema'
+import { account, battleUsers, friendInvites, friendships, practiceOpponents, rosters, user, userOnboarding } from '../schema'
 import type { UnlinkAccountResult } from '../repository'
 
 const ADMIN_USERS_PAGE_SIZE = 50
@@ -28,6 +28,13 @@ function storedOnboardingProgress(
     }
   }
   return { completedTasks: parse(row.completedTasks), skippedTasks: parse(row.skippedTasks), welcomed: row.welcomed }
+}
+
+type AccountTransaction = Parameters<Parameters<PraetoriumDatabase['transaction']>[0]>[0]
+
+async function lockFriendshipPair(tx: AccountTransaction, leftId: string, rightId: string) {
+  const pair = JSON.stringify([leftId, rightId].toSorted())
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${pair}, 4021970614))`)
 }
 
 /** A typed name matched anywhere in a stored one, with the wildcards the player typed left as literals. */
@@ -229,6 +236,7 @@ export class AccountRepository {
    */
   async requestFriend(requesterId: string, addresseeId: string, now: number) {
     return this.database.transaction(async (tx) => {
+      await lockFriendshipPair(tx, requesterId, addresseeId)
       const [existing] = await tx
         .select({ requesterId: friendships.requesterId })
         .from(friendships)
@@ -246,24 +254,111 @@ export class AccountRepository {
   }
 
   async acceptFriend(requesterId: string, addresseeId: string, now: number) {
-    const updated = await this.database
-      .update(friendships)
-      .set({ acceptedAt: now })
-      .where(and(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, addresseeId), isNull(friendships.acceptedAt)))
-      .returning({ requesterId: friendships.requesterId })
-    return updated.length > 0
+    return this.database.transaction(async (tx) => {
+      await lockFriendshipPair(tx, requesterId, addresseeId)
+      const updated = await tx
+        .update(friendships)
+        .set({ acceptedAt: now })
+        .where(and(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, addresseeId), isNull(friendships.acceptedAt)))
+        .returning({ requesterId: friendships.requesterId })
+      return updated.length > 0
+    })
   }
 
   async removeFriend(leftId: string, rightId: string) {
+    return this.database.transaction(async (tx) => {
+      await lockFriendshipPair(tx, leftId, rightId)
+      const removed = await tx
+        .delete(friendships)
+        .where(
+          or(
+            and(eq(friendships.requesterId, leftId), eq(friendships.addresseeId, rightId)),
+            and(eq(friendships.requesterId, rightId), eq(friendships.addresseeId, leftId)),
+          ),
+        )
+        .returning({ requesterId: friendships.requesterId })
+      return removed.length > 0
+    })
+  }
+
+  async friendInviteByInviter(inviterId: string) {
+    const [invite] = await this.database
+      .select({ token: friendInvites.token })
+      .from(friendInvites)
+      .where(eq(friendInvites.inviterId, inviterId))
+      .limit(1)
+    return invite ?? null
+  }
+
+  async friendInviteByToken(token: string) {
+    const [invite] = await this.database
+      .select({
+        token: friendInvites.token,
+        inviterId: user.id,
+        inviterName: user.name,
+        inviterImage: user.image,
+      })
+      .from(friendInvites)
+      .innerJoin(user, eq(user.id, friendInvites.inviterId))
+      .where(eq(friendInvites.token, token))
+      .limit(1)
+    return invite ?? null
+  }
+
+  async replaceFriendInvite(inviterId: string, token: string, now: number) {
+    await this.database
+      .insert(friendInvites)
+      .values({ inviterId, token, createdAt: now })
+      .onConflictDoUpdate({ target: friendInvites.inviterId, set: { token, createdAt: now } })
+  }
+
+  async cancelFriendInvite(inviterId: string) {
     const removed = await this.database
-      .delete(friendships)
-      .where(
-        or(
-          and(eq(friendships.requesterId, leftId), eq(friendships.addresseeId, rightId)),
-          and(eq(friendships.requesterId, rightId), eq(friendships.addresseeId, leftId)),
-        ),
-      )
-      .returning({ requesterId: friendships.requesterId })
+      .delete(friendInvites)
+      .where(eq(friendInvites.inviterId, inviterId))
+      .returning({ token: friendInvites.token })
     return removed.length > 0
+  }
+
+  async acceptFriendInvite(token: string, recipientId: string, now: number) {
+    return this.database.transaction(async (tx) => {
+      const [invite] = await tx
+        .select({ inviterId: friendInvites.inviterId })
+        .from(friendInvites)
+        .where(eq(friendInvites.token, token))
+        .for('update')
+      if (!invite) return 'missing' as const
+      if (invite.inviterId === recipientId) return 'self' as const
+
+      await lockFriendshipPair(tx, invite.inviterId, recipientId)
+      const [relationship] = await tx
+        .select({ requesterId: friendships.requesterId, addresseeId: friendships.addresseeId, acceptedAt: friendships.acceptedAt })
+        .from(friendships)
+        .where(
+          or(
+            and(eq(friendships.requesterId, invite.inviterId), eq(friendships.addresseeId, recipientId)),
+            and(eq(friendships.requesterId, recipientId), eq(friendships.addresseeId, invite.inviterId)),
+          ),
+        )
+        .limit(1)
+      if (relationship?.acceptedAt !== null && relationship?.acceptedAt !== undefined) return 'already-friends' as const
+
+      if (relationship) {
+        await tx
+          .update(friendships)
+          .set({ acceptedAt: now })
+          .where(
+            and(
+              eq(friendships.requesterId, relationship.requesterId),
+              eq(friendships.addresseeId, relationship.addresseeId),
+              isNull(friendships.acceptedAt),
+            ),
+          )
+      } else {
+        await tx.insert(friendships).values({ requesterId: invite.inviterId, addresseeId: recipientId, requestedAt: now, acceptedAt: now })
+      }
+      await tx.delete(friendInvites).where(eq(friendInvites.token, token))
+      return 'accepted' as const
+    })
   }
 }

@@ -24,6 +24,11 @@ export async function signUp(page: Page, name: string) {
     .getByRole('button', { name: `Account menu for ${name}`, includeHidden: true })
     .first()
     .waitFor({ state: 'attached' })
+  const welcomeSaved = page.waitForResponse(
+    (response) => response.ok() && response.request().method() === 'POST' && Boolean(response.request().postData()?.includes('"welcome"')),
+  )
+  await page.getByRole('button', { name: 'Close getting started' }).click()
+  await welcomeSaved
   return { email, password }
 }
 
