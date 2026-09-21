@@ -1,19 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import {
-  CircleUserRound,
-  LogIn,
-  LogOut,
-  Map,
-  MessageSquareWarning,
-  ScrollText,
-  ShieldCheck,
-  Swords,
-  Trophy,
-  UserRound,
-  UserRoundPen,
-  Users,
-} from 'lucide-react'
+import { CircleUserRound, LogIn, LogOut, MessageSquareWarning, ShieldCheck, UserRoundPen, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,7 +14,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { authClient } from '../authClient'
 import { setNativeAccountMenuOpen } from '../nativeBridge'
-import { openOnboarding } from '../onboarding'
 import { meQuery } from '../queries'
 import { PlayerAvatar } from './PlayerAvatar'
 
@@ -52,33 +38,25 @@ function AccountMenuItems() {
 
   return (
     <>
-      <DropdownMenuLabel className="px-2 py-2">
-        <span className="eyebrow block">{me ? 'Profile' : 'Account'}</span>
-        <span className="mt-0.5 block truncate text-sm font-semibold text-bone">{me?.name ?? 'Not signed in'}</span>
-      </DropdownMenuLabel>
+      {me ? (
+        <DropdownMenuItem render={<Link to="/users/$userId" params={{ userId: me.id }} search={{}} />} className="block px-2 py-2">
+          <span className="eyebrow block">Profile</span>
+          <span className="mt-0.5 block truncate text-sm font-semibold text-bone">{me.name}</span>
+        </DropdownMenuItem>
+      ) : (
+        <DropdownMenuLabel className="px-2 py-2">
+          <span className="eyebrow block">Account</span>
+          <span className="mt-0.5 block truncate text-sm font-semibold text-bone">Not signed in</span>
+        </DropdownMenuLabel>
+      )}
       <DropdownMenuSeparator />
       {me ? (
         <>
-          <DropdownMenuItem render={<Link to="/users/$userId" params={{ userId: me.id }} search={{}} />}>
-            <UserRound /> My profile
-          </DropdownMenuItem>
           <DropdownMenuItem render={<Link to="/profile" />}>
             <UserRoundPen /> Edit profile
           </DropdownMenuItem>
-          <DropdownMenuItem render={<Link to="/battles" />}>
-            <Swords /> My battles
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link to="/rosters" />}>
-            <ScrollText /> My rosters
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link to="/leagues" />}>
-            <Trophy /> Leagues
-          </DropdownMenuItem>
           <DropdownMenuItem render={<Link to="/friends" />}>
             <Users /> Friends
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={openOnboarding}>
-            <Map /> Getting started
           </DropdownMenuItem>
           {me.role === 'admin' ? (
             <DropdownMenuItem render={<Link to="/admin" />}>

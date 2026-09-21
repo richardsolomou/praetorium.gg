@@ -3,6 +3,14 @@ import { expect } from '@playwright/test'
 
 export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfies BrowserContextOptions
 
+export async function dismissOnboardingWelcome(page: Page) {
+  const welcomeSaved = page.waitForResponse(
+    (response) => response.ok() && response.request().method() === 'POST' && Boolean(response.request().postData()?.includes('"welcome"')),
+  )
+  await page.getByRole('button', { name: 'Close getting started' }).click()
+  await welcomeSaved
+}
+
 /**
  * Makes an account and leaves the page signed into it.
  *
@@ -24,11 +32,7 @@ export async function signUp(page: Page, name: string) {
     .getByRole('button', { name: `Account menu for ${name}`, includeHidden: true })
     .first()
     .waitFor({ state: 'attached' })
-  const welcomeSaved = page.waitForResponse(
-    (response) => response.ok() && response.request().method() === 'POST' && Boolean(response.request().postData()?.includes('"welcome"')),
-  )
-  await page.getByRole('button', { name: 'Close getting started' }).click()
-  await welcomeSaved
+  await dismissOnboardingWelcome(page)
   return { email, password }
 }
 

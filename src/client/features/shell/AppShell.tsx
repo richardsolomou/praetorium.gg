@@ -13,6 +13,7 @@ import { Account } from '../../components/Account'
 import { GlobalSearch, GlobalSearchProvider } from '../../components/GlobalSearch'
 import { ImpersonationBanner } from '../../components/ImpersonationBanner'
 import { NativeAppNavigation } from '../../components/NativeAppNavigation'
+import { OnboardingButton } from '../../components/OnboardingButton'
 import { OnboardingGuide } from '../../components/OnboardingGuide'
 import { meQuery } from '../../queries'
 const posthog = postHogEnvironment({
@@ -154,6 +155,7 @@ export function AppShell() {
                     </Link>
                     <PrimaryNavigation path={path} />
                     <GlobalSearch />
+                    <OnboardingButton />
                     <Account />
                   </div>
                 </header>
@@ -173,6 +175,7 @@ export function AppShell() {
                     </Link>
                     <span className="ml-auto flex items-center">
                       <GlobalSearch compact />
+                      <OnboardingButton />
                       <Account />
                     </span>
                   </header>
