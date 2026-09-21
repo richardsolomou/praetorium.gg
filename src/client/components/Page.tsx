@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import type { OnboardingTarget } from '../onboarding'
 
 /**
  * The band every top-level page opens with: an eyebrow naming the area, the
@@ -14,6 +15,7 @@ export function PageHeader({
   media,
   children,
   tint,
+  onboarding,
 }: {
   eyebrow: ReactNode
   title: ReactNode
@@ -24,9 +26,11 @@ export function PageHeader({
   children?: ReactNode
   /** A faction's colour along the top edge, on the pages that belong to it. */
   tint?: string
+  onboarding?: OnboardingTarget
 }) {
   return (
     <header
+      data-onboarding={onboarding}
       className={cn('relative overflow-hidden border-b border-edge bg-panel', tint && 'border-t-[3px]')}
       style={tint ? { borderTopColor: tint } : undefined}
     >

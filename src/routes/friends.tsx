@@ -15,6 +15,7 @@ import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../core/play
 import { errorMessage } from '../client/queryClient'
 import { shareLink } from '../client/nativeBridge'
 import { useOrigin } from '../client/useOrigin'
+import type { OnboardingTarget } from '../client/onboarding'
 
 export const Route = createFileRoute('/friends')({
   loader: ({ context }) =>
@@ -78,6 +79,7 @@ function Friends() {
 
         <div className="grid gap-6 md:grid-cols-2">
           <People
+            onboarding="friend-requests"
             title="Friend requests"
             empty="No requests are waiting for you."
             people={data.incoming}
@@ -86,6 +88,7 @@ function Friends() {
             onAction={(person) => accept.mutate(person.id)}
           />
           <People
+            onboarding="friend-list"
             title="Friends"
             empty="Add a player below before you create a shared battle."
             people={data.friends}
@@ -102,6 +105,7 @@ function Friends() {
             <UserPlus className="size-4 text-parchment" aria-hidden />
           </div>
           <SearchField
+            onboarding="friend-search"
             className="mt-2"
             value={query}
             onChange={setQuery}
@@ -190,7 +194,7 @@ function InviteFriend() {
             Share a one-time link with someone who is not here yet. They can make an account, then accept your invite to become friends.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div data-onboarding="friend-invite" className="flex flex-wrap gap-2">
           {invite ? (
             <>
               <Button variant="outline" disabled={!origin || busy} onClick={() => void share(invite.token)}>
@@ -229,6 +233,7 @@ function People({
   action,
   empty,
   destructive = false,
+  onboarding,
   pendingId,
   onAction,
 }: {
@@ -237,11 +242,12 @@ function People({
   action: string
   empty: string
   destructive?: boolean
+  onboarding?: OnboardingTarget
   pendingId: string | null
   onAction: (person: Person) => void
 }) {
   return (
-    <section>
+    <section data-onboarding={onboarding}>
       <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
         <span>{title}</span>
         <span className="readout">{people.length}</span>

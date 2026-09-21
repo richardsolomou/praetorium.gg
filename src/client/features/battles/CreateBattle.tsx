@@ -10,6 +10,7 @@ import { createBattle, leagueBattleOptions } from '../../../server/functions'
 import { battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
+import { advanceOnboarding } from '../../onboarding'
 import { seatedPlayers, seatsFor, type Seat, type SoloPairRole } from '../../seats'
 import { Choice } from '../../components/Choice'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../../components/Seats'
@@ -132,7 +133,11 @@ export function CreateBattle() {
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogTrigger render={<Button />}>New battle</DialogTrigger>
+      <DialogTrigger
+        render={<Button data-onboarding="create-battle" onClick={() => advanceOnboarding('battle', 'battle-start', 'battle-format')} />}
+      >
+        New battle
+      </DialogTrigger>
       <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] overflow-y-auto p-4 sm:max-w-md">
         {leagueMatches.length ? (
           <>
@@ -183,6 +188,7 @@ export function CreateBattle() {
             </DialogHeader>
             <div>
               <Choice
+                onboarding="battle-format"
                 label="Game format"
                 value={shape}
                 options={TABLE_SHAPES.map((candidate) => ({ value: candidate, ...TABLE_SHAPE_LABELS[candidate] }))}
@@ -213,6 +219,7 @@ export function CreateBattle() {
               <p className="border border-edge bg-sunken p-3 text-sm text-dim">Loading players…</p>
             ) : opponentQuery.error ? null : opponents.length ? (
               <SeatRows
+                onboarding="battle-seats"
                 idPrefix="battle"
                 seats={seats}
                 seatedIn={seatedIn}
@@ -228,7 +235,9 @@ export function CreateBattle() {
                 No opponents are available yet. Add a friend, then try again.
               </p>
             )}
-            {opponents.length ? <SeatMatchup seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, opponents)} /> : null}
+            {opponents.length ? (
+              <SeatMatchup onboarding="battle-sides" seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, opponents)} />
+            ) : null}
             {create.error || opponentQuery.error ? (
               <p className="text-sm text-destructive">{errorMessage(create.error ?? opponentQuery.error)}</p>
             ) : null}
@@ -236,7 +245,11 @@ export function CreateBattle() {
               <Button variant="outline" disabled={create.isPending} onClick={() => changeOpen(false)}>
                 Cancel
               </Button>
-              <Button disabled={!seated || opponentQuery.isPending || create.isPending} onClick={() => create.mutate(false)}>
+              <Button
+                data-onboarding="battle-create"
+                disabled={!seated || opponentQuery.isPending || create.isPending}
+                onClick={() => create.mutate(false)}
+              >
                 {create.isPending ? 'Checking…' : 'Start battle'}
               </Button>
             </DialogFooter>

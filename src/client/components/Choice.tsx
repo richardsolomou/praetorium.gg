@@ -1,3 +1,5 @@
+import type { OnboardingTarget } from '../onboarding'
+
 /** One option card. `count` and `detail` are both optional: some choices need neither. */
 export type ChoiceOption<T extends string> = { value: T; name: string; count?: string; detail?: string }
 
@@ -17,6 +19,7 @@ export function Choice<T extends string>({
   options,
   columns,
   disabled = false,
+  onboarding,
   onChange,
 }: {
   label: string
@@ -24,10 +27,11 @@ export function Choice<T extends string>({
   options: ChoiceOption<T>[]
   columns?: 2 | 3
   disabled?: boolean
+  onboarding?: OnboardingTarget
   onChange: (value: T) => void
 }) {
   return (
-    <fieldset className="space-y-1.5" disabled={disabled}>
+    <fieldset data-onboarding={onboarding} className="space-y-1.5" disabled={disabled}>
       <legend className="eyebrow">{label}</legend>
       <div className={`grid gap-2 ${columns ? COLUMNS[columns] : (WIDE_COLUMNS[options.length] ?? 'sm:grid-cols-2')}`}>
         {options.map((option) => (

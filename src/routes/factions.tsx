@@ -134,6 +134,7 @@ function FactionShelf({
           {entries.map((entry) => (
             <div
               key={entry.id}
+              data-onboarding="faction-entry"
               data-faction={entry.displayName}
               className="flex items-center border-l-2"
               style={{ borderLeftColor: factionColour(entry.slug) }}

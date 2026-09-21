@@ -58,6 +58,7 @@ function FactionPage() {
         </Link>
         <section className="mt-4">
           <Link
+            data-onboarding="faction-datasheets"
             to="/factions/$catalogueId/datasheets"
             params={{ catalogueId: faction.slug }}
             className="flex items-center justify-between border border-edge bg-panel px-3 py-3 hover:bg-raised"
@@ -70,7 +71,7 @@ function FactionPage() {
           </Link>
         </section>
         {faction.armyRules.length ? (
-          <section className="mt-6">
+          <section data-onboarding="faction-army-rules" className="mt-6">
             <p className="rubric border-b border-edge pb-2">Faction abilities</p>
             <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
               {faction.armyRules.map((rule) => (
@@ -82,7 +83,7 @@ function FactionPage() {
             </div>
           </section>
         ) : null}
-        <section className="mt-6">
+        <section data-onboarding="faction-detachments" className="mt-6">
           <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
             <span>Detachments</span>
             <span className="readout">{detachments.length}</span>

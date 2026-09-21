@@ -135,6 +135,7 @@ export function GlobalSearch({ compact = false }: { compact?: boolean }) {
 
   return (
     <Button
+      data-onboarding="global-search"
       variant={compact ? 'ghost' : 'outline'}
       size={compact ? 'icon' : 'sm'}
       className={

@@ -1,4 +1,5 @@
 import { Label } from '@/components/ui/label'
+import type { OnboardingTarget } from '../onboarding'
 import type { Seat } from '../seats'
 import { PlayerAvatar } from './PlayerAvatar'
 import { SearchableSelect, type SearchableGroup, type SearchableOption } from './SearchableSelect'
@@ -33,16 +34,18 @@ export function SeatRows({
   seats,
   seatedIn,
   groupsFor,
+  onboarding,
   onPick,
 }: {
   idPrefix: string
   seats: readonly Seat[]
   seatedIn: (seat: Seat) => string | null
   groupsFor: (seat: Seat, taken: ReadonlySet<string | null>) => SearchableGroup[]
+  onboarding?: OnboardingTarget
   onPick: (seat: Seat, id: string) => void
 }) {
   return (
-    <div className="space-y-2">
+    <div data-onboarding={onboarding} className="space-y-2">
       {seats.map((seat) => {
         // Nobody sits in two chairs, so a player picked elsewhere is not offered here.
         const taken = new Set(seats.filter((other) => other.id !== seat.id).map(seatedIn))
@@ -69,12 +72,20 @@ export function SeatRows({
 }
 
 /** The two sides the filled seats add up to, so nobody has to work out a 2v1 from three dropdowns. */
-export function SeatMatchup({ seats, labelFor }: { seats: readonly Seat[]; labelFor: (seat: Seat) => string | null }) {
+export function SeatMatchup({
+  seats,
+  labelFor,
+  onboarding,
+}: {
+  seats: readonly Seat[]
+  labelFor: (seat: Seat) => string | null
+  onboarding?: OnboardingTarget
+}) {
   const yours = ['You', ...seats.filter((seat) => seat.side === 'yours').map((seat) => labelFor(seat) ?? 'Choose ally')]
   const theirs = seats.filter((seat) => seat.side === 'theirs').map((seat) => labelFor(seat) ?? 'Choose opponent')
 
   return (
-    <div aria-label="Battle matchup" aria-live="polite" className="border border-edge bg-sunken p-3">
+    <div data-onboarding={onboarding} aria-label="Battle matchup" aria-live="polite" className="border border-edge bg-sunken p-3">
       <p className="eyebrow mb-2">Matchup</p>
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 text-sm">
         <div className="min-w-0">

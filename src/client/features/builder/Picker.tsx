@@ -107,9 +107,10 @@ export const Picker = memo(function Picker({
   ]
 
   return (
-    <div className="flex h-full flex-col">
+    <div data-onboarding="roster-picker" className="flex h-full flex-col">
       <div className="space-y-2 border-b border-edge p-2.5">
         <SearchField
+          onboarding="picker-search"
           value={query}
           onChange={onQueryChange}
           placeholder="Search units, keywords, abilities…"
@@ -278,6 +279,7 @@ const PickerRow = memo(function PickerRow({
 }: PickerRowProps) {
   return (
     <div
+      data-onboarding="picker-unit"
       data-picker-unit={unit.name}
       className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5 [contain:layout_style] [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto]"
     >
@@ -312,6 +314,7 @@ const PickerRow = memo(function PickerRow({
         </Toggle>
         {unit.points === null ? null : <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{unit.points} pts</span>}
         <Button
+          data-onboarding="picker-add"
           size="sm"
           className="shrink-0 px-2"
           aria-label={`Add ${unit.name}`}

@@ -4,6 +4,7 @@ import type { ChangeEventHandler, CSSProperties, ReactNode } from 'react'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { GAME_SIZES, type FormatRule } from '../../core/battle'
+import type { OnboardingTarget } from '../onboarding'
 import { FactionLabel, type FactionPresentation } from './FactionMark'
 import { WaiverChip } from './FormatWaivers'
 import { dispositionTone } from './rosterSetup'
@@ -240,10 +241,11 @@ export function RosterBody({ children, threeColumn = false }: { children: ReactN
   )
 }
 
-export function RosterUnits({ children }: { children: ReactNode }) {
+export function RosterUnits({ children, onboarding }: { children: ReactNode; onboarding?: OnboardingTarget }) {
   return (
     <div
       data-slot="roster-units"
+      data-onboarding={onboarding}
       className="min-h-0 w-full min-w-0 max-w-full flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-x-none px-3"
     >
       {children}

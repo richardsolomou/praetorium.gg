@@ -17,6 +17,7 @@ import {
 } from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
 import { ReminderButton, type ReminderControls } from '../rosters/ReminderButton'
+import type { OnboardingTarget } from '../../onboarding'
 
 /**
  * Rules prose inside the pane, at the size of the labels it sits between.
@@ -118,17 +119,19 @@ export function Stepper({
   label,
   count,
   countLabel,
+  onboarding,
   onAdd,
   onRemove,
 }: {
   label: string
   count: number
   countLabel: string
+  onboarding?: OnboardingTarget
   onAdd?: () => void
   onRemove?: () => void
 }) {
   return (
-    <span className="grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
+    <span data-onboarding={onboarding} className="grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
       <CountButton label={`Fewer ${label}`} decrease onClick={onRemove} />
       <span className="readout text-center text-sm tabular-nums" aria-label={countLabel}>
         {count}
@@ -187,7 +190,10 @@ export function WargearRow({
     </span>
   )
   return (
-    <li className={`border border-l-[5px] bg-panel/40 ${count && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'}`}>
+    <li
+      data-onboarding="loadout-weapon"
+      className={`border border-l-[5px] bg-panel/40 ${count && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'}`}
+    >
       {instructions?.map((instruction) => (
         <RuleText key={instruction} text={instruction} rules={rules} className="!mt-0 p-2.5 text-xs leading-[1.125rem]" />
       ))}
@@ -343,7 +349,7 @@ export function SpecialChoice({
   }
   if (!showOptions && !choice.chosen) return null
   return (
-    <fieldset aria-label={`${unitName} ${heading}`} className="m-0 min-w-0 border-0">
+    <fieldset data-onboarding="loadout-enhancement" aria-label={`${unitName} ${heading}`} className="m-0 min-w-0 border-0">
       <legend className="eyebrow mb-1.5">{heading}</legend>
       <div className="space-y-1.5">
         {choice.optional && showOptions ? (

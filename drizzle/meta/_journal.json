@@ -141,6 +141,13 @@
       "when": 1789971868648,
       "tag": "0019_friendly_tusk",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1789987414637,
+      "tag": "0020_stiff_richard_fisk",
+      "breakpoints": true
     }
   ]
 }

@@ -3,6 +3,7 @@ import { Check, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { WaiverWarning } from '../../components/FormatWaivers'
+import { advanceOnboarding } from '../../onboarding'
 
 type Props = {
   loading: boolean
@@ -46,7 +47,7 @@ export function RosterBuilderFooter({
   return (
     <footer className="sticky bottom-0 z-20 border-t border-edge bg-panel px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="flex items-center gap-2">
+        <span data-onboarding="roster-points" className="flex items-center gap-2">
           {loading ? (
             <Skeleton className="size-5" aria-hidden />
           ) : over ? (
@@ -62,7 +63,17 @@ export function RosterBuilderFooter({
         </span>
 
         {editable ? (
-          <Button variant="outline" size="sm" className="ml-auto min-[1300px]:hidden" onClick={onAddUnits} disabled={!canAddUnits}>
+          <Button
+            data-onboarding="roster-picker"
+            variant="outline"
+            size="sm"
+            className="ml-auto min-[1300px]:hidden"
+            onClick={() => {
+              advanceOnboarding('roster', 'roster-picker', 'roster-search')
+              onAddUnits()
+            }}
+            disabled={!canAddUnits}
+          >
             Add units
           </Button>
         ) : null}

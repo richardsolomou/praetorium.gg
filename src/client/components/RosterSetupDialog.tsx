@@ -28,6 +28,7 @@ import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../core/savedRost
 import { VISIBILITY_DETAIL } from '../features/rosters/visibility'
 import { factionQuery } from '../queries'
 import { DetachmentReference } from './DetachmentReference'
+import { advanceOnboarding } from '../onboarding'
 import { SearchField } from './SearchField'
 import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
 import { factionSelectGroups } from '../features/builder/factions'
@@ -216,6 +217,7 @@ export function RosterSetupDialog({
   const groups = factionSelectGroups(factionOptions, favourites)
 
   const toggleDetachment = (id: string) => {
+    advanceOnboarding('roster', 'roster-detachment', 'roster-name')
     const ids = draft.detachmentIds.includes(id)
       ? draft.detachmentIds.filter((candidate) => candidate !== id)
       : singleDetachment
@@ -269,7 +271,7 @@ export function RosterSetupDialog({
 
           <div className="space-y-5 px-5">
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
+              <div data-onboarding="setup-faction">
                 <Label className="eyebrow block" htmlFor="setup-faction">
                   Faction
                 </Label>
@@ -278,6 +280,7 @@ export function RosterSetupDialog({
                   groups={groups}
                   value={draft.catalogueId}
                   onValueChange={(catalogueId) => {
+                    advanceOnboarding('roster', 'roster-faction', 'roster-size')
                     setDetachmentQuery('')
                     changeDraft({
                       ...draft,
@@ -291,7 +294,7 @@ export function RosterSetupDialog({
                   className="mt-1 h-11"
                 />
               </div>
-              <div>
+              <div data-onboarding="setup-size">
                 <Label className="eyebrow block" htmlFor="setup-size">
                   Battle size
                 </Label>
@@ -301,6 +304,7 @@ export function RosterSetupDialog({
                   value={String(draft.limit)}
                   groups={BATTLE_SIZE_GROUPS}
                   onValueChange={(next) => {
+                    advanceOnboarding('roster', 'roster-size', 'roster-detachment')
                     const limit = Number(next)
                     changeDraft({
                       ...draft,
@@ -315,7 +319,7 @@ export function RosterSetupDialog({
               </div>
             </div>
 
-            <fieldset>
+            <fieldset data-onboarding="setup-detachments">
               <div className="flex items-end justify-between gap-3">
                 <legend className="rubric">Detachments</legend>
                 <span className={`readout text-xs ${pointsError ? 'text-destructive' : 'text-dim'}`}>
@@ -467,7 +471,7 @@ export function RosterSetupDialog({
               </fieldset>
             ) : null}
 
-            <div>
+            <div data-onboarding="setup-name">
               <Label className="rubric block" htmlFor="setup-name">
                 Roster name
               </Label>
@@ -519,6 +523,7 @@ export function RosterSetupDialog({
               Cancel
             </Button>
             <Button
+              data-onboarding="setup-create"
               className="sm:min-w-40"
               disabled={
                 pending ||

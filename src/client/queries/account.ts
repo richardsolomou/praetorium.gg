@@ -1,9 +1,20 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import type { AdminUsersCursor } from '../../admin'
-import { accountMethods, activeFriendInvite, adminUsers, friendInvite, me, signInOptions, userProfile } from '../../server/functions'
+import {
+  accountMethods,
+  activeFriendInvite,
+  adminUsers,
+  friendInvite,
+  me,
+  onboardingProgress,
+  signInOptions,
+  userProfile,
+} from '../../server/functions'
 import { SSR_STALE_TIME } from './shared'
 
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(), staleTime: SSR_STALE_TIME })
+export const onboardingQuery = () =>
+  queryOptions({ queryKey: ['onboarding'], queryFn: () => onboardingProgress(), staleTime: SSR_STALE_TIME })
 export const activeFriendInviteQuery = () =>
   queryOptions({ queryKey: ['friend-invite', 'active'], queryFn: () => activeFriendInvite(), staleTime: SSR_STALE_TIME })
 export const friendInviteQuery = (token: string) =>

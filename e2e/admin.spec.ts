@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
+import { dismissOnboardingWelcome } from './account'
 
 const ADMIN_EMAIL = 'preview@praetorium.gg'
 const ADMIN_PASSWORD = 'preview-preview-preview'
@@ -27,10 +28,15 @@ function currentTotp(uri: string) {
 
 async function signIn(page: Page, twoFactor = false, email = ADMIN_EMAIL, password = ADMIN_PASSWORD) {
   await page.goto('/sign-in')
+  // Filling before hydration submits the form natively and never signs in.
+  await page.waitForLoadState('networkidle')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  if (!twoFactor) await page.waitForURL('/')
+  if (!twoFactor) {
+    await page.waitForURL('/')
+    await dismissOnboardingWelcome(page)
+  }
 }
 
 test('an administrator can secure an account and impersonate a player', async ({ browser, page }) => {

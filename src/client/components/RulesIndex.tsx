@@ -46,7 +46,14 @@ export function RulesIndex() {
         description="The core rules, the mission sequence, and the event and Combat Patrol rules, as the community data writes them."
       />
       <PageContent>
-        <SearchField value={wanted} onChange={setWanted} placeholder="Find a rule" label="Find a rule" clearLabel="Empty the rule filter" />
+        <SearchField
+          onboarding="rules-search"
+          value={wanted}
+          onChange={setWanted}
+          placeholder="Find a rule"
+          label="Find a rule"
+          clearLabel="Empty the rule filter"
+        />
         {matches ? (
           <FoundRules matches={matches} />
         ) : (
@@ -117,7 +124,7 @@ function FoundRules({ matches }: { matches: Found[] }) {
 function DocumentShelf({ document }: { document: RuleDocumentSummary }) {
   const rules = document.sections.reduce((count, section) => count + section.entries.length, 0)
   return (
-    <section className="mt-6">
+    <section data-onboarding="rules-documents" className="mt-6">
       <div className="flex items-baseline justify-between gap-3 border-b border-edge pb-2">
         <h2 className="rubric">
           <Link to="/rules/$documentId" params={{ documentId: document.slug }} className="hover:text-bone">

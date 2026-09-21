@@ -68,7 +68,7 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
 
 function Rule({ entry, links }: { entry: RuleEntry; links: RuleLinks }) {
   return (
-    <article id={entry.anchor} className="scroll-mt-16 border border-edge bg-panel p-3 sm:p-4">
+    <article id={entry.anchor} data-onboarding="rule-article" className="scroll-mt-16 border border-edge bg-panel p-3 sm:p-4">
       <div className="flex flex-wrap items-baseline gap-2">
         {entry.code ? <span className="chip readout">{entry.code}</span> : null}
         <h2 className="text-xl">{entry.title}</h2>

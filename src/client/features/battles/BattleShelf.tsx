@@ -8,6 +8,7 @@ import { summarySides } from '../../battleSummary'
 import { formatDate } from '../../dates'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import type { OnboardingTarget } from '../../onboarding'
 import type { Battle } from './battle'
 
 /**
@@ -23,16 +24,18 @@ export function BattleShelf({
   title,
   battles,
   viewerId,
+  onboarding,
   onDelete,
 }: {
   title?: string
   battles: Battle[]
   viewerId?: string
+  onboarding?: OnboardingTarget
   onDelete?: (battle: Battle) => void
 }) {
   if (!battles.length) return null
   return (
-    <section data-battle-shelf={title ?? ''}>
+    <section data-onboarding={onboarding} data-battle-shelf={title ?? ''}>
       {title ? (
         <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
           <span>{title}</span>

@@ -20,6 +20,7 @@ import { type BattleAudience, battleAudience, maySpectate } from '../core/battle
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import type { MissionAward } from '../core/scoring'
+import type { OnboardingProgressOperation } from '../core/onboarding'
 import { filterBattles, type RecordFilter, recordFacets, serviceRecord } from '../core/serviceRecord'
 import { factionsPlayed, type Standing, type StandingFaction, standings } from '../core/standings'
 import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
@@ -124,6 +125,14 @@ export class PraetoriumService {
     this.leagueService = new LeagueService(repository, clock, events)
     this.rosterService = new RosterService(repository, clock)
     this.socialService = new SocialService(repository, clock)
+  }
+
+  onboardingProgress(userId: string) {
+    return this.repository.onboardingProgress(userId)
+  }
+
+  updateOnboardingProgress(userId: string, operation: OnboardingProgressOperation) {
+    return this.repository.updateOnboardingProgress(userId, operation)
   }
 
   createLeague(...args: Parameters<LeagueService['createLeague']>) {

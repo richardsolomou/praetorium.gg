@@ -131,7 +131,7 @@ function PlayerProfile() {
             void navigate({ to: '/users/$userId', params: { userId }, search: { ...filter, tab: value as ProfileTab } })
           }
         >
-          <TabsList variant="line" className="h-auto w-full justify-start gap-4 border-b border-edge p-0">
+          <TabsList data-onboarding="profile-tabs" variant="line" className="h-auto w-full justify-start gap-4 border-b border-edge p-0">
             {/*
               The primitive's own active underline is positioned by a variant this
               setup does not match, so it renders at no height. Stated here instead.

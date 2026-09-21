@@ -89,7 +89,7 @@ export function HomeView({ me, mine, friends, open, newBattle, onDelete, more }:
  */
 function Welcome({ name, newBattle }: { name: string; newBattle?: ReactNode }) {
   return (
-    <section className="border-b border-edge bg-panel">
+    <section data-onboarding="home-activity" className="border-b border-edge bg-panel">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-3 py-4 sm:px-4">
         <div>
           <p className="eyebrow text-parchment">Praetorium</p>
@@ -180,7 +180,7 @@ function AllBattles() {
  * says more to a new account than a third grey box would.
  */
 function FriendTables({ battles, explain }: { battles: readonly Battle[]; explain: boolean }) {
-  if (battles.length) return <BattleShelf title="Friends' games" battles={[...battles]} />
+  if (battles.length) return <BattleShelf onboarding="home-friends" title="Friends' games" battles={[...battles]} />
   if (!explain) return null
   return (
     <section data-friends-empty>
@@ -217,7 +217,7 @@ function PublicTables({
   }
   return (
     <div>
-      <BattleShelf title="Public games" battles={[...battles]} />
+      <BattleShelf onboarding="home-public" title="Public games" battles={[...battles]} />
       {more ? (
         <Button variant="outline" size="sm" className="mt-2" disabled={more.pending} onClick={more.onShow}>
           {more.pending ? 'Loading…' : 'Show more battles'}

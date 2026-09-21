@@ -34,7 +34,7 @@ export function LeagueFormFields({
     : Math.max(minimumPlayerLimit, acceptedCount)
   return (
     <>
-      <div className="space-y-1.5">
+      <div data-onboarding="league-name" className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-name`}>Name</Label>
         <Input
           id={`${idPrefix}-name`}
@@ -57,7 +57,7 @@ export function LeagueFormFields({
           onChange={(event) => onChange({ ...value, description: event.target.value })}
         />
       </div>
-      <div className="space-y-1.5">
+      <div data-onboarding="league-limit" className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-player-limit`}>Player limit</Label>
         <Input
           id={`${idPrefix}-player-limit`}
@@ -81,6 +81,7 @@ export function LeagueFormFields({
         </p>
       </div>
       <Choice
+        onboarding="league-visibility"
         label="Visibility"
         value={value.visibility}
         options={[
@@ -91,6 +92,7 @@ export function LeagueFormFields({
         onChange={(visibility) => onChange({ ...value, visibility })}
       />
       <Choice
+        onboarding="league-joining"
         label="Joining"
         value={value.admission}
         options={[

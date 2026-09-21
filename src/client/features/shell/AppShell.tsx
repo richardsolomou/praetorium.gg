@@ -13,6 +13,8 @@ import { Account } from '../../components/Account'
 import { GlobalSearch, GlobalSearchProvider } from '../../components/GlobalSearch'
 import { ImpersonationBanner } from '../../components/ImpersonationBanner'
 import { NativeAppNavigation } from '../../components/NativeAppNavigation'
+import { OnboardingButton } from '../../components/OnboardingButton'
+import { OnboardingGuide } from '../../components/OnboardingGuide'
 import { meQuery } from '../../queries'
 const posthog = postHogEnvironment({
   projectToken: import.meta.env.VITE_POSTHOG_PROJECT_TOKEN,
@@ -153,6 +155,7 @@ export function AppShell() {
                     </Link>
                     <PrimaryNavigation path={path} />
                     <GlobalSearch />
+                    <OnboardingButton />
                     <Account />
                   </div>
                 </header>
@@ -172,6 +175,7 @@ export function AppShell() {
                     </Link>
                     <span className="ml-auto flex items-center">
                       <GlobalSearch compact />
+                      <OnboardingButton />
                       <Account />
                     </span>
                   </header>
@@ -191,6 +195,7 @@ export function AppShell() {
                   search={location.search}
                   state={location.state}
                 />
+                <OnboardingGuide />
                 <Impersonation />
                 {/*
                  * Said plainly and on every page, because the name is drawn from Games

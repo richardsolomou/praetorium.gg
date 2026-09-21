@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { befriend, createBattle, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import { befriend, createBattle, createRoster, dismissOnboardingWelcome, signUp, uniqueName, waitForRosterSave } from './account'
 
 /**
  * An account is who you are here, so this covers both halves of that: nothing is
@@ -205,7 +205,15 @@ test('friends use the profile picture shown elsewhere', async ({ browser }) => {
   await alice.getByRole('button', { name: 'Save profile' }).click()
   await expect(alice.getByText('Profile saved.')).toBeVisible()
   await signUp(bob, uniqueName('Bob'))
-  await befriend(alice, bob)
+  // A sent request is not a friendship, so the folded task only resolves once it is accepted.
+  await befriend(alice, bob, {
+    beforeAccept: async () => {
+      await alice.reload()
+      await expect(alice.getByRole('button', { name: 'Getting started, 0 of 6 tasks resolved' })).toBeVisible()
+    },
+  })
+  await alice.reload()
+  await expect(alice.getByRole('button', { name: 'Getting started, 1 of 6 tasks resolved' })).toBeVisible()
 
   const friend = bob.locator(`[data-person="${aliceName}"]`)
   await expect(friend.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
@@ -246,6 +254,7 @@ test('a one-time link connects a new player after they create an account and acc
   await recipient.getByRole('button', { name: 'Create the account' }).click()
 
   await expect(recipient.getByRole('heading', { name: `Become friends with ${inviterName}` })).toBeVisible()
+  await dismissOnboardingWelcome(recipient)
   await recipient.getByRole('button', { name: 'Accept invite' }).click()
   await expect(recipient).toHaveURL(/\/friends$/)
   await expect(recipient.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: inviterName })).toBeVisible()
@@ -259,13 +268,34 @@ test('a one-time link connects a new player after they create an account and acc
   await recipientContext.close()
 })
 
-test('the account menu links feedback to GitHub Issues', async ({ page }) => {
-  await signUp(page, uniqueName('Feedback'))
+test('the header keeps onboarding available and the account menu stays personal', async ({ page }) => {
+  const name = uniqueName('Feedback')
+  await signUp(page, name)
+
+  await page.getByRole('button', { name: 'Getting started, 0 of 6 tasks resolved' }).click()
+  await expect(page.getByRole('heading', { name: 'Learn Praetorium' })).toBeVisible()
+  await page.getByRole('button', { name: 'Close getting started' }).click()
   await page.getByRole('button', { name: /Account menu for/ }).click()
 
+  await expect(page.getByRole('menuitem', { name: 'My profile' })).toContainText(name)
+  await expect(page.getByRole('menuitem', { name: /My battles|My rosters|Leagues|Getting started/ })).toHaveCount(0)
   const feedback = page.getByRole('menuitem', { name: 'Send feedback' })
   await expect(feedback).toHaveAttribute('href', 'https://github.com/richardsolomou/praetorium.gg/issues')
   await expect(feedback).toHaveAttribute('target', '_blank')
+  await page.screenshot({ path: 'test-results/account-menu-desktop.png', fullPage: true })
+
+  await page
+    .locator('[data-web-app-chrome]')
+    .getByRole('button', { name: `Account menu for ${name}` })
+    .click()
+  await expect(page.getByRole('menuitem', { name: 'My profile' })).toBeHidden()
+  await page.setViewportSize({ width: 390, height: 844 })
+  const mobileHeader = page.locator('[data-mobile-app-header]')
+  await expect(mobileHeader.getByRole('button', { name: 'Getting started, 0 of 6 tasks resolved' })).toBeVisible()
+  await page.screenshot({ path: 'test-results/onboarding-progress-phone.png', fullPage: true })
+  await mobileHeader.getByRole('button', { name: `Account menu for ${name}` }).click()
+  await expect(page.getByRole('menuitem', { name: 'My profile' })).toBeVisible()
+  await page.screenshot({ path: 'test-results/account-menu-phone.png', fullPage: true })
 })
 
 test('a list saved under an account is there on another device', async ({ browser }) => {
@@ -280,10 +310,16 @@ test('a list saved under an account is there on another device', async ({ browse
   await page.getByLabel('Password').fill('a-long-enough-password')
   await page.getByRole('button', { name: 'Create the account' }).click()
   await expect(page.getByRole('button', { name: 'Account menu for Alice' })).toBeVisible()
+  await dismissOnboardingWelcome(page)
 
+  await expect(page.getByRole('button', { name: 'Getting started, 0 of 6 tasks resolved' })).toBeVisible()
   await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Kept list' })
   await page.getByLabel('Add a unit').fill('Plague Marines')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click())
+
+  // Nothing recorded that the task was done: a reload folds it from the list this account now owns.
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Getting started, 1 of 6 tasks resolved' })).toBeVisible()
 
   // A different browser entirely: no cookie, no storage, nothing but the account.
   const second = await browser.newContext()
@@ -325,6 +361,7 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   await guest.getByRole('button', { name: 'Create the account' }).click()
   const accountMenu = guest.getByRole('button', { name: `Account menu for ${bobName}` })
   await accountMenu.waitFor()
+  await dismissOnboardingWelcome(guest)
   await signUp(host, aliceName)
   await befriend(host, guest)
   await accountMenu.click()

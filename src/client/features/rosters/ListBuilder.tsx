@@ -40,6 +40,7 @@ import { exportRoster, saveRoster } from '../../../server/functions'
 import { shareLink } from '../../nativeBridge'
 import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
+import { advanceOnboarding } from '../../onboarding'
 import { picksAfterDetachmentChange } from '../../rosterPicks'
 import { useCollectionMutation } from '../../useCollection'
 import { useSettled } from '../../useSettled'
@@ -578,6 +579,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
     const { picks: currentPicks, updateLoadoutHistory: updateHistory, workspacePath: currentWorkspace } = selection.current
     const selectedKey = currentPicks[index]?.key
     if (selectedKey !== undefined) updateHistory({ workspace: currentWorkspace, pane: 'loadout', selectedKey })
+    advanceOnboarding('roster', 'roster-points', 'roster-loadout')
   }, [])
   const setUnitOwned = useCallback(
     (entryId: string, nextOwned: boolean) => mutateCollection({ entryId, owned: nextOwned }),
@@ -1007,7 +1009,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
           </div>
         ) : null}
 
-        <RosterUnits>
+        <RosterUnits onboarding="roster-list">
           {cards.length ? (
             GROUPS.map(({ id, plural }) => {
               const rows = cards
@@ -1072,6 +1074,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
         {loadoutAvailable ? (
           <Pane
             variant="loadout"
+            onboarding="roster-loadout"
             open={showing === 'loadout' && Boolean(selected !== null || preview)}
             threeColumn={editable}
             title={preview?.name ?? frozenSelected?.name ?? selectedUnit?.name ?? 'Unit'}
@@ -1110,9 +1113,12 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
                         <Crown className="size-3.5 fill-current" /> Warlord
                       </span>
                     ) : null}
-                    <span className="chip w-[4.5rem] justify-center text-info">{optimisticUnit.points} pts</span>
+                    <span data-onboarding="unit-points" className="chip w-[4.5rem] justify-center text-info">
+                      {optimisticUnit.points} pts
+                    </span>
                     {optimisticUnit.size.resizable && inspectorView === 'edit' ? (
                       <Stepper
+                        onboarding="unit-models"
                         label={`models in ${optimisticUnit.name}`}
                         countLabel={`${optimisticUnit.name} models`}
                         count={optimisticUnit.size.models}

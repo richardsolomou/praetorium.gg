@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { createLeague } from '../../../server/functions'
 import { leaguesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
+import { advanceOnboarding } from '../../onboarding'
 import { LeagueFormFields, type LeagueFormValue } from './LeagueForm'
 
 export function CreateLeague() {
@@ -31,7 +32,9 @@ export function CreateLeague() {
 
   return (
     <Dialog open={open} onOpenChange={(next) => !create.isPending && setOpen(next)}>
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger
+        render={<Button data-onboarding="create-league" onClick={() => advanceOnboarding('league', 'league-start', 'league-name')} />}
+      >
         <Plus /> New league
       </DialogTrigger>
       <DialogContent showCloseButton={!create.isPending} aria-busy={create.isPending} className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
@@ -55,7 +58,7 @@ export function CreateLeague() {
             <Button type="button" variant="outline" disabled={create.isPending} onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={create.isPending || !value.name.trim()}>
+            <Button data-onboarding="league-create" type="submit" disabled={create.isPending || !value.name.trim()}>
               {create.isPending ? 'Creating…' : 'Create league'}
             </Button>
           </DialogFooter>

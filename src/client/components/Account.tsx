@@ -1,18 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import {
-  CircleUserRound,
-  LogIn,
-  LogOut,
-  MessageSquareWarning,
-  ScrollText,
-  ShieldCheck,
-  Swords,
-  Trophy,
-  UserRound,
-  UserRoundPen,
-  Users,
-} from 'lucide-react'
+import { CircleUserRound, LogIn, LogOut, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -50,27 +38,29 @@ function AccountMenuItems() {
 
   return (
     <>
-      <DropdownMenuLabel className="px-2 py-2">
-        <span className="eyebrow block">{me ? 'Profile' : 'Account'}</span>
-        <span className="mt-0.5 block truncate text-sm font-semibold text-bone">{me?.name ?? 'Not signed in'}</span>
-      </DropdownMenuLabel>
+      {me ? (
+        <DropdownMenuItem
+          render={<Link to="/users/$userId" params={{ userId: me.id }} search={{}} />}
+          aria-label="My profile"
+          className="items-start px-2 py-2"
+        >
+          <UserRound className="mt-0.5" />
+          <span className="min-w-0">
+            <span className="eyebrow block">Profile</span>
+            <span className="mt-0.5 block truncate text-sm font-semibold text-bone">{me.name}</span>
+          </span>
+        </DropdownMenuItem>
+      ) : (
+        <DropdownMenuLabel className="px-2 py-2">
+          <span className="eyebrow block">Account</span>
+          <span className="mt-0.5 block truncate text-sm font-semibold text-bone">Not signed in</span>
+        </DropdownMenuLabel>
+      )}
       <DropdownMenuSeparator />
       {me ? (
         <>
-          <DropdownMenuItem render={<Link to="/users/$userId" params={{ userId: me.id }} search={{}} />}>
-            <UserRound /> My profile
-          </DropdownMenuItem>
           <DropdownMenuItem render={<Link to="/profile" />}>
             <UserRoundPen /> Edit profile
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link to="/battles" />}>
-            <Swords /> My battles
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link to="/rosters" />}>
-            <ScrollText /> My rosters
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link to="/leagues" />}>
-            <Trophy /> Leagues
           </DropdownMenuItem>
           <DropdownMenuItem render={<Link to="/friends" />}>
             <Users /> Friends

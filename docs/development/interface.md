@@ -18,6 +18,14 @@ Compact roster panes use browser history. Their own close action or the Android 
 
 The Friends page creates one active, one-time invite link per player. Replacing it invalidates the previous link. A signed-out recipient is taken to account creation and returned to the invite, where accepting it creates the mutual friendship; viewing the link alone changes nothing.
 
+## Getting started
+
+A signed-in player sees a short field guide. It opens itself once, on first use, and stays reachable from the progress button in the header. Its task panel is not modal, so the application it introduces remains usable beneath it.
+
+Six tasks cover building a roster, adding someone to play against, starting a battle, organized play, the game reference, and the community surfaces. The first four are resolved because the account has the roster, accepted friendship, battle seat or league entry to show for them: that progress is folded from those rows on every read and never stored, so an account older than the guide arrives with its history already counted and the guide cannot disagree with the rest of the product. Only the two reading tours, which leave no other trace, record a completion. A skipped task and the welcome are the only other facts kept.
+
+A tour is a walk through controls rather than a label on a dialog. Each prompt anchors one control and says what that control does, and the guide moves on when the player reaches the next page or takes the real action: choosing a faction, adding a unit, opening a detachment. A button on the prompt is offered only for reading steps, and only where the next step is on the page already open or its address reaches it. A control the data need not produce — a faction with no enhancements, a unit with no ranged weapons, an event nobody organizes — is stepped over rather than stranding the tour. Reading surfaces stay grouped into one reference tour rather than becoming a task for every page, though the tour follows the player from each index into the controls inside a detail page. A tour left half-finished resumes where it stopped.
+
 ## Roster layout
 
 Headings are compact and uppercase, section counts and points use small chips, and player ownership uses consistent red and blue tints. Attacker deployment zones use theme red, defender zones use theme green, and neutral zones use primary green.

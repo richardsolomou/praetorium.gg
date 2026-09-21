@@ -43,6 +43,7 @@ export function FactionDatasheets() {
           <ChevronLeft className="size-3.5" /> {faction.references[0]?.name ?? faction.displayName}
         </Link>
         <SearchField
+          onboarding="datasheet-search"
           className="mt-4"
           value={query}
           onChange={setQuery}
@@ -87,6 +88,7 @@ export function FactionDatasheets() {
 const FactionDatasheetRow = memo(function FactionDatasheetRow({ catalogueId, unit }: { catalogueId: string; unit: UnitSummary }) {
   return (
     <div
+      data-onboarding="datasheet-row"
       data-datasheet={unit.name}
       className="flex w-full min-w-0 items-center border border-edge bg-panel [contain:layout_style] hover:border-info"
     >

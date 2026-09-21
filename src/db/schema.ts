@@ -125,6 +125,35 @@ export const rateLimit = pgTable(
   // copy would cost a write per request to answer nothing new.
 )
 
+/** Whether a player has been introduced to the in-product field guide. */
+export const userOnboarding = pgTable('user_onboarding', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  welcomed: boolean().notNull().default(false),
+})
+
+/**
+ * The guide tasks a player answered by hand.
+ *
+ * Building a list, adding a friend, playing a battle and joining a league are
+ * already written down by the rows those actions create, so a completed row here
+ * would be a second copy free to disagree. What only the player can say is that
+ * they finished a tour or want a task out of the way, which is what this holds —
+ * `task` stays plain text so a row a later release wrote is ignored, not erased.
+ */
+export const userOnboardingTasks = pgTable(
+  'user_onboarding_tasks',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    task: text('task').notNull(),
+    state: text('state', { enum: ['completed', 'skipped'] }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.task] })],
+)
+
 /** One game between opposing sides. Its token is the link they share. */
 export const battles = pgTable(
   'battles',
@@ -434,6 +463,8 @@ export const schema = {
   verification,
   twoFactor,
   rateLimit,
+  userOnboarding,
+  userOnboardingTasks,
   battles,
   battleUsers,
   battleSharing,

@@ -29,7 +29,7 @@ export function RuleContents({ documentId }: { documentId: string }) {
           <ChevronLeft className="size-3.5" aria-hidden /> Rules
         </Link>
         {document.sections.map((section) => (
-          <section key={section.id} className="mt-5">
+          <section key={section.id} data-onboarding="rule-contents" className="mt-5">
             <h2 className="rubric flex items-baseline justify-between gap-3 border-b border-edge pb-2">
               <Link
                 to="/rules/$documentId/$sectionId"
@@ -44,6 +44,7 @@ export function RuleContents({ documentId }: { documentId: string }) {
               {section.entries.map((entry) => (
                 <Link
                   key={entry.anchor}
+                  data-onboarding="rule-entry"
                   to="/rules/$documentId/$sectionId"
                   params={{ documentId: document.slug, sectionId: section.slug }}
                   hash={entry.anchor}

@@ -54,7 +54,7 @@ function MissionPackPage() {
         {allowances.length ? <p className="readout mt-1 text-xs text-dim">{allowances.join(' · ')}</p> : null}
       </PageHeader>
       <PageContent className="space-y-7">
-        <section>
+        <section data-onboarding="mission-dispositions">
           <h2 className="rubric border-b border-edge pb-2">Force dispositions</h2>
           <p className="mt-2 text-sm text-dim">Select the resulting mission to read its scoring rules.</p>
           {/* Bleeds to the window on a phone, so the cut-off column reads as a scroller. */}
@@ -107,7 +107,7 @@ function MissionPackPage() {
           </div>
         </section>
 
-        <section>
+        <section data-onboarding="mission-secondaries">
           <h2 className="rubric flex justify-between border-b border-edge pb-2">
             <span>Secondary missions</span>
             <span className="readout">{data.secondaries.length}</span>
