@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.70.0
+
+### Minor Changes
+
+- 4292f78: Add a resumable getting-started guide that walks you through roster building, battles, leagues, the game reference and the community pages, and counts the tasks you have already done.
+
+### Patch Changes
+
+- ad7460b: Open your profile from the account menu, and reach battles, rosters and leagues from the main navigation instead.
+- ad7460b: Choose who can watch your battles from a Privacy box beside the rest of your profile settings.
+
 ## 0.69.0
 
 ### Minor Changes
