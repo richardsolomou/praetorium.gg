@@ -43,6 +43,9 @@ export function datacardOf(loaded: LoadedCatalogue, catalogueId: string, entryId
   return found
 }
 
+export const datacardJoinOutcome = (loaded: LoadedCatalogue, catalogueId: string, entryId: string) =>
+  datacardOf(loaded, catalogueId, entryId)?.method ?? 'missing'
+
 function join(loaded: LoadedCatalogue, catalogueId: string, entryId: string): DatacardJoin | null {
   const entry = loaded.index.definitions.get(entryId)
   const book = loaded.index.catalogues.get(catalogueId)
