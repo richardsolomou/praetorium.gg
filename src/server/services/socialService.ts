@@ -1,5 +1,6 @@
 import type { Repository } from '../../db/repository'
 import { PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
+import { randomToken } from 'ras-stack/auth'
 
 export class SocialService {
   constructor(
@@ -64,6 +65,36 @@ export class SocialService {
 
   async removeFriend(userId: string, friendId: string) {
     if (!(await this.repository.removeFriend(userId, friendId))) throw new Response('no such friendship', { status: 404 })
+  }
+
+  async activeFriendInvite(userId: string) {
+    return this.repository.friendInviteByInviter(userId)
+  }
+
+  async friendInvite(token: string) {
+    const invite = await this.repository.friendInviteByToken(token)
+    if (!invite) return null
+    return {
+      token: invite.token,
+      inviter: { id: invite.inviterId, name: invite.inviterName, image: invite.inviterImage },
+    }
+  }
+
+  async createFriendInvite(userId: string) {
+    const token = randomToken()
+    await this.repository.replaceFriendInvite(userId, token, this.clock())
+    return { token }
+  }
+
+  async cancelFriendInvite(userId: string) {
+    await this.repository.cancelFriendInvite(userId)
+  }
+
+  async acceptFriendInvite(userId: string, token: string) {
+    const result = await this.repository.acceptFriendInvite(token, userId, this.clock())
+    if (result === 'missing') throw new Response('this invite is no longer available', { status: 404 })
+    if (result === 'self') throw new Response('share this invite with another player', { status: 400 })
+    if (result === 'already-friends') throw new Response('you are already friends', { status: 409 })
   }
 }
 

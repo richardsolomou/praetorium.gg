@@ -189,6 +189,19 @@ export const friendships = pgTable(
   ],
 )
 
+/** A one-time link from one player to somebody who may not have an account yet. */
+export const friendInvites = pgTable(
+  'friend_invites',
+  {
+    token: text().primaryKey().notNull(),
+    inviterId: text('inviter_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (table) => [uniqueIndex('friend_invites_inviter_id_unique').on(table.inviterId)],
+)
+
 /**
  * The battle's whole history, and the only record of its state — nothing derived
  * is stored, so there is no second copy of the score to disagree with this one.
@@ -425,6 +438,7 @@ export const schema = {
   battleUsers,
   battleSharing,
   friendships,
+  friendInvites,
   commands,
   rosters,
   leagues,

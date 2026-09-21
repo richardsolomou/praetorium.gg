@@ -6,10 +6,11 @@ import { signedInDestination } from '../client/signInGuard'
 
 export const Route = createFileRoute('/sign-in')({
   validateSearch: (search: Record<string, unknown>) => {
-    const result: { next?: string; error?: string; reset?: boolean } = {}
+    const result: { next?: string; error?: string; reset?: boolean; join?: boolean } = {}
     result.next = localRedirectPath(search.next)
     if (typeof search.error === 'string' && search.error) result.error = search.error
     if (search.reset === true || search.reset === 'true') result.reset = true
+    if (search.join === true || search.join === 'true') result.join = true
     return result
   },
   beforeLoad: async ({ context, preload, search }) => {

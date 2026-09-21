@@ -28,6 +28,7 @@ Players can:
 - Watch live or finished public battles without joining the game.
 - See who is winning overall, or with a given faction, from finished public battles.
 - Choose whether anyone, friends, or only the players at the table can watch your battles.
+- Invite someone with a one-time link, even before they have an account.
 - Run public or private league events with registration, sealed rosters, and organizer-controlled reveal.
 - Review and correct a finished battle without losing its history.
 

@@ -9,6 +9,7 @@ import {
   favouriteDetachmentSchema,
   favouriteFactionSchema,
   friendSchema,
+  friendInviteSchema,
   adminUsersSchema,
   playerSearchSchema,
   ownedSchema,
@@ -128,6 +129,46 @@ export const friendships = createServerFn({ method: 'GET' }).handler(() =>
     return id ? app().service.friendships(id) : { friends: [], incoming: [], outgoing: [] }
   }),
 )
+
+export const activeFriendInvite = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    return id ? app().service.activeFriendInvite(id) : null
+  }),
+)
+
+export const friendInvite = createServerFn({ method: 'GET' })
+  .validator(friendInviteSchema)
+  .handler(({ data }) => rpc(() => app().service.friendInvite(data.token)))
+
+export const createFriendInvite = createServerFn({ method: 'POST' }).handler(() =>
+  mutationRpc(async () => {
+    const userId = await requireUserId()
+    const invite = await app().service.createFriendInvite(userId)
+    await app().telemetry.capture(userId, 'friend_invite_created')
+    return invite
+  }),
+)
+
+export const cancelFriendInvite = createServerFn({ method: 'POST' }).handler(() =>
+  mutationRpc(async () => {
+    const userId = await requireUserId()
+    await app().service.cancelFriendInvite(userId)
+    await app().telemetry.capture(userId, 'friend_invite_cancelled')
+    return null
+  }),
+)
+
+export const acceptFriendInvite = createServerFn({ method: 'POST' })
+  .validator(friendInviteSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.acceptFriendInvite(userId, data.token)
+      await app().telemetry.capture(userId, 'friend_invite_accepted')
+      return null
+    }),
+  )
 
 /** The players a name could mean, for someone with a friend to add. */
 export const searchPlayers = createServerFn({ method: 'GET' })

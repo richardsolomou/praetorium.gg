@@ -141,6 +141,7 @@ export const battleAudienceSchema = z.object({ audience: z.enum(BATTLE_AUDIENCES
 export const userSchema = z.object({ userId: id })
 export const playerSearchSchema = z.object({ query: z.string().trim().max(PLAYER_SEARCH_MAX_LENGTH) })
 export const friendSchema = z.object({ userId: id })
+export const friendInviteSchema = z.object({ token })
 
 /**
  * A player's profile, and what to narrow their record by.
