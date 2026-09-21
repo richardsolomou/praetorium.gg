@@ -40,7 +40,7 @@ import { exportRoster, saveRoster } from '../../../server/functions'
 import { shareLink } from '../../nativeBridge'
 import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { advanceOnboarding, signalOnboardingProgress } from '../../onboarding'
+import { advanceOnboarding, onboardingStepIsFocused, signalOnboardingProgress } from '../../onboarding'
 import { picksAfterDetachmentChange } from '../../rosterPicks'
 import { useCollectionMutation } from '../../useCollection'
 import { useSettled } from '../../useSettled'
@@ -548,11 +548,11 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
     (entryId: string) => {
       editor.current.add(entryId)
       reporting.current = 'roster_unit_added'
-      if (!wideWorkspace) closePane()
+      if (!wideWorkspace && me && onboardingStepIsFocused(me.id, 'roster', 'roster-picker')) closePane()
       advanceOnboarding('roster', 'roster-picker', 'roster-list')
       signalOnboardingProgress('roster', true)
     },
-    [closePane, wideWorkspace],
+    [closePane, me, wideWorkspace],
   )
   const inspect = useCallback(
     (previewCatalogueId: string, entryId: string, unitName: string) => {

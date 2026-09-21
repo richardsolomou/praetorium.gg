@@ -1,5 +1,5 @@
 import type { Step } from 'react-joyride'
-import type { OnboardingProgressOperation, OnboardingTaskId } from '../core/onboarding'
+import { onboardingTasks, type OnboardingProgressOperation, type OnboardingTaskId } from '../core/onboarding'
 
 export const ONBOARDING_EVENT = 'praetorium:onboarding'
 export const ONBOARDING_PROGRESS_EVENT = 'praetorium:onboarding-progress'
@@ -7,6 +7,23 @@ export const ONBOARDING_ADVANCE_EVENT = 'praetorium:onboarding-advance'
 
 export function onboardingFocusStorageKey(userId: string) {
   return `praetorium:focused-onboarding-step:${userId}`
+}
+
+export function storedOnboardingFocus(userId: string): OnboardingFocus | undefined {
+  if (typeof window === 'undefined') return undefined
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(onboardingFocusStorageKey(userId)) ?? 'null') as Partial<OnboardingFocus> | null
+    const task = onboardingTasks.find((candidate) => candidate.id === stored?.task)?.id
+    const step = onboardingStepIds.find((candidate) => candidate === stored?.step)
+    return task && step && ONBOARDING_UI[step].task === task ? { task, step } : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function onboardingStepIsFocused(userId: string, task: OnboardingTaskId, step: OnboardingStepId) {
+  const focus = storedOnboardingFocus(userId)
+  return focus?.task === task && focus.step === step
 }
 
 export type OnboardingProgressEvent = { task: OnboardingTaskId; keepGuide?: boolean }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   canOfferOnboardingWelcome,
   FIRST_ONBOARDING_STEP,
@@ -6,6 +6,7 @@ import {
   nextOnboardingFocus,
   onboardingFocusStorageKey,
   onboardingPage,
+  onboardingStepIsFocused,
   ONBOARDING_UI,
 } from './onboarding'
 import { onboardingTaskIds } from '../core/onboarding'
@@ -73,8 +74,16 @@ describe('onboarding coverage', () => {
 })
 
 describe('onboarding focus', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
   it('stores each account focus separately', () => {
     expect(onboardingFocusStorageKey('alice')).not.toBe(onboardingFocusStorageKey('bob'))
+  })
+
+  it('recognizes the active stored step', () => {
+    vi.stubGlobal('window', {})
+    vi.stubGlobal('sessionStorage', { getItem: () => JSON.stringify({ task: 'roster', step: 'roster-picker' }) })
+    expect(onboardingStepIsFocused('alice', 'roster', 'roster-picker')).toBe(true)
   })
 
   it('advances only the step that is currently focused', () => {

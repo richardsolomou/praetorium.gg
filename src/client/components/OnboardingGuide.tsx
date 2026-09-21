@@ -12,7 +12,6 @@ import {
   type OnboardingProgress,
   type OnboardingProgressOperation,
   type OnboardingTask,
-  type OnboardingTaskId,
 } from '../../core/onboarding'
 import { updateOnboardingProgress } from '../../server/functions'
 import { meQuery, onboardingQuery } from '../queries'
@@ -27,8 +26,8 @@ import {
   nextOnboardingFocus,
   onboardingFocusStorageKey,
   onboardingPage,
-  onboardingStepIds,
   signalOnboardingProgress,
+  storedOnboardingFocus,
   type OnboardingAdvanceEvent,
   type OnboardingFocus,
   type OnboardingProgressEvent,
@@ -39,18 +38,6 @@ type GuideStepData = {
   dismiss: () => void
   advance?: { label: string; run: () => void }
   finish?: () => void
-}
-
-function storedFocus(storageKey: string): OnboardingFocus | undefined {
-  if (typeof window === 'undefined') return undefined
-  try {
-    const stored = JSON.parse(sessionStorage.getItem(storageKey) ?? 'null') as Partial<OnboardingFocus> | null
-    const task = onboardingTasks.find((candidate) => candidate.id === stored?.task)?.id
-    const step = onboardingStepIds.find((candidate) => candidate === stored?.step)
-    return task && step && ONBOARDING_UI[step].task === task ? { task, step } : undefined
-  } catch {
-    return undefined
-  }
 }
 
 export function OnboardingGuide() {
@@ -72,14 +59,12 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
   const updateProgress = useCallback((operation: OnboardingProgressOperation) => mutation.mutate(operation), [mutation])
   const storageKey = onboardingFocusStorageKey(userId)
   const [open, setOpen] = useState(false)
-  const [focus, setFocus] = useState<OnboardingFocus | undefined>(() => storedFocus(storageKey))
+  const [focus, setFocus] = useState<OnboardingFocus | undefined>(() => storedOnboardingFocus(userId))
   const [target, setTarget] = useState<{ element: HTMLElement; revision: number } | undefined>()
   const [compactGuide, setCompactGuide] = useState(false)
   const offeredWelcome = useRef(false)
   const page = onboardingPage(location.pathname)
   const visible = useMemo(() => (data ? availableOnboardingTasks(data) : []), [data])
-  const resolved = data ? new Set([...data.completedTasks, ...data.skippedTasks]) : new Set<OnboardingTaskId>()
-  const complete = resolved.size === onboardingTasks.length
 
   useLayoutEffect(() => {
     const compact = window.matchMedia('(max-width: 859px)')
@@ -230,18 +215,6 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
 
   return (
     <>
-      {!open && !complete && !candidate ? (
-        <button
-          type="button"
-          data-onboarding-launcher
-          className="fixed right-4 bottom-[calc(8.5rem+env(safe-area-inset-bottom))] z-40 grid size-11 place-items-center rounded-full border-2 border-info/50 bg-panel text-info shadow-lg transition-colors hover:bg-raised hover:text-parchment min-[860px]:bottom-4"
-          aria-label={`Getting started, ${resolved.size} of ${onboardingTasks.length} tasks resolved`}
-          onClick={() => setOpen(true)}
-        >
-          <Flag className="size-5" />
-          <span className="absolute top-0.5 right-0.5 size-2 rounded-full bg-info ring-2 ring-panel" />
-        </button>
-      ) : null}
       <GuidePanel
         data={data}
         visible={visible}
