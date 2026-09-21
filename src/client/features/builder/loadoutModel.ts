@@ -131,7 +131,8 @@ export const canAddPooledOption = (option: LoadoutOption, donor?: LoadoutRowSour
 /** What a change to one option leaves every option in its group holding. */
 export type SpreadCounts = Record<string, number>
 
-export type ChoiceEdit = { key: string; optionId: string } | { key: string; counts: SpreadCounts }
+/** A counter press folded against the counts that the pick holds when it runs. */
+export type SpreadUpdate = (counts: SpreadCounts) => SpreadCounts | null
 
 /** Prefer the catalogue's ordinary allocation before taking a specialist's place. */
 export const donorPriority = (left: LoadoutOption, right: LoadoutOption) =>
@@ -341,36 +342,63 @@ const shedsSlot = (choice: LoadoutChoice) => choice.optional || takenIn(choice) 
  */
 export function spreadHandlers(choice: LoadoutChoice) {
   const taken = takenIn(choice)
-  const room = choice.room - taken
+  const held = (counts: SpreadCounts, option: LoadoutOption) => counts[option.id] ?? 0
+  const total = (counts: SpreadCounts) => choice.options.reduce((sum, option) => sum + held(counts, option), 0)
+  const priority = (counts: SpreadCounts) => (left: LoadoutOption, right: LoadoutOption) =>
+    Number(Boolean(right.default)) - Number(Boolean(left.default)) || held(counts, right) - held(counts, left)
+  const shown = Object.fromEntries(choice.options.map((option) => [option.id, option.count]))
+  const offered = (update: SpreadUpdate): SpreadUpdate | undefined => (update(shown) ? update : undefined)
 
-  const donor = (exclude: string) =>
-    choice.options.filter((option) => option.id !== exclude && (option.count > option.min || option.mutableMin)).toSorted(donorPriority)[0]
+  const more = (option: LoadoutOption) =>
+    offered((counts) => {
+      const current = held(counts, option)
+      if (current >= option.max) return null
+      if (total(counts) < choice.room) return { [option.id]: current + 1 }
+      const giving = choice.options
+        .filter(
+          (candidate) =>
+            candidate.id !== option.id &&
+            (held(counts, candidate) > candidate.min || (candidate.mutableMin && held(counts, candidate) > 0)),
+        )
+        .toSorted(priority(counts))[0]
+      return giving ? { [option.id]: current + 1, [giving.id]: held(counts, giving) - 1 } : null
+    })
 
-  const more = (option: LoadoutOption): SpreadCounts | null => {
-    if (option.count >= option.max) return null
-    if (room > 0) return { [option.id]: option.count + 1 }
-    const giving = donor(option.id)
-    return giving ? { [option.id]: option.count + 1, [giving.id]: giving.count - 1 } : null
-  }
-
-  const less = (option: LoadoutOption): SpreadCounts | null => {
-    if (option.count <= option.min) return null
-    if (shedsSlot(choice)) return { [option.id]: option.count - 1 }
-    // A full group has to hand the freed slot to a sibling, and only one still
-    // under its own cap can take it. Nine bolt rifles and a special weapon cannot
-    // become ten bolt rifles.
-    const receiving = choice.options
-      .filter((candidate) => candidate.id !== option.id && candidate.count < candidate.max)
-      .toSorted(donorPriority)[0]
-    return receiving ? { [option.id]: option.count - 1, [receiving.id]: receiving.count + 1 } : null
-  }
+  const less = (option: LoadoutOption) =>
+    offered((counts) => {
+      const current = held(counts, option)
+      if (current <= option.min) return null
+      if (choice.optional || total(counts) < choice.room) return { [option.id]: current - 1 }
+      // A full group has to hand the freed slot to a sibling, and only one still
+      // under its own cap can take it. Nine bolt rifles and a special weapon cannot
+      // become ten bolt rifles.
+      const receiving = choice.options
+        .filter((candidate) => candidate.id !== option.id && held(counts, candidate) < candidate.max)
+        .toSorted(priority(counts))[0]
+      return receiving ? { [option.id]: current - 1, [receiving.id]: held(counts, receiving) + 1 } : null
+    })
 
   return { taken, more, less }
 }
 
-/** A press that hands a group the counts it would then hold, or nothing to press. */
-export function changeBy(counts: SpreadCounts | null, key: string, onSpread: (key: string, counts: SpreadCounts) => void) {
-  return counts ? () => onSpread(key, counts) : undefined
+/** A press that folds a change into a group's live counts, or nothing to press. */
+export function changeBy(update: SpreadUpdate | undefined, key: string, onSpread: (key: string, update: SpreadUpdate) => void) {
+  return update ? () => onSpread(key, update) : undefined
+}
+
+/** Turn a result drawn from the priced answer into the equivalent live change. */
+export function relativeSpread(choice: LoadoutChoice, wanted: SpreadCounts): SpreadUpdate {
+  const deltas = Object.fromEntries(
+    Object.entries(wanted).map(([id, count]) => [id, count - (choice.options.find((option) => option.id === id)?.count ?? 0)]),
+  )
+  return (counts) => {
+    const next = Object.fromEntries(Object.entries(deltas).map(([id, delta]) => [id, (counts[id] ?? 0) + delta]))
+    const valid = Object.entries(next).every(([id, count]) => {
+      const option = choice.options.find((candidate) => candidate.id === id)
+      return count >= 0 && count <= (option?.max ?? 0)
+    })
+    return valid ? next : null
+  }
 }
 
 /** Whether an option is one of the bodies this card counts, rather than wargear on one. */

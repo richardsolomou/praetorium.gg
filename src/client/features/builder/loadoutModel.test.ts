@@ -13,6 +13,7 @@ import {
   ordered,
   orderedModelWargear,
   poolHandlers,
+  relativeSpread,
   orderedChoices,
   replacementChoice,
   sameWeapon,
@@ -104,8 +105,8 @@ it('does not remove a mandatory copy while allowing an additional copy', () => {
   const gauntlet = { ...option('gauntlet', 1, 2), min: 1 }
   const handlers = spreadHandlers(choice([gauntlet], 2))
 
-  expect(handlers.less(gauntlet)).toBeNull()
-  expect(handlers.more(gauntlet)).toEqual({ gauntlet: 2 })
+  expect(handlers.less(gauntlet)).toBeUndefined()
+  expect(handlers.more(gauntlet)?.({ gauntlet: 1 })).toEqual({ gauntlet: 2 })
 })
 
 it('applies pending draft counts without replacing untouched evaluated counts', () => {
@@ -375,14 +376,16 @@ describe('a group the whole squad answers at once', () => {
 })
 
 describe('dividing a group between its options', () => {
+  const held = (group: LoadoutChoice) => Object.fromEntries(group.options.map((entry) => [entry.id, entry.count]))
+
   it('fills the spare room before asking a sibling for anything', () => {
     const group = choice([option('blaster', 3, 10), option('carbine', 0, 10)], 5)
-    expect(spreadHandlers(group).more(group.options[1]!)).toEqual({ carbine: 1 })
+    expect(spreadHandlers(group).more(group.options[1]!)?.(held(group))).toEqual({ carbine: 1 })
   })
 
   it('takes from whichever sibling has the most once the group is full', () => {
     const group = choice([option('blaster', 8, 10), option('carbine', 2, 10)], 10)
-    expect(spreadHandlers(group).more(group.options[1]!)).toEqual({ carbine: 3, blaster: 7 })
+    expect(spreadHandlers(group).more(group.options[1]!)?.(held(group))).toEqual({ carbine: 3, blaster: 7 })
   })
 
   it("takes from the group's default before replacing another specialist", () => {
@@ -391,7 +394,7 @@ describe('dividing a group between its options', () => {
     const spewer = option('spewer', 0, 1)
     const group = choice([heavy, boltgun, spewer], 3)
 
-    expect(spreadHandlers(group).more(spewer)).toEqual({ spewer: 1, boltgun: 0 })
+    expect(spreadHandlers(group).more(spewer)?.(held(group))).toEqual({ spewer: 1, boltgun: 0 })
     expect([heavy, boltgun].toSorted(donorPriority)[0]).toBe(boltgun)
   })
 
@@ -399,32 +402,56 @@ describe('dividing a group between its options', () => {
     const regular = { ...option('regular', 4, 9), min: 4, mutableMin: true }
     const group = choice([regular, option('specialist', 0, 2)], 4)
 
-    expect(spreadHandlers(group).more(group.options[1]!)).toEqual({ specialist: 1, regular: 3 })
+    expect(spreadHandlers(group).more(group.options[1]!)?.(held(group))).toEqual({ specialist: 1, regular: 3 })
+  })
+
+  it('does not take a mutable minimum below zero on a later press', () => {
+    const regular = { ...option('regular', 1, 9), min: 4, mutableMin: true }
+    const group = choice([regular, option('specialist', 0, 2)], 1)
+    const more = spreadHandlers(group).more(group.options[1]!)
+    const first = more?.(held(group))
+
+    expect(more?.({ ...held(group), ...first })).toBeNull()
   })
 
   it("refuses to exceed an option's own cap", () => {
     const group = choice([option('blaster', 9, 10), option('special', 1, 1)], 10)
-    expect(spreadHandlers(group).more(group.options[1]!)).toBeNull()
+    expect(spreadHandlers(group).more(group.options[1]!)).toBeUndefined()
   })
 
   it('hands a freed place to a sibling still under its cap', () => {
     const group = choice([option('blaster', 9, 10), option('special', 1, 1)], 10)
-    expect(spreadHandlers(group).less(group.options[1]!)).toEqual({ special: 0, blaster: 10 })
+    expect(spreadHandlers(group).less(group.options[1]!)?.(held(group))).toEqual({ special: 0, blaster: 10 })
   })
 
   it('refuses to empty an option when no sibling can take its place', () => {
     const group = choice([option('blaster', 9, 9), option('special', 1, 1)], 10)
-    expect(spreadHandlers(group).less(group.options[1]!)).toBeNull()
+    expect(spreadHandlers(group).less(group.options[1]!)).toBeUndefined()
   })
 
   it('simply removes one when the group may hold fewer', () => {
     const group = choice([option('blaster', 9, 10), option('special', 1, 1)], 10, true)
-    expect(spreadHandlers(group).less(group.options[1]!)).toEqual({ special: 0 })
+    expect(spreadHandlers(group).less(group.options[1]!)?.(held(group))).toEqual({ special: 0 })
   })
 
   it('has nothing to remove from an empty option', () => {
     const group = choice([option('blaster', 10, 10), option('special', 0, 1)], 10)
-    expect(spreadHandlers(group).less(group.options[1]!)).toBeNull()
+    expect(spreadHandlers(group).less(group.options[1]!)).toBeUndefined()
+  })
+
+  it('folds a second press against the first without a new priced answer', () => {
+    const group = choice([option('blaster', 3, 3), option('carbine', 0, 3)], 3)
+    const more = spreadHandlers(group).more(group.options[1]!)
+    const first = more?.(held(group))
+
+    expect(more?.({ ...held(group), ...first })).toEqual({ carbine: 2, blaster: 1 })
+  })
+
+  it('turns a pooled result into the same change against newer counts', () => {
+    const group = choice([option('blaster', 3, 3), option('carbine', 0, 3)], 3)
+    const update = relativeSpread(group, { blaster: 2, carbine: 1 })
+
+    expect(update({ blaster: 2, carbine: 1 })).toEqual({ blaster: 1, carbine: 2 })
   })
 })
 
