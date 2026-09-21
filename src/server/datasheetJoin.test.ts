@@ -102,7 +102,9 @@ describe('the join from a datasheet to its card', () => {
       ],
       datacardsOnly: [{ faction: 'Test catalogue', name: 'Land Raider' }],
       exact: 0,
+      factionsWithoutArmyRules: ['Test catalogue'],
       fallbacks: [{ faction: 'Test catalogue', name: 'Rhino' }],
+      nonMatchedPlayCatalogueOnly: [],
     })
   })
 
@@ -116,5 +118,35 @@ describe('the join from a datasheet to its card', () => {
     loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Rhino', 'Big Trakk']))
 
     expect(datacardJoinReport(loaded, () => true).datacardsOnly).toEqual([])
+  })
+
+  it('reports an unjoined Legends datasheet', () => {
+    const loaded = bookOf({
+      selectionEntries: [
+        { id: 'rhino', name: 'Rhino', type: 'model', costs: points(75) },
+        { id: 'trakk', name: 'Big Trakk [Legends]', type: 'model', costs: points(100) },
+      ],
+    })
+    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Rhino', 'Big Trakk']))
+
+    expect(datacardJoinReport(loaded, () => true).nonMatchedPlayCatalogueOnly).toEqual([
+      { faction: 'Test catalogue', name: 'Big Trakk [Legends]' },
+    ])
+  })
+
+  it('reports a faction file without an army-rule card', () => {
+    const loaded = book()
+    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Rhino']))
+
+    expect(datacardJoinReport(loaded, () => true).factionsWithoutArmyRules).toEqual(['Test catalogue'])
+  })
+
+  it('does not report a faction file with an army-rule card', () => {
+    const loaded = book()
+    const content = withCards('Test catalogue', ['Rhino'])
+    content.armyRules = [{ name: 'Test rule', description: 'Rule text.' }]
+    loaded.factionContents.set('test-catalogue', content)
+
+    expect(datacardJoinReport(loaded, () => true).factionsWithoutArmyRules).toEqual([])
   })
 })
