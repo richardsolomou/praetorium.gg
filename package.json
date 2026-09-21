@@ -84,7 +84,7 @@
     "p-retry": "^8.0.1",
     "postgres": "^3.4.9",
     "posthog-js": "^1.430.3",
-    "posthog-node": "^5.52.1",
+    "posthog-node": "^5.52.3",
     "qrcode": "^1.5.4",
     "ras-stack": "^2.0.0",
     "react": "^19.2.8",
