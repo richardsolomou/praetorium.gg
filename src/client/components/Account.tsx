@@ -4,6 +4,7 @@ import {
   CircleUserRound,
   LogIn,
   LogOut,
+  Map,
   MessageSquareWarning,
   ScrollText,
   ShieldCheck,
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { authClient } from '../authClient'
 import { setNativeAccountMenuOpen } from '../nativeBridge'
+import { openOnboarding } from '../onboarding'
 import { meQuery } from '../queries'
 import { PlayerAvatar } from './PlayerAvatar'
 
@@ -74,6 +76,9 @@ function AccountMenuItems() {
           </DropdownMenuItem>
           <DropdownMenuItem render={<Link to="/friends" />}>
             <Users /> Friends
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={openOnboarding}>
+            <Map /> Getting started
           </DropdownMenuItem>
           {me.role === 'admin' ? (
             <DropdownMenuItem render={<Link to="/admin" />}>

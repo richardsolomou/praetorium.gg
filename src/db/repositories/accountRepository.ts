@@ -1,12 +1,34 @@
 import { and, asc, count, desc, eq, ilike, inArray, isNull, lt, ne, notExists, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import type { AdminUserPage, AdminUsersCursor } from '../../admin'
+import {
+  applyOnboardingProgressOperation,
+  EMPTY_ONBOARDING_PROGRESS,
+  normalizeOnboardingTasks,
+  type OnboardingProgress,
+  type OnboardingProgressOperation,
+} from '../../core/onboarding'
 import type { PraetoriumDatabase } from '../connection'
-import { account, battleUsers, friendships, practiceOpponents, rosters, user } from '../schema'
+import { account, battleUsers, friendships, practiceOpponents, rosters, user, userOnboarding } from '../schema'
 import type { UnlinkAccountResult } from '../repository'
 
 const ADMIN_USERS_PAGE_SIZE = 50
 const PLAYER_SEARCH_LIMIT = 20
+
+function storedOnboardingProgress(
+  row: { completedTasks: string; skippedTasks: string; welcomed: boolean } | undefined,
+): OnboardingProgress {
+  if (!row) return EMPTY_ONBOARDING_PROGRESS
+  const parse = (value: string) => {
+    try {
+      const parsed: unknown = JSON.parse(value)
+      return normalizeOnboardingTasks(Array.isArray(parsed) ? parsed.filter((task): task is string => typeof task === 'string') : [])
+    } catch {
+      return []
+    }
+  }
+  return { completedTasks: parse(row.completedTasks), skippedTasks: parse(row.skippedTasks), welcomed: row.welcomed }
+}
 
 /** A typed name matched anywhere in a stored one, with the wildcards the player typed left as literals. */
 function contains(query: string) {
@@ -19,6 +41,28 @@ export class AccountRepository {
   async userById(id: string) {
     const [row] = await this.database.select().from(user).where(eq(user.id, id)).limit(1)
     return row
+  }
+
+  async onboardingProgress(userId: string) {
+    const [row] = await this.database.select().from(userOnboarding).where(eq(userOnboarding.userId, userId)).limit(1)
+    return storedOnboardingProgress(row)
+  }
+
+  async updateOnboardingProgress(userId: string, operation: OnboardingProgressOperation) {
+    return this.database.transaction(async (tx) => {
+      await tx.insert(userOnboarding).values({ userId }).onConflictDoNothing()
+      const [row] = await tx.select().from(userOnboarding).where(eq(userOnboarding.userId, userId)).for('update')
+      const next = applyOnboardingProgressOperation(storedOnboardingProgress(row), operation)
+      await tx
+        .update(userOnboarding)
+        .set({
+          completedTasks: JSON.stringify(next.completedTasks),
+          skippedTasks: JSON.stringify(next.skippedTasks),
+          welcomed: next.welcomed,
+        })
+        .where(eq(userOnboarding.userId, userId))
+      return next
+    })
   }
 
   async adminUsers(input: { query?: string; cursor?: AdminUsersCursor | null; limit?: number } = {}): Promise<AdminUserPage> {

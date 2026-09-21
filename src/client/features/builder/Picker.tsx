@@ -107,7 +107,7 @@ export const Picker = memo(function Picker({
   ]
 
   return (
-    <div className="flex h-full flex-col">
+    <div data-onboarding="roster-picker" className="flex h-full flex-col">
       <div className="space-y-2 border-b border-edge p-2.5">
         <SearchField
           value={query}

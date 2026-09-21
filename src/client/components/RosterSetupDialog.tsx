@@ -267,7 +267,7 @@ export function RosterSetupDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5 px-5">
+          <div data-onboarding={mode === 'create' ? 'roster-setup' : undefined} className="space-y-5 px-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label className="eyebrow block" htmlFor="setup-faction">

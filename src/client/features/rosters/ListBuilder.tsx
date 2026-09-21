@@ -40,6 +40,7 @@ import { exportRoster, saveRoster } from '../../../server/functions'
 import { shareLink } from '../../nativeBridge'
 import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
+import { advanceOnboarding, signalOnboardingProgress } from '../../onboarding'
 import { picksAfterDetachmentChange } from '../../rosterPicks'
 import { useCollectionMutation } from '../../useCollection'
 import { useSettled } from '../../useSettled'
@@ -543,10 +544,16 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
     reporting.current = 'roster_unit_removed'
     setSelected(null)
   }, [])
-  const add = useCallback((entryId: string) => {
-    editor.current.add(entryId)
-    reporting.current = 'roster_unit_added'
-  }, [])
+  const add = useCallback(
+    (entryId: string) => {
+      editor.current.add(entryId)
+      reporting.current = 'roster_unit_added'
+      if (!wideWorkspace) closePane()
+      advanceOnboarding('roster', 'roster-picker', 'roster-list')
+      signalOnboardingProgress('roster', true)
+    },
+    [closePane, wideWorkspace],
+  )
   const inspect = useCallback(
     (previewCatalogueId: string, entryId: string, unitName: string) => {
       const nextPreview = { catalogueId: previewCatalogueId, entryId, name: unitName }
@@ -578,6 +585,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
     const { picks: currentPicks, updateLoadoutHistory: updateHistory, workspacePath: currentWorkspace } = selection.current
     const selectedKey = currentPicks[index]?.key
     if (selectedKey !== undefined) updateHistory({ workspace: currentWorkspace, pane: 'loadout', selectedKey })
+    advanceOnboarding('roster', 'roster-list', 'roster-loadout')
   }, [])
   const setUnitOwned = useCallback(
     (entryId: string, nextOwned: boolean) => mutateCollection({ entryId, owned: nextOwned }),
@@ -1007,7 +1015,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
           </div>
         ) : null}
 
-        <RosterUnits>
+        <RosterUnits onboarding="roster-list">
           {cards.length ? (
             GROUPS.map(({ id, plural }) => {
               const rows = cards
@@ -1072,6 +1080,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
         {loadoutAvailable ? (
           <Pane
             variant="loadout"
+            onboarding="roster-loadout"
             open={showing === 'loadout' && Boolean(selected !== null || preview)}
             threeColumn={editable}
             title={preview?.name ?? frozenSelected?.name ?? selectedUnit?.name ?? 'Unit'}

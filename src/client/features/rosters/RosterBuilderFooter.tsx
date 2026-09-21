@@ -62,7 +62,14 @@ export function RosterBuilderFooter({
         </span>
 
         {editable ? (
-          <Button variant="outline" size="sm" className="ml-auto min-[1300px]:hidden" onClick={onAddUnits} disabled={!canAddUnits}>
+          <Button
+            data-onboarding="roster-picker"
+            variant="outline"
+            size="sm"
+            className="ml-auto min-[1300px]:hidden"
+            onClick={onAddUnits}
+            disabled={!canAddUnits}
+          >
             Add units
           </Button>
         ) : null}

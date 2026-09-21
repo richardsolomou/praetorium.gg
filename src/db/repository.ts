@@ -167,6 +167,14 @@ export class Repository {
     return this.accountRepository.userById(...args)
   }
 
+  onboardingProgress(...args: Parameters<AccountRepository['onboardingProgress']>) {
+    return this.accountRepository.onboardingProgress(...args)
+  }
+
+  updateOnboardingProgress(...args: Parameters<AccountRepository['updateOnboardingProgress']>) {
+    return this.accountRepository.updateOnboardingProgress(...args)
+  }
+
   adminUsers(...args: Parameters<AccountRepository['adminUsers']>) {
     return this.accountRepository.adminUsers(...args)
   }

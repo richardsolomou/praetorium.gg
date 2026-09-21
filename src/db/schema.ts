@@ -125,6 +125,16 @@ export const rateLimit = pgTable(
   // copy would cost a write per request to answer nothing new.
 )
 
+/** A player's resumable progress through the in-product field guide. */
+export const userOnboarding = pgTable('user_onboarding', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  completedTasks: text('completed_tasks').notNull().default('[]'),
+  skippedTasks: text('skipped_tasks').notNull().default('[]'),
+  welcomed: boolean().notNull().default(false),
+})
+
 /** One game between opposing sides. Its token is the link they share. */
 export const battles = pgTable(
   'battles',
@@ -421,6 +431,7 @@ export const schema = {
   verification,
   twoFactor,
   rateLimit,
+  userOnboarding,
   battles,
   battleUsers,
   battleSharing,

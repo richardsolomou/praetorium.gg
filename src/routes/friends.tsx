@@ -13,6 +13,7 @@ import { useSettled } from '../client/useSettled'
 import { acceptFriend, removeFriend, requestFriend } from '../server/functions'
 import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../core/playerSearch'
 import { errorMessage } from '../client/queryClient'
+import { signalOnboardingProgress } from '../client/onboarding'
 
 export const Route = createFileRoute('/friends')({
   loader: ({ context }) =>
@@ -40,7 +41,13 @@ function Friends() {
       queryClient.invalidateQueries({ queryKey: playerSearchKey }),
     ])
   }
-  const request = useMutation({ mutationFn: (userId: string) => requestFriend({ data: { userId } }), onSuccess: refresh })
+  const request = useMutation({
+    mutationFn: (userId: string) => requestFriend({ data: { userId } }),
+    onSuccess: async () => {
+      signalOnboardingProgress('friend')
+      await refresh()
+    },
+  })
   const accept = useMutation({ mutationFn: (userId: string) => acceptFriend({ data: { userId } }), onSuccess: refresh })
   const remove = useMutation({ mutationFn: (userId: string) => removeFriend({ data: { userId } }), onSuccess: refresh })
   // Only the pressed row waits: one mutation serves every row in its list.
@@ -91,7 +98,7 @@ function Friends() {
           />
         </div>
 
-        <section>
+        <section data-onboarding="find-friend">
           <div className="flex items-baseline justify-between border-b border-edge pb-2">
             <p className="rubric">Find players</p>
             <UserPlus className="size-4 text-parchment" aria-hidden />

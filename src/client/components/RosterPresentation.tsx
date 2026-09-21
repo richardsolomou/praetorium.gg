@@ -240,10 +240,11 @@ export function RosterBody({ children, threeColumn = false }: { children: ReactN
   )
 }
 
-export function RosterUnits({ children }: { children: ReactNode }) {
+export function RosterUnits({ children, onboarding }: { children: ReactNode; onboarding?: string }) {
   return (
     <div
       data-slot="roster-units"
+      data-onboarding={onboarding}
       className="min-h-0 w-full min-w-0 max-w-full flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-x-none px-3"
     >
       {children}

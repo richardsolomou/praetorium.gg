@@ -134,6 +134,13 @@
       "when": 1789546000451,
       "tag": "0018_steep_mystique",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789971058160,
+      "tag": "0019_thick_epoch",
+      "breakpoints": true
     }
   ]
 }

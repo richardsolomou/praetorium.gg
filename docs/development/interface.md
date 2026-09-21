@@ -16,6 +16,10 @@ Feature screens stay shared between the website and native applications. Mobile 
 
 Compact roster panes use browser history. Their own close action or the Android system Back action dismisses the top pane before it leaves the roster. A datasheet opened from the unit picker returns to that picker. A datasheet opened from a roster unit returns to the roster. When the application tab bar is visible on mobile web or in a native application, a compact unit pane is a screen inside the roster tab: it stops above the tab bar and leaves it reachable. At intermediate web widths that use the desktop header, the same compact pane remains a modal dialog.
 
+## Getting started
+
+A signed-in player sees a short field guide on first use. It teaches the path from creating a roster and adding a friend to starting a battle by taking the player to the real control for each task. A workflow stays guided after its first button: roster creation explains the setup dialog, unit picker, roster, and loadout, while battle creation explains how to seat the table. Roster progress is earned after a unit is added, not when the empty list is created. The guide never blocks normal use, keeps progress with the account, allows irrelevant tasks to be skipped, and remains available from the account menu after completion.
+
 ## Roster layout
 
 Headings are compact and uppercase, section counts and points use small chips, and player ownership uses consistent red and blue tints. Attacker deployment zones use theme red, defender zones use theme green, and neutral zones use primary green.

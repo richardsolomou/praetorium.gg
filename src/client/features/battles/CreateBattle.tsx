@@ -10,6 +10,7 @@ import { createBattle, leagueBattleOptions } from '../../../server/functions'
 import { battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
+import { advanceOnboarding, signalOnboardingProgress } from '../../onboarding'
 import { seatedPlayers, seatsFor, type Seat, type SoloPairRole } from '../../seats'
 import { Choice } from '../../components/Choice'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../../components/Seats'
@@ -115,6 +116,7 @@ export function CreateBattle() {
         return
       }
       setOpen(false)
+      signalOnboardingProgress('battle')
       await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
       return navigate({ to: '/battles/$token', params: { token: result.battle.token } })
     },
@@ -132,7 +134,11 @@ export function CreateBattle() {
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogTrigger render={<Button />}>New battle</DialogTrigger>
+      <DialogTrigger
+        render={<Button data-onboarding="create-battle" onClick={() => advanceOnboarding('battle', 'battle-start', 'battle-setup')} />}
+      >
+        New battle
+      </DialogTrigger>
       <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] overflow-y-auto p-4 sm:max-w-md">
         {leagueMatches.length ? (
           <>
@@ -181,7 +187,7 @@ export function CreateBattle() {
               <DialogTitle className="text-2xl">Start a battle</DialogTitle>
               <DialogDescription>Choose who is playing. A practice opponent lets you play on your own.</DialogDescription>
             </DialogHeader>
-            <div>
+            <div data-onboarding="battle-setup">
               <Choice
                 label="Game format"
                 value={shape}

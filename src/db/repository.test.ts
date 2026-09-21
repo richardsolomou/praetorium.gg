@@ -44,6 +44,23 @@ it('searches users outside the first administrator page', async () => {
   expect(found.users.map((entry) => entry.name)).toEqual(['Needle Player'])
 })
 
+it('persists onboarding progress without losing simultaneous tasks', async () => {
+  const repository = await users(1)
+
+  expect(await repository.onboardingProgress('user-000')).toEqual({ completedTasks: [], skippedTasks: [], welcomed: false })
+  await Promise.all([
+    repository.updateOnboardingProgress('user-000', { operation: 'complete', task: 'roster' }),
+    repository.updateOnboardingProgress('user-000', { operation: 'complete', task: 'friend' }),
+  ])
+  await repository.updateOnboardingProgress('user-000', { operation: 'welcome' })
+
+  expect(await repository.onboardingProgress('user-000')).toEqual({
+    completedTasks: ['roster', 'friend'],
+    skippedTasks: [],
+    welcomed: true,
+  })
+})
+
 it('reads a log past a command kind it does not recognise', async () => {
   const repository = await users(1)
   const database = connection!.database

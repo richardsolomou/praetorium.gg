@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { DEFAULT_GAME_LIMIT } from '../../core/battle'
 import { saveRoster } from '../../server/functions'
 import { invalidateSavedRosters } from '../queries'
+import { advanceOnboarding } from '../onboarding'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFactionOption } from './RosterSetupDialog'
 
 const EMPTY_SETUP: RosterSetup = {
@@ -35,6 +36,7 @@ export function CreateRoster({ factionOptions }: { factionOptions: RosterSetupFa
         },
       }),
     onSuccess: async ({ id }) => {
+      advanceOnboarding('roster', 'roster-setup', 'roster-picker')
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id } })
     },
@@ -42,7 +44,13 @@ export function CreateRoster({ factionOptions }: { factionOptions: RosterSetupFa
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
+      <Button
+        data-onboarding="create-roster"
+        onClick={() => {
+          advanceOnboarding('roster', 'roster-start', 'roster-setup')
+          setOpen(true)
+        }}
+      >
         <Plus /> Create editable roster
       </Button>
       <RosterSetupDialog

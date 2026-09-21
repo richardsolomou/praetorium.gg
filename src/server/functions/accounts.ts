@@ -9,6 +9,7 @@ import {
   favouriteDetachmentSchema,
   favouriteFactionSchema,
   friendSchema,
+  onboardingUpdateSchema,
   adminUsersSchema,
   playerSearchSchema,
   ownedSchema,
@@ -19,6 +20,21 @@ import {
 } from '../schemas'
 
 export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentUser()))
+
+export const onboardingProgress = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => app().service.onboardingProgress(await requireUserId())),
+)
+
+export const updateOnboardingProgress = createServerFn({ method: 'POST' })
+  .validator(onboardingUpdateSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const progress = await app().service.updateOnboardingProgress(player.id, data)
+      if (data.operation !== 'welcome') await app().telemetry.capture(player.id, `onboarding_task_${data.operation}`, { task: data.task })
+      return progress
+    }),
+  )
 
 /** How widely this player's battles may be seen. */
 export const battleAudience = createServerFn({ method: 'GET' }).handler(() =>
@@ -140,6 +156,9 @@ export const requestFriend = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.requestFriend(userId, data.userId)
+      await app()
+        .service.updateOnboardingProgress(userId, { operation: 'complete', task: 'friend' })
+        .catch(() => undefined)
       await app().telemetry.capture(userId, 'friend_request_sent')
       return result
     }),
