@@ -16,10 +16,14 @@ import { NativeAppNavigation } from '../../components/NativeAppNavigation'
 import { OnboardingButton } from '../../components/OnboardingButton'
 import { OnboardingGuide } from '../../components/OnboardingGuide'
 import { meQuery } from '../../queries'
-const posthog = postHogEnvironment({
-  projectToken: import.meta.env.VITE_POSTHOG_PROJECT_TOKEN,
-  host: import.meta.env.VITE_POSTHOG_HOST,
-})
+// A local dev server shares the production project token, so gate the browser
+// SDK on a built bundle to keep localhost sessions out of the production project.
+const posthog = import.meta.env.PROD
+  ? postHogEnvironment({
+      projectToken: import.meta.env.VITE_POSTHOG_PROJECT_TOKEN,
+      host: import.meta.env.VITE_POSTHOG_HOST,
+    })
+  : undefined
 const posthogService = { name: 'praetorium', version, environment: import.meta.env.MODE }
 
 function PrimaryNavigation({ path }: { path: string }) {
