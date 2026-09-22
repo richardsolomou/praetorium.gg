@@ -1,0 +1,60 @@
+name: Combat rule audit
+
+on:
+  push:
+    branches: [main]
+  workflow_call:
+  workflow_dispatch:
+
+concurrency:
+  group: combat-rule-audit
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      S3_PUBLIC_BASE_URL: ${{ vars.S3_PUBLIC_BASE_URL }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: us-east-1
+      S3_BUCKET: ${{ vars.S3_BUCKET }}
+      S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Read the published catalogue
+        run: pnpm catalogue:sync --latest
+      - name: Inventory all rule descriptions
+        run: |
+          mkdir -p combat-reports
+          pnpm exec tsx scripts/auditCombatRules.ts --json > combat-reports/inventory.json
+      - name: Restore Jev judgments
+        id: judgments
+        run: |
+          test -n "$S3_BUCKET"
+          test -n "$S3_ENDPOINT"
+          mkdir -p .combat-rule-cache
+          aws s3 sync "s3://$S3_BUCKET/combat-rule-judgments/v1/" .combat-rule-cache \
+            --endpoint-url "$S3_ENDPOINT" --exclude '*' --include '*.json' --only-show-errors
+      - name: Shortlist attacker and defender support gaps
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: pnpm catalogue:combat:shortlist --input combat-reports/inventory.json --concurrency 32
+      - name: Preserve completed judgments for the next run
+        if: always() && steps.judgments.outcome == 'success'
+        run: |
+          aws s3 sync .combat-rule-cache "s3://$S3_BUCKET/combat-rule-judgments/v1/" \
+            --endpoint-url "$S3_ENDPOINT" --exclude '*' --include '*.json' --no-follow-symlinks --only-show-errors
+      - name: Store the inventory and shortlist
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: combat-rule-shortlist
+          path: combat-reports
+          retention-days: 14
+          if-no-files-found: error
