@@ -24,11 +24,11 @@ The read-only API is rooted at `/api/reference/v1`:
 - `GET /documents/{id}` reads the bounded document named by a search result.
 - `GET /openapi.json` describes the contract.
 
-Responses are JSON by default. `Accept: text/markdown` selects a compact source-faithful representation. Reference responses use snapshot-derived ETags, one-hour public caching, bounded inputs and outputs, and an in-process request limit. A missing catalogue returns `503` rather than an empty reference.
+Responses are JSON by default. `Accept: text/markdown` selects a compact source-faithful representation. Reference responses use content-derived ETags, one-hour public caching, bounded inputs and outputs, and an in-process request limit. A missing, invalid, or revoked catalogue returns `503` rather than an empty or stale reference.
 
 ## MCP
 
-`POST /mcp` is a stateless Streamable HTTP MCP endpoint. It exposes `search_reference`, `get_reference`, and `list_factions`. The transport is an adapter over the same corpus and search implementation as the HTTP API; it has no account, roster, or battle access.
+`POST /mcp` is a stateless Streamable HTTP MCP endpoint. It exposes `search_reference`, `get_reference`, and `list_factions`. The transport accepts one JSON-RPC message of at most 64 KiB per request and rejects batches. It is an adapter over the same corpus and search implementation as the HTTP API; it has no account, roster, or battle access.
 
 ## Crawlers
 

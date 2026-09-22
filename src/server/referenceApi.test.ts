@@ -19,7 +19,7 @@ const { document, corpus, state } = vi.hoisted(() => {
       byId: new Map([[record.id, record]]),
       revision: 'snapshot',
     },
-    state: { available: true },
+    state: { available: true, ready: true },
   }
 })
 
@@ -27,7 +27,7 @@ vi.mock('./referenceCorpus', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./referenceCorpus')>()),
   referenceCorpusFor: () => (state.available ? corpus : null),
 }))
-vi.mock('./app', () => ({ app: () => ({}) }))
+vi.mock('./app', () => ({ app: () => ({ sync: () => ({ status: state.ready ? 'ready' : 'failed' }) }) }))
 
 import {
   parseReferenceSearch,
@@ -40,6 +40,7 @@ import {
 afterEach(() => {
   corpus.revision = 'snapshot'
   state.available = true
+  state.ready = true
 })
 
 it('parses bounded reference search filters', () => {
@@ -109,6 +110,13 @@ it('returns unavailable rather than an empty reference', () => {
   expect(referenceSearchResponse(new Request('https://praetorium.gg/api/reference/v1/search?q=movement')).status).toBe(503)
 })
 
+it('stops serving a memoized corpus when authoritative sync fails', () => {
+  expect(referenceSearchResponse(new Request('https://praetorium.gg/api/reference/v1/search?q=movement')).status).toBe(200)
+  state.ready = false
+
+  expect(referenceSearchResponse(new Request('https://praetorium.gg/api/reference/v1/search?q=movement')).status).toBe(503)
+})
+
 it('publishes concrete OpenAPI response contracts', () => {
   const openApi = referenceOpenApi(new Request('https://praetorium.gg/api/reference/v1/openapi.json'))
 
@@ -145,26 +153,37 @@ it('bounds unique rate-limit buckets and recovers after the window', () => {
   vi.setSystemTime(new Date('2030-01-01T00:00:00Z'))
   try {
     for (let index = 0; index < 10_000; index += 1) {
-      expect(
-        referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'CF-Connecting-IP': `192.0.2.${index}` } }), 1),
-      ).toBeNull()
+      expect(referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'X-Forwarded-For': `192.0.2.${index}` } }), 1)).toBeNull()
     }
 
-    expect(referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'CF-Connecting-IP': '198.51.100.1' } }), 1)?.status).toBe(
+    expect(referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'X-Forwarded-For': '198.51.100.1' } }), 1)?.status).toBe(
       429,
     )
     vi.advanceTimersByTime(60_000)
-    expect(referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'CF-Connecting-IP': '198.51.100.1' } }), 1)).toBeNull()
+    expect(referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'X-Forwarded-For': '198.51.100.1' } }), 1)).toBeNull()
   } finally {
     vi.useRealTimers()
   }
+})
+
+it('does not trust caller-controlled Cloudflare client headers', () => {
+  const request = (cloudflareAddress: string) =>
+    referenceRateLimit(
+      new Request('https://praetorium.gg', {
+        headers: { 'CF-Connecting-IP': cloudflareAddress, 'X-Forwarded-For': '192.0.2.1' },
+      }),
+      1,
+    )
+
+  expect(request('198.51.100.1')).toBeNull()
+  expect(request('198.51.100.2')?.status).toBe(429)
 })
 
 it('rate limits individual reference reads', () => {
   const read = () =>
     referenceDocumentResponse(
       new Request(`https://praetorium.gg/api/reference/v1/documents/${encodeURIComponent(document.id)}`, {
-        headers: { 'CF-Connecting-IP': '203.0.113.42' },
+        headers: { 'X-Forwarded-For': '203.0.113.42' },
       }),
       document.id,
     )

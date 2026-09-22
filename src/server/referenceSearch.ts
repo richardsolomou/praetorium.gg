@@ -44,7 +44,7 @@ const indices = new WeakMap<ReferenceDocument[], IndexedDocument[]>()
 export function searchReference(corpus: ReferenceCorpus, input: ReferenceSearchInput): ReferenceSearchResponse {
   const query = input.query.trim()
   const wanted = normalize(query)
-  const tokens = words(query)
+  const tokens = [...new Set(words(query))]
   const limit = Math.min(Math.max(input.limit ?? 10, 1), REFERENCE_RESULT_MAX)
   const kinds = input.kinds?.length ? new Set(input.kinds) : null
   const faction = input.faction ? normalize(input.faction) : null

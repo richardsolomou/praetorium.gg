@@ -59,7 +59,7 @@ ${revisions.length ? revisions.join('\n') : '- Reference data is temporarily una
 
 ## Update model
 
-The reference changes only when Praetorium activates another verified immutable snapshot. API records identify their source revisions and snapshot-derived ETags so clients can validate cached answers.
+The reference changes only when Praetorium activates another verified immutable snapshot or updates its source-faithful projection. API records identify their source revisions and content-derived ETags so clients can validate cached answers.
 
 ## Licence and attribution
 

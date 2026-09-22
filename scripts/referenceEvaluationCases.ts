@@ -5,7 +5,9 @@ import type { ReferenceEvaluationCase } from '../src/server/referenceEvaluation'
 type QuerySource =
   | { kind: 'document-id' }
   | { kind: 'section-id' }
+  | { kind: 'section-title' }
   | { kind: 'section-text'; start: number; words: number }
+  | { kind: 'document-title-and-section-text'; start: number; words: number }
   | { kind: 'section-title-plural' }
   | { kind: 'section-title-typo'; remove: number }
 
@@ -83,9 +85,34 @@ export const referenceEvaluationFixtures: readonly Fixture[] = [
     kinds: ['detachment'],
     faction: 'Adepta Sororitas',
   },
+  {
+    name: 'ambiguous ability stays inside its faction',
+    expectedDocumentId: 'datasheet:grey-knights:strike-squad',
+    expectedSectionId: 'ability-2f18-cd5-2ec-a1d2',
+    query: { kind: 'section-title' },
+    kinds: ['datasheet'],
+    faction: 'Grey Knights',
+  },
+  {
+    name: 'missing description remains explicit',
+    expectedDocumentId: 'datasheet:genestealer-cults:achilles-ridgerunners',
+    expectedSectionId: 'ability-granted:c727-a3d8-fceb-6ebd',
+    query: { kind: 'section-id' },
+    kinds: ['datasheet'],
+    faction: 'Genestealer Cults',
+  },
+  {
+    name: 'conflicting source field uses the declared winner',
+    expectedDocumentId: 'datasheet:chaos-daemons:pink-horrors',
+    expectedSectionId: 'points',
+    query: { kind: 'document-title-and-section-text', start: 2, words: 2 },
+    kinds: ['datasheet'],
+    faction: 'Chaos Daemons',
+  },
 ]
 
 export function referenceEvaluationCases(corpus: ReferenceCorpus): ReferenceEvaluationCase[] {
+  validateSourceCases(corpus)
   return referenceEvaluationFixtures.map((fixture) => {
     const document = corpus.byId.get(fixture.expectedDocumentId)
     const section = document?.sections.find((candidate) => candidate.id === fixture.expectedSectionId)
@@ -94,20 +121,43 @@ export function referenceEvaluationCases(corpus: ReferenceCorpus): ReferenceEval
       name: fixture.name,
       expectedDocumentId: fixture.expectedDocumentId,
       expectedSectionId: fixture.expectedSectionId,
-      query: queryFrom(fixture.query, document.id, section.id, section.title, section.text),
+      query: queryFrom(fixture.query, document.id, document.title, section.id, section.title, section.text),
       kinds: fixture.kinds,
       faction: fixture.faction,
     }
   })
 }
 
-function queryFrom(source: QuerySource, documentId: string, sectionId: string, sectionTitle: string, sectionText: string) {
+function queryFrom(
+  source: QuerySource,
+  documentId: string,
+  documentTitle: string,
+  sectionId: string,
+  sectionTitle: string,
+  sectionText: string,
+) {
   if (source.kind === 'document-id') return documentId
   if (source.kind === 'section-id') return sectionId
+  if (source.kind === 'section-title') return sectionTitle
   if (source.kind === 'section-title-plural') return `${sectionTitle}s`
   if (source.kind === 'section-title-typo') return `${sectionTitle.slice(0, source.remove)}${sectionTitle.slice(source.remove + 1)}`
   const words = sectionText.normalize('NFKD').match(/[\p{L}\p{N}]+/gu) ?? []
-  const query = words.slice(source.start, source.start + source.words).join(' ')
+  const excerpt = words.slice(source.start, source.start + source.words).join(' ')
+  const query = source.kind === 'document-title-and-section-text' ? `${documentTitle} ${excerpt}` : excerpt
   if (!query) throw new Error(`reference evaluation query is empty for ${documentId}:${sectionId}`)
   return query
+}
+
+function validateSourceCases(corpus: ReferenceCorpus) {
+  if (!corpus.documents.some((document) => document.sections.some((section) => section.text.includes('Description unavailable.')))) {
+    throw new Error('reference evaluation requires an explicit missing description')
+  }
+  if (
+    !corpus.catalogue.datasheets.some((sheet) => Object.values(sheet.provenance.fields).some((field) => field.strategy === 'unresolved'))
+  ) {
+    throw new Error('reference evaluation requires an unresolved source field')
+  }
+  if (!corpus.catalogue.issues.some((issue) => issue.kind === 'source-field-conflict')) {
+    throw new Error('reference evaluation requires a conflicting source field')
+  }
 }

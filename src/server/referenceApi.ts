@@ -14,7 +14,8 @@ type ReferenceRecord = {
 }
 
 export function activeReferenceCorpus() {
-  return referenceCorpusFor(app())
+  const instance = app()
+  return instance.sync().status === 'ready' ? referenceCorpusFor(instance) : null
 }
 
 export function referenceSearchResponse(request: Request) {
@@ -649,7 +650,7 @@ const RATE_BUCKET_MAX = 10_000
 
 export function referenceRateLimit(request: Request, limit: number) {
   const now = Date.now()
-  const forwarded = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
   const key = forwarded || 'unknown'
   const current = rateWindows.get(key)
   if (current && now - current.startedAt < RATE_WINDOW_MS) {

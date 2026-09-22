@@ -54,6 +54,26 @@ it('rebuilds the corpus when the active snapshot is replaced', () => {
   })
 })
 
+it('changes the corpus identity when projected content changes at the same source revisions', () => {
+  const before = canonical('one', 'First projection.')
+  const after = canonical('one', 'Replacement projection.')
+
+  expect(referenceCorpusFor({ canonicalCatalogue: () => after, catalogue: () => null, rules: () => null })!.revision).not.toBe(
+    referenceCorpusFor({ canonicalCatalogue: () => before, catalogue: () => null, rules: () => null })!.revision,
+  )
+})
+
+it('includes rule costs and lore in searchable and retrievable text', () => {
+  const source = canonical('one', 'Rule text.')
+  const entry = source.ruleDocuments[0]!.sections[0]!.entries[0]!
+  entry.cost = 2
+  entry.lore = 'A remembered victory guides the commander.'
+
+  const document = referenceCorpusFor({ canonicalCatalogue: () => source, catalogue: () => null, rules: () => null })!.documents[0]!
+
+  expect(document.sections[0]?.text).toContain('2 CP\nA remembered victory guides the commander.')
+})
+
 it('does not construct a reference without an active canonical snapshot', () => {
   expect(referenceCorpusFor({ canonicalCatalogue: () => null, catalogue: () => null, rules: () => null })).toBeNull()
 })

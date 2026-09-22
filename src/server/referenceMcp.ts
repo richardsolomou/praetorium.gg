@@ -6,18 +6,50 @@ import { activeReferenceCorpus, referenceRateLimit } from './referenceApi'
 import { referenceDocumentMarkdown } from './referenceCorpus'
 import { REFERENCE_RESULT_MAX, searchReference } from './referenceSearch'
 
+const MCP_REQUEST_MAX_BYTES = 64 * 1024
+
 export async function handleReferenceMcp(request: Request) {
   if (request.method !== 'POST') return referenceMcpResponse(methodNotAllowed())
   const limited = referenceRateLimit(request, 120)
   if (limited) return referenceMcpResponse(limited)
+  const body = await boundedMcpBody(request)
+  if ('error' in body) return referenceMcpResponse(body.error)
   const server = referenceMcpServer()
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })
   try {
     await server.connect(transport)
-    return referenceMcpResponse(await transport.handleRequest(request))
+    return referenceMcpResponse(await transport.handleRequest(request, { parsedBody: body.parsed }))
   } finally {
     await server.close()
   }
+}
+
+async function boundedMcpBody(request: Request): Promise<{ parsed: unknown } | { error: Response }> {
+  const contentLength = Number(request.headers.get('content-length') ?? 0)
+  if (contentLength > MCP_REQUEST_MAX_BYTES) return { error: mcpError(413, -32000, 'Request body is too large.') }
+  if (!request.body) return { error: mcpError(400, -32700, 'Parse error: Invalid JSON') }
+
+  const bytes = new Uint8Array(MCP_REQUEST_MAX_BYTES)
+  const reader = request.body.getReader()
+  let length = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (length + value.byteLength > MCP_REQUEST_MAX_BYTES) {
+      await reader.cancel()
+      return { error: mcpError(413, -32000, 'Request body is too large.') }
+    }
+    bytes.set(value, length)
+    length += value.byteLength
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(new TextDecoder().decode(bytes.subarray(0, length)))
+  } catch {
+    return { error: mcpError(400, -32700, 'Parse error: Invalid JSON') }
+  }
+  return Array.isArray(parsed) ? { error: mcpError(400, -32600, 'JSON-RPC batches are not supported.') } : { parsed }
 }
 
 function referenceMcpResponse(response: Response) {
@@ -32,6 +64,9 @@ const methodNotAllowed = () =>
     { jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed.' }, id: null },
     { status: 405, headers: { Allow: 'POST' } },
   )
+
+const mcpError = (status: number, code: number, message: string) =>
+  Response.json({ jsonrpc: '2.0', error: { code, message }, id: null }, { status })
 
 export function referenceMcpOptions() {
   return new Response(null, {

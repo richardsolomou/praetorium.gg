@@ -43,7 +43,7 @@ export function referenceCorpusFor(sources: ReferenceSources): ReferenceCorpus |
   ].toSorted(
     (left, right) => left.kind.localeCompare(right.kind) || left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
   )
-  const revision = createHash('sha256').update(JSON.stringify(catalogue.revisions)).digest('hex')
+  const revision = createHash('sha256').update(JSON.stringify({ catalogue, documents })).digest('hex')
   const corpus = { catalogue, documents, byId: new Map(documents.map((document) => [document.id, document])), revision }
   corpora.set(canonical, { catalogue: loaded, rules, corpus })
   return corpus
@@ -198,6 +198,8 @@ function ruleDocument(
   const url = `${baseUrl}#${entry.anchor}`
   const main = section(baseUrl, entry.anchor, entry.title, [
     entry.code,
+    entry.cost === null ? null : `${entry.cost} CP`,
+    entry.lore,
     ...entry.facts.map((fact) => `${fact.label}: ${fact.markup}`),
     ...entry.blocks.flatMap((block) => (block.kind === 'clarification' ? [] : [block.kind === 'heading' ? block.text : block.markup])),
   ])

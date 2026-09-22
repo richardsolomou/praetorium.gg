@@ -112,3 +112,33 @@ it('keeps identical prose inside the requested faction', () => {
     'datasheet:chaos:scouts',
   )
 })
+
+it('scores a repeated normalized term once', () => {
+  const repeated = Array.from({ length: 40 }, () => 'alpha').join(' ')
+  const repeatedDocuments: ReferenceDocument[] = [
+    {
+      id: 'rule:core:heading',
+      kind: 'rule',
+      title: 'Heading match',
+      faction: null,
+      url: '/rules/core/heading',
+      sections: [{ id: 'heading', title: repeated, text: 'alpha', url: '/rules/core/heading#heading' }],
+      revisions: {},
+      attribution: [],
+    },
+    {
+      id: 'rule:core:title',
+      kind: 'rule',
+      title: 'Alpha',
+      faction: null,
+      url: '/rules/core/title',
+      sections: [{ id: 'title', title: 'Other', text: 'alpha', url: '/rules/core/title#title' }],
+      revisions: {},
+      attribution: [],
+    },
+  ]
+
+  expect(searchReference({ ...corpus, documents: repeatedDocuments }, { query: repeated, limit: 1 }).results[0]?.id).toBe(
+    'rule:core:heading',
+  )
+})
