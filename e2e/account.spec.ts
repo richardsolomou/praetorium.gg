@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test'
-import { befriend, createBattle, createRoster, dismissOnboardingWelcome, signUp, uniqueName, waitForRosterSave } from './account'
+import { befriend, createBattle, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+
+async function expectOnboardingProgress(page: Parameters<typeof signUp>[0], resolved: number) {
+  await page
+    .locator('[data-web-app-chrome]')
+    .getByRole('button', { name: /Account menu for/ })
+    .click()
+  await expect(page.getByRole('menuitem', { name: /Getting started/ })).toContainText(`${resolved}/6`)
+  await page.keyboard.press('Escape')
+}
 
 /**
  * An account is who you are here, so this covers both halves of that: nothing is
@@ -209,11 +218,11 @@ test('friends use the profile picture shown elsewhere', async ({ browser }) => {
   await befriend(alice, bob, {
     beforeAccept: async () => {
       await alice.reload()
-      await expect(alice.getByRole('button', { name: 'Getting started, 0 of 6 tasks resolved' })).toBeVisible()
+      await expectOnboardingProgress(alice, 0)
     },
   })
   await alice.reload()
-  await expect(alice.getByRole('button', { name: 'Getting started, 1 of 6 tasks resolved' })).toBeVisible()
+  await expectOnboardingProgress(alice, 1)
 
   const friend = bob.locator(`[data-person="${aliceName}"]`)
   await expect(friend.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
@@ -254,7 +263,6 @@ test('a one-time link connects a new player after they create an account and acc
   await recipient.getByRole('button', { name: 'Create the account' }).click()
 
   await expect(recipient.getByRole('heading', { name: `Become friends with ${inviterName}` })).toBeVisible()
-  await dismissOnboardingWelcome(recipient)
   await recipient.getByRole('button', { name: 'Accept invite' }).click()
   await expect(recipient).toHaveURL(/\/friends$/)
   await expect(recipient.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: inviterName })).toBeVisible()
@@ -268,34 +276,63 @@ test('a one-time link connects a new player after they create an account and acc
   await recipientContext.close()
 })
 
-test('the header keeps onboarding available and the account menu stays personal', async ({ page }) => {
+test('onboarding waits in the profile menu and disappears when complete', async ({ page }) => {
   const name = uniqueName('Feedback')
   await signUp(page, name)
 
-  await page.getByRole('button', { name: 'Getting started, 0 of 6 tasks resolved' }).click()
+  await expect(page.getByRole('heading', { name: 'Learn Praetorium' })).toBeHidden()
+  await expect(page.getByRole('button', { name: /Getting started/ })).toHaveCount(0)
+  const account = page.locator('[data-web-app-chrome]').getByRole('button', { name: `Account menu for ${name}` })
+  await expect(account.locator('[data-onboarding-new]')).toBeVisible()
+  await account.click()
+
+  const gettingStarted = page.getByRole('menuitem', { name: /Getting started/ })
+  await expect(gettingStarted).toContainText('0/6')
+  await expect(gettingStarted).toContainText('New')
+  await page.screenshot({ path: 'test-results/account-menu-onboarding.png', fullPage: true })
+  await gettingStarted.click()
   await expect(page.getByRole('heading', { name: 'Learn Praetorium' })).toBeVisible()
+
+  const welcomed = page.waitForResponse(
+    (response) => response.ok() && response.request().method() === 'POST' && Boolean(response.request().postData()?.includes('"welcome"')),
+  )
   await page.getByRole('button', { name: 'Close getting started' }).click()
-  await page.getByRole('button', { name: /Account menu for/ }).click()
+  await welcomed
+  await account.click()
 
   await expect(page.getByRole('menuitem', { name: 'My profile' })).toContainText(name)
-  await expect(page.getByRole('menuitem', { name: /My battles|My rosters|Leagues|Getting started/ })).toHaveCount(0)
+  await expect(gettingStarted).toContainText('0/6')
+  await expect(gettingStarted).not.toContainText('New')
   const feedback = page.getByRole('menuitem', { name: 'Send feedback' })
   await expect(feedback).toHaveAttribute('href', 'https://github.com/richardsolomou/praetorium.gg/issues')
   await expect(feedback).toHaveAttribute('target', '_blank')
   await page.screenshot({ path: 'test-results/account-menu-desktop.png', fullPage: true })
 
-  await page
-    .locator('[data-web-app-chrome]')
-    .getByRole('button', { name: `Account menu for ${name}` })
-    .click()
-  await expect(page.getByRole('menuitem', { name: 'My profile' })).toBeHidden()
+  await account.click()
+  await expect(gettingStarted).toBeHidden()
   await page.setViewportSize({ width: 390, height: 844 })
   const mobileHeader = page.locator('[data-mobile-app-header]')
-  await expect(mobileHeader.getByRole('button', { name: 'Getting started, 0 of 6 tasks resolved' })).toBeVisible()
-  await page.screenshot({ path: 'test-results/onboarding-progress-phone.png', fullPage: true })
   await mobileHeader.getByRole('button', { name: `Account menu for ${name}` }).click()
   await expect(page.getByRole('menuitem', { name: 'My profile' })).toBeVisible()
   await page.screenshot({ path: 'test-results/account-menu-phone.png', fullPage: true })
+
+  await gettingStarted.click()
+  for (const task of [
+    'Build your first army',
+    'Add someone you play with',
+    'Start a battle',
+    'Join or run a league',
+    'Explore the game reference',
+    'Follow games and players',
+  ]) {
+    const skip = page.getByRole('button', { name: `Skip ${task}` })
+    await skip.click()
+    await expect(skip).toBeHidden()
+  }
+  await page.getByRole('button', { name: 'Close getting started' }).click()
+  await mobileHeader.getByRole('button', { name: `Account menu for ${name}` }).click()
+  await expect(gettingStarted).toHaveCount(0)
+  await expect(mobileHeader.locator('[data-onboarding-new]')).toHaveCount(0)
 })
 
 test('a list saved under an account is there on another device', async ({ browser }) => {
@@ -310,16 +347,15 @@ test('a list saved under an account is there on another device', async ({ browse
   await page.getByLabel('Password').fill('a-long-enough-password')
   await page.getByRole('button', { name: 'Create the account' }).click()
   await expect(page.getByRole('button', { name: 'Account menu for Alice' })).toBeVisible()
-  await dismissOnboardingWelcome(page)
 
-  await expect(page.getByRole('button', { name: 'Getting started, 0 of 6 tasks resolved' })).toBeVisible()
+  await expectOnboardingProgress(page, 0)
   await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Kept list' })
   await page.getByLabel('Add a unit').fill('Plague Marines')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click())
 
   // Nothing recorded that the task was done: a reload folds it from the list this account now owns.
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Getting started, 1 of 6 tasks resolved' })).toBeVisible()
+  await expectOnboardingProgress(page, 1)
 
   // A different browser entirely: no cookie, no storage, nothing but the account.
   const second = await browser.newContext()
@@ -361,7 +397,6 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   await guest.getByRole('button', { name: 'Create the account' }).click()
   const accountMenu = guest.getByRole('button', { name: `Account menu for ${bobName}` })
   await accountMenu.waitFor()
-  await dismissOnboardingWelcome(guest)
   await signUp(host, aliceName)
   await befriend(host, guest)
   await accountMenu.click()

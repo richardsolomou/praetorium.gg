@@ -1160,7 +1160,3 @@ export function onboardingPage(pathname: string): OnboardingPage | undefined {
   if (pathname === '/profile') return 'profile'
   return undefined
 }
-
-export function canOfferOnboardingWelcome(pathname: string) {
-  return !['/sign-in', '/reset-password', '/native-auth'].includes(pathname)
-}

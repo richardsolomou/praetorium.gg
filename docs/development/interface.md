@@ -20,7 +20,7 @@ The Friends page creates one active, one-time invite link per player. Replacing 
 
 ## Getting started
 
-A signed-in player sees a short field guide. It opens itself once, on first use, and stays reachable from the progress button in the header. Its task panel is not modal, so the application it introduces remains usable beneath it.
+A signed-in player can open a short field guide from the profile menu. It never opens itself. A small amber mark on the profile button and a `New` label on the menu item call attention to it until the player opens it, while the item disappears once every task is completed or skipped. Its task panel is not modal, so the application it introduces remains usable beneath it.
 
 Six tasks cover building a roster, adding someone to play against, starting a battle, organized play, the game reference, and the community surfaces. The first four are resolved because the account has the roster, accepted friendship, battle seat or league entry to show for them: that progress is folded from those rows on every read and never stored, so an account older than the guide arrives with its history already counted and the guide cannot disagree with the rest of the product. Only the two reading tours, which leave no other trace, record a completion. A skipped task and the welcome are the only other facts kept.
 
