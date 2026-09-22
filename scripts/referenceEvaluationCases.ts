@@ -94,6 +94,20 @@ export const referenceEvaluationFixtures: readonly Fixture[] = [
     faction: 'Grey Knights',
   },
   {
+    name: 'force disposition mission matrix',
+    expectedDocumentId: 'mission-pack:chapter-approved-2026-2027',
+    expectedSectionId: 'matrix',
+    query: { kind: 'section-title' },
+    kinds: ['mission'],
+  },
+  {
+    name: 'primary mission scoring',
+    expectedDocumentId: 'mission:chapter-approved-2026-2027:death-trap',
+    expectedSectionId: 'mission-death-trap',
+    query: { kind: 'document-title-and-section-text', start: 39, words: 5 },
+    kinds: ['mission'],
+  },
+  {
     name: 'missing description remains explicit',
     expectedDocumentId: 'datasheet:genestealer-cults:achilles-ridgerunners',
     expectedSectionId: 'ability-granted:c727-a3d8-fceb-6ebd',

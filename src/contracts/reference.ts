@@ -1,4 +1,4 @@
-export const REFERENCE_KINDS = ['datasheet', 'detachment', 'rule'] as const
+export const REFERENCE_KINDS = ['datasheet', 'detachment', 'mission', 'rule'] as const
 export type ReferenceKind = (typeof REFERENCE_KINDS)[number]
 
 export type ReferenceSection = {

@@ -87,7 +87,7 @@ function referenceMcpServer() {
     {
       title: 'Search the Praetorium game reference',
       description:
-        'Searches the verified rules, detachment, and datasheet text used by Praetorium. Returns bounded excerpts with canonical URLs, source revisions, and attribution.',
+        'Searches the verified mission, rules, detachment, and datasheet text used by Praetorium. Returns bounded excerpts with canonical URLs, source revisions, and attribution.',
       inputSchema: {
         query: z.string().trim().min(2).max(120).describe('Words, a printed rule number, an ability, a weapon, or a rules phrase.'),
         kinds: z.array(z.enum(REFERENCE_KINDS)).max(REFERENCE_KINDS.length).optional(),

@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { referenceCorpusFor } from './referenceCorpus'
+import type { LoadedRules } from './rules'
 
 function canonical(revision: string, text: string): CanonicalCatalogue {
   return {
@@ -72,6 +73,81 @@ it('includes rule costs and lore in searchable and retrievable text', () => {
   const document = referenceCorpusFor({ canonicalCatalogue: () => source, catalogue: () => null, rules: () => null })!.documents[0]!
 
   expect(document.sections[0]?.text).toContain('2 CP\nA remembered victory guides the commander.')
+})
+
+it('includes the force disposition matrix and primary mission scoring', () => {
+  const rules = {
+    attribution: 'Mission data attribution',
+    dispositions: new Map([
+      ['disruption', 'Disruption'],
+      ['take-and-hold', 'Take and Hold'],
+    ]),
+    dispositionDetails: [
+      { id: 'disruption', name: 'Disruption', text: null },
+      { id: 'take-and-hold', name: 'Take and Hold', text: null },
+    ],
+    missions: new Map([
+      [
+        'chapter-approved-2026-2027|disruption|take-and-hold',
+        {
+          id: 'death-trap',
+          name: 'Death Trap',
+          roundCap: 15,
+          gameCap: 45,
+          secondaryRoundCap: 15,
+          secondaryGameCap: 45,
+          source: 'Chapter Approved 2026-2027',
+          packId: 'chapter-approved-2026-2027',
+          deploymentIds: [],
+        },
+      ],
+    ]),
+    primaries: [
+      {
+        key: 'death-trap',
+        name: 'Death Trap',
+        text: null,
+        awards: [
+          {
+            vp: 5,
+            per: null,
+            max: null,
+            mode: null,
+            group: null,
+            cumulative: false,
+            criteria: 'Trap an objective.',
+            trigger: {
+              timing: 'end-of-turn',
+              phase: null,
+              playerTurn: 'your-turn',
+              roundMin: null,
+              roundMax: null,
+            },
+          },
+        ],
+        actions: [],
+        whenDrawn: null,
+      },
+    ],
+    secondaries: [],
+    missionTwists: new Map(),
+    deployments: [],
+  } as unknown as LoadedRules
+
+  const corpus = referenceCorpusFor({
+    canonicalCatalogue: () => canonical('one', 'Rule text.'),
+    catalogue: () => null,
+    rules: () => rules,
+  })!
+  const document = corpus.byId.get('mission-pack:chapter-approved-2026-2027')!
+  const mission = corpus.byId.get('mission:chapter-approved-2026-2027:death-trap')!
+
+  expect(document).toMatchObject({ kind: 'mission', title: 'Chapter Approved 2026-2027', url: '/mission-packs/chapter-approved-2026-2027' })
+  expect(document.sections.find((entry) => entry.id === 'matrix')?.text).toContain('Disruption vs Take and Hold: Death Trap')
+  expect(mission.sections.find((entry) => entry.id === 'mission-death-trap')).toMatchObject({
+    url: '/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold#mission-death-trap',
+    text: expect.stringMatching(/Trap an objective\..*5 VP/s),
+  })
 })
 
 it('does not construct a reference without an active canonical snapshot', () => {

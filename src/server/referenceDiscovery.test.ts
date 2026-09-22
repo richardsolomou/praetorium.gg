@@ -24,6 +24,23 @@ const { corpus } = vi.hoisted(() => ({
         revisions: { definitions: 'revision' },
         attribution: ['Community data'],
       },
+      {
+        id: 'mission:test:mission',
+        kind: 'mission',
+        title: 'Test Mission',
+        faction: null,
+        url: '/mission-matchups/test/one/two#mission-test',
+        sections: [
+          {
+            id: 'mission-test',
+            title: 'Test Mission',
+            text: 'Test scoring.',
+            url: '/mission-matchups/test/one/two#mission-test',
+          },
+        ],
+        revisions: { rules: 'revision' },
+        attribution: ['Community data'],
+      },
     ],
     catalogue: {
       revisions: { definitions: 'revision' },
@@ -51,7 +68,7 @@ it('lists canonical reference pages in the snapshot sitemap', async () => {
   const response = referenceSitemap(new Request('https://praetorium.gg/sitemap.xml'))
 
   expect(await response.text()).toMatch(
-    /<url><loc>https:\/\/praetorium\.gg\/factions\/test\/datasheets\/unit<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/factions\/test\/detachments\/detachment<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/rules\/core\/movement<\/loc><\/url>/s,
+    /<url><loc>https:\/\/praetorium\.gg\/factions\/test\/datasheets\/unit<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/factions\/test\/detachments\/detachment<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/mission-matchups\/test\/one\/two<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/rules\/core\/movement<\/loc><\/url>/s,
   )
 })
 
@@ -73,7 +90,7 @@ it('documents reference updates, licensing, and attribution for agents', async (
   const response = referenceLlms(new Request('https://praetorium.gg/llms.txt'))
 
   expect(await response.text()).toMatch(
-    /## Update model.*verified immutable snapshot.*## Licence and attribution.*AGPL-3\.0.*https:\/\/praetorium\.gg\/sources/s,
+    /search missions, rules, detachments, and datasheets.*Mission packs.*## Update model.*verified immutable snapshot.*## Licence and attribution.*AGPL-3\.0.*https:\/\/praetorium\.gg\/sources/s,
   )
 })
 

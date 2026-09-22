@@ -214,6 +214,17 @@ test('public reference data renders without client JavaScript', async ({ browser
   await page.goto('/mission-packs')
   await expect(page).toHaveURL(/\/mission-packs\/.+/)
   await expect(page.getByRole('heading', { name: 'Chapter Approved 2026-2027' })).toBeVisible()
+  await expect(page.locator('#matrix')).toContainText('Disruption')
+  await expect(page).toHaveTitle(/Chapter Approved 2026-2027 missions — Praetorium/)
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', '/mission-packs/chapter-approved-2026-2027')
+
+  await page.goto('/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold#mission-death-trap')
+  await expect(page.locator('#mission-death-trap')).toContainText('For each terrain area trapped this turn.')
+  await expect(page).toHaveTitle(/Disruption vs Take and Hold — Chapter Approved 2026-2027 — Praetorium/)
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    '/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold',
+  )
 
   await page.goto('/factions/necrons/datasheets/overlord')
   await expect(page.getByRole('heading', { name: 'Overlord', exact: true })).toBeVisible()

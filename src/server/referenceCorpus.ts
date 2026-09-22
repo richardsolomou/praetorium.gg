@@ -6,7 +6,8 @@ import { routeSlug } from '../core/slug'
 import { compileCanonicalDetachments } from './canonicalCatalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { DATACARDS_ATTRIBUTION } from './datacards'
-import type { LoadedRules } from './rules'
+import { gameReferencesFor } from './gameReferences'
+import { RULES_DATA_ATTRIBUTION, type LoadedRules } from './rules'
 import { referenceText } from './referenceText'
 
 export type ReferenceSources = {
@@ -39,6 +40,7 @@ export function referenceCorpusFor(sources: ReferenceSources): ReferenceCorpus |
   const documents = [
     ...catalogue.datasheets.map(datasheetDocument),
     ...catalogue.detachments.map(detachmentDocument),
+    ...(rules ? gameReferencesFor(rules).packs.flatMap((pack) => missionDocuments(pack, catalogue.revisions)) : []),
     ...catalogue.ruleDocuments.flatMap(ruleDocuments),
   ].toSorted(
     (left, right) => left.kind.localeCompare(right.kind) || left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
@@ -47,6 +49,90 @@ export function referenceCorpusFor(sources: ReferenceSources): ReferenceCorpus |
   const corpus = { catalogue, documents, byId: new Map(documents.map((document) => [document.id, document])), revision }
   corpora.set(canonical, { catalogue: loaded, rules, corpus })
   return corpus
+}
+
+type GameReferencePack = ReturnType<typeof gameReferencesFor>['packs'][number]
+
+function missionDocuments(pack: GameReferencePack, revisions: CanonicalCatalogue['revisions']): ReferenceDocument[] {
+  const url = `/mission-packs/${pack.id}`
+  const metadata = {
+    kind: 'mission' as const,
+    faction: null,
+    revisions: Object.fromEntries(
+      [
+        ['rules', revisions.rules],
+        ['datacards', revisions.datacards],
+      ].filter((entry): entry is [string, string] => Boolean(entry[1])),
+    ),
+    attribution: [RULES_DATA_ATTRIBUTION, DATACARDS_ATTRIBUTION],
+  }
+  const matrix = section(
+    url,
+    'matrix',
+    'Force disposition mission matrix',
+    pack.missions.flatMap((mission) =>
+      mission.matchups.map(([you, opponent]) => `${you?.name ?? 'Unknown'} vs ${opponent?.name ?? 'Unknown'}: ${mission.name}`),
+    ),
+  )
+  return [
+    {
+      ...metadata,
+      id: `mission-pack:${pack.id}`,
+      title: pack.name,
+      url,
+      sections: matrix ? [matrix] : [],
+    },
+    ...pack.missions.map((mission) => {
+      const [you, opponent] = mission.matchups[0] ?? []
+      const missionUrl = you && opponent ? `/mission-matchups/${pack.id}/${you.id}/${opponent.id}` : url
+      return {
+        ...metadata,
+        id: `mission:${pack.id}:${mission.id}`,
+        title: mission.name,
+        url: `${missionUrl}#mission-${mission.id}`,
+        sections: present([section(missionUrl, `mission-${mission.id}`, mission.name, missionReferenceLines(mission))]),
+      }
+    }),
+  ]
+}
+
+function missionReferenceLines(mission: GameReferencePack['missions'][number]): (string | null | undefined)[] {
+  const card = mission.card
+  return [
+    ...mission.matchups.map(([you, opponent]) => `Matchup: ${you?.name ?? 'Unknown'} vs ${opponent?.name ?? 'Unknown'}`),
+    mission.roundCap === null ? null : `Primary mission limit per battle round: ${mission.roundCap} VP`,
+    mission.gameCap === null ? null : `Primary mission limit per game: ${mission.gameCap} VP`,
+    mission.secondaryRoundCap === null ? null : `Secondary mission limit per battle round: ${mission.secondaryRoundCap} VP`,
+    mission.secondaryGameCap === null ? null : `Secondary mission limit per game: ${mission.secondaryGameCap} VP`,
+    card?.text,
+    ...(card?.awards ?? []).flatMap((award) => [
+      `Scoring: ${award.criteria ?? 'Criteria unavailable.'}`,
+      `Award: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max === null ? '' : `, up to ${award.max} VP`}${award.cumulative ? ', cumulative' : ''}`,
+      missionTiming(award.trigger),
+      award.mode ? `Mode: ${award.mode}` : null,
+      award.group ? `Exclusive group: ${award.group}` : null,
+    ]),
+    ...(card?.actions ?? []).flatMap((action) => [
+      `Action: ${action.name}`,
+      action.starts ? `Starts: ${action.starts}` : null,
+      action.completes ? `Completes: ${action.completes}` : null,
+      action.effect ? `Effect: ${action.effect}` : null,
+      action.units ? `Units: ${action.units}` : null,
+      action.useLimit ? `Use limit: ${action.useLimit}` : null,
+      action.restriction ? `Restriction: ${action.restriction}` : null,
+    ]),
+  ]
+}
+
+function missionTiming(trigger: NonNullable<GameReferencePack['missions'][number]['card']>['awards'][number]['trigger']) {
+  const fields = [
+    trigger.timing,
+    trigger.phase ? `${trigger.phase} phase` : null,
+    trigger.playerTurn,
+    trigger.roundMin === null ? null : `battle round ${trigger.roundMin} onwards`,
+    trigger.roundMax === null ? null : `through battle round ${trigger.roundMax}`,
+  ].filter(Boolean)
+  return fields.length ? `Timing: ${fields.join('; ')}` : null
 }
 
 const section = (baseUrl: string, id: string, title: string, lines: (string | null | undefined)[]): ReferenceSection | null => {

@@ -50,6 +50,10 @@ it('parses bounded reference search filters', () => {
     faction: undefined,
     limit: 5,
   })
+  expect(parseReferenceSearch(new URL('https://praetorium.gg/api/reference/v1/search?q=death+trap&kind=mission'))).toMatchObject({
+    query: 'death trap',
+    kinds: ['mission'],
+  })
 })
 
 it.each([

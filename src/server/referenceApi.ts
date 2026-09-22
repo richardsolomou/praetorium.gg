@@ -187,13 +187,13 @@ export function referenceOpenApi(request: Request) {
       '/api/reference/v1/search': {
         get: {
           operationId: 'searchReference',
-          summary: 'Search rules, detachments, and datasheets',
+          summary: 'Search missions, rules, detachments, and datasheets',
           parameters: [
             { name: 'q', in: 'query', required: true, schema: { type: 'string', minLength: 2, maxLength: REFERENCE_QUERY_MAX_LENGTH } },
             {
               name: 'kind',
               in: 'query',
-              schema: { type: 'string', description: 'Comma-separated datasheet, detachment, and rule filters.' },
+              schema: { type: 'string', description: 'Comma-separated datasheet, detachment, mission, and rule filters.' },
             },
             { name: 'faction', in: 'query', schema: { type: 'string', maxLength: 160 } },
             { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: REFERENCE_RESULT_MAX, default: 10 } },

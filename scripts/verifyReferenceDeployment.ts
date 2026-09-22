@@ -23,7 +23,7 @@ async function search(query: string, kinds?: string) {
       id: string
       title: string
       url: string
-      section: { url: string }
+      section: { id: string; url: string }
       revisions: Record<string, string>
       attribution: string[]
     }[]
@@ -83,7 +83,40 @@ if (!mcp.ok || mcpBody.result?.structuredContent?.id !== movementResult.id) thro
 
 const datasheet = (await search('Battle Sisters Squad', 'datasheet')).body.results[0]!
 const detachment = (await search('Bringers of Flame', 'detachment')).body.results[0]!
-for (const result of [movementResult, datasheet, detachment]) {
+const missionMatrix = (await search('Force disposition mission matrix', 'mission')).body.results[0]!
+if (missionMatrix.section.id !== 'matrix') throw new Error('mission search did not return the Force Disposition matrix')
+const primaryMission = (await search('Death Trap terrain area trapped this turn', 'mission')).body.results[0]!
+const primaryMissionDocument = await request(`/api/reference/v1/documents/${encodeURIComponent(primaryMission.id)}`)
+if (!(await primaryMissionDocument.text()).includes('Scoring: For each terrain area trapped this turn.')) {
+  throw new Error('primary mission retrieval omitted source scoring')
+}
+
+const mcpMissionSearch = await request('/mcp', {
+  method: 'POST',
+  headers: {
+    Accept: 'application/json, text/event-stream',
+    'Content-Type': 'application/json',
+    'MCP-Protocol-Version': '2025-06-18',
+  },
+  body: JSON.stringify({
+    jsonrpc: '2.0',
+    id: 2,
+    method: 'tools/call',
+    params: { name: 'search_reference', arguments: { query: 'Force disposition mission matrix', kinds: ['mission'] } },
+  }),
+})
+const mcpMissionBody = (await mcpMissionSearch.json()) as {
+  result?: { structuredContent?: { results?: { id?: string; section?: { id?: string } }[] } }
+}
+if (
+  !mcpMissionSearch.ok ||
+  mcpMissionBody.result?.structuredContent?.results?.[0]?.id !== missionMatrix.id ||
+  mcpMissionBody.result.structuredContent.results[0]?.section?.id !== 'matrix'
+) {
+  throw new Error('MCP mission search disagreed with the HTTP API')
+}
+
+for (const result of [movementResult, datasheet, detachment, missionMatrix, primaryMission]) {
   const path = new URL(result.url, base).pathname
   const response = await request(path)
   const html = await response.text()
@@ -93,8 +126,11 @@ for (const result of [movementResult, datasheet, detachment]) {
 }
 
 const sitemap = await request('/sitemap.xml')
-if (!(await sitemap.text()).includes(new URL(datasheet.url.split('#')[0]!, base).toString()))
-  throw new Error('sitemap omitted a canonical datasheet')
+const sitemapText = await sitemap.text()
+if (!sitemapText.includes(new URL(datasheet.url.split('#')[0]!, base).toString())) throw new Error('sitemap omitted a canonical datasheet')
+if (!sitemapText.includes(new URL(primaryMission.url.split('#')[0]!, base).toString())) {
+  throw new Error('sitemap omitted a canonical mission matchup')
+}
 const robots = await request('/robots.txt')
 if (!(await robots.text()).includes(new URL('/sitemap.xml', base).toString())) throw new Error('robots.txt omitted the sitemap')
 const llms = await request('/llms.txt')

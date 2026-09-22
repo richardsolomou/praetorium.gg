@@ -4,7 +4,7 @@ Praetorium exposes its public game reference to crawlers and tool-using clients 
 
 ## Reference corpus
 
-`src/server/referenceCorpus.ts` projects canonical datasheets, detachments, and numbered rules into bounded documents and sections. Every document carries its canonical page URL, source revisions, and attribution. The projection keeps unavailable source fields unavailable and uses the source text without generated summaries.
+`src/server/referenceCorpus.ts` projects canonical datasheets, detachments, mission packs, and numbered rules into bounded documents and sections. Mission-pack documents include the complete ordered Force Disposition matrix and the source-backed primary scoring, actions, and limits behind each matchup. Every document carries its canonical page URL, source revisions, and attribution. The projection keeps unavailable source fields unavailable and uses the source text without generated summaries.
 
 The canonical snapshot contains detachments beside datasheets and rules. An instance can derive detachments from the same verified source files while it serves a snapshot compiled before that field existed; new snapshot publications write them into `canonical/catalogue.json`.
 
@@ -32,11 +32,11 @@ Responses are JSON by default. `Accept: text/markdown` selects a compact source-
 
 ## Crawlers
 
-`/sitemap.xml` is generated from the active snapshot. `/robots.txt` advertises it, while `/llms.txt` points clients to the human reference, OpenAPI document, and MCP endpoint. Datasheet, detachment, and rules-section routes load their content during server rendering and publish page-specific metadata and canonical links.
+`/sitemap.xml` is generated from the active snapshot. `/robots.txt` advertises it, while `/llms.txt` points clients to the human reference, OpenAPI document, and MCP endpoint. Datasheet, detachment, mission-pack, mission-matchup, and rules-section routes load their content during server rendering and publish page-specific metadata and canonical links.
 
 Verify crawler-facing changes against the production server output with JavaScript disabled. Hydrated browser content is not evidence that the initial HTML contains the reference.
 
-Run `pnpm reference:verify https://<deployment>` against a deployed revision. It exercises search, JSON and Markdown retrieval, conditional caching, MCP parity, discovery files, and the initial HTML for a datasheet, detachment, and rules section.
+Run `pnpm reference:verify https://<deployment>` against a deployed revision. It exercises search, JSON and Markdown retrieval, conditional caching, MCP parity, discovery files, and the initial HTML for a datasheet, detachment, mission pack, mission matchup, and rules section.
 
 ## Privacy and attribution
 

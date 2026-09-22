@@ -11,8 +11,22 @@ import { PageContent, PageHeader } from '../client/components/Page'
 export const Route = createFileRoute('/mission-packs/$packId')({
   loader: async ({ context, params }) => {
     const data = await context.queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
-    if (!data?.packs.some((pack) => pack.id === params.packId)) throw notFound()
+    const pack = data?.packs.find((candidate) => candidate.id === params.packId)
+    if (!pack) throw notFound()
+    return { name: pack.name }
   },
+  head: ({ loaderData, params }) => ({
+    meta: loaderData
+      ? [
+          { title: `${loaderData.name} missions — Praetorium` },
+          { name: 'description', content: `${loaderData.name} Force Disposition matchups, primary missions, and scoring.` },
+          { property: 'og:title', content: `${loaderData.name} missions` },
+          { property: 'og:description', content: `${loaderData.name} Force Disposition matchups, primary missions, and scoring.` },
+          { property: 'og:type', content: 'article' },
+        ]
+      : [],
+    links: loaderData ? [{ rel: 'canonical', href: `/mission-packs/${params.packId}` }] : [],
+  }),
   component: MissionPackPage,
 })
 
@@ -54,7 +68,7 @@ function MissionPackPage() {
         {allowances.length ? <p className="readout mt-1 text-xs text-dim">{allowances.join(' · ')}</p> : null}
       </PageHeader>
       <PageContent className="space-y-7">
-        <section data-onboarding="mission-dispositions">
+        <section id="matrix" data-onboarding="mission-dispositions">
           <h2 className="rubric border-b border-edge pb-2">Force dispositions</h2>
           <p className="mt-2 text-sm text-dim">Select the resulting mission to read its scoring rules.</p>
           {/* Bleeds to the window on a phone, so the cut-off column reads as a scroller. */}

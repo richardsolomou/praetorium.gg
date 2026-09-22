@@ -6,7 +6,10 @@ export function referenceSitemap(request: Request) {
   if (!corpus) return new Response('Reference data is unavailable', { status: 503, headers: { 'Cache-Control': 'no-store' } })
   const origin = publicOrigin(request)
   const paths = new Set<string>(['/factions', '/rules'])
-  for (const document of corpus.documents) paths.add(document.url.split('#')[0]!)
+  for (const document of corpus.documents) {
+    paths.add(document.url.split('#')[0]!)
+    for (const section of document.sections) paths.add(section.url.split('#')[0]!)
+  }
   for (const sheet of corpus.catalogue.datasheets) {
     const route = sheet.referenceRoute
     if (route) paths.add(`/factions/${route.catalogueId}`)
@@ -41,7 +44,7 @@ Praetorium is a public Warhammer 40,000 army builder, battle tracker, and commun
 ## Agent interfaces
 
 - [OpenAPI](${origin}/api/reference/v1/openapi.json): versioned read-only HTTP API
-- [Search](${origin}/api/reference/v1/search?q=movement): search rules, detachments, and datasheets
+- [Search](${origin}/api/reference/v1/search?q=movement): search missions, rules, detachments, and datasheets
 - [Factions](${origin}/api/reference/v1/factions): discover available factions
 - [MCP](${origin}/mcp): stateless read-only Streamable HTTP MCP endpoint
 
@@ -50,6 +53,7 @@ API reads return JSON by default. Send \`Accept: text/markdown\` for compact sou
 ## Human reference
 
 - [Factions](${origin}/factions)
+- [Mission packs](${origin}/mission-packs)
 - [Rules](${origin}/rules)
 - [Data sources](${origin}/sources)
 
