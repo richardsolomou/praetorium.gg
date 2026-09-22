@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.71.2
+
+### Patch Changes
+
+- 55518cf: Show independently customizable weapons as separate roster loadout controls.
+- 802a1d4: Prioritize rosters in mobile navigation and make onboarding an optional profile item.
+
 ## 0.71.1
 
 ### Patch Changes
