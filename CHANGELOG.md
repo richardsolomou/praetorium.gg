@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.70.1
+
+### Patch Changes
+
+- d2c0f9a: Omit narrative flavour text from stratagem descriptions.
+
 ## 0.70.0
 
 ### Minor Changes
