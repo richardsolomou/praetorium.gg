@@ -516,6 +516,38 @@ describe('putting a weapon down on a model card', () => {
 
     expect(modelCount(model, [group])).toBe(2)
   })
+
+  it('changes one factored weapon choice without changing the other', () => {
+    const variants = [
+      { ...option('claws-beamer', 0, 3), name: 'Wraith w/ claws and beamer', pieces: ['Vicious claws', 'Transdimensional beamer'] },
+      { ...option('claws-caster', 0, 3), name: 'Wraith w/ claws and particle caster', pieces: ['Vicious claws', 'Particle caster'] },
+      { ...option('claws', 0, 3), name: 'Wraith w/ claws', pieces: ['Vicious claws'], default: true },
+      { ...option('coils', 1, 3), name: 'Wraith w/ coils', pieces: ['Whip coils'] },
+      { ...option('coils-beamer', 0, 3), name: 'Wraith w/ coils and beamer', pieces: ['Whip coils', 'Transdimensional beamer'] },
+      { ...option('coils-caster', 2, 3), name: 'Wraith w/ coils and particle caster', pieces: ['Whip coils', 'Particle caster'] },
+    ]
+    const group = { ...choice(variants, 3), key: 'models' }
+    const row = (name: string, ...ids: string[]) => ({
+      name,
+      choiceKey: 'models',
+      optionId: ids[0]!,
+      alternatives: ids.slice(1).map((optionId) => ({ choiceKey: 'models', optionId })),
+    })
+    const model = card(
+      [
+        row('Vicious claws', 'claws-beamer', 'claws-caster', 'claws'),
+        row('Transdimensional beamer', 'claws-beamer', 'coils-beamer'),
+        row('Particle caster', 'claws-caster', 'coils-caster'),
+        row('Whip coils', 'coils', 'coils-beamer', 'coils-caster'),
+      ],
+      variants.map((variant) => ({ id: variant.id, choiceKey: 'models', baseCount: 0 })),
+    )
+    const handlers = poolHandlers(model, [group], [])
+
+    expect(handlers.spend(model.rows[1]!)).toEqual([['models', { 'coils-beamer': 1, coils: 0 }]])
+    expect(handlers.free(model.rows[2]!)).toEqual([['models', { 'coils-caster': 1, coils: 2 }]])
+    expect(handlers.spend(model.rows[0]!)).toEqual([['models', { 'claws-caster': 1, 'coils-caster': 1 }]])
+  })
 })
 
 it('keeps default and fixed wargear before alternatives even after they are replaced', () => {

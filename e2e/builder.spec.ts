@@ -2182,12 +2182,7 @@ test('a composite character loadout shows its selected melee weapon', async ({ p
   await expect(starting.getByRole('heading', { name: 'Close combat weapon', exact: true })).toHaveCount(0)
 })
 
-/**
- * Six wraiths, each a pairing of claws or coils with a gun the player cannot break
- * apart, so each keeps a card of its own — and the card is then where the squad says
- * how many of that pairing it has, rather than repeating all six underneath.
- */
-test('a loadout that pairs two weapons is counted on its own card', async ({ page }) => {
+test('independent weapon choices are edited separately when the catalogue stores their combinations', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
   await add(page, 'Canoptek Wraiths')
@@ -2195,14 +2190,41 @@ test('a loadout that pairs two weapons is counted on its own card', async ({ pag
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(loadout.getByText('Wargear options', { exact: true })).toBeHidden()
-  await expect(loadout.getByLabel('Wraith w/ claws count')).toHaveText('3')
+  await expect(loadout.getByLabel('Wraith models')).toHaveText('3')
+  await expect(loadout.getByLabel('Vicious claws count')).toHaveText('3')
+  await expect(loadout.getByLabel('Whip coils count')).toHaveText('0')
+  await expect(loadout.getByLabel('Transdimensional beamer count')).toHaveText('0')
+  await expect(loadout.getByLabel('Particle caster count')).toHaveText('0')
 
-  await loadout.getByRole('button', { name: 'More Wraith w/ claws and beamer' }).click()
-  await expect(loadout.getByLabel('Wraith w/ claws and beamer count')).toHaveText('1')
-  await expect(loadout.getByLabel('Wraith w/ claws count')).toHaveText('2')
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Transdimensional beamer' }).click())
+  await expect(loadout.getByLabel('Transdimensional beamer count')).toHaveText('1')
+  await expect(loadout.getByLabel('Vicious claws count')).toHaveText('3')
+
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Whip coils' }).click())
+  await expect(loadout.getByLabel('Whip coils count')).toHaveText('1')
+  await expect(loadout.getByLabel('Vicious claws count')).toHaveText('2')
+  await expect(loadout.getByLabel('Transdimensional beamer count')).toHaveText('1')
+
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Particle caster' }).click())
+  await expect(loadout.getByLabel('Particle caster count')).toHaveText('1')
+  await expect(loadout.getByLabel('Transdimensional beamer count')).toHaveText('1')
+  await expect(loadout.getByLabel('Vicious claws count')).toHaveText('2')
+  await expect(loadout.getByLabel('Whip coils count')).toHaveText('1')
   await expect(page.getByText('1x Transdimensional beamer')).toBeVisible()
+  await expect(page.getByText('1x Particle caster')).toBeVisible()
   await expect(page.getByText('Within the points limit')).toBeAttached()
-  await page.screenshot({ path: 'test-results/paired-loadout-cards.png', fullPage: true })
+  await expectNoHorizontalOverflow(page.locator('body'))
+  await expectNoHorizontalOverflow(loadout)
+  await page.screenshot({ path: 'test-results/independent-wraith-loadout.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await loadout.getByRole('button', { name: 'Back to roster' }).click()
+  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
+  await page.locator('[data-unit="Canoptek Wraiths"]').getByRole('button', { name: 'Canoptek Wraiths', exact: true }).click()
+  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoHorizontalOverflow(loadout.locator('[data-slot="scroll-area-viewport"]'))
+  await page.screenshot({ path: 'test-results/independent-wraith-loadout-mobile.png', fullPage: true })
 })
 
 test('fixed duplicate weapons show their quantity with the profile', async ({ page }) => {
