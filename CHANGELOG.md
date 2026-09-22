@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.71.0
+
+### Minor Changes
+
+- f43ce58: Expose the public game reference to agents through documented HTTP and MCP search.
+
 ## 0.70.1
 
 ### Patch Changes
