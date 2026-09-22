@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { catalogueDirectory, loadCatalogue } from '../src/server/catalogueIndex'
+import { loadCatalogue } from '../src/server/catalogueIndex'
 import { compileCanonicalCatalogueFromSnapshot, loadCanonicalCatalogue } from '../src/server/canonicalCatalogue'
 import { referenceCorpusFor } from '../src/server/referenceCorpus'
 import { evaluateReference } from '../src/server/referenceEvaluation'
@@ -16,7 +16,7 @@ const BASELINE = {
   maxWarmLatencyMs: 250,
 }
 
-const directory = catalogueDirectory()
+const directory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
 const catalogue = loadCatalogue(directory)
 if (!catalogue) throw new Error('reference evaluation requires an installed catalogue snapshot')
 const rules = loadRules(
