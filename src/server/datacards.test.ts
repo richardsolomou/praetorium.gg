@@ -424,6 +424,7 @@ it('answers for a faction under the name the catalogues give it', () => {
         {
           name: { en: 'Armour of Contempt' },
           detachment: 'Gladius Task Force',
+          fluff: { en: 'Ceramite plates turn aside the enemy barrage.' },
           when: { en: 'Your opponent’s Shooting phase.' },
           effect: { en: 'Worsen the AP by 1.' },
         },

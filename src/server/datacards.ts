@@ -480,9 +480,7 @@ export function stratagemText(card: Record<string, unknown>) {
     const text = localizedField(card, field)
     return text ? `**${label}:** ${prose(text)}` : null
   }
-  const fluff = localizedField(card, 'fluff')
   const sections = [
-    fluff ? prose(fluff) : null,
     section('When', 'when'),
     section('Target', 'target'),
     section('Effect', 'effect'),

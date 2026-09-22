@@ -509,7 +509,7 @@ describe('stratagems', () => {
         id: 'command-re-roll',
         type: 'Core Stratagem',
         description:
-          'Bend fate to your will.\n\n**When:** Any phase.\n\n**Target:** That unit or model.\n\n**Effect:** Re-roll that roll.\n\n**Restrictions:** One re-roll.',
+          '**When:** Any phase.\n\n**Target:** That unit or model.\n\n**Effect:** Re-roll that roll.\n\n**Restrictions:** One re-roll.',
       },
       {
         id: 'counter-offensive',
