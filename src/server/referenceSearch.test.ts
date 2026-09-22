@@ -112,3 +112,87 @@ it('keeps identical prose inside the requested faction', () => {
     'datasheet:chaos:scouts',
   )
 })
+
+it('paginates ranked results without repeating them', () => {
+  const first = searchReference(corpus, { query: 'unit', limit: 1 })
+  const second = searchReference(corpus, { query: 'unit', limit: 1, cursor: first.nextCursor! })
+
+  expect(first.nextCursor).not.toBeNull()
+  expect(second.results[0]?.id).not.toBe(first.results[0]?.id)
+  expect(second.nextCursor).toBeNull()
+})
+
+it('filters mission setup records by pack and rules by document', () => {
+  const scopedDocuments: ReferenceDocument[] = [
+    {
+      id: 'mission:secondary:secure-sites',
+      kind: 'mission',
+      title: 'Secure Sites',
+      faction: null,
+      url: '/mission-packs/alpha/secondary-missions/secure-sites',
+      sections: [{ id: 'secondary', title: 'Secure Sites', text: 'Control objective markers.', url: '/mission-packs/alpha' }],
+      revisions: {},
+      attribution: [],
+    },
+    {
+      id: 'terrain:layout-a',
+      kind: 'terrain',
+      title: 'Layout A',
+      faction: null,
+      url: '/mission-matchups/alpha/aggressive/defensive#terrain-layout-a',
+      sections: [{ id: 'terrain', title: 'Layout A', text: 'Objective marker layout.', url: '/mission-matchups/alpha' }],
+      revisions: {},
+      attribution: [],
+    },
+    {
+      id: 'mission:beta:hold-ground',
+      kind: 'mission',
+      title: 'Hold Ground',
+      faction: null,
+      url: '/mission-matchups/beta/aggressive/defensive#mission-hold-ground',
+      sections: [{ id: 'mission', title: 'Hold Ground', text: 'Control objective markers.', url: '/mission-matchups/beta' }],
+      revisions: {},
+      attribution: [],
+    },
+    documents[0]!,
+  ]
+  const scoped = { ...corpus, documents: scopedDocuments }
+
+  expect(
+    searchReference(scoped, { query: 'objective', pack: 'alpha' })
+      .results.map((result) => result.id)
+      .toSorted(),
+  ).toEqual(['mission:secondary:secure-sites', 'terrain:layout-a'])
+  expect(searchReference(scoped, { query: 'move units', document: 'core' }).results[0]?.id).toBe('rule:core:movement')
+  expect(searchReference(scoped, { query: 'move units', document: 'other' }).results).toEqual([])
+})
+
+it('scores a repeated normalized term once', () => {
+  const repeated = Array.from({ length: 40 }, () => 'alpha').join(' ')
+  const repeatedDocuments: ReferenceDocument[] = [
+    {
+      id: 'rule:core:heading',
+      kind: 'rule',
+      title: 'Heading match',
+      faction: null,
+      url: '/rules/core/heading',
+      sections: [{ id: 'heading', title: repeated, text: 'alpha', url: '/rules/core/heading#heading' }],
+      revisions: {},
+      attribution: [],
+    },
+    {
+      id: 'rule:core:title',
+      kind: 'rule',
+      title: 'Alpha',
+      faction: null,
+      url: '/rules/core/title',
+      sections: [{ id: 'title', title: 'Other', text: 'alpha', url: '/rules/core/title#title' }],
+      revisions: {},
+      attribution: [],
+    },
+  ]
+
+  expect(searchReference({ ...corpus, documents: repeatedDocuments }, { query: repeated, limit: 1 }).results[0]?.id).toBe(
+    'rule:core:heading',
+  )
+})

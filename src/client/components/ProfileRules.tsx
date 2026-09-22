@@ -15,7 +15,11 @@ export function ProfileRules({ profiles, rules, compact = false }: Props) {
       <h2 className="rubric">{section.title}</h2>
       <div className={`mt-2 ${compact ? 'space-y-1.5' : 'grid gap-2 md:grid-cols-2'}`}>
         {section.profiles.map((profile) => (
-          <article key={profile.id} className={`border border-edge ${compact ? 'bg-card px-2 py-1.5' : 'bg-panel p-3'}`}>
+          <article
+            id={`profile-${profile.id}`}
+            key={profile.id}
+            className={`border border-edge ${compact ? 'bg-card px-2 py-1.5' : 'bg-panel p-3'}`}
+          >
             {profile.name !== section.title ? <h3 className={compact ? 'text-xs' : 'text-sm'}>{profile.name}</h3> : null}
             {profile.values.map((value) => (
               <div key={value.name}>

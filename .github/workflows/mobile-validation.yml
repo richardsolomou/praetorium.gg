@@ -21,6 +21,12 @@ permissions:
   contents: read
 
 jobs:
+  release-candidate:
+    if: startsWith(github.head_ref, 'release-candidate/')
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Mobile validation is not repeated for release candidates"
+
   build:
     if: startsWith(github.head_ref, 'release-candidate/') == false
     runs-on: macos-26

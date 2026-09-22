@@ -14,12 +14,12 @@ const { document, corpus, state } = vi.hoisted(() => {
   return {
     document: record,
     corpus: {
-      catalogue: { revisions: { datacards: 'revision' } },
+      catalogue: { revisions: { datacards: 'revision' }, datasheets: [], detachments: [], ruleDocuments: [] },
       documents: [record],
       byId: new Map([[record.id, record]]),
       revision: 'snapshot',
     },
-    state: { available: true },
+    state: { available: true, ready: true },
   }
 })
 
@@ -27,19 +27,25 @@ vi.mock('./referenceCorpus', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./referenceCorpus')>()),
   referenceCorpusFor: () => (state.available ? corpus : null),
 }))
-vi.mock('./app', () => ({ app: () => ({}) }))
+vi.mock('./app', () => ({
+  app: () => ({ sync: () => ({ status: state.ready ? 'ready' : 'failed' }), catalogue: () => null, rules: () => null }),
+}))
 
 import {
   parseReferenceSearch,
   referenceDocumentResponse,
+  referenceGuideResponse,
+  referenceIndexResponse,
   referenceOpenApi,
   referenceRateLimit,
+  referenceRecordResponse,
   referenceSearchResponse,
 } from './referenceApi'
 
 afterEach(() => {
   corpus.revision = 'snapshot'
   state.available = true
+  state.ready = true
 })
 
 it('parses bounded reference search filters', () => {
@@ -47,7 +53,14 @@ it('parses bounded reference search filters', () => {
     query: 'rapid fire',
     kinds: ['rule', 'datasheet'],
     faction: undefined,
+    pack: undefined,
+    document: undefined,
     limit: 5,
+    cursor: undefined,
+  })
+  expect(parseReferenceSearch(new URL('https://praetorium.gg/api/reference/v1/search?q=death+trap&kind=mission'))).toMatchObject({
+    query: 'death trap',
+    kinds: ['mission'],
   })
 })
 
@@ -55,6 +68,7 @@ it.each([
   ['q=x', 'q must contain at least 2 characters'],
   ['q=movement&kind=unknown', 'kind is not supported'],
   ['q=movement&limit=100', 'limit must be an integer from 1 to 25'],
+  ['q=movement&cursor=not-a-cursor', 'cursor is not valid'],
 ])('rejects an invalid search query', (query, error) => {
   expect(parseReferenceSearch(new URL(`https://praetorium.gg/api/reference/v1/search?${query}`))).toEqual({ error })
 })
@@ -83,6 +97,19 @@ it('serves the same document as source-attributed Markdown', async () => {
   expect(await response.text()).toContain('# Move Units\n\nrule\n\n## Move Units\n\nMove across the battlefield.')
 })
 
+it('serves product guidance, discovery, and the structured record behind a document', async () => {
+  const guide = await referenceGuideResponse(new Request('https://praetorium.gg/api/reference/v1/about')).json()
+  const index = await referenceIndexResponse(new Request('https://praetorium.gg/api/reference/v1/')).json()
+  const record = await referenceRecordResponse(
+    new Request(`https://praetorium.gg/api/reference/v1/records/${encodeURIComponent(document.id)}`),
+    document.id,
+  ).json()
+
+  expect(guide).toMatchObject({ agentWorkflow: expect.arrayContaining([expect.stringContaining('list_units')]) })
+  expect(index).toMatchObject({ corpusRevision: 'snapshot', kinds: { rule: 1 } })
+  expect(record).toMatchObject({ document, data: document })
+})
+
 it('changes an ETag when the active snapshot changes', () => {
   const request = new Request(`https://praetorium.gg/api/reference/v1/documents/${encodeURIComponent(document.id)}`)
   const before = referenceDocumentResponse(request, document.id).headers.get('etag')
@@ -109,6 +136,13 @@ it('returns unavailable rather than an empty reference', () => {
   expect(referenceSearchResponse(new Request('https://praetorium.gg/api/reference/v1/search?q=movement')).status).toBe(503)
 })
 
+it('stops serving a memoized corpus when authoritative sync fails', () => {
+  expect(referenceSearchResponse(new Request('https://praetorium.gg/api/reference/v1/search?q=movement')).status).toBe(200)
+  state.ready = false
+
+  expect(referenceSearchResponse(new Request('https://praetorium.gg/api/reference/v1/search?q=movement')).status).toBe(503)
+})
+
 it('publishes concrete OpenAPI response contracts', () => {
   const openApi = referenceOpenApi(new Request('https://praetorium.gg/api/reference/v1/openapi.json'))
 
@@ -127,7 +161,11 @@ it('publishes concrete OpenAPI response contracts', () => {
     },
     components: {
       schemas: {
-        ReferenceSearchResponse: { required: ['query', 'results', 'revisions'] },
+        ProductGuide: { required: ['product', 'capabilities', 'boundaries', 'dataModel', 'agentWorkflow'] },
+        ReferenceIndex: { required: ['corpusRevision', 'revisions', 'kinds', 'factions', 'missionPacks', 'ruleDocuments'] },
+        ReferenceSearchResponse: { required: ['query', 'results', 'revisions', 'nextCursor'] },
+        UnitIndex: { required: ['faction', 'battleSize', 'detachment', 'units', 'revisions'] },
+        ReferenceRecord: { required: ['document', 'data'] },
         DatasheetRecord: {
           properties: { data: { $ref: '#/components/schemas/Datasheet' } },
           required: ['kind', 'canonicalUrl', 'revisions', 'attribution', 'data'],
@@ -145,26 +183,37 @@ it('bounds unique rate-limit buckets and recovers after the window', () => {
   vi.setSystemTime(new Date('2030-01-01T00:00:00Z'))
   try {
     for (let index = 0; index < 10_000; index += 1) {
-      expect(
-        referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'CF-Connecting-IP': `192.0.2.${index}` } }), 1),
-      ).toBeNull()
+      expect(referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'X-Forwarded-For': `192.0.2.${index}` } }), 1)).toBeNull()
     }
 
-    expect(referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'CF-Connecting-IP': '198.51.100.1' } }), 1)?.status).toBe(
+    expect(referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'X-Forwarded-For': '198.51.100.1' } }), 1)?.status).toBe(
       429,
     )
     vi.advanceTimersByTime(60_000)
-    expect(referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'CF-Connecting-IP': '198.51.100.1' } }), 1)).toBeNull()
+    expect(referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'X-Forwarded-For': '198.51.100.1' } }), 1)).toBeNull()
   } finally {
     vi.useRealTimers()
   }
+})
+
+it('does not trust caller-controlled Cloudflare client headers', () => {
+  const request = (cloudflareAddress: string) =>
+    referenceRateLimit(
+      new Request('https://praetorium.gg', {
+        headers: { 'CF-Connecting-IP': cloudflareAddress, 'X-Forwarded-For': '192.0.2.1' },
+      }),
+      1,
+    )
+
+  expect(request('198.51.100.1')).toBeNull()
+  expect(request('198.51.100.2')?.status).toBe(429)
 })
 
 it('rate limits individual reference reads', () => {
   const read = () =>
     referenceDocumentResponse(
       new Request(`https://praetorium.gg/api/reference/v1/documents/${encodeURIComponent(document.id)}`, {
-        headers: { 'CF-Connecting-IP': '203.0.113.42' },
+        headers: { 'X-Forwarded-For': '203.0.113.42' },
       }),
       document.id,
     )

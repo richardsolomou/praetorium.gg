@@ -214,6 +214,31 @@ test('public reference data renders without client JavaScript', async ({ browser
   await page.goto('/mission-packs')
   await expect(page).toHaveURL(/\/mission-packs\/.+/)
   await expect(page.getByRole('heading', { name: 'Chapter Approved 2026-2027' })).toBeVisible()
+  await expect(page.locator('#matrix')).toContainText('Disruption')
+  await expect(page.getByRole('heading', { name: 'Mission twists' })).toBeVisible()
+  await expect(page).toHaveTitle(/Chapter Approved 2026-2027 missions — Praetorium/)
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', '/mission-packs/chapter-approved-2026-2027')
+
+  const secondaryLink = page.locator('a[href*="/secondary-missions/"]').first()
+  const secondaryName = (await secondaryLink.locator('span').first().textContent())!
+  const secondaryPath = await secondaryLink.getAttribute('href')
+  await page.goto(secondaryPath!)
+  await expect(page.getByRole('heading', { name: secondaryName, exact: true })).toBeVisible()
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', secondaryPath)
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/secondary-mission-mobile.png', fullPage: true })
+  await page.setViewportSize({ width: 1_440, height: 900 })
+
+  await page.goto('/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold#mission-death-trap')
+  await expect(page.locator('#mission-death-trap')).toContainText('For each terrain area trapped this turn.')
+  await expect(page.locator('[id^="terrain-"]').first()).toBeAttached()
+  await expect(page.locator('[id^="deployment-"]').first()).toBeAttached()
+  await expect(page).toHaveTitle(/Disruption vs Take and Hold — Chapter Approved 2026-2027 — Praetorium/)
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    '/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold',
+  )
 
   await page.goto('/factions/necrons/datasheets/overlord')
   await expect(page.getByRole('heading', { name: 'Overlord', exact: true })).toBeVisible()

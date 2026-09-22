@@ -6,7 +6,8 @@ import { routeSlug } from '../core/slug'
 import { compileCanonicalDetachments } from './canonicalCatalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { DATACARDS_ATTRIBUTION } from './datacards'
-import type { LoadedRules } from './rules'
+import { gameReferencesFor } from './gameReferences'
+import { RULES_DATA_ATTRIBUTION, type LoadedRules } from './rules'
 import { referenceText } from './referenceText'
 
 export type ReferenceSources = {
@@ -39,14 +40,260 @@ export function referenceCorpusFor(sources: ReferenceSources): ReferenceCorpus |
   const documents = [
     ...catalogue.datasheets.map(datasheetDocument),
     ...catalogue.detachments.map(detachmentDocument),
+    ...(rules ? gameReferenceDocuments(gameReferencesFor(rules), rules, catalogue.revisions) : []),
     ...catalogue.ruleDocuments.flatMap(ruleDocuments),
   ].toSorted(
     (left, right) => left.kind.localeCompare(right.kind) || left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
   )
-  const revision = createHash('sha256').update(JSON.stringify(catalogue.revisions)).digest('hex')
+  const revision = createHash('sha256').update(JSON.stringify({ catalogue, documents })).digest('hex')
   const corpus = { catalogue, documents, byId: new Map(documents.map((document) => [document.id, document])), revision }
   corpora.set(canonical, { catalogue: loaded, rules, corpus })
   return corpus
+}
+
+type GameReferences = ReturnType<typeof gameReferencesFor>
+type GameReferencePack = GameReferences['packs'][number]
+
+function gameReferenceDocuments(
+  references: GameReferences,
+  rules: LoadedRules,
+  revisions: CanonicalCatalogue['revisions'],
+): ReferenceDocument[] {
+  return [
+    ...references.packs.flatMap((pack) => missionDocuments(pack, references, revisions)),
+    ...secondaryDocuments(references, revisions),
+    ...deploymentDocuments(references, rules, revisions),
+    ...terrainDocuments(references, rules, revisions),
+  ]
+}
+
+function missionDocuments(
+  pack: GameReferencePack,
+  references: GameReferences,
+  revisions: CanonicalCatalogue['revisions'],
+): ReferenceDocument[] {
+  const url = `/mission-packs/${pack.id}`
+  const metadata = {
+    kind: 'mission' as const,
+    faction: null,
+    revisions: Object.fromEntries(
+      [
+        ['rules', revisions.rules],
+        ['datacards', revisions.datacards],
+      ].filter((entry): entry is [string, string] => Boolean(entry[1])),
+    ),
+    attribution: [RULES_DATA_ATTRIBUTION, DATACARDS_ATTRIBUTION],
+  }
+  const matrix = section(
+    url,
+    'matrix',
+    'Force disposition mission matrix',
+    pack.missions.flatMap((mission) =>
+      mission.matchups.map(([you, opponent]) => `${you?.name ?? 'Unknown'} vs ${opponent?.name ?? 'Unknown'}: ${mission.name}`),
+    ),
+  )
+  const dispositions = section(
+    url,
+    'force-dispositions',
+    'Force dispositions',
+    references.dispositions.flatMap((disposition) => [disposition.name, disposition.text]),
+  )
+  const limits = section(url, 'mission-limits', 'Mission limits', [
+    pack.fixedSecondaryCap === null ? null : `Each fixed secondary mission can score at most ${pack.fixedSecondaryCap} VP.`,
+    ...pack.missions.flatMap((mission) => [
+      mission.roundCap === null ? null : `${mission.name}: at most ${mission.roundCap} primary VP per battle round.`,
+      mission.gameCap === null ? null : `${mission.name}: at most ${mission.gameCap} primary VP per game.`,
+      mission.secondaryRoundCap === null ? null : `${mission.name}: at most ${mission.secondaryRoundCap} secondary VP per battle round.`,
+      mission.secondaryGameCap === null ? null : `${mission.name}: at most ${mission.secondaryGameCap} secondary VP per game.`,
+    ]),
+  ])
+  const twists = pack.twists.map((twist) =>
+    section(url, `twist-${twist.id}`, twist.name, [twist.lore, twist.rules ?? 'Rules unavailable.']),
+  )
+  return [
+    {
+      ...metadata,
+      id: `mission-pack:${pack.id}`,
+      title: pack.name,
+      url,
+      sections: present([matrix, dispositions, limits, ...twists]),
+    },
+    ...pack.missions.map((mission) => {
+      const [you, opponent] = mission.matchups[0] ?? []
+      const missionUrl = you && opponent ? `/mission-matchups/${pack.id}/${you.id}/${opponent.id}` : url
+      return {
+        ...metadata,
+        id: `mission:${pack.id}:${mission.id}`,
+        title: mission.name,
+        url: `${missionUrl}#mission-${mission.id}`,
+        sections: present([section(missionUrl, `mission-${mission.id}`, mission.name, missionReferenceLines(mission))]),
+      }
+    }),
+  ]
+}
+
+function secondaryDocuments(references: GameReferences, revisions: CanonicalCatalogue['revisions']): ReferenceDocument[] {
+  const pack = references.packs[0]
+  if (!pack) return []
+  return references.secondaries.map((card) => {
+    const url = `/mission-packs/${pack.id}/secondary-missions/${card.key}`
+    return {
+      id: `mission:secondary:${card.key}`,
+      kind: 'mission',
+      title: card.name,
+      faction: null,
+      url,
+      revisions: missionRevisions(revisions),
+      attribution: [RULES_DATA_ATTRIBUTION, DATACARDS_ATTRIBUTION],
+      sections: present([section(url, `secondary-${card.key}`, card.name, missionCardLines(card))]),
+    }
+  })
+}
+
+function deploymentDocuments(
+  references: GameReferences,
+  rules: LoadedRules,
+  revisions: CanonicalCatalogue['revisions'],
+): ReferenceDocument[] {
+  return (rules.deployments ?? []).map((deployment) => {
+    const layout = (rules.terrainLayouts ?? []).find((candidate) => candidate.deploymentId === deployment.id)
+    const pageUrl = layout ? terrainUrl(references, layout.matchupId, layout.id).split('#')[0]! : '/mission-packs'
+    const url = `${pageUrl}#deployment-${deployment.id}`
+    return {
+      id: `deployment:${deployment.id}`,
+      kind: 'deployment',
+      title: deployment.name,
+      faction: null,
+      url,
+      revisions: missionRevisions(revisions),
+      attribution: [RULES_DATA_ATTRIBUTION],
+      sections: present([
+        section(pageUrl, `deployment-${deployment.id}`, deployment.name, [
+          deployment.description,
+          ...deployment.zones.map((zone) => `${zone.name} (${zone.player}): ${zone.points.length} boundary points.`),
+          `${deployment.objectives.length} objective markers.`,
+        ]),
+      ]),
+    }
+  })
+}
+
+function terrainDocuments(references: GameReferences, rules: LoadedRules, revisions: CanonicalCatalogue['revisions']): ReferenceDocument[] {
+  const deployments = new Map((rules.deployments ?? []).map((deployment) => [deployment.id, deployment]))
+  return (rules.terrainLayouts ?? []).map((layout) => {
+    const url = terrainUrl(references, layout.matchupId, layout.id)
+    const matchup = matchupFor(references, layout.matchupId)
+    return {
+      id: `terrain:${layout.id}`,
+      kind: 'terrain',
+      title: layout.name,
+      faction: null,
+      url,
+      revisions: Object.fromEntries(
+        [
+          ['rules', revisions.rules],
+          ['datacards', revisions.datacards],
+          ['battlemaster', revisions.battlemaster],
+        ].filter((entry): entry is [string, string] => Boolean(entry[1])),
+      ),
+      attribution: [RULES_DATA_ATTRIBUTION, ...(layout.geometry ? ['Terrain geometry provided by Battlemaster'] : [])],
+      sections: present([
+        section(url.split('#')[0]!, `terrain-${layout.id}`, layout.name, [
+          layout.description,
+          matchup ? `Matchup: ${matchup.you.name} vs ${matchup.opponent.name}` : null,
+          layout.variant === null ? null : `Variant: ${layout.variant}`,
+          layout.deploymentId ? `Deployment: ${deployments.get(layout.deploymentId)?.name ?? layout.deploymentId}` : null,
+          ...layout.pieces.map(
+            (piece) => `${piece.name}: ${piece.type} at ${piece.position.x}, ${piece.position.y}; rotation ${piece.rotation} degrees.`,
+          ),
+          layout.geometry ? `${layout.geometry.areas.length} exact terrain areas are available from the structured record.` : null,
+        ]),
+      ]),
+    }
+  })
+}
+
+function missionRevisions(revisions: CanonicalCatalogue['revisions']) {
+  return Object.fromEntries(
+    [
+      ['rules', revisions.rules],
+      ['datacards', revisions.datacards],
+    ].filter((entry): entry is [string, string] => Boolean(entry[1])),
+  )
+}
+
+function matchupFor(references: GameReferences, matchupId: string) {
+  for (const you of references.dispositions) {
+    for (const opponent of references.dispositions) {
+      if (`${you.id}-vs-${opponent.id}` === matchupId) return { you, opponent }
+    }
+  }
+  return null
+}
+
+function terrainUrl(references: GameReferences, matchupId: string, layoutId: string) {
+  const matchup = matchupFor(references, matchupId)
+  const pack = matchup
+    ? references.packs.find((candidate) =>
+        candidate.missions.some((mission) =>
+          mission.matchups.some(([you, opponent]) => you?.id === matchup.you.id && opponent?.id === matchup.opponent.id),
+        ),
+      )
+    : null
+  return matchup && pack ? `/mission-matchups/${pack.id}/${matchup.you.id}/${matchup.opponent.id}#terrain-${layoutId}` : '/mission-packs'
+}
+
+function missionReferenceLines(mission: GameReferencePack['missions'][number]): (string | null | undefined)[] {
+  const card = mission.card
+  return [
+    ...mission.matchups.map(([you, opponent]) => `Matchup: ${you?.name ?? 'Unknown'} vs ${opponent?.name ?? 'Unknown'}`),
+    mission.roundCap === null ? null : `Primary mission limit per battle round: ${mission.roundCap} VP`,
+    mission.gameCap === null ? null : `Primary mission limit per game: ${mission.gameCap} VP`,
+    mission.secondaryRoundCap === null ? null : `Secondary mission limit per battle round: ${mission.secondaryRoundCap} VP`,
+    mission.secondaryGameCap === null ? null : `Secondary mission limit per game: ${mission.secondaryGameCap} VP`,
+    ...missionCardLines(card),
+  ]
+}
+
+function missionCardLines(
+  card: GameReferencePack['missions'][number]['card'] | GameReferences['secondaries'][number] | null,
+): (string | null | undefined)[] {
+  return [
+    card?.text,
+    ...(card?.awards ?? []).flatMap((award) => [
+      `Scoring: ${award.criteria ?? 'Criteria unavailable.'}`,
+      `Award: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max === null ? '' : `, up to ${award.max} VP`}${award.cumulative ? ', cumulative' : ''}`,
+      missionTiming(award.trigger),
+      award.mode ? `Mode: ${award.mode}` : null,
+      award.group ? `Exclusive group: ${award.group}` : null,
+    ]),
+    ...(card?.actions ?? []).flatMap((action) => [
+      `Action: ${action.name}`,
+      action.starts ? `Starts: ${action.starts}` : null,
+      action.completes ? `Completes: ${action.completes}` : null,
+      action.effect ? `Effect: ${action.effect}` : null,
+      action.units ? `Units: ${action.units}` : null,
+      action.useLimit ? `Use limit: ${action.useLimit}` : null,
+      action.restriction ? `Restriction: ${action.restriction}` : null,
+    ]),
+    card?.whenDrawn ? `When drawn: ${card.whenDrawn.operation}.` : null,
+    card?.whenDrawn?.roundMax === null || card?.whenDrawn?.roundMax === undefined
+      ? null
+      : `When-drawn rule applies through battle round ${card.whenDrawn.roundMax}.`,
+    card?.whenDrawn?.heldCards.length ? `When-drawn related cards: ${card.whenDrawn.heldCards.join(', ')}.` : null,
+    card?.whenDrawn?.condition,
+  ]
+}
+
+function missionTiming(trigger: NonNullable<GameReferencePack['missions'][number]['card']>['awards'][number]['trigger']) {
+  const fields = [
+    trigger.timing,
+    trigger.phase ? `${trigger.phase} phase` : null,
+    trigger.playerTurn,
+    trigger.roundMin === null ? null : `battle round ${trigger.roundMin} onwards`,
+    trigger.roundMax === null ? null : `through battle round ${trigger.roundMax}`,
+  ].filter(Boolean)
+  return fields.length ? `Timing: ${fields.join('; ')}` : null
 }
 
 const section = (baseUrl: string, id: string, title: string, lines: (string | null | undefined)[]): ReferenceSection | null => {
@@ -198,6 +445,8 @@ function ruleDocument(
   const url = `${baseUrl}#${entry.anchor}`
   const main = section(baseUrl, entry.anchor, entry.title, [
     entry.code,
+    entry.cost === null ? null : `${entry.cost} CP`,
+    entry.lore,
     ...entry.facts.map((fact) => `${fact.label}: ${fact.markup}`),
     ...entry.blocks.flatMap((block) => (block.kind === 'clarification' ? [] : [block.kind === 'heading' ? block.text : block.markup])),
   ])

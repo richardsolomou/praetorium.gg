@@ -1,29 +1,37 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
-import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { MissionActions } from '../client/components/MissionActions'
-import { MissionCardReference } from '../client/components/MissionCardReference'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { gameReferencesQuery } from '../client/queries'
 import { PageContent, PageHeader } from '../client/components/Page'
+import { RuleText } from '../client/components/RuleText'
 
 export const Route = createFileRoute('/mission-packs/$packId')({
   loader: async ({ context, params }) => {
     const data = await context.queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
-    if (!data?.packs.some((pack) => pack.id === params.packId)) throw notFound()
+    const pack = data?.packs.find((candidate) => candidate.id === params.packId)
+    if (!pack) throw notFound()
+    return { name: pack.name }
   },
+  head: ({ loaderData, params }) => ({
+    meta: loaderData
+      ? [
+          { title: `${loaderData.name} missions — Praetorium` },
+          { name: 'description', content: `${loaderData.name} Force Disposition matchups, primary missions, and scoring.` },
+          { property: 'og:title', content: `${loaderData.name} missions` },
+          { property: 'og:description', content: `${loaderData.name} Force Disposition matchups, primary missions, and scoring.` },
+          { property: 'og:type', content: 'article' },
+        ]
+      : [],
+    links: loaderData ? [{ rel: 'canonical', href: `/mission-packs/${params.packId}` }] : [],
+  }),
   component: MissionPackPage,
 })
 
 function MissionPackPage() {
   const { packId } = Route.useParams()
   const { data } = useQuery(gameReferencesQuery())
-  const [secondaryId, setSecondaryId] = useState<string | null>(null)
   const pack = data?.packs.find((entry) => entry.id === packId)
   if (!data || !pack) return null
-
-  const secondary = data.secondaries.find((entry) => entry.key === secondaryId)
   // The highest any mission in the pack states, and only what one of them actually
   // states. Read as a pair per category, because nothing says the two must agree.
   const missions = pack.missions
@@ -54,7 +62,7 @@ function MissionPackPage() {
         {allowances.length ? <p className="readout mt-1 text-xs text-dim">{allowances.join(' · ')}</p> : null}
       </PageHeader>
       <PageContent className="space-y-7">
-        <section data-onboarding="mission-dispositions">
+        <section id="matrix" data-onboarding="mission-dispositions">
           <h2 className="rubric border-b border-edge pb-2">Force dispositions</h2>
           <p className="mt-2 text-sm text-dim">Select the resulting mission to read its scoring rules.</p>
           {/* Bleeds to the window on a phone, so the cut-off column reads as a scroller. */}
@@ -114,31 +122,39 @@ function MissionPackPage() {
           </h2>
           <div className="mt-2 grid gap-px border border-edge bg-edge sm:grid-cols-2">
             {data.secondaries.map((card) => (
-              <button
+              <Link
                 key={card.key}
-                type="button"
-                onClick={() => setSecondaryId(card.key)}
+                to="/mission-packs/$packId/secondary-missions/$cardId"
+                params={{ packId, cardId: card.key }}
                 className="flex w-full items-center justify-between bg-panel px-3 py-2 text-left font-bold uppercase hover:bg-raised hover:text-info"
               >
                 <span>{card.name}</span>
                 <span className="text-xs text-dim">View</span>
-              </button>
+              </Link>
             ))}
           </div>
         </section>
 
+        {pack.twists.length ? (
+          <section>
+            <h2 className="rubric flex justify-between border-b border-edge pb-2">
+              <span>Mission twists</span>
+              <span className="readout">{pack.twists.length}</span>
+            </h2>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {pack.twists.map((twist) => (
+                <article id={`twist-${twist.id}`} key={twist.id} className="scroll-mt-16 border border-edge bg-panel p-4">
+                  <h3 className="text-lg">{twist.name}</h3>
+                  {twist.lore ? <RuleText text={twist.lore} /> : null}
+                  {twist.rules ? <RuleText text={twist.rules} className="mt-3 text-base text-bone" /> : null}
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
-
-      <Dialog open={Boolean(secondary)} onOpenChange={(open) => !open && setSecondaryId(null)}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{secondary?.name}</DialogTitle>
-          </DialogHeader>
-          {secondary ? <MissionCardReference card={secondary} type="Secondary mission" /> : null}
-          {secondary ? <MissionActions actions={secondary.actions} /> : null}
-        </DialogContent>
-      </Dialog>
     </main>
   )
 }

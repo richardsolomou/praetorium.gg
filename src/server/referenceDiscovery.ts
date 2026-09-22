@@ -6,7 +6,10 @@ export function referenceSitemap(request: Request) {
   if (!corpus) return new Response('Reference data is unavailable', { status: 503, headers: { 'Cache-Control': 'no-store' } })
   const origin = publicOrigin(request)
   const paths = new Set<string>(['/factions', '/rules'])
-  for (const document of corpus.documents) paths.add(document.url.split('#')[0]!)
+  for (const document of corpus.documents) {
+    paths.add(document.url.split('#')[0]!)
+    for (const section of document.sections) paths.add(section.url.split('#')[0]!)
+  }
   for (const sheet of corpus.catalogue.datasheets) {
     const route = sheet.referenceRoute
     if (route) paths.add(`/factions/${route.catalogueId}`)
@@ -41,15 +44,18 @@ Praetorium is a public Warhammer 40,000 army builder, battle tracker, and commun
 ## Agent interfaces
 
 - [OpenAPI](${origin}/api/reference/v1/openapi.json): versioned read-only HTTP API
-- [Search](${origin}/api/reference/v1/search?q=movement): search rules, detachments, and datasheets
+- [Praetorium guide](${origin}/api/reference/v1/about): product capabilities, privacy boundaries, and efficient agent workflow
+- [Reference index](${origin}/api/reference/v1/): discover kinds, mission packs, rule documents, factions, and active revisions
+- [Search](${origin}/api/reference/v1/search?q=movement): search missions, deployments, terrain, rules, detachments, and datasheets
 - [Factions](${origin}/api/reference/v1/factions): discover available factions
 - [MCP](${origin}/mcp): stateless read-only Streamable HTTP MCP endpoint
 
-API reads return JSON by default. Send \`Accept: text/markdown\` for compact source-faithful text. Search results include canonical page URLs, source revisions, and attribution.
+For roster planning, read \`/api/reference/v1/factions/{catalogueId}/units\` once to get compact unit-size costs, composition, attachment relationships, limits, keywords, links, and optional detachment rules instead of reading every datasheet. API reads return JSON by default. Send \`Accept: text/markdown\` for compact source-faithful text. Search results include canonical page URLs, source revisions, attribution, and cursor pagination.
 
 ## Human reference
 
 - [Factions](${origin}/factions)
+- [Mission packs](${origin}/mission-packs)
 - [Rules](${origin}/rules)
 - [Data sources](${origin}/sources)
 
@@ -59,7 +65,7 @@ ${revisions.length ? revisions.join('\n') : '- Reference data is temporarily una
 
 ## Update model
 
-The reference changes only when Praetorium activates another verified immutable snapshot. API records identify their source revisions and snapshot-derived ETags so clients can validate cached answers.
+The reference changes only when Praetorium activates another verified immutable snapshot or updates its source-faithful projection. API records identify their source revisions and content-derived ETags so clients can validate cached answers.
 
 ## Licence and attribution
 

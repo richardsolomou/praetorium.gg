@@ -11,6 +11,12 @@ permissions:
   contents: read
 
 jobs:
+  release-candidate:
+    if: startsWith(github.head_ref, 'release-candidate/')
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Preview images are not built for release candidates"
+
   preview:
     if: startsWith(github.head_ref, 'release-candidate/') == false
     permissions:

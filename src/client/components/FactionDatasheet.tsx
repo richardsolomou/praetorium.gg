@@ -29,16 +29,21 @@ export function FactionDatasheet() {
   const { data: sheet } = useQuery(datasheetSlugQuery(faction?.id ?? '', params.entryId ?? ''))
   if (!sheet || !faction) return null
   const structured = datasheetProfilesByKind(sheet)
-  const unit = uniqueCharacteristicProfiles(structured.unit)
+  const unitGroups = characteristicProfileGroups(structured.unit)
+  const unit = unitGroups.map((group) => group[0]!)
+  const unitAnchorIds = new Map(unitGroups.map((group) => [group[0]!.id, group.map((profile) => profile.id)]))
   const invulnerable = unit.flatMap((profile) => {
     const value = profile.values.find((characteristic) => datasheetCharacteristicKindOf(characteristic) === 'invulnerable-save')?.value
     return value ? [{ name: profile.name, value }] : []
   })
   const ranged = structured.ranged
   const melee = structured.melee
+  const abilities = referenceAbilities(sheet.abilities, sheet.attachments)
+  const visibleAbilityIds = new Set(abilities.map((ability) => ability.id))
+  const relationshipAbilityIds = sheet.abilities.filter((ability) => !visibleAbilityIds.has(ability.id)).map((ability) => ability.id)
 
   return (
-    <main className="w-full">
+    <main id="summary" className="w-full">
       <PageHeader
         tint={factionColour(faction.slug)}
         eyebrow={`${faction.displayName} · Datasheet`}
@@ -79,7 +84,9 @@ export function FactionDatasheet() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        {unit.length === 1 && unit[0] ? <UnitCharacteristics onboarding="datasheet-stats" profile={unit[0]} /> : null}
+        {unit.length === 1 && unit[0] ? (
+          <UnitCharacteristics onboarding="datasheet-stats" profile={unit[0]} anchorIds={unitAnchorIds.get(unit[0].id)} />
+        ) : null}
         {unit.length > 1 ? (
           <ProfileTable
             onboarding="datasheet-stats"
@@ -87,6 +94,7 @@ export function FactionDatasheet() {
             profiles={unit}
             omit={['invulnerable-save']}
             keywordRules={sheet.keywordRules}
+            anchorIds={unitAnchorIds}
           />
         ) : null}
         {unit.length > 1 && invulnerable.length ? (
@@ -108,22 +116,11 @@ export function FactionDatasheet() {
         {melee.length ? (
           <ProfileTable onboarding="datasheet-weapons" title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} />
         ) : null}
-        <Abilities
-          onboarding="datasheet-abilities"
-          abilities={referenceAbilities(sheet.abilities, sheet.attachments)}
-          rules={sheet.keywordRules}
-        />
+        <Abilities onboarding="datasheet-abilities" abilities={abilities} rules={sheet.keywordRules} />
         <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} />
         <UnitConfiguration onboarding="datasheet-config" sheet={sheet} rules={sheet.keywordRules} />
-        {sheet.transport ? (
-          <section>
-            <h2 className="rubric">Transport</h2>
-            <div className="mt-2 border border-edge bg-panel p-3">
-              <RuleText text={sheet.transport} rules={sheet.keywordRules} className="mt-0" />
-            </div>
-          </section>
-        ) : null}
-        <Relationships sheet={sheet} />
+        <TransportReference transport={sheet.transport} profiles={structured.transport} rules={sheet.keywordRules} />
+        <Relationships sheet={sheet} abilityIds={relationshipAbilityIds} />
         {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
       </PageContent>
     </main>
@@ -131,8 +128,17 @@ export function FactionDatasheet() {
 }
 
 type DisplayAbility = Datasheet['abilities'][number]
+const noAnchorIds: readonly string[] = []
 
-function Abilities({ abilities, rules, onboarding }: { abilities: DisplayAbility[]; rules: KeywordRule[]; onboarding?: OnboardingTarget }) {
+export function Abilities({
+  abilities,
+  rules,
+  onboarding,
+}: {
+  abilities: DisplayAbility[]
+  rules: KeywordRule[]
+  onboarding?: OnboardingTarget
+}) {
   return Object.entries(abilitySections).map(([kind, title]) => {
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
@@ -155,18 +161,19 @@ function Abilities({ abilities, rules, onboarding }: { abilities: DisplayAbility
           </h2>
           <div className="mt-2 flex flex-wrap gap-1">
             {found.map((ability) => (
-              <Keyword
-                key={ability.id}
-                name={ability.name}
-                rules={ability.description ? [{ name: ability.name, description: ability.description }] : []}
-                className={
-                  ability.source
-                    ? 'chip inline-flex min-h-6 items-center justify-center border-info/50 bg-info/10 py-0.5 leading-none !text-info hover:!text-bone'
-                    : KEYWORD_TAG_CLASS
-                }
-                note={ability.source ? `Added by ${ability.source}` : undefined}
-                highlightNote={false}
-              />
+              <span id={`ability-${ability.id}`} key={ability.id} className="scroll-mt-16">
+                <Keyword
+                  name={ability.name}
+                  rules={ability.description ? [{ name: ability.name, description: ability.description }] : []}
+                  className={
+                    ability.source
+                      ? 'chip inline-flex min-h-6 items-center justify-center border-info/50 bg-info/10 py-0.5 leading-none !text-info hover:!text-bone'
+                      : KEYWORD_TAG_CLASS
+                  }
+                  note={ability.source ? `Added by ${ability.source}` : undefined}
+                  highlightNote={false}
+                />
+              </span>
             ))}
           </div>
         </section>
@@ -190,7 +197,7 @@ function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rul
       <h2 className="rubric">Unit configuration</h2>
       <div className="mt-2 overflow-hidden border border-edge bg-panel">
         <div className="grid md:grid-cols-2 md:divide-x md:divide-edge">
-          <div id="summary" className="space-y-2 p-3">
+          <div className="space-y-2 p-3">
             <h3 className="eyebrow">Composition</h3>
             {sheet.composition.map((line) => (
               <RuleText key={line} text={line} rules={rules} />
@@ -240,11 +247,18 @@ function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rul
   )
 }
 
-function Relationships({ sheet }: { sheet: Datasheet }) {
+export function Relationships({
+  sheet,
+  abilityIds = noAnchorIds,
+}: {
+  sheet: Pick<Datasheet, 'attachments' | 'leaders' | 'supporters'>
+  abilityIds?: readonly string[]
+}) {
   const groups = attachmentGroups(sheet)
   if (!groups.length) return null
   return (
     <section id="relationships">
+      <ReferenceAnchors prefix="ability" ids={abilityIds} />
       <h2 className="rubric">Attachments</h2>
       <div className="mt-2 grid gap-2 md:grid-cols-2">
         {groups.map(({ title, relationships }) => (
@@ -277,11 +291,20 @@ function Relationships({ sheet }: { sheet: Datasheet }) {
 
 type DisplayProfile = StructuredDatasheetProfile
 
-function UnitCharacteristics({ profile, onboarding }: { profile: DisplayProfile; onboarding?: OnboardingTarget }) {
+function UnitCharacteristics({
+  profile,
+  onboarding,
+  anchorIds = noAnchorIds,
+}: {
+  profile: DisplayProfile
+  onboarding?: OnboardingTarget
+  anchorIds?: readonly string[]
+}) {
   const invulnerable = profile.values.find((value) => datasheetCharacteristicKindOf(value) === 'invulnerable-save')?.value
   const values = profile.values.filter((value) => datasheetCharacteristicKindOf(value) !== 'invulnerable-save')
   return (
     <section id={`profile-${profile.id}`} data-onboarding={onboarding}>
+      <ReferenceAnchors prefix="profile" ids={anchorIds.filter((id) => id !== profile.id)} />
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
         {values.map((value) => (
           <div key={value.name} className="border border-edge bg-panel px-3 py-2 text-center">
@@ -300,17 +323,17 @@ function UnitCharacteristics({ profile, onboarding }: { profile: DisplayProfile;
   )
 }
 
-function uniqueCharacteristicProfiles(profiles: DisplayProfile[]) {
-  const seen = new Set<string>()
-  return profiles.filter((profile) => {
+function characteristicProfileGroups(profiles: DisplayProfile[]) {
+  const groups = new Map<string, DisplayProfile[]>()
+  for (const profile of profiles) {
     const signature = JSON.stringify(profile.values.map(({ name, value }) => ({ name, value })))
-    if (seen.has(signature)) return false
-    seen.add(signature)
-    return true
-  })
+    groups.set(signature, [...(groups.get(signature) ?? []), profile])
+  }
+  return [...groups.values()]
 }
 
 const noColumns: DatasheetCharacteristicKind[] = []
+const noProfileAnchorIds: ReadonlyMap<string, readonly string[]> = new Map()
 
 export function ProfileTable({
   title,
@@ -318,12 +341,14 @@ export function ProfileTable({
   omit = noColumns,
   keywordRules,
   onboarding,
+  anchorIds = noProfileAnchorIds,
 }: {
   title: string
   profiles: DisplayProfile[]
   omit?: DatasheetCharacteristicKind[]
   keywordRules: KeywordRule[]
   onboarding?: OnboardingTarget
+  anchorIds?: ReadonlyMap<string, readonly string[]>
 }) {
   const columns = profileTableColumns(profiles).filter(
     ({ characteristic }) => !omit.includes(datasheetCharacteristicKindOf(characteristic)),
@@ -370,6 +395,7 @@ export function ProfileTable({
                       group.length > 1 ? 'border-l-2 border-edge-strong py-2 pr-3 pl-10 font-normal text-dim' : 'px-3 py-2 font-semibold'
                     }
                   >
+                    <ReferenceAnchors prefix="profile" ids={(anchorIds.get(profile.id) ?? []).filter((id) => id !== profile.id)} />
                     {group.length > 1 ? weaponProfileMode(profile) : profile.name}
                   </th>
                   {columns.map((column) => {
@@ -392,4 +418,29 @@ export function ProfileTable({
       </div>
     </section>
   )
+}
+
+export function TransportReference({
+  transport,
+  profiles,
+  rules,
+}: {
+  transport: string | null
+  profiles: readonly Pick<DisplayProfile, 'id'>[]
+  rules: KeywordRule[]
+}) {
+  if (!transport) return null
+  return (
+    <section>
+      <ReferenceAnchors prefix="profile" ids={profiles.map((profile) => profile.id)} />
+      <h2 className="rubric">Transport</h2>
+      <div className="mt-2 border border-edge bg-panel p-3">
+        <RuleText text={transport} rules={rules} className="mt-0" />
+      </div>
+    </section>
+  )
+}
+
+function ReferenceAnchors({ prefix, ids }: { prefix: 'ability' | 'profile'; ids: readonly string[] }) {
+  return ids.map((id) => <span id={`${prefix}-${id}`} key={id} className="block scroll-mt-16" />)
 }
