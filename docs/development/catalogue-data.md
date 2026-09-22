@@ -19,6 +19,10 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 - `just catalogue-sync` calls the same sync code as the server.
 - The server loads the catalogue on first use. An instance without catalogue data can still serve battles and pasted rosters.
 
+### Space Marines codex replacement
+
+The definitions source follows BSData's `codex-space-marines-11e-wip` branch while the replacement data is prepared upstream. Its `(11e)` Space Marines and chapter books supersede books with the same base name and are shown under the ordinary faction name. Current chapter supplements without a replacement book inherit the new generic Space Marines rules and detachments while retaining their own supplement detachments. `previewCatalogues.ts` supplies root links the work-in-progress books have not added yet; it does not copy source game data into Git. The replacement reads its own army-rule and detachment profiles and DP costs rather than joining older Game Datacards text by name. Stratagem text is shown without inferred timing or eligibility until a structured source supplies those fields.
+
 Server catalogue code is split by responsibility:
 
 - `catalogueIndex.ts` loads files and indexes books, detachments, datasheet membership, and 40kdc's namespaced source references.

@@ -5,7 +5,8 @@ import { currentUserId, requireUser } from '../playerSession'
 import { calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../pricing'
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, importRosterFile } from '../rosterFiles'
-import { factionsFor } from '../factionReferences'
+import { factionsFor, withPreviewArmyRules } from '../factionReferences'
+import { replacementDetachments } from '../previewCatalogues'
 import { rosterTelemetryProperties } from '../rosterTelemetry'
 import {
   exportRosterSchema,
@@ -159,9 +160,10 @@ async function accessibleRoster(data: { id: string; battle?: string }) {
   const access = await app().service.rosterAccess(data.id, await currentUserId(), data.battle ?? null)
   if (!access) return null
   const loaded = app().catalogue()
-  const faction = loaded
-    ? (factionsFor(loaded, app().rules()).factions.find((candidate) => candidate.id === access.roster.catalogueId) ?? null)
-    : null
+  const found = loaded
+    ? factionsFor(loaded, app().rules()).factions.find((candidate) => candidate.id === access.roster.catalogueId)
+    : undefined
+  const faction = loaded && found ? withPreviewArmyRules(loaded, replacementDetachments(loaded, found, access.roster.detachmentIds)) : null
   return { ...access, faction }
 }
 

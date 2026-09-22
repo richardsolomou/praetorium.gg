@@ -173,6 +173,81 @@ describe('a limit the catalogue breaks inside a unit', () => {
 })
 
 describe('force disposition', () => {
+  it('prices provisional detachments from their catalogue DP costs', () => {
+    const loaded = bookOf({
+      name: 'Space Marines (11e)',
+      selectionEntries: [{ id: 'intercessors', name: 'Intercessors', type: 'unit' }],
+      sharedSelectionEntries: [
+        {
+          id: 'wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'choices',
+              name: 'Detachment',
+              selectionEntries: [
+                { id: 'one', name: 'First', type: 'upgrade', costs: [{ name: 'Detachment Points', typeId: 'dp', value: 1 }] },
+                { id: 'three', name: 'Second', type: 'upgrade', costs: [{ name: 'Detachment Points', typeId: 'dp', value: 3 }] },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    loaded.index.costTypes.set('dp', { id: 'dp', name: 'Detachment Points' })
+    expect(
+      calculateRosterPrice(
+        { catalogueId: 'cat', detachmentIds: ['one', 'three'], disposition: null, limit: 2_000, units: [] },
+        loaded,
+        rulesWithout,
+      ),
+    ).toMatchObject({ detachmentPointsSpent: 4, detachmentPointsOver: true })
+  })
+
+  it('prices a preview detachment offered to a current chapter from its catalogue', () => {
+    const detachment = (id: string, name: string, cost: number) => ({
+      id,
+      name,
+      type: 'upgrade' as const,
+      costs: [{ name: 'Detachment Points', typeId: 'dp', value: cost }],
+      categoryLinks: [{ id: `${id}-disposition`, name: 'Take and Hold', targetId: 'take-and-hold' }],
+    })
+    const wrapper = (id: string, option: ReturnType<typeof detachment>) => ({
+      id: `${id}-wrapper`,
+      name: 'Detachment',
+      type: 'upgrade' as const,
+      selectionEntryGroups: [{ id: `${id}-choices`, name: 'Detachment', selectionEntries: [option] }],
+    })
+    const loaded = shelfOf(
+      {
+        name: 'Dark Angels',
+        selectionEntries: [{ id: 'lion', name: "Lion El'Jonson", type: 'unit' }],
+        sharedSelectionEntries: [wrapper('current', detachment('wrath', 'Wrath of the Rock', 2))],
+      },
+      {
+        name: 'Space Marines (11e)',
+        selectionEntries: [{ id: 'intercessors', name: 'Intercessors', type: 'unit' }],
+        sharedSelectionEntries: [wrapper('preview', detachment('assault', 'Assault Brethren', 1))],
+      },
+    )
+    loaded.index.costTypes.set('dp', { id: 'dp', name: 'Detachment Points' })
+    const preview = loaded.detachments.get('cat-1')!.options[0]!
+    loaded.detachments.get('cat')!.options.push(preview)
+
+    expect(
+      calculateRosterPrice(
+        { catalogueId: 'cat', detachmentIds: ['assault'], disposition: null, limit: 2_000, units: [] },
+        loaded,
+        rulesWithout,
+      ),
+    ).toMatchObject({
+      detachments: [{ name: 'Assault Brethren', points: 1 }],
+      detachmentPointsSpent: 1,
+      disposition: 'take-and-hold',
+    })
+  })
+
   it('uses the only available disposition', () => {
     expect(resolveDisposition(['reconnaissance'], null)).toEqual({ disposition: 'reconnaissance', error: null })
   })

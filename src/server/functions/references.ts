@@ -8,8 +8,16 @@ import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
 import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
-import { factionIndexFor, factionsFor } from '../factionReferences'
+import { factionIndexFor, factionsFor, withPreviewArmyRules } from '../factionReferences'
 import { factionDisplayName } from '../factionNames'
+import {
+  isPreviewCatalogue,
+  isPreviewDetachment,
+  isSupersededCatalogue,
+  previewArmyRulesFor,
+  previewDetachmentCards,
+  replacementDetachments,
+} from '../previewCatalogues'
 import { unitsIn } from '../cataloguePicker'
 
 import { gameReferencesFor } from '../gameReferences'
@@ -42,10 +50,10 @@ export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => r
 
 export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
-    cacheUntilSnapshotChanges()
     const loaded = app().catalogue()
     if (!loaded) return null
-    return factionIndexFor(loaded, app().rules())
+    const index = factionIndexFor(loaded, app().rules())
+    return { ...index, factions: index.factions.filter((entry) => !isSupersededCatalogue(loaded, entry)) }
   }),
 )
 
@@ -54,11 +62,12 @@ export const faction = createServerFn({ method: 'GET' })
   .validator(factionSchema)
   .handler(({ data }) =>
     rpc(() => {
-      cacheUntilSnapshotChanges()
       const loaded = app().catalogue()
       if (!loaded) return null
       const { factions: all } = factionsFor(loaded, app().rules())
-      return all.find((candidate) => candidate.slug === data.catalogueId || candidate.id === data.catalogueId) ?? null
+      const matches = all.filter((candidate) => candidate.slug === data.catalogueId || candidate.id === data.catalogueId)
+      const found = matches.find((candidate) => !isSupersededCatalogue(loaded, candidate)) ?? matches[0]
+      return found ? withPreviewArmyRules(loaded, replacementDetachments(loaded, found)) : null
     }),
   )
 
@@ -231,7 +240,7 @@ function rosterLoadoutDatasheets(
 
 function rosterDatasheet(
   loaded: NonNullable<ReturnType<ReturnType<typeof app>['catalogue']>>,
-  data: { catalogueId: string; entryId: string },
+  data: { catalogueId: string; entryId: string; detachmentIds?: string[] },
   context: ReturnType<typeof rosterDatasheetContext>,
   everyWeapon: boolean,
 ) {
@@ -268,8 +277,10 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   .validator(datasheetSlugSchema)
   .handler(({ data }) =>
     rpc(() => {
-      cacheUntilSnapshotChanges()
-      return referenceDatasheetBySlug(app(), data)
+      const loaded = app().catalogue()
+      const book = loaded?.index.catalogues.get(data.catalogueId)
+      const live = Boolean(loaded && (isPreviewCatalogue(book ?? { name: '' }) || previewArmyRulesFor(loaded, data.catalogueId).length))
+      return referenceDatasheetBySlug(app(), data, { live })
     }),
   )
 
@@ -296,9 +307,21 @@ export const detachmentRules = createServerFn({ method: 'GET' })
       const factionSlug = book ? routeSlug(book.name) : null
       const detachments = factionSlug ? rules.byDetachment.get(rulesFaction(rules, factionSlug)) : undefined
       const details = factionSlug ? rules.detachmentDetails.get(rulesFaction(rules, factionSlug)) : undefined
+      const options = book
+        ? (catalogue.detachments.get(book.id)?.options.filter((candidate) => data.detachmentNames.includes(candidate.name)) ?? [])
+        : []
+      const previewOptions = options.filter((option) => isPreviewDetachment(catalogue, option.id))
+      const previewNames = new Set(previewOptions.map((option) => option.name))
       // Detachment cards use the same text as their reference page; core cards join them from Game Datacards.
-      const selected = selectedDetachmentRules(data.detachmentNames, detachments, details)
-      const written = [...selected.written, ...rules.coreDetails]
+      const selected = selectedDetachmentRules(
+        data.detachmentNames.filter((name) => !previewNames.has(name)),
+        detachments,
+        details,
+      )
+      const previewWritten = previewOptions.flatMap((option) =>
+        previewDetachmentCards(catalogue, option.id).stratagems.map((card) => ({ ...card, type: null })),
+      )
+      const written = [...selected.written, ...previewWritten, ...rules.coreDetails]
       return {
         attribution: rules.attribution,
         dataslate: rules.dataslate,
@@ -317,7 +340,6 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
   .validator(detachmentDetailSchema)
   .handler(({ data }) =>
     rpc(() => {
-      cacheUntilSnapshotChanges()
       const rules = app().rules()
       const catalogue = app().catalogue()
       return rules && catalogue ? detachmentReference(catalogue, rules, data.catalogueId, data.slug) : null

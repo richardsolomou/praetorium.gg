@@ -32,6 +32,24 @@ describe('the shelf a datasheet is filed under', () => {
       ]),
     ).toBe('other')
   })
+
+  it('uses the strongest secondary category for a provisional preview entry', () => {
+    const index = bookOf({
+      selectionEntries: [
+        {
+          id: 'preview-character',
+          name: 'Captain',
+          type: 'model',
+          categoryLinks: [
+            { id: 'faction', targetId: 'faction', name: 'Faction: Adeptus Astartes', primary: true },
+            { id: 'infantry', targetId: 'infantry', name: 'Infantry' },
+            { id: 'character', targetId: 'character', name: 'Character' },
+          ],
+        },
+      ],
+    }).index
+    expect(groupOfEntry(index, 'preview-character')).toBe('character')
+  })
 })
 
 describe('the picker', () => {

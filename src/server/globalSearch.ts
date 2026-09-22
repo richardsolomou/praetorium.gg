@@ -7,6 +7,7 @@ import { isMatchedPlayDatasheet } from './cataloguePicker'
 import { matchDatasheet, type DatasheetSearchFields, type DatasheetSearchReason } from './datasheetSearch'
 import { factionsFor } from './factionReferences'
 import { gameReferencesFor } from './gameReferences'
+import { isSupersededCatalogue } from './previewCatalogues'
 import { ruleIndexOf } from './rulesCore'
 import type { LoadedRules } from './rules'
 
@@ -74,6 +75,7 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
   const detachments: IndexedResult[] = []
   const datasheets: IndexedDatasheet[] = []
   for (const faction of factionsFor(loaded, rules).factions) {
+    if (isSupersededCatalogue(loaded, faction)) continue
     factions.push({
       search: `${faction.displayName} ${faction.name}`.toLowerCase(),
       result: {
