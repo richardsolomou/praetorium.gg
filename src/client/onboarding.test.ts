@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { onboardingTaskIds } from '../core/onboarding'
 import {
-  canOfferOnboardingWelcome,
   FIRST_ONBOARDING_STEP,
   focusAfterOnboardingNavigation,
   focusAfterOnboardingOperation,
@@ -305,15 +304,5 @@ describe('onboarding focus', () => {
   it('preserves focus when the player updates another task', () => {
     const focus = { task: 'roster', step: 'roster-list' } as const
     expect(focusAfterOnboardingOperation(focus, { operation: 'skip', task: 'friend' })).toBe(focus)
-  })
-})
-
-describe('onboarding welcome', () => {
-  it.each(['/sign-in', '/reset-password', '/native-auth'])('waits until the player leaves %s', (path) => {
-    expect(canOfferOnboardingWelcome(path)).toBe(false)
-  })
-
-  it('can open on the destination after sign-in', () => {
-    expect(canOfferOnboardingWelcome('/')).toBe(true)
   })
 })

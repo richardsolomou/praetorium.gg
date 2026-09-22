@@ -4,29 +4,6 @@ import { expect } from '@playwright/test'
 export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfies BrowserContextOptions
 
 /**
- * Closes the panel a first sign-in opens, and leaves an account that has already
- * seen it alone.
- *
- * The welcome is stored per account, so a shared fixture signing in for the
- * second time never opens it and there is no response to wait for.
- */
-export async function dismissOnboardingWelcome(page: Page) {
-  const close = page.getByRole('button', { name: 'Close getting started' })
-  const opened = await close
-    .waitFor({ state: 'visible', timeout: 5_000 })
-    .then(() => true)
-    .catch(() => false)
-  if (!opened) return false
-  const welcomeSaved = page.waitForResponse(
-    (response) => response.ok() && response.request().method() === 'POST' && Boolean(response.request().postData()?.includes('"welcome"')),
-  )
-  await close.click()
-  await welcomeSaved
-  await expect(close).toBeHidden()
-  return true
-}
-
-/**
  * Makes an account and leaves the page signed into it.
  *
  * Every journey starts here now: a battle, a roster and a seat all belong to an
@@ -47,7 +24,6 @@ export async function signUp(page: Page, name: string) {
     .getByRole('button', { name: `Account menu for ${name}`, includeHidden: true })
     .first()
     .waitFor({ state: 'attached' })
-  await dismissOnboardingWelcome(page)
   return { email, password }
 }
 

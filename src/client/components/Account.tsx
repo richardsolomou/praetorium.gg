@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { CircleUserRound, LogIn, LogOut, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users } from 'lucide-react'
+import { CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { onboardingComplete, resolvedOnboardingTasks } from '../../core/onboarding'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,11 +15,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { authClient } from '../authClient'
 import { setNativeAccountMenuOpen } from '../nativeBridge'
-import { meQuery } from '../queries'
+import { onboardingTasks, openOnboarding } from '../onboarding'
+import { meQuery, onboardingQuery } from '../queries'
 import { PlayerAvatar } from './PlayerAvatar'
 
 function useAccountControls() {
   const { data: me } = useQuery(meQuery())
+  const { data: onboarding } = useQuery({ ...onboardingQuery(), enabled: Boolean(me) })
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -30,11 +33,13 @@ function useAccountControls() {
     })()
   }
 
-  return { me, signOut }
+  return { me, onboarding, signOut }
 }
 
 function AccountMenuItems() {
-  const { me, signOut } = useAccountControls()
+  const { me, onboarding, signOut } = useAccountControls()
+  const onboardingResolved = onboarding ? resolvedOnboardingTasks(onboarding).size : 0
+  const showOnboarding = onboarding && !onboardingComplete(onboarding)
 
   return (
     <>
@@ -62,6 +67,18 @@ function AccountMenuItems() {
           <DropdownMenuItem render={<Link to="/profile" />}>
             <UserRoundPen /> Edit profile
           </DropdownMenuItem>
+          {showOnboarding ? (
+            <DropdownMenuItem onClick={openOnboarding}>
+              <Map />
+              <span>Getting started</span>
+              <span className="ml-auto text-xs text-dim">
+                {onboardingResolved}/{onboardingTasks.length}
+              </span>
+              {!onboarding.welcomed ? (
+                <span className="chip border border-discarded/50 bg-discarded/10 px-1.5 py-0.5 text-discarded">New</span>
+              ) : null}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem render={<Link to="/friends" />}>
             <Users /> Friends
           </DropdownMenuItem>
@@ -97,8 +114,9 @@ function AccountMenuItems() {
 }
 
 export function Account({ native = false }: { native?: boolean }) {
-  const { me } = useAccountControls()
+  const { me, onboarding } = useAccountControls()
   const [nativeOpen, setNativeOpen] = useState(false)
+  const onboardingNew = Boolean(onboarding && !onboarding.welcomed && !onboardingComplete(onboarding))
 
   useEffect(() => {
     if (!native) return
@@ -129,7 +147,20 @@ export function Account({ native = false }: { native?: boolean }) {
           />
         }
       >
-        {me ? <PlayerAvatar name={me.name} image={me.image} className="size-7 text-xs" /> : <CircleUserRound className="size-5" />}
+        {me ? (
+          <span className="relative">
+            <PlayerAvatar name={me.name} image={me.image} className="size-7 text-xs" />
+            {onboardingNew ? (
+              <span
+                data-onboarding-new
+                aria-hidden
+                className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border-2 border-panel bg-discarded"
+              />
+            ) : null}
+          </span>
+        ) : (
+          <CircleUserRound className="size-5" />
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuGroup>

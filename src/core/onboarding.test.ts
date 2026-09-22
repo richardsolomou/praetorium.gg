@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 import {
   availableOnboardingTasks,
   EMPTY_ONBOARDING_PROGRESS,
+  onboardingComplete,
   type OnboardingFacts,
   onboardingProgress,
   type StoredOnboarding,
@@ -52,4 +53,24 @@ it('offers the battle task once its preparation is resolved either way', () => {
   const progress = onboardingProgress({ welcomed: false, tasks: [{ task: 'friend', state: 'skipped' }] }, { ...NOTHING_DONE, roster: true })
 
   expect(availableOnboardingTasks(progress)).toContain('battle')
+})
+
+it('finishes onboarding when every task is completed or skipped', () => {
+  expect(
+    onboardingComplete({
+      completedTasks: ['roster', 'friend', 'battle'],
+      skippedTasks: ['league', 'reference', 'community'],
+      welcomed: true,
+    }),
+  ).toBe(true)
+})
+
+it('keeps onboarding available while any task is unresolved', () => {
+  expect(
+    onboardingComplete({
+      completedTasks: ['roster', 'friend', 'battle'],
+      skippedTasks: ['league', 'reference'],
+      welcomed: true,
+    }),
+  ).toBe(false)
 })

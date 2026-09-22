@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent } from '@/components/ui/popover'
 import {
   availableOnboardingTasks,
+  onboardingComplete,
   resolvedOnboardingTasks,
   tourTaskIds,
   type OnboardingProgress,
@@ -24,7 +25,6 @@ import {
   ONBOARDING_ADVANCE_EVENT,
   ONBOARDING_EVENT,
   ONBOARDING_UI,
-  canOfferOnboardingWelcome,
   focusAfterOnboardingNavigation,
   focusAfterOnboardingOperation,
   nextOnboardingFocus,
@@ -82,7 +82,6 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
   // Named rather than a flag: a step that has just moved on must not read the step before it as lost.
   const [lost, setLost] = useState<OnboardingStepId>()
   const compact = useCompactChrome()
-  const offeredWelcome = useRef(false)
   const page = onboardingPage(location.pathname)
   const visible = useMemo(() => (data ? availableOnboardingTasks(data) : []), [data])
   const focusedStep = focus ? ONBOARDING_UI[focus.step] : undefined
@@ -110,12 +109,6 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
     window.addEventListener(ONBOARDING_EVENT, show)
     return () => window.removeEventListener(ONBOARDING_EVENT, show)
   }, [])
-
-  useEffect(() => {
-    if (!data || data.welcomed || offeredWelcome.current || !canOfferOnboardingWelcome(location.pathname)) return
-    offeredWelcome.current = true
-    setOpen(true)
-  }, [data, location.pathname])
 
   useEffect(() => {
     const advance = (event: Event) => {
@@ -380,7 +373,7 @@ function GuidePanel({
   }, [open])
   if (!open) return null
   const resolved = resolvedOnboardingTasks(data)
-  const complete = resolved.size === onboardingTasks.length
+  const complete = onboardingComplete(data)
   return (
     <dialog
       open

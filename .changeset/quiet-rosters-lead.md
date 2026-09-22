@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Put rosters before battles in the mobile navigation.
+Prioritize rosters in mobile navigation and make onboarding an optional profile item.
