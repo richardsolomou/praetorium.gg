@@ -72,8 +72,8 @@ export function CombatMatchup({
   if (target?.target) target.target.damage = defender?.damage ?? 0
   const attackRules = attacker?.rules ?? []
   const defenceRules = defender?.rules ?? []
-  const rangedDefences = target?.target ? combatRuleDefences(target.target, defenceRules, 'ranged') : null
-  const meleeDefences = target?.target ? combatRuleDefences(target.target, defenceRules, 'melee') : null
+  const rangedDefences = target?.target ? combatRuleDefences(target.target, defenceRules, 'ranged', attackRules) : null
+  const meleeDefences = target?.target ? combatRuleDefences(target.target, defenceRules, 'melee', attackRules) : null
   const printedFeelNoPain =
     rangedDefences?.feelNoPain === meleeDefences?.feelNoPain ? rangedDefences?.feelNoPain : target?.target?.feelNoPain
   const defaultFeelNoPain = context.feelNoPain === undefined ? (printedFeelNoPain ?? null) : context.feelNoPain
@@ -116,7 +116,12 @@ export function CombatMatchup({
     const defences = phase === 'ranged' ? rangedDefences : meleeDefences
     const configuredFeelNoPain = overrides.feelNoPain === undefined ? context.feelNoPain : overrides.feelNoPain
     const mortalWounds = combatRuleMortals(attackRules, phase, defender?.sheet.keywords ?? [], plan?.used ?? [], attacker?.models ?? 0)
-    return defences && !attacker?.allocationRequired && plan && (plan.weapons.length || mortalWounds.length) && !plan.errors.length
+    return attacker &&
+      defences &&
+      !attacker.allocationRequired &&
+      plan &&
+      (plan.weapons.length || mortalWounds.length) &&
+      !plan.errors.length
       ? {
           target: {
             ...defences,
@@ -125,11 +130,14 @@ export function CombatMatchup({
             mortalFeelNoPain: configuredFeelNoPain === undefined ? defences.mortalFeelNoPain : null,
           },
           weapons: combatRuleWeapons(
-            combatRuleWeapons(plan.used, attackRules, 'attacker', phase, defender?.sheet.keywords ?? []).map((weapon, index) => ({
-              weapon,
-              count: weapon.count,
-              profile: plan.used[index]!.profile,
-            })),
+            attacker.sheet,
+            combatRuleWeapons(attacker.sheet, plan.used, attackRules, 'attacker', phase, defender?.sheet.keywords ?? []).map(
+              (weapon, index) => ({
+                weapon,
+                count: weapon.count,
+                profile: plan.used[index]!.profile,
+              }),
+            ),
             defenceRules,
             'defender',
             phase,
@@ -320,6 +328,33 @@ export function CombatMatchup({
             )
           })}
         </div>
+        {buffs ?? (
+          <div className="mt-4 grid gap-4 @xl:grid-cols-2">
+            {[
+              { side: 'Attacker', unit: attacker },
+              { side: 'Defender', unit: defender },
+            ].map(({ side, unit }) => {
+              if (!unit?.sheet.abilities.length) return null
+              return (
+                <section key={side} aria-label={`${side} rules`} className="min-w-0">
+                  <h3 className="rubric">{side} rules</h3>
+                  <div className="mt-3 space-y-3">
+                    {unit.sheet.abilities.map((ability) => (
+                      <div key={ability.id}>
+                        <CombatRuleLabel
+                          side={side}
+                          name={ability.name}
+                          description={ability.description}
+                          rules={unit.sheet.keywordRules}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )
+            })}
+          </div>
+        )}
         <section aria-label="Conditions and rules" className="mt-4 border-t border-edge pt-3">
           <h2 className="rubric">Conditions & rules{sources.length ? ` · ${sources.length} inherited` : ''}</h2>
           <div className="mt-4 grid gap-5 @xl:grid-cols-2">
@@ -369,6 +404,24 @@ export function CombatMatchup({
                   <div className="space-y-3 text-xs">
                     {phase === 'ranged' ? (
                       <>
+                        {plans.ranged?.weapons.some((weapon) => weapon.indirectFire) && (
+                          <Choice
+                            label="Indirect shooting"
+                            ariaLabel="Indirect shooting"
+                            value={current.indirectFire ?? 'direct'}
+                            choices={[
+                              ['direct', 'Off'],
+                              ['unobserved', 'Unobserved or moving'],
+                              ['spotted', 'Stationary and spotted'],
+                            ]}
+                            onChange={(value) => change(phase, 'indirectFire', value)}
+                          />
+                        )}
+                        {plans.ranged?.weapons.some((weapon) => weapon.indirectFire) && current.indirectFire !== 'direct' && (
+                          <p className="text-faint">
+                            Spotted: visible to a friendly unit. Indirect weapons grant cover and cannot re-roll hits.
+                          </p>
+                        )}
                         <Toggle
                           label="Defender has cover (−1 BS)"
                           checked={current.cover}
@@ -429,33 +482,6 @@ export function CombatMatchup({
           {sources.length ? (
             <p className="mt-4 text-xs text-dim">Inherited: {sources.join(' · ')}. Evaluated profile changes are included.</p>
           ) : null}
-          {buffs ?? (
-            <div className="mt-4 grid gap-4 @xl:grid-cols-2">
-              {[
-                { side: 'Attacker', unit: attacker },
-                { side: 'Defender', unit: defender },
-              ].map(({ side, unit }) => {
-                if (!unit?.sheet.abilities.length) return null
-                return (
-                  <section key={side} aria-label={`${side} rules`} className="min-w-0">
-                    <h3 className="rubric">{side} rules</h3>
-                    <div className="mt-3 space-y-3">
-                      {unit.sheet.abilities.map((ability) => (
-                        <div key={ability.id}>
-                          <CombatRuleLabel
-                            side={side}
-                            name={ability.name}
-                            description={ability.description}
-                            rules={unit.sheet.keywordRules}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )
-              })}
-            </div>
-          )}
         </section>
       </div>
     </div>

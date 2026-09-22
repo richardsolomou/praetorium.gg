@@ -2,6 +2,7 @@ import type { Datasheet, DatasheetCharacteristicKind } from '../contracts/catalo
 import { diceExpression, type CombatInput, type CombatOptions, type CombatWeapon } from './combat'
 import { compileCombatRule } from './combatRuleCompiler'
 import { datasheetCharacteristicKind, datasheetProfileKind } from './datasheetStructure'
+import { combatKeyword, combatKeywordApplies, combatKeywordPhraseMatches } from './combatKeywords'
 
 type Phase = CombatOptions['phase']
 export type CombatRule = {
@@ -20,11 +21,15 @@ export type CombatRuleEffect = {
   role: 'attacker' | 'defender'
   phases: Phase[]
   keyword?: string
-  characteristic?: { kind: DatasheetCharacteristicKind; add: number; nonCumulative?: boolean }
+  characteristic?: { kind: DatasheetCharacteristicKind; nonCumulative?: boolean } & (
+    | { add: number; set?: never }
+    | { set: number; add?: never }
+  )
   weapon?: string
+  requiresWeaponKeyword?: string
   targetKeywords?: string[]
   excludedTargetKeywords?: string[]
-  condition?: 'stronger' | 'double-strength' | 'critical-wound'
+  condition?: 'stronger' | 'not-stronger' | 'double-strength' | 'critical-wound'
   ignoreHitModifiers?: boolean
   ignoreWoundModifiers?: boolean
   ignoreSkillModifiers?: boolean
@@ -36,6 +41,8 @@ export type CombatRuleEffect = {
   invulnerable?: number
   save?: number
   toughness?: number
+  targetToughness?: number
+  targetSaveModifier?: number
   damageDivisor?: number
   options?: Partial<Pick<CombatOptions, 'hitModifier' | 'woundModifier' | 'hitReroll' | 'woundReroll' | 'cover'>>
   feelNoPain?: number
@@ -63,6 +70,7 @@ const key = (value: string) =>
   plain(value)
     .replace(/^faction:\s*/i, '')
     .toLowerCase()
+const weaponKey = (value: string) => key(value).replace(/^the /, '')
 
 /** False only when the source's explicit keyword restriction rules the unit out. */
 export function combatRuleEligible(description: string, keywords: readonly string[], recipient?: string) {
@@ -70,14 +78,7 @@ export function combatRuleEligible(description: string, keywords: readonly strin
   const target = recipient ?? /\*\*Target:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)/i.exec(description)?.[1] ?? combatRuleRecipient(description)
   if (!target) return true
   const known = keywords.map(key)
-  const matches = (phrase: string) => {
-    let remaining = key(phrase)
-    for (const keyword of known.toSorted((a, b) => b.length - a.length)) {
-      if (remaining === `${keyword}s`) return true
-      remaining = remaining.replaceAll(new RegExp(`\\b${keyword.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g'), '').trim()
-    }
-    return !remaining
-  }
+  const matches = (phrase: string) => combatKeywordPhraseMatches(key(phrase), known)
   const terms = (value: string) => {
     const bold = [...value.matchAll(/\*\*([^*]+)\*\*/g)].map((match) => match[1]!)
     return bold.length ? bold : [...value.matchAll(/\b[A-Z][A-Z0-9'’-]+(?:[ -][A-Z][A-Z0-9'’-]+)*\b/g)].map((match) => match[0])
@@ -176,15 +177,16 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
   return []
 }
 
-const supportedKeyword = (keyword: string) =>
-  /^(?:lethal hits|devastating wounds|ignores cover|twin-linked|lance|sustained hits [1-9])$/i.test(keyword)
+const supportedKeyword = (keyword: string) => Boolean(combatKeyword(keyword))
 
 /** A recipient must be granted an effect; proximity that only protects the source is not an aura. */
 export function combatRuleRecipient(description: string) {
   return (
     /While a friendly ([\s\S]+?) is within \d+["“”] of (?:this model|the bearer),/i.exec(description)?.[1] ??
     /select (?:one|a) (?:other )?friendly ([\s\S]+?) within \d+["“”]/i.exec(description)?.[1] ??
+    /select one ([^.;]+? unit) that was set up on the battlefield using the Deep Strike ability this turn/i.exec(description)?.[1] ??
     /weapons equipped by friendly ([^.,]+?) models/i.exec(description)?.[1] ??
+    /each time a friendly ([^.,]+? model) makes/i.exec(description)?.[1] ??
     (/each time an attack targets either your [^,]+? unit, or a unit that is not [\s\S]+?visible to the attacking model because of/i.test(
       description,
     )
@@ -226,9 +228,11 @@ export function combatRuleAppliesTo(rule: CombatRule, role: CombatRuleEffect['ro
   if (compiled)
     return compiled.choices.some((choice) => choice.effects.some((effect) => combatEffectAppliesTo(effect, role, opposingKeywords)))
   const choices = combatRuleChoices({ ...rule, included: false })
-  return choices.length
-    ? choices.some((choice) => choice.effects.some((effect) => combatEffectAppliesTo(effect, role, opposingKeywords)))
-    : combatRuleRoles(rule.description).includes(role)
+  return (
+    choices.some((choice) => choice.effects.some((effect) => combatEffectAppliesTo(effect, role, opposingKeywords))) ||
+    (role === 'defender' && Boolean(rule.appliedDefences?.length)) ||
+    (Boolean(rule.included) && combatRuleRoles(rule.description).includes(role))
+  )
 }
 
 export function combatRuleDefault(rule: CombatRule) {
@@ -265,7 +269,7 @@ export function combatRuleProfiles(
       let values = profile.values
       const adjustments = new Map<
         DatasheetCharacteristicKind,
-        { positive: number; negative: number; exclusive: number; sources: string[] }
+        { positive: number; negative: number; exclusive: number; set?: number; sources: string[] }
       >()
       for (const { rule, role: effectRole, keywords } of scoped)
         for (const effect of rule.effects) {
@@ -273,8 +277,9 @@ export function combatRuleProfiles(
             effect.role !== effectRole ||
             !effect.phases.includes(phase) ||
             effect.condition ||
+            effect.requiresWeaponKeyword ||
             !matchesEffectTarget(effect, keywords) ||
-            (effect.weapon && key(effect.weapon) !== key(profile.name))
+            (effect.weapon && weaponKey(effect.weapon) !== weaponKey(profile.name))
           )
             continue
           if (effect.characteristic) {
@@ -282,7 +287,8 @@ export function combatRuleProfiles(
             const original = profile.values.find((value) => datasheetCharacteristicKind(value.name) === modifier.kind)
             if (effectRole !== role || !original?.modifiers?.includes(rule.name)) {
               const adjustment = adjustments.get(modifier.kind) ?? { positive: 0, negative: 0, exclusive: 0, sources: [] }
-              if (modifier.nonCumulative) adjustment.exclusive = Math.min(adjustment.exclusive, modifier.add)
+              if (modifier.set !== undefined) adjustment.set = modifier.set
+              else if (modifier.nonCumulative) adjustment.exclusive = Math.min(adjustment.exclusive, modifier.add)
               else if (modifier.add < 0) adjustment.negative += modifier.add
               else adjustment.positive += modifier.add
               adjustment.sources.push(rule.name)
@@ -293,12 +299,24 @@ export function combatRuleProfiles(
             const keyword = effect.keyword
             const existing = values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')
             const held = existing?.value.split(/[,;]/).map((value) => value.trim()) ?? []
-            const numbered = /^(sustained hits) (\d+)$/i.exec(keyword)
+            const numbered = combatKeyword(keyword)
             if (held.some((value) => key(value) === key(keyword))) continue
-            if (numbered) {
-              const previous = held.find((value) => key(value).startsWith(`${key(numbered[1]!)} `))
-              if (previous && Number(/(\d+)$/.exec(previous)?.[1]) >= Number(numbered[2])) continue
-              if (previous) held.splice(held.indexOf(previous), 1)
+            if (numbered?.amount !== undefined && !numbered.target) {
+              const bounds = (amount: NonNullable<typeof numbered.amount>) =>
+                typeof amount === 'number' ? [amount, amount] : [amount.dice + amount.bonus, amount.dice * amount.sides + amount.bonus]
+              const [low, high] = bounds(numbered.amount)
+              const previous = held.flatMap((value) => {
+                const parsed = combatKeyword(value)
+                return parsed?.kind === numbered.kind && parsed.amount !== undefined && !parsed.target
+                  ? [{ value, bounds: bounds(parsed.amount) }]
+                  : []
+              })
+              if (previous.some(({ bounds: [minimum] }) => minimum! >= high!)) continue
+              for (const {
+                value,
+                bounds: [, maximum],
+              } of previous)
+                if (low! >= maximum!) held.splice(held.indexOf(value), 1)
             }
             const next = {
               name: existing?.name ?? 'Keywords',
@@ -315,15 +333,16 @@ export function combatRuleProfiles(
         const existingImprovement =
           kind === 'armour-penetration' && value.baseValue ? Math.min(0, Number(value.value) - Number(value.baseValue)) : 0
         const add = adjustment.positive + Math.min(adjustment.negative, adjustment.exclusive - existingImprovement)
+        const starting = adjustment.set === undefined ? value.value : String(adjustment.set)
         let adjusted: string
-        if ((kind === 'attacks' || kind === 'damage') && !/^\d+$/.test(value.value)) {
-          const dice = diceExpression(value.value)
+        if ((kind === 'attacks' || kind === 'damage') && !/^\d+$/.test(starting)) {
+          const dice = diceExpression(starting)
           if (!dice || !dice.dice || dice.bonus + add < 0) return value
           const bonus = dice.bonus + add
           adjusted = `${dice.dice === 1 ? '' : dice.dice}D${dice.sides}${bonus ? `+${bonus}` : ''}`
         } else {
-          if (!/^-?\d+\+?$/.test(value.value)) return value
-          const next = Number(value.value.replace('+', '')) + add
+          if (!/^-?\d+\+?$/.test(starting)) return value
+          const next = Number(starting.replace('+', '')) + add
           const bounded =
             kind === 'armour-penetration'
               ? Math.min(0, next)
@@ -358,6 +377,7 @@ export function combatRuleOptions(
         !effect.phases.includes(phase) ||
         !effect.options ||
         effect.condition ||
+        effect.requiresWeaponKeyword ||
         effect.weapon ||
         effect.targetKeywords ||
         effect.excludedTargetKeywords
@@ -375,16 +395,36 @@ export function combatRuleOptions(
   return result
 }
 
-export function combatRuleDefences(target: CombatInput['target'], rules: readonly ActiveCombatRule[], phase: Phase): CombatInput['target'] {
+export function combatRuleDefences(
+  target: CombatInput['target'],
+  rules: readonly ActiveCombatRule[],
+  phase: Phase,
+  attackRules: readonly ActiveCombatRule[] = [],
+): CombatInput['target'] {
   const effects = rules.flatMap((rule) => rule.effects).filter((effect) => effect.role === 'defender' && effect.phases.includes(phase))
+  const attacks = [...new Map(attackRules.map((rule) => [key(rule.name), rule])).values()]
+    .flatMap((rule) => rule.effects)
+    .filter((effect) => effect.role === 'attacker' && effect.phases.includes(phase))
   return {
     ...target,
     invulnerable: effects.reduce(
       (roll, effect) => (effect.invulnerable === undefined ? roll : Math.min(roll ?? 7, effect.invulnerable)),
       target.invulnerable,
     ),
-    save: effects.reduce((roll, effect) => (effect.save === undefined ? roll : Math.min(roll, effect.save)), target.save),
-    toughness: Math.max(1, target.toughness + effects.reduce((total, effect) => total + (effect.toughness ?? 0), 0)),
+    save: Math.max(
+      2,
+      Math.min(
+        7,
+        effects.reduce((roll, effect) => (effect.save === undefined ? roll : Math.min(roll, effect.save)), target.save) +
+          attacks.reduce((total, effect) => total + (effect.targetSaveModifier ?? 0), 0),
+      ),
+    ),
+    toughness: Math.max(
+      1,
+      target.toughness +
+        effects.reduce((total, effect) => total + (effect.toughness ?? 0), 0) +
+        attacks.reduce((total, effect) => total + (effect.targetToughness ?? 0), 0),
+    ),
     damageDivisor: effects.reduce((divisor, effect) => Math.max(divisor, effect.damageDivisor ?? 1), target.damageDivisor ?? 1),
     feelNoPain: effects.reduce(
       (roll, effect) => (effect.feelNoPain === undefined ? roll : Math.min(roll ?? 7, effect.feelNoPain)),
@@ -413,8 +453,8 @@ export function combatRuleDefences(target: CombatInput['target'], rules: readonl
 }
 
 function matchesEffectTarget(effect: CombatRuleEffect, keywords: readonly string[]) {
-  const held = new Set(keywords.map(key))
-  const matches = (phrase: string) => held.has(key(phrase))
+  const held = keywords.map(key)
+  const matches = (phrase: string) => combatKeywordPhraseMatches(key(phrase), held)
   return (!effect.targetKeywords || effect.targetKeywords.some(matches)) && !effect.excludedTargetKeywords?.some(matches)
 }
 
@@ -430,7 +470,7 @@ export function combatRuleMortals(
       effect.role === 'attacker' &&
       effect.phases.includes(phase) &&
       matchesEffectTarget(effect, targetKeywords) &&
-      (!effect.weapon || weapons.some(({ profile }) => key(profile.name) === key(effect.weapon!))) &&
+      (!effect.weapon || weapons.some(({ profile }) => weaponKey(profile.name) === weaponKey(effect.weapon!))) &&
       effect.mortalWounds
         ? [{ ...effect.mortalWounds, rolls: effect.mortalWounds.perModel ? models : effect.mortalWounds.rolls }]
         : [],
@@ -439,7 +479,8 @@ export function combatRuleMortals(
 }
 
 export function combatRuleWeapons(
-  used: readonly { weapon: CombatWeapon | null; count: number; profile: { name: string } }[],
+  source: Datasheet,
+  used: readonly { weapon: CombatWeapon | null; count: number; profile: { id: string; name: string } }[],
   rules: readonly ActiveCombatRule[],
   role: CombatRuleEffect['role'],
   phase: Phase,
@@ -449,15 +490,32 @@ export function combatRuleWeapons(
   return used.flatMap(({ weapon, count, profile }) => {
     if (!weapon) return []
     const next = { ...weapon, count }
+    const applies = (effect: CombatRuleEffect) =>
+      effect.role === role &&
+      effect.phases.includes(phase) &&
+      matchesEffectTarget(effect, targetKeywords) &&
+      (!effect.weapon || weaponKey(effect.weapon) === weaponKey(profile.name))
     for (const rule of rules)
       for (const effect of rule.effects) {
-        if (
-          effect.role !== role ||
-          !effect.phases.includes(phase) ||
-          !matchesEffectTarget(effect, targetKeywords) ||
-          (effect.weapon && key(effect.weapon) !== key(profile.name))
-        )
-          continue
+        if (!applies(effect)) continue
+        if (effect.requiresWeaponKeyword) {
+          const matches = (keyword: string) => {
+            const held = combatKeyword(keyword)
+            const required = combatKeyword(effect.requiresWeaponKeyword!)
+            return Boolean(held && required && held.kind === required.kind && combatKeywordApplies(held, targetKeywords))
+          }
+          const original = source.profiles.find((candidate) => candidate.id === profile.id)
+          const keywords =
+            original?.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')?.value.split(/[,;]/) ?? []
+          const otherGrant = rules.some(
+            (other) =>
+              other.name !== rule.name &&
+              other.effects.some(
+                (grant) => applies(grant) && !grant.condition && !grant.requiresWeaponKeyword && grant.keyword && matches(grant.keyword),
+              ),
+          )
+          if (!keywords.some(matches) && !otherGrant) continue
+        }
         if (effect.damageReroll) next.damageReroll = effect.damageReroll
         for (const field of ['criticalHit', 'criticalWound'] as const) {
           const threshold = effect[field]
@@ -472,6 +530,8 @@ export function combatRuleWeapons(
           next.criticalAp = (next.criticalAp ?? 0) + (effect.characteristic.add ?? 0)
         if (effect.condition === 'stronger')
           next.strongerWoundModifier = (next.strongerWoundModifier ?? 0) + (effect.options?.woundModifier ?? 0)
+        if (effect.condition === 'not-stronger')
+          next.notStrongerWoundModifier = (next.notStrongerWoundModifier ?? 0) + (effect.options?.woundModifier ?? 0)
         if (effect.condition === 'double-strength')
           next.doubleStrengthWoundModifier = (next.doubleStrengthWoundModifier ?? 0) + (effect.options?.woundModifier ?? 0)
         if (effect.condition || (!effect.weapon && !effect.targetKeywords && !effect.excludedTargetKeywords)) continue

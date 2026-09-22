@@ -1,21 +1,13 @@
 import type { Datasheet, DatasheetCharacteristicKind } from '../contracts/catalogue'
-import { datasheetProfilesByKind } from './datasheetStructure'
+import { datasheetCharacteristicKind, datasheetProfileKind, datasheetProfilesByKind } from './datasheetStructure'
 import type { CombatCarrier } from './combatLoadout'
 import { sameWargear, wargearBaseName } from './wargear'
 import { combatSchema, diceExpression, type CombatInput, type CombatWeapon } from './combat'
+import { combatKeyword, combatKeywordApplies, normalizeCombatKeyword as normalized } from './combatKeywords'
 
 type Profile = ReturnType<typeof datasheetProfilesByKind>['profiles'][number]
 const value = (profile: Profile, kind: DatasheetCharacteristicKind) => profile.values.find((entry) => entry.kind === kind)?.value.trim()
 const integer = (text: string | undefined) => (text !== undefined && /^-?\d+\+?$/.test(text) ? Number(text.replace('+', '')) : null)
-const normalized = (text: string) =>
-  text
-    .replaceAll(/\p{Pd}/gu, '-')
-    .replaceAll(/[[\]]/g, '')
-    .trim()
-    .toLowerCase()
-
-const weaponAbility = (text: string) => normalized(text).replace(/^pistol$/, 'close-quarters')
-
 export function combatTarget(
   sheet: Datasheet,
   models: number,
@@ -55,7 +47,6 @@ export function combatTarget(
 }
 
 export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[], phase: CombatInput['options']['phase']) {
-  const keywords = new Set(targetKeywords.map(normalized))
   const profiles = datasheetProfilesByKind(sheet)[phase]
   return profiles.map((profile) => {
     const unsupported: string[] = []
@@ -89,11 +80,13 @@ export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[
       .split(/,|;/)
       .map((part) => part.trim())
       .filter((part) => part && part !== '-')) {
-      const [ability = '', restriction] = normalized(written).split(/\s*:\s*/)
-      if (restriction && !restriction.split('/').some((keyword) => keywords.has(keyword.trim()))) continue
-      const numbered = /^(sustained hits|rapid fire|melta|blast)\s+(\d+)$/.exec(ability)
-      const anti = /^anti-(.+) ([2-6])\+$/.exec(ability)
-      const kind = numbered?.[1] ?? (anti ? 'anti' : weaponAbility(ability))
+      const ability = combatKeyword(written)
+      if (!ability) {
+        unsupported.push(written)
+        continue
+      }
+      if (!combatKeywordApplies(ability, targetKeywords)) continue
+      const { kind } = ability
       if (seen.has(kind)) {
         if (kind !== 'close-quarters') unsupported.push(`${written} (multiple instances)`)
         continue
@@ -108,7 +101,7 @@ export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[
           weapon.lethal = true
           break
         case 'sustained hits':
-          weapon.sustained = Number(numbered?.[2])
+          weapon.sustained = ability.amount!
           break
         case 'devastating wounds':
           weapon.devastating = true
@@ -119,17 +112,26 @@ export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[
         case 'ignores cover':
           weapon.ignoresCover = true
           break
+        case 'indirect fire':
+          weapon.indirectFire = true
+          break
         case 'psychic':
           weapon.psychic = true
           break
         case 'blast':
-          weapon.blast = Number(numbered?.[2] ?? 1)
+          weapon.blast = Number(ability.amount)
+          break
+        case 'cleave':
+          weapon.cleave = Number(ability.amount)
+          break
+        case 'one shot':
+          weapon.oneShot = true
           break
         case 'rapid fire':
-          weapon.rapidFire = Number(numbered?.[2])
+          weapon.rapidFire = ability.amount!
           break
         case 'melta':
-          weapon.melta = Number(numbered?.[2])
+          weapon.melta = ability.amount!
           break
         case 'heavy':
           weapon.heavy = true
@@ -138,7 +140,7 @@ export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[
           weapon.lance = true
           break
         case 'anti':
-          if (anti?.[1] && keywords.has(anti[1])) weapon.criticalWound = Number(anti[2])
+          weapon.criticalWound = ability.critical!
           break
         case 'assault':
         case 'close-quarters':
@@ -146,8 +148,6 @@ export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[
         case 'hazardous':
         case 'precision':
           break
-        default:
-          unsupported.push(written)
       }
     }
     const parsed = combatSchema.shape.weapons.element.safeParse(weapon)
@@ -173,7 +173,6 @@ export function combatPlan(
   phase: CombatInput['options']['phase'],
   preferences: Readonly<Record<string, string>> = {},
 ) {
-  const profiles = combatWeapons(sheet, targetKeywords, phase)
   const counts = new Map<string, number>()
   const choices: CombatWeaponChoice[] = []
   const errors: string[] = []
@@ -182,8 +181,35 @@ export function combatPlan(
     if (selected && options.length > 1) choices.push({ key, label, options, value: selected.value })
     return selected?.value
   }
+  const selectedSheet = {
+    ...sheet,
+    profiles: sheet.profiles.map((profile) => ({
+      ...profile,
+      values: profile.values.map((entry) => {
+        if (datasheetProfileKind(profile.type) !== `${phase}-weapon` || datasheetCharacteristicKind(entry.name) !== 'keywords') return entry
+        const keywords = [...new Set(entry.value.split(/[,;]/).map((word) => word.trim()))]
+        const groups = new Map<string, string[]>()
+        for (const word of keywords) {
+          const parsed = combatKeyword(word)
+          if (parsed && combatKeywordApplies(parsed, targetKeywords)) groups.set(parsed.kind, [...(groups.get(parsed.kind) ?? []), word])
+        }
+        const omitted = new Set<string>()
+        for (const [kind, alternatives] of groups) {
+          if (alternatives.length < 2 || kind === 'close-quarters') continue
+          const selected = choose(
+            `${phase}:ability:${profile.id}:${kind}`,
+            `${profile.name} · Weapon ability`,
+            alternatives.map((word) => ({ value: word, label: word })),
+          )
+          alternatives.filter((word) => word !== selected).forEach((word) => omitted.add(word))
+        }
+        return omitted.size ? { ...entry, value: keywords.filter((word) => !omitted.has(word)).join(', ') } : entry
+      }),
+    })),
+  }
+  const profiles = combatWeapons(selectedSheet, targetKeywords, phase)
   const has = (profile: Profile, keyword: string) =>
-    (value(profile, 'keywords') ?? '').split(/,|;/).some((written) => weaponAbility(written) === keyword)
+    (value(profile, 'keywords') ?? '').split(/,|;/).some((written) => combatKeyword(written)?.kind === keyword)
   const unrestricted = sheet.keywords.some((keyword) => ['monster', 'vehicle'].includes(normalized(keyword)))
   const accounted = new Map<string, number>()
   for (const [at, carrier] of carriers.entries()) {
@@ -200,6 +226,14 @@ export function combatPlan(
       return [{ ...mode, count: piece.count }]
     })
     const add = (entry: (typeof equipment)[number], count = entry.count) => {
+      if (
+        entry.weapon?.oneShot &&
+        choose(`${phase}:${at}:${entry.profile.id}:one-shot`, `${carrier.name} · ${entry.profile.name}`, [
+          { value: 'available', label: 'One Shot available' },
+          { value: 'spent', label: 'Already fired' },
+        ]) === 'spent'
+      )
+        return
       if (count > 0) counts.set(entry.profile.id, (counts.get(entry.profile.id) ?? 0) + count)
     }
     if (phase === 'ranged') {

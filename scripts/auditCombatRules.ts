@@ -7,7 +7,7 @@ import { datasheetIn } from '../src/server/catalogue'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { describeDatasheetAbilities } from '../src/server/datasheetDescriptions'
 import { loadRules } from '../src/server/rules'
-import { unselectedCombatRules } from './combatRuleInventory'
+import { combatWeaponKeywordInventory, unselectedCombatRules } from './combatRuleInventory'
 import type { InventoryRule } from './combatRuleShortlist'
 
 const { values } = parseArgs({ options: { json: { type: 'boolean' }, faction: { type: 'string' } } })
@@ -72,6 +72,7 @@ for (const stratagem of rules.core)
 const rows = [...entries.values()]
 const combat = rows.filter((row) => row.roles.length)
 const calculated = combat.filter((row) => row.calculated)
+const weaponKeywords = combatWeaponKeywordInventory(loaded, values.faction)
 const report = {
   revision: JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')) as unknown,
   summary: {
@@ -80,7 +81,10 @@ const report = {
     recognizedWording: calculated.length,
     noDamageEffect: rows.filter((row) => row.status === 'no-damage-effect').length,
     unsupportedWording: combat.length - calculated.length,
+    weaponKeywordVariants: weaponKeywords.length,
+    unsupportedWeaponKeywordVariants: weaponKeywords.filter((row) => !row.supported).length,
   },
+  weaponKeywords,
   rules: rows.toSorted((left, right) => Number(left.calculated) - Number(right.calculated) || left.name.localeCompare(right.name)),
 }
 console.log(values.json ? JSON.stringify(report, null, 2) : JSON.stringify(report.summary, null, 2))

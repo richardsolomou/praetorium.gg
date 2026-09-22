@@ -1,8 +1,35 @@
 import { describe, expect, it } from 'vitest'
 import { bookOf } from '../src/server/catalogue.fixtures'
-import { unselectedCombatRules } from './combatRuleInventory'
+import { combatWeaponKeywordInventory, unselectedCombatRules } from './combatRuleInventory'
 
 describe('combat discovery inventory', () => {
+  it('retains shared weapon keywords when filtering their referring faction', () => {
+    const loaded = bookOf({
+      name: 'Test faction',
+      selectionEntries: [{ id: 'weapon', name: 'Optional weapon', infoLinks: [{ id: 'link', targetId: 'profile', type: 'profile' }] }],
+      sharedProfiles: [
+        { id: 'profile', name: 'Rifle', typeName: 'Ranged Weapons', characteristics: [{ name: 'Keywords', $text: 'Sustained Hits D3' }] },
+      ],
+    })
+    expect(combatWeaponKeywordInventory(loaded, 'Test faction').map((row) => row.keyword)).toEqual(['sustained hits d3'])
+  })
+  it('audits every shared weapon keyword, including unselected variable and unknown abilities', () => {
+    const loaded = bookOf({
+      sharedProfiles: [
+        {
+          id: 'weapon',
+          name: 'Optional weapon',
+          typeName: 'Ranged Weapons',
+          characteristics: [{ name: 'Keywords', $text: 'Sustained Hits D3, Rapid Fire D6+3, Unknown ability' }],
+        },
+      ],
+    })
+    expect(combatWeaponKeywordInventory(loaded).map(({ keyword, supported }) => ({ keyword, supported }))).toEqual([
+      { keyword: 'unknown ability', supported: false },
+      { keyword: 'rapid fire d6+3', supported: true },
+      { keyword: 'sustained hits d3', supported: true },
+    ])
+  })
   it('includes hidden, unselected upgrades rather than only default loadouts', () => {
     const loaded = bookOf({
       selectionEntries: [

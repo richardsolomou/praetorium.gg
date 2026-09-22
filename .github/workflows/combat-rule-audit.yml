@@ -41,6 +41,10 @@ jobs:
           mkdir -p .combat-rule-cache
           aws s3 sync "s3://$S3_BUCKET/combat-rule-judgments/v1/" .combat-rule-cache \
             --endpoint-url "$S3_ENDPOINT" --exclude '*' --include '*.json' --only-show-errors
+      - name: Validate damage relevance questions
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: pnpm catalogue:combat:eval
       - name: Shortlist attacker and defender support gaps
         env:
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}

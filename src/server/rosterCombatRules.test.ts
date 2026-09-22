@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { combatRuleChoices } from '../core/combatRules'
+import { combatRuleAppliesTo, combatRuleChoices } from '../core/combatRules'
 import { bookOf, categories } from './catalogue.fixtures'
 import { datasheetAbilitiesIn, datasheetIn } from './catalogue'
 import { rosterCombatant } from './rosterCombatRules'
@@ -35,6 +35,85 @@ const book = bookOf({
 const input = { catalogueId: 'cat', detachmentIds: [], picks: [{ entryId: 'recipient' }, { entryId: 'source' }], pickIndex: 0 }
 
 describe('roster support rules', () => {
+  it('offers a marked-enemy bonus to its friendly recipient from another roster unit', () => {
+    const loaded = bookOf({
+      selectionEntries: [
+        { id: 'recipient', name: 'Recipient', type: 'model', categoryLinks: categories('Army') },
+        {
+          id: 'source',
+          name: 'Source',
+          type: 'model',
+          categoryLinks: categories('Army'),
+          profiles: [
+            profile(
+              'Mark',
+              'At the start of the Fight phase, select one enemy unit within Engagement Range of this model. Until the end of the phase, each time a friendly ARMY model makes an attack that targets that unit, you can re-roll a Wound roll of 1.',
+            ),
+          ],
+        },
+      ],
+    })
+    expect(rosterCombatant(loaded, null, input)?.rules.flatMap(combatRuleChoices)).toEqual([
+      {
+        label: 'Selected target within Engagement Range · Against the selected target',
+        effects: [{ role: 'attacker', phases: ['melee'], options: { woundReroll: 'ones' } }],
+      },
+    ])
+  })
+  const selectionBook = bookOf({
+    selectionEntries: [
+      { id: 'construct', name: 'Construct', type: 'model', categoryLinks: categories('Army Construct') },
+      { id: 'titanic', name: 'Titanic', type: 'model', categoryLinks: categories('Army Construct', 'Titanic') },
+      { id: 'other', name: 'Other', type: 'model', categoryLinks: categories('Infantry') },
+      {
+        id: 'source',
+        name: 'Source',
+        type: 'model',
+        categoryLinks: categories('Infantry'),
+        profiles: [
+          profile(
+            'Selected support',
+            'Once per turn, in your Movement phase, when this model starts or ends a move, select one friendly Army Construct unit within 6" of this model (excluding Titanic units) and one enemy unit visible to this model. Until the start of your next Movement phase, weapons equipped by models in that friendly unit have the [Sustained Hits 1] ability while targeting that enemy unit.',
+          ),
+        ],
+      },
+    ],
+  })
+  it('offers calculated selected support only to the eligible recipient', () => {
+    const result = rosterCombatant(selectionBook, null, { ...input, picks: [{ entryId: 'construct' }, { entryId: 'source' }] })
+    expect(result?.rules.flatMap(combatRuleChoices)).toEqual([
+      {
+        label: 'Selected within 6" · Against the selected target',
+        effects: [{ role: 'attacker', phases: ['ranged', 'melee'], keyword: 'Sustained Hits 1' }],
+      },
+    ])
+  })
+  it.each(['titanic', 'other', 'source'])('omits selected support for the ineligible %s recipient', (entryId) => {
+    expect(rosterCombatant(selectionBook, null, { ...input, picks: [{ entryId }, { entryId: 'source' }] })?.rules).toEqual([])
+  })
+  it('omits selected support from an inactive source', () => {
+    expect(
+      rosterCombatant(selectionBook, null, { ...input, picks: [{ entryId: 'construct' }, { entryId: 'source' }], inactivePicks: [1] })
+        ?.rules,
+    ).toEqual([])
+  })
+  it('hides an unsupported candidate through the shared simulator visibility predicate', () => {
+    const loaded = bookOf({
+      selectionEntries: [
+        {
+          id: 'recipient',
+          name: 'Recipient',
+          type: 'model',
+          profiles: [
+            profile('Ceremonial marksmen', 'Weapons equipped by this unit have the [PRECISION] ability. These warriors are legends.'),
+          ],
+        },
+      ],
+    })
+    const rule = rosterCombatant(loaded, null, { ...input, picks: [{ entryId: 'recipient' }] })?.rules[0]
+    expect(rule).toMatchObject({ name: 'Ceremonial marksmen' })
+    expect(rule && combatRuleAppliesTo(rule, 'attacker')).toBe(false)
+  })
   it('offers the aura from another active unit with the recipient keywords', () => {
     const rule = rosterCombatant(book, null, input)?.rules.find((candidate) => candidate.name === 'Support')
     expect(rule && combatRuleChoices(rule)[0]?.label).toBe('Within 6"')

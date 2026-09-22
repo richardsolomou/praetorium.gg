@@ -13,8 +13,148 @@ const rule = (description: string, extra: Partial<CombatRule> = {}): CombatRule 
 })
 const effects = (description: string, extra: Partial<CombatRule> = {}) =>
   combatRuleChoices(rule(description, extra)).map((choice) => choice.effects)
+const selectedPair =
+  'Once per turn, in your Movement phase, when this model starts or ends a move, select one friendly Army Construct unit within 6" of this model (excluding Titanic units) and one enemy unit visible to this model. Until the start of your next Movement phase, weapons equipped by models in that friendly unit have the [Sustained Hits 1] ability while targeting that enemy unit.'
 
 describe('composed combat rules', () => {
+  it('does not discard italicized combat instructions as flavour', () => {
+    expect(
+      compileCombatRule(
+        rule(`If your Army Faction is ARMY, at the start of the first battle round, select one of the following Vows to be active for ARMY units from your army. While a Vow is active for your army, that unit has the associated ability below.
+
+**Challenge**
+*Inflict additional damage using an unknown mechanic.*
+
+Each time a model in this unit makes a melee attack, add 1 to the Wound roll.`),
+      ),
+    ).toBeNull()
+  })
+  it('compiles dice-valued grants using the same keyword grammar as weapon profiles', () => {
+    expect(effects('Ranged weapons equipped by models in this unit have the [SUSTAINED HITS D3] and [RAPID FIRE D6+3] abilities.')).toEqual(
+      [
+        [
+          { role: 'attacker', phases: ['ranged'], keyword: 'SUSTAINED HITS D3' },
+          { role: 'attacker', phases: ['ranged'], keyword: 'RAPID FIRE D6+3' },
+        ],
+      ],
+    )
+  })
+  it.each(['bold', 'markdown'])('offers only damaging vows from %s headings without assuming a selection', (format) => {
+    const heading = (name: string) => (format === 'bold' ? `**${name}**` : `### ${name}`)
+    const description = `If your Army Faction is **ARMY,** at the start of the first battle round, select one of the following Vows to be active for **ARMY** units from your army. While a Vow is active for your army, that unit has the associated ability below.
+
+${heading('Challenge')}
+Each time a model in this unit makes a melee attack, if the Strength characteristic of that attack is less than or equal to the Toughness characteristic of the target, add 1 to the Wound roll.
+
+${heading('Pursuit')}
+You can re-roll the Charge roll.`
+    expect(compileCombatRule(rule(description))).toEqual({
+      defaultChoice: 0,
+      choices: [
+        {
+          label: 'Challenge',
+          effects: [{ role: 'attacker', phases: ['melee'], condition: 'not-stronger', options: { woundModifier: 1 } }],
+        },
+      ],
+    })
+  })
+  it('refuses an unknown combat clause in a named choice', () => {
+    expect(
+      compileCombatRule(
+        rule(`If your Army Faction is ARMY, at the start of the first battle round, select one of the following Vows to be active for ARMY units from your army. While a Vow is active for your army, that unit has the associated ability below.
+
+**Challenge**
+Each time a model in this unit makes a melee attack, add 1 to the Wound roll. Inflict additional damage in an unknown way.`),
+      ),
+    ).toBeNull()
+  })
+  it.each(['bold', 'markdown'])('keeps enemy status and plague choices together with %s headings', (format) => {
+    const heading = (name: string) => (format === 'bold' ? `**${name}**` : `### ${name}`)
+    const description = `If your Army Faction is ARMY, while an enemy unit is within Infection Range of one or more ARMY units from your army, it is Infected.
+
+${heading('INFECTION RANGE')}
+1st Battle Round: Infection Range = 3"
+2nd Battle Round: Infection Range = 6"
+3rd Battle Round Onwards: Infection Range = 9"
+
+Infection Range cannot be greater than 12" after modifiers.
+
+${heading('INFECTED')}
+During the Declare Battle Formations step, select one of the Plagues below. Until the end of the battle, while an enemy unit is Infected, subtract 1 from the Toughness characteristic of models in that unit, and that unit has the effect of your chosen Plague.
+
+${heading('Confusion')}
+Each time a model in this unit makes a ranged attack, enemy units have the benefit of cover against that attack.
+Each time a model in this unit makes a melee attack, subtract 1 from the Hit roll.
+
+${heading('Brittleness')}
+Worsen the Save characteristic of models in this unit by 1.
+
+${heading('Sluggishness')}
+Worsen the Move, Leadership and Objective Control characteristics of models in this unit by 1 (this rule can only worsen a model's Objective Control characteristic to a minimum of 1).`
+    expect(compileCombatRule(rule(description))).toEqual({
+      defaultChoice: 0,
+      choices: [
+        {
+          label: 'Opponent infected · Confusion',
+          effects: [
+            { role: 'attacker', phases: ['ranged', 'melee'], targetToughness: -1 },
+            { role: 'defender', phases: ['ranged'], options: { cover: true } },
+            { role: 'defender', phases: ['melee'], options: { hitModifier: -1 } },
+          ],
+        },
+        {
+          label: 'Opponent infected · Brittleness',
+          effects: [
+            { role: 'attacker', phases: ['ranged', 'melee'], targetToughness: -1 },
+            { role: 'attacker', phases: ['ranged', 'melee'], targetSaveModifier: 1 },
+          ],
+        },
+        { label: 'Opponent infected · Sluggishness', effects: [{ role: 'attacker', phases: ['ranged', 'melee'], targetToughness: -1 }] },
+      ],
+    })
+  })
+  it('keeps an activated named weapon replacement and its abilities together', () => {
+    const buff = rule(
+      'Once per battle, when this model is selected to shoot, it can use this ability. If it does, until the end of the phase, its Rifle weapon has a Damage characteristic of 3 and the [ANTI-INFANTRY 5+] and [DEVASTATING WOUNDS] abilities.',
+    )
+    expect(compileCombatRule(buff)).toEqual({
+      defaultChoice: 0,
+      choices: [
+        {
+          label: 'Ability activated',
+          effects: [
+            { role: 'attacker', phases: ['ranged'], weapon: 'Rifle', characteristic: { kind: 'damage', set: 3 } },
+            { role: 'attacker', phases: ['ranged'], weapon: 'Rifle', keyword: 'ANTI-INFANTRY 5+' },
+            { role: 'attacker', phases: ['ranged'], weapon: 'Rifle', keyword: 'DEVASTATING WOUNDS' },
+          ],
+        },
+      ],
+    })
+  })
+  it('retains range and existing-ability requirements on a critical-hit upgrade', () => {
+    expect(
+      compileCombatRule(
+        rule(
+          'Until the end of the phase, ranged weapons equipped by models in your unit have the [SUSTAINED HITS 1] ability while targeting an enemy unit within 12". If such a weapon already has that ability, until the end of the phase, each time an attack is made with that weapon, an unmodified Hit roll of 5+ scores a Critical Hit.',
+          { scope: 'stratagem' },
+        ),
+      ),
+    ).toEqual({
+      defaultChoice: 0,
+      choices: [
+        {
+          label: 'Target within 12"',
+          effects: [
+            { role: 'attacker', phases: ['ranged'], keyword: 'SUSTAINED HITS 1' },
+            { role: 'attacker', phases: ['ranged'], requiresWeaponKeyword: 'SUSTAINED HITS 1', criticalHit: 5 },
+          ],
+        },
+      ],
+    })
+  })
+  it('refuses a named-weapon replacement with an unknown additional ability', () => {
+    expect(compileCombatRule(rule('Its Rifle weapon has a Damage characteristic of 3 and the [UNSUPPORTED] ability.'))).toBeNull()
+  })
   it('gives cover to the source unit and requires obscuration for other recipients', () => {
     const description =
       'Until the end of the phase, each time an attack targets either your SMOKE unit, or a unit that is not fully visible to the attacking model because of one or more models in your SMOKE unit, the target has the benefit of cover against that attack (13.08).'
@@ -243,6 +383,39 @@ describe('composed combat rules', () => {
         { keywords: ['Army'], scope: 'nearby' },
       ),
     ).toEqual([[{ role: 'attacker', phases: ['ranged'], options: { hitModifier: 1 } }]])
+  })
+  it('requires activation of a selected friendly and enemy pair for both attack phases', () => {
+    expect(compileCombatRule(rule(selectedPair, { keywords: ['Army', 'Construct'], scope: 'nearby' }))).toEqual({
+      defaultChoice: 0,
+      choices: [
+        {
+          label: 'Selected within 6" · Against the selected target',
+          effects: [{ role: 'attacker', phases: ['ranged', 'melee'], keyword: 'Sustained Hits 1' }],
+        },
+      ],
+    })
+  })
+  it.each([['Army'], ['Construct'], ['Army', 'Construct', 'Titanic']])(
+    'excludes an ineligible selected recipient with keywords %j',
+    (...keywords) => {
+      expect(compileCombatRule(rule(selectedPair, { keywords }))).toEqual({ choices: [], defaultChoice: 0 })
+    },
+  )
+  it('does not offer a selected offensive grant as a defending rule', () => {
+    expect(combatRuleAppliesTo(rule(selectedPair, { keywords: ['Army', 'Construct'] }), 'defender')).toBe(false)
+  })
+  it('keeps the recipient restriction explicit when its keywords are unknown', () => {
+    expect(combatRuleChoices(rule(selectedPair))[0]?.label).toContain('For Army Construct unit (excluding Titanic units)')
+  })
+  it('does not discard an unknown rider after a selected pair grant', () => {
+    expect(
+      compileCombatRule(rule(`${selectedPair} Inflict additional damage using an unknown mechanic.`, { keywords: ['Army', 'Construct'] })),
+    ).toBeNull()
+  })
+  it('compiles different selected-pair weapon grants and ranges without rule-name matching', () => {
+    expect(
+      effects(selectedPair.replace('6"', '9"').replace('Sustained Hits 1', 'Lethal Hits'), { keywords: ['Army', 'Construct'] }),
+    ).toEqual([[{ role: 'attacker', phases: ['ranged', 'melee'], keyword: 'Lethal Hits' }]])
   })
   it('limits a once-per-battle fight activation to melee', () => {
     expect(

@@ -50,6 +50,105 @@ function rolls(...values: number[]) {
 }
 
 describe('combat', () => {
+  describe('indirect shooting', () => {
+    const indirect = () => {
+      const scenario = input()
+      Object.assign(scenario.weapons[0]!, { indirectFire: true, damage: { dice: 0, sides: 6, bonus: 1 } })
+      return scenario
+    }
+    it.each(['unobserved', 'spotted'] as const)(
+      'enforces the unmodified hit floor for %s fire before critical hits and modifiers',
+      (mode) => {
+        const scenario = indirect()
+        scenario.options.indirectFire = mode
+        scenario.options.hitModifier = 1
+        Object.assign(scenario.weapons[0]!, { skill: 2, criticalHit: 2 })
+        expect([1, 2, 3, 4, 5, 6].map((hit) => attackSequence(scenario, rolls(hit, 6, 1)).damage)).toEqual(
+          mode === 'spotted' ? [0, 0, 0, 1, 1, 1] : [0, 0, 0, 0, 0, 1],
+        )
+      },
+    )
+    it.each(['options', 'weapon'] as const)('disables hit rerolls granted by %s', (source) => {
+      const scenario = indirect()
+      scenario.options.indirectFire = 'spotted'
+      if (source === 'options') scenario.options.hitReroll = 'failed'
+      else scenario.weapons[0]!.hitReroll = 'failed'
+      expect(attackSequence(scenario, rolls(1)).damage).toBe(0)
+    })
+    it('applies cover as well as the minimum unmodified hit roll', () => {
+      const scenario = indirect()
+      scenario.options.indirectFire = 'spotted'
+      scenario.weapons[0]!.skill = 4
+      expect(attackSequence(scenario, rolls(4)).damage).toBe(0)
+    })
+    it.each(['ignoresCover', 'psychic'] as const)('honours %s when resolving indirect cover', (ability) => {
+      const scenario = indirect()
+      scenario.options.indirectFire = 'spotted'
+      Object.assign(scenario.weapons[0]!, { skill: 4, [ability]: true })
+      expect(attackSequence(scenario, rolls(4, 6, 1)).damage).toBe(1)
+    })
+    it('does not let psychic attacks ignore the unmodified hit floor', () => {
+      const scenario = indirect()
+      scenario.options.indirectFire = 'unobserved'
+      Object.assign(scenario.weapons[0]!, { psychic: true, criticalHit: 4, ignoreHitModifiers: true })
+      expect(attackSequence(scenario, rolls(5)).damage).toBe(0)
+    })
+    it('keeps ordinary weapons direct and allows their hit rerolls', () => {
+      const scenario = indirect()
+      scenario.options.indirectFire = 'unobserved'
+      scenario.options.hitReroll = 'failed'
+      scenario.weapons[0]!.indirectFire = false
+      expect(attackSequence(scenario, rolls(1, 3, 6, 1)).damage).toBe(1)
+    })
+    it('allows an indirect-capable weapon to fire directly', () => {
+      const scenario = indirect()
+      scenario.options.indirectFire = 'direct'
+      expect(attackSequence(scenario, rolls(3, 6, 1)).damage).toBe(1)
+    })
+    it('does not apply shooting restrictions to melee', () => {
+      const scenario = indirect()
+      Object.assign(scenario.options, { phase: 'melee', indirectFire: 'unobserved' })
+      expect(attackSequence(scenario, rolls(3, 6, 1)).damage).toBe(1)
+    })
+  })
+
+  it('rolls Sustained Hits separately for every critical hit without making extra hits lethal', () => {
+    const scenario = input()
+    Object.assign(scenario.target, { models: 10, wounds: 1 })
+    Object.assign(scenario.weapons[0]!, {
+      attacks: { dice: 0, sides: 6, bonus: 2 },
+      lethal: true,
+      sustained: { dice: 1, sides: 3, bonus: 0 },
+      damage: { dice: 0, sides: 6, bonus: 1 },
+    })
+    expect(attackSequence(scenario, rolls(6, 1, 1, 4, 1, 6, 1, 6, 1, 4, 1, 4, 1))).toEqual({ damage: 5, killed: 5 })
+  })
+  it('does not roll variable Sustained Hits on a normal hit', () => {
+    const scenario = input()
+    scenario.weapons[0]!.sustained = { dice: 1, sides: 3, bonus: 0 }
+    expect(attackSequence(scenario, rolls(3, 4, 1)).damage).toBe(2)
+  })
+  it.each([false, true])('rolls Rapid Fire per weapon only at half range (%s)', (halfRange) => {
+    const scenario = input()
+    scenario.options.halfRange = halfRange
+    Object.assign(scenario.weapons[0]!, { rapidFire: { dice: 1, sides: 3, bonus: 0 }, torrent: true })
+    expect(attackSequence(scenario, rolls(...(halfRange ? [1] : []), 4, 1, ...(halfRange ? [4, 1] : []))).killed).toBe(halfRange ? 2 : 1)
+  })
+  it('counts Cleave attacks from the original target size throughout the attack sequence', () => {
+    const scenario = input()
+    Object.assign(scenario.target, { models: 5, wounds: 1 })
+    Object.assign(scenario.weapons[0]!, { count: 2, cleave: 1, torrent: true })
+    expect(attackSequence(scenario, rolls(4, 1, 4, 1, 4, 1, 4, 1)).killed).toBe(4)
+  })
+  it('bounds work using maximum variable extra hits', () => {
+    const scenario = input()
+    Object.assign(scenario.weapons[0]!, {
+      count: 100,
+      attacks: { dice: 0, sides: 6, bonus: 10 },
+      sustained: { dice: 10, sides: 6, bonus: 100 },
+    })
+    expect(() => simulateCombat(scenario)).toThrow('too large')
+  })
   it('rerolls a damage roll of one once before applying prevention', () => {
     const scenario = input()
     scenario.weapons[0]!.damage = { dice: 1, sides: 6, bonus: 0 }
@@ -209,6 +308,15 @@ describe('combat', () => {
     const scenario = input()
     Object.assign(scenario.weapons[0]!, { strength, strongerWoundModifier: -1, damage: { dice: 0, sides: 6, bonus: 1 } })
     expect(attackSequence(scenario, rolls(3, strength === 4 ? 4 : 3, ...(damage ? [1] : []))).damage).toBe(damage)
+  })
+  it.each([
+    [3, 4, 1],
+    [4, 3, 1],
+    [5, 2, 0],
+  ])('applies a not-stronger wound bonus for Strength %i', (strength, wound, damage) => {
+    const scenario = input()
+    Object.assign(scenario.weapons[0]!, { strength, notStrongerWoundModifier: 1, damage: { dice: 0, sides: 6, bonus: 1 } })
+    expect(attackSequence(scenario, rolls(3, wound, ...(damage ? [1] : []))).damage).toBe(damage)
   })
   it.each([
     [4, 0],

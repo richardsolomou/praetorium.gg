@@ -109,7 +109,7 @@ export function Pane({
         if (sibling === branch || !(sibling instanceof HTMLElement)) continue
         // The tab bar is the one thing beside this pane that stays on screen.
         if (screen && sibling.hasAttribute('data-native-app-tabs')) continue
-        if (sibling.matches('[data-inert-exempt]')) continue
+        if (sibling.matches('[data-inert-exempt], [data-slot$="-portal"]')) continue
         backgrounds.push({ element: sibling, inert: sibling.inert })
         sibling.inert = true
       }
@@ -132,7 +132,7 @@ export function Pane({
       }
     }
     if (!screen) document.addEventListener('keydown', containFocus)
-    closeElement?.focus()
+    if (!(active instanceof HTMLElement) || !active.closest('[role="dialog"], [role="alertdialog"]')) closeElement?.focus()
     return () => {
       document.removeEventListener('keydown', containFocus)
       for (const background of backgrounds) background.element.inert = background.inert

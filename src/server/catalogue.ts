@@ -12,7 +12,7 @@ import {
 import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
 import { choiceOptionWargear } from '../core/modelKinds'
-import { wargearOf } from '../core/wargear'
+import { wargearKey, wargearOf } from '../core/wargear'
 import { combatCarriers } from '../core/combatLoadout'
 import { normalizeRuleReference, ruleReferenceMatches } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
@@ -318,7 +318,11 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     selection.selections?.forEach(collectSelected)
   }
   if (selectedUnit) collectSelected(selectedUnit)
-  const wargearCounts = new Map(selectedUnit ? wargearOf(selectedUnit, loaded.index).map(({ name, count }) => [name, count]) : [])
+  const wargearCounts = new Map<string, number>()
+  for (const { name, count } of selectedUnit ? wargearOf(selectedUnit, loaded.index) : []) {
+    const key = wargearKey(name)
+    wargearCounts.set(key, (wargearCounts.get(key) ?? 0) + count)
+  }
   const profiles = new Map<string, { profile: Profile; lineage: string[]; owner: string[] }>()
   const abilities = new Map<string, Datasheet['abilities'][number]>()
   const keywordRules = new Map<string, Datasheet['keywordRules'][number]>()
@@ -533,7 +537,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
         name: annotation ? `${changedName.value} (${annotation})` : changedName.value,
         type: profileType,
         ...(weapon && selectedUnit
-          ? { count: wargearCounts.get(profile.name) ?? Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) }
+          ? { count: wargearCounts.get(wargearKey(profile.name)) ?? Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) }
           : {}),
         values: displayedValues,
       },

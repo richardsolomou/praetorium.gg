@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const MAX_COMBAT_MODELS = 100
 
 const diceSchema = z.object({ dice: z.int().min(0).max(10), sides: z.union([z.literal(3), z.literal(6)]), bonus: z.int().min(0).max(100) })
+const amountSchema = z.union([z.int().min(0).max(100), diceSchema])
 const rollTarget = z.int().min(2).max(6)
 const reroll = z.enum(['none', 'ones', 'failed'])
 const modifier = z.int().min(-100).max(100)
@@ -52,7 +53,7 @@ export const combatSchema = z.object({
         damageReroll: z.literal('ones').optional(),
         torrent: z.boolean(),
         lethal: z.boolean(),
-        sustained: z.int().min(0).max(10),
+        sustained: amountSchema,
         devastating: z.boolean(),
         criticalWound: rollTarget,
         criticalHit: rollTarget.optional(),
@@ -69,15 +70,19 @@ export const combatSchema = z.object({
         hitModifier: modifier.optional(),
         woundModifier: modifier.optional(),
         strongerWoundModifier: modifier.optional(),
+        notStrongerWoundModifier: modifier.optional(),
         doubleStrengthWoundModifier: modifier.optional(),
         hitReroll: reroll.optional(),
         woundReroll: reroll.optional(),
         twinLinked: z.boolean(),
         ignoresCover: z.boolean(),
+        indirectFire: z.boolean().optional(),
         psychic: z.boolean(),
         blast: z.int().min(0).max(10),
-        rapidFire: z.int().min(0).max(10),
-        melta: z.int().min(0).max(10),
+        cleave: z.int().min(0).max(10).optional(),
+        oneShot: z.boolean().optional(),
+        rapidFire: amountSchema,
+        melta: amountSchema,
         heavy: z.boolean(),
         lance: z.boolean(),
       }),
@@ -88,6 +93,7 @@ export const combatSchema = z.object({
   options: z.object({
     phase: z.enum(['ranged', 'melee']),
     cover: z.boolean(),
+    indirectFire: z.enum(['direct', 'unobserved', 'spotted']).optional(),
     halfRange: z.boolean(),
     heavy: z.boolean(),
     charged: z.boolean(),
@@ -110,6 +116,7 @@ export type CombatResult = { trials: number; kills: number[]; damage: number[]; 
 export const DEFAULT_COMBAT_OPTIONS: CombatOptions = {
   phase: 'ranged',
   cover: false,
+  indirectFire: 'direct',
   halfRange: false,
   heavy: false,
   charged: false,
@@ -137,17 +144,19 @@ export function woundTarget(strength: number, toughness: number) {
 }
 
 const cappedModifier = (value: number) => Math.max(-1, Math.min(1, value))
-const maximum = (expression: DiceExpression) => expression.dice * expression.sides + expression.bonus
+const maximum = (expression: DiceExpression | number) =>
+  typeof expression === 'number' ? expression : expression.dice * expression.sides + expression.bonus
 const d6 = (random: () => number) => Math.floor(random() * 6) + 1
 
-function roll(expression: DiceExpression, random: () => number) {
+function roll(expression: DiceExpression | number, random: () => number) {
+  if (typeof expression === 'number') return expression
   let result = expression.bonus
   for (let i = 0; i < expression.dice; i++) result += Math.floor(random() * expression.sides) + 1
   return result
 }
 
-function check(target: number, bonus: number, critical: number, rerolls: CombatOptions['hitReroll'], random: () => number) {
-  const succeeds = (value: number) => value !== 1 && (value >= critical || value + bonus >= target)
+function check(target: number, bonus: number, critical: number, rerolls: CombatOptions['hitReroll'], random: () => number, minimum = 2) {
+  const succeeds = (value: number) => value >= minimum && (value >= critical || value + bonus >= target)
   let value = d6(random)
   if ((rerolls === 'ones' && value === 1) || (rerolls === 'failed' && !succeeds(value))) value = d6(random)
   return { success: succeeds(value), critical: value !== 1 && value >= critical, value }
@@ -185,7 +194,8 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
   if (killed === target.models) return { damage, killed }
   const ranged = options.phase === 'ranged'
   for (const weapon of weapons) {
-    const cover = ranged && options.cover && !weapon.ignoresCover && !weapon.psychic
+    const indirect = ranged && weapon.indirectFire === true && (options.indirectFire === 'unobserved' || options.indirectFire === 'spotted')
+    const cover = ranged && (options.cover || indirect) && !weapon.ignoresCover && !weapon.psychic
     const skill =
       weapon.ignoreSkillModifiers || (ranged && weapon.psychic)
         ? Math.min(weapon.baseSkill ?? weapon.skill, weapon.skill)
@@ -214,6 +224,11 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
             ? Math.max(0, weapon.doubleStrengthWoundModifier ?? 0)
             : (weapon.doubleStrengthWoundModifier ?? 0)
           : 0) +
+        (weapon.strength <= target.toughness
+          ? weapon.ignoreWoundModifiers
+            ? Math.max(0, weapon.notStrongerWoundModifier ?? 0)
+            : (weapon.notStrongerWoundModifier ?? 0)
+          : 0) +
         Number(!ranged && weapon.lance && options.charged),
     )
     const bestReroll = (first: CombatOptions['hitReroll'], second?: CombatOptions['hitReroll']) =>
@@ -224,7 +239,7 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
     const inflict = (mortal = false) => {
       let rolledDamage = roll(weapon.damage, random)
       if (weapon.damageReroll === 'ones' && rolledDamage === 1) rolledDamage = roll(weapon.damage, random)
-      const baseDamage = rolledDamage + (halfRange ? weapon.melta : 0)
+      const baseDamage = rolledDamage + (halfRange ? roll(weapon.melta, random) : 0)
       const rolled = baseDamage === 0 ? 0 : Math.max(1, Math.ceil(baseDamage / (target.damageDivisor ?? 1) - (target.damageReduction ?? 0)))
       let lost = rolled
       const prevention = mortal ? Math.min(feelNoPain, target.mortalFeelNoPain ?? 7) : feelNoPain
@@ -265,17 +280,30 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
       inflict()
     }
     for (let carrier = 0; carrier < weapon.count; carrier++) {
-      const attacks = roll(weapon.attacks, random) + weapon.blast * Math.floor(target.models / 5) + (halfRange ? weapon.rapidFire : 0)
+      const attacks =
+        roll(weapon.attacks, random) +
+        (weapon.blast + (weapon.cleave ?? 0)) * Math.floor(target.models / 5) +
+        (halfRange ? roll(weapon.rapidFire, random) : 0)
       for (let attack = 0; attack < attacks; attack++) {
         if (killed === target.models) return { damage, killed }
         const hit = weapon.torrent
           ? { success: true, critical: false, value: 0 }
-          : check(skill, hitBonus, weapon.criticalHit ?? 6, bestReroll(options.hitReroll, weapon.hitReroll), random)
+          : check(
+              skill,
+              hitBonus,
+              weapon.criticalHit ?? 6,
+              indirect ? 'none' : bestReroll(options.hitReroll, weapon.hitReroll),
+              random,
+              indirect ? (options.indirectFire === 'spotted' ? 4 : 6) : 2,
+            )
         if (!hit.success) continue
         if (weapon.successfulCriticalHit && hit.value >= weapon.successfulCriticalHit) hit.critical = true
         if (weapon.allHitsCritical && !weapon.torrent) hit.critical = true
         resolveHit(hit.critical && weapon.lethal && options.lethal)
-        if (hit.critical) for (let extra = 0; extra < weapon.sustained && killed < target.models; extra++) resolveHit(false)
+        if (hit.critical && killed < target.models) {
+          const sustained = roll(weapon.sustained, random)
+          for (let extra = 0; extra < sustained && killed < target.models; extra++) resolveHit(false)
+        }
       }
     }
   }
@@ -290,14 +318,19 @@ export function simulateCombat(scenario: CombatInput): CombatResult {
     (total, weapon) =>
       total +
       weapon.count *
-        (maximum(weapon.attacks) + weapon.blast * Math.floor(input.target.models / 5) + weapon.rapidFire) *
-        (1 + weapon.sustained) *
+        (maximum(weapon.attacks) +
+          (weapon.blast + (weapon.cleave ?? 0)) * Math.floor(input.target.models / 5) +
+          maximum(weapon.rapidFire)) *
+        (1 + maximum(weapon.sustained)) *
         (8 +
           weapon.damage.dice * (weapon.damageReroll ? 2 : 1) +
+          (typeof weapon.sustained === 'number' ? 0 : weapon.sustained.dice) +
+          (typeof weapon.rapidFire === 'number' ? 0 : weapon.rapidFire.dice) +
+          (typeof weapon.melta === 'number' ? 0 : weapon.melta.dice) +
           (input.target.feelNoPain ||
           (weapon.devastating && input.target.mortalFeelNoPain) ||
           (weapon.psychic && input.target.psychicFeelNoPain)
-            ? maximum(weapon.damage) + weapon.melta
+            ? maximum(weapon.damage) + maximum(weapon.melta)
             : 0)),
     (input.mortalWounds ?? []).reduce(
       (total, ability) =>

@@ -20,6 +20,9 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
             source: choice.name,
             scope: 'unit',
             description: option.description,
+            included: combatant.sheets.data?.selected?.profiles.some((profile) =>
+              profile.values.some((value) => value.modifiers?.includes(option.name)),
+            ),
             models: combatant.unit?.size.models,
             keywords: combatant.sheets.data?.selected?.keywords,
           },
@@ -93,9 +96,7 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
               ) : (
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="text-sm font-semibold">{labelContent}</h4>
-                  <span className="text-xs text-faint">
-                    {rule.included || (combatRuleChoices(rule).length && rule.appliedDefences?.length) ? 'Stats applied' : 'Not calculated'}
-                  </span>
+                  <span className="text-xs text-faint">Stats applied</span>
                 </div>
               )}
               <p className="text-xs text-faint">

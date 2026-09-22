@@ -84,6 +84,196 @@ describe('combat rule eligibility', () => {
 })
 
 describe('combat rule effects', () => {
+  it('applies an incoming damage replacement to the attacking weapons', () => {
+    const defensive = {
+      name: 'Protection',
+      effects: combatRuleChoices(
+        rule('Each time an attack is allocated to this model, change the Damage characteristic of that attack to 1.'),
+      )[0]!.effects,
+    }
+    const sheet = combatRuleProfiles(weapons(), [], 'attacker', [], [defensive])
+    expect(combatWeapons(sheet, [], 'ranged')[0]?.weapon?.damage).toEqual({ dice: 0, sides: 6, bonus: 1 })
+  })
+  it('does not apply a defensive damage replacement when its source is attacking', () => {
+    const defensive = {
+      name: 'Protection',
+      effects: combatRuleChoices(
+        rule('Each time an attack is allocated to this model, change the Damage characteristic of that attack to 1.'),
+      )[0]!.effects,
+    }
+    expect(combatWeapons(combatRuleProfiles(weapons(), [defensive], 'attacker'), [], 'ranged')[0]?.weapon?.damage).toEqual({
+      dice: 0,
+      sides: 6,
+      bonus: 2,
+    })
+  })
+  it('retains feel no pain when the toughness bonus is already projected', () => {
+    expect(
+      combatRuleChoices(
+        rule("Add 1 to the bearer's Toughness characteristic and the bearer has the Feel No Pain 5+ ability.", {
+          appliedDefences: ['toughness'],
+        }),
+      )[0]?.effects,
+    ).toEqual([{ role: 'defender', phases: ['ranged', 'melee'], feelNoPain: 5 }])
+  })
+  it('keeps random Sustained Hits when a weaker fixed grant is added', () => {
+    const sheet = weapons()
+    sheet.profiles[0]!.values.find((value) => value.name === 'Keywords')!.value = 'Sustained Hits D3'
+    const active = [
+      {
+        name: 'Buff',
+        effects: combatRuleChoices(rule('Ranged weapons equipped by models in this unit have the [SUSTAINED HITS 1] ability.'))[0]!.effects,
+      },
+    ]
+    expect(combatWeapons(combatRuleProfiles(sheet, active, 'attacker'), [], 'ranged')[0]?.weapon?.sustained).toEqual({
+      dice: 1,
+      sides: 3,
+      bonus: 0,
+    })
+  })
+  it.each(['ranged', 'melee'] as const)(
+    'applies enemy Toughness and armour penalties without changing invulnerable saves in %s',
+    (phase) => {
+      const target = { models: 5, toughness: 4, save: 3, invulnerable: 4, wounds: 2, feelNoPain: null }
+      const aura = {
+        name: 'Infection',
+        effects: [
+          { role: 'attacker' as const, phases: ['ranged', 'melee'] as const, targetToughness: -1 },
+          { role: 'attacker' as const, phases: ['ranged', 'melee'] as const, targetSaveModifier: 1 },
+        ].map((effect) => ({ ...effect, phases: [...effect.phases] })),
+      }
+      expect(combatRuleDefences(target, [], phase, [aura, aura])).toMatchObject({ toughness: 3, save: 4, invulnerable: 4 })
+    },
+  )
+  it('does not apply a defending aura to its own Toughness or armour', () => {
+    const target = { models: 5, toughness: 4, save: 3, invulnerable: null, wounds: 2, feelNoPain: null }
+    expect(
+      combatRuleDefences(
+        target,
+        [{ name: 'Infection', effects: [{ role: 'attacker', phases: ['ranged', 'melee'], targetToughness: -1, targetSaveModifier: 1 }] }],
+        'ranged',
+      ),
+    ).toMatchObject({ toughness: 4, save: 3 })
+  })
+  it('combines opposing Toughness changes before applying characteristic limits', () => {
+    const target = { models: 1, toughness: 1, save: 7, invulnerable: null, wounds: 1, feelNoPain: null }
+    expect(
+      combatRuleDefences(target, [{ name: 'Defence', effects: [{ role: 'defender', phases: ['melee'], toughness: 1 }] }], 'melee', [
+        { name: 'Infection', effects: [{ role: 'attacker', phases: ['melee'], targetToughness: -1, targetSaveModifier: 1 }] },
+      ]),
+    ).toMatchObject({ toughness: 1, save: 7 })
+  })
+  it('keeps enemy characteristic penalties within their phase', () => {
+    const target = { models: 1, toughness: 4, save: 3, invulnerable: null, wounds: 1, feelNoPain: null }
+    expect(
+      combatRuleDefences(target, [], 'ranged', [
+        { name: 'Infection', effects: [{ role: 'attacker', phases: ['melee'], targetToughness: -1, targetSaveModifier: 1 }] },
+      ]),
+    ).toMatchObject({ toughness: 4, save: 3 })
+  })
+  it('carries a not-stronger wound condition only onto melee weapons', () => {
+    const sheet = weapons()
+    const active = [
+      {
+        name: 'Challenge',
+        effects: combatRuleChoices(
+          rule(
+            'Each time a model in this unit makes a melee attack, if the Strength characteristic of that attack is less than or equal to the Toughness characteristic of the target, add 1 to the Wound roll.',
+          ),
+        )[0]!.effects,
+      },
+    ]
+    expect(
+      (['ranged', 'melee'] as const).map(
+        (phase) =>
+          combatRuleWeapons(
+            sheet,
+            combatWeapons(sheet, [], phase).map((entry) => ({ ...entry, count: 1 })),
+            active,
+            'attacker',
+            phase,
+            [],
+          )[0]?.notStrongerWoundModifier,
+      ),
+    ).toEqual([undefined, 1])
+  })
+  const weaponReplacement =
+    'Once per battle, when this model is selected to shoot, it can use this ability. If it does, until the end of the phase, its Rifle weapon has a Damage characteristic of 3 and the [ANTI-INFANTRY 5+] and [DEVASTATING WOUNDS] abilities.'
+  const existingAbilityUpgrade =
+    'Until the end of the phase, ranged weapons equipped by models in your unit have the [SUSTAINED HITS 1] ability while targeting an enemy unit within 12". If such a weapon already has that ability, until the end of the phase, each time an attack is made with that weapon, an unmodified Hit roll of 5+ scores a Critical Hit.'
+  it.each(['Infantry', 'Vehicle'])('applies a named weapon replacement with target-specific Anti against %s', (target) => {
+    const sheet = weapons()
+    sheet.profiles[0]!.name = 'The Rifle'
+    sheet.profiles.push({ ...sheet.profiles[0]!, id: 'other', name: 'Sidearm' })
+    const active = [{ name: 'Buff', effects: combatRuleChoices(rule(weaponReplacement))[0]!.effects }]
+    const projected = combatRuleProfiles(sheet, active, 'attacker', [target])
+    expect(
+      combatWeapons(projected, [target], 'ranged').map(({ weapon }) => ({
+        damage: weapon?.damage.bonus,
+        devastating: weapon?.devastating,
+        criticalWound: weapon?.criticalWound,
+      })),
+    ).toEqual([
+      { damage: 3, devastating: true, criticalWound: target === 'Infantry' ? 5 : 6 },
+      { damage: 2, devastating: false, criticalWound: 6 },
+    ])
+  })
+  it.each([false, true])('sets random damage before additive modifiers regardless of effect order (%s)', (reverse) => {
+    const sheet = weapons()
+    sheet.profiles[0]!.values.find((value) => value.name === 'D')!.value = 'D6'
+    const buffs = [
+      { name: 'Replacement', effects: combatRuleChoices(rule(weaponReplacement))[0]!.effects },
+      {
+        name: 'Bonus',
+        effects: combatRuleChoices(rule('Add 1 to the Damage characteristic of ranged weapons equipped by this model.'))[0]!.effects,
+      },
+    ]
+    if (reverse) buffs.reverse()
+    expect(combatWeapons(combatRuleProfiles(sheet, buffs, 'attacker'), [], 'ranged')[0]?.weapon?.damage).toEqual({
+      dice: 0,
+      sides: 6,
+      bonus: 4,
+    })
+  })
+  it('checks existing abilities for each weapon before the same rule grants Sustained Hits', () => {
+    const sheet = weapons()
+    sheet.profiles.push({
+      ...sheet.profiles[0]!,
+      id: 'sustained',
+      name: 'Burst rifle',
+      values: sheet.profiles[0]!.values.map((value) => (value.name === 'Keywords' ? { ...value, value: 'Sustained Hits 1' } : value)),
+    })
+    const active = [{ name: 'Buff', effects: combatRuleChoices(rule(existingAbilityUpgrade, { scope: 'stratagem' }))[0]!.effects }]
+    const used = combatWeapons(combatRuleProfiles(sheet, active, 'attacker'), [], 'ranged').map((entry) => ({ ...entry, count: 1 }))
+    expect(
+      combatRuleWeapons(sheet, used, active, 'attacker', 'ranged', []).map((weapon) => ({
+        sustained: weapon.sustained,
+        criticalHit: weapon.criticalHit ?? 6,
+      })),
+    ).toEqual([
+      { sustained: 1, criticalHit: 6 },
+      { sustained: 1, criticalHit: 5 },
+    ])
+  })
+  it('counts a stronger Sustained Hits grant from a separate active source', () => {
+    const sheet = weapons()
+    const active = [
+      { name: 'Buff', effects: combatRuleChoices(rule(existingAbilityUpgrade, { scope: 'stratagem' }))[0]!.effects },
+      {
+        name: 'Aura',
+        effects: combatRuleChoices(rule('Ranged weapons equipped by models in this unit have the [SUSTAINED HITS 2] ability.'))[0]!.effects,
+      },
+    ]
+    const used = combatWeapons(combatRuleProfiles(sheet, active, 'attacker'), [], 'ranged').map((entry) => ({ ...entry, count: 1 }))
+    expect(combatRuleWeapons(sheet, used, active, 'attacker', 'ranged', [])[0]).toMatchObject({ sustained: 2, criticalHit: 5 })
+  })
+  it('does not apply a ranged existing-ability upgrade in melee', () => {
+    const sheet = weapons()
+    const active = [{ name: 'Buff', effects: combatRuleChoices(rule(existingAbilityUpgrade, { scope: 'stratagem' }))[0]!.effects }]
+    const used = combatWeapons(combatRuleProfiles(sheet, active, 'attacker'), [], 'melee').map((entry) => ({ ...entry, count: 1 }))
+    expect(combatRuleWeapons(sheet, used, active, 'attacker', 'melee', [])[0]).toMatchObject({ sustained: 0 })
+    expect(combatRuleWeapons(sheet, used, active, 'attacker', 'melee', [])[0]?.criticalHit).toBeUndefined()
+  })
   it('does not mistake the opposing aura for an already applied friendly aura with the same name', () => {
     const buff = rule(
       'While a friendly ARMY unit is within 3" of this model, each time a model in that unit makes an attack, improve the Armour Penetration characteristic of that attack by 1, and each time an attack targets that unit, worsen the Armour Penetration characteristic of that attack by 1.',
@@ -152,14 +342,16 @@ describe('combat rule effects', () => {
       rule('Each time this model makes a ranged attack with its Rifle that targets a VEHICLE unit, add 1 to the Wound roll.'),
     )[0]!.effects
     const used = combatWeapons(sheet, [], 'ranged').map((profile) => ({ ...profile, count: 1 }))
-    expect(combatRuleWeapons(used, [{ name: 'Buff', effects }], 'attacker', 'ranged', ['Infantry'])[0]?.woundModifier).toBeUndefined()
+    expect(
+      combatRuleWeapons(weapons(), used, [{ name: 'Buff', effects }], 'attacker', 'ranged', ['Infantry'])[0]?.woundModifier,
+    ).toBeUndefined()
   })
   it('applies a target-specific wound bonus to the matching named weapon', () => {
     const effects = combatRuleChoices(
       rule('Each time this model makes a ranged attack with its Rifle that targets a VEHICLE unit, add 1 to the Wound roll.'),
     )[0]!.effects
     const used = combatWeapons(weapons(), [], 'ranged').map((profile) => ({ ...profile, count: 1 }))
-    expect(combatRuleWeapons(used, [{ name: 'Buff', effects }], 'attacker', 'ranged', ['Vehicle'])[0]?.woundModifier).toBe(1)
+    expect(combatRuleWeapons(weapons(), used, [{ name: 'Buff', effects }], 'attacker', 'ranged', ['Vehicle'])[0]?.woundModifier).toBe(1)
   })
   const leadership = 'While this model is leading a unit, weapons equipped by models in that unit have the [LETHAL HITS] ability.'
   it('starts a supported attached leader effect active', () => expect(combatRuleDefault(rule(leadership, { scope: 'attached' }))).toBe(1))
@@ -359,6 +551,16 @@ describe('conditional support auras', () => {
 })
 
 describe('combat roles', () => {
+  const unsupported = 'Weapons equipped by this unit have the [PRECISION] ability. These warriors are legends.'
+  it('hides unsupported wording without requiring a classification', () =>
+    expect(combatRuleAppliesTo(rule(unsupported), 'attacker')).toBe(false))
+  it('keeps calculated offensive effects visible', () =>
+    expect(combatRuleAppliesTo(rule('Weapons equipped by this unit have the [LETHAL HITS] ability.'), 'attacker')).toBe(true))
+  it('keeps already applied profile changes visible', () =>
+    expect(combatRuleAppliesTo(rule(unsupported, { included: true }), 'attacker')).toBe(true))
+  it.each(['attacker', 'defender'] as const)('limits already applied defences to the defender when checking %s', (role) =>
+    expect(combatRuleAppliesTo(rule('An unfamiliar defensive effect.', { appliedDefences: ['save'] }), role)).toBe(role === 'defender'),
+  )
   it.each([
     ['While this model is leading a unit, weapons equipped by models in that unit have the [LETHAL HITS] ability.', 'defender'],
     ['Each time an attack targets this unit, subtract 1 from the Hit roll, unless that unit is within 6".', 'attacker'],
@@ -366,13 +568,13 @@ describe('combat roles', () => {
     ['At the end of your Command phase, this unit heals D3 wounds.', 'attacker'],
     ['At the end of your Command phase, this unit heals D3 wounds.', 'defender'],
   ] as const)('hides %s from the %s', (description, role) => expect(combatRuleAppliesTo(rule(description), role)).toBe(false))
-  it('retains an unsupported defensive rule on the defender', () =>
+  it('hides an unsupported defensive rule on the defender', () =>
     expect(
       combatRuleAppliesTo(
         rule('Each time an attack targets this unit, subtract 1 from the Hit roll, unless that unit is within 6".'),
         'defender',
       ),
-    ).toBe(true))
+    ).toBe(false))
   it('filters already projected offensive stats by role too', () =>
     expect(
       combatRuleAppliesTo(rule('Melee weapons equipped by this model have the [LETHAL HITS] ability.', { included: true }), 'defender'),

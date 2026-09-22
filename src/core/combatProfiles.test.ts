@@ -43,6 +43,54 @@ const sheet = (keywords = ''): Datasheet => ({
 })
 
 describe('combat profiles', () => {
+  it.each(['Sustained Hits D3', 'Rapid Fire D6+3', 'Melta D3'])('parses a variable value for %s', (keyword) => {
+    const weapon = combatWeapons(sheet(keyword), [], 'ranged')[0]?.weapon
+    expect(keyword.startsWith('Sustained') ? weapon?.sustained : keyword.startsWith('Rapid') ? weapon?.rapidFire : weapon?.melta).toEqual(
+      keyword.startsWith('Rapid') ? { dice: 1, sides: 6, bonus: 3 } : { dice: 1, sides: 3, bonus: 0 },
+    )
+  })
+  it.each([
+    ['Anti-Monster/Vehicle 3+', ['Vehicle'], 3],
+    ['Anti-Monster/Vehicle 3+', ['Infantry'], 6],
+    ['Anti-non-Monster/Vehicle 3+', ['Infantry'], 3],
+    ['Anti-non-Monster/Vehicle 3+', ['Vehicle'], 6],
+    ['Anti Vehicle 3+', ['Vehicle'], 3],
+    ['Anti-fly 2', ['Fly'], 2],
+  ])('resolves %s against %j', (keyword, targets, critical) => {
+    expect(combatWeapons(sheet(keyword), targets, 'ranged')[0]?.weapon?.criticalWound).toBe(critical)
+  })
+  it.each(['Monster', 'Vehicle', 'Infantry'])('applies excluded target keywords to %s', (target) => {
+    expect(combatWeapons(sheet('Lethal Hits: non-Monster/Vehicle'), [target], 'ranged')[0]?.weapon?.lethal).toBe(target === 'Infantry')
+  })
+  it('does not silently discard a malformed target condition', () => {
+    expect(combatWeapons(sheet('Lethal Hits: non-'), ['Infantry'], 'ranged')[0]?.error).toContain('Unsupported')
+  })
+  it('recognizes a spaced Twin Linked keyword', () => {
+    expect(combatWeapons(sheet('Twin Linked'), [], 'ranged')[0]?.weapon?.twinLinked).toBe(true)
+  })
+  it('uses Cleave to add attacks per five targets', () => {
+    expect(combatWeapons(sheet('Cleave 2'), [], 'ranged')[0]?.weapon?.cleave).toBe(2)
+  })
+  it('recognizes One Shot as an explicit weapon eligibility condition', () => {
+    expect(combatWeapons(sheet('One Shot'), [], 'ranged')[0]?.weapon?.oneShot).toBe(true)
+  })
+  it('excludes a One Shot weapon when the player marks it already fired', () => {
+    const carriers = [{ name: 'Model', models: 5, weapons: [{ name: 'Weapon', count: 5 }] }]
+    const plan = combatPlan(sheet('One Shot'), carriers, [], 'ranged')
+    const spent = combatPlan(sheet('One Shot'), carriers, [], 'ranged', { [plan.choices[0]!.key]: 'spent' })
+    expect({ count: plan.weapons[0]?.count, spent: spent.weapons, errors: spent.errors }).toEqual({ count: 5, spent: [], errors: [] })
+  })
+  it('offers mutually exclusive fixed and variable instances of the same weapon ability', () => {
+    const carriers = [{ name: 'Model', models: 5, weapons: [{ name: 'Weapon', count: 5 }] }]
+    const data = sheet('Sustained Hits D3, Sustained Hits 2')
+    const initial = combatPlan(data, carriers, [], 'ranged')
+    const fixed = combatPlan(data, carriers, [], 'ranged', { [initial.choices[0]!.key]: 'Sustained Hits 2' })
+    expect({ initial: initial.weapons[0]?.sustained, fixed: fixed.weapons[0]?.sustained, errors: fixed.errors }).toEqual({
+      initial: { dice: 1, sides: 3, bonus: 0 },
+      fixed: 2,
+      errors: [],
+    })
+  })
   it('uses surviving weapon counts for both projection and attack selection', () => {
     const original = [{ name: 'Model', models: 5, weapons: [{ name: 'Weapon', count: 5 }] }]
     const survivors = [{ name: 'Model', models: 3, weapons: [{ name: 'Weapon', count: 3 }] }]
@@ -96,8 +144,8 @@ describe('combat profiles', () => {
   ])('conditional lethal hits respects %s', (keyword, expected) => {
     expect(combatWeapons(sheet('Lethal Hits: Vehicle'), [keyword], 'ranged')[0]?.weapon?.lethal).toBe(expected)
   })
-  it('refuses indirect fire rather than simulating direct fire', () => {
-    expect(combatWeapons(sheet('Indirect Fire'), [], 'ranged')[0]?.weapon).toBeNull()
+  it('recognizes weapons that can use indirect shooting', () => {
+    expect(combatWeapons(sheet('Indirect Fire'), [], 'ranged')[0]?.weapon?.indirectFire).toBe(true)
   })
   it('accepts a homogeneous target with several model names', () => {
     const data = sheet()

@@ -35,6 +35,7 @@
     "catalogue:check": "tsx scripts/syncCatalogue.ts --check",
     "catalogue:compile": "tsx scripts/compileCatalogue.ts",
     "catalogue:combat": "tsx scripts/auditCombatRules.ts",
+    "catalogue:combat:eval": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/checkCombatRuleQuestions.ts",
     "catalogue:combat:shortlist": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/shortlistCombatRules.ts",
     "catalogue:audit": "tsx scripts/auditCanonicalCatalogue.ts",
     "catalogue:descriptions": "tsx scripts/checkDescriptions.ts",
