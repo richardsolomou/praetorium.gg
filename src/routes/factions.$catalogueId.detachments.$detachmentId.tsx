@@ -8,12 +8,28 @@ export const Route = createFileRoute('/factions/$catalogueId/detachments/$detach
       context.queryClient.query({ ...factionQuery(params.catalogueId), staleTime: 'static' }),
       context.queryClient.query({ ...favouriteDetachmentsQuery(), staleTime: 'static' }),
     ])
-    if (
-      !faction ||
-      !(await context.queryClient.query({ ...detachmentDetailQuery(faction.id, params.detachmentId), staleTime: 'static' }))
-    ) {
-      throw notFound()
-    }
+    if (!faction) throw notFound()
+    const detachment = await context.queryClient.query({ ...detachmentDetailQuery(faction.id, params.detachmentId), staleTime: 'static' })
+    if (!detachment) throw notFound()
+    return { detachment, faction }
   },
+  head: ({ loaderData, params }) => ({
+    meta: loaderData
+      ? [
+          { title: `${loaderData.detachment.name} detachment — ${loaderData.faction.displayName} — Praetorium` },
+          {
+            name: 'description',
+            content: `${loaderData.detachment.name} rules, enhancements and stratagems for ${loaderData.faction.displayName}.`,
+          },
+          { property: 'og:title', content: `${loaderData.detachment.name} detachment` },
+          {
+            property: 'og:description',
+            content: `${loaderData.detachment.name} rules, enhancements and stratagems for ${loaderData.faction.displayName}.`,
+          },
+          { property: 'og:type', content: 'article' },
+        ]
+      : [],
+    links: loaderData ? [{ rel: 'canonical', href: `/factions/${loaderData.faction.slug}/detachments/${params.detachmentId}` }] : [],
+  }),
   component: FactionDetachment,
 })

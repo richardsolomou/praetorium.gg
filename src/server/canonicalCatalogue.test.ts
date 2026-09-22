@@ -7,6 +7,7 @@ import { ability, bookOf, card, categories, points, withCards } from './catalogu
 import {
   CANONICAL_CATALOGUE_FORMAT,
   compileCanonicalCatalogue,
+  compileCanonicalCatalogueFromSnapshot,
   compileCanonicalRuleDocuments,
   loadCanonicalCatalogue,
 } from './canonicalCatalogue'
@@ -392,9 +393,94 @@ describe('canonical catalogue', () => {
     ])
   })
 
+  it('compiles reference detachments beside datasheets and rules', () => {
+    const loaded = bookOf({
+      selectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          categoryLinks: categories('Faction: Test catalogue'),
+        },
+      ],
+      sharedSelectionEntries: [
+        {
+          id: 'wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'choices',
+              name: 'Detachment',
+              selectionEntries: [{ id: 'vanguard', name: 'Vanguard', type: 'upgrade' }],
+            },
+          ],
+        },
+      ],
+    })
+    const rules = {
+      attribution: 'Community data',
+      factionKeys: new Map(),
+      factionNames: new Map(),
+      detachmentReferences: new Map([
+        ['test-catalogue', new Map([['vanguard', { enhancements: 0, upgrades: 0, stratagems: 0, points: 1, dispositions: [] }]])],
+      ]),
+      detachmentDetails: new Map([
+        [
+          'test-catalogue',
+          new Map([
+            [
+              'vanguard',
+              {
+                id: 'vanguard',
+                name: 'Vanguard',
+                points: 1,
+                dispositions: [],
+                rules: [{ name: 'Shadow Masters', description: 'Remain concealed.' }],
+                enhancements: [],
+                upgrades: [],
+                stratagems: [],
+              },
+            ],
+          ]),
+        ],
+      ]),
+      dispositions: new Map(),
+      ruleDocuments: [],
+    } as Partial<LoadedRules> as LoadedRules
+
+    expect(compileCanonicalCatalogue(loaded, { ...revisions, rules: 'rules-revision' }, rules).detachments).toEqual([
+      expect.objectContaining({
+        catalogueId: 'cat',
+        faction: 'Test catalogue',
+        slug: 'vanguard',
+        rules: [{ name: 'Shadow Masters', description: 'Remain concealed.' }],
+        provenance: {
+          definitions: { revision: 'definitions-revision', detachmentId: 'vanguard' },
+          rules: { revision: 'rules-revision' },
+          datacards: { revision: 'datacards-revision' },
+        },
+      }),
+    ])
+  })
+
   it('is deterministic for the same source snapshot', () => {
     const loaded = catalogue()
     expect(compileCanonicalCatalogue(loaded, revisions)).toEqual(compileCanonicalCatalogue(loaded, revisions))
+  })
+
+  it('compiles an installed legacy snapshot when its canonical projection is absent', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-legacy-'))
+    try {
+      fs.writeFileSync(path.join(root, 'revision.json'), `${JSON.stringify(revisions)}\n`)
+
+      expect(compileCanonicalCatalogueFromSnapshot(catalogue(), null, root)).toMatchObject({
+        revisions,
+        datasheets: [expect.objectContaining({ name: 'Squad' })],
+      })
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('is byte-identical across publisher locales', () => {

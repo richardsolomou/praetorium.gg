@@ -8,6 +8,7 @@ import type {
   CanonicalCatalogue,
   CanonicalCatalogueIssue,
   CanonicalDatasheet,
+  CanonicalDetachment,
   CanonicalFieldResolution,
   CanonicalSourceName,
 } from '../contracts/catalogue'
@@ -27,6 +28,8 @@ import {
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { describeDatasheetAbilitiesWithContributions } from './datasheetDescriptions'
+import { detachmentReference } from './detachmentReference'
+import { factionsFor } from './factionReferences'
 import { factionDisplayName } from './factionNames'
 import { loadRules, type LoadedRules, RULES_DATA_ATTRIBUTION } from './rules'
 import { joinKey } from './rulesSource'
@@ -140,6 +143,38 @@ const canonicalDatasheetSchema = z.object({
   }),
 })
 
+const canonicalDetachmentSchema = z.object({
+  catalogueId: z.string(),
+  faction: z.string(),
+  factionSlug: z.string(),
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  points: z.number().nullable(),
+  dispositions: z.array(z.string()),
+  rules: z.array(z.object({ name: z.string(), description: z.string().nullable() })),
+  enhancements: z.array(z.object({ name: z.string(), points: z.number().nullable(), description: z.string().nullable() })),
+  upgrades: z.array(z.object({ name: z.string(), points: z.number().nullable(), description: z.string().nullable() })),
+  stratagems: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      cp: z.number(),
+      type: z.string().nullable(),
+      phases: z.array(z.string()),
+      turn: z.string().nullable(),
+      description: z.string().nullable(),
+    }),
+  ),
+  keywordRules: z.array(z.object({ name: z.string(), description: z.string() })),
+  attribution: z.string(),
+  provenance: z.object({
+    definitions: z.object({ revision: z.string(), detachmentId: z.string() }),
+    rules: z.object({ revision: z.string() }),
+    datacards: z.object({ revision: z.string() }),
+  }),
+})
+
 const issueSchema = z.object({
   kind: z.enum([
     'missing-source-record',
@@ -200,9 +235,42 @@ export const canonicalCatalogueSchema = z.object({
   compilerVersion: z.literal(1),
   revisions: z.record(z.string(), z.string()),
   datasheets: z.array(canonicalDatasheetSchema),
+  detachments: z.array(canonicalDetachmentSchema).default([]),
   ruleDocuments: z.array(ruleDocumentSchema),
   issues: z.array(issueSchema),
 })
+
+export function compileCanonicalDetachments(
+  loaded: LoadedCatalogue,
+  revisions: Record<string, string>,
+  rules: LoadedRules | null,
+): CanonicalDetachment[] {
+  if (!rules) return []
+  return factionsFor(loaded, rules)
+    .factions.flatMap((faction) =>
+      faction.detachments.flatMap((detachment) => {
+        if (!faction.referenceDetachmentIds.includes(detachment.id)) return []
+        const detail = detachmentReference(loaded, rules, faction.id, detachment.slug)
+        if (!detail) return []
+        return [
+          {
+            ...detail,
+            catalogueId: faction.id,
+            faction: faction.displayName,
+            factionSlug: faction.slug,
+            id: detachment.id,
+            slug: detachment.slug,
+            provenance: {
+              definitions: { revision: revisions.definitions ?? loaded.index.revision, detachmentId: detachment.id },
+              rules: { revision: revisions.rules ?? 'unknown' },
+              datacards: { revision: revisions.datacards ?? 'unknown' },
+            },
+          },
+        ]
+      }),
+    )
+    .toSorted((left, right) => compareText(left.faction, right.faction) || compareText(left.name, right.name))
+}
 
 const resolution = (sources: readonly CanonicalSourceName[], strategy: CanonicalFieldResolution['strategy']): CanonicalFieldResolution => ({
   sources: [...sources],
@@ -660,6 +728,7 @@ export function compileCanonicalCatalogue(
     datasheets: routedDatasheets.toSorted(
       (left, right) => compareText(left.faction, right.faction) || compareText(left.name, right.name) || compareText(left.id, right.id),
     ),
+    detachments: compileCanonicalDetachments(loaded, revisions, rules),
     ruleDocuments: compileCanonicalRuleDocuments(rules?.ruleDocuments ?? [], revisions.datacards ?? 'unknown'),
     issues: issues.toSorted(
       (left, right) =>
@@ -681,7 +750,6 @@ export function canonicalCataloguePath(directory: string) {
 export function writeCanonicalCatalogue(directory: string, output = canonicalCataloguePath(directory)) {
   const loaded = loadCatalogue(directory)
   if (!loaded) throw new Error('catalogue data is unavailable')
-  const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')) as Record<string, string>
   const rules = loadRules(
     path.join(directory, 'rules'),
     path.join(directory, 'battlemaster'),
@@ -690,11 +758,20 @@ export function writeCanonicalCatalogue(directory: string, output = canonicalCat
     loaded.datacards,
     loaded.sourceReferences,
   )
-  const sourceUnits = loadSourceUnits(path.join(directory, 'rules', 'data', 'core'))
-  const catalogue = compileCanonicalCatalogue(loaded, revisions, rules, sourceUnits)
+  const catalogue = compileCanonicalCatalogueFromSnapshot(loaded, rules, directory)
   fs.mkdirSync(path.dirname(output), { recursive: true })
   fs.writeFileSync(output, `${JSON.stringify(catalogue, null, 2)}\n`)
   return catalogue
+}
+
+export function compileCanonicalCatalogueFromSnapshot(
+  loaded: LoadedCatalogue,
+  rules: LoadedRules | null,
+  directory = catalogueDirectory(),
+) {
+  const revisionFile = path.join(directory, 'revision.json')
+  const revisions = JSON.parse(fs.readFileSync(revisionFile, 'utf8')) as Record<string, string>
+  return compileCanonicalCatalogue(loaded, revisions, rules, loadSourceUnits(path.join(directory, 'rules', 'data', 'core')))
 }
 
 export function readCanonicalCatalogue(file: string): CanonicalCatalogue {

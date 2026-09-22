@@ -52,7 +52,7 @@ export function FactionDatasheet() {
           </div>
         }
       >
-        <div data-onboarding="datasheet-keywords" className="mt-2 flex flex-wrap gap-1">
+        <div id="keyword-rules" data-onboarding="datasheet-keywords" className="mt-2 flex flex-wrap gap-1">
           {sheet.keywords.map((keyword) => (
             <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
           ))}
@@ -139,7 +139,7 @@ function Abilities({ abilities, rules, onboarding }: { abilities: DisplayAbility
     const cards = (
       <div className="mt-2 grid gap-2 md:grid-cols-2">
         {found.map((ability) => (
-          <article key={ability.id} className="border border-edge bg-panel p-3">
+          <article id={`ability-${ability.id}`} key={ability.id} className="border border-edge bg-panel p-3">
             <h3 className="text-sm">{ability.source ?? ability.name}</h3>
             {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
             {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
@@ -190,14 +190,14 @@ function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rul
       <h2 className="rubric">Unit configuration</h2>
       <div className="mt-2 overflow-hidden border border-edge bg-panel">
         <div className="grid md:grid-cols-2 md:divide-x md:divide-edge">
-          <div className="space-y-2 p-3">
+          <div id="summary" className="space-y-2 p-3">
             <h3 className="eyebrow">Composition</h3>
             {sheet.composition.map((line) => (
               <RuleText key={line} text={line} rules={rules} />
             ))}
             {sheet.baseSize ? <p className="text-sm text-dim">Base size: {sheet.baseSize}</p> : null}
           </div>
-          <div className="border-t border-edge p-3 md:border-t-0">
+          <div id="points" className="border-t border-edge p-3 md:border-t-0">
             <h3 className="eyebrow mb-2">Points</h3>
             <div className="divide-y divide-edge">
               {sheet.costs
@@ -219,12 +219,12 @@ function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rul
           </div>
         </div>
         {sheet.loadout ? (
-          <div className="border-t border-edge p-3">
+          <div id="loadout" className="border-t border-edge p-3">
             <RuleText text={sheet.loadout} rules={rules} className="mt-0" />
           </div>
         ) : null}
         {sheet.wargearOptions.length ? (
-          <div className="border-t border-edge p-3">
+          <div id="wargear" className="border-t border-edge p-3">
             <h3 className="eyebrow mb-2">Wargear options</h3>
             <ul className="list-disc space-y-1.5 pl-5 text-sm text-dim">
               {sheet.wargearOptions.map((option) => (
@@ -244,7 +244,7 @@ function Relationships({ sheet }: { sheet: Datasheet }) {
   const groups = attachmentGroups(sheet)
   if (!groups.length) return null
   return (
-    <section>
+    <section id="relationships">
       <h2 className="rubric">Attachments</h2>
       <div className="mt-2 grid gap-2 md:grid-cols-2">
         {groups.map(({ title, relationships }) => (
@@ -281,7 +281,7 @@ function UnitCharacteristics({ profile, onboarding }: { profile: DisplayProfile;
   const invulnerable = profile.values.find((value) => datasheetCharacteristicKindOf(value) === 'invulnerable-save')?.value
   const values = profile.values.filter((value) => datasheetCharacteristicKindOf(value) !== 'invulnerable-save')
   return (
-    <section data-onboarding={onboarding}>
+    <section id={`profile-${profile.id}`} data-onboarding={onboarding}>
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
         {values.map((value) => (
           <div key={value.name} className="border border-edge bg-panel px-3 py-2 text-center">
@@ -364,7 +364,7 @@ export function ProfileTable({
                 </tr>
               ) : null}
               {group.map((profile) => (
-                <tr key={profile.id}>
+                <tr id={`profile-${profile.id}`} key={profile.id}>
                   <th
                     className={
                       group.length > 1 ? 'border-l-2 border-edge-strong py-2 pr-3 pl-10 font-normal text-dim' : 'px-3 py-2 font-semibold'

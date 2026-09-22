@@ -20,6 +20,7 @@ Each of these is a short read, and the one that matches what you are touching is
 | Stratagems, missions, scoring, rules pages | [docs/development/game-rules.md](docs/development/game-rules.md)                                             |
 | Any screen                                 | [docs/development/interface.md](docs/development/interface.md)                                               |
 | Product scope and interface design         | [docs/product-design.md](docs/product-design.md)                                                             |
+| Agent and crawler reference access         | [docs/development/agent-reference.md](docs/development/agent-reference.md)                                   |
 | Deploying, or the preview environments     | [docs/deployment.md](docs/deployment.md), [docs/development/pr-previews.md](docs/development/pr-previews.md) |
 | The iOS or Android application shell       | [docs/development/mobile.md](docs/development/mobile.md)                                                     |
 | Product analytics, errors, logs            | [docs/development/telemetry.md](docs/development/telemetry.md)                                               |

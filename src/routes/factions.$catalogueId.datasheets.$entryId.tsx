@@ -8,6 +8,25 @@ export const Route = createFileRoute('/factions/$catalogueId/datasheets/$entryId
     if (!faction) throw notFound()
     const sheet = await context.queryClient.query({ ...datasheetSlugQuery(faction.id, params.entryId), staleTime: 'static' })
     if (!sheet) throw notFound()
+    return { faction, sheet }
   },
+  head: ({ loaderData }) => ({
+    meta: loaderData
+      ? [
+          { title: `${loaderData.sheet.name} datasheet — ${loaderData.faction.displayName} — Praetorium` },
+          {
+            name: 'description',
+            content: `${loaderData.sheet.name} profiles, weapons, abilities, wargear, composition and points for ${loaderData.faction.displayName}.`,
+          },
+          { property: 'og:title', content: `${loaderData.sheet.name} datasheet` },
+          {
+            property: 'og:description',
+            content: `${loaderData.sheet.name} profiles, weapons, abilities, wargear, composition and points for ${loaderData.faction.displayName}.`,
+          },
+          { property: 'og:type', content: 'article' },
+        ]
+      : [],
+    links: loaderData ? [{ rel: 'canonical', href: `/factions/${loaderData.faction.slug}/datasheets/${loaderData.sheet.slug}` }] : [],
+  }),
   component: FactionDatasheet,
 })

@@ -8,7 +8,23 @@ export const Route = createFileRoute('/rules/$documentId')({
     const known = index?.documents.some((document) => document.slug === params.documentId)
     // A document only the child route needs is checked there, against its section.
     if (!known && location.pathname === `/rules/${params.documentId}`) throw notFound()
+    return { document: index?.documents.find((document) => document.slug === params.documentId) ?? null }
   },
+  head: ({ loaderData, match, matches }) => ({
+    meta: loaderData?.document
+      ? [
+          { title: `${loaderData.document.title} — Praetorium` },
+          { name: 'description', content: `Contents and numbered rules from ${loaderData.document.title}.` },
+          { property: 'og:title', content: loaderData.document.title },
+          { property: 'og:description', content: `Contents and numbered rules from ${loaderData.document.title}.` },
+          { property: 'og:type', content: 'article' },
+        ]
+      : [],
+    links:
+      loaderData?.document && matches.at(-1)?.routeId === match.routeId
+        ? [{ rel: 'canonical', href: `/rules/${loaderData.document.slug}` }]
+        : [],
+  }),
   component: RuleDocumentPage,
 })
 
