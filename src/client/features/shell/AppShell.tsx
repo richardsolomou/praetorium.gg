@@ -122,6 +122,13 @@ function PrimaryNavigation({ path }: { path: string }) {
         >
           Rules
         </Link>
+        <Link
+          to="/simulator"
+          className={linkClass}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
+        >
+          Simulator
+        </Link>
       </nav>
     </div>
   )

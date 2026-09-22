@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft, Eye } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Command } from '../../core/battle'
 import type { ReportEntry } from '../../core/battleReport'
 import type { BattleView } from '../../core/battleView'
@@ -14,6 +14,7 @@ import { sides, type Side, type SideMission } from '../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { PlayerName } from './PlayerName'
 import { Report, type ReportPlayer } from './Report'
+import { BattleCombatDialog, type BattleCombatSelection } from '../features/simulator/BattleCombatDialog'
 import { ArmyRoster } from '../features/battle/ArmyRoster'
 import { PrimaryMission, type ReferenceCard, SecondaryMissions } from '../features/battle/MissionCards'
 import { Scoreboard } from '../features/battle/Scoreboard'
@@ -29,6 +30,7 @@ const ignoreCommand = (_command: Command) => {}
 const noAwards = () => []
 
 export function Spectator({ view, missions, report }: Props) {
+  const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
   const table = useMemo(() => sides(view, missions), [missions, view])
   const { data: me } = useQuery(meQuery())
   const { data: deployments } = useQuery(deploymentsQuery())
@@ -93,6 +95,7 @@ export function Spectator({ view, missions, report }: Props) {
         </span>
       </div>
 
+      {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
       <Scoreboard view={view} sides={table} outcome={view.status === 'finished' ? battleOutcome(table, view) : null} />
 
       <div className="mx-auto grid max-w-7xl items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]">
@@ -101,6 +104,7 @@ export function Spectator({ view, missions, report }: Props) {
             key={side.index}
             view={view}
             side={side}
+            onSimulate={setCombatSelection}
             referenceFor={referenceFor}
             className={side.index === 0 ? 'lg:col-start-1' : 'lg:col-start-3 lg:row-start-1'}
           />
@@ -127,12 +131,14 @@ function SpectatorSide({
   view,
   side,
   referenceFor,
+  onSimulate,
   className,
 }: {
   view: BattleView
   side: Side
   referenceFor: (key: string) => ReferenceCard | undefined
   className: string
+  onSimulate: (selection: BattleCombatSelection) => void
 }) {
   const colours = tint(side.index)
   const guides = {
@@ -159,7 +165,7 @@ function SpectatorSide({
               <PlayerName army={army} />
             </h2>
             <ArmyIdentity army={army} token={view.token} className="mt-0.5" />
-            <ArmyRoster army={army} side={side} token={view.token} actionable={false} send={ignoreCommand} />
+            <ArmyRoster onSimulate={onSimulate} army={army} side={side} token={view.token} actionable={false} send={ignoreCommand} />
           </div>
         ))}
       </div>

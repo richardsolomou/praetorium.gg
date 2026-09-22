@@ -41,6 +41,7 @@ import { Scoreboard } from '../features/battle/Scoreboard'
 import { SecretMissionHandoff } from '../features/battle/SecretMissionHandoff'
 import { turnPrompt } from '../scoring'
 import { dueForAdvance, dueFromTheirTurn, ScoringDialog } from '../features/battle/ScoringDialog'
+import { BattleCombatDialog, type BattleCombatSelection } from '../features/simulator/BattleCombatDialog'
 import { SidePanel } from '../features/battle/SidePanel'
 import { TurnControl } from '../features/battle/TurnControl'
 import { TwistName } from './MissionTwist'
@@ -79,6 +80,7 @@ type Focus = (typeof VIEWS)[number]
  */
 export function Tracker({ view, missions, send, pending, problem }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
+  const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
   const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
   const [dismissalsReady, setDismissalsReady] = useState(false)
   const [actionRemindersEnabled, setActionRemindersEnabled] = useState(true)
@@ -486,6 +488,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
 
   return (
     <main data-battle-tracker className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
+      {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
       <Scoreboard view={view} sides={table} outcome={finished ? battleOutcome(table, view) : null} />
 
       {/* Nobody across the table yet means neither a tab nor a column for them. */}
@@ -509,6 +512,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             key={side.index}
             view={view}
             side={side}
+            onSimulate={setCombatSelection}
             coreKeys={coreKeysBySide.get(side.index) ?? EMPTY_KEYS}
             pending={pending}
             send={send}

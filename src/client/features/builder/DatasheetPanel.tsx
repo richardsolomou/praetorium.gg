@@ -210,16 +210,7 @@ export function UnitProfile({ profile }: { profile: Profile }) {
   const values = profile.values.filter((value) => datasheetCharacteristicKindOf(value) !== 'invulnerable-save')
   return (
     <section data-slot="unit-profile">
-      <div className="grid grid-cols-6 gap-1">
-        {values.map((value) => (
-          <div key={value.name} className="border border-edge bg-card px-2 py-1.5 text-center">
-            <p className="eyebrow">{value.name}</p>
-            <p className="readout mt-0.5 text-base">
-              <ProfileValue value={value} />
-            </p>
-          </div>
-        ))}
-      </div>
+      <ProfileGrid values={values} />
       {invulnerable ? (
         <div className="mt-1.5 flex items-center justify-between border border-edge bg-card px-2 py-1.5">
           <span className="text-xs font-bold uppercase">Invulnerable save</span>
@@ -229,6 +220,21 @@ export function UnitProfile({ profile }: { profile: Profile }) {
         </div>
       ) : null}
     </section>
+  )
+}
+
+export function ProfileGrid({ values, columns = 6 }: { values: readonly DisplayValue[]; columns?: 5 | 6 }) {
+  return (
+    <div data-slot="profile-grid" className={`grid ${columns === 5 ? 'grid-cols-5' : 'grid-cols-6'} gap-1`}>
+      {values.map((value) => (
+        <div key={value.name} data-characteristic={value.name} className="min-w-0 border border-edge bg-card px-2 py-1.5 text-center">
+          <p className="eyebrow">{value.name}</p>
+          <p className="readout mt-0.5 text-base">
+            <ProfileValue value={value} />
+          </p>
+        </div>
+      ))}
+    </div>
   )
 }
 

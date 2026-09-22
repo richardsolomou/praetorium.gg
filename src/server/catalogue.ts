@@ -12,7 +12,8 @@ import {
 import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
 import { choiceOptionWargear } from '../core/modelKinds'
-import { wargearOf } from '../core/wargear'
+import { wargearKey, wargearOf } from '../core/wargear'
+import { combatCarriers } from '../core/combatLoadout'
 import { normalizeRuleReference, ruleReferenceMatches } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
 import { sameText } from '../core/text'
@@ -218,6 +219,12 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
   )
 }
 
+/** Support effects need selected abilities, without weapon stats or reference relationships. */
+export function datasheetAbilitiesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context: DatasheetContext) {
+  const walked = walk(loaded, catalogueId, entryId, context, true)
+  return walked ? { name: walked.name, abilities: walked.abilities, keywords: walked.keywords } : null
+}
+
 function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string, walked: Walked | null): Datasheet | null {
   if (!walked) return null
   const { root, name, catalogueOptions } = walked
@@ -252,7 +259,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
 }
 
 /** The catalogue's own answer for a datasheet: what it prints and offers, as a list would see it. */
-function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context?: DatasheetContext) {
+function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context?: DatasheetContext, abilitiesOnly = false) {
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return null
   const root = loaded.index.definitions.get(entryId)
   if (!root) return null
@@ -269,16 +276,16 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
           context.companions ?? [],
         )
       : [])
-  const grantedWeaponAbilities = context
-    ? [
-        ...weaponAbilitiesFromDetachments(context.selections, context.unitSelectionIndex, loaded, catalogueId, context.keywordIds),
-        ...weaponAbilitiesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index),
-        ...weaponAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index),
-      ]
-    : []
-  const grantedInvulnerableSaves = context
-    ? invulnerableSavesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index)
-    : []
+  const grantedWeaponAbilities =
+    context && !abilitiesOnly
+      ? [
+          ...weaponAbilitiesFromDetachments(context.selections, context.unitSelectionIndex, loaded, catalogueId, context.keywordIds),
+          ...weaponAbilitiesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index),
+          ...weaponAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index),
+        ]
+      : []
+  const grantedInvulnerableSaves =
+    context && !abilitiesOnly ? invulnerableSavesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index) : []
   const grantedAbilities = context
     ? grantedAbilitiesInAttachedUnit(
         context.selections,
@@ -311,7 +318,11 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     selection.selections?.forEach(collectSelected)
   }
   if (selectedUnit) collectSelected(selectedUnit)
-  const wargearCounts = new Map(selectedUnit ? wargearOf(selectedUnit, loaded.index).map(({ name, count }) => [name, count]) : [])
+  const wargearCounts = new Map<string, number>()
+  for (const { name, count } of selectedUnit ? wargearOf(selectedUnit, loaded.index) : []) {
+    const key = wargearKey(name)
+    wargearCounts.set(key, (wargearCounts.get(key) ?? 0) + count)
+  }
   const profiles = new Map<string, { profile: Profile; lineage: string[]; owner: string[] }>()
   const abilities = new Map<string, Datasheet['abilities'][number]>()
   const keywordRules = new Map<string, Datasheet['keywordRules'][number]>()
@@ -329,7 +340,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       ).value
       if (hidden === 'true') return
       abilities.set(`${kind}:${profile.id}`, { id: profile.id, name: profile.name, source, description: abilityDescription(profile), kind })
-    } else {
+    } else if (!abilitiesOnly) {
       profiles.set(profile.id, { profile, lineage, owner })
     }
   }
@@ -526,7 +537,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
         name: annotation ? `${changedName.value} (${annotation})` : changedName.value,
         type: profileType,
         ...(weapon && selectedUnit
-          ? { count: wargearCounts.get(profile.name) ?? Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) }
+          ? { count: wargearCounts.get(wargearKey(profile.name)) ?? Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) }
           : {}),
         values: displayedValues,
       },
@@ -644,6 +655,7 @@ export function datasheetViewsIn(
     : []
   return {
     controlledChoices,
+    carriers: selection ? combatCarriers(selection, loaded.index) : [],
     selected: datasheetIn(loaded, catalogueId, entryId, shared),
     available: datasheetIn(loaded, catalogueId, entryId, { ...shared, everyWeapon: true, everyWargearAbility: true }),
   }

@@ -75,3 +75,8 @@ jobs:
           jq -r '.snapshots[]' catalogue/revocations.json | while read -r revoked; do
             aws s3 rm "s3://$SNAPSHOT_BUCKET/snapshots/$revoked.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
           done
+
+  combat-rules:
+    needs: update
+    uses: ./.github/workflows/combat-rule-audit.yml
+    secrets: inherit

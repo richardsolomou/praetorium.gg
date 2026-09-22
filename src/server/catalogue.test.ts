@@ -204,6 +204,54 @@ describe('a datasheet', () => {
     expect(datasheetIn(book, 'cat', 'captain', context)?.profiles.map((profile) => profile.name)).toEqual(['Blade'])
   })
 
+  it('counts shared alternate weapon profiles across every model group', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntries: ['leader', 'troopers'].map((id) => ({
+            id,
+            name: id,
+            type: 'model' as const,
+            entryLinks: [{ id: `${id}-blade`, name: 'Blade', type: 'selectionEntry' as const, targetId: 'blade' }],
+          })),
+        },
+      ],
+      sharedSelectionEntries: [
+        {
+          id: 'blade',
+          name: 'Blade',
+          type: 'upgrade',
+          collective: true,
+          profiles: ['strike', 'sweep'].map((mode) => ({
+            id: mode,
+            name: `➤ Blade - ${mode}`,
+            typeName: 'Melee Weapons',
+            characteristics: [{ name: 'A', $text: '2' }],
+          })),
+        },
+      ],
+    })
+    const context = {
+      selections: [
+        {
+          id: 'squad',
+          selections: [
+            { id: 'leader', count: 1, selections: [{ id: 'leader-blade', count: 1 }] },
+            { id: 'troopers', count: 2, selections: [{ id: 'troopers-blade', count: 2 }] },
+          ],
+        },
+      ],
+      unitSelectionIndex: 0,
+    }
+    expect(datasheetIn(book, 'cat', 'squad', context)?.profiles.map(({ name, count }) => ({ name, count }))).toEqual([
+      { name: '➤ Blade - strike', count: 3 },
+      { name: '➤ Blade - sweep', count: 3 },
+    ])
+  })
+
   it('uses the carried wargear quantity for weapon profiles', () => {
     const book = bookOf({
       selectionEntries: [

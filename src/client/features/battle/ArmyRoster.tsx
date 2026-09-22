@@ -1,4 +1,4 @@
-import { Minus, Plus, Scroll } from 'lucide-react'
+import { Minus, Plus, Scroll, Swords } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -9,12 +9,14 @@ import { ArmyIdentity } from '../../components/ArmyIdentity'
 import { Section } from '../builder/Section'
 import { UnitCard } from '../builder/UnitCard'
 import { formationLabel } from '../setup/chrome'
+import type { BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { tint } from './tints'
 
 type Props = {
   army: Army
   side: Side
   token: string
+  onSimulate: (selection: BattleCombatSelection) => void
   /** Casualties are recorded only while the battle is running. */
   actionable: boolean
   send: (command: Command) => void
@@ -33,14 +35,29 @@ type Props = {
  * already public to both players, and one person refereeing the table should not have
  * to hand a phone across it to say a squad is gone.
  */
-export function ArmyRoster({ army, side, token, actionable, send }: Props) {
+export function ArmyRoster({ army, side, token, actionable, send, onSimulate }: Props) {
   const [open, setOpen] = useState(false)
   const roster = army.roster
   if (!roster) return null
 
   const models = armyModels(army.units)
   const lost = army.units.filter((unit) => unit.destroyed)
-  const card = (unit: UnitState) => <BattleUnit key={unit.key} unit={unit} army={army} actionable={actionable} send={send} />
+  const canSimulate = (unit: UnitState) =>
+    Boolean(roster.built?.picks?.length && unit.entryId && !unit.destroyed && unit.formation === 'battlefield')
+  const simulate = (unitKey?: string) => {
+    setOpen(false)
+    onSimulate({ playerId: army.playerId, unitKey })
+  }
+  const card = (unit: UnitState) => (
+    <BattleUnit
+      key={unit.key}
+      unit={unit}
+      army={army}
+      actionable={actionable}
+      send={send}
+      onSimulate={canSimulate(unit) ? () => simulate(unit.key) : undefined}
+    />
+  )
 
   return (
     <>
@@ -48,6 +65,11 @@ export function ArmyRoster({ army, side, token, actionable, send }: Props) {
         <Button variant="secondary" size="xs" onClick={() => setOpen(true)} aria-label={`Open ${roster.name}`}>
           <Scroll aria-hidden /> Army
         </Button>
+        {army.units.some(canSimulate) ? (
+          <Button variant="secondary" size="xs" onClick={() => simulate()} aria-label={`Simulate ${army.playerName}'s combat`}>
+            <Swords aria-hidden /> Simulate
+          </Button>
+        ) : null}
         {/* What is left of it, so the number worth glancing at needs no dialog to read. */}
         {army.units.length ? (
           <span className="readout text-3xs text-faint">
@@ -108,7 +130,9 @@ function BattleUnit({
   army,
   actionable,
   send,
+  onSimulate,
 }: {
+  onSimulate?: () => void
   unit: UnitState
   army: Army
   actionable: boolean
@@ -131,7 +155,18 @@ function BattleUnit({
       selected={false}
       joined={unit.joined ?? []}
       editable={false}
-      status={worthSaying ? <UnitStatus unit={unit} playerId={army.playerId} actionable={actionable} send={send} /> : undefined}
+      status={
+        worthSaying || onSimulate ? (
+          <>
+            {onSimulate ? (
+              <Button variant="outline" size="xs" aria-label={`Simulate ${unit.name}`} onClick={onSimulate}>
+                <Swords aria-hidden /> Simulate
+              </Button>
+            ) : null}
+            {worthSaying ? <UnitStatus unit={unit} playerId={army.playerId} actionable={actionable} send={send} /> : null}
+          </>
+        ) : undefined
+      }
     />
   )
 }

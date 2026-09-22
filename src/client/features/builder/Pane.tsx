@@ -109,7 +109,7 @@ export function Pane({
         if (sibling === branch || !(sibling instanceof HTMLElement)) continue
         // The tab bar is the one thing beside this pane that stays on screen.
         if (screen && sibling.hasAttribute('data-native-app-tabs')) continue
-        if (sibling.matches('[data-inert-exempt]')) continue
+        if (sibling.matches('[data-inert-exempt], [data-slot$="-portal"]')) continue
         backgrounds.push({ element: sibling, inert: sibling.inert })
         sibling.inert = true
       }
@@ -132,7 +132,7 @@ export function Pane({
       }
     }
     if (!screen) document.addEventListener('keydown', containFocus)
-    closeElement?.focus()
+    if (!(active instanceof HTMLElement) || !active.closest('[role="dialog"], [role="alertdialog"]')) closeElement?.focus()
     return () => {
       document.removeEventListener('keydown', containFocus)
       for (const background of backgrounds) background.element.inert = background.inert
@@ -153,7 +153,7 @@ export function Pane({
           <h2 className="min-w-max flex-1 text-base">{title}</h2>
         )}
         {actions ? (
-          <div data-pane-actions className="flex shrink-0 flex-wrap items-center justify-start gap-1">
+          <div data-pane-actions className="flex min-w-0 max-w-full flex-wrap items-center justify-start gap-1">
             {actions}
           </div>
         ) : null}

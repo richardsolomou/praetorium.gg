@@ -1,0 +1,633 @@
+import { expect, test, type Page } from '@playwright/test'
+import { retryUntilVisible } from './account'
+
+async function choose(page: Page, control: string, name: string) {
+  const option = page.getByRole('option', { name, exact: true })
+  await retryUntilVisible(option, () => page.getByRole('combobox', { name: control, exact: true }).click())
+  await option.click()
+}
+
+async function matchup(page: Page) {
+  for (const side of ['Attacker', 'Defender']) {
+    await choose(page, `${side} faction`, 'Space Marines')
+    await choose(page, `${side} unit`, 'Intercessor Squad')
+    await expect(page.getByLabel(`${side} models`, { exact: true })).toBeVisible()
+  }
+  await expect(page.getByRole('region', { name: 'Shooting results' })).toHaveAttribute('aria-busy', 'false')
+  await expect(page.getByRole('region', { name: 'Melee results' })).toHaveAttribute('aria-busy', 'false')
+}
+
+async function noOverflow(page: Page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(
+    await page
+      .locator('main section, [role=dialog], [data-slot=scroll-area-viewport]')
+      .evaluateAll((panels) => panels.every((element) => element.scrollWidth <= element.clientWidth + 1)),
+  ).toBe(true)
+}
+
+test('unsupported rules disappear while calculated rules remain', async ({ page }) => {
+  await page.goto('/simulator')
+  await choose(page, 'Attacker faction', 'Dark Angels')
+  await choose(page, 'Attacker unit', 'Belial')
+  await choose(page, 'Defender faction', 'Space Marines')
+  await choose(page, 'Defender unit', 'Intercessor Squad')
+  const attacker = page.getByRole('region', { name: 'Attacker rules', exact: true })
+  await expect(attacker.getByRole('combobox', { name: 'Attacker Oath of Moment', exact: true })).toBeVisible()
+  await expect(attacker).not.toContainText('Grand Master of the Deathwing')
+  await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
+  const defender = page.getByRole('region', { name: 'Defender rules', exact: true })
+  await expect(defender).not.toContainText('Strikes of Retribution')
+  await expect(page.getByRole('region', { name: 'Buffs', exact: true })).not.toContainText('Not calculated')
+  const buffs = page.getByRole('region', { name: 'Buffs', exact: true })
+  await buffs.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await buffs.screenshot({ path: 'test-results/simulator-exclusions.png' })
+  await page.setViewportSize({ width: 390, height: 1000 })
+  await noOverflow(page)
+  await buffs.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await buffs.screenshot({ path: 'test-results/simulator-exclusions-390.png' })
+})
+
+test('named weapon alternatives and once-per-battle attack buffs calculate from catalogue wording', async ({ page }) => {
+  await page.goto('/simulator')
+  await choose(page, 'Attacker faction', 'Aeldari')
+  await choose(page, 'Attacker unit', 'Death Jester')
+  await choose(page, 'Defender faction', 'Space Marines')
+  await choose(page, 'Defender unit', 'Intercessor Squad')
+  const shooting = page.getByRole('region', { name: 'Shooting results' })
+  const melee = page.getByRole('region', { name: 'Melee results' })
+  const damage = shooting.locator('.readout').first()
+  await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  const baseline = Number(await damage.textContent())
+  await choose(page, 'Attacker Cruel Amusement', 'SUSTAINED HITS 3')
+  await expect(shooting).toContainText('SUSTAINED HITS 3')
+  await expect(melee).not.toContainText('SUSTAINED HITS 3')
+  await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(baseline)
+  const buffs = page.getByRole('region', { name: 'Buffs', exact: true })
+  await noOverflow(page)
+  await buffs.screenshot({ path: 'test-results/simulator-ability-alternatives.png' })
+  await choose(page, 'Attacker Cruel Amusement', 'Off')
+  await expect.poll(async () => Number(await damage.textContent())).toBe(baseline)
+
+  await choose(page, 'Attacker faction', 'Orks')
+  await choose(page, 'Attacker unit', 'Boyz')
+  const ammo = page.getByRole('switch', { name: 'Attacker Ammo Runts (Once per battle, per unit)', exact: true })
+  await expect(ammo).not.toBeChecked()
+  await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  const unbuffed = Number(await damage.textContent())
+  await ammo.click()
+  await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(unbuffed)
+  await page.setViewportSize({ width: 390, height: 1000 })
+  await noOverflow(page)
+  await buffs.screenshot({ path: 'test-results/simulator-activated-buff-390.png' })
+  await ammo.click()
+  await expect.poll(async () => Number(await damage.textContent())).toBe(unbuffed)
+  await expect(page.getByRole('region', { name: 'Attacker rules', exact: true })).not.toContainText('Waaagh!')
+  await choose(page, 'Attacker unit', 'Painboy')
+  await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
+  const waaagh = page.getByRole('switch', { name: 'Defender Waaagh!', exact: true })
+  await expect(waaagh).not.toBeChecked()
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
+  const unprotected = Number(await damage.textContent())
+  await waaagh.click()
+  await expect.poll(async () => Number(await damage.textContent())).toBeLessThan(unprotected)
+  await noOverflow(page)
+  await buffs.screenshot({ path: 'test-results/simulator-army-state-390.png' })
+})
+
+test('shared weapon modes count every carrier and indirect shooting applies its firing conditions', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await choose(page, 'Attacker faction', 'Death Guard')
+  await choose(page, 'Attacker unit', 'Deathshroud Terminators')
+  await choose(page, 'Defender faction', 'Space Marines')
+  await choose(page, 'Defender unit', 'Intercessor Squad')
+  const melee = page.getByRole('region', { name: 'Melee results' })
+  await expect(melee.locator('.readout').first()).toHaveText(/^\d+(?:\.\d+)?$/)
+  await expect(melee).not.toContainText('could not be matched')
+  await expect(melee).toContainText('3× ➤ Manreaper - strike')
+  await choose(page, 'Deathshroud Terminator Champion · Manreaper', '➤ Manreaper - sweep')
+  await expect(melee.getByRole('heading', { name: '➤ Manreaper - sweep', exact: true })).toBeVisible()
+  await expect(melee).toContainText('2× ➤ Manreaper - strike')
+  await choose(page, 'Deathshroud Terminator · Manreaper', '➤ Manreaper - sweep')
+  await expect(melee).toContainText('3× ➤ Manreaper - sweep')
+  await page.getByRole('button', { name: 'More attacker models', exact: true }).click()
+  await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('4')
+  await expect(melee).toContainText('4× ➤ Manreaper - sweep')
+  await expect(melee).toHaveAttribute('aria-busy', 'false')
+  await expect(melee).not.toContainText('could not be matched')
+  await melee.screenshot({ path: 'test-results/simulator-shared-weapon-modes.png' })
+
+  await choose(page, 'Attacker unit', 'Plagueburst Crawler')
+  const shooting = page.getByRole('region', { name: 'Shooting results' })
+  const damage = shooting.locator('.readout').first()
+  const mode = page.getByRole('combobox', { name: 'Indirect shooting', exact: true })
+  await expect(mode).toContainText('Off')
+  await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await expect(shooting).not.toContainText('Unsupported')
+  const direct = Number(await damage.textContent())
+  await choose(page, 'Indirect shooting', 'Unobserved or moving')
+  await expect.poll(async () => Number(await damage.textContent())).toBeLessThan(direct)
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  const unobserved = Number(await damage.textContent())
+  await choose(page, 'Indirect shooting', 'Stationary and spotted')
+  await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(unobserved)
+  await expect.poll(async () => Number(await damage.textContent())).toBeLessThan(direct)
+  await noOverflow(page)
+  await shooting.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await shooting.screenshot({ path: 'test-results/simulator-indirect-fire.png' })
+  await page.getByRole('group', { name: 'Shooting conditions' }).screenshot({ path: 'test-results/simulator-indirect-conditions.png' })
+  await page.setViewportSize({ width: 390, height: 1000 })
+  await noOverflow(page)
+  await shooting.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await shooting.screenshot({ path: 'test-results/simulator-indirect-fire-390.png' })
+  await page.getByRole('group', { name: 'Shooting conditions' }).screenshot({ path: 'test-results/simulator-indirect-conditions-390.png' })
+  await choose(page, 'Indirect shooting', 'Off')
+  await expect.poll(async () => Number(await damage.textContent())).toBe(direct)
+})
+
+test('army choices apply the selected vow and plague to the relevant combatant', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await choose(page, 'Attacker faction', 'Black Templars')
+  await choose(page, 'Attacker unit', 'Intercessor Squad')
+  await choose(page, 'Defender faction', 'Space Marines')
+  await choose(page, 'Defender unit', 'Intercessor Squad')
+  const attackerRules = page.getByRole('region', { name: 'Attacker rules', exact: true })
+  const vow = attackerRules.getByRole('switch', { name: 'Attacker Templar Vows', exact: true })
+  await expect(vow).not.toBeChecked()
+  await expect(attackerRules).toContainText('Accept Any Challenge, No Matter the Odds')
+  await expect(page.getByRole('region', { name: 'Defender rules', exact: true })).not.toContainText('Templar Vows')
+  const melee = page.getByRole('region', { name: 'Melee results' })
+  const damage = melee.locator('.readout').first()
+  await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
+  await expect(melee).toHaveAttribute('aria-busy', 'false')
+  const baseline = Number(await damage.textContent())
+  await vow.click()
+  await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(baseline)
+  await page.getByRole('region', { name: 'Buffs', exact: true }).screenshot({ path: 'test-results/simulator-vows.png' })
+
+  await choose(page, 'Attacker faction', 'Death Guard')
+  await choose(page, 'Attacker unit', 'Plague Marines')
+  const plague = page.getByRole('combobox', { name: "Attacker Nurgle's Gift (Aura)", exact: true })
+  await expect(plague).toContainText('Off')
+  const defender = page.getByRole('region', { name: 'Defender', exact: true })
+  const stats = defender.locator('[data-characteristic] .readout')
+  await expect(stats).toHaveText(['4', '3+', '2', '—', '—'])
+  await choose(page, "Attacker Nurgle's Gift (Aura)", 'Opponent afflicted · Rattlejoint Ague')
+  await expect(stats).toHaveText(['3', '4+', '2', '—', '—'])
+  await choose(page, "Attacker Nurgle's Gift (Aura)", 'Opponent afflicted · Scabrous Soulrot')
+  await expect(stats).toHaveText(['3', '3+', '2', '—', '—'])
+  await choose(page, "Attacker Nurgle's Gift (Aura)", 'Opponent afflicted · Skullsquirm Blight')
+  await expect(stats).toHaveText(['3', '3+', '2', '—', '—'])
+  await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
+  const defensivePlague = page.getByRole('switch', { name: "Defender Nurgle's Gift (Aura)", exact: true })
+  await expect(defensivePlague).toBeChecked()
+  await expect(page.getByRole('switch', { name: 'Defender has cover (−1 BS)', exact: true })).toBeChecked()
+  await expect(page.getByRole('combobox', { name: 'Melee hit modifier', exact: true })).toContainText('−1')
+  await expect(defender.locator('[data-characteristic] .readout').first()).toHaveText('6')
+  await defensivePlague.click()
+  await expect(page.getByRole('switch', { name: 'Defender has cover (−1 BS)', exact: true })).not.toBeChecked()
+  await expect(page.getByRole('combobox', { name: 'Melee hit modifier', exact: true })).toContainText('None')
+  await defensivePlague.click()
+  await noOverflow(page)
+  await page.getByRole('region', { name: 'Buffs', exact: true }).screenshot({ path: 'test-results/simulator-plague.png' })
+  await page.setViewportSize({ width: 390, height: 1000 })
+  await noOverflow(page)
+  await page.getByRole('region', { name: 'Buffs', exact: true }).screenshot({ path: 'test-results/simulator-plague-390.png' })
+})
+
+test('variable weapon abilities produce damage probabilities', async ({ page }) => {
+  await page.goto('/simulator')
+  await choose(page, 'Attacker faction', 'Aeldari')
+  await choose(page, 'Attacker unit', 'Avatar of Khaine')
+  await choose(page, 'Defender faction', 'Space Marines')
+  await choose(page, 'Defender unit', 'Intercessor Squad')
+  const shooting = page.getByRole('region', { name: 'Shooting results' })
+  await expect(shooting).toContainText('Sustained Hits D3')
+  await expect(shooting).not.toContainText('Unsupported')
+  await expect(shooting.locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await expect.poll(async () => Number(await shooting.locator('.readout').first().textContent())).toBeGreaterThan(0)
+  await shooting.screenshot({ path: 'test-results/simulator-variable-hits.png' })
+  await page.setViewportSize({ width: 390, height: 1000 })
+  await noOverflow(page)
+  await shooting.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await shooting.screenshot({ path: 'test-results/simulator-variable-hits-390.png' })
+})
+
+for (const width of [1440, 390, 860, 1024]) {
+  test(`automatic shooting and melee with stable edits at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto('/more')
+    await page.getByRole('link', { name: 'Simulator Damage and kill probabilities' }).click()
+    await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
+    const swap = page.getByRole('button', { name: 'Swap attacker and defender' })
+    await expect(swap).toBeDisabled()
+    await matchup(page)
+    const shooting = page.getByRole('region', { name: 'Shooting results' })
+    const melee = page.getByRole('region', { name: 'Melee results' })
+    await expect(shooting).toContainText('1.66')
+    await expect(shooting).toContainText('5× Bolt Rifle')
+    await expect(melee).toContainText('5× Close combat weapon')
+    for (const [results, phase] of [
+      [shooting, 'Shooting'],
+      [melee, 'Melee'],
+    ] as const) {
+      for (const label of ['Wounds lost', 'Models lost']) {
+        const chart = page.getByRole('dialog', { name: `${phase} · ${label} probabilities`, exact: true })
+        await expect(chart).toHaveCount(0)
+        await results.getByRole('button', { name: new RegExp(`${label}: .*Show probabilities`) }).hover()
+        await expect(chart).toBeVisible()
+        await expect(chart).toContainText('%')
+        await chart.hover()
+        await expect(chart).toBeVisible()
+        await noOverflow(page)
+        if (phase === 'Shooting' && label === 'Models lost') await page.screenshot({ path: `test-results/simulator-chart-${width}.png` })
+        await page.mouse.move(0, 0)
+        await expect(chart).toBeHidden()
+      }
+      await expect(results.locator('summary')).toHaveCount(0)
+    }
+    await expect(shooting.getByRole('heading', { name: '5× Bolt Rifle', exact: true }).locator('..').locator('.eyebrow')).toHaveText([
+      'Range',
+      'A',
+      'BS',
+      'S',
+      'AP',
+      'D',
+    ])
+    await expect(page.getByText('Evaluated profiles and weapon rules included.', { exact: false })).toHaveCount(0)
+    await expect(page.getByText('Each phase starts against the full defending unit.', { exact: true })).toHaveCount(0)
+    await expect(page.locator('main details')).toHaveCount(0)
+    await expect(page.getByRole('combobox', { name: 'Defender Feel No Pain', exact: true })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Attacker rules', exact: true })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Defender rules', exact: true })).toBeVisible()
+    for (const side of ['Attacker', 'Defender']) {
+      const panel = page.getByRole('region', { name: side, exact: true })
+      await expect(panel.locator('[data-characteristic] .readout')).toHaveText(['4', '3+', '2', '—', '—'])
+      await expect(panel.getByRole('button', { name: `Fewer ${side.toLowerCase()} models` })).toBeDisabled()
+      const loadoutBounds = await panel.getByRole('button', { name: 'Loadout', exact: true }).boundingBox()
+      const modelsBounds = await panel.getByLabel(`${side} models`, { exact: true }).boundingBox()
+      expect(loadoutBounds!.x + loadoutBounds!.width).toBeLessThan(modelsBounds!.x)
+      expect(Math.abs(loadoutBounds!.y + loadoutBounds!.height / 2 - modelsBounds!.y - modelsBounds!.height / 2)).toBeLessThan(2)
+    }
+    const defenderBounds = await page.getByRole('region', { name: 'Defender', exact: true }).boundingBox()
+    const swapBounds = await swap.boundingBox()
+    if (width === 390) expect(swapBounds!.y + swapBounds!.height / 2).toBeCloseTo(defenderBounds!.y, 0)
+    else expect(swapBounds!.x + swapBounds!.width / 2).toBeCloseTo(defenderBounds!.x, 0)
+    await noOverflow(page)
+    await page.getByRole('region', { name: 'Attacker', exact: true }).screenshot({ path: `test-results/simulator-controls-${width}.png` })
+    await page.screenshot({ path: `test-results/simulator-${width}.png`, fullPage: true })
+
+    await page.getByRole('switch', { name: 'Defender has cover (−1 BS)' }).click()
+    await expect(shooting).toHaveAttribute('aria-busy', 'false')
+    await expect(shooting).not.toContainText('1.66')
+
+    let hold = true
+    let intercepted = false
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await page.route('**/*', async (route) => {
+      const request = route.request()
+      if (hold && request.method() === 'POST' && request.postData()?.includes('85b1-eb9a-17a6-e5be')) {
+        intercepted = true
+        await gate
+      }
+      await route.continue()
+    })
+    await page.getByRole('button', { name: 'More defender models' }).click()
+    await expect.poll(() => intercepted).toBe(true)
+    await expect(shooting).toHaveAttribute('aria-busy', 'true')
+    await expect(page.getByText(/Updating…|Estimates · up to/)).toHaveCount(0)
+    await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('6')
+    for (let added = 0; added < 4; added++) await page.getByRole('button', { name: 'More defender models' }).click()
+    await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('10')
+    await expect(page.getByRole('button', { name: 'More defender models' })).toBeDisabled()
+    await expect(swap).toBeDisabled()
+    await expect(shooting).toContainText('1.25')
+    await expect(melee).toContainText('5× Close combat weapon')
+    await page.screenshot({ path: `test-results/simulator-updating-${width}.png`, fullPage: true })
+    hold = false
+    release()
+    await expect(shooting).toHaveAttribute('aria-busy', 'false')
+    await page.unrouteAll({ behavior: 'wait' })
+
+    await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
+    const loadout = page.getByRole('dialog')
+    const fist = loadout.getByRole('button', { name: 'Select Power fist', exact: true })
+    await expect(fist).toBeVisible()
+    const heading = loadout.getByRole('heading', { name: 'Attacker · Intercessor Squad' })
+    await noOverflow(page)
+    await page.screenshot({ path: `test-results/simulator-loadout-${width}.png`, fullPage: true })
+
+    let releaseLoadout = () => {}
+    let loadoutIntercepted = false
+    const loadoutGate = new Promise<void>((resolve) => {
+      releaseLoadout = resolve
+    })
+    await page.route('**/*', async (route) => {
+      if (route.request().method() === 'POST' && route.request().postData()?.includes('85b1-eb9a-17a6-e5be')) {
+        loadoutIntercepted = true
+        await loadoutGate
+      }
+      await route.continue()
+    })
+    await fist.click()
+    await expect.poll(() => loadoutIntercepted).toBe(true)
+    await expect(heading).toBeVisible()
+    await expect(fist).toBeVisible()
+    await expect(loadout.getByText('Select a unit from the roster to see its loadout.')).toHaveCount(0)
+    await page.screenshot({ path: `test-results/simulator-loadout-updating-${width}.png`, fullPage: true })
+    releaseLoadout()
+    await expect(fist).toHaveAttribute('aria-pressed', 'true')
+    await expect(fist).toBeEnabled()
+    await page.unrouteAll({ behavior: 'wait' })
+    await loadout.getByRole('button', { name: 'Close', exact: true }).click()
+    await expect(melee).toHaveAttribute('aria-busy', 'false')
+    await expect(melee).toContainText('Power fist')
+    await expect(melee).toContainText('4× Close combat weapon')
+    await noOverflow(page)
+    await page.screenshot({ path: `test-results/simulator-melee-${width}.png`, fullPage: true })
+
+    await swap.click()
+    await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('10')
+    await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('5')
+    await expect(melee).toContainText('10× Close combat weapon')
+    await expect(melee).not.toContainText('Power fist')
+    await expect(shooting).toHaveAttribute('aria-busy', 'false')
+    await expect(shooting).toContainText('10× Bolt Rifle')
+    await page.getByRole('region', { name: 'Defender', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
+    await expect(fist).toHaveAttribute('aria-pressed', 'true')
+    await loadout.getByRole('button', { name: 'Close', exact: true }).click()
+    for (let removed = 0; removed < 5; removed++) await page.getByRole('button', { name: 'Fewer attacker models' }).click()
+    await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')
+    await expect(page.getByRole('button', { name: 'Fewer attacker models' })).toBeDisabled()
+    await expect(swap).toBeEnabled()
+    await swap.click()
+    await expect(melee).toHaveAttribute('aria-busy', 'false')
+    await expect(melee).toContainText('Power fist')
+    await expect(melee).toContainText('4× Close combat weapon')
+    await expect(shooting).toContainText('1.66')
+    await expect(page.getByRole('switch', { name: 'Defender has cover (−1 BS)' })).not.toBeChecked()
+    await choose(page, 'Defender Feel No Pain', '5+')
+    await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('[data-characteristic="FNP"] .readout')).toHaveText(
+      '5+',
+    )
+    await expect(shooting).toHaveAttribute('aria-busy', 'false')
+    expect(Number(await shooting.locator('.readout').first().textContent())).toBeLessThan(1.3)
+    await noOverflow(page)
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.screenshot({ path: `test-results/simulator-swapped-${width}.png`, fullPage: true })
+  })
+
+  test(`simulator first frame reserves its layout at ${width}px`, async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width, height: 1000 } })
+    const page = await context.newPage()
+    await page.goto(`${baseURL}/simulator`)
+    await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
+    await noOverflow(page)
+    const serverBounds = await page.getByRole('region', { name: 'Attacker', exact: true }).boundingBox()
+    await page.screenshot({ path: `test-results/simulator-first-frame-${width}.png`, fullPage: true })
+    const interactive = await browser.newPage({ viewport: { width, height: 1000 } })
+    await interactive.goto(`${baseURL}/simulator`)
+    await choose(interactive, 'Attacker faction', 'Space Marines')
+    expect(await interactive.getByRole('region', { name: 'Attacker', exact: true }).boundingBox()).toEqual(serverBounds)
+    await interactive.close()
+    await context.close()
+  })
+}
+
+for (const width of [1440, 390]) {
+  test(`printed Feel No Pain applies, resets and swaps with the unit at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto('/simulator')
+    await choose(page, 'Attacker faction', 'Space Marines')
+    await choose(page, 'Attacker unit', 'Intercessor Squad')
+    await choose(page, 'Defender faction', 'Necrons')
+    await choose(page, 'Defender unit', 'Canoptek Reanimator')
+    const defender = page.getByRole('region', { name: 'Defender', exact: true })
+    const shooting = page.getByRole('region', { name: 'Shooting results' })
+    const fnp = page.getByRole('combobox', { name: 'Defender Feel No Pain', exact: true })
+    await expect(defender.locator('[data-characteristic] .readout')).toHaveText(['6', '3+', '6', '—', '4+'])
+    await expect(fnp).toContainText('4+')
+    await expect(
+      page
+        .getByRole('region', { name: 'Defender rules', exact: true })
+        .getByRole('button', { name: 'Defender Feel No Pain 4+ rules', exact: true }),
+    ).toBeVisible()
+    await expect(shooting).toHaveAttribute('aria-busy', 'false')
+    const damage = shooting.locator('.readout').first()
+    const baseline = Number(await damage.textContent())
+    expect(baseline).toBeGreaterThan(0.53)
+    expect(baseline).toBeLessThan(0.58)
+    await choose(page, 'Defender Feel No Pain', 'None')
+    await expect(defender.locator('[data-characteristic="FNP"] .readout')).toHaveText('—')
+    await expect(shooting).toHaveAttribute('aria-busy', 'false')
+    expect(Number(await damage.textContent())).toBeGreaterThan(baseline * 1.8)
+    await page.getByRole('button', { name: 'Reset adjustments', exact: true }).click()
+    await expect(fnp).toContainText('4+')
+    await expect(shooting).toHaveAttribute('aria-busy', 'false')
+    expect(Number(await damage.textContent())).toBe(baseline)
+    await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
+    await expect(page.getByRole('region', { name: 'Attacker', exact: true }).locator('[data-characteristic="FNP"] .readout')).toHaveText(
+      '4+',
+    )
+    await expect(defender.locator('[data-characteristic="FNP"] .readout')).toHaveText('—')
+    await expect(fnp).toContainText('None')
+    await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
+    await expect(fnp).toContainText('4+')
+    await expect(shooting).toHaveAttribute('aria-busy', 'false')
+    await noOverflow(page)
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await defender.screenshot({ path: `test-results/simulator-reanimator-${width}.png` })
+    await page.getByRole('region', { name: 'Conditions and rules' }).screenshot({ path: `test-results/simulator-conditions-${width}.png` })
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.screenshot({ path: `test-results/simulator-fnp-${width}.png`, fullPage: true })
+  })
+}
+
+test('a failed worker can be retried without reselecting either unit', async ({ page }) => {
+  await page.addInitScript(() => {
+    const RealWorker = window.Worker
+    let first = true
+    window.Worker = class extends RealWorker {
+      constructor(...args: ConstructorParameters<typeof Worker>) {
+        super(...args)
+        if (first) {
+          first = false
+          this.terminate()
+          throw new Error('Worker startup failure')
+        }
+      }
+    }
+  })
+  await page.goto('/simulator')
+  await matchup(page)
+  const shooting = page.getByRole('region', { name: 'Shooting results' })
+  await expect(shooting).toContainText('The calculation could not start.')
+  await shooting.getByRole('button', { name: 'Retry' }).click()
+  await expect(shooting).toContainText('1.66')
+  await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')
+})
+
+for (const width of [1440, 390]) {
+  test(`particle casters simulate with the Pistol keyword at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto('/simulator')
+    await choose(page, 'Attacker faction', 'Necrons')
+    await choose(page, 'Attacker unit', 'Canoptek Wraiths')
+    await choose(page, 'Defender faction', 'Space Marines')
+    await choose(page, 'Defender unit', 'Intercessor Squad')
+    await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
+    const loadout = page.getByRole('dialog')
+    await loadout.getByRole('button', { name: 'More Particle caster', exact: true }).click()
+    await expect(loadout.getByLabel('Particle caster count', { exact: true })).toHaveText('1')
+    await loadout.getByRole('button', { name: 'Close', exact: true }).click()
+    const shooting = page.getByRole('region', { name: 'Shooting results' })
+    await expect(shooting).toContainText('Particle caster')
+    await expect(shooting).toHaveAttribute('aria-busy', 'false')
+    await expect(shooting.getByRole('alert')).toHaveCount(0)
+    const damage = shooting.locator('.readout').first()
+    await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(0.47)
+    expect(Number(await damage.textContent())).toBeLessThan(0.53)
+    await noOverflow(page)
+    await page.screenshot({ path: `test-results/simulator-particle-caster-${width}.png`, fullPage: true })
+    await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
+    await expect(page.getByRole('combobox', { name: 'Attacker faction', exact: true })).toContainText('Space Marines')
+    await expect(page.getByRole('combobox', { name: 'Defender faction', exact: true })).toContainText('Necrons')
+    await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')
+    await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('3')
+    await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('[data-characteristic] .readout')).toHaveText([
+      '6',
+      '3+',
+      '4',
+      '4+',
+      '—',
+    ])
+    await expect(shooting).toHaveAttribute('aria-busy', 'false')
+    await expect(shooting).toContainText('5× Bolt Rifle')
+    await expect(shooting).not.toContainText('Particle caster')
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.screenshot({ path: `test-results/simulator-wraith-defender-${width}.png`, fullPage: true })
+    await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
+    await expect(shooting).toHaveAttribute('aria-busy', 'false')
+    await expect(shooting).toContainText('Particle caster')
+    expect(Number(await damage.textContent())).toBeGreaterThan(0.47)
+    expect(Number(await damage.textContent())).toBeLessThan(0.53)
+  })
+}
+
+test('faction options and selected factions show their catalogue icons', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 1000 })
+  await page.goto('/simulator')
+  const necrons = page.getByRole('option', { name: 'Necrons', exact: true })
+  await retryUntilVisible(necrons, () => page.getByRole('combobox', { name: 'Attacker faction', exact: true }).click())
+  const mark = necrons.locator('[data-faction-mark="necrons"]')
+  await expect(mark).toBeVisible()
+  const icon = await mark.evaluate((element) => getComputedStyle(element).maskImage)
+  expect(icon).toMatch(/^url\(/)
+  const imageWidth = await page.evaluate(
+    async (src) => {
+      const iconImage = new Image()
+      iconImage.src = src
+      await iconImage.decode()
+      return iconImage.naturalWidth
+    },
+    JSON.parse(icon.slice(4, -1)),
+  )
+  expect(imageWidth).toBeGreaterThan(0)
+  await page.screenshot({ path: 'test-results/simulator-faction-icons.png', fullPage: true })
+  await necrons.click()
+  await expect(page.getByRole('combobox', { name: 'Attacker faction', exact: true }).locator('[data-faction-mark="necrons"]')).toBeVisible()
+})
+
+test('probability charts open on keyboard focus and close with Escape', async ({ page }) => {
+  await page.goto('/simulator')
+  await matchup(page)
+  const trigger = page.getByRole('region', { name: 'Shooting results' }).getByRole('button', { name: /Wounds lost: .*Show probabilities/ })
+  await page.keyboard.press('Tab')
+  await trigger.focus()
+  const chart = page.getByRole('dialog', { name: 'Shooting · Wounds lost probabilities', exact: true })
+  await expect(chart).toBeVisible()
+  await expect(trigger).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(chart).toBeHidden()
+  await expect(trigger).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('dialog', { name: 'Shooting · Models lost probabilities', exact: true })).toBeVisible()
+})
+
+test('Necron mortal abilities affect their phase and filter ineligible targets', async ({ page }) => {
+  await page.goto('/simulator')
+  await choose(page, 'Attacker faction', 'Necrons')
+  await choose(page, 'Attacker unit', 'Skorpekh Lord')
+  await choose(page, 'Defender faction', 'Space Marines')
+  await choose(page, 'Defender unit', 'Intercessor Squad')
+  const melee = page.getByRole('region', { name: 'Melee results' })
+  const meleeDamage = melee.locator('.readout').first()
+  await expect(meleeDamage).toHaveText(/^\d+\.\d+$/)
+  const beforeCharge = Number(await meleeDamage.textContent())
+  await page.getByRole('switch', { name: 'Attacker Crimson Harvest', exact: true }).click()
+  await expect.poll(async () => Number(await meleeDamage.textContent())).toBeGreaterThan(beforeCharge)
+  await choose(page, 'Attacker unit', 'Annihilation Barge')
+  const shooting = page.getByRole('region', { name: 'Shooting results' })
+  const damage = shooting.locator('.readout').first()
+  await expect(damage).toHaveText(/^\d+\.\d+$/)
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  const beforeArcing = Number(await damage.textContent())
+  await page.getByRole('switch', { name: 'Attacker Malevolent Arcing', exact: true }).click()
+  await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(beforeArcing)
+  await choose(page, 'Attacker unit', "C'tan Shard of the Void Dragon")
+  await expect(page.getByRole('switch', { name: 'Attacker Matter Absorption', exact: true })).toHaveCount(0)
+  await choose(page, 'Defender unit', 'Land Raider')
+  await expect(page.getByRole('switch', { name: 'Defender Smokescreen', exact: true })).not.toBeChecked()
+  await expect(page.getByRole('switch', { name: 'Attacker Matter Absorption', exact: true })).toBeVisible()
+  await expect(damage).toHaveText(/^\d+\.\d+$/)
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  const beforeAbsorption = Number(await damage.textContent())
+  await page.getByRole('switch', { name: 'Attacker Matter Absorption', exact: true }).click()
+  await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(beforeAbsorption)
+  await page.getByRole('button', { name: 'Attacker Matter Absorption rules', exact: true }).hover()
+  await expect(page.getByRole('tooltip').filter({ hasText: 'Matter Absorption' })).toContainText('D3 mortal wounds')
+  await page.screenshot({ path: 'test-results/simulator-necron-mortals.png' })
+})
+
+test.describe('touch probability charts', () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } })
+  test('tap reveals the matching chart and an outside tap dismisses it', async ({ page }) => {
+    await page.goto('/simulator')
+    await matchup(page)
+    const trigger = page
+      .getByRole('region', { name: 'Shooting results' })
+      .getByRole('button', { name: /Models lost: .*Show probabilities/ })
+    const chart = page.getByRole('dialog', { name: 'Shooting · Models lost probabilities', exact: true })
+    await expect(chart).toHaveCount(0)
+    await trigger.tap()
+    await expect(chart).toBeVisible()
+    await noOverflow(page)
+    await page.screenshot({ path: 'test-results/simulator-chart-touch.png' })
+    await page.getByRole('region', { name: 'Shooting results' }).getByRole('heading', { name: '5× Bolt Rifle', exact: true }).tap()
+    await expect(chart).toBeHidden()
+    await trigger.tap()
+    await expect(chart).toBeVisible()
+    await trigger.tap()
+    await expect(chart).toBeHidden()
+    const rule = page.getByRole('button', { name: 'Attacker Hail of Bolts rules', exact: true })
+    const buff = page.getByRole('switch', { name: 'Attacker Hail of Bolts', exact: true })
+    await rule.tap()
+    const tooltip = page.getByRole('tooltip').filter({ hasText: 'Hail of Bolts' })
+    await expect(tooltip).toContainText('have +2 A')
+    await expect(buff).not.toBeChecked()
+    await noOverflow(page)
+    await page.screenshot({ path: 'test-results/simulator-rule-touch.png' })
+    await page.getByRole('heading', { name: 'Attacker rules & buffs', exact: true }).tap()
+    await expect(tooltip).toBeHidden()
+  })
+})

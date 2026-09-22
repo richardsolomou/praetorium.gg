@@ -1,16 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Gavel, House, Medal, MessageSquareWarning, ShieldCheck, Trophy, Users, type LucideIcon } from 'lucide-react'
+import { Dices, Gavel, House, Medal, MessageSquareWarning, ShieldCheck, Trophy, Users, type LucideIcon } from 'lucide-react'
 import { meQuery } from '../queries'
 import { PageContent, PageHeader } from './Page'
 
-type MoreLink = { description: string; icon: LucideIcon; label: string; to: '/' | '/leaderboard' | '/leagues' | '/rules' }
+type MoreLink = { description: string; icon: LucideIcon; label: string; to: '/' | '/leaderboard' | '/leagues' | '/rules' | '/simulator' }
 
 const MORE_LINKS: readonly MoreLink[] = [
   { description: 'Live battles and activity', icon: House, label: 'Home', to: '/' },
   { description: 'Organized play', icon: Trophy, label: 'Leagues', to: '/leagues' },
   { description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
   { description: 'Game reference', icon: Gavel, label: 'Rules', to: '/rules' },
+  { description: 'Damage and kill probabilities', icon: Dices, label: 'Simulator', to: '/simulator' },
 ]
 
 export function NativeMorePage() {

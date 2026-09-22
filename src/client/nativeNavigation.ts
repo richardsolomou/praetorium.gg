@@ -88,6 +88,7 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
     }
   }
   if (root === 'more') return { title: 'More' }
+  if (root === 'simulator') return { back: { href: '/more', label: 'Back to more', preferHistory: true }, title: 'Combat simulator' }
   if (root === 'profile') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }
   if (root === 'leaderboard') return { section: 'leaderboard', title: 'Leaderboard' }
   if (root === 'users') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }

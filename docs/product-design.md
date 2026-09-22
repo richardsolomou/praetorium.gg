@@ -7,6 +7,7 @@ Praetorium uses a compact, dark interface for players at one table. The roster b
 Praetorium includes:
 
 - Catalogue-backed roster construction, validation, import, and export.
+- A public combat simulator that automatically compares shooting and melee from catalogue loadouts, using one compact matchup view in the standalone page, roster editor, and battles, with roster buffs and live casualties.
 - Compact roster presentation and battle tracking.
 - One synchronized 1v1, 2v1, or 2v2 battle between signed-in players, against a friend or a practice opponent. Every player is named when the battle is created; there are no open seats to join.
 - Mutual friendships for choosing private battle opponents, one-time links for inviting someone who does not have an account yet, and practice opponents for playing without one.

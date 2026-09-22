@@ -12,6 +12,7 @@ import {
   Plus,
   Printer,
   SlidersHorizontal,
+  Swords,
   TriangleAlert,
 } from 'lucide-react'
 import { posthog } from 'posthog-js'
@@ -63,6 +64,8 @@ import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink
 import { BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
+import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
+import type { CombatRoster } from '../simulator/useCombatant'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -151,6 +154,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   const [reminders, setReminders] = useState<RosterReminder[]>(prep.reminders ?? [])
   const [remindersEnabled, setRemindersEnabled] = useState(prep.remindersEnabled ?? true)
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
+  const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
   const [selected, setSelected] = useState<number | null>(null)
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string; name: string } | null>(null)
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
@@ -1151,6 +1155,38 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
                     <span className="chip normal-case">{modelCount(frozenSelected.models)}</span>
                   </span>
                 ) : null}
+                {editable && !frozen && !preview && selected !== null ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          aria-label="Simulate combat"
+                          disabled={!selectedUnit || pricePending || priceLoading}
+                          onClick={() =>
+                            setCombatRoster({
+                              catalogueId,
+                              detachmentIds,
+                              disposition,
+                              limit,
+                              picks: positioned,
+                              pickIndex: selected,
+                              waivedRules,
+                              borrowedDetachmentId,
+                              optionalRules,
+                            })
+                          }
+                        />
+                      }
+                    >
+                      <Swords aria-hidden />
+                    </TooltipTrigger>
+                    <TooltipContent role="tooltip" side="bottom">
+                      Simulate combat
+                    </TooltipContent>
+                  </Tooltip>
+                ) : null}
                 {inspectedEntryId ? referenceRoute ? <FullDatasheetLink route={referenceRoute} /> : <FullDatasheetLinkLoading /> : null}
               </>
             }
@@ -1180,6 +1216,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
         onDismissWaivers={() => dismissWaivers(waiverKey)}
       />
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
+      {combatRoster ? <RosterCombatDialog roster={combatRoster} onClose={() => setCombatRoster(null)} /> : null}
       {reminderDraft ? (
         <ReminderEditorDialog
           draft={reminderDraft}

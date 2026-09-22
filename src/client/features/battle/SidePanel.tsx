@@ -5,6 +5,7 @@ import type { BattleView } from '../../../core/battleView'
 import { type Side } from '../../sides'
 import { PlayerName } from '../../components/PlayerName'
 import { ArmyIdentity } from '../../components/ArmyIdentity'
+import type { BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { ArmyRoster } from './ArmyRoster'
 import { type Award, PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemText } from './MissionCards'
 import { Stratagems } from './Stratagems'
@@ -13,6 +14,7 @@ import { tint } from './tints'
 type Props = {
   view: BattleView
   side: Side
+  onSimulate: (selection: BattleCombatSelection) => void
   coreKeys: ReadonlySet<string>
   pending: boolean
   send: (command: Command) => void
@@ -37,6 +39,7 @@ type Props = {
 export const SidePanel = memo(function SidePanel({
   view,
   side,
+  onSimulate,
   coreKeys,
   pending,
   send,
@@ -91,7 +94,14 @@ export const SidePanel = memo(function SidePanel({
              * losses are recorded. Casualties are a live action, so setup and a finished
              * battle open the same army with nothing to press.
              */}
-            <ArmyRoster army={army} side={side} token={view.token} actionable={view.status === 'playing'} send={send} />
+            <ArmyRoster
+              onSimulate={onSimulate}
+              army={army}
+              side={side}
+              token={view.token}
+              actionable={view.status === 'playing'}
+              send={send}
+            />
           </div>
         ))}
       </div>
