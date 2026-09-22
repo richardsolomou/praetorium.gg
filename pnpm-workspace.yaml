@@ -13,4 +13,8 @@ minimumReleaseAgeExclude:
   - ras-stack@2.0.0
   - expo-file-system@57.0.6
   - expo-haptics@57.0.2
+  # Server telemetry target from the SDK update report; the pins are hours short
+  # of the age threshold and can be dropped once it passes.
+  - posthog-node@5.52.3
+  - '@posthog/core@1.54.1'
 minimumReleaseAge: 10080
