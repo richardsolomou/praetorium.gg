@@ -34,6 +34,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(mobileHeader.getByRole('button', { name: 'Account menu' })).toBeVisible()
   await expect(primary).toBeHidden()
   await expect(sections).toBeVisible()
+  await expect(sections.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Factions', 'Missions', 'More'])
   await expect(sections.locator('[aria-current="page"]')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/navigation-phone.png', fullPage: true })
 
