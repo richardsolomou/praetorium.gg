@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.72.0
+
+### Minor Changes
+
+- d3a487b: Compare unit loadouts in a shared combat simulator from the public page, roster editor, and battles, with buffs, live casualties, and damage and kill probabilities.
+
 ## 0.71.2
 
 ### Patch Changes
