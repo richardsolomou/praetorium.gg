@@ -121,9 +121,11 @@ export function compareCatalogueCoverage(
   const rawConstructionFor = rawConstructionReader(catalogueDirectory, rulesDirectory)
   const lost: string[] = []
   const gained: string[] = []
-  const compareLists = (where: string, earlier: readonly string[], later: readonly string[]) => {
-    for (const item of earlier) if (!later.includes(item)) lost.push(`${where}: ${item}`)
-    for (const item of later) if (!earlier.includes(item)) gained.push(`${where}: ${item}`)
+  const compareLists = (where: string, earlier: readonly string[], later: readonly string[], key = (item: string) => item) => {
+    const earlierKeys = new Set(earlier.map(key))
+    const laterKeys = new Set(later.map(key))
+    for (const item of earlier) if (!laterKeys.has(key(item))) lost.push(`${where}: ${item}`)
+    for (const item of later) if (!earlierKeys.has(key(item))) gained.push(`${where}: ${item}`)
   }
   const compareDescribed = (where: string, earlier: readonly Described[], later: readonly Described[]) => {
     compareLists(
@@ -207,7 +209,7 @@ export function compareCatalogueCoverage(
       if (!current) continue
       const where = `${faction.slug} / ${sheet.name}`
       if (sheet.points !== current.points) lost.push(`${where}: points ${sheet.points} → ${current.points}`)
-      compareLists(`${where} profiles`, sheet.profiles, current.profiles)
+      compareLists(`${where} profiles`, sheet.profiles, current.profiles, (profile) => profile.toLowerCase())
       compareDescribed(`${where} abilities`, sheet.abilities, current.abilities)
       const detachmentAbilityNames = new Set([
         ...(sheet.detachmentAbilities ?? []).map((detachment) => detachment.name),

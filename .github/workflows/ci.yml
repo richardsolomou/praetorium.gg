@@ -247,11 +247,9 @@ jobs:
           fetch-depth: 2
       - name: Resolve compared revisions
         id: revisions
-        env:
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          base_sha="${PR_BASE_SHA:-$(git rev-parse "$GITHUB_SHA^")}"
+          base_sha="$(git rev-parse "$GITHUB_SHA^1")"
           {
             echo "base-sha=$base_sha"
             echo "head-sha=$GITHUB_SHA"

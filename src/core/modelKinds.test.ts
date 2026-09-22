@@ -328,6 +328,61 @@ describe('loadouts the catalogue files a weapon at a time', () => {
     ])
   })
 
+  it('separates a complete product of independent weapon choices', () => {
+    const index = squadOf([
+      {
+        id: 'models',
+        name: 'Wraiths',
+        models: [
+          loadout('claws-beamer', 'Wraith w/ claws and beamer', ['Vicious claws', 'Transdimensional beamer']),
+          loadout('claws-caster', 'Wraith w/ claws and particle caster', ['Vicious claws', 'Particle caster']),
+          loadout('claws', 'Wraith w/ claws', ['Vicious claws']),
+          loadout('coils', 'Wraith w/ coils', ['Whip coils']),
+          loadout('coils-beamer', 'Wraith w/ coils and beamer', ['Whip coils', 'Transdimensional beamer']),
+          loadout('coils-caster', 'Wraith w/ coils and particle caster', ['Whip coils', 'Particle caster']),
+        ],
+      },
+    ])
+
+    expect(kindsOf(index).map((kind) => ({ name: kind.name, rows: kind.rows }))).toEqual([
+      {
+        name: 'Wraith',
+        rows: [
+          {
+            name: 'Vicious claws',
+            choiceKey: 'models',
+            optionId: 'claws-beamer',
+            alternatives: [
+              { choiceKey: 'models', optionId: 'claws-caster' },
+              { choiceKey: 'models', optionId: 'claws' },
+            ],
+          },
+          {
+            name: 'Transdimensional beamer',
+            choiceKey: 'models',
+            optionId: 'claws-beamer',
+            alternatives: [{ choiceKey: 'models', optionId: 'coils-beamer' }],
+          },
+          {
+            name: 'Particle caster',
+            choiceKey: 'models',
+            optionId: 'claws-caster',
+            alternatives: [{ choiceKey: 'models', optionId: 'coils-caster' }],
+          },
+          {
+            name: 'Whip coils',
+            choiceKey: 'models',
+            optionId: 'coils',
+            alternatives: [
+              { choiceKey: 'models', optionId: 'coils-beamer' },
+              { choiceKey: 'models', optionId: 'coils-caster' },
+            ],
+          },
+        ],
+      },
+    ])
+  })
+
   it('groups linked profiles while keeping the champion separate', () => {
     const index = squadOf([
       {

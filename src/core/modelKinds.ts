@@ -204,35 +204,38 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
       if (existing.choiceKey === source.choiceKey && existing.optionId === source.optionId) return
       existing.alternatives = [...(existing.alternatives ?? []), source]
     }
-    members.forEach((member, position) => {
-      const owned = choices.filter((choice) => choice.owner?.id === member.id)
-      if (owned.length) {
-        for (const choice of owned) {
-          for (const option of choice.options) {
-            const pieces = optionPieces(option.id, index, options)
-            const base = pieces && pieces.length > 1 ? defaultSelection(option.id, index, options) : null
-            const nested = base ? unitChoices(option.id, base, index, options) : []
-            const separatePieces =
-              pieces?.every((piece) =>
-                nested.some((slot) => slot.options.some((candidate) => candidate.default && sameWargear(candidate.name, piece))),
-              ) && nested.length > 1
-            addRow({
-              name: option.name,
-              choiceKey: choice.key,
-              optionId: option.id,
-              ...(pieces ? { pieces } : {}),
-              ...(separatePieces ? { separatePieces: true } : {}),
-            })
+    const factored = independentRows(members, carried, shared)
+    if (factored) factored.forEach(addRow)
+    else
+      members.forEach((member, position) => {
+        const owned = choices.filter((choice) => choice.owner?.id === member.id)
+        if (owned.length) {
+          for (const choice of owned) {
+            for (const option of choice.options) {
+              const pieces = optionPieces(option.id, index, options)
+              const base = pieces && pieces.length > 1 ? defaultSelection(option.id, index, options) : null
+              const nested = base ? unitChoices(option.id, base, index, options) : []
+              const separatePieces =
+                pieces?.every((piece) =>
+                  nested.some((slot) => slot.options.some((candidate) => candidate.default && sameWargear(candidate.name, piece))),
+                ) && nested.length > 1
+              addRow({
+                name: option.name,
+                choiceKey: choice.key,
+                optionId: option.id,
+                ...(pieces ? { pieces } : {}),
+                ...(separatePieces ? { separatePieces: true } : {}),
+              })
+            }
           }
+          return
         }
-        return
-      }
-      // One variant is one allocation, including weapons that must be taken together.
-      if (!member.choiceKey) return
-      const pieces = (carried[position] ?? []).filter((name) => !shared.includes(name))
-      if (pieces.length)
-        addRow({ name: pieces.join(' and '), choiceKey: member.choiceKey, optionId: member.id, ...(pieces.length > 1 ? { pieces } : {}) })
-    })
+        // One variant is one allocation, including weapons that must be taken together.
+        if (!member.choiceKey) return
+        const pieces = (carried[position] ?? []).filter((name) => !shared.includes(name))
+        if (pieces.length)
+          addRow({ name: pieces.join(' and '), choiceKey: member.choiceKey, optionId: member.id, ...(pieces.length > 1 ? { pieces } : {}) })
+      })
 
     // A weapon only some of this kind carry, held by a model the data stands rather
     // than one a choice offers, has no choice to be counted by — so it is stated as
@@ -363,13 +366,14 @@ function sharedName(names: readonly string[]): string | null {
   if (!first || !rest.length) return null
   let shared = 0
   while (shared < first.length && rest.every((name) => name[shared] === first[shared])) shared++
-  if (!/[^\p{L}\p{N}]$/u.test(first.slice(0, shared))) return null
+  const prefix = first.slice(0, shared)
   // A name ends where the loadout begins. Loadouts that agree past the "w/" agree on
   // part of a weapon — a gauss flayer and a gauss reaper are both gauss — so the name
   // is cut at the separator rather than at the last word the two happen to share.
-  const words = first.slice(0, shared).trim().split(/\s+/)
+  const words = prefix.trim().split(/\s+/)
   const separator = (word: string) => /[^\p{L}\p{N}]/u.test(word)
   const cut = words.findLastIndex((word, position) => position > 0 && separator(word))
+  if (cut < 0 && !/[^\p{L}\p{N}]$/u.test(prefix)) return null
   const named = words.slice(0, cut < 0 ? words.length : cut)
   // What a name is joined to its loadout by is written either way round — "w/" or
   // "with" — and neither is part of the name. A model is named in the case a datasheet
@@ -377,6 +381,64 @@ function sharedName(names: readonly string[]): string | null {
   const joining = (word: string) => separator(word) || word === word.toLowerCase()
   while (named.length > 1 && joining(named.at(-1) ?? '')) named.pop()
   return named.join(' ') || null
+}
+
+/** Split a catalogue's complete cross-product back into the independent choices it represents. */
+function independentRows(
+  members: readonly Member[],
+  carried: readonly (readonly string[])[],
+  shared: readonly string[],
+): ModelRow[] | null {
+  const choiceKey = members[0]?.choiceKey
+  if (!choiceKey || members.some((member) => member.choiceKey !== choiceKey)) return null
+  const bundles = carried.map((list) => list.filter((name) => !shared.includes(name)))
+  const pieces = [...new Set(bundles.flat())]
+  if (pieces.length < 2 || bundles.some((bundle) => !bundle.length)) return null
+
+  const together = (left: string, right: string) => bundles.some((bundle) => bundle.includes(left) && bundle.includes(right))
+  const unvisited = new Set(pieces)
+  const axes: string[][] = []
+  while (unvisited.size) {
+    const first = unvisited.values().next().value
+    if (!first) break
+    const axis: string[] = []
+    const pending = [first]
+    unvisited.delete(first)
+    while (pending.length) {
+      const piece = pending.shift()!
+      axis.push(piece)
+      for (const candidate of unvisited) {
+        if (together(piece, candidate)) continue
+        unvisited.delete(candidate)
+        pending.push(candidate)
+      }
+    }
+    axes.push(axis)
+  }
+  if (axes.length < 2) return null
+  if (axes.some((axis) => axis.some((piece, at) => axis.slice(at + 1).some((other) => together(piece, other))))) return null
+
+  const signatures = new Set<string>()
+  for (const bundle of bundles) {
+    const signature: string[] = []
+    for (const axis of axes) {
+      const selected = axis.filter((piece) => bundle.includes(piece))
+      if (selected.length > 1) return null
+      signature.push(selected[0] ?? '')
+    }
+    signatures.add(JSON.stringify(signature))
+  }
+  const options = axes.map((axis) => (bundles.some((bundle) => axis.every((piece) => !bundle.includes(piece))) ? ['', ...axis] : axis))
+  const expected = options.reduce<string[][]>((product, axis) => product.flatMap((prefix) => axis.map((piece) => [...prefix, piece])), [[]])
+  if (signatures.size !== expected.length || expected.some((signature) => !signatures.has(JSON.stringify(signature)))) return null
+
+  return pieces.map((piece) => {
+    const sources = members.flatMap((member, position) =>
+      bundles[position]?.includes(piece) && member.choiceKey ? [{ choiceKey: member.choiceKey, optionId: member.id }] : [],
+    )
+    const [source, ...alternatives] = sources
+    return { name: piece, ...source!, ...(alternatives.length ? { alternatives } : {}) }
+  })
 }
 
 /** Distinct equipment bundles can share a card; nested choices need their own model identity. */

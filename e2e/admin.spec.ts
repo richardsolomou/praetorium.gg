@@ -1,6 +1,5 @@
 import { createHmac } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
-import { dismissOnboardingWelcome } from './account'
 
 const ADMIN_EMAIL = 'preview@praetorium.gg'
 const ADMIN_PASSWORD = 'preview-preview-preview'
@@ -35,7 +34,6 @@ async function signIn(page: Page, twoFactor = false, email = ADMIN_EMAIL, passwo
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   if (!twoFactor) {
     await page.waitForURL('/')
-    await dismissOnboardingWelcome(page)
   }
 }
 

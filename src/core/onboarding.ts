@@ -62,6 +62,10 @@ export function resolvedOnboardingTasks(progress: OnboardingProgress): Set<Onboa
   return new Set([...progress.completedTasks, ...progress.skippedTasks])
 }
 
+export function onboardingComplete(progress: OnboardingProgress): boolean {
+  return resolvedOnboardingTasks(progress).size === onboardingTaskIds.length
+}
+
 export function availableOnboardingTasks(progress: OnboardingProgress): OnboardingTaskId[] {
   const resolved = resolvedOnboardingTasks(progress)
   return onboardingTaskIds.filter(

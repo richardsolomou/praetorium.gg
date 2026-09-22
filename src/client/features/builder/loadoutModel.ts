@@ -435,6 +435,52 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
   )
   type Entry = (typeof shared)[number]
 
+  const factoredMove = (row: ModelRow, adding: boolean): PoolChange | null | undefined => {
+    const sources = loadoutRowSources(row, choices)
+    const choice = sources[0]?.choice
+    if (!choice || sources.some((source) => source.choice !== choice)) return undefined
+    const ids = new Set(sources.map((source) => source.option.id))
+    const sharedSource = sources.some(({ option }) =>
+      model.rows.some(
+        (other) =>
+          other !== row && modelRowSources(other).some((source) => source.choiceKey === choice.key && source.optionId === option.id),
+      ),
+    )
+    if (!sharedSource || choice.options.some((option) => !option.pieces?.length)) return undefined
+
+    const targets = adding
+      ? sources.filter(({ option }) => option.count < option.max)
+      : sources.filter(({ option }) => option.count > option.min)
+    const others = choice.options.filter((option) => !ids.has(option.id))
+    const candidates = adding
+      ? targets.flatMap(({ option: target }) =>
+          others.filter((donor) => donor.count > donor.min || (donor.mutableMin && donor.count > 0)).map((donor) => ({ target, donor })),
+        )
+      : targets.flatMap(({ option: donor }) => others.filter((target) => target.count < target.max).map((target) => ({ target, donor })))
+    const withoutRow = (pieces: readonly string[]) => pieces.filter((piece) => !sameWargear(piece, row.name))
+    const distance = ({ target, donor }: (typeof candidates)[number]) => {
+      const from = adding ? donor.pieces! : withoutRow(donor.pieces!)
+      const to = adding ? withoutRow(target.pieces!) : target.pieces!
+      return (
+        from.filter((piece) => !to.some((candidate) => sameWargear(piece, candidate))).length +
+        to.filter((piece) => !from.some((candidate) => sameWargear(piece, candidate))).length
+      )
+    }
+    const overlap = ({ target, donor }: (typeof candidates)[number]) => {
+      const from = adding ? donor.pieces! : withoutRow(donor.pieces!)
+      const to = adding ? withoutRow(target.pieces!) : target.pieces!
+      return from.filter((piece) => to.some((candidate) => sameWargear(piece, candidate))).length
+    }
+    const moved = candidates.toSorted(
+      (left, right) =>
+        distance(left) - distance(right) ||
+        overlap(right) - overlap(left) ||
+        Number(Boolean(right.target.default)) - Number(Boolean(left.target.default)) ||
+        right.donor.count - left.donor.count,
+    )[0]
+    return moved ? [[choice.key, { [moved.target.id]: moved.target.count + 1, [moved.donor.id]: moved.donor.count - 1 }]] : null
+  }
+
   const move = (from: readonly Entry[], to: readonly Entry[]): PoolChange => {
     const wanted = new Map<string, SpreadCounts>()
     for (const [entry, delta] of [...from.map((one) => [one, -1] as const), ...to.map((one) => [one, 1] as const)]) {
@@ -515,5 +561,14 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
     return null
   }
 
-  return { spend: press(spend), free: press(free) }
+  const pooledSpend = press(spend)
+  const pooledFree = press(free)
+  const factoredOr = (row: ModelRow, adding: boolean, fallback: (row: ModelRow) => PoolChange | null) => {
+    const moved = factoredMove(row, adding)
+    return moved === undefined ? fallback(row) : moved
+  }
+  return {
+    spend: (row: ModelRow) => factoredOr(row, true, pooledSpend),
+    free: (row: ModelRow) => factoredOr(row, false, pooledFree),
+  }
 }
