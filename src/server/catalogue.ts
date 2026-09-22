@@ -13,6 +13,7 @@ import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
 import { choiceOptionWargear } from '../core/modelKinds'
 import { wargearOf } from '../core/wargear'
+import { combatCarriers } from '../core/combatLoadout'
 import { normalizeRuleReference, ruleReferenceMatches } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
 import { sameText } from '../core/text'
@@ -644,6 +645,7 @@ export function datasheetViewsIn(
     : []
   return {
     controlledChoices,
+    carriers: selection ? combatCarriers(selection, loaded.index) : [],
     selected: datasheetIn(loaded, catalogueId, entryId, shared),
     available: datasheetIn(loaded, catalogueId, entryId, { ...shared, everyWeapon: true, everyWargearAbility: true }),
   }

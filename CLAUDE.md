@@ -27,6 +27,8 @@ Each of these is a short read, and the one that matches what you are touching is
 
 ## Rules that hold everywhere
 
+- **Keep combat simulation compact and stable.** Use one matchup view for standalone and embedded use, calculate shooting and melee automatically, and preserve controls, loadouts, and previous estimates throughout model-count and loadout updates without updating or trial-count labels. Keep weapons, probabilities, conditions, and rules open, reuse roster weapon stat columns and model steppers, and omit calculation preambles and bottom disclaimers. Align Loadout and the model counter on one row, put points beside the heading, and float Swap over the unit divider without a separate column. Verify delayed requests through the full edit cycle. Read numbered intrinsic defensive abilities into the displayed stats and calculation; verify manual overrides, reset, and swapping. Check source-defined weapon keyword aliases in both parsing and attack selection.
+
 - **No game data lives in this repository.** `catalogue/sources.json` defines upstream locations. Active revisions, checksums, and bytes live in verified snapshots outside Git; `catalogue-data/` is fetched and gitignored.
 - **Verify fetched data before rendered work.** Confirm the current snapshot contains every source the feature needs, inspect the exact data path instead of a fallback, and never claim parity from a degraded rendering.
 - **Verify responsive roster changes before and after opening a unit.** Use the reported viewport and assert that the document and each affected pane have no horizontal overflow; a correct open pane does not prove the unopened roster is correct.

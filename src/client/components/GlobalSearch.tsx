@@ -141,15 +141,15 @@ export function GlobalSearch({ compact = false }: { compact?: boolean }) {
       className={
         compact
           ? 'size-12 shrink-0 text-dim hover:bg-raised hover:text-info'
-          : 'ml-auto h-8 min-w-8 justify-start gap-2 border-edge bg-sunken px-2 text-dim hover:text-bone sm:w-44'
+          : 'ml-auto h-8 min-w-8 justify-start gap-2 border-edge bg-sunken px-2 text-dim hover:text-bone xl:w-44'
       }
       aria-label="Search Praetorium"
       onClick={search.open}
     >
       <Search className="size-4" />
-      {compact ? null : <span className="hidden flex-1 text-left text-xs sm:inline">Search</span>}
+      {compact ? null : <span className="hidden flex-1 text-left text-xs xl:inline">Search</span>}
       {compact ? null : (
-        <KbdGroup className="hidden sm:inline-flex" aria-hidden>
+        <KbdGroup className="hidden xl:inline-flex" aria-hidden>
           <Kbd className="h-4 min-w-4 bg-raised px-0.5 text-3xs text-faint">{search.shortcutModifier}</Kbd>
           <Kbd className="h-4 min-w-4 bg-raised px-0.5 text-3xs text-faint">K</Kbd>
         </KbdGroup>

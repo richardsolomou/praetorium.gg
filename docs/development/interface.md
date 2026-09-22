@@ -18,6 +18,10 @@ Compact roster panes use browser history. Their own close action or the Android 
 
 The Friends page creates one active, one-time invite link per player. Replacing it invalidates the previous link. A signed-out recipient is taken to account creation and returned to the invite, where accepting it creates the mutual friendship; viewing the link alone changes nothing.
 
+## Combat simulator
+
+The public `/simulator` page uses the shared, compact `CombatMatchup` surface intended for future roster and battle dialogs. Both shooting and melee calculate automatically from equipped weapons; weapon alternatives, roster-style weapon stat columns, probability distributions, conditions, and both units’ rules remain visible. Faction selectors show icons, Loadout sits to the left of the roster model stepper, and the shared profile grid displays T, Sv, W, InSv, and FNP, including printed Feel No Pain core abilities. The swap button floats over the divider between units; swapping keeps their loadouts and model counts while clearing situational adjustments. The existing loadout editor stays mounted through edits, and previous estimates remain visible until fresh inputs resolve, without recalculation or trial-count labels. Contextual profile values and their sources pass through to the calculation. Desktop navigation and the mobile More page link to it. [Combat simulation](combat-simulation.md) records the calculation and integration boundaries.
+
 ## Getting started
 
 A signed-in player sees a short field guide. It opens itself once, on first use, and stays reachable from the progress button in the header. Its task panel is not modal, so the application it introduces remains usable beneath it.

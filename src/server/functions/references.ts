@@ -208,6 +208,7 @@ function rosterLoadoutDatasheets(
   return {
     datacardJoin: datacardJoinOutcome(loaded, data.catalogueId, data.entryId),
     controlledChoices: views?.controlledChoices ?? [],
+    carriers: views?.carriers ?? [],
     selected: views
       ? describeDatasheetAbilities(loaded, data.catalogueId, views.selected, app().rules())
       : rosterDatasheet(loaded, data, undefined, false),
