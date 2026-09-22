@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.71.1
+
+### Patch Changes
+
+- 37cd2f8: Expose complete mission setup and compact faction roster-planning data through the public reference API, MCP, and crawlable pages.
+
 ## 0.71.0
 
 ### Minor Changes
