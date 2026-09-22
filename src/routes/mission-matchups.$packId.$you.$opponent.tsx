@@ -188,6 +188,7 @@ function TerrainLayout({
   label,
 }: {
   layout: {
+    id: string
     name: string
     description: string | null
     pieces: TerrainPiece[]
@@ -195,6 +196,7 @@ function TerrainLayout({
   }
   templates: TerrainTemplate[]
   deployment?: {
+    id: string
     name: string
     zones: { player: string; name: string; colour: string; points: { x: number; y: number }[] }[]
     objectives: { x: number; y: number }[]
@@ -204,27 +206,30 @@ function TerrainLayout({
   const description = deployment?.name ?? layout.description ?? layout.name
 
   return (
-    <Dialog>
-      <DialogTrigger
-        render={
-          <button
-            type="button"
-            className="group border border-edge bg-panel p-3 text-left transition-colors hover:border-info focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info"
-            aria-label={`Enlarge terrain layout ${label}: ${description}`}
-          />
-        }
-      >
-        <span className="block text-center text-lg font-bold">{label}</span>
-        <TerrainBoard layout={layout} deployment={deployment} templates={templates} className="mt-2 w-full" />
-        <span className="mt-2 block text-xs text-dim group-hover:text-bone">{description}</span>
-      </DialogTrigger>
-      <TerrainLayoutDialogContent
-        title={`Layout ${label} · ${layout.name}`}
-        description={description}
-        layout={layout}
-        deployment={deployment}
-        templates={templates}
-      />
-    </Dialog>
+    <div id={`terrain-${layout.id}`} className="scroll-mt-16">
+      {deployment ? <span id={`deployment-${deployment.id}`} className="block scroll-mt-16" /> : null}
+      <Dialog>
+        <DialogTrigger
+          render={
+            <button
+              type="button"
+              className="group border border-edge bg-panel p-3 text-left transition-colors hover:border-info focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info"
+              aria-label={`Enlarge terrain layout ${label}: ${description}`}
+            />
+          }
+        >
+          <span className="block text-center text-lg font-bold">{label}</span>
+          <TerrainBoard layout={layout} deployment={deployment} templates={templates} className="mt-2 w-full" />
+          <span className="mt-2 block text-xs text-dim group-hover:text-bone">{description}</span>
+        </DialogTrigger>
+        <TerrainLayoutDialogContent
+          title={`Layout ${label} · ${layout.name}`}
+          description={description}
+          layout={layout}
+          deployment={deployment}
+          templates={templates}
+        />
+      </Dialog>
+    </div>
   )
 }

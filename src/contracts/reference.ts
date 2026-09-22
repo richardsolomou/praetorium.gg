@@ -1,4 +1,4 @@
-export const REFERENCE_KINDS = ['datasheet', 'detachment', 'mission', 'rule'] as const
+export const REFERENCE_KINDS = ['datasheet', 'deployment', 'detachment', 'mission', 'rule', 'terrain'] as const
 export type ReferenceKind = (typeof REFERENCE_KINDS)[number]
 
 export type ReferenceSection = {
@@ -35,4 +35,5 @@ export type ReferenceSearchResponse = {
   query: string
   results: ReferenceSearchResult[]
   revisions: Record<string, string>
+  nextCursor: string | null
 }

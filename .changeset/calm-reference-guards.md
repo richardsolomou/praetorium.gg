@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Expose mission matchups and keep public reference retrieval consistent with the active source.
+Expose complete mission setup and compact faction roster-planning data through the public reference API, MCP, and crawlable pages.

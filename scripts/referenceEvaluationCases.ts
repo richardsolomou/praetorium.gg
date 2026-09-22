@@ -108,6 +108,27 @@ export const referenceEvaluationFixtures: readonly Fixture[] = [
     kinds: ['mission'],
   },
   {
+    name: 'secondary mission scoring',
+    expectedDocumentId: 'mission:secondary:assassination',
+    expectedSectionId: 'secondary-assassination',
+    query: { kind: 'document-title-and-section-text', start: 8, words: 6 },
+    kinds: ['mission'],
+  },
+  {
+    name: 'deployment pattern',
+    expectedDocumentId: 'deployment:tipping-point',
+    expectedSectionId: 'deployment-tipping-point',
+    query: { kind: 'section-title' },
+    kinds: ['deployment'],
+  },
+  {
+    name: 'terrain layout',
+    expectedDocumentId: 'terrain:bm-disrupt-vs-assets-01',
+    expectedSectionId: 'terrain-bm-disrupt-vs-assets-01',
+    query: { kind: 'section-title' },
+    kinds: ['terrain'],
+  },
+  {
     name: 'missing description remains explicit',
     expectedDocumentId: 'datasheet:genestealer-cults:achilles-ridgerunners',
     expectedSectionId: 'ability-granted:c727-a3d8-fceb-6ebd',

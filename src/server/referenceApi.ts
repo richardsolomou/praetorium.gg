@@ -2,7 +2,9 @@ import { createHash } from 'node:crypto'
 import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../contracts/reference'
 import { app } from './app'
 import { referenceCorpusFor, referenceDocumentMarkdown, type ReferenceCorpus } from './referenceCorpus'
-import { REFERENCE_QUERY_MAX_LENGTH, REFERENCE_RESULT_MAX, searchReference } from './referenceSearch'
+import { PRAETORIUM_GUIDE, praetoriumGuideMarkdown } from './referenceGuide'
+import { REFERENCE_QUERY_MAX_LENGTH, REFERENCE_RESULT_MAX, searchReference, validReferenceCursor } from './referenceSearch'
+import { referenceFactions, referenceIndex, referenceRecord, referenceUnits } from './referenceService'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 
 type ReferenceRecord = {
@@ -41,30 +43,80 @@ export function referenceFactionsResponse(request: Request) {
   if (limited) return limited
   const corpus = activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
-  const factions = new Map<string, { id: string; slug: string; name: string; datasheets: number; detachments: number }>()
-  for (const sheet of corpus.catalogue.datasheets) {
-    const slug = sheet.referenceRoute?.catalogueId ?? sheet.catalogueId
-    const found = factions.get(sheet.catalogueId) ?? { id: sheet.catalogueId, slug, name: sheet.faction, datasheets: 0, detachments: 0 }
-    found.datasheets += 1
-    factions.set(sheet.catalogueId, found)
-  }
-  for (const detachment of corpus.catalogue.detachments) {
-    const found = factions.get(detachment.catalogueId) ?? {
-      id: detachment.catalogueId,
-      slug: detachment.factionSlug,
-      name: detachment.faction,
-      datasheets: 0,
-      detachments: 0,
-    }
-    found.detachments += 1
-    factions.set(detachment.catalogueId, found)
-  }
   const data = {
-    factions: [...factions.values()].toSorted((left, right) => left.name.localeCompare(right.name)),
+    factions: referenceFactions(corpus),
     revisions: corpus.catalogue.revisions,
   }
   const markdown = `# Factions\n\n${data.factions.map((faction) => `- [${faction.name}](/factions/${faction.slug}) (${faction.datasheets} datasheets, ${faction.detachments} detachments)`).join('\n')}\n`
   return referenceResponse(request, corpus, 'factions', data, markdown)
+}
+
+export function referenceIndexResponse(request: Request) {
+  const limited = referenceRateLimit(request, 120)
+  if (limited) return limited
+  const corpus = activeReferenceCorpus()
+  if (!corpus) return referenceUnavailable()
+  const data = referenceIndex(corpus)
+  const markdown = [
+    '# Praetorium reference index',
+    `Corpus revision: ${data.corpusRevision}`,
+    '## Mission packs',
+    ...data.missionPacks.map((pack) => `- [${pack.title}](${pack.url})`),
+    '## Rule documents',
+    ...data.ruleDocuments.map((document) => `- [${document.title}](${document.url}) (${document.sections} sections)`),
+    '## Factions',
+    ...data.factions.map((faction) => `- ${faction.name} (${faction.datasheets} datasheets, ${faction.detachments} detachments)`),
+  ].join('\n\n')
+  return referenceResponse(request, corpus, 'index', data, markdown)
+}
+
+export function referenceGuideResponse(request: Request) {
+  const limited = referenceRateLimit(request, 120)
+  if (limited) return limited
+  const corpus = activeReferenceCorpus()
+  if (!corpus) return referenceUnavailable()
+  return referenceResponse(request, corpus, 'guide', PRAETORIUM_GUIDE, praetoriumGuideMarkdown())
+}
+
+export function referenceUnitsResponse(request: Request, catalogueId: string) {
+  const limited = referenceRateLimit(request, 60)
+  if (limited) return limited
+  const corpus = activeReferenceCorpus()
+  const instance = app()
+  const loaded = instance.catalogue()
+  if (!corpus || !loaded) return referenceUnavailable()
+  const url = new URL(request.url)
+  const rawBattleSize = url.searchParams.get('battleSize')
+  const battleSize = rawBattleSize === null ? undefined : Number(rawBattleSize)
+  if (battleSize !== undefined && (!Number.isInteger(battleSize) || battleSize < 1 || battleSize > 10_000)) {
+    return problem('battleSize must be an integer from 1 to 10000', 400)
+  }
+  const detachment = url.searchParams.get('detachment')?.trim() || undefined
+  if (detachment && detachment.length > 160) return problem('detachment must contain at most 160 characters', 400)
+  const data = referenceUnits(corpus, loaded, instance.rules(), catalogueId, battleSize, detachment)
+  if (!data) return problem('faction or detachment not found', 404)
+  const markdown = [
+    `# ${data.faction.name} roster planning`,
+    data.detachment ? `Detachment: ${data.detachment.name}` : null,
+    data.battleSize ? `Battle size: ${data.battleSize} points` : null,
+    ...data.units.map(
+      (unit) =>
+        `- ${unit.name}: ${unit.points ?? 'points unavailable'}${unit.limit === null ? '' : `, limit ${unit.limit}`} · ${unit.group}${unit.keywords.length ? ` · ${unit.keywords.join(', ')}` : ''}${unit.url ? ` · ${unit.url}` : ''}`,
+    ),
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+  return referenceResponse(request, corpus, `units:${catalogueId}:${battleSize ?? ''}:${detachment ?? ''}`, data, markdown)
+}
+
+export function referenceRecordResponse(request: Request, id: string) {
+  const limited = referenceRateLimit(request, 120)
+  if (limited) return limited
+  const corpus = activeReferenceCorpus()
+  if (!corpus) return referenceUnavailable()
+  const record = referenceRecord(corpus, app().rules(), id)
+  if (!record) return problem('reference record not found', 404)
+  return referenceResponse(request, corpus, `record:${id}`, record, referenceDocumentMarkdown(record.document))
 }
 
 export function referenceDatasheetResponse(request: Request, catalogueId: string, slug: string) {
@@ -151,9 +203,17 @@ function recordResponse(request: Request, corpus: ReferenceCorpus, document: Ref
   )
 }
 
-export function parseReferenceSearch(
-  url: URL,
-): { query: string; kinds?: ReferenceKind[]; faction?: string; limit?: number } | { error: string } {
+export function parseReferenceSearch(url: URL):
+  | {
+      query: string
+      kinds?: ReferenceKind[]
+      faction?: string
+      pack?: string
+      document?: string
+      limit?: number
+      cursor?: string
+    }
+  | { error: string } {
   const query = url.searchParams.get('q')?.trim() ?? ''
   if (query.length < 2) return { error: 'q must contain at least 2 characters' }
   if (query.length > REFERENCE_QUERY_MAX_LENGTH) return { error: `q must contain at most ${REFERENCE_QUERY_MAX_LENGTH} characters` }
@@ -165,12 +225,18 @@ export function parseReferenceSearch(
   if (kinds.some((kind) => !(REFERENCE_KINDS as readonly string[]).includes(kind))) return { error: 'kind is not supported' }
   const faction = url.searchParams.get('faction')?.trim() || undefined
   if (faction && faction.length > 160) return { error: 'faction must contain at most 160 characters' }
+  const pack = url.searchParams.get('pack')?.trim() || undefined
+  if (pack && pack.length > 160) return { error: 'pack must contain at most 160 characters' }
+  const document = url.searchParams.get('document')?.trim() || undefined
+  if (document && document.length > 160) return { error: 'document must contain at most 160 characters' }
+  const cursor = url.searchParams.get('cursor')?.trim() || undefined
+  if (!validReferenceCursor(cursor)) return { error: 'cursor is not valid' }
   const rawLimit = url.searchParams.get('limit')
   const limit = rawLimit === null ? undefined : Number(rawLimit)
   if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > REFERENCE_RESULT_MAX)) {
     return { error: `limit must be an integer from 1 to ${REFERENCE_RESULT_MAX}` }
   }
-  return { query, kinds: kinds.length ? (kinds as ReferenceKind[]) : undefined, faction, limit }
+  return { query, kinds: kinds.length ? (kinds as ReferenceKind[]) : undefined, faction, pack, document, limit, cursor }
 }
 
 export function referenceOpenApi(request: Request) {
@@ -184,6 +250,20 @@ export function referenceOpenApi(request: Request) {
     },
     servers: [{ url: origin }],
     paths: {
+      '/api/reference/v1/about': {
+        get: {
+          operationId: 'getPraetoriumGuide',
+          summary: 'Describe Praetorium and the agent workflow',
+          responses: responseSchemas('Praetorium guide', schemaRef('ProductGuide')),
+        },
+      },
+      '/api/reference/v1/': {
+        get: {
+          operationId: 'getReferenceIndex',
+          summary: 'List reference kinds, factions, mission packs, rule documents, and revisions',
+          responses: responseSchemas('Reference index', schemaRef('ReferenceIndex')),
+        },
+      },
       '/api/reference/v1/search': {
         get: {
           operationId: 'searchReference',
@@ -193,10 +273,13 @@ export function referenceOpenApi(request: Request) {
             {
               name: 'kind',
               in: 'query',
-              schema: { type: 'string', description: 'Comma-separated datasheet, detachment, mission, and rule filters.' },
+              schema: { type: 'string', description: `Comma-separated ${REFERENCE_KINDS.join(', ')} filters.` },
             },
             { name: 'faction', in: 'query', schema: { type: 'string', maxLength: 160 } },
+            { name: 'pack', in: 'query', schema: { type: 'string', maxLength: 160 } },
+            { name: 'document', in: 'query', schema: { type: 'string', maxLength: 160 } },
             { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: REFERENCE_RESULT_MAX, default: 10 } },
+            { name: 'cursor', in: 'query', schema: { type: 'string' } },
           ],
           responses: responseSchemas('Search results', schemaRef('ReferenceSearchResponse')),
         },
@@ -206,6 +289,18 @@ export function referenceOpenApi(request: Request) {
           operationId: 'listFactions',
           summary: 'List factions in the reference',
           responses: responseSchemas('Faction index', schemaRef('FactionIndex')),
+        },
+      },
+      '/api/reference/v1/factions/{catalogueId}/units': {
+        get: {
+          operationId: 'listFactionUnits',
+          summary: 'List compact roster-planning unit summaries in one bounded read',
+          parameters: [
+            ...pathParameters('catalogueId'),
+            { name: 'battleSize', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 10_000 } },
+            { name: 'detachment', in: 'query', schema: { type: 'string', maxLength: 160 } },
+          ],
+          responses: responseSchemas('Faction units', schemaRef('UnitIndex')),
         },
       },
       '/api/reference/v1/datasheets/{catalogueId}/{slug}': {
@@ -240,12 +335,68 @@ export function referenceOpenApi(request: Request) {
           responses: responseSchemas('Reference document', schemaRef('ReferenceDocument')),
         },
       },
+      '/api/reference/v1/records/{id}': {
+        get: {
+          operationId: 'getReferenceRecord',
+          summary: 'Get the structured record behind a reference document',
+          parameters: pathParameters('id'),
+          responses: responseSchemas('Structured reference record', schemaRef('ReferenceRecord')),
+        },
+      },
     },
     components: {
       schemas: {
         Error: objectSchema({ error: { type: 'string' } }, ['error']),
         Revisions: { type: 'object', additionalProperties: { type: 'string' } },
         Attribution: { type: 'array', items: { type: 'string' } },
+        ProductGuide: objectSchema(
+          {
+            product: { type: 'string' },
+            capabilities: stringArray(),
+            boundaries: stringArray(),
+            dataModel: stringArray(),
+            agentWorkflow: stringArray(),
+          },
+          ['product', 'capabilities', 'boundaries', 'dataModel', 'agentWorkflow'],
+        ),
+        ReferenceDocumentSummary: objectSchema({ id: { type: 'string' }, title: { type: 'string' }, url: { type: 'string' } }, [
+          'id',
+          'title',
+          'url',
+        ]),
+        FactionSummary: objectSchema(
+          {
+            id: { type: 'string' },
+            slug: { type: 'string' },
+            name: { type: 'string' },
+            datasheets: { type: 'integer', minimum: 0 },
+            detachments: { type: 'integer', minimum: 0 },
+          },
+          ['id', 'slug', 'name', 'datasheets', 'detachments'],
+        ),
+        ReferenceIndex: objectSchema(
+          {
+            corpusRevision: { type: 'string' },
+            revisions: schemaRef('Revisions'),
+            kinds: { type: 'object', additionalProperties: { type: 'integer', minimum: 0 } },
+            factions: { type: 'array', items: schemaRef('FactionSummary') },
+            missionPacks: { type: 'array', items: schemaRef('ReferenceDocumentSummary') },
+            ruleDocuments: {
+              type: 'array',
+              items: objectSchema(
+                {
+                  id: { type: 'string' },
+                  slug: { type: 'string' },
+                  title: { type: 'string' },
+                  sections: { type: 'integer', minimum: 0 },
+                  url: { type: 'string' },
+                },
+                ['id', 'slug', 'title', 'sections', 'url'],
+              ),
+            },
+          },
+          ['corpusRevision', 'revisions', 'kinds', 'factions', 'missionPacks', 'ruleDocuments'],
+        ),
         ReferenceSection: objectSchema(
           { id: { type: 'string' }, title: { type: 'string' }, text: { type: 'string' }, url: { type: 'string' } },
           ['id', 'title', 'text', 'url'],
@@ -282,27 +433,85 @@ export function referenceOpenApi(request: Request) {
             query: { type: 'string' },
             results: { type: 'array', maxItems: REFERENCE_RESULT_MAX, items: schemaRef('ReferenceSearchResult') },
             revisions: schemaRef('Revisions'),
+            nextCursor: nullable({ type: 'string' }),
           },
-          ['query', 'results', 'revisions'],
+          ['query', 'results', 'revisions', 'nextCursor'],
         ),
         FactionIndex: objectSchema(
           {
-            factions: {
-              type: 'array',
-              items: objectSchema(
-                {
-                  id: { type: 'string' },
-                  slug: { type: 'string' },
-                  name: { type: 'string' },
-                  datasheets: { type: 'integer', minimum: 0 },
-                  detachments: { type: 'integer', minimum: 0 },
-                },
-                ['id', 'slug', 'name', 'datasheets', 'detachments'],
-              ),
-            },
+            factions: { type: 'array', items: schemaRef('FactionSummary') },
             revisions: schemaRef('Revisions'),
           },
           ['factions', 'revisions'],
+        ),
+        UnitSummary: objectSchema(
+          {
+            id: { type: 'string' },
+            slug: { type: 'string' },
+            name: { type: 'string' },
+            group: { type: 'string' },
+            allied: { type: 'boolean' },
+            alliedFaction: nullable({ type: 'string' }),
+            points: nullable({ type: 'number' }),
+            limit: nullable({ type: 'integer', minimum: 0 }),
+            keywords: stringArray(),
+            composition: stringArray(),
+            costs: {
+              type: 'array',
+              items: objectSchema(
+                {
+                  models: { type: 'string' },
+                  cost: { type: 'string' },
+                  keyword: nullable({ type: 'string' }),
+                  faction: nullable({ type: 'string' }),
+                  detachment: nullable({ type: 'string' }),
+                },
+                ['models', 'cost', 'keyword', 'faction', 'detachment'],
+              ),
+            },
+            canLead: stringArray(),
+            canSupport: stringArray(),
+            canBeLedBy: stringArray(),
+            canBeSupportedBy: stringArray(),
+            url: nullable({ type: 'string' }),
+            referenceId: nullable({ type: 'string' }),
+          },
+          [
+            'id',
+            'slug',
+            'name',
+            'group',
+            'allied',
+            'alliedFaction',
+            'points',
+            'limit',
+            'keywords',
+            'composition',
+            'costs',
+            'canLead',
+            'canSupport',
+            'canBeLedBy',
+            'canBeSupportedBy',
+            'url',
+            'referenceId',
+          ],
+        ),
+        UnitIndex: objectSchema(
+          {
+            faction: schemaRef('FactionSummary'),
+            battleSize: nullable({ type: 'integer', minimum: 1 }),
+            detachment: nullable(schemaRef('Detachment')),
+            units: { type: 'array', items: schemaRef('UnitSummary') },
+            revisions: schemaRef('Revisions'),
+          },
+          ['faction', 'battleSize', 'detachment', 'units', 'revisions'],
+        ),
+        ReferenceRecord: objectSchema(
+          {
+            document: schemaRef('ReferenceDocument'),
+            data: { type: 'object', additionalProperties: true },
+          },
+          ['document', 'data'],
         ),
         CanonicalFieldResolution: objectSchema(
           {

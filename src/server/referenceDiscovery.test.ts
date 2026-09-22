@@ -41,6 +41,16 @@ const { corpus } = vi.hoisted(() => ({
         revisions: { rules: 'revision' },
         attribution: ['Community data'],
       },
+      {
+        id: 'mission:secondary:test-secondary',
+        kind: 'mission',
+        title: 'Test Secondary',
+        faction: null,
+        url: '/mission-packs/test/secondary-missions/test-secondary',
+        sections: [],
+        revisions: { rules: 'revision' },
+        attribution: ['Community data'],
+      },
     ],
     catalogue: {
       revisions: { definitions: 'revision' },
@@ -68,7 +78,7 @@ it('lists canonical reference pages in the snapshot sitemap', async () => {
   const response = referenceSitemap(new Request('https://praetorium.gg/sitemap.xml'))
 
   expect(await response.text()).toMatch(
-    /<url><loc>https:\/\/praetorium\.gg\/factions\/test\/datasheets\/unit<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/factions\/test\/detachments\/detachment<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/mission-matchups\/test\/one\/two<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/rules\/core\/movement<\/loc><\/url>/s,
+    /<url><loc>https:\/\/praetorium\.gg\/factions\/test\/datasheets\/unit<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/factions\/test\/detachments\/detachment<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/mission-matchups\/test\/one\/two<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/mission-packs\/test\/secondary-missions\/test-secondary<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/rules\/core\/movement<\/loc><\/url>/s,
   )
 })
 
@@ -90,7 +100,7 @@ it('documents reference updates, licensing, and attribution for agents', async (
   const response = referenceLlms(new Request('https://praetorium.gg/llms.txt'))
 
   expect(await response.text()).toMatch(
-    /search missions, rules, detachments, and datasheets.*Mission packs.*## Update model.*verified immutable snapshot.*## Licence and attribution.*AGPL-3\.0.*https:\/\/praetorium\.gg\/sources/s,
+    /Praetorium guide.*Reference index.*search missions, deployments, terrain, rules, detachments, and datasheets.*instead of reading every datasheet.*Mission packs.*## Update model.*verified immutable snapshot.*## Licence and attribution.*AGPL-3\.0.*https:\/\/praetorium\.gg\/sources/s,
   )
 })
 

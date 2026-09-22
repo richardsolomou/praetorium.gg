@@ -44,11 +44,13 @@ Praetorium is a public Warhammer 40,000 army builder, battle tracker, and commun
 ## Agent interfaces
 
 - [OpenAPI](${origin}/api/reference/v1/openapi.json): versioned read-only HTTP API
-- [Search](${origin}/api/reference/v1/search?q=movement): search missions, rules, detachments, and datasheets
+- [Praetorium guide](${origin}/api/reference/v1/about): product capabilities, privacy boundaries, and efficient agent workflow
+- [Reference index](${origin}/api/reference/v1/): discover kinds, mission packs, rule documents, factions, and active revisions
+- [Search](${origin}/api/reference/v1/search?q=movement): search missions, deployments, terrain, rules, detachments, and datasheets
 - [Factions](${origin}/api/reference/v1/factions): discover available factions
 - [MCP](${origin}/mcp): stateless read-only Streamable HTTP MCP endpoint
 
-API reads return JSON by default. Send \`Accept: text/markdown\` for compact source-faithful text. Search results include canonical page URLs, source revisions, and attribution.
+For roster planning, read \`/api/reference/v1/factions/{catalogueId}/units\` once to get compact unit-size costs, composition, attachment relationships, limits, keywords, links, and optional detachment rules instead of reading every datasheet. API reads return JSON by default. Send \`Accept: text/markdown\` for compact source-faithful text. Search results include canonical page URLs, source revisions, attribution, and cursor pagination.
 
 ## Human reference
 

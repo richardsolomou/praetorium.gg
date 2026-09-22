@@ -14,7 +14,7 @@ const { document, corpus, state } = vi.hoisted(() => {
   return {
     document: record,
     corpus: {
-      catalogue: { revisions: { datacards: 'revision' } },
+      catalogue: { revisions: { datacards: 'revision' }, datasheets: [], detachments: [], ruleDocuments: [] },
       documents: [record],
       byId: new Map([[record.id, record]]),
       revision: 'snapshot',
@@ -27,13 +27,18 @@ vi.mock('./referenceCorpus', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./referenceCorpus')>()),
   referenceCorpusFor: () => (state.available ? corpus : null),
 }))
-vi.mock('./app', () => ({ app: () => ({ sync: () => ({ status: state.ready ? 'ready' : 'failed' }) }) }))
+vi.mock('./app', () => ({
+  app: () => ({ sync: () => ({ status: state.ready ? 'ready' : 'failed' }), catalogue: () => null, rules: () => null }),
+}))
 
 import {
   parseReferenceSearch,
   referenceDocumentResponse,
+  referenceGuideResponse,
+  referenceIndexResponse,
   referenceOpenApi,
   referenceRateLimit,
+  referenceRecordResponse,
   referenceSearchResponse,
 } from './referenceApi'
 
@@ -48,7 +53,10 @@ it('parses bounded reference search filters', () => {
     query: 'rapid fire',
     kinds: ['rule', 'datasheet'],
     faction: undefined,
+    pack: undefined,
+    document: undefined,
     limit: 5,
+    cursor: undefined,
   })
   expect(parseReferenceSearch(new URL('https://praetorium.gg/api/reference/v1/search?q=death+trap&kind=mission'))).toMatchObject({
     query: 'death trap',
@@ -60,6 +68,7 @@ it.each([
   ['q=x', 'q must contain at least 2 characters'],
   ['q=movement&kind=unknown', 'kind is not supported'],
   ['q=movement&limit=100', 'limit must be an integer from 1 to 25'],
+  ['q=movement&cursor=not-a-cursor', 'cursor is not valid'],
 ])('rejects an invalid search query', (query, error) => {
   expect(parseReferenceSearch(new URL(`https://praetorium.gg/api/reference/v1/search?${query}`))).toEqual({ error })
 })
@@ -86,6 +95,19 @@ it('serves the same document as source-attributed Markdown', async () => {
   )
 
   expect(await response.text()).toContain('# Move Units\n\nrule\n\n## Move Units\n\nMove across the battlefield.')
+})
+
+it('serves product guidance, discovery, and the structured record behind a document', async () => {
+  const guide = await referenceGuideResponse(new Request('https://praetorium.gg/api/reference/v1/about')).json()
+  const index = await referenceIndexResponse(new Request('https://praetorium.gg/api/reference/v1/')).json()
+  const record = await referenceRecordResponse(
+    new Request(`https://praetorium.gg/api/reference/v1/records/${encodeURIComponent(document.id)}`),
+    document.id,
+  ).json()
+
+  expect(guide).toMatchObject({ agentWorkflow: expect.arrayContaining([expect.stringContaining('list_units')]) })
+  expect(index).toMatchObject({ corpusRevision: 'snapshot', kinds: { rule: 1 } })
+  expect(record).toMatchObject({ document, data: document })
 })
 
 it('changes an ETag when the active snapshot changes', () => {
@@ -139,7 +161,11 @@ it('publishes concrete OpenAPI response contracts', () => {
     },
     components: {
       schemas: {
-        ReferenceSearchResponse: { required: ['query', 'results', 'revisions'] },
+        ProductGuide: { required: ['product', 'capabilities', 'boundaries', 'dataModel', 'agentWorkflow'] },
+        ReferenceIndex: { required: ['corpusRevision', 'revisions', 'kinds', 'factions', 'missionPacks', 'ruleDocuments'] },
+        ReferenceSearchResponse: { required: ['query', 'results', 'revisions', 'nextCursor'] },
+        UnitIndex: { required: ['faction', 'battleSize', 'detachment', 'units', 'revisions'] },
+        ReferenceRecord: { required: ['document', 'data'] },
         DatasheetRecord: {
           properties: { data: { $ref: '#/components/schemas/Datasheet' } },
           required: ['kind', 'canonicalUrl', 'revisions', 'attribution', 'data'],
