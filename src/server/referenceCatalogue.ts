@@ -11,9 +11,13 @@ type ReferenceSources = {
   rules: () => LoadedRules | null
 }
 
-export function referenceDatasheetBySlug(sources: ReferenceSources, data: { catalogueId: string; slug: string }) {
+export function referenceDatasheetBySlug(
+  sources: ReferenceSources,
+  data: { catalogueId: string; slug: string },
+  options: { live?: boolean } = {},
+) {
   const canonical = sources.canonicalCatalogue()
-  if (canonical) {
+  if (canonical && !options.live) {
     return canonical.datasheets.find((sheet) => sheet.catalogueId === data.catalogueId && sheet.slug === data.slug) ?? null
   }
   const loaded = sources.catalogue()

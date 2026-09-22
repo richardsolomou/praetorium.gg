@@ -23,6 +23,10 @@ The client keeps catalogue picker entries and searches their structured fields l
 
 The hosted service reads a checksum-verified snapshot packaged with its image. Each web replica loads the catalogue and rules into memory at startup and prepares the search index and simulator picker; health checks wait for this preparation. Compact navigation, battle, and terrain responses send only the records each screen needs. A hosted release keeps its packaged snapshot until its next deployment, so publishing a new source snapshot alone does not change the live reference.
 
+### Space Marines codex replacement
+
+The definitions source follows BSData's `codex-space-marines-11e-wip` branch while the replacement data is prepared upstream. Its `(11e)` Space Marines and chapter books supersede books with the same base name and are shown under the ordinary faction name. Current chapter supplements without a replacement book inherit the new generic Space Marines rules and detachments while retaining their own supplement detachments. `previewCatalogues.ts` supplies root links the work-in-progress books have not added yet; it does not copy source game data into Git. The replacement reads its own army-rule and detachment profiles and DP costs rather than joining older Game Datacards text by name. Stratagem text is shown without inferred timing or eligibility until a structured source supplies those fields.
+
 Server catalogue code is split by responsibility:
 
 - `catalogueIndex.ts` loads files and indexes books, detachments, datasheet membership, and 40kdc's namespaced source references.

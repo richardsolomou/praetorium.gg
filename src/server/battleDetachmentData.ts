@@ -3,6 +3,7 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { rulesReferencedIn } from './catalogueRules'
 import { rulesFaction, type LoadedRules } from './rules'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
+import { isPreviewDetachment, previewDetachmentCards } from './previewCatalogues'
 
 export type BattleDetachmentData = {
   index: Pick<LoadedCatalogue['index'], 'rules'>
@@ -12,10 +13,11 @@ export type BattleDetachmentData = {
   coreDetails: LoadedRules['coreDetails']
   attribution: string
   dataslate: string | null
+  previewStratagems: Map<string, ReturnType<typeof previewDetachmentCards>['stratagems']>
 }
 
 export function battleDetachmentData(
-  loaded: Pick<LoadedCatalogue, 'index'>,
+  loaded: Pick<LoadedCatalogue, 'index' | 'detachments'>,
   rules: LoadedRules,
   catalogueId: string,
 ): BattleDetachmentData | null {
@@ -30,12 +32,24 @@ export function battleDetachmentData(
     coreDetails: rules.coreDetails,
     attribution: rules.attribution,
     dataslate: rules.dataslate,
+    previewStratagems: new Map(
+      (loaded.detachments.get(catalogueId)?.options ?? [])
+        .filter((option) => isPreviewDetachment(loaded, option.id))
+        .map((option) => [option.name, previewDetachmentCards(loaded, option.id).stratagems]),
+    ),
   }
 }
 
 export function selectedBattleDetachmentData(data: BattleDetachmentData, names: readonly string[]) {
-  const selected = selectedDetachmentRules(names, data.live, data.details)
-  const written = [...selected.written, ...data.coreDetails]
+  const selected = selectedDetachmentRules(
+    names.filter((name) => !data.previewStratagems.has(name)),
+    data.live,
+    data.details,
+  )
+  const previewWritten = names.flatMap((name) =>
+    (data.previewStratagems.get(name) ?? []).map((card) => ({ ...card, type: null })),
+  )
+  const written = [...selected.written, ...previewWritten, ...data.coreDetails]
   return {
     attribution: data.attribution,
     dataslate: data.dataslate,

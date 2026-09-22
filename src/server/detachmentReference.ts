@@ -6,12 +6,36 @@ import { detachmentPoints } from './detachmentPoints'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { detachmentNamed } from './factionReferences'
+import { isPreviewDetachment, previewDetachmentCards, previewDetachmentPoints } from './previewCatalogues'
 
 export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules, catalogueId: string, detachmentSlug: string) {
   const faction = loaded.index.catalogues.get(catalogueId)
   if (!faction) return null
   const option = loaded.detachments.get(catalogueId)?.options.find((candidate) => routeSlug(candidate.name) === detachmentSlug)
   if (!option) return null
+  if (isPreviewDetachment(loaded, option.id)) {
+    const cards = previewDetachmentCards(loaded, option.id)
+    return {
+      id: option.id,
+      name: option.name,
+      points: previewDetachmentPoints(loaded, option.id),
+      dispositions: option.disposition ? [rules.dispositions?.get(option.disposition) ?? option.disposition] : [],
+      rules: cards.rules,
+      enhancements: [],
+      upgrades: [],
+      stratagems: cards.stratagems.map((card) => ({
+        ...card,
+        type: null,
+        phases: [],
+        turn: null,
+      })),
+      keywordRules: rulesReferencedIn(
+        loaded,
+        [...cards.rules, ...cards.stratagems].map((card) => card.description),
+      ),
+      attribution: 'BSData community catalogue',
+    }
+  }
   const rulesId = rulesFaction(rules, routeSlug(faction.name))
   const detail = detachmentNamed(rules.detachmentDetails.get(rulesId), option.name)
   const reference = detachmentNamed(rules.detachmentReferences.get(rulesId), option.name)

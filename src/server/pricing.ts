@@ -22,6 +22,7 @@ import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
+import { isPreviewDetachment, previewDetachmentPoints } from './previewCatalogues'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
 import { detachmentPoints } from './detachmentPoints'
@@ -338,17 +339,24 @@ function calculateRoster(
   const rulesId = rulesFaction(rules, factionSlug)
   const references = rules?.detachmentReferences.get(rulesId)
   const details = rules?.detachmentDetails.get(rulesId)
+  const referenceFor = (option: (typeof chosen)[number]) =>
+    isPreviewDetachment(loaded, option.id)
+      ? {
+          points: previewDetachmentPoints(loaded, option.id),
+          dispositions: option.disposition ? [option.disposition] : [],
+        }
+      : detachmentNamed(references, option.name)
   const allowedDispositions = [
     ...new Set(
       chosen.flatMap((option) => {
-        const reference = detachmentNamed(references, option.name)
+        const reference = referenceFor(option)
         return reference ? reference.dispositions : option.disposition ? [option.disposition] : []
       }),
     ),
   ]
   const purchased = chosen.map((option) => ({
     name: option.name,
-    points: detachmentPoints(loaded, data.catalogueId, option.id, detachmentNamed(references, option.name)),
+    points: detachmentPoints(loaded, data.catalogueId, option.id, referenceFor(option)),
   }))
   // The King of the Colosseum optional rule. The borrowed detachment is never added to the
   // roster, so it brings no rules, enhancements or stratagems: it sells its Force
@@ -358,7 +366,7 @@ function calculateRoster(
   const borrowedDetachment = data.borrowedDetachmentId
     ? (rosterDetachments(loaded, data.catalogueId, [data.borrowedDetachmentId]).chosen[0] ?? null)
     : null
-  const borrowedReference = borrowedDetachment ? detachmentNamed(references, borrowedDetachment.name) : undefined
+  const borrowedReference = borrowedDetachment ? referenceFor(borrowedDetachment) : undefined
   const borrowedPoints = borrowedDetachment ? detachmentPoints(loaded, data.catalogueId, borrowedDetachment.id, borrowedReference) : null
   const ownPoints = purchased.some((option) => option.points === null)
     ? null
@@ -375,7 +383,7 @@ function calculateRoster(
       : (borrowedReference?.dispositions ?? (borrowedDetachment.disposition ? [borrowedDetachment.disposition] : []))
   const { disposition, error: dispositionError } = resolveDisposition([...allowedDispositions, ...borrowedDispositions], data.disposition)
   const detachmentSpecials = chosen.map((option) => {
-    const detail = detachmentNamed(details, option.name)
+    const detail = isPreviewDetachment(loaded, option.id) ? undefined : detachmentNamed(details, option.name)
     return { option, detail, ...describedEnhancements(loaded, data.catalogueId, option, detail) }
   })
   const strategicReserveFactsComplete =

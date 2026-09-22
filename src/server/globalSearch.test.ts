@@ -5,6 +5,22 @@ import type { LoadedRules } from './rules'
 import type { RuleDocument } from './rulesCore'
 
 describe('global datasheet search', () => {
+  it('uses a replacement catalogue instead of the superseded catalogue', async () => {
+    const catalogue = shelfOf(
+      {
+        name: 'Space Marines',
+        selectionEntries: [{ id: 'old-intercessors', name: 'Old Intercessor Squad', type: 'unit', costs: points(90) }],
+      },
+      {
+        name: 'Space Marines (11e)',
+        selectionEntries: [{ id: 'new-intercessors', name: 'Intercessor Squad', type: 'unit', costs: points(90) }],
+      },
+    )
+    const source = { catalogue, rules: null, own: async () => null }
+    const results = await searchEverything('intercessor', source)
+    expect(results.filter((result) => result.group === 'Datasheets').map((result) => result.label)).toEqual(['Intercessor Squad'])
+  })
+
   it('finds a datasheet by structured metadata and explains the match', async () => {
     const catalogue = shelfOf({
       name: 'Necrons',

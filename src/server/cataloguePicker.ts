@@ -54,10 +54,17 @@ const GROUP_BY_CATEGORY = new Map<string, UnitGroup>([
  * stays under Other rather than borrowing a shelf from a secondary keyword.
  */
 function groupOf(entry: Definition, target: Definition): UnitGroup {
-  for (const link of [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])]) {
+  const categories = [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])]
+  for (const link of categories) {
     if (!link.primary) continue
     const shelf = GROUP_BY_CATEGORY.get((link.name ?? '').trim().toLowerCase())
     if (shelf) return shelf
+  }
+  if (entry.id.startsWith('preview-')) {
+    const shelves = categories.flatMap((link) => GROUP_BY_CATEGORY.get((link.name ?? '').trim().toLowerCase()) ?? [])
+    return (
+      (['epic-hero', 'character', 'battleline', 'transport'] as const).find((shelf) => shelves.includes(shelf)) ?? shelves[0] ?? 'other'
+    )
   }
   return 'other'
 }
