@@ -153,7 +153,7 @@ export function Pane({
           <h2 className="min-w-max flex-1 text-base">{title}</h2>
         )}
         {actions ? (
-          <div data-pane-actions className="flex shrink-0 flex-wrap items-center justify-start gap-1">
+          <div data-pane-actions className="flex min-w-0 max-w-full flex-wrap items-center justify-start gap-1">
             {actions}
           </div>
         ) : null}

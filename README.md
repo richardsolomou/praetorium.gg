@@ -22,7 +22,7 @@ Players can:
 
 - Build, import, save, share, print, and export army lists.
 - Browse factions, detachments, datasheets, loadouts, enhancements, and points.
-- Compare unit loadouts in a public combat simulator, with damage and kill probabilities.
+- Compare unit loadouts in a public combat simulator from the roster editor, or during battles, with buffs and damage and kill probabilities.
 - Search that public reference through a documented read-only API or MCP client.
 - Set up missions, deployment, terrain, formations, stratagems, and mission cards.
 - Play 1v1, 2v1, and 2v2 games with friends or practise on your own.

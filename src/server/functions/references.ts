@@ -1,8 +1,8 @@
+import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
 import { routeSlug } from '../../core/slug'
-import { attachedUnit } from '../../core/attach'
-import { buildUnit, type RosterPick } from '../../core/roster'
+import type { RosterPick } from '../../core/roster'
 import { datasheetIn, datasheetViewsIn, rulesReferencedIn, unitWoundsIn } from '../catalogue'
 import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
@@ -16,7 +16,9 @@ import { gameReferencesFor } from '../gameReferences'
 import { rulesFaction } from '../rules'
 import { type GlobalSearchResult, searchEverything } from '../globalSearch'
 import { mutationRpc, rpc } from '../rpc'
-import { rosterDetachments, rosterSetupLabel } from '../pricing'
+import { rosterSetupLabel } from '../pricing'
+import { rosterDatasheetContext } from '../rosterDatasheetContext'
+import { rosterCombatant } from '../rosterCombatRules'
 import { currentUserId } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { selectedDetachmentRules } from '../selectedDetachmentRules'
@@ -164,6 +166,15 @@ export const loadoutDatasheets = createServerFn({ method: 'POST' })
     }),
   )
 
+export const combatantDatasheet = createServerFn({ method: 'POST' })
+  .validator(datasheetSchema.extend({ inactivePicks: z.array(z.int().min(0).max(99)).max(100).default([]) }))
+  .handler(({ data }) =>
+    mutationRpc(() => {
+      const loaded = app().catalogue()
+      return loaded ? rosterCombatant(loaded, app().rules(), data) : null
+    }),
+  )
+
 /** A persisted read-only roster needs only its opaque id on the wire. */
 export const savedRosterLoadoutDatasheets = createServerFn({ method: 'GET' })
   .validator(savedRosterDatasheetSchema)
@@ -216,39 +227,6 @@ function rosterLoadoutDatasheets(
       ? describeDatasheetAbilities(loaded, data.catalogueId, views.available, app().rules())
       : rosterDatasheet(loaded, data, undefined, true),
   }
-}
-
-function rosterDatasheetContext(
-  loaded: NonNullable<ReturnType<ReturnType<typeof app>['catalogue']>>,
-  data: {
-    catalogueId: string
-    detachmentIds: string[]
-    picks: RosterPick[]
-    pickIndex: number | null
-  },
-) {
-  // A catalogue preview is not a roster selection. Without an index there is no
-  // selected unit to receive contextual modifiers, so expanding the roster would
-  // be work whose result is immediately discarded.
-  if (data.pickIndex === null) return undefined
-  const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
-  const builtUnits = data.picks.flatMap((pick, index) => {
-    const unit = buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
-      primaryCatalogueId: data.catalogueId,
-      roster: detachments,
-      spreads: pick.spreads,
-      toggles: pick.toggles,
-    })
-    return unit ? [{ index, selection: unit.selection }] : []
-  })
-  const selected = builtUnits.findIndex((unit) => unit.index === data.pickIndex)
-  const selections = [...detachments, ...builtUnits.map((unit) => unit.selection)]
-  // A character, the unit it joined and everything else joined to that unit are
-  // one unit, so each is told about the others: a relic that speaks of the
-  // bearer's unit has to reach every model in it.
-  const attached = attachedUnit(data.picks, data.pickIndex)
-  const companions = builtUnits.flatMap((unit, at) => (attached.includes(unit.index) ? [detachments.length + at] : []))
-  return selected < 0 ? undefined : { selections, unitSelectionIndex: detachments.length + selected, companions }
 }
 
 function rosterDatasheet(

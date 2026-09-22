@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Datasheet } from '../contracts/catalogue'
+import { combatSurvivorSheet } from './combatSurvivors'
 import { combatPlan, combatTarget, combatWeapons } from './combatProfiles'
 
 const sheet = (keywords = ''): Datasheet => ({
@@ -42,6 +43,27 @@ const sheet = (keywords = ''): Datasheet => ({
 })
 
 describe('combat profiles', () => {
+  it('uses surviving weapon counts for both projection and attack selection', () => {
+    const original = [{ name: 'Model', models: 5, weapons: [{ name: 'Weapon', count: 5 }] }]
+    const survivors = [{ name: 'Model', models: 3, weapons: [{ name: 'Weapon', count: 3 }] }]
+    const plan = combatPlan(combatSurvivorSheet(sheet(), original, survivors), survivors, [], 'ranged')
+    expect({ counts: plan.weapons.map((weapon) => weapon.count), errors: plan.errors }).toEqual({ counts: [3], errors: [] })
+  })
+  it('does not conceal an unmatched original profile when reducing casualties', () => {
+    const original = [{ name: 'Model', models: 5, weapons: [{ name: 'Unknown', count: 5 }] }]
+    expect(combatPlan(combatSurvivorSheet(sheet(), original, []), [], [], 'ranged').errors).toContain(
+      'Weapon: equipped weapons could not be matched to their models.',
+    )
+  })
+  it('removes a dead specialist weapon from attack selection', () => {
+    const original = [{ name: 'Model', models: 5, weapons: [{ name: 'Weapon', count: 5 }] }]
+    expect(combatPlan(combatSurvivorSheet(sheet(), original, []), [], [], 'ranged').used).toEqual([])
+  })
+  it('does not grant a bearer-only defence to an unidentified last survivor', () => {
+    const data = sheet()
+    data.abilities = [{ id: 'fnp', name: 'Feel No Pain 5+', kind: 'core', source: 'Armour', description: null }]
+    expect(combatTarget(data, 1, 5).target?.feelNoPain).toBeNull()
+  })
   it.each(['Pistol', '[PISTOL]', 'Pistol, Close-Quarters'])(
     'accepts %s as a close-quarters ability without losing damage rules',
     (keywords) => {

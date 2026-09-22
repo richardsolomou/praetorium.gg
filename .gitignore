@@ -15,3 +15,5 @@ test-results/
 catalogue-data
 catalogue-current.json
 catalogue-snapshot.zip
+.combat-rule-cache/
+combat-reports/

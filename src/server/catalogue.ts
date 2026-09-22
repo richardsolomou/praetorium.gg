@@ -219,6 +219,12 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
   )
 }
 
+/** Support effects need selected abilities, without weapon stats or reference relationships. */
+export function datasheetAbilitiesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context: DatasheetContext) {
+  const walked = walk(loaded, catalogueId, entryId, context, true)
+  return walked ? { name: walked.name, abilities: walked.abilities, keywords: walked.keywords } : null
+}
+
 function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string, walked: Walked | null): Datasheet | null {
   if (!walked) return null
   const { root, name, catalogueOptions } = walked
@@ -253,7 +259,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
 }
 
 /** The catalogue's own answer for a datasheet: what it prints and offers, as a list would see it. */
-function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context?: DatasheetContext) {
+function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context?: DatasheetContext, abilitiesOnly = false) {
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return null
   const root = loaded.index.definitions.get(entryId)
   if (!root) return null
@@ -270,16 +276,16 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
           context.companions ?? [],
         )
       : [])
-  const grantedWeaponAbilities = context
-    ? [
-        ...weaponAbilitiesFromDetachments(context.selections, context.unitSelectionIndex, loaded, catalogueId, context.keywordIds),
-        ...weaponAbilitiesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index),
-        ...weaponAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index),
-      ]
-    : []
-  const grantedInvulnerableSaves = context
-    ? invulnerableSavesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index)
-    : []
+  const grantedWeaponAbilities =
+    context && !abilitiesOnly
+      ? [
+          ...weaponAbilitiesFromDetachments(context.selections, context.unitSelectionIndex, loaded, catalogueId, context.keywordIds),
+          ...weaponAbilitiesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index),
+          ...weaponAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index),
+        ]
+      : []
+  const grantedInvulnerableSaves =
+    context && !abilitiesOnly ? invulnerableSavesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index) : []
   const grantedAbilities = context
     ? grantedAbilitiesInAttachedUnit(
         context.selections,
@@ -330,7 +336,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       ).value
       if (hidden === 'true') return
       abilities.set(`${kind}:${profile.id}`, { id: profile.id, name: profile.name, source, description: abilityDescription(profile), kind })
-    } else {
+    } else if (!abilitiesOnly) {
       profiles.set(profile.id, { profile, lineage, owner })
     }
   }

@@ -16,10 +16,14 @@ const normalized = (text: string) =>
 
 const weaponAbility = (text: string) => normalized(text).replace(/^pistol$/, 'close-quarters')
 
-export function combatTarget(sheet: Datasheet, models: number): { target: CombatInput['target'] | null; error: string | null } {
+export function combatTarget(
+  sheet: Datasheet,
+  models: number,
+  startingModels = models,
+): { target: CombatInput['target'] | null; error: string | null } {
   const profiles = datasheetProfilesByKind(sheet).unit
   const feelNoPain = sheet.abilities.flatMap((ability) => {
-    if (ability.kind !== 'core' || (ability.source && models !== 1)) return []
+    if (ability.kind !== 'core' || (ability.source && startingModels !== 1)) return []
     const match = /^feel\s+no\s+pain\s+([2-6])\+$/.exec(normalized(ability.name))
     return match ? [Number(match[1])] : []
   })
@@ -55,8 +59,12 @@ export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[
   const profiles = datasheetProfilesByKind(sheet)[phase]
   return profiles.map((profile) => {
     const unsupported: string[] = []
+    const baseSkill = integer(
+      profile.values.find((entry) => entry.kind === (phase === 'ranged' ? 'ballistic-skill' : 'weapon-skill'))?.baseValue,
+    )
     const weapon: CombatWeapon = {
       count: profile.count ?? 0,
+      ...(baseSkill ? { baseSkill } : {}),
       attacks: diceExpression(value(profile, 'attacks') ?? '') ?? { dice: 0, sides: 6, bonus: 0 },
       skill: integer(value(profile, phase === 'ranged' ? 'ballistic-skill' : 'weapon-skill')) ?? 0,
       strength: integer(value(profile, 'strength')) ?? 0,

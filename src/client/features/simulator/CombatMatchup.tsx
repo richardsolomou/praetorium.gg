@@ -1,16 +1,32 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { ArrowLeftRight } from 'lucide-react'
+import { ArrowLeftRight, Crosshair, Swords } from 'lucide-react'
 import { ProfileGrid, WeaponProfiles } from '../builder/DatasheetPanel'
 import type { Datasheet } from '../../../contracts/catalogue'
 import { DEFAULT_COMBAT_OPTIONS, type CombatInput, type CombatOptions, type CombatResult } from '../../../core/combat'
 import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatPlan, combatTarget } from '../../../core/combatProfiles'
-import { RuleText } from '../../components/RuleText'
+import {
+  combatRuleDefences,
+  combatRuleOptions,
+  combatRuleProfiles,
+  combatRuleWeapons,
+  combatRuleMortals,
+  type ActiveCombatRule,
+} from '../../../core/combatRules'
+import { CombatRuleLabel } from './CombatRuleLabel'
 import { Choice, rerolls, Toggle } from './CombatControls'
-import { CombatHistogram } from './CombatHistogram'
+import { CombatEstimate } from './CombatEstimate'
 
-export type CombatantSnapshot = { sheet: Datasheet; models: number; carriers: readonly CombatCarrier[] }
+export type CombatantSnapshot = {
+  sheet: Datasheet
+  models: number
+  startingModels?: number
+  carriers: readonly CombatCarrier[]
+  rules?: readonly ActiveCombatRule[]
+  damage?: number
+  allocationRequired?: boolean
+}
 type Phase = CombatOptions['phase']
 export type CombatContext = {
   ranged?: Partial<Omit<CombatOptions, 'phase'>>
@@ -36,6 +52,7 @@ export function CombatMatchup({
   attackerControl,
   defenderControl,
   onSwap,
+  buffs,
 }: {
   attacker: CombatantSnapshot | null
   defender: CombatantSnapshot | null
@@ -45,23 +62,82 @@ export function CombatMatchup({
   attackerControl?: ReactNode
   defenderControl?: ReactNode
   onSwap?: () => void
+  buffs?: ReactNode
 }) {
   const [overrides, setOverrides] = useState<CombatContext>({})
   const [preferences, setPreferences] = useState<Record<string, string>>({})
   const [outcome, setOutcome] = useState<{ key: string; attempt: number; answer: CombatAnswer } | null>(null)
   const [retry, setRetry] = useState(0)
-  const target = defender ? combatTarget(defender.sheet, defender.models) : null
-  const defaultFeelNoPain = context.feelNoPain === undefined ? (target?.target?.feelNoPain ?? null) : context.feelNoPain
+  const target = defender ? combatTarget(defender.sheet, defender.models, defender.startingModels) : null
+  if (target?.target) target.target.damage = defender?.damage ?? 0
+  const attackRules = attacker?.rules ?? []
+  const defenceRules = defender?.rules ?? []
+  const rangedDefences = target?.target ? combatRuleDefences(target.target, defenceRules, 'ranged') : null
+  const meleeDefences = target?.target ? combatRuleDefences(target.target, defenceRules, 'melee') : null
+  const printedFeelNoPain =
+    rangedDefences?.feelNoPain === meleeDefences?.feelNoPain ? rangedDefences?.feelNoPain : target?.target?.feelNoPain
+  const defaultFeelNoPain = context.feelNoPain === undefined ? (printedFeelNoPain ?? null) : context.feelNoPain
   const feelNoPain = overrides.feelNoPain === undefined ? defaultFeelNoPain : overrides.feelNoPain
-  const options = (phase: Phase): CombatOptions => ({ ...DEFAULT_COMBAT_OPTIONS, ...context[phase], ...overrides[phase], phase })
+  const options = (phase: Phase): CombatOptions => {
+    const attack = combatRuleOptions(attackRules, 'attacker', phase)
+    const defence = combatRuleOptions(defenceRules, 'defender', phase)
+    const inherited = { ...DEFAULT_COMBAT_OPTIONS, ...context[phase], ...attack, ...defence }
+    const modifier = (field: 'hitModifier' | 'woundModifier') =>
+      (context[phase]?.[field] ?? 0) + (attack[field] ?? 0) + (defence[field] ?? 0)
+    return {
+      ...inherited,
+      hitModifier: modifier('hitModifier'),
+      woundModifier: modifier('woundModifier'),
+      ...overrides[phase],
+      positiveWoundModifier:
+        overrides[phase]?.woundModifier === undefined
+          ? Math.max(0, context[phase]?.woundModifier ?? 0) + (attack.positiveWoundModifier ?? 0) + (defence.positiveWoundModifier ?? 0)
+          : Math.max(0, overrides[phase].woundModifier),
+      psychicHitModifier:
+        overrides[phase]?.hitModifier === undefined
+          ? (context[phase]?.psychicHitModifier ?? Math.max(0, context[phase]?.hitModifier ?? 0)) +
+            (attack.psychicHitModifier ?? 0) +
+            (defence.psychicHitModifier ?? 0)
+          : Math.max(0, overrides[phase].hitModifier),
+      phase,
+    }
+  }
+  const attackSheet = attacker
+    ? combatRuleProfiles(attacker.sheet, attackRules, 'attacker', defender?.sheet.keywords ?? [], defenceRules)
+    : null
   const plans = {
-    ranged: attacker ? combatPlan(attacker.sheet, attacker.carriers, defender?.sheet.keywords ?? [], 'ranged', preferences) : null,
-    melee: attacker ? combatPlan(attacker.sheet, attacker.carriers, defender?.sheet.keywords ?? [], 'melee', preferences) : null,
+    ranged:
+      attacker && attackSheet ? combatPlan(attackSheet, attacker.carriers, defender?.sheet.keywords ?? [], 'ranged', preferences) : null,
+    melee:
+      attacker && attackSheet ? combatPlan(attackSheet, attacker.carriers, defender?.sheet.keywords ?? [], 'melee', preferences) : null,
   }
   const scenario = (phase: Phase): CombatInput | null => {
     const plan = plans[phase]
-    return target?.target && plan?.weapons.length && !plan.errors.length
-      ? { target: { ...target.target, feelNoPain }, weapons: plan.weapons, options: options(phase) }
+    const defences = phase === 'ranged' ? rangedDefences : meleeDefences
+    const configuredFeelNoPain = overrides.feelNoPain === undefined ? context.feelNoPain : overrides.feelNoPain
+    const mortalWounds = combatRuleMortals(attackRules, phase, defender?.sheet.keywords ?? [], plan?.used ?? [], attacker?.models ?? 0)
+    return defences && !attacker?.allocationRequired && plan && (plan.weapons.length || mortalWounds.length) && !plan.errors.length
+      ? {
+          target: {
+            ...defences,
+            feelNoPain: configuredFeelNoPain === undefined ? defences.feelNoPain : configuredFeelNoPain,
+            psychicFeelNoPain: configuredFeelNoPain === undefined ? defences.psychicFeelNoPain : null,
+            mortalFeelNoPain: configuredFeelNoPain === undefined ? defences.mortalFeelNoPain : null,
+          },
+          weapons: combatRuleWeapons(
+            combatRuleWeapons(plan.used, attackRules, 'attacker', phase, defender?.sheet.keywords ?? []).map((weapon, index) => ({
+              weapon,
+              count: weapon.count,
+              profile: plan.used[index]!.profile,
+            })),
+            defenceRules,
+            'defender',
+            phase,
+            attacker?.sheet.keywords ?? [],
+          ),
+          options: options(phase),
+          ...(mortalWounds.length ? { mortalWounds } : {}),
+        }
       : null
   }
   const scenarios: CombatRequest = { ranged: scenario('ranged'), melee: scenario('melee') }
@@ -135,10 +211,27 @@ export function CombatMatchup({
             </Button>
           ) : null}
           {defenderControl ?? <CombatantHeading side="Defender" unit={defender} />}
-          <CombatDefences unit={defender} feelNoPain={feelNoPain} />
+          <CombatDefences
+            unit={defender}
+            feelNoPain={feelNoPain}
+            configured={
+              rangedDefences &&
+              meleeDefences &&
+              rangedDefences.invulnerable === meleeDefences.invulnerable &&
+              rangedDefences.save === meleeDefences.save &&
+              rangedDefences.toughness === meleeDefences.toughness
+                ? rangedDefences
+                : undefined
+            }
+          />
         </section>
       </div>
       <div className="border-t border-edge p-3 sm:p-4">
+        {attacker?.allocationRequired ? (
+          <p role="alert" className="mb-3 text-sm text-amber-400">
+            Choose the attacker's surviving models and weapons to calculate attacks.
+          </p>
+        ) : null}
         {target?.error ? (
           <p role="alert" className="mb-3 text-sm text-amber-400">
             {target.error}
@@ -156,18 +249,34 @@ export function CombatMatchup({
                 key={phase}
                 aria-label={`${title} results`}
                 aria-busy={valid && updating && !failed}
-                className="min-w-0 border border-edge bg-sunken p-3"
+                className="min-w-0 rounded-md border border-edge bg-sunken p-3"
               >
-                <h2 className="rubric">{title}</h2>
-                <div className="mt-3 grid min-h-20 grid-cols-3 gap-2">
+                <h2 className="rubric flex items-center gap-2">
+                  {phase === 'ranged' ? (
+                    <Crosshair className="size-4 text-info" aria-hidden />
+                  ) : (
+                    <Swords className="size-4 text-info" aria-hidden />
+                  )}
+                  {title}
+                </h2>
+                <div className="my-3 grid min-h-20 grid-cols-3 gap-2 border-y border-edge py-3">
                   {[
-                    ['Wounds lost', result?.meanDamage.toFixed(2)],
-                    ['Models lost', result?.meanKills.toFixed(2)],
-                    ['Unit destroyed', result ? `${(result.wipe * 100).toFixed(1)}%` : undefined],
-                  ].map(([label, value]) => (
+                    { label: 'Wounds lost', value: result?.meanDamage.toFixed(2), distribution: result?.damage },
+                    { label: 'Models lost', value: result?.meanKills.toFixed(2), distribution: result?.kills },
+                    { label: 'Unit destroyed', value: result ? `${(result.wipe * 100).toFixed(1)}%` : undefined },
+                  ].map(({ label, value, distribution }) => (
                     <div key={label}>
                       <p className="text-xs text-dim">{label}</p>
-                      <p className={`readout mt-1 text-xl ${updating || failed ? 'text-dim' : 'text-primary'}`}>{value ?? '—'}</p>
+                      {distribution && value ? (
+                        <CombatEstimate
+                          label={`${title} · ${label}`}
+                          value={value}
+                          distribution={distribution}
+                          muted={updating || failed}
+                        />
+                      ) : (
+                        <p className={`readout mt-1 text-xl ${updating || failed ? 'text-dim' : 'text-primary'}`}>{value ?? '—'}</p>
+                      )}
                       {label !== 'Unit destroyed' ? <p className="text-xs text-faint">average</p> : null}
                     </div>
                   ))}
@@ -206,12 +315,6 @@ export function CombatMatchup({
                       rules={attacker?.sheet.keywordRules ?? []}
                     />
                   </div>
-                  {result ? (
-                    <>
-                      <CombatHistogram title="Models destroyed" distribution={result.kills} />
-                      <CombatHistogram title="Wounds lost" distribution={result.damage} />
-                    </>
-                  ) : null}
                 </div>
               </section>
             )
@@ -229,7 +332,7 @@ export function CombatMatchup({
                     <Choice
                       label="Hit modifier"
                       ariaLabel={`${title} hit modifier`}
-                      value={current.hitModifier}
+                      value={Math.max(-1, Math.min(1, current.hitModifier))}
                       choices={[
                         [-1, '−1'],
                         [0, 'None'],
@@ -240,7 +343,7 @@ export function CombatMatchup({
                     <Choice
                       label="Wound modifier"
                       ariaLabel={`${title} wound modifier`}
-                      value={current.woundModifier}
+                      value={Math.max(-1, Math.min(1, current.woundModifier))}
                       choices={[
                         [-1, '−1'],
                         [0, 'None'],
@@ -326,31 +429,33 @@ export function CombatMatchup({
           {sources.length ? (
             <p className="mt-4 text-xs text-dim">Inherited: {sources.join(' · ')}. Evaluated profile changes are included.</p>
           ) : null}
-          <div className="mt-4 grid gap-4 @xl:grid-cols-2">
-            {[
-              { side: 'Attacker', unit: attacker },
-              { side: 'Defender', unit: defender },
-            ].map(({ side, unit }) => {
-              if (!unit?.sheet.abilities.length) return null
-              return (
-                <section key={side} aria-label={`${side} rules`} className="min-w-0">
-                  <h3 className="rubric">{side} rules</h3>
-                  <div className="mt-3 space-y-3">
-                    {unit.sheet.abilities.map((ability) => (
-                      <div key={ability.id}>
-                        <h4 className="text-sm">{ability.name}</h4>
-                        {ability.description ? (
-                          <RuleText text={ability.description} rules={unit.sheet.keywordRules} />
-                        ) : (
-                          <p className="text-xs text-faint">No description available.</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )
-            })}
-          </div>
+          {buffs ?? (
+            <div className="mt-4 grid gap-4 @xl:grid-cols-2">
+              {[
+                { side: 'Attacker', unit: attacker },
+                { side: 'Defender', unit: defender },
+              ].map(({ side, unit }) => {
+                if (!unit?.sheet.abilities.length) return null
+                return (
+                  <section key={side} aria-label={`${side} rules`} className="min-w-0">
+                    <h3 className="rubric">{side} rules</h3>
+                    <div className="mt-3 space-y-3">
+                      {unit.sheet.abilities.map((ability) => (
+                        <div key={ability.id}>
+                          <CombatRuleLabel
+                            side={side}
+                            name={ability.name}
+                            description={ability.description}
+                            rules={unit.sheet.keywordRules}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )
+              })}
+            </div>
+          )}
         </section>
       </div>
     </div>
@@ -367,8 +472,16 @@ function CombatantHeading({ side, unit }: { side: string; unit: CombatantSnapsho
   )
 }
 
-function CombatDefences({ unit, feelNoPain }: { unit: CombatantSnapshot | null; feelNoPain?: number | null }) {
-  const target = unit ? combatTarget(unit.sheet, unit.models).target : null
+function CombatDefences({
+  unit,
+  feelNoPain,
+  configured,
+}: {
+  unit: CombatantSnapshot | null
+  feelNoPain?: number | null
+  configured?: CombatInput['target']
+}) {
+  const target = configured ?? (unit ? combatTarget(unit.sheet, unit.models, unit.startingModels).target : null)
   const fnp = feelNoPain === undefined ? target?.feelNoPain : feelNoPain
   const values = [
     { name: 'T', value: target ? String(target.toughness) : '—' },

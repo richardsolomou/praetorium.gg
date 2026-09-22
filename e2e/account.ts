@@ -114,8 +114,8 @@ export async function createRoster(
   { faction, detachment, name, size }: { faction: string; detachment: RegExp; name?: string; size?: RegExp },
 ) {
   await page.goto('/rosters')
-  await page.getByRole('button', { name: 'Create editable roster' }).click()
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create editable roster' }).click())
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill(faction)
   await page.getByRole('option', { name: faction, exact: true }).click()

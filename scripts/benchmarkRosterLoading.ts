@@ -1,3 +1,4 @@
+import { rosterCombatant } from '../src/server/rosterCombatRules'
 import { performance } from 'node:perf_hooks'
 import { attachedUnit } from '../src/core/attach'
 import { buildUnit, type RosterPick } from '../src/core/roster'
@@ -105,7 +106,7 @@ if (process.env.PROFILE) {
   for (let repetition = 0; repetition < 10; repetition += 1) calculateRosterPrice(input(40))
   process.exit(0)
 }
-console.log('units\tprice_ms\tduplicate_datasheets_ms\tshared_datasheets_ms\treused_context_ms\treuse_speedup\tcontext_kib')
+console.log('units\tprice_ms\tduplicate_datasheets_ms\tshared_datasheets_ms\treused_context_ms\tsimulator_ms\treuse_speedup\tcontext_kib')
 for (const size of sizes) {
   const data = input(size)
   const price = median(() => void calculateRosterPrice(data), 3)
@@ -113,8 +114,18 @@ for (const size of sizes) {
   const newSheets = median(() => project(data.units, true))
   const prepared = context(data.units, Math.floor(data.units.length / 2))
   const reused = median(() => projectWithContext(data.units, prepared))
+  const simulator = median(
+    () =>
+      void rosterCombatant(loaded, app().rules(), {
+        catalogueId: faction.id,
+        detachmentIds: [],
+        picks: data.units,
+        pickIndex: Math.floor(data.units.length / 2),
+      }),
+    3,
+  )
   const contextKib = Buffer.byteLength(JSON.stringify(prepared)) / 1024
   console.log(
-    `${size}\t${price.toFixed(1)}\t${oldSheets.toFixed(1)}\t${newSheets.toFixed(1)}\t${reused.toFixed(1)}\t${(newSheets / reused).toFixed(2)}x\t${contextKib.toFixed(1)}`,
+    `${size}\t${price.toFixed(1)}\t${oldSheets.toFixed(1)}\t${newSheets.toFixed(1)}\t${reused.toFixed(1)}\t${simulator.toFixed(1)}\t${(newSheets / reused).toFixed(2)}x\t${contextKib.toFixed(1)}`,
   )
 }
