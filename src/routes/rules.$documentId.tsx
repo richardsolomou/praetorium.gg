@@ -15,6 +15,9 @@ export const Route = createFileRoute('/rules/$documentId')({
       ? [
           { title: `${loaderData.document.title} — Praetorium` },
           { name: 'description', content: `Contents and numbered rules from ${loaderData.document.title}.` },
+          { property: 'og:title', content: loaderData.document.title },
+          { property: 'og:description', content: `Contents and numbered rules from ${loaderData.document.title}.` },
+          { property: 'og:type', content: 'article' },
         ]
       : [],
     links:

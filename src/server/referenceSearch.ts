@@ -5,6 +5,7 @@ import type {
   ReferenceSearchResult,
   ReferenceSection,
 } from '../contracts/reference'
+import { distance } from 'fastest-levenshtein'
 import type { ReferenceCorpus } from './referenceCorpus'
 
 export const REFERENCE_QUERY_MAX_LENGTH = 120
@@ -20,6 +21,8 @@ export type ReferenceSearchInput = {
 
 type IndexedSection = {
   section: ReferenceSection
+  id: string
+  idWords: string[]
   heading: string
   headingWords: string[]
   text: string
@@ -29,6 +32,8 @@ type IndexedSection = {
 
 type IndexedDocument = {
   document: ReferenceDocument
+  id: string
+  idWords: string[]
   title: string
   titleWords: string[]
   sections: IndexedSection[]
@@ -76,18 +81,33 @@ function indexFor(corpus: ReferenceCorpus) {
   const cached = indices.get(corpus.documents)
   if (cached) return cached
   const indexed = corpus.documents.map((document): IndexedDocument => {
+    const id = normalize(document.id)
+    const idWords = words(id)
     const title = normalize(document.title)
     const titleWords = words(title)
     return {
       document,
+      id,
+      idWords,
       title,
       titleWords,
       sections: document.sections.map((section) => {
+        const sectionId = normalize(section.id)
+        const sectionIdWords = words(sectionId)
         const heading = normalize(section.title)
         const headingWords = words(heading)
         const text = normalize(section.text)
         const textWords = words(text)
-        return { section, heading, headingWords, text, textWords, searchableWords: [...titleWords, ...headingWords, ...textWords] }
+        return {
+          section,
+          id: sectionId,
+          idWords: sectionIdWords,
+          heading,
+          headingWords,
+          text,
+          textWords,
+          searchableWords: [...idWords, ...sectionIdWords, ...titleWords, ...headingWords, ...textWords],
+        }
       }),
     }
   })
@@ -97,9 +117,11 @@ function indexFor(corpus: ReferenceCorpus) {
 
 function bestSection(document: IndexedDocument, query: string, tokens: readonly string[]) {
   const candidates = document.sections.flatMap((indexed) => {
-    const { section, heading, headingWords, text, textWords, searchableWords } = indexed
-    if (!tokens.every((token) => searchableWords.some((candidate) => candidate.includes(token)))) return []
+    const { section, id, idWords, heading, headingWords, text, textWords, searchableWords } = indexed
+    if (!tokens.every((token) => searchableWords.some((candidate) => wordMatches(candidate, token)))) return []
     let score = 0
+    if (document.id === query) score += 30_000 + (section.url === document.document.url ? 5_000 : 0)
+    if (id === query) score += 25_000
     if (document.title === query) score += 20_000
     else if (document.title.startsWith(query)) score += 12_000
     else if (document.title.includes(query)) score += 8_000
@@ -108,9 +130,13 @@ function bestSection(document: IndexedDocument, query: string, tokens: readonly 
     else if (heading.includes(query)) score += 4_000
     if (text.includes(query)) score += 2_000
     for (const token of tokens) {
+      if (document.idWords.some((word) => word === token)) score += 1_200
+      if (idWords.some((word) => word === token)) score += 1_000
       if (document.titleWords.some((word) => word === token)) score += 800
+      else if (document.titleWords.some((word) => wordMatches(word, token))) score += 600
       if (headingWords.some((word) => word === token)) score += 400
-      score += Math.min(textWords.filter((word) => word.includes(token)).length, 10) * 20
+      else if (headingWords.some((word) => wordMatches(word, token))) score += 300
+      score += Math.min(textWords.filter((word) => wordMatches(word, token)).length, 10) * 20
     }
     return [{ section, score }]
   })
@@ -127,6 +153,17 @@ function excerpt(text: string, query: string, tokens: readonly string[]) {
 }
 
 const words = (value: string) => normalize(value).split(' ').filter(Boolean)
+
+function wordMatches(candidate: string, query: string) {
+  if (candidate.includes(query)) return true
+  if (singular(candidate) === singular(query)) return true
+  return candidate.length >= 5 && query.length >= 5 && Math.abs(candidate.length - query.length) <= 1 && distance(candidate, query) <= 1
+}
+
+const singular = (value: string) => {
+  if (value.endsWith('ies') && value.length > 4) return `${value.slice(0, -3)}y`
+  return value.endsWith('s') && value.length > 3 ? value.slice(0, -1) : value
+}
 
 const normalize = (value: string) =>
   value

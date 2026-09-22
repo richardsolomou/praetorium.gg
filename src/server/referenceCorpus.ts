@@ -91,7 +91,15 @@ function datasheetDocument(sheet: CanonicalDatasheet): ReferenceDocument {
           ),
         ),
       ),
-      ...sheet.abilities.map((ability) => section(url, `ability-${ability.id}`, ability.name, [ability.source, ability.description])),
+      ...sheet.abilities.map((ability) =>
+        section(url, `ability-${ability.id}`, ability.name, [ability.source, ability.description ?? 'Description unavailable.']),
+      ),
+      section(
+        url,
+        'keyword-rules',
+        'Keyword rules',
+        sheet.keywordRules.flatMap((rule) => [rule.name, rule.description]),
+      ),
       section(url, 'loadout', 'Loadout', [sheet.loadout]),
       section(url, 'wargear', 'Wargear', [
         ...sheet.wargearOptions,
@@ -140,17 +148,19 @@ function detachmentDocument(detachment: CanonicalDetachment): ReferenceDocument 
         detachment.points === null ? null : `${detachment.points} detachment points`,
         detachment.dispositions.join(', '),
       ]),
-      ...detachment.rules.map((rule, index) => section(url, `rule-${routeSlug(rule.name) || index + 1}`, rule.name, [rule.description])),
+      ...detachment.rules.map((rule, index) =>
+        section(url, `rule-${routeSlug(rule.name) || index + 1}`, rule.name, [rule.description ?? 'Description unavailable.']),
+      ),
       ...detachment.enhancements.map((enhancement, index) =>
         section(url, `enhancement-${routeSlug(enhancement.name) || index + 1}`, enhancement.name, [
           enhancement.points === null ? null : `${enhancement.points} points`,
-          enhancement.description,
+          enhancement.description ?? 'Description unavailable.',
         ]),
       ),
       ...detachment.upgrades.map((upgrade, index) =>
         section(url, `upgrade-${routeSlug(upgrade.name) || index + 1}`, upgrade.name, [
           upgrade.points === null ? null : `${upgrade.points} points`,
-          upgrade.description,
+          upgrade.description ?? 'Description unavailable.',
         ]),
       ),
       ...detachment.stratagems.map((stratagem, index) =>
@@ -159,8 +169,14 @@ function detachmentDocument(detachment: CanonicalDetachment): ReferenceDocument 
           stratagem.type,
           stratagem.phases.join(', '),
           stratagem.turn,
-          stratagem.description,
+          stratagem.description ?? 'Description unavailable.',
         ]),
+      ),
+      section(
+        url,
+        'keyword-rules',
+        'Keyword rules',
+        detachment.keywordRules.flatMap((rule) => [rule.name, rule.description]),
       ),
     ]),
   }

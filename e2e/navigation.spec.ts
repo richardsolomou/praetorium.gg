@@ -215,6 +215,27 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page).toHaveURL(/\/mission-packs\/.+/)
   await expect(page.getByRole('heading', { name: 'Chapter Approved 2026-2027' })).toBeVisible()
 
+  await page.goto('/factions/necrons/datasheets/overlord')
+  await expect(page.getByRole('heading', { name: 'Overlord', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'My Will Be Done' })).toBeVisible()
+  await expect(page).toHaveTitle(/Overlord datasheet — Necrons — Praetorium/)
+  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute('content', /Overlord profiles, weapons, abilities/)
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', '/factions/necrons/datasheets/overlord')
+
+  await page.goto('/factions/necrons/detachments/cryptek-conclave')
+  await expect(page.getByRole('heading', { name: 'Cryptek Conclave', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Technosorcerous Augmentations' })).toBeVisible()
+  await expect(page).toHaveTitle(/Cryptek Conclave detachment — Necrons — Praetorium/)
+  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute('content', /Cryptek Conclave rules, enhancements/)
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', '/factions/necrons/detachments/cryptek-conclave')
+
+  await page.goto('/rules/core-rules/movement-phase')
+  await expect(page.getByRole('heading', { name: 'Movement Phase', exact: true })).toBeVisible()
+  await expect(page.locator('[id="09.00"]')).toContainText('In the Movement phase')
+  await expect(page).toHaveTitle(/Movement Phase — Core Rules — Praetorium/)
+  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute('content', /Movement Phase from Core Rules/)
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', '/rules/core-rules/movement-phase')
+
   await context.close()
 })
 

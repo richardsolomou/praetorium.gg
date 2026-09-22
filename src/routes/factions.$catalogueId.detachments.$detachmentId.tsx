@@ -22,6 +22,10 @@ export const Route = createFileRoute('/factions/$catalogueId/detachments/$detach
             content: `${loaderData.detachment.name} rules, enhancements and stratagems for ${loaderData.faction.displayName}.`,
           },
           { property: 'og:title', content: `${loaderData.detachment.name} detachment` },
+          {
+            property: 'og:description',
+            content: `${loaderData.detachment.name} rules, enhancements and stratagems for ${loaderData.faction.displayName}.`,
+          },
           { property: 'og:type', content: 'article' },
         ]
       : [],

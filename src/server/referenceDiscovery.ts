@@ -57,9 +57,15 @@ API reads return JSON by default. Send \`Accept: text/markdown\` for compact sou
 
 ${revisions.length ? revisions.join('\n') : '- Reference data is temporarily unavailable.'}
 
-Game data is fetched from the community sources named on the data sources page. Follow the attribution returned with each record when reproducing it.
+## Update model
+
+The reference changes only when Praetorium activates another verified immutable snapshot. API records identify their source revisions and snapshot-derived ETags so clients can validate cached answers.
+
+## Licence and attribution
+
+Praetorium is AGPL-3.0 open source software. Community game data remains subject to the terms of its upstream sources. Follow the attribution returned with each record and the [data sources](${origin}/sources) page when reproducing it.
 `
-  return new Response(body, { headers: { 'Cache-Control': 'public, max-age=3600', 'Content-Type': 'text/markdown; charset=utf-8' } })
+  return cachedText(request, corpus?.revision ?? 'unavailable', 'llms', body, 'text/markdown; charset=utf-8')
 }
 
 function cachedText(request: Request, revision: string, key: string, body: string, contentType: string) {

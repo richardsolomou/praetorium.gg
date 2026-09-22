@@ -80,6 +80,35 @@ it('ranks an exact section name ahead of a prose mention', () => {
 })
 
 it('applies kind and faction filters without crossing content boundaries', () => {
-  expect(searchReference(corpus, { query: 'ability', kinds: ['datasheet'], faction: 'Space Marines' }).results).toEqual([])
+  expect(searchReference(corpus, { query: 'ability', kinds: ['datasheet'], faction: 'Space Marines' }).results[0]?.kind).toBe('datasheet')
   expect(searchReference(corpus, { query: 'ability', kinds: ['detachment'], faction: 'Space Marines' }).results[0]?.kind).toBe('detachment')
+})
+
+it('finds a stable document id at its canonical section', () => {
+  expect(searchReference(corpus, { query: 'rule:core:movement' }).results[0]).toMatchObject({
+    id: 'rule:core:movement',
+    section: { id: 'move' },
+  })
+})
+
+it('matches a one-character typo in a title', () => {
+  expect(searchReference(corpus, { query: 'move unitz' }).results[0]?.id).toBe('rule:core:movement')
+})
+
+it('matches plural variants', () => {
+  expect(searchReference(corpus, { query: 'scout squads' }).results[0]?.id).toBe('datasheet:marines:scouts')
+})
+
+it('keeps identical prose inside the requested faction', () => {
+  const mirrored = {
+    ...documents[2]!,
+    id: 'datasheet:chaos:scouts',
+    faction: 'Chaos Space Marines',
+    url: '/factions/chaos/datasheets/scouts',
+  }
+  const isolated = { ...corpus, documents: [...documents, mirrored] }
+
+  expect(searchReference(isolated, { query: 'set up anywhere', faction: 'Chaos Space Marines' }).results[0]?.id).toBe(
+    'datasheet:chaos:scouts',
+  )
 })

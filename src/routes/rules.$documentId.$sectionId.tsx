@@ -20,6 +20,10 @@ export const Route = createFileRoute('/rules/$documentId/$sectionId')({
             content: `${loaderData.section.section.title} from ${loaderData.section.document.title}, with printed rule numbers and clarifications.`,
           },
           { property: 'og:title', content: `${loaderData.section.section.title} — ${loaderData.section.document.title}` },
+          {
+            property: 'og:description',
+            content: `${loaderData.section.section.title} from ${loaderData.section.document.title}, with printed rule numbers and clarifications.`,
+          },
           { property: 'og:type', content: 'article' },
         ]
       : [],

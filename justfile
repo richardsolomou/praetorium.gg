@@ -128,6 +128,14 @@ variants:
 coverage *args:
     pnpm catalogue:coverage {{ args }}
 
+# Measure agent retrieval against the verified active snapshot
+reference-evaluate:
+    pnpm reference:evaluate
+
+# Exercise the deployed agent reference, including its JavaScript-free HTML
+reference-verify origin:
+    pnpm reference:verify "{{ origin }}"
+
 db-generate:
     pnpm db:generate
 

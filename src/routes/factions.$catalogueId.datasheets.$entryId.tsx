@@ -19,6 +19,10 @@ export const Route = createFileRoute('/factions/$catalogueId/datasheets/$entryId
             content: `${loaderData.sheet.name} profiles, weapons, abilities, wargear, composition and points for ${loaderData.faction.displayName}.`,
           },
           { property: 'og:title', content: `${loaderData.sheet.name} datasheet` },
+          {
+            property: 'og:description',
+            content: `${loaderData.sheet.name} profiles, weapons, abilities, wargear, composition and points for ${loaderData.faction.displayName}.`,
+          },
           { property: 'og:type', content: 'article' },
         ]
       : [],

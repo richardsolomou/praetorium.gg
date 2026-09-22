@@ -10,6 +10,8 @@ The canonical snapshot contains detachments beside datasheets and rules. An inst
 
 `src/server/referenceSearch.ts` owns agent retrieval. It searches full reference text and ranks exact names and headings before prose. This is separate from `globalSearch.ts`, whose short grouped results remain tuned for human navigation and deliberately exclude broad rules prose.
 
+`pnpm reference:evaluate` measures the checked-in retrieval fixtures against the active verified snapshot. The fixtures identify stable documents and anchors without copying source prose into Git; the evaluator derives those queries from the snapshot and enforces top-1/top-5 recall, anchor and citation completeness, response size, and cold/warm latency baselines. CI runs it after installing the pinned snapshot.
+
 ## HTTP API
 
 The read-only API is rooted at `/api/reference/v1`:
@@ -33,6 +35,8 @@ Responses are JSON by default. `Accept: text/markdown` selects a compact source-
 `/sitemap.xml` is generated from the active snapshot. `/robots.txt` advertises it, while `/llms.txt` points clients to the human reference, OpenAPI document, and MCP endpoint. Datasheet, detachment, and rules-section routes load their content during server rendering and publish page-specific metadata and canonical links.
 
 Verify crawler-facing changes against the production server output with JavaScript disabled. Hydrated browser content is not evidence that the initial HTML contains the reference.
+
+Run `pnpm reference:verify https://<deployment>` against a deployed revision. It exercises search, JSON and Markdown retrieval, conditional caching, MCP parity, discovery files, and the initial HTML for a datasheet, detachment, and rules section.
 
 ## Privacy and attribution
 

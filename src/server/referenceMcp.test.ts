@@ -55,7 +55,7 @@ it('serves the same reference document through MCP', async () => {
   )
 
   expect(response.status).toBe(200)
-  expect(await response.json()).toMatchObject({ result: { structuredContent: { id: document.id, url: document.url } } })
+  expect(await response.json()).toMatchObject({ result: { structuredContent: document } })
 })
 
 it('rejects stateful MCP methods', async () => {

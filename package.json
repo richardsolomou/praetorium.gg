@@ -45,6 +45,8 @@
     "catalogue:coverage": "node --max-old-space-size=8192 --import tsx scripts/catalogueCoverage.ts",
     "catalogue:coverage:parallel": "tsx scripts/parallelCatalogueCoverage.ts",
     "catalogue:coverage:compare": "tsx scripts/compareCatalogueCoverage.ts",
+    "reference:evaluate": "tsx scripts/evaluateReference.ts",
+    "reference:verify": "tsx scripts/verifyReferenceDeployment.ts",
     "catalogue:points": "node --max-old-space-size=8192 --import tsx scripts/checkPoints.ts && tsx scripts/checkRestrictions.ts && tsx scripts/checkJoins.ts",
     "benchmark:roster": "tsx scripts/benchmarkRosterLoading.ts",
     "db:migrate": "tsx scripts/migrate.ts",
