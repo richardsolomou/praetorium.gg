@@ -24,7 +24,7 @@ import { openValkey, type ValkeyClient, valkeySecondaryStorage, valkeyUrl } from
 import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
 import { prepareGlobalSearch } from './globalSearch'
-import { loadCanonicalCatalogue } from './canonicalCatalogue'
+import { compileCanonicalCatalogueFromSnapshot, loadCanonicalCatalogue } from './canonicalCatalogue'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 
 type App = {
@@ -124,11 +124,19 @@ export function warm(instance: Pick<App, 'catalogue' | 'canonicalCatalogue' | 'r
   })
 }
 
+function canonicalCatalogue(instance: Pick<App, 'catalogue' | 'rules'>, directory: string) {
+  const packaged = loadCanonicalCatalogue(directory)
+  if (packaged) return packaged
+  const loaded = instance.catalogue()
+  return loaded ? compileCanonicalCatalogueFromSnapshot(loaded, instance.rules(), directory) : null
+}
+
 export function app(): App {
   return globalSingleton('praetorium.app', () => {
     const telemetry = serverTelemetry()
     // Secrets and the catalogue cache still live on disk; only the game data moved.
     const dataDirectory = path.resolve(process.env.DATA_DIR ?? '/data')
+    const catalogueDataDirectory = catalogueDirectory(dataDirectory)
     const { database } = openDatabase(databaseUrl())
     const valkey = valkeyUrl()
     const cache = valkey ? openValkey(valkey) : null
@@ -145,7 +153,7 @@ export function app(): App {
       auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email),
       email,
       catalogue: memoize(loadCatalogue),
-      canonicalCatalogue: memoize(loadCanonicalCatalogue),
+      canonicalCatalogue: memoize(() => canonicalCatalogue(instance, catalogueDataDirectory)),
       rules: memoize(() => {
         const catalogue = instance.catalogue()
         return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
@@ -156,9 +164,9 @@ export function app(): App {
     }
     // Fetched in the background rather than at boot: an instance must start and
     // serve battles whether or not it has the catalogues yet.
-    sync.begin(catalogueDirectory(dataDirectory), () => {
+    sync.begin(catalogueDataDirectory, () => {
       instance.catalogue = memoize(loadCatalogue)
-      instance.canonicalCatalogue = memoize(loadCanonicalCatalogue)
+      instance.canonicalCatalogue = memoize(() => canonicalCatalogue(instance, catalogueDataDirectory))
       instance.rules = memoize(() => {
         const catalogue = instance.catalogue()
         return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
@@ -167,9 +175,9 @@ export function app(): App {
     })
     const catalogueRefresh = setInterval(
       () =>
-        sync.begin(catalogueDirectory(dataDirectory), () => {
+        sync.begin(catalogueDataDirectory, () => {
           instance.catalogue = memoize(loadCatalogue)
-          instance.canonicalCatalogue = memoize(loadCanonicalCatalogue)
+          instance.canonicalCatalogue = memoize(() => canonicalCatalogue(instance, catalogueDataDirectory))
           instance.rules = memoize(() => {
             const catalogue = instance.catalogue()
             return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)

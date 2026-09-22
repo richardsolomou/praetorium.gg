@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
+import { routeSlug } from '../../core/slug'
 import { detachmentDetailQuery } from '../queries'
 import { RuleText } from './RuleText'
 import { dispositionTone } from './rosterSetup'
@@ -33,7 +34,7 @@ export function DetachmentReference({
     )
 
   return (
-    <div>
+    <div id="summary">
       <PageHeader
         tint={faction ? factionColour(faction.slug) : undefined}
         eyebrow={faction ? `${faction.displayName} · Detachment` : 'Detachment'}
@@ -63,7 +64,7 @@ export function DetachmentReference({
             <SectionTitle title="Detachment rules" count={detachment.rules.length} />
             <div className="mt-2 grid gap-2">
               {detachment.rules.map((rule) => (
-                <article key={rule.name} className="border border-edge bg-panel p-4">
+                <article id={`rule-${routeSlug(rule.name)}`} key={rule.name} className="border border-edge bg-panel p-4">
                   <h2 className="text-lg">{rule.name}</h2>
                   {rule.description ? <RuleText text={rule.description} rules={detachment.keywordRules} /> : <Unavailable />}
                 </article>
@@ -76,7 +77,7 @@ export function DetachmentReference({
           <SectionTitle title="Enhancements" count={detachment.enhancements.length} />
           <div className="mt-2 grid gap-2 md:grid-cols-2">
             {detachment.enhancements.map((enhancement) => (
-              <article key={enhancement.name} className="border border-edge bg-panel p-4">
+              <article id={`enhancement-${routeSlug(enhancement.name)}`} key={enhancement.name} className="border border-edge bg-panel p-4">
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="text-base">{enhancement.name}</h2>
                   {enhancement.points === null ? null : <span className="chip shrink-0">{enhancement.points} pts</span>}
@@ -92,7 +93,7 @@ export function DetachmentReference({
             <SectionTitle title="Unit upgrades" count={detachment.upgrades.length} />
             <div className="mt-2 grid gap-2 md:grid-cols-2">
               {detachment.upgrades.map((upgrade) => (
-                <article key={upgrade.name} className="border border-edge bg-panel p-4">
+                <article id={`upgrade-${routeSlug(upgrade.name)}`} key={upgrade.name} className="border border-edge bg-panel p-4">
                   <div className="flex items-start justify-between gap-3">
                     <h2 className="text-base">{upgrade.name}</h2>
                     {upgrade.points === null ? null : <span className="chip shrink-0">{upgrade.points} pts</span>}
@@ -111,7 +112,7 @@ export function DetachmentReference({
           ) : null}
           <div className="mt-2 grid gap-2 md:grid-cols-2">
             {detachment.stratagems.map((stratagem) => (
-              <article key={stratagem.id} className="border border-edge bg-panel p-4">
+              <article id={`stratagem-${routeSlug(stratagem.name)}`} key={stratagem.id} className="border border-edge bg-panel p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-base">{stratagem.name}</h2>

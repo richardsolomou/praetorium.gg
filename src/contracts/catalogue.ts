@@ -117,6 +117,36 @@ export type CanonicalDatasheet = Omit<Datasheet, 'profiles'> & {
   }
 }
 
+export type CanonicalDetachment = {
+  catalogueId: string
+  faction: string
+  factionSlug: string
+  id: string
+  slug: string
+  name: string
+  points: number | null
+  dispositions: string[]
+  rules: { name: string; description: string | null }[]
+  enhancements: { name: string; points: number | null; description: string | null }[]
+  upgrades: { name: string; points: number | null; description: string | null }[]
+  stratagems: {
+    id: string
+    name: string
+    cp: number
+    type: string | null
+    phases: string[]
+    turn: string | null
+    description: string | null
+  }[]
+  keywordRules: { name: string; description: string }[]
+  attribution: string
+  provenance: {
+    definitions: { revision: string; detachmentId: string }
+    rules: { revision: string }
+    datacards: { revision: string }
+  }
+}
+
 export type CanonicalCatalogueIssue = {
   kind:
     | 'missing-source-record'
@@ -137,6 +167,7 @@ export type CanonicalCatalogue = {
   compilerVersion: 1
   revisions: Record<string, string>
   datasheets: CanonicalDatasheet[]
+  detachments: CanonicalDetachment[]
   ruleDocuments: (RuleDocument & { provenance: { datacards: { revision: string } } })[]
   issues: CanonicalCatalogueIssue[]
 }

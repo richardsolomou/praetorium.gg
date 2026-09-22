@@ -1,0 +1,138 @@
+import type {
+  ReferenceDocument,
+  ReferenceKind,
+  ReferenceSearchResponse,
+  ReferenceSearchResult,
+  ReferenceSection,
+} from '../contracts/reference'
+import type { ReferenceCorpus } from './referenceCorpus'
+
+export const REFERENCE_QUERY_MAX_LENGTH = 120
+export const REFERENCE_RESULT_MAX = 25
+const EXCERPT_MAX_LENGTH = 320
+
+export type ReferenceSearchInput = {
+  query: string
+  kinds?: readonly ReferenceKind[]
+  faction?: string
+  limit?: number
+}
+
+type IndexedSection = {
+  section: ReferenceSection
+  heading: string
+  headingWords: string[]
+  text: string
+  textWords: string[]
+  searchableWords: string[]
+}
+
+type IndexedDocument = {
+  document: ReferenceDocument
+  title: string
+  titleWords: string[]
+  sections: IndexedSection[]
+}
+
+const indices = new WeakMap<ReferenceDocument[], IndexedDocument[]>()
+
+export function searchReference(corpus: ReferenceCorpus, input: ReferenceSearchInput): ReferenceSearchResponse {
+  const query = input.query.trim()
+  const wanted = normalize(query)
+  const tokens = words(query)
+  const limit = Math.min(Math.max(input.limit ?? 10, 1), REFERENCE_RESULT_MAX)
+  const kinds = input.kinds?.length ? new Set(input.kinds) : null
+  const faction = input.faction ? normalize(input.faction) : null
+  const results = indexFor(corpus)
+    .flatMap((indexed) => {
+      const { document } = indexed
+      if (kinds && !kinds.has(document.kind)) return []
+      if (faction && normalize(document.faction ?? '') !== faction) return []
+      const match = bestSection(indexed, wanted, tokens)
+      return match ? [{ document, ...match }] : []
+    })
+    .toSorted(
+      (left, right) =>
+        right.score - left.score ||
+        left.document.title.localeCompare(right.document.title) ||
+        left.document.id.localeCompare(right.document.id),
+    )
+    .slice(0, limit)
+    .map(({ document, section }): ReferenceSearchResult => ({
+      id: document.id,
+      kind: document.kind,
+      title: document.title,
+      faction: document.faction,
+      url: document.url,
+      section: { id: section.id, title: section.title, url: section.url },
+      excerpt: excerpt(section.text, query, tokens),
+      revisions: document.revisions,
+      attribution: document.attribution,
+    }))
+  return { query, results, revisions: corpus.catalogue.revisions }
+}
+
+function indexFor(corpus: ReferenceCorpus) {
+  const cached = indices.get(corpus.documents)
+  if (cached) return cached
+  const indexed = corpus.documents.map((document): IndexedDocument => {
+    const title = normalize(document.title)
+    const titleWords = words(title)
+    return {
+      document,
+      title,
+      titleWords,
+      sections: document.sections.map((section) => {
+        const heading = normalize(section.title)
+        const headingWords = words(heading)
+        const text = normalize(section.text)
+        const textWords = words(text)
+        return { section, heading, headingWords, text, textWords, searchableWords: [...titleWords, ...headingWords, ...textWords] }
+      }),
+    }
+  })
+  indices.set(corpus.documents, indexed)
+  return indexed
+}
+
+function bestSection(document: IndexedDocument, query: string, tokens: readonly string[]) {
+  const candidates = document.sections.flatMap((indexed) => {
+    const { section, heading, headingWords, text, textWords, searchableWords } = indexed
+    if (!tokens.every((token) => searchableWords.some((candidate) => candidate.includes(token)))) return []
+    let score = 0
+    if (document.title === query) score += 20_000
+    else if (document.title.startsWith(query)) score += 12_000
+    else if (document.title.includes(query)) score += 8_000
+    if (heading === query) score += 10_000
+    else if (heading.startsWith(query)) score += 6_000
+    else if (heading.includes(query)) score += 4_000
+    if (text.includes(query)) score += 2_000
+    for (const token of tokens) {
+      if (document.titleWords.some((word) => word === token)) score += 800
+      if (headingWords.some((word) => word === token)) score += 400
+      score += Math.min(textWords.filter((word) => word.includes(token)).length, 10) * 20
+    }
+    return [{ section, score }]
+  })
+  return candidates.toSorted((left, right) => right.score - left.score || left.section.id.localeCompare(right.section.id))[0] ?? null
+}
+
+function excerpt(text: string, query: string, tokens: readonly string[]) {
+  const lower = text.toLocaleLowerCase()
+  const direct = lower.indexOf(query.toLocaleLowerCase())
+  const token = direct >= 0 ? direct : Math.max(0, ...tokens.map((word) => lower.indexOf(word)))
+  const start = Math.max(0, token - Math.floor(EXCERPT_MAX_LENGTH / 3))
+  const end = Math.min(text.length, start + EXCERPT_MAX_LENGTH)
+  return `${start ? '…' : ''}${text.slice(start, end).trim()}${end < text.length ? '…' : ''}`
+}
+
+const words = (value: string) => normalize(value).split(' ').filter(Boolean)
+
+const normalize = (value: string) =>
+  value
+    .normalize('NFKD')
+    .replaceAll(/\p{M}/gu, '')
+    .replaceAll(/[‘’ʼ]/g, "'")
+    .toLocaleLowerCase()
+    .replaceAll(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
