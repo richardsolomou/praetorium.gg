@@ -7,13 +7,10 @@
  * is the part that scrolls out of sight. The lineage becomes the heading and the
  * last segment becomes the name, which is also what the list names itself after.
  */
-const currentName = (name: string) => name.replace(/ \(11e\)$/, '')
-
 export const shortName = (name: string) => {
   const parts = name.split(' - ')
   const last = parts.at(-1)
-  const leaf = last?.toLowerCase() === 'library' ? (parts.at(-2) ?? name) : (last ?? name)
-  return currentName(leaf)
+  return last?.toLowerCase() === 'library' ? (parts.at(-2) ?? name) : (last ?? name)
 }
 
 const lineageOf = (name: string) => name.split(' - ').slice(0, -1).at(-1) ?? ''
@@ -40,7 +37,7 @@ export function factionSelectGroups<T extends { id: string; name: string; slug?:
     label: shortName(entry.name),
     value: entry.id,
     faction: entry.slug
-      ? { slug: entry.slug, displayName: currentName(entry.displayName ?? shortName(entry.name)), icon: entry.icon ?? null }
+      ? { slug: entry.slug, displayName: entry.displayName ?? shortName(entry.name), icon: entry.icon ?? null }
       : undefined,
   })
   const favourite = favouritesFirst(

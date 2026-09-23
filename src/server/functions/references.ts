@@ -8,16 +8,9 @@ import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
 import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
-import { factionIndexFor, factionsFor, withReplacementArmyRules } from '../factionReferences'
+import { factionIndexFor, factionsFor } from '../factionReferences'
 import { factionDisplayName } from '../factionNames'
-import {
-  isReplacementCatalogue,
-  isReplacementDetachment,
-  isSupersededCatalogue,
-  replacementArmyRulesFor,
-  replacementDetachmentCards,
-  replacementDetachments,
-} from '../replacementCatalogues'
+import { isProfiledDetachment, profiledArmyRulesFor, profiledDetachmentCards } from '../catalogueProfileRules'
 import { unitsIn } from '../cataloguePicker'
 
 import { gameReferencesFor } from '../gameReferences'
@@ -50,10 +43,10 @@ export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => r
 
 export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
+    cacheUntilSnapshotChanges()
     const loaded = app().catalogue()
     if (!loaded) return null
-    const index = factionIndexFor(loaded, app().rules())
-    return { ...index, factions: index.factions.filter((entry) => !isSupersededCatalogue(loaded, entry)) }
+    return factionIndexFor(loaded, app().rules())
   }),
 )
 
@@ -62,12 +55,11 @@ export const faction = createServerFn({ method: 'GET' })
   .validator(factionSchema)
   .handler(({ data }) =>
     rpc(() => {
+      cacheUntilSnapshotChanges()
       const loaded = app().catalogue()
       if (!loaded) return null
       const { factions: all } = factionsFor(loaded, app().rules())
-      const matches = all.filter((candidate) => candidate.slug === data.catalogueId || candidate.id === data.catalogueId)
-      const found = matches.find((candidate) => !isSupersededCatalogue(loaded, candidate)) ?? matches[0]
-      return found ? withReplacementArmyRules(loaded, replacementDetachments(loaded, found)) : null
+      return all.find((candidate) => candidate.slug === data.catalogueId || candidate.id === data.catalogueId) ?? null
     }),
   )
 
@@ -277,11 +269,10 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   .validator(datasheetSlugSchema)
   .handler(({ data }) =>
     rpc(() => {
+      cacheUntilSnapshotChanges()
       const loaded = app().catalogue()
       const book = loaded?.index.catalogues.get(data.catalogueId)
-      const live = Boolean(
-        loaded && (isReplacementCatalogue(book ?? { name: '' }) || replacementArmyRulesFor(loaded, data.catalogueId).length),
-      )
+      const live = Boolean(loaded && book && (loaded.profiledCatalogueIds.has(book.id) || profiledArmyRulesFor(loaded, book.id).length))
       return referenceDatasheetBySlug(app(), data, { live })
     }),
   )
@@ -312,18 +303,18 @@ export const detachmentRules = createServerFn({ method: 'GET' })
       const options = book
         ? (catalogue.detachments.get(book.id)?.options.filter((candidate) => data.detachmentNames.includes(candidate.name)) ?? [])
         : []
-      const replacementOptions = options.filter((option) => isReplacementDetachment(catalogue, option.id))
-      const replacementNames = new Set(replacementOptions.map((option) => option.name))
+      const profiledOptions = options.filter((option) => isProfiledDetachment(catalogue, option.id))
+      const profiledNames = new Set(profiledOptions.map((option) => option.name))
       // Detachment cards use the same text as their reference page; core cards join them from Game Datacards.
       const selected = selectedDetachmentRules(
-        data.detachmentNames.filter((name) => !replacementNames.has(name)),
+        data.detachmentNames.filter((name) => !profiledNames.has(name)),
         detachments,
         details,
       )
-      const replacementWritten = replacementOptions.flatMap((option) =>
-        replacementDetachmentCards(catalogue, option.id).stratagems.map((card) => ({ ...card, type: null })),
+      const profiledWritten = profiledOptions.flatMap((option) =>
+        profiledDetachmentCards(catalogue, option.id).stratagems.map((card) => ({ ...card, type: null })),
       )
-      const written = [...selected.written, ...replacementWritten, ...rules.coreDetails]
+      const written = [...selected.written, ...profiledWritten, ...rules.coreDetails]
       return {
         attribution: rules.attribution,
         dataslate: rules.dataslate,
@@ -342,6 +333,7 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
   .validator(detachmentDetailSchema)
   .handler(({ data }) =>
     rpc(() => {
+      cacheUntilSnapshotChanges()
       const rules = app().rules()
       const catalogue = app().catalogue()
       return rules && catalogue ? detachmentReference(catalogue, rules, data.catalogueId, data.slug) : null

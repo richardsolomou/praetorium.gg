@@ -173,9 +173,9 @@ describe('a limit the catalogue breaks inside a unit', () => {
 })
 
 describe('force disposition', () => {
-  it('prices provisional detachments from their catalogue DP costs', () => {
+  it('prices profiled detachments from their catalogue DP costs', () => {
     const loaded = bookOf({
-      name: 'Space Marines (11e)',
+      name: 'Space Marines',
       selectionEntries: [{ id: 'intercessors', name: 'Intercessors', type: 'unit' }],
       sharedSelectionEntries: [
         {
@@ -196,6 +196,8 @@ describe('force disposition', () => {
       ],
     })
     loaded.index.costTypes.set('dp', { id: 'dp', name: 'Detachment Points' })
+    loaded.profiledDetachmentIds.add('one')
+    loaded.profiledDetachmentIds.add('three')
     expect(
       calculateRosterPrice(
         { catalogueId: 'cat', detachmentIds: ['one', 'three'], disposition: null, limit: 2_000, units: [] },
@@ -205,7 +207,7 @@ describe('force disposition', () => {
     ).toMatchObject({ detachmentPointsSpent: 4, detachmentPointsOver: true })
   })
 
-  it('prices a replacement detachment offered to a current chapter from its catalogue', () => {
+  it('prices a parent detachment offered to a chapter from its catalogue', () => {
     const detachment = (id: string, name: string, cost: number) => ({
       id,
       name,
@@ -226,14 +228,15 @@ describe('force disposition', () => {
         sharedSelectionEntries: [wrapper('current', detachment('wrath', 'Wrath of the Rock', 2))],
       },
       {
-        name: 'Space Marines (11e)',
+        name: 'Space Marines',
         selectionEntries: [{ id: 'intercessors', name: 'Intercessors', type: 'unit' }],
-        sharedSelectionEntries: [wrapper('replacement', detachment('assault', 'Assault Brethren', 1))],
+        sharedSelectionEntries: [wrapper('parent', detachment('assault', 'Assault Brethren', 1))],
       },
     )
     loaded.index.costTypes.set('dp', { id: 'dp', name: 'Detachment Points' })
-    const replacement = loaded.detachments.get('cat-1')!.options[0]!
-    loaded.detachments.get('cat')!.options.push(replacement)
+    const inherited = loaded.detachments.get('cat-1')!.options[0]!
+    loaded.detachments.get('cat')!.options.push(inherited)
+    loaded.profiledDetachmentIds.add('assault')
 
     expect(
       calculateRosterPrice(

@@ -141,7 +141,7 @@ describe('the abilities and wargear a datasheet lists', () => {
     expect(described?.contributions.datacards).toBe(true)
   })
 
-  it('replaces Oath of Moment on a current chapter datasheet', () => {
+  it('uses a profiled parent army rule on a chapter datasheet', () => {
     const detachment = (id: string, name: string) => ({ id, name, type: 'upgrade' as const })
     const wrapper = (id: string, option: ReturnType<typeof detachment>) => ({
       id: `${id}-wrapper`,
@@ -164,14 +164,15 @@ describe('the abilities and wargear a datasheet lists', () => {
         sharedSelectionEntries: [wrapper('current', detachment('wrath', 'Wrath of the Rock'))],
       },
       {
-        name: 'Space Marines (11e)',
+        name: 'Space Marines',
         selectionEntries: [{ id: 'intercessors', name: 'Intercessors', type: 'unit' }],
-        sharedSelectionEntries: [wrapper('replacement', detachment('assault', 'Assault Brethren'))],
+        sharedSelectionEntries: [wrapper('parent', detachment('assault', 'Assault Brethren'))],
       },
     )
-    const replacement = book.detachments.get('cat-1')!.options[0]!
-    book.detachments.get('cat')!.options.push(replacement)
-    book.replacementArmyRules.set('cat-1', [{ name: 'Combat Doctrines', description: 'Select a doctrine.' }])
+    const inherited = book.detachments.get('cat-1')!.options[0]!
+    book.detachments.get('cat')!.options.push(inherited)
+    book.profiledDetachmentIds.add('assault')
+    book.profiledArmyRules.set('cat-1', [{ name: 'Combat Doctrines', description: 'Select a doctrine.' }])
     book.factionContents.set('dark-angels', {
       name: 'Dark Angels',
       datasheets: new Set(),
@@ -186,7 +187,7 @@ describe('the abilities and wargear a datasheet lists', () => {
 
     expect(describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'apothecary'), null)?.abilities).toEqual([
       {
-        id: 'replacement-army-rule:combat-doctrines',
+        id: 'profile-army-rule:combat-doctrines',
         name: 'Combat Doctrines',
         description: 'Select a doctrine.',
         kind: 'faction',

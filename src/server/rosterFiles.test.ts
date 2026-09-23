@@ -193,7 +193,9 @@ const loaded: LoadedCatalogue = {
     enhancementPoints: new Map(),
   },
   sourceReferences: emptyExternalReferences(),
-  replacementArmyRules: new Map(),
+  profiledCatalogueIds: new Set(),
+  profiledDetachmentIds: new Set(),
+  profiledArmyRules: new Map(),
   factions: [
     { id: 'necrons', name: 'Xenos - Necrons', references: [] },
     { id: 'marines', name: 'Imperium - Space Marines', references: [] },

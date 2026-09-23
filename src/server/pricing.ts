@@ -32,7 +32,7 @@ import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey, type FactionRestrictions, restrictedBy } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
-import { isReplacementDetachment, replacementDetachmentPoints } from './replacementCatalogues'
+import { isProfiledDetachment, profiledDetachmentPoints } from './catalogueProfileRules'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
 import { type LoadedCatalogue } from './catalogueIndex'
@@ -278,9 +278,9 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   const references = rules?.detachmentReferences.get(rulesId)
   const details = rules?.detachmentDetails.get(rulesId)
   const referenceFor = (option: (typeof chosen)[number]) =>
-    isReplacementDetachment(loaded, option.id)
+    isProfiledDetachment(loaded, option.id)
       ? {
-          points: replacementDetachmentPoints(loaded, option.id),
+          points: profiledDetachmentPoints(loaded, option.id),
           dispositions: option.disposition ? [option.disposition] : [],
         }
       : detachmentNamed(references, option.name)
@@ -320,7 +320,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       : (borrowedReference?.dispositions ?? (borrowedDetachment.disposition ? [borrowedDetachment.disposition] : []))
   const { disposition, error: dispositionError } = resolveDisposition([...allowedDispositions, ...borrowedDispositions], data.disposition)
   const detachmentSpecials = chosen.map((option) => {
-    const detail = isReplacementDetachment(loaded, option.id) ? undefined : detachmentNamed(details, option.name)
+    const detail = isProfiledDetachment(loaded, option.id) ? undefined : detachmentNamed(details, option.name)
     return { option, detail, ...describedEnhancements(loaded, data.catalogueId, option, detail) }
   })
   const strategicReserveFactsComplete =
@@ -459,8 +459,8 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
    */
   const enhancementsAllowed = enhancementLimit(loaded.index, forces, options)
   const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
-  // The 10e catalogue wrapper caps detachments at one; the 11e rules source
-  // replaces that constraint with the DP budget checked above.
+  // Profile-backed detachments use the DP budget above rather than a wrapper's
+  // single-selection constraint.
   const reported = [
     ...whole.errors.filter(
       (error) =>

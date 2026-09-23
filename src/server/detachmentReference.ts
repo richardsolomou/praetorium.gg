@@ -5,19 +5,19 @@ import { descriptionKey } from './datacards'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { detachmentNamed, isReferenceDetachment } from './factionReferences'
-import { isReplacementDetachment, replacementDetachmentCards, replacementDetachmentPoints } from './replacementCatalogues'
+import { isProfiledDetachment, profiledDetachmentCards, profiledDetachmentPoints } from './catalogueProfileRules'
 
 export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules, catalogueId: string, detachmentSlug: string) {
   const faction = loaded.index.catalogues.get(catalogueId)
   if (!faction) return null
   const option = loaded.detachments.get(catalogueId)?.options.find((candidate) => routeSlug(candidate.name) === detachmentSlug)
-  if (!option || (!isReplacementDetachment(loaded, option.id) && !isReferenceDetachment(loaded, rules, faction, option))) return null
-  if (isReplacementDetachment(loaded, option.id)) {
-    const cards = replacementDetachmentCards(loaded, option.id)
+  if (!option || (!isProfiledDetachment(loaded, option.id) && !isReferenceDetachment(loaded, rules, faction, option))) return null
+  if (isProfiledDetachment(loaded, option.id)) {
+    const cards = profiledDetachmentCards(loaded, option.id)
     return {
       id: option.id,
       name: option.name,
-      points: replacementDetachmentPoints(loaded, option.id),
+      points: profiledDetachmentPoints(loaded, option.id),
       dispositions: option.disposition ? [rules.dispositions?.get(option.disposition) ?? option.disposition] : [],
       rules: cards.rules,
       enhancements: [],

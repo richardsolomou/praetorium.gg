@@ -4,13 +4,7 @@ import { datasheetsOf, isReferenceDatasheet, type LoadedCatalogue } from './cata
 import { factionContentOf, factionDisplayName } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from './rulesSource'
-import {
-  isReplacementCatalogue,
-  isReplacementDetachment,
-  replacementArmyRulesFor,
-  replacementDetachmentCards,
-  replacementDetachmentPoints,
-} from './replacementCatalogues'
+import { isProfiledDetachment, profiledArmyRulesFor, profiledDetachmentCards, profiledDetachmentPoints } from './catalogueProfileRules'
 
 export function isReferenceDetachment(
   loaded: LoadedCatalogue,
@@ -18,7 +12,7 @@ export function isReferenceDetachment(
   faction: { id: string; name: string },
   detachment: { id: string; name: string },
 ) {
-  if (isReplacementCatalogue(faction)) {
+  if (loaded.profiledCatalogueIds.has(faction.id)) {
     const entry = loaded.index.definitions.get(detachment.id)
     const owner = entry ? loaded.index.catalogueOf.get('targetId' in entry ? entry.targetId : entry.id) : undefined
     return owner === faction.id
@@ -49,9 +43,9 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
   const content = loaded.factionContents.get(slugId)
   const detachments = loaded.detachments.get(faction.id)?.options ?? []
   const referenceDetachments = detachments.filter(
-    (detachment) => isReplacementDetachment(loaded, detachment.id) || isReferenceDetachment(loaded, rules, faction, detachment),
+    (detachment) => isProfiledDetachment(loaded, detachment.id) || isReferenceDetachment(loaded, rules, faction, detachment),
   )
-  const replacementDatasheets = isReplacementCatalogue(faction)
+  const profiledDatasheets = loaded.profiledCatalogueIds.has(faction.id)
     ? [...datasheetsOf(loaded.index, faction.id)].filter((id) => isReferenceDatasheet(loaded, faction.id, id)).length
     : null
   return {
@@ -67,7 +61,7 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
         : null,
       references: faction.references.map((reference) => ({
         ...reference,
-        datasheets: replacementDatasheets ?? content?.datasheets.size ?? reference.datasheets,
+        datasheets: profiledDatasheets ?? content?.datasheets.size ?? reference.datasheets,
         detachments: referenceDetachments.length,
       })),
       detachments: detachments.map(({ id, name }) => ({ id, name })),
@@ -105,7 +99,7 @@ export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null |
   return cache.full
 }
 
-export function withReplacementArmyRules<
+function withProfiledArmyRules<
   T extends {
     id: string
     name: string
@@ -113,22 +107,21 @@ export function withReplacementArmyRules<
     armyRules: { name: string; description: string }[]
   },
 >(loaded: LoadedCatalogue, faction: T): T {
-  if (isReplacementCatalogue(faction)) return faction
-  const replacementRules = new Map(
-    replacementArmyRulesFor(
+  const profiledRules = new Map(
+    profiledArmyRulesFor(
       loaded,
       faction.id,
       faction.detachments.map(({ id }) => id),
     ).map((rule) => [routeSlug(rule.name), rule]),
   )
-  if (!replacementRules.size) return faction
+  if (!profiledRules.size) return faction
 
   const superseded = new Set([...(factionContentOf(loaded, faction.name)?.factionAbilityNames ?? [])].map(routeSlug))
   return {
     ...faction,
     armyRules: [
-      ...replacementRules.values(),
-      ...faction.armyRules.filter((rule) => !superseded.has(routeSlug(rule.name)) && !replacementRules.has(routeSlug(rule.name))),
+      ...profiledRules.values(),
+      ...faction.armyRules.filter((rule) => !superseded.has(routeSlug(rule.name)) && !profiledRules.has(routeSlug(rule.name))),
     ],
   }
 }
@@ -147,10 +140,10 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
       const { summary, detachments, referenceDetachments } = factionSummary(loaded, rules, faction)
       const content = factionContentOf(loaded, faction.name)
       const rulesId = rulesFaction(rules, routeSlug(faction.name))
-      return {
+      return withProfiledArmyRules(loaded, {
         ...summary,
         armyRules:
-          loaded.replacementArmyRules.get(faction.id) ??
+          loaded.profiledArmyRules.get(faction.id) ??
           (content?.armyRules.length
             ? content.armyRules
             : rules?.factionRules?.get(summary.slug)
@@ -158,8 +151,8 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
               : []),
         referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
         detachments: detachments.map((detachment) => {
-          if (isReplacementDetachment(loaded, detachment.id)) {
-            const cards = replacementDetachmentCards(loaded, detachment.id)
+          if (isProfiledDetachment(loaded, detachment.id)) {
+            const cards = profiledDetachmentCards(loaded, detachment.id)
             return {
               id: detachment.id,
               slug: routeSlug(detachment.name),
@@ -172,7 +165,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
                 enhancements: 0,
                 upgrades: 0,
                 stratagems: cards.stratagems.length,
-                points: replacementDetachmentPoints(loaded, detachment.id),
+                points: profiledDetachmentPoints(loaded, detachment.id),
                 dispositions: detachment.disposition ? [rules?.dispositions?.get(detachment.disposition) ?? detachment.disposition] : [],
               },
             }
@@ -202,7 +195,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
               : null,
           }
         }),
-      }
+      })
     }),
   }
 }
