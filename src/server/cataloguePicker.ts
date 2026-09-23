@@ -60,7 +60,7 @@ function groupOf(entry: Definition, target: Definition): UnitGroup {
     const shelf = GROUP_BY_CATEGORY.get((link.name ?? '').trim().toLowerCase())
     if (shelf) return shelf
   }
-  if (entry.id.startsWith('replacement-')) {
+  if (entry.id.startsWith('profile-unit-')) {
     const shelves = categories.flatMap((link) => GROUP_BY_CATEGORY.get((link.name ?? '').trim().toLowerCase()) ?? [])
     return (
       (['epic-hero', 'character', 'battleline', 'transport'] as const).find((shelf) => shelves.includes(shelf)) ?? shelves[0] ?? 'other'

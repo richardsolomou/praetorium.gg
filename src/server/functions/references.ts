@@ -7,7 +7,7 @@ import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
 import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
-import { isReplacementCatalogue, replacementArmyRulesFor } from '../replacementCatalogues'
+import { profiledArmyRulesFor } from '../catalogueProfileRules'
 import { unitsIn } from '../cataloguePicker'
 import { pickerUnitsFor } from '../pickerUnits'
 import { detachmentsOffering } from '../factionReferences'
@@ -56,9 +56,7 @@ export const faction = createServerFn({ method: 'GET' })
       const result = await app().factionsFor()
       if (!result) return null
       const { factions: all } = result
-      const matches = all.filter((candidate) => candidate.slug === data.catalogueId || candidate.id === data.catalogueId)
-      const visibleIds = new Set((await app().factionIndexFor())?.factions.map((entry) => entry.id) ?? [])
-      return matches.find((candidate) => visibleIds.has(candidate.id)) ?? matches[0] ?? null
+      return all.find((candidate) => candidate.slug === data.catalogueId || candidate.id === data.catalogueId) ?? null
     }),
   )
 
@@ -290,7 +288,7 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
       const rules = await app().rulesFor()
       const canonical = await app().canonicalCatalogueFor()
       const book = catalogue?.index.catalogues.get(data.catalogueId)
-      const live = Boolean(catalogue && (isReplacementCatalogue(book ?? { name: '' }) || replacementArmyRulesFor(catalogue, data.catalogueId).length))
+      const live = Boolean(catalogue && book && (catalogue.profiledCatalogueIds.has(book.id) || profiledArmyRulesFor(catalogue, book.id).length))
       return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data, { live })
     }),
   )
