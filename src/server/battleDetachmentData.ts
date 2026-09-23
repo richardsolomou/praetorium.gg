@@ -3,7 +3,7 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { rulesReferencedIn } from './catalogueRules'
 import { rulesFaction, type LoadedRules } from './rules'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
-import { isPreviewDetachment, previewDetachmentCards } from './previewCatalogues'
+import { isReplacementDetachment, replacementDetachmentCards } from './replacementCatalogues'
 
 export type BattleDetachmentData = {
   index: Pick<LoadedCatalogue['index'], 'rules'>
@@ -13,7 +13,7 @@ export type BattleDetachmentData = {
   coreDetails: LoadedRules['coreDetails']
   attribution: string
   dataslate: string | null
-  previewStratagems: Map<string, ReturnType<typeof previewDetachmentCards>['stratagems']>
+  replacementStratagems: Map<string, ReturnType<typeof replacementDetachmentCards>['stratagems']>
 }
 
 export function battleDetachmentData(
@@ -32,22 +32,22 @@ export function battleDetachmentData(
     coreDetails: rules.coreDetails,
     attribution: rules.attribution,
     dataslate: rules.dataslate,
-    previewStratagems: new Map(
+    replacementStratagems: new Map(
       (loaded.detachments.get(catalogueId)?.options ?? [])
-        .filter((option) => isPreviewDetachment(loaded, option.id))
-        .map((option) => [option.name, previewDetachmentCards(loaded, option.id).stratagems]),
+        .filter((option) => isReplacementDetachment(loaded, option.id))
+        .map((option) => [option.name, replacementDetachmentCards(loaded, option.id).stratagems]),
     ),
   }
 }
 
 export function selectedBattleDetachmentData(data: BattleDetachmentData, names: readonly string[]) {
   const selected = selectedDetachmentRules(
-    names.filter((name) => !data.previewStratagems.has(name)),
+    names.filter((name) => !data.replacementStratagems.has(name)),
     data.live,
     data.details,
   )
   const previewWritten = names.flatMap((name) =>
-    (data.previewStratagems.get(name) ?? []).map((card) => ({ ...card, type: null })),
+    (data.replacementStratagems.get(name) ?? []).map((card) => ({ ...card, type: null })),
   )
   const written = [...selected.written, ...previewWritten, ...data.coreDetails]
   return {

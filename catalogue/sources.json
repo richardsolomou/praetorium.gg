@@ -1,7 +1,7 @@
 {
   "definitions": {
     "repository": "BSData/wh40k-11e",
-    "branch": "codex-space-marines-11e-wip",
+    "branch": "main",
     "license": null,
     "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction."
   },

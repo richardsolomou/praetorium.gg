@@ -7,7 +7,7 @@ import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
 import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
-import { isPreviewCatalogue, previewArmyRulesFor } from '../previewCatalogues'
+import { isReplacementCatalogue, replacementArmyRulesFor } from '../replacementCatalogues'
 import { unitsIn } from '../cataloguePicker'
 import { pickerUnitsFor } from '../pickerUnits'
 import { detachmentsOffering } from '../factionReferences'
@@ -290,7 +290,7 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
       const rules = await app().rulesFor()
       const canonical = await app().canonicalCatalogueFor()
       const book = catalogue?.index.catalogues.get(data.catalogueId)
-      const live = Boolean(catalogue && (isPreviewCatalogue(book ?? { name: '' }) || previewArmyRulesFor(catalogue, data.catalogueId).length))
+      const live = Boolean(catalogue && (isReplacementCatalogue(book ?? { name: '' }) || replacementArmyRulesFor(catalogue, data.catalogueId).length))
       return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data, { live })
     }),
   )

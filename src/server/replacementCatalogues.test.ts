@@ -1,16 +1,16 @@
 import { expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { detachmentsOf, factionsIn, isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
-import { withPreviewArmyRules } from './factionReferences'
+import { withReplacementArmyRules } from './factionReferences'
 import {
-  isPreviewDetachment,
+  isReplacementDetachment,
   isSupersededCatalogue,
-  preparePreviewCatalogues,
-  previewArmyRules,
-  previewDetachmentCards,
-  previewDetachmentPoints,
+  prepareReplacementCatalogues,
+  replacementArmyRules,
+  replacementDetachmentCards,
+  replacementDetachmentPoints,
   replacementDetachments,
-} from './previewCatalogues'
+} from './replacementCatalogues'
 
 const files: CatalogueFile[] = [
   {
@@ -32,11 +32,11 @@ const files: CatalogueFile[] = [
   },
   {
     catalogue: {
-      id: 'preview',
+      id: 'replacement',
       name: 'Imperium - Adeptus Astartes - Space Marines (11e)',
       sharedSelectionEntries: [
         {
-          id: 'preview-unit',
+          id: 'replacement-unit',
           name: 'Intercessors',
           type: 'unit',
           infoLinks: [{ id: 'doctrine-link', name: 'Combat Doctrines', targetId: 'doctrine', type: 'profile' }],
@@ -47,12 +47,12 @@ const files: CatalogueFile[] = [
           id: 'doctrine',
           name: 'Combat Doctrines',
           typeName: 'Abilities',
-          characteristics: [{ name: 'Description', $text: 'Preview rule' }],
+          characteristics: [{ name: 'Description', $text: 'Replacement rule' }],
         },
       ],
       sharedSelectionEntryGroups: [
         {
-          id: 'preview-detachments',
+          id: 'replacement-detachments',
           name: 'Detachment',
           selectionEntries: [
             {
@@ -91,7 +91,7 @@ const files: CatalogueFile[] = [
     catalogue: {
       id: 'chapter',
       name: 'Ultramarines (11e)',
-      catalogueLinks: [{ targetId: 'preview', importRootEntries: true }],
+      catalogueLinks: [{ targetId: 'replacement', importRootEntries: true }],
       sharedSelectionEntries: [{ id: 'guilliman', name: 'Roboute Guilliman', type: 'model' }],
       sharedSelectionEntryGroups: [
         {
@@ -127,19 +127,19 @@ const files: CatalogueFile[] = [
 ]
 
 it('loads both source books while marking the previous book as superseded', () => {
-  const index = buildIndex(preparePreviewCatalogues(files), 'revision')
-  const factions = factionsIn(index, detachmentsOf(preparePreviewCatalogues(files), index))
+  const index = buildIndex(prepareReplacementCatalogues(files), 'revision')
+  const factions = factionsIn(index, detachmentsOf(prepareReplacementCatalogues(files), index))
   const loaded = { index } as LoadedCatalogue
   expect(factions.map((faction) => [faction.id, isSupersededCatalogue(loaded, faction)])).toEqual([
     ['current-chapter', false],
     ['current', true],
-    ['preview', false],
+    ['replacement', false],
     ['chapter', false],
   ])
 })
 
-it('offers generic and chapter detachments to preview chapters', () => {
-  const prepared = preparePreviewCatalogues(files)
+it('offers generic and chapter detachments to replacement chapters', () => {
+  const prepared = prepareReplacementCatalogues(files)
   const index = buildIndex(prepared, 'revision')
   expect(
     detachmentsOf(prepared, index)
@@ -148,8 +148,8 @@ it('offers generic and chapter detachments to preview chapters', () => {
   ).toEqual(['Assault Brethren', 'Blade of Ultramar', 'Tacticus Attack Force'])
 })
 
-it('offers preview Space Marines detachments to current chapter supplements', () => {
-  const prepared = preparePreviewCatalogues(files)
+it('offers replacement Space Marines detachments to current chapter supplements', () => {
+  const prepared = prepareReplacementCatalogues(files)
   const index = buildIndex(prepared, 'revision')
 
   expect(
@@ -164,11 +164,11 @@ it('offers preview Space Marines detachments to current chapter supplements', ()
 })
 
 it('leaves established catalogue entries untouched', () => {
-  expect(preparePreviewCatalogues(files)[1]).toBe(files[1])
+  expect(prepareReplacementCatalogues(files)[1]).toBe(files[1])
 })
 
 it('replaces inherited detachments while retaining a chapter supplement', () => {
-  const prepared = preparePreviewCatalogues(files)
+  const prepared = prepareReplacementCatalogues(files)
   const index = buildIndex(prepared, 'revision')
   const detachments = detachmentsOf(prepared, index)
   const loaded = { index, detachments } as LoadedCatalogue
@@ -179,7 +179,7 @@ it('replaces inherited detachments while retaining a chapter supplement', () => 
     referenceDetachmentIds: ['wrath'],
   }
 
-  expect(isPreviewDetachment(loaded, assault.id)).toBe(true)
+  expect(isReplacementDetachment(loaded, assault.id)).toBe(true)
   expect(replacementDetachments(loaded, faction).detachments.map((option) => option.name)).toEqual([
     'Assault Brethren',
     'Tacticus Attack Force',
@@ -187,14 +187,14 @@ it('replaces inherited detachments while retaining a chapter supplement', () => 
   ])
 })
 
-it('replaces a current chapter parent ability with the preview army rule', () => {
-  const prepared = preparePreviewCatalogues(files)
+it('replaces a current chapter parent ability with the replacement army rule', () => {
+  const prepared = prepareReplacementCatalogues(files)
   const index = buildIndex(prepared, 'revision')
   const detachments = detachmentsOf(prepared, index)
   const loaded = {
     index,
     detachments,
-    previewArmyRules: new Map([['preview', [{ name: 'Combat Doctrines', description: 'Preview rule' }]]]),
+    replacementArmyRules: new Map([['replacement', [{ name: 'Combat Doctrines', description: 'Replacement rule' }]]]),
     factionContents: new Map([
       [
         'dark-angels',
@@ -214,19 +214,19 @@ it('replaces a current chapter parent ability with the preview army rule', () =>
     ],
   }
 
-  expect(withPreviewArmyRules(loaded, faction).armyRules).toEqual([
-    { name: 'Combat Doctrines', description: 'Preview rule' },
+  expect(withReplacementArmyRules(loaded, faction).armyRules).toEqual([
+    { name: 'Combat Doctrines', description: 'Replacement rule' },
     { name: 'The Unforgiven', description: 'Chapter rule' },
   ])
 })
 
-it('keeps preview chapter references to their own datasheets', () => {
-  const index = buildIndex(preparePreviewCatalogues(files), 'revision')
+it('keeps replacement chapter references to their own datasheets', () => {
+  const index = buildIndex(prepareReplacementCatalogues(files), 'revision')
   const loaded = { index } as LoadedCatalogue
   const offered = [...(index.datasheets.get('chapter') ?? [])]
   const generic = offered.find((id) => {
     const entry = index.definitions.get(id)
-    return entry && 'targetId' in entry && entry.targetId === 'preview-unit'
+    return entry && 'targetId' in entry && entry.targetId === 'replacement-unit'
   })
   const own = offered.find((id) => {
     const entry = index.definitions.get(id)
@@ -235,27 +235,27 @@ it('keeps preview chapter references to their own datasheets', () => {
   expect([isReferenceDatasheet(loaded, 'chapter', generic!), isReferenceDatasheet(loaded, 'chapter', own!)]).toEqual([false, true])
 })
 
-it('reads preview army rules from the catalogue profiles', () => {
-  expect(previewArmyRules(files).get('preview')).toEqual([{ name: 'Combat Doctrines', description: 'Preview rule' }])
+it('reads replacement army rules from the catalogue profiles', () => {
+  expect(replacementArmyRules(files).get('replacement')).toEqual([{ name: 'Combat Doctrines', description: 'Replacement rule' }])
 })
 
-it('separates preview detachment rules and costed stratagems', () => {
-  const prepared = preparePreviewCatalogues(files)
+it('separates replacement detachment rules and costed stratagems', () => {
+  const prepared = prepareReplacementCatalogues(files)
   const index = buildIndex(prepared, 'revision')
   const loaded = { index } as LoadedCatalogue
   const option = detachmentsOf(prepared, index)
-    .get('preview')
+    .get('replacement')
     ?.options.find((candidate) => candidate.name === 'Tacticus Attack Force')
-  expect(previewDetachmentCards(loaded, option!.id)).toEqual({
+  expect(replacementDetachmentCards(loaded, option!.id)).toEqual({
     rules: [{ id: 'rule', name: 'Tactical Mastery', description: 'Rule text' }],
     stratagems: [{ id: 'stratagem', name: 'Rapid Advance', description: 'Stratagem text', cp: 1 }],
   })
 })
 
-it('reads preview detachment points from the source cost type', () => {
-  const prepared = preparePreviewCatalogues(files)
+it('reads replacement detachment points from the source cost type', () => {
+  const prepared = prepareReplacementCatalogues(files)
   const index = buildIndex(prepared, 'revision')
   const loaded = { index } as LoadedCatalogue
-  const option = detachmentsOf(prepared, index).get('preview')?.options[0]
-  expect(previewDetachmentPoints(loaded, option!.id)).toBe(1)
+  const option = detachmentsOf(prepared, index).get('replacement')?.options[0]
+  expect(replacementDetachmentPoints(loaded, option!.id)).toBe(1)
 })

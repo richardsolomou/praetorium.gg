@@ -6,14 +6,14 @@ import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from './rulesSource'
 import { detachmentPoints } from './detachmentPoints'
 import {
-  isPreviewCatalogue,
-  isPreviewDetachment,
+  isReplacementCatalogue,
+  isReplacementDetachment,
   isSupersededCatalogue,
-  previewArmyRulesFor,
-  previewDetachmentCards,
-  previewDetachmentPoints,
+  replacementArmyRulesFor,
+  replacementDetachmentCards,
+  replacementDetachmentPoints,
   replacementDetachments,
-} from './previewCatalogues'
+} from './replacementCatalogues'
 
 export function isReferenceDetachment(
   loaded: LoadedCatalogue,
@@ -21,7 +21,7 @@ export function isReferenceDetachment(
   faction: { id: string; name: string },
   detachment: { id: string; name: string },
 ) {
-  if (isPreviewCatalogue(faction)) {
+  if (isReplacementCatalogue(faction)) {
     const entry = loaded.index.definitions.get(detachment.id)
     const owner = entry ? loaded.index.catalogueOf.get('targetId' in entry ? entry.targetId : entry.id) : undefined
     return owner === faction.id
@@ -52,9 +52,9 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
   const content = loaded.factionContents.get(slugId)
   const detachments = loaded.detachments.get(faction.id)?.options ?? []
   const referenceDetachments = detachments.filter(
-    (detachment) => isPreviewDetachment(loaded, detachment.id) || isReferenceDetachment(loaded, rules, faction, detachment),
+    (detachment) => isReplacementDetachment(loaded, detachment.id) || isReferenceDetachment(loaded, rules, faction, detachment),
   )
-  const previewDatasheets = isPreviewCatalogue(faction)
+  const replacementDatasheets = isReplacementCatalogue(faction)
     ? [...datasheetsOf(loaded.index, faction.id)].filter((id) => isReferenceDatasheet(loaded, faction.id, id)).length
     : null
   return {
@@ -70,7 +70,7 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
         : null,
       references: faction.references.map((reference) => ({
         ...reference,
-        datasheets: previewDatasheets ?? content?.datasheets.size ?? reference.datasheets,
+        datasheets: replacementDatasheets ?? content?.datasheets.size ?? reference.datasheets,
         detachments: referenceDetachments.length,
       })),
       detachments: detachments.map(({ id, name }) => ({ id, name })),
@@ -108,7 +108,7 @@ export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null |
   return cache.full
 }
 
-export function withPreviewArmyRules<
+export function withReplacementArmyRules<
   T extends {
     id: string
     name: string
@@ -116,22 +116,22 @@ export function withPreviewArmyRules<
     armyRules: { name: string; description: string }[]
   },
 >(loaded: LoadedCatalogue, faction: T): T {
-  if (isPreviewCatalogue(faction)) return faction
-  const previewRules = new Map(
-    previewArmyRulesFor(
+  if (isReplacementCatalogue(faction)) return faction
+  const replacementRules = new Map(
+    replacementArmyRulesFor(
       loaded,
       faction.id,
       faction.detachments.map(({ id }) => id),
     ).map((rule) => [routeSlug(rule.name), rule]),
   )
-  if (!previewRules.size) return faction
+  if (!replacementRules.size) return faction
 
   const superseded = new Set([...(factionContentOf(loaded, faction.name)?.factionAbilityNames ?? [])].map(routeSlug))
   return {
     ...faction,
     armyRules: [
-      ...previewRules.values(),
-      ...faction.armyRules.filter((rule) => !superseded.has(routeSlug(rule.name)) && !previewRules.has(routeSlug(rule.name))),
+      ...replacementRules.values(),
+      ...faction.armyRules.filter((rule) => !superseded.has(routeSlug(rule.name)) && !replacementRules.has(routeSlug(rule.name))),
     ],
   }
 }
@@ -155,7 +155,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
       const found = {
         ...summary,
         armyRules:
-          loaded.previewArmyRules.get(faction.id) ??
+          loaded.replacementArmyRules.get(faction.id) ??
           (content?.armyRules.length
             ? content.armyRules
             : rules?.factionRules?.get(summary.slug)
@@ -163,8 +163,8 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
               : []),
         referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
         detachments: detachments.map((detachment) => {
-          if (isPreviewDetachment(loaded, detachment.id)) {
-            const cards = previewDetachmentCards(loaded, detachment.id)
+          if (isReplacementDetachment(loaded, detachment.id)) {
+            const cards = replacementDetachmentCards(loaded, detachment.id)
             return {
               id: detachment.id,
               slug: routeSlug(detachment.name),
@@ -177,7 +177,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
                 enhancements: 0,
                 upgrades: 0,
                 stratagems: cards.stratagems.length,
-                points: previewDetachmentPoints(loaded, detachment.id),
+                points: replacementDetachmentPoints(loaded, detachment.id),
                 dispositions: detachment.disposition ? [rules?.dispositions?.get(detachment.disposition) ?? detachment.disposition] : [],
               },
             }
@@ -209,7 +209,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
           }
         }),
       }
-      return withPreviewArmyRules(loaded, replacementDetachments(loaded, found))
+      return withReplacementArmyRules(loaded, replacementDetachments(loaded, found))
     }),
   }
 }
