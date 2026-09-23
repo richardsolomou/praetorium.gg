@@ -186,6 +186,79 @@ it('loads one released Space Marines catalogue under its ordinary name', () => {
   ])
 })
 
+it('leaves an already rooted catalogue untouched', () => {
+  const option = {
+    id: 'rooted-option',
+    name: 'Rooted Detachment',
+    type: 'upgrade' as const,
+    profiles: [
+      {
+        id: 'rooted-rule',
+        name: 'Rooted Rule',
+        typeName: 'Abilities',
+        characteristics: [{ name: 'Description', $text: 'Rule text.' }],
+      },
+    ],
+  }
+  const file: CatalogueFile = {
+    catalogue: {
+      id: 'rooted',
+      name: 'Rooted',
+      selectionEntries: [
+        {
+          id: 'rooted-wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [{ id: 'rooted-choices', name: 'Detachment', selectionEntries: [option] }],
+        },
+      ],
+      sharedSelectionEntries: [{ id: 'rooted-unit', name: 'Rooted Unit', type: 'unit' }],
+      sharedSelectionEntryGroups: [{ id: 'rooted-shared', name: 'Detachment', selectionEntries: [option] }],
+    },
+  }
+
+  const prepared = prepareCatalogueProfileRules([files[0]!, file])
+
+  expect(prepared.files[1]).toBe(file)
+  expect(prepared.profiledCatalogueIds).not.toContain('rooted')
+})
+
+it('leaves a shared rules library untouched', () => {
+  const file: CatalogueFile = {
+    catalogue: {
+      id: 'library',
+      name: 'Library - Tyranids',
+      sharedSelectionEntries: [{ id: 'library-unit', name: 'Library Unit', type: 'unit' }],
+      sharedSelectionEntryGroups: [
+        {
+          id: 'library-detachments',
+          name: 'Detachment',
+          selectionEntries: [
+            {
+              id: 'library-option',
+              name: 'Library Detachment',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'library-rule',
+                  name: 'Library Rule',
+                  typeName: 'Abilities',
+                  characteristics: [{ name: 'Description', $text: 'Rule text.' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  }
+
+  const prepared = prepareCatalogueProfileRules([files[0]!, file])
+
+  expect(prepared.files[1]).toBe(file)
+  expect(prepared.profiledCatalogueIds).not.toContain('library')
+})
+
 it('promotes shared units to root datasheets', () => {
   const { index } = loadedCatalogue()
   expect([...index.datasheets.get('space-marines')!].map((id) => index.definitions.get(id)?.name)).toContain('Intercessors')

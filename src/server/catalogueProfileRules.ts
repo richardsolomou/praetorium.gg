@@ -52,7 +52,15 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
 
   for (const book of books.values()) {
     const options = directDetachmentOptions(book)
-    if (!options.some((option) => option.profiles?.length)) continue
+    const sharedUnits = (book.sharedSelectionEntries ?? []).filter((entry) => entry.type === 'unit' || entry.type === 'model')
+    const library = book.name.split(' - ').some((part) => part.toLowerCase() === 'library')
+    if (
+      library ||
+      !sharedUnits.length ||
+      !options.some((option) => option.profiles?.length) ||
+      rootDetachmentOptions(book, rawIndex).length
+    )
+      continue
     profiledCatalogueIds.add(book.id)
     profiledOptions.set(book.id, options)
     options.filter((option) => option.profiles?.length).forEach((option) => profiledDetachmentIds.add(option.id))
