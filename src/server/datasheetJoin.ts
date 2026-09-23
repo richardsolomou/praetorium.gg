@@ -5,7 +5,7 @@ import { type LoadedCatalogue, datasheetsOf } from './catalogueIndex'
 import type { DatasheetDetails, FactionContent } from './datacards'
 import { factionContentsOf } from './factionNames'
 import { relatedExternalIds } from './externalReferences'
-import { isPreviewCatalogue } from './previewCatalogues'
+import { isReplacementCatalogue } from './replacementCatalogues'
 
 /**
  * The one join between a catalogue datasheet and its Game Datacards card.
@@ -51,7 +51,7 @@ function join(loaded: LoadedCatalogue, catalogueId: string, entryId: string): Da
   const entry = loaded.index.definitions.get(entryId)
   const book = loaded.index.catalogues.get(catalogueId)
   if (!entry || !book) return null
-  if (isPreviewCatalogue(book)) return null
+  if (isReplacementCatalogue(book)) return null
   const name = nameOf(entry, loaded.index.definitions)
   // An allied datasheet's card is in the file of the book it is borrowed from; the
   // book's own file, and the files of the books it is a supplement to, come after.

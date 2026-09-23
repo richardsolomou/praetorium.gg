@@ -7,7 +7,7 @@ import { isMatchedPlayDatasheet } from './cataloguePicker'
 import { matchDatasheet, type DatasheetSearchFields, type DatasheetSearchReason } from './datasheetSearch'
 import { factionsFor } from './factionReferences'
 import { gameReferencesFor } from './gameReferences'
-import { isSupersededCatalogue } from './previewCatalogues'
+import { isSupersededCatalogue } from './replacementCatalogues'
 import { ruleIndexOf } from './rulesCore'
 import type { LoadedRules } from './rules'
 

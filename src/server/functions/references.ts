@@ -8,16 +8,16 @@ import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
 import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
-import { factionIndexFor, factionsFor, withPreviewArmyRules } from '../factionReferences'
+import { factionIndexFor, factionsFor, withReplacementArmyRules } from '../factionReferences'
 import { factionDisplayName } from '../factionNames'
 import {
-  isPreviewCatalogue,
-  isPreviewDetachment,
+  isReplacementCatalogue,
+  isReplacementDetachment,
   isSupersededCatalogue,
-  previewArmyRulesFor,
-  previewDetachmentCards,
+  replacementArmyRulesFor,
+  replacementDetachmentCards,
   replacementDetachments,
-} from '../previewCatalogues'
+} from '../replacementCatalogues'
 import { unitsIn } from '../cataloguePicker'
 
 import { gameReferencesFor } from '../gameReferences'
@@ -67,7 +67,7 @@ export const faction = createServerFn({ method: 'GET' })
       const { factions: all } = factionsFor(loaded, app().rules())
       const matches = all.filter((candidate) => candidate.slug === data.catalogueId || candidate.id === data.catalogueId)
       const found = matches.find((candidate) => !isSupersededCatalogue(loaded, candidate)) ?? matches[0]
-      return found ? withPreviewArmyRules(loaded, replacementDetachments(loaded, found)) : null
+      return found ? withReplacementArmyRules(loaded, replacementDetachments(loaded, found)) : null
     }),
   )
 
@@ -279,7 +279,9 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
     rpc(() => {
       const loaded = app().catalogue()
       const book = loaded?.index.catalogues.get(data.catalogueId)
-      const live = Boolean(loaded && (isPreviewCatalogue(book ?? { name: '' }) || previewArmyRulesFor(loaded, data.catalogueId).length))
+      const live = Boolean(
+        loaded && (isReplacementCatalogue(book ?? { name: '' }) || replacementArmyRulesFor(loaded, data.catalogueId).length),
+      )
       return referenceDatasheetBySlug(app(), data, { live })
     }),
   )
@@ -310,18 +312,18 @@ export const detachmentRules = createServerFn({ method: 'GET' })
       const options = book
         ? (catalogue.detachments.get(book.id)?.options.filter((candidate) => data.detachmentNames.includes(candidate.name)) ?? [])
         : []
-      const previewOptions = options.filter((option) => isPreviewDetachment(catalogue, option.id))
-      const previewNames = new Set(previewOptions.map((option) => option.name))
+      const replacementOptions = options.filter((option) => isReplacementDetachment(catalogue, option.id))
+      const replacementNames = new Set(replacementOptions.map((option) => option.name))
       // Detachment cards use the same text as their reference page; core cards join them from Game Datacards.
       const selected = selectedDetachmentRules(
-        data.detachmentNames.filter((name) => !previewNames.has(name)),
+        data.detachmentNames.filter((name) => !replacementNames.has(name)),
         detachments,
         details,
       )
-      const previewWritten = previewOptions.flatMap((option) =>
-        previewDetachmentCards(catalogue, option.id).stratagems.map((card) => ({ ...card, type: null })),
+      const replacementWritten = replacementOptions.flatMap((option) =>
+        replacementDetachmentCards(catalogue, option.id).stratagems.map((card) => ({ ...card, type: null })),
       )
-      const written = [...selected.written, ...previewWritten, ...rules.coreDetails]
+      const written = [...selected.written, ...replacementWritten, ...rules.coreDetails]
       return {
         attribution: rules.attribution,
         dataslate: rules.dataslate,

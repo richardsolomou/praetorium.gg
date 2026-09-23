@@ -32,7 +32,7 @@ import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey, type FactionRestrictions, restrictedBy } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
-import { isPreviewDetachment, previewDetachmentPoints } from './previewCatalogues'
+import { isReplacementDetachment, replacementDetachmentPoints } from './replacementCatalogues'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
 import { type LoadedCatalogue } from './catalogueIndex'
@@ -278,9 +278,9 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   const references = rules?.detachmentReferences.get(rulesId)
   const details = rules?.detachmentDetails.get(rulesId)
   const referenceFor = (option: (typeof chosen)[number]) =>
-    isPreviewDetachment(loaded, option.id)
+    isReplacementDetachment(loaded, option.id)
       ? {
-          points: previewDetachmentPoints(loaded, option.id),
+          points: replacementDetachmentPoints(loaded, option.id),
           dispositions: option.disposition ? [option.disposition] : [],
         }
       : detachmentNamed(references, option.name)
@@ -320,7 +320,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       : (borrowedReference?.dispositions ?? (borrowedDetachment.disposition ? [borrowedDetachment.disposition] : []))
   const { disposition, error: dispositionError } = resolveDisposition([...allowedDispositions, ...borrowedDispositions], data.disposition)
   const detachmentSpecials = chosen.map((option) => {
-    const detail = isPreviewDetachment(loaded, option.id) ? undefined : detachmentNamed(details, option.name)
+    const detail = isReplacementDetachment(loaded, option.id) ? undefined : detachmentNamed(details, option.name)
     return { option, detail, ...describedEnhancements(loaded, data.catalogueId, option, detail) }
   })
   const strategicReserveFactsComplete =

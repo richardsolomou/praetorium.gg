@@ -14,7 +14,7 @@ describe('faction names', () => {
     const groups = factionSelectGroups(
       [
         {
-          id: 'preview',
+          id: 'replacement',
           name: 'Imperium - Adeptus Astartes - Space Marines (11e)',
           slug: 'space-marines-11e',
           displayName: 'Space Marines (11e)',

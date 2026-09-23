@@ -166,12 +166,12 @@ describe('the abilities and wargear a datasheet lists', () => {
       {
         name: 'Space Marines (11e)',
         selectionEntries: [{ id: 'intercessors', name: 'Intercessors', type: 'unit' }],
-        sharedSelectionEntries: [wrapper('preview', detachment('assault', 'Assault Brethren'))],
+        sharedSelectionEntries: [wrapper('replacement', detachment('assault', 'Assault Brethren'))],
       },
     )
-    const preview = book.detachments.get('cat-1')!.options[0]!
-    book.detachments.get('cat')!.options.push(preview)
-    book.previewArmyRules.set('cat-1', [{ name: 'Combat Doctrines', description: 'Select a doctrine.' }])
+    const replacement = book.detachments.get('cat-1')!.options[0]!
+    book.detachments.get('cat')!.options.push(replacement)
+    book.replacementArmyRules.set('cat-1', [{ name: 'Combat Doctrines', description: 'Select a doctrine.' }])
     book.factionContents.set('dark-angels', {
       name: 'Dark Angels',
       datasheets: new Set(),
@@ -186,7 +186,7 @@ describe('the abilities and wargear a datasheet lists', () => {
 
     expect(describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'apothecary'), null)?.abilities).toEqual([
       {
-        id: 'preview-army-rule:combat-doctrines',
+        id: 'replacement-army-rule:combat-doctrines',
         name: 'Combat Doctrines',
         description: 'Select a doctrine.',
         kind: 'faction',

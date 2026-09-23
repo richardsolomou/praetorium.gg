@@ -17,7 +17,7 @@ import { type FactionContent, type LoadedDatacards, type RuleCard, loadDatacards
 import { catalogueSections } from './catalogueSections'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { type ExternalReferences, loadExternalReferences } from './externalReferences'
-import { isPreviewCatalogue, preparePreviewCatalogues, previewArmyRules } from './previewCatalogues'
+import { isReplacementCatalogue, prepareReplacementCatalogues, replacementArmyRules } from './replacementCatalogues'
 
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
@@ -29,7 +29,7 @@ export type LoadedCatalogue = {
   factions: { id: string; name: string; references: CatalogueReference[] }[]
   detachments: Map<string, DetachmentOptions>
   factionContents: Map<string, FactionContent>
-  previewArmyRules: Map<string, RuleCard[]>
+  replacementArmyRules: Map<string, RuleCard[]>
   /** Game Datacards, read once here and handed to the rules loader. */
   datacards: LoadedDatacards
   sourceReferences: ExternalReferences
@@ -50,7 +50,7 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
   const revision: { definitions?: string } = JSON.parse(fs.readFileSync(revisionFile, 'utf8'))
   if (!revision.definitions) return null
 
-  const files = preparePreviewCatalogues(
+  const files = prepareReplacementCatalogues(
     fs
       .readdirSync(definitions)
       .filter((name) => name.endsWith('.json'))
@@ -70,7 +70,7 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
     factions: factionsIn(index, detachments),
     detachments,
     factionContents: datacards.factions,
-    previewArmyRules: previewArmyRules(files),
+    replacementArmyRules: replacementArmyRules(files),
     datacards,
     sourceReferences,
   }
@@ -120,14 +120,14 @@ export function detachmentsOf(files: readonly CatalogueFile[], index: CatalogueI
     for (const source of [book, ...importsOf(book, books, index.definitions)]) {
       const wrapper = wrapperIn(source, index)
       if (!wrapper) continue
-      const previewOptions = (book.catalogueLinks ?? []).flatMap((link) => {
+      const replacementOptions = (book.catalogueLinks ?? []).flatMap((link) => {
         if (!link.importRootEntries) return []
         const parent = books.get(link.targetId)
         if (!parent) return []
-        const preview = [...books.values()].find((candidate) => candidate.name === `${parent.name} (11e)`)
-        return preview ? (wrapperIn(preview, index)?.options ?? []) : []
+        const replacement = [...books.values()].find((candidate) => candidate.name === `${parent.name} (11e)`)
+        return replacement ? (wrapperIn(replacement, index)?.options ?? []) : []
       })
-      const options = [...new Map([...wrapper.options, ...previewOptions].map((option) => [option.id, option])).values()]
+      const options = [...new Map([...wrapper.options, ...replacementOptions].map((option) => [option.id, option])).values()]
         .filter((option) => !option.hidden && !hiddenByRules(option, index, { primaryCatalogueId: book.id }))
         .map((option) => ({
           id: option.id,
@@ -184,7 +184,7 @@ export function isReferenceDatasheet(loaded: LoadedCatalogue, catalogueId: strin
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return false
   const target = targetOf(entry, loaded.index.definitions)
-  if (isPreviewCatalogue(loaded.index.catalogues.get(catalogueId) ?? { name: '' }))
+  if (isReplacementCatalogue(loaded.index.catalogues.get(catalogueId) ?? { name: '' }))
     return loaded.index.catalogueOf.get(target.id) === catalogueId
   const canonicalFaction = referenceFactionOf(
     loaded,

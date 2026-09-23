@@ -5,7 +5,7 @@ import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from './rulesSource'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { factionContentOf } from './factionNames'
-import { isPreviewCatalogue, previewArmyRulesFor } from './previewCatalogues'
+import { isReplacementCatalogue, replacementArmyRulesFor } from './replacementCatalogues'
 
 export function describeDatasheetAbilities(
   loaded: LoadedCatalogue,
@@ -33,20 +33,20 @@ export function describeDatasheetAbilitiesWithContributions(
   const factionAbilityNames = factionContent
     ? new Set([...factionContent.armyRules.map((rule) => routeSlug(rule.name)), ...[...factionContent.factionAbilityNames].map(routeSlug)])
     : null
-  const previewArmyRules = faction && !isPreviewCatalogue(faction) ? previewArmyRulesFor(loaded, catalogueId) : []
+  const replacementArmyRules = faction && !isReplacementCatalogue(faction) ? replacementArmyRulesFor(loaded, catalogueId) : []
   const supersededFactionAbilities = new Set([...(factionContent?.factionAbilityNames ?? [])].map(routeSlug))
-  if (previewArmyRules.length && factionAbilityNames) {
+  if (replacementArmyRules.length && factionAbilityNames) {
     for (const name of supersededFactionAbilities) factionAbilityNames.delete(name)
-    for (const rule of previewArmyRules) factionAbilityNames.add(routeSlug(rule.name))
+    for (const rule of replacementArmyRules) factionAbilityNames.add(routeSlug(rule.name))
   }
   const upgradeNames = new Set(detachmentDetails.flatMap((detachment) => detachment.upgrades.map((upgrade) => routeSlug(upgrade.name))))
   const referenceAbilities = options.reference ? detachmentAbilitiesIn(loaded, catalogueId, sheet.id) : null
   const sourceAbilities = referenceAbilities?.abilities ?? sheet.abilities
-  const candidateAbilities: typeof sourceAbilities = previewArmyRules.length
+  const candidateAbilities: typeof sourceAbilities = replacementArmyRules.length
     ? [
         ...sourceAbilities.filter((ability) => ability.kind !== 'faction' || !supersededFactionAbilities.has(routeSlug(ability.name))),
-        ...previewArmyRules.map((rule) => ({
-          id: `preview-army-rule:${routeSlug(rule.name)}`,
+        ...replacementArmyRules.map((rule) => ({
+          id: `replacement-army-rule:${routeSlug(rule.name)}`,
           name: rule.name,
           description: rule.description,
           kind: 'faction' as const,

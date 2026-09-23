@@ -205,7 +205,7 @@ describe('force disposition', () => {
     ).toMatchObject({ detachmentPointsSpent: 4, detachmentPointsOver: true })
   })
 
-  it('prices a preview detachment offered to a current chapter from its catalogue', () => {
+  it('prices a replacement detachment offered to a current chapter from its catalogue', () => {
     const detachment = (id: string, name: string, cost: number) => ({
       id,
       name,
@@ -228,12 +228,12 @@ describe('force disposition', () => {
       {
         name: 'Space Marines (11e)',
         selectionEntries: [{ id: 'intercessors', name: 'Intercessors', type: 'unit' }],
-        sharedSelectionEntries: [wrapper('preview', detachment('assault', 'Assault Brethren', 1))],
+        sharedSelectionEntries: [wrapper('replacement', detachment('assault', 'Assault Brethren', 1))],
       },
     )
     loaded.index.costTypes.set('dp', { id: 'dp', name: 'Detachment Points' })
-    const preview = loaded.detachments.get('cat-1')!.options[0]!
-    loaded.detachments.get('cat')!.options.push(preview)
+    const replacement = loaded.detachments.get('cat-1')!.options[0]!
+    loaded.detachments.get('cat')!.options.push(replacement)
 
     expect(
       calculateRosterPrice(

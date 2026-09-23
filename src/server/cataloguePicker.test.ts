@@ -33,11 +33,11 @@ describe('the shelf a datasheet is filed under', () => {
     ).toBe('other')
   })
 
-  it('uses the strongest secondary category for a provisional preview entry', () => {
+  it('uses the strongest secondary category for a replacement entry', () => {
     const index = bookOf({
       selectionEntries: [
         {
-          id: 'preview-character',
+          id: 'replacement-character',
           name: 'Captain',
           type: 'model',
           categoryLinks: [
@@ -48,7 +48,7 @@ describe('the shelf a datasheet is filed under', () => {
         },
       ],
     }).index
-    expect(groupOfEntry(index, 'preview-character')).toBe('character')
+    expect(groupOfEntry(index, 'replacement-character')).toBe('character')
   })
 })
 
