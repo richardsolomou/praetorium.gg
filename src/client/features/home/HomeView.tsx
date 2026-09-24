@@ -83,7 +83,7 @@ export function HomeView({ me, mine, friends, open, rosters, rostersDue, friendR
     return (
       <main className="w-full">
         <Welcome name={me.name} going={going.length} waiting={waiting} newBattle={newBattle} />
-        <div className="mx-auto w-full max-w-6xl space-y-10 px-3 py-8 sm:px-4">
+        <div className="mx-auto w-full max-w-6xl space-y-10 px-5 py-8 sm:px-6">
           <Columns
             lead={<LiveGames going={going} viewerId={me.id} onDelete={onDelete} />}
             aside={
@@ -108,7 +108,7 @@ export function HomeView({ me, mine, friends, open, rosters, rostersDue, friendR
   return (
     <main className="w-full">
       <HomeHero battle={hero} />
-      <div className="mx-auto w-full max-w-6xl space-y-14 px-3 py-12 sm:px-4 md:space-y-16 md:py-16">
+      <div className="mx-auto w-full max-w-6xl space-y-12 px-5 py-10 sm:px-6 md:space-y-16 md:py-16">
         <HomeSteps />
         <Columns
           // A hero holding the only public battle is the shelf; an empty one under it would contradict it.
@@ -135,7 +135,7 @@ function Welcome({ name, going, waiting, newBattle }: { name: string; going: num
   return (
     <section data-onboarding="home-activity" className="relative overflow-hidden border-b border-edge bg-panel">
       <div className="sheen" />
-      <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-x-6 gap-y-4 px-3 py-6 sm:px-4 sm:py-7">
+      <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-x-6 gap-y-4 px-5 py-6 sm:px-6 sm:py-7">
         <div>
           <h1 className="text-2xl leading-none sm:text-3xl">Welcome back, {name.trim().split(/\s+/)[0]}</h1>
           <p className="mt-3 text-sm text-dim">

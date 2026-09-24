@@ -37,14 +37,18 @@ export function HomeSteps() {
   return (
     <section data-home-steps>
       <h2 className="text-2xl leading-none sm:text-3xl">From list to final score</h2>
-      <ol className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0">
+      <ol className="mt-6 grid gap-6 sm:mt-8 sm:grid-cols-2 sm:gap-8 lg:grid-cols-4 lg:gap-0">
         {STEPS.map(({ title, text }, index) => (
           <li key={title} className="min-w-0 lg:pr-8">
-            <span className="flex items-center gap-3" aria-hidden>
+            {/* The line joining the markers only reads as a sequence when the steps sit in one row. */}
+            <span className="mb-4 hidden items-center gap-3 lg:flex" aria-hidden>
               <span className="size-2.5 shrink-0 rotate-45 bg-parchment" />
-              {index < STEPS.length - 1 ? <span className="hidden h-px flex-1 bg-edge-strong lg:block" /> : null}
+              {index < STEPS.length - 1 ? <span className="h-px flex-1 bg-edge-strong" /> : null}
             </span>
-            <h3 className="mt-4 text-lg leading-tight">{title}</h3>
+            <h3 className="flex items-center gap-3 text-lg leading-tight">
+              <span className="size-2 shrink-0 rotate-45 bg-parchment lg:hidden" aria-hidden />
+              {title}
+            </h3>
             <p className="mt-2 max-w-sm font-rules text-sm leading-relaxed text-dim">{text}</p>
           </li>
         ))}
@@ -64,7 +68,7 @@ export function HomeClosing() {
   return (
     <section className="relative overflow-hidden border-t border-edge bg-panel">
       <div className="sheen" />
-      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-8 px-3 py-12 sm:px-4 md:flex-row md:items-end md:justify-between md:py-16">
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-10 sm:px-6 md:flex-row md:items-end md:justify-between md:py-16">
         <div>
           <h2 className="text-3xl leading-[0.9] sm:text-4xl">
             Bring your

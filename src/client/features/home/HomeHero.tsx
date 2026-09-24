@@ -21,7 +21,7 @@ export function HomeHero({ battle }: { battle?: Battle }) {
   return (
     <section className="relative overflow-hidden border-b border-edge bg-panel">
       <div className="sheen" />
-      <div className="relative mx-auto grid w-full max-w-6xl gap-10 px-3 py-12 sm:px-4 md:py-16 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center lg:gap-14">
+      <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-5 py-10 sm:px-6 md:py-16 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center lg:gap-14">
         <div>
           <h1 className="text-4xl leading-[0.9] sm:text-5xl lg:text-6xl">
             Build the force.
@@ -35,7 +35,7 @@ export function HomeHero({ battle }: { battle?: Battle }) {
             A returning player who has been signed out lands here, and leaving them
             only an invitation to make a second account is how they end up with one.
           */}
-          <div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-3">
+          <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-3 sm:mt-8">
             <Link to="/sign-in" search={{ next: undefined }} className={buttonVariants({ size: 'lg' })}>
               Create an account
             </Link>
