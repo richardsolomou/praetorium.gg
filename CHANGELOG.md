@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.77.0
+
+### Minor Changes
+
+- 61dd47e: Redesign the home page: a signed-in dashboard with what is waiting on you, your rosters and recent results, and a landing page for visitors.
+
+### Patch Changes
+
+- 7b2de63: Keep practice games from emptying the public and friends battle lists on the home page.
+
 ## 0.76.1
 
 ### Patch Changes
