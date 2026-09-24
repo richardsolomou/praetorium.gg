@@ -27,8 +27,9 @@ import { pushSenderFromEnvironment } from '../adapters/push'
 import { pushNotifier, silentNotifier } from './pushNotifier'
 import { prepareGlobalSearch } from './globalSearch'
 import { referenceCatalogue } from './canonicalCatalogue'
-import { loadSnapshot, recordSwap, snapshotOf } from './catalogueChanges'
+import { loadCatalogueHistory } from './catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
+import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 
 type App = {
   database: PraetoriumDatabase
@@ -42,6 +43,8 @@ type App = {
   canonicalCatalogue: () => CanonicalCatalogue | null
   /** Stratagems and mission cards, null when that source has not been synced. */
   rules: () => LoadedRules | null
+  /** What each army-data update changed, as the snapshot carries it; null when it carries none. */
+  catalogueHistory: () => CatalogueHistoryEntry[] | null
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
   auth: ReturnType<typeof createAuth>
@@ -54,17 +57,16 @@ type App = {
 }
 
 /** Parsing the whole catalogue takes seconds, so it happens once and only if asked for. */
-function memoize<T>(work: () => T): (() => T) & { peek: () => T | undefined } {
+function memoize<T>(work: () => T): () => T {
   let done = false
   let value: T
-  const read = () => {
+  return () => {
     if (!done) {
       value = work()
       done = true
     }
     return value
   }
-  return Object.assign(read, { peek: () => (done ? value : undefined) })
 }
 
 /**
@@ -151,20 +153,15 @@ export function app(): App {
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     let ready = Promise.resolve()
     const loaders = () => ({
-      catalogue: memoize(() => loadSnapshot(catalogueDataDirectory, loadCatalogue)),
-      canonical: memoize(() =>
-        loadSnapshot(
-          catalogueDataDirectory,
-          () => canonicalCatalogue(instance, catalogueDataDirectory),
-          () => instance.catalogue(),
-        ),
-      ),
+      catalogue: memoize(loadCatalogue),
+      canonical: memoize(() => canonicalCatalogue(instance, catalogueDataDirectory)),
       rules: memoize(() => {
         const catalogue = instance.catalogue()
         return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
       }),
+      history: memoize(() => loadCatalogueHistory(catalogueDataDirectory)),
     })
-    let loaded = loaders()
+    const loaded = loaders()
     const instance: App = {
       database,
       valkey: cache,
@@ -175,26 +172,20 @@ export function app(): App {
       catalogue: loaded.catalogue,
       canonicalCatalogue: loaded.canonical,
       rules: loaded.rules,
+      catalogueHistory: loaded.history,
       push: Boolean(push),
       sync: () => sync.state,
       telemetry,
       ready: () => ready,
     }
-    // The outgoing reference data is only in memory once the next snapshot is on disk,
-    // so what changed between them is worked out here or never.
+    // Everything read from the snapshot is read again from the one now on disk.
     const swap = () => {
-      const held = loaded.canonical.peek() ?? null
-      // The hourly check reloads an unchanged snapshot too, and there is nothing to compare then.
-      const outgoing = snapshotOf(held) === installedSnapshot(catalogueDataDirectory)?.id ? null : held
-      const incoming = loaders()
-      loaded = incoming
-      instance.catalogue = incoming.catalogue
-      instance.canonicalCatalogue = incoming.canonical
-      instance.rules = incoming.rules
+      const next = loaders()
+      instance.catalogue = next.catalogue
+      instance.canonicalCatalogue = next.canonical
+      instance.rules = next.rules
+      instance.catalogueHistory = next.history
       ready = warm(instance)
-      void ready
-        .then(() => recordSwap(outgoing, incoming.canonical.peek() ?? null, (input) => instance.service.recordCatalogueChanges(input)))
-        .catch((error: unknown) => console.error({ event: 'catalogue_changes_failed', error }))
     }
     // Fetched in the background rather than at boot: an instance must start and
     // serve battles whether or not it has the catalogues yet.

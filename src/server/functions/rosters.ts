@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { attachedUnitCount } from '../../core/attachedUnits'
 import { changesTouching } from '../../core/catalogueChanges'
+import { historySince } from '../../core/catalogueHistory'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
 import { calculateRosterPrice } from '../pricing'
@@ -123,17 +124,17 @@ export const savedRosterStatus = createServerFn({ method: 'GET' }).handler(() =>
     const instance = app()
     const saved = await instance.service.savedRosters(id)
     if (!saved.length) return []
-    const sets = await instance.service.catalogueChanges(CHANGE_SETS_READ, Math.min(...saved.map((roster) => roster.updatedAt)))
+    const sets = historySince(instance.catalogueHistory() ?? [], Math.min(...saved.map((roster) => roster.updatedAt)), CHANGE_SETS_READ)
     return saved.map((roster) => rosterStatus(roster, cachedRosterVerdict(roster), sets))
   }),
 )
 
 /** The recorded data updates since a list was saved that reached something it holds. */
-async function changesSinceSaved(
+function changesSinceSaved(
   roster: Parameters<typeof cachedRosterPrice>[0] & { updatedAt: number },
   priced: ReturnType<typeof cachedRosterPrice>,
 ) {
-  const sets = await app().service.catalogueChanges(CHANGE_SETS_READ, roster.updatedAt)
+  const sets = historySince(app().catalogueHistory() ?? [], roster.updatedAt, CHANGE_SETS_READ)
   return sets.length ? changesTouching(rosterVerdict(roster, priced).contents, roster.updatedAt, sets) : []
 }
 
@@ -144,7 +145,7 @@ export const rosterBootstrap = createServerFn({ method: 'GET' })
       const access = await accessibleRoster(data)
       if (!access) return null
       const price = cachedRosterPrice(access.roster)
-      return { ...access, price, changes: await changesSinceSaved(access.roster, price) }
+      return { ...access, price, changes: changesSinceSaved(access.roster, price) }
     }),
   )
 

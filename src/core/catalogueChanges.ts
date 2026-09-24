@@ -235,6 +235,32 @@ function compared<T extends { catalogueId: string; faction: string; id: string; 
   return found
 }
 
+/**
+ * Every name a side shows, keyed by where the changes page files it: a datasheet or a
+ * detachment in its faction, and an enhancement or upgrade in its faction's detachment.
+ */
+function namesIn(source: ChangeSource) {
+  const names = new Set<string>()
+  for (const sheet of source.datasheets) names.add(key(sheet.catalogueId, 'datasheet', sheet.name))
+  for (const detachment of source.detachments) {
+    names.add(key(detachment.catalogueId, 'detachment', detachment.name))
+    for (const option of detachment.enhancements) names.add(key(detachment.catalogueId, 'enhancement', detachment.name, option.name))
+    for (const option of detachment.upgrades) names.add(key(detachment.catalogueId, 'upgrade', detachment.name, option.name))
+  }
+  return names
+}
+
+/** Whether a removal leaves its name behind, or an addition brings a name that was already there. */
+function stillNamed(catalogueId: string, change: CatalogueChange, before: ReadonlySet<string>, after: ReadonlySet<string>) {
+  const removed = change.kind.endsWith('-removed')
+  if (!removed && !change.kind.endsWith('-added')) return false
+  const name =
+    'detachmentId' in change
+      ? key(catalogueId, change.upgrade ? 'upgrade' : 'enhancement', change.detachment, change.name)
+      : key(catalogueId, change.kind.startsWith('datasheet') ? 'datasheet' : 'detachment', change.name)
+  return (removed ? after : before).has(name)
+}
+
 const changeName = (change: CatalogueChange) => ('detachment' in change ? `${change.detachment}\0${change.name}` : change.name)
 const changeId = (change: CatalogueChange) => ('detachmentId' in change ? change.detachmentId : change.id)
 
@@ -247,9 +273,19 @@ const changeId = (change: CatalogueChange) => ('detachmentId' in change ? change
  * than that every one was removed: an older compiled catalogue carries no detachments at
  * all, and a source missing from a snapshot leaves its part empty. That part is compared
  * only when both sides state it.
+ *
+ * Nor is a thing removed while one of the same name is still there. Upstream data files
+ * the same datasheet twice under different ids, and relabelling the stray copy as Legends
+ * takes it off the reference pages while the datasheet a player uses stays, so a removal
+ * whose exact display name remains in the same faction and section is not reported, and an
+ * addition whose name was already there is not either. The name only silences the report:
+ * two records that share a name but not an id are never paired, so no points change is
+ * read between them. A name that differs by so much as a letter is a different thing.
  */
 export function catalogueChanges(before: ChangeSource, after: ChangeSource, limit = CATALOGUE_CHANGE_LIMIT): CatalogueChangeSet {
   const stated = <T>(left: readonly T[], right: readonly T[]) => left.length > 0 && right.length > 0
+  const beforeNames = namesIn(before)
+  const afterNames = namesIn(after)
   const found = [
     ...(stated(before.datasheets, after.datasheets)
       ? compared(
@@ -272,7 +308,7 @@ export function catalogueChanges(before: ChangeSource, after: ChangeSource, limi
           { added: 'detachment-added', removed: 'detachment-removed' },
         )
       : []),
-  ]
+  ].filter(({ record, change }) => !stillNamed(record.catalogueId, change, beforeNames, afterNames))
   const factions = new Map<string, FactionChanges>()
   const said = new Set<string>()
   for (const { record, change } of found) {

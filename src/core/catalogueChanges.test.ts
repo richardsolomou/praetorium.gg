@@ -126,13 +126,76 @@ describe('the change set between two snapshots', () => {
     expect(changesOf(changes)).toMatchObject([{ kind: 'datasheet-points', id: 'intercessors', name: 'Intercessors' }])
   })
 
-  it('reports a datasheet with a new id as removed and added rather than guessing it moved', () => {
-    const changes = catalogueChanges(source([sheet()]), source([sheet({ id: 'intercessors-v2' })]))
+  it('reports a datasheet with a new id and a new name as removed and added rather than guessing it moved', () => {
+    const changes = catalogueChanges(source([sheet()]), source([sheet({ id: 'intercessors-v2', name: 'Intercessors' })]))
 
     expect(changesOf(changes)).toEqual([
       { kind: 'datasheet-removed', id: 'intercessors', name: 'Intercessor Squad' },
-      { kind: 'datasheet-added', id: 'intercessors-v2', name: 'Intercessor Squad' },
+      { kind: 'datasheet-added', id: 'intercessors-v2', name: 'Intercessors' },
     ])
+  })
+
+  it('reads no points change between two ids that share a name', () => {
+    const changes = catalogueChanges(
+      source([sheet()]),
+      source([sheet({ id: 'intercessors-v2', costs: [row('5', '95'), row('10', '150')] })]),
+    )
+
+    expect(changesOf(changes)).toEqual([])
+  })
+
+  it('reports nothing when one of two datasheets sharing a name leaves', () => {
+    const stray = sheet({ id: 'intercessors-legends' })
+
+    expect(isEmptyChangeSet(catalogueChanges(source([sheet(), stray]), source([sheet()])))).toBe(true)
+  })
+
+  it('still reports a datasheet removed when nothing of its name is left', () => {
+    expect(changesOf(catalogueChanges(source([sheet(), captain]), source([captain])))).toEqual([
+      { kind: 'datasheet-removed', id: 'intercessors', name: 'Intercessor Squad' },
+    ])
+  })
+
+  it('reports nothing when a datasheet arrives under a name that was already there', () => {
+    expect(isEmptyChangeSet(catalogueChanges(source([sheet()]), source([sheet(), sheet({ id: 'intercessors-legends' })])))).toBe(true)
+  })
+
+  it('reports a removal when the name it leaves behind is in another faction', () => {
+    const elsewhere = sheet({ catalogueId: 'angels', faction: 'Blood Angels', id: 'angel-intercessors' })
+
+    expect(changesOf(catalogueChanges(source([sheet(), elsewhere]), source([elsewhere])))).toEqual([
+      { kind: 'datasheet-removed', id: 'intercessors', name: 'Intercessor Squad' },
+    ])
+  })
+
+  it('reports an addition when its name was only in another faction', () => {
+    const elsewhere = sheet({ catalogueId: 'angels', faction: 'Blood Angels', id: 'angel-intercessors' })
+
+    expect(changesOf(catalogueChanges(source([elsewhere]), source([elsewhere, sheet()])))).toEqual([
+      { kind: 'datasheet-added', id: 'intercessors', name: 'Intercessor Squad' },
+    ])
+  })
+
+  it('reports nothing when one of two detachments sharing a name leaves', () => {
+    const stray = detachment({ id: 'gladius-legacy' })
+
+    expect(isEmptyChangeSet(catalogueChanges(source([], [detachment(), stray]), source([], [detachment()])))).toBe(true)
+  })
+
+  it('reports a detachment removal when its name is left only in another faction', () => {
+    const elsewhere = detachment({ catalogueId: 'angels', faction: 'Blood Angels', id: 'angel-gladius' })
+
+    expect(changesOf(catalogueChanges(source([], [detachment(), elsewhere]), source([], [elsewhere])))).toMatchObject([
+      { kind: 'detachment-removed', id: 'gladius' },
+    ])
+  })
+
+  it('reports an enhancement removal when its name is left only in another faction', () => {
+    const elsewhere = detachment({ catalogueId: 'angels', faction: 'Blood Angels', id: 'angel-gladius' })
+
+    expect(
+      changesOf(catalogueChanges(source([], [detachment(), elsewhere]), source([], [detachment({ enhancements: [] }), elsewhere]))),
+    ).toMatchObject([{ kind: 'enhancement-removed', name: 'Artificer Armour' }])
   })
 
   it('keeps the same datasheet in two factions apart', () => {
@@ -144,10 +207,10 @@ describe('the change set between two snapshots', () => {
     expect(changes.factions.map((faction) => faction.catalogueId)).toEqual(['angels'])
   })
 
-  it('reports two different datasheets claiming one id as removed and added', () => {
+  it('pairs neither of two datasheets claiming one id, reporting only the name that is new', () => {
     const changes = catalogueChanges(source([sheet()]), source([sheet(), sheet({ name: 'Heavy Intercessor Squad' })]))
 
-    expect(changesOf(changes).map((change) => change.kind)).toEqual(['datasheet-removed', 'datasheet-added', 'datasheet-added'])
+    expect(changesOf(changes)).toEqual([{ kind: 'datasheet-added', id: 'intercessors', name: 'Heavy Intercessor Squad' }])
   })
 
   it('reports a detachment points change', () => {

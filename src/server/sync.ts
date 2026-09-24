@@ -257,8 +257,14 @@ const MAX_EXTRACTED_BYTES = 512 * 1024 * 1024
 async function fetchInto(repository: string, revision: string, target: string, sourcePath?: string) {
   const response = await fetchWithRetry(`https://codeload.github.com/${repository}/zip/${revision}`)
   if (!response.ok) throw new Error(`${repository} answered ${response.status}`)
+  extractSourceArchive(new Uint8Array(await response.arrayBuffer()), repository, target, sourcePath)
+}
 
-  const compressed = new Uint8Array(await response.arrayBuffer())
+/**
+ * One source's zip, laid out at `target` as a synced catalogue holds it: the archive's single
+ * top-level directory stripped, only `sourcePath` kept, and the whole swapped in at once.
+ */
+export function extractSourceArchive(compressed: Uint8Array, repository: string, target: string, sourcePath?: string) {
   if (compressed.length > MAX_ARCHIVE_BYTES) throw new Error(`${repository} archive exceeds ${MAX_ARCHIVE_BYTES} bytes`)
   const archive = unzipSync(compressed)
   const staging = `${target}.incoming`

@@ -155,13 +155,6 @@
       "when": 1790199160099,
       "tag": "0021_push_notifications",
       "breakpoints": true
-    },
-    {
-      "idx": 22,
-      "version": "7",
-      "when": 1790232524687,
-      "tag": "0022_catalogue_changes",
-      "breakpoints": true
     }
   ]
 }

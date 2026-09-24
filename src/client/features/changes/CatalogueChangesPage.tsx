@@ -10,9 +10,10 @@ import { catalogueChangeLogQuery } from '../../queries'
 
 const SECTIONS: readonly ChangeSection[] = ['Datasheets', 'Detachments', 'Enhancements', 'Upgrades']
 
-/** What each army data update changed, newest first, grouped by faction. */
-export function CatalogueChangesPage() {
-  const { data: updates } = useQuery(catalogueChangeLogQuery())
+/** What each army data update changed, newest first, grouped by faction, a page at a time. */
+export function CatalogueChangesPage({ before }: { before?: string }) {
+  const { data } = useQuery(catalogueChangeLogQuery(before))
+  const updates = data?.updates
 
   return (
     <main className="w-full">
@@ -23,7 +24,7 @@ export function CatalogueChangesPage() {
       />
       <PageContent className="space-y-8">
         {updates?.length ? (
-          updates.map((update) => <Update key={update.recordedAt} update={update} />)
+          updates.map((update) => <Update key={update.key} update={update} />)
         ) : (
           <PageState
             headingLevel={2}
@@ -38,6 +39,22 @@ export function CatalogueChangesPage() {
             }
           />
         )}
+        {before || data?.older ? (
+          <nav aria-label="Older and newer updates" className="flex justify-between gap-3 border-t border-edge pt-4 text-sm">
+            {before ? (
+              <Link to="/changes" search={{}} className="text-info hover:text-bone">
+                Newest updates
+              </Link>
+            ) : (
+              <span />
+            )}
+            {data?.older ? (
+              <Link to="/changes" search={{ before: data.older }} className="text-info hover:text-bone">
+                Older updates
+              </Link>
+            ) : null}
+          </nav>
+        ) : null}
       </PageContent>
     </main>
   )

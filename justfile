@@ -108,9 +108,9 @@ catalogue-compile:
 catalogue-audit *args:
     pnpm catalogue:audit -- {{ args }}
 
-# Record what past snapshots changed: --since <date> or --last <n>, --sql <file>, and DATABASE_URL to insert
-catalogue-backfill *args:
-    pnpm catalogue:backfill -- {{ args }}
+# Build the data-update history seed from every published snapshot and the sources' own history: --out <file>
+catalogue-history-seed *args:
+    pnpm catalogue:history-seed -- {{ args }}
 
 # Ratchet description coverage across the fetched rules sources
 descriptions:

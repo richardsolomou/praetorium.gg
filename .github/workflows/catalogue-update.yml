@@ -45,6 +45,13 @@ jobs:
           pnpm catalogue:update
           pnpm catalogue:descriptions
           pnpm catalogue:points
+      # The history the published snapshot carries, plus whatever changed since it, travels
+      # in the new one so every instance can say what an update changed. It never fails the
+      # publish: what it cannot read it logs, and it carries forward only what it measured.
+      - name: Carry the data-update history forward
+        env:
+          CATALOGUE_BASE_URL: ${{ vars.S3_PUBLIC_BASE_URL }}
+        run: pnpm catalogue:history
       - name: Build and publish the immutable snapshot
         run: |
           test -n "$SNAPSHOT_BUCKET"

@@ -760,7 +760,7 @@ export const snapshotRules = (directory: string, loaded: LoadedCatalogue) =>
 
 /**
  * A snapshot's reference catalogue: the compiled one it packages, or one compiled from its
- * sources. The running instance and the change-history backfill both read a snapshot this way.
+ * sources, which is how a running instance reads the snapshot it serves.
  */
 export function referenceCatalogue(directory: string, catalogue: () => LoadedCatalogue | null, rules: () => LoadedRules | null) {
   const packaged = loadCanonicalCatalogue(directory)
