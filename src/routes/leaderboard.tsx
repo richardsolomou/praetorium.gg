@@ -1,7 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { PageContent, PageHeader } from '../client/components/Page'
-import { FactionFilter, Standings } from '../client/features/leaderboard/Standings'
+import { LeaderboardPage } from '../client/features/leaderboard/LeaderboardPage'
 import { pageMeta } from '../client/linkPreview'
 import { standingsQuery } from '../client/queries'
 
@@ -17,39 +15,9 @@ export const Route = createFileRoute('/leaderboard')({
       path: '/leaderboard',
     }),
   }),
-  component: Leaderboard,
+  component: LeaderboardRoute,
 })
 
-const EMPTY = { faction: null, players: 0, rows: [] }
-
-/**
- * Who is winning, overall or with one faction.
- *
- * The faction is a search parameter rather than component state so a table has an
- * address: "the best Necrons players here" is a link somebody can send.
- */
-function Leaderboard() {
-  const { faction } = Route.useSearch()
-  const { data } = useQuery(standingsQuery())
-  const chosen = data?.factions.find((table) => table.faction?.slug === faction)
-  // An address that names a faction nobody has played falls back to everyone
-  // rather than an empty page insisting the faction does not exist.
-  const table = chosen ?? data?.overall ?? EMPTY
-  return (
-    <main className="w-full">
-      <PageHeader
-        eyebrow="Who is winning"
-        title="Leaderboard"
-        description={`Public battles from the last ${data?.days ?? 90} days, ranked by wins and then win rate.`}
-      />
-      <PageContent className="space-y-6">
-        <FactionFilter factions={data?.factions.map((entry) => entry.faction) ?? []} selected={chosen?.faction?.slug} />
-        <Standings table={table} />
-        {/* Under the table, because it answers "why is my game not here" rather than "what am I reading". */}
-        <p className="text-sm text-faint">
-          Conceding is a loss whatever the score. Allies share their side's result. Practice games and battles kept private are not counted.
-        </p>
-      </PageContent>
-    </main>
-  )
+function LeaderboardRoute() {
+  return <LeaderboardPage faction={Route.useSearch().faction} />
 }

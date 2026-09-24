@@ -1,10 +1,6 @@
 import type { ReactNode } from 'react'
-import { PageContent, PageHeader } from './Page'
+import { PageContent, PageHeader } from '../../components/Page'
 
-/**
- * The shell both legal documents render inside: the page band every other page
- * opens with, over one narrow column of Barlow prose that a reader can follow.
- */
 export function LegalPage({ title, updated, children }: { title: string; updated: string; children: ReactNode }) {
   return (
     <main className="w-full">
