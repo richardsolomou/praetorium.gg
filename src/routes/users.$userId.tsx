@@ -2,13 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { UserX } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import type { ServiceRecord } from '../core/serviceRecord'
 import { BattleShelf } from '../client/features/battles/BattleShelf'
+import { pageMeta, playerPreview } from '../client/linkPreview'
 import { PageContent, PageHeader } from '../client/components/Page'
 import { PageState } from '../client/components/PageState'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { PlayerRankings } from '../client/features/profile/PlayerRankings'
 import { PlayerRosters } from '../client/features/profile/PlayerRosters'
+import { recordSummary } from '../client/features/profile/recordSummary'
 import { ServiceRecordPanel } from '../client/features/profile/ServiceRecordPanel'
 import {
   factionIndexQuery,
@@ -54,14 +55,33 @@ const recordFilter = ({ tab: _tab, ...filter }: ProfileSearch): PlayerProfileFil
 export const Route = createFileRoute('/users/$userId')({
   validateSearch: readSearch,
   loaderDeps: ({ search }) => recordFilter(search),
-  loader: ({ context, params, deps }) =>
-    Promise.all([
+  loader: async ({ context, params, deps }) => {
+    const [, profile, record, rankings] = await Promise.all([
       context.queryClient.query({ ...meQuery(), staleTime: 'static' }),
       context.queryClient.query({ ...userProfileQuery(params.userId), staleTime: 'static' }),
       context.queryClient.query({ ...playerProfileQuery(params.userId, deps), staleTime: 'static' }),
       context.queryClient.query({ ...playerRankingsQuery(params.userId), staleTime: 'static' }),
       context.queryClient.query({ ...playerRostersQuery(params.userId), staleTime: 'static' }),
-    ]),
+    ])
+    // The same record the page header summarises, narrowed exactly as far as the link is.
+    return { preview: profile ? playerPreview(profile.name, record?.record, rankings) : null }
+  },
+  head: ({ loaderData, match, params }) => {
+    const preview = loaderData?.preview
+    if (!preview) return {}
+    const path = `/users/${params.userId}`
+    return {
+      meta: [
+        ...pageMeta(match.context.origin, {
+          title: preview.title,
+          description: preview.description,
+          path,
+          image: { path: `/api/previews${path}`, alt: preview.title },
+        }),
+        { property: 'og:type', content: 'profile' },
+      ],
+    }
+  },
   component: PlayerProfile,
 })
 
@@ -119,7 +139,7 @@ function PlayerProfile() {
       <PageHeader
         eyebrow={yourself ? 'You' : 'Player'}
         title={profile.name}
-        description={record ? summarise(record) : undefined}
+        description={record ? recordSummary(record) : undefined}
         media={<PlayerAvatar name={profile.name} image={profile.image} className="size-20 text-2xl" />}
       />
       <PageContent>
@@ -193,21 +213,4 @@ function PlayerProfile() {
       </PageContent>
     </main>
   )
-}
-
-/**
- * The one-line answer to "who is this player", in words rather than a dash-run.
- *
- * `8–2–1` reads as a score to anybody who has not been told the order. The counts
- * are broken out properly by the record below; this only has to be readable.
- */
-function summarise(record: ServiceRecord) {
-  if (!record.battles) return 'No finished battles to show.'
-  const parts = [
-    `${record.won} ${record.won === 1 ? 'win' : 'wins'}`,
-    `${record.lost} ${record.lost === 1 ? 'loss' : 'losses'}`,
-    ...(record.drawn ? [`${record.drawn} ${record.drawn === 1 ? 'draw' : 'draws'}`] : []),
-  ]
-  const listed = parts.length > 2 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts.join(' and ')
-  return `${listed} from ${record.battles} ${record.battles === 1 ? 'battle' : 'battles'}.`
 }

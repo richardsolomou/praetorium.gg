@@ -9,6 +9,7 @@ import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { SearchField } from '../client/components/SearchField'
 import { PageState } from '../client/components/PageState'
 import { PageContent, PageHeader } from '../client/components/Page'
+import { pageMeta } from '../client/linkPreview'
 
 export const Route = createFileRoute('/factions')({
   loader: ({ context, location }) =>
@@ -18,6 +19,16 @@ export const Route = createFileRoute('/factions')({
           context.queryClient.query({ ...favouriteFactionsQuery(), staleTime: 'static' }),
         ])
       : undefined,
+  head: ({ match, matches }) => ({
+    meta:
+      matches.at(-1)?.routeId === match.routeId
+        ? pageMeta(match.context.origin, {
+            title: 'Factions',
+            description: 'Browse Warhammer 40,000 faction rules, detachments, datasheets, loadouts and points.',
+            path: '/factions',
+          })
+        : [],
+  }),
   component: Factions,
 })
 

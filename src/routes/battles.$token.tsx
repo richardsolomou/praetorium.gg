@@ -14,6 +14,7 @@ import {
   terrainMatchupIds,
   terrainReferencesQuery,
 } from '../client/queries'
+import { battlePreview, hiddenBattle, pageMeta } from '../client/linkPreview'
 import { armyRulesRequest } from '../client/sideRules'
 import { useCommand } from '../client/useCommand'
 import { useLiveBattle } from '../client/useLiveBattle'
@@ -37,7 +38,7 @@ export const Route = createFileRoute('/battles/$token')({
     // Only a loader may throw this: from a render it lands in the error boundary.
     const screen = await context.queryClient.query({ ...battleQuery(params.token), staleTime: 'static' })
     if (!screen) throw notFound()
-    if (screen.kind === 'unavailable') return
+    if (screen.kind === 'unavailable') return { preview: null }
     const dispositions = [...new Set(screen.view.players.map((player) => player.side))]
       .map((side) => screen.view.players.find((player) => player.side === side)?.disposition)
       .filter((value): value is string => Boolean(value))
@@ -57,6 +58,20 @@ export const Route = createFileRoute('/battles/$token')({
         (catalogueId) => context.queryClient.query({ ...factionQuery(catalogueId), staleTime: 'static' }),
       ),
     ])
+    const factionName = (catalogueId: string) => context.queryClient.getQueryData(factionQuery(catalogueId).queryKey)?.displayName ?? null
+    return { preview: battlePreview(screen.view, factionName) }
+  },
+  head: ({ loaderData, match, params }) => {
+    const preview = loaderData?.preview
+    const path = `/battles/${params.token}`
+    return {
+      meta: pageMeta(
+        match.context.origin,
+        preview
+          ? { title: preview.title, description: preview.description, path, image: { path: `/api/previews${path}`, alt: preview.title } }
+          : { ...hiddenBattle, path },
+      ),
+    }
   },
   component: BattlePage,
 })

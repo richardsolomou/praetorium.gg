@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { PageContent, PageHeader } from '../client/components/Page'
 import { FactionFilter, Standings } from '../client/components/Standings'
+import { pageMeta } from '../client/linkPreview'
 import { standingsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/leaderboard')({
@@ -9,6 +10,13 @@ export const Route = createFileRoute('/leaderboard')({
     faction: typeof search.faction === 'string' && search.faction ? search.faction : undefined,
   }),
   loader: ({ context }) => context.queryClient.query({ ...standingsQuery(), staleTime: 'static' }),
+  head: ({ match }) => ({
+    meta: pageMeta(match.context.origin, {
+      title: 'Leaderboard',
+      description: 'Who is winning: players ranked by wins and win rate over recent public Warhammer 40,000 battles.',
+      path: '/leaderboard',
+    }),
+  }),
   component: Leaderboard,
 })
 

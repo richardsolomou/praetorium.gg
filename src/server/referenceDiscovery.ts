@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { publicOrigin } from './requestOrigin'
 import { activeReferenceCorpus } from './referenceApi'
 
 export function referenceSitemap(request: Request) {
@@ -78,10 +79,6 @@ function cachedText(request: Request, revision: string, key: string, body: strin
   const etag = `"${createHash('sha256').update(`${revision}\0${key}`).digest('hex')}"`
   const headers = { 'Cache-Control': 'public, max-age=3600', 'Content-Type': contentType, ETag: etag }
   return request.headers.get('if-none-match') === etag ? new Response(null, { status: 304, headers }) : new Response(body, { headers })
-}
-
-function publicOrigin(request: Request) {
-  return (process.env.APP_URL?.trim() || new URL(request.url).origin).replace(/\/$/, '')
 }
 
 const xml = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')

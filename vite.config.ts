@@ -24,6 +24,8 @@ export default defineConfig(({ mode }) => {
       : undefined
   return {
     resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
+    // The preview renderer inlines its WebAssembly with `?inline`, which only an asset type accepts.
+    assetsInclude: ['**/*.wasm'],
     build: {
       rolldownOptions: {
         output: {
