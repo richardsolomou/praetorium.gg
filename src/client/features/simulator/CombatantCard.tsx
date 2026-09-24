@@ -86,6 +86,7 @@ export function CombatantCard({
             ariaLabel={`${side} unit`}
             placeholder={catalogueUnits.isPending ? 'Loading units…' : 'Choose a unit'}
             searchPlaceholder="Search units…"
+            virtualized
             value={pick ? unitValue(combatant.faction, pick.entryId) : ''}
             onValueChange={(value) => {
               const [catalogueId, id] = JSON.parse(value) as [string, string]

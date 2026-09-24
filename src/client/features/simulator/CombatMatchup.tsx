@@ -519,7 +519,7 @@ export function CombatMatchup({
           ) : null}
         </section>
       </div>
-      {resultsVisible ? null : (
+      {resultsVisible || !canSimulate ? null : (
         <div
           aria-label="Results summary"
           data-results-summary

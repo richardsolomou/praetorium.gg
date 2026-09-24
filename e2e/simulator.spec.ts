@@ -556,17 +556,18 @@ for (const width of [1440, 390]) {
   })
 }
 
-test('unit options are grouped by faction and show their catalogue icons', async ({ page }) => {
+test('the unit picker opens on every unit, grouped by faction, rendering only the visible rows', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 1000 })
   await page.goto('/simulator')
+  const trigger = page.getByRole('combobox', { name: 'Attacker unit', exact: true })
   const search = page.getByPlaceholder('Search units…')
-  await retryUntilVisible(search, () => page.getByRole('combobox', { name: 'Attacker unit', exact: true }).click())
+  await retryUntilVisible(search, () => trigger.click())
+  await expect(page.getByRole('option').first()).toBeVisible()
+  expect(await page.getByRole('option').count()).toBeLessThan(100)
   await search.fill('Terminator')
-  await expect(
-    page.getByRole('group', { name: 'Death Guard', exact: true }).getByRole('option', { name: /^Deathshroud Terminators \d+ pts$/ }),
-  ).toBeVisible()
+  await expect(page.getByRole('option', { name: /^Deathshroud Terminators, Death Guard, \d+ pts$/ })).toBeVisible()
   await search.fill('Canoptek Doomstalker')
-  const doomstalker = page.getByRole('group', { name: 'Necrons', exact: true }).getByRole('option', { name: /^Canoptek Doomstalker/ })
+  const doomstalker = page.getByRole('option', { name: /^Canoptek Doomstalker, Necrons/ })
   const mark = doomstalker.locator('[data-faction-mark="necrons"]')
   await expect(mark).toBeVisible()
   const icon = await mark.evaluate((element) => getComputedStyle(element).maskImage)
@@ -583,7 +584,9 @@ test('unit options are grouped by faction and show their catalogue icons', async
   expect(imageWidth).toBeGreaterThan(0)
   await page.screenshot({ path: 'test-results/simulator-unit-options.png', fullPage: true })
   await doomstalker.click()
-  await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true }).locator('[data-faction-mark="necrons"]')).toBeVisible()
+  await expect(trigger.locator('[data-faction-mark="necrons"]')).toBeVisible()
+  await trigger.click()
+  await expect(page.locator('[role=option][data-selected]')).toBeInViewport()
 })
 
 test('probability charts open on keyboard focus and close with Escape', async ({ page }) => {
