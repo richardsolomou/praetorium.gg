@@ -8,6 +8,7 @@ import { alias } from 'drizzle-orm/pg-core'
 import type { PraetoriumDatabase } from './connection'
 import { LeagueRepository } from './repositories/leagueRepository'
 import { AccountRepository } from './repositories/accountRepository'
+import { NotificationRepository } from './repositories/notificationRepository'
 import { RosterRepository } from './repositories/rosterRepository'
 import { CatalogueChangeRepository } from './repositories/catalogueChangeRepository'
 import {
@@ -51,10 +52,12 @@ export type UnlinkAccountResult =
   | { status: 'removed'; account: { accessToken: string | null; refreshToken: string | null } }
   | { status: 'missing' | 'two-factor' | 'last-method' }
 export type JoinLeagueResult = LeagueEntryStatus | 'missing' | 'closed' | 'full'
-export type ModerateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'full'
+/** `admitted` is an entry that became accepted, which its entrant is told about; `updated` is any other change. */
+export type ModerateLeagueResult = 'admitted' | 'updated' | 'missing' | 'forbidden' | 'closed' | 'full'
 export type CreateLeagueEventResult = 'created' | 'missing' | 'forbidden' | 'open' | 'too-small'
 export type MakeLeagueRecurringResult = 'updated' | 'missing' | 'forbidden'
-export type UpdateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'below-accepted' | 'team-minimum'
+/** A successful update names the waiting entrants that switching to automatic entry accepted. */
+export type UpdateLeagueResult = { admitted: string[] } | 'missing' | 'forbidden' | 'below-accepted' | 'team-minimum'
 export type UpdateLeagueEventResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'sealed' | 'too-small'
 export type DeleteLeagueResult = 'deleted' | 'missing' | 'forbidden'
 export type AssignLeagueRosterRequirementResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format' | 'wrong-limit'
@@ -63,7 +66,10 @@ export type SubmitLeagueRosterResult =
   | { outcome: 'sealed'; format: TableShape | null; requiredLimit: number | null }
   | { outcome: 'missing' | 'unassigned' | 'wrong-limit' }
   | { outcome: 'invalid-warlords'; format: TableShape | null }
-export type RevealLeagueResult = { outcome: 'revealed' | 'not-ready' } | { outcome: 'invalid-warlords'; format: TableShape }
+export type RevealLeagueResult =
+  | { outcome: 'revealed'; entrantIds: string[] }
+  | { outcome: 'not-ready' }
+  | { outcome: 'invalid-warlords'; format: TableShape }
 export type UnsealLeagueRosterResult = 'unsealed' | 'missing' | 'forbidden' | 'not-revealed'
 export type LeagueBattleCandidate = {
   token: string
@@ -86,6 +92,7 @@ const AUTOMATED = sql<boolean>`${practiceOpponents.userId} is not null`
 export class Repository {
   private readonly accountRepository: AccountRepository
   private readonly leagueRepository: LeagueRepository
+  private readonly notificationRepository: NotificationRepository
   private readonly rosterRepository: RosterRepository
   private readonly catalogueChangeRepository: CatalogueChangeRepository
   readonly createLeagueBattle: LeagueRepository['createLeagueBattle']
@@ -93,6 +100,7 @@ export class Repository {
   constructor(private readonly database: PraetoriumDatabase) {
     this.accountRepository = new AccountRepository(database)
     this.leagueRepository = new LeagueRepository(database, (tx, input) => this.insertBattle(tx, input))
+    this.notificationRepository = new NotificationRepository(database)
     this.rosterRepository = new RosterRepository(database)
     this.catalogueChangeRepository = new CatalogueChangeRepository(database)
     this.createLeagueBattle = this.leagueRepository.createLeagueBattle.bind(this.leagueRepository)
@@ -244,6 +252,34 @@ export class Repository {
 
   catalogueChanges(...args: Parameters<CatalogueChangeRepository['catalogueChanges']>) {
     return this.catalogueChangeRepository.catalogueChanges(...args)
+  }
+
+  pushEnabled(...args: Parameters<NotificationRepository['pushEnabled']>) {
+    return this.notificationRepository.pushEnabled(...args)
+  }
+
+  setPushEnabled(...args: Parameters<NotificationRepository['setPushEnabled']>) {
+    return this.notificationRepository.setPushEnabled(...args)
+  }
+
+  registerPushToken(...args: Parameters<NotificationRepository['registerPushToken']>) {
+    return this.notificationRepository.registerPushToken(...args)
+  }
+
+  unregisterPushToken(...args: Parameters<NotificationRepository['unregisterPushToken']>) {
+    return this.notificationRepository.unregisterPushToken(...args)
+  }
+
+  deletePushTokens(...args: Parameters<NotificationRepository['deletePushTokens']>) {
+    return this.notificationRepository.deletePushTokens(...args)
+  }
+
+  pushTargets(...args: Parameters<NotificationRepository['pushTargets']>) {
+    return this.notificationRepository.pushTargets(...args)
+  }
+
+  leagueNames(...args: Parameters<NotificationRepository['leagueNames']>) {
+    return this.notificationRepository.leagueNames(...args)
   }
 
   saveRoster(...args: Parameters<RosterRepository['saveRoster']>) {

@@ -16,6 +16,7 @@ import {
 } from '../../core/league'
 import type { TableShape } from '../../core/tableShape'
 import type { Repository } from '../../db/repository'
+import type { Notifier } from '../pushNotifier'
 import { rosterFromRow } from '../rosterPersistence'
 
 export class LeagueService {
@@ -23,6 +24,7 @@ export class LeagueService {
     private readonly repository: Repository,
     private readonly clock: () => number,
     private readonly events: BattleEvents,
+    private readonly notifier: Notifier,
   ) {}
 
   async createLeague(
@@ -118,7 +120,11 @@ export class LeagueService {
     },
   ) {
     const result = await this.repository.updateLeague(token, ownerId, input)
-    if (result === 'updated') return
+    if (typeof result === 'object') {
+      if (result.admitted.length)
+        this.notifier.notify([{ kind: 'league-entry-accepted', actorId: ownerId, recipientIds: result.admitted, leagueToken: token }])
+      return
+    }
     if (result === 'missing') throw new Response('no such league', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can edit this league', { status: 403 })
     if (result === 'team-minimum') throw new Response('the open team event needs a supported number of places', { status: 409 })
@@ -158,7 +164,9 @@ export class LeagueService {
     eventToken?: string,
   ) {
     const result = await this.repository.moderateLeagueEntry(token, ownerId, userId, status, LEAGUE_MEMBER_MAX, eventToken)
-    if (result === 'updated') return
+    if (result === 'admitted')
+      this.notifier.notify([{ kind: 'league-entry-accepted', actorId: ownerId, recipientIds: [userId], leagueToken: token, eventToken }])
+    if (result === 'admitted' || result === 'updated') return
     if (result === 'forbidden') throw new Response('only the organizer can change entrants', { status: 403 })
     if (result === 'closed') throw new Response('this event has already revealed its rosters', { status: 409 })
     if (result === 'full') throw new Response('this event is full', { status: 409 })
@@ -226,7 +234,10 @@ export class LeagueService {
 
   async revealLeague(token: string, ownerId: string, eventToken?: string) {
     const result = await this.repository.revealLeague(token, ownerId, this.clock(), eventToken)
-    if (result.outcome === 'revealed') return
+    if (result.outcome === 'revealed') {
+      this.notifier.notify([{ kind: 'league-revealed', actorId: ownerId, recipientIds: result.entrantIds, leagueToken: token, eventToken }])
+      return
+    }
     if (result.outcome === 'invalid-warlords')
       throw new Response(
         result.format === '2v2'
@@ -240,7 +251,10 @@ export class LeagueService {
   /** Send one revealed list back to its owner so a mistake can be corrected in place. */
   async unsealLeagueRoster(token: string, ownerId: string, userId: string, eventToken?: string) {
     const result = await this.repository.unsealLeagueRoster(token, ownerId, userId, eventToken)
-    if (result === 'unsealed') return
+    if (result === 'unsealed') {
+      this.notifier.notify([{ kind: 'league-roster-unsealed', actorId: ownerId, recipientIds: [userId], leagueToken: token, eventToken }])
+      return
+    }
     if (result === 'forbidden') throw new Response('only the organizer can unseal a roster', { status: 403 })
     if (result === 'not-revealed') throw new Response('an entrant can swap their own roster until reveal', { status: 409 })
     throw new Response('no such revealed event roster', { status: 404 })
@@ -399,6 +413,9 @@ export class LeagueService {
     )
     if (!result) throw new Response('no such league', { status: 404 })
     this.events.publish(id, result.participantIds)
+    this.notifier.notify([
+      { kind: 'battle-created', actorId: userId, recipientIds: result.participantIds, battleToken: token, league: true },
+    ])
     return result
   }
 }

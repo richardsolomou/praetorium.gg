@@ -199,6 +199,40 @@ export const battleSharing = pgTable('battle_sharing', {
   at: bigint('at', { mode: 'number' }).notNull(),
 })
 
+/**
+ * A player's answer to whether their devices are sent notifications.
+ *
+ * Like `battleSharing`, a row is an override and its absence is the default in
+ * `src/core/notifications.ts`.
+ */
+export const pushPreferences = pgTable('push_preferences', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  enabled: boolean('enabled').notNull(),
+  at: bigint('at', { mode: 'number' }).notNull(),
+})
+
+/**
+ * A device that granted notifications to the account signed in on it.
+ *
+ * The token is the device, so a second account signing in on it takes the row
+ * over rather than both accounts' notices reaching one screen.
+ */
+export const pushTokens = pgTable(
+  'push_tokens',
+  {
+    token: text('token').primaryKey().notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    platform: text('platform', { enum: ['ios', 'android'] }).notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    lastSeenAt: bigint('last_seen_at', { mode: 'number' }).notNull(),
+  },
+  (table) => [index('push_tokens_user_id_index').on(table.userId)],
+)
+
 /** A mutual connection, beginning as a request from one player to another. */
 export const friendships = pgTable(
   'friendships',
@@ -494,6 +528,8 @@ export const schema = {
   battles,
   battleUsers,
   battleSharing,
+  pushPreferences,
+  pushTokens,
   friendships,
   friendInvites,
   commands,

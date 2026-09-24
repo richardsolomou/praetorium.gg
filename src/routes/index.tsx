@@ -23,5 +23,7 @@ export const Route = createFileRoute('/')({
         : []),
     ])
   },
+  // The instance's own title and card are the home page's; only its address is its own.
+  head: ({ match }) => ({ meta: [{ property: 'og:url', content: `${match.context.origin}/` }] }),
   component: Home,
 })

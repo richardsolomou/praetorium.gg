@@ -23,6 +23,8 @@ import { realtimeConfig } from '../adapters/realtime'
 import { openValkey, type ValkeyClient, valkeySecondaryStorage, valkeyUrl } from '../adapters/valkey'
 import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
+import { pushSenderFromEnvironment } from '../adapters/push'
+import { pushNotifier, silentNotifier } from './pushNotifier'
 import { prepareGlobalSearch } from './globalSearch'
 import { compileCanonicalCatalogueFromSnapshot, loadCanonicalCatalogue } from './canonicalCatalogue'
 import { loadSnapshot, recordSwap, snapshotOf } from './catalogueChanges'
@@ -44,6 +46,8 @@ type App = {
   sync: () => SyncState
   auth: ReturnType<typeof createAuth>
   email: ReturnType<typeof emailDelivery>
+  /** Whether this instance sends push notifications; nothing else depends on it. */
+  push: boolean
   telemetry: ReturnType<typeof serverTelemetry>
   /** Resolves after installed catalogue data has paid its one-time preparation cost. */
   ready: () => Promise<void>
@@ -146,6 +150,8 @@ export function app(): App {
     if (!realtime) throw new Error('Realtime secret is not configured')
     const events = new RealtimePublisher(realtime.apiUrl, realtime.apiKey)
     const email = emailDelivery()
+    const repository = new Repository(database)
+    const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     let ready = Promise.resolve()
     const loaders = () => ({
       catalogue: memoize(() => loadSnapshot(catalogueDataDirectory, loadCatalogue)),
@@ -165,13 +171,14 @@ export function app(): App {
     const instance: App = {
       database,
       valkey: cache,
-      service: new PraetoriumService(new Repository(database), Date.now, events, randomInt),
+      service: new PraetoriumService(repository, Date.now, events, randomInt, push ? pushNotifier(repository, push) : silentNotifier),
       events,
       auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email),
       email,
       catalogue: loaded.catalogue,
       canonicalCatalogue: loaded.canonical,
       rules: loaded.rules,
+      push: Boolean(push),
       sync: () => sync.state,
       telemetry,
       ready: () => ready,

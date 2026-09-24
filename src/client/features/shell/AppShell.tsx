@@ -13,6 +13,7 @@ import { Account } from '../../components/Account'
 import { GlobalSearch, GlobalSearchProvider } from '../../components/GlobalSearch'
 import { ImpersonationBanner } from '../../components/ImpersonationBanner'
 import { NativeAppNavigation } from '../../components/NativeAppNavigation'
+import { NativePushRegistration } from '../../components/NativePushRegistration'
 import { OnboardingGuide } from '../../components/OnboardingGuide'
 import { meQuery } from '../../queries'
 // A local dev server shares the production project token, so gate the browser
@@ -205,6 +206,7 @@ export function AppShell() {
                 />
                 <OnboardingGuide />
                 <Impersonation />
+                <NativePushRegistration />
                 {/*
                  * Said plainly and on every page, because the name is drawn from Games
                  * Workshop's setting and nothing about this is theirs or endorsed by them.

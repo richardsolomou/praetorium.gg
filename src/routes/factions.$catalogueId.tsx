@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, Outlet, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, ShieldQuestion } from 'lucide-react'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../client/favouriteDetachments'
+import { pageMeta } from '../client/linkPreview'
 import { factionQuery, favouriteDetachmentsQuery, favouriteFactionsQuery } from '../client/queries'
 import { FavouriteDetachmentToggle } from '../client/components/FavouriteDetachmentToggle'
 import { FavouriteFactionToggle } from '../client/components/FavouriteFactionToggle'
@@ -24,7 +25,18 @@ export const Route = createFileRoute('/factions/$catalogueId')({
         : []),
     ])
     if (!faction) throw notFound()
+    return { name: faction.displayName, slug: faction.slug }
   },
+  head: ({ loaderData, match, matches }) => ({
+    meta:
+      loaderData && matches.at(-1)?.routeId === match.routeId
+        ? pageMeta(match.context.origin, {
+            title: loaderData.name,
+            description: `${loaderData.name} army rules, detachments, datasheets, loadouts and points.`,
+            path: `/factions/${loaderData.slug}`,
+          })
+        : [],
+  }),
   component: FactionPage,
 })
 

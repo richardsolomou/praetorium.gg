@@ -29,9 +29,11 @@ Players can:
 - Play 1v1, 2v1, and 2v2 games with friends or practise on your own.
 - Track rounds, phases, command points, victory points, models, wounds, and losses.
 - Watch live or finished public battles without joining the game.
+- Paste a watchable battle, a shared list, or a profile into a chat and have it unfurl as a scoreboard or summary card.
 - See who is winning overall, or with a given faction, from finished public battles.
 - Choose whether anyone, friends, or only the players at the table can watch your battles.
 - Invite someone with a one-time link, even before they have an account.
+- Get a phone notification when someone starts a battle with you, answers a friend request, or when a league you entered accepts you, reveals its rosters, or unseals your roster.
 - Run public or private league events with registration, sealed rosters, and organizer-controlled reveal.
 - Review and correct a finished battle without losing its history.
 
