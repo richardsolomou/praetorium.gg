@@ -14,6 +14,7 @@ Praetorium includes:
 - Public or private organized-play registration with reusable events, approved entry, replaceable sealed roster snapshots, simultaneous reveal, and read-only event battle viewing.
 - A home page of shared activity, ordered outwards from the reader: the player's unfinished games, the games they have recently finished, their friends' recent games, and recent public battles including finished ones. Practice games stay in battle history rather than appearing on the home page.
 - A per-player audience setting covering every battle they sit in: anyone, friends, or nobody outside the table.
+- Mobile notifications for a few rare events that ask something of the player: a battle created with them, a friend request to them or accepted from them, and league entry acceptance, reveal, and roster unsealing. A table's own commands never notify anyone.
 - A reading copy of the rules documents the community data carries, browsable by document, section, and rule number.
 
 It does not include pairings, brackets, locations, chat, matchmaking, rules this project wrote itself, or model positions.
@@ -53,6 +54,7 @@ Screenshots containing roster or battle data stay outside version control.
 | Turn tracker      | Five battle rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion.                                                                                               |
 | Rosters           | Build, import, save, copy, rename, private, unlisted or public share, print, export, and attach.                                                                                                                                              |
 | Leagues           | Public or private reusable events, automatic or approved entry, replaceable roster snapshots, organizer-controlled simultaneous reveal, and live or finished battle viewing.                                                                  |
+| Notifications     | Optional iOS push notifications for new battles, friend requests, and league entry, reveal, and unsealing, with a per-account switch and a per-device system permission.                                                                      |
 | Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                                                                                                                           |
 | Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs.                                                                                                                                      |
 | Missions          | Force dispositions, deployment zones, objectives, mission cards, and scoring awards.                                                                                                                                                          |

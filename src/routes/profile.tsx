@@ -12,10 +12,19 @@ import { PROFILE_NAME_MAX_LENGTH } from '../authConfig'
 import { authClient } from '../client/authClient'
 import { AccountSecurity } from '../client/features/account/AccountSecurity'
 import { BattleSharing } from '../client/components/BattleSharing'
+import { NotificationSettings } from '../client/components/NotificationSettings'
 import { PageContent, PageHeader } from '../client/components/Page'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { accountMethodsQuery, battleAudienceQuery, battlesQuery, friendshipsQuery, meQuery, opponentsQuery } from '../client/queries'
+import {
+  accountMethodsQuery,
+  battleAudienceQuery,
+  battlesQuery,
+  friendshipsQuery,
+  meQuery,
+  notificationSettingsQuery,
+  opponentsQuery,
+} from '../client/queries'
 import { errorMessage } from '../client/queryClient'
 import { prepareProfileImage } from '../client/profileImage'
 
@@ -43,7 +52,11 @@ export const Route = createFileRoute('/profile')({
   },
   loader: async ({ context }) => {
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
-    if (me) await context.queryClient.query({ ...battleAudienceQuery(), staleTime: 'static' })
+    if (me)
+      await Promise.all([
+        context.queryClient.query({ ...battleAudienceQuery(), staleTime: 'static' }),
+        context.queryClient.query({ ...notificationSettingsQuery(), staleTime: 'static' }),
+      ])
   },
   component: Profile,
 })
@@ -216,7 +229,15 @@ function ProfileForm({
             {saved ? <output className="text-sm text-achieved">Profile saved.</output> : null}
           </div>
         </form>
-        <AccountSecurity me={me} privacy={<BattleSharing />} />
+        <AccountSecurity
+          me={me}
+          privacy={
+            <>
+              <BattleSharing />
+              <NotificationSettings />
+            </>
+          }
+        />
       </PageContent>
     </main>
   )

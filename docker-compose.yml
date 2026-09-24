@@ -62,6 +62,8 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      # Mobile push notifications through Expo's push service. Unset sends nothing.
+      EXPO_PUSH_ACCESS_TOKEN: ${EXPO_PUSH_ACCESS_TOKEN:-}
       # Set these three to point at a Centrifugo of your own instead of the one
       # the container runs behind Caddy. Leave them unset for that one.
       REALTIME_SECRET: ${REALTIME_SECRET:-}

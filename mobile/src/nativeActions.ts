@@ -11,7 +11,18 @@ export type NativeActionRequest =
   | { kind: 'haptic' }
   | { kind: 'open-window'; url: string }
   | { kind: 'print'; html: string }
+  | { kind: 'push'; id: string; prompt: boolean }
   | { kind: 'share'; title?: string; url: string }
+
+/** The shell's answer to a `push` request, as the web application reads it. */
+export type NativePushAnswer =
+  | { status: 'granted'; token: string; platform: 'ios' | 'android' }
+  | { status: 'denied' | 'undetermined' | 'unavailable' }
+
+export function nativePushAnswerScript(id: string, answer: NativePushAnswer) {
+  const detail = JSON.stringify({ id, ...answer })
+  return `window.dispatchEvent(new CustomEvent('praetorium-native-push', { detail: ${detail} })); true;`
+}
 
 export function parseNativeActionRequest(message: string): NativeActionRequest | null {
   try {
@@ -31,6 +42,14 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
     if (value.type === 'native-print' && typeof value.html === 'string' && value.html.length <= MAX_PRINT_HTML_LENGTH) {
       return { kind: 'print', html: value.html }
     }
+    if (
+      value.type === 'native-push' &&
+      typeof value.id === 'string' &&
+      /^[\w-]{1,64}$/.test(value.id) &&
+      typeof value.prompt === 'boolean'
+    ) {
+      return { kind: 'push', id: value.id, prompt: value.prompt }
+    }
     if (value.type === 'native-share' && typeof value.url === 'string' && value.url.length <= MAX_SHARE_URL_LENGTH) {
       const url = new URL(value.url)
       if (url.origin !== APP_URL || url.username || url.password) return null
@@ -44,7 +63,7 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
 }
 
 export const NATIVE_BRIDGE_SCRIPT = `(() => {
-  const capabilities = ['app-navigation', 'back-gesture', 'battle-active', 'haptic', 'open-window', 'print', 'share'];
+  const capabilities = ['app-navigation', 'back-gesture', 'battle-active', 'haptic', 'notifications', 'open-window', 'print', 'share'];
   window.PraetoriumNative = Object.freeze({ bridgeVersion: 3, capabilities });
   const disableZoom = () => {
     const viewport = document.querySelector('meta[name="viewport"]');

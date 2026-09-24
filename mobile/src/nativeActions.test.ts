@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from './nativeActions'
+import { NATIVE_BRIDGE_SCRIPT, nativePushAnswerScript, parseNativeActionRequest } from './nativeActions'
 
 describe('parseNativeActionRequest', () => {
   it('accepts an internal share link', () => {
@@ -50,12 +50,47 @@ describe('parseNativeActionRequest', () => {
     expect(parseNativeActionRequest(JSON.stringify({ version: 2, type: 'native-haptic' }))).toBeNull()
     expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-print', html: 'x'.repeat(2_000_001) }))).toBeNull()
   })
+
+  it('accepts a push request naming its reply', () => {
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-push', id: 'request-1', prompt: true }))).toEqual({
+      kind: 'push',
+      id: 'request-1',
+      prompt: true,
+    })
+  })
+
+  it.each([{ id: 'x', prompt: 'yes' }, { id: "'); alert(1); ('", prompt: false }, { prompt: false }])(
+    'rejects a push request %j',
+    (request) => {
+      expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-push', ...request }))).toBeNull()
+    },
+  )
+})
+
+describe('nativePushAnswerScript', () => {
+  it('dispatches the answer to the page as data rather than code', () => {
+    const dispatched: unknown[] = []
+    const script = nativePushAnswerScript('request-1', { status: 'granted', token: 'ExponentPushToken["x"]', platform: 'ios' })
+    // oxlint-disable-next-line typescript/no-implied-eval -- Execute the injected script the way the WebView does.
+    const run = new Function('window', 'CustomEvent', script)
+    run(
+      { dispatchEvent: (event: { detail: unknown }) => dispatched.push(event.detail) },
+      class {
+        detail: unknown
+        constructor(_name: string, init: { detail: unknown }) {
+          this.detail = init.detail
+        }
+      },
+    )
+
+    expect(dispatched).toEqual([{ id: 'request-1', status: 'granted', token: 'ExponentPushToken["x"]', platform: 'ios' }])
+  })
 })
 
 describe('NATIVE_BRIDGE_SCRIPT', () => {
   it('publishes only the version 3 capabilities the shell handles', () => {
     expect(NATIVE_BRIDGE_SCRIPT).toContain(
-      "const capabilities = ['app-navigation', 'back-gesture', 'battle-active', 'haptic', 'open-window', 'print', 'share']",
+      "const capabilities = ['app-navigation', 'back-gesture', 'battle-active', 'haptic', 'notifications', 'open-window', 'print', 'share']",
     )
     expect(NATIVE_BRIDGE_SCRIPT).toContain('bridgeVersion: 3')
   })

@@ -28,6 +28,7 @@ import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
 import type { BattleHistory, BattleSeats, BattlesCursor, Repository } from '../db/repository'
 import { gameReferencesFor } from './gameReferences'
 import { type Mission, missionFor } from './rules'
+import { type Notifier, silentNotifier } from './pushNotifier'
 import { LeagueService } from './services/leagueService'
 import { RosterService } from './services/rosterService'
 import { SocialService, sortedFriends } from './services/socialService'
@@ -124,10 +125,11 @@ export class PraetoriumService {
     private readonly clock: () => number,
     private readonly events: BattleEvents,
     private readonly randomIndex: (limit: number) => number,
+    private readonly notifier: Notifier = silentNotifier,
   ) {
-    this.leagueService = new LeagueService(repository, clock, events)
+    this.leagueService = new LeagueService(repository, clock, events, notifier)
     this.rosterService = new RosterService(repository, clock)
-    this.socialService = new SocialService(repository, clock)
+    this.socialService = new SocialService(repository, clock, notifier)
   }
 
   onboardingProgress(userId: string) {
@@ -525,6 +527,23 @@ export class PraetoriumService {
     return this.repository.setBattleAudience(userId, audience, this.clock())
   }
 
+  /** Whether this player's devices are sent notices. */
+  pushEnabled(userId: string) {
+    return this.repository.pushEnabled(userId)
+  }
+
+  setPushEnabled(userId: string, enabled: boolean) {
+    return this.repository.setPushEnabled(userId, enabled, this.clock())
+  }
+
+  registerPushDevice(userId: string, device: { token: string; platform: 'ios' | 'android' }) {
+    return this.repository.registerPushToken({ userId, ...device, now: this.clock() })
+  }
+
+  unregisterPushDevice(userId: string, token: string) {
+    return this.repository.unregisterPushToken(userId, token)
+  }
+
   /**
    * Which of these battles a viewer may read, answered for all of them at once.
    *
@@ -721,6 +740,7 @@ export class PraetoriumService {
     // Everyone invited is told before they have the battle open, which is what puts
     // it on their list without a reload.
     this.events.publish(id, [userId, ...invited])
+    this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, league: false }])
     return { token, practice }
   }
 

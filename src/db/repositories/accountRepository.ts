@@ -406,7 +406,7 @@ export class AccountRepository {
         await tx.insert(friendships).values({ requesterId: invite.inviterId, addresseeId: recipientId, requestedAt: now, acceptedAt: now })
       }
       await tx.delete(friendInvites).where(eq(friendInvites.token, token))
-      return 'accepted' as const
+      return { inviterId: invite.inviterId }
     })
   }
 }

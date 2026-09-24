@@ -51,6 +51,12 @@ Run `just catalogue-bundle` on an internet-connected checkout, copy `catalogue-s
 
 `catalogue/revocations.json` rejects individual snapshot IDs and every snapshot that declares a named source. `CATALOGUE_DISABLED_SOURCES` accepts a comma-separated subset of `definitions`, `points`, `rules`, `datacards`, and `battlemaster`; a snapshot containing one is rejected. The publisher uses the same setting to omit a source from the next snapshot. Removing `definitions` leaves battles available but disables catalogue-backed roster work.
 
+## Push notifications
+
+`EXPO_PUSH_ACCESS_TOKEN` is optional. When it is set, the instance sends mobile push notifications through Expo's push service, which the mobile application uses for Apple and Google delivery. Players then see a notification setting on their profile. Without it, the instance sends nothing, hides that setting, and works the same otherwise. Only devices running an application that points at the instance can register with it, so a self-hosted instance needs its own application build and push credentials.
+
+Postgres stores each device's push token with the account signed in on it. An account keeps at most ten devices. Signing out removes the device, and the instance also removes a device when the push service reports that it is no longer registered. Account deletion removes both the devices and the notification setting.
+
 ## One container, three processes
 
 The image runs the app, Centrifugo, and Caddy. Caddy sends `/connection/*` to Centrifugo and all other requests to the app. The container stops if any process exits so the container runtime can restart the full service.

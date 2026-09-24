@@ -273,8 +273,9 @@ export class LeagueRepository {
             .set({ status: 'accepted' })
             .where(and(eq(leagueEventEntries.eventId, current.id), inArray(leagueEventEntries.userId, admitted)))
         }
+        return { admitted }
       }
-      return 'updated'
+      return { admitted: [] }
     })
   }
 
@@ -696,7 +697,8 @@ export class LeagueRepository {
         )
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, userId)))
         .returning({ userId: leagueEventEntries.userId })
-      return updated.length ? 'updated' : 'missing'
+      if (!updated.length) return 'missing'
+      return status === 'accepted' && entry.status !== 'accepted' ? 'admitted' : 'updated'
     })
   }
 
@@ -951,6 +953,7 @@ export class LeagueRepository {
       if (!event || event.revealedAt !== null) return { outcome: 'not-ready' }
       const entries = await tx
         .select({
+          userId: leagueEventEntries.userId,
           requiredLimit: leagueEventEntries.requiredLimit,
           teamId: leagueEventEntries.teamId,
           snapshot: leagueEventEntries.rosterSnapshot,
@@ -1014,7 +1017,7 @@ export class LeagueRepository {
         .set({ status: 'rejected' })
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'pending')))
       await tx.update(leagueEvents).set({ revealedAt: now }).where(eq(leagueEvents.id, event.id))
-      return { outcome: 'revealed' }
+      return { outcome: 'revealed', entrantIds: entries.map((entry) => entry.userId) }
     })
   }
 

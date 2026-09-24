@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
 import { BATTLE_AUDIENCES } from '../core/battleAudience'
+import { PUSH_PLATFORMS, pushTokenSchema } from '../core/notifications'
 import {
   FORMAT_RULE_IDS,
   GAME_SIZES,
@@ -139,6 +140,9 @@ export const battlesPageSchema = z.object({
   before: battlesCursor.nullable().default(null),
 })
 export const battleAudienceSchema = z.object({ audience: z.enum(BATTLE_AUDIENCES) })
+export const pushPreferenceSchema = z.object({ enabled: z.boolean() })
+export const pushDeviceSchema = z.object({ token: pushTokenSchema, platform: z.enum(PUSH_PLATFORMS) })
+export const pushTokenOnlySchema = z.object({ token: pushTokenSchema })
 export const userSchema = z.object({ userId: id })
 export const playerSearchSchema = z.object({ query: z.string().trim().max(PLAYER_SEARCH_MAX_LENGTH) })
 export const friendSchema = z.object({ userId: id })
