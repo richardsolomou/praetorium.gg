@@ -44,7 +44,7 @@ function PrivacyPolicy() {
         <p>
           We measure how the product is used through PostHog: pages visited, buttons used, actions such as creating a roster, errors, and
           session replays. Measurements include counts, durations and outcomes — never names, email addresses, list contents, search text or
-          the details of actions recorded during a battle. Replays show how pages are used, but form inputs are masked. Only signed-in
+          the details of actions recorded during a battle. Replays show how pages are used, but form inputs are masked and account, security and administration screens are not recorded. Only signed-in
           visitors get an identified profile.
         </p>
       </LegalSection>
