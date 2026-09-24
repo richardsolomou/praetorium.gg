@@ -1587,6 +1587,16 @@ describe('who may watch a battle', () => {
     expect(page.battles.map((battle) => battle.status)).toEqual(['setup', 'finished'])
   })
 
+  it('keeps practice games out of the public and friends lists, however many there are', async () => {
+    const { token } = await started()
+    for (let game = 0; game < 3; game += 1)
+      await service.createBattle('alice', { opponentId: 'practice-opponent-1', limit: 2000, missionPackId: null })
+
+    const lists = [await service.publicBattles(null, null, { limit: 2 }), await service.friendBattles('carol', null, { limit: 2 })]
+
+    expect(lists.map((page) => page.battles.map((battle) => battle.token))).toEqual([[token], [token]])
+  })
+
   it('remembers the audience a player chose', async () => {
     expect(await service.battleAudience('alice')).toBe('public')
 

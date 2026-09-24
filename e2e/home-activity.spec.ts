@@ -49,12 +49,13 @@ test('keeps practice battles off the home page', async ({ page, browser }) => {
   }
 })
 
-test('links each homepage capability card as one action', async ({ page }) => {
+test('links each tool a visitor can use without an account as one action', async ({ page }) => {
   await page.goto('/')
 
-  await expect(page.getByRole('link', { name: /Build your army/ })).toHaveAttribute('href', '/rosters')
+  await expect(page.getByRole('link', { name: /Simulate a fight/ })).toHaveAttribute('href', '/simulator')
+  await expect(page.getByRole('link', { name: /Read the datasheets/ })).toHaveAttribute('href', '/factions')
   await expect(page.getByRole('link', { name: /Choose a mission/ })).toHaveAttribute('href', '/mission-packs')
-  await expect(page.getByRole('link', { name: /Track the battle/ })).toHaveAttribute('href', '/battles')
+  await expect(page.getByRole('link', { name: /Look up a rule/ })).toHaveAttribute('href', '/rules')
 })
 
 test('the home page fits a phone at both signed-out and signed-in widths', async ({ page }) => {
@@ -63,7 +64,7 @@ test('the home page fits a phone at both signed-out and signed-in widths', async
   await page.goto('/')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
 
-  const featuredBattle = page.getByRole('link', { name: /Watch Preview Player/ })
+  const featuredBattle = page.locator('[data-home-featured]')
   for (const [first, second] of [
     ['Preview Player', 'Preview Ally'],
     ['Preview Opponent', 'Preview Rival'],
@@ -115,8 +116,10 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     const rubrics = host.locator('main').getByText(/^(Your games|Games you have played|Friends' games|Public games)$/)
     await expect(rubrics).toHaveText(['Your games', 'Games you have played', "Friends' games", 'Public games'])
 
+    await expect(host.locator('[data-home-rosters]').getByRole('link', { name: /Host list/ })).toHaveCount(1)
+
     const yours = host.locator('[data-battle-shelf="Your games"]')
-    const history = host.locator('[data-battle-shelf="Games you have played"]')
+    const history = host.locator('[data-home-played]')
     await expect(yours.locator(`a[href="${new URL(going).pathname}"]`)).toHaveCount(1)
     await expect(yours.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(0)
     await expect(history.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)
