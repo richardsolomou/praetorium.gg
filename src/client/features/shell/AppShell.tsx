@@ -232,7 +232,7 @@ export function AppShell() {
                       <Link to="/sources" className="transition-colors hover:text-bone">
                         Data sources
                       </Link>
-                      <Link to="/changes" className="transition-colors hover:text-bone">
+                      <Link to="/data-updates" className="transition-colors hover:text-bone">
                         Data updates
                       </Link>
                     </p>

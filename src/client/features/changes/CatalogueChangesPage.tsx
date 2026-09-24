@@ -1,19 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { History } from 'lucide-react'
-import type { LinkedChange, LinkedChangeSet } from '../../../contracts/catalogueChanges'
-import { type ChangeSection, changeDetail, changeSection } from '../../catalogueChanges'
+import { ChevronRight, History } from 'lucide-react'
+import type { IndexedUpdate } from '../../../contracts/catalogueChanges'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
-import { formatDate, formatTime } from '../../dates'
 import { catalogueChangeLogQuery } from '../../queries'
+import { useOpenHashTarget } from './hashTarget'
+import { changesLabel, UpdateChanges, updateTime } from './UpdateChanges'
 
-const SECTIONS: readonly ChangeSection[] = ['Datasheets', 'Detachments', 'Enhancements', 'Upgrades']
-
-/** What each army data update changed, newest first, grouped by faction, a page at a time. */
+/**
+ * Every army data update, newest first, a page at a time. Each is a row naming the factions it
+ * reached most, which opens onto every change it recorded; a small update starts open.
+ */
 export function CatalogueChangesPage({ before }: { before?: string }) {
   const { data } = useQuery(catalogueChangeLogQuery(before))
   const updates = data?.updates
+  useOpenHashTarget()
 
   return (
     <main className="w-full">
@@ -22,9 +24,9 @@ export function CatalogueChangesPage({ before }: { before?: string }) {
         title="Data updates"
         description="Points, datasheets and detachments that changed each time the army data was updated, newest first."
       />
-      <PageContent className="space-y-8">
+      <PageContent className="space-y-6">
         {updates?.length ? (
-          updates.map((update) => <Update key={update.key} update={update} />)
+          updates.map((update) => <Update key={update.anchor} update={update} />)
         ) : (
           <PageState
             headingLevel={2}
@@ -42,14 +44,14 @@ export function CatalogueChangesPage({ before }: { before?: string }) {
         {before || data?.older ? (
           <nav aria-label="Older and newer updates" className="flex justify-between gap-3 border-t border-edge pt-4 text-sm">
             {before ? (
-              <Link to="/changes" search={{}} className="text-info hover:text-bone">
+              <Link to="/data-updates" search={{}} className="text-info hover:text-bone">
                 Newest updates
               </Link>
             ) : (
               <span />
             )}
             {data?.older ? (
-              <Link to="/changes" search={{ before: data.older }} className="text-info hover:text-bone">
+              <Link to="/data-updates" search={{ before: data.older }} className="text-info hover:text-bone">
                 Older updates
               </Link>
             ) : null}
@@ -60,88 +62,34 @@ export function CatalogueChangesPage({ before }: { before?: string }) {
   )
 }
 
-function Update({ update }: { update: LinkedChangeSet }) {
-  const count = update.factions.reduce((total, faction) => total + faction.changes.length, 0) + update.omitted
-  // Updates can arrive hourly, so a date alone does not tell two of them apart.
-  const when = `${formatDate(update.recordedAt)} ${formatTime(update.recordedAt)}`
+/**
+ * One update as a native disclosure, left to the browser to open and close so hydration never
+ * disagrees with what the reader did. Its faction links are fragments into its own body.
+ */
+function Update({ update }: { update: IndexedUpdate }) {
+  const when = updateTime(update.recordedAt)
   return (
-    <section aria-label={`Update of ${when}`}>
-      <div className="flex items-baseline justify-between gap-3 border-b border-edge pb-2">
-        <h2 className="rubric readout text-bone">{when}</h2>
-        <p className="rubric readout">
-          {count} {count === 1 ? 'change' : 'changes'}
-        </p>
+    <details id={update.anchor} open={update.open} className="group scroll-mt-16">
+      <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+        <div className="flex items-baseline justify-between gap-3 border-b border-edge pb-2 group-hover:border-edge-strong">
+          <h2 className="rubric readout flex items-center gap-1.5 text-bone">
+            <ChevronRight className="size-4 shrink-0 self-center text-dim transition-transform group-open:rotate-90" aria-hidden />
+            {when}
+          </h2>
+          <p className="rubric readout">{changesLabel(update.total)}</p>
+        </div>
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1.5 border border-edge bg-panel px-3 py-2.5 text-sm">
+          {update.factions.map((faction) => (
+            <a key={faction.anchor} href={`#${faction.anchor}`} className="text-parchment hover:text-bone">
+              {faction.faction} <span className="readout text-dim">{faction.count}</span>
+            </a>
+          ))}
+          {update.more ? <span className="text-dim">+{update.more} more</span> : null}
+        </div>
+      </summary>
+      <div className="mt-3">
+        <UpdateChanges update={update.changes} />
       </div>
-      <div className="mt-3 space-y-4">
-        {update.factions.map((faction) => (
-          <div key={faction.catalogueId} data-faction={faction.faction}>
-            <h3 className="eyebrow text-parchment">
-              {faction.slug ? (
-                <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="hover:text-bone">
-                  {faction.faction}
-                </Link>
-              ) : (
-                faction.faction
-              )}
-            </h3>
-            {SECTIONS.map((section) => {
-              const changes = faction.changes.filter((change) => changeSection(change) === section)
-              return changes.length ? <ChangeList key={section} section={section} changes={changes} /> : null
-            })}
-          </div>
-        ))}
-        {update.omitted ? (
-          <p className="text-xs text-dim">
-            {update.omitted} more {update.omitted === 1 ? 'change is' : 'changes are'} not listed.
-          </p>
-        ) : null}
-      </div>
-    </section>
-  )
-}
-
-function ChangeList({ section, changes }: { section: ChangeSection; changes: LinkedChange[] }) {
-  return (
-    <div className="mt-2">
-      <p className="text-3xs font-semibold tracking-label text-faint uppercase">{section}</p>
-      <ul className="mt-1 border border-edge bg-panel">
-        {changes.map((change) => (
-          <li
-            key={JSON.stringify(change)}
-            className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-b border-edge px-3 py-2 text-sm last:border-b-0"
-          >
-            <span className="min-w-0 break-words">
-              <ChangeName change={change} />
-              {'detachment' in change ? <span className="text-xs text-dim"> · {change.detachment}</span> : null}
-            </span>
-            <span className={`readout text-xs ${change.kind.endsWith('removed') ? 'text-destructive' : 'text-dim'}`}>
-              {changeDetail(change)}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-function ChangeName({ change }: { change: LinkedChange }) {
-  const { link } = change
-  if (!link) return <span className="text-bone">{change.name}</span>
-  return link.kind === 'datasheet' ? (
-    <Link
-      to="/factions/$catalogueId/datasheets/$entryId"
-      params={{ catalogueId: link.faction, entryId: link.slug }}
-      className="text-bone hover:text-info"
-    >
-      {change.name}
-    </Link>
-  ) : (
-    <Link
-      to="/factions/$catalogueId/detachments/$detachmentId"
-      params={{ catalogueId: link.faction, detachmentId: link.slug }}
-      className="text-bone hover:text-info"
-    >
-      {change.name}
-    </Link>
+    </details>
   )
 }
