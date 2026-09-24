@@ -44,7 +44,7 @@ export async function retryUntilVisible(outcome: Locator, action: () => Promise<
 export async function chooseUnit(page: Page, side: string, faction: string, name: string) {
   const search = page.getByPlaceholder('Search units…')
   await retryUntilVisible(search, () => page.getByRole('combobox', { name: `${side} unit`, exact: true }).click())
-  await search.fill(name)
+  await search.fill(`${name} ${faction}`)
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   await page.getByRole('option', { name: new RegExp(`^${escaped}, ${faction}(?:, \\d+ pts)?$`) }).click()
 }

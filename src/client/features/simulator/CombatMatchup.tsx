@@ -12,6 +12,7 @@ import {
 } from '../../../core/combat'
 import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatPlan, combatTarget } from '../../../core/combatProfiles'
+import { adjustCombatTarget, adjustCombatWeapon, type TargetAdjustment, type WeaponAdjustment } from '../../../core/combatAdjustments'
 import {
   combatRuleDefences,
   combatRuleOptions,
@@ -22,6 +23,7 @@ import {
 } from '../../../core/combatRules'
 import { CombatRuleLabel } from './CombatRuleLabel'
 import { Chip, Choice, Segmented } from './CombatControls'
+import { Stepper } from '../builder/LoadoutControls'
 import { CombatEstimate } from './CombatEstimate'
 
 export type CombatantSnapshot = {
@@ -38,6 +40,8 @@ type Phase = CombatOptions['phase']
 type CombatAdjustments = {
   ranged?: Partial<Omit<CombatOptions, 'phase'>>
   melee?: Partial<Omit<CombatOptions, 'phase'>>
+  weapons?: Partial<Record<Phase, WeaponAdjustment>>
+  target?: TargetAdjustment
   feelNoPain?: number | null
 }
 export type CombatRequest = Record<Phase, CombatInput | null>
@@ -53,6 +57,52 @@ const rerolls = [
   ['ones', '1s'],
   ['failed', 'Failed'],
 ] as const
+const matrixClass =
+  'mt-3 grid grid-cols-2 items-center gap-x-2 gap-y-1.5 text-xs @md:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)] @md:gap-x-3 @md:gap-y-2'
+const subheadingClass = 'eyebrow col-span-2 pt-2 text-faint @md:col-span-3'
+const criticalHits = [
+  [6, '6+'],
+  [5, '5+'],
+  [4, '4+'],
+] as const
+const criticalWounds = [...criticalHits, [3, '3+'], [2, '2+']] as const
+const extraRolls = [
+  [0, 'None'],
+  [6, '6+'],
+  [5, '5+'],
+  [4, '4+'],
+  [3, '3+'],
+  [2, '2+'],
+] as const
+/** Label, field, and the range a situational rule plausibly moves it. */
+const characteristics = [
+  ['Strength', 'strength', -3, 4],
+  ['Attacks', 'attacks', -1, 3],
+  ['AP', 'ap', -1, 3],
+  ['Damage', 'damage', -1, 3],
+] as const
+const sustainedAmounts: Record<string, WeaponAdjustment['sustained']> = {
+  none: undefined,
+  '1': 1,
+  '2': 2,
+  '3': 3,
+  D3: { dice: 1, sides: 3, bonus: 0 },
+}
+const sustainedChoices = [
+  ['none', '0'],
+  ['1', '1'],
+  ['2', '2'],
+  ['3', '3'],
+  ['D3', 'D3'],
+] as const
+const sustainedKey = (amount: WeaponAdjustment['sustained']) =>
+  amount === undefined ? 'none' : typeof amount === 'number' ? String(amount) : 'D3'
+const grants = [
+  ['lethal', 'Lethal Hits'],
+  ['devastating', 'Devastating Wounds'],
+  ['damageReroll', 'Re-roll damage 1s'],
+] as const
+const signed = (value: number) => (value > 0 ? `+${value}` : value < 0 ? `−${-value}` : '0')
 const situations = {
   ranged: [
     ['cover', 'Cover (−1 BS)'],
@@ -117,8 +167,12 @@ export function CombatMatchup({
     setAllocation(labels.map((label, at) => (at === index - 1 ? labels[index]! : at === index ? labels[index - 1]! : label)))
   const attackRules = attacker?.rules ?? []
   const defenceRules = defender?.rules ?? []
-  const rangedDefences = target?.target ? combatRuleDefences(target.target, defenceRules, 'ranged', attackRules) : null
-  const meleeDefences = target?.target ? combatRuleDefences(target.target, defenceRules, 'melee', attackRules) : null
+  const defencesIn = (phase: Phase) =>
+    target?.target
+      ? adjustCombatTarget(combatRuleDefences(target.target, defenceRules, phase, attackRules), adjustments.target ?? {})
+      : null
+  const rangedDefences = defencesIn('ranged')
+  const meleeDefences = defencesIn('melee')
   const extraFeelNoPain = adjustments.feelNoPain ?? null
   const betterFeelNoPain = (printed: number | null | undefined) =>
     extraFeelNoPain && (!printed || extraFeelNoPain < printed) ? extraFeelNoPain : (printed ?? null)
@@ -190,7 +244,7 @@ export function CombatMatchup({
             'defender',
             phase,
             attacker?.sheet.keywords ?? [],
-          ),
+          ).map((weapon) => adjustCombatWeapon(weapon, adjustments.weapons?.[phase] ?? {})),
           options: options(phase),
           ...(mortalWounds.length ? { mortalWounds } : {}),
         }
@@ -237,6 +291,11 @@ export function CombatMatchup({
   }, [requestKey, pending, failed, retry])
   const change = <K extends keyof CombatOptions>(phase: Phase, name: K, value: CombatOptions[K]) =>
     setAdjustments((current) => ({ ...current, [phase]: { ...current[phase], [name]: value } }))
+  const changeWeapon = <K extends keyof WeaponAdjustment>(phase: Phase, name: K, value: WeaponAdjustment[K]) =>
+    setAdjustments((current) => ({ ...current, weapons: { ...current.weapons, [phase]: { ...current.weapons?.[phase], [name]: value } } }))
+  const changeTarget = <K extends keyof TargetAdjustment>(name: K, value: TargetAdjustment[K]) =>
+    setAdjustments((current) => ({ ...current, target: { ...current.target, [name]: value } }))
+  const weaponAdjustment = (phase: Phase) => adjustments.weapons?.[phase] ?? {}
   const sources = [
     ...new Set(
       [attacker, defender].flatMap(
@@ -401,18 +460,15 @@ export function CombatMatchup({
               Reset adjustments
             </Button>
           </div>
-          <div className="mt-3 grid grid-cols-2 items-center gap-x-2 gap-y-1.5 text-xs @md:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)] @md:gap-x-3 @md:gap-y-2">
+          <div className={matrixClass}>
             <span className="hidden @md:block" />
             {phases.map(([phase, title]) => (
               <h3 key={phase} className="rubric flex items-center gap-1.5">
-                {phase === 'ranged' ? (
-                  <Crosshair className="size-3.5 text-info" aria-hidden />
-                ) : (
-                  <Swords className="size-3.5 text-info" aria-hidden />
-                )}
+                <PhaseIcon phase={phase} />
                 {title}
               </h3>
             ))}
+            <h4 className={subheadingClass}>Rolls</h4>
             {(
               [
                 ['Hit roll', 'hit modifier', 'hitModifier'],
@@ -451,15 +507,88 @@ export function CombatMatchup({
                 ))}
               </Fragment>
             ))}
-            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:self-start @md:pt-2">Situation</span>
+            {(
+              [
+                ['Critical hits', 'critical hits', 'criticalHit', criticalHits],
+                ['Critical wounds', 'critical wounds', 'criticalWound', criticalWounds],
+              ] as const
+            ).map(([label, name, field, choices]) => (
+              <Fragment key={field}>
+                <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">{label}</span>
+                {phases.map(([phase, title]) => (
+                  <Segmented
+                    key={phase}
+                    label={`${title} ${name}`}
+                    value={weaponAdjustment(phase)[field] ?? 6}
+                    choices={choices}
+                    onChange={(value) => changeWeapon(phase, field, value === 6 ? undefined : value)}
+                  />
+                ))}
+              </Fragment>
+            ))}
+            <h4 className={subheadingClass}>Characteristics</h4>
+            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Skill</span>
+            {phases.map(([phase, title]) => (
+              <Segmented
+                key={phase}
+                label={`${title} skill`}
+                value={weaponAdjustment(phase).skill ?? 0}
+                choices={modifiers}
+                onChange={(value) => changeWeapon(phase, 'skill', value)}
+              />
+            ))}
+            {characteristics.map(([label, field, minimum, maximum]) => (
+              <Fragment key={field}>
+                <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">{label}</span>
+                {phases.map(([phase, title]) => {
+                  const value = weaponAdjustment(phase)[field] ?? 0
+                  return (
+                    <Stepper
+                      key={phase}
+                      label={`${title} ${label}`}
+                      countLabel={`${title} ${label}`}
+                      count={value}
+                      display={signed(value)}
+                      onRemove={value > minimum ? () => changeWeapon(phase, field, value - 1) : undefined}
+                      onAdd={value < maximum ? () => changeWeapon(phase, field, value + 1) : undefined}
+                    />
+                  )
+                })}
+              </Fragment>
+            ))}
+            <h4 className={subheadingClass}>Abilities</h4>
+            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Sustained Hits</span>
+            {phases.map(([phase, title]) => (
+              <Segmented
+                key={phase}
+                label={`${title} Sustained Hits`}
+                value={sustainedKey(weaponAdjustment(phase).sustained)}
+                choices={sustainedChoices}
+                onChange={(value) => changeWeapon(phase, 'sustained', sustainedAmounts[value])}
+              />
+            ))}
+            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0 @md:self-start @md:pt-2">Granted</span>
             <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
               {phases.map(([phase, title]) => (
                 <div key={phase} className="flex flex-wrap items-center gap-1.5">
-                  {phase === 'ranged' ? (
-                    <Crosshair className="size-3.5 text-info" aria-label={title} />
-                  ) : (
-                    <Swords className="size-3.5 text-info" aria-label={title} />
-                  )}
+                  <PhaseIcon phase={phase} title={title} />
+                  {grants.map(([field, name]) => (
+                    <Chip
+                      key={field}
+                      label={name}
+                      ariaLabel={`${title} ${name}`}
+                      checked={Boolean(weaponAdjustment(phase)[field])}
+                      onChange={(value) => changeWeapon(phase, field, value)}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0 @md:self-start @md:pt-2">Situation</span>
+            <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              {phases.map(([phase, title]) => (
+                <div key={phase} className="flex flex-wrap items-center gap-1.5">
+                  <PhaseIcon phase={phase} title={title} />
                   {situations[phase].map(([field, label]) => (
                     <Chip
                       key={field}
@@ -497,20 +626,65 @@ export function CombatMatchup({
                 </div>
               </>
             ) : null}
+          </div>
+          <div className={`${matrixClass} mt-4 border-t border-edge pt-3`}>
+            <h3 className="rubric col-span-2 @md:col-span-3">Defender</h3>
+            {(
+              [
+                ['Toughness', 'toughness'],
+                ['Armour save', 'save'],
+              ] as const
+            ).map(([label, field]) => (
+              <Fragment key={field}>
+                <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">{label}</span>
+                <div className="col-span-2">
+                  <Segmented
+                    label={`Defender ${label.toLowerCase()}`}
+                    value={adjustments.target?.[field] ?? 0}
+                    choices={modifiers}
+                    onChange={(value) => changeTarget(field, value)}
+                  />
+                </div>
+              </Fragment>
+            ))}
+            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Extra InSv</span>
+            <div className="col-span-2">
+              <Segmented
+                label="Extra invulnerable save"
+                value={adjustments.target?.invulnerable ?? 0}
+                choices={extraRolls.slice(0, -1)}
+                onChange={(value) => changeTarget('invulnerable', value || null)}
+              />
+            </div>
             <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Extra FNP</span>
             <div className="col-span-2">
               <Segmented
                 label="Extra Feel No Pain"
                 value={extraFeelNoPain ?? 0}
-                choices={[
-                  [0, 'None'],
-                  [6, '6+'],
-                  [5, '5+'],
-                  [4, '4+'],
-                  [3, '3+'],
-                  [2, '2+'],
-                ]}
+                choices={extraRolls}
                 onChange={(value) => setAdjustments((current) => ({ ...current, feelNoPain: value || null }))}
+              />
+            </div>
+            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Re-roll saves</span>
+            <div className="col-span-2">
+              <Segmented
+                label="Defender save re-rolls"
+                value={adjustments.target?.saveReroll ?? 'none'}
+                choices={rerolls}
+                onChange={(value) => changeTarget('saveReroll', value === 'none' ? undefined : value)}
+              />
+            </div>
+            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Damage</span>
+            <div className="col-span-2 flex flex-wrap gap-1.5">
+              <Chip
+                label="−1 Damage"
+                checked={Boolean(adjustments.target?.damageReduction)}
+                onChange={(value) => changeTarget('damageReduction', value)}
+              />
+              <Chip
+                label="Half damage"
+                checked={Boolean(adjustments.target?.halveDamage)}
+                onChange={(value) => changeTarget('halveDamage', value)}
               />
             </div>
           </div>
@@ -643,4 +817,10 @@ function CombatDefences({
       </table>
     </div>
   )
+}
+
+/** Without a title the icon only decorates a heading that already names the phase. */
+function PhaseIcon({ phase, title }: { phase: Phase; title?: string }) {
+  const Icon = phase === 'ranged' ? Crosshair : Swords
+  return <Icon className="size-3.5 shrink-0 text-info" aria-label={title} aria-hidden={title ? undefined : true} />
 }

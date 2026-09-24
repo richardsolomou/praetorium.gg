@@ -49,6 +49,7 @@ export const combatSchema = z.object({
     damageDivisor: z.int().min(1).max(16).optional(),
     damageReduction: z.int().min(0).max(100).optional(),
     damage: z.int().min(0).max(99).optional(),
+    saveReroll: reroll.optional(),
   }),
   weapons: z
     .array(
@@ -323,17 +324,23 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
         }
       }
     }
+    const saved = (value: number, critical: boolean, group: CombatTargetGroup) =>
+      value !== 1 &&
+      (value + weapon.ap + (critical ? (weapon.criticalAp ?? 0) : 0) >= group.save ||
+        (group.invulnerable !== null && value >= group.invulnerable))
+    // Re-rolls happen while the pool's saves are rolled, before any of them is allocated, so they judge the group current then.
+    const rolling = target.groups[current]!
+    const rolls = saves
+      .map((critical) => {
+        const value = d6(random)
+        const again = target.saveReroll === 'failed' ? !saved(value, critical, rolling) : target.saveReroll === 'ones' && value === 1
+        return { value: again ? d6(random) : value, critical }
+      })
+      .toSorted((a, b) => a.value - b.value)
     // Save rolls resolve from lowest to highest against whichever group is current (05.04).
-    const rolls = saves.map((critical) => ({ value: d6(random), critical })).toSorted((a, b) => a.value - b.value)
     for (const save of rolls) {
       if (killed === models) return { damage, killed }
-      const group = target.groups[current]!
-      if (
-        save.value !== 1 &&
-        (save.value + weapon.ap + (save.critical ? (weapon.criticalAp ?? 0) : 0) >= group.save ||
-          (group.invulnerable !== null && save.value >= group.invulnerable))
-      )
-        continue
+      if (saved(save.value, save.critical, target.groups[current]!)) continue
       inflict()
     }
   }

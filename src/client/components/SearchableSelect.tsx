@@ -66,6 +66,7 @@ export function SearchableSelect({
     <Combobox
       items={virtualized ? options : groups}
       virtualized={virtualized}
+      filter={virtualized ? matchesGroupedOption : undefined}
       value={selected}
       onValueChange={(option) => {
         if (option) onValueChange(option.value)
@@ -120,6 +121,20 @@ export function SearchableSelect({
       </ComboboxContent>
     </Combobox>
   )
+}
+
+const searchable = (text: string) =>
+  text
+    .normalize('NFD')
+    .replaceAll(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+
+/** Every search word must appear in the option or its group, so a faction name narrows a long flat list. */
+function matchesGroupedOption(option: GroupedOption, query: string) {
+  const text = searchable(`${option.label} ${option.group}`)
+  return searchable(query)
+    .split(/\s+/)
+    .every((word) => text.includes(word))
 }
 
 /** Group headings become rows of their own, since a virtual list cannot nest the options inside group elements. */

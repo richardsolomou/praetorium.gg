@@ -565,6 +565,18 @@ describe('combat', () => {
     scenario.weapons[0]!.attacks.bonus = 2
     expect(attackSequence(scenario, rolls(3, 4, 3, 4, 2, 2))).toEqual({ damage: 2, killed: 1 })
   })
+  it('re-rolls a failed save against the group current when the saves are rolled', () => {
+    const scenario = input()
+    scenario.target.groups[0]!.save = 4
+    scenario.target.saveReroll = 'failed'
+    expect(attackSequence(scenario, rolls(3, 4, 2, 5)).damage).toBe(0)
+  })
+  it('re-rolls only a save of 1 when re-rolling ones', () => {
+    const scenario = input()
+    scenario.target.groups[0]!.save = 4
+    scenario.target.saveReroll = 'ones'
+    expect(attackSequence(scenario, rolls(3, 4, 2)).damage).toBe(2)
+  })
   describe('mixed allocation groups', () => {
     const group = (overrides: Partial<CombatInput['target']['groups'][number]>) => ({
       models: 1,
