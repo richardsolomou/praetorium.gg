@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.74.0
+
+### Minor Changes
+
+- 0cdcef0: Flag saved lists that are over their limit or not legal under the current army data, and name the data changes that reached each one since it was saved.
+- 0cdcef0: See what each army data update changed on the new Data updates page.
+- 5a19ddb: Show a scoreboard or summary card when a watchable battle, shared list, or player profile link is pasted into a chat.
+- 9088a58: Send mobile notifications when someone starts a battle with you, answers a friend request, or accepts, reveals, or unseals your league entry.
+
+### Patch Changes
+
+- f1c7bcc: Record page text and images in session replays, masking only form inputs.
+
 ## 0.73.0
 
 ### Minor Changes
