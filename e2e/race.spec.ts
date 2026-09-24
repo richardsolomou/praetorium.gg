@@ -17,7 +17,7 @@ test('a player tapping twice in a row does not lose the race to themselves', asy
   await slowRefetch(alice, token(link))
   const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Necrons' })
   const score = panel.getByRole('button', { name: '+1 CP' })
-  await Promise.all([score.click(), score.click()])
+  await score.dblclick()
 
   const cp = panel.locator('[data-stat="cp"]')
   await expect(alice.getByText('Your opponent got there first. Try that again.')).toBeHidden()
