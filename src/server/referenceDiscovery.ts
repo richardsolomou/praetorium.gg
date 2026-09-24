@@ -22,11 +22,10 @@ export function referenceSitemap(request: Request) {
     paths.add(`/rules/${document.slug}`)
     for (const section of document.sections) paths.add(`/rules/${document.slug}/${section.slug}`)
   }
-  // Each update the snapshot carries is a page of its own; the history rides in the snapshot
-  // but is not part of the corpus revision, so its updates are part of the cache key.
+  // The history rides in the snapshot but is not part of the corpus revision, so the updates
+  // it carries are part of the cache key.
   const updates = (app().catalogueHistory() ?? []).map(updateId)
-  if (updates.length) paths.add('/changes')
-  for (const id of updates) paths.add(`/changes/${id}`)
+  if (updates.length) paths.add('/data-updates')
   const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...paths]
     .toSorted()
     .map((path) => `  <url><loc>${xml(`${origin}${path}`)}</loc></url>`)

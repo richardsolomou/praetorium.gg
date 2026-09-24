@@ -1,10 +1,9 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import type { IndexedUpdate, LinkedChangeSet } from '../../contracts/catalogueChanges'
+import type { IndexedUpdate } from '../../contracts/catalogueChanges'
 import { decodeHistoryCursor, encodeHistoryCursor, historyPage } from '../../core/catalogueHistory'
 import { app } from '../app'
-import { indexedUpdate, linkedUpdate } from '../catalogueChangeLog'
-import { historyUpdate } from '../catalogueHistory'
+import { indexedUpdate } from '../catalogueChangeLog'
 import { rpc } from '../rpc'
 
 /** How many data updates one page of the index lists. */
@@ -27,16 +26,5 @@ export const catalogueChangeLog = createServerFn({ method: 'GET' })
         updates: page.entries.map((entry) => indexedUpdate(entry, canonical)),
         older: page.next ? encodeHistoryCursor(page.next) : null,
       }
-    }),
-  )
-
-/** One data update, whole, or null when the installed history holds none by that id. */
-export const catalogueUpdate = createServerFn({ method: 'GET' })
-  .validator(z.object({ id: z.string().regex(/^[0-9a-f]{16}$/) }))
-  .handler(({ data }) =>
-    rpc((): LinkedChangeSet | null => {
-      const instance = app()
-      const entry = historyUpdate(instance.catalogueHistory() ?? [], data.id)
-      return entry ? linkedUpdate(entry, instance.canonicalCatalogue()) : null
     }),
   )

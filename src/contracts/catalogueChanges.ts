@@ -5,30 +5,28 @@ export type ReferenceLink = { kind: 'datasheet' | 'detachment'; faction: string;
 
 export type LinkedChange = CatalogueChange & { link: ReferenceLink | null }
 
-/** One recorded data update, whole, as its own page reads it. */
+/** One update's changes, each linked, grouped by faction, as its row's body draws them. */
 export type LinkedChangeSet = {
-  /** The update's address, `/changes/<id>`. */
-  id: string
-  recordedAt: number
-  total: number
   omitted: number
   factions: (Omit<FactionChanges, 'changes'> & {
-    /** The fragment its block is addressed by on the update's page. */
+    /** The fragment its block is addressed by, inside its update's row. */
     anchor: string
     slug: string | null
     changes: LinkedChange[]
   })[]
 }
 
-/** One update as the index lists it: a summary, and its changes only when it is small. */
+/** One update as the index lists it: a row that opens onto every change it recorded. */
 export type IndexedUpdate = {
-  id: string
+  /** The fragment its row is addressed by. */
+  anchor: string
   recordedAt: number
   total: number
-  inline: boolean
-  /** The factions it reached most, first. */
+  /** Whether the row starts open, which only a small update does. */
+  open: boolean
+  /** The factions it reached most, first, each linking into the row. */
   factions: { faction: string; anchor: string; count: number }[]
   /** How many further factions it reached. */
   more: number
-  changes: LinkedChangeSet | null
+  changes: LinkedChangeSet
 }

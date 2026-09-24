@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
-import { catalogueChangeLog, catalogueUpdate, rosterChanges, savedRosterStatus } from '../../server/functions'
+import { catalogueChangeLog, rosterChanges, savedRosterStatus } from '../../server/functions'
 import { SSR_STALE_TIME } from './shared'
 
 /** One page of data updates, from the newest or from before a cursor the previous page gave. */
@@ -9,10 +9,6 @@ export const catalogueChangeLogQuery = (before?: string) =>
     queryFn: () => catalogueChangeLog({ data: before ? { before } : {} }),
     staleTime: SSR_STALE_TIME,
   })
-
-/** One data update, whole. */
-export const catalogueUpdateQuery = (id: string) =>
-  queryOptions({ queryKey: ['catalogue-update', id], queryFn: () => catalogueUpdate({ data: { id } }), staleTime: SSR_STALE_TIME })
 
 /** The data updates since a saved list was last saved that reached something in it. */
 export const rosterChangesQuery = (id: string) =>

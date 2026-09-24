@@ -11,16 +11,14 @@ export const updateTime = (recordedAt: number) => `${formatDate(recordedAt)} ${f
 export const changesLabel = (count: number) => `${count} ${count === 1 ? 'change' : 'changes'}`
 
 /**
- * Every change one update records, grouped by faction and then by section. The update's own
- * page and the index's small updates both draw an update this way. On the update's own page
- * each faction's block carries the anchor the index links to; several updates on one index
- * would repeat them.
+ * Every change one update records, grouped by faction and then by section, as the body of its
+ * row on the index. Each faction's block carries the anchor the row's faction links point to.
  */
-export function UpdateChanges({ update, anchored = false }: { update: LinkedChangeSet; anchored?: boolean }) {
+export function UpdateChanges({ update }: { update: LinkedChangeSet }) {
   return (
     <div className="space-y-4">
       {update.factions.map((faction) => (
-        <div key={faction.catalogueId} id={anchored ? faction.anchor : undefined} data-faction={faction.faction} className="scroll-mt-16">
+        <div key={faction.catalogueId} id={faction.anchor} data-faction={faction.faction} className="scroll-mt-16">
           <h3 className="eyebrow text-parchment">
             {faction.slug ? (
               <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="hover:text-bone">

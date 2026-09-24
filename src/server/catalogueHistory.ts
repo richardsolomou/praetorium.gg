@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { type CatalogueHistoryEntry, catalogueHistorySchema, historyKey } from '../core/catalogueHistory'
+import { type CatalogueHistoryEntry, catalogueHistorySchema, historyKey, updateAnchor } from '../core/catalogueHistory'
 import { compareText } from '../core/text'
 
 /** Where a catalogue directory carries its history, packed and hashed with everything else. */
@@ -50,12 +50,11 @@ export function loadCatalogueHistory(directory: string): CatalogueHistoryEntry[]
 }
 
 /**
- * An update's address: a short hash of the key that already identifies it, so it is the same
- * on every instance serving the same history and does not depend on which page lists it.
+ * A digest of the key that already identifies an update, the same on every instance serving
+ * the same history and independent of which page lists it.
  */
 export const updateId = (entry: Pick<CatalogueHistoryEntry, 'from' | 'revisions'>) =>
   createHash('sha256').update(historyKey(entry)).digest('hex').slice(0, 16)
 
-/** The update an address names, or null when this history holds none by that id. */
-export const historyUpdate = (history: readonly CatalogueHistoryEntry[], id: string) =>
-  history.find((entry) => updateId(entry) === id) ?? null
+/** The fragment an update's row on the index is addressed by. */
+export const historyAnchor = (entry: CatalogueHistoryEntry) => updateAnchor(entry.recordedAt, updateId(entry))

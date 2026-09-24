@@ -75,7 +75,6 @@ const { history } = vi.hoisted(() => ({
 }))
 vi.mock('./app', () => ({ app: () => ({ catalogueHistory: () => history.entries }) }))
 
-import { updateId } from './catalogueHistory'
 import { referenceLlms, referenceRobots, referenceSitemap } from './referenceDiscovery'
 
 afterEach(() => {
@@ -106,16 +105,16 @@ it('invalidates the sitemap ETag with the snapshot', () => {
   expect(referenceSitemap(request).headers.get('etag')).not.toBe(before)
 })
 
-it('lists the data updates the snapshot carries', async () => {
+it('lists the data updates page once for a snapshot that carries any', async () => {
   history.entries = [update('a')]
 
   const body = await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml')).text()
 
-  expect([body.includes('/changes</loc>'), body.includes(`/changes/${updateId(update('a'))}</loc>`)]).toEqual([true, true])
+  expect(body.match(/\/data-updates[^<]*<\/loc>/g)).toEqual(['/data-updates</loc>'])
 })
 
 it('lists no data updates for a snapshot that carries none', async () => {
-  expect(await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml')).text()).not.toContain('/changes')
+  expect(await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml')).text()).not.toContain('/data-updates')
 })
 
 it('invalidates the sitemap ETag when the history gains an update', () => {

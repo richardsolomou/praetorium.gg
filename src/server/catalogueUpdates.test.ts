@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { type CatalogueHistoryEntry, historyPage } from '../core/catalogueHistory'
-import { indexedUpdate, linkedUpdate } from './catalogueChangeLog'
-import { historyUpdate, updateId } from './catalogueHistory'
+import { indexedUpdate } from './catalogueChangeLog'
+import { historyAnchor, updateId } from './catalogueHistory'
 
 const removed = (count: number) =>
   Array.from({ length: count }, (_, at) => ({ kind: 'datasheet-removed' as const, id: `unit-${at}`, name: `Unit ${at}` }))
@@ -16,74 +16,79 @@ const entry = (from: string, recordedAt: number, counts: [string, number][] = [[
   },
 })
 
-describe('an update’s address', () => {
-  it('is a short, URL-safe hash', () => {
-    expect(updateId(entry('upstream:2026-07-22:ee7c59245f7f', 1))).toMatch(/^[0-9a-f]{16}$/)
-  })
+const july22 = (hour: number) => Date.UTC(2026, 6, 22, hour)
 
+describe('an update’s anchor', () => {
   it('is the same wherever the same history is served', () => {
-    expect(updateId(entry('a'.repeat(64), 1))).toBe('e49d72abb3d9807b')
+    expect(historyAnchor(entry('a'.repeat(64), july22(4)))).toBe('update-2026-07-22-e49d72ab')
   })
 
   it('does not depend on the order its revisions were written in', () => {
-    const written = entry('a', 1)
+    const written = entry('a', july22(4))
 
-    expect(updateId({ ...written, revisions: { rules: 'rules', definitions: 'a-next' } })).toBe(updateId(written))
+    expect(historyAnchor({ ...written, revisions: { rules: 'rules', definitions: 'a-next' } })).toBe(historyAnchor(written))
   })
 
-  it('differs between two updates from one snapshot', () => {
-    expect(updateId({ ...entry('a', 1), revisions: { definitions: 'other' } })).not.toBe(updateId(entry('a', 1)))
+  it('tells apart two updates recorded on the same day', () => {
+    expect(historyAnchor(entry('a', july22(4)))).not.toBe(historyAnchor(entry('b', july22(9))))
   })
 
-  it('finds the update it names', () => {
-    const history = [entry('a', 1), entry('b', 2)]
+  it('is unique across a history with several updates a day', () => {
+    const history = Array.from({ length: 200 }, (_, at) => entry(`s${at}`, july22(at % 24)))
 
-    expect(historyUpdate(history, updateId(history[1]!))).toBe(history[1])
+    expect(new Set(history.map(historyAnchor)).size).toBe(history.length)
   })
 
-  it('finds nothing for an id this history does not hold', () => {
-    expect(historyUpdate([entry('a', 1)], '0000000000000000')).toBeNull()
+  it('starts from the digest the sitemap keys updates by', () => {
+    const update = entry('a', july22(4))
+
+    expect(historyAnchor(update).endsWith(updateId(update).slice(0, 8))).toBe(true)
   })
 })
 
-describe('the index of updates', () => {
+describe('an update as the index lists it', () => {
+  it('starts open with five changes and closed with six', () => {
+    expect([indexedUpdate(entry('a', 1, [['Orks', 5]]), null).open, indexedUpdate(entry('b', 1, [['Orks', 6]]), null).open]).toEqual([
+      true,
+      false,
+    ])
+  })
+
+  it('links each faction to the anchor its block carries in the row’s body', () => {
+    const update = indexedUpdate(
+      entry('a', 1, [
+        ['Orks', 4],
+        ['Emperor’s Children', 3],
+        ['Aeldari', 2],
+      ]),
+      null,
+    )
+
+    expect(update.factions.map((faction) => faction.anchor).toSorted()).toEqual(
+      update.changes.factions.map((faction) => faction.anchor).toSorted(),
+    )
+  })
+
+  it('nests each faction’s anchor inside its update’s', () => {
+    const update = indexedUpdate(entry('a', july22(4)), null)
+
+    expect(update.changes.factions.map((faction) => faction.anchor)).toEqual([`${update.anchor}-orks`])
+  })
+
+  it('carries every change, whether it starts open or closed', () => {
+    expect(indexedUpdate(entry('a', 1, [['Orks', 9]]), null).changes.factions[0]?.changes).toHaveLength(9)
+  })
+
   it('reaches every update once, a page at a time', () => {
     const history = Array.from({ length: 45 }, (_, at) => entry(`s${at}`, Math.floor(at / 2)))
     const seen: string[] = []
     let before: ReturnType<typeof historyPage>['next'] = null
     do {
       const page = historyPage(history, 20, before ?? undefined)
-      seen.push(...page.entries.map((known) => indexedUpdate(known, null).id))
+      seen.push(...page.entries.map((known) => indexedUpdate(known, null).anchor))
       before = page.next
     } while (before)
 
-    expect(seen.toSorted()).toEqual(history.map(updateId).toSorted())
-  })
-
-  it('carries a small update’s changes and not a large one’s', () => {
-    expect(
-      [indexedUpdate(entry('a', 1, [['Orks', 5]]), null).changes, indexedUpdate(entry('b', 1, [['Orks', 6]]), null).changes].map(Boolean),
-    ).toEqual([true, false])
-  })
-
-  it('links each faction to the anchor its block has on the update’s page', () => {
-    const large = entry('a', 1, [
-      ['Orks', 4],
-      ['Emperor’s Children', 3],
-      ['Aeldari', 2],
-    ])
-    const page = linkedUpdate(large, null)
-
-    expect(
-      indexedUpdate(large, null)
-        .factions.map((faction) => faction.anchor)
-        .toSorted(),
-    ).toEqual(page.factions.map((faction) => faction.anchor).toSorted())
-  })
-
-  it('addresses an update the same on the index as on its own page', () => {
-    const large = entry('a', 1, [['Orks', 9]])
-
-    expect(indexedUpdate(large, null).id).toBe(linkedUpdate(large, null).id)
+    expect(seen.toSorted()).toEqual(history.map(historyAnchor).toSorted())
   })
 })

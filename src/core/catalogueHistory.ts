@@ -112,10 +112,10 @@ export function historySince(history: readonly CatalogueHistoryEntry[], after: n
     .map(({ recordedAt, changes }) => ({ recordedAt, changes }))
 }
 
-/** An update with at most this many changes lists them on the index instead of linking to its page. */
+/** An update with at most this many changes is shown open on the index; a larger one starts closed. */
 export const INLINE_UPDATE_CHANGES = 5
 
-/** How many of an update's factions the index names before counting the rest. */
+/** How many of an update's factions its row names before counting the rest. */
 export const INDEX_FACTIONS = 6
 
 /** Every change an update records, the ones past the change set's bound included. */
@@ -123,15 +123,25 @@ export const changeCount = (changes: CatalogueChangeSet) =>
   changes.factions.reduce((total, faction) => total + faction.changes.length, 0) + changes.omitted
 
 /**
- * The fragment each faction's block on an update's page is addressed by: its name as the
- * page prints it, made URL-safe, with a number after any a second faction already took.
- * The index links to these and the update's page renders them, so both read this.
+ * The fragment an update's row on the index is addressed by: the UTC day it was recorded,
+ * readable in an address, and the start of a digest of the key that identifies it, which
+ * tells two updates of one day apart. Both come from the history alone, so the fragment is
+ * the same on every instance serving it and on whichever page lists the update.
  */
-export function factionAnchors(factions: readonly { catalogueId: string; faction: string }[]) {
+export const updateAnchor = (recordedAt: number, digest: string) =>
+  `update-${new Date(recordedAt).toISOString().slice(0, 10)}-${digest.slice(0, 8)}`
+
+/**
+ * The fragment each faction's block inside an update is addressed by: the update's own
+ * fragment, then the faction's name as the page prints it, made URL-safe, with a number
+ * after any a second faction already took. The row's faction links and the blocks both
+ * read this.
+ */
+export function factionAnchors(update: string, factions: readonly { catalogueId: string; faction: string }[]) {
   const taken = new Set<string>()
   const anchors = new Map<string, string>()
   for (const { catalogueId, faction } of factions) {
-    const base = routeSlug(faction) || 'faction'
+    const base = `${update}-${routeSlug(faction) || 'faction'}`
     let anchor = base
     for (let copy = 2; taken.has(anchor); copy++) anchor = `${base}-${copy}`
     taken.add(anchor)
@@ -141,18 +151,18 @@ export function factionAnchors(factions: readonly { catalogueId: string; faction
 }
 
 /**
- * What the index says about one update: its total, the factions it reached most first with
- * their counts, how many more there were, and whether it is small enough to list whole.
+ * What an update's row says: its total, the factions it reached most first with their counts
+ * and anchors, how many more there were, and whether it is small enough to start open.
  */
-export function updateSummary(changes: CatalogueChangeSet) {
-  const anchors = factionAnchors(changes.factions)
+export function updateSummary(update: string, changes: CatalogueChangeSet) {
+  const anchors = factionAnchors(update, changes.factions)
   const factions = changes.factions
     .map((faction) => ({ faction: faction.faction, anchor: anchors.get(faction.catalogueId)!, count: faction.changes.length }))
     .toSorted((left, right) => right.count - left.count || compareText(left.faction, right.faction))
   const total = changeCount(changes)
   return {
     total,
-    inline: total <= INLINE_UPDATE_CHANGES,
+    open: total <= INLINE_UPDATE_CHANGES,
     factions: factions.slice(0, INDEX_FACTIONS),
     more: Math.max(factions.length - INDEX_FACTIONS, 0),
   }
