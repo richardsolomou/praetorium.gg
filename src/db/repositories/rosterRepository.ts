@@ -6,6 +6,7 @@ import { collection, favouriteDetachments, favouriteFactions, rosters } from '..
 export class RosterRepository {
   constructor(private readonly database: PraetoriumDatabase) {}
 
+  /** Which way the row was written, or null when another player already owns the id. */
   async saveRoster(input: {
     id: string
     userId: string
@@ -47,13 +48,13 @@ export class RosterRepository {
       .set(updatable)
       .where(and(eq(rosters.id, input.id), eq(rosters.userId, input.userId)))
       .returning({ id: rosters.id })
-    if (updated.length) return true
+    if (updated.length) return 'updated'
     const inserted = await this.database
       .insert(rosters)
       .values({ id: input.id, userId: input.userId, createdAt: input.now, ...updatable })
       .onConflictDoNothing()
       .returning({ id: rosters.id })
-    return inserted.length > 0
+    return inserted.length ? 'inserted' : null
   }
 
   async rostersByUser(userId: string) {

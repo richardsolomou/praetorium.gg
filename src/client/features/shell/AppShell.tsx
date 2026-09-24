@@ -1,6 +1,6 @@
 import { version } from '../../../../package.json'
 import { useQuery } from '@tanstack/react-query'
-import { HeadContent, Link, Outlet, Scripts, useLocation } from '@tanstack/react-router'
+import { HeadContent, Link, Outlet, Scripts, useLocation, useMatch } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Menu, X } from 'lucide-react'
@@ -138,7 +138,9 @@ function PrimaryNavigation({ path }: { path: string }) {
 export function AppShell() {
   const location = useLocation()
   const path = location.pathname
-  const immersive = /^\/rosters\/(?:new|import|[^/]+(?:\/edit)?)$/.test(path)
+  // A visitor's builder shares `/rosters` with the library, so its route says when it is on screen.
+  const guestBuilder = useMatch({ from: '/rosters/', shouldThrow: false })?.loaderData?.guestDraft === true
+  const immersive = guestBuilder || /^\/rosters\/(?:new|import|[^/]+(?:\/edit)?)$/.test(path)
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

@@ -28,6 +28,8 @@ Onboarding events are the guide's own answers. The welcome, a finished tour, a s
 
 `datacard_join` on datasheet metrics is `external-ref`, `name`, or `missing`. It measures whether the catalogue datasheet found its Game Datacards record and which join path resolved it.
 
+`roster_created` is captured when a save inserts a row, which includes a visitor's list claimed after sign-up.
+
 `unit_count` on a roster event is how many units the list fields, counting a character inside the unit it joined, as `attachedUnitCount` folds it. The events that measure a request rather than a list — `roster_priced`, `roster_imported`, `roster_exported`, `roster_datasheet_loaded` — count the picks in that payload instead.
 
 Server-side roster events that have setup data carry `limit`, `faction`, `detachment`, and `detachment_count`. Faction and detachment values are normalized source names, not catalogue ids. `detachment_rules_covered` says whether every selected detachment has the rules-source semantics that Game Datacards does not supply; it is absent when no detachment is selected.

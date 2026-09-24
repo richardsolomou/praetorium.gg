@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Layers3 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -90,6 +91,10 @@ type Props = {
   namePlaceholder?: string
   onSave: (value: RosterSetup) => void
   pending?: boolean
+  /** A visitor's list, which stays private until an account saves it and so offers no access to choose. */
+  guest?: boolean
+  /** Drawn as the page itself rather than over it, for a page that has nothing else to show yet. */
+  inline?: boolean
 }
 
 /**
@@ -123,6 +128,8 @@ export function RosterSetupDialog({
   namePlaceholder,
   onSave,
   pending = false,
+  guest = false,
+  inline = false,
 }: Props) {
   const [draft, setDraft] = useState(value)
   const [detachmentQuery, setDetachmentQuery] = useState('')
@@ -236,6 +243,308 @@ export function RosterSetupDialog({
     })
   }
 
+  const title = mode === 'create' ? 'Create roster' : 'Edit roster setup'
+  const description = (
+    <>
+      {mode === 'create'
+        ? 'Set the roster identity and army rules before adding units.'
+        : 'Set the roster identity and the rules that shape its available units.'}
+      {guest ? (
+        <>
+          {' '}
+          Already have an account?{' '}
+          <Link to="/sign-in" search={{ next: '/rosters' }} className="text-info underline-offset-4 hover:underline">
+            Sign in
+          </Link>
+        </>
+      ) : null}
+    </>
+  )
+  const fields = (
+    <div className={inline ? 'space-y-5' : 'space-y-5 px-5'}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div data-onboarding="setup-faction">
+          <Label className="eyebrow block" htmlFor="setup-faction">
+            Faction
+          </Label>
+          <SearchableSelect
+            id="setup-faction"
+            groups={groups}
+            value={draft.catalogueId}
+            onValueChange={(catalogueId) => {
+              advanceOnboarding('roster', 'roster-faction', 'roster-size')
+              setDetachmentQuery('')
+              changeDraft({
+                ...draft,
+                catalogueId,
+                detachmentIds: [],
+                disposition: null,
+              })
+            }}
+            placeholder="Pick a faction"
+            searchPlaceholder="Search factions…"
+            className="mt-1 h-11"
+          />
+        </div>
+        <div data-onboarding="setup-size">
+          <Label className="eyebrow block" htmlFor="setup-size">
+            Battle size
+          </Label>
+          <SearchableSelect
+            id="setup-size"
+            ariaLabel="Battle size"
+            value={String(draft.limit)}
+            groups={BATTLE_SIZE_GROUPS}
+            onValueChange={(next) => {
+              advanceOnboarding('roster', 'roster-size', 'roster-detachment')
+              const limit = Number(next)
+              changeDraft({
+                ...draft,
+                limit,
+                detachmentIds: draft.detachmentIds.slice(0, detachmentLimit(limit, draft.waivedRules)),
+                disposition: null,
+              })
+            }}
+            placeholder="Battle size"
+            className="mt-1 h-11"
+          />
+        </div>
+      </div>
+
+      <fieldset data-onboarding="setup-detachments">
+        <div className="flex items-end justify-between gap-3">
+          <legend className="rubric">Detachments</legend>
+          <span className={`readout text-xs ${pointsError ? 'text-destructive' : 'text-dim'}`}>
+            {spent}
+            {allowance === null ? '' : `/${allowance}`} DP used
+          </span>
+        </div>
+        {offeredDetachments.length ? (
+          <SearchField
+            className="mt-2"
+            value={detachmentQuery}
+            onChange={setDetachmentQuery}
+            placeholder="Find a detachment"
+            label="Find a detachment"
+            clearLabel="Empty the detachment filter"
+            inputClassName="h-11"
+          />
+        ) : null}
+        <div className="mt-2 grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">
+          {availableDetachments.map((detachment) => {
+            const chosen = draft.detachmentIds.includes(detachment.id)
+            return (
+              <div
+                key={detachment.id}
+                className={`flex min-h-20 items-stretch border ${chosen ? 'border-parchment bg-raised' : 'border-edge bg-sunken'}`}
+              >
+                <div className="flex w-10 shrink-0 flex-col border-r border-edge">
+                  <button
+                    type="button"
+                    aria-label={`View ${detachment.name} detachment reference`}
+                    className="grid min-h-10 flex-1 place-items-center hover:bg-raised"
+                    onClick={() => {
+                      if (!faction) return
+                      setReference({
+                        catalogueId: faction.id,
+                        detachmentId: detachment.id,
+                        slug: detachment.slug,
+                        name: detachment.name,
+                      })
+                    }}
+                  >
+                    <Layers3 className={`size-4 ${chosen ? 'text-parchment' : 'text-faint'}`} />
+                  </button>
+                  {faction ? (
+                    <FavouriteDetachmentToggle
+                      catalogueId={faction.id}
+                      detachmentId={detachment.id}
+                      name={detachment.name}
+                      className="size-10 border-t border-edge hover:bg-raised"
+                    />
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  aria-label={`View ${detachment.name} detachment reference`}
+                  className="flex min-w-0 flex-1 items-start p-3 text-left"
+                  onClick={() => {
+                    if (!faction) return
+                    setReference({
+                      catalogueId: faction.id,
+                      detachmentId: detachment.id,
+                      slug: detachment.slug,
+                      name: detachment.name,
+                    })
+                  }}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-bold uppercase">{detachment.name}</span>
+                    <span className="mt-2 flex flex-wrap gap-1">
+                      {detachment.dispositions.map((entry) => (
+                        <span key={entry.id} className={`chip ${dispositionTone(entry.id)}`}>
+                          {entry.name}
+                        </span>
+                      ))}
+                    </span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  aria-label={`${chosen ? 'Remove' : 'Select'} ${detachment.name}`}
+                  onClick={() => toggleDetachment(detachment.id)}
+                  className={`grid w-20 shrink-0 place-items-center border-l border-edge text-sm font-bold uppercase ${chosen ? 'bg-parchment text-parchment-ink' : 'bg-raised text-azure hover:bg-azure/15'}`}
+                >
+                  {detachment.reference?.points ?? '—'} DP
+                </button>
+              </div>
+            )
+          })}
+        </div>
+        {offeredDetachments.length && !availableDetachments.length ? (
+          <p className="mt-2 text-sm text-dim">No detachments match this search.</p>
+        ) : null}
+        {pointsError ? (
+          <p role="alert" className="mt-2 text-xs text-destructive">
+            {pointsError}
+          </p>
+        ) : null}
+      </fieldset>
+
+      {offeredOptionalRules.length ? (
+        <div>
+          <Label className="rubric block">Optional rules</Label>
+          <button
+            type="button"
+            onClick={() => setEditingOptionalRules(true)}
+            className="mt-2 flex min-h-12 w-full items-center justify-between gap-3 border border-edge px-3 py-2 text-left hover:border-azure"
+          >
+            <span className="min-w-0">
+              <span className="block font-bold uppercase">
+                {pickedRules.length ? pickedRules.map((rule) => rule.label).join(', ') : 'None'}
+              </span>
+              <span className="mt-0.5 block text-xs text-dim">{offeredOptionalRules.length} available at this battle size</span>
+            </span>
+            <span className="chip shrink-0">Choose</span>
+          </button>
+          {borrowedError ? (
+            <p role="alert" className="mt-2 text-sm text-destructive">
+              {borrowedError}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {dispositions.length ? (
+        <fieldset>
+          <legend className="rubric">Force disposition</legend>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {dispositions.map((entry) => {
+              const chosen = selectedDisposition === entry.id
+              return (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => {
+                    if (dispositions.length > 1) changeDraft({ ...draft, disposition: entry.id })
+                  }}
+                  className={`flex min-h-12 items-center justify-between border px-3 text-left font-bold uppercase ${dispositionTone(entry.id, chosen)}`}
+                >
+                  {entry.name}
+                  <span
+                    className={`grid size-6 place-items-center rounded-full border ${chosen ? 'border-current bg-bone text-void' : 'border-current/60'}`}
+                  >
+                    {chosen ? <Check className="size-4" /> : null}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </fieldset>
+      ) : null}
+
+      <div data-onboarding="setup-name">
+        <Label className="rubric block" htmlFor="setup-name">
+          Roster name
+        </Label>
+        <Input
+          id="setup-name"
+          value={draft.name}
+          onChange={(event) => changeDraft({ ...draft, name: event.target.value })}
+          placeholder={placeholder}
+          maxLength={ROSTER_NAME_MAX_LENGTH}
+          className="mt-2 h-11 text-base"
+        />
+        <p className="mt-1.5 text-xs text-dim">Leave this empty to name the list from your army.</p>
+      </div>
+
+      <div hidden={guest}>
+        <Label className="rubric block" htmlFor="setup-visibility">
+          Access
+        </Label>
+        <Select
+          value={draft.visibility}
+          onValueChange={(visibility: RosterVisibility | null) => changeDraft({ ...draft, visibility: visibility ?? 'private' })}
+        >
+          <SelectTrigger id="setup-visibility" className="mt-2 h-11 w-full">
+            <SelectValue>
+              {(visibility: unknown) => VISIBILITY_DETAIL[visibility as RosterVisibility] ?? VISIBILITY_DETAIL.private}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {ROSTER_VISIBILITIES.map((visibility) => (
+              <SelectItem key={visibility} value={visibility}>
+                {VISIBILITY_DETAIL[visibility]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {hasUnits && (factionChanged || detachmentsChanged) ? (
+        <p className="border border-discarded/60 bg-discarded/10 p-3 text-sm text-discarded">
+          {factionChanged
+            ? 'Changing faction removes this roster’s units.'
+            : 'Changing detachments may make existing enhancements unavailable.'}
+        </p>
+      ) : null}
+    </div>
+  )
+  const actions = (
+    <>
+      {inline ? null : (
+        <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          Cancel
+        </Button>
+      )}
+      <Button
+        data-onboarding="setup-create"
+        className="sm:min-w-40"
+        disabled={
+          pending ||
+          loadingFaction ||
+          !draft.catalogueId ||
+          !draft.detachmentIds.length ||
+          (dispositions.length > 1 && !selectedDisposition) ||
+          Boolean(pointsError)
+        }
+        onClick={() => onSave({ ...draft, name: draft.name.trim(), disposition: selectedDisposition })}
+      >
+        {loadingFaction
+          ? 'Loading faction…'
+          : pending
+            ? mode === 'create'
+              ? 'Creating…'
+              : 'Saving…'
+            : mode === 'create'
+              ? inline
+                ? 'Start building'
+                : 'Create roster'
+              : 'Save changes'}
+      </Button>
+    </>
+  )
+
   return (
     <>
       <OptionalRulesDialog
@@ -258,296 +567,23 @@ export function RosterSetupDialog({
         borrowedError={borrowedError}
         onChooseBorrowed={(detachmentId) => changeDraft({ ...draft, borrowedDetachmentId: detachmentId, disposition: null })}
       />
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="p-0 sm:max-w-2xl">
-          <DialogHeader className="border-b border-edge px-5 py-4">
-            <DialogTitle className="text-2xl">{mode === 'create' ? 'Create roster' : 'Edit roster setup'}</DialogTitle>
-            <DialogDescription>
-              {mode === 'create'
-                ? 'Set the roster identity and army rules before adding units.'
-                : 'Set the roster identity and the rules that shape its available units.'}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-5 px-5">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div data-onboarding="setup-faction">
-                <Label className="eyebrow block" htmlFor="setup-faction">
-                  Faction
-                </Label>
-                <SearchableSelect
-                  id="setup-faction"
-                  groups={groups}
-                  value={draft.catalogueId}
-                  onValueChange={(catalogueId) => {
-                    advanceOnboarding('roster', 'roster-faction', 'roster-size')
-                    setDetachmentQuery('')
-                    changeDraft({
-                      ...draft,
-                      catalogueId,
-                      detachmentIds: [],
-                      disposition: null,
-                    })
-                  }}
-                  placeholder="Pick a faction"
-                  searchPlaceholder="Search factions…"
-                  className="mt-1 h-11"
-                />
-              </div>
-              <div data-onboarding="setup-size">
-                <Label className="eyebrow block" htmlFor="setup-size">
-                  Battle size
-                </Label>
-                <SearchableSelect
-                  id="setup-size"
-                  ariaLabel="Battle size"
-                  value={String(draft.limit)}
-                  groups={BATTLE_SIZE_GROUPS}
-                  onValueChange={(next) => {
-                    advanceOnboarding('roster', 'roster-size', 'roster-detachment')
-                    const limit = Number(next)
-                    changeDraft({
-                      ...draft,
-                      limit,
-                      detachmentIds: draft.detachmentIds.slice(0, detachmentLimit(limit, draft.waivedRules)),
-                      disposition: null,
-                    })
-                  }}
-                  placeholder="Battle size"
-                  className="mt-1 h-11"
-                />
-              </div>
-            </div>
-
-            <fieldset data-onboarding="setup-detachments">
-              <div className="flex items-end justify-between gap-3">
-                <legend className="rubric">Detachments</legend>
-                <span className={`readout text-xs ${pointsError ? 'text-destructive' : 'text-dim'}`}>
-                  {spent}
-                  {allowance === null ? '' : `/${allowance}`} DP used
-                </span>
-              </div>
-              {offeredDetachments.length ? (
-                <SearchField
-                  className="mt-2"
-                  value={detachmentQuery}
-                  onChange={setDetachmentQuery}
-                  placeholder="Find a detachment"
-                  label="Find a detachment"
-                  clearLabel="Empty the detachment filter"
-                  inputClassName="h-11"
-                />
-              ) : null}
-              <div className="mt-2 grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">
-                {availableDetachments.map((detachment) => {
-                  const chosen = draft.detachmentIds.includes(detachment.id)
-                  return (
-                    <div
-                      key={detachment.id}
-                      className={`flex min-h-20 items-stretch border ${chosen ? 'border-parchment bg-raised' : 'border-edge bg-sunken'}`}
-                    >
-                      <div className="flex w-10 shrink-0 flex-col border-r border-edge">
-                        <button
-                          type="button"
-                          aria-label={`View ${detachment.name} detachment reference`}
-                          className="grid min-h-10 flex-1 place-items-center hover:bg-raised"
-                          onClick={() => {
-                            if (!faction) return
-                            setReference({
-                              catalogueId: faction.id,
-                              detachmentId: detachment.id,
-                              slug: detachment.slug,
-                              name: detachment.name,
-                            })
-                          }}
-                        >
-                          <Layers3 className={`size-4 ${chosen ? 'text-parchment' : 'text-faint'}`} />
-                        </button>
-                        {faction ? (
-                          <FavouriteDetachmentToggle
-                            catalogueId={faction.id}
-                            detachmentId={detachment.id}
-                            name={detachment.name}
-                            className="size-10 border-t border-edge hover:bg-raised"
-                          />
-                        ) : null}
-                      </div>
-                      <button
-                        type="button"
-                        aria-label={`View ${detachment.name} detachment reference`}
-                        className="flex min-w-0 flex-1 items-start p-3 text-left"
-                        onClick={() => {
-                          if (!faction) return
-                          setReference({
-                            catalogueId: faction.id,
-                            detachmentId: detachment.id,
-                            slug: detachment.slug,
-                            name: detachment.name,
-                          })
-                        }}
-                      >
-                        <span className="min-w-0 flex-1">
-                          <span className="block font-bold uppercase">{detachment.name}</span>
-                          <span className="mt-2 flex flex-wrap gap-1">
-                            {detachment.dispositions.map((entry) => (
-                              <span key={entry.id} className={`chip ${dispositionTone(entry.id)}`}>
-                                {entry.name}
-                              </span>
-                            ))}
-                          </span>
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`${chosen ? 'Remove' : 'Select'} ${detachment.name}`}
-                        onClick={() => toggleDetachment(detachment.id)}
-                        className={`grid w-20 shrink-0 place-items-center border-l border-edge text-sm font-bold uppercase ${chosen ? 'bg-parchment text-parchment-ink' : 'bg-raised text-azure hover:bg-azure/15'}`}
-                      >
-                        {detachment.reference?.points ?? '—'} DP
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-              {offeredDetachments.length && !availableDetachments.length ? (
-                <p className="mt-2 text-sm text-dim">No detachments match this search.</p>
-              ) : null}
-              {pointsError ? (
-                <p role="alert" className="mt-2 text-xs text-destructive">
-                  {pointsError}
-                </p>
-              ) : null}
-            </fieldset>
-
-            {offeredOptionalRules.length ? (
-              <div>
-                <Label className="rubric block">Optional rules</Label>
-                <button
-                  type="button"
-                  onClick={() => setEditingOptionalRules(true)}
-                  className="mt-2 flex min-h-12 w-full items-center justify-between gap-3 border border-edge px-3 py-2 text-left hover:border-azure"
-                >
-                  <span className="min-w-0">
-                    <span className="block font-bold uppercase">
-                      {pickedRules.length ? pickedRules.map((rule) => rule.label).join(', ') : 'None'}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-dim">{offeredOptionalRules.length} available at this battle size</span>
-                  </span>
-                  <span className="chip shrink-0">Choose</span>
-                </button>
-                {borrowedError ? (
-                  <p role="alert" className="mt-2 text-sm text-destructive">
-                    {borrowedError}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-
-            {dispositions.length ? (
-              <fieldset>
-                <legend className="rubric">Force disposition</legend>
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  {dispositions.map((entry) => {
-                    const chosen = selectedDisposition === entry.id
-                    return (
-                      <button
-                        key={entry.id}
-                        type="button"
-                        onClick={() => {
-                          if (dispositions.length > 1) changeDraft({ ...draft, disposition: entry.id })
-                        }}
-                        className={`flex min-h-12 items-center justify-between border px-3 text-left font-bold uppercase ${dispositionTone(entry.id, chosen)}`}
-                      >
-                        {entry.name}
-                        <span
-                          className={`grid size-6 place-items-center rounded-full border ${chosen ? 'border-current bg-bone text-void' : 'border-current/60'}`}
-                        >
-                          {chosen ? <Check className="size-4" /> : null}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </fieldset>
-            ) : null}
-
-            <div data-onboarding="setup-name">
-              <Label className="rubric block" htmlFor="setup-name">
-                Roster name
-              </Label>
-              <Input
-                id="setup-name"
-                value={draft.name}
-                onChange={(event) => changeDraft({ ...draft, name: event.target.value })}
-                placeholder={placeholder}
-                maxLength={ROSTER_NAME_MAX_LENGTH}
-                className="mt-2 h-11 text-base"
-              />
-              <p className="mt-1.5 text-xs text-dim">Leave this empty to name the list from your army.</p>
-            </div>
-
-            <div>
-              <Label className="rubric block" htmlFor="setup-visibility">
-                Access
-              </Label>
-              <Select
-                value={draft.visibility}
-                onValueChange={(visibility: RosterVisibility | null) => changeDraft({ ...draft, visibility: visibility ?? 'private' })}
-              >
-                <SelectTrigger id="setup-visibility" className="mt-2 h-11 w-full">
-                  <SelectValue>
-                    {(visibility: unknown) => VISIBILITY_DETAIL[visibility as RosterVisibility] ?? VISIBILITY_DETAIL.private}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {ROSTER_VISIBILITIES.map((visibility) => (
-                    <SelectItem key={visibility} value={visibility}>
-                      {VISIBILITY_DETAIL[visibility]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {hasUnits && (factionChanged || detachmentsChanged) ? (
-              <p className="border border-discarded/60 bg-discarded/10 p-3 text-sm text-discarded">
-                {factionChanged
-                  ? 'Changing faction removes this roster’s units.'
-                  : 'Changing detachments may make existing enhancements unavailable.'}
-              </p>
-            ) : null}
-          </div>
-
-          <DialogFooter className="m-0 px-5 py-4">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button
-              data-onboarding="setup-create"
-              className="sm:min-w-40"
-              disabled={
-                pending ||
-                loadingFaction ||
-                !draft.catalogueId ||
-                !draft.detachmentIds.length ||
-                (dispositions.length > 1 && !selectedDisposition) ||
-                Boolean(pointsError)
-              }
-              onClick={() => onSave({ ...draft, name: draft.name.trim(), disposition: selectedDisposition })}
-            >
-              {loadingFaction
-                ? 'Loading faction…'
-                : pending
-                  ? mode === 'create'
-                    ? 'Creating…'
-                    : 'Saving…'
-                  : mode === 'create'
-                    ? 'Create roster'
-                    : 'Save changes'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {inline ? (
+        <section aria-label={title} className="space-y-6">
+          {fields}
+          <div className="flex flex-col-reverse gap-2 border-t border-edge pt-5 sm:flex-row sm:justify-end">{actions}</div>
+        </section>
+      ) : (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+          <DialogContent className="p-0 sm:max-w-2xl">
+            <DialogHeader className="border-b border-edge px-5 py-4">
+              <DialogTitle className="text-2xl">{title}</DialogTitle>
+              <DialogDescription>{description}</DialogDescription>
+            </DialogHeader>
+            {fields}
+            <DialogFooter className="m-0 px-5 py-4">{actions}</DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
       <Dialog open={Boolean(reference)} onOpenChange={(next) => !next && setReference(null)}>
         <DialogContent id="detachment-reference-dialog" initialFocus={false} className="p-0 sm:max-w-5xl">
           <DialogHeader className="sr-only">

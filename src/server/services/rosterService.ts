@@ -76,7 +76,7 @@ export class RosterService {
       now: this.clock(),
     })
     if (!saved) throw new Response('you do not own this roster', { status: 403 })
-    return { id }
+    return { id, created: saved === 'inserted' }
   }
 
   /** A user's own saved lists, newest first. Their picks come back parsed. */

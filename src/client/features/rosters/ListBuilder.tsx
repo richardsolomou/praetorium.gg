@@ -101,6 +101,13 @@ type Props = {
   battle?: string
   /** Resolve read-only details by saved id; false when the supplied picks are themselves the snapshot. */
   resolvePersistedRoster?: boolean
+  /**
+   * A visitor's list, which no account holds yet.
+   *
+   * Every draft goes to `onDraftChange` instead of the server, and saving it is
+   * `onSave`'s: the one thing a visitor cannot do here is keep the list.
+   */
+  guest?: { onDraftChange: (draft: RosterDraft) => void; onSave: () => void }
 }
 
 export type FrozenRoster = {
@@ -127,7 +134,16 @@ const modelCount = (models: number) => `${models} ${models === 1 ? 'model' : 'mo
  * The price and the legality both come from the server, because the catalogue is
  * 90MB and the browser has no business holding it.
  */
-export function ListBuilder({ prep, initial, initialFaction, frozen, editable = true, battle, resolvePersistedRoster = true }: Props) {
+export function ListBuilder({
+  prep,
+  initial,
+  initialFaction,
+  frozen,
+  editable = true,
+  battle,
+  resolvePersistedRoster = true,
+  guest,
+}: Props) {
   const navigate = useNavigate()
   const path = useRouterState({ select: (state) => state.location.href.split('#', 1)[0] ?? state.location.pathname })
   const { data: me } = useQuery(meQuery())
@@ -194,7 +210,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
 
   const savedId = initial.id
   const queryClient = useQueryClient()
-  const { data: owned } = useQuery({ ...collectionQuery(), enabled: editable && pickerEnabled })
+  const { data: owned } = useQuery({ ...collectionQuery(), enabled: Boolean(me) && editable && pickerEnabled })
   const collection = useMemo(() => new Set(owned ?? []), [owned])
   const { mutate: mutateCollection } = useCollectionMutation()
   useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
@@ -269,7 +285,8 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
     const key = draftKey(draft)
     if (key === lastSaved.current) return
     lastSaved.current = key
-    save.mutate()
+    if (guest) guest.onDraftChange(draft)
+    else save.mutate()
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -634,7 +651,10 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   )
 
   return (
-    <RosterShell saving={save.isPending || settledPicks !== positioned || settledListName !== listName} saveError={save.isError}>
+    <RosterShell
+      saving={!guest && (save.isPending || settledPicks !== positioned || settledListName !== listName)}
+      saveError={save.isError}
+    >
       <RosterHeader
         name={name}
         nameId="listname"
@@ -804,6 +824,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
             initialFaction={faction}
             value={setupDraft}
             onDraftChange={setSetupDraft}
+            guest={Boolean(guest)}
             hasUnits={Boolean(picks.length)}
             namePlaceholder={label}
             onSave={(setup) => {
@@ -900,7 +921,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
                         onSelect={selectUnit}
                         onRemove={drop}
                         onDuplicate={duplicate}
-                        onOwned={setUnitOwned}
+                        onOwned={me ? setUnitOwned : undefined}
                         onJoin={join}
                         editable={building}
                       />
@@ -1060,6 +1081,16 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
         saveFailed={save.isError}
         saving={save.isPending}
         onRetrySave={() => save.mutate()}
+        // Saving is only ever asked for here: the draft already follows every edit, and
+        // this hands over the one the screen shows rather than the last settled one.
+        onSave={
+          guest
+            ? () => {
+                guest.onDraftChange(draft)
+                guest.onSave()
+              }
+            : undefined
+        }
         errors={priced?.errors ?? []}
         unhandled={priced?.unhandled ?? []}
         frozen={Boolean(frozen)}

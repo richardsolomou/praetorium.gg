@@ -183,7 +183,7 @@ The rules source carries units, points and compositions of its own, so `just par
 
 ## Saved lists and interchange
 
-- Application record IDs are compact URL-safe values minted by `randomId()` on the server. Clients provide an ID only when updating an existing record; share tokens use the longer `randomToken()` format.
+- Application record IDs are compact URL-safe values minted by `randomId()` on the server. Clients provide an ID only when updating an existing record, or when claiming a visitor's draft under the id the browser gave it, where a repeated claim updates the row it already made; share tokens use the longer `randomToken()` format.
 - Saved lists store `RosterPick` values rather than expanded selections and rebuild them against the current catalogue for pricing.
 - New saved lists are private. Making one unlisted lets anyone holding its opaque URL read it, and making one public also lists it on its owner's profile. Unlisted and public read alike, so what public adds is discovery rather than access. Switching a list back to private revokes both without changing the URL.
 - Import provenance stays with the saved list so the library can distinguish an editable Praetorium roster from a BattleBase or New Recruit text import. `roster-file` remains in the enum for lists saved before `.ros` and `.rosz` import was removed.

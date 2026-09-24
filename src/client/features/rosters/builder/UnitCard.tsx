@@ -64,7 +64,7 @@ export function UnitCard({
   onRemove = noop,
   onDuplicate = noop,
   owned = false,
-  onOwned = noop,
+  onOwned,
   joined = NONE,
   canJoin = NONE,
   onJoin = noop,
@@ -261,7 +261,7 @@ function UnitActions({
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
   Checkbox: typeof DropdownMenuCheckboxItem | typeof ContextMenuCheckboxItem
   owned: boolean
-  onOwned: () => void
+  onOwned?: () => void
   onDuplicate: () => void
   onRemove: () => void
 }) {
@@ -270,10 +270,12 @@ function UnitActions({
       <Item className={ITEM} onClick={onDuplicate}>
         <Copy className="size-3.5" /> Duplicate unit
       </Item>
-      <Checkbox className={ITEM} checked={owned} onCheckedChange={onOwned}>
-        <Heart className={`size-3.5 ${owned ? 'fill-rust text-rust' : ''}`} />
-        {owned ? 'Remove from collection' : 'Add to collection'}
-      </Checkbox>
+      {onOwned ? (
+        <Checkbox className={ITEM} checked={owned} onCheckedChange={onOwned}>
+          <Heart className={`size-3.5 ${owned ? 'fill-rust text-rust' : ''}`} />
+          {owned ? 'Remove from collection' : 'Add to collection'}
+        </Checkbox>
+      ) : null}
       <Item variant="destructive" className={ITEM} onClick={onRemove}>
         <X className="size-3.5" /> Delete unit
       </Item>

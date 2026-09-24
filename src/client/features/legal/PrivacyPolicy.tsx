@@ -8,7 +8,10 @@ export function PrivacyPolicy() {
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the hosted
           service at praetorium.gg. It does not cover self-hosted installations, whose data is controlled by whoever operates them.
         </p>
-        <p>An account is required to keep rosters or play battles, so everything below is about signed-in use.</p>
+        <p>
+          An account is required to keep rosters or play battles, so everything below is about signed-in use. A roster you try without an
+          account stays in that browser tab, with a cookie that only says one is there, until you sign up to save it or close the tab.
+        </p>
       </LegalSection>
 
       <LegalSection title="What we collect">

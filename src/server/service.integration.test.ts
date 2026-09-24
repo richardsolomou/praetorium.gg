@@ -1347,6 +1347,37 @@ describe('saved rosters', () => {
     ).toBe(403)
     expect((await service.sharedRoster(id, 'alice'))?.name).toBe('Recon force')
   })
+
+  describe("under an id the browser chose, as a visitor's list is claimed", () => {
+    const claim = () =>
+      service.saveRoster('alice', {
+        id: 'guest-draft-id',
+        name: '',
+        catalogueId: 'necrons',
+        detachmentIds: [],
+        disposition: null,
+        limit: 2000,
+        picks: [],
+        prep: null,
+        visibility: 'private',
+        source: 'editable',
+      })
+
+    it('says the first save made the list', async () => {
+      expect(await claim()).toEqual({ id: 'guest-draft-id', created: true })
+    })
+
+    it('says a repeated save made nothing new', async () => {
+      await claim()
+      expect(await claim()).toEqual({ id: 'guest-draft-id', created: false })
+    })
+
+    it('keeps one list however often the claim is sent', async () => {
+      await claim()
+      await claim()
+      expect((await service.savedRosters('alice')).map((roster) => roster.id)).toEqual(['guest-draft-id'])
+    })
+  })
 })
 
 describe('battle history', () => {
