@@ -8,6 +8,9 @@ import {
   historyKey,
   historyPage,
   historySince,
+  factionAnchors,
+  INDEX_FACTIONS,
+  updateSummary,
 } from './catalogueHistory'
 
 const changes = (to: string): CatalogueChangeSet => ({
@@ -102,5 +105,84 @@ describe('the history a saved list is compared with', () => {
 
   it('is at most the newest few', () => {
     expect(historySince([entry('a', 10), entry('b', 20), entry('c', 30)], 0, 2).map((set) => set.recordedAt)).toEqual([20, 30])
+  })
+})
+
+describe('what the index says about an update', () => {
+  const removed = (count: number) =>
+    Array.from({ length: count }, (_, at) => ({ kind: 'datasheet-removed' as const, id: `unit-${at}`, name: `Unit ${at}` }))
+  const reaching = (...counts: [string, number][]): CatalogueChangeSet => ({
+    factions: counts.map(([faction, count]) => ({ catalogueId: faction.toLowerCase(), faction, changes: removed(count) })),
+    omitted: 0,
+  })
+
+  it('names the factions it reached most first, with their counts', () => {
+    expect(updateSummary(reaching(['Orks', 2], ['Aeldari', 9], ['Necrons', 2])).factions).toEqual([
+      { faction: 'Aeldari', anchor: 'aeldari', count: 9 },
+      { faction: 'Necrons', anchor: 'necrons', count: 2 },
+      { faction: 'Orks', anchor: 'orks', count: 2 },
+    ])
+  })
+
+  it('counts every change, including those past the change set’s bound', () => {
+    expect(updateSummary({ ...reaching(['Orks', 3]), omitted: 4 }).total).toBe(7)
+  })
+
+  it('names the first few factions and counts the rest', () => {
+    const many = reaching(...Array.from({ length: INDEX_FACTIONS + 3 }, (_, at): [string, number] => [`Faction ${at}`, 1]))
+
+    expect({ named: updateSummary(many).factions.length, more: updateSummary(many).more }).toEqual({ named: INDEX_FACTIONS, more: 3 })
+  })
+
+  it('counts no more factions when every one is named', () => {
+    expect(updateSummary(reaching(['Orks', 1])).more).toBe(0)
+  })
+
+  it('lists an update of five changes whole', () => {
+    expect(updateSummary(reaching(['Orks', 3], ['Necrons', 2])).inline).toBe(true)
+  })
+
+  it('links to an update of six changes instead of listing it', () => {
+    expect(updateSummary(reaching(['Orks', 3], ['Necrons', 3])).inline).toBe(false)
+  })
+
+  it('counts changes past the bound toward whether an update is listed whole', () => {
+    expect(updateSummary({ ...reaching(['Orks', 5]), omitted: 1 }).inline).toBe(false)
+  })
+})
+
+describe('the anchors an update’s factions are addressed by', () => {
+  it('makes a faction’s name as the page prints it into a URL-safe fragment', () => {
+    const anchors = factionAnchors([
+      { catalogueId: 'ec', faction: 'Emperor’s Children' },
+      { catalogueId: 'tau', faction: 'T’au Empire' },
+    ])
+
+    expect([...anchors.values()]).toEqual(['emperors-children', 'tau-empire'])
+  })
+
+  it('tells two factions of one name apart', () => {
+    const anchors = factionAnchors([
+      { catalogueId: 'a', faction: 'Orks' },
+      { catalogueId: 'b', faction: 'Orks' },
+    ])
+
+    expect([...anchors.values()]).toEqual(['orks', 'orks-2'])
+  })
+
+  it('gives the index the anchors the update’s page renders', () => {
+    const twoOrks: CatalogueChangeSet = {
+      factions: [
+        { catalogueId: 'orks', faction: 'Orks', changes: [{ kind: 'datasheet-removed', id: 'lootas', name: 'Lootas' }] },
+        { catalogueId: 'orks-2', faction: 'Orks', changes: [{ kind: 'datasheet-removed', id: 'burnas', name: 'Burna Boyz' }] },
+      ],
+      omitted: 0,
+    }
+
+    expect(
+      updateSummary(twoOrks)
+        .factions.map((faction) => faction.anchor)
+        .toSorted(),
+    ).toEqual([...factionAnchors(twoOrks.factions).values()].toSorted())
   })
 })

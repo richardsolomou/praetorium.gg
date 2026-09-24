@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { type CatalogueChangeSet, catalogueChangeSetSchema, isEmptyChangeSet, type RecordedChangeSet } from './catalogueChanges'
+import { routeSlug } from './slug'
 import { compareText } from './text'
 
 /**
@@ -109,4 +110,50 @@ export function historySince(history: readonly CatalogueHistoryEntry[], after: n
     .filter((entry) => entry.recordedAt > after)
     .slice(-limit)
     .map(({ recordedAt, changes }) => ({ recordedAt, changes }))
+}
+
+/** An update with at most this many changes lists them on the index instead of linking to its page. */
+export const INLINE_UPDATE_CHANGES = 5
+
+/** How many of an update's factions the index names before counting the rest. */
+export const INDEX_FACTIONS = 6
+
+/** Every change an update records, the ones past the change set's bound included. */
+export const changeCount = (changes: CatalogueChangeSet) =>
+  changes.factions.reduce((total, faction) => total + faction.changes.length, 0) + changes.omitted
+
+/**
+ * The fragment each faction's block on an update's page is addressed by: its name as the
+ * page prints it, made URL-safe, with a number after any a second faction already took.
+ * The index links to these and the update's page renders them, so both read this.
+ */
+export function factionAnchors(factions: readonly { catalogueId: string; faction: string }[]) {
+  const taken = new Set<string>()
+  const anchors = new Map<string, string>()
+  for (const { catalogueId, faction } of factions) {
+    const base = routeSlug(faction) || 'faction'
+    let anchor = base
+    for (let copy = 2; taken.has(anchor); copy++) anchor = `${base}-${copy}`
+    taken.add(anchor)
+    anchors.set(catalogueId, anchor)
+  }
+  return anchors
+}
+
+/**
+ * What the index says about one update: its total, the factions it reached most first with
+ * their counts, how many more there were, and whether it is small enough to list whole.
+ */
+export function updateSummary(changes: CatalogueChangeSet) {
+  const anchors = factionAnchors(changes.factions)
+  const factions = changes.factions
+    .map((faction) => ({ faction: faction.faction, anchor: anchors.get(faction.catalogueId)!, count: faction.changes.length }))
+    .toSorted((left, right) => right.count - left.count || compareText(left.faction, right.faction))
+  const total = changeCount(changes)
+  return {
+    total,
+    inline: total <= INLINE_UPDATE_CHANGES,
+    factions: factions.slice(0, INDEX_FACTIONS),
+    more: Math.max(factions.length - INDEX_FACTIONS, 0),
+  }
 }

@@ -67,6 +67,7 @@ describe('native application navigation', () => {
     ['/privacy', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Privacy' }],
     ['/sources', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Data sources' }],
     ['/changes', { back: { href: '/more', label: 'Back to more', preferHistory: true }, title: 'Data updates' }],
+    ['/changes/0123456789abcdef', { back: { href: '/changes', label: 'Back to data updates', preferHistory: true }, title: 'Data update' }],
   ] as const)('maps %s to its stable app destination', (path, expected) => {
     expect(nativeNavigation(path)).toEqual(expected)
   })

@@ -5,11 +5,30 @@ export type ReferenceLink = { kind: 'datasheet' | 'detachment'; faction: string;
 
 export type LinkedChange = CatalogueChange & { link: ReferenceLink | null }
 
-/** One recorded data update as the changes page reads it. */
+/** One recorded data update, whole, as its own page reads it. */
 export type LinkedChangeSet = {
-  /** Unique within a history, where two updates can share a time. */
-  key: string
+  /** The update's address, `/changes/<id>`. */
+  id: string
   recordedAt: number
+  total: number
   omitted: number
-  factions: (Omit<FactionChanges, 'changes'> & { slug: string | null; changes: LinkedChange[] })[]
+  factions: (Omit<FactionChanges, 'changes'> & {
+    /** The fragment its block is addressed by on the update's page. */
+    anchor: string
+    slug: string | null
+    changes: LinkedChange[]
+  })[]
+}
+
+/** One update as the index lists it: a summary, and its changes only when it is small. */
+export type IndexedUpdate = {
+  id: string
+  recordedAt: number
+  total: number
+  inline: boolean
+  /** The factions it reached most, first. */
+  factions: { faction: string; anchor: string; count: number }[]
+  /** How many further factions it reached. */
+  more: number
+  changes: LinkedChangeSet | null
 }

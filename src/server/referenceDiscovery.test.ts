@@ -68,10 +68,26 @@ const { corpus } = vi.hoisted(() => ({
 
 vi.mock('./referenceApi', () => ({ activeReferenceCorpus: () => corpus }))
 
+const { history } = vi.hoisted(() => ({
+  history: {
+    entries: [] as { from: string; revisions: Record<string, string>; recordedAt: number; changes: { factions: []; omitted: number } }[],
+  },
+}))
+vi.mock('./app', () => ({ app: () => ({ catalogueHistory: () => history.entries }) }))
+
+import { updateId } from './catalogueHistory'
 import { referenceLlms, referenceRobots, referenceSitemap } from './referenceDiscovery'
 
 afterEach(() => {
   corpus.revision = 'snapshot-one'
+  history.entries = []
+})
+
+const update = (from: string) => ({
+  from,
+  revisions: { definitions: `${from}-next` },
+  recordedAt: 1,
+  changes: { factions: [] as [], omitted: 1 },
 })
 
 it('lists canonical reference pages in the snapshot sitemap', async () => {
@@ -86,6 +102,26 @@ it('invalidates the sitemap ETag with the snapshot', () => {
   const request = new Request('https://praetorium.gg/sitemap.xml')
   const before = referenceSitemap(request).headers.get('etag')
   corpus.revision = 'snapshot-two'
+
+  expect(referenceSitemap(request).headers.get('etag')).not.toBe(before)
+})
+
+it('lists the data updates the snapshot carries', async () => {
+  history.entries = [update('a')]
+
+  const body = await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml')).text()
+
+  expect([body.includes('/changes</loc>'), body.includes(`/changes/${updateId(update('a'))}</loc>`)]).toEqual([true, true])
+})
+
+it('lists no data updates for a snapshot that carries none', async () => {
+  expect(await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml')).text()).not.toContain('/changes')
+})
+
+it('invalidates the sitemap ETag when the history gains an update', () => {
+  const request = new Request('https://praetorium.gg/sitemap.xml')
+  const before = referenceSitemap(request).headers.get('etag')
+  history.entries = [update('a')]
 
   expect(referenceSitemap(request).headers.get('etag')).not.toBe(before)
 })

@@ -1,6 +1,8 @@
 import type { CatalogueChange, CatalogueChangeSet } from '../core/catalogueChanges'
+import { type CatalogueHistoryEntry, changeCount, factionAnchors, updateSummary } from '../core/catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
-import type { ReferenceLink } from '../contracts/catalogueChanges'
+import type { IndexedUpdate, LinkedChangeSet, ReferenceLink } from '../contracts/catalogueChanges'
+import { updateId } from './catalogueHistory'
 
 type Routes = {
   factions: Map<string, string>
@@ -63,12 +65,36 @@ function linkOf(routes: Routes, catalogueId: string, change: CatalogueChange): R
  */
 export function linkedChanges(changes: CatalogueChangeSet, canonical: CanonicalCatalogue | null) {
   const routes = canonical ? routesOf(canonical) : null
+  const anchors = factionAnchors(changes.factions)
   return {
     omitted: changes.omitted,
     factions: changes.factions.map((faction) => ({
       ...faction,
+      anchor: anchors.get(faction.catalogueId)!,
       slug: routes?.factions.get(faction.catalogueId) ?? null,
       changes: faction.changes.map((change) => ({ ...change, link: routes ? linkOf(routes, faction.catalogueId, change) : null })),
     })),
+  }
+}
+
+/** One update, whole, as its own page and the index's inline rows draw it. */
+export const linkedUpdate = (entry: CatalogueHistoryEntry, canonical: CanonicalCatalogue | null): LinkedChangeSet => ({
+  id: updateId(entry),
+  recordedAt: entry.recordedAt,
+  total: changeCount(entry.changes),
+  ...linkedChanges(entry.changes, canonical),
+})
+
+/**
+ * One update as the index lists it: its summary, and its changes as well only when it is
+ * small enough to list whole, so a large update costs the index a line.
+ */
+export function indexedUpdate(entry: CatalogueHistoryEntry, canonical: CanonicalCatalogue | null): IndexedUpdate {
+  const summary = updateSummary(entry.changes)
+  return {
+    id: updateId(entry),
+    recordedAt: entry.recordedAt,
+    ...summary,
+    changes: summary.inline ? linkedUpdate(entry, canonical) : null,
   }
 }

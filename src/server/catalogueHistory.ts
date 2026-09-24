@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { type CatalogueHistoryEntry, catalogueHistorySchema, historyKey } from '../core/catalogueHistory'
@@ -47,3 +48,14 @@ export function loadCatalogueHistory(directory: string): CatalogueHistoryEntry[]
   }
   return parseCatalogueHistory(fs.readFileSync(file, 'utf8'), file)
 }
+
+/**
+ * An update's address: a short hash of the key that already identifies it, so it is the same
+ * on every instance serving the same history and does not depend on which page lists it.
+ */
+export const updateId = (entry: Pick<CatalogueHistoryEntry, 'from' | 'revisions'>) =>
+  createHash('sha256').update(historyKey(entry)).digest('hex').slice(0, 16)
+
+/** The update an address names, or null when this history holds none by that id. */
+export const historyUpdate = (history: readonly CatalogueHistoryEntry[], id: string) =>
+  history.find((entry) => updateId(entry) === id) ?? null

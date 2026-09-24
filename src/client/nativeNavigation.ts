@@ -103,7 +103,11 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
   if (root === 'privacy') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Privacy' }
   if (root === 'terms') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Terms' }
   if (root === 'sources') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Data sources' }
-  if (root === 'changes') return { back: { href: '/more', label: 'Back to more', preferHistory: true }, title: 'Data updates' }
+  if (root === 'changes') {
+    return id
+      ? { back: { href: '/changes', label: 'Back to data updates', preferHistory: true }, title: 'Data update' }
+      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, title: 'Data updates' }
+  }
   if (root === 'delete-account') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Delete account' }
   if (root) return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Praetorium' }
   return { title: 'Praetorium' }
