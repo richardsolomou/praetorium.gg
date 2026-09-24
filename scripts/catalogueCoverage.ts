@@ -17,7 +17,7 @@ import { detachmentReference } from '../src/server/detachmentReference'
 import { factionsFor } from '../src/server/factionReferences'
 import { calculateRosterPrice } from '../src/server/pricing'
 import { routeSlug } from '../src/core/slug'
-import { compareCatalogueCoverage } from './catalogueCoverageComparison'
+import { compareCatalogueCoverage } from './lib/catalogueCoverageComparison'
 
 process.env.CATALOGUE_DIR ??= path.join(import.meta.dirname, '..', 'catalogue-data')
 process.env.RULES_DIR ??= path.join(process.env.CATALOGUE_DIR, 'rules')

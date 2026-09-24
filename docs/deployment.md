@@ -39,7 +39,7 @@ just db-migrate
 
 ## Catalogue sync
 
-Docker Compose defaults `CATALOGUE_UPDATE_MODE` to `pinned`, so a released application reads the snapshot in `catalogue/lock.json`. Set it to `latest` to check `current.json` hourly, or `off` to use only an installed snapshot. The hosted service follows `latest`. `CATALOGUE_BASE_URL` can point at an operator's mirror and otherwise defaults to Praetorium's shared snapshot service independently of profile-picture storage. A download occurs only when the requested immutable snapshot differs from the local cache; the app verifies the archive, manifest, source inventory, revisions, revocations, and every file before swapping the complete directory into place atomically. Battles remain available while an initial snapshot downloads.
+Docker Compose defaults `CATALOGUE_UPDATE_MODE` to `pinned`, so a released application reads the snapshot in `catalogue/lock.json`. Set it to `latest` to check `current.json` hourly, or `off` to use only an installed snapshot. The hosted service follows `latest`. `CATALOGUE_BASE_URL` can point at an operator's mirror and otherwise defaults to Praetorium's shared snapshot service independently of profile-picture storage. A download occurs only when the requested immutable snapshot differs from the local cache; the app verifies the archive, manifest, source inventory, revisions, revocations, and every file before swapping the complete directory into place atomically. Battles remain available while an initial snapshot downloads. Each snapshot carries the history of what every earlier army-data update changed, so the data-updates page and saved-list warnings need no configuration or storage: a pinned instance shows history up to its pinned snapshot, and a snapshot without that history shows none.
 
 Running instances never contact upstream data providers. A separate hourly publisher resolves their latest revisions, validates a complete candidate, uploads its immutable archive, and replaces `current.json` only after a public read-back succeeds.
 
@@ -50,6 +50,12 @@ Run `just catalogue-bundle` on an internet-connected checkout, copy `catalogue-s
 ### Withdrawal controls
 
 `catalogue/revocations.json` rejects individual snapshot IDs and every snapshot that declares a named source. `CATALOGUE_DISABLED_SOURCES` accepts a comma-separated subset of `definitions`, `points`, `rules`, `datacards`, and `battlemaster`; a snapshot containing one is rejected. The publisher uses the same setting to omit a source from the next snapshot. Removing `definitions` leaves battles available but disables catalogue-backed roster work.
+
+## Push notifications
+
+`EXPO_PUSH_ACCESS_TOKEN` is optional. When it is set, the instance sends mobile push notifications through Expo's push service, which the mobile application uses for Apple and Google delivery. Players then see a notification setting on their profile. Without it, the instance sends nothing, hides that setting, and works the same otherwise. Only devices running an application that points at the instance can register with it, so a self-hosted instance needs its own application build and push credentials.
+
+Postgres stores each device's push token with the account signed in on it. An account keeps at most ten devices. Signing out removes the device, and the instance also removes a device when the push service reports that it is no longer registered. Account deletion removes both the devices and the notification setting.
 
 ## One container, three processes
 
@@ -93,6 +99,6 @@ Upgrades from 0.25.0 or earlier must stop every replica before starting the new 
 
 ## Reverse proxy
 
-The proxy forwards `X-Forwarded-Host` and `X-Forwarded-Proto`. `APP_URL` supplies the public origin when those headers do not describe it correctly and also becomes the canonical origin. Requests for another host redirect there while retaining their path.
+The proxy forwards `X-Forwarded-Host` and `X-Forwarded-Proto`. `APP_URL` supplies the public origin when those headers do not describe it correctly and also becomes the canonical origin. Requests for another host redirect there while retaining their path. The sitemap and the absolute links in link-preview tags use the same origin: `APP_URL`, then the forwarded host and protocol, then the address the request arrived at.
 
 `GET /api/health` is the health-check endpoint and does not redirect to `APP_URL`.

@@ -1,4 +1,4 @@
-import type { OnboardingTarget } from '../onboarding'
+import type { OnboardingTarget } from '../onboardingTargets'
 
 /** One option card. `count` and `detail` are both optional: some choices need neither. */
 export type ChoiceOption<T extends string> = { value: T; name: string; count?: string; detail?: string }

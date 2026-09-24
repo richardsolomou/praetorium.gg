@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from 'react'
+import { ArrowLeftRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { PageContent, PageHeader } from '../../components/Page'
 import { CombatantCard } from './CombatantCard'
 import { CombatMatchup } from './CombatMatchup'
@@ -38,15 +40,34 @@ export function CombatSimulatorMatchup({
   const second = useCombatant(opponentRoster)
   const [reversed, setReversed] = useState(false)
   const [attacker, defender] = reversed ? [second, first] : [first, second]
+  const failed = attacker.price.isError || attacker.sheets.isError || defender.price.isError || defender.sheets.isError
   return (
     <CombatMatchup
       key={`${reversed}:${attacker.identity}:${defender.identity}`}
-      onSwap={() => setReversed((current) => !current)}
       attacker={attacker.snapshot}
       defender={defender.snapshot}
       pending={!attacker.ready || !defender.ready}
-      failed={attacker.price.isError || attacker.sheets.isError || defender.price.isError || defender.sheets.isError}
-      attackerControl={<CombatantCard side="Attacker" combatant={attacker} armyControl={reversed ? secondArmyControl : firstArmyControl} />}
+      failed={failed}
+      attackerControl={
+        <CombatantCard
+          side="Attacker"
+          combatant={attacker}
+          armyControl={reversed ? secondArmyControl : firstArmyControl}
+          headingAction={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-dim"
+              aria-label="Swap attacker and defender"
+              onClick={() => setReversed((current) => !current)}
+              disabled={!attacker.snapshot || !defender.snapshot || !attacker.ready || !defender.ready || failed}
+            >
+              <ArrowLeftRight aria-hidden />
+              Swap
+            </Button>
+          }
+        />
+      }
       defenderControl={<CombatantCard side="Defender" combatant={defender} armyControl={reversed ? firstArmyControl : secondArmyControl} />}
       buffs={
         <section aria-label="Buffs" className="mt-5 border-t border-edge pt-4">

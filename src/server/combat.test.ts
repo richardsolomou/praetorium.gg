@@ -53,7 +53,7 @@ it('simulates the evaluated enhancement and preserves its source through the loa
   const result = simulateCombat({
     weapons: plan.weapons,
     options: DEFAULT_COMBAT_OPTIONS,
-    target: { models: 1, wounds: 10, toughness: 4, save: 3, invulnerable: null, feelNoPain: null },
+    target: { groups: [{ models: 1, wounds: 10, toughness: 4, save: 3, invulnerable: null }], feelNoPain: null },
   })
   expect(Math.abs(result.meanDamage - 4 * (4 / 6) * (3 / 6) * (2 / 6))).toBeLessThan(0.02)
 })

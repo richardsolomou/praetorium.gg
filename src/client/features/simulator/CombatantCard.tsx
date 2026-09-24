@@ -3,22 +3,34 @@ import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { MAX_COMBAT_MODELS } from '../../../core/combat'
-import { FactionLabel } from '../../components/FactionMark'
+import { FactionLabel, FactionMark } from '../../components/FactionMark'
 import { SearchableSelect } from '../../components/SearchableSelect'
-import { factionIndexQuery, unitsQuery } from '../../queries'
-import { Loadout } from '../builder/Loadout'
-import { Stepper } from '../builder/LoadoutControls'
+import { combatUnitsQuery, factionIndexQuery } from '../../queries'
+import { Loadout } from '../rosters/builder/Loadout'
+import { Stepper } from '../../components/Stepper'
 import { CombatSurvivorControls } from './CombatSurvivorControls'
 import type { Combatant } from './useCombatant'
 
-export function CombatantCard({ side, combatant, armyControl }: { side: string; combatant: Combatant; armyControl?: ReactNode }) {
+const unitValue = (catalogueId: string, id: string) => JSON.stringify([catalogueId, id])
+
+export function CombatantCard({
+  side,
+  combatant,
+  armyControl,
+  headingAction,
+}: {
+  side: string
+  combatant: Combatant
+  armyControl?: ReactNode
+  headingAction?: ReactNode
+}) {
   const [open, setOpen] = useState(false)
   const [survivorsOpen, setSurvivorsOpen] = useState(false)
   const factions = useQuery(factionIndexQuery())
-  const units = useQuery({ ...unitsQuery(combatant.faction, ''), enabled: !combatant.roster && Boolean(combatant.faction) })
+  const catalogueUnits = useQuery({ ...combatUnitsQuery(), enabled: !combatant.roster })
   const { unit, picks, edit, ready, pick, pickIndex, battleUnit } = combatant
   const selectedFaction = factions.data?.factions.find((entry) => entry.id === combatant.faction)
-  const failed = factions.isError || units.isError || combatant.price.isError || combatant.sheets.isError
+  const failed = factions.isError || catalogueUnits.isError || combatant.price.isError || combatant.sheets.isError
   const unavailable =
     picks.positioned.length > 0 &&
     ((combatant.price.isSuccess && !unit) || (combatant.sheets.isSuccess && !combatant.sheets.data?.selected))
@@ -32,41 +44,30 @@ export function CombatantCard({ side, combatant, armyControl }: { side: string; 
   const fewer = nextSize(models, -1)
   return (
     <div className="min-w-0 p-3 sm:p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="rubric">{side}</h2>
+      <div className="mb-3 flex min-h-8 items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="rubric">{side}</h2>
+          {headingAction}
+        </div>
         {unit ? <span className="readout text-sm text-info">{unit.points} pts</span> : null}
       </div>
       <div className="space-y-2">
         {armyControl}
         {combatant.roster ? (
-          <div className="flex h-8 min-w-0 items-center gap-2 px-2.5 text-sm text-dim" aria-label={`${side} faction`}>
-            {selectedFaction ? <FactionLabel faction={selectedFaction} /> : 'Loading faction…'}
-            <span className="ml-auto text-xs text-faint">{battleUnit ? 'Battle' : 'Roster'}</span>
-          </div>
-        ) : (
-          <SearchableSelect
-            ariaLabel={`${side} faction`}
-            placeholder="Choose a faction"
-            value={combatant.faction}
-            onValueChange={combatant.selectFaction}
-            groups={[
-              {
-                label: 'Factions',
-                items: (factions.data?.factions ?? []).map((faction) => ({ value: faction.id, label: faction.displayName, faction })),
-              },
-            ]}
-          />
-        )}
-        <SearchableSelect
-          ariaLabel={`${side} unit`}
-          placeholder={units.isFetching ? 'Loading units…' : 'Choose a unit'}
-          value={combatant.roster ? String(pickIndex) : (pick?.entryId ?? '')}
-          onValueChange={combatant.roster ? (index) => combatant.selectRosterUnit(Number(index)) : combatant.selectUnit}
-          groups={[
-            {
-              label: combatant.roster ? 'Roster units' : 'Units',
-              items: combatant.roster
-                ? (combatant.price.data?.units ?? []).flatMap((entry, index) =>
+          <>
+            <div className="flex h-8 min-w-0 items-center gap-2 px-2.5 text-sm text-dim" aria-label={`${side} faction`}>
+              {selectedFaction ? <FactionLabel faction={selectedFaction} /> : 'Loading faction…'}
+              <span className="ml-auto text-xs text-faint">{battleUnit ? 'Battle' : 'Roster'}</span>
+            </div>
+            <SearchableSelect
+              ariaLabel={`${side} unit`}
+              placeholder="Choose a unit"
+              value={String(pickIndex)}
+              onValueChange={(index) => combatant.selectRosterUnit(Number(index))}
+              groups={[
+                {
+                  label: 'Roster units',
+                  items: (combatant.price.data?.units ?? []).flatMap((entry, index) =>
                     combatant.availableUnits && !combatant.availableUnits[index]
                       ? []
                       : [
@@ -75,11 +76,40 @@ export function CombatantCard({ side, combatant, armyControl }: { side: string; 
                             label: `${entry.name}${(combatant.price.data?.units ?? []).filter((candidate) => candidate.entryId === entry.entryId).length > 1 ? ` · ${index + 1}` : ''}`,
                           },
                         ],
-                  )
-                : (units.data ?? []).map((entry) => ({ value: entry.id, label: entry.name })),
-            },
-          ]}
-        />
+                  ),
+                },
+              ]}
+            />
+          </>
+        ) : (
+          <SearchableSelect
+            ariaLabel={`${side} unit`}
+            placeholder={catalogueUnits.isPending ? 'Loading units…' : 'Choose a unit'}
+            searchPlaceholder="Search units…"
+            virtualized
+            value={pick ? unitValue(combatant.faction, pick.entryId) : ''}
+            onValueChange={(value) => {
+              const [catalogueId, id] = JSON.parse(value) as [string, string]
+              combatant.selectUnit(catalogueId, id)
+            }}
+            groups={(catalogueUnits.data ?? []).flatMap((faction) => {
+              const presentation = factions.data?.factions.find((entry) => entry.id === faction.catalogueId)
+              return faction.units.length
+                ? [
+                    {
+                      label: faction.name,
+                      items: faction.units.map((entry) => ({
+                        value: unitValue(faction.catalogueId, entry.id),
+                        label: entry.name,
+                        detail: entry.points === null ? undefined : `${entry.points} pts`,
+                        icon: presentation ? <FactionMark id={presentation.slug} icon={presentation.icon} size="sm" /> : undefined,
+                      })),
+                    },
+                  ]
+                : []
+            })}
+          />
+        )}
       </div>
       <div className="mt-3 flex min-h-8 flex-wrap items-center justify-between gap-3">
         {unit ? (
@@ -151,7 +181,7 @@ export function CombatantCard({ side, combatant, armyControl }: { side: string; 
             size="sm"
             onClick={() => {
               void factions.refetch()
-              if (combatant.faction && !combatant.roster) void units.refetch()
+              if (!combatant.roster) void catalogueUnits.refetch()
               if (picks.positioned.length) void combatant.price.refetch()
               if (unit) void combatant.sheets.refetch()
             }}

@@ -28,7 +28,7 @@ This command checks formatting, lint, documentation, database migrations, catalo
 
 Run `just e2e` for rendered behavior or complete user flows. It builds the production container and runs Playwright. Sync the catalogue before list-building tests.
 
-Use `just test-unit` for a fast loop without database or subprocess-backed tests. Use `just test-integration` for the repository, application service, authentication, and snapshot boundaries. `just check` runs the complete suite.
+Use `just test-unit` for a fast loop without database or subprocess-backed tests. Name tests for repository, application service, authentication, and snapshot boundaries `*.integration.test.ts` and run them with `just test-integration`. `just check` runs the complete suite.
 
 Run `just points` after changes to points or roster legality. The result is a ratchet. A lower match rate is a regression unless the set of generated checks changed and the new baseline is explained.
 

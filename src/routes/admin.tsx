@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { AdminPanel } from '../client/components/AdminPanel'
+import { AdminPanel } from '../client/features/admin/AdminPanel'
 import { meQuery } from '../client/queries'
 
 export const Route = createFileRoute('/admin')({

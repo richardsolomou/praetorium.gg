@@ -20,6 +20,9 @@ This is the release gate for the `gg.praetorium` iOS and Android applications. A
 8. Create an App Store Connect team API key with Admin access. Give the key access to Certificates, Identifiers & Profiles.
 9. Add `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY_BASE64`, and `EXPO_TOKEN` as GitHub Actions secrets. Store the base64-encoded contents of the API key in `APP_STORE_CONNECT_KEY_BASE64`.
 10. Set `ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS` in the production deployment. Keep multiple Android fingerprints comma-separated only during a signing transition.
+11. Enable Push Notifications for the `gg.praetorium` App ID in the developer portal, enable the APNs service on an Apple key, and add that key to the Expo project's iOS push key. Then regenerate the managed provisioning profile with the `aps-environment` entitlement by running `pnpm dlx eas-cli@23.2.0 credentials:configure-build -p ios -e production` from `mobile/`, authenticated with the App Store Connect API key through `EXPO_ASC_API_KEY_PATH`, `EXPO_ASC_KEY_ID`, `EXPO_ASC_ISSUER_ID`, `EXPO_APPLE_TEAM_ID` and `EXPO_APPLE_TEAM_TYPE`, because Apple ID sign-in fails when the only second factor is a security key. Set `EXPO_NO_CAPABILITY_SYNC=1` as well: the app's generated entitlements omit Sign in with Apple, which the web flow handles, so capability sync tries to switch it off and Apple rejects the request. The GitHub workflow freezes credentials, so it cannot add the capability itself. Complete this step before a build that contains `expo-notifications` reaches `main`.
+12. Turn on Expo's enhanced push security for the project, create an Expo robot access token with the Viewer role, and set it as `EXPO_PUSH_ACCESS_TOKEN` in the production deployment. Without enhanced security, anyone who knows a device's token can send it a notification.
+13. Before enabling Android delivery, add the Firebase project's `google-services.json` as `android.googleServicesFile` in `mobile/app.json` and upload its FCM V1 service-account key to the Expo project.
 
 ## Build and upload
 
@@ -134,6 +137,7 @@ Complete this matrix on the exact TestFlight and Play internal-testing builds:
 - Disable the network during a read and a mutation, restore it, retry, and confirm that no command appears twice.
 - Open internal and external links, share roster and league links, print a roster, upload a profile picture, copy an export, verify the Android system Back action, and confirm that iOS cannot swipe into an empty WebView document.
 - Confirm that the screen stays awake only while a seated battle is open and that a successful battle command gives one light haptic response.
+- Allow notifications from Profile, then have a second account create a battle, send and accept a friend request, and accept, reveal, and unseal a league entry. Confirm that each notice arrives once, that the acting account receives nothing, and that tapping each one from a cold start and a warm start opens its page. Turn the setting off and confirm that nothing arrives. Sign out and confirm that nothing arrives.
 - Check phone and tablet safe areas, software keyboards, portrait orientation, text scaling, VoiceOver, TalkBack, contrast, and touch targets.
 - Run the current web deployment against the oldest supported installed shell and the release shell against the deployed web application.
 

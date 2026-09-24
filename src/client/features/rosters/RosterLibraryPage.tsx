@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -14,21 +14,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { CreateRoster } from '../../components/CreateRoster'
+import { CreateRoster } from './CreateRoster'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
-import { RosterExportDialog } from '../../components/RosterExportDialog'
-import { RosterImport } from '../../components/RosterImport'
-import { RosterSetupDialog, type RosterSetup } from '../../components/RosterSetupDialog'
+import { RosterExportDialog } from './RosterExportDialog'
+import { RosterImport } from './RosterImport'
+import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { SignInRequired } from '../../components/SignInRequired'
-import { factionSelectGroups } from '../builder/factions'
+import { factionSelectGroups } from './builder/factions'
 import { RosterFilters } from './RosterFilters'
 import { RosterRow } from './RosterRow'
 import { type SavedRoster, useRosterActions } from './rosterLibrary'
 import { type RosterSort, sortRosters } from './rosterSort'
-import { readWorkspaceState, writeWorkspaceState } from '../../components/workspaceState'
+import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import { factionIndexQuery, meQuery, savedRosterSummariesQuery, savedRosterTotalsQuery } from '../../queries'
+import { factionIndexQuery, meQuery, savedRosterStatusQuery, savedRosterSummariesQuery, savedRosterTotalsQuery } from '../../queries'
 import { useOrigin } from '../../useOrigin'
 import type { RosterVisibility } from '../../../core/savedRoster'
 
@@ -43,6 +43,7 @@ export function RosterLibraryPage({ search }: { search: RosterLibrarySearch }) {
   const { data: me } = useQuery(meQuery())
   const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
   const totalsResult = useQuery({ ...savedRosterTotalsQuery(), enabled: Boolean(me) })
+  const statusResult = useQuery({ ...savedRosterStatusQuery(), enabled: Boolean(me) })
   const availableResult = useQuery({ ...factionIndexQuery(), enabled: Boolean(me) })
   const saved = savedResult.data ?? []
   const totals = totalsResult.data
@@ -68,6 +69,8 @@ export function RosterLibraryPage({ search }: { search: RosterLibrarySearch }) {
   const libraryError = savedResult.isError || (Boolean(search.faction) && availableResult.isError)
 
   const totalsById = new Map((totals ?? []).map((entry) => [entry.id, entry]))
+  const statusById = new Map((statusResult.data ?? []).map((entry) => [entry.id, entry]))
+  const changedLists = (statusResult.data ?? []).filter((entry) => entry.changes > 0).length
 
   const origin = useOrigin()
   const actions = useRosterActions(origin)
@@ -119,8 +122,13 @@ export function RosterLibraryPage({ search }: { search: RosterLibrarySearch }) {
         {actions.shareProblem ? <p className="text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}
 
         <section>
-          <div className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-            <span>Rosters</span>
+          <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
+            <span className="mr-auto">Rosters</span>
+            {changedLists ? (
+              <Link to="/data-updates" className="text-xs font-semibold tracking-normal text-discarded normal-case hover:text-bone">
+                {changedLists} {changedLists === 1 ? 'list' : 'lists'} changed by a data update
+              </Link>
+            ) : null}
             {libraryPending ? (
               <Skeleton className="h-4 w-5" aria-label="Loading roster count" />
             ) : libraryError ? (
@@ -158,6 +166,7 @@ export function RosterLibraryPage({ search }: { search: RosterLibrarySearch }) {
                   label={totalsById.get(roster.id)?.label}
                   factionLoading={availableResult.isPending}
                   pointsLoading={totalsResult.isPending}
+                  problem={statusById.get(roster.id)?.problem ?? null}
                   actions={actions}
                   origin={origin}
                   onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}

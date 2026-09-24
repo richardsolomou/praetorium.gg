@@ -1,10 +1,10 @@
 import { Link } from '@tanstack/react-router'
 import type { BattleView } from '../../../core/battleView'
 import { battleResult } from '../../battleOutcome'
-import { completedSideRound } from '../../battleProgress'
+import { completedSideRound } from './battleProgress'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { sideName, type Side } from '../../sides'
-import { tint } from './tints'
+import { tint } from './battleTints'
 
 type Props = { view: BattleView; sides: Side[]; outcome: string | null }
 

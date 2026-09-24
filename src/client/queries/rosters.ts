@@ -3,7 +3,6 @@ import type { FormatRuleId, OptionalRuleId } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import {
   collection,
-  combatantDatasheet,
   datasheet,
   factionDatasheets,
   loadoutDatasheets,
@@ -16,6 +15,7 @@ import {
   sharedRoster,
   units,
 } from '../../server/functions'
+import { savedRosterStatusQuery } from './changes'
 import { SSR_STALE_TIME } from './shared'
 
 export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })
@@ -83,24 +83,6 @@ export const loadoutDatasheetsQuery = (
     staleTime: Infinity,
   })
 
-export const combatantDatasheetQuery = (
-  catalogueId: string,
-  entryId: string,
-  detachmentIds: readonly string[],
-  picks: readonly RosterPick[],
-  pickIndex: number,
-  inactivePicks: readonly number[] = [],
-) =>
-  queryOptions({
-    queryKey: ['combatant-datasheet', catalogueId, entryId, detachmentIds, picks, pickIndex, inactivePicks],
-    queryFn: () =>
-      combatantDatasheet({
-        data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex, inactivePicks: [...inactivePicks] },
-      }),
-    enabled: Boolean(catalogueId && entryId),
-    staleTime: Infinity,
-  })
-
 export const priceQuery = (
   catalogueId: string,
   detachmentIds: readonly string[],
@@ -157,6 +139,8 @@ export function invalidateSavedRosters(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: ['roster-access'] }),
     queryClient.invalidateQueries({ queryKey: savedRosterSummariesQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: savedRosterTotalsQuery().queryKey }),
+    queryClient.invalidateQueries({ queryKey: savedRosterStatusQuery().queryKey }),
+    queryClient.invalidateQueries({ queryKey: ['roster-changes'] }),
   ])
 }
 

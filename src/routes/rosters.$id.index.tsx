@@ -1,11 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import { useEffect } from 'react'
-import { fieldedRoster } from '../client/battleRosterSnapshot'
-import { BattleRosterSnapshot } from '../client/components/BattleRosterSnapshot'
-import { RosterEditor } from '../client/components/RosterEditor'
-import { battleQuery, leagueRosterQuery, rosterAccessQuery, savedRosterPriceQuery } from '../client/queries'
-import { normalisePicks } from '../client/rosterPicks'
+import { fieldedRoster } from '../client/features/rosters/fieldedRoster'
+import { RosterPage } from '../client/features/rosters/RosterPage'
+import { battleQuery, leagueRosterQuery, rosterAccessQuery, rosterChangesQuery, savedRosterPriceQuery } from '../client/queries'
+import { pageMeta, rosterExposure, rosterPreview } from '../client/linkPreview'
+import { normalisePicks } from '../client/features/rosters/rosterPicks'
 import { rosterBootstrap } from '../server/functions'
 
 export const Route = createFileRoute('/rosters/$id/')({
@@ -32,9 +30,10 @@ export const Route = createFileRoute('/rosters/$id/')({
     }
     const bootstrap = await rosterBootstrap({ data: { id: params.id, ...(deps.battle ? { battle: deps.battle } : {}) } })
     if (!bootstrap) throw notFound()
-    const { roster, editable, faction, price } = bootstrap
+    const { roster, editable, faction, price, changes } = bootstrap
     const access = { roster, editable, faction }
     context.queryClient.setQueryData(rosterAccessQuery(params.id, deps.battle).queryKey, access)
+    context.queryClient.setQueryData(rosterChangesQuery(params.id).queryKey, changes)
     const priced = savedRosterPriceQuery(
       roster.id,
       roster.catalogueId,
@@ -48,32 +47,40 @@ export const Route = createFileRoute('/rosters/$id/')({
       roster.optionalRules,
     )
     context.queryClient.setQueryData(priced.queryKey, price)
-    return { editable, snapshot: false }
+    return { editable, snapshot: false, preview: rosterPreview(roster, faction, price), exposure: rosterExposure(roster.visibility) }
   },
-  component: RosterPage,
+  head: ({ loaderData, match, params }) => {
+    const preview = loaderData?.preview
+    const exposure = loaderData?.exposure
+    if (!preview || !exposure) return {}
+    const path = `/rosters/${params.id}`
+    return {
+      meta: pageMeta(match.context.origin, {
+        title: preview.title,
+        description: preview.description,
+        path,
+        ...(exposure.image ? { image: { path: `/api/previews${path}`, alt: preview.title } } : {}),
+        noindex: exposure.noindex,
+      }),
+    }
+  },
+  component: RosterRoute,
 })
 
-function RosterPage() {
+function RosterRoute() {
   const { id } = Route.useParams()
   const { battle, league, event, print } = Route.useSearch()
   const { editable, snapshot, league: leagueSnapshot } = Route.useLoaderData()
-  const { data: screen } = useQuery({ ...battleQuery(battle ?? ''), enabled: snapshot && Boolean(battle) })
-  const { data: sealed } = useQuery({
-    ...leagueRosterQuery(league ?? '', event ?? '', id),
-    enabled: Boolean(leagueSnapshot && league),
-  })
-  const { data: access } = useQuery({ ...rosterAccessQuery(id, battle), enabled: !snapshot })
-  const roster = access?.roster
-
-  useEffect(() => {
-    if (print) window.print()
-  }, [print])
-
-  if (leagueSnapshot) return sealed ? <BattleRosterSnapshot roster={sealed} /> : null
-  if (snapshot && battle && screen && screen.kind !== 'unavailable') {
-    const fielded = fieldedRoster(screen.view, id)
-    return fielded ? <BattleRosterSnapshot roster={fielded} /> : null
-  }
-  if (!roster) return null
-  return <RosterEditor roster={roster} faction={access.faction} editable={editable} battle={battle} />
+  return (
+    <RosterPage
+      id={id}
+      battle={battle}
+      league={league}
+      event={event}
+      print={print}
+      editable={editable}
+      snapshot={snapshot}
+      leagueSnapshot={leagueSnapshot}
+    />
+  )
 }

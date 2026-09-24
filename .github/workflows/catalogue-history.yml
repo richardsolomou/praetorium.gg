@@ -1,0 +1,45 @@
+name: Catalogue history seed
+
+# Builds the data-update history from scratch: every published snapshot compared with
+# the one before it, and the sources' own history replayed a day at a time before
+# publishing began. The publisher reads this seed only when the snapshot it follows
+# carries no history of its own — the first publish after this runs, or one after a
+# snapshot that lost it — so it runs by hand and rarely.
+on:
+  workflow_dispatch:
+
+# Shares the publisher's group, so the snapshot this seed asks for queues until it is up.
+concurrency:
+  group: catalogue-update
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ github.token }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: us-east-1
+      SNAPSHOT_BUCKET: ${{ vars.S3_BUCKET }}
+      SNAPSHOT_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+      CATALOGUE_BASE_URL: ${{ vars.S3_PUBLIC_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Build the history seed
+        run: pnpm catalogue:history-seed --out /tmp/catalogue-history-seed.json
+      - name: Publish the seed
+        run: |
+          test -n "$SNAPSHOT_BUCKET"
+          test -n "$SNAPSHOT_ENDPOINT"
+          aws s3 cp /tmp/catalogue-history-seed.json "s3://$SNAPSHOT_BUCKET/changes/seed.json" \
+            --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
+      # A dispatch is the one event a workflow token may start another workflow with.
+      - name: Publish a snapshot that carries it
+        run: gh workflow run catalogue-update.yml --ref "$GITHUB_REF_NAME"

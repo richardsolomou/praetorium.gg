@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto'
+import { publicOrigin } from './requestOrigin'
 import { activeReferenceCorpus } from './referenceApi'
+import { app } from './app'
+import { updateId } from './catalogueHistory'
 
 export function referenceSitemap(request: Request) {
   const corpus = activeReferenceCorpus()
@@ -19,11 +22,15 @@ export function referenceSitemap(request: Request) {
     paths.add(`/rules/${document.slug}`)
     for (const section of document.sections) paths.add(`/rules/${document.slug}/${section.slug}`)
   }
+  // The history rides in the snapshot but is not part of the corpus revision, so the updates
+  // it carries are part of the cache key.
+  const updates = (app().catalogueHistory() ?? []).map(updateId)
+  if (updates.length) paths.add('/data-updates')
   const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...paths]
     .toSorted()
     .map((path) => `  <url><loc>${xml(`${origin}${path}`)}</loc></url>`)
     .join('\n')}\n</urlset>\n`
-  return cachedText(request, corpus.revision, 'sitemap', body, 'application/xml; charset=utf-8')
+  return cachedText(request, corpus.revision, `sitemap\0${updates.join(',')}`, body, 'application/xml; charset=utf-8')
 }
 
 export function referenceRobots(request: Request) {
@@ -78,10 +85,6 @@ function cachedText(request: Request, revision: string, key: string, body: strin
   const etag = `"${createHash('sha256').update(`${revision}\0${key}`).digest('hex')}"`
   const headers = { 'Cache-Control': 'public, max-age=3600', 'Content-Type': contentType, ETag: etag }
   return request.headers.get('if-none-match') === etag ? new Response(null, { status: 304, headers }) : new Response(body, { headers })
-}
-
-function publicOrigin(request: Request) {
-  return (process.env.APP_URL?.trim() || new URL(request.url).origin).replace(/\/$/, '')
 }
 
 const xml = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')

@@ -23,9 +23,13 @@ import { realtimeConfig } from '../adapters/realtime'
 import { openValkey, type ValkeyClient, valkeySecondaryStorage, valkeyUrl } from '../adapters/valkey'
 import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
+import { pushSenderFromEnvironment } from '../adapters/push'
+import { pushNotifier, silentNotifier } from './pushNotifier'
 import { prepareGlobalSearch } from './globalSearch'
-import { compileCanonicalCatalogueFromSnapshot, loadCanonicalCatalogue } from './canonicalCatalogue'
+import { referenceCatalogue } from './canonicalCatalogue'
+import { loadCatalogueHistory } from './catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
+import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 
 type App = {
   database: PraetoriumDatabase
@@ -39,10 +43,14 @@ type App = {
   canonicalCatalogue: () => CanonicalCatalogue | null
   /** Stratagems and mission cards, null when that source has not been synced. */
   rules: () => LoadedRules | null
+  /** What each army-data update changed, as the snapshot carries it; null when it carries none. */
+  catalogueHistory: () => CatalogueHistoryEntry[] | null
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
   auth: ReturnType<typeof createAuth>
   email: ReturnType<typeof emailDelivery>
+  /** Whether this instance sends push notifications; nothing else depends on it. */
+  push: boolean
   telemetry: ReturnType<typeof serverTelemetry>
   /** Resolves after installed catalogue data has paid its one-time preparation cost. */
   ready: () => Promise<void>
@@ -125,10 +133,7 @@ export function warm(instance: Pick<App, 'catalogue' | 'canonicalCatalogue' | 'r
 }
 
 function canonicalCatalogue(instance: Pick<App, 'catalogue' | 'rules'>, directory: string) {
-  const packaged = loadCanonicalCatalogue(directory)
-  if (packaged) return packaged
-  const loaded = instance.catalogue()
-  return loaded ? compileCanonicalCatalogueFromSnapshot(loaded, instance.rules(), directory) : null
+  return referenceCatalogue(directory, instance.catalogue, instance.rules)
 }
 
 export function app(): App {
@@ -144,48 +149,48 @@ export function app(): App {
     if (!realtime) throw new Error('Realtime secret is not configured')
     const events = new RealtimePublisher(realtime.apiUrl, realtime.apiKey)
     const email = emailDelivery()
+    const repository = new Repository(database)
+    const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     let ready = Promise.resolve()
-    const instance: App = {
-      database,
-      valkey: cache,
-      service: new PraetoriumService(new Repository(database), Date.now, events, randomInt),
-      events,
-      auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email),
-      email,
+    const loaders = () => ({
       catalogue: memoize(loadCatalogue),
-      canonicalCatalogue: memoize(() => canonicalCatalogue(instance, catalogueDataDirectory)),
+      canonical: memoize(() => canonicalCatalogue(instance, catalogueDataDirectory)),
       rules: memoize(() => {
         const catalogue = instance.catalogue()
         return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
       }),
+      history: memoize(() => loadCatalogueHistory(catalogueDataDirectory)),
+    })
+    const loaded = loaders()
+    const instance: App = {
+      database,
+      valkey: cache,
+      service: new PraetoriumService(repository, Date.now, events, randomInt, push ? pushNotifier(repository, push) : silentNotifier),
+      events,
+      auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email),
+      email,
+      catalogue: loaded.catalogue,
+      canonicalCatalogue: loaded.canonical,
+      rules: loaded.rules,
+      catalogueHistory: loaded.history,
+      push: Boolean(push),
       sync: () => sync.state,
       telemetry,
       ready: () => ready,
     }
+    // Everything read from the snapshot is read again from the one now on disk.
+    const swap = () => {
+      const next = loaders()
+      instance.catalogue = next.catalogue
+      instance.canonicalCatalogue = next.canonical
+      instance.rules = next.rules
+      instance.catalogueHistory = next.history
+      ready = warm(instance)
+    }
     // Fetched in the background rather than at boot: an instance must start and
     // serve battles whether or not it has the catalogues yet.
-    sync.begin(catalogueDataDirectory, () => {
-      instance.catalogue = memoize(loadCatalogue)
-      instance.canonicalCatalogue = memoize(() => canonicalCatalogue(instance, catalogueDataDirectory))
-      instance.rules = memoize(() => {
-        const catalogue = instance.catalogue()
-        return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
-      })
-      ready = warm(instance)
-    })
-    const catalogueRefresh = setInterval(
-      () =>
-        sync.begin(catalogueDataDirectory, () => {
-          instance.catalogue = memoize(loadCatalogue)
-          instance.canonicalCatalogue = memoize(() => canonicalCatalogue(instance, catalogueDataDirectory))
-          instance.rules = memoize(() => {
-            const catalogue = instance.catalogue()
-            return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
-          })
-          ready = warm(instance)
-        }),
-      60 * 60 * 1000,
-    )
+    sync.begin(catalogueDataDirectory, swap)
+    const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap), 60 * 60 * 1000)
     catalogueRefresh.unref()
     if (sync.state.status === 'ready') ready = warm(instance)
     return instance

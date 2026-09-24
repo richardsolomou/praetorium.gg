@@ -1,0 +1,194 @@
+import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import { MapPinned } from 'lucide-react'
+import { Dialog, DialogTrigger } from '@/components/ui/dialog'
+import { MissionActions } from '../../../components/MissionActions'
+import { MissionCardReference } from '../../../components/MissionCardReference'
+import { TerrainBoard } from './TerrainBoard'
+import { TerrainLayoutDialogContent } from './TerrainLayoutDialogContent'
+import { PageState } from '../../../components/PageState'
+import { type TerrainGeometry, type TerrainPiece, type TerrainTemplate } from './terrainGeometry'
+import { dispositionTone } from '../../../components/rosterSetup'
+import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../../../queries'
+import { PageContent, PageHeader } from '../../../components/Page'
+
+export function MissionMatchupPage({ packId, you, opponent }: { packId: string; you: string; opponent: string }) {
+  const { data } = useQuery(gameReferencesQuery())
+  const terrainQuery = useQuery(terrainReferencesQuery(terrainMatchupIds([you, opponent])))
+  const terrain = terrainQuery.data
+  const pack = data?.packs.find((entry) => entry.id === packId)
+  const yours = pack?.missions.find((mission) => mission.matchups.some((pair) => pair[0]?.id === you && pair[1]?.id === opponent))
+  const theirs = pack?.missions.find((mission) => mission.matchups.some((pair) => pair[0]?.id === opponent && pair[1]?.id === you))
+  const yourDisposition = data?.dispositions.find((entry) => entry.id === you)
+  const opponentDisposition = data?.dispositions.find((entry) => entry.id === opponent)
+  const layouts = terrain?.layouts ?? []
+  if (!data || !pack || !yours || !theirs || !yourDisposition || !opponentDisposition) return null
+  // Each side keeps its own column, in the order the two missions are drawn above:
+  // a matchup's two missions can ask for the same action, and an action shown under
+  // the wrong side is worse than one a player has to look across the page for.
+  const sides = [
+    { seat: 'yours', mission: yours, disposition: yourDisposition },
+    { seat: 'theirs', mission: theirs, disposition: opponentDisposition },
+  ].map((side) => ({ ...side, actions: side.mission.card?.actions ?? [] }))
+
+  return (
+    <main className="w-full">
+      <PageHeader eyebrow="Mission matchup" title={`${yourDisposition.name} vs ${opponentDisposition.name}`} />
+      <PageContent>
+        <Link to="/mission-packs/$packId" params={{ packId }} className="eyebrow text-info">
+          {pack.name}
+        </Link>
+        <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 border border-edge bg-sunken p-3">
+          <div className={`grid min-h-14 place-items-center border px-3 text-center font-bold uppercase ${dispositionTone(you, true)}`}>
+            {yourDisposition.name}
+          </div>
+          <span className="grid place-items-center text-sm font-bold text-dim">VS</span>
+          <div
+            className={`grid min-h-14 place-items-center border px-3 text-center font-bold uppercase ${dispositionTone(opponent, true)}`}
+          >
+            {opponentDisposition.name}
+          </div>
+        </div>
+
+        <section data-onboarding="matchup-primary" className="mt-7">
+          <h2 className="rubric border-b border-edge pb-2">Primary missions</h2>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div id={`mission-${yours.id}`} className="scroll-mt-16 border border-edge bg-panel p-4">
+              <h3 className="text-xl">{yours.name}</h3>
+              {yours.card ? <MissionCardReference card={yours.card} type={yourDisposition.name} /> : null}
+            </div>
+            <div id={`mission-${theirs.id}`} className="scroll-mt-16 border border-edge bg-panel p-4">
+              <h3 className="text-xl">{theirs.name}</h3>
+              {theirs.card ? <MissionCardReference card={theirs.card} type={opponentDisposition.name} /> : null}
+            </div>
+          </div>
+        </section>
+
+        {sides.some((side) => side.actions.length) ? (
+          <section data-onboarding="matchup-actions" className="mt-7">
+            <h2 className="rubric flex justify-between border-b border-edge pb-2">
+              <span>Actions</span>
+              <span className="readout">{sides.reduce((total, side) => total + side.actions.length, 0)}</span>
+            </h2>
+            <div className="mt-3 grid items-start gap-3 md:grid-cols-2">
+              {sides.map((side) => (
+                <div key={side.seat} className="border border-edge bg-panel p-4">
+                  <span className="chip">{side.disposition.name}</span>
+                  {side.actions.length ? (
+                    <MissionActions actions={side.actions} className="mt-4" />
+                  ) : (
+                    <p className="mt-4 text-sm text-dim">{side.mission.name} asks for no action.</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <section data-onboarding="matchup-terrain" className="mt-7">
+          <h2 className="rubric flex justify-between border-b border-edge pb-2">
+            <span>Terrain layouts</span>
+            <span className="readout" aria-label={terrainQuery.isPending ? 'Loading terrain layout count' : undefined}>
+              {terrainQuery.isPending ? '…' : terrainQuery.isError ? '—' : layouts.length}
+            </span>
+          </h2>
+          {terrainQuery.isPending ? (
+            <PageState
+              className="mt-3 min-h-64"
+              headingLevel={2}
+              loading
+              eyebrow="Terrain layouts"
+              title="Loading terrain layouts"
+              explanation="Layouts for this mission will be available shortly."
+              icon={MapPinned}
+            />
+          ) : terrainQuery.isError ? (
+            <PageState
+              className="mt-3 min-h-64"
+              headingLevel={2}
+              eyebrow="Terrain layouts"
+              title="Terrain layouts unavailable"
+              explanation="The layouts could not be loaded. Try again shortly."
+              icon={MapPinned}
+            />
+          ) : layouts.length ? (
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              {layouts.map((layout, index) => (
+                <TerrainLayout
+                  key={layout.id}
+                  layout={layout}
+                  deployment={data.deployments.find((entry) => entry.id === layout.deploymentId)}
+                  templates={terrain?.templates ?? []}
+                  label={String.fromCharCode(65 + index)}
+                />
+              ))}
+            </div>
+          ) : (
+            <PageState
+              className="mt-3"
+              headingLevel={2}
+              eyebrow="Terrain layouts"
+              title="No layouts available"
+              explanation="No terrain layout is available for this matchup."
+              icon={MapPinned}
+            />
+          )}
+        </section>
+        <p className="mt-6 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
+      </PageContent>
+    </main>
+  )
+}
+
+function TerrainLayout({
+  layout,
+  deployment,
+  templates,
+  label,
+}: {
+  layout: {
+    id: string
+    name: string
+    description: string | null
+    pieces: TerrainPiece[]
+    geometry: TerrainGeometry | null
+  }
+  templates: TerrainTemplate[]
+  deployment?: {
+    id: string
+    name: string
+    zones: { player: string; name: string; colour: string; points: { x: number; y: number }[] }[]
+    objectives: { x: number; y: number }[]
+  }
+  label: string
+}) {
+  const description = deployment?.name ?? layout.description ?? layout.name
+
+  return (
+    <div id={`terrain-${layout.id}`} className="scroll-mt-16">
+      {deployment ? <span id={`deployment-${deployment.id}`} className="block scroll-mt-16" /> : null}
+      <Dialog>
+        <DialogTrigger
+          render={
+            <button
+              type="button"
+              className="group border border-edge bg-panel p-3 text-left transition-colors hover:border-info focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info"
+              aria-label={`Enlarge terrain layout ${label}: ${description}`}
+            />
+          }
+        >
+          <span className="block text-center text-lg font-bold">{label}</span>
+          <TerrainBoard layout={layout} deployment={deployment} templates={templates} className="mt-2 w-full" />
+          <span className="mt-2 block text-xs text-dim group-hover:text-bone">{description}</span>
+        </DialogTrigger>
+        <TerrainLayoutDialogContent
+          title={`Layout ${label} · ${layout.name}`}
+          description={description}
+          layout={layout}
+          deployment={deployment}
+          templates={templates}
+        />
+      </Dialog>
+    </div>
+  )
+}

@@ -1,5 +1,5 @@
 import { Label } from '@/components/ui/label'
-import type { OnboardingTarget } from '../onboarding'
+import type { OnboardingTarget } from '../onboardingTargets'
 import type { Seat } from '../seats'
 import { PlayerAvatar } from './PlayerAvatar'
 import { SearchableSelect, type SearchableGroup, type SearchableOption } from './SearchableSelect'

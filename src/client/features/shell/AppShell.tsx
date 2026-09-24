@@ -9,11 +9,12 @@ import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog
 import { useEffect, useRef, useState } from 'react'
 import { POSTHOG_BROWSER_OPTIONS } from '../../../posthog'
 import { authClient } from '../../authClient'
-import { Account } from '../../components/Account'
-import { GlobalSearch, GlobalSearchProvider } from '../../components/GlobalSearch'
-import { ImpersonationBanner } from '../../components/ImpersonationBanner'
-import { NativeAppNavigation } from '../../components/NativeAppNavigation'
-import { OnboardingGuide } from '../../components/OnboardingGuide'
+import { Account } from './Account'
+import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
+import { ImpersonationBanner } from './ImpersonationBanner'
+import { NativeAppNavigation } from './NativeAppNavigation'
+import { NativePushRegistration } from './NativePushRegistration'
+import { OnboardingGuide } from '../onboarding/OnboardingGuide'
 import { meQuery } from '../../queries'
 // A local dev server shares the production project token, so gate the browser
 // SDK on a built bundle to keep localhost sessions out of the production project.
@@ -205,6 +206,7 @@ export function AppShell() {
                 />
                 <OnboardingGuide />
                 <Impersonation />
+                <NativePushRegistration />
                 {/*
                  * Said plainly and on every page, because the name is drawn from Games
                  * Workshop's setting and nothing about this is theirs or endorsed by them.
@@ -229,6 +231,9 @@ export function AppShell() {
                       </Link>
                       <Link to="/sources" className="transition-colors hover:text-bone">
                         Data sources
+                      </Link>
+                      <Link to="/data-updates" className="transition-colors hover:text-bone">
+                        Data updates
                       </Link>
                     </p>
                   </footer>

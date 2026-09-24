@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest'
 import { app } from './app'
-import { rosterForUse, rosterUseError } from './rosterUsage'
+import { rosterForUse, rosterUseError, rosterUseProblem } from './rosterUsage'
 
 vi.mock('./app', () => ({ app: vi.fn() }))
 
@@ -24,6 +24,14 @@ it('rejects catalogue legality errors', () => {
 
 it('rejects rosters over their points limit', () => {
   expect(rosterUseError({ ...priced, points: 2_005 }, 2_000)).toBe('roster has 2005 points, over its 2000-point limit')
+})
+
+it('names a list over its points limit as over the limit, before any other problem', () => {
+  expect(rosterUseProblem({ ...priced, points: 2_005, detachmentError: 'Too many detachment points.' }, 2_000)?.kind).toBe('over-limit')
+})
+
+it('names a list within its limit that breaks a rule as not legal', () => {
+  expect(rosterUseProblem({ ...priced, detachmentError: 'Too many detachment points.' }, 2_000)?.kind).toBe('not-legal')
 })
 
 it('rejects rosters without a valid force disposition', () => {

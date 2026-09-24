@@ -21,7 +21,9 @@ import {
   userOnboarding,
   userOnboardingTasks,
 } from '../schema'
-import type { UnlinkAccountResult } from '../repository'
+export type UnlinkAccountResult =
+  | { status: 'removed'; account: { accessToken: string | null; refreshToken: string | null } }
+  | { status: 'missing' | 'two-factor' | 'last-method' }
 
 const ADMIN_USERS_PAGE_SIZE = 50
 const PLAYER_SEARCH_LIMIT = 20
@@ -406,7 +408,7 @@ export class AccountRepository {
         await tx.insert(friendships).values({ requesterId: invite.inviterId, addresseeId: recipientId, requestedAt: now, acceptedAt: now })
       }
       await tx.delete(friendInvites).where(eq(friendInvites.token, token))
-      return 'accepted' as const
+      return { inviterId: invite.inviterId }
     })
   }
 }

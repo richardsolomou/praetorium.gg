@@ -7,8 +7,8 @@ import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatRuleChoices, combatRuleDefault } from '../../../core/combatRules'
 import { combatantDatasheetQuery, priceQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
-import { survivingUnits } from '../builder/pricePlaceholder'
-import { pickEditor, usePicks } from '../builder/usePicks'
+import { survivingUnits } from '../rosters/builder/pricePlaceholder'
+import { pickEditor, usePicks } from '../rosters/builder/usePicks'
 
 export type CombatRoster = {
   catalogueId: string
@@ -138,14 +138,10 @@ export function useCombatant(roster?: CombatRoster) {
         : null,
     edit: pickEditor(picks.setPicks, { catalogueId, units: price.data?.units ?? [] }, picks.allocateKey),
     selectRosterUnit,
-    selectFaction: (id: string) => {
-      setCatalogueId(id)
+    selectUnit: (catalogue: string, id: string) => {
+      setCatalogueId(catalogue)
       setSelectedRules({})
-      picks.setPicks([])
-    },
-    selectUnit: (id: string) => {
-      setSelectedRules({})
-      picks.setPicks([{ entryId: id, catalogueId: faction, key: picks.allocateKey() }])
+      picks.setPicks([{ entryId: id, catalogueId: catalogue, key: picks.allocateKey() }])
     },
   }
 }

@@ -115,6 +115,28 @@ export const units = createServerFn({ method: 'GET' })
     }),
   )
 
+/** Every faction's own units, so one search can pick a unit without first picking its faction. */
+export const combatUnits = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() => {
+    cacheUntilSnapshotChanges()
+    const loaded = app().catalogue()
+    if (!loaded) return []
+    const rules = app().rules()
+    const { factions } = factionIndexFor(loaded, rules)
+    // An allied datasheet is listed under its own faction when that faction has a book; otherwise only its host offers it.
+    const books = new Set(factions.map((book) => book.displayName))
+    return factions.map((book) => ({
+      catalogueId: book.id,
+      name: book.displayName,
+      units: unitsIn(loaded, book.id, '', { restrictions: rules?.factionRestrictions.get(routeSlug(book.displayName)) }).flatMap((unit) =>
+        unit.alliedFaction && books.has(factionDisplayName(unit.alliedFaction, rules?.factionNames))
+          ? []
+          : [{ id: unit.id, name: unit.name, points: unit.points }],
+      ),
+    }))
+  }),
+)
+
 export const factionDatasheets = createServerFn({ method: 'GET' })
   .validator(unitsSchema)
   .handler(({ data }) =>

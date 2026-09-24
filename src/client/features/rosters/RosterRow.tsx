@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
-import { RosterSummary, type RosterSummaryFaction, rosterTitle } from './RosterSummary'
+import { type RosterProblem, RosterSummary, type RosterSummaryFaction, rosterTitle } from './RosterSummary'
 
 /**
  * One saved list in the library: what it is, what it costs, and what can be done to it.
@@ -24,6 +24,7 @@ export function RosterRow({
   label,
   factionLoading,
   pointsLoading,
+  problem,
 }: {
   roster: SavedRoster
   faction?: RosterSummaryFaction
@@ -37,6 +38,8 @@ export function RosterRow({
   label?: string
   factionLoading?: boolean
   pointsLoading?: boolean
+  /** Why the current army data says this list cannot be fielded, judged beside the totals. */
+  problem?: RosterProblem | null
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
@@ -55,6 +58,7 @@ export function RosterRow({
             label={label}
             factionLoading={factionLoading}
             pointsLoading={pointsLoading}
+            problem={problem}
           />
         </Link>
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>

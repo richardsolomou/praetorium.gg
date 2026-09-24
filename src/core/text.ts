@@ -8,3 +8,5 @@ export function compareText(left: string, right: string) {
   if (left > right) return 1
   return 0
 }
+
+export const escapeRegExp = (value: string) => value.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')

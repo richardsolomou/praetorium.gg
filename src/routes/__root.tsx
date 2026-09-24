@@ -7,31 +7,23 @@ import barlow700 from '@fontsource/barlow-semi-condensed/files/barlow-semi-conde
 import rules400 from '@fontsource/barlow/files/barlow-latin-400-normal.woff2?url'
 import rules600 from '@fontsource/barlow/files/barlow-latin-600-normal.woff2?url'
 import { PageState } from '../client/components/PageState'
+import { siteMeta } from '../client/linkPreview'
 import { AppShell } from '../client/features/shell/AppShell'
 import { meQuery, onboardingQuery } from '../client/queries'
 import appCss from '../styles.css?url'
 
-const TITLE = 'Praetorium'
-const DESCRIPTION = 'Build Warhammer 40,000 armies and track your games from setup to final score.'
-
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient; origin: string }>()({
   loader: async ({ context }) => {
     const player = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
     // The guide sits in the shell on every page, so it is fetched with the shell rather than after it hydrates.
     if (player) await context.queryClient.query({ ...onboardingQuery(), staleTime: 'static' })
   },
-  head: () => ({
+  head: ({ match }) => ({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { name: 'theme-color', content: '#0b0c0e' },
-      { title: `${TITLE} — Warhammer 40,000 army builder and battle tracker` },
-      { name: 'description', content: DESCRIPTION },
-      { property: 'og:title', content: TITLE },
-      { property: 'og:description', content: DESCRIPTION },
-      { property: 'og:type', content: 'website' },
-      { property: 'og:site_name', content: TITLE },
-      { name: 'twitter:card', content: 'summary' },
+      ...siteMeta(match.context.origin),
     ],
     links: [
       { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },

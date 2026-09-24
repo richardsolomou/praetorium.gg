@@ -1,10 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Navigate, notFound } from '@tanstack/react-router'
-import { useEffect } from 'react'
-import { BattleUnavailable } from '../client/components/BattleUnavailable'
-import { Setup } from '../client/components/Setup'
-import { Spectator } from '../client/components/Spectator'
-import { Tracker } from '../client/components/Tracker'
+import { createFileRoute, notFound } from '@tanstack/react-router'
+import { BattlePage } from '../client/features/battle/BattlePage'
 import {
   battleQuery,
   deploymentsQuery,
@@ -14,11 +9,8 @@ import {
   terrainMatchupIds,
   terrainReferencesQuery,
 } from '../client/queries'
-import { armyRulesRequest } from '../client/sideRules'
-import { useCommand } from '../client/useCommand'
-import { useLiveBattle } from '../client/useLiveBattle'
-import { setNativeBattleActive } from '../client/nativeBridge'
-import type { openBattle } from '../server/functions'
+import { battlePreview, hiddenBattle, pageMeta } from '../client/linkPreview'
+import { armyRulesRequest } from '../client/features/battle/sideRules'
 
 export const Route = createFileRoute('/battles/$token')({
   loader: async ({ context, params }) => {
@@ -37,7 +29,7 @@ export const Route = createFileRoute('/battles/$token')({
     // Only a loader may throw this: from a render it lands in the error boundary.
     const screen = await context.queryClient.query({ ...battleQuery(params.token), staleTime: 'static' })
     if (!screen) throw notFound()
-    if (screen.kind === 'unavailable') return
+    if (screen.kind === 'unavailable') return { preview: null }
     const dispositions = [...new Set(screen.view.players.map((player) => player.side))]
       .map((side) => screen.view.players.find((player) => player.side === side)?.disposition)
       .filter((value): value is string => Boolean(value))
@@ -57,44 +49,25 @@ export const Route = createFileRoute('/battles/$token')({
         (catalogueId) => context.queryClient.query({ ...factionQuery(catalogueId), staleTime: 'static' }),
       ),
     ])
+    const factionName = (catalogueId: string) => context.queryClient.getQueryData(factionQuery(catalogueId).queryKey)?.displayName ?? null
+    return { preview: battlePreview(screen.view, factionName) }
   },
-  component: BattlePage,
+  head: ({ loaderData, match, params }) => {
+    const preview = loaderData?.preview
+    const path = `/battles/${params.token}`
+    return {
+      meta: pageMeta(
+        match.context.origin,
+        preview
+          ? { title: preview.title, description: preview.description, path, image: { path: `/api/previews${path}`, alt: preview.title } }
+          : { ...hiddenBattle, path },
+      ),
+    }
+  },
+  component: BattleRoute,
 })
 
-function BattlePage() {
+function BattleRoute() {
   const { token } = Route.useParams()
-  return <BattleSession key={token} token={token} />
-}
-
-function BattleSession({ token }: { token: string }) {
-  const { data: screen } = useQuery(battleQuery(token))
-
-  if (!screen) return <Navigate to="/battles" replace />
-  if (screen.kind === 'unavailable') return <BattleUnavailable token={token} />
-  if (screen.kind === 'spectator') return <Spectator view={screen.view} missions={screen.missions} report={screen.report} />
-  return <SeatedBattle token={token} screen={screen} />
-}
-
-function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
-  useLiveBattle(token, true)
-  useEffect(() => {
-    setNativeBattleActive(true)
-    return () => {
-      setNativeBattleActive(false)
-    }
-  }, [])
-  const { send, attachSavedRoster, problem, pending } = useCommand(token, screen.view.seq)
-  if (screen.view.status === 'setup')
-    return (
-      <Setup
-        view={screen.view}
-        mission={screen.mission}
-        missions={screen.missions}
-        send={send}
-        attachSavedRoster={attachSavedRoster}
-        pending={pending}
-        problem={problem}
-      />
-    )
-  return <Tracker view={screen.view} missions={screen.missions} send={send} pending={pending} problem={problem} />
+  return <BattlePage key={token} token={token} />
 }

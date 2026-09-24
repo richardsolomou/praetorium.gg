@@ -38,7 +38,7 @@ The transport accepts one JSON-RPC message of at most 64 KiB per request and rej
 
 ## Crawlers
 
-`/sitemap.xml` is generated from the active snapshot. `/robots.txt` advertises it, while `/llms.txt` points clients to the product guide, reference index, bulk unit endpoint, OpenAPI document, and MCP endpoint. Datasheet, detachment, mission-pack, secondary-mission, mission-matchup, and rules-section routes load their content during server rendering and publish page-specific metadata and canonical links.
+`/sitemap.xml` is generated from the active snapshot. `/robots.txt` advertises it, while `/llms.txt` points clients to the product guide, reference index, bulk unit endpoint, OpenAPI document, and MCP endpoint. Datasheet, detachment, mission-pack, secondary-mission, mission-matchup, and rules-section routes load their content during server rendering and publish page-specific metadata and canonical links. Battles, saved lists and player profiles also publish link-preview metadata and a card image for readers without an account; [Interface](interface.md#link-previews) describes what each reveals.
 
 Verify crawler-facing changes against the production server output with JavaScript disabled. Hydrated browser content is not evidence that the initial HTML contains the reference.
 

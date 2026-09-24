@@ -6,6 +6,7 @@ import {
   adminUsers,
   friendInvite,
   me,
+  notificationSettings,
   onboardingProgress,
   signInOptions,
   userProfile,
@@ -13,6 +14,8 @@ import {
 import { SSR_STALE_TIME } from './shared'
 
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(), staleTime: SSR_STALE_TIME })
+export const notificationSettingsQuery = () =>
+  queryOptions({ queryKey: ['notification-settings'], queryFn: () => notificationSettings(), staleTime: SSR_STALE_TIME })
 export const onboardingQuery = () =>
   queryOptions({ queryKey: ['onboarding'], queryFn: () => onboardingProgress(), staleTime: SSR_STALE_TIME })
 export const activeFriendInviteQuery = () =>

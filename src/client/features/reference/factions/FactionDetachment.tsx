@@ -1,0 +1,46 @@
+import { useQuery } from '@tanstack/react-query'
+import { Link, useParams } from '@tanstack/react-router'
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
+import { factionQuery } from '../../../queries'
+import { DetachmentReference } from './DetachmentReference'
+
+export function FactionDetachment() {
+  const params = useParams({ strict: false })
+  const { data: faction } = useQuery(factionQuery(params.catalogueId ?? ''))
+  if (!faction) return null
+  const detachmentId = faction.detachments.find((detachment) => detachment.slug === params.detachmentId)?.id
+
+  return (
+    <main className="w-full">
+      <DetachmentReference
+        catalogueId={faction.id}
+        slug={params.detachmentId ?? ''}
+        detachmentId={detachmentId}
+        faction={faction}
+        afterHero={
+          <Breadcrumb>
+            <BreadcrumbList className="eyebrow gap-1 text-info">
+              <BreadcrumbItem>
+                <BreadcrumbLink render={<Link to="/factions" />}>Factions</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="text-dim" />
+              <BreadcrumbItem>
+                <BreadcrumbLink
+                  render={
+                    <Link data-onboarding="detachment-breadcrumb" to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />
+                  }
+                >
+                  {faction.displayName}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="text-dim" />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="text-dim">Detachments</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        }
+      />
+    </main>
+  )
+}

@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem, StratagemLimit } from '../core/battle'
 import { routeSlug } from '../core/slug'
+import type { WhenDrawn } from '../contracts/missions'
 import { localizedField, stratagemText } from './datacards'
 import { actionsIn, type MissionAction } from './missionActions'
 import { criteriaIn, criteriaKey, pairCriteria, type Payout } from './missionCriteria'
@@ -139,14 +140,7 @@ export type Mission = {
  * board, which no source can tell this app about. `rounds` and `heldCards` are the
  * parts a battle can check for itself; `condition` is the part only a player can.
  */
-export type WhenDrawn = {
-  operation: 'redraw' | 'replace'
-  roundMax: number | null
-  /** Redraw is allowed while one of these cards is already in hand. */
-  heldCards: string[]
-  /** Stated for the player to judge, because the app cannot see the table. */
-  condition: string | null
-}
+export type { WhenDrawn } from '../contracts/missions'
 
 export type MissionCard = {
   key: string

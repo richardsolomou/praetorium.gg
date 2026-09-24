@@ -1,5 +1,47 @@
 # praetorium
 
+## 0.76.0
+
+### Minor Changes
+
+- 8d19840: Simulate attacks against units whose models have different defences, with a choosable allocation order.
+- 9c9eb4d: Add characteristic, critical, ability and defender adjustments to the combat simulator conditions.
+- 8d19840: Keep combat simulator results in view while adjusting rules and conditions.
+- 8d19840: Pick a combat simulator unit from one search grouped by faction.
+
+### Patch Changes
+
+- 61bda9e: Show weapons whose profiles the catalogue links rather than writes out, such as the Celestian Sacresants' bolt pistols.
+- 8d19840: Reopen a unit search at the current selection.
+- 8d19840: Keep combat simulator conditions as extras that never override a unit's own rules.
+- 8d19840: Show every combat simulator condition as a visible choice in one shooting and melee table.
+- 8d19840: Move the combat simulator swap button beside the Attacker heading so it stays still when pressed.
+
+## 0.75.0
+
+### Minor Changes
+
+- 1381249: Browse data updates as collapsible rows that open onto every change, with a link to each faction's changes.
+
+## 0.74.0
+
+### Minor Changes
+
+- 0cdcef0: Flag saved lists that are over their limit or not legal under the current army data, and name the data changes that reached each one since it was saved.
+- 0cdcef0: See what each army data update changed on the new Data updates page.
+- 5a19ddb: Show a scoreboard or summary card when a watchable battle, shared list, or player profile link is pasted into a chat.
+- 9088a58: Send mobile notifications when someone starts a battle with you, answers a friend request, or accepts, reveals, or unseals your league entry.
+
+### Patch Changes
+
+- f1c7bcc: Record page text and images in session replays, masking only form inputs.
+
+## 0.73.0
+
+### Minor Changes
+
+- 789a9e1: Show the stratagems, command points, secondary cards, primary missions and opposing armies behind a player's record on their profile.
+
 ## 0.72.0
 
 ### Minor Changes

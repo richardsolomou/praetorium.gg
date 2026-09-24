@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { baselineShortfall } from './baselines'
+import { baselineShortfall } from './lib/baselines'
 import { nameOf } from '../src/core/catalogue'
 import { isNonMatchedPlayName } from '../src/core/name'
 import { isReferenceDatasheet, loadCatalogue } from '../src/server/catalogueIndex'

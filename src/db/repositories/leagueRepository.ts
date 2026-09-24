@@ -12,21 +12,33 @@ import {
 import type { TableShape } from '../../core/tableShape'
 import type { PraetoriumDatabase } from '../connection'
 import { leagueEventBattles, leagueEventEntries, leagueEvents, leagues, rosters, user } from '../schema'
-import type {
-  AssignLeagueRosterRequirementResult,
-  AssignLeagueTeamResult,
-  CreateLeagueEventResult,
-  DeleteLeagueResult,
-  JoinLeagueResult,
-  LeagueBattleCandidate,
-  MakeLeagueRecurringResult,
-  ModerateLeagueResult,
-  RevealLeagueResult,
-  SubmitLeagueRosterResult,
-  UnsealLeagueRosterResult,
-  UpdateLeagueEventResult,
-  UpdateLeagueResult,
-} from '../repository'
+export type JoinLeagueResult = LeagueEntryStatus | 'missing' | 'closed' | 'full'
+export type ModerateLeagueResult = 'admitted' | 'updated' | 'missing' | 'forbidden' | 'closed' | 'full'
+export type CreateLeagueEventResult = 'created' | 'missing' | 'forbidden' | 'open' | 'too-small'
+export type MakeLeagueRecurringResult = 'updated' | 'missing' | 'forbidden'
+export type UpdateLeagueResult = { admitted: string[] } | 'missing' | 'forbidden' | 'below-accepted' | 'team-minimum'
+export type UpdateLeagueEventResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'sealed' | 'too-small'
+export type DeleteLeagueResult = 'deleted' | 'missing' | 'forbidden'
+export type AssignLeagueRosterRequirementResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format' | 'wrong-limit'
+export type AssignLeagueTeamResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format'
+export type SubmitLeagueRosterResult =
+  | { outcome: 'sealed'; format: TableShape | null; requiredLimit: number | null }
+  | { outcome: 'missing' | 'unassigned' | 'wrong-limit' }
+  | { outcome: 'invalid-warlords'; format: TableShape | null }
+export type RevealLeagueResult =
+  | { outcome: 'revealed'; entrantIds: string[] }
+  | { outcome: 'not-ready' }
+  | { outcome: 'invalid-warlords'; format: TableShape }
+export type UnsealLeagueRosterResult = 'unsealed' | 'missing' | 'forbidden' | 'not-revealed'
+export type LeagueBattleCandidate = {
+  token: string
+  name: string
+  eventToken: string
+  eventNumber: number
+  format: TableShape | null
+  rosterLimit: number | null
+  entries: { userId: string; requiredLimit: number | null; sealedLimit: number | null; teamId: string | null }[]
+}
 
 type DatabaseTransaction = Parameters<Parameters<PraetoriumDatabase['transaction']>[0]>[0]
 type InsertBattle = (
@@ -273,8 +285,9 @@ export class LeagueRepository {
             .set({ status: 'accepted' })
             .where(and(eq(leagueEventEntries.eventId, current.id), inArray(leagueEventEntries.userId, admitted)))
         }
+        return { admitted }
       }
-      return 'updated'
+      return { admitted: [] }
     })
   }
 
@@ -696,7 +709,8 @@ export class LeagueRepository {
         )
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, userId)))
         .returning({ userId: leagueEventEntries.userId })
-      return updated.length ? 'updated' : 'missing'
+      if (!updated.length) return 'missing'
+      return status === 'accepted' && entry.status !== 'accepted' ? 'admitted' : 'updated'
     })
   }
 
@@ -951,6 +965,7 @@ export class LeagueRepository {
       if (!event || event.revealedAt !== null) return { outcome: 'not-ready' }
       const entries = await tx
         .select({
+          userId: leagueEventEntries.userId,
           requiredLimit: leagueEventEntries.requiredLimit,
           teamId: leagueEventEntries.teamId,
           snapshot: leagueEventEntries.rosterSnapshot,
@@ -1014,7 +1029,7 @@ export class LeagueRepository {
         .set({ status: 'rejected' })
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'pending')))
       await tx.update(leagueEvents).set({ revealedAt: now }).where(eq(leagueEvents.id, event.id))
-      return { outcome: 'revealed' }
+      return { outcome: 'revealed', entrantIds: entries.map((entry) => entry.userId) }
     })
   }
 

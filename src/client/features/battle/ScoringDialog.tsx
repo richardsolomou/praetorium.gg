@@ -20,7 +20,7 @@ import { type Side, sideName } from '../../sides'
 import { RuleText } from '../../components/RuleText'
 import { MissionName, type ReferenceCard } from './MissionCards'
 import { BattlePromptDialog } from './BattlePromptDialog'
-import { tint } from './tints'
+import { tint } from './battleTints'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
 
 /** Which side a prompt is recording for, in the colours it wears to say so. */
