@@ -1,5 +1,22 @@
 # praetorium
 
+## 0.76.0
+
+### Minor Changes
+
+- 8d19840: Simulate attacks against units whose models have different defences, with a choosable allocation order.
+- 9c9eb4d: Add characteristic, critical, ability and defender adjustments to the combat simulator conditions.
+- 8d19840: Keep combat simulator results in view while adjusting rules and conditions.
+- 8d19840: Pick a combat simulator unit from one search grouped by faction.
+
+### Patch Changes
+
+- 61bda9e: Show weapons whose profiles the catalogue links rather than writes out, such as the Celestian Sacresants' bolt pistols.
+- 8d19840: Reopen a unit search at the current selection.
+- 8d19840: Keep combat simulator conditions as extras that never override a unit's own rules.
+- 8d19840: Show every combat simulator condition as a visible choice in one shooting and melee table.
+- 8d19840: Move the combat simulator swap button beside the Attacker heading so it stays still when pressed.
+
 ## 0.75.0
 
 ### Minor Changes
