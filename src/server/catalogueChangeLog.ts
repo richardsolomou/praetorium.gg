@@ -1,6 +1,8 @@
 import type { CatalogueChange, CatalogueChangeSet } from '../core/catalogueChanges'
+import { type CatalogueHistoryEntry, factionAnchors, updateSummary } from '../core/catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
-import type { ReferenceLink } from '../contracts/catalogueChanges'
+import type { IndexedUpdate, LinkedChangeSet, ReferenceLink } from '../contracts/catalogueChanges'
+import { historyAnchor } from './catalogueHistory'
 
 type Routes = {
   factions: Map<string, string>
@@ -61,14 +63,27 @@ function linkOf(routes: Routes, catalogueId: string, change: CatalogueChange): R
  * from, so a link always leads somewhere: something since removed or renamed out of its
  * address is shown without one, never with a guess at where it went.
  */
-export function linkedChanges(changes: CatalogueChangeSet, canonical: CanonicalCatalogue | null) {
+export function linkedChanges(changes: CatalogueChangeSet, canonical: CanonicalCatalogue | null, update = 'update'): LinkedChangeSet {
   const routes = canonical ? routesOf(canonical) : null
+  const anchors = factionAnchors(update, changes.factions)
   return {
     omitted: changes.omitted,
     factions: changes.factions.map((faction) => ({
       ...faction,
+      anchor: anchors.get(faction.catalogueId)!,
       slug: routes?.factions.get(faction.catalogueId) ?? null,
       changes: faction.changes.map((change) => ({ ...change, link: routes ? linkOf(routes, faction.catalogueId, change) : null })),
     })),
+  }
+}
+
+/** One update as the index lists it: its row, and every change it recorded for the row to open onto. */
+export function indexedUpdate(entry: CatalogueHistoryEntry, canonical: CanonicalCatalogue | null): IndexedUpdate {
+  const anchor = historyAnchor(entry)
+  return {
+    anchor,
+    recordedAt: entry.recordedAt,
+    ...updateSummary(anchor, entry.changes),
+    changes: linkedChanges(entry.changes, canonical, anchor),
   }
 }

@@ -125,7 +125,7 @@ export function RosterLibraryPage({ search }: { search: RosterLibrarySearch }) {
           <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
             <span className="mr-auto">Rosters</span>
             {changedLists ? (
-              <Link to="/changes" className="text-xs font-semibold tracking-normal text-discarded normal-case hover:text-bone">
+              <Link to="/data-updates" className="text-xs font-semibold tracking-normal text-discarded normal-case hover:text-bone">
                 {changedLists} {changedLists === 1 ? 'list' : 'lists'} changed by a data update
               </Link>
             ) : null}

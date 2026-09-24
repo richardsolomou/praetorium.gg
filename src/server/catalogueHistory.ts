@@ -1,6 +1,7 @@
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { type CatalogueHistoryEntry, catalogueHistorySchema, historyKey } from '../core/catalogueHistory'
+import { type CatalogueHistoryEntry, catalogueHistorySchema, historyKey, updateAnchor } from '../core/catalogueHistory'
 import { compareText } from '../core/text'
 
 /** Where a catalogue directory carries its history, packed and hashed with everything else. */
@@ -47,3 +48,13 @@ export function loadCatalogueHistory(directory: string): CatalogueHistoryEntry[]
   }
   return parseCatalogueHistory(fs.readFileSync(file, 'utf8'), file)
 }
+
+/**
+ * A digest of the key that already identifies an update, the same on every instance serving
+ * the same history and independent of which page lists it.
+ */
+export const updateId = (entry: Pick<CatalogueHistoryEntry, 'from' | 'revisions'>) =>
+  createHash('sha256').update(historyKey(entry)).digest('hex').slice(0, 16)
+
+/** The fragment an update's row on the index is addressed by. */
+export const historyAnchor = (entry: CatalogueHistoryEntry) => updateAnchor(entry.recordedAt, updateId(entry))

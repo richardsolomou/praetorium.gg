@@ -8,7 +8,7 @@ type MoreLink = {
   description: string
   icon: LucideIcon
   label: string
-  to: '/' | '/leaderboard' | '/leagues' | '/rules' | '/simulator' | '/changes'
+  to: '/' | '/leaderboard' | '/leagues' | '/rules' | '/simulator' | '/data-updates'
 }
 
 const MORE_LINKS: readonly MoreLink[] = [
@@ -17,7 +17,7 @@ const MORE_LINKS: readonly MoreLink[] = [
   { description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
   { description: 'Game reference', icon: Gavel, label: 'Rules', to: '/rules' },
   { description: 'Damage and kill probabilities', icon: Dices, label: 'Simulator', to: '/simulator' },
-  { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/changes' },
+  { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },
 ]
 
 export function NativeMorePage() {

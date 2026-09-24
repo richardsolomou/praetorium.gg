@@ -18,7 +18,7 @@ export function RosterDataChanges({ rosterId }: { rosterId: string }) {
         .map((entry) => changeLine(entry.change))
         .join('; ')}
       {more > 0 ? `; and ${more} more` : ''}.{' '}
-      <Link to="/changes" className="underline hover:text-bone">
+      <Link to="/data-updates" className="underline hover:text-bone">
         See data updates
       </Link>
     </p>

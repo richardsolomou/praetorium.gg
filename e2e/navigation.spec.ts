@@ -1,6 +1,9 @@
-import { devices, expect, test } from '@playwright/test'
+import fs from 'node:fs'
+import { join } from 'node:path'
+import { devices, expect, type Page, test } from '@playwright/test'
 import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
 import { signUp } from './account'
+import { catalogue } from './stackEnv'
 
 test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
   await page.goto('/factions/necrons/datasheets/ctan-shard-of-the-nightbringer')
@@ -958,4 +961,52 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   await expect(page).toHaveURL('/factions')
 
   await context.close()
+})
+
+test.describe('data update anchors', () => {
+  // The rows only exist for a catalogue that carries a history; the release pin may predate it.
+  test.skip(!fs.existsSync(join(catalogue, 'changes', 'history.json')), 'the catalogue under test carries no data-update history')
+
+  /** A row that starts closed, and a faction link inside its summary. */
+  async function closedRow(page: Page) {
+    await page.goto('/data-updates')
+    const row = page.locator('main details:not([open])').first()
+    await expect(row).toBeAttached()
+    return { row, chip: row.locator('summary a').first() }
+  }
+
+  const belowHeader = async (page: Page, id: string) => {
+    const top = await page.evaluate((target) => document.getElementById(target)?.getBoundingClientRect().top ?? -1, id)
+    const header = await page.evaluate(() => document.querySelector('header')?.getBoundingClientRect().bottom ?? 0)
+    return top >= header && top < (page.viewportSize()?.height ?? 0)
+  }
+
+  test('a faction link opens its update and lands on that faction', async ({ page }) => {
+    const { row, chip } = await closedRow(page)
+    const target = (await chip.getAttribute('href'))!.slice(1)
+
+    await chip.click()
+
+    await expect(row).toHaveAttribute('open', '')
+    await expect(page).toHaveURL(new RegExp(`#${target}$`))
+    await expect.poll(() => belowHeader(page, target)).toBe(true)
+  })
+
+  test('a faction link in an open update leaves it open', async ({ page }) => {
+    await page.goto('/data-updates')
+    const row = page.locator('main details[open]').first()
+    await row.locator('summary a').first().click()
+
+    await expect(row).toHaveAttribute('open', '')
+  })
+
+  test('an address naming an update opens it', async ({ page }) => {
+    const { row } = await closedRow(page)
+    const id = (await row.getAttribute('id'))!
+
+    await page.goto(`/data-updates#${id}`)
+
+    await expect(page.locator(`[id="${id}"]`)).toHaveAttribute('open', '')
+    await expect.poll(() => belowHeader(page, id)).toBe(true)
+  })
 })
