@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.78.0
+
+### Minor Changes
+
+- b8c2801: Try the roster builder without an account and sign up to save the list.
+
 ## 0.77.0
 
 ### Minor Changes
