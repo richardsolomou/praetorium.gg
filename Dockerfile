@@ -37,6 +37,7 @@ ENV POSTHOG_PROJECT_ID=$POSTHOG_PROJECT_ID \
 RUN --mount=type=secret,id=POSTHOG_API_KEY,env=POSTHOG_API_KEY pnpm build
 
 FROM node:24-alpine
+ARG GITHUB_SHA
 LABEL org.opencontainers.image.title="Praetorium" \
       org.opencontainers.image.description="Build Warhammer 40,000 armies and track games from setup to final score." \
       org.opencontainers.image.licenses="AGPL-3.0-only"
@@ -47,7 +48,7 @@ COPY --from=runtime-binaries /usr/local/bin/centrifugo /usr/local/bin/centrifugo
 COPY --from=runtime-binaries /usr/local/bin/caddy /usr/local/bin/caddy
 COPY --chown=node:node realtime.json ./
 COPY --chown=node:node LICENSE ./
-ENV NODE_ENV=production PORT=3000 DATA_DIR=/data
+ENV NODE_ENV=production PORT=3000 DATA_DIR=/data GITHUB_SHA=$GITHUB_SHA
 VOLUME ["/data"]
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \

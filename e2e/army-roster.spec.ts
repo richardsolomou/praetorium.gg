@@ -67,7 +67,7 @@ test('an army is read and its losses recorded without leaving the battle', async
   await army.locator('[data-unit="Foetid Bloat-drone"]').getByRole('button', { name: 'Mark Foetid Bloat-drone lost' }).click()
   await expect(army.locator('[data-unit="Foetid Bloat-drone"]')).toBeHidden()
   await expect(units).toHaveText('1/2')
-  await army.getByRole('button', { name: /^lost/i }).click()
+  await army.getByRole('button', { name: 'Toggle Lost' }).click()
   await army.locator('[data-unit="Foetid Bloat-drone"]').getByRole('button', { name: 'Bring Foetid Bloat-drone back' }).click()
   await expect(units).toHaveText('2/2')
 

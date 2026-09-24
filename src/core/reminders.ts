@@ -110,6 +110,14 @@ export function remindersDueAt(reminders: readonly RosterReminder[], moments: re
   return reminders.filter((reminder) => reminder.timings.some((timing) => moments.some((moment) => reminderDue(timing, moment))))
 }
 
+export function reminderTimingCountsByUnit(reminders: readonly RosterReminder[]): Map<number, number> {
+  const counts = new Map<number, number>()
+  for (const reminder of reminders) {
+    if (reminder.unit) counts.set(reminder.unit.index, (counts.get(reminder.unit.index) ?? 0) + reminder.timings.length)
+  }
+  return counts
+}
+
 export function reminderTimingLabel(timing: ReminderTiming): string {
   const owner = timing.turn === 'your-turn' ? 'your' : timing.turn === 'opponent-turn' ? "opponent's" : 'either'
   if (timing.phase === null) {

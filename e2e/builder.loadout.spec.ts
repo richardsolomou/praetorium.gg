@@ -685,8 +685,8 @@ test('a composite heavy weapon keeps the model armed and can be put back', async
   await expect(terminators.getByLabel('Power Fist count', { exact: true })).toHaveText('1')
   await expect(page.locator('[data-unit="Deathwing Terminator Squad"]').getByText('4x Power Fist')).toBeVisible()
   const firingProfiles = terminators.getByRole('region', { name: 'cyclone missile launcher profiles', exact: true })
-  await expect(firingProfiles.getByRole('heading', { name: 'frag', exact: true })).toBeVisible()
-  await expect(firingProfiles.getByRole('heading', { name: 'krak', exact: true })).toBeVisible()
+  await expect(firingProfiles.getByRole('heading', { name: 'Frag', exact: true })).toBeVisible()
+  await expect(firingProfiles.getByRole('heading', { name: 'Krak', exact: true })).toBeVisible()
   await expect(terminators.getByRole('heading', { name: /^5× Storm Bolter$/i })).toHaveCount(0)
 
   await waitForRosterSave(page, () => terminators.getByRole('button', { name: 'More Chainfist', exact: true }).click())
@@ -811,7 +811,7 @@ test('a book that keeps its datasheets in a library can still be built from', as
 
   // And what it borrows from another book is there beside its own.
   await page.getByLabel('Add a unit').fill('Callidus Assassin')
-  await page.getByRole('button', { name: 'Agents of the Imperium 1' }).click()
+  await page.getByRole('button', { name: 'Toggle Agents of the Imperium' }).click()
   await page.getByRole('button', { name: 'Add Callidus Assassin', exact: true }).click()
   await expect(page.locator('[data-unit="Callidus Assassin"]')).toBeVisible()
   await expect(page.getByText('Within the points limit')).toBeAttached()
@@ -881,7 +881,7 @@ test('a grenade launcher leaves every Intercessor carrying a bolt rifle', async 
   await expect(
     loadout
       .getByRole('region', { name: 'astartes grenade launcher profiles', exact: true })
-      .getByRole('heading', { name: 'krak', exact: true }),
+      .getByRole('heading', { name: 'Krak', exact: true }),
   ).toHaveCount(1)
   await shot(loadout, 'test-results/intercessor-grenade-launcher.png')
 })

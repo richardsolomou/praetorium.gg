@@ -5,22 +5,29 @@ import { tanStackHealthHandler } from 'ras-stack/tanstack/server'
 import { valkeyReachable } from '../../adapters/valkey'
 import { app } from '../../server/app'
 
+const readiness = tanStackHealthHandler(
+  async () => {
+    await app().ready()
+    const instance = app()
+    // Both stores, because a replica that cannot reach Valkey cannot hear
+    // another replica's commands and should not be sent traffic.
+    await Promise.all([
+      instance.database.execute(sql`select 1`),
+      instance.valkey ? valkeyReachable(instance.valkey) : Promise.resolve(true),
+    ])
+  },
+  { failure: databaseHealthFailure },
+)
+
 export const Route = createFileRoute('/api/health')({
   server: {
     handlers: {
-      GET: tanStackHealthHandler(
-        async () => {
-          await app().ready()
-          const instance = app()
-          // Both stores, because a replica that cannot reach Valkey cannot hear
-          // another replica's commands and should not be sent traffic.
-          await Promise.all([
-            instance.database.execute(sql`select 1`),
-            instance.valkey ? valkeyReachable(instance.valkey) : Promise.resolve(true),
-          ])
-        },
-        { failure: databaseHealthFailure },
-      ),
+      GET: async () => {
+        const response = await readiness()
+        const revision = process.env.GITHUB_SHA?.trim()
+        if (response.ok && revision) response.headers.set('x-praetorium-revision', revision)
+        return response
+      },
     },
   },
 })

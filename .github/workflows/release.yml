@@ -62,3 +62,20 @@ jobs:
           api-key: ${{ secrets.DOKPLOY_API_KEY }}
           application-id: ${{ secrets.DOKPLOY_APPLICATION_ID }}
           image: ${{ steps.image.outputs.reference }}
+      - name: Verify production deployment
+        if: vars.DOKPLOY_IMAGE_DEPLOY == 'true'
+        env:
+          EXPECTED_REVISION: ${{ needs.release.outputs.sha }}
+        run: |
+          for attempt in {1..60}; do
+            headers="$(curl --silent --show-error --dump-header - --output /dev/null --max-time 10 https://praetorium.gg/api/health || true)"
+            revision="$(awk 'tolower($1) == "x-praetorium-revision:" { gsub("\\r", "", $2); print $2 }' <<< "$headers")"
+            if [[ "$revision" == "$EXPECTED_REVISION" ]]; then
+              echo "Production is serving $EXPECTED_REVISION"
+              exit 0
+            fi
+            echo "Waiting for production revision $EXPECTED_REVISION ($attempt/60)"
+            sleep 10
+          done
+          echo "Production did not serve revision $EXPECTED_REVISION within 10 minutes" >&2
+          exit 1

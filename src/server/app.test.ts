@@ -19,9 +19,13 @@ it('warms catalogue data after yielding startup', async () => {
       loaded.push('canonical')
       return null
     },
+    combatUnits: () => {
+      loaded.push('simulator')
+      return []
+    },
   })
   const beforeYield = [...loaded]
   await vi.runAllTimersAsync()
   await ready
-  expect({ beforeYield, loaded }).toEqual({ beforeYield: [], loaded: ['catalogue', 'rules', 'canonical'] })
+  expect({ beforeYield, loaded }).toEqual({ beforeYield: [], loaded: ['catalogue', 'rules', 'canonical', 'simulator'] })
 })
