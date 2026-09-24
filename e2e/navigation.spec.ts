@@ -654,8 +654,11 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(dialog.getByRole('button', { name: 'Take and Hold', exact: true })).toBeVisible()
   await page.setViewportSize({ width: 1600, height: 640 })
   await expect.poll(() => dialog.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
-  await dialog.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
-  await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeInViewport()
+  // One scroll can land short of the end while the dialog is still laying out at the new height.
+  await expect(async () => {
+    await dialog.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
+    await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeInViewport({ timeout: 1_000 })
+  }).toPass()
   await dialog.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Onslaught/ }).click()
   await dialog.getByRole('button', { name: 'Select Cryptek Conclave' }).click()
