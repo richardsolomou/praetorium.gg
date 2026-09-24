@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.75.0
+
+### Minor Changes
+
+- 1381249: Browse data updates as collapsible rows that open onto every change, with a link to each faction's changes.
+
 ## 0.74.0
 
 ### Minor Changes
