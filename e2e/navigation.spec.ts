@@ -499,7 +499,7 @@ test('authentication panels and empty states fill the page above the footer', as
   const right = await page.locator('main > section').boundingBox()
   expect(left?.x).toBe(0)
   expect(right ? Math.round(right.x + right.width) : 0).toBe(1280)
-  await page.goto('/rosters')
+  await page.goto('/battles')
   const state = await page.locator('main > div').boundingBox()
   const footer = await page.locator('footer').boundingBox()
   expect(state && footer ? Math.round(state.y + state.height) : 0).toBe(Math.round(footer?.y ?? 0))
@@ -597,9 +597,9 @@ test('a matchup keeps each action in the column of the side whose mission asks f
 })
 
 test('a player can enter through the roster library and browse the product', async ({ page }) => {
-  // Signed out, the library says what it is and asks for an account.
+  // Signed out, the library is the builder a visitor can use without an account.
   await page.goto('/rosters')
-  await expect(page.getByRole('heading', { name: 'Your rosters' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Build a roster' })).toBeVisible()
 
   await signUp(page, 'Alice')
   await page.goto('/rosters')

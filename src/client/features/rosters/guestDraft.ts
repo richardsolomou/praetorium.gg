@@ -1,10 +1,11 @@
 import { DEFAULT_GAME_LIMIT } from '../../../core/battle'
+import { GUEST_DRAFT_COOKIE } from '../../../contracts/guestDraft'
 import type { RosterDraft } from './rosterDraft'
 import type { RosterSetup } from './RosterSetupDialog'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 
 /** Where a visitor's list is built, and so where every piece of its tab state is kept. */
-export const GUEST_PATH = '/rosters/new'
+export const GUEST_PATH = '/rosters'
 const NAME = 'guest-draft'
 const VERSION = 1
 
@@ -48,10 +49,18 @@ export function readGuestDraft(): GuestDraft | null {
   return stored
 }
 
+/** Tells the server whether this tab holds a list, so a refresh draws the page it will become. */
+export function markGuestDraft(held: boolean) {
+  if (typeof document === 'undefined') return
+  const secure = location.protocol === 'https:' ? '; Secure' : ''
+  document.cookie = `${GUEST_DRAFT_COOKIE}=${held ? '1' : ''}; Path=${GUEST_PATH}; SameSite=Lax${held ? '' : '; Max-Age=0'}${secure}`
+}
+
 /** Whether the draft was kept; a full or disabled storage keeps nothing and says so. */
 export function writeGuestDraft(draft: GuestDraft) {
   try {
     writeWorkspaceState(GUEST_PATH, NAME, draft)
+    markGuestDraft(true)
     return true
   } catch {
     return false
@@ -61,6 +70,7 @@ export function writeGuestDraft(draft: GuestDraft) {
 /** Forgets the draft and the setup and warning state the builder kept beside it. */
 export function clearGuestDraft() {
   for (const name of [NAME, 'roster-setup', 'waivers-dismissed']) writeWorkspaceState(GUEST_PATH, name, null)
+  markGuestDraft(false)
 }
 
 /** What `saveRoster` is sent to keep a visitor's list under their new account. */

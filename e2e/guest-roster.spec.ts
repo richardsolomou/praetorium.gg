@@ -4,14 +4,14 @@ import { add } from './builder.harness'
 
 /** A visitor starts a Necrons list on the builder, with no account behind them. */
 async function startGuestRoster(page: Page) {
-  await page.goto('/rosters/new')
+  await page.goto('/rosters')
   await page.waitForLoadState('networkidle')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
+  const setup = page.getByRole('region', { name: 'Create roster' })
+  await setup.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
-  await dialog.getByRole('button', { name: /^Select (?:Awakened Dynasty)$/ }).click()
-  await dialog.getByRole('button', { name: 'Create roster' }).click()
+  await setup.getByRole('button', { name: /^Select (?:Awakened Dynasty)$/ }).click()
+  await setup.getByRole('button', { name: 'Start building' }).click()
   await expect(page.getByLabel('Add a unit')).toBeVisible()
 }
 
@@ -48,9 +48,11 @@ test("a visitor's list survives a reload of its tab", async ({ page }) => {
   await add(page, 'Necron Warriors')
   // Edits are kept once they settle, so the reload waits for the stored draft to hold the unit.
   await expect
-    .poll(() => page.evaluate(() => sessionStorage.getItem('praetorium.workspace-state:/rosters/new:guest-draft') ?? ''))
+    .poll(() => page.evaluate(() => sessionStorage.getItem('praetorium.workspace-state:/rosters:guest-draft') ?? ''))
     .toContain('"picks":[{')
 
+  // The server cannot see the draft, only the cookie saying there is one, so its frame is the builder rather than the setup.
+  expect(await (await page.request.get('/rosters')).text()).not.toContain('aria-label="Create roster"')
   await page.reload()
 
   await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
@@ -63,14 +65,14 @@ test('signing up keeps the list a visitor built', async ({ page }) => {
   await expect(page.locator('[data-stat="points"]')).not.toHaveText(/^0\//)
 
   await page.getByRole('button', { name: 'Sign up to save' }).click()
-  await page.waitForURL(/\/sign-in\?next=%2Frosters%2Fnew&join=true$/)
+  await page.waitForURL(/\/sign-in\?next=%2Frosters&join=true$/)
   await page.waitForLoadState('networkidle')
   await page.getByLabel('Your name').fill(uniqueName('Visitor'))
   await page.getByLabel('Email').fill(`visitor-${crypto.randomUUID()}@example.test`)
   await page.getByLabel('Password').fill('a-long-enough-password')
   await page.getByRole('button', { name: 'Create the account' }).click()
 
-  await page.waitForURL(/\/rosters\/(?!new$)[^/]+$/)
+  await page.waitForURL(/\/rosters\/[^/]+$/)
   await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
   await page.goto('/rosters')
   await expect(page.locator('[data-roster]')).toHaveCount(1)

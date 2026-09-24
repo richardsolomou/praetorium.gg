@@ -6,7 +6,7 @@ const TOOLS = [
     icon: ListChecks,
     title: 'Build a roster',
     text: 'Points and legality as you build. Sign up to keep it.',
-    link: '/rosters/new' as const,
+    link: '/rosters' as const,
     action: 'Try the builder',
   },
   {

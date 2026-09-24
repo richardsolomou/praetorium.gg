@@ -70,11 +70,10 @@ test('opening an unchanged list saves nothing, and an edit still saves', async (
   expect(saves).toHaveLength(1)
 })
 
-test('the guest roster page shows its account gate without library loaders', async ({ page }) => {
+test('a visitor opening the roster library is given the builder instead', async ({ page }) => {
   await page.goto('/rosters')
 
-  await expect(page.getByRole('heading', { name: 'Your rosters' })).toBeVisible()
-  await expect(page.getByRole('main').getByRole('link', { name: 'Sign in' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Create roster' })).toBeVisible()
   await expect(page.getByLabel(/^Loading roster/)).toHaveCount(0)
 })
 

@@ -57,7 +57,7 @@ describe("a visitor's draft", () => {
   it('forgets the draft and the tab state kept beside it', () => {
     const entries = stubSessionStorage()
     writeGuestDraft(newGuestDraft(setup))
-    entries.set('praetorium.workspace-state:/rosters/new:roster-setup', '{}')
+    entries.set('praetorium.workspace-state:/rosters:roster-setup', '{}')
     clearGuestDraft()
     expect(entries.size).toBe(0)
   })

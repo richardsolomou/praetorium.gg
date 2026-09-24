@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { ScrollText } from 'lucide-react'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   AlertDialog,
@@ -95,18 +95,7 @@ export function RosterLibraryPage({ search }: { search: RosterLibrarySearch }) {
     visibility: roster.visibility,
   })
 
-  if (!me)
-    return (
-      <SignInRequired
-        title="Your rosters"
-        explanation="Sign in to save army lists, or try the builder first."
-        also={
-          <Link to="/rosters/new" className={buttonVariants({ variant: 'outline', className: 'h-11 w-full text-base' })}>
-            Try the builder
-          </Link>
-        }
-      />
-    )
+  if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to build and save army lists." />
 
   return (
     <main className="w-full">
