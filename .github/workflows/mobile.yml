@@ -98,7 +98,12 @@ jobs:
         run: pnpm dlx eas-cli@23.2.0 update --platform ios --channel "$MOBILE_UPDATE_CHANNEL" --environment "$EAS_ENVIRONMENT" --message "$GITHUB_SHA" --non-interactive
       - name: Sync App Store metadata
         working-directory: mobile
-        run: pnpm dlx eas-cli@23.2.0 metadata:push --profile production --non-interactive
+        run: |
+          jq --arg path "$APP_STORE_CONNECT_KEY_PATH" --arg id "$APP_STORE_CONNECT_KEY_ID" --arg issuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            '.submit.production.ios += {ascApiKeyPath: $path, ascApiKeyId: $id, ascApiKeyIssuerId: $issuer}' \
+            eas.json > eas.json.tmp
+          mv eas.json.tmp eas.json
+          pnpm dlx eas-cli@23.2.0 metadata:push --profile production --non-interactive
       - name: Store Xcode diagnostics
         if: failure()
         uses: actions/upload-artifact@v7
