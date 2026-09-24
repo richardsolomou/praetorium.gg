@@ -8,7 +8,7 @@ import { summarySides } from '../../battleSummary'
 import { formatDate } from '../../dates'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import type { OnboardingTarget } from '../../onboarding'
+import type { OnboardingTarget } from '../onboarding/onboarding'
 import type { Battle } from './battle'
 
 /**

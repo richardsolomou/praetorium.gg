@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   BellOff,
   BellRing,
@@ -41,25 +41,26 @@ import { exportRoster, saveRoster } from '../../../server/functions'
 import { shareLink } from '../../nativeBridge'
 import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { advanceOnboarding } from '../../onboarding'
-import { picksAfterDetachmentChange } from '../../rosterPicks'
+import { advanceOnboarding } from '../onboarding/onboarding'
+import { picksAfterDetachmentChange } from './rosterPicks'
 import { useCollectionMutation } from '../../useCollection'
 import { useSettled } from '../../useSettled'
-import { DatasheetPanel } from '../builder/DatasheetPanel'
-import { GROUPS } from '../builder/groups'
-import { Loadout } from '../builder/Loadout'
-import { Stepper } from '../builder/LoadoutControls'
-import { changedDraftSpreadCounts, withDraftSpreadCounts } from '../builder/loadoutModel'
-import { Picker, type PickerFilter } from '../builder/Picker'
-import { Section } from '../builder/Section'
-import { Pane } from '../builder/Pane'
-import { UnitCard } from '../builder/UnitCard'
-import { survivingUnits } from '../builder/pricePlaceholder'
-import { pickEditor, usePicks } from '../builder/usePicks'
-import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from '../../components/RosterSetupDialog'
-import { RosterExportDialog } from '../../components/RosterExportDialog'
-import { RosterBody, RosterHeader, RosterShell, RosterUnits } from '../../components/RosterPresentation'
-import { readWorkspaceState, writeWorkspaceState } from '../../components/workspaceState'
+import { DatasheetPanel } from './builder/DatasheetPanel'
+import { GROUPS } from '../../unitGroups'
+import { Loadout } from './builder/Loadout'
+import { Stepper } from '../../components/Stepper'
+import { changedDraftSpreadCounts, withDraftSpreadCounts } from './builder/loadoutModel'
+import { Picker, type PickerFilter } from './builder/Picker'
+import { Section } from './builder/Section'
+import { Pane } from './builder/Pane'
+import { useRosterPanes } from './builder/useRosterPanes'
+import { UnitCard } from './builder/UnitCard'
+import { survivingUnits } from './builder/pricePlaceholder'
+import { pickEditor, usePicks } from './builder/usePicks'
+import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
+import { RosterExportDialog } from './RosterExportDialog'
+import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
+import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
 import { BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
 import { RosterDataChanges } from './RosterDataChanges'
@@ -109,22 +110,12 @@ export type FrozenRoster = {
   detachments: readonly { id?: string; name: string; points?: number | null }[]
 }
 
-type RosterPaneHistory =
-  | { workspace: string; pane: 'picker' }
-  | ({ workspace: string; pane: 'loadout'; returnToPicker?: boolean } & (
-      | { selectedKey: number }
-      | { preview: { catalogueId: string; entryId: string; name: string } }
-    ))
-
-type RosterLocationState = { rosterPane?: RosterPaneHistory }
-
 const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
 /** Which set of waived restrictions this workspace has already been told about. */
 const WAIVERS_DISMISSED = 'waivers-dismissed'
 const NO_UNITS = [] as const
 const NO_JOINED: { label: string; name: string }[] = []
 const modelCount = (models: number) => `${models} ${models === 1 ? 'model' : 'models'}`
-const ROSTER_PANE_HASH = 'roster-pane'
 
 /**
  * Building a list from the catalogue rather than pasting one.
@@ -139,7 +130,6 @@ const ROSTER_PANE_HASH = 'roster-pane'
  */
 export function ListBuilder({ prep, initial, initialFaction, frozen, editable = true, battle, resolvePersistedRoster = true }: Props) {
   const navigate = useNavigate()
-  const router = useRouter()
   const path = useRouterState({ select: (state) => state.location.href.split('#', 1)[0] ?? state.location.pathname })
   const { data: me } = useQuery(meQuery())
   const { data: factionIndex } = useQuery(factionIndexQuery())
@@ -157,36 +147,31 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   const [remindersEnabled, setRemindersEnabled] = useState(prep.remindersEnabled ?? true)
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
-  const [selected, setSelected] = useState<number | null>(null)
-  const [preview, setPreview] = useState<{ catalogueId: string; entryId: string; name: string } | null>(null)
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
-  const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
   const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<string | null>(null)
   const [shareFeedback, setShareFeedback] = useState<'copied' | 'shared' | null>(null)
   const [shareProblem, setShareProblem] = useState<string | null>(null)
   // A frozen list has no saved row to be keyed by, so it is keyed by where it is read.
   const workspacePath = initial.id ? `/rosters/${initial.id}` : path
+  const {
+    selected,
+    setSelected,
+    preview,
+    setPreview,
+    showing,
+    setShowing,
+    wideWorkspace,
+    workspaceMeasured,
+    paneHistory,
+    closePane,
+    openPicker,
+    updateLoadoutHistory,
+  } = useRosterPanes({ path, workspacePath, picks })
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
   const [dismissedWaivers, setDismissedWaivers] = useState<string | null>(null)
-  const [wideWorkspace, setWideWorkspace] = useState(true)
-  const [loadoutInline, setLoadoutInline] = useState(true)
-  const [workspaceMeasured, setWorkspaceMeasured] = useState(false)
   const [pickerQuery, setPickerQuery] = useState('')
   const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
-  const paneHistory = useRouterState({
-    select: (state) => {
-      if (state.location.hash !== ROSTER_PANE_HASH) return null
-      const pane = (state.location.state as RosterLocationState).rosterPane
-      return pane?.workspace === workspacePath ? pane : null
-    },
-  })
-  const paneHistoryRef = useRef<RosterPaneHistory | null>(null)
-  const paneAfterHistoryBack = useRef<RosterPaneHistory | null>(null)
-  const paneHistoryBackPending = useRef(false)
-  const paneClosing = useRef(false)
-  /** The history entry this workspace opened on, which nothing here may step behind. */
-  const openedAt = useRef(router.history.location.state.__TSR_index)
   const editingSetup = setupDraft !== null
   const { data: loadedFaction, isLoading: factionLoading } = useQuery({
     ...factionQuery(catalogueId),
@@ -214,85 +199,8 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   const { data: owned } = useQuery({ ...collectionQuery(), enabled: editable && pickerEnabled })
   const collection = useMemo(() => new Set(owned ?? []), [owned])
   const { mutate: mutateCollection } = useCollectionMutation()
-  /*
-   * Leave the pane entry, keeping `next` open behind it.
-   *
-   * Stepping back is only safe over an entry stacked on top of the one this workspace
-   * opened on. A restored tab, a reload or a shared link mounts straight onto an open
-   * pane, and what sits behind that belongs to whatever opened the roster — the same
-   * step would leave the roster altogether. That entry is replaced in place instead.
-   */
-  const backFromPane = useCallback(
-    (next: RosterPaneHistory | null = null) => {
-      if (paneHistoryBackPending.current) return
-      paneHistoryBackPending.current = true
-      paneAfterHistoryBack.current = next
-      if (router.history.location.state.__TSR_index > openedAt.current) router.history.back()
-      else void navigate({ href: path, replace: true, resetScroll: false, state: (current) => ({ ...current, rosterPane: undefined }) })
-    },
-    [navigate, path, router],
-  )
-
   useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
   useEffect(() => setDismissedWaivers(readWorkspaceState<string>(workspacePath, WAIVERS_DISMISSED)), [workspacePath])
-  useLayoutEffect(() => {
-    const wide = window.matchMedia('(min-width: 1300px)')
-    const inline = window.matchMedia('(min-width: 1024px)')
-    const sync = () => {
-      setWideWorkspace(wide.matches)
-      setLoadoutInline(inline.matches)
-      setWorkspaceMeasured(true)
-    }
-    sync()
-    wide.addEventListener('change', sync)
-    inline.addEventListener('change', sync)
-    return () => {
-      wide.removeEventListener('change', sync)
-      inline.removeEventListener('change', sync)
-    }
-  }, [])
-  useEffect(() => {
-    if (!paneHistory) {
-      paneHistoryBackPending.current = false
-      const closed = paneHistoryRef.current
-      if (!closed) return
-      paneHistoryRef.current = null
-      const next = paneAfterHistoryBack.current
-      paneAfterHistoryBack.current = null
-      if (next) {
-        paneClosing.current = false
-        setShowing(next.pane)
-        return
-      }
-      paneClosing.current = true
-      setShowing(null)
-      if (closed.pane === 'loadout' && loadoutInline) {
-        setSelected(null)
-        setPreview(null)
-      }
-      return
-    }
-
-    paneHistoryRef.current = paneHistory
-    setShowing(paneHistory.pane)
-    if (paneHistory.pane === 'picker') return
-    if ('preview' in paneHistory) {
-      setPreview(paneHistory.preview)
-      setSelected(null)
-      return
-    }
-    const selectedIndex = picks.findIndex((pick) => pick.key === paneHistory.selectedKey)
-    if (selectedIndex !== -1) {
-      setPreview(null)
-      setSelected(selectedIndex)
-      return
-    }
-    paneHistoryRef.current = null
-    setShowing(null)
-    setPreview(null)
-    setSelected(null)
-    backFromPane()
-  }, [backFromPane, loadoutInline, paneHistory, picks])
   useEffect(() => {
     if (!editable) return
     setReadOnly(localStorage.getItem(READ_ONLY_PREFERENCE) === 'true')
@@ -318,69 +226,6 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
       }),
     [],
   )
-
-  const pushPaneHistory = useCallback(
-    (pane: RosterPaneHistory, stack = false) => {
-      paneHistoryRef.current = pane
-      void navigate({
-        href: `${path}#${ROSTER_PANE_HASH}`,
-        hashScrollIntoView: false,
-        replace: Boolean(paneHistory) && !stack,
-        resetScroll: false,
-        state: (current) => ({ ...current, rosterPane: pane }) as typeof current,
-      })
-    },
-    [navigate, paneHistory, path],
-  )
-
-  const closePane = useCallback(() => {
-    if (paneHistory) backFromPane()
-    else {
-      paneHistoryRef.current = null
-      setShowing(null)
-    }
-  }, [backFromPane, paneHistory])
-
-  const openPicker = useCallback(() => {
-    setShowing('picker')
-    if (!wideWorkspace) pushPaneHistory({ workspace: workspacePath, pane: 'picker' })
-  }, [pushPaneHistory, wideWorkspace, workspacePath])
-
-  const updateLoadoutHistory = useCallback(
-    (pane: Extract<RosterPaneHistory, { pane: 'loadout' }>) => {
-      const returnToPicker = paneHistory?.pane === 'picker' || (paneHistory?.pane === 'loadout' && Boolean(paneHistory.returnToPicker))
-      const next = returnToPicker ? { ...pane, returnToPicker: true } : pane
-      if (!loadoutInline) pushPaneHistory(next, paneHistory?.pane === 'picker')
-      else if (paneHistory?.pane === 'picker') {
-        backFromPane(next)
-      }
-    },
-    [backFromPane, loadoutInline, paneHistory, pushPaneHistory],
-  )
-
-  // A pane the workspace is wide enough to draw in place no longer needs a history
-  // entry of its own. The widths are the desktop defaults until the layout effect
-  // above measures them, so a mount that lands on an open pane has to wait for that.
-  useEffect(() => {
-    if (!paneHistory || !workspaceMeasured) return
-    const becameInline = paneHistory.pane === 'picker' ? wideWorkspace : loadoutInline
-    if (!becameInline) return
-    backFromPane(paneHistory)
-  }, [backFromPane, loadoutInline, paneHistory, wideWorkspace, workspaceMeasured])
-
-  useEffect(() => {
-    if (showing === null) {
-      paneClosing.current = false
-      return
-    }
-    if (!workspaceMeasured || paneHistoryRef.current || paneClosing.current) return
-    if (showing === 'picker' && !wideWorkspace) pushPaneHistory({ workspace: workspacePath, pane: 'picker' })
-    if (showing !== 'loadout' || loadoutInline) return
-    if (preview) pushPaneHistory({ workspace: workspacePath, pane: 'loadout', preview })
-    else if (selected !== null && picks[selected]) {
-      pushPaneHistory({ workspace: workspacePath, pane: 'loadout', selectedKey: picks[selected].key })
-    }
-  }, [loadoutInline, paneHistory, picks, preview, pushPaneHistory, selected, showing, wideWorkspace, workspaceMeasured, workspacePath])
 
   // A name the player typed, which may be nothing at all.
   const listName = name.trim()
@@ -553,12 +398,15 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
     reporting.current = null
     posthog.capture(event, { unit_count: attachedUnitCount(picks) })
   }, [edit, picks])
-  const drop = useCallback((index: number) => {
-    editor.current.drop(index)
-    setReminders((current) => remindersAfterUnitRemoved(current, index))
-    reporting.current = 'roster_unit_removed'
-    setSelected(null)
-  }, [])
+  const drop = useCallback(
+    (index: number) => {
+      editor.current.drop(index)
+      setReminders((current) => remindersAfterUnitRemoved(current, index))
+      reporting.current = 'roster_unit_removed'
+      setSelected(null)
+    },
+    [setSelected],
+  )
   const add = useCallback((entryId: string) => {
     editor.current.add(entryId)
     reporting.current = 'roster_unit_added'
@@ -571,7 +419,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
       setShowing('loadout')
       updateLoadoutHistory({ workspace: workspacePath, pane: 'loadout', preview: nextPreview })
     },
-    [updateLoadoutHistory, workspacePath],
+    [setPreview, setSelected, setShowing, updateLoadoutHistory, workspacePath],
   )
   const previewUnit = useCallback((entryId: string, unitName: string) => inspect(catalogueId, entryId, unitName), [catalogueId, inspect])
   const duplicate = useCallback((index: number) => {
@@ -587,15 +435,18 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   useLayoutEffect(() => {
     selection.current = { picks, updateLoadoutHistory, workspacePath }
   }, [picks, updateLoadoutHistory, workspacePath])
-  const selectUnit = useCallback((index: number) => {
-    setPreview(null)
-    setSelected(index)
-    setShowing('loadout')
-    const { picks: currentPicks, updateLoadoutHistory: updateHistory, workspacePath: currentWorkspace } = selection.current
-    const selectedKey = currentPicks[index]?.key
-    if (selectedKey !== undefined) updateHistory({ workspace: currentWorkspace, pane: 'loadout', selectedKey })
-    advanceOnboarding('roster', 'roster-points', 'roster-loadout')
-  }, [])
+  const selectUnit = useCallback(
+    (index: number) => {
+      setPreview(null)
+      setSelected(index)
+      setShowing('loadout')
+      const { picks: currentPicks, updateLoadoutHistory: updateHistory, workspacePath: currentWorkspace } = selection.current
+      const selectedKey = currentPicks[index]?.key
+      if (selectedKey !== undefined) updateHistory({ workspace: currentWorkspace, pane: 'loadout', selectedKey })
+      advanceOnboarding('roster', 'roster-points', 'roster-loadout')
+    },
+    [setPreview, setSelected, setShowing],
+  )
   const setUnitOwned = useCallback(
     (entryId: string, nextOwned: boolean) => mutateCollection({ entryId, owned: nextOwned }),
     [mutateCollection],

@@ -1,4 +1,5 @@
 import type { BattleEndReason } from '../core/battle'
+import { sideOutcome } from '../core/standings'
 import { sideName } from './sides'
 
 type OutcomeSide = { index: number; armies: readonly { playerName: string }[]; total: number }
@@ -29,13 +30,13 @@ export function battleResult(table: readonly OutcomeSide[], view: OutcomeView): 
   if (view.result?.reason === 'conceded') {
     const conceded = view.players.find((player) => player.id === view.result?.concededBy)?.side
     if (conceded === undefined) return { kind: 'none', detail: 'Battle conceded' }
-    const winningSide = table.find((side) => side.index !== conceded)
+    const winningSide = table.find((side) => sideOutcome(table, side.index, conceded) === 'won')
     return winningSide ? won(winningSide, 'by concession') : { kind: 'none', detail: 'Battle conceded' }
   }
   const [first, second] = table.toSorted((left, right) => right.total - left.total)
   if (!first) return { kind: 'none', detail: 'No result' }
   if (!second) return { kind: 'none', detail: `Final score ${first.total}` }
-  if (first.total === second.total) return { kind: 'none', detail: `Drawn at ${first.total}` }
+  if (sideOutcome(table, first.index) !== 'won') return { kind: 'none', detail: `Drawn at ${first.total}` }
   const score = `${first.total}–${second.total}`
   return won(first, score, score)
 }

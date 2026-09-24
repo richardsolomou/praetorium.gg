@@ -6,7 +6,7 @@ import type { BattleView } from '../../../core/battleView'
 import type { Side } from '../../sides'
 import { MissionActions } from '../../components/MissionActions'
 import { MissionCardReference } from '../../components/MissionCardReference'
-import { CARD, CARD_NAME } from './tints'
+import { CARD, CARD_NAME } from './battleTints'
 
 import type { MissionAction } from '../../../contracts/missions'
 import type { MissionAward as Award } from '../../missionText'

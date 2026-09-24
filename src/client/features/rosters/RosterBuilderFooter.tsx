@@ -3,7 +3,7 @@ import { Check, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { WaiverWarning } from '../../components/FormatWaivers'
-import { advanceOnboarding } from '../../onboarding'
+import { advanceOnboarding } from '../onboarding/onboarding'
 
 type Props = {
   loading: boolean

@@ -1,0 +1,254 @@
+import { Link } from '@tanstack/react-router'
+import { useEffect, useRef, useState } from 'react'
+import type { ChangeEventHandler, CSSProperties, ReactNode } from 'react'
+import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import { GAME_SIZES, type FormatRule } from '../../../core/battle'
+import type { OnboardingTarget } from '../onboarding/onboarding'
+import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
+import { WaiverChip } from '../../components/FormatWaivers'
+import { dispositionTone } from '../../components/rosterSetup'
+
+type PresentedFaction = FactionPresentation & {
+  detachments: readonly {
+    id: string
+    slug: string
+    dispositions: readonly { id: string; name: string }[]
+  }[]
+}
+
+export type PresentedDetachment = {
+  id?: string
+  name: string
+  points?: number | null
+}
+
+const NO_DETACHMENTS: readonly PresentedDetachment[] = []
+const NO_WAIVERS: readonly FormatRule[] = []
+
+type RosterHeaderProps = {
+  name: string
+  nameId?: string
+  onNameChange?: ChangeEventHandler<HTMLInputElement>
+  maxLength?: number
+  /** What an unnamed list is called. Shown as the title itself where nobody can type. */
+  placeholder?: string
+  faction?: PresentedFaction | null
+  factionLoading?: boolean
+  points?: number | null
+  limit?: number
+  /** How many units the list holds, said the way the library says it. */
+  unitCount?: number
+  detachments?: readonly PresentedDetachment[]
+  disposition?: string | null
+  /** The format restrictions this list is not playing, named beside it wherever it is read. */
+  waivers?: readonly FormatRule[]
+  actions?: ReactNode
+  children?: ReactNode
+}
+
+const FADE = '1.25rem'
+
+function edgeMask(start: boolean, end: boolean) {
+  if (!start && !end) return undefined
+  const opening = start ? `transparent 0, black ${FADE}` : 'black 0'
+  const closing = end ? `black calc(100% - ${FADE}), transparent 100%` : 'black 100%'
+  return `linear-gradient(to right, ${opening}, ${closing})`
+}
+
+/**
+ * Fades whichever end of a horizontal scroller still holds content, so a row that
+ * has more to say says so rather than ending in a hard clip mid-word.
+ */
+function useScrollEdges<T extends HTMLElement>() {
+  const ref = useRef<T>(null)
+  const [edges, setEdges] = useState({ start: false, end: false })
+  const measure = () => {
+    const node = ref.current
+    if (!node) return
+    const start = node.scrollLeft > 1
+    const end = Math.ceil(node.scrollLeft + node.clientWidth) < node.scrollWidth
+    setEdges((current) => (current.start === start && current.end === end ? current : { start, end }))
+  }
+  // Content decides the overflow as much as the viewport does, and a detachment can change under a row that never resized.
+  useEffect(measure)
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return
+    node.addEventListener('scroll', measure, { passive: true })
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => {
+      node.removeEventListener('scroll', measure)
+      observer.disconnect()
+    }
+  }, [])
+  const mask = edgeMask(edges.start, edges.end)
+  return { ref, style: mask ? ({ maskImage: mask, WebkitMaskImage: mask } satisfies CSSProperties) : undefined }
+}
+
+export function RosterHeader({
+  name,
+  nameId,
+  onNameChange,
+  maxLength,
+  placeholder,
+  faction,
+  factionLoading = false,
+  points,
+  limit,
+  unitCount,
+  detachments = NO_DETACHMENTS,
+  disposition,
+  waivers = NO_WAIVERS,
+  actions,
+  children,
+}: RosterHeaderProps) {
+  const meta = useScrollEdges<HTMLSpanElement>()
+  const hasPoints = points !== null && points !== undefined
+  const hasSummary = hasPoints || limit !== undefined
+  const shownDisposition = disposition
+    ? (faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === disposition) ?? {
+        id: disposition,
+        name: disposition,
+      })
+    : null
+
+  return (
+    <header className="border-b border-edge px-3 py-2">
+      {/*
+       * A placeholder is not a value: it neither prints nor reads as a title. So the
+       * field only holds one where somebody can replace it, and every other reading
+       * of this list — a shared roster, a printed sheet — is given the words.
+       */}
+      <Input
+        id={nameId}
+        value={onNameChange ? name : name || placeholder || ''}
+        onChange={onNameChange}
+        maxLength={maxLength}
+        placeholder={placeholder}
+        aria-label="List name"
+        readOnly={!onNameChange}
+        data-print-hide={onNameChange && !name ? '' : undefined}
+        className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-wide uppercase focus-visible:ring-0"
+      />
+      {onNameChange && !name && placeholder ? (
+        <p className="hidden h-8 items-center text-lg font-bold tracking-wide uppercase print:flex">{placeholder}</p>
+      ) : null}
+
+      {faction || factionLoading || limit !== undefined ? (
+        <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-dim">
+          <span
+            ref={meta.ref}
+            style={meta.style}
+            data-slot="roster-meta"
+            className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {faction ? (
+              <Link
+                to="/factions/$catalogueId"
+                params={{ catalogueId: faction.slug }}
+                className="flex shrink-0 items-center self-stretch text-info hover:text-bone"
+              >
+                <FactionLabel faction={faction} />
+              </Link>
+            ) : factionLoading ? (
+              <Skeleton className="h-5 w-28 shrink-0" aria-label="Loading faction" />
+            ) : null}
+            {faction && hasSummary ? <span aria-hidden>·</span> : null}
+            {hasPoints ? <span className="chip text-info">{points} pts</span> : null}
+            {hasPoints && limit !== undefined ? <span aria-hidden>·</span> : null}
+            {limit !== undefined ? (
+              <span className="shrink-0">{GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`}</span>
+            ) : null}
+            {unitCount === undefined ? null : (
+              <span className="contents">
+                <span aria-hidden>·</span>
+                <span className="shrink-0">
+                  {unitCount} {unitCount === 1 ? 'unit' : 'units'}
+                </span>
+              </span>
+            )}
+            {detachments.map((detachment) => {
+              const reference = faction?.detachments.find((candidate) => candidate.id === detachment.id)
+              const label = `${detachment.name}${detachment.points === null || detachment.points === undefined ? '' : ` · ${detachment.points} DP`}`
+              return (
+                <span key={detachment.id ?? detachment.name} className="contents">
+                  <span aria-hidden>·</span>
+                  {faction && reference ? (
+                    <Link
+                      to="/factions/$catalogueId/detachments/$detachmentId"
+                      params={{ catalogueId: faction.slug, detachmentId: reference.slug }}
+                      className="shrink-0 text-info hover:text-bone"
+                    >
+                      {label}
+                    </Link>
+                  ) : (
+                    <span className="shrink-0">{label}</span>
+                  )}
+                </span>
+              )
+            })}
+            {shownDisposition ? (
+              <span className="contents">
+                <span aria-hidden>·</span>
+                <span className={`chip shrink-0 ${dispositionTone(shownDisposition.id)}`}>{shownDisposition.name}</span>
+              </span>
+            ) : null}
+            <WaiverChip rules={waivers} />
+          </span>
+          {actions ? (
+            <span className="flex shrink-0 items-center gap-1" data-print-hide>
+              {actions}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {children}
+    </header>
+  )
+}
+
+type RosterShellProps = {
+  children: ReactNode
+  saving?: boolean
+  saveError?: boolean
+}
+
+export function RosterShell({ children, saving, saveError }: RosterShellProps) {
+  return (
+    <div
+      data-roster-builder
+      data-saving={saving}
+      data-save-error={saveError}
+      className="flex w-full min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden border border-edge bg-sunken"
+    >
+      {children}
+    </div>
+  )
+}
+
+export function RosterBody({ children, threeColumn = false }: { children: ReactNode; threeColumn?: boolean }) {
+  return (
+    <div
+      className={`flex min-h-0 min-w-0 max-w-full flex-1 overflow-hidden ${
+        threeColumn ? 'min-[1300px]:grid min-[1300px]:grid-cols-[minmax(0,1.1fr)_minmax(0,1.45fr)_minmax(0,1.45fr)]' : ''
+      }`}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function RosterUnits({ children, onboarding }: { children: ReactNode; onboarding?: OnboardingTarget }) {
+  return (
+    <div
+      data-slot="roster-units"
+      data-onboarding={onboarding}
+      className="min-h-0 w-full min-w-0 max-w-full flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-x-none px-3"
+    >
+      {children}
+    </div>
+  )
+}

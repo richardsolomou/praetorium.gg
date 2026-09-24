@@ -3,13 +3,13 @@ import { Button } from '@/components/ui/button'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import { type Side } from '../../sides'
-import { PlayerName } from '../../components/PlayerName'
-import { ArmyIdentity } from '../../components/ArmyIdentity'
+import { PlayerName } from './PlayerName'
+import { ArmyIdentity } from './ArmyIdentity'
 import type { BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { ArmyRoster } from './ArmyRoster'
 import { type Award, PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemText } from './MissionCards'
 import { Stratagems } from './Stratagems'
-import { tint } from './tints'
+import { tint } from './battleTints'
 
 type Props = {
   view: BattleView

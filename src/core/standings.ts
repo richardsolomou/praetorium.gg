@@ -58,15 +58,19 @@ export type Standing = {
  */
 export function battleOutcome(battle: StandingBattle, side: number): 'won' | 'lost' | 'drawn' {
   const conceded = battle.result?.concededBy
-  if (conceded) {
-    const concededSide = battle.sides[battle.playerIds.indexOf(conceded)]
-    if (concededSide !== undefined) return concededSide === side ? 'lost' : 'won'
-  }
-  const ours = sideScore(battle, side)
-  const theirs = Math.max(
-    ...battle.sides.filter((other) => other !== side).map((other) => sideScore(battle, other)),
-    Number.NEGATIVE_INFINITY,
-  )
+  const concededSide = conceded ? battle.sides[battle.playerIds.indexOf(conceded)] : undefined
+  const totals = [...new Set(battle.sides)].map((index) => ({ index, total: sideScore(battle, index) }))
+  return sideOutcome(totals, side, concededSide)
+}
+
+export function sideOutcome(
+  sides: readonly { index: number; total: number }[],
+  side: number,
+  concededSide?: number,
+): 'won' | 'lost' | 'drawn' {
+  if (concededSide !== undefined) return concededSide === side ? 'lost' : 'won'
+  const ours = sides.find((candidate) => candidate.index === side)?.total ?? 0
+  const theirs = Math.max(...sides.filter((other) => other.index !== side).map((other) => other.total), Number.NEGATIVE_INFINITY)
   if (theirs === Number.NEGATIVE_INFINITY) return 'drawn'
   if (ours > theirs) return 'won'
   return ours < theirs ? 'lost' : 'drawn'

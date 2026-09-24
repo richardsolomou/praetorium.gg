@@ -1,4 +1,4 @@
-import type { Datasheet } from '../contracts/catalogue'
+import type { Datasheet } from './datasheet'
 import { datasheetProfileKind } from './datasheetStructure'
 import { sameWargear } from './wargear'
 import type { CombatCarrier } from './combatLoadout'

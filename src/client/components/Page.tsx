@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import type { OnboardingTarget } from '../onboarding'
+import type { OnboardingTarget } from '../onboardingTargets'
 
 /**
  * The band every top-level page opens with: an eyebrow naming the area, the

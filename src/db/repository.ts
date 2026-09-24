@@ -2,8 +2,7 @@ import { and, asc, desc, eq, exists, inArray, isNotNull, lt, ne, not, or, type S
 import { type Command, type LoggedCommand, reduceBattle, type SubmitResult, validate } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import { type BattleAudience, DEFAULT_BATTLE_AUDIENCE } from '../core/battleAudience'
-import type { LeagueEntryStatus } from '../core/league'
-import type { TableShape } from '../core/tableShape'
+import type { BattlesCursor } from '../contracts/battles'
 import { alias } from 'drizzle-orm/pg-core'
 import type { PraetoriumDatabase } from './connection'
 import { LeagueRepository } from './repositories/leagueRepository'
@@ -43,42 +42,23 @@ type BattlePlayer = { id: string; name: string; image: string | null; side: numb
 export type BattleSeats = { battle: BattleRecord; players: BattlePlayer[] }
 /** Seats and history together, so a list of battles costs no query per battle. */
 export type BattleHistory = BattleSeats & { log: LoggedCommand[] }
-/** Where the previous page of battles ended: its last row's newest-command time and battle id. */
-/** Where the previous page ended: its last row's ordering value and battle id. */
-export type BattlesCursor = { at: number; id: string }
-
-export type UnlinkAccountResult =
-  | { status: 'removed'; account: { accessToken: string | null; refreshToken: string | null } }
-  | { status: 'missing' | 'two-factor' | 'last-method' }
-export type JoinLeagueResult = LeagueEntryStatus | 'missing' | 'closed' | 'full'
-/** `admitted` is an entry that became accepted, which its entrant is told about; `updated` is any other change. */
-export type ModerateLeagueResult = 'admitted' | 'updated' | 'missing' | 'forbidden' | 'closed' | 'full'
-export type CreateLeagueEventResult = 'created' | 'missing' | 'forbidden' | 'open' | 'too-small'
-export type MakeLeagueRecurringResult = 'updated' | 'missing' | 'forbidden'
-/** A successful update names the waiting entrants that switching to automatic entry accepted. */
-export type UpdateLeagueResult = { admitted: string[] } | 'missing' | 'forbidden' | 'below-accepted' | 'team-minimum'
-export type UpdateLeagueEventResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'sealed' | 'too-small'
-export type DeleteLeagueResult = 'deleted' | 'missing' | 'forbidden'
-export type AssignLeagueRosterRequirementResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format' | 'wrong-limit'
-export type AssignLeagueTeamResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format'
-export type SubmitLeagueRosterResult =
-  | { outcome: 'sealed'; format: TableShape | null; requiredLimit: number | null }
-  | { outcome: 'missing' | 'unassigned' | 'wrong-limit' }
-  | { outcome: 'invalid-warlords'; format: TableShape | null }
-export type RevealLeagueResult =
-  | { outcome: 'revealed'; entrantIds: string[] }
-  | { outcome: 'not-ready' }
-  | { outcome: 'invalid-warlords'; format: TableShape }
-export type UnsealLeagueRosterResult = 'unsealed' | 'missing' | 'forbidden' | 'not-revealed'
-export type LeagueBattleCandidate = {
-  token: string
-  name: string
-  eventToken: string
-  eventNumber: number
-  format: TableShape | null
-  rosterLimit: number | null
-  entries: { userId: string; requiredLimit: number | null; sealedLimit: number | null; teamId: string | null }[]
-}
+export type { BattlesCursor } from '../contracts/battles'
+export type { UnlinkAccountResult } from './repositories/accountRepository'
+export type {
+  JoinLeagueResult,
+  ModerateLeagueResult,
+  CreateLeagueEventResult,
+  MakeLeagueRecurringResult,
+  UpdateLeagueResult,
+  UpdateLeagueEventResult,
+  DeleteLeagueResult,
+  AssignLeagueRosterRequirementResult,
+  AssignLeagueTeamResult,
+  SubmitLeagueRosterResult,
+  RevealLeagueResult,
+  UnsealLeagueRosterResult,
+  LeagueBattleCandidate,
+} from './repositories/leagueRepository'
 
 /**
  * Whether the account in a seat is a practice opponent.

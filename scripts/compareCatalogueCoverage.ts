@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { compareCatalogueCoverage } from './catalogueCoverageComparison'
+import { compareCatalogueCoverage } from './lib/catalogueCoverageComparison'
 
 const [before, after] = process.argv.slice(2)
 if (!before || !after) throw new Error('usage: compareCatalogueCoverage.ts <before.json> <after.json> [--accept <withdrawn.json>]')

@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { referenceOpenApi } from '../../../../server/referenceApi'
+import { referenceOpenApi } from '../../../../server/referenceOpenApi'
 
 export const Route = createFileRoute('/api/reference/v1/openapi.json')({
   server: {

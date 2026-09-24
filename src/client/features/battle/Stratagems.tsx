@@ -6,10 +6,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { type Command, isNewOrders, STRATAGEM_CP_MAX } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
 import type { Side } from '../../sides'
-import { hiddenThisPhase, stratagemVisibleNow } from '../../stratagemVisibility'
+import { hiddenThisPhase, stratagemVisibleNow } from './stratagemVisibility'
 import { RuleText } from '../../components/RuleText'
 import type { StratagemText } from './MissionCards'
-import { CARD, CARD_NAME } from './tints'
+import { CARD, CARD_NAME } from './battleTints'
 
 type ViewStratagem = BattleView['players'][number]['stratagems'][number]
 

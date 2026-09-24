@@ -1,4 +1,4 @@
-import type { Datasheet, DatasheetCharacteristicKind, DatasheetProfileKind, StructuredDatasheetProfile } from '../contracts/catalogue'
+import type { Datasheet, DatasheetCharacteristicKind, DatasheetProfileKind, StructuredDatasheetProfile } from './datasheet'
 
 const normalized = (value: string) =>
   value

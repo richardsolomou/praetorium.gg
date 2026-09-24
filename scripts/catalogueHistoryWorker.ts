@@ -14,7 +14,7 @@ import { historicalSnapshotSources, installSnapshotArchive, type SnapshotPointer
 import { isSnapshotSourceName, type SnapshotSourceName } from '../src/server/catalogueSources'
 import { fetchWithRetry } from '../src/server/fetch'
 import { extractSourceArchive } from '../src/server/sync'
-import { compiledChangeSource } from './catalogueHistoryCompile'
+import { compiledChangeSource } from './lib/catalogueHistoryCompile'
 
 export type WorkerTask =
   | { kind: 'published'; id: string; base: string }

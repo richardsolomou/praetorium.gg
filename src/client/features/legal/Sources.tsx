@@ -1,0 +1,55 @@
+import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
+
+const linkClass = 'text-info hover:text-parchment'
+
+export function Sources() {
+  return (
+    <LegalPage title="Data sources" updated="1 September 2026">
+      <LegalSection title="Community data">
+        <p>Praetorium uses rules and reference data from these community projects:</p>
+        <LegalLinks>
+          <li>
+            Faction entries, constraints, modifiers, and costs from{' '}
+            <a href="https://github.com/BSData/wh40k-11e" className={linkClass}>
+              BSData
+            </a>
+            .
+          </li>
+          <li>
+            Stratagem, mission, and scoring data by Alpaca Software and the 40kdc community contributors. This data is licensed under{' '}
+            <a href="https://github.com/wn-mitch/40kdc-data/blob/main/LICENSE-DATA" className={linkClass}>
+              CC BY 4.0
+            </a>
+            . Praetorium prepares this data for use in the army builder and battle tracker.{' '}
+            <a href="https://40kdc.alpacasoft.dev" className={linkClass}>
+              Powered by 40kdc-data
+            </a>
+            .
+          </li>
+          <li>
+            Faction descriptions, mission layouts, and other reference data from{' '}
+            <a href="https://github.com/game-datacards/datasources" className={linkClass}>
+              game-datacards
+            </a>
+            .
+          </li>
+          <li>
+            Terrain geometry from{' '}
+            <a href="https://battlemaster.online" className={linkClass}>
+              Battlemaster
+            </a>
+            .
+          </li>
+        </LegalLinks>
+        <p>Each source retains its rights in its work. Praetorium does not claim ownership of the source data.</p>
+      </LegalSection>
+
+      <LegalSection title="Trademarks">
+        <p>
+          Warhammer 40,000 and related marks belong to Games Workshop. Praetorium is unofficial and is not affiliated with or endorsed by
+          Games Workshop. Nothing on this site is an official product or rules reference.
+        </p>
+      </LegalSection>
+    </LegalPage>
+  )
+}

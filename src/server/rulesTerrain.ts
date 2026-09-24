@@ -2,7 +2,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
 import { compareText } from '../core/text'
+import type { Deployment, Point, TerrainGeometry, TerrainLayout, TerrainTemplate } from '../contracts/terrain'
 import { readOptionalList } from './rulesSource'
+
+export type { Deployment, Point, TerrainGeometry, TerrainLayout, TerrainTemplate } from '../contracts/terrain'
 
 /**
  * The battlefield, as polygons the interface can draw rather than words it must
@@ -13,8 +16,6 @@ import { readOptionalList } from './rulesSource'
  * A layout without its pinned geometry is reported as absent rather than guessed at,
  * because a battlefield drawn from the wrong measurements is worse than none.
  */
-
-export type Point = { x: number; y: number }
 
 type RawPattern = {
   id: string
@@ -95,35 +96,6 @@ type RawBattlemasterCatalog = {
   layouts?: { id?: string; owner?: string; ownerUsername?: string; name?: string }[]
 }
 
-export type TerrainGeometry = {
-  areas: {
-    id: string
-    name: string
-    points: Point[]
-    markers: { label: string; position: Point }[]
-    objective: { position: Point; group: string | null } | null
-    objectiveGroup: string | null
-    measurements: { from: Point; to: Point }[]
-    parts: {
-      id: string
-      name: string
-      material: string
-      roof: Point[] | null
-      walls: { id: string; points: Point[]; thickness: number }[]
-    }[]
-  }[]
-}
-
-/** A battlefield, as polygons the interface can draw rather than words it must describe. */
-export type Deployment = {
-  id: string
-  name: string
-  description: string | null
-  /** Points are absolute: each zone's own offset is already applied. */
-  zones: { player: string; name: string; colour: string; points: Point[] }[]
-  objectives: Point[]
-}
-
 /** The deployment patterns, with every zone's own offset already applied. */
 export function loadDeployments(core: string): Deployment[] {
   return readOptionalList<RawPattern>(path.join(core, 'deployment-patterns.json'))
@@ -145,26 +117,6 @@ export function loadDeployments(core: string): Deployment[] {
     }))
     .filter((pattern) => pattern.zones.length)
     .toSorted((left, right) => compareText(left.name, right.name))
-}
-
-export type TerrainLayout = {
-  id: string
-  name: string
-  description: string | null
-  matchupId: string
-  variant: number | null
-  deploymentId: string | null
-  pieces: {
-    id: string
-    name: string
-    type: string
-    templateId: string
-    position: Point
-    rotation: number
-    mirror: string | null
-    parentAreaId: string | null
-  }[]
-  geometry: TerrainGeometry | null
 }
 
 /** Layouts without a matchup are skipped: nothing in the app can reach one. */
@@ -196,14 +148,6 @@ export function loadTerrainLayouts(core: string, battlemasterDirectory: string):
           parentAreaId: piece.parent_area_id ?? null,
         })),
     }))
-}
-
-export type TerrainTemplate = {
-  id: string
-  name: string
-  kind: string
-  points: Point[]
-  features: { id: string; templateId: string; position: Point; rotation: number; mirror: string | null }[]
 }
 
 export function loadTerrainTemplates(core: string): TerrainTemplate[] {

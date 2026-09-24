@@ -4,7 +4,7 @@ import { compileCanonicalCatalogueFromSnapshot, loadCanonicalCatalogue } from '.
 import { referenceCorpusFor } from '../src/server/referenceCorpus'
 import { evaluateReference } from '../src/server/referenceEvaluation'
 import { loadRules } from '../src/server/rules'
-import { referenceEvaluationCases } from './referenceEvaluationCases'
+import { referenceEvaluationCases } from './lib/referenceEvaluationCases'
 
 const BASELINE = {
   top1DocumentRecall: 0.875,

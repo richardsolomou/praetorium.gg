@@ -16,7 +16,7 @@ import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual'
 import { type ReactNode, type RefObject, useCallback, useImperativeHandle, useMemo, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { FactionLabel, type FactionPresentation } from './FactionMark'
-import type { OnboardingTarget } from '../onboarding'
+import type { OnboardingTarget } from '../onboardingTargets'
 
 /**
  * One choice, optionally with something drawn beside its name.

@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import { localRedirectPath } from 'ras-stack/auth/client'
 import { SignInPage } from '../client/features/account/SignInPage'
 import { signInOptionsQuery } from '../client/queries'
-import { signedInDestination } from '../client/signInGuard'
+import { signedInDestination } from '../client/features/account/signInGuard'
 
 export const Route = createFileRoute('/sign-in')({
   validateSearch: (search: Record<string, unknown>) => {

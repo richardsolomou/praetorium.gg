@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { baselineShortfall } from './baselines'
+import { baselineShortfall } from './lib/baselines'
 import { factionRestrictionCoverageIssues, loadDatacards } from '../src/server/datacards'
 
 const directory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')

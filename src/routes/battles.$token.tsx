@@ -1,10 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Navigate, notFound } from '@tanstack/react-router'
-import { useEffect } from 'react'
-import { BattleUnavailable } from '../client/components/BattleUnavailable'
-import { Setup } from '../client/components/Setup'
-import { Spectator } from '../client/components/Spectator'
-import { Tracker } from '../client/components/Tracker'
+import { createFileRoute, notFound } from '@tanstack/react-router'
+import { BattlePage } from '../client/features/battle/BattlePage'
 import {
   battleQuery,
   deploymentsQuery,
@@ -15,11 +10,7 @@ import {
   terrainReferencesQuery,
 } from '../client/queries'
 import { battlePreview, hiddenBattle, pageMeta } from '../client/linkPreview'
-import { armyRulesRequest } from '../client/sideRules'
-import { useCommand } from '../client/useCommand'
-import { useLiveBattle } from '../client/useLiveBattle'
-import { setNativeBattleActive } from '../client/nativeBridge'
-import type { openBattle } from '../server/functions'
+import { armyRulesRequest } from '../client/features/battle/sideRules'
 
 export const Route = createFileRoute('/battles/$token')({
   loader: async ({ context, params }) => {
@@ -73,43 +64,10 @@ export const Route = createFileRoute('/battles/$token')({
       ),
     }
   },
-  component: BattlePage,
+  component: BattleRoute,
 })
 
-function BattlePage() {
+function BattleRoute() {
   const { token } = Route.useParams()
-  return <BattleSession key={token} token={token} />
-}
-
-function BattleSession({ token }: { token: string }) {
-  const { data: screen } = useQuery(battleQuery(token))
-
-  if (!screen) return <Navigate to="/battles" replace />
-  if (screen.kind === 'unavailable') return <BattleUnavailable token={token} />
-  if (screen.kind === 'spectator') return <Spectator view={screen.view} missions={screen.missions} report={screen.report} />
-  return <SeatedBattle token={token} screen={screen} />
-}
-
-function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
-  useLiveBattle(token, true)
-  useEffect(() => {
-    setNativeBattleActive(true)
-    return () => {
-      setNativeBattleActive(false)
-    }
-  }, [])
-  const { send, attachSavedRoster, problem, pending } = useCommand(token, screen.view.seq)
-  if (screen.view.status === 'setup')
-    return (
-      <Setup
-        view={screen.view}
-        mission={screen.mission}
-        missions={screen.missions}
-        send={send}
-        attachSavedRoster={attachSavedRoster}
-        pending={pending}
-        problem={problem}
-      />
-    )
-  return <Tracker view={screen.view} missions={screen.missions} send={send} pending={pending} problem={problem} />
+  return <BattlePage key={token} token={token} />
 }

@@ -7,7 +7,7 @@ import { nextDraw } from '../../scoring'
 import { type Side, sideName } from '../../sides'
 import { redrawOffer, type WhenDrawn } from './drawOffer'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
-import { CARD } from './tints'
+import { CARD } from './battleTints'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
 import { BattlePromptDialog } from './BattlePromptDialog'
 

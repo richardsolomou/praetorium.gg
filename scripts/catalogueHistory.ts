@@ -22,8 +22,8 @@ import {
 } from '../src/server/catalogueSnapshot'
 import { isSnapshotSourceName } from '../src/server/catalogueSources'
 import { fetchWithRetry } from '../src/server/fetch'
-import { compiledChangeSource } from './catalogueHistoryCompile'
-import { type HistoryPoint, nextHistory } from './catalogueHistoryPlan'
+import { compiledChangeSource } from './lib/catalogueHistoryCompile'
+import { type HistoryPoint, nextHistory } from './lib/catalogueHistoryPlan'
 
 const root = path.join(import.meta.dirname, '..')
 const directory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')

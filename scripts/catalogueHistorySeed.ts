@@ -30,7 +30,7 @@ import {
   type SourceCommit,
   snapshotsToCompare,
   upstreamId,
-} from './catalogueHistoryPlan'
+} from './lib/catalogueHistoryPlan'
 import type { WorkerResult, WorkerTask } from './catalogueHistoryWorker'
 
 const root = path.join(import.meta.dirname, '..')

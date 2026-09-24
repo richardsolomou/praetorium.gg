@@ -7,3 +7,10 @@ export type MissionAction = {
   useLimit: string | null
   restriction: string | null
 }
+
+export type WhenDrawn = {
+  operation: 'redraw' | 'replace'
+  roundMax: number | null
+  heldCards: string[]
+  condition: string | null
+}

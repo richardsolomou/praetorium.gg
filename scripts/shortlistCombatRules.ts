@@ -4,7 +4,7 @@ import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { TypeSafeClient } from '@typesafe-ai/sdk'
 import { z } from 'zod'
-import { classifyCombatRules, COMBAT_RULE_MODEL, combatShortlistMarkdown, inventoryRuleSchema } from './combatRuleShortlist'
+import { classifyCombatRules, COMBAT_RULE_MODEL, combatShortlistMarkdown, inventoryRuleSchema } from './lib/combatRuleShortlist'
 
 const { values } = parseArgs({
   options: {
