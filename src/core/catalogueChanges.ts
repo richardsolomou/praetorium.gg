@@ -242,20 +242,36 @@ const changeId = (change: CatalogueChange) => ('detachmentId' in change ? change
  * The change set between two snapshots' reference data, in one deterministic order:
  * factions by name, then each faction's changes by kind and name. The same two inputs
  * always give byte-identical output, which is what lets any replica record it.
+ *
+ * A side that states no datasheets, or no detachments, has said nothing about them rather
+ * than that every one was removed: an older compiled catalogue carries no detachments at
+ * all, and a source missing from a snapshot leaves its part empty. That part is compared
+ * only when both sides state it.
  */
 export function catalogueChanges(before: ChangeSource, after: ChangeSource, limit = CATALOGUE_CHANGE_LIMIT): CatalogueChangeSet {
+  const stated = <T>(left: readonly T[], right: readonly T[]) => left.length > 0 && right.length > 0
   const found = [
-    ...compared(before.datasheets, after.datasheets, (sheet) => JSON.stringify([sheet.name, sheet.points, sheet.costs]), datasheetChanges, {
-      added: 'datasheet-added',
-      removed: 'datasheet-removed',
-    }),
-    ...compared(
-      before.detachments,
-      after.detachments,
-      (detachment) => JSON.stringify([detachment.name, detachment.points, detachment.enhancements, detachment.upgrades]),
-      detachmentChanges,
-      { added: 'detachment-added', removed: 'detachment-removed' },
-    ),
+    ...(stated(before.datasheets, after.datasheets)
+      ? compared(
+          before.datasheets,
+          after.datasheets,
+          (sheet) => JSON.stringify([sheet.name, sheet.points, sheet.costs]),
+          datasheetChanges,
+          {
+            added: 'datasheet-added',
+            removed: 'datasheet-removed',
+          },
+        )
+      : []),
+    ...(stated(before.detachments, after.detachments)
+      ? compared(
+          before.detachments,
+          after.detachments,
+          (detachment) => JSON.stringify([detachment.name, detachment.points, detachment.enhancements, detachment.upgrades]),
+          detachmentChanges,
+          { added: 'detachment-added', removed: 'detachment-removed' },
+        )
+      : []),
   ]
   const factions = new Map<string, FactionChanges>()
   const said = new Set<string>()

@@ -48,6 +48,8 @@ const detachment = (over: Partial<Detachment> = {}): Detachment => ({
 
 const source = (datasheets: Sheet[] = [], detachments: Detachment[] = []): ChangeSource => ({ datasheets, detachments })
 
+const captain = sheet({ id: 'captain', name: 'Captain', costs: [row('1', '80')] })
+
 const changesOf = (set: CatalogueChangeSet) => set.factions.flatMap((faction) => faction.changes)
 
 describe('the change set between two snapshots', () => {
@@ -249,6 +251,20 @@ describe('the change set between two snapshots', () => {
     expect({ kept: changesOf(changes).length, omitted: changes.omitted }).toEqual({ kept: 3, omitted: 2 })
   })
 
+  it('says nothing about detachments a side does not state', () => {
+    expect(isEmptyChangeSet(catalogueChanges(source([sheet()], [detachment()]), source([sheet()], [])))).toBe(true)
+  })
+
+  it('says nothing about datasheets a side does not state', () => {
+    expect(isEmptyChangeSet(catalogueChanges(source([sheet()], [detachment()]), source([], [detachment()])))).toBe(true)
+  })
+
+  it('still compares the part both sides state beside one that only one side states', () => {
+    const changes = catalogueChanges(source([sheet()], [detachment()]), source([sheet({ costs: [row('5', '85'), row('10', '150')] })], []))
+
+    expect(changesOf(changes).map((change) => change.kind)).toEqual(['datasheet-points'])
+  })
+
   it('reads back through its schema unchanged', () => {
     const changes = catalogueChanges(
       source([sheet()], [detachment()]),
@@ -307,13 +323,13 @@ describe('the changes that reach a saved list', () => {
   })
 
   it('reaches a list whose datasheet was removed', () => {
-    const removed = recorded(300, source([sheet()]), source([]))
+    const removed = recorded(300, source([sheet(), captain]), source([captain]))
 
     expect(kinds(changesTouching(list(), 100, [removed]))).toEqual(['datasheet-removed'])
   })
 
   it('never reaches a list through an addition', () => {
-    const added = recorded(300, source([], [detachment({ enhancements: [] })]), source([sheet()], [detachment()]))
+    const added = recorded(300, source([captain], [detachment({ enhancements: [] })]), source([sheet(), captain], [detachment()]))
 
     expect(changesTouching(list(), 100, [added])).toEqual([])
   })
@@ -332,15 +348,15 @@ describe('the changes that reach a saved list', () => {
   })
 
   it('names nothing for a datasheet removed and then brought back', () => {
-    const removed = recorded(200, source([sheet()]), source([]))
-    const restored = recorded(300, source([]), source([sheet()]))
+    const removed = recorded(200, source([sheet(), captain]), source([captain]))
+    const restored = recorded(300, source([captain]), source([sheet(), captain]))
 
     expect(changesTouching(list(), 100, [removed, restored])).toEqual([])
   })
 
   it('names nothing for a datasheet added and then removed again', () => {
-    const added = recorded(200, source([]), source([sheet()]))
-    const removed = recorded(300, source([sheet()]), source([]))
+    const added = recorded(200, source([captain]), source([sheet(), captain]))
+    const removed = recorded(300, source([sheet(), captain]), source([captain]))
 
     expect(changesTouching(list(), 100, [added, removed])).toEqual([])
   })
