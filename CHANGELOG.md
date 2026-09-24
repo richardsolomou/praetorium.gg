@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.73.0
+
+### Minor Changes
+
+- 789a9e1: Show the stratagems, command points, secondary cards, primary missions and opposing armies behind a player's record on their profile.
+
 ## 0.72.0
 
 ### Minor Changes
