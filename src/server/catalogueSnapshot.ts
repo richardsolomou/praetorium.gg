@@ -323,6 +323,11 @@ export function installedSnapshot(directory: string): SnapshotPointer | null {
   return installedSnapshotDetails(directory)?.pointer ?? null
 }
 
+/** The sources an installed snapshot says it carries, or null when it is not a complete install. */
+export function installedSnapshotSources(directory: string): SnapshotSourceName[] | null {
+  return installedSnapshotDetails(directory)?.sources ?? null
+}
+
 export async function fetchCurrentPointer(baseUrl: string) {
   const base = baseUrl.replace(/\/$/, '')
   const response = await fetchWithRetry(`${base}/current.json`, { cache: 'no-store' })
@@ -330,7 +335,7 @@ export async function fetchCurrentPointer(baseUrl: string) {
   return parsePointer(await response.json())
 }
 
-async function remoteRevocations(baseUrl: string) {
+export async function remoteRevocations(baseUrl: string) {
   const base = baseUrl.replace(/\/$/, '')
   const response = await fetchWithRetry(`${base}/revocations.json`, { cache: 'no-store' })
   if (response.status === 404) return configuredRevocations()
@@ -395,9 +400,10 @@ export function installSnapshotArchive(
   directory: string,
   archiveFile: string,
   pointer = catalogueLock.pointer,
-  revisions: Record<string, string> | undefined = catalogueLock.revisions,
+  /** Null installs a snapshot whatever revisions it pins, as a historical one does. */
+  revisions: Record<string, string> | null = catalogueLock.revisions,
 ) {
-  installArchive(directory, fs.readFileSync(archiveFile), pointer, configuredRevocations(), revisions)
+  installArchive(directory, fs.readFileSync(archiveFile), pointer, configuredRevocations(), revisions ?? undefined)
 }
 
 export async function downloadSnapshotArchive(

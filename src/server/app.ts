@@ -26,7 +26,7 @@ import { emailDelivery } from '../adapters/email'
 import { pushSenderFromEnvironment } from '../adapters/push'
 import { pushNotifier, silentNotifier } from './pushNotifier'
 import { prepareGlobalSearch } from './globalSearch'
-import { compileCanonicalCatalogueFromSnapshot, loadCanonicalCatalogue } from './canonicalCatalogue'
+import { referenceCatalogue } from './canonicalCatalogue'
 import { loadSnapshot, recordSwap, snapshotOf } from './catalogueChanges'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 
@@ -131,10 +131,7 @@ export function warm(instance: Pick<App, 'catalogue' | 'canonicalCatalogue' | 'r
 }
 
 function canonicalCatalogue(instance: Pick<App, 'catalogue' | 'rules'>, directory: string) {
-  const packaged = loadCanonicalCatalogue(directory)
-  if (packaged) return packaged
-  const loaded = instance.catalogue()
-  return loaded ? compileCanonicalCatalogueFromSnapshot(loaded, instance.rules(), directory) : null
+  return referenceCatalogue(directory, instance.catalogue, instance.rules)
 }
 
 export function app(): App {

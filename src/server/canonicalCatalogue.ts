@@ -747,10 +747,9 @@ export function canonicalCataloguePath(directory: string) {
   return path.join(directory, 'canonical', 'catalogue.json')
 }
 
-export function writeCanonicalCatalogue(directory: string, output = canonicalCataloguePath(directory)) {
-  const loaded = loadCatalogue(directory)
-  if (!loaded) throw new Error('catalogue data is unavailable')
-  const rules = loadRules(
+/** The rules a snapshot directory carries, read beside the catalogue already loaded from it. */
+export const snapshotRules = (directory: string, loaded: LoadedCatalogue) =>
+  loadRules(
     path.join(directory, 'rules'),
     path.join(directory, 'battlemaster'),
     path.join(directory, 'faction-icons'),
@@ -758,7 +757,22 @@ export function writeCanonicalCatalogue(directory: string, output = canonicalCat
     loaded.datacards,
     loaded.sourceReferences,
   )
-  const catalogue = compileCanonicalCatalogueFromSnapshot(loaded, rules, directory)
+
+/**
+ * A snapshot's reference catalogue: the compiled one it packages, or one compiled from its
+ * sources. The running instance and the change-history backfill both read a snapshot this way.
+ */
+export function referenceCatalogue(directory: string, catalogue: () => LoadedCatalogue | null, rules: () => LoadedRules | null) {
+  const packaged = loadCanonicalCatalogue(directory)
+  if (packaged) return packaged
+  const loaded = catalogue()
+  return loaded ? compileCanonicalCatalogueFromSnapshot(loaded, rules(), directory) : null
+}
+
+export function writeCanonicalCatalogue(directory: string, output = canonicalCataloguePath(directory)) {
+  const loaded = loadCatalogue(directory)
+  if (!loaded) throw new Error('catalogue data is unavailable')
+  const catalogue = compileCanonicalCatalogueFromSnapshot(loaded, snapshotRules(directory, loaded), directory)
   fs.mkdirSync(path.dirname(output), { recursive: true })
   fs.writeFileSync(output, `${JSON.stringify(catalogue, null, 2)}\n`)
   return catalogue

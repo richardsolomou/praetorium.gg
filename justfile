@@ -108,6 +108,10 @@ catalogue-compile:
 catalogue-audit *args:
     pnpm catalogue:audit -- {{ args }}
 
+# Record what past snapshots changed: --since <date> or --last <n>, --sql <file>, and DATABASE_URL to insert
+catalogue-backfill *args:
+    pnpm catalogue:backfill -- {{ args }}
+
 # Ratchet description coverage across the fetched rules sources
 descriptions:
     pnpm catalogue:descriptions
