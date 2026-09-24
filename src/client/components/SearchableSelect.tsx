@@ -75,8 +75,7 @@ export function SearchableSelect({
       itemToStringValue={(option) => option.value}
       isItemEqualToValue={(option, candidate) => option.value === candidate.value}
       onOpenChange={(open) => {
-        if (open && !virtualized)
-          requestAnimationFrame(() => list.current?.querySelector('[data-selected]')?.scrollIntoView({ block: 'center' }))
+        if (open && !virtualized) requestAnimationFrame(() => centreSelected(list.current))
       }}
       onItemHighlighted={(option, { reason, index }) => {
         const current = virtual.current
@@ -121,6 +120,19 @@ export function SearchableSelect({
       </ComboboxContent>
     </Combobox>
   )
+}
+
+/**
+ * Scrolls the open list, and only the list, so the chosen option sits in its middle.
+ *
+ * `scrollIntoView` also scrolls every ancestor that can, so a select on a page rather
+ * than in a dialog moved the page under the pointer that opened it.
+ */
+function centreSelected(container: HTMLElement | null) {
+  const item = container?.querySelector<HTMLElement>('[data-selected]')
+  if (!container || !item) return
+  const offset = item.getBoundingClientRect().top - container.getBoundingClientRect().top
+  container.scrollTop += offset - (container.clientHeight - item.offsetHeight) / 2
 }
 
 const searchable = (text: string) =>
