@@ -22,8 +22,8 @@ import {
   type ActiveCombatRule,
 } from '../../../core/combatRules'
 import { CombatRuleLabel } from './CombatRuleLabel'
-import { Chip, Choice, Segmented } from './CombatControls'
-import { Stepper } from '../builder/LoadoutControls'
+import { Chip, Choice } from './CombatControls'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CombatEstimate } from './CombatEstimate'
 
 export type CombatantSnapshot = {
@@ -47,62 +47,31 @@ type CombatAdjustments = {
 export type CombatRequest = Record<Phase, CombatInput | null>
 export type CombatAnswer = Record<Phase, { result?: CombatResult; error?: string } | null>
 const rerollRank = { none: 0, ones: 1, failed: 2 } as const
-const modifiers = [
-  [-1, '−1'],
-  [0, '0'],
-  [1, '+1'],
-] as const
-const rerolls = [
-  ['none', 'None'],
-  ['ones', '1s'],
-  ['failed', 'Failed'],
-] as const
-const matrixClass =
-  'mt-3 grid grid-cols-2 items-center gap-x-2 gap-y-1.5 text-xs @md:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)] @md:gap-x-3 @md:gap-y-2'
-const subheadingClass = 'eyebrow col-span-2 pt-2 text-faint @md:col-span-3'
-const criticalHits = [
-  [6, '6+'],
-  [5, '5+'],
-  [4, '4+'],
-] as const
-const criticalWounds = [...criticalHits, [3, '3+'], [2, '2+']] as const
-const extraRolls = [
-  [0, 'None'],
-  [6, '6+'],
-  [5, '5+'],
-  [4, '4+'],
-  [3, '3+'],
-  [2, '2+'],
-] as const
-/** Label, field, and the range a situational rule plausibly moves it. */
-const characteristics = [
-  ['Strength', 'strength', -3, 4],
-  ['Attacks', 'attacks', -1, 3],
-  ['AP', 'ap', -1, 3],
-  ['Damage', 'damage', -1, 3],
-] as const
 const sustainedAmounts: Record<string, WeaponAdjustment['sustained']> = {
-  none: undefined,
   '1': 1,
   '2': 2,
   '3': 3,
   D3: { dice: 1, sides: 3, bonus: 0 },
 }
-const sustainedChoices = [
-  ['none', '0'],
-  ['1', '1'],
-  ['2', '2'],
-  ['3', '3'],
-  ['D3', 'D3'],
-] as const
+const sustainedOptions = Object.keys(sustainedAmounts).map((key) => [key, `Sustained Hits ${key}`] as const)
 const sustainedKey = (amount: WeaponAdjustment['sustained']) =>
-  amount === undefined ? 'none' : typeof amount === 'number' ? String(amount) : 'D3'
+  amount === undefined ? undefined : typeof amount === 'number' ? String(amount) : 'D3'
+const rerollOptions = (roll: string, rolls: string) =>
+  [
+    ['ones', `Re-roll ${roll} 1s`],
+    ['failed', `Re-roll ${rolls}`],
+  ] as const
+const hitRerolls = rerollOptions('hit', 'hits')
+const woundRerolls = rerollOptions('wound', 'wounds')
+const saveRerolls = rerollOptions('save', 'saves')
 const grants = [
   ['lethal', 'Lethal Hits'],
   ['devastating', 'Devastating Wounds'],
   ['damageReroll', 'Re-roll damage 1s'],
 ] as const
-const signed = (value: number) => (value > 0 ? `+${value}` : value < 0 ? `−${-value}` : '0')
+const signedOptions = (values: readonly number[], name: string) =>
+  values.map((value) => [value, `${value > 0 ? '+' : '−'}${Math.abs(value)} ${name}`] as const)
+const rollOptions = (values: readonly number[], prefix: string) => values.map((value) => [value, `${prefix}${value}+`] as const)
 const situations = {
   ranged: [
     ['cover', 'Cover (−1 BS)'],
@@ -296,6 +265,10 @@ export function CombatMatchup({
   const changeTarget = <K extends keyof TargetAdjustment>(name: K, value: TargetAdjustment[K]) =>
     setAdjustments((current) => ({ ...current, target: { ...current.target, [name]: value } }))
   const weaponAdjustment = (phase: Phase) => adjustments.weapons?.[phase] ?? {}
+  const activeCount = (phase: Phase) =>
+    [...Object.values(adjustments[phase] ?? {}), ...Object.values(weaponAdjustment(phase))].filter(
+      (value) => value !== undefined && value !== false && value !== 0 && value !== 'none' && value !== 'direct',
+    ).length
   const sources = [
     ...new Set(
       [attacker, defender].flatMap(
@@ -445,248 +418,167 @@ export function CombatMatchup({
             })}
           </div>
         )}
-        <section aria-label="Conditions" className="mt-4 border-t border-edge pt-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="rubric">Conditions</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setAdjustments({})
-                setPreferences({})
-              }}
-            >
-              <RotateCcw aria-hidden />
-              Reset adjustments
-            </Button>
-          </div>
-          <div className={matrixClass}>
-            <span className="hidden @md:block" />
-            {phases.map(([phase, title]) => (
-              <h3 key={phase} className="rubric flex items-center gap-1.5">
-                <PhaseIcon phase={phase} />
-                {title}
-              </h3>
-            ))}
-            <h4 className={subheadingClass}>Rolls</h4>
-            {(
-              [
-                ['Hit roll', 'hit modifier', 'hitModifier'],
-                ['Wound roll', 'wound modifier', 'woundModifier'],
-              ] as const
-            ).map(([label, name, field]) => (
-              <Fragment key={field}>
-                <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">{label}</span>
-                {phases.map(([phase, title]) => (
-                  <Segmented
-                    key={phase}
-                    label={`${title} ${name}`}
-                    value={adjustments[phase]?.[field] ?? 0}
-                    choices={modifiers}
-                    onChange={(value) => change(phase, field, value)}
-                  />
-                ))}
-              </Fragment>
-            ))}
-            {(
-              [
-                ['Re-roll hits', 'hit re-rolls', 'hitReroll'],
-                ['Re-roll wounds', 'wound re-rolls', 'woundReroll'],
-              ] as const
-            ).map(([label, name, field]) => (
-              <Fragment key={field}>
-                <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">{label}</span>
-                {phases.map(([phase, title]) => (
-                  <Segmented
-                    key={phase}
-                    label={`${title} ${name}`}
-                    value={adjustments[phase]?.[field] ?? 'none'}
-                    choices={rerolls}
-                    onChange={(value) => change(phase, field, value)}
-                  />
-                ))}
-              </Fragment>
-            ))}
-            {(
-              [
-                ['Critical hits', 'critical hits', 'criticalHit', criticalHits],
-                ['Critical wounds', 'critical wounds', 'criticalWound', criticalWounds],
-              ] as const
-            ).map(([label, name, field, choices]) => (
-              <Fragment key={field}>
-                <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">{label}</span>
-                {phases.map(([phase, title]) => (
-                  <Segmented
-                    key={phase}
-                    label={`${title} ${name}`}
-                    value={weaponAdjustment(phase)[field] ?? 6}
-                    choices={choices}
-                    onChange={(value) => changeWeapon(phase, field, value === 6 ? undefined : value)}
-                  />
-                ))}
-              </Fragment>
-            ))}
-            <h4 className={subheadingClass}>Characteristics</h4>
-            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Skill</span>
-            {phases.map(([phase, title]) => (
-              <Segmented
-                key={phase}
-                label={`${title} skill`}
-                value={weaponAdjustment(phase).skill ?? 0}
-                choices={modifiers}
-                onChange={(value) => changeWeapon(phase, 'skill', value)}
-              />
-            ))}
-            {characteristics.map(([label, field, minimum, maximum]) => (
-              <Fragment key={field}>
-                <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">{label}</span>
+        <section aria-label="Modifiers" className="mt-4 border-t border-edge pt-3">
+          <Tabs defaultValue="ranged" className="flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <h2 className="rubric">Modifiers</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto @xl:order-last"
+                onClick={() => {
+                  setAdjustments({})
+                  setPreferences({})
+                }}
+              >
+                <RotateCcw aria-hidden />
+                Reset
+              </Button>
+              <TabsList
+                aria-label="Attack modifiers"
+                className="order-last h-8! w-full border border-edge/60 bg-transparent @xl:order-none @xl:w-fit"
+              >
                 {phases.map(([phase, title]) => {
-                  const value = weaponAdjustment(phase)[field] ?? 0
+                  const active = activeCount(phase)
                   return (
-                    <Stepper
-                      key={phase}
-                      label={`${title} ${label}`}
-                      countLabel={`${title} ${label}`}
-                      count={value}
-                      display={signed(value)}
-                      onRemove={value > minimum ? () => changeWeapon(phase, field, value - 1) : undefined}
-                      onAdd={value < maximum ? () => changeWeapon(phase, field, value + 1) : undefined}
-                    />
+                    <TabsTrigger key={phase} value={phase} className="px-3 text-xs data-active:bg-raised data-active:text-bone">
+                      <PhaseIcon phase={phase} />
+                      {title}
+                      {active ? <span className="readout text-xs text-primary">{active}</span> : null}
+                    </TabsTrigger>
                   )
                 })}
-              </Fragment>
-            ))}
-            <h4 className={subheadingClass}>Abilities</h4>
-            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Sustained Hits</span>
-            {phases.map(([phase, title]) => (
-              <Segmented
-                key={phase}
-                label={`${title} Sustained Hits`}
-                value={sustainedKey(weaponAdjustment(phase).sustained)}
-                choices={sustainedChoices}
-                onChange={(value) => changeWeapon(phase, 'sustained', sustainedAmounts[value])}
-              />
-            ))}
-            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0 @md:self-start @md:pt-2">Granted</span>
-            <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              {phases.map(([phase, title]) => (
-                <div key={phase} className="flex flex-wrap items-center gap-1.5">
-                  <PhaseIcon phase={phase} title={title} />
-                  {grants.map(([field, name]) => (
-                    <Chip
-                      key={field}
-                      label={name}
-                      ariaLabel={`${title} ${name}`}
-                      checked={Boolean(weaponAdjustment(phase)[field])}
-                      onChange={(value) => changeWeapon(phase, field, value)}
+              </TabsList>
+            </div>
+            {phases.map(([phase, title]) => {
+              const weapon = weaponAdjustment(phase)
+              const set =
+                <K extends keyof WeaponAdjustment>(field: K) =>
+                (value: WeaponAdjustment[K]) =>
+                  changeWeapon(phase, field, value)
+              const skill = phase === 'ranged' ? 'BS' : 'WS'
+              return (
+                <TabsContent key={phase} value={phase} aria-label={`${title} modifiers`} className="space-y-2.5">
+                  <ChipRow label="Rolls">
+                    <ChipFamily
+                      value={adjustments[phase]?.hitModifier}
+                      options={signedOptions([1, -1], 'Hit')}
+                      onChange={(value) => change(phase, 'hitModifier', value ?? 0)}
                     />
-                  ))}
-                </div>
-              ))}
-            </div>
-            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0 @md:self-start @md:pt-2">Situation</span>
-            <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              {phases.map(([phase, title]) => (
-                <div key={phase} className="flex flex-wrap items-center gap-1.5">
-                  <PhaseIcon phase={phase} title={title} />
-                  {situations[phase].map(([field, label]) => (
-                    <Chip
-                      key={field}
-                      label={label}
-                      checked={inheritedOptions(phase)[field] || Boolean(adjustments[phase]?.[field])}
-                      disabled={inheritedOptions(phase)[field]}
-                      onChange={(value) => change(phase, field, value)}
+                    <ChipFamily
+                      value={adjustments[phase]?.woundModifier}
+                      options={signedOptions([1, -1], 'Wound')}
+                      onChange={(value) => change(phase, 'woundModifier', value ?? 0)}
                     />
-                  ))}
-                  {plans[phase]?.weapons.some((weapon) => weapon.lethal) ? (
-                    <Chip
-                      label="Use Lethal Hits"
-                      ariaLabel={`${title} use Lethal Hits`}
-                      checked={options(phase).lethal}
-                      onChange={(value) => change(phase, 'lethal', value)}
+                    <ChipFamily
+                      value={adjustments[phase]?.hitReroll}
+                      options={hitRerolls}
+                      onChange={(value) => change(phase, 'hitReroll', value ?? 'none')}
                     />
-                  ) : null}
-                </div>
-              ))}
-            </div>
-            {plans.ranged?.weapons.some((weapon) => weapon.indirectFire) ? (
-              <>
-                <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Indirect fire</span>
-                <div className="col-span-2">
-                  <Segmented
-                    label="Indirect shooting"
-                    value={options('ranged').indirectFire ?? 'direct'}
-                    choices={[
-                      ['direct', 'Off'],
-                      ['unobserved', 'Unobserved or moving'],
-                      ['spotted', 'Stationary and spotted'],
-                    ]}
-                    onChange={(value) => change('ranged', 'indirectFire', value)}
-                  />
-                </div>
-              </>
-            ) : null}
-          </div>
-          <div className={`${matrixClass} mt-4 border-t border-edge pt-3`}>
-            <h3 className="rubric col-span-2 @md:col-span-3">Defender</h3>
-            {(
-              [
-                ['Toughness', 'toughness'],
-                ['Armour save', 'save'],
-              ] as const
-            ).map(([label, field]) => (
-              <Fragment key={field}>
-                <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">{label}</span>
-                <div className="col-span-2">
-                  <Segmented
-                    label={`Defender ${label.toLowerCase()}`}
-                    value={adjustments.target?.[field] ?? 0}
-                    choices={modifiers}
-                    onChange={(value) => changeTarget(field, value)}
-                  />
-                </div>
-              </Fragment>
-            ))}
-            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Extra InSv</span>
-            <div className="col-span-2">
-              <Segmented
-                label="Extra invulnerable save"
-                value={adjustments.target?.invulnerable ?? 0}
-                choices={extraRolls.slice(0, -1)}
-                onChange={(value) => changeTarget('invulnerable', value || null)}
+                    <ChipFamily
+                      value={adjustments[phase]?.woundReroll}
+                      options={woundRerolls}
+                      onChange={(value) => change(phase, 'woundReroll', value ?? 'none')}
+                    />
+                    <ChipFamily value={weapon.criticalHit} options={rollOptions([5, 4], 'Crit hits ')} onChange={set('criticalHit')} />
+                    <ChipFamily
+                      value={weapon.criticalWound}
+                      options={rollOptions([5, 4, 3, 2], 'Crit wounds ')}
+                      onChange={set('criticalWound')}
+                    />
+                  </ChipRow>
+                  <ChipRow label="Stats">
+                    <ChipFamily value={weapon.skill} options={signedOptions([1, -1], skill)} onChange={set('skill')} />
+                    <ChipFamily value={weapon.strength} options={signedOptions([1, 2, 3, -1], 'S')} onChange={set('strength')} />
+                    <ChipFamily value={weapon.attacks} options={signedOptions([1, 2, -1], 'A')} onChange={set('attacks')} />
+                    <ChipFamily value={weapon.ap} options={signedOptions([1, 2, -1], 'AP')} onChange={set('ap')} />
+                    <ChipFamily value={weapon.damage} options={signedOptions([1, 2, -1], 'D')} onChange={set('damage')} />
+                  </ChipRow>
+                  <ChipRow label="Abilities">
+                    <ChipFamily
+                      value={sustainedKey(weapon.sustained)}
+                      options={sustainedOptions}
+                      onChange={(value) => changeWeapon(phase, 'sustained', value === undefined ? undefined : sustainedAmounts[value])}
+                    />
+                    {grants.map(([field, name]) => (
+                      <ChipFamily key={field} value={weapon[field]} options={[[true, name]]} onChange={set(field)} />
+                    ))}
+                  </ChipRow>
+                  <ChipRow label="Situation">
+                    {situations[phase].map(([field, label]) => (
+                      <Chip
+                        key={field}
+                        label={label}
+                        checked={inheritedOptions(phase)[field] || Boolean(adjustments[phase]?.[field])}
+                        disabled={inheritedOptions(phase)[field]}
+                        onChange={(value) => change(phase, field, value)}
+                      />
+                    ))}
+                    {phase === 'ranged' && plans.ranged?.weapons.some((entry) => entry.indirectFire) ? (
+                      <ChipFamily
+                        value={adjustments.ranged?.indirectFire === 'direct' ? undefined : adjustments.ranged?.indirectFire}
+                        options={
+                          [
+                            ['unobserved', 'Indirect, unobserved or moving'],
+                            ['spotted', 'Indirect, stationary and spotted'],
+                          ] as const
+                        }
+                        onChange={(value) => change('ranged', 'indirectFire', value ?? 'direct')}
+                      />
+                    ) : null}
+                    {plans[phase]?.weapons.some((entry) => entry.lethal) ? (
+                      <Chip
+                        label="Decline Lethal Hits"
+                        checked={!options(phase).lethal}
+                        onChange={(value) => change(phase, 'lethal', !value)}
+                      />
+                    ) : null}
+                  </ChipRow>
+                </TabsContent>
+              )
+            })}
+          </Tabs>
+          <div className="mt-3 space-y-2.5 border-t border-edge pt-3">
+            <h3 className="rubric">Defender</h3>
+            <ChipRow label="Stats">
+              <ChipFamily
+                value={adjustments.target?.toughness}
+                options={signedOptions([1, -1], 'T')}
+                onChange={(value) => changeTarget('toughness', value)}
               />
-            </div>
-            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Extra FNP</span>
-            <div className="col-span-2">
-              <Segmented
-                label="Extra Feel No Pain"
-                value={extraFeelNoPain ?? 0}
-                choices={extraRolls}
-                onChange={(value) => setAdjustments((current) => ({ ...current, feelNoPain: value || null }))}
+              <ChipFamily
+                value={adjustments.target?.save}
+                options={signedOptions([1, -1], 'Sv')}
+                onChange={(value) => changeTarget('save', value)}
               />
-            </div>
-            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Re-roll saves</span>
-            <div className="col-span-2">
-              <Segmented
-                label="Defender save re-rolls"
-                value={adjustments.target?.saveReroll ?? 'none'}
-                choices={rerolls}
-                onChange={(value) => changeTarget('saveReroll', value === 'none' ? undefined : value)}
+            </ChipRow>
+            <ChipRow label="Protection">
+              <ChipFamily
+                value={adjustments.target?.invulnerable ?? undefined}
+                options={[6, 5, 4, 3].map((roll) => [roll, `${roll}++`] as const)}
+                onChange={(value) => changeTarget('invulnerable', value)}
               />
-            </div>
-            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Damage</span>
-            <div className="col-span-2 flex flex-wrap gap-1.5">
-              <Chip
-                label="−1 Damage"
-                checked={Boolean(adjustments.target?.damageReduction)}
+              <ChipFamily
+                value={extraFeelNoPain ?? undefined}
+                options={rollOptions([6, 5, 4, 3, 2], 'FNP ')}
+                onChange={(value) => setAdjustments((current) => ({ ...current, feelNoPain: value ?? null }))}
+              />
+              <ChipFamily
+                value={adjustments.target?.saveReroll}
+                options={saveRerolls}
+                onChange={(value) => changeTarget('saveReroll', value)}
+              />
+              <ChipFamily
+                value={adjustments.target?.damageReduction}
+                options={[[true, '−1 Damage']]}
                 onChange={(value) => changeTarget('damageReduction', value)}
               />
-              <Chip
-                label="Half damage"
-                checked={Boolean(adjustments.target?.halveDamage)}
+              <ChipFamily
+                value={adjustments.target?.halveDamage}
+                options={[[true, 'Half damage']]}
                 onChange={(value) => changeTarget('halveDamage', value)}
               />
-            </div>
+            </ChipRow>
           </div>
           {sources.length ? (
             <p className="mt-3 text-xs text-dim">Inherited: {sources.join(' · ')}. Evaluated profile changes are included.</p>
@@ -823,4 +715,28 @@ function CombatDefences({
 function PhaseIcon({ phase, title }: { phase: Phase; title?: string }) {
   const Icon = phase === 'ranged' ? Crosshair : Swords
   return <Icon className="size-3.5 shrink-0 text-info" aria-label={title} aria-hidden={title ? undefined : true} />
+}
+
+function ChipRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-1.5 @md:grid-cols-[7rem_minmax(0,1fr)] @md:items-start">
+      <span className="eyebrow text-faint @md:pt-2">{label}</span>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
+    </div>
+  )
+}
+
+/** Mutually exclusive choices; pressing the chosen one again returns to the unit's own value. */
+function ChipFamily<T>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T | undefined
+  options: readonly (readonly [T, string])[]
+  onChange: (value: T | undefined) => void
+}) {
+  return options.map(([option, label]) => (
+    <Chip key={label} label={label} checked={value === option} onChange={(checked) => onChange(checked ? option : undefined)} />
+  ))
 }

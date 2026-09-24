@@ -7,12 +7,8 @@ async function choose(page: Page, control: string, name: string) {
   await option.click()
 }
 
-function segment(page: Page, group: string) {
-  return page.getByRole('group', { name: group, exact: true })
-}
-
-async function pick(page: Page, group: string, option: string) {
-  await segment(page, group).getByRole('button', { name: option, exact: true }).click()
+function chip(page: Page, name: string) {
+  return page.getByRole('button', { name, exact: true })
 }
 
 async function matchup(page: Page) {
@@ -124,31 +120,34 @@ test('shared weapon modes count every carrier and indirect shooting applies its 
   await chooseUnit(page, 'Attacker', 'Death Guard', 'Plagueburst Crawler')
   const shooting = page.getByRole('region', { name: 'Shooting results' })
   const damage = shooting.locator('.readout').first()
-  const mode = segment(page, 'Indirect shooting').getByRole('button', { pressed: true })
-  await expect(mode).toHaveText('Off')
+  const unobservedFire = chip(page, 'Indirect, unobserved or moving')
+  const spottedFire = chip(page, 'Indirect, stationary and spotted')
+  await expect(unobservedFire).toHaveAttribute('aria-pressed', 'false')
+  await expect(spottedFire).toHaveAttribute('aria-pressed', 'false')
   await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
   await expect(shooting).not.toContainText('Unsupported')
   const direct = Number(await damage.textContent())
-  await pick(page, 'Indirect shooting', 'Unobserved or moving')
+  await unobservedFire.click()
   await expect.poll(async () => Number(await damage.textContent())).toBeLessThan(direct)
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
   const unobserved = Number(await damage.textContent())
-  await pick(page, 'Indirect shooting', 'Stationary and spotted')
+  await spottedFire.click()
+  await expect(unobservedFire).toHaveAttribute('aria-pressed', 'false')
   await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(unobserved)
   await expect.poll(async () => Number(await damage.textContent())).toBeLessThan(direct)
   await noOverflow(page)
   await shooting.evaluate((element) => element.scrollIntoView({ block: 'center' }))
   await shooting.screenshot({ path: 'test-results/simulator-indirect-fire.png' })
-  await page.getByRole('region', { name: 'Conditions', exact: true }).screenshot({ path: 'test-results/simulator-indirect-conditions.png' })
+  await page.getByRole('region', { name: 'Modifiers', exact: true }).screenshot({ path: 'test-results/simulator-indirect-modifiers.png' })
   await page.setViewportSize({ width: 390, height: 1000 })
   await noOverflow(page)
   await shooting.evaluate((element) => element.scrollIntoView({ block: 'center' }))
   await shooting.screenshot({ path: 'test-results/simulator-indirect-fire-390.png' })
   await page
-    .getByRole('region', { name: 'Conditions', exact: true })
-    .screenshot({ path: 'test-results/simulator-indirect-conditions-390.png' })
-  await pick(page, 'Indirect shooting', 'Off')
+    .getByRole('region', { name: 'Modifiers', exact: true })
+    .screenshot({ path: 'test-results/simulator-indirect-modifiers-390.png' })
+  await spottedFire.click()
   await expect.poll(async () => Number(await damage.textContent())).toBe(direct)
 })
 
@@ -189,7 +188,7 @@ test('army choices apply the selected vow and plague to the relevant combatant',
   const cover = page.getByRole('button', { name: 'Cover (−1 BS)', exact: true })
   await expect(cover).toHaveAttribute('aria-pressed', 'true')
   await expect(cover).toBeDisabled()
-  await expect(segment(page, 'Melee hit modifier').getByRole('button', { pressed: true })).toHaveText('0')
+  await expect(page.getByRole('tab', { name: /^Melee/ })).toHaveText('Melee')
   await expect(defender.locator('[data-characteristic] .readout').first()).toHaveText('6')
   await defensivePlague.click()
   await expect(cover).toHaveAttribute('aria-pressed', 'false')
@@ -263,7 +262,7 @@ for (const width of [1440, 390, 860, 1024]) {
     await expect(page.getByText('Evaluated profiles and weapon rules included.', { exact: false })).toHaveCount(0)
     await expect(page.getByText('Each phase starts against the full defending unit.', { exact: true })).toHaveCount(0)
     await expect(page.locator('main details')).toHaveCount(0)
-    await expect(segment(page, 'Extra Feel No Pain')).toBeVisible()
+    await expect(chip(page, 'FNP 5+')).toBeVisible()
     await expect(page.getByRole('region', { name: 'Attacker rules', exact: true })).toBeVisible()
     await expect(page.getByRole('region', { name: 'Defender rules', exact: true })).toBeVisible()
     for (const side of ['Attacker', 'Defender']) {
@@ -379,7 +378,7 @@ for (const width of [1440, 390, 860, 1024]) {
     await expect(melee).toContainText('4× Close combat weapon')
     await expect(shooting).toContainText('1.67')
     await expect(page.getByRole('button', { name: 'Cover (−1 BS)', exact: true })).toHaveAttribute('aria-pressed', 'false')
-    await pick(page, 'Extra Feel No Pain', '5+')
+    await chip(page, 'FNP 5+').click()
     await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('[data-characteristic="FNP"] .readout')).toHaveText(
       '5+',
     )
@@ -419,9 +418,9 @@ for (const width of [1440, 390]) {
     const defender = page.getByRole('region', { name: 'Defender', exact: true })
     const shooting = page.getByRole('region', { name: 'Shooting results' })
     const printed = defender.locator('[data-characteristic="FNP"] .readout')
-    const extra = segment(page, 'Extra Feel No Pain').getByRole('button', { pressed: true })
+    const extra = page.locator('button[aria-pressed="true"]', { hasText: /^FNP/ })
     await expect(defender.locator('[data-characteristic] .readout')).toHaveText(['6', '3+', '6', '—', '4+'])
-    await expect(extra).toHaveText('None')
+    await expect(extra).toHaveCount(0)
     await expect(
       page
         .getByRole('region', { name: 'Defender rules', exact: true })
@@ -432,16 +431,16 @@ for (const width of [1440, 390]) {
     const baseline = Number(await damage.textContent())
     expect(baseline).toBeGreaterThan(0.53)
     expect(baseline).toBeLessThan(0.58)
-    await pick(page, 'Extra Feel No Pain', '6+')
+    await chip(page, 'FNP 6+').click()
     await expect(printed).toHaveText('4+')
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
     expect(Number(await damage.textContent())).toBe(baseline)
-    await pick(page, 'Extra Feel No Pain', '2+')
+    await chip(page, 'FNP 2+').click()
     await expect(printed).toHaveText('2+')
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
     expect(Number(await damage.textContent())).toBeLessThan(baseline)
-    await page.getByRole('button', { name: 'Reset adjustments', exact: true }).click()
-    await expect(extra).toHaveText('None')
+    await page.getByRole('button', { name: 'Reset', exact: true }).click()
+    await expect(extra).toHaveCount(0)
     await expect(printed).toHaveText('4+')
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
     expect(Number(await damage.textContent())).toBe(baseline)
@@ -456,9 +455,7 @@ for (const width of [1440, 390]) {
     await noOverflow(page)
     await page.evaluate(() => window.scrollTo(0, 0))
     await defender.screenshot({ path: `test-results/simulator-reanimator-${width}.png` })
-    await page
-      .getByRole('region', { name: 'Conditions', exact: true })
-      .screenshot({ path: `test-results/simulator-conditions-${width}.png` })
+    await page.getByRole('region', { name: 'Modifiers', exact: true }).screenshot({ path: `test-results/simulator-modifiers-${width}.png` })
     await page.evaluate(() => window.scrollTo(0, 0))
     await page.screenshot({ path: `test-results/simulator-fnp-${width}.png`, fullPage: true })
   })

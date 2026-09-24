@@ -154,7 +154,7 @@ test('Aeldari weapon buffs calculate their named and existing-ability effects', 
   await expect(simulator.getByRole('region', { name: 'Attacker rules', exact: true })).toContainText('Target within 12"')
   expect(
     await simulator.getByRole('region', { name: 'Buffs', exact: true }).evaluate((element) => {
-      const conditions = document.querySelector('[aria-label="Conditions"]')!
+      const conditions = document.querySelector('[aria-label="Modifiers"]')!
       return Boolean(element.compareDocumentPosition(conditions) & Node.DOCUMENT_POSITION_FOLLOWING)
     }),
   ).toBe(true)
