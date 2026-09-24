@@ -135,11 +135,11 @@ export function weaponProfileGroups(weapons: readonly Profile[]) {
 }
 
 export function weaponProfileMode(profile: Profile) {
-  return (
+  const mode =
     profile.name
       .replace(/^[^\p{L}\p{N}]+/u, '')
       .slice(wargearBaseName(profile.name).length)
       .replace(/^\s*[-–—(]\s*|\)\s*$/g, '')
       .trim() || profile.name
-  )
+  return mode.replace(/^\p{Ll}/u, (letter) => letter.toLocaleUpperCase())
 }

@@ -1,5 +1,6 @@
 import { Bell, BellRing } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ReminderSubject } from '../../../core/reminders'
 
 export type ReminderControls = {
@@ -20,15 +21,24 @@ export function ReminderButton({
   const active = controls.active(subject)
   const label = `${active ? 'Edit' : 'Set'} alert for ${subject.name}`
   return (
-    <Button
-      variant="ghost"
-      size="icon-xs"
-      className={active ? 'text-parchment' : 'text-faint hover:text-bone'}
-      aria-label={label}
-      title={label}
-      onClick={() => controls.onSelect(subject, unitName)}
-    >
-      {active ? <BellRing /> : <Bell />}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        closeOnClick={false}
+        render={
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className={active ? 'text-parchment' : 'text-faint hover:text-bone'}
+            aria-label={label}
+            onClick={() => controls.onSelect(subject, unitName)}
+          />
+        }
+      >
+        {active ? <BellRing /> : <Bell />}
+      </TooltipTrigger>
+      <TooltipContent role="tooltip" side="bottom">
+        {label}
+      </TooltipContent>
+    </Tooltip>
   )
 }

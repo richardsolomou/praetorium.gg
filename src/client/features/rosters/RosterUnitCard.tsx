@@ -12,6 +12,7 @@ type BuilderUnitCardProps = {
   selected: boolean
   owned: boolean
   editable: boolean
+  alertCount?: number
   onSelect: (index: number) => void
   onRemove: (index: number) => void
   onDuplicate: (index: number) => void
@@ -28,6 +29,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   selected,
   owned,
   editable,
+  alertCount,
   onSelect,
   onRemove,
   onDuplicate,
@@ -47,6 +49,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       joined={joined.map((row) => ({ ...row, onAct: () => onJoin(row.detach, undefined) }))}
       canJoin={canJoin}
       onJoin={(targetKey) => onJoin(index, targetKey)}
+      alertCount={alertCount}
       editable={editable}
     />
   )

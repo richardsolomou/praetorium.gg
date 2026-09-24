@@ -1,6 +1,7 @@
-import { Copy, EllipsisVertical, Heart, X } from 'lucide-react'
+import { BellRing, Copy, EllipsisVertical, Heart, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ContextMenu, ContextMenuCheckboxItem, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import {
   DropdownMenu,
@@ -36,6 +37,7 @@ type Props = {
   joined?: Joined[]
   /** A last row of the card's own: what a battle has done to this unit, and what can be done about it. */
   status?: ReactNode
+  alertCount?: number
   editable?: boolean
 } & Partial<Editing>
 
@@ -67,6 +69,7 @@ export function UnitCard({
   canJoin = NONE,
   onJoin = noop,
   status,
+  alertCount = 0,
   editable = true,
 }: Props) {
   const cardClassName = `relative min-w-0 max-w-full overflow-hidden border bg-card transition-colors [contain:layout_style] ${
@@ -107,7 +110,10 @@ export function UnitCard({
         </span>
         <div className="pointer-events-none text-left">
           <span className="w-full min-w-0">
-            <span className="rubric block leading-tight text-bone">{unit.name}</span>
+            <span className="rubric block leading-tight text-bone">
+              {unit.name}
+              {alertCount ? <UnitAlertMarker count={alertCount} unitName={unit.name} /> : null}
+            </span>
             {alliedFaction ? (
               <span className="eyebrow mt-1 flex items-center gap-1 text-info">
                 Allied unit · <FactionLabel faction={alliedFaction} />
@@ -220,6 +226,23 @@ const NONE: never[] = []
 const ROW = 'flex items-center border-t border-edge bg-raised px-2.5 py-1'
 const MENU = 'w-44'
 const ITEM = 'text-xs font-semibold uppercase'
+
+function UnitAlertMarker({ count, unitName }: { count: number; unitName: string }) {
+  const summary = `${count} ${count === 1 ? 'alert' : 'alerts'} set for ${unitName}`
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        closeOnClick={false}
+        render={<output aria-label={summary} className="pointer-events-auto relative z-10 ml-1 inline-flex align-middle text-parchment" />}
+      >
+        <BellRing className="size-3" aria-hidden />
+      </TooltipTrigger>
+      <TooltipContent role="tooltip" side="bottom">
+        {summary}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
 
 /**
  * The same three actions, in whichever menu asked for them.

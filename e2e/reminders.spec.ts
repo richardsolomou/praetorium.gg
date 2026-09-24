@@ -30,7 +30,10 @@ test('roster reminders cover selected rules and advances from another device', a
   expect(await enhancements.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/reminder-enhancement-phone.png', fullPage: true })
   await page.setViewportSize(desktopContext.viewport)
-  await enhancements.getByLabel('Set alert for Nether-realm Casket').click()
+  const enhancementAlert = enhancements.getByLabel('Set alert for Nether-realm Casket')
+  await enhancementAlert.hover()
+  await expect(page.getByRole('tooltip')).toHaveText('Set alert for Nether-realm Casket')
+  await enhancementAlert.click()
   await expect(page.getByRole('dialog', { name: 'Nether-realm Casket' })).toBeVisible()
   await page.getByRole('dialog', { name: 'Nether-realm Casket' }).getByRole('button', { name: 'Cancel' }).click()
 
@@ -68,10 +71,12 @@ test('roster reminders cover selected rules and advances from another device', a
   await page.setViewportSize(desktopContext.viewport)
 
   await waitForRosterSave(page, () => editor.getByRole('button', { name: 'Save alert' }).click(), 'Living Lightning')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Disable all alerts' }).click())
+  const plasmancer = page.locator('[data-unit="Plasmancer"]')
+  await expect(plasmancer.getByLabel('1 alert set for Plasmancer')).toBeVisible()
+  await expect(page.getByRole('button', { name: /all alerts/i })).toHaveCount(0)
+  await plasmancer.screenshot({ path: 'test-results/reminder-unit-card.png' })
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Enable all alerts' })).toBeVisible()
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Enable all alerts' }).click())
+  await expect(page.locator('[data-unit="Plasmancer"]').getByLabel('1 alert set for Plasmancer')).toBeVisible()
 
   await setupBattle(page, opponent, {
     opponent: opponentName,

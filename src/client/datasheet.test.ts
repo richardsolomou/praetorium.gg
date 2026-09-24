@@ -9,6 +9,7 @@ import {
   referenceAbilities,
   ruleProfileSections,
   weaponProfileGroups,
+  weaponProfileMode,
 } from './datasheet'
 
 describe('primary unit profile', () => {
@@ -196,4 +197,16 @@ it('keeps weapons with different attack types or carried counts in separate prof
     ['pair'],
     ['other'],
   ])
+})
+
+describe('weapon profile mode labels', () => {
+  const profile = (name: string) => ({ id: name, name, type: 'Melee Weapons', values: [] })
+
+  it('capitalizes a lowercase source mode', () => {
+    expect(weaponProfileMode(profile('➤ Spear of the Void Dragon - strike'))).toBe('Strike')
+  })
+
+  it('preserves source modes that already have deliberate casing', () => {
+    expect(weaponProfileMode(profile('➤ Blaster - FOCUSED'))).toBe('FOCUSED')
+  })
 })

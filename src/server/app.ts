@@ -30,6 +30,7 @@ import { referenceCatalogue } from './canonicalCatalogue'
 import { loadCatalogueHistory } from './catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
+import { combatUnitsFor } from './combatUnits'
 
 type App = {
   database: PraetoriumDatabase
@@ -45,6 +46,8 @@ type App = {
   rules: () => LoadedRules | null
   /** What each army-data update changed, as the snapshot carries it; null when it carries none. */
   catalogueHistory: () => CatalogueHistoryEntry[] | null
+  /** The simulator's all-factions picker, prepared once for the active snapshot. */
+  combatUnits: () => ReturnType<typeof combatUnitsFor>
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
   auth: ReturnType<typeof createAuth>
@@ -118,12 +121,13 @@ const sync = {
 }
 
 /** Pays the one-time preparation cost after startup, before a player opens the catalogue. */
-export function warm(instance: Pick<App, 'catalogue' | 'canonicalCatalogue' | 'rules'>): Promise<void> {
+export function warm(instance: Pick<App, 'catalogue' | 'canonicalCatalogue' | 'combatUnits' | 'rules'>): Promise<void> {
   return new Promise((resolve) => {
     setImmediate(() => {
       try {
         prepareGlobalSearch(instance.catalogue(), instance.rules())
         instance.canonicalCatalogue()
+        instance.combatUnits()
       } catch (error) {
         sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
       }
@@ -160,6 +164,10 @@ export function app(): App {
         return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
       }),
       history: memoize(() => loadCatalogueHistory(catalogueDataDirectory)),
+      combatUnits: memoize(() => {
+        const catalogue = instance.catalogue()
+        return catalogue ? combatUnitsFor(catalogue, instance.rules()) : []
+      }),
     })
     const loaded = loaders()
     const instance: App = {
@@ -173,6 +181,7 @@ export function app(): App {
       canonicalCatalogue: loaded.canonical,
       rules: loaded.rules,
       catalogueHistory: loaded.history,
+      combatUnits: loaded.combatUnits,
       push: Boolean(push),
       sync: () => sync.state,
       telemetry,
@@ -185,6 +194,7 @@ export function app(): App {
       instance.canonicalCatalogue = next.canonical
       instance.rules = next.rules
       instance.catalogueHistory = next.history
+      instance.combatUnits = next.combatUnits
       ready = warm(instance)
     }
     // Fetched in the background rather than at boot: an instance must start and

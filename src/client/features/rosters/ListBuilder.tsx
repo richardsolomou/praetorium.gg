@@ -1,8 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
-  BellOff,
-  BellRing,
   Copy,
   Crown,
   Download,
@@ -144,7 +142,6 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   const [name, setName] = useState(initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [reminders, setReminders] = useState<RosterReminder[]>(prep.reminders ?? [])
-  const [remindersEnabled, setRemindersEnabled] = useState(prep.remindersEnabled ?? true)
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
@@ -230,8 +227,8 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   // A name the player typed, which may be nothing at all.
   const listName = name.trim()
   const storedPrep = useMemo(
-    () => ({ stratagems: prep.stratagems, secondaries: prep.secondaries, reminders, remindersEnabled }),
-    [prep.secondaries, prep.stratagems, reminders, remindersEnabled],
+    () => ({ stratagems: prep.stratagems, secondaries: prep.secondaries, reminders, remindersEnabled: true }),
+    [prep.secondaries, prep.stratagems, reminders],
   )
   const draft: RosterDraft = {
     id: savedId,
@@ -480,6 +477,13 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
     }),
     [editReminder, reminders, selected],
   )
+  const reminderCountsByUnit = useMemo(() => {
+    const counts = new Map<number, number>()
+    for (const reminder of reminders) {
+      if (reminder.unit) counts.set(reminder.unit.index, (counts.get(reminder.unit.index) ?? 0) + 1)
+    }
+    return counts
+  }, [reminders])
   const cardRelationships = useCardRelationships(picks, units)
 
   // A frozen list carries everything its cards print, which is what lets an opponent
@@ -659,17 +663,6 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
         actions={
           editable ? (
             <>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                disabled={!reminders.length}
-                aria-label={reminders.length ? `${remindersEnabled ? 'Disable' : 'Enable'} all alerts` : 'No alerts set'}
-                title={reminders.length ? `${remindersEnabled ? 'Disable' : 'Enable'} all alerts` : 'No alerts set'}
-                className={remindersEnabled && reminders.length ? 'text-parchment' : 'text-faint'}
-                onClick={() => setRemindersEnabled((enabled) => !enabled)}
-              >
-                {remindersEnabled && reminders.length ? <BellRing /> : <BellOff />}
-              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
                   <EllipsisVertical />
@@ -908,6 +901,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
                         }
                         selected={selected === index}
                         owned={collection.has(unit.entryId)}
+                        alertCount={editable ? reminderCountsByUnit.get(index) : undefined}
                         onSelect={selectUnit}
                         onRemove={drop}
                         onDuplicate={duplicate}
@@ -1086,7 +1080,6 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
           onClose={() => setReminderDraft(null)}
           onSave={(reminder) => {
             setReminders((current) => [...current.filter((candidate) => candidate.key !== reminder.key), reminder])
-            setRemindersEnabled(true)
             setReminderDraft(null)
           }}
           onRemove={

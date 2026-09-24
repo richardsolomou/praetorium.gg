@@ -905,11 +905,11 @@ test('a dense squad datasheet remains readable at desktop and phone widths', asy
   await expect(page.getByText('4+', { exact: true }).first()).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Ranged weapons 5', exact: true })).toBeVisible()
   const missiles = page.getByRole('rowgroup', { name: 'cyclone missile launcher profiles' })
-  await expect(missiles.getByRole('rowheader', { name: 'frag', exact: true })).toBeVisible()
-  await expect(missiles.getByRole('rowheader', { name: 'krak', exact: true })).toBeVisible()
+  await expect(missiles.getByRole('rowheader', { name: 'Frag', exact: true })).toBeVisible()
+  await expect(missiles.getByRole('rowheader', { name: 'Krak', exact: true })).toBeVisible()
   const plasma = page.getByRole('rowgroup', { name: 'plasma cannon profiles' })
-  await expect(plasma.getByRole('rowheader', { name: 'standard', exact: true })).toBeVisible()
-  await expect(plasma.getByRole('rowheader', { name: 'supercharge', exact: true })).toBeVisible()
+  await expect(plasma.getByRole('rowheader', { name: 'Standard', exact: true })).toBeVisible()
+  await expect(plasma.getByRole('rowheader', { name: 'Supercharge', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Melee weapons 3', exact: true })).toBeVisible()
   await expect(page.getByText('Captain in Terminator Armour', { exact: true })).toBeVisible()
   await expect(page.getByText(/^Ancient in Terminator Armou?r$/)).toBeVisible()
@@ -918,6 +918,17 @@ test('a dense squad datasheet remains readable at desktop and phone widths', asy
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: 'test-results/deathwing-terminator-datasheet-phone.png', fullPage: true })
+})
+
+test('weapon profile modes use readable casing', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/factions/necrons/datasheets/ctan-shard-of-the-void-dragon')
+  const spear = page.getByRole('rowgroup', { name: 'spear of the void dragon profiles' })
+  await expect(spear.getByRole('rowheader', { name: 'Strike', exact: true })).toBeVisible()
+  await expect(spear.getByRole('rowheader', { name: 'Sweep', exact: true })).toBeVisible()
+  await page.getByRole('heading', { name: 'Melee weapons 2', exact: true }).locator('..').screenshot({
+    path: 'test-results/void-dragon-weapon-profiles.png',
+  })
 })
 
 test('an officer datasheet shows how many orders it can issue', async ({ page }) => {
