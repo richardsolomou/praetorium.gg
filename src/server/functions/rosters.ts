@@ -173,15 +173,16 @@ export const saveRoster = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const instance = app()
-      const result = await instance.service.saveRoster(player.id, data)
-      if (!data.id)
+      const { id, created } = await instance.service.saveRoster(player.id, data)
+      // Counted when a row is made, which a visitor's list does while arriving with the id it was built under.
+      if (created)
         await instance.telemetry.capture(player.id, 'roster_created', {
           ...rosterTelemetryProperties(data, instance.catalogue(), instance.rules()),
           unit_count: attachedUnitCount(data.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
           source: data.source,
           visibility: data.visibility,
         })
-      return result
+      return { id }
     }),
   )
 
