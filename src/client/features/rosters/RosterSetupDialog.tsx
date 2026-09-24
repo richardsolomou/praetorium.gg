@@ -90,6 +90,8 @@ type Props = {
   namePlaceholder?: string
   onSave: (value: RosterSetup) => void
   pending?: boolean
+  /** A visitor's list, which stays private until an account saves it and so offers no access to choose. */
+  guest?: boolean
 }
 
 /**
@@ -123,6 +125,7 @@ export function RosterSetupDialog({
   namePlaceholder,
   onSave,
   pending = false,
+  guest = false,
 }: Props) {
   const [draft, setDraft] = useState(value)
   const [detachmentQuery, setDetachmentQuery] = useState('')
@@ -486,7 +489,7 @@ export function RosterSetupDialog({
               <p className="mt-1.5 text-xs text-dim">Leave this empty to name the list from your army.</p>
             </div>
 
-            <div>
+            <div hidden={guest}>
               <Label className="rubric block" htmlFor="setup-visibility">
                 Access
               </Label>

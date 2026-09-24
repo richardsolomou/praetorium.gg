@@ -39,7 +39,7 @@ Players can:
 
 ## Scope
 
-Praetorium does not provide matchmaking, chat, tournament pairings, or a rules encyclopedia. An account is required to play, though not to watch a public battle or read the leaderboard.
+Praetorium does not provide matchmaking, chat, tournament pairings, or a rules encyclopedia. An account is required to play or to keep a list, though not to watch a public battle, read the leaderboard, or try the roster builder.
 
 This repository contains no game data. Each instance downloads verified snapshots from the configured community sources.
 

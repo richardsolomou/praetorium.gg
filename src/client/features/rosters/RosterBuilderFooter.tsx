@@ -17,6 +17,8 @@ type Props = {
   saveFailed: boolean
   saving: boolean
   onRetrySave: () => void
+  /** A visitor's way to keep the list, which takes them through signing up. */
+  onSave?: () => void
   errors: readonly { entryId: string; entryName: string; message: string }[]
   unhandled: readonly string[]
   frozen: boolean
@@ -37,6 +39,7 @@ export function RosterBuilderFooter({
   saveFailed,
   saving,
   onRetrySave,
+  onSave,
   errors,
   unhandled,
   frozen,
@@ -62,21 +65,28 @@ export function RosterBuilderFooter({
           <span className="eyebrow">points</span>
         </span>
 
-        {editable ? (
-          <Button
-            data-onboarding="roster-picker"
-            variant="outline"
-            size="sm"
-            className="ml-auto min-[1300px]:hidden"
-            onClick={() => {
-              advanceOnboarding('roster', 'roster-picker', 'roster-search')
-              onAddUnits()
-            }}
-            disabled={!canAddUnits}
-          >
-            Add units
-          </Button>
-        ) : null}
+        <span className="ml-auto flex items-center gap-2">
+          {editable ? (
+            <Button
+              data-onboarding="roster-picker"
+              variant="outline"
+              size="sm"
+              className="min-[1300px]:hidden"
+              onClick={() => {
+                advanceOnboarding('roster', 'roster-picker', 'roster-search')
+                onAddUnits()
+              }}
+              disabled={!canAddUnits}
+            >
+              Add units
+            </Button>
+          ) : null}
+          {onSave ? (
+            <Button size="sm" onClick={onSave} disabled={!hasUnits}>
+              Sign up to save
+            </Button>
+          ) : null}
+        </span>
       </div>
       {editable && saveFailed ? (
         <div

@@ -1,7 +1,14 @@
 import { Link } from '@tanstack/react-router'
-import { BookOpen, ChevronRight, Crosshair, Map as MapIcon, Shield } from 'lucide-react'
+import { BookOpen, ChevronRight, Crosshair, ListChecks, Map as MapIcon, Shield } from 'lucide-react'
 
 const TOOLS = [
+  {
+    icon: ListChecks,
+    title: 'Build a roster',
+    text: 'Points and legality as you build. Sign up to keep it.',
+    link: '/rosters/new' as const,
+    action: 'Try the builder',
+  },
   {
     icon: Crosshair,
     title: 'Simulate a fight',

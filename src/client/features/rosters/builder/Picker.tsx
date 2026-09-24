@@ -21,7 +21,7 @@ import { SearchField } from '../../../components/SearchField'
 import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons'
 import { useCollectionMutation } from '../../../useCollection'
 import { useSettled } from '../../../useSettled'
-import { collectionQuery, unitsQuery } from '../../../queries'
+import { collectionQuery, meQuery, unitsQuery } from '../../../queries'
 import { shortName } from './factions'
 import { GROUPS } from '../../../unitGroups'
 import { Section } from './Section'
@@ -80,7 +80,10 @@ export const Picker = memo(function Picker({
     enabled: enabled && Boolean(catalogueId),
     placeholderData: keepPreviousData,
   })
-  const collectionResult = useQuery({ ...collectionQuery(), enabled })
+  // A collection belongs to an account, so a visitor's picker has none to mark or filter by.
+  const { data: me } = useQuery(meQuery())
+  const signedIn = Boolean(me)
+  const collectionResult = useQuery({ ...collectionQuery(), enabled: enabled && signedIn })
   const found = unitsResult.data
   const owned = collectionResult.data
   const own = useCollectionMutation()
@@ -120,7 +123,7 @@ export const Picker = memo(function Picker({
         />
         <div className="flex flex-wrap items-center gap-1.5">
           <ListFilter className="size-3.5 shrink-0 text-faint" aria-hidden />
-          {FILTERS.map((filter) => (
+          {FILTERS.filter((filter) => signedIn || filter.id !== 'owned').map((filter) => (
             <Toggle
               key={filter.id}
               variant="outline"
@@ -184,7 +187,7 @@ export const Picker = memo(function Picker({
         </div>
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:px-2.5">
-        {unitsResult.isPending || collectionResult.isPending ? (
+        {unitsResult.isPending || (signedIn && collectionResult.isPending) ? (
           <PickerSkeleton />
         ) : unitsResult.isError ? (
           <p className="py-3 text-xs text-destructive">The book could not be loaded.</p>
@@ -212,7 +215,7 @@ export const Picker = memo(function Picker({
                         waivedRules={waivedRules}
                         query={settledQuery}
                         onPreview={onPreview}
-                        onOwned={setOwned}
+                        onOwned={signedIn ? setOwned : undefined}
                         onAdd={onAdd}
                       />
                     )
@@ -260,7 +263,7 @@ type PickerRowProps = {
   waivedRules: readonly FormatRuleId[]
   query: string
   onPreview: (entryId: string, name: string) => void
-  onOwned: (entryId: string, owned: boolean) => void
+  onOwned?: (entryId: string, owned: boolean) => void
   onAdd: (entryId: string) => void
 }
 
@@ -301,17 +304,19 @@ const PickerRow = memo(function PickerRow({
         </span>
       </button>
       <span className="ml-auto flex shrink-0 items-center gap-1.5">
-        <Toggle
-          variant="default"
-          size="sm"
-          aria-label={`${inCollection ? 'Remove' : 'Add'} ${unit.name} ${inCollection ? 'from' : 'to'} your collection`}
-          pressed={inCollection}
-          disabled={collectionPending}
-          onPressedChange={(pressed) => onOwned(unit.id, pressed)}
-          className="size-6 shrink-0 p-0"
-        >
-          <Heart className={`size-3.5 ${inCollection ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
-        </Toggle>
+        {onOwned ? (
+          <Toggle
+            variant="default"
+            size="sm"
+            aria-label={`${inCollection ? 'Remove' : 'Add'} ${unit.name} ${inCollection ? 'from' : 'to'} your collection`}
+            pressed={inCollection}
+            disabled={collectionPending}
+            onPressedChange={(pressed) => onOwned(unit.id, pressed)}
+            className="size-6 shrink-0 p-0"
+          >
+            <Heart className={`size-3.5 ${inCollection ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
+          </Toggle>
+        ) : null}
         {unit.points === null ? null : <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{unit.points} pts</span>}
         <Button
           data-onboarding="picker-add"
