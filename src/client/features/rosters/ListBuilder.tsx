@@ -27,6 +27,7 @@ import { type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '
 import type { RosterPick } from '../../../core/roster'
 import {
   reminderKey,
+  reminderTimingCountsByUnit,
   remindersAfterUnitInserted,
   remindersAfterUnitRemoved,
   suggestReminderTimings,
@@ -477,13 +478,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
     }),
     [editReminder, reminders, selected],
   )
-  const reminderCountsByUnit = useMemo(() => {
-    const counts = new Map<number, number>()
-    for (const reminder of reminders) {
-      if (reminder.unit) counts.set(reminder.unit.index, (counts.get(reminder.unit.index) ?? 0) + 1)
-    }
-    return counts
-  }, [reminders])
+  const reminderCountsByUnit = useMemo(() => reminderTimingCountsByUnit(reminders), [reminders])
   const cardRelationships = useCardRelationships(picks, units)
 
   // A frozen list carries everything its cards print, which is what lets an opponent

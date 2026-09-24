@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  reminderTimingCountsByUnit,
   reminderDue,
   reminderKey,
   remindersAfterUnitInserted,
@@ -8,6 +9,35 @@ import {
   reminderTimingLabel,
   suggestReminderTimings,
 } from './reminders'
+
+it('counts every configured alert timing on a unit', () => {
+  expect(
+    reminderTimingCountsByUnit([
+      {
+        key: 'datasheet:single:0',
+        ability: 'Single',
+        description: '',
+        unit: { index: 0, name: 'Overlord' },
+        timings: [{ moment: 'phase-start', phase: 'command', turn: 'your-turn' }],
+      },
+      {
+        key: 'datasheet:living-lightning:2',
+        ability: 'Living Lightning',
+        description: '',
+        unit: { index: 2, name: 'Plasmancer' },
+        timings: [
+          { moment: 'phase-start', phase: 'shooting', turn: 'your-turn' },
+          { moment: 'phase-start', phase: 'fight', turn: 'either' },
+        ],
+      },
+    ]),
+  ).toEqual(
+    new Map([
+      [0, 1],
+      [2, 2],
+    ]),
+  )
+})
 
 describe('suggestReminderTimings', () => {
   it('reads the start of your command phase', () => {
