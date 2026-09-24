@@ -4,7 +4,7 @@ import { battleResult } from '../../battleOutcome'
 import { completedSideRound } from '../../battleProgress'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { sideName, type Side } from '../../sides'
-import { tint } from './tints'
+import { tint } from '../../components/battleTints'
 
 type Props = { view: BattleView; sides: Side[]; outcome: string | null }
 

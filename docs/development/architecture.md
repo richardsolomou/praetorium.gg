@@ -26,6 +26,8 @@ routes ──> client ──> contracts ──> core
 
 A route should not contain a substantial page implementation. Move state and rendering into a client feature, leaving the route responsible for the URL and initial data.
 
+The roster builder lives under `src/client/features/rosters/builder`, battle setup under `src/client/features/battle/setup`, and rules and catalogue pages under `src/client/features/reference`. Route files compose those pages and keep URL parameters and metadata.
+
 A type returned across a server-function boundary belongs in `src/contracts` when client code needs to name it. Client code may call `src/server/functions` but must not import server implementation modules.
 
 Feature-specific browser code belongs in `src/client/features/<feature>`. Put a component in `src/client/components` only when multiple features use it.
@@ -36,8 +38,10 @@ Repository and service facades preserve one application entry point while delega
 
 Large authoritative modules are not split by line count alone. `src/core/battle.ts` deliberately owns the complete battle fold and validation. Split a module only when the extracted responsibility has one clear owner and does not duplicate a decision.
 
+`src/core/datasheet.ts` owns datasheet shapes used by deterministic combat code. `src/contracts/catalogue.ts` re-exports them for server and client consumers. Server catalogue projection, display modifiers, and unit pricing rules live in separate modules under `src/server`.
+
 ## Tests
 
 Tests stay beside the behavior they specify. Split large suites by scenario while continuing to exercise the same public entry point, and share setup through a narrowly named harness rather than copying fixtures.
 
-Use `just test-unit` for the fast feedback loop. Use `just test-integration` for database, application-service, authentication, and snapshot integration tests. `just check` continues to run the complete suite.
+Use `*.integration.test.ts` for database, application-service, authentication, and snapshot integration tests; other `*.test.ts` files are unit tests. Use `just test-unit` for the fast feedback loop and `just test-integration` for those integration boundaries. `just check` continues to run the complete suite.

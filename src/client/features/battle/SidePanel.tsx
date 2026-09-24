@@ -9,7 +9,7 @@ import type { BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { ArmyRoster } from './ArmyRoster'
 import { type Award, PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemText } from './MissionCards'
 import { Stratagems } from './Stratagems'
-import { tint } from './tints'
+import { tint } from '../../components/battleTints'
 
 type Props = {
   view: BattleView

@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { createLeague } from '../../../server/functions'
 import { leaguesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { advanceOnboarding } from '../../onboarding'
+import { advanceOnboarding } from '../onboarding/onboarding'
 import { LeagueFormFields, type LeagueFormValue } from './LeagueForm'
 
 export function CreateLeague() {

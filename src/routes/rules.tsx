@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, useRouterState } from '@tanstack/react-router'
-import { RulesIndex } from '../client/components/RulesIndex'
+import { RulesIndex } from '../client/features/reference/rules/RulesIndex'
 import { pageMeta } from '../client/linkPreview'
 import { ruleIndexQuery } from '../client/queries'
 

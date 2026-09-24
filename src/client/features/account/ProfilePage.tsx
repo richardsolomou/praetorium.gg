@@ -1,0 +1,216 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ImagePlus, ShieldCheck, Trash2 } from 'lucide-react'
+import { classifyAuthCallbackFailure } from 'ras-stack/auth/client'
+import { useAuthAction } from 'ras-stack/auth/react'
+import { useEffect, useRef, useState } from 'react'
+import { posthog } from 'posthog-js'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { PROFILE_NAME_MAX_LENGTH } from '../../../authConfig'
+import { authClient } from '../../authClient'
+import { AccountSecurity } from './AccountSecurity'
+import { BattleSharing } from '../../components/BattleSharing'
+import { NotificationSettings } from '../../components/NotificationSettings'
+import { PageContent, PageHeader } from '../../components/Page'
+import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { SignInRequired } from '../../components/SignInRequired'
+import { accountMethodsQuery, battlesQuery, friendshipsQuery, meQuery, opponentsQuery } from '../../queries'
+import { errorMessage } from '../../queryClient'
+import { prepareProfileImage } from '../../profileImage'
+
+const accountLinkErrorMessage = (error?: string) => {
+  if (!error) return undefined
+  switch (classifyAuthCallbackFailure(error)) {
+    case 'invalid_token':
+    case 'token_expired':
+      return 'This email verification link is invalid or has expired.'
+    case 'email_mismatch':
+      return 'This provider uses a different email address. Use matching email addresses before linking.'
+    case 'account_already_linked':
+      return 'This provider is already linked to another Praetorium account.'
+    default:
+      return 'Could not link this sign-in method. Try again.'
+  }
+}
+
+export function ProfilePage({ error, verified }: { error?: string; verified?: boolean }) {
+  const { data: me } = useQuery(meQuery())
+  const { data: methods } = useQuery({ ...accountMethodsQuery(), enabled: Boolean(me) })
+  const callbackError = accountLinkErrorMessage(error)
+  if (!me && callbackError) {
+    return <SignInRequired title="Could not complete account verification" explanation={`${callbackError} Sign in to try again.`} />
+  }
+  if (!me && verified) {
+    return <SignInRequired title="Check your email verification" explanation="Sign in to confirm your email status." />
+  }
+  if (!me) return <SignInRequired title="Your profile" explanation="Sign in to edit your profile." />
+  return <ProfileForm me={me} callbackError={callbackError} verified={verified && methods?.emailVerified} />
+}
+
+function ProfileForm({
+  me,
+  callbackError,
+  verified,
+}: {
+  me: NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof meQuery>['queryFn']>>>>
+  callbackError?: string
+  verified?: boolean
+}) {
+  const [name, setName] = useState(me.name)
+  const [image, setImage] = useState(me.image)
+  const [imageError, setImageError] = useState<string | null>(null)
+  const [preparing, setPreparing] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const queryClient = useQueryClient()
+  const submit = useAuthAction({ failureMessage: errorMessage })
+
+  useEffect(() => {
+    setName(me.name)
+    setImage(me.image)
+  }, [me.image, me.name])
+
+  const changed = name.trim() !== me.name || image !== me.image
+  const save = async () => {
+    setSaved(false)
+    const result = await submit.run(() => authClient.updateUser({ name: name.trim(), image }))
+    if (result.error) return
+    await queryClient.invalidateQueries({ queryKey: meQuery().queryKey })
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey }),
+      queryClient.invalidateQueries({ queryKey: friendshipsQuery().queryKey }),
+      queryClient.invalidateQueries({ queryKey: opponentsQuery().queryKey }),
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] }),
+    ])
+    posthog.capture('profile_updated', { name_changed: name.trim() !== me.name, image_changed: image !== me.image })
+    setSaved(true)
+  }
+
+  const chooseImage = async (file: File | undefined) => {
+    if (!file) return
+    setPreparing(true)
+    setSaved(false)
+    setImageError(null)
+    try {
+      setImage(await prepareProfileImage(file))
+    } catch (error) {
+      posthog.captureException(error, { operation: 'profile_image_prepare' })
+      setImageError(error instanceof Error ? error.message : 'The profile picture could not be prepared.')
+    } finally {
+      setPreparing(false)
+      if (fileInput.current) fileInput.current.value = ''
+    }
+  }
+
+  return (
+    <main className="ph-no-capture w-full">
+      <PageHeader
+        eyebrow="Your account"
+        title="Profile"
+        description="Choose how your name and picture appear on Praetorium."
+        media={
+          <span className="grid size-12 shrink-0 place-items-center rounded-full border border-edge-strong bg-sunken text-parchment">
+            <ShieldCheck className="size-5" aria-hidden />
+          </span>
+        }
+      />
+      <PageContent className="space-y-6">
+        {callbackError ? (
+          <p role="alert" className="border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            {callbackError}
+          </p>
+        ) : null}
+        {verified && !callbackError ? (
+          <output className="block border border-achieved/40 bg-achieved/10 p-3 text-sm text-achieved">Email address verified.</output>
+        ) : null}
+
+        <form
+          className="grid gap-8 border border-edge bg-panel p-5 md:grid-cols-2 md:p-7"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void save()
+          }}
+        >
+          <section>
+            <p className="rubric border-b border-edge pb-2">Profile picture</p>
+            <div className="mt-4 flex items-center gap-4">
+              <PlayerAvatar name={name || me.name} image={image} className="size-24 text-3xl" />
+              <div className="flex flex-wrap gap-2">
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  aria-label="Choose profile picture"
+                  onChange={(event) => void chooseImage(event.target.files?.[0])}
+                />
+                <Button type="button" variant="outline" onClick={() => fileInput.current?.click()} disabled={preparing}>
+                  <ImagePlus /> {preparing ? 'Preparing…' : image ? 'Replace picture' : 'Add picture'}
+                </Button>
+                {image ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-dim hover:text-destructive"
+                    onClick={() => {
+                      setImage(null)
+                      setImageError(null)
+                      setSaved(false)
+                    }}
+                  >
+                    <Trash2 /> Remove
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-dim">JPEG, PNG or WebP up to 10 MB. Pictures are cropped to a square.</p>
+            {imageError ? <p className="mt-2 text-sm text-destructive">{imageError}</p> : null}
+          </section>
+
+          <section className="space-y-4">
+            <p className="rubric border-b border-edge pb-2">Details</p>
+            <div className="space-y-2">
+              <Label htmlFor="profile-name">Display name</Label>
+              <Input
+                id="profile-name"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value)
+                  setSaved(false)
+                  submit.clearError()
+                }}
+                maxLength={PROFILE_NAME_MAX_LENGTH}
+                autoComplete="nickname"
+                required
+              />
+              <p className="text-xs text-dim">This is the name shown in battles, rosters and friend lists.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-email">Email</Label>
+              <Input id="profile-email" value={me.email} readOnly className="text-dim" />
+              <p className="text-xs text-dim">Your email is private and used to sign in.</p>
+            </div>
+          </section>
+
+          <div className="flex flex-wrap items-center gap-3 border-t border-edge pt-4 md:col-span-2">
+            <Button type="submit" disabled={!changed || !name.trim() || preparing || submit.busy}>
+              {submit.busy ? 'Saving…' : 'Save profile'}
+            </Button>
+            {submit.error ? <p className="text-sm text-destructive">{submit.error}</p> : null}
+            {saved ? <output className="text-sm text-achieved">Profile saved.</output> : null}
+          </div>
+        </form>
+        <AccountSecurity
+          me={me}
+          privacy={
+            <>
+              <BattleSharing />
+              <NotificationSettings />
+            </>
+          }
+        />
+      </PageContent>
+    </main>
+  )
+}

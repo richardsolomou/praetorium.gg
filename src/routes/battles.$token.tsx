@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Navigate, notFound } from '@tanstack/react-router'
 import { useEffect } from 'react'
-import { BattleUnavailable } from '../client/components/BattleUnavailable'
-import { Setup } from '../client/components/Setup'
-import { Spectator } from '../client/components/Spectator'
-import { Tracker } from '../client/components/Tracker'
+import { BattleUnavailable } from '../client/features/battle/BattleUnavailable'
+import { Setup } from '../client/features/battle/setup/Setup'
+import { Spectator } from '../client/features/battle/Spectator'
+import { Tracker } from '../client/features/battle/Tracker'
 import {
   battleQuery,
   deploymentsQuery,

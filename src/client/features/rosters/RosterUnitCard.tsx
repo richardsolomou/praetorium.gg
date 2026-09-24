@@ -1,7 +1,7 @@
 import { memo, type ComponentProps, useLayoutEffect, useMemo, useRef } from 'react'
 import type { KeyedPick } from '../../rosterPicks'
-import { attachmentRows, joinableUnits } from '../builder/attachments'
-import { UnitCard } from '../builder/UnitCard'
+import { attachmentRows, joinableUnits } from './builder/attachments'
+import { UnitCard } from './builder/UnitCard'
 
 type BuilderUnitCardProps = {
   unit: ComponentProps<typeof UnitCard>['unit']

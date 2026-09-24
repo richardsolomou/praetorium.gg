@@ -7,7 +7,7 @@ import { deleteRoster, exportRoster, saveRoster, setRosterVisibility, sharedRost
 import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { shareLink } from '../../nativeBridge'
-import type { RosterSetup } from '../../components/RosterSetupDialog'
+import type { RosterSetup } from './RosterSetupDialog'
 
 /** One saved list, as the library reads it back. */
 export type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]

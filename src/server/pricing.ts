@@ -1,15 +1,6 @@
 import { attachmentCategoriesOf, attachmentErrors, attachmentLimitsOf, attachmentOf } from '../core/attach'
 import { routeSlug } from '../core/slug'
-import {
-  borrowedDispositionError,
-  detachmentPointBudget,
-  detachmentPointsError,
-  enforces,
-  formatDatasheetLimit,
-  isKotcLimit,
-  kotcDatasheetRepeatable,
-  kotcUnitExclusions,
-} from '../core/battle'
+import { borrowedDispositionError, detachmentPointBudget, detachmentPointsError, isKotcLimit } from '../core/battle'
 import { type CatalogueIndex, targetOf } from '../core/catalogue'
 import {
   battleSizeSelection,
@@ -20,25 +11,31 @@ import {
   keywordIdsBySelection,
   type Selection,
 } from '../core/evaluate'
-import { type ModelKind, modelKindsOf, modelRowPieces, modelRowCount, modelRowSources, choiceOptionWargear } from '../core/modelKinds'
+import { type ModelKind, modelKindsOf, modelRowSources, choiceOptionWargear } from '../core/modelKinds'
 import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
 import { buildUnit } from '../core/roster'
-import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices } from '../core/unitChoices'
+import { type ChoiceOptions, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
-import { wargearKey, wargearOf } from '../core/wargear'
+import { wargearOf } from '../core/wargear'
 import { app } from './app'
 import { contextualAbilityNamesIn, datasheetIn, matchesKeywordSelector, rulesReferencedIn, toughnessOf } from './catalogue'
 import { describedEnhancements } from './catalogueDescriptions'
-import { descriptionKey, type FactionRestrictions, restrictedBy } from './datacards'
+import { descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
+import { deploymentRules, grantsStrategicReserveExemption, strategicReserveExemptionSelectors } from './rosterDeployment'
+import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
+import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from './formatRestrictions'
 import { type LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import type { PriceInput } from './schemas'
 
 export { rosterDetachments }
+export { heldWargear } from './heldWargear'
+export { deploymentRules, grantsStrategicReserveExemption, strategicReserveExemptionSelectors } from './rosterDeployment'
+export { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from './formatRestrictions'
 
 /**
  * A list as the catalogue reads it: every pick expanded, grouped by the book it
@@ -81,10 +78,6 @@ type ReplacementChoice = {
   key: string
   options: readonly { id: string; count: number; max: number }[]
 }
-
-type ReplacementSource = { choiceKey: string; optionId: string }
-
-const replacementKey = ({ choiceKey, optionId }: ReplacementSource) => `${choiceKey}\0${optionId}`
 
 /** A malformed catalogue choice must not make the whole roster impossible to price. */
 export const choiceOptionsForPricing = (choice: { options?: UnitChoice['options'] }) => choice.options ?? []
@@ -621,188 +614,6 @@ export function uniqueNames(names: readonly string[]): string[] {
     seen.add(key)
     return true
   })
-}
-
-type KotcUnit = {
-  entryId: string
-  name: string
-  keywords: readonly string[]
-  toughness: number | null
-  warlord: boolean
-  enhanced?: boolean
-  led?: boolean
-}
-
-export function factionRestrictionViolations(restrictions: FactionRestrictions | undefined, units: readonly KotcUnit[]) {
-  if (!restrictions) return []
-  return units.flatMap((unit) => {
-    const restricted = restrictedBy(restrictions, unit.name, unit.keywords)
-    if (!restricted) return []
-    return [
-      {
-        entryId: unit.entryId,
-        entryName: unit.name,
-        message: `is not allowed in this faction${restricted.keyword ? ` (${restricted.keyword})` : ''}`,
-      },
-    ]
-  })
-}
-
-/**
- * Prototype KOTC 2.0 army-construction changes layered over normal Incursion legality.
- *
- * Every rule here is named in `formatRules`, and a roster that has waived one is not
- * told about it: the restriction the player switched off is the restriction they
- * agreed with their table not to play.
- */
-export function kotcViolations(detachments: number, units: readonly KotcUnit[], limit = 600, waived: readonly string[] = []) {
-  const errors: { entryId: string; entryName: string; message: string }[] = []
-  const add = (message: string, unit?: KotcUnit) =>
-    errors.push({ entryId: unit?.entryId ?? 'kotc', entryName: unit?.name ?? 'King of the Colosseum', message })
-  if (enforces(waived, 'detachments') && detachments !== 1) add(`needs exactly 1 detachment, has ${detachments}`)
-  if (enforces(waived, 'kotc-infantry') && units.filter((unit) => hasKeyword(unit, 'infantry')).length < 2)
-    add('needs at least 2 Infantry units')
-  if (enforces(waived, 'kotc-warlord') && !units.some((unit) => unit.warlord)) add('needs a Warlord')
-  for (const unit of units) {
-    for (const message of kotcUnitExclusions(unit, waived)) add(message, unit)
-    // Only worth saying while a Toughness rule is being enforced: with the cap
-    // waived, a Toughness this catalogue cannot state changes no answer.
-    if (enforces(waived, 'kotc-toughness') && unit.toughness === null) add('cannot verify its Toughness from the synced catalogue', unit)
-  }
-  // King of the Colosseum bars a unit that reaches Toughness 10 during list building,
-  // whether from an enhancement or an attached leader. No synced source says what either
-  // does to a Toughness, so a unit already at the cap is reported as unverifiable rather
-  // than passed: the format's own FAQ makes this illegal, and guessing it legal is the
-  // one answer that cannot be corrected at the table.
-  for (const unit of units) {
-    if (enforces(waived, 'kotc-toughness') && unit.toughness === 9 && (unit.enhanced || unit.led))
-      add(`is at the Toughness cap and cannot be verified once its ${unit.enhanced ? 'enhancement' : 'attached leader'} is applied`, unit)
-  }
-  const toughnessNine = units.filter((unit) => unit.toughness === 9)
-  if (enforces(waived, 'kotc-toughness') && toughnessNine.length > 1) add(`allows at most 1 Toughness 9 unit, has ${toughnessNine.length}`)
-  const byDatasheet = new Map<string, KotcUnit[]>()
-  for (const unit of units) byDatasheet.set(unit.entryId, [...(byDatasheet.get(unit.entryId) ?? []), unit])
-  for (const copies of byDatasheet.values()) {
-    const allowance = formatDatasheetLimit(
-      limit,
-      copies.some((unit) => kotcDatasheetRepeatable(unit.keywords)),
-      waived,
-    )
-    if (allowance !== null && copies.length > allowance)
-      add(`allows at most ${allowance} of this datasheet, has ${copies.length}`, copies[0])
-  }
-  return errors
-}
-
-/**
- * Whether a limit was broken by the catalogue building a unit rather than by a
- * player. Only ever true inside a unit the catalogue composes itself, and only for
- * a limit being exceeded: anything else is still the player's to answer for.
- */
-export function isCatalogueSelfContradiction(
-  error: { entryId: string; message: string },
-  composedByCatalogue: ReadonlyMap<string, string>,
-) {
-  return composedByCatalogue.has(error.entryId) && error.message.startsWith('allows at most ')
-}
-
-const hasKeyword = (unit: KotcUnit, keyword: string) => unit.keywords.some((candidate) => candidate.trim().toLocaleLowerCase() === keyword)
-
-/**
- * What a unit is carrying, counted the way its loadout is drawn.
- *
- * The roster card and the loadout panel answer the same question, so they read the
- * same fold. Anything the model kinds never mention — an enhancement, a choice that
- * belongs to the unit rather than to one of its models — is still the catalogue's to
- * report, and is carried through untouched.
- */
-export function heldWargear(
-  models: readonly ModelKind[],
-  choices: readonly {
-    key: string
-    name?: string
-    options: readonly { id: string; name?: string; count: number; pieceCounts?: readonly { name: string; count: number }[] }[]
-  }[],
-  catalogued: readonly { name: string; count: number }[],
-): { name: string; count: number }[] {
-  if (!models.length) return [...catalogued]
-  const countOf = (choiceKey: string, optionId: string) =>
-    choices.find((choice) => choice.key === choiceKey)?.options.find((option) => option.id === optionId)?.count ?? 0
-  const held = new Map<string, { name: string; count: number }>()
-  const named = new Set<string>()
-  const add = (name: string, count: number) => {
-    const key = wargearKey(name)
-    named.add(key)
-    if (count <= 0) return
-    const seen = held.get(key)
-    if (seen) seen.count += count
-    else held.set(key, { name, count })
-  }
-
-  for (const kind of models) {
-    const bodies = kind.members.reduce(
-      (total, member) => total + (member.choiceKey ? countOf(member.choiceKey, member.id) : member.baseCount),
-      0,
-    )
-    for (const piece of kind.fixed) add(piece.name, piece.count ?? bodies)
-    for (const row of kind.rows) {
-      const count = modelRowCount(row, ({ choiceKey, optionId }) => countOf(choiceKey, optionId))
-      for (const name of modelRowPieces(row, kind.rows)) add(name, count)
-    }
-  }
-  const modeled = new Set(
-    models.flatMap((kind) => [
-      ...kind.members.flatMap((member) => (member.choiceKey ? [replacementKey({ choiceKey: member.choiceKey, optionId: member.id })] : [])),
-      ...kind.rows.flatMap((row) => modelRowSources(row).map(replacementKey)),
-    ]),
-  )
-  for (const choice of choices) {
-    if (choice.name && isUnitCompositionChoice({ name: choice.name, options: choice.options })) continue
-    for (const option of choice.options) {
-      if (option.count <= 0 || modeled.has(replacementKey({ choiceKey: choice.key, optionId: option.id }))) continue
-      const pieces = option.pieceCounts ?? (option.name ? [{ name: option.name, count: option.count }] : [])
-      for (const piece of pieces) add(piece.name, piece.count)
-    }
-  }
-  for (const piece of catalogued) {
-    const key = wargearKey(piece.name)
-    if (!named.has(key)) add(piece.name, piece.count)
-  }
-  return [...held.values()]
-}
-export function deploymentRules(abilityNames: readonly string[]) {
-  const abilities = abilityNames.map((ability) => ability.toLocaleLowerCase())
-  return {
-    formationOptions: abilities.some((ability) => ability.includes('deep strike')) ? (['deep-strike'] as const) : [],
-    prebattleRules: [
-      ...(abilities.some((ability) => ability.includes('infiltrator')) ? (['infiltrators'] as const) : []),
-      ...(abilities.some((ability) => ability.startsWith('scouts')) ? (['scouts'] as const) : []),
-    ],
-  }
-}
-
-const normalizedRuleText = (description: string) =>
-  description
-    .normalize('NFKC')
-    .replaceAll(/\*\*|<\/?[bkiu]>/giu, '')
-    .replaceAll(/\s+/g, ' ')
-    .trim()
-
-export function strategicReserveExemptionSelectors(descriptions: readonly string[]): string[] {
-  return descriptions.flatMap((description) => {
-    const normalized = normalizedRuleText(description)
-    const matches = normalized.matchAll(
-      /friendly (.+?) units do not count towards the combined points value of your strategic reserves units/giu,
-    )
-    return [...matches].flatMap((match) => (match[1] ? [match[1]] : []))
-  })
-}
-
-export function grantsStrategicReserveExemption(description: string | null): boolean {
-  if (!description) return false
-  return /points value does not count towards the combined points (?:value|limit).+strategic reserves?/iu.test(
-    normalizedRuleText(description),
-  )
 }
 
 export const findEnhancementDescription = (

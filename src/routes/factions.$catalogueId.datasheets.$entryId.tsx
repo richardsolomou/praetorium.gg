@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import { FactionDatasheet } from '../client/components/FactionDatasheet'
+import { FactionDatasheet } from '../client/features/reference/factions/FactionDatasheet'
 import { datasheetSlugQuery, factionQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/datasheets/$entryId')({

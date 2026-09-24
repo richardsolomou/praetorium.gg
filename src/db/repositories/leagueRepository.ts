@@ -12,21 +12,33 @@ import {
 import type { TableShape } from '../../core/tableShape'
 import type { PraetoriumDatabase } from '../connection'
 import { leagueEventBattles, leagueEventEntries, leagueEvents, leagues, rosters, user } from '../schema'
-import type {
-  AssignLeagueRosterRequirementResult,
-  AssignLeagueTeamResult,
-  CreateLeagueEventResult,
-  DeleteLeagueResult,
-  JoinLeagueResult,
-  LeagueBattleCandidate,
-  MakeLeagueRecurringResult,
-  ModerateLeagueResult,
-  RevealLeagueResult,
-  SubmitLeagueRosterResult,
-  UnsealLeagueRosterResult,
-  UpdateLeagueEventResult,
-  UpdateLeagueResult,
-} from '../repository'
+export type JoinLeagueResult = LeagueEntryStatus | 'missing' | 'closed' | 'full'
+export type ModerateLeagueResult = 'admitted' | 'updated' | 'missing' | 'forbidden' | 'closed' | 'full'
+export type CreateLeagueEventResult = 'created' | 'missing' | 'forbidden' | 'open' | 'too-small'
+export type MakeLeagueRecurringResult = 'updated' | 'missing' | 'forbidden'
+export type UpdateLeagueResult = { admitted: string[] } | 'missing' | 'forbidden' | 'below-accepted' | 'team-minimum'
+export type UpdateLeagueEventResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'sealed' | 'too-small'
+export type DeleteLeagueResult = 'deleted' | 'missing' | 'forbidden'
+export type AssignLeagueRosterRequirementResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format' | 'wrong-limit'
+export type AssignLeagueTeamResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format'
+export type SubmitLeagueRosterResult =
+  | { outcome: 'sealed'; format: TableShape | null; requiredLimit: number | null }
+  | { outcome: 'missing' | 'unassigned' | 'wrong-limit' }
+  | { outcome: 'invalid-warlords'; format: TableShape | null }
+export type RevealLeagueResult =
+  | { outcome: 'revealed'; entrantIds: string[] }
+  | { outcome: 'not-ready' }
+  | { outcome: 'invalid-warlords'; format: TableShape }
+export type UnsealLeagueRosterResult = 'unsealed' | 'missing' | 'forbidden' | 'not-revealed'
+export type LeagueBattleCandidate = {
+  token: string
+  name: string
+  eventToken: string
+  eventNumber: number
+  format: TableShape | null
+  rosterLimit: number | null
+  entries: { userId: string; requiredLimit: number | null; sealedLimit: number | null; teamId: string | null }[]
+}
 
 type DatabaseTransaction = Parameters<Parameters<PraetoriumDatabase['transaction']>[0]>[0]
 type InsertBattle = (

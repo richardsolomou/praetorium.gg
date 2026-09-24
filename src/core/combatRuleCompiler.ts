@@ -1,4 +1,4 @@
-import type { DatasheetCharacteristicKind } from '../contracts/catalogue'
+import type { DatasheetCharacteristicKind } from './datasheet'
 import type { CombatRule, CombatRuleChoice, CombatRuleEffect } from './combatRules'
 import { compileMortalRule } from './combatMortalRules'
 import { combatKeyword, combatKeywordPhraseMatches } from './combatKeywords'

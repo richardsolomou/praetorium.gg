@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { PHASES, type Command } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
-import { tint } from './tints'
+import { tint } from '../../components/battleTints'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
 
 type Props = {

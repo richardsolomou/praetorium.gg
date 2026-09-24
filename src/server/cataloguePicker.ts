@@ -1,8 +1,6 @@
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
 import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
-import { battleSizeSelection, evaluate, rosterLimit, type Selection } from '../core/evaluate'
-import { buildUnit } from '../core/roster'
-import { isNonMatchedPlayName } from '../core/name'
+import { battleSizeSelection, rosterLimit, type Selection } from '../core/evaluate'
 import type { UnitGroup } from '../core/unitGroups'
 import type { UnitSummary } from '../contracts/catalogue'
 import { datasheetSearchFieldsIn, datasheetIn, keywordsIn, toughnessOf } from './catalogue'
@@ -11,8 +9,10 @@ import { matchDatasheet } from './datasheetSearch'
 import { type FactionRestrictions, restrictedBy } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { factionContentOf } from './factionNames'
+import { isMatchedPlayDatasheet, priceOf } from './catalogueUnit'
 
 export type { UnitSummary } from '../contracts/catalogue'
+export { isMatchedPlayDatasheet, priceOf } from './catalogueUnit'
 
 /** Derived from one immutable catalogue snapshot. Search filters this list in memory. */
 const unitSummaryCache = new WeakMap<LoadedCatalogue, Map<string, UnitSummary[]>>()
@@ -66,13 +66,6 @@ function groupOf(entry: Definition, target: Definition): UnitGroup {
 export function groupOfEntry(index: CatalogueIndex, entryId: string): UnitGroup {
   const entry = index.definitions.get(entryId)
   return entry ? groupOf(entry, targetOf(entry, index.definitions)) : 'other'
-}
-
-export function isMatchedPlayDatasheet(index: CatalogueIndex, entry: Definition) {
-  const target = targetOf(entry, index.definitions)
-  if (entry.hidden || target.hidden || isNonMatchedPlayName(nameOf(entry, index.definitions))) return false
-  const ownerId = index.catalogueOf.get(target.id)
-  return !ownerId || index.catalogues.get(ownerId)?.name !== 'Unaligned Forces'
 }
 
 /**
@@ -189,11 +182,4 @@ function minimumLimit(left: number | null, right: number | null) {
   if (left === null) return right
   if (right === null) return left
   return Math.min(left, right)
-}
-
-/** What the smallest legal version of one datasheet costs, or null if it cannot be built. */
-export function priceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
-  const built = buildUnit(entryId, loaded.index, undefined, undefined, { primaryCatalogueId: catalogueId })
-  if (!built) return null
-  return evaluate([built.selection], loaded.index, { primaryCatalogueId: catalogueId }).points
 }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { validCombatSurvivors } from '../../../core/combatSurvivors'
 import type { CombatCarrier } from '../../../core/combatLoadout'
-import { Stepper } from '../builder/LoadoutControls'
+import { Stepper } from '../rosters/builder/LoadoutControls'
 
 export function CombatSurvivorControls({
   original,

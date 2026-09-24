@@ -1,4 +1,4 @@
-import type { Datasheet, DatasheetCharacteristicKind } from '../contracts/catalogue'
+import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import { diceExpression, type CombatInput, type CombatOptions, type CombatWeapon } from './combat'
 import { compileCombatRule } from './combatRuleCompiler'
 import { datasheetCharacteristicKind, datasheetProfileKind } from './datasheetStructure'

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { PageContent, PageHeader } from '../client/components/Page'
-import { FactionFilter, Standings } from '../client/components/Standings'
+import { FactionFilter, Standings } from '../client/features/leaderboard/Standings'
 import { pageMeta } from '../client/linkPreview'
 import { standingsQuery } from '../client/queries'
 

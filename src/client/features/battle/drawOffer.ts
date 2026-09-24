@@ -1,10 +1,7 @@
 /** What the rules say about putting a card back the moment it is drawn. */
-export type WhenDrawn = {
-  operation: 'redraw' | 'replace'
-  roundMax: number | null
-  heldCards: string[]
-  condition: string | null
-}
+import type { WhenDrawn } from '../../../contracts/missions'
+
+export type { WhenDrawn } from '../../../contracts/missions'
 
 /**
  * Why this card may go back, or null when it may not.

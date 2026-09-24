@@ -1,0 +1,138 @@
+import { type Dispatch, type SetStateAction, useCallback, useMemo, useRef, useState } from 'react'
+import type { RosterPick } from '../../../../core/roster'
+import { type KeyedPick, positionedPicks } from '../../../rosterPicks'
+import type { SpreadUpdate } from './loadoutModel'
+
+/**
+ * A group told to hold nothing holds nothing, however it came to be filled.
+ *
+ * The same group can be answered as one chosen option or as a spread of counts, and
+ * only one of those is a choice. Clearing the choice alone left the count behind,
+ * which put the option straight back — the button emptied the group and the group
+ * refilled itself, so nothing on screen moved. Anything recorded under the group's
+ * own options goes too: those describe a loadout that is no longer carried.
+ */
+function emptied(spreads: Record<string, Record<string, number>> | undefined, key: string) {
+  if (!spreads) return spreads
+  const entries = Object.entries(spreads).filter(([stored]) => stored !== key && !stored.startsWith(`${key}/`))
+  return entries.length === Object.keys(spreads).length ? spreads : Object.fromEntries(entries)
+}
+
+/** Only what an edit needs to read back off the priced list. */
+type SizedUnit = {
+  size: { models: number; min: number; max: number }
+  toggles: { key: string; name: string }[]
+  choices: { key: string; options: { id: string; count: number }[] }[]
+}
+
+/**
+ * The list being edited, in the two shapes the builder reads it in.
+ *
+ * Picks carry their own key: the same datasheet may legitimately appear twice, so a
+ * key is the only thing that tells two of them apart while they are being moved
+ * around. Everything the picks are sent to counts positions instead, which is what
+ * `positioned` is for — the price, the datasheet and the saved row alike.
+ */
+export function usePicks(initial: readonly RosterPick[]) {
+  const [picks, setPicks] = useState<KeyedPick[]>(() => initial.map((pick, key) => ({ ...pick, key })))
+  const nextKey = useRef(initial.length)
+  const allocateKey = useCallback(() => nextKey.current++, [])
+  const positioned = useMemo(() => positionedPicks(picks), [picks])
+  /** How many of each datasheet the list already holds, so the picker can say so. */
+  const held = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const pick of picks) counts[pick.entryId] = (counts[pick.entryId] ?? 0) + 1
+    return counts
+  }, [picks])
+
+  return { picks, setPicks, positioned, held, allocateKey }
+}
+
+/**
+ * Every edit a player can make to the list.
+ *
+ * A plain factory rather than a hook, so it can be handed the priced list — which is
+ * the server's answer to these very picks, and therefore only known after they are.
+ */
+export function pickEditor(
+  setPicks: Dispatch<SetStateAction<KeyedPick[]>>,
+  context: { catalogueId: string; units: readonly (SizedUnit | undefined)[] },
+  allocateKey: () => number,
+) {
+  const editAt = (index: number, edit: (pick: KeyedPick) => KeyedPick) =>
+    setPicks((current) => current.map((pick, at) => (at === index ? edit(pick) : pick)))
+
+  /** Keys only move forward, so history cannot mistake a replacement for a deleted unit. */
+  const insert = (choose: (picks: readonly KeyedPick[]) => { pick: RosterPick; after?: number } | null) => {
+    const key = allocateKey()
+    setPicks((current) => {
+      const chosen = choose(current)
+      if (!chosen) return current
+      const keyed = { ...chosen.pick, key }
+      const { after } = chosen
+      return after === undefined ? [...current, keyed] : [...current.slice(0, after + 1), keyed, ...current.slice(after + 1)]
+    })
+  }
+
+  return {
+    add: (entryId: string) => insert(() => ({ pick: { entryId, catalogueId: context.catalogueId } })),
+
+    duplicate: (index: number) => insert((current) => (current[index] ? { pick: current[index], after: index } : null)),
+
+    /** Everything standing with the dropped unit is left standing alone, never pointing at a gap. */
+    drop: (index: number) =>
+      setPicks((current) => {
+        const going = current[index]?.key
+        return current.flatMap((pick, at) => (at === index ? [] : [pick.attachedTo === going ? { ...pick, attachedTo: undefined } : pick]))
+      }),
+
+    resize: (index: number, step: (models: number) => number) =>
+      editAt(index, (pick) => {
+        const unit = context.units[index]
+        const models = step(pick.models ?? unit?.size.models ?? 0)
+        return { ...pick, models: unit ? Math.min(Math.max(models, unit.size.min), unit.size.max) : models }
+      }),
+
+    choose: (index: number, key: string, optionId: string) =>
+      editAt(index, (pick) => {
+        const choices = { ...pick.choices }
+        if (optionId) choices[key] = optionId
+        else delete choices[key]
+        return { ...pick, choices, spreads: optionId ? pick.spreads : emptied(pick.spreads, key) }
+      }),
+
+    /** How many of each option a group holds, leaving the unit's other groups alone. */
+    spread: (index: number, key: string, update: SpreadUpdate) =>
+      editAt(index, (pick) => {
+        const unit = context.units[index]
+        const served = unit?.choices.find((choice) => choice.key === key)?.options ?? []
+        const counts = update({ ...Object.fromEntries(served.map((option) => [option.id, option.count])), ...pick.spreads?.[key] })
+        if (!counts) return pick
+        return {
+          ...pick,
+          models: pick.models ?? unit?.size.models,
+          spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...counts } },
+        }
+      }),
+
+    /**
+     * A toggle on one unit. The warlord is the army's one warlord, so claiming it
+     * gives up every other claim rather than leaving two on the list.
+     */
+    toggle: (index: number, key: string, name: string, enabled: boolean) =>
+      setPicks((current) =>
+        current.map((pick, at) => {
+          const toggles = { ...pick.toggles }
+          if (name === 'Warlord' && enabled) {
+            for (const candidate of context.units[at]?.toggles ?? []) if (candidate.name === name) toggles[candidate.key] = 0
+          }
+          return at === index ? { ...pick, toggles: { ...toggles, [key]: enabled ? 1 : 0 } } : { ...pick, toggles }
+        }),
+      ),
+
+    join: (index: number, targetKey: number | undefined) => editAt(index, (pick) => ({ ...pick, attachedTo: targetKey })),
+
+    /** A new faction is a new list: nothing picked from the old book still applies. */
+    clear: () => setPicks([]),
+  }
+}

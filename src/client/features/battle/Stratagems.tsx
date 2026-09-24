@@ -9,7 +9,7 @@ import type { Side } from '../../sides'
 import { hiddenThisPhase, stratagemVisibleNow } from '../../stratagemVisibility'
 import { RuleText } from '../../components/RuleText'
 import type { StratagemText } from './MissionCards'
-import { CARD, CARD_NAME } from './tints'
+import { CARD, CARD_NAME } from '../../components/battleTints'
 
 type ViewStratagem = BattleView['players'][number]['stratagems'][number]
 

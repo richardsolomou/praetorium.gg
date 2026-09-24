@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import { FactionDetachment } from '../client/components/FactionDetachment'
+import { FactionDetachment } from '../client/features/reference/factions/FactionDetachment'
 import { detachmentDetailQuery, factionQuery, favouriteDetachmentsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/detachments/$detachmentId')({

@@ -6,11 +6,11 @@ import type { Command, UnitState } from '../../../core/battle'
 import { armyModels, armyShelves } from '../../armyUnits'
 import type { Army, Side } from '../../sides'
 import { ArmyIdentity } from '../../components/ArmyIdentity'
-import { Section } from '../builder/Section'
-import { UnitCard } from '../builder/UnitCard'
-import { formationLabel } from '../setup/chrome'
+import { Section } from '../rosters/builder/Section'
+import { UnitCard } from '../rosters/builder/UnitCard'
+import { formationLabel } from './setup/chrome'
 import type { BattleCombatSelection } from '../simulator/BattleCombatDialog'
-import { tint } from './tints'
+import { tint } from '../../components/battleTints'
 
 type Props = {
   army: Army

@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import { RuleSectionPage } from '../client/components/RuleSectionPage'
+import { RuleSectionPage } from '../client/features/reference/rules/RuleSectionPage'
 import { ruleIndexQuery, ruleSectionQuery } from '../client/queries'
 
 export const Route = createFileRoute('/rules/$documentId/$sectionId')({

@@ -7,8 +7,8 @@ import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatRuleChoices, combatRuleDefault } from '../../../core/combatRules'
 import { combatantDatasheetQuery, priceQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
-import { survivingUnits } from '../builder/pricePlaceholder'
-import { pickEditor, usePicks } from '../builder/usePicks'
+import { survivingUnits } from '../rosters/builder/pricePlaceholder'
+import { pickEditor, usePicks } from '../rosters/builder/usePicks'
 
 export type CombatRoster = {
   catalogueId: string

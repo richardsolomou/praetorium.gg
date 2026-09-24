@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { ArrowLeftRight, Crosshair, Swords } from 'lucide-react'
-import { ProfileGrid, WeaponProfiles } from '../builder/DatasheetPanel'
+import { ProfileGrid, WeaponProfiles } from '../rosters/builder/DatasheetPanel'
 import type { Datasheet } from '../../../contracts/catalogue'
 import { DEFAULT_COMBAT_OPTIONS, type CombatInput, type CombatOptions, type CombatResult } from '../../../core/combat'
 import type { CombatCarrier } from '../../../core/combatLoadout'

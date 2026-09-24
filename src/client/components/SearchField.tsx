@@ -1,7 +1,7 @@
 import { X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import type { OnboardingTarget } from '../onboarding'
+import type { OnboardingTarget } from '../onboardingTargets'
 
 type Props = {
   value: string

@@ -1,5 +1,5 @@
 import { createFileRoute, notFound, Outlet, useRouterState } from '@tanstack/react-router'
-import { RuleContents } from '../client/components/RuleContents'
+import { RuleContents } from '../client/features/reference/rules/RuleContents'
 import { ruleIndexQuery } from '../client/queries'
 
 export const Route = createFileRoute('/rules/$documentId')({
