@@ -19,7 +19,8 @@ test('the roster library reserves its rows while the first page loads', async ({
   await firstFrame.screenshot({ path: 'test-results/loading-roster-library-no-js-phone.png', fullPage: true })
   await firstFrameContext.close()
 
-  await page.goto('/')
+  // The home page loads a player's lists for its own shelf, so the walk starts from a page that does not.
+  await page.goto('/leaderboard')
   let release: () => void = () => {}
   const held = new Promise<void>((resolve) => {
     release = resolve
@@ -79,7 +80,7 @@ test('the guest roster page shows its account gate without library loaders', asy
 
 test('a failed roster library read is not shown as an empty library', async ({ page }) => {
   await signUp(page, 'Library failure')
-  await page.goto('/')
+  await page.goto('/leaderboard')
   await page.route('**/_serverFn/**', (route) => route.abort('failed'))
 
   await page.getByRole('link', { name: 'Rosters', exact: true }).click()

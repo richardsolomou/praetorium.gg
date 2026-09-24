@@ -78,6 +78,7 @@ function HeroBattle({ battle }: { battle: Battle }) {
     <Link
       to="/battles/$token"
       params={{ token: battle.token }}
+      data-home-featured
       className="group relative block w-full max-w-md overflow-hidden border border-edge-strong bg-sunken shadow-[0_1.5rem_3rem_-1rem_rgba(0,0,0,0.6)] transition-colors hover:border-faint"
       aria-label={`Watch ${battle.players.join(' versus ')}`}
     >

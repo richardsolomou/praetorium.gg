@@ -64,7 +64,7 @@ test('the home page fits a phone at both signed-out and signed-in widths', async
   await page.goto('/')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
 
-  const featuredBattle = page.getByRole('link', { name: /Watch Preview Player/ })
+  const featuredBattle = page.locator('[data-home-featured]')
   for (const [first, second] of [
     ['Preview Player', 'Preview Ally'],
     ['Preview Opponent', 'Preview Rival'],
