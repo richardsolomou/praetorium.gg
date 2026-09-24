@@ -507,6 +507,23 @@ export class Repository {
     )
   }
 
+  /**
+   * Whether the battle the outer query is on seats a practice opponent.
+   *
+   * Asked in SQL rather than filtered from a page, because a page of a player's
+   * practice games filtered afterwards is an empty feed with more battles behind it.
+   */
+  private seatsPracticeOpponent() {
+    const seat = alias(battleUsers, 'practice_seat')
+    return exists(
+      this.database
+        .select({ one: sql`1` })
+        .from(seat)
+        .innerJoin(practiceOpponents, eq(practiceOpponents.userId, seat.userId))
+        .where(eq(seat.battleId, battles.id)),
+    )
+  }
+
   /** Whether a given account holds a seat in the battle the outer query is on. */
   private seatOf(userId: string) {
     const seat = alias(battleUsers, 'viewer_seat')
@@ -573,14 +590,20 @@ export class Repository {
    *
    * `viewerId` drops the battles that viewer already sits in, because the page
    * asking for this has shown them their own games above and a reader counting
-   * the same battle twice learns nothing the second time.
+   * the same battle twice learns nothing the second time. Practice games are
+   * never on it: nobody else is playing in them.
    */
   async publicBattles(page: { limit: number; before?: BattlesCursor; viewerId?: string | null }) {
     const rows = await this.database
       .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, at: battles.createdAt })
       .from(battles)
       .where(
-        and(not(this.withheldFrom('public')), page.viewerId ? not(this.seatOf(page.viewerId)) : undefined, this.startedBefore(page.before)),
+        and(
+          not(this.withheldFrom('public')),
+          not(this.seatsPracticeOpponent()),
+          page.viewerId ? not(this.seatOf(page.viewerId)) : undefined,
+          this.startedBefore(page.before),
+        ),
       )
       .orderBy(desc(battles.createdAt), desc(battles.id))
       .limit(page.limit + 1)
@@ -591,8 +614,8 @@ export class Repository {
    * Battles this player's confirmed friends are in and they are not.
    *
    * A friendship is mutual and settled, so either direction of the row counts.
-   * Practice opponents are nobody's friend, so a friend's practice game arrives
-   * here through the friend in it rather than needing a case of its own.
+   * A friend's practice game is left out, as it is from the public list: it is
+   * their history, not a game anybody else has a reason to watch.
    */
   async battlesByFriends(userId: string, page: { limit: number; before?: BattlesCursor }) {
     const friend = alias(battleUsers, 'friend_seat')
@@ -614,7 +637,15 @@ export class Repository {
       .selectDistinct({ id: battles.id, token: battles.token, createdAt: battles.createdAt, at: battles.createdAt })
       .from(battles)
       .innerJoin(friend, eq(friend.battleId, battles.id))
-      .where(and(friendship, not(this.seatOf(userId)), not(this.withheldFrom('friends')), this.startedBefore(page.before)))
+      .where(
+        and(
+          friendship,
+          not(this.seatOf(userId)),
+          not(this.withheldFrom('friends')),
+          not(this.seatsPracticeOpponent()),
+          this.startedBefore(page.before),
+        ),
+      )
       .orderBy(desc(battles.createdAt), desc(battles.id))
       .limit(page.limit + 1)
     return this.hydrateBattles(rows, page.limit)
