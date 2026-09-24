@@ -142,6 +142,20 @@ Dialogs, alert dialogs, menus, selects, and comboboxes are panels: square, one h
 
 Barlow Semi Condensed provides the display hierarchy and regular Barlow handles paragraph-length rules. Both OFL-licensed fonts are registered in the main stylesheet and preloaded by the root route.
 
+## Link previews
+
+A pasted link unfurls from the page's Open Graph tags. The root route's head carries the instance's own title, description and card, with `twitter:card` set to `summary_large_image`; a page's head replaces those tags one by one, so a page with nothing particular to say keeps the instance's card. `src/client/linkPreview.ts` writes every tag: `siteMeta` for the defaults, `pageMeta` for a page, and one builder each for a battle, a saved list and a player. Every `og:url` and `og:image` is absolute. The router context carries the origin, read once per request by `publicOrigin` in `src/server/requestOrigin.ts`, the same answer the sitemap uses.
+
+A crawler carries no session, so the page loader it triggers already reads what a signed-out reader may see, and the head is built from that loader data rather than a second read. The builders take only what that reader is shown:
+
+- A battle names both sides' players and armies, its stage, round and phase or result, and the score, from the view `screen` returned. A battle the reader may not watch gets a generic title and the instance's card; nothing about who is playing reaches the page.
+- A saved list names itself, its army, detachments and points from the same price its page draws. A public list is indexable. An unlisted list previews in full, because the link is the credential and whoever pasted it already holds it, but carries `noindex` so a leaked link is not listed by search engines. A private list answers nobody else, so its page is the ordinary not-found page.
+- A player names themselves, with the record and leaderboard place the profile page shows that reader. A player who withholds their battles previews as a name alone.
+
+The image behind each card is a PNG drawn on request under `/api/previews`: `site`, `battles/$token`, `rosters/$id` and `users/$userId`. These handlers ignore the session entirely and read as a signed-out reader, so their answer is the same for everyone and a shared cache may hold it. Anything that reader may not see is a `404` with `no-store`, the same as a link to nothing. A live battle's card is held for a minute and a finished one for ten, while lists and players are held for five. `src/server/previewImage.tsx` lays the card out with `satori` and rasterises it with `@resvg/resvg-wasm`, in the Barlow Semi Condensed weights the interface already ships, and the Latin Extended subset covers accented names. Those fonts carry no Cyrillic, Greek, CJK or emoji glyphs, so a name written in them draws as placeholder boxes on the card while the page title still reads correctly. Text is drawn as glyph outlines, so a typed name never reaches the SVG as markup. At most two renders run at once and sixteen wait behind them; another request gets a `503` with `Retry-After`. Every name and detachment is clipped to 80 characters before it is laid out.
+
+Both libraries are WebAssembly rather than native binaries, so the Alpine container and every development platform run the same renderer. `satori` is pinned below 0.33, which started loading HarfBuzz from a file beside its own module, a path the production bundle does not keep. The rasteriser's WebAssembly is inlined through Vite's `?inline` import, which is why `assetsInclude` names `.wasm` files in the Vite and Vitest configurations, and it loads with the first preview rather than at startup.
+
 ## Verification
 
 Rendered changes are inspected at desktop and phone widths before the relevant Playwright flow runs. Both widths use the same component instances.

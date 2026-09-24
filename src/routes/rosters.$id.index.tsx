@@ -5,6 +5,7 @@ import { fieldedRoster } from '../client/battleRosterSnapshot'
 import { BattleRosterSnapshot } from '../client/components/BattleRosterSnapshot'
 import { RosterEditor } from '../client/components/RosterEditor'
 import { battleQuery, leagueRosterQuery, rosterAccessQuery, savedRosterPriceQuery } from '../client/queries'
+import { pageMeta, rosterExposure, rosterPreview } from '../client/linkPreview'
 import { normalisePicks } from '../client/rosterPicks'
 import { rosterBootstrap } from '../server/functions'
 
@@ -48,7 +49,22 @@ export const Route = createFileRoute('/rosters/$id/')({
       roster.optionalRules,
     )
     context.queryClient.setQueryData(priced.queryKey, price)
-    return { editable, snapshot: false }
+    return { editable, snapshot: false, preview: rosterPreview(roster, faction, price), exposure: rosterExposure(roster.visibility) }
+  },
+  head: ({ loaderData, match, params }) => {
+    const preview = loaderData?.preview
+    const exposure = loaderData?.exposure
+    if (!preview || !exposure) return {}
+    const path = `/rosters/${params.id}`
+    return {
+      meta: pageMeta(match.context.origin, {
+        title: preview.title,
+        description: preview.description,
+        path,
+        ...(exposure.image ? { image: { path: `/api/previews${path}`, alt: preview.title } } : {}),
+        noindex: exposure.noindex,
+      }),
+    }
   },
   component: RosterPage,
 })

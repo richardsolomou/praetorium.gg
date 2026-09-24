@@ -93,6 +93,6 @@ Upgrades from 0.25.0 or earlier must stop every replica before starting the new 
 
 ## Reverse proxy
 
-The proxy forwards `X-Forwarded-Host` and `X-Forwarded-Proto`. `APP_URL` supplies the public origin when those headers do not describe it correctly and also becomes the canonical origin. Requests for another host redirect there while retaining their path.
+The proxy forwards `X-Forwarded-Host` and `X-Forwarded-Proto`. `APP_URL` supplies the public origin when those headers do not describe it correctly and also becomes the canonical origin. Requests for another host redirect there while retaining their path. The sitemap and the absolute links in link-preview tags use the same origin: `APP_URL`, then the forwarded host and protocol, then the address the request arrived at.
 
 `GET /api/health` is the health-check endpoint and does not redirect to `APP_URL`.
