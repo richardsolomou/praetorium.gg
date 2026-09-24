@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.76.1
+
+### Patch Changes
+
+- bcf1aa8: Capitalize weapon profile modes, show each configured unit alert, and restrict roster section collapsing to chevron controls.
+- bcf1aa8: Warm the simulator during deployment so the first visit does not stall the application.
+
 ## 0.76.0
 
 ### Minor Changes
