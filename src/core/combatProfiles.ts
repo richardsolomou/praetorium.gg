@@ -8,11 +8,17 @@ import { combatKeyword, combatKeywordApplies, normalizeCombatKeyword as normaliz
 type Profile = ReturnType<typeof datasheetProfilesByKind>['profiles'][number]
 const value = (profile: Profile, kind: DatasheetCharacteristicKind) => profile.values.find((entry) => entry.kind === kind)?.value.trim()
 const integer = (text: string | undefined) => (text !== undefined && /^-?\d+\+?$/.test(text) ? Number(text.replace('+', '')) : null)
+/**
+ * The target as allocation groups (05.03) in datasheet order, with a label for each so a player can reorder them.
+ * Carriers say how many models each profile has; they are only consulted when the profiles' defences differ.
+ */
 export function combatTarget(
   sheet: Datasheet,
   models: number,
   startingModels = models,
-): { target: CombatInput['target'] | null; error: string | null } {
+  carriers: readonly CombatCarrier[] = [],
+): { target: CombatInput['target'] | null; labels: string[]; error: string | null } {
+  const refuse = (error: string) => ({ target: null, labels: [], error })
   const profiles = datasheetProfilesByKind(sheet).unit
   const feelNoPain = sheet.abilities.flatMap((ability) => {
     if (ability.kind !== 'core' || (ability.source && startingModels !== 1)) return []
@@ -25,25 +31,47 @@ export function combatTarget(
       return invulnerable !== undefined && invulnerable !== '-' && integer(invulnerable) === null
     })
   )
-    return { target: null, error: 'This unit has an unsupported invulnerable save.' }
-  const targets = profiles.map((profile) => ({
-    models,
+    return refuse('This unit has an unsupported invulnerable save.')
+  if (!profiles.length) return refuse('This unit has no model profiles.')
+  const defences = profiles.map((profile) => ({
+    name: profile.name,
     toughness: integer(value(profile, 'toughness')),
     save: integer(value(profile, 'save')),
     wounds: integer(value(profile, 'wounds')),
     invulnerable: integer(value(profile, 'invulnerable-save')),
-    feelNoPain: feelNoPain.length ? Math.min(...feelNoPain) : null,
   }))
-  if (!targets.length) return { target: null, error: 'This unit has no model profiles.' }
-  if (targets.some((target) => JSON.stringify(target) !== JSON.stringify(targets[0])))
-    return {
-      target: null,
-      error: 'Targets with different model defences are not supported yet. Choose a unit whose models share Toughness, Save and Wounds.',
+  const key = ({ name: _, ...stats }: (typeof defences)[number]) => JSON.stringify(stats)
+  let counted: { defence: (typeof defences)[number]; models: number }[]
+  if (defences.every((defence) => key(defence) === key(defences[0]!))) counted = [{ defence: defences[0]!, models }]
+  else {
+    const counts = defences.map(() => 0)
+    for (const carrier of carriers) {
+      const index = defences.findIndex((defence) => normalized(defence.name) === normalized(carrier.name))
+      if (index < 0) return refuse(`${carrier.name} could not be matched to a model profile.`)
+      counts[index]! += carrier.models
     }
-  const target = combatSchema.shape.target.safeParse(targets[0])
+    if (counts.reduce((total, count) => total + count, 0) !== models) return refuse("Choose the defender's surviving models.")
+    counted = defences.map((defence, index) => ({ defence, models: counts[index]! }))
+  }
+  const groups = new Map<string, { labels: string[]; group: Record<string, number | null> }>()
+  for (const { defence, models: count } of counted) {
+    if (!count) continue
+    const existing = groups.get(key(defence))
+    if (existing) {
+      existing.labels.push(defence.name)
+      existing.group.models = (existing.group.models ?? 0) + count
+    } else {
+      const { name, ...stats } = defence
+      groups.set(key(defence), { labels: [name], group: { ...stats, models: count } })
+    }
+  }
+  const target = combatSchema.shape.target.safeParse({
+    groups: [...groups.values()].map((entry) => entry.group),
+    feelNoPain: feelNoPain.length ? Math.min(...feelNoPain) : null,
+  })
   return target.success
-    ? { target: target.data, error: null }
-    : { target: null, error: 'This unit has missing or unsupported defensive characteristics.' }
+    ? { target: target.data, labels: [...groups.values()].map((entry) => entry.labels.join(' · ')), error: null }
+    : refuse('This unit has missing or unsupported defensive characteristics.')
 }
 
 export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[], phase: CombatInput['options']['phase']) {

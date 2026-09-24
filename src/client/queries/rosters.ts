@@ -4,6 +4,7 @@ import type { RosterPick } from '../../core/roster'
 import {
   collection,
   combatantDatasheet,
+  combatUnits,
   datasheet,
   factionDatasheets,
   loadoutDatasheets,
@@ -29,6 +30,8 @@ export const unitsQuery = (catalogueId: string, query: string, battleSize?: numb
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
   })
+
+export const combatUnitsQuery = () => queryOptions({ queryKey: ['combat-units'], queryFn: () => combatUnits(), staleTime: SSR_STALE_TIME })
 
 export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
   queryOptions({

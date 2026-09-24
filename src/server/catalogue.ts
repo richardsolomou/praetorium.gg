@@ -388,7 +388,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       const shared = loaded.index.shared.get(link.targetId)
       if (!shared) continue
       if ('characteristics' in shared && (!weaponsOnly || shared.typeName !== 'Abilities')) {
-        addProfile({ ...shared, name: link.name ?? shared.name }, kind, [...lineage, link.id, shared.id], [link.id, shared.id])
+        addProfile({ ...shared, name: link.name ?? shared.name }, kind, [...lineage, link.id, shared.id], [...owner, link.id, shared.id])
       }
     }
   }
