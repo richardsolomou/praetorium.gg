@@ -1,1 +1,6 @@
-[]
+[
+  {
+    "reason": "Linked unit profiles now take their entry's modifiers, so the Slabshield renames the built Bullgryn profile and gives it the 4 Wounds its rule states",
+    "entries": ["astra-militarum / Bullgryn Squad profiles: Unit: Bullgryn"]
+  }
+]
