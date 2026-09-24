@@ -811,7 +811,7 @@ test('a book that keeps its datasheets in a library can still be built from', as
 
   // And what it borrows from another book is there beside its own.
   await page.getByLabel('Add a unit').fill('Callidus Assassin')
-  await page.getByRole('button', { name: 'Agents of the Imperium 1' }).click()
+  await page.getByRole('button', { name: 'Toggle Agents of the Imperium' }).click()
   await page.getByRole('button', { name: 'Add Callidus Assassin', exact: true }).click()
   await expect(page.locator('[data-unit="Callidus Assassin"]')).toBeVisible()
   await expect(page.getByText('Within the points limit')).toBeAttached()
