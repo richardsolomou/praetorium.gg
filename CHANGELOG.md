@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.78.0
+
+### Minor Changes
+
+- b8c2801: Try the roster builder without an account and sign up to save the list.
+
+### Patch Changes
+
+- 7382101: Keep the roster library in the order you last sorted it.
+
 ## 0.77.0
 
 ### Minor Changes
