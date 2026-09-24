@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { fieldedRoster } from '../client/battleRosterSnapshot'
 import { BattleRosterSnapshot } from '../client/components/BattleRosterSnapshot'
 import { RosterEditor } from '../client/components/RosterEditor'
-import { battleQuery, leagueRosterQuery, rosterAccessQuery, savedRosterPriceQuery } from '../client/queries'
+import { battleQuery, leagueRosterQuery, rosterAccessQuery, rosterChangesQuery, savedRosterPriceQuery } from '../client/queries'
 import { pageMeta, rosterExposure, rosterPreview } from '../client/linkPreview'
 import { normalisePicks } from '../client/rosterPicks'
 import { rosterBootstrap } from '../server/functions'
@@ -33,9 +33,10 @@ export const Route = createFileRoute('/rosters/$id/')({
     }
     const bootstrap = await rosterBootstrap({ data: { id: params.id, ...(deps.battle ? { battle: deps.battle } : {}) } })
     if (!bootstrap) throw notFound()
-    const { roster, editable, faction, price } = bootstrap
+    const { roster, editable, faction, price, changes } = bootstrap
     const access = { roster, editable, faction }
     context.queryClient.setQueryData(rosterAccessQuery(params.id, deps.battle).queryKey, access)
+    context.queryClient.setQueryData(rosterChangesQuery(params.id).queryKey, changes)
     const priced = savedRosterPriceQuery(
       roster.id,
       roster.catalogueId,

@@ -79,11 +79,14 @@ function parsePointer(value: unknown): SnapshotPointer {
   return pointer as SnapshotPointer
 }
 
-function revisionsOf(value: unknown): Record<string, string> {
+/** `historical` reads a published snapshot as history, passing over a source this code no longer has. */
+function revisionsOf(value: unknown, historical = false): Record<string, string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('catalogue revisions are invalid')
   const revisions: Record<string, string> = {}
   for (const [name, revision] of Object.entries(value)) {
-    if (!(SNAPSHOT_SOURCE_NAMES as readonly string[]).includes(name) || typeof revision !== 'string' || !revision) {
+    const known = (SNAPSHOT_SOURCE_NAMES as readonly string[]).includes(name)
+    if (historical && !known) continue
+    if (!known || typeof revision !== 'string' || !revision) {
       throw new Error(`catalogue revision ${name} is invalid`)
     }
     revisions[name] = revision
@@ -304,10 +307,10 @@ function installArchive(
   }
 }
 
-function installedSnapshotDetails(directory: string): InstalledSnapshot | null {
+function installedSnapshotDetails(directory: string, historical = false): InstalledSnapshot | null {
   try {
     const pointer = parsePointer(JSON.parse(fs.readFileSync(path.join(directory, '.snapshot.json'), 'utf8')))
-    const revisions = revisionsOf(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')))
+    const revisions = revisionsOf(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')), historical)
     const manifestFile = path.join(directory, '.snapshot-manifest.json')
     const sources = fs.existsSync(manifestFile)
       ? manifestSources(JSON.parse(fs.readFileSync(manifestFile, 'utf8')) as SnapshotManifest)
@@ -323,6 +326,15 @@ export function installedSnapshot(directory: string): SnapshotPointer | null {
   return installedSnapshotDetails(directory)?.pointer ?? null
 }
 
+/**
+ * The sources an installed snapshot carries, read as history rather than as the data to
+ * serve: a revision for a source this code no longer has is passed over, since nothing reads
+ * it. An instance never installs this way; `installedSnapshot` refuses such a snapshot.
+ */
+export function historicalSnapshotSources(directory: string): SnapshotSourceName[] | null {
+  return installedSnapshotDetails(directory, true)?.sources ?? null
+}
+
 export async function fetchCurrentPointer(baseUrl: string) {
   const base = baseUrl.replace(/\/$/, '')
   const response = await fetchWithRetry(`${base}/current.json`, { cache: 'no-store' })
@@ -330,7 +342,7 @@ export async function fetchCurrentPointer(baseUrl: string) {
   return parsePointer(await response.json())
 }
 
-async function remoteRevocations(baseUrl: string) {
+export async function remoteRevocations(baseUrl: string) {
   const base = baseUrl.replace(/\/$/, '')
   const response = await fetchWithRetry(`${base}/revocations.json`, { cache: 'no-store' })
   if (response.status === 404) return configuredRevocations()
@@ -395,9 +407,10 @@ export function installSnapshotArchive(
   directory: string,
   archiveFile: string,
   pointer = catalogueLock.pointer,
-  revisions: Record<string, string> | undefined = catalogueLock.revisions,
+  /** Null installs a snapshot whatever revisions it pins, as a historical one does. */
+  revisions: Record<string, string> | null = catalogueLock.revisions,
 ) {
-  installArchive(directory, fs.readFileSync(archiveFile), pointer, configuredRevocations(), revisions)
+  installArchive(directory, fs.readFileSync(archiveFile), pointer, configuredRevocations(), revisions ?? undefined)
 }
 
 export async function downloadSnapshotArchive(

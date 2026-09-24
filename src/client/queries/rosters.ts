@@ -16,6 +16,7 @@ import {
   sharedRoster,
   units,
 } from '../../server/functions'
+import { savedRosterStatusQuery } from './changes'
 import { SSR_STALE_TIME } from './shared'
 
 export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })
@@ -157,6 +158,8 @@ export function invalidateSavedRosters(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: ['roster-access'] }),
     queryClient.invalidateQueries({ queryKey: savedRosterSummariesQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: savedRosterTotalsQuery().queryKey }),
+    queryClient.invalidateQueries({ queryKey: savedRosterStatusQuery().queryKey }),
+    queryClient.invalidateQueries({ queryKey: ['roster-changes'] }),
   ])
 }
 

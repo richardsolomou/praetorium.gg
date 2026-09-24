@@ -140,6 +140,23 @@ it('records provenance and omits unused files from a packed snapshot', () => {
   expect(entries['catalogue/rules/data/core/_reports/report.json']).toBeUndefined()
 })
 
+it('packs the data-update history and hashes it in the manifest', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
+  roots.push(root)
+  const catalogue = completeCatalogue(root)
+  const archiveFile = path.join(root, 'snapshot.zip')
+  const pointerFile = path.join(root, 'pointer.json')
+  const history = '{"format":"praetorium.catalogue-history.v1","entries":[]}\n'
+  fs.mkdirSync(path.join(catalogue, 'changes'))
+  fs.writeFileSync(path.join(catalogue, 'changes', 'history.json'), history)
+
+  packCatalogueSnapshot(catalogue, archiveFile, pointerFile)
+
+  const entries = unzipSync(fs.readFileSync(archiveFile))
+  const manifest = JSON.parse(new TextDecoder().decode(entries['manifest.json'])) as { files: Record<string, string> }
+  expect(manifest.files['changes/history.json']).toBe(createHash('sha256').update(history).digest('hex'))
+})
+
 it.each(['definitions', 'rules', 'datacards'] as const)('does not compile or pack a canonical catalogue without %s', (source) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
   roots.push(root)

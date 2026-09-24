@@ -6,11 +6,7 @@ export const POSTHOG_BROWSER_OPTIONS = {
   capture_performance: true,
   mask_personal_data_properties: true,
   custom_personal_data_properties: ['token'],
-  session_recording: {
-    blockSelector: 'img',
-    maskAllInputs: true,
-    maskTextSelector: '*',
-  },
+  session_recording: { maskAllInputs: true },
 } satisfies Partial<PostHogConfig>
 
 export const postHogCoverage = definePostHogCoverage({

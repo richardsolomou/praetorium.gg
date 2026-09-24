@@ -1,5 +1,6 @@
 import { app } from './app'
 import { calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from './pricing'
+import { type RosterVerdict, rosterVerdict } from './rosterStatus'
 
 /**
  * A list's total and its fallback label change only when the list or the catalogue
@@ -68,4 +69,27 @@ export function cachedRosterPrice(roster: {
   }
   rosterPriceCache.set(key, price)
   return price
+}
+
+/**
+ * Whether each list is legal, and what it holds, by the same key as its price: judged
+ * once per save per snapshot. Only the verdict is kept, so a library of lists costs a
+ * few names apiece rather than every unit's projection.
+ */
+const rosterVerdictCache = new Map<string, RosterVerdict>()
+const ROSTER_VERDICT_CACHE_LIMIT = 10_000
+
+export function cachedRosterVerdict(roster: Parameters<typeof cachedRosterPrice>[0]) {
+  const key = rosterRevisionKey(roster)
+  const cached = rosterVerdictCache.get(key)
+  if (cached) return cached
+  // Without the rules source a list cannot be judged the way a battle judges it.
+  const priced = app().rules() ? (rosterPriceCache.get(key) ?? calculateRosterPrice(savedRosterPriceInput(roster))) : null
+  const verdict = rosterVerdict(roster, priced)
+  if (rosterVerdictCache.size >= ROSTER_VERDICT_CACHE_LIMIT) {
+    const oldest = rosterVerdictCache.keys().next().value
+    if (oldest !== undefined) rosterVerdictCache.delete(oldest)
+  }
+  rosterVerdictCache.set(key, verdict)
+  return verdict
 }

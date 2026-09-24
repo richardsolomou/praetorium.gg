@@ -8,6 +8,9 @@ import type { SavedRoster } from './rosterLibrary'
 import { VISIBILITY_NAME } from './visibility'
 
 export type RosterSummaryFaction = FactionPresentation & { detachments: { id: string; name: string }[] }
+export type RosterProblem = 'over-limit' | 'not-legal'
+
+const PROBLEM_LABEL: Record<RosterProblem, string> = { 'over-limit': 'Over limit', 'not-legal': 'Not legal' }
 
 /**
  * What to call this list on screen: its own name, or the label folded from it.
@@ -38,6 +41,7 @@ export function RosterSummary({
   label,
   factionLoading = false,
   pointsLoading = false,
+  problem = null,
 }: {
   roster: SavedRoster
   faction?: RosterSummaryFaction
@@ -46,6 +50,7 @@ export function RosterSummary({
   label?: string
   factionLoading?: boolean
   pointsLoading?: boolean
+  problem?: RosterProblem | null
 }) {
   const detachments = detachmentNames(roster, faction)
   const size = GAME_SIZES.find((entry) => entry.limit === roster.limit)
@@ -69,7 +74,8 @@ export function RosterSummary({
           {formatDate(roster.updatedAt)}
         </span>
       </span>
-      <span className="ml-auto shrink-0 text-right">
+      {/* Wide enough for a warning beside the visibility, so one arriving late moves nothing. */}
+      <span className="ml-auto min-w-28 shrink-0 text-right">
         {pointsLoading ? (
           <Skeleton className="ml-auto h-5 w-20" />
         ) : (
@@ -77,7 +83,10 @@ export function RosterSummary({
             {points ?? '—'}/{roster.limit}
           </span>
         )}
-        <span className="text-xs text-dim">{VISIBILITY_NAME[roster.visibility]}</span>
+        <span className="block text-xs whitespace-nowrap text-dim">
+          {problem ? <span className="font-semibold text-destructive">{PROBLEM_LABEL[problem]} · </span> : null}
+          {VISIBILITY_NAME[roster.visibility]}
+        </span>
       </span>
     </>
   )

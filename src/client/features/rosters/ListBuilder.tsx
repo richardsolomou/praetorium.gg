@@ -62,6 +62,8 @@ import { RosterBody, RosterHeader, RosterShell, RosterUnits } from '../../compon
 import { readWorkspaceState, writeWorkspaceState } from '../../components/workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
 import { BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
+import { RosterDataChanges } from './RosterDataChanges'
+import { draftKey, type RosterDraft, savedDraft } from './rosterDraft'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
 import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
@@ -386,27 +388,33 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
     () => ({ stratagems: prep.stratagems, secondaries: prep.secondaries, reminders, remindersEnabled }),
     [prep.secondaries, prep.stratagems, reminders, remindersEnabled],
   )
+  const draft: RosterDraft = {
+    id: savedId,
+    name: listName,
+    catalogueId,
+    detachmentIds,
+    disposition,
+    limit,
+    picks: positioned,
+    prep: storedPrep,
+    waivedRules,
+    optionalRules,
+    borrowedDetachmentId,
+    visibility,
+    source: initial.source,
+  }
+  // The last draft sent, starting from the row the list was opened from. A list nobody
+  // has saved yet has no row, so its first draft is always sent.
+  const [openedAs] = useState(() => (savedId ? draftKey(savedDraft(initial, prep)) : null))
+  const lastSaved = useRef(openedAs)
   const save = useMutation({
     scope: { id: 'roster-autosave' },
-    mutationFn: () =>
-      saveRoster({
-        data: {
-          id: savedId,
-          name: listName,
-          catalogueId,
-          detachmentIds,
-          disposition,
-          limit,
-          picks: positioned,
-          prep: storedPrep,
-          waivedRules,
-          optionalRules,
-          borrowedDetachmentId,
-          visibility,
-          source: initial.source,
-        },
-      }),
+    mutationFn: () => saveRoster({ data: draft }),
     onSuccess: () => invalidateSavedRosters(queryClient),
+    // What the row holds is unknown after a failure, so the next draft is sent whatever it is.
+    onError: () => {
+      lastSaved.current = null
+    },
   })
 
   // Held steppers and typed names change many times a second; the settled values
@@ -415,6 +423,9 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
   const settledListName = useSettled(listName)
   useEffect(() => {
     if (!editable || !catalogueId) return
+    const key = draftKey(draft)
+    if (key === lastSaved.current) return
+    lastSaved.current = key
     save.mutate()
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
@@ -918,6 +929,7 @@ export function ListBuilder({ prep, initial, initialFaction, frozen, editable = 
             Could not share the link: {shareProblem}
           </p>
         ) : null}
+        {savedId && !frozen ? <RosterDataChanges rosterId={savedId} /> : null}
         {editable && priced?.dispositionError ? (
           <p role="alert" className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
             <TriangleAlert className="size-3 shrink-0" aria-hidden />

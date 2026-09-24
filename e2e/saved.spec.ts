@@ -49,6 +49,26 @@ test('the roster library reserves its rows while the first page loads', async ({
   await page.unroute('**/_serverFn/**')
 })
 
+test('opening an unchanged list saves nothing, and an edit still saves', async ({ page }) => {
+  await signUp(page, 'Unchanged')
+  // Creating the list and naming it are both saves; `createRoster` waits for the name's.
+  const rosterName = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Unchanged roster' })
+  const saves: string[] = []
+  page.on('request', (request) => {
+    const body = request.postData()
+    if (request.method() === 'POST' && body?.includes('"visibility"') && body.includes('"picks"')) saves.push(body)
+  })
+
+  await page.reload()
+  await expect(page.getByLabel('List name')).toHaveValue(rosterName)
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await page.waitForLoadState('networkidle')
+  expect(saves).toEqual([])
+
+  await waitForRosterSave(page, () => page.getByLabel('List name').fill(`${rosterName} edited`), `${rosterName} edited`)
+  expect(saves).toHaveLength(1)
+})
+
 test('the guest roster page shows its account gate without library loaders', async ({ page }) => {
   await page.goto('/rosters')
 

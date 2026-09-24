@@ -1,13 +1,16 @@
 import { createServerFn } from '@tanstack/react-start'
 import { attachedUnitCount } from '../../core/attachedUnits'
+import { changesTouching } from '../../core/catalogueChanges'
+import { historySince } from '../../core/catalogueHistory'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
 import { calculateRosterPrice } from '../pricing'
-import { cachedRosterPrice, cachedRosterTotals } from '../rosterPrices'
+import { cachedRosterPrice, cachedRosterTotals, cachedRosterVerdict } from '../rosterPrices'
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, importRosterFile } from '../rosterFiles'
 import { factionsFor } from '../factionReferences'
 import { rosterTelemetryProperties } from '../rosterTelemetry'
+import { rosterStatus, rosterVerdict } from '../rosterStatus'
 import {
   exportRosterSchema,
   importRosterSchema,
@@ -101,12 +104,57 @@ export const rosterAccess = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
   .handler(({ data }) => rpc(() => accessibleRoster(data)))
 
+/**
+ * How many recorded data updates a saved list is compared against, newest first. A list
+ * untouched for longer than this many updates is only told about the most recent.
+ */
+const CHANGE_SETS_READ = 50
+
+/**
+ * Which of a player's lists the current data says they cannot field, and how many data
+ * updates since each was saved reached something in it.
+ *
+ * Asked separately from the totals, which the library row cannot draw without: judging a
+ * list prices every unit's projection, and a row's points should not wait for it.
+ */
+export const savedRosterStatus = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    if (!id) return []
+    const instance = app()
+    const saved = await instance.service.savedRosters(id)
+    if (!saved.length) return []
+    const sets = historySince(instance.catalogueHistory() ?? [], Math.min(...saved.map((roster) => roster.updatedAt)), CHANGE_SETS_READ)
+    return saved.map((roster) => rosterStatus(roster, cachedRosterVerdict(roster), sets))
+  }),
+)
+
+/** The recorded data updates since a list was saved that reached something it holds. */
+function changesSinceSaved(
+  roster: Parameters<typeof cachedRosterPrice>[0] & { updatedAt: number },
+  priced: ReturnType<typeof cachedRosterPrice>,
+) {
+  const sets = historySince(app().catalogueHistory() ?? [], roster.updatedAt, CHANGE_SETS_READ)
+  return sets.length ? changesTouching(rosterVerdict(roster, priced).contents, roster.updatedAt, sets) : []
+}
+
 export const rosterBootstrap = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
   .handler(({ data }) =>
     rpc(async () => {
       const access = await accessibleRoster(data)
-      return access ? { ...access, price: cachedRosterPrice(access.roster) } : null
+      if (!access) return null
+      const price = cachedRosterPrice(access.roster)
+      return { ...access, price, changes: changesSinceSaved(access.roster, price) }
+    }),
+  )
+
+export const rosterChanges = createServerFn({ method: 'GET' })
+  .validator(rosterInBattleSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const roster = await app().service.sharedRoster(data.id, await currentUserId(), data.battle ?? null)
+      return roster ? changesSinceSaved(roster, cachedRosterPrice(roster)) : []
     }),
   )
 
