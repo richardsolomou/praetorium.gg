@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { battles, battleUsers, practiceOpponents } from '../db/schema'
-import type { Roster } from '../core/battle'
+import type { Command, Roster } from '../core/battle'
 import type { RosterVisibility } from '../core/savedRoster'
 import type { LoadedRules } from './rules'
 import { createBattleSchema } from './schemas'
@@ -1675,6 +1675,137 @@ describe("a player's profile", () => {
     ])
 
     expect([against.record.battles, elsewhere.record.battles]).toEqual([1, 0])
+  })
+
+  /** Alice's side prepared with these cards before the battle begins, which is when a pool is recorded. */
+  async function prepared(prep: Omit<Extract<Command, { kind: 'set-prep' }>, 'kind'>) {
+    const { token } = await service.createBattle('alice', 'bob')
+    let seq = 0
+    const send = async (by: string, command: Command) => {
+      const { result } = await service.submit(token, by, seq, command)
+      if (result.outcome !== 'appended') throw new Error(JSON.stringify(result))
+      seq = result.seq
+    }
+    await send('alice', { kind: 'attach-roster', roster: { name: 'Ultramarines', text: '10 Intercessors' } })
+    await send('bob', { kind: 'attach-roster', roster: { name: 'Death Guard', text: '10 Plague Marines' } })
+    await send('alice', { kind: 'set-prep', ...prep })
+    await send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })
+    return send
+  }
+
+  it('counts the stratagems the profile owner’s side used from the battle log', async () => {
+    const grenade = { key: 'grenade', name: 'Grenade', cp: 1, limit: 'unlimited' as const }
+    const send = await prepared({ stratagems: [grenade], secondaries: [], primary: null, secondaryMode: 'fixed' })
+    await send('alice', { kind: 'use-stratagem', key: 'grenade' })
+    await send('alice', { kind: 'end-battle' })
+
+    const { record } = await service.playerProfile('alice', null)
+
+    expect(record.stratagems).toEqual([{ key: 'grenade', name: 'Grenade', uses: 1, cp: 1 }])
+  })
+
+  it('keeps what each side played off the battle list the profile sends', async () => {
+    const { send } = await started()
+    await send('alice', { kind: 'end-battle' })
+
+    expect(Object.keys((await service.playerProfile('alice', null)).battles[0] ?? {})).not.toContain('plays')
+  })
+
+  it('leaves a face-down Secret Mission out of the record a stranger reads', async () => {
+    const deck = [
+      { key: 'hidden', name: 'Hidden purpose' },
+      { key: 'open', name: 'Open purpose' },
+    ]
+    const send = await prepared({ stratagems: [], secondaries: [deck[1]!], secondaryDeck: deck, primary: null, secondaryMode: 'fixed' })
+    await send('alice', { kind: 'select-secret', secondary: deck[0]! })
+    await send('alice', { kind: 'end-battle' })
+
+    const [stranger, own] = await Promise.all([service.playerProfile('alice', null), service.playerProfile('alice', 'alice')])
+
+    expect([stranger, own].map((profile) => profile.record.cards.map((card) => card.key))).toEqual([['open'], ['hidden', 'open']])
+  })
+
+  it('links what a side played to the reference page printing it, and only where that page answers', async () => {
+    const mission = (id: string) => ({ id, name: id, source: 'Pack A', packId: 'pack-a', deploymentIds: [] })
+    const rules = {
+      missions: new Map([
+        ['pack-a|reconnaissance|disruption', mission('mission-a')],
+        ['pack-a|disruption|reconnaissance', mission('mission-b')],
+      ]),
+      primaries: [],
+      secondaries: [{ key: 'assassination', name: 'Assassination', awards: [] }],
+      dispositions: new Map([
+        ['reconnaissance', 'Reconnaissance'],
+        ['disruption', 'Disruption'],
+      ]),
+      deployments: [],
+      attribution: '',
+    } as unknown as LoadedRules
+    const factions = [
+      { id: 'cat', slug: 'astra-militarum', displayName: 'Astra Militarum', icon: null, detachments: [{ name: 'Combined Arms' }] },
+    ]
+    const { token } = await service.createBattle('alice', { opponentId: 'bob', limit: 2000, missionPackId: 'pack-a' })
+    let seq = 1
+    const send = async (by: string, command: Command) => {
+      const { result } = await service.submit(token, by, seq, command)
+      if (result.outcome !== 'appended') throw new Error(JSON.stringify(result))
+      seq = result.seq
+    }
+    const built = (name: string, disposition: string) => ({
+      name,
+      text: name,
+      built: {
+        catalogueId: 'cat',
+        revision: 'rev',
+        limit: 2000,
+        detachment: 'Combined Arms',
+        detachments: [{ name: 'Combined Arms', points: null }],
+        disposition,
+        units: [],
+      },
+    })
+    await send('alice', { kind: 'attach-roster', roster: built('Alice army', 'reconnaissance') })
+    await send('bob', { kind: 'attach-roster', roster: built('Bob army', 'disruption') })
+    const orders = { name: 'Orders', cp: 0, limit: 'unlimited' as const }
+    await send('alice', {
+      kind: 'set-prep',
+      stratagems: [
+        { ...orders, key: 'orders-combined-arms', detachment: 'Combined Arms' },
+        { ...orders, key: 'orders-elsewhere', name: 'Elsewhere', detachment: 'Some Other Detachment' },
+      ],
+      secondaries: [
+        { key: 'assassination', name: 'Assassination' },
+        { key: 'unprinted', name: 'Unprinted' },
+      ],
+      secondaryDeck: [
+        { key: 'assassination', name: 'Assassination' },
+        { key: 'unprinted', name: 'Unprinted' },
+      ],
+      primary: { key: 'mission-a', name: 'mission-a' },
+      secondaryMode: 'fixed',
+    })
+    await send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })
+    await send('alice', { kind: 'use-stratagem', key: 'orders-combined-arms' })
+    await send('alice', { kind: 'use-stratagem', key: 'orders-elsewhere' })
+    await send('alice', { kind: 'end-battle' })
+
+    const { record } = await service.playerProfile('alice', null, {}, rules, factions)
+
+    expect({
+      stratagems: record.stratagems.map((row) => [row.key, row.reference ?? null]),
+      cards: record.cards.map((row) => [row.key, row.reference ?? null]),
+      missions: record.primaryMissions.map((row) => [row.key, row.reference ?? null]),
+    }).toEqual({
+      stratagems: [
+        ['orders-elsewhere', null],
+        ['orders-combined-arms', { catalogueId: 'astra-militarum', detachmentId: 'combined-arms' }],
+      ],
+      cards: [
+        ['assassination', { packId: 'pack-a' }],
+        ['unprinted', null],
+      ],
+      missions: [['mission-a', { packId: 'pack-a', you: 'reconnaissance', opponent: 'disruption' }]],
+    })
   })
 
   it('leaves a practice game out of the record and the list', async () => {

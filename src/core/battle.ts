@@ -690,7 +690,8 @@ export type PlayerState = {
   correctionByRound: { primary: number[]; secondary: number[] }
 }
 
-type StratagemUse = { key: string; round: number; phase: Phase; turn: PlayerId | null }
+/** `name` and `cp` are what the use said at the time, so a later pool or price change cannot rewrite it. */
+type StratagemUse = { key: string; name: string; cp: number; round: number; phase: Phase; turn: PlayerId | null }
 
 export type BattleState = {
   status: 'setup' | 'playing' | 'finished'
@@ -1912,7 +1913,14 @@ function applyStratagemUse(state: BattleState, player: PlayerState, stratagem: S
   player.cp -= spent
   player.cpSpent += spent
   player.cpByRound[state.round - 1] = player.cp
-  player.uses.push({ key: stratagem.key, round: state.round, phase: state.phase, turn: state.activePlayerId })
+  player.uses.push({
+    key: stratagem.key,
+    name: stratagem.name,
+    cp: spent,
+    round: state.round,
+    phase: state.phase,
+    turn: state.activePlayerId,
+  })
 }
 
 function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: number | null) {

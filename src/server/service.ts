@@ -21,16 +21,19 @@ import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import type { MissionAward } from '../core/scoring'
 import type { OnboardingProgressOperation } from '../core/onboarding'
-import { filterBattles, type RecordFilter, recordFacets, serviceRecord } from '../core/serviceRecord'
+import { filterBattles, type RecordFilter, recordFacets, type SeatPlay, seatPlays, serviceRecord } from '../core/serviceRecord'
+import { routeSlug } from '../core/slug'
 import { factionsPlayed, type Standing, type StandingFaction, standings } from '../core/standings'
 import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
 import type { BattleHistory, BattleSeats, BattlesCursor, Repository } from '../db/repository'
+import { gameReferencesFor } from './gameReferences'
 import { type Mission, missionFor } from './rules'
 import { LeagueService } from './services/leagueService'
 import { RosterService } from './services/rosterService'
 import { SocialService, sortedFriends } from './services/socialService'
 
-type BattleFaction = { id: string; slug: string; displayName: string; icon: string | null }
+/** A catalogue faction as the battle lists name it, with the detachments its reference pages answer for. */
+type BattleFaction = { id: string; slug: string; displayName: string; icon: string | null; detachments?: readonly { name: string }[] }
 
 /**
  * `mission` is the viewer's, for the screens that are about them. `missions` is every
@@ -494,14 +497,23 @@ export class PraetoriumService {
     ])
     const histories = await this.watchable(seated, viewerId)
     const practised = new Set(practice.map((opponent) => opponent.id))
-    const summaries = this.battleSummaries(histories, viewerId, rules, factions).filter(
-      (battle) => !battle.playerIds.some((id) => practised.has(id)),
+    const summaries = this.recordBattles(
+      histories.filter((history) => !history.players.some((player) => practised.has(player.id))),
+      viewerId,
+      rules,
+      factions,
     )
     // The facets are what the player has played, not what is left after narrowing —
     // a control that empties itself as soon as it is used cannot be used twice.
     const facets = recordFacets(summaries, userId)
     const shown = filterBattles(summaries, userId, filter)
-    return { record: serviceRecord(summaries, userId, filter), facets, battles: shown.slice(0, PROFILE_BATTLE_PAGE), played: shown.length }
+    return {
+      record: serviceRecord(summaries, userId, filter),
+      facets,
+      // What each side did is the record's to count, not the battle list's to carry.
+      battles: shown.slice(0, PROFILE_BATTLE_PAGE).map(({ plays: _plays, ...battle }) => battle),
+      played: shown.length,
+    }
   }
 
   /** How widely this player's battles may be seen, and their own answer to it. */
@@ -566,58 +578,80 @@ export class PraetoriumService {
     factions: readonly BattleFaction[] = [],
   ) {
     const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
-    return histories.map(({ battle, players, log }) => {
-      const state = reduceBattle(
-        players.map((player) => player.id),
-        log,
-        players.map((player) => player.side),
-        players.filter((player) => player.automated).map((player) => player.id),
-      )
-      const viewerSide = state.players.find((player) => player.id === viewerId)?.side ?? 0
-      const opposingSide = state.players.find((player) => player.side !== viewerSide)?.side
-      const ownDisposition = sideDisposition(state, viewerSide)
-      const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
+    return histories.map((history) => this.battleSummary(history, foldHistory(history), viewerId, rules, factionsById))
+  }
+
+  /**
+   * The battle list's summaries with what each side did with its resources, for a
+   * record. Each log is folded once for both, so the record costs no second pass.
+   */
+  private recordBattles(
+    histories: readonly BattleHistory[],
+    viewerId: string | null,
+    rules: Parameters<typeof missionFor>[0] | null | undefined,
+    factions: readonly BattleFaction[],
+  ) {
+    const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
+    return histories.map((history) => {
+      const state = foldHistory(history)
       return {
-        token: battle.token,
-        createdAt: battle.createdAt,
-        status: state.status,
-        round: state.round,
-        phase: state.phase,
-        players: players.map((player) => player.name),
-        playerDetails: players.map(({ id, name, image, automated }) => ({ id, name, image, automated })),
-        playerIds: players.map((player) => player.id),
-        sides: state.players.map((player) => player.side),
-        armies: state.players.map((player) => player.roster?.name ?? null),
-        // The catalogue army each seat brought, so a battle can also be counted as a
-        // result for the faction that fielded it. A pasted list has none.
-        factions: state.players.map((player) => {
-          const faction = player.roster?.built?.catalogueId ? factionsById.get(player.roster.built.catalogueId) : undefined
-          return faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon } : null
-        }),
-        detachments: state.players.map((player) => player.roster?.built?.detachments?.map((detachment) => detachment.name) ?? []),
-        // Who took the first turn, and the two halves each seat's score is made of,
-        // so a player's record can separate going first from going second and say
-        // where their points came from. `scores` only carries the total.
-        firstPlayerId: state.firstPlayerId,
-        primaries: state.players.map((player) => player.primary),
-        secondaries: state.players.map((player) => player.secondary),
-        // The painted bonus is paid when the battle begins, and it is the side's one
-        // bonus, the same as everywhere else. Onto the seat that already carries the
-        // side's score, because that is the seat every reader of this list picks out to
-        // ask what a side is on.
-        scores: state.players.map(
-          (player) =>
-            player.primary +
-            player.secondary +
-            (state.status !== 'setup' && player.id === sideCaptain(state, player.side).id ? sidePaintedPoints(state, player.side) : 0),
-        ),
-        mission: rules ? missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId) : null,
-        deploymentId: state.deploymentId,
-        settings: state.settings,
-        result: state.result,
-        lastActivity: log.at(-1)?.at ?? battle.createdAt,
+        ...this.battleSummary(history, state, viewerId, rules, factionsById),
+        plays: referencedPlays(state, seatPlays(state, viewerId), rules, factionsById),
       }
     })
+  }
+
+  private battleSummary(
+    { battle, players, log }: BattleHistory,
+    state: BattleState,
+    viewerId: string | null,
+    rules: Parameters<typeof missionFor>[0] | null | undefined,
+    factionsById: ReadonlyMap<string, BattleFaction>,
+  ) {
+    const viewerSide = state.players.find((player) => player.id === viewerId)?.side ?? 0
+    const opposingSide = state.players.find((player) => player.side !== viewerSide)?.side
+    const ownDisposition = sideDisposition(state, viewerSide)
+    const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
+    return {
+      token: battle.token,
+      createdAt: battle.createdAt,
+      status: state.status,
+      round: state.round,
+      phase: state.phase,
+      players: players.map((player) => player.name),
+      playerDetails: players.map(({ id, name, image, automated }) => ({ id, name, image, automated })),
+      playerIds: players.map((player) => player.id),
+      sides: state.players.map((player) => player.side),
+      armies: state.players.map((player) => player.roster?.name ?? null),
+      // The catalogue army each seat brought, so a battle can also be counted as a
+      // result for the faction that fielded it. A pasted list has none.
+      factions: state.players.map((player) => {
+        const faction = player.roster?.built?.catalogueId ? factionsById.get(player.roster.built.catalogueId) : undefined
+        return faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon } : null
+      }),
+      detachments: state.players.map((player) => player.roster?.built?.detachments?.map((detachment) => detachment.name) ?? []),
+      // Who took the first turn, and the two halves each seat's score is made of,
+      // so a player's record can separate going first from going second and say
+      // where their points came from. `scores` only carries the total.
+      firstPlayerId: state.firstPlayerId,
+      primaries: state.players.map((player) => player.primary),
+      secondaries: state.players.map((player) => player.secondary),
+      // The painted bonus is paid when the battle begins, and it is the side's one
+      // bonus, the same as everywhere else. Onto the seat that already carries the
+      // side's score, because that is the seat every reader of this list picks out to
+      // ask what a side is on.
+      scores: state.players.map(
+        (player) =>
+          player.primary +
+          player.secondary +
+          (state.status !== 'setup' && player.id === sideCaptain(state, player.side).id ? sidePaintedPoints(state, player.side) : 0),
+      ),
+      mission: rules ? missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId) : null,
+      deploymentId: state.deploymentId,
+      settings: state.settings,
+      result: state.result,
+      lastActivity: log.at(-1)?.at ?? battle.createdAt,
+    }
   }
 
   /**
@@ -900,6 +934,69 @@ export class PraetoriumService {
     if (!history) throw new Response('no such battle', { status: 404 })
     return history
   }
+}
+
+function foldHistory({ players, log }: BattleHistory) {
+  return reduceBattle(
+    players.map((player) => player.id),
+    log,
+    players.map((player) => player.side),
+    players.filter((player) => player.automated).map((player) => player.id),
+  )
+}
+
+/**
+ * What each side played, joined to the reference page it is printed on.
+ *
+ * A link is attached only where the page answers: a detachment stratagem whose
+ * detachment the fielding army's catalogue faction lists, a secondary the rules
+ * carry in a pack they carry, and a primary whose matchup page resolves. The
+ * primary is the one the battle screen shows, resolved from both sides'
+ * dispositions, falling back to what `set-prep` recorded only where that fails.
+ */
+function referencedPlays(
+  state: BattleState,
+  plays: SeatPlay[],
+  rules: Parameters<typeof missionFor>[0] | null | undefined,
+  factionsById: ReadonlyMap<string, BattleFaction>,
+): SeatPlay[] {
+  const packId = state.settings.missionPackId
+  const packs = rules ? gameReferencesFor(rules).packs : []
+  const pack = packs.find((candidate) => candidate.id === packId)
+  const cards = new Set(pack ? rules?.secondaries.map((card) => card.key) : [])
+  return plays.map((play, seat) => {
+    const player = state.players[seat]!
+    const allies = state.players.filter((candidate) => candidate.side === player.side)
+    const printedBy = (detachment: string | undefined) => {
+      if (!detachment) return undefined
+      const faction = allies
+        .map((ally) => factionsById.get(ally.roster?.built?.catalogueId ?? ''))
+        .find((candidate) => candidate?.detachments?.some((listed) => listed.name === detachment))
+      return faction ? { catalogueId: faction.slug, detachmentId: routeSlug(detachment) } : undefined
+    }
+    const opposingSide = state.players.find((candidate) => candidate.side !== player.side)?.side
+    const you = sideDisposition(state, player.side)
+    const opponent = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
+    const mission = play.primary && rules && state.status !== 'setup' ? resolvedMissionForSide(state, rules, player.side) : null
+    const matchup = pack?.missions.some(
+      (candidate) => candidate.id === mission?.id && candidate.matchups.some((pair) => pair[0]?.id === you && pair[1]?.id === opponent),
+    )
+    return {
+      ...play,
+      stratagems: play.stratagems.map((use) => {
+        const reference = printedBy(use.detachment)
+        return reference ? { ...use, reference } : use
+      }),
+      cards: play.cards.map((card) => (packId && cards.has(card.key) ? { ...card, reference: { packId } } : card)),
+      primary: mission
+        ? {
+            key: mission.id,
+            name: mission.name,
+            ...(matchup && packId && you && opponent ? { reference: { packId, you, opponent } } : {}),
+          }
+        : play.primary,
+    }
+  })
 }
 
 function withAuthoritativeAwards<T extends Pick<Extract<Command, { kind: 'set-prep' }>, 'primary' | 'secondaries' | 'secondaryDeck'>>(
