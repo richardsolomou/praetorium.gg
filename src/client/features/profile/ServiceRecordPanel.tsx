@@ -1,4 +1,6 @@
+import { Link } from '@tanstack/react-router'
 import { ListFilter } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -11,8 +13,10 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import type { RecordFacets, ServiceRecord, Split } from '../../../core/serviceRecord'
+import { CARD_SAMPLE, type CardRecord, type RecordFacets, type ServiceRecord, type Split } from '../../../core/serviceRecord'
+import { routeSlug } from '../../../core/slug'
 import type { PlayerProfileFilter } from '../../queries'
+import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
 
@@ -98,6 +102,15 @@ export function ServiceRecordPanel({
               { label: 'Longest', value: record.longestStreak },
             ]}
           />
+          <Tallies
+            label="Command points"
+            items={[
+              { label: 'Spent per battle', value: oneDecimal(record.averageCpSpent) },
+              // A side that spent nothing has no rate to divide into, so the cell is absent rather than zero.
+              ...(record.pointsPerCp === null ? [] : [{ label: 'VP per CP spent', value: oneDecimal(record.pointsPerCp) }]),
+            ]}
+          />
+          <CareerTables record={record} />
         </div>
       ) : (
         <p className="mt-2 border border-edge bg-panel p-5 text-sm text-dim">
@@ -209,6 +222,207 @@ function Tallies({ label, items }: { label: string; items: readonly TallyItem[] 
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+const NAME_LINK = 'font-bold break-words uppercase hover:text-info'
+
+/**
+ * What the side did with its resources, and how it fared by mission and by army faced.
+ *
+ * Each table is ordered by columns it prints, so a reader can check the order
+ * against the rows. The tables fit a phone rather than scrolling: the name column
+ * wraps and the counts stay narrow.
+ */
+function CareerTables({ record }: { record: ServiceRecord }) {
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      <RecordTable
+        label="Stratagems"
+        note={record.stratagemsUsed > record.stratagems.length ? `Top ${record.stratagems.length} of ${record.stratagemsUsed}` : undefined}
+        empty="No stratagems were used in these battles."
+        rows={record.stratagems}
+        rowKey={(row) => row.key}
+        renderName={(row) =>
+          row.reference ? (
+            <Link
+              to="/factions/$catalogueId/detachments/$detachmentId"
+              params={row.reference}
+              hash={`stratagem-${routeSlug(row.name)}`}
+              className={NAME_LINK}
+            >
+              {row.name}
+            </Link>
+          ) : (
+            <span className="font-bold break-words uppercase">{row.name}</span>
+          )
+        }
+        columns={[
+          { label: 'Uses', cell: (row) => row.uses, tint: 'text-bone' },
+          { label: 'CP', cell: (row) => row.cp },
+        ]}
+      />
+      <div className="space-y-2">
+        <RecordTable
+          label="Secondary missions"
+          empty="No secondary missions were held in these battles."
+          rows={record.cards}
+          rowKey={(row) => row.key}
+          renderName={(row) => <CardName card={row} />}
+          columns={[
+            { label: 'Held', cell: (row) => row.held, tint: 'text-bone' },
+            { label: 'Scored', cell: (row) => row.scored },
+            { label: 'Avg VP', cell: (row) => oneDecimal(row.average), tint: 'text-info' },
+          ]}
+        />
+        {record.bestCard && record.worstCard ? (
+          <div className="flex flex-wrap gap-2">
+            <CardHighlight label="Best" card={record.bestCard} />
+            <CardHighlight label="Worst" card={record.worstCard} />
+          </div>
+        ) : null}
+      </div>
+      <RecordTable
+        label="Primary missions"
+        empty="No primary missions were recorded in these battles."
+        rows={record.primaryMissions}
+        rowKey={(row) => row.key}
+        renderName={(row) =>
+          row.reference ? (
+            <Link to="/mission-matchups/$packId/$you/$opponent" params={row.reference} className={NAME_LINK}>
+              {row.name}
+            </Link>
+          ) : (
+            <span className="font-bold break-words uppercase">{row.name}</span>
+          )
+        }
+        columns={[
+          { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
+          ...results,
+          { label: 'Avg VP', cell: (row) => oneDecimal(row.averagePoints), tint: 'text-info' },
+        ]}
+      />
+      <RecordTable
+        label="Against factions"
+        empty="None of the armies faced in these battles name a faction."
+        rows={record.opposingFactions}
+        rowKey={(row) => row.faction.slug}
+        renderName={(row) => (
+          <Link
+            to="/factions/$catalogueId"
+            params={{ catalogueId: row.faction.slug }}
+            className="flex min-w-0 items-center gap-2 hover:text-info"
+          >
+            <FactionMark id={row.faction.slug} icon={row.faction.icon} size="sm" />
+            <span className="font-bold break-words uppercase">{row.faction.displayName}</span>
+          </Link>
+        )}
+        columns={[
+          { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
+          ...results,
+          { label: 'Rate', cell: (row) => percent(row.rate) },
+        ]}
+      />
+    </div>
+  )
+}
+
+type Column<T> = { label: string; cell: (row: T) => ReactNode; tint?: string }
+
+const results: Column<{ won: number; drawn: number; lost: number }>[] = [
+  { label: 'W', cell: (row) => row.won, tint: 'text-achieved' },
+  { label: 'D', cell: (row) => row.drawn },
+  { label: 'L', cell: (row) => row.lost, tint: 'text-rust' },
+]
+
+/** A compact table: a name that wraps, then narrow right-aligned counts. */
+function RecordTable<T>({
+  label,
+  note,
+  empty,
+  rows,
+  rowKey,
+  renderName,
+  columns,
+}: {
+  label: string
+  note?: string
+  empty: string
+  rows: readonly T[]
+  rowKey: (row: T) => string
+  renderName: (row: T) => ReactNode
+  columns: readonly Column<T>[]
+}) {
+  return (
+    <section data-record-table={label}>
+      <p className="eyebrow flex items-baseline justify-between gap-2">
+        <span>{label}</span>
+        {note ? <span className="normal-case">{note}</span> : null}
+      </p>
+      {rows.length ? (
+        <table className="mt-1 w-full table-fixed border-collapse border border-edge bg-panel text-sm">
+          <thead>
+            <tr className="border-b border-edge text-left text-2xs tracking-wide text-faint uppercase">
+              <th scope="col" className="px-2 py-1.5 font-normal">
+                Name
+              </th>
+              {columns.map((column) => (
+                <th
+                  key={column.label}
+                  scope="col"
+                  className={`${column.label.length > 2 ? 'w-12' : 'w-7'} px-1.5 py-1.5 text-right font-normal`}
+                >
+                  {column.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={rowKey(row)} className="border-b border-edge last:border-0">
+                <td className="px-2 py-1.5">{renderName(row)}</td>
+                {columns.map((column) => (
+                  <td key={column.label} className={`readout px-1.5 py-1.5 text-right ${column.tint ?? 'text-dim'}`}>
+                    {column.cell(row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="mt-1 border border-edge bg-panel p-3 text-sm text-dim">{empty}</p>
+      )}
+    </section>
+  )
+}
+
+function CardName({ card }: { card: CardRecord }) {
+  return card.reference ? (
+    <Link
+      to="/mission-packs/$packId/secondary-missions/$cardId"
+      params={{ packId: card.reference.packId, cardId: card.key }}
+      className={NAME_LINK}
+    >
+      {card.name}
+    </Link>
+  ) : (
+    <span className="font-bold break-words uppercase">{card.name}</span>
+  )
+}
+
+/** The best or worst card, which only exist once enough cards have been held often enough to compare. */
+function CardHighlight({ label, card }: { label: string; card: CardRecord }) {
+  return (
+    <div className="min-w-40 flex-1 border border-edge bg-panel p-3">
+      <p className="eyebrow">
+        {label} · held {CARD_SAMPLE}+
+      </p>
+      <p className="mt-1 text-sm">
+        <CardName card={card} />
+      </p>
+      <p className="readout mt-1 text-xs text-dim">{oneDecimal(card.average)} VP per battle held</p>
     </div>
   )
 }

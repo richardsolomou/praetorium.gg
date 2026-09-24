@@ -11,7 +11,52 @@
  * record costs nothing but narrowing the list first.
  */
 
-import { battleOutcome, sideScore, type StandingBattle, winRate } from './standings'
+import { type BattleState, mayNameCard, type PlayerId } from './battle'
+import { battleOutcome, sideScore, type StandingBattle, type StandingFaction, winRate } from './standings'
+
+/**
+ * One stratagem use as the log states it, with the page printing it where the
+ * server found one. `cp` is what was actually paid, including a board-made price.
+ */
+export type StratagemPlay = {
+  key: string
+  name: string
+  cp: number
+  detachment?: string
+  reference?: { catalogueId: string; detachmentId: string }
+}
+
+/** A secondary card a side held, and the points the log banked against it. */
+export type CardPlay = { key: string; name: string; points: number; reference?: { packId: string } }
+
+/** The primary mission a side played. */
+export type MissionPlay = { key: string; name: string; reference?: { packId: string; you: string; opponent: string } }
+
+/** What one seat's army did with the side's resources, as the reader may see it. */
+export type SeatPlay = { cpSpent: number; stratagems: readonly StratagemPlay[]; cards: readonly CardPlay[]; primary: MissionPlay | null }
+
+/**
+ * Each seat's stratagems, cards and primary, read off a folded battle.
+ *
+ * The fold has already skipped every undone command, so an undone stratagem was
+ * never used here. A card put back the moment it was drawn was never held, and a
+ * face-down Secret Mission this reader may not name is left out altogether rather
+ * than counted under another name: `mayNameCard` is the answer `battleView` masks
+ * by, so a record cannot name a card the battle itself withholds.
+ */
+export function seatPlays(state: BattleState, viewerId: PlayerId | null): SeatPlay[] {
+  return state.players.map((player) => ({
+    cpSpent: player.cpSpent,
+    stratagems: player.uses.map(({ key, name, cp }) => {
+      const detachment = player.stratagems.find((stratagem) => stratagem.key === key)?.detachment
+      return { key, name, cp, ...(detachment ? { detachment } : {}) }
+    }),
+    cards: [...new Map(player.secondaries.map((secondary) => [secondary.key, secondary])).values()]
+      .filter((secondary) => player.secondaryStatus[secondary.key] !== 'returned' && mayNameCard(state, viewerId, player, secondary.key))
+      .map(({ key, name }) => ({ key, name, points: player.scored[key] ?? 0 })),
+    primary: player.primaryCard ? { key: player.primaryCard.key, name: player.primaryCard.name } : null,
+  }))
+}
 
 /**
  * A battle as a record needs it: everything a standing needs, plus who went
@@ -26,6 +71,7 @@ export type RecordBattle = StandingBattle & {
   detachments: readonly (readonly string[])[]
   /** Read from the settings the battle list already carries rather than copied beside them. */
   settings: { missionPackId: string | null; limit: number | null }
+  plays: readonly SeatPlay[]
 }
 
 /** A win rate over some subset of the battles, and how many that subset was. */
@@ -51,7 +97,43 @@ export type ServiceRecord = {
   /** Consecutive wins, counting back from the most recent battle, and the best run. */
   currentStreak: number
   longestStreak: number
+  /** Command points their side spent per battle: on stratagems, and anything else the log records as spent. */
+  averageCpSpent: number
+  /** Their side's points over the command points it spent, or null when it spent none. */
+  pointsPerCp: number | null
+  /** The stratagems their side used most, and how many different ones it used at all. */
+  stratagems: StratagemRecord[]
+  stratagemsUsed: number
+  cards: CardRecord[]
+  /** The cards earning most and least per battle held, among those held at least `CARD_SAMPLE` times. */
+  bestCard: CardRecord | null
+  worstCard: CardRecord | null
+  primaryMissions: MissionRecord[]
+  opposingFactions: FactionRecord[]
 }
+
+export type StratagemRecord = { key: string; name: string; uses: number; cp: number; reference?: StratagemPlay['reference'] }
+
+/** `scored` counts the battles the card banked any points in; `average` is its points per battle held. */
+export type CardRecord = {
+  key: string
+  name: string
+  held: number
+  scored: number
+  points: number
+  average: number
+  reference?: CardPlay['reference']
+}
+
+export type MissionRecord = Omit<Split, 'rate'> & { key: string; name: string; averagePoints: number; reference?: MissionPlay['reference'] }
+
+export type FactionRecord = Split & { faction: StandingFaction }
+
+/** How many stratagems the table lists. The rest are counted in `stratagemsUsed`. */
+export const STRATAGEM_ROWS = 10
+
+/** How many battles a card has to be held in before it can be the best or the worst. */
+export const CARD_SAMPLE = 3
 
 /** What a reader can narrow the record by. Every absent field means "all of them". */
 export type RecordFilter = {
@@ -174,7 +256,126 @@ export function serviceRecord(battles: readonly RecordBattle[], playerId: string
     averagePrimary: mean(taken.map((one) => sideTotal(one, one.battle.primaries))),
     averageSecondary: mean(taken.map((one) => sideTotal(one, one.battle.secondaries))),
     ...streaks(taken),
+    ...resources(taken),
+    ...cardRecords(taken),
+    primaryMissions: missionRecords(taken),
+    opposingFactions: factionRecords(taken),
   }
+}
+
+/**
+ * What the player's side did with its resources, over each seat on that side.
+ *
+ * A side is one pool of command points, stratagems and cards, the same way it is
+ * one score, so an ally is credited with the side's whole spend and every card it
+ * held — added across the side's seats exactly as `sideTotal` adds its points.
+ */
+function sidePlay(appearance: Appearance) {
+  const plays = appearance.battle.sides.flatMap((side, seat) => (side === appearance.side ? (appearance.battle.plays[seat] ?? []) : []))
+  return {
+    cpSpent: plays.reduce((total, play) => total + play.cpSpent, 0),
+    stratagems: plays.flatMap((play) => play.stratagems),
+    cards: [...new Map(plays.flatMap((play) => play.cards).map((card) => [card.key, card])).values()],
+    primary: plays.find((play) => play.primary)?.primary ?? null,
+  }
+}
+
+/** Newest first, so a row keeps the name and page its most recent battle gave it. */
+const newestFirst = (taken: readonly Appearance[]) => taken.toReversed().map((one) => ({ one, play: sidePlay(one) }))
+
+function resources(taken: readonly Appearance[]) {
+  const played = newestFirst(taken)
+  const spent = played.reduce((total, { play }) => total + play.cpSpent, 0)
+  const points = taken.reduce((total, one) => total + one.points, 0)
+  const rows = new Map<string, StratagemRecord>()
+  for (const { play } of played) {
+    for (const use of play.stratagems) {
+      const row = rows.get(use.key) ?? { key: use.key, name: use.name, uses: 0, cp: 0 }
+      row.uses += 1
+      row.cp += use.cp
+      if (!row.reference && use.reference) row.reference = use.reference
+      rows.set(use.key, row)
+    }
+  }
+  const sorted = [...rows.values()].toSorted(
+    (one, other) => other.uses - one.uses || other.cp - one.cp || one.name.localeCompare(other.name),
+  )
+  return {
+    averageCpSpent: mean(played.map(({ play }) => play.cpSpent)),
+    pointsPerCp: spent ? points / spent : null,
+    stratagems: sorted.slice(0, STRATAGEM_ROWS),
+    stratagemsUsed: sorted.length,
+  }
+}
+
+/**
+ * Each card's record, and the best and worst of them.
+ *
+ * Best and worst are read only among cards held `CARD_SAMPLE` times, so one lucky
+ * game cannot top the table, and only once two cards qualify: a card compared with
+ * nothing is not the best of anything.
+ */
+function cardRecords(taken: readonly Appearance[]) {
+  const rows = new Map<string, CardRecord>()
+  for (const { play } of newestFirst(taken)) {
+    for (const card of play.cards) {
+      const row = rows.get(card.key) ?? { key: card.key, name: card.name, held: 0, scored: 0, points: 0, average: 0 }
+      row.held += 1
+      row.scored += card.points > 0 ? 1 : 0
+      row.points += card.points
+      if (!row.reference && card.reference) row.reference = card.reference
+      rows.set(card.key, row)
+    }
+  }
+  const cards = [...rows.values()]
+    .map((row) => ({ ...row, average: row.points / row.held }))
+    .toSorted((one, other) => other.held - one.held || other.average - one.average || one.name.localeCompare(other.name))
+  const ranked = cards
+    .filter((card) => card.held >= CARD_SAMPLE)
+    .toSorted((one, other) => other.average - one.average || other.held - one.held || one.name.localeCompare(other.name))
+  const enough = ranked.length >= 2
+  return { cards, bestCard: enough ? (ranked[0] ?? null) : null, worstCard: enough ? (ranked.at(-1) ?? null) : null }
+}
+
+function missionRecords(taken: readonly Appearance[]): MissionRecord[] {
+  const rows = new Map<string, { row: MissionRecord; points: number }>()
+  for (const { one, play } of newestFirst(taken)) {
+    if (!play.primary) continue
+    const { key, name, reference } = play.primary
+    const entry = rows.get(key) ?? { row: { key, name, battles: 0, won: 0, lost: 0, drawn: 0, averagePoints: 0 }, points: 0 }
+    entry.row.battles += 1
+    entry.row[one.result] += 1
+    entry.points += one.points
+    if (!entry.row.reference && reference) entry.row.reference = reference
+    rows.set(key, entry)
+  }
+  return [...rows.values()]
+    .map(({ row, points }) => ({ ...row, averagePoints: points / row.battles }))
+    .toSorted((one, other) => other.battles - one.battles || other.won - one.won || one.name.localeCompare(other.name))
+}
+
+/** Each army faced, a 2v2 against two of the same counting once, as its facet does. */
+function factionRecords(taken: readonly Appearance[]): FactionRecord[] {
+  const rows = new Map<string, { faction: StandingFaction; against: Appearance[] }>()
+  for (const one of taken) {
+    const facing = new Map(
+      opposingSeats(one).flatMap((seat) => {
+        const faction = one.battle.factions[seat]
+        return faction ? [[faction.slug, faction] as const] : []
+      }),
+    )
+    for (const [slug, faction] of facing) {
+      const row = rows.get(slug) ?? { faction, against: [] }
+      row.against.push(one)
+      rows.set(slug, row)
+    }
+  }
+  return [...rows.values()]
+    .map(({ faction, against }) => ({ faction, ...split(against) }))
+    .toSorted(
+      (one, other) =>
+        other.battles - one.battles || other.rate - one.rate || one.faction.displayName.localeCompare(other.faction.displayName),
+    )
 }
 
 /** A side's half of the score, added up the same way `sideScore` adds the whole. */
