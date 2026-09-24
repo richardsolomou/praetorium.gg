@@ -1,11 +1,13 @@
 import type { Repository } from '../../db/repository'
 import { PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
 import { randomToken } from 'ras-stack/auth'
+import type { Notifier } from '../pushNotifier'
 
 export class SocialService {
   constructor(
     private readonly repository: Repository,
     private readonly clock: () => number,
+    private readonly notifier: Notifier,
   ) {}
 
   /**
@@ -56,11 +58,13 @@ export class SocialService {
     if (friendId === userId || !(await this.repository.userById(friendId))) throw new Response('choose another player', { status: 400 })
     if (!(await this.repository.requestFriend(userId, friendId, this.clock())))
       throw new Response('a connection already exists', { status: 409 })
+    this.notifier.notify([{ kind: 'friend-requested', actorId: userId, recipientIds: [friendId] }])
   }
 
   async acceptFriend(userId: string, requesterId: string) {
     if (!(await this.repository.acceptFriend(requesterId, userId, this.clock())))
       throw new Response('no such friend request', { status: 404 })
+    this.notifier.notify([{ kind: 'friend-accepted', actorId: userId, recipientIds: [requesterId] }])
   }
 
   async removeFriend(userId: string, friendId: string) {
@@ -95,6 +99,7 @@ export class SocialService {
     if (result === 'missing') throw new Response('this invite is no longer available', { status: 404 })
     if (result === 'self') throw new Response('share this invite with another player', { status: 400 })
     if (result === 'already-friends') throw new Response('you are already friends', { status: 409 })
+    this.notifier.notify([{ kind: 'friend-accepted', actorId: userId, recipientIds: [result.inviterId] }])
   }
 }
 

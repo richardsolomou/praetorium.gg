@@ -4,11 +4,14 @@ import { openTestDatabase } from '../db/testDatabase'
 import { Repository } from '../db/repository'
 import { user } from '../db/schema'
 import type { Roster } from '../core/battle'
+import type { Notice } from '../core/notifications'
 import { PraetoriumService } from './service'
 
 let connection: PraetoriumConnection
 export let database: PraetoriumDatabase
 export let service: PraetoriumService
+/** Every notice the service raised since the test began, in order. */
+export const notices: Notice[] = []
 let now = 0
 
 beforeEach(async () => {
@@ -20,12 +23,14 @@ beforeEach(async () => {
     () => ++now,
     { publish: () => {} },
     () => 0,
+    { notify: (raised) => notices.push(...raised) },
   )
   await enrol('alice', 'Alice')
   await enrol('bob', 'Bob', 'https://example.test/bob.png')
   await enrol('carol', 'Carol')
   await befriend('alice', 'bob')
   await befriend('alice', 'carol')
+  notices.length = 0
 })
 
 export async function enrol(id: string, name: string, image: string | null = null) {

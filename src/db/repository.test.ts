@@ -356,7 +356,7 @@ it('keeps league rosters sealed until every accepted entrant has submitted', asy
       })
     ).outcome,
   ).toBe('sealed')
-  expect(await repository.revealLeague('league-token', 'user-000', 8)).toEqual({ outcome: 'revealed' })
+  expect(await repository.revealLeague('league-token', 'user-000', 8)).toMatchObject({ outcome: 'revealed' })
   expect(await repository.leagueRosters('league-token', 'user-001')).toMatchObject([{ snapshot: firstSnapshot, revealedAt: 8 }])
   expect(await repository.joinLeague('league-token', 'user-000', 9, 128)).toBe('closed')
 })
@@ -523,7 +523,7 @@ it('reveals doubles only when every accepted entrant belongs to an exact two-pla
   await repository.assignLeagueTeam('league-token', 'user-000', ['user-003', 'user-004'], 'team-b')
   await sealDoublesSnapshots(['user-001', 'user-003'])
 
-  expect(await repository.revealLeague('league-token', 'user-000', 11)).toEqual({ outcome: 'revealed' })
+  expect(await repository.revealLeague('league-token', 'user-000', 11)).toMatchObject({ outcome: 'revealed' })
 })
 
 it('serializes overlapping doubles pair assignments without leaving a partial team', async () => {
@@ -699,7 +699,7 @@ it('accepts one frozen eligible Character Warlord per doubles team', async () =>
     .set({ rosterSnapshot: doublesSnapshot(true, 1_000, 'epic-hero') })
     .where(eq(leagueEventEntries.userId, 'user-003'))
 
-  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'revealed' })
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toMatchObject({ outcome: 'revealed' })
 })
 
 it('refuses a frozen doubles Warlord marked on a non-Character unit', async () => {
@@ -759,7 +759,7 @@ it('replaces a league roster snapshot until reveal', async () => {
   })
   expect(await repository.joinLeague('league-token', 'user-001', 2, 128)).toBe('pending')
   expect(await repository.moderateLeagueEntry('league-token', 'user-001', 'user-001', 'accepted', 128)).toBe('forbidden')
-  expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-001', 'accepted', 128)).toBe('updated')
+  expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-001', 'accepted', 128)).toBe('admitted')
   await repository.saveRoster({
     id: 'roster',
     userId: 'user-001',
@@ -781,7 +781,7 @@ it('replaces a league roster snapshot until reveal', async () => {
   const replacementSnapshot = standardSnapshot('Replacement')
   expect((await repository.submitLeagueRoster({ ...input, snapshot: firstSnapshot })).outcome).toBe('sealed')
   expect((await repository.submitLeagueRoster({ ...input, snapshot: replacementSnapshot })).outcome).toBe('sealed')
-  expect(await repository.revealLeague('league-token', 'user-000', 5)).toEqual({ outcome: 'revealed' })
+  expect(await repository.revealLeague('league-token', 'user-000', 5)).toMatchObject({ outcome: 'revealed' })
   expect(await repository.leagueRosters('league-token', 'user-001')).toMatchObject([{ snapshot: replacementSnapshot }])
   expect((await repository.submitLeagueRoster({ ...input, snapshot: standardSnapshot('Late') })).outcome).toBe('missing')
 })
@@ -803,8 +803,8 @@ it('does not re-accept an entrant after their place has been filled', async () =
   expect(await repository.joinLeague('league-token', 'user-002', 3, 128)).toBe('pending')
   expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-001', 'rejected', 128)).toBe('updated')
   expect(await repository.joinLeague('league-token', 'user-003', 4, 128)).toBe('pending')
-  expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-002', 'accepted', 128)).toBe('updated')
-  expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-003', 'accepted', 128)).toBe('updated')
+  expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-002', 'accepted', 128)).toBe('admitted')
+  expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-003', 'accepted', 128)).toBe('admitted')
 
   expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-001', 'accepted', 128)).toBe('full')
 })
@@ -846,8 +846,8 @@ it('keeps approval requests outside the configured player count but bounds their
   expect(await repository.joinLeague('league-token', 'user-002', 3, 3)).toBe('pending')
   expect(await repository.joinLeague('league-token', 'user-003', 4, 3)).toBe('pending')
   expect(await repository.joinLeague('league-token', 'user-004', 5, 3)).toBe('full')
-  expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-001', 'accepted', 128)).toBe('updated')
-  expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-002', 'accepted', 128)).toBe('updated')
+  expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-001', 'accepted', 128)).toBe('admitted')
+  expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-002', 'accepted', 128)).toBe('admitted')
 
   expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-003', 'accepted', 128)).toBe('full')
 })
@@ -866,7 +866,7 @@ it('rejects unresolved approval requests when rosters are revealed', async () =>
   })
   expect(await repository.joinLeague('league-token', 'user-001', 2, 128)).toBe('pending')
   expect(await repository.joinLeague('league-token', 'user-002', 3, 128)).toBe('pending')
-  expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-001', 'accepted', 128)).toBe('updated')
+  expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-001', 'accepted', 128)).toBe('admitted')
   await repository.saveRoster({
     id: 'roster',
     userId: 'user-001',
@@ -897,7 +897,7 @@ it('rejects unresolved approval requests when rosters are revealed', async () =>
     ).outcome,
   ).toBe('sealed')
 
-  expect(await repository.revealLeague('league-token', 'user-000', 6)).toEqual({ outcome: 'revealed' })
+  expect(await repository.revealLeague('league-token', 'user-000', 6)).toMatchObject({ outcome: 'revealed' })
   expect((await repository.leagueByToken('league-token', 'user-002'))?.entries.find((entry) => entry.userId === 'user-002')?.status).toBe(
     'rejected',
   )
@@ -1090,13 +1090,13 @@ it('edits league registration settings only while the current event allows them'
     playerLimit: 2,
   }
   expect(await repository.updateLeague('league-token', 'user-001', changed)).toBe('forbidden')
-  expect(await repository.updateLeague('league-token', 'user-000', changed)).toBe('updated')
+  expect(await repository.updateLeague('league-token', 'user-000', changed)).toEqual({ admitted: [] })
   expect(await repository.joinLeague('league-token', 'user-001', 2, 128)).toBe('accepted')
-  expect(await repository.updateLeague('league-token', 'user-000', { ...changed, admission: 'approval' })).toBe('updated')
+  expect(await repository.updateLeague('league-token', 'user-000', { ...changed, admission: 'approval' })).toEqual({ admitted: [] })
   expect(await repository.joinLeague('league-token', 'user-002', 3, 128)).toBe('pending')
-  expect(await repository.updateLeague('league-token', 'user-000', changed)).toBe('updated')
+  expect(await repository.updateLeague('league-token', 'user-000', changed)).toEqual({ admitted: ['user-002'] })
   expect(await repository.updateLeague('league-token', 'user-000', { ...changed, playerLimit: 1 })).toBe('below-accepted')
-  expect(await repository.updateLeague('league-token', 'user-000', { ...changed, name: 'Final name' })).toBe('updated')
+  expect(await repository.updateLeague('league-token', 'user-000', { ...changed, name: 'Final name' })).toEqual({ admitted: [] })
 
   expect(await repository.leagueByToken('league-token', 'user-000')).toEqual(expect.objectContaining({ ...changed, name: 'Final name' }))
 })
@@ -1142,8 +1142,8 @@ it('lets the player limit change between events', async () => {
   await repository.revealLeague('league-token', 'user-000', 5)
   const input = { name: 'After reveal', description: '', visibility: 'public' as const, admission: 'automatic' as const, playerLimit: null }
 
-  expect(await repository.updateLeague('league-token', 'user-000', { ...input, playerLimit: 2 })).toBe('updated')
-  expect(await repository.updateLeague('league-token', 'user-000', input)).toBe('updated')
+  expect(await repository.updateLeague('league-token', 'user-000', { ...input, playerLimit: 2 })).toEqual({ admitted: [] })
+  expect(await repository.updateLeague('league-token', 'user-000', input)).toEqual({ admitted: [] })
 })
 
 it('orders league deletion after an in-flight league battle creation', async () => {

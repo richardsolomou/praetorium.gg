@@ -13,7 +13,7 @@ export const Route = createFileRoute('/privacy')({
 
 function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="1 September 2026">
+    <LegalPage title="Privacy policy" updated="24 September 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the hosted
@@ -36,6 +36,10 @@ function PrivacyPolicy() {
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>Sessions record your IP address and browser user agent. Rate-limiting counters protect sign-in and other sensitive actions.</p>
+        <p>
+          If you allow notifications in the mobile app, we store that device's push token, its platform, and when it was last seen. Signing
+          out or deleting your account removes it, and you can turn notifications off from your profile at any time.
+        </p>
         <h3 className="text-sm tracking-label text-bone">Usage data</h3>
         <p>
           We measure how the product is used through PostHog: pages visited, buttons used, actions such as creating a roster, errors, and
@@ -48,7 +52,7 @@ function PrivacyPolicy() {
       <LegalSection title="How we use it">
         <LegalLinks>
           <li>To run accounts: authentication, optional two-factor sign-in, password reset.</li>
-          <li>To deliver the product: showing your rosters, running battles, seating players.</li>
+          <li>To deliver the product: showing your rosters, running battles, seating players, and sending the notifications you allow.</li>
           <li>To keep the service safe: rate limiting, abuse prevention, account administration.</li>
           <li>To improve it: seeing which features are used and fixing what breaks.</li>
         </LegalLinks>
@@ -78,6 +82,10 @@ function PrivacyPolicy() {
           <li>PostHog, for the usage measurement described above.</li>
           <li>An email delivery provider, to send account email.</li>
           <li>Apple, Google or Discord, when you use one of them to sign in.</li>
+          <li>
+            Expo, with Apple or Google, to deliver the notifications you allow. A notification carries its title, text, and the page it
+            opens.
+          </li>
         </LegalLinks>
       </LegalSection>
 

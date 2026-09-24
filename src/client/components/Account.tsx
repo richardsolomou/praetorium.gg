@@ -16,6 +16,7 @@ import {
 import { authClient } from '../authClient'
 import { setNativeAccountMenuOpen } from '../nativeBridge'
 import { onboardingTasks, openOnboarding } from '../onboarding'
+import { forgetThisDevice } from '../pushNotifications'
 import { meQuery, onboardingQuery } from '../queries'
 import { PlayerAvatar } from './PlayerAvatar'
 
@@ -27,6 +28,8 @@ function useAccountControls() {
 
   const signOut = () => {
     void (async () => {
+      // Forgotten while the session still exists, since the server only lets an account remove its own device.
+      await forgetThisDevice()
       await authClient.signOut()
       await queryClient.invalidateQueries()
       await navigate({ to: '/' })

@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar'
 import * as Haptics from 'expo-haptics'
 import * as KeepAwake from 'expo-keep-awake'
+import * as Notifications from 'expo-notifications'
 import * as Print from 'expo-print'
 import * as WebBrowser from 'expo-web-browser'
 import PostHog, { PostHogProvider, type PostHogOptions } from 'posthog-react-native'
@@ -32,7 +33,7 @@ import {
   type AppShellState,
 } from './src/appShellState'
 import { appStateChanged, initialAppLifecycle, WEB_RESUME_SCRIPT } from './src/lifecycle'
-import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest, type NativeActionRequest } from './src/nativeActions'
+import { NATIVE_BRIDGE_SCRIPT, nativePushAnswerScript, parseNativeActionRequest, type NativeActionRequest } from './src/nativeActions'
 import { applicationNavigationScript, classifyNavigation, externalOpenStrategies, isMainFrameHttpError } from './src/navigation'
 import {
   NATIVE_AUTH_CALLBACK_URL,
@@ -44,6 +45,8 @@ import {
   parseNativeAuthRequest,
 } from './src/nativeAuth'
 import { completedPendingNativeAuth, parsePendingNativeAuth, pendingNativeAuth, type PendingNativeAuth } from './src/pendingNativeAuth'
+import { notificationUrl } from './src/notifications'
+import { pushAnswer } from './src/pushDevice'
 import { NATIVE_USER_AGENT } from './src/version'
 import { deleteSecureValue, getSecureValue, setSecureValue } from './src/secureStorage'
 
@@ -92,6 +95,12 @@ async function systemCanOpen(url: string) {
 }
 
 WebBrowser.maybeCompleteAuthSession()
+
+// A notice arriving while the application is open still shows, quietly: it is
+// usually about somewhere other than the screen the player is on.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }),
+})
 
 function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
   return (
@@ -281,6 +290,14 @@ function AppShell() {
         case 'print':
           await Print.printAsync({ html: action.html })
           break
+        case 'push': {
+          const answer = await pushAnswer(action.prompt).catch((error: unknown) => {
+            captureNativeException('native_push', error)
+            return { status: 'unavailable' } as const
+          })
+          webView.current?.injectJavaScript(nativePushAnswerScript(action.id, answer))
+          break
+        }
         case 'share':
           await Share.share({ message: action.url, url: action.url, title: action.title })
           break
@@ -336,8 +353,25 @@ function AppShell() {
 
   useEffect(() => {
     let active = true
+    // A notification the player tapped to launch the application is its first page,
+    // unless a link opened it. The listener hears the same tap again, so each is handled once.
+    const handledNotifications = new Set<string>()
+    const launchedBy = Notifications.getLastNotificationResponse()
+    if (launchedBy) {
+      handledNotifications.add(launchedBy.notification.request.identifier)
+      Notifications.clearLastNotificationResponse()
+    }
+    const notificationLaunch = launchedBy ? notificationUrl(launchedBy.notification.request.content.data) : null
+    const notificationSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const identifier = response.notification.request.identifier
+      if (handledNotifications.has(identifier)) return
+      handledNotifications.add(identifier)
+      const url = notificationUrl(response.notification.request.content.data)
+      if (url) navigateApplication(url)
+    })
     void Promise.all([Linking.getInitialURL(), pendingAuthStorage.getItemAsync(PENDING_AUTH_KEY)])
-      .then(async ([url, stored]) => {
+      .then(async ([linked, stored]) => {
+        const url = linked ?? notificationLaunch
         if (!active || !shellRef.current.initialUrlPending) return
         if (url?.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
           const pending = parsePendingNativeAuth(stored)
@@ -373,8 +407,9 @@ function AppShell() {
     return () => {
       active = false
       subscription.remove()
+      notificationSubscription.remove()
     }
-  }, [commitAndDrain, commitShell, handleAuthCallback, handleIncomingUrl])
+  }, [commitAndDrain, commitShell, handleAuthCallback, handleIncomingUrl, navigateApplication])
 
   useEffect(() => cancelScheduledDrain, [cancelScheduledDrain])
 
