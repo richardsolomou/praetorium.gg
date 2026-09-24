@@ -10,7 +10,7 @@ import { VISIBILITY_NAME } from './visibility'
 export type RosterSummaryFaction = FactionPresentation & { detachments: { id: string; name: string }[] }
 export type RosterProblem = 'over-limit' | 'not-legal'
 
-const PROBLEM_LABEL: Record<RosterProblem, string> = { 'over-limit': 'Over limit', 'not-legal': 'Not legal' }
+export const PROBLEM_LABEL: Record<RosterProblem, string> = { 'over-limit': 'Over limit', 'not-legal': 'Not legal' }
 
 /**
  * What to call this list on screen: its own name, or the label folded from it.

@@ -1,11 +1,18 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, Swords, Users } from 'lucide-react'
+import { Swords, Users } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
+import type { Standing } from '../../../core/standings'
+import { HomeFeed } from './HomeFeed'
 import { HomeHero } from './HomeHero'
 import { HomeIntro } from './HomeIntro'
+import { HomeLeaders } from './HomeLeaders'
+import { HomeClosing, HomeSteps } from './HomePitch'
+import { HomePlayed } from './HomePlayed'
+import { type HomeRoster, HomeRosters } from './HomeRosters'
+import { HomeWaiting, type RosterDue } from './HomeWaiting'
 
 /** What the page draws, with nothing left to fetch. */
 export type HomeData = {
@@ -13,6 +20,12 @@ export type HomeData = {
   mine: readonly Battle[]
   friends: readonly Battle[]
   open: readonly Battle[]
+  /** The player's saved lists, most recently changed first. */
+  rosters: readonly HomeRoster[]
+  rostersDue: readonly RosterDue[]
+  friendRequests: number
+  /** The head of the leaderboard, which only a visitor is shown. */
+  leaders: { rows: readonly Standing[]; days: number } | null
   /** The control that opens a battle, supplied rather than imported: see `Home`. */
   newBattle?: ReactNode
   /** Asking to delete one of the reader's own games, answered by `Home` and not here. */
@@ -32,49 +45,80 @@ const RECENT = 5
  * five kinds of box before, which is what made a stack of individually correct
  * sections read as a pile.
  *
- * The shelves run outwards from the reader: the games waiting on them, the games
- * they have already played, their friends' tables, then everybody else's. A
+ * The shelves run outwards from the reader: the games waiting on them, anything
+ * else that cannot move until they do, the lists they build between games, the
+ * games they have already played, their friends' tables, then everybody else's. A
  * player arriving to resume a game never scrolls, and one arriving with nothing
  * of their own to do is handed the next-nearest thing rather than a blank page.
  *
- * A player and a visitor get the same skeleton. What differs is the top band, and
- * whether the pitch is on the page at all: somebody who has already signed up does
- * not need the app sold to them underneath their own live games, and every link in
- * that pitch is already in the navigation above their head.
+ * A player and a visitor get the same skeleton. What differs is the top band, the
+ * head of the leaderboard, and whether the tools that need no account are on the
+ * page at all: somebody who has already signed up does not need the app sold to
+ * them underneath their own live games, and every link in that pitch is already in
+ * the navigation above their head.
  *
  * Nothing here fetches or mutates, so the whole page can be drawn from fixtures.
  */
-export function HomeView({ me, mine, friends, open, newBattle, onDelete, more }: HomeData) {
-  const sharedGames = (battles: readonly Battle[]) => battles.filter((battle) => !battle.playerDetails?.some((player) => player.automated))
-  const ours = sharedGames(mine)
+export function HomeView({ me, mine, friends, open, rosters, rostersDue, friendRequests, leaders, newBattle, onDelete, more }: HomeData) {
+  // The feeds arrive without practice games; the player's own list is their whole history.
+  const ours = mine.filter((battle) => !battle.playerDetails?.some((player) => player.automated))
   const going = ours.filter((battle) => battle.status !== 'finished')
   const played = ours.filter((battle) => battle.status === 'finished').slice(0, RECENT)
-  const publicGames = sharedGames(open)
   // A visitor's hero is the most recent public battle, so the shelf below must not
   // print it again two inches further down.
-  const hero = me ? undefined : publicGames[0]
+  const hero = me ? undefined : open[0]
   // Named once, for the same reason. A friend's battle is usually public too, and
   // the server can only remove what it knows the reader has seen — their own seats
   // — so the shelf that names the relationship wins and the public shelf drops the
   // repeat.
-  const shownFriends = sharedGames(friends).slice(0, RECENT)
+  const shownFriends = friends.slice(0, RECENT)
   const shown = new Set([...shownFriends.map((battle) => battle.token), ...(hero ? [hero.token] : [])])
-  const rest = publicGames.filter((battle) => !shown.has(battle.token))
-  // The pitch appears when the page has nothing else to say. A visitor always gets
-  // it; a player only when their table and everyone else's are empty, which is a
-  // new account on a new instance — otherwise the page would be two grey boxes and
+  const rest = open.filter((battle) => !shown.has(battle.token))
+  // The tools appear for a player only when their table and everyone else's are
+  // empty, which is a new account on a new instance — otherwise the page would be
   // a long scroll of nothing, under a menu they have not learned yet.
   const bare = !going.length && !played.length && !shownFriends.length && !rest.length
-  const introduce = !me || bare
+  const waiting = rostersDue.length + friendRequests + rosters.filter((entry) => entry.problem).length
+  if (me) {
+    return (
+      <main className="w-full">
+        <Welcome name={me.name} going={going.length} waiting={waiting} newBattle={newBattle} />
+        <div className="mx-auto w-full max-w-6xl space-y-10 px-3 py-8 sm:px-4">
+          <Columns
+            lead={<LiveGames going={going} viewerId={me.id} onDelete={onDelete} />}
+            aside={
+              <>
+                <HomeWaiting rostersDue={rostersDue} friendRequests={friendRequests} rosters={rosters} />
+                <HomeRosters rosters={rosters} />
+                <HomePlayed played={played} viewerId={me.id} />
+              </>
+            }
+            rest={
+              <>
+                <FriendTables battles={shownFriends} explain={!bare} />
+                <PublicTables battles={rest} signedIn more={more} />
+              </>
+            }
+          />
+          {bare ? <HomeIntro title="Before your first game" /> : null}
+        </div>
+      </main>
+    )
+  }
   return (
     <main className="w-full">
-      {me ? <Welcome name={me.name} newBattle={newBattle} /> : <HomeHero battle={hero} />}
-      <div className="mx-auto w-full max-w-5xl space-y-8 px-3 py-8 sm:px-4">
-        {me ? <MyTable going={going} played={played} viewerId={me.id} onDelete={onDelete} /> : null}
-        <FriendTables battles={shownFriends} explain={Boolean(me) && !bare} />
-        <PublicTables battles={rest} signedIn={Boolean(me)} more={more} />
-        {introduce ? <HomeIntro /> : null}
+      <HomeHero battle={hero} />
+      <div className="mx-auto w-full max-w-6xl space-y-14 px-3 py-12 sm:px-4 md:space-y-16 md:py-16">
+        <HomeSteps />
+        <Columns
+          // A hero holding the only public battle is the shelf; an empty one under it would contradict it.
+          // A visitor is shown that games are played here, not the archive of them.
+          lead={rest.length || !hero ? <PublicTables battles={rest.slice(0, RECENT)} signedIn={false} /> : null}
+          aside={leaders ? <HomeLeaders rows={leaders.rows} days={leaders.days} /> : null}
+        />
+        <HomeIntro title="Explore" />
       </div>
+      <HomeClosing />
     </main>
   )
 }
@@ -87,13 +131,24 @@ export function HomeView({ me, mine, friends, open, newBattle, onDelete, more }:
  * of the page is one width: a second tall gradient panel would make one page look
  * like two.
  */
-function Welcome({ name, newBattle }: { name: string; newBattle?: ReactNode }) {
+function Welcome({ name, going, waiting, newBattle }: { name: string; going: number; waiting: number; newBattle?: ReactNode }) {
   return (
-    <section data-onboarding="home-activity" className="border-b border-edge bg-panel">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-3 py-4 sm:px-4">
+    <section data-onboarding="home-activity" className="relative overflow-hidden border-b border-edge bg-panel">
+      <div className="sheen" />
+      <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-x-6 gap-y-4 px-3 py-6 sm:px-4 sm:py-7">
         <div>
-          <p className="eyebrow text-parchment">Praetorium</p>
-          <h1 className="mt-1 text-2xl">Welcome back, {name.trim().split(/\s+/)[0]}</h1>
+          <h1 className="text-2xl leading-none sm:text-3xl">Welcome back, {name.trim().split(/\s+/)[0]}</h1>
+          <p className="mt-3 text-sm text-dim">
+            <span className="readout font-semibold text-bone">{going}</span> {going === 1 ? 'game' : 'games'} in progress
+            <span className="mx-2 text-faint">·</span>
+            {waiting ? (
+              <>
+                <span className="readout font-semibold text-discarded">{waiting}</span> waiting on you
+              </>
+            ) : (
+              'Nothing waiting on you'
+            )}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {newBattle}
@@ -107,64 +162,43 @@ function Welcome({ name, newBattle }: { name: string; newBattle?: ReactNode }) {
 }
 
 /**
- * The player's own games: the ones still running, then the last few they finished.
- *
- * Both are here rather than only the live ones because a player between games has
- * a home page either way, and their last result is the thing they came back to
- * read. The finished shelf stays short and hands off to the battles page, which is
- * the archive and the only place a battle is deleted.
+ * The player's games still being set up or played, which are the reason most visits happen.
  *
  * The empty state explains and points up rather than carrying a second New battle
  * button: the band above it already has one, and two of the same control on one
  * screen is two dialogs and two labels for one intent.
  */
-function MyTable({
-  going,
-  played,
-  viewerId,
-  onDelete,
-}: {
-  going: readonly Battle[]
-  played: readonly Battle[]
-  viewerId: string
-  onDelete?: (battle: Battle) => void
-}) {
-  const live = going.length ? (
-    <BattleShelf title="Your games" battles={[...going]} viewerId={viewerId} onDelete={onDelete} />
-  ) : (
-    <section data-my-table>
-      <p className="rubric border-b border-edge pb-2">Your games</p>
-      <div className="mt-2 border border-edge bg-panel p-5">
-        <Swords className="size-5 text-parchment" aria-hidden />
-        <p className="mt-3 text-sm text-dim">Start a game with a friend, or practise on your own against a practice opponent.</p>
-      </div>
-    </section>
-  )
-  if (!played.length) {
+function LiveGames({ going, viewerId, onDelete }: { going: readonly Battle[]; viewerId: string; onDelete?: (battle: Battle) => void }) {
+  if (!going.length) {
     return (
-      <div>
-        {live}
-        {going.length ? <AllBattles /> : null}
-      </div>
+      <section data-my-table>
+        <p className="rubric border-b border-edge pb-2">Your games</p>
+        <p className="flex items-start gap-3 border-b border-edge py-5 font-rules text-sm text-dim">
+          <Swords className="size-5 shrink-0 text-parchment" aria-hidden />
+          Start a game with a friend, or practise on your own against a practice opponent.
+        </p>
+      </section>
     )
   }
-  return (
-    <div className="space-y-8">
-      {live}
-      <div>
-        <BattleShelf title="Games you have played" battles={[...played]} viewerId={viewerId} onDelete={onDelete} />
-        <AllBattles />
-      </div>
-    </div>
-  )
+  return <BattleShelf title="Your games" battles={[...going]} viewerId={viewerId} onDelete={onDelete} />
 }
 
-/** The battles page, which holds every game the player has ever opened. */
-function AllBattles() {
+/**
+ * The page's two columns on a wide screen, and one in reading order on a narrow one.
+ *
+ * `lead` and `rest` are the wide column, the games to watch or play; `aside` is the
+ * narrow one, the short lists a player acts on. Source order is lead, aside, rest,
+ * so a phone reads the short lists straight after the games waiting on the player
+ * instead of after every feed below them.
+ */
+function Columns({ lead, aside, rest }: { lead: ReactNode; aside?: ReactNode; rest?: ReactNode }) {
+  if (!lead) return aside
   return (
-    <Link to="/battles" className="eyebrow mt-2 inline-flex items-center gap-1 text-info hover:text-parchment">
-      All my battles <ChevronRight className="size-3.5" />
-    </Link>
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+      <div className="min-w-0 space-y-8 lg:col-start-1">{lead}</div>
+      {aside ? <aside className="min-w-0 space-y-8 lg:col-start-2 lg:row-span-2 lg:row-start-1">{aside}</aside> : null}
+      {rest ? <div className="min-w-0 space-y-8 lg:col-start-1">{rest}</div> : null}
+    </div>
   )
 }
 
@@ -180,13 +214,13 @@ function AllBattles() {
  * says more to a new account than a third grey box would.
  */
 function FriendTables({ battles, explain }: { battles: readonly Battle[]; explain: boolean }) {
-  if (battles.length) return <BattleShelf onboarding="home-friends" title="Friends' games" battles={[...battles]} />
+  if (battles.length) return <HomeFeed onboarding="home-friends" title="Friends' games" battles={battles} />
   if (!explain) return null
   return (
     <section data-friends-empty>
       <p className="rubric border-b border-edge pb-2">Friends' games</p>
-      <div className="mt-2 flex flex-col gap-4 border border-edge bg-panel p-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-dim">Your friends' games appear here, apart from the ones you are already sitting in.</p>
+      <div className="flex flex-col gap-4 border-b border-edge py-5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="font-rules text-sm text-dim">Your friends' games appear here, apart from the ones you are already sitting in.</p>
         <Button render={<Link to="/friends" />} variant="outline" className="shrink-0" nativeButton={false}>
           <Users /> Your friends
         </Button>
@@ -209,7 +243,7 @@ function PublicTables({
     return signedIn ? null : (
       <section data-public-empty>
         <p className="rubric border-b border-edge pb-2">Public games</p>
-        <p className="mt-2 border border-edge bg-panel p-5 text-sm text-dim">
+        <p className="border-b border-edge py-5 font-rules text-sm text-dim">
           No public battles yet. Create an account and start the first one.
         </p>
       </section>
@@ -217,7 +251,7 @@ function PublicTables({
   }
   return (
     <div>
-      <BattleShelf onboarding="home-public" title="Public games" battles={[...battles]} />
+      <HomeFeed onboarding="home-public" title="Public games" battles={battles} />
       {more ? (
         <Button variant="outline" size="sm" className="mt-2" disabled={more.pending} onClick={more.onShow}>
           {more.pending ? 'Loading…' : 'Show more battles'}
