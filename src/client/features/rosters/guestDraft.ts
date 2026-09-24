@@ -1,5 +1,6 @@
 import { DEFAULT_GAME_LIMIT } from '../../../core/battle'
-import { GUEST_DRAFT_COOKIE } from '../../../contracts/guestDraft'
+import { GUEST_DRAFT_COOKIE } from '../../../contracts/rosterCookies'
+import { setRosterCookie } from './rosterCookie'
 import type { RosterDraft } from './rosterDraft'
 import type { RosterSetup } from './RosterSetupDialog'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
@@ -51,9 +52,7 @@ export function readGuestDraft(): GuestDraft | null {
 
 /** Tells the server whether this tab holds a list, so a refresh draws the page it will become. */
 export function markGuestDraft(held: boolean) {
-  if (typeof document === 'undefined') return
-  const secure = location.protocol === 'https:' ? '; Secure' : ''
-  document.cookie = `${GUEST_DRAFT_COOKIE}=${held ? '1' : ''}; Path=${GUEST_PATH}; SameSite=Lax${held ? '' : '; Max-Age=0'}${secure}`
+  setRosterCookie(GUEST_DRAFT_COOKIE, held ? '1' : null)
 }
 
 /** Whether the draft was kept; a full or disabled storage keeps nothing and says so. */

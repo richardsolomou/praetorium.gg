@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -25,21 +25,21 @@ import { factionSelectGroups } from './builder/factions'
 import { RosterFilters } from './RosterFilters'
 import { RosterRow } from './RosterRow'
 import { type SavedRoster, useRosterActions } from './rosterLibrary'
-import { type RosterSort, sortRosters } from './rosterSort'
+import { keepRosterSort, type RosterSort, sortRosters } from './rosterSort'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import { factionIndexQuery, meQuery, savedRosterStatusQuery, savedRosterSummariesQuery, savedRosterTotalsQuery } from '../../queries'
 import { useOrigin } from '../../useOrigin'
 import type { RosterVisibility } from '../../../core/savedRoster'
 
-export type RosterLibrarySearch = { limit?: number; faction?: string; visibility?: RosterVisibility; sort?: RosterSort }
+export type RosterLibrarySearch = { limit?: number; faction?: string; visibility?: RosterVisibility }
 /** An unsaved setup edit, kept per tab so a refresh does not lose it. */
 type EditingSession = { rosterId: string; draft: RosterSetup }
 
 const WORKSPACE_PATH = '/rosters/'
 const EDITING_STATE = 'roster-setup'
 
-export function RosterLibraryPage({ search }: { search: RosterLibrarySearch }) {
+export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearch; sort: RosterSort }) {
   const { data: me } = useQuery(meQuery())
   const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
   const totalsResult = useQuery({ ...savedRosterTotalsQuery(), enabled: Boolean(me) })
@@ -49,6 +49,7 @@ export function RosterLibraryPage({ search }: { search: RosterLibrarySearch }) {
   const totals = totalsResult.data
   const available = availableResult.data
   const navigate = useNavigate()
+  const router = useRouter()
   const { favourites } = useFavouriteFactions(Boolean(me))
   const factionSlugById = new Map((available?.factions ?? []).map((faction) => [faction.id, faction.slug]))
   const selectedFactionId = available?.factions.find((faction) => faction.slug === search.faction)?.id
@@ -63,7 +64,7 @@ export function RosterLibraryPage({ search }: { search: RosterLibrarySearch }) {
         (search.faction === undefined || roster.catalogueId === selectedFactionId) &&
         (search.visibility === undefined || roster.visibility === search.visibility),
     ),
-    search.sort ?? 'created-desc',
+    sort,
   )
   const libraryPending = savedResult.isPending || (Boolean(search.faction) && availableResult.isPending)
   const libraryError = savedResult.isError || (Boolean(search.faction) && availableResult.isError)
@@ -113,11 +114,15 @@ export function RosterLibraryPage({ search }: { search: RosterLibrarySearch }) {
 
       <PageContent className="space-y-4">
         <RosterFilters
-          value={{ limit: search.limit, faction: search.faction, visibility: search.visibility, sort: search.sort ?? 'created-desc' }}
+          value={{ ...search, sort }}
           factionGroups={factionGroups}
-          onChange={(next) =>
-            void navigate({ to: '/rosters', search: { ...next, sort: next.sort === 'created-desc' ? undefined : next.sort } })
-          }
+          onChange={({ sort: chosen, ...filters }) => {
+            if (chosen !== sort) {
+              keepRosterSort(chosen)
+              void router.invalidate({ filter: (match) => match.routeId === '/rosters/' })
+            }
+            void navigate({ to: '/rosters', search: filters })
+          }}
         />
         {actions.shareProblem ? <p className="text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}
 

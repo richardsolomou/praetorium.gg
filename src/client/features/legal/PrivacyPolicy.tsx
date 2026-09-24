@@ -27,7 +27,10 @@ export function PrivacyPolicy() {
           and actions recorded during a game, friendships, datasheets you mark as owned, favourites, and practice opponents you seat.
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
-        <p>Sessions record your IP address and browser user agent. Rate-limiting counters protect sign-in and other sensitive actions.</p>
+        <p>
+          Sessions record your IP address and browser user agent. Rate-limiting counters protect sign-in and other sensitive actions. A
+          cookie remembers the order you sort your rosters in on that device.
+        </p>
         <p>
           If you allow notifications in the mobile app, we store that device's push token, its platform, and when it was last seen. Signing
           out or deleting your account removes it, and you can turn notifications off from your profile at any time.
