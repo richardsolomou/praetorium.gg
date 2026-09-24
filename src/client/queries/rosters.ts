@@ -3,7 +3,6 @@ import type { FormatRuleId, OptionalRuleId } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import {
   collection,
-  combatantDatasheet,
   datasheet,
   factionDatasheets,
   loadoutDatasheets,
@@ -81,24 +80,6 @@ export const loadoutDatasheetsQuery = (
       return result
     },
     enabled: Boolean((persistedRoster && pickIndex !== null) || (catalogueId && entryId)),
-    staleTime: Infinity,
-  })
-
-export const combatantDatasheetQuery = (
-  catalogueId: string,
-  entryId: string,
-  detachmentIds: readonly string[],
-  picks: readonly RosterPick[],
-  pickIndex: number,
-  inactivePicks: readonly number[] = [],
-) =>
-  queryOptions({
-    queryKey: ['combatant-datasheet', catalogueId, entryId, detachmentIds, picks, pickIndex, inactivePicks],
-    queryFn: () =>
-      combatantDatasheet({
-        data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex, inactivePicks: [...inactivePicks] },
-      }),
-    enabled: Boolean(catalogueId && entryId),
     staleTime: Infinity,
   })
 

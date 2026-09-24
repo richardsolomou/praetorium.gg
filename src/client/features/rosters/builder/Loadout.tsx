@@ -7,7 +7,7 @@ import type { RosterPick } from '../../../../core/roster'
 import { primaryUnitProfile } from '../../../datasheet'
 import { loadoutDatasheetsQuery } from '../../../queries'
 import { useSettled } from '../../../useSettled'
-import { UnitProfile, WeaponSummary } from './DatasheetPanel'
+import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
 import {
   controlledProfileCount,
   type LoadoutModel,

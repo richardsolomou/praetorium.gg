@@ -33,7 +33,13 @@ A type returned across a server-function boundary belongs in `src/contracts` whe
 
 Feature-specific browser code belongs in `src/client/features/<feature>`. Shared browser models live at the `src/client` root, and components used by multiple features live in `src/client/components`.
 
+The roster builder owns loadout editing. The simulator uses that editor, while shared datasheet profile displays and count controls live in `src/client/components`.
+
 React Query options belong in `src/client/queries/<feature>.ts`. `src/client/queries.ts` is the public barrel so consumers depend on query behavior rather than its file placement.
+
+Simulator queries live in `src/client/queries/simulator.ts`.
+
+Existing `createServerFn` definitions keep their source paths: the pinned TanStack compiler includes the filename in each production function ID, so a move can break requests from an older open client.
 
 Repository and service facades preserve one application entry point while delegating complete vertical slices. A collaborator owns all methods for its area; do not scatter one transaction or policy decision between the facade and collaborator.
 

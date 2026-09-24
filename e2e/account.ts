@@ -40,6 +40,15 @@ export async function retryUntilVisible(outcome: Locator, action: () => Promise<
   }).toPass({ timeout: 10_000 })
 }
 
+/** The catalogue unit picker lists every faction's units behind one search; each option names its faction. */
+export async function chooseUnit(page: Page, side: string, faction: string, name: string) {
+  const search = page.getByPlaceholder('Search units…')
+  await retryUntilVisible(search, () => page.getByRole('combobox', { name: `${side} unit`, exact: true }).click())
+  await search.fill(`${name} ${faction}`)
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  await page.getByRole('option', { name: new RegExp(`^${escaped}, ${faction}(?:, \\d+ pts)?$`) }).click()
+}
+
 /** `beforeAccept` runs while the request is still pending, which is the only moment a test can read that state. */
 export async function befriend(requester: Page, recipient: Page, { beforeAccept }: { beforeAccept?: () => Promise<void> } = {}) {
   const accountMenu = (page: Page) => page.locator('[data-web-app-chrome] button[aria-label^="Account menu for "]')

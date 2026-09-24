@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { Loadout } from './Loadout'
 import { ModelCard } from './ModelCard'
 import { WargearRow } from './LoadoutControls'
-import { WeaponSummary } from './DatasheetPanel'
+import { WeaponSummary } from '../../../components/DatasheetProfiles'
 
 it('groups firing profiles under one weapon within a paired loadout', () => {
   const markup = renderToStaticMarkup(

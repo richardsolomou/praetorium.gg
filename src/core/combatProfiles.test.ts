@@ -150,7 +150,10 @@ describe('combat profiles', () => {
   it('accepts a homogeneous target with several model names', () => {
     const data = sheet()
     data.profiles.push({ ...data.profiles[0]!, id: 'sergeant', name: 'Sergeant' })
-    expect(combatTarget(data, 5).target).toEqual({ models: 5, toughness: 4, save: 3, wounds: 2, invulnerable: null, feelNoPain: null })
+    expect(combatTarget(data, 5).target).toEqual({
+      groups: [{ models: 5, toughness: 4, save: 3, wounds: 2, invulnerable: null }],
+      feelNoPain: null,
+    })
   })
   it.each(['Feel No Pain 4+', '[FEEL NO PAIN 4+]'])('reads the printed %s core ability', (name) => {
     const data = sheet()
@@ -187,18 +190,49 @@ describe('combat profiles', () => {
     data.abilities = [{ id: 'upgrade', name: 'Feel No Pain 4+', kind: 'upgrade', description: null }]
     expect(combatTarget(data, 5).target?.feelNoPain).toBeNull()
   })
-  it('refuses mixed defences instead of choosing the first model', () => {
+  const mixed = () => {
     const data = sheet()
     data.profiles.push({
       ...data.profiles[0]!,
       id: 'leader',
+      name: 'Leader',
       values: [
         { name: 'T', value: '5' },
         { name: 'W', value: '3' },
         { name: 'Sv', value: '2+' },
       ],
     })
-    expect(combatTarget(data, 5).target).toBeNull()
+    return data
+  }
+  it('splits mixed defences into allocation groups counted from the carriers', () => {
+    expect(
+      combatTarget(mixed(), 5, 5, [
+        { name: 'Model', models: 4, weapons: [] },
+        { name: 'Leader', models: 1, weapons: [] },
+      ]),
+    ).toMatchObject({
+      target: {
+        groups: [
+          { models: 4, toughness: 4, wounds: 2 },
+          { models: 1, toughness: 5, wounds: 3, save: 2 },
+        ],
+      },
+      labels: ['Model', 'Leader'],
+    })
+  })
+  it('leaves a group with no surviving models out of the allocation order', () => {
+    expect(
+      combatTarget(mixed(), 4, 5, [
+        { name: 'Model', models: 4, weapons: [] },
+        { name: 'Leader', models: 0, weapons: [] },
+      ]).labels,
+    ).toEqual(['Model'])
+  })
+  it('refuses mixed defences when a carrier matches no model profile', () => {
+    expect(combatTarget(mixed(), 5, 5, [{ name: 'Stranger', models: 5, weapons: [] }]).target).toBeNull()
+  })
+  it('refuses mixed defences when the carriers do not account for every model', () => {
+    expect(combatTarget(mixed(), 5, 5, [{ name: 'Model', models: 4, weapons: [] }]).target).toBeNull()
   })
   it('refuses missing target stats', () => {
     const data = sheet()

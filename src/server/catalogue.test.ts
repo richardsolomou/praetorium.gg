@@ -451,6 +451,46 @@ describe('a datasheet', () => {
     ])
   })
 
+  it('keeps a carried weapon whose profile is linked rather than written on the entry', () => {
+    const book = bookOf({
+      sharedProfiles: [{ id: 'pistol', name: 'Pistol', typeName: 'Ranged Weapons', characteristics: [{ name: 'S', $text: '4' }] }],
+      selectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'blade-entry',
+              name: 'Blade',
+              type: 'upgrade',
+              profiles: [{ id: 'blade', name: 'Blade', typeName: 'Melee Weapons', characteristics: [{ name: 'S', $text: '5' }] }],
+            },
+            {
+              id: 'pistol-entry',
+              name: 'Pistol',
+              type: 'upgrade',
+              infoLinks: [{ id: 'pistol-link', name: 'Pistol', targetId: 'pistol', type: 'profile' }],
+            },
+          ],
+        },
+      ],
+    })
+    const context = {
+      selections: [
+        {
+          id: 'captain',
+          selections: [
+            { id: 'blade-entry', count: 1 },
+            { id: 'pistol-entry', count: 1 },
+          ],
+        },
+      ],
+      unitSelectionIndex: 0,
+    }
+    expect(datasheetViewsIn(book, 'cat', 'captain', context).selected?.profiles.map((profile) => profile.name)).toEqual(['Blade', 'Pistol'])
+  })
+
   /**
    * An enhancement belongs to the unit that bears it. Every datasheet that may take
    * one carries the same condition, naming the same shared entry, and a datasheet

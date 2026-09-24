@@ -1,6 +1,6 @@
 {
   "name": "praetorium.gg",
-  "version": "0.75.0",
+  "version": "0.76.0",
   "private": true,
   "description": "Build Warhammer 40,000 armies and track games from setup to final score.",
   "license": "AGPL-3.0-only",
@@ -78,6 +78,7 @@
     "@tanstack/react-router": "^1.170.36",
     "@tanstack/react-router-ssr-query": "^1.167.2",
     "@tanstack/react-start": "^1.168.53",
+    "@tanstack/react-virtual": "^3.14.13",
     "better-auth": "^1.7.4",
     "canvas-confetti": "^1.9.4",
     "centrifuge": "^5.7.4",

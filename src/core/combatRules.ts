@@ -407,24 +407,27 @@ export function combatRuleDefences(
     .filter((effect) => effect.role === 'attacker' && effect.phases.includes(phase))
   return {
     ...target,
-    invulnerable: effects.reduce(
-      (roll, effect) => (effect.invulnerable === undefined ? roll : Math.min(roll ?? 7, effect.invulnerable)),
-      target.invulnerable,
-    ),
-    save: Math.max(
-      2,
-      Math.min(
-        7,
-        effects.reduce((roll, effect) => (effect.save === undefined ? roll : Math.min(roll, effect.save)), target.save) +
-          attacks.reduce((total, effect) => total + (effect.targetSaveModifier ?? 0), 0),
+    groups: target.groups.map((group) => ({
+      ...group,
+      invulnerable: effects.reduce(
+        (roll, effect) => (effect.invulnerable === undefined ? roll : Math.min(roll ?? 7, effect.invulnerable)),
+        group.invulnerable,
       ),
-    ),
-    toughness: Math.max(
-      1,
-      target.toughness +
-        effects.reduce((total, effect) => total + (effect.toughness ?? 0), 0) +
-        attacks.reduce((total, effect) => total + (effect.targetToughness ?? 0), 0),
-    ),
+      save: Math.max(
+        2,
+        Math.min(
+          7,
+          effects.reduce((roll, effect) => (effect.save === undefined ? roll : Math.min(roll, effect.save)), group.save) +
+            attacks.reduce((total, effect) => total + (effect.targetSaveModifier ?? 0), 0),
+        ),
+      ),
+      toughness: Math.max(
+        1,
+        group.toughness +
+          effects.reduce((total, effect) => total + (effect.toughness ?? 0), 0) +
+          attacks.reduce((total, effect) => total + (effect.targetToughness ?? 0), 0),
+      ),
+    })),
     damageDivisor: effects.reduce((divisor, effect) => Math.max(divisor, effect.damageDivisor ?? 1), target.damageDivisor ?? 1),
     feelNoPain: effects.reduce(
       (roll, effect) => (effect.feelNoPain === undefined ? roll : Math.min(roll ?? 7, effect.feelNoPain)),
