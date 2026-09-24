@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sortRosters } from './rosterSort'
+import { keptRosterSort, sortRosters } from './rosterSort'
 
 const alpha = { id: 'alpha', name: 'Alpha', limit: 2000, createdAt: 30, updatedAt: 20 }
 const beta = { id: 'beta', name: 'Beta', limit: 1000, createdAt: 20, updatedAt: 30 }
@@ -16,5 +16,19 @@ describe('roster sorting', () => {
     expect(sortRosters([alpha, beta, gamma], 'updated-desc').map((roster) => roster.name)).toEqual(['Beta', 'Alpha', 'Gamma'])
     expect(sortRosters([alpha, beta, gamma], 'size-asc').map((roster) => roster.name)).toEqual(['Beta', 'Alpha', 'Gamma'])
     expect(sortRosters([alpha, beta, gamma], 'name-desc').map((roster) => roster.name)).toEqual(['Gamma', 'Beta', 'Alpha'])
+  })
+})
+
+describe('the kept roster order', () => {
+  it('reads back an order the player chose', () => {
+    expect(keptRosterSort('name-asc')).toBe('name-asc')
+  })
+
+  it('falls back to newest first without a cookie', () => {
+    expect(keptRosterSort(undefined)).toBe('created-desc')
+  })
+
+  it('falls back to newest first for a value that names no order', () => {
+    expect(keptRosterSort('points-desc')).toBe('created-desc')
   })
 })

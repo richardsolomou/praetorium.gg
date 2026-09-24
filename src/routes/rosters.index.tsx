@@ -1,10 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { ROSTER_VISIBILITIES, type RosterVisibility } from '../core/savedRoster'
 import { GAME_SIZES } from '../core/battle'
-import { ROSTER_SORTS, type RosterSort } from '../client/features/rosters/rosterSort'
+import { keptRosterSort } from '../client/features/rosters/rosterSort'
 import { useQuery } from '@tanstack/react-query'
 import { BuilderFrame, ClaimGuestRoster, GuestRoster, useGuestDraft } from '../client/features/rosters/GuestRoster'
-import { guestDraftHint } from '../server/guestDraftHint'
+import { GUEST_DRAFT_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
+import { requestCookie } from '../server/requestCookie'
 import { RosterLibraryPage, type RosterLibrarySearch } from '../client/features/rosters/RosterLibraryPage'
 import { factionIndexQuery, meQuery } from '../client/queries'
 
@@ -16,13 +17,10 @@ export const Route = createFileRoute('/rosters/')({
       typeof search.visibility === 'string' && ROSTER_VISIBILITIES.includes(search.visibility as RosterVisibility)
         ? (search.visibility as RosterVisibility)
         : undefined
-    const sort =
-      typeof search.sort === 'string' && ROSTER_SORTS.includes(search.sort as RosterSort) ? (search.sort as RosterSort) : undefined
     return {
       ...(GAME_SIZES.some((size) => size.limit === limit) ? { limit } : {}),
       ...(faction ? { faction } : {}),
       ...(visibility ? { visibility } : {}),
-      ...(sort && sort !== 'created-desc' ? { sort } : {}),
     }
   },
   loader: async ({ context }) => {
@@ -30,7 +28,7 @@ export const Route = createFileRoute('/rosters/')({
     // A visitor's page is the roster setup, which offers every faction.
     if (!me) await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
     // Whether this tab holds a visitor's list, so the first frame is the builder or the claim it becomes.
-    return { guestDraft: guestDraftHint() }
+    return { guestDraft: requestCookie(GUEST_DRAFT_COOKIE) === '1', sort: keptRosterSort(requestCookie(ROSTER_SORT_COOKIE)) }
   },
   component: RosterLibraryRoute,
 })
@@ -44,11 +42,11 @@ export const Route = createFileRoute('/rosters/')({
  */
 function RosterLibraryRoute() {
   const search = Route.useSearch()
-  const { guestDraft: hinted } = Route.useLoaderData()
+  const { guestDraft: hinted, sort } = Route.useLoaderData()
   const { data: me } = useQuery(meQuery())
   const [{ ready, guest }, setGuest] = useGuestDraft(hinted)
   if (!ready && hinted) return <BuilderFrame />
   if (me && guest) return <ClaimGuestRoster guest={guest} onDiscard={() => setGuest(null)} />
-  if (me) return <RosterLibraryPage search={search} />
+  if (me) return <RosterLibraryPage search={search} sort={sort} />
   return <GuestRoster guest={guest} onStart={setGuest} onDiscard={() => setGuest(null)} />
 }
