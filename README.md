@@ -22,6 +22,7 @@ Players can:
 
 - Build, import, save, share, print, and export army lists.
 - Browse factions, detachments, datasheets, loadouts, enhancements, and points.
+- See what each army data update changed in points, datasheets, detachments, and enhancements, and which saved lists it broke.
 - Compare unit loadouts in a public combat simulator from the roster editor, or during battles, with buffs and damage and kill probabilities.
 - Search that public reference through a documented read-only API or MCP client.
 - Set up missions, deployment, terrain, formations, stratagems, and mission cards.

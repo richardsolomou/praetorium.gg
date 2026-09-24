@@ -25,6 +25,7 @@ import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
 import { prepareGlobalSearch } from './globalSearch'
 import { compileCanonicalCatalogueFromSnapshot, loadCanonicalCatalogue } from './canonicalCatalogue'
+import { loadSnapshot, recordSwap, snapshotOf } from './catalogueChanges'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 
 type App = {
@@ -49,16 +50,17 @@ type App = {
 }
 
 /** Parsing the whole catalogue takes seconds, so it happens once and only if asked for. */
-function memoize<T>(work: () => T): () => T {
+function memoize<T>(work: () => T): (() => T) & { peek: () => T | undefined } {
   let done = false
   let value: T
-  return () => {
+  const read = () => {
     if (!done) {
       value = work()
       done = true
     }
     return value
   }
+  return Object.assign(read, { peek: () => (done ? value : undefined) })
 }
 
 /**
@@ -145,6 +147,21 @@ export function app(): App {
     const events = new RealtimePublisher(realtime.apiUrl, realtime.apiKey)
     const email = emailDelivery()
     let ready = Promise.resolve()
+    const loaders = () => ({
+      catalogue: memoize(() => loadSnapshot(catalogueDataDirectory, loadCatalogue)),
+      canonical: memoize(() =>
+        loadSnapshot(
+          catalogueDataDirectory,
+          () => canonicalCatalogue(instance, catalogueDataDirectory),
+          () => instance.catalogue(),
+        ),
+      ),
+      rules: memoize(() => {
+        const catalogue = instance.catalogue()
+        return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
+      }),
+    })
+    let loaded = loaders()
     const instance: App = {
       database,
       valkey: cache,
@@ -152,40 +169,33 @@ export function app(): App {
       events,
       auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email),
       email,
-      catalogue: memoize(loadCatalogue),
-      canonicalCatalogue: memoize(() => canonicalCatalogue(instance, catalogueDataDirectory)),
-      rules: memoize(() => {
-        const catalogue = instance.catalogue()
-        return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
-      }),
+      catalogue: loaded.catalogue,
+      canonicalCatalogue: loaded.canonical,
+      rules: loaded.rules,
       sync: () => sync.state,
       telemetry,
       ready: () => ready,
     }
+    // The outgoing reference data is only in memory once the next snapshot is on disk,
+    // so what changed between them is worked out here or never.
+    const swap = () => {
+      const held = loaded.canonical.peek() ?? null
+      // The hourly check reloads an unchanged snapshot too, and there is nothing to compare then.
+      const outgoing = snapshotOf(held) === installedSnapshot(catalogueDataDirectory)?.id ? null : held
+      const incoming = loaders()
+      loaded = incoming
+      instance.catalogue = incoming.catalogue
+      instance.canonicalCatalogue = incoming.canonical
+      instance.rules = incoming.rules
+      ready = warm(instance)
+      void ready
+        .then(() => recordSwap(outgoing, incoming.canonical.peek() ?? null, (input) => instance.service.recordCatalogueChanges(input)))
+        .catch((error: unknown) => console.error({ event: 'catalogue_changes_failed', error }))
+    }
     // Fetched in the background rather than at boot: an instance must start and
     // serve battles whether or not it has the catalogues yet.
-    sync.begin(catalogueDataDirectory, () => {
-      instance.catalogue = memoize(loadCatalogue)
-      instance.canonicalCatalogue = memoize(() => canonicalCatalogue(instance, catalogueDataDirectory))
-      instance.rules = memoize(() => {
-        const catalogue = instance.catalogue()
-        return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
-      })
-      ready = warm(instance)
-    })
-    const catalogueRefresh = setInterval(
-      () =>
-        sync.begin(catalogueDataDirectory, () => {
-          instance.catalogue = memoize(loadCatalogue)
-          instance.canonicalCatalogue = memoize(() => canonicalCatalogue(instance, catalogueDataDirectory))
-          instance.rules = memoize(() => {
-            const catalogue = instance.catalogue()
-            return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
-          })
-          ready = warm(instance)
-        }),
-      60 * 60 * 1000,
-    )
+    sync.begin(catalogueDataDirectory, swap)
+    const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap), 60 * 60 * 1000)
     catalogueRefresh.unref()
     if (sync.state.status === 'ready') ready = warm(instance)
     return instance

@@ -9,6 +9,7 @@ import type { PraetoriumDatabase } from './connection'
 import { LeagueRepository } from './repositories/leagueRepository'
 import { AccountRepository } from './repositories/accountRepository'
 import { RosterRepository } from './repositories/rosterRepository'
+import { CatalogueChangeRepository } from './repositories/catalogueChangeRepository'
 import {
   battleSharing,
   battleUsers,
@@ -86,12 +87,14 @@ export class Repository {
   private readonly accountRepository: AccountRepository
   private readonly leagueRepository: LeagueRepository
   private readonly rosterRepository: RosterRepository
+  private readonly catalogueChangeRepository: CatalogueChangeRepository
   readonly createLeagueBattle: LeagueRepository['createLeagueBattle']
 
   constructor(private readonly database: PraetoriumDatabase) {
     this.accountRepository = new AccountRepository(database)
     this.leagueRepository = new LeagueRepository(database, (tx, input) => this.insertBattle(tx, input))
     this.rosterRepository = new RosterRepository(database)
+    this.catalogueChangeRepository = new CatalogueChangeRepository(database)
     this.createLeagueBattle = this.leagueRepository.createLeagueBattle.bind(this.leagueRepository)
   }
 
@@ -233,6 +236,14 @@ export class Repository {
 
   acceptFriendInvite(...args: Parameters<AccountRepository['acceptFriendInvite']>) {
     return this.accountRepository.acceptFriendInvite(...args)
+  }
+
+  recordCatalogueChanges(...args: Parameters<CatalogueChangeRepository['recordCatalogueChanges']>) {
+    return this.catalogueChangeRepository.recordCatalogueChanges(...args)
+  }
+
+  catalogueChanges(...args: Parameters<CatalogueChangeRepository['catalogueChanges']>) {
+    return this.catalogueChangeRepository.catalogueChanges(...args)
   }
 
   saveRoster(...args: Parameters<RosterRepository['saveRoster']>) {

@@ -456,6 +456,32 @@ export const favouriteDetachments = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.catalogueId, table.detachmentId] })],
 )
 
+/**
+ * What one army-data update changed, recorded when an instance swaps one immutable
+ * snapshot for the next.
+ *
+ * The one derived thing kept: the outgoing snapshot is gone from disk once the next is
+ * in place, so this is the only record of what it said. It cannot disagree with anything,
+ * because both inputs are immutable and the diff is deterministic, so every replica that
+ * swaps the same pair computes the same body. That is why the pair is the key and a
+ * second insert does nothing. `recorded_at` is the first replica's clock, which is when
+ * a saved list could first have been affected.
+ */
+export const catalogueChanges = pgTable(
+  'catalogue_changes',
+  {
+    fromSnapshot: text('from_snapshot').notNull(),
+    toSnapshot: text('to_snapshot').notNull(),
+    recordedAt: bigint('recorded_at', { mode: 'number' }).notNull(),
+    /** A `CatalogueChangeSet` as JSON, read back through `catalogueChangeSetSchema`. */
+    body: text('body').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.fromSnapshot, table.toSnapshot] }),
+    index('catalogue_changes_recorded_at_index').on(table.recordedAt),
+  ],
+)
+
 export const schema = {
   user,
   session,
@@ -480,4 +506,5 @@ export const schema = {
   favouriteFactions,
   favouriteDetachments,
   practiceOpponents,
+  catalogueChanges,
 }

@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { attachedUnitCount } from '../../core/attachedUnits'
+import { changesTouching } from '../../core/catalogueChanges'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
 import { calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../pricing'
@@ -7,6 +8,7 @@ import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, importRosterFile } from '../rosterFiles'
 import { factionsFor } from '../factionReferences'
 import { rosterTelemetryProperties } from '../rosterTelemetry'
+import { type RosterVerdict, rosterStatus, rosterVerdict } from '../rosterStatus'
 import {
   exportRosterSchema,
   importRosterSchema,
@@ -169,12 +171,80 @@ export const rosterAccess = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
   .handler(({ data }) => rpc(() => accessibleRoster(data)))
 
+/**
+ * How many recorded data updates a saved list is compared against, newest first. A list
+ * untouched for longer than this many updates is only told about the most recent.
+ */
+const CHANGE_SETS_READ = 50
+
+/**
+ * Whether each list is legal, and what it holds, by the same key as its price: judged
+ * once per save per snapshot. Only the verdict is kept, so a library of lists costs a
+ * few names apiece rather than every unit's projection.
+ */
+const rosterVerdictCache = new Map<string, RosterVerdict>()
+const ROSTER_VERDICT_CACHE_LIMIT = 10_000
+
+function cachedRosterVerdict(roster: Parameters<typeof cachedRosterPrice>[0]) {
+  const key = rosterRevisionKey(roster)
+  const cached = rosterVerdictCache.get(key)
+  if (cached) return cached
+  // Without the rules source a list cannot be judged the way a battle judges it.
+  const priced = app().rules() ? (rosterPriceCache.get(key) ?? calculateRosterPrice(savedRosterPriceInput(roster))) : null
+  const verdict = rosterVerdict(roster, priced)
+  if (rosterVerdictCache.size >= ROSTER_VERDICT_CACHE_LIMIT) {
+    const oldest = rosterVerdictCache.keys().next().value
+    if (oldest !== undefined) rosterVerdictCache.delete(oldest)
+  }
+  rosterVerdictCache.set(key, verdict)
+  return verdict
+}
+
+/**
+ * Which of a player's lists the current data says they cannot field, and how many data
+ * updates since each was saved reached something in it.
+ *
+ * Asked separately from the totals, which the library row cannot draw without: judging a
+ * list prices every unit's projection, and a row's points should not wait for it.
+ */
+export const savedRosterStatus = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    if (!id) return []
+    const instance = app()
+    const saved = await instance.service.savedRosters(id)
+    if (!saved.length) return []
+    const sets = await instance.service.catalogueChanges(CHANGE_SETS_READ, Math.min(...saved.map((roster) => roster.updatedAt)))
+    return saved.map((roster) => rosterStatus(roster, cachedRosterVerdict(roster), sets))
+  }),
+)
+
+/** The recorded data updates since a list was saved that reached something it holds. */
+async function changesSinceSaved(
+  roster: Parameters<typeof cachedRosterPrice>[0] & { updatedAt: number },
+  priced: ReturnType<typeof cachedRosterPrice>,
+) {
+  const sets = await app().service.catalogueChanges(CHANGE_SETS_READ, roster.updatedAt)
+  return sets.length ? changesTouching(rosterVerdict(roster, priced).contents, roster.updatedAt, sets) : []
+}
+
 export const rosterBootstrap = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
   .handler(({ data }) =>
     rpc(async () => {
       const access = await accessibleRoster(data)
-      return access ? { ...access, price: cachedRosterPrice(access.roster) } : null
+      if (!access) return null
+      const price = cachedRosterPrice(access.roster)
+      return { ...access, price, changes: await changesSinceSaved(access.roster, price) }
+    }),
+  )
+
+export const rosterChanges = createServerFn({ method: 'GET' })
+  .validator(rosterInBattleSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const roster = await app().service.sharedRoster(data.id, await currentUserId(), data.battle ?? null)
+      return roster ? changesSinceSaved(roster, cachedRosterPrice(roster)) : []
     }),
   )
 

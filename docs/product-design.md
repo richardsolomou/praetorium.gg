@@ -15,6 +15,7 @@ Praetorium includes:
 - A home page of shared activity, ordered outwards from the reader: the player's unfinished games, the games they have recently finished, their friends' recent games, and recent public battles including finished ones. Practice games stay in battle history rather than appearing on the home page.
 - A per-player audience setting covering every battle they sit in: anyone, friends, or nobody outside the table.
 - A reading copy of the rules documents the community data carries, browsable by document, section, and rule number.
+- A public record of what each army data update changed — datasheet points, datasheets and detachments added or removed, and detachment and enhancement points — with saved lists flagged when the current data makes them over their limit or not legal, and named changes on any list an update reached since it was saved.
 
 It does not include pairings, brackets, locations, chat, matchmaking, rules this project wrote itself, or model positions.
 
@@ -51,7 +52,7 @@ Screenshots containing roster or battle data stay outside version control.
 | Accounts          | Email and password work without provider configuration. Google and Discord are optional and linkable. Players can manage their profile, password, sign-in methods, and authenticator 2FA. Administrators can manage and impersonate accounts. |
 | Battles           | Shared or practice 1v1, 2v1, and 2v2 setup drafts, server-side legality, corrections, concessions, reopening, and live updates.                                                                                                               |
 | Turn tracker      | Five battle rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion.                                                                                               |
-| Rosters           | Build, import, save, copy, rename, private, unlisted or public share, print, export, and attach.                                                                                                                                              |
+| Rosters           | Build, import, save, copy, rename, private, unlisted or public share, print, export, attach, and warnings when a data update breaks a saved list.                                                                                             |
 | Leagues           | Public or private reusable events, automatic or approved entry, replaceable roster snapshots, organizer-controlled simultaneous reveal, and live or finished battle viewing.                                                                  |
 | Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                                                                                                                           |
 | Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs.                                                                                                                                      |

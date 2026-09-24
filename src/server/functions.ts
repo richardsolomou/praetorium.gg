@@ -1,5 +1,6 @@
 export * from './functions/accounts'
 export * from './functions/battles'
+export * from './functions/changes'
 export * from './functions/leagues'
 export * from './functions/references'
 export * from './functions/rosters'

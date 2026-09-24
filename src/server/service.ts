@@ -21,6 +21,7 @@ import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import type { MissionAward } from '../core/scoring'
 import type { OnboardingProgressOperation } from '../core/onboarding'
+import type { CatalogueChangeSet } from '../core/catalogueChanges'
 import { filterBattles, type RecordFilter, recordFacets, serviceRecord } from '../core/serviceRecord'
 import { factionsPlayed, type Standing, type StandingFaction, standings } from '../core/standings'
 import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
@@ -133,6 +134,14 @@ export class PraetoriumService {
 
   updateOnboardingProgress(userId: string, operation: OnboardingProgressOperation) {
     return this.repository.updateOnboardingProgress(userId, operation)
+  }
+
+  recordCatalogueChanges(input: { fromSnapshot: string; toSnapshot: string; changes: CatalogueChangeSet }) {
+    return this.repository.recordCatalogueChanges({ ...input, recordedAt: this.clock() })
+  }
+
+  catalogueChanges(...args: Parameters<Repository['catalogueChanges']>) {
+    return this.repository.catalogueChanges(...args)
   }
 
   createLeague(...args: Parameters<LeagueService['createLeague']>) {
