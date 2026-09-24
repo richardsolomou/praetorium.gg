@@ -11,7 +11,7 @@
  */
 
 import fs from 'node:fs'
-import { baselineShortfall } from './baselines'
+import { baselineShortfall } from './lib/baselines'
 import path from 'node:path'
 import { parse } from 'yaml'
 import { buildIndex, type CatalogueFile, type SelectionEntry, targetOf } from '../src/core/catalogue'

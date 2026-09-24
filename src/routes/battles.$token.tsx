@@ -15,8 +15,8 @@ import {
   terrainReferencesQuery,
 } from '../client/queries'
 import { battlePreview, hiddenBattle, pageMeta } from '../client/linkPreview'
-import { armyRulesRequest } from '../client/sideRules'
-import { useCommand } from '../client/useCommand'
+import { armyRulesRequest } from '../client/features/battle/sideRules'
+import { useCommand } from '../client/features/battle/useCommand'
 import { useLiveBattle } from '../client/useLiveBattle'
 import { setNativeBattleActive } from '../client/nativeBridge'
 import type { openBattle } from '../server/functions'

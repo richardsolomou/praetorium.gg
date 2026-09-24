@@ -1,6 +1,6 @@
 import { type Dispatch, type SetStateAction, useCallback, useMemo, useRef, useState } from 'react'
 import type { RosterPick } from '../../../../core/roster'
-import { type KeyedPick, positionedPicks } from '../../../rosterPicks'
+import { type KeyedPick, positionedPicks } from '../rosterPicks'
 import type { SpreadUpdate } from './loadoutModel'
 
 /**

@@ -20,7 +20,7 @@ import { type BattleView } from '../../../../core/battleView'
 import { errorMessage } from '../../../queryClient'
 import { savedRosterSummariesQuery, savedRosterTotalsQuery } from '../../../queries'
 import type { Army, Side } from '../../../sides'
-import { ArmyIdentity, RosterIdentity } from '../../../components/ArmyIdentity'
+import { ArmyIdentity, RosterIdentity } from '../ArmyIdentity'
 import { rosterWaivers, WaiverList, WaiverNote } from '../../../components/FormatWaivers'
 import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
 

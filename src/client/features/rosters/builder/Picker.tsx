@@ -23,7 +23,7 @@ import { useCollectionMutation } from '../../../useCollection'
 import { useSettled } from '../../../useSettled'
 import { collectionQuery, unitsQuery } from '../../../queries'
 import { shortName } from './factions'
-import { GROUPS } from './groups'
+import { GROUPS } from '../../../unitGroups'
 import { Section } from './Section'
 
 type Props = {

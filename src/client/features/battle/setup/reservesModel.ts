@@ -1,6 +1,6 @@
 import { attachedUnitList } from '../../../../core/attachedUnits'
 import type { Army } from '../../../sides'
-import { GROUPS } from '../../rosters/builder/groups'
+import { GROUPS } from '../../../unitGroups'
 
 /**
  * The army as this step asks about it: the units it is played as, deep strike first.

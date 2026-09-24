@@ -1,7 +1,7 @@
 import { FIXED_SECONDARIES } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
 import type { Side } from '../../../sides'
-import type { SendCommand } from '../../../useCommand'
+import type { SendCommand } from '../useCommand'
 import { Prep } from './Prep'
 import { SetupSidePanel } from './chrome'
 

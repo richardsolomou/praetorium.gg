@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { KeyedPick } from '../../../rosterPicks'
+import type { KeyedPick } from '../rosterPicks'
 import { pickEditor } from './usePicks'
 
 /** The group a model's heavy weapon is chosen from, and a choice nested under it. */

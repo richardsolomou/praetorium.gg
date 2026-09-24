@@ -10,14 +10,14 @@ import { Label } from '@/components/ui/label'
 import { PROFILE_NAME_MAX_LENGTH } from '../../../authConfig'
 import { authClient } from '../../authClient'
 import { AccountSecurity } from './AccountSecurity'
-import { BattleSharing } from '../../components/BattleSharing'
-import { NotificationSettings } from '../../components/NotificationSettings'
+import { BattleSharing } from './BattleSharing'
+import { NotificationSettings } from './NotificationSettings'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
 import { accountMethodsQuery, battlesQuery, friendshipsQuery, meQuery, opponentsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { prepareProfileImage } from '../../profileImage'
+import { prepareProfileImage } from './profileImage'
 
 const accountLinkErrorMessage = (error?: string) => {
   if (!error) return undefined

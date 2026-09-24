@@ -1,7 +1,7 @@
 import type { Attachment, AttachmentLimits } from '../../../../core/attach'
 export { attachmentRows, type AttachmentRow } from '../../../../core/attachmentRows'
 import { normalizedName } from '../../../../core/name'
-import type { KeyedPick } from '../../../rosterPicks'
+import type { KeyedPick } from '../rosterPicks'
 
 /** Only what deciding an attachment needs, so a caller may pass any priced unit. */
 type AttachableUnit = {

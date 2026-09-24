@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import type { Command } from '../../../../core/battle'
 import { type Side, sideName } from '../../../sides'
-import { SidePlayers } from '../../../components/PlayerName'
+import { SidePlayers } from '../PlayerName'
 import { CHOOSABLE, CHOSEN, SetupNote, SetupPanel } from './chrome'
 
 /**

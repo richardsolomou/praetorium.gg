@@ -1,5 +1,5 @@
 import { TypeSafeClient } from '@typesafe-ai/sdk'
-import { classifyCombatRules, type InventoryRule } from './combatRuleShortlist'
+import { classifyCombatRules, type InventoryRule } from './lib/combatRuleShortlist'
 
 const cases: { name: string; description: string; expected: ('attacker' | 'defender')[] }[] = [
   {

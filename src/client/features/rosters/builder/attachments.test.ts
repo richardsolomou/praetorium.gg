@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Attachment, AttachmentLimits } from '../../../../core/attach'
-import type { KeyedPick } from '../../../rosterPicks'
+import type { KeyedPick } from '../rosterPicks'
 import { attachmentRows, joinableUnits } from './attachments'
 
 const leader = (targets: string[]): Attachment => ({ kind: 'leader', targets })

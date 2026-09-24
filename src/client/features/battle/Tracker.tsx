@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../../queries'
-import { missionCardsByKey, primaryCards, secondaryCards } from '../../missionDeck'
+import { missionCardsByKey, primaryCards, secondaryCards } from './missionDeck'
 import {
   MISSION_ACTION_REMINDER_PREFIX,
   missionActionReminderStorageKey,
@@ -13,7 +13,7 @@ import {
   missionActionRemindersEnabled as storedMissionActionRemindersEnabled,
 } from '../../missionActionReminders'
 import { appliesInMode } from '../../missionText'
-import { automaticAttemptsExhausted, claimAutomaticAttempt } from '../../automaticAttempts'
+import { automaticAttemptsExhausted, claimAutomaticAttempt } from './automaticAttempts'
 import { errorMessage } from '../../queryClient'
 import {
   parseReminderDismissals,
@@ -24,9 +24,9 @@ import {
   serializeReminderDismissals,
   type ReminderDismissalContext,
   type ReminderDismissalScope,
-} from '../../reminderDismissals'
-import { armyRulesRequest } from '../../sideRules'
-import { celebrateVictory } from '../../victory'
+} from './reminderDismissals'
+import { armyRulesRequest } from './sideRules'
+import { celebrateVictory } from './victory'
 import { type Side, type SideMission, sides } from '../../sides'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
@@ -44,7 +44,7 @@ import { dueForAdvance, dueFromTheirTurn, ScoringDialog } from './ScoringDialog'
 import { BattleCombatDialog, type BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { SidePanel } from './SidePanel'
 import { TurnControl } from './TurnControl'
-import { TwistName } from '../../components/MissionTwist'
+import { TwistName } from './MissionTwist'
 import { Report, type ReportPlayer } from './Report'
 
 type Props = {

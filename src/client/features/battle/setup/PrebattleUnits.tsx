@@ -1,6 +1,6 @@
 import { attachedUnitList } from '../../../../core/attachedUnits'
 import type { Army, Side } from '../../../sides'
-import { GROUPS } from '../../rosters/builder/groups'
+import { GROUPS } from '../../../unitGroups'
 import { formationLabel, SetupSidePanel } from './chrome'
 
 type Rule = 'infiltrators' | 'scouts'

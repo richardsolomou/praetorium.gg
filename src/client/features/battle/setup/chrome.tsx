@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { gameReferencesQuery } from '../../../queries'
 import type { Side } from '../../../sides'
-import { tint } from '../../../components/battleTints'
-import { SidePlayers } from '../../../components/PlayerName'
+import { tint } from '../battleTints'
+import { SidePlayers } from '../PlayerName'
 import { dispositionTone } from '../../../components/rosterSetup'
 
 /**

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { RosterReminder } from '../../../core/reminders'
-import type { ReminderDismissalScope } from '../../reminderDismissals'
+import type { ReminderDismissalScope } from './reminderDismissals'
 import { RuleText } from '../../components/RuleText'
 import { BattlePromptDialog } from './BattlePromptDialog'
 

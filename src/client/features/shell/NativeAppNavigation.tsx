@@ -3,11 +3,11 @@ import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { BookOpen, Ellipsis, ScrollText, Swords, UsersRound } from 'lucide-react'
 import { useEffect, useLayoutEffect, type ComponentType, type MouseEvent, type ReactNode } from 'react'
 import { setNativeAccount, setNativeHistoryBack, setNativeNavigation } from '../../nativeBridge'
-import { historyStaysInSection, rememberHistorySection } from '../../nativeHistory'
-import { nativeNavigation, type NativeSection } from '../../nativeNavigation'
+import { historyStaysInSection, rememberHistorySection } from './nativeHistory'
+import { nativeNavigation, type NativeSection } from './nativeNavigation'
 import { meQuery } from '../../queries'
-import { restoreNativeTabScroll } from '../../nativeTabScroll'
-import { recallTab, rememberTab, tabLocation } from '../../nativeTabs'
+import { restoreNativeTabScroll } from './nativeTabScroll'
+import { recallTab, rememberTab, tabLocation } from './nativeTabs'
 
 type Tab = { icon: ComponentType<{ className?: string }>; label: string; section: NativeSection; to: string }
 

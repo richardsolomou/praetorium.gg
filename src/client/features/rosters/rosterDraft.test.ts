@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import type { RosterPick } from '../../../core/roster'
 import { picksSchema } from '../../../server/schemas'
-import { positionedPicks } from '../../rosterPicks'
+import { positionedPicks } from './rosterPicks'
 import { draftKey, savedDraft } from './rosterDraft'
 
 const prep = { stratagems: [], secondaries: [] }

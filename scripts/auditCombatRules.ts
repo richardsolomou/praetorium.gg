@@ -7,8 +7,8 @@ import { datasheetIn } from '../src/server/catalogue'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { describeDatasheetAbilities } from '../src/server/datasheetDescriptions'
 import { loadRules } from '../src/server/rules'
-import { combatWeaponKeywordInventory, unselectedCombatRules } from './combatRuleInventory'
-import type { InventoryRule } from './combatRuleShortlist'
+import { combatWeaponKeywordInventory, unselectedCombatRules } from './lib/combatRuleInventory'
+import type { InventoryRule } from './lib/combatRuleShortlist'
 
 const { values } = parseArgs({ options: { json: { type: 'boolean' }, faction: { type: 'string' } } })
 const directory = path.resolve(process.env.CATALOGUE_DIR ?? 'catalogue-data')

@@ -3,7 +3,7 @@ import type { RosterReminder } from '../../../core/reminders'
 import type { RosterPick } from '../../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import type { saveRoster } from '../../../server/functions'
-import { normalisePicks } from '../../rosterPicks'
+import { normalisePicks } from './rosterPicks'
 
 /** A list exactly as the builder's autosave sends it. */
 export type RosterDraft = Parameters<typeof saveRoster>[0]['data']

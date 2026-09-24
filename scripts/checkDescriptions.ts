@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { baselineShortfall } from './baselines'
+import { baselineShortfall } from './lib/baselines'
 import { detachmentCatalogueDetail } from '../src/server/catalogueDescriptions'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { routeSlug } from '../src/core/slug'

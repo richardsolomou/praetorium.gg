@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PASSWORD_MIN_LENGTH } from '../authConfig'
 import { authClient } from '../client/authClient'
-import { finishPasswordRecovery } from '../client/passwordRecovery'
+import { finishPasswordRecovery } from '../client/features/account/passwordRecovery'
 
 export const Route = createFileRoute('/reset-password')({
   validateSearch: (search: Record<string, unknown>) => ({

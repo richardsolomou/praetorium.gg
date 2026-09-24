@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { useEffect } from 'react'
-import { fieldedRoster } from '../client/battleRosterSnapshot'
+import { fieldedRoster } from '../client/features/rosters/fieldedRoster'
 import { BattleRosterSnapshot } from '../client/features/rosters/BattleRosterSnapshot'
 import { RosterEditor } from '../client/features/rosters/RosterEditor'
 import { battleQuery, leagueRosterQuery, rosterAccessQuery, rosterChangesQuery, savedRosterPriceQuery } from '../client/queries'
 import { pageMeta, rosterExposure, rosterPreview } from '../client/linkPreview'
-import { normalisePicks } from '../client/rosterPicks'
+import { normalisePicks } from '../client/features/rosters/rosterPicks'
 import { rosterBootstrap } from '../server/functions'
 
 export const Route = createFileRoute('/rosters/$id/')({

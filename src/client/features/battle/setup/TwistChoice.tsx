@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { changesPrimary, type Twist, TwistInfo } from '../../../components/MissionTwist'
+import { changesPrimary, type Twist, TwistInfo } from '../MissionTwist'
 import { CHOOSABLE, CHOSEN, SetupNote, SetupPanel } from './chrome'
 
 /**

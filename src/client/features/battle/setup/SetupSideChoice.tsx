@@ -1,8 +1,8 @@
 import { Button } from '@/components/ui/button'
 import type { Side } from '../../../sides'
-import { ArmyIdentity } from '../../../components/ArmyIdentity'
-import { SidePlayers } from '../../../components/PlayerName'
-import { tint } from '../../../components/battleTints'
+import { ArmyIdentity } from '../ArmyIdentity'
+import { SidePlayers } from '../PlayerName'
+import { tint } from '../battleTints'
 import { CHOOSABLE, CHOSEN } from './chrome'
 
 /**

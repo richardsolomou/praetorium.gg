@@ -16,7 +16,7 @@ import {
 } from '../../../datasheet'
 import { datasheetSlugQuery, factionQuery } from '../../../queries'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
-import { CollectionToggle } from '../../../components/CollectionToggle'
+import { CollectionToggle } from './CollectionToggle'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from '../../../components/Keyword'
 import { ProfileRules } from '../../rosters/ProfileRules'
 import { RuleText } from '../../../components/RuleText'

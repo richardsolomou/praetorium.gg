@@ -1,6 +1,6 @@
 import { Fragment } from 'react'
 import type { Side } from '../../../sides'
-import { SidePlayers } from '../../../components/PlayerName'
+import { SidePlayers } from '../PlayerName'
 
 /**
  * Who is playing whom, in one line above setup.

@@ -19,7 +19,7 @@ import {
 } from '../../../core/onboarding'
 import { updateOnboardingProgress } from '../../../server/functions'
 import { meQuery, onboardingQuery } from '../../queries'
-import { useCompactChrome } from '../../useCompactChrome'
+import { useCompactChrome } from './useCompactChrome'
 import {
   FIRST_ONBOARDING_STEP,
   ONBOARDING_ADVANCE_EVENT,

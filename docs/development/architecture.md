@@ -21,16 +21,17 @@ routes ──> client ──> contracts ──> core
 - `src/client/components` contains components shared by multiple features.
 - `src/components/ui` is generated shadcn code and is treated as vendored.
 - `src/routes` owns URLs, search validation, loaders, metadata, and composition of feature pages.
+- `scripts` contains executable maintenance and deployment entry points; `scripts/lib` contains their shared helpers and adjacent tests.
 
 ## Placement rules
 
 A route should not contain a substantial page implementation. Move state and rendering into a client feature, leaving the route responsible for the URL and initial data.
 
-The roster builder lives under `src/client/features/rosters/builder`, battle setup under `src/client/features/battle/setup`, and rules and catalogue pages under `src/client/features/reference`. Route files compose those pages and keep URL parameters and metadata.
+The roster builder and its pane history live under `src/client/features/rosters/builder`, battle setup under `src/client/features/battle/setup`, and rules and catalogue pages under `src/client/features/reference`. Route files compose those pages and keep URL parameters and metadata.
 
 A type returned across a server-function boundary belongs in `src/contracts` when client code needs to name it. Client code may call `src/server/functions` but must not import server implementation modules.
 
-Feature-specific browser code belongs in `src/client/features/<feature>`. Put a component in `src/client/components` only when multiple features use it.
+Feature-specific browser code belongs in `src/client/features/<feature>`. Shared browser models live at the `src/client` root, and components used by multiple features live in `src/client/components`.
 
 React Query options belong in `src/client/queries/<feature>.ts`. `src/client/queries.ts` is the public barrel so consumers depend on query behavior rather than its file placement.
 
@@ -38,7 +39,7 @@ Repository and service facades preserve one application entry point while delega
 
 Large authoritative modules are not split by line count alone. `src/core/battle.ts` deliberately owns the complete battle fold and validation. Split a module only when the extracted responsibility has one clear owner and does not duplicate a decision.
 
-`src/core/datasheet.ts` owns datasheet shapes used by deterministic combat code. `src/contracts/catalogue.ts` re-exports them for server and client consumers. Server catalogue projection, display modifiers, and unit pricing rules live in separate modules under `src/server`.
+`src/core/datasheet.ts` owns datasheet shapes used by deterministic combat code. `src/contracts/catalogue.ts` re-exports them for server and client consumers. Server catalogue projection, ability grants, datasheet relationships, display modifiers, and unit pricing rules live in separate modules under `src/server`.
 
 ## Tests
 
