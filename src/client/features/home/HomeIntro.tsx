@@ -1,14 +1,16 @@
 import { Link } from '@tanstack/react-router'
 import { BookOpen, ChevronRight, Crosshair, ListChecks, Map as MapIcon, Shield } from 'lucide-react'
 
+/** The builder, said the way its reader can use it: a visitor keeps a list by signing up, a player already does. */
+const builder = (signedIn: boolean) => ({
+  icon: ListChecks,
+  title: 'Build a roster',
+  text: signedIn ? 'Points and legality checked as you build.' : 'Points and legality as you build. Sign up to keep it.',
+  link: '/rosters' as const,
+  action: signedIn ? 'Open the builder' : 'Try the builder',
+})
+
 const TOOLS = [
-  {
-    icon: ListChecks,
-    title: 'Build a roster',
-    text: 'Points and legality as you build. Sign up to keep it.',
-    link: '/rosters' as const,
-    action: 'Try the builder',
-  },
   {
     icon: Crosshair,
     title: 'Simulate a fight',
@@ -48,12 +50,12 @@ const TOOLS = [
  * player with anything on their home page is not shown this, because every link
  * in it is already in their navigation.
  */
-export function HomeIntro({ title }: { title: string }) {
+export function HomeIntro({ title, signedIn = false }: { title: string; signedIn?: boolean }) {
   return (
     <section>
       <h2 className="text-2xl leading-none sm:text-3xl">{title}</h2>
       <ul className="mt-6 grid border-t border-edge lg:grid-cols-2 lg:gap-x-10">
-        {TOOLS.map(({ icon: Icon, title: name, text, link, action }) => (
+        {[builder(signedIn), ...TOOLS].map(({ icon: Icon, title: name, text, link, action }) => (
           <li key={name} className="min-w-0 border-b border-edge">
             <Link
               to={link}

@@ -52,7 +52,9 @@ test("a visitor's list survives a reload of its tab", async ({ page }) => {
     .toContain('"picks":[{')
 
   // The server cannot see the draft, only the cookie saying there is one, so its frame is the builder rather than the setup.
-  expect(await (await page.request.get('/rosters')).text()).not.toContain('aria-label="Create roster"')
+  const firstFrame = await (await page.request.get('/rosters')).text()
+  expect(firstFrame).toContain('data-roster-builder')
+  expect(firstFrame).not.toContain('aria-label="Create roster"')
   await page.reload()
 
   await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
@@ -77,4 +79,24 @@ test('signing up keeps the list a visitor built', async ({ page }) => {
   await page.goto('/rosters')
   await expect(page.locator('[data-roster]')).toHaveCount(1)
   expect(saves).toHaveLength(1)
+})
+
+test("a visitor's list for an army the data no longer holds can be started again", async ({ page }) => {
+  await page.goto('/rosters')
+  await page.waitForLoadState('networkidle')
+  await page.evaluate(() =>
+    sessionStorage.setItem(
+      'praetorium.workspace-state:/rosters:guest-draft',
+      JSON.stringify({
+        version: 1,
+        id: 'guest-missing-army',
+        draft: { name: '', catalogueId: 'no-such-faction', detachmentIds: [], disposition: null, limit: 2000, picks: [], prep: null },
+      }),
+    ),
+  )
+  await page.reload()
+
+  await expect(page.getByRole('heading', { name: 'This army is not available' })).toBeVisible()
+  await page.getByRole('button', { name: 'Start a new list' }).click()
+  await expect(page.getByRole('region', { name: 'Create roster' })).toBeVisible()
 })

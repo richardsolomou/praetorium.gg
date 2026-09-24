@@ -50,5 +50,5 @@ function RosterLibraryRoute() {
   if (!ready && hinted) return <BuilderFrame />
   if (me && guest) return <ClaimGuestRoster guest={guest} onDiscard={() => setGuest(null)} />
   if (me) return <RosterLibraryPage search={search} />
-  return <GuestRoster guest={guest} onStart={setGuest} />
+  return <GuestRoster guest={guest} onStart={setGuest} onDiscard={() => setGuest(null)} />
 }

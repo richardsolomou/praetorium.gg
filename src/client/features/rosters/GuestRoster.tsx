@@ -50,11 +50,20 @@ export function useGuestDraft(hinted: boolean) {
   return [state, set] as const
 }
 
-export function GuestRoster({ guest, onStart }: { guest: GuestDraft | null; onStart: (guest: GuestDraft) => void }) {
+export function GuestRoster({
+  guest,
+  onStart,
+  onDiscard,
+}: {
+  guest: GuestDraft | null
+  onStart: (guest: GuestDraft) => void
+  onDiscard: () => void
+}) {
   const navigate = useNavigate()
   const [unkept, setUnkept] = useState(false)
   const { data: factionIndex } = useQuery(factionIndexQuery())
-  const { data: faction } = useQuery({ ...factionQuery(guest?.draft.catalogueId ?? ''), enabled: Boolean(guest) })
+  const factionResult = useQuery({ ...factionQuery(guest?.draft.catalogueId ?? ''), enabled: Boolean(guest) })
+  const faction = factionResult.data
 
   // Nothing is built yet, so the setup is the page rather than a dialog over an empty one.
   if (!guest) {
@@ -90,7 +99,34 @@ export function GuestRoster({ guest, onStart }: { guest: GuestDraft | null; onSt
       </main>
     )
   }
-  if (!faction) return <BuilderFrame />
+  if (factionResult.isPending) return <BuilderFrame />
+  // The draft names a faction the army data does not hold now, or none has loaded yet.
+  if (!faction) {
+    return (
+      <PageState
+        headingLevel={1}
+        eyebrow="Roster builder"
+        title="This army is not available"
+        explanation="The army data does not have this list's faction right now. Try again shortly, or start a new list."
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button disabled={factionResult.isFetching} onClick={() => void factionResult.refetch()}>
+              Try again
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                clearGuestDraft()
+                onDiscard()
+              }}
+            >
+              Start a new list
+            </Button>
+          </div>
+        }
+      />
+    )
+  }
   return (
     <main className="flex h-full w-full min-w-0 max-w-full flex-col overflow-x-hidden">
       {unkept ? (

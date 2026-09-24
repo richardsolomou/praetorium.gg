@@ -100,7 +100,7 @@ export function HomeView({ me, mine, friends, open, rosters, rostersDue, friendR
               </>
             }
           />
-          {bare ? <HomeIntro title="Before your first game" /> : null}
+          {bare ? <HomeIntro title="Before your first game" signedIn /> : null}
         </div>
       </main>
     )
