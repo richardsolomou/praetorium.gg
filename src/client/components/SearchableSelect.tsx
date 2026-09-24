@@ -11,7 +11,7 @@ import {
   ComboboxTrigger,
   ComboboxValue,
 } from '@/components/ui/combobox'
-import type { ReactNode } from 'react'
+import { type ReactNode, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { FactionLabel, type FactionPresentation } from './FactionMark'
 import type { OnboardingTarget } from '../onboarding'
@@ -21,8 +21,9 @@ import type { OnboardingTarget } from '../onboarding'
  *
  * `faction` is the faction mark and its name together; `icon` is anything else a
  * caller wants in front of the label, such as the picture on a player's account.
+ * `detail` sits at the end of the row in the list, such as a unit's points.
  */
-export type SearchableOption = { label: string; value: string; faction?: FactionPresentation; icon?: ReactNode }
+export type SearchableOption = { label: string; value: string; faction?: FactionPresentation; icon?: ReactNode; detail?: string }
 export type SearchableGroup = { label: string; items: SearchableOption[] }
 
 type Props = {
@@ -49,6 +50,7 @@ export function SearchableSelect({
   onboarding,
 }: Props) {
   const selected = groups.flatMap((group) => group.items).find((option) => option.value === value) ?? null
+  const list = useRef<HTMLDivElement>(null)
 
   return (
     <Combobox
@@ -60,6 +62,9 @@ export function SearchableSelect({
       itemToStringLabel={(option) => option.label}
       itemToStringValue={(option) => option.value}
       isItemEqualToValue={(option, candidate) => option.value === candidate.value}
+      onOpenChange={(open) => {
+        if (open) requestAnimationFrame(() => list.current?.querySelector('[data-selected]')?.scrollIntoView({ block: 'center' }))
+      }}
     >
       <ComboboxTrigger
         id={id}
@@ -77,7 +82,7 @@ export function SearchableSelect({
       <ComboboxContent className="transition-none">
         <ComboboxInput placeholder={searchPlaceholder} showTrigger={false} />
         <ComboboxEmpty className="text-dim">No matches.</ComboboxEmpty>
-        <ComboboxList>
+        <ComboboxList ref={list}>
           {(group: SearchableGroup) => (
             <ComboboxGroup key={group.label} items={group.items} className="pb-1 last:pb-0">
               {group.label ? <ComboboxLabel className="eyebrow text-faint">{group.label}</ComboboxLabel> : null}
@@ -85,6 +90,7 @@ export function SearchableSelect({
                 {(option: SearchableOption) => (
                   <ComboboxItem key={option.value} value={option} className="data-highlighted:bg-edge">
                     <OptionLabel option={option} />
+                    {option.detail ? <span className="ml-auto shrink-0 pl-3 text-xs text-dim">{option.detail}</span> : null}
                   </ComboboxItem>
                 )}
               </ComboboxCollection>

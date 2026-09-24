@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { attackSequence, diceExpression, simulateCombat, woundTarget, type CombatInput } from './combat'
 
 const input = (): CombatInput => ({
-  target: { models: 5, toughness: 4, save: 7, invulnerable: null, wounds: 2, feelNoPain: null },
+  target: { groups: [{ models: 5, toughness: 4, save: 7, invulnerable: null, wounds: 2 }], feelNoPain: null },
   weapons: [
     {
       count: 1,
@@ -114,14 +114,14 @@ describe('combat', () => {
 
   it('rolls Sustained Hits separately for every critical hit without making extra hits lethal', () => {
     const scenario = input()
-    Object.assign(scenario.target, { models: 10, wounds: 1 })
+    Object.assign(scenario.target.groups[0]!, { models: 10, wounds: 1 })
     Object.assign(scenario.weapons[0]!, {
       attacks: { dice: 0, sides: 6, bonus: 2 },
       lethal: true,
       sustained: { dice: 1, sides: 3, bonus: 0 },
       damage: { dice: 0, sides: 6, bonus: 1 },
     })
-    expect(attackSequence(scenario, rolls(6, 1, 1, 4, 1, 6, 1, 6, 1, 4, 1, 4, 1))).toEqual({ damage: 5, killed: 5 })
+    expect(attackSequence(scenario, rolls(6, 1, 4, 6, 6, 1, 4, 4, 1, 1, 1, 1, 1))).toEqual({ damage: 5, killed: 5 })
   })
   it('does not roll variable Sustained Hits on a normal hit', () => {
     const scenario = input()
@@ -132,13 +132,15 @@ describe('combat', () => {
     const scenario = input()
     scenario.options.halfRange = halfRange
     Object.assign(scenario.weapons[0]!, { rapidFire: { dice: 1, sides: 3, bonus: 0 }, torrent: true })
-    expect(attackSequence(scenario, rolls(...(halfRange ? [1] : []), 4, 1, ...(halfRange ? [4, 1] : []))).killed).toBe(halfRange ? 2 : 1)
+    expect(
+      attackSequence(scenario, rolls(...(halfRange ? [1] : []), 4, ...(halfRange ? [4] : []), 1, ...(halfRange ? [1] : []))).killed,
+    ).toBe(halfRange ? 2 : 1)
   })
   it('counts Cleave attacks from the original target size throughout the attack sequence', () => {
     const scenario = input()
-    Object.assign(scenario.target, { models: 5, wounds: 1 })
+    Object.assign(scenario.target.groups[0]!, { models: 5, wounds: 1 })
     Object.assign(scenario.weapons[0]!, { count: 2, cleave: 1, torrent: true })
-    expect(attackSequence(scenario, rolls(4, 1, 4, 1, 4, 1, 4, 1)).killed).toBe(4)
+    expect(attackSequence(scenario, rolls(4, 4, 4, 4, 1, 1, 1, 1)).killed).toBe(4)
   })
   it('bounds work using maximum variable extra hits', () => {
     const scenario = input()
@@ -153,7 +155,7 @@ describe('combat', () => {
     const scenario = input()
     scenario.weapons[0]!.damage = { dice: 1, sides: 6, bonus: 0 }
     scenario.weapons[0]!.damageReroll = 'ones'
-    scenario.target.wounds = 8
+    scenario.target.groups[0]!.wounds = 8
     scenario.target.damageReduction = 1
     expect(attackSequence(scenario, rolls(3, 4, 1, 1, 4))).toEqual({ damage: 3, killed: 0 })
   })
@@ -176,7 +178,8 @@ describe('combat', () => {
   it('does not apply saves or damage reduction to separate mortal wounds', () => {
     const scenario = input()
     scenario.weapons = []
-    Object.assign(scenario.target, { invulnerable: 2, damageReduction: 2, damageDivisor: 2 })
+    scenario.target.groups[0]!.invulnerable = 2
+    Object.assign(scenario.target, { damageReduction: 2, damageDivisor: 2 })
     scenario.mortalWounds = [{ timing: 'before', rolls: 1, outcomes: [{ min: 2, max: 6, damage: { dice: 0, sides: 6, bonus: 3 } }] }]
     expect(attackSequence(scenario, rolls(2))).toEqual({ damage: 3, killed: 1 })
   })
@@ -238,7 +241,7 @@ describe('combat', () => {
   it('preserves automatic Anti wounds alongside a lower successful critical threshold', () => {
     const scenario = input()
     Object.assign(scenario.weapons[0]!, { strength: 1, criticalWound: 5, successfulCriticalWound: 4, devastating: true })
-    scenario.target.invulnerable = 2
+    scenario.target.groups[0]!.invulnerable = 2
     expect(attackSequence(scenario, rolls(3, 5)).damage).toBe(2)
   })
   it('ignores negative hit modifiers while retaining a separate positive modifier', () => {
@@ -286,7 +289,7 @@ describe('combat', () => {
   })
   it('keeps automatic lethal wounds from becoming critical wounds', () => {
     const scenario = input()
-    scenario.target.save = 2
+    scenario.target.groups[0]!.save = 2
     Object.assign(scenario.weapons[0]!, { lethal: true, criticalWound: 6, successfulCriticalWound: 5, devastating: true })
     expect(attackSequence(scenario, rolls(6, 2)).damage).toBe(0)
   })
@@ -297,7 +300,8 @@ describe('combat', () => {
   })
   it('halves damage before reduction and rounds up before prevention', () => {
     const scenario = input()
-    Object.assign(scenario.target, { wounds: 10, damageDivisor: 2, damageReduction: 1, feelNoPain: 5 })
+    scenario.target.groups[0]!.wounds = 10
+    Object.assign(scenario.target, { damageDivisor: 2, damageReduction: 1, feelNoPain: 5 })
     scenario.weapons[0]!.damage.bonus = 7
     expect(attackSequence(scenario, rolls(3, 4, 2, 5, 4, 4)).damage).toBe(2)
   })
@@ -323,7 +327,7 @@ describe('combat', () => {
     [6, 2],
   ])('a wound roll of %i applies critical AP only to a critical wound', (wound, damage) => {
     const scenario = input()
-    scenario.target.save = 3
+    scenario.target.groups[0]!.save = 3
     scenario.weapons[0]!.criticalAp = -1
     expect(attackSequence(scenario, rolls(3, wound, 3)).damage).toBe(damage)
   })
@@ -337,11 +341,11 @@ describe('combat', () => {
     const scenario = input()
     scenario.target.damage = 1
     scenario.weapons[0]!.attacks.bonus = 2
-    expect(attackSequence(scenario, rolls(3, 4, 2, 3, 4, 2))).toEqual({ damage: 3, killed: 2 })
+    expect(attackSequence(scenario, rolls(3, 4, 3, 4, 2, 2))).toEqual({ damage: 3, killed: 2 })
   })
   it('bounds the damage distribution by remaining wounds', () => {
     const scenario = input()
-    scenario.target.models = 1
+    scenario.target.groups[0]!.models = 1
     scenario.target.damage = 1
     expect(simulateCombat(scenario).damage).toHaveLength(2)
   })
@@ -390,11 +394,11 @@ describe('combat', () => {
     const scenario = input()
     scenario.weapons[0]!.attacks.bonus = 3
     scenario.weapons[0]!.damage.bonus = 1
-    expect(attackSequence(scenario, rolls(3, 4, 2, 3, 4, 2, 3, 4, 2))).toEqual({ damage: 3, killed: 1 })
+    expect(attackSequence(scenario, rolls(3, 4, 3, 4, 3, 4, 2, 2, 2))).toEqual({ damage: 3, killed: 1 })
   })
   it('uses an invulnerable save when AP defeats armour', () => {
     const scenario = input()
-    scenario.target.invulnerable = 4
+    scenario.target.groups[0]!.invulnerable = 4
     scenario.weapons[0]!.ap = -4
     expect(attackSequence(scenario, rolls(3, 4, 4)).damage).toBe(0)
   })
@@ -428,13 +432,13 @@ describe('combat', () => {
   it('anti critical wounds bypass saves through devastating wounds', () => {
     const scenario = input()
     Object.assign(scenario.weapons[0]!, { devastating: true, criticalWound: 4 })
-    scenario.target.invulnerable = 2
+    scenario.target.groups[0]!.invulnerable = 2
     expect(attackSequence(scenario, rolls(3, 4)).killed).toBe(1)
   })
   it('a lethal hit is not a critical wound', () => {
     const scenario = input()
     Object.assign(scenario.weapons[0]!, { devastating: true, lethal: true })
-    scenario.target.invulnerable = 2
+    scenario.target.groups[0]!.invulnerable = 2
     expect(attackSequence(scenario, rolls(6, 2)).damage).toBe(0)
   })
   it('can decline lethal hits to attempt a critical wound', () => {
@@ -492,7 +496,7 @@ describe('combat', () => {
     const scenario = input()
     scenario.options.halfRange = true
     scenario.weapons[0]!.rapidFire = 1
-    expect(attackSequence(scenario, rolls(3, 4, 2, 3, 4, 2)).killed).toBe(2)
+    expect(attackSequence(scenario, rolls(3, 4, 3, 4, 2, 2)).killed).toBe(2)
   })
   it('rapid fire adds no attacks beyond half range', () => {
     const scenario = input()
@@ -503,7 +507,7 @@ describe('combat', () => {
     const scenario = input()
     scenario.weapons[0]!.count = 2
     scenario.weapons[0]!.blast = 1
-    expect(attackSequence(scenario, rolls(3, 4, 2, 3, 4, 2, 3, 4, 2, 3, 4, 2)).killed).toBe(4)
+    expect(attackSequence(scenario, rolls(3, 4, 3, 4, 3, 4, 3, 4, 2, 2, 2, 2)).killed).toBe(4)
   })
   it('melta adds damage at half range', () => {
     const scenario = input()
@@ -533,7 +537,7 @@ describe('combat', () => {
   it('rolls random attacks once per equipped weapon', () => {
     const scenario = input()
     Object.assign(scenario.weapons[0]!, { count: 2, attacks: { dice: 1, sides: 3, bonus: 0 } })
-    expect(attackSequence(scenario, rolls(1, 3, 4, 2, 3, 3, 4, 2, 3, 4, 2)).killed).toBe(3)
+    expect(attackSequence(scenario, rolls(1, 3, 4, 3, 3, 4, 3, 4, 2, 2, 2)).killed).toBe(3)
   })
   it('rolls random damage for each unsaved attack', () => {
     const scenario = input()
@@ -557,9 +561,41 @@ describe('combat', () => {
   })
   it('caps wounds lost at the target size', () => {
     const scenario = input()
-    scenario.target.models = 1
+    scenario.target.groups[0]!.models = 1
     scenario.weapons[0]!.attacks.bonus = 2
-    expect(attackSequence(scenario, rolls(3, 4, 2))).toEqual({ damage: 2, killed: 1 })
+    expect(attackSequence(scenario, rolls(3, 4, 3, 4, 2, 2))).toEqual({ damage: 2, killed: 1 })
+  })
+  describe('mixed allocation groups', () => {
+    const group = (overrides: Partial<CombatInput['target']['groups'][number]>) => ({
+      models: 1,
+      toughness: 4,
+      save: 7,
+      invulnerable: null,
+      wounds: 1,
+      ...overrides,
+    })
+    it('resolves the lowest save rolls against the current group first', () => {
+      const scenario = input()
+      scenario.target.groups = [group({}), group({ save: 2 })]
+      scenario.weapons[0]!.attacks.bonus = 2
+      expect(attackSequence(scenario, rolls(3, 4, 3, 4, 6, 1)).killed).toBe(1)
+    })
+    it('wounds against the highest Toughness among the models on the battlefield', () => {
+      const scenario = input()
+      scenario.target.groups = [group({}), group({ toughness: 8 })]
+      expect(attackSequence(scenario, rolls(3, 5)).damage).toBe(0)
+    })
+    it('drops to the next highest Toughness once the tougher group is destroyed', () => {
+      const scenario = input()
+      scenario.target.groups = [group({ toughness: 8 }), group({})]
+      scenario.weapons = [{ ...scenario.weapons[0]!, strength: 8 }, scenario.weapons[0]!]
+      expect(attackSequence(scenario, rolls(3, 4, 2, 3, 4, 2)).killed).toBe(2)
+    })
+    it('sizes the damage distribution from every group', () => {
+      const scenario = input()
+      scenario.target.groups = [group({ models: 2 }), group({ wounds: 3 })]
+      expect(simulateCombat(scenario).damage).toHaveLength(6)
+    })
   })
   it('estimates an independently calculated one-attack kill probability', () => {
     const result = simulateCombat(input())

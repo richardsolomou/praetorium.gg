@@ -1,9 +1,15 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { ArrowLeftRight, Crosshair, Swords } from 'lucide-react'
+import { ArrowUp, Crosshair, RotateCcw, Swords } from 'lucide-react'
 import { ProfileGrid, WeaponProfiles } from '../builder/DatasheetPanel'
 import type { Datasheet } from '../../../contracts/catalogue'
-import { DEFAULT_COMBAT_OPTIONS, type CombatInput, type CombatOptions, type CombatResult } from '../../../core/combat'
+import {
+  DEFAULT_COMBAT_OPTIONS,
+  type CombatInput,
+  type CombatTargetGroup,
+  type CombatOptions,
+  type CombatResult,
+} from '../../../core/combat'
 import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatPlan, combatTarget } from '../../../core/combatProfiles'
 import {
@@ -15,7 +21,7 @@ import {
   type ActiveCombatRule,
 } from '../../../core/combatRules'
 import { CombatRuleLabel } from './CombatRuleLabel'
-import { Choice, rerolls, Toggle } from './CombatControls'
+import { Chip, Choice, Segmented } from './CombatControls'
 import { CombatEstimate } from './CombatEstimate'
 
 export type CombatantSnapshot = {
@@ -28,15 +34,33 @@ export type CombatantSnapshot = {
   allocationRequired?: boolean
 }
 type Phase = CombatOptions['phase']
-export type CombatContext = {
+/** Situational extras layered over the datasheet and its rules; each combines the way the game combines two sources. */
+type CombatAdjustments = {
   ranged?: Partial<Omit<CombatOptions, 'phase'>>
   melee?: Partial<Omit<CombatOptions, 'phase'>>
   feelNoPain?: number | null
-  sources?: readonly string[]
 }
 export type CombatRequest = Record<Phase, CombatInput | null>
 export type CombatAnswer = Record<Phase, { result?: CombatResult; error?: string } | null>
-const NO_CONTEXT: CombatContext = {}
+const rerollRank = { none: 0, ones: 1, failed: 2 } as const
+const modifiers = [
+  [-1, '−1'],
+  [0, '0'],
+  [1, '+1'],
+] as const
+const rerolls = [
+  ['none', 'None'],
+  ['ones', '1s'],
+  ['failed', 'Failed'],
+] as const
+const situations = {
+  ranged: [
+    ['cover', 'Cover (−1 BS)'],
+    ['halfRange', 'Half range'],
+    ['heavy', 'Heavy'],
+  ],
+  melee: [['charged', 'Charged']],
+} as const
 const phases = [
   ['ranged', 'Shooting'],
   ['melee', 'Melee'],
@@ -48,57 +72,87 @@ export function CombatMatchup({
   defender,
   pending = false,
   failed = false,
-  context = NO_CONTEXT,
   attackerControl,
   defenderControl,
-  onSwap,
   buffs,
 }: {
   attacker: CombatantSnapshot | null
   defender: CombatantSnapshot | null
   pending?: boolean
   failed?: boolean
-  context?: CombatContext
   attackerControl?: ReactNode
   defenderControl?: ReactNode
-  onSwap?: () => void
   buffs?: ReactNode
 }) {
-  const [overrides, setOverrides] = useState<CombatContext>({})
+  const [adjustments, setAdjustments] = useState<CombatAdjustments>({})
   const [preferences, setPreferences] = useState<Record<string, string>>({})
   const [outcome, setOutcome] = useState<{ key: string; attempt: number; answer: CombatAnswer } | null>(null)
   const [retry, setRetry] = useState(0)
-  const target = defender ? combatTarget(defender.sheet, defender.models, defender.startingModels) : null
-  if (target?.target) target.target.damage = defender?.damage ?? 0
+  const results = useRef<HTMLDivElement>(null)
+  const [resultsVisible, setResultsVisible] = useState(true)
+  useEffect(() => {
+    const numbers = [...(results.current?.querySelectorAll('[data-result-numbers]') ?? [])]
+    const visible = new Map<Element, boolean>()
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) visible.set(entry.target, entry.isIntersecting)
+      setResultsVisible(numbers.every((element) => visible.get(element)))
+    })
+    for (const element of numbers) observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+  const [allocation, setAllocation] = useState<readonly string[]>([])
+  const built = defender ? combatTarget(defender.sheet, defender.models, defender.startingModels, defender.carriers) : null
+  const position = (label: string) => (allocation.includes(label) ? allocation.indexOf(label) : allocation.length)
+  const order = (built?.labels ?? []).map((_, index) => index).toSorted((a, b) => position(built!.labels[a]!) - position(built!.labels[b]!))
+  const labels = order.map((index) => built!.labels[index]!)
+  const target =
+    built?.target && defender
+      ? {
+          ...built,
+          labels,
+          target: { ...built.target, groups: order.map((index) => built.target!.groups[index]!), damage: defender.damage ?? 0 },
+        }
+      : built
+  const allocateEarlier = (index: number) =>
+    setAllocation(labels.map((label, at) => (at === index - 1 ? labels[index]! : at === index ? labels[index - 1]! : label)))
   const attackRules = attacker?.rules ?? []
   const defenceRules = defender?.rules ?? []
   const rangedDefences = target?.target ? combatRuleDefences(target.target, defenceRules, 'ranged', attackRules) : null
   const meleeDefences = target?.target ? combatRuleDefences(target.target, defenceRules, 'melee', attackRules) : null
-  const printedFeelNoPain =
-    rangedDefences?.feelNoPain === meleeDefences?.feelNoPain ? rangedDefences?.feelNoPain : target?.target?.feelNoPain
-  const defaultFeelNoPain = context.feelNoPain === undefined ? (printedFeelNoPain ?? null) : context.feelNoPain
-  const feelNoPain = overrides.feelNoPain === undefined ? defaultFeelNoPain : overrides.feelNoPain
+  const extraFeelNoPain = adjustments.feelNoPain ?? null
+  const betterFeelNoPain = (printed: number | null | undefined) =>
+    extraFeelNoPain && (!printed || extraFeelNoPain < printed) ? extraFeelNoPain : (printed ?? null)
+  const withExtraFeelNoPain = (defences: CombatInput['target']) => ({ ...defences, feelNoPain: betterFeelNoPain(defences.feelNoPain) })
+  const feelNoPain = betterFeelNoPain(
+    rangedDefences?.feelNoPain === meleeDefences?.feelNoPain ? rangedDefences?.feelNoPain : target?.target?.feelNoPain,
+  )
+  const inheritedOptions = (phase: Phase) => ({
+    ...DEFAULT_COMBAT_OPTIONS,
+    ...combatRuleOptions(attackRules, 'attacker', phase),
+    ...combatRuleOptions(defenceRules, 'defender', phase),
+  })
   const options = (phase: Phase): CombatOptions => {
     const attack = combatRuleOptions(attackRules, 'attacker', phase)
     const defence = combatRuleOptions(defenceRules, 'defender', phase)
-    const inherited = { ...DEFAULT_COMBAT_OPTIONS, ...context[phase], ...attack, ...defence }
-    const modifier = (field: 'hitModifier' | 'woundModifier') =>
-      (context[phase]?.[field] ?? 0) + (attack[field] ?? 0) + (defence[field] ?? 0)
+    const inherited = inheritedOptions(phase)
+    const extra = adjustments[phase] ?? {}
+    const better = (field: 'hitReroll' | 'woundReroll') =>
+      rerollRank[extra[field] ?? 'none'] > rerollRank[inherited[field]] ? extra[field]! : inherited[field]
     return {
       ...inherited,
-      hitModifier: modifier('hitModifier'),
-      woundModifier: modifier('woundModifier'),
-      ...overrides[phase],
+      cover: inherited.cover || Boolean(extra.cover),
+      halfRange: inherited.halfRange || Boolean(extra.halfRange),
+      heavy: inherited.heavy || Boolean(extra.heavy),
+      charged: inherited.charged || Boolean(extra.charged),
+      lethal: extra.lethal ?? inherited.lethal,
+      indirectFire: extra.indirectFire ?? inherited.indirectFire,
+      hitModifier: (attack.hitModifier ?? 0) + (defence.hitModifier ?? 0) + (extra.hitModifier ?? 0),
+      woundModifier: (attack.woundModifier ?? 0) + (defence.woundModifier ?? 0) + (extra.woundModifier ?? 0),
+      hitReroll: better('hitReroll'),
+      woundReroll: better('woundReroll'),
       positiveWoundModifier:
-        overrides[phase]?.woundModifier === undefined
-          ? Math.max(0, context[phase]?.woundModifier ?? 0) + (attack.positiveWoundModifier ?? 0) + (defence.positiveWoundModifier ?? 0)
-          : Math.max(0, overrides[phase].woundModifier),
-      psychicHitModifier:
-        overrides[phase]?.hitModifier === undefined
-          ? (context[phase]?.psychicHitModifier ?? Math.max(0, context[phase]?.hitModifier ?? 0)) +
-            (attack.psychicHitModifier ?? 0) +
-            (defence.psychicHitModifier ?? 0)
-          : Math.max(0, overrides[phase].hitModifier),
+        (attack.positiveWoundModifier ?? 0) + (defence.positiveWoundModifier ?? 0) + Math.max(0, extra.woundModifier ?? 0),
+      psychicHitModifier: (attack.psychicHitModifier ?? 0) + (defence.psychicHitModifier ?? 0) + Math.max(0, extra.hitModifier ?? 0),
       phase,
     }
   }
@@ -114,7 +168,6 @@ export function CombatMatchup({
   const scenario = (phase: Phase): CombatInput | null => {
     const plan = plans[phase]
     const defences = phase === 'ranged' ? rangedDefences : meleeDefences
-    const configuredFeelNoPain = overrides.feelNoPain === undefined ? context.feelNoPain : overrides.feelNoPain
     const mortalWounds = combatRuleMortals(attackRules, phase, defender?.sheet.keywords ?? [], plan?.used ?? [], attacker?.models ?? 0)
     return attacker &&
       defences &&
@@ -123,12 +176,7 @@ export function CombatMatchup({
       (plan.weapons.length || mortalWounds.length) &&
       !plan.errors.length
       ? {
-          target: {
-            ...defences,
-            feelNoPain: configuredFeelNoPain === undefined ? defences.feelNoPain : configuredFeelNoPain,
-            psychicFeelNoPain: configuredFeelNoPain === undefined ? defences.psychicFeelNoPain : null,
-            mortalFeelNoPain: configuredFeelNoPain === undefined ? defences.mortalFeelNoPain : null,
-          },
+          target: withExtraFeelNoPain(defences),
           weapons: combatRuleWeapons(
             attacker.sheet,
             combatRuleWeapons(attacker.sheet, plan.used, attackRules, 'attacker', phase, defender?.sheet.keywords ?? []).map(
@@ -188,14 +236,13 @@ export function CombatMatchup({
     return stop
   }, [requestKey, pending, failed, retry])
   const change = <K extends keyof CombatOptions>(phase: Phase, name: K, value: CombatOptions[K]) =>
-    setOverrides((current) => ({ ...current, [phase]: { ...current[phase], [name]: value } }))
+    setAdjustments((current) => ({ ...current, [phase]: { ...current[phase], [name]: value } }))
   const sources = [
-    ...new Set([
-      ...(context.sources ?? []),
-      ...[attacker, defender].flatMap(
+    ...new Set(
+      [attacker, defender].flatMap(
         (unit) => unit?.sheet.profiles.flatMap((profile) => profile.values.flatMap((value) => value.modifiers ?? [])) ?? [],
       ),
-    ]),
+    ),
   ]
   return (
     <div className="@container min-w-0 border border-edge bg-panel" aria-label="Combat matchup">
@@ -204,33 +251,17 @@ export function CombatMatchup({
           {attackerControl ?? <CombatantHeading side="Attacker" unit={attacker} />}
           <CombatDefences unit={attacker} />
         </section>
-        <section aria-label="Defender" className="relative min-w-0">
-          {onSwap ? (
-            <Button
-              variant="outline"
-              size="icon-sm"
-              className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2 bg-panel @xl:left-0 @xl:top-1/2"
-              aria-label="Swap attacker and defender"
-              title="Swap attacker and defender"
-              onClick={onSwap}
-              disabled={!attacker || !defender || pending || failed}
-            >
-              <ArrowLeftRight className="size-4 rotate-90 @xl:rotate-0" />
-            </Button>
-          ) : null}
+        <section aria-label="Defender" className="min-w-0">
           {defenderControl ?? <CombatantHeading side="Defender" unit={defender} />}
           <CombatDefences
             unit={defender}
             feelNoPain={feelNoPain}
             configured={
-              rangedDefences &&
-              meleeDefences &&
-              rangedDefences.invulnerable === meleeDefences.invulnerable &&
-              rangedDefences.save === meleeDefences.save &&
-              rangedDefences.toughness === meleeDefences.toughness
-                ? rangedDefences
+              rangedDefences && meleeDefences && JSON.stringify(rangedDefences.groups) === JSON.stringify(meleeDefences.groups)
+                ? { target: rangedDefences, labels }
                 : undefined
             }
+            onAllocateEarlier={allocateEarlier}
           />
         </section>
       </div>
@@ -245,7 +276,7 @@ export function CombatMatchup({
             {target.error}
           </p>
         ) : null}
-        <div className="grid gap-3 @xl:grid-cols-2">
+        <div ref={results} className="grid gap-3 @xl:grid-cols-2">
           {phases.map(([phase, title]) => {
             const plan = plans[phase]
             const answer = outcome?.answer[phase]
@@ -267,7 +298,7 @@ export function CombatMatchup({
                   )}
                   {title}
                 </h2>
-                <div className="my-3 grid min-h-20 grid-cols-3 gap-2 border-y border-edge py-3">
+                <div data-result-numbers className="my-3 grid min-h-20 grid-cols-3 gap-2 border-y border-edge py-3">
                   {[
                     { label: 'Wounds lost', value: result?.meanDamage.toFixed(2), distribution: result?.damage },
                     { label: 'Models lost', value: result?.meanKills.toFixed(2), distribution: result?.kills },
@@ -355,108 +386,122 @@ export function CombatMatchup({
             })}
           </div>
         )}
-        <section aria-label="Conditions and rules" className="mt-4 border-t border-edge pt-3">
-          <h2 className="rubric">Conditions & rules{sources.length ? ` · ${sources.length} inherited` : ''}</h2>
-          <div className="mt-4 grid gap-5 @xl:grid-cols-2">
-            {phases.map(([phase, title]) => {
-              const current = options(phase)
-              return (
-                <fieldset key={phase} className="min-w-0 space-y-3">
-                  <legend className="rubric mb-3">{title} conditions</legend>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Choice
-                      label="Hit modifier"
-                      ariaLabel={`${title} hit modifier`}
-                      value={Math.max(-1, Math.min(1, current.hitModifier))}
-                      choices={[
-                        [-1, '−1'],
-                        [0, 'None'],
-                        [1, '+1'],
-                      ]}
-                      onChange={(value) => change(phase, 'hitModifier', value)}
+        <section aria-label="Conditions" className="mt-4 border-t border-edge pt-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="rubric">Conditions</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setAdjustments({})
+                setPreferences({})
+              }}
+            >
+              <RotateCcw aria-hidden />
+              Reset adjustments
+            </Button>
+          </div>
+          <div className="mt-3 grid grid-cols-2 items-center gap-x-2 gap-y-1.5 text-xs @md:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)] @md:gap-x-3 @md:gap-y-2">
+            <span className="hidden @md:block" />
+            {phases.map(([phase, title]) => (
+              <h3 key={phase} className="rubric flex items-center gap-1.5">
+                {phase === 'ranged' ? (
+                  <Crosshair className="size-3.5 text-info" aria-hidden />
+                ) : (
+                  <Swords className="size-3.5 text-info" aria-hidden />
+                )}
+                {title}
+              </h3>
+            ))}
+            {(
+              [
+                ['Hit roll', 'hit modifier', 'hitModifier'],
+                ['Wound roll', 'wound modifier', 'woundModifier'],
+              ] as const
+            ).map(([label, name, field]) => (
+              <Fragment key={field}>
+                <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">{label}</span>
+                {phases.map(([phase, title]) => (
+                  <Segmented
+                    key={phase}
+                    label={`${title} ${name}`}
+                    value={adjustments[phase]?.[field] ?? 0}
+                    choices={modifiers}
+                    onChange={(value) => change(phase, field, value)}
+                  />
+                ))}
+              </Fragment>
+            ))}
+            {(
+              [
+                ['Re-roll hits', 'hit re-rolls', 'hitReroll'],
+                ['Re-roll wounds', 'wound re-rolls', 'woundReroll'],
+              ] as const
+            ).map(([label, name, field]) => (
+              <Fragment key={field}>
+                <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">{label}</span>
+                {phases.map(([phase, title]) => (
+                  <Segmented
+                    key={phase}
+                    label={`${title} ${name}`}
+                    value={adjustments[phase]?.[field] ?? 'none'}
+                    choices={rerolls}
+                    onChange={(value) => change(phase, field, value)}
+                  />
+                ))}
+              </Fragment>
+            ))}
+            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:self-start @md:pt-2">Situation</span>
+            <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              {phases.map(([phase, title]) => (
+                <div key={phase} className="flex flex-wrap items-center gap-1.5">
+                  {phase === 'ranged' ? (
+                    <Crosshair className="size-3.5 text-info" aria-label={title} />
+                  ) : (
+                    <Swords className="size-3.5 text-info" aria-label={title} />
+                  )}
+                  {situations[phase].map(([field, label]) => (
+                    <Chip
+                      key={field}
+                      label={label}
+                      checked={inheritedOptions(phase)[field] || Boolean(adjustments[phase]?.[field])}
+                      disabled={inheritedOptions(phase)[field]}
+                      onChange={(value) => change(phase, field, value)}
                     />
-                    <Choice
-                      label="Wound modifier"
-                      ariaLabel={`${title} wound modifier`}
-                      value={Math.max(-1, Math.min(1, current.woundModifier))}
-                      choices={[
-                        [-1, '−1'],
-                        [0, 'None'],
-                        [1, '+1'],
-                      ]}
-                      onChange={(value) => change(phase, 'woundModifier', value)}
-                    />
-                    <Choice
-                      label="Hit re-rolls"
-                      ariaLabel={`${title} hit re-rolls`}
-                      value={current.hitReroll}
-                      choices={rerolls}
-                      onChange={(value) => change(phase, 'hitReroll', value)}
-                    />
-                    <Choice
-                      label="Wound re-rolls"
-                      ariaLabel={`${title} wound re-rolls`}
-                      value={current.woundReroll}
-                      choices={rerolls}
-                      onChange={(value) => change(phase, 'woundReroll', value)}
-                    />
-                  </div>
-                  <div className="space-y-3 text-xs">
-                    {phase === 'ranged' ? (
-                      <>
-                        {plans.ranged?.weapons.some((weapon) => weapon.indirectFire) && (
-                          <Choice
-                            label="Indirect shooting"
-                            ariaLabel="Indirect shooting"
-                            value={current.indirectFire ?? 'direct'}
-                            choices={[
-                              ['direct', 'Off'],
-                              ['unobserved', 'Unobserved or moving'],
-                              ['spotted', 'Stationary and spotted'],
-                            ]}
-                            onChange={(value) => change(phase, 'indirectFire', value)}
-                          />
-                        )}
-                        {plans.ranged?.weapons.some((weapon) => weapon.indirectFire) && current.indirectFire !== 'direct' && (
-                          <p className="text-faint">
-                            Spotted: visible to a friendly unit. Indirect weapons grant cover and cannot re-roll hits.
-                          </p>
-                        )}
-                        <Toggle
-                          label="Defender has cover (−1 BS)"
-                          checked={current.cover}
-                          onChange={(value) => change(phase, 'cover', value)}
-                        />
-                        <Toggle
-                          label="All weapons within half range"
-                          checked={current.halfRange}
-                          onChange={(value) => change(phase, 'halfRange', value)}
-                        />
-                        <Toggle label="Heavy conditions met" checked={current.heavy} onChange={(value) => change(phase, 'heavy', value)} />
-                        <p className="text-faint">Heavy: unengaged, not set up this turn, and no model moved more than 3″.</p>
-                      </>
-                    ) : (
-                      <Toggle
-                        label="Attacker charged this turn"
-                        checked={current.charged}
-                        onChange={(value) => change(phase, 'charged', value)}
-                      />
-                    )}
-                    <Toggle
-                      label={`${title}: use Lethal Hits`}
-                      checked={current.lethal}
+                  ))}
+                  {plans[phase]?.weapons.some((weapon) => weapon.lethal) ? (
+                    <Chip
+                      label="Use Lethal Hits"
+                      ariaLabel={`${title} use Lethal Hits`}
+                      checked={options(phase).lethal}
                       onChange={(value) => change(phase, 'lethal', value)}
                     />
-                  </div>
-                </fieldset>
-              )
-            })}
-          </div>
-          <div className="mt-4 flex items-end gap-3">
-            <div className="max-w-52 flex-1">
-              <Choice
-                label="Defender Feel No Pain"
-                value={feelNoPain ?? 0}
+                  ) : null}
+                </div>
+              ))}
+            </div>
+            {plans.ranged?.weapons.some((weapon) => weapon.indirectFire) ? (
+              <>
+                <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Indirect fire</span>
+                <div className="col-span-2">
+                  <Segmented
+                    label="Indirect shooting"
+                    value={options('ranged').indirectFire ?? 'direct'}
+                    choices={[
+                      ['direct', 'Off'],
+                      ['unobserved', 'Unobserved or moving'],
+                      ['spotted', 'Stationary and spotted'],
+                    ]}
+                    onChange={(value) => change('ranged', 'indirectFire', value)}
+                  />
+                </div>
+              </>
+            ) : null}
+            <span className="col-span-2 pt-1 text-dim @md:col-span-1 @md:pt-0">Extra FNP</span>
+            <div className="col-span-2">
+              <Segmented
+                label="Extra Feel No Pain"
+                value={extraFeelNoPain ?? 0}
                 choices={[
                   [0, 'None'],
                   [6, '6+'],
@@ -465,25 +510,48 @@ export function CombatMatchup({
                   [3, '3+'],
                   [2, '2+'],
                 ]}
-                onChange={(value) => setOverrides((current) => ({ ...current, feelNoPain: value || null }))}
+                onChange={(value) => setAdjustments((current) => ({ ...current, feelNoPain: value || null }))}
               />
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setOverrides({})
-                setPreferences({})
-              }}
-            >
-              Reset adjustments
-            </Button>
           </div>
           {sources.length ? (
-            <p className="mt-4 text-xs text-dim">Inherited: {sources.join(' · ')}. Evaluated profile changes are included.</p>
+            <p className="mt-3 text-xs text-dim">Inherited: {sources.join(' · ')}. Evaluated profile changes are included.</p>
           ) : null}
         </section>
       </div>
+      {resultsVisible ? null : (
+        <div
+          aria-label="Results summary"
+          data-results-summary
+          className="sticky bottom-0 z-20 grid grid-cols-[auto_repeat(3,minmax(0,1fr))] items-baseline gap-x-3 border-t border-edge bg-panel/95 px-3 py-2 text-xs text-dim backdrop-blur sm:px-4"
+        >
+          <span />
+          {['Wounds', 'Models', 'Destroyed'].map((label) => (
+            <span key={label} className="truncate">
+              {label}
+            </span>
+          ))}
+          {phases.map(([phase, title]) => {
+            const result = scenario(phase) ? outcome?.answer[phase]?.result : undefined
+            return (
+              <Fragment key={phase}>
+                <span className="rubric">{title}</span>
+                {(
+                  [
+                    ['Wounds lost', result?.meanDamage.toFixed(2)],
+                    ['Models lost', result?.meanKills.toFixed(2)],
+                    ['Destroyed', result ? `${(result.wipe * 100).toFixed(1)}%` : undefined],
+                  ] as const
+                ).map(([label, value]) => (
+                  <span key={label} className={`readout text-sm ${updating || failed ? 'text-dim' : 'text-primary'}`}>
+                    {value ?? '—'}
+                  </span>
+                ))}
+              </Fragment>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -502,23 +570,77 @@ function CombatDefences({
   unit,
   feelNoPain,
   configured,
+  onAllocateEarlier,
 }: {
   unit: CombatantSnapshot | null
   feelNoPain?: number | null
-  configured?: CombatInput['target']
+  configured?: { target: CombatInput['target']; labels: readonly string[] }
+  onAllocateEarlier?: (index: number) => void
 }) {
-  const target = configured ?? (unit ? combatTarget(unit.sheet, unit.models, unit.startingModels).target : null)
+  const printed = configured ?? (unit ? combatTarget(unit.sheet, unit.models, unit.startingModels, unit.carriers) : null)
+  const target = printed?.target ?? null
   const fnp = feelNoPain === undefined ? target?.feelNoPain : feelNoPain
-  const values = [
-    { name: 'T', value: target ? String(target.toughness) : '—' },
-    { name: 'Sv', value: target ? `${target.save}+` : '—' },
-    { name: 'W', value: target ? String(target.wounds) : '—' },
-    { name: 'InSv', value: target?.invulnerable ? `${target.invulnerable}+` : '—' },
+  const groups = target?.groups ?? []
+  const values = (group: CombatTargetGroup | undefined) => [
+    { name: 'T', value: group ? String(group.toughness) : '—' },
+    { name: 'Sv', value: group ? `${group.save}+` : '—' },
+    { name: 'W', value: group ? String(group.wounds) : '—' },
+    { name: 'InSv', value: group?.invulnerable ? `${group.invulnerable}+` : '—' },
     { name: 'FNP', value: fnp ? `${fnp}+` : '—' },
   ]
+  if (groups.length < 2)
+    return (
+      <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+        <ProfileGrid values={values(groups[0])} columns={5} />
+      </div>
+    )
   return (
     <div className="px-3 pb-3 sm:px-4 sm:pb-4">
-      <ProfileGrid values={values} columns={5} />
+      <table className="w-full table-fixed border border-edge bg-card text-center">
+        <thead>
+          <tr className="eyebrow">
+            <th className="w-1/3 px-2 py-1.5 text-left font-normal">{onAllocateEarlier ? 'Order' : 'Models'}</th>
+            {values(groups[0]).map((value) => (
+              <th key={value.name} className="px-1 py-1.5 font-normal">
+                {value.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((group, index) => {
+            const label = printed?.labels[index]
+            return (
+              <tr key={label ?? index} className="border-t border-edge">
+                <td className="px-2 py-1.5 text-left text-xs text-dim">
+                  <div className="flex min-w-0 items-center gap-1">
+                    <span className="min-w-0 truncate">
+                      {onAllocateEarlier ? `${index + 1}. ` : ''}
+                      {label} ×{group.models}
+                    </span>
+                    {onAllocateEarlier && index > 0 ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="ml-auto shrink-0"
+                        aria-label={`Allocate to ${label} earlier`}
+                        onClick={() => onAllocateEarlier(index)}
+                      >
+                        <ArrowUp aria-hidden />
+                      </Button>
+                    ) : null}
+                  </div>
+                </td>
+                {values(group).map((value) => (
+                  <td key={value.name} className="readout px-1 py-1.5 text-base">
+                    {value.value}
+                  </td>
+                ))}
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }

@@ -134,7 +134,7 @@ describe('combat rule effects', () => {
   it.each(['ranged', 'melee'] as const)(
     'applies enemy Toughness and armour penalties without changing invulnerable saves in %s',
     (phase) => {
-      const target = { models: 5, toughness: 4, save: 3, invulnerable: 4, wounds: 2, feelNoPain: null }
+      const target = { groups: [{ models: 5, toughness: 4, save: 3, invulnerable: 4, wounds: 2 }], feelNoPain: null }
       const aura = {
         name: 'Infection',
         effects: [
@@ -142,33 +142,33 @@ describe('combat rule effects', () => {
           { role: 'attacker' as const, phases: ['ranged', 'melee'] as const, targetSaveModifier: 1 },
         ].map((effect) => ({ ...effect, phases: [...effect.phases] })),
       }
-      expect(combatRuleDefences(target, [], phase, [aura, aura])).toMatchObject({ toughness: 3, save: 4, invulnerable: 4 })
+      expect(combatRuleDefences(target, [], phase, [aura, aura]).groups[0]).toMatchObject({ toughness: 3, save: 4, invulnerable: 4 })
     },
   )
   it('does not apply a defending aura to its own Toughness or armour', () => {
-    const target = { models: 5, toughness: 4, save: 3, invulnerable: null, wounds: 2, feelNoPain: null }
+    const target = { groups: [{ models: 5, toughness: 4, save: 3, invulnerable: null, wounds: 2 }], feelNoPain: null }
     expect(
       combatRuleDefences(
         target,
         [{ name: 'Infection', effects: [{ role: 'attacker', phases: ['ranged', 'melee'], targetToughness: -1, targetSaveModifier: 1 }] }],
         'ranged',
-      ),
+      ).groups[0],
     ).toMatchObject({ toughness: 4, save: 3 })
   })
   it('combines opposing Toughness changes before applying characteristic limits', () => {
-    const target = { models: 1, toughness: 1, save: 7, invulnerable: null, wounds: 1, feelNoPain: null }
+    const target = { groups: [{ models: 1, toughness: 1, save: 7, invulnerable: null, wounds: 1 }], feelNoPain: null }
     expect(
       combatRuleDefences(target, [{ name: 'Defence', effects: [{ role: 'defender', phases: ['melee'], toughness: 1 }] }], 'melee', [
         { name: 'Infection', effects: [{ role: 'attacker', phases: ['melee'], targetToughness: -1, targetSaveModifier: 1 }] },
-      ]),
+      ]).groups[0],
     ).toMatchObject({ toughness: 1, save: 7 })
   })
   it('keeps enemy characteristic penalties within their phase', () => {
-    const target = { models: 1, toughness: 4, save: 3, invulnerable: null, wounds: 1, feelNoPain: null }
+    const target = { groups: [{ models: 1, toughness: 4, save: 3, invulnerable: null, wounds: 1 }], feelNoPain: null }
     expect(
       combatRuleDefences(target, [], 'ranged', [
         { name: 'Infection', effects: [{ role: 'attacker', phases: ['melee'], targetToughness: -1, targetSaveModifier: 1 }] },
-      ]),
+      ]).groups[0],
     ).toMatchObject({ toughness: 4, save: 3 })
   })
   it('carries a not-stronger wound condition only onto melee weapons', () => {
@@ -469,7 +469,7 @@ describe('combat rule effects', () => {
     const effects = [{ role: 'defender' as const, phases: ['ranged' as const], damageReduction: 1 }]
     expect(
       combatRuleDefences(
-        { models: 1, toughness: 4, save: 3, wounds: 5, invulnerable: null, feelNoPain: null },
+        { groups: [{ models: 1, toughness: 4, save: 3, wounds: 5, invulnerable: null }], feelNoPain: null },
         [
           { name: 'First', effects },
           { name: 'Second', effects },
@@ -493,7 +493,7 @@ describe('combat rule effects', () => {
   it('keeps the best damage prevention instead of stacking copies', () =>
     expect(
       combatRuleDefences(
-        { models: 1, toughness: 4, save: 3, wounds: 5, invulnerable: null, feelNoPain: 4 },
+        { groups: [{ models: 1, toughness: 4, save: 3, wounds: 5, invulnerable: null }], feelNoPain: 4 },
         [
           {
             name: 'Guard',
