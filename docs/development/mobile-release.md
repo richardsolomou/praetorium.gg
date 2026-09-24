@@ -24,6 +24,8 @@ This is the release gate for the `gg.praetorium` iOS and Android applications. A
 12. Turn on Expo's enhanced push security for the project, create an Expo robot access token with the Viewer role, and set it as `EXPO_PUSH_ACCESS_TOKEN` in the production deployment. Without enhanced security, anyone who knows a device's token can send it a notification.
 13. Before enabling Android delivery, add the Firebase project's `google-services.json` as `android.googleServicesFile` in `mobile/app.json` and upload its FCM V1 service-account key to the Expo project.
 
+The iOS delivery workflow passes the GitHub App Store Connect key to EAS for builds and metadata sync. It does not need a separate App Store Connect key stored in Expo.
+
 ## Build and upload
 
 Run the repository gate first:

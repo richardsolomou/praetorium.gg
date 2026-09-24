@@ -30,6 +30,9 @@ jobs:
     env:
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      EXPO_APPLE_TEAM_ID: A3X8464573
+      EXPO_APPLE_TEAM_TYPE: INDIVIDUAL
+      EXPO_NO_CAPABILITY_SYNC: '1'
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
       - uses: actions/checkout@v7
@@ -53,7 +56,12 @@ jobs:
           key_path="$RUNNER_TEMP/AuthKey_$APP_STORE_CONNECT_KEY_ID.p8"
           printf '%s' "$APP_STORE_CONNECT_KEY_BASE64" | base64 --decode > "$key_path"
           chmod 600 "$key_path"
-          echo "APP_STORE_CONNECT_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+          {
+            echo "APP_STORE_CONNECT_KEY_PATH=$key_path"
+            echo "EXPO_ASC_API_KEY_PATH=$key_path"
+            echo "EXPO_ASC_KEY_ID=$APP_STORE_CONNECT_KEY_ID"
+            echo "EXPO_ASC_ISSUER_ID=$APP_STORE_CONNECT_ISSUER_ID"
+          } >> "$GITHUB_ENV"
       - name: Build the canary iOS application
         env:
           EAS_LOCAL_BUILD_SKIP_CLEANUP: '1'
@@ -89,8 +97,6 @@ jobs:
         working-directory: mobile
         run: pnpm dlx eas-cli@23.2.0 update --platform ios --channel "$MOBILE_UPDATE_CHANNEL" --environment "$EAS_ENVIRONMENT" --message "$GITHUB_SHA" --non-interactive
       - name: Sync App Store metadata
-        env:
-          EXPO_APPLE_TEAM_ID: A3X8464573
         working-directory: mobile
         run: pnpm dlx eas-cli@23.2.0 metadata:push --profile production --non-interactive
       - name: Store Xcode diagnostics
