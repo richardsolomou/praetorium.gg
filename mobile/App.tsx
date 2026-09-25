@@ -33,6 +33,7 @@ import {
   type AppShellState,
 } from './src/appShellState'
 import { appStateChanged, initialAppLifecycle, WEB_RESUME_SCRIPT } from './src/lifecycle'
+import { initialLaunch } from './src/initialLaunch'
 import { NATIVE_BRIDGE_SCRIPT, nativePushAnswerScript, parseNativeActionRequest, type NativeActionRequest } from './src/nativeActions'
 import { applicationNavigationScript, classifyNavigation, externalOpenStrategies, isMainFrameHttpError } from './src/navigation'
 import {
@@ -369,33 +370,44 @@ function AppShell() {
       const url = notificationUrl(response.notification.request.content.data)
       if (url) navigateApplication(url)
     })
-    void Promise.all([Linking.getInitialURL(), pendingAuthStorage.getItemAsync(PENDING_AUTH_KEY)])
-      .then(async ([linked, stored]) => {
+    const storedPromise = pendingAuthStorage.getItemAsync(PENDING_AUTH_KEY).then(
+      (value) => ({ value, error: null }),
+      (error: unknown) => ({ value: null, error }),
+    )
+    void Linking.getInitialURL()
+      .then(async (linked) => {
         const url = linked ?? notificationLaunch
         if (!active || !shellRef.current.initialUrlPending) return
-        if (url?.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
-          const pending = parsePendingNativeAuth(stored)
-          const callback = parseNativeAuthCallback(url, pending ?? undefined)
-          if (callback.kind === 'success' && pending && !handledAuthTokens.current.has(callback.token)) {
-            handledAuthTokens.current.add(callback.token)
-            try {
-              await pendingAuthStorage.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(completedPendingNativeAuth(pending, url)))
-            } catch (error) {
-              handledAuthTokens.current.delete(callback.token)
-              throw error
-            }
+        await initialLaunch(
+          url,
+          storedPromise,
+          (initialUrl) => commitShell(initialUrlReceived(shellRef.current, initialUrl)),
+          async (initialUrl, { value: stored, error: storageError }) => {
             if (!active) return
-            commitAndDrain(initialAuthReceived(shellRef.current, callback))
-          } else {
-            void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
-            commitShell(initialUrlReceived(shellRef.current, null))
-            Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
-          }
-        } else {
-          const pending = parsePendingNativeAuth(stored)
-          if (pending?.callbackUrl) await handleAuthCallback(pending.callbackUrl, pending)
-          else commitShell(initialUrlReceived(shellRef.current, url))
-        }
+            if (storageError) throw storageError
+            const pending = parsePendingNativeAuth(stored)
+            if (initialUrl?.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
+              const callback = parseNativeAuthCallback(initialUrl, pending ?? undefined)
+              if (callback.kind === 'success' && pending && !handledAuthTokens.current.has(callback.token)) {
+                handledAuthTokens.current.add(callback.token)
+                try {
+                  await pendingAuthStorage.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(completedPendingNativeAuth(pending, initialUrl)))
+                } catch (error) {
+                  handledAuthTokens.current.delete(callback.token)
+                  throw error
+                }
+                if (!active) return
+                commitAndDrain(initialAuthReceived(shellRef.current, callback))
+              } else {
+                void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
+                commitShell(initialUrlReceived(shellRef.current, null))
+                Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+              }
+            } else if (active && pending?.callbackUrl) {
+              await handleAuthCallback(pending.callbackUrl, pending)
+            }
+          },
+        )
       })
       .catch((error) => {
         captureNativeException('native_initialization', error)

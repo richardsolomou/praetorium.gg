@@ -97,6 +97,13 @@ describe('application shell delivery', () => {
     expect(drainAppShell(successfulLoad(queued, 'https://praetorium.gg/rosters')).command).toEqual({ kind: 'auth', callback: auth })
   })
 
+  it('recovers a stored callback after the initial page has started loading', () => {
+    const loading = webLoadStarted(initialUrlReceived(initialAppShellState(), null))
+    const recovered = authReceived(loading, auth)
+
+    expect(drainAppShell(successfulLoad(recovered, 'https://praetorium.gg')).command).toEqual({ kind: 'auth', callback: auth })
+  })
+
   it('remounts the last trusted URL and restores interrupted delivery after renderer termination', () => {
     const loaded = successfulLoad(
       initialUrlReceived(initialAppShellState(), 'https://praetorium.gg/battles/42'),
