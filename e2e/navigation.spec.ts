@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { join } from 'node:path'
 import { devices, expect, type Page, test } from '@playwright/test'
 import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
-import { signUp } from './account'
+import { createRoster, retryUntilVisible, signUp } from './account'
 import { catalogue } from './stackEnv'
 
 test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
@@ -616,14 +616,14 @@ test('a player can enter through the roster library and browse the product', asy
   await filters.getByRole('button', { name: 'Clear filters' }).click()
   await expect(page).toHaveURL('/rosters')
   await filters.getByRole('button', { name: 'Done' }).click()
-  await page.getByRole('button', { name: 'Sort' }).click()
+  await page.getByRole('button', { name: /^Sort:/ }).click()
   await page.getByRole('menuitemradio', { name: 'A to Z' }).click()
   await expect(page.getByRole('button', { name: 'Sort: A to Z' })).toBeVisible()
   await expect(page).toHaveURL('/rosters')
   expect(await (await page.request.get('/rosters')).text()).toContain('aria-label="Sort: A to Z"')
   await page.reload()
   await expect(page.getByRole('button', { name: 'Sort: A to Z' })).toBeVisible()
-  await page.getByRole('button', { name: 'Sort' }).click()
+  await page.getByRole('button', { name: /^Sort:/ }).click()
   await page.getByRole('menuitemradio', { name: 'Recently created', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Sort: Recently created' })).toBeVisible()
   expect((await page.context().cookies()).some((cookie) => cookie.name === 'praetorium_roster_sort')).toBe(false)
@@ -902,6 +902,53 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: 'Translocation Shroud', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Resurrection Orb' })).toBeVisible()
   await page.screenshot({ path: 'test-results/translocation-shroud.png', fullPage: true })
+})
+
+test('the first sort choice orders saved rosters and persists on mobile', async ({ page }) => {
+  await signUp(page, 'Roster sorter')
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Zulu roster' })
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Alpha roster' })
+  await page.goto('/rosters')
+
+  const rows = page.locator('[data-roster]')
+  await expect(rows.first()).toHaveAttribute('data-roster', 'Alpha roster')
+  await page.getByRole('button', { name: /^Sort:/ }).click()
+  await page.getByRole('menuitemradio', { name: 'Z to A' }).click()
+  await expect(rows.first()).toHaveAttribute('data-roster', 'Zulu roster')
+  await expect(page.getByRole('button', { name: 'Sort: Z to A' })).toBeVisible()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: /^Sort:/ }).click()
+  await page.getByRole('menuitemradio', { name: 'A to Z' }).click()
+  await expect(rows.first()).toHaveAttribute('data-roster', 'Alpha roster')
+  await page.reload()
+  await expect(rows.first()).toHaveAttribute('data-roster', 'Alpha roster')
+  expect(await (await page.request.get('/rosters')).text()).toContain('aria-label="Sort: A to Z"')
+})
+
+test('a guest roster stays within the native mobile builder viewport', async ({ page, context }) => {
+  await context.addInitScript({ content: `window.ReactNativeWebView = { postMessage: () => {} };\n${NATIVE_BRIDGE_SCRIPT}` })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/rosters')
+  const search = page.getByPlaceholder('Search factions…')
+  await retryUntilVisible(search, () => page.getByRole('combobox', { name: 'Faction' }).click())
+  await search.fill('Necrons')
+  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await page.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
+  await page.getByRole('button', { name: 'Start building' }).click()
+
+  const content = page.locator('[data-native-app-content]')
+  await expect(content).toHaveAttribute('data-immersive', 'true')
+  await expect(page.locator('[data-roster-builder]')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  await page.screenshot({ path: 'test-results/guest-roster-mobile-native.png' })
+  await page.mouse.wheel(0, 1000)
+  expect(await page.evaluate(() => window.scrollY)).toBe(0)
+  await page.setViewportSize({ width: 390, height: 568 })
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  await page.reload()
+  await expect(content).toHaveAttribute('data-immersive', 'true')
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
 })
 
 test('a dense squad datasheet remains readable at desktop and phone widths', async ({ page }) => {

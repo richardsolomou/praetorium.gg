@@ -40,6 +40,8 @@ const WORKSPACE_PATH = '/rosters/'
 const EDITING_STATE = 'roster-setup'
 
 export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearch; sort: RosterSort }) {
+  const [selectedSort, setSelectedSort] = useState(sort)
+  useEffect(() => setSelectedSort(sort), [sort])
   const { data: me } = useQuery(meQuery())
   const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
   const totalsResult = useQuery({ ...savedRosterTotalsQuery(), enabled: Boolean(me) })
@@ -64,7 +66,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         (search.faction === undefined || roster.catalogueId === selectedFactionId) &&
         (search.visibility === undefined || roster.visibility === search.visibility),
     ),
-    sort,
+    selectedSort,
   )
   const libraryPending = savedResult.isPending || (Boolean(search.faction) && availableResult.isPending)
   const libraryError = savedResult.isError || (Boolean(search.faction) && availableResult.isError)
@@ -114,14 +116,16 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
 
       <PageContent className="space-y-4">
         <RosterFilters
-          value={{ ...search, sort }}
+          value={{ ...search, sort: selectedSort }}
           factionGroups={factionGroups}
           onChange={({ sort: chosen, ...filters }) => {
-            if (chosen !== sort) {
+            if (chosen !== selectedSort) {
+              setSelectedSort(chosen)
               keepRosterSort(chosen)
               void router.invalidate({ filter: (match) => match.routeId === '/rosters/' })
             }
-            void navigate({ to: '/rosters', search: filters })
+            if (filters.limit !== search.limit || filters.faction !== search.faction || filters.visibility !== search.visibility)
+              void navigate({ to: '/rosters', search: filters })
           }}
         />
         {actions.shareProblem ? <p className="text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}

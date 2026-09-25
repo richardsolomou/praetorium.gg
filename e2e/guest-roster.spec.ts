@@ -60,6 +60,30 @@ test("a visitor's list survives a reload of its tab", async ({ page }) => {
   await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
 })
 
+test('a guest builder stays in the mobile viewport when storage refuses the draft', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/rosters')
+  await page.waitForLoadState('networkidle')
+  const setup = page.getByRole('region', { name: 'Create roster' })
+  await setup.getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByPlaceholder('Search factions…').fill('Necrons')
+  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
+  await page.evaluate(() => {
+    Object.defineProperty(sessionStorage, 'setItem', {
+      value: () => {
+        throw new DOMException('Storage full', 'QuotaExceededError')
+      },
+    })
+  })
+  await setup.getByRole('button', { name: 'Start building' }).click()
+
+  await expect(page.getByRole('alert')).toContainText('This browser is not keeping the list')
+  await expect(page.locator('[data-native-app-content]')).toHaveAttribute('data-immersive', 'true')
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  await page.screenshot({ path: 'test-results/guest-roster-mobile-unkept.png' })
+})
+
 test('signing up keeps the list a visitor built', async ({ page }) => {
   const saves = recordSaves(page)
   await startGuestRoster(page)

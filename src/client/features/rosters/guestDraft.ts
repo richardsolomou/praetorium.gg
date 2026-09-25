@@ -13,6 +13,24 @@ const VERSION = 1
 /** A list a visitor is building, held in this tab until an account saves it. */
 export type GuestDraft = { version: typeof VERSION; id: string; draft: Omit<RosterDraft, 'id'> }
 
+let openDraft: boolean | null = null
+const listeners = new Set<() => void>()
+
+export function subscribeGuestDraft(listener: () => void) {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+export function guestDraftOpen(hinted: boolean) {
+  return openDraft ?? hinted
+}
+
+export function setGuestDraftOpen(open: boolean) {
+  if (openDraft === open) return
+  openDraft = open
+  listeners.forEach((listener) => listener())
+}
+
 export const EMPTY_SETUP: RosterSetup = {
   name: '',
   catalogueId: '',
@@ -70,6 +88,7 @@ export function writeGuestDraft(draft: GuestDraft) {
 export function clearGuestDraft() {
   for (const name of [NAME, 'roster-setup', 'waivers-dismissed']) writeWorkspaceState(GUEST_PATH, name, null)
   markGuestDraft(false)
+  setGuestDraftOpen(false)
 }
 
 /** What `saveRoster` is sent to keep a visitor's list under their new account. */
