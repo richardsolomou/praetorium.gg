@@ -73,6 +73,18 @@ describe('a datasheet', () => {
     })
   })
 
+  it('links an imported datasheet without a faction category to its defining book', () => {
+    const book = shelfOf(
+      { name: 'Space Marines', selectionEntries: [{ id: 'intercessors', name: 'Intercessor Squad', type: 'unit' }] },
+      { name: 'Blood Angels', catalogueLinks: [{ targetId: 'cat', importRootEntries: true }] },
+    )
+
+    expect(datasheetIn(book, 'cat-1', 'intercessors')?.referenceRoute).toEqual({
+      catalogueId: 'space-marines',
+      slug: 'intercessor-squad',
+    })
+  })
+
   it('collects model, weapon, ability and keyword display data', () => {
     const book = bookOf({
       selectionEntries: [

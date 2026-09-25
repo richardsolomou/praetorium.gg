@@ -6,7 +6,7 @@ import type { CombatRoster } from './useCombatant'
 export function RosterCombatDialog({ roster, onClose }: { roster: CombatRoster; onClose: () => void }) {
   return (
     <CombatDialog onClose={onClose}>
-      <CombatSimulatorMatchup roster={roster} />
+      <CombatSimulatorMatchup roster={roster} inDialog />
     </CombatDialog>
   )
 }
@@ -18,7 +18,9 @@ export function CombatDialog({ children, onClose }: { children: ReactNode; onClo
         <DialogHeader className="shrink-0 border-b border-edge p-4 pr-12">
           <DialogTitle>Combat simulator</DialogTitle>
         </DialogHeader>
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
+        <div data-simulator-scroll className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+          {children}
+        </div>
       </DialogContent>
     </Dialog>
   )

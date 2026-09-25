@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Switch } from '@/components/ui/switch'
 import { Toggle as ToggleButton } from '@/components/ui/toggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const selectClass = 'h-9 w-full min-w-0 border border-edge bg-sunken px-2 text-sm text-bone'
 
@@ -84,14 +85,17 @@ export function Chip({
   checked,
   disabled,
   onChange,
+  ineffectiveReason,
 }: {
   label: string
   ariaLabel?: string
   checked: boolean
   disabled?: boolean
   onChange: (checked: boolean) => void
+  ineffectiveReason?: string
 }) {
-  return (
+  const [explanationOpen, setExplanationOpen] = useState(false)
+  const control = (
     <ToggleButton
       variant="outline"
       size="sm"
@@ -99,9 +103,27 @@ export function Chip({
       pressed={checked}
       disabled={disabled}
       onPressedChange={onChange}
-      className={pressedClass}
+      className={`${pressedClass} ${ineffectiveReason ? 'opacity-45 hover:opacity-70' : ''}`}
     >
       {label}
     </ToggleButton>
+  )
+  return ineffectiveReason ? (
+    <Tooltip open={explanationOpen} onOpenChange={setExplanationOpen}>
+      <TooltipTrigger
+        closeOnClick={false}
+        render={control}
+        onMouseEnter={() => setExplanationOpen(true)}
+        onMouseLeave={() => setExplanationOpen(false)}
+        onFocus={() => setExplanationOpen(true)}
+        onBlur={() => setExplanationOpen(false)}
+        onClick={() => setExplanationOpen(true)}
+      />
+      <TooltipContent role="tooltip" side="bottom">
+        No effect: {ineffectiveReason}
+      </TooltipContent>
+    </Tooltip>
+  ) : (
+    control
   )
 }

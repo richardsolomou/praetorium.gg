@@ -3,6 +3,7 @@ import { app } from './app'
 
 /** Cache direct reference responses for an hour with a snapshot ETag; never add shared cache headers to SSR documents. */
 export function cacheUntilSnapshotChanges() {
+  if (process.env.NODE_ENV !== 'production') return
   const revision = app().catalogue()?.index.revision
   if (!revision) return
   if (!new URL(getRequest().url).pathname.startsWith('/_serverFn/')) return
