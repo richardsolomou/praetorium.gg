@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.78.2
+
+### Patch Changes
+
+- 715f374: Keep the home page's game shelves close together when the activity column is taller.
+
 ## 0.78.1
 
 ### Patch Changes
