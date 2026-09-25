@@ -360,6 +360,16 @@ export function CombatMatchup({
       return 'Those rolls already wound, and no included weapon has Devastating Wounds or another critical-wound effect.'
     if (field === 'criticalHit' && active.every((input) => input.weapons.every((weapon) => !weapon.lethal && !weapon.sustained)))
       return 'Those rolls already hit, and no included weapon has Lethal Hits or Sustained Hits.'
+    if ((field === 'hitModifier' || field === 'woundModifier') && typeof candidate === 'number') {
+      const selected = adjustments[scope]?.[field] === candidate
+      if (
+        affected.every((phase) => {
+          const total = options(phase)[field]
+          return candidate > 0 ? total >= (selected ? 2 : 1) : total <= (selected ? -2 : -1)
+        })
+      )
+        return 'Bonuses and penalties combine before the roll modifier is capped at +1 or −1.'
+    }
     if (field === 'hitReroll' || field === 'woundReroll') {
       const selected = candidate as CombatOptions['hitReroll'] | undefined
       if (selected && affected.every((phase) => rerollRank[inheritedOptions(phase)[field]] >= rerollRank[selected]))
@@ -461,7 +471,7 @@ export function CombatMatchup({
         ['woundModifier', 'to wound'],
       ] as const) {
         const value = attack[field]
-        if (value) add(scope, 'attack', field, `${value > 0 ? '+' : '−'}${Math.abs(value)} ${label} (${name})`, value)
+        if (value) applied.push(`${value > 0 ? '+' : '−'}${Math.abs(value)} ${label} (${name})`)
       }
       for (const [field, label] of [
         ['hitReroll', 'hit'],
@@ -539,6 +549,11 @@ export function CombatMatchup({
       applied.push('Hit modifiers cancel to 0')
     if (adjustments.all?.woundModifier && adjustments[phase]?.woundModifier && resolved.woundModifier === 0)
       applied.push('Wound modifiers cancel to 0')
+    for (const [roll, modifier] of [
+      ['Hit', resolved.hitModifier],
+      ['Wound', resolved.woundModifier],
+    ] as const)
+      if (Math.abs(modifier) > 1) applied.push(`${roll} roll modifier capped at ${modifier > 0 ? '+1' : '−1'}`)
     return applied
   }
   const sources = [
@@ -755,12 +770,14 @@ export function CombatMatchup({
                       options={signedOptions([1, -1], 'Hit')}
                       onChange={(value) => change(scope, 'hitModifier', value)}
                       ineffective={(option) => !modifierChoiceHasEffect(scope, 'attack', 'hitModifier', option)}
+                      reason={(option) => noEffectReason(scope, 'attack', 'hitModifier', option)}
                     />
                     <ChipFamily
                       value={adjustments[scope]?.woundModifier}
                       options={signedOptions([1, -1], 'Wound')}
                       onChange={(value) => change(scope, 'woundModifier', value)}
                       ineffective={(option) => !modifierChoiceHasEffect(scope, 'attack', 'woundModifier', option)}
+                      reason={(option) => noEffectReason(scope, 'attack', 'woundModifier', option)}
                     />
                     <ChipFamily
                       value={adjustments[scope]?.hitReroll}

@@ -103,7 +103,7 @@ export function Chip({
       pressed={checked}
       disabled={disabled}
       onPressedChange={onChange}
-      className={`${pressedClass} ${ineffectiveReason ? 'opacity-45 hover:opacity-70' : ''}`}
+      className={`${pressedClass} ${ineffectiveReason && !checked ? 'opacity-45 hover:opacity-70' : ''}`}
     >
       {label}
     </ToggleButton>
