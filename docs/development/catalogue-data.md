@@ -19,6 +19,8 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 - `just catalogue-sync` calls the same sync code as the server.
 - The server loads the catalogue on first use. An instance without catalogue data can still serve battles and pasted rosters.
 
+The client keeps catalogue picker indexes and unit search results for the lifetime of the page, as it does faction records and datasheets. A reload takes the server's current snapshot after an update.
+
 Server catalogue code is split by responsibility:
 
 - `catalogueIndex.ts` loads files and indexes books, detachments, datasheet membership, and 40kdc's namespaced source references.

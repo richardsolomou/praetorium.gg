@@ -1,9 +1,8 @@
 import { queryOptions } from '@tanstack/react-query'
 import type { RosterPick } from '../../core/roster'
 import { combatantDatasheet, combatUnits } from '../../server/functions'
-import { SSR_STALE_TIME } from './shared'
 
-export const combatUnitsQuery = () => queryOptions({ queryKey: ['combat-units'], queryFn: () => combatUnits(), staleTime: SSR_STALE_TIME })
+export const combatUnitsQuery = () => queryOptions({ queryKey: ['combat-units'], queryFn: () => combatUnits(), staleTime: Infinity })
 
 export const combatantDatasheetQuery = (
   catalogueId: string,
