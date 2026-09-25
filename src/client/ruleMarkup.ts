@@ -1,17 +1,4 @@
-/**
- * Reading the markup the rules documents are written in.
- *
- * The datacards source writes its rules as text with a small fixed set of tags —
- * bold, italic, underline, a keyword, a bullet list and a table — mixed with the
- * Markdown its examples and captions are emphasised in, and this turns one of those
- * strings into the blocks a page draws. It is a reader rather than an HTML parser on
- * purpose: only these tags mean anything, so `<move type>` in the middle of a
- * sentence stays the words the rule prints rather than becoming an element, and
- * nothing from the source is ever handed to the browser as markup.
- *
- * A number in brackets is how one rule quotes another. Those are marked here and
- * resolved by the page, which is the only place that knows which rules it can reach.
- */
+/** Parse only the source’s supported tags and Markdown; leave unknown angle-bracket text literal and resolve rule references on the page. */
 export type RuleInline =
   | { kind: 'text'; text: string }
   | { kind: 'strong'; children: RuleInline[] }

@@ -74,20 +74,7 @@ export type LeagueAllyEntry = {
   teamId: string | null
 }
 
-/**
- * Whether one entrant reads another's sealed roster before the event reveals.
- *
- * A sealed roster is withheld from the people who might play against it, and the format
- * alone says who those are. A doubles entrant reads the teammate the organizer paired them
- * with. A 2v1 allied entrant reads every other allied entrant, because a 2v1 seats allied
- * rosters together and against the solo roster — never against each other — so an allied
- * pair is either forced, when the event holds the three entrants it needs, or still only
- * ever an alliance in a larger event. A solo entrant has no ally and a 1v1 entrant can face
- * anybody, so neither reads another roster until reveal.
- *
- * This is the only answer to the question: the entrant list offers the link from it and the
- * roster read enforces it.
- */
+/** Before reveal, doubles teammates and 2v1 allies may read each other’s sealed rosters; solo and 1v1 entrants cannot. */
 export function readsAlliedLeagueRoster(
   format: TableShape | null,
   eventLimit: number | null,

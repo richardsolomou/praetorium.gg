@@ -9,13 +9,12 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent } from '@/components/ui/popover'
 import {
   availableOnboardingTasks,
+  isTourTask,
   onboardingComplete,
   resolvedOnboardingTasks,
-  tourTaskIds,
   type OnboardingProgress,
   type OnboardingProgressOperation,
   type OnboardingTaskId,
-  type TourTaskId,
 } from '../../../core/onboarding'
 import { updateOnboardingProgress } from '../../../server/functions'
 import { meQuery, onboardingQuery } from '../../queries'
@@ -52,10 +51,6 @@ const PLACEMENTS = {
   left: { side: 'left', align: 'center' },
   right: { side: 'right', align: 'center' },
 } as const satisfies Record<OnboardingPlacement, { side: 'top' | 'bottom' | 'left' | 'right'; align: 'start' | 'center' | 'end' }>
-
-function isTourTask(task: OnboardingTaskId): task is TourTaskId {
-  return (tourTaskIds as readonly OnboardingTaskId[]).includes(task)
-}
 
 export function OnboardingGuide() {
   const { data: me } = useQuery(meQuery())

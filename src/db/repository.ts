@@ -365,19 +365,7 @@ export class Repository {
     }
   }
 
-  /**
-   * Deletes a battle, if the player asking is the one who opened it.
-   *
-   * The seat check is part of the delete rather than a read before it: as two
-   * statements the seat could change between them, and it cost a transaction and
-   * a round trip to say what one `exists` says here.
-   *
-   * The opener is the first seat taken on side 0. A seat on side 0 alone is no longer
-   * enough — an ally now sits beside the opener — and the earliest seat alone is not
-   * either: a battle opened before allies were seated wrote the opener and their
-   * opponent the same `joinedAt`, so asking only for the earliest would hand that
-   * opponent the delete.
-   */
+  /** Check ownership in the delete statement: the opener is the first seat on side 0, since allies can also occupy that side and old seats can share a timestamp. */
   async deleteBattle(battleId: string, userId: string) {
     const removed = await this.database
       .delete(battles)
@@ -579,20 +567,7 @@ export class Repository {
     return this.hydrateBattles(rows, page.limit)
   }
 
-  /**
-   * Battles anyone may watch, most recently started first.
-   *
-   * Started rather than last touched, and finished games alongside running ones,
-   * because this list is read to find a game to watch or to read back through.
-   * Ordering by activity made the page reshuffle itself under a reader every time
-   * anybody anywhere took a turn, and buried a battle that finished an hour ago
-   * beneath one nobody has moved in since.
-   *
-   * `viewerId` drops the battles that viewer already sits in, because the page
-   * asking for this has shown them their own games above and a reader counting
-   * the same battle twice learns nothing the second time. Practice games are
-   * never on it: nobody else is playing in them.
-   */
+  /** Order public battles by start time, omit practice games, and exclude the viewer’s own games already shown above. */
   async publicBattles(page: { limit: number; before?: BattlesCursor; viewerId?: string | null }) {
     const rows = await this.database
       .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, at: battles.createdAt })
@@ -674,19 +649,7 @@ export class Repository {
     return (await this.hydrateBattles(rows)).battles
   }
 
-  /**
-   * Battles this player holds a seat in, for a reader of their profile.
-   *
-   * The audience is only coarsely narrowed here, to the battles that could be
-   * shown to this reader at all: a seat that refused everybody can never be, and a
-   * reader with no account can only ever be offered the public ones. Which of the
-   * rest they may actually see is `maySpectate`'s to answer, over the same folded
-   * seats the battle screen reads — so a profile cannot list a battle the link
-   * would refuse.
-   *
-   * Bounded by a count rather than paged, because the record folded from these is
-   * over all of them and a page would fold a different number for every reader.
-   */
+  /** Bound the profile’s battle candidates and narrow them coarsely in SQL; `maySpectate` makes the final decision from folded seats. */
   async battlesSeatedBy(userId: string, limit: number, viewerId: string | null) {
     const activity = this.activityTime
     const rows = await this.database
@@ -751,22 +714,7 @@ export class Repository {
     return this.logQuery(battleId)
   }
 
-  /**
-   * Appends one command, or explains why not, and answers with the history it judged.
-   *
-   * Reading history, judging the command against it, and writing the result all
-   * happen in one transaction, and the battle row is locked before any of it. A
-   * transaction alone would not be enough here: two players tapping at once would
-   * both read the same `seq` and race for the same position in history. The
-   * primary key would refuse the loser, but as an error rather than the answer it
-   * is owed. Locking the battle makes them queue, so the second is told it is
-   * behind. `expectedSeq` is the caller's claim about what it had already seen.
-   *
-   * The log comes back because the caller owes the client the state its command
-   * landed in, and under the lock this transaction is the only thing that could
-   * have changed it — so reading it again afterwards would be a second round trip
-   * for the same answer, on the one path a battle takes on every single tap.
-   */
+  /** Lock the battle row before reading, validating, and appending a command; return the log read under that lock so the caller can fold the exact result. */
   async submit(
     input: { battleId: string; userId: string; expectedSeq: number; command: Command; now: number },
     validateState?: (state: ReturnType<typeof reduceBattle>) => string | null,

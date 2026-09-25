@@ -8,18 +8,7 @@ import { RuleText } from '../../components/RuleText'
 /** An optional twist a mission pack prints, which changes one rule for the whole battle. */
 export type Twist = { id: string; name: string; lore: string | null; rules: string | null }
 
-/**
- * Whether a twist rewrites the Primary Mission cards, which this app does not follow.
- *
- * A pack prints twists that exchange the two sides' primaries, and one that replaces
- * both with a card chosen from a list. The missions here are read from the matchup
- * and the app has no structured way to know which card a twist substitutes, so the
- * twist is recorded and printed but never applied.
- *
- * Read off the pack's own words, and only ever to add a warning: a twist this misses
- * is a twist shown without one, exactly as every twist was before. Nothing about what
- * the app tracks turns on the answer.
- */
+/** Warn when a printed twist changes primary missions: the app records the twist but cannot apply its unstructured replacement rules. */
 export const changesPrimary = (twist: Twist) => /primary mission/i.test(twist.rules ?? '')
 
 /**

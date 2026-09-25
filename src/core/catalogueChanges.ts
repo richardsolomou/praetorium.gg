@@ -264,24 +264,7 @@ function stillNamed(catalogueId: string, change: CatalogueChange, before: Readon
 const changeName = (change: CatalogueChange) => ('detachment' in change ? `${change.detachment}\0${change.name}` : change.name)
 const changeId = (change: CatalogueChange) => ('detachmentId' in change ? change.detachmentId : change.id)
 
-/**
- * The change set between two snapshots' reference data, in one deterministic order:
- * factions by name, then each faction's changes by kind and name. The same two inputs
- * always give byte-identical output, which is what lets any replica record it.
- *
- * A side that states no datasheets, or no detachments, has said nothing about them rather
- * than that every one was removed: an older compiled catalogue carries no detachments at
- * all, and a source missing from a snapshot leaves its part empty. That part is compared
- * only when both sides state it.
- *
- * Nor is a thing removed while one of the same name is still there. Upstream data files
- * the same datasheet twice under different ids, and relabelling the stray copy as Legends
- * takes it off the reference pages while the datasheet a player uses stays, so a removal
- * whose exact display name remains in the same faction and section is not reported, and an
- * addition whose name was already there is not either. The name only silences the report:
- * two records that share a name but not an id are never paired, so no points change is
- * read between them. A name that differs by so much as a letter is a different thing.
- */
+/** Compare only sections present in both snapshots. Suppress additions or removals when the exact display name still exists in that faction and section, but pair records only by id; emit changes in deterministic order. */
 export function catalogueChanges(before: ChangeSource, after: ChangeSource, limit = CATALOGUE_CHANGE_LIMIT): CatalogueChangeSet {
   const stated = <T>(left: readonly T[], right: readonly T[]) => left.length > 0 && right.length > 0
   const beforeNames = namesIn(before)

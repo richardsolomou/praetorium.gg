@@ -36,29 +36,7 @@ export type HomeData = {
 /** How much of a finished shelf is a reminder rather than an archive; the archive is `/battles`. */
 const RECENT = 5
 
-/**
- * The home page's composition, given its data.
- *
- * One column width and one vertical rhythm the whole way down, and every block
- * below the top band is a rubric heading over its content — the shelves and the
- * two visitor sections included. The page had three widths and
- * five kinds of box before, which is what made a stack of individually correct
- * sections read as a pile.
- *
- * The shelves run outwards from the reader: the games waiting on them, anything
- * else that cannot move until they do, the lists they build between games, the
- * games they have already played, their friends' tables, then everybody else's. A
- * player arriving to resume a game never scrolls, and one arriving with nothing
- * of their own to do is handed the next-nearest thing rather than a blank page.
- *
- * A player and a visitor get the same skeleton. What differs is the top band, the
- * head of the leaderboard, and whether the tools that need no account are on the
- * page at all: somebody who has already signed up does not need the app sold to
- * them underneath their own live games, and every link in that pitch is already in
- * the navigation above their head.
- *
- * Nothing here fetches or mutates, so the whole page can be drawn from fixtures.
- */
+/** Keep one page width and show the player’s own pending games before friends’ and public games; visitors share the layout but see the public entry points. */
 export function HomeView({ me, mine, friends, open, rosters, rostersDue, friendRequests, leaders, newBattle, onDelete, more }: HomeData) {
   // The feeds arrive without practice games; the player's own list is their whole history.
   const ours = mine.filter((battle) => !battle.playerDetails?.some((player) => player.automated))

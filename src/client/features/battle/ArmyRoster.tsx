@@ -22,19 +22,7 @@ type Props = {
   send: (command: Command) => void
 }
 
-/**
- * An army's own list, opened over the battle rather than away from it.
- *
- * The list a player is playing is the thing they reach for most and the one thing
- * the tracker sent them off the page to read, so a turn spent checking what a unit
- * is carrying cost the game its screen. It is the same roster cards the library and
- * the frozen snapshot draw, from the log rather than the saved list, with one row
- * added: what the battle has taken off the unit.
- *
- * Either side may open either army and record its losses. Everything about a unit is
- * already public to both players, and one person refereeing the table should not have
- * to hand a phone across it to say a squad is gone.
- */
+/** Show the frozen roster from the battle log in place, with current losses; either seated side can record either army’s losses. */
 export function ArmyRoster({ army, side, token, actionable, send, onSimulate }: Props) {
   const [open, setOpen] = useState(false)
   const roster = army.roster
@@ -171,18 +159,7 @@ function BattleUnit({
   )
 }
 
-/**
- * What the battle has done to one unit, and what can be done about it.
- *
- * Two counters, because a table has two: a squad loses whole models, and the model
- * currently taking damage loses wounds until it goes. A unit shows whichever of them
- * it actually has — a lone Dreadnought has only wounds, a squad of one-wound infantry
- * has only models, and a squad of Terminators has both. Losing the unit outright is
- * the separate button, for the squad that is wiped in one go.
- *
- * Neither counter decides anything. Whether a wound takes a model with it is the
- * domain's rule, so a press sends one command and reads the answer back.
- */
+/** Expose model and wound controls only where the frozen unit has those counts; the domain decides whether a wound removes a model. */
 function UnitStatus({
   unit,
   playerId,

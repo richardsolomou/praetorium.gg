@@ -48,20 +48,7 @@ function seatOptions(
   ].filter((group) => group.items.length)
 }
 
-/**
- * Opening a battle: who is in it, and nothing else.
- *
- * Practice is not a format of its own. A practice opponent is an account that holds
- * a seat and never signs in, so playing one is a 1v1 like any other — and a 2v1 with
- * one in it is a 2v1. Every shape here is therefore just whoever is in the seats.
- *
- * The allied pair of a 2v1 can be either side, because whoever is at the keyboard
- * may be one of the two. Only the seating differs; the battle is the same one.
- *
- * How big the game is and which mission pack it plays are the first thing setup
- * asks, together, with everyone looking at it — so they are not asked twice. A new
- * battle opens at the default size and setup is where the table settles it.
- */
+/** Battle creation seats named players; setup chooses size and mission pack. Practice opponents occupy ordinary seats. */
 export function CreateBattle() {
   const [open, setOpen] = useState(false)
   const opponentQuery = useQuery({ ...opponentsQuery(), enabled: open })

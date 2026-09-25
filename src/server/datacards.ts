@@ -437,18 +437,7 @@ function detachmentRuleCards(rules: unknown, faction: string, sections: SectionP
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' }
 const TABLE = /<table>[^]*?(?:<\/table>|$)/g
 
-/**
- * Card prose as the app's markdown.
- *
- * The files write markdown and mix a few HTML tags into it: `<k>` around a keyword and
- * `<b>` around emphasis, which `RuleText` reads as `**…**` the way the catalogues
- * already write them; `<ul>`/`<li>` for the lists a card prints; `<u>` and `<i>`
- * that carry nothing the app renders. Line breaks are the card's own and are kept.
- *
- * A table is the one thing Markdown has no reading for, so its rows are held back
- * whole and handed on as the source wrote them: `RuleText` draws those with the
- * reader that knows the source's own markup.
- */
+/** Convert supported source tags to Markdown, preserve line breaks, and leave tables intact for `RuleText` to render. */
 export function prose(text: string) {
   const tables: string[] = []
   const converted = text
@@ -489,19 +478,7 @@ export function stratagemText(card: Record<string, unknown>) {
   return sections.length ? sections.join('\n\n') : null
 }
 
-/**
- * The army-construction rules the prose states, typed so legality and the picker can
- * read them.
- *
- * Three forms are read, and nothing else: a list a named faction's presence forbids
- * ("If your army includes one or more SPACE WOLVES units, it cannot include … the
- * following units: …"), a list the faction's own rule forbids ("Your army cannot
- * include any of the following units: …"), and the Black Templars' ban on Psykers. A
- * list may exempt units carrying a keyword — "models that do not have the Black
- * Templars keyword", or datasheets "from Codex: Space Marines" — and the exemption is
- * kept beside each name. `factionRestrictionCoverageIssues` names every list this
- * did not capture, so a rewording fails the check instead of silently allowing units.
- */
+/** Parse only supported faction bans and keyword exemptions; `factionRestrictionCoverageIssues` reports unmatched source wording rather than silently allowing it. */
 export function factionRestrictions(datacards: Pick<LoadedDatacards, 'factions'>) {
   const restrictions = new Map<string, { excludedNames: Map<string, string | null>; excludedKeywords: Set<string> }>()
   const forFaction = (faction: string) => {

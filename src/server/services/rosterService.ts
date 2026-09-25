@@ -89,36 +89,13 @@ export class RosterService {
     return rosterSummaries(await this.repository.rosterSummariesByUser(userId))
   }
 
-  /**
-   * The lists this player has published, for anybody reading their profile.
-   *
-   * No viewer is asked for, because a public list is public: the only credential is
-   * the owner having chosen it. Private and unlisted lists are absent — an unlisted
-   * one is a link its owner handed out, and listing it here would hand it to
-   * everybody.
-   *
-   * One read answers both shapes: `summaries` is what the library row draws, and
-   * `priceable` is the same lists in the form the points cache takes. The picks stay
-   * on the server, which is why the caller gets them separately rather than the
-   * summaries carrying them.
-   */
+  /** Public profile rosters exclude private and unlisted lists. Return priceable picks separately from summaries so they stay server-side. */
   async publicRosters(userId: string) {
     const rows = await this.repository.publicRostersByUser(userId, PROFILE_ROSTER_LIMIT)
     return { summaries: rosterSummaries(rows), priceable: rows.map((row) => rosterFromRow(row)) }
   }
 
-  /**
-   * A shared roster, its owner's private roster, or a list fielded in a battle the
-   * reader is seated in.
-   *
-   * Unlisted and public read alike: holding the opaque id is the whole credential for
-   * both, and what a public one adds is being listed on its owner's profile rather
-   * than any further access.
-   *
-   * The last case widens nothing: a battle already shows every seat the opposing army
-   * and its units, so the reader can see this list either way. The battle has to be
-   * named, so the check stays one log rather than a scan of every battle they play.
-   */
+  /** An opaque roster id grants unlisted or public access; private access requires ownership or a named battle whose seated reader can already see the snapshot. */
   async rosterAccess(id: string, userId: string | null = null, token: string | null = null) {
     const row = await this.repository.roster(id)
     if (!row) return null

@@ -294,13 +294,7 @@ export const commands = pgTable(
   ],
 )
 
-/**
- * A list a player keeps between battles.
- *
- * The picks are stored, not the expanded selections: re-pricing them against the
- * catalogue the instance currently holds is the honest answer when Games Workshop
- * changes points, and it is what a player expects a saved list to do.
- */
+/** Store picks so saved lists can be repriced against the current catalogue. */
 export const rosters = pgTable(
   'rosters',
   {

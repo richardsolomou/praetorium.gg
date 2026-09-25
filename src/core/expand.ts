@@ -1,14 +1,4 @@
-/**
- * Building a legal starting selection for a unit.
- *
- * Picking a unit in an army list does not mean picking a bare model: the catalogue
- * requires its mandatory wargear, and a squad requires a minimum number of bodies.
- * This produces that — the smallest selection the data would accept — which is both
- * what a player should be handed when they add a unit and what any honest points check
- * has to start from.
- *
- * Pure, like the rest of `src/core`.
- */
+/** Build the smallest selection the catalogue allows, including required models and wargear. */
 
 import type { CatalogueIndex, Definition } from './catalogue'
 import {

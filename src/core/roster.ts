@@ -1,19 +1,4 @@
-/**
- * A unit as the player asked for it, built out of the catalogue.
- *
- * A saved list keeps the picks — this entry, this many models, these choices — and
- * this turns one of them back into a selection tree the evaluator can price. Handing
- * back the picks rather than the expanded selections is deliberate: re-pricing them
- * against the catalogue an instance currently holds is the honest answer when Games
- * Workshop changes points.
- *
- * The pieces this is assembled from live beside it: `expand.ts` builds the smallest
- * legal selection, `unitSize.ts` says how many models it fields, `unitChoices.ts`
- * says what the data still leaves to the player, and `unitSpread.ts` divides a squad
- * between the options it is offered.
- *
- * Pure, like the rest of `src/core`.
- */
+/** Saved picks are rebuilt and repriced against the current catalogue. */
 
 import type { CatalogueIndex, Definition } from './catalogue'
 import { childrenOf, isCollective, MAX_DEPTH, maximumCount, type Option, pointsOf, requiredCount, resolve } from './definitions'
@@ -188,18 +173,7 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
     if ((!missingRequired && !defaultedComposition) || !option || context?.spreads?.[choice.key] !== undefined) return tree
     return withUnitSpread(tree, choice.key, { [option.id]: defaultedComposition ? option.max : 1 }, index, context)
   }, selection)
-  /**
-   * A squad the data keeps identical, not split by the building of it.
-   *
-   * Growing a squad of tesla carbines refills the new bodies from the group's default,
-   * which would mix what the datasheet does not allow mixed — nobody asked for that, so
-   * the models that arrived take what the rest are holding.
-   *
-   * A split the list itself states is left exactly as it states it. A roster pasted in
-   * from somewhere else is the player's, illegal or not, and `violations` is already
-   * where it gets told that its Immortals may not carry both. Quietly issuing seven of
-   * them a different gun would be a worse answer than saying so.
-   */
+  /** When growing an identical squad, copy its existing loadout to new models; preserve an imported split and report its illegality separately. */
   const settled = unitChoices(entryId, completed, index, context).reduce((tree, choice) => {
     const held = choice.options.filter((option) => option.count > 0)
     const asked = context?.spreads?.[choice.key] ?? {}

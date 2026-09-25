@@ -560,20 +560,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
 
 const keywordCache = new WeakMap<LoadedCatalogue, Map<string, string[]>>()
 
-/**
- * The keywords printed on one datasheet, and the one place that answers for them.
- *
- * The links the entry and its target write down are the line as the book prints it,
- * but a keyword can also be granted by the list around it — a Chaplain in Terminator
- * Armour is DEATHWING in the Dark Angels book and nowhere else — so what the
- * selection carries is read rather than what it links. Keywords the data keeps for
- * its own bookkeeping are not printed.
- *
- * Without a `context` this answers for the datasheet on its own, against a default
- * selection, and caches that against the immutable snapshot: the picker asks for
- * every datasheet in a book, and an answer that depends on nothing else cannot
- * change. With one it answers for that pick inside that list, and caches nothing.
- */
+/** Read selected and granted keywords, not only linked profiles. Cache the default-selection answer per immutable snapshot, but not roster-context answers. */
 export function keywordsIn(
   loaded: LoadedCatalogue,
   catalogueId: string,

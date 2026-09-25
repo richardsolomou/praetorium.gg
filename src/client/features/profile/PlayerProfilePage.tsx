@@ -51,19 +51,7 @@ export const readSearch = (search: Record<string, unknown>): ProfileSearch => {
 /** The narrowing alone, so a tab change is not a new cache key for the record. */
 export const recordFilter = ({ tab: _tab, ...filter }: ProfileSearch): PlayerProfileFilter => filter
 
-/**
- * One player, open to anybody.
- *
- * A name was already public; this makes the games behind it public too, but only
- * as far as their own answer allows — the server narrows the list with the same
- * fold a battle link reads, so a profile can never list a battle that link would
- * refuse. A player who keeps their battles private has a name here and nothing
- * else, which is exactly what they asked for.
- *
- * Nothing on the page is stored. The rankings come from the leaderboard's own fold
- * and the record from these battles, so neither can drift from the table it agrees
- * with.
- */
+/** A profile is public, but its record, battle list, and rank derive only from games the reader may watch. */
 export function PlayerProfilePage({ userId, search }: { userId: string; search: ProfileSearch }) {
   const filter = recordFilter(search)
   const navigate = useNavigate()
