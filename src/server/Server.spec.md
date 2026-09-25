@@ -344,3 +344,18 @@ Authenticate requests and coordinate catalogue, application, and persistence wor
   checklist: worker-fencing dismissed: no worker lease or ownership generation exists here
   checklist: commit-ordered-effects dismissed: this seal issues no irreversible external effect
   checklist: resumption-coverage dismissed: this seal has no batch checkpoint
+- untrusted Apple notification: A notification signed by an untrusted key cannot trigger Apple account deletion.
+  over: an account-deleted event signed by a key outside Apple's trusted key set
+  via: never deletes an account for a notification signed by another key
+  because: an attacker must not delete an account by sending a forged provider event
+  crossing: external-source -> persisted-record
+  refuted: decoded the payload without verifying its signature -> the forged deletion test failed, then passed after restoration (2026-09-25)
+  kinds: message
+  checklist: destination-confinement dismissed: the notification names an account, not an outbound destination
+  checklist: message-authenticity declared as untrusted Apple notification
+  checklist: input-validation dismissed: this case uses a valid event schema to isolate signature verification
+  checklist: retry-recognition dismissed: the receiver does not classify retries of a previously completed deletion
+  checklist: duplicate-suppression dismissed: deleting an already unlinked account returns without another deletion
+  checklist: keyed-ordering dismissed: the receiver does not route events into ordered lanes
+  checklist: acknowledgment-barrier dismissed: this rejected event returns 400 without acknowledging accepted work
+  checklist: retry-classification dismissed: the receiver does not choose a retry policy for Apple
