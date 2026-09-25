@@ -6,7 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Menu, X } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { POSTHOG_BROWSER_OPTIONS } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
@@ -16,6 +16,7 @@ import { NativeAppNavigation } from './NativeAppNavigation'
 import { NativePushRegistration } from './NativePushRegistration'
 import { OnboardingGuide } from '../onboarding/OnboardingGuide'
 import { meQuery } from '../../queries'
+import { guestDraftOpen, subscribeGuestDraft } from '../rosters/guestDraft'
 // A local dev server shares the production project token, so gate the browser
 // SDK on a built bundle to keep localhost sessions out of the production project.
 const posthog = import.meta.env.PROD
@@ -138,8 +139,14 @@ function PrimaryNavigation({ path }: { path: string }) {
 export function AppShell() {
   const location = useLocation()
   const path = location.pathname
-  // A visitor's builder shares `/rosters` with the library, so its route says when it is on screen.
-  const guestBuilder = useMatch({ from: '/rosters/', shouldThrow: false })?.loaderData?.guestDraft === true
+  // The loader hints the first frame; a draft still needs this layout when browser storage fails.
+  const guestHint = useMatch({ from: '/rosters/', shouldThrow: false })?.loaderData?.guestDraft === true
+  const guestDraft = useSyncExternalStore(
+    subscribeGuestDraft,
+    () => guestDraftOpen(guestHint),
+    () => guestHint,
+  )
+  const guestBuilder = (path === '/rosters' || path === '/rosters/') && guestDraft
   const immersive = guestBuilder || /^\/rosters\/(?:new|import|[^/]+(?:\/edit)?)$/.test(path)
   return (
     <html lang="en" suppressHydrationWarning>

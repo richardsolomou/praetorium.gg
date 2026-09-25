@@ -16,6 +16,7 @@ import {
   markGuestDraft,
   newGuestDraft,
   readGuestDraft,
+  setGuestDraftOpen,
   writeGuestDraft,
 } from './guestDraft'
 import { ListBuilder } from './ListBuilder'
@@ -36,6 +37,7 @@ export function useGuestDraft(hinted: boolean) {
   const [state, setState] = useState<{ ready: boolean; guest: GuestDraft | null }>({ ready: false, guest: null })
   useEffect(() => {
     const guest = readGuestDraft()
+    setGuestDraftOpen(Boolean(guest))
     setState({ ready: true, guest })
     // A cookie from another tab, or a draft from before there was one, is set right for the next refresh.
     if (Boolean(guest) !== hinted) {
@@ -44,6 +46,7 @@ export function useGuestDraft(hinted: boolean) {
     }
   }, [hinted, router])
   const set = (guest: GuestDraft | null) => {
+    setGuestDraftOpen(Boolean(guest))
     setState({ ready: true, guest })
     void router.invalidate()
   }
