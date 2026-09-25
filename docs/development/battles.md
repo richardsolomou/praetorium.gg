@@ -1,6 +1,6 @@
 # Battles
 
-`src/core/battle.ts` owns the log, `validate`, and `apply`. `battleView.ts` controls visibility. `battleReport.ts` renders the log. `src/server/service.ts` connects the domain to storage and realtime updates.
+`src/core/battle.ts` owns the log, `validate`, and `apply`. `battleView.ts` controls visibility. `battleReport.ts` renders the log. The battle report shows each event’s date and time from its existing timestamp, and battle shelves show the last activity date even while a game is live. `src/server/service.ts` connects the domain to storage and realtime updates.
 
 ## Command log
 

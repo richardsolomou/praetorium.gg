@@ -174,6 +174,30 @@ describe('friends', () => {
 
     await expect(service.acceptFriend('bob', 'alice')).rejects.toThrow(expect.objectContaining({ status: 404 }))
   })
+
+  it('lets the recipient reject a pending friend request', async () => {
+    await enrol('dave', 'Dave')
+    await service.requestFriend('alice', 'dave')
+
+    await service.rejectFriend('dave', 'alice')
+
+    expect((await service.friendships('dave')).incoming).toEqual([])
+  })
+
+  it('does not let the requester reject their own request', async () => {
+    await enrol('dave', 'Dave')
+    await service.requestFriend('alice', 'dave')
+
+    await expect(service.rejectFriend('alice', 'dave')).rejects.toThrow(expect.objectContaining({ status: 404 }))
+  })
+
+  it('does not reject an accepted friendship', async () => {
+    await enrol('dave', 'Dave')
+    await service.requestFriend('alice', 'dave')
+    await service.acceptFriend('dave', 'alice')
+
+    await expect(service.rejectFriend('dave', 'alice')).rejects.toThrow(expect.objectContaining({ status: 404 }))
+  })
 })
 
 describe('player profiles', () => {

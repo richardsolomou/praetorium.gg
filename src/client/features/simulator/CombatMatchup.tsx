@@ -1,10 +1,17 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { ArrowUp, Crosshair, RotateCcw, Swords } from 'lucide-react'
 import { ProfileGrid, WeaponProfiles } from '../../components/DatasheetProfiles'
 import type { Datasheet } from '../../../contracts/catalogue'
 import {
   DEFAULT_COMBAT_OPTIONS,
+  criticalThresholdMatters,
+  halfRangeMatters,
+  rerollAdjustmentMatters,
+  rerollRank,
+  rollAdjustmentMatters,
+  saveAdjustmentMatters,
   type CombatInput,
   type CombatTargetGroup,
   type CombatOptions,
@@ -12,7 +19,15 @@ import {
 } from '../../../core/combat'
 import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatPlan, combatTarget } from '../../../core/combatProfiles'
-import { adjustCombatTarget, adjustCombatWeapon, type TargetAdjustment, type WeaponAdjustment } from '../../../core/combatAdjustments'
+import {
+  adjustCombatTarget,
+  adjustCombatWeapon,
+  combineAttackAdjustments,
+  combineWeaponAdjustments,
+  type TargetAdjustment,
+  type WeaponAdjustment,
+} from '../../../core/combatAdjustments'
+import { wargearKey } from '../../../core/wargear'
 import {
   combatRuleDefences,
   combatRuleOptions,
@@ -26,6 +41,15 @@ import { Chip, Choice } from './CombatControls'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CombatEstimate } from './CombatEstimate'
 
+function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][number]; count: number }[]) {
+  const groups = new Map<string, Datasheet['profiles']>()
+  for (const { profile, count } of entries) {
+    const key = wargearKey(profile.name)
+    groups.set(key, [...(groups.get(key) ?? []), { ...profile, count }])
+  }
+  return [...groups]
+}
+
 export type CombatantSnapshot = {
   sheet: Datasheet
   models: number
@@ -36,17 +60,18 @@ export type CombatantSnapshot = {
   allocationRequired?: boolean
 }
 type Phase = CombatOptions['phase']
+type Scope = Phase | 'all'
 /** Situational extras layered over the datasheet and its rules; each combines the way the game combines two sources. */
 type CombatAdjustments = {
+  all?: Partial<Omit<CombatOptions, 'phase'>>
   ranged?: Partial<Omit<CombatOptions, 'phase'>>
   melee?: Partial<Omit<CombatOptions, 'phase'>>
-  weapons?: Partial<Record<Phase, WeaponAdjustment>>
+  weapons?: Partial<Record<Scope, WeaponAdjustment>>
   target?: TargetAdjustment
   feelNoPain?: number | null
 }
 export type CombatRequest = Record<Phase, CombatInput | null>
 export type CombatAnswer = Record<Phase, { result?: CombatResult; error?: string } | null>
-const rerollRank = { none: 0, ones: 1, failed: 2 } as const
 const sustainedAmounts: Record<string, WeaponAdjustment['sustained']> = {
   '1': 1,
   '2': 2,
@@ -105,6 +130,7 @@ export function CombatMatchup({
 }) {
   const [adjustments, setAdjustments] = useState<CombatAdjustments>({})
   const [preferences, setPreferences] = useState<Record<string, string>>({})
+  const [excludedWeapons, setExcludedWeapons] = useState<Record<Phase, string[]>>({ ranged: [], melee: [] })
   const [outcome, setOutcome] = useState<{ key: string; attempt: number; answer: CombatAnswer } | null>(null)
   const [retry, setRetry] = useState(0)
   const results = useRef<HTMLDivElement>(null)
@@ -136,16 +162,17 @@ export function CombatMatchup({
     setAllocation(labels.map((label, at) => (at === index - 1 ? labels[index]! : at === index ? labels[index - 1]! : label)))
   const attackRules = attacker?.rules ?? []
   const defenceRules = defender?.rules ?? []
-  const defencesIn = (phase: Phase) =>
-    target?.target
-      ? adjustCombatTarget(combatRuleDefences(target.target, defenceRules, phase, attackRules), adjustments.target ?? {})
-      : null
+  const defencesIn = (phase: Phase, settings: CombatAdjustments = adjustments) =>
+    target?.target ? adjustCombatTarget(combatRuleDefences(target.target, defenceRules, phase, attackRules), settings.target ?? {}) : null
   const rangedDefences = defencesIn('ranged')
   const meleeDefences = defencesIn('melee')
   const extraFeelNoPain = adjustments.feelNoPain ?? null
   const betterFeelNoPain = (printed: number | null | undefined) =>
     extraFeelNoPain && (!printed || extraFeelNoPain < printed) ? extraFeelNoPain : (printed ?? null)
-  const withExtraFeelNoPain = (defences: CombatInput['target']) => ({ ...defences, feelNoPain: betterFeelNoPain(defences.feelNoPain) })
+  const withExtraFeelNoPain = (defences: CombatInput['target'], settings: CombatAdjustments = adjustments) => {
+    const extra = settings.feelNoPain ?? null
+    return { ...defences, feelNoPain: extra && (!defences.feelNoPain || extra < defences.feelNoPain) ? extra : defences.feelNoPain }
+  }
   const feelNoPain = betterFeelNoPain(
     rangedDefences?.feelNoPain === meleeDefences?.feelNoPain ? rangedDefences?.feelNoPain : target?.target?.feelNoPain,
   )
@@ -154,11 +181,13 @@ export function CombatMatchup({
     ...combatRuleOptions(attackRules, 'attacker', phase),
     ...combatRuleOptions(defenceRules, 'defender', phase),
   })
-  const options = (phase: Phase): CombatOptions => {
+  const options = (phase: Phase, settings: CombatAdjustments = adjustments): CombatOptions => {
     const attack = combatRuleOptions(attackRules, 'attacker', phase)
     const defence = combatRuleOptions(defenceRules, 'defender', phase)
     const inherited = inheritedOptions(phase)
-    const extra = adjustments[phase] ?? {}
+    const shared = settings.all ?? {}
+    const specific = settings[phase] ?? {}
+    const extra = combineAttackAdjustments(shared, specific)
     const better = (field: 'hitReroll' | 'woundReroll') =>
       rerollRank[extra[field] ?? 'none'] > rerollRank[inherited[field]] ? extra[field]! : inherited[field]
     return {
@@ -174,8 +203,15 @@ export function CombatMatchup({
       hitReroll: better('hitReroll'),
       woundReroll: better('woundReroll'),
       positiveWoundModifier:
-        (attack.positiveWoundModifier ?? 0) + (defence.positiveWoundModifier ?? 0) + Math.max(0, extra.woundModifier ?? 0),
-      psychicHitModifier: (attack.psychicHitModifier ?? 0) + (defence.psychicHitModifier ?? 0) + Math.max(0, extra.hitModifier ?? 0),
+        (attack.positiveWoundModifier ?? 0) +
+        (defence.positiveWoundModifier ?? 0) +
+        Math.max(0, shared.woundModifier ?? 0) +
+        Math.max(0, specific.woundModifier ?? 0),
+      psychicHitModifier:
+        (attack.psychicHitModifier ?? 0) +
+        (defence.psychicHitModifier ?? 0) +
+        Math.max(0, shared.hitModifier ?? 0) +
+        Math.max(0, specific.hitModifier ?? 0),
       phase,
     }
   }
@@ -184,14 +220,18 @@ export function CombatMatchup({
     : null
   const plans = {
     ranged:
-      attacker && attackSheet ? combatPlan(attackSheet, attacker.carriers, defender?.sheet.keywords ?? [], 'ranged', preferences) : null,
+      attacker && attackSheet
+        ? combatPlan(attackSheet, attacker.carriers, defender?.sheet.keywords ?? [], 'ranged', preferences, new Set(excludedWeapons.ranged))
+        : null,
     melee:
-      attacker && attackSheet ? combatPlan(attackSheet, attacker.carriers, defender?.sheet.keywords ?? [], 'melee', preferences) : null,
+      attacker && attackSheet
+        ? combatPlan(attackSheet, attacker.carriers, defender?.sheet.keywords ?? [], 'melee', preferences, new Set(excludedWeapons.melee))
+        : null,
   }
-  const scenario = (phase: Phase): CombatInput | null => {
+  const scenario = (phase: Phase, settings: CombatAdjustments = adjustments): CombatInput | null => {
     const plan = plans[phase]
-    const defences = phase === 'ranged' ? rangedDefences : meleeDefences
-    const mortalWounds = combatRuleMortals(attackRules, phase, defender?.sheet.keywords ?? [], plan?.used ?? [], attacker?.models ?? 0)
+    const defences = defencesIn(phase, settings)
+    const mortalWounds = combatRuleMortals(attackRules, phase, defender?.sheet.keywords ?? [], plan?.active ?? [], attacker?.models ?? 0)
     return attacker &&
       defences &&
       !attacker.allocationRequired &&
@@ -199,27 +239,55 @@ export function CombatMatchup({
       (plan.weapons.length || mortalWounds.length) &&
       !plan.errors.length
       ? {
-          target: withExtraFeelNoPain(defences),
+          target: withExtraFeelNoPain(defences, settings),
           weapons: combatRuleWeapons(
             attacker.sheet,
-            combatRuleWeapons(attacker.sheet, plan.used, attackRules, 'attacker', phase, defender?.sheet.keywords ?? []).map(
+            combatRuleWeapons(attacker.sheet, plan.active, attackRules, 'attacker', phase, defender?.sheet.keywords ?? []).map(
               (weapon, index) => ({
                 weapon,
                 count: weapon.count,
-                profile: plan.used[index]!.profile,
+                profile: plan.active[index]!.profile,
               }),
             ),
             defenceRules,
             'defender',
             phase,
             attacker?.sheet.keywords ?? [],
-          ).map((weapon) => adjustCombatWeapon(weapon, adjustments.weapons?.[phase] ?? {})),
-          options: options(phase),
+          ).map((weapon) =>
+            adjustCombatWeapon(weapon, combineWeaponAdjustments(settings.weapons?.all ?? {}, settings.weapons?.[phase] ?? {})),
+          ),
+          options: options(phase, settings),
           ...(mortalWounds.length ? { mortalWounds } : {}),
         }
       : null
   }
   const scenarios: CombatRequest = { ranged: scenario('ranged'), melee: scenario('melee') }
+  const modifierHasEffect = (scope: Scope, source: 'attack' | 'weapon' | 'target' | 'feelNoPain', field: string) => {
+    const affected = scope === 'all' || source === 'target' || source === 'feelNoPain' ? phases.map(([phase]) => phase) : [scope]
+    if (!affected.some((phase) => scenarios[phase])) return true
+    const previous: CombatAdjustments =
+      source === 'weapon'
+        ? { ...adjustments, weapons: { ...adjustments.weapons, [scope]: { ...adjustments.weapons?.[scope], [field]: undefined } } }
+        : source === 'target'
+          ? { ...adjustments, target: { ...adjustments.target, [field]: undefined } }
+          : source === 'feelNoPain'
+            ? { ...adjustments, feelNoPain: undefined }
+            : { ...adjustments, [scope]: { ...adjustments[scope], [field]: undefined } }
+    return affected.some((phase) => {
+      const current = scenarios[phase]
+      const without = scenario(phase, previous)
+      if (!current || !without) return Boolean(current || without)
+      if (field === 'criticalHit' || field === 'criticalWound')
+        return criticalThresholdMatters(current, without, field === 'criticalHit' ? 'hit' : 'wound')
+      if (field === 'hitReroll' || field === 'woundReroll')
+        return rerollAdjustmentMatters(current, without, field === 'hitReroll' ? 'hit' : 'wound')
+      if (['hitModifier', 'woundModifier', 'skill', 'strength', 'cover', 'heavy', 'charged', 'toughness'].includes(field))
+        return rollAdjustmentMatters(current, without, ['hitModifier', 'skill', 'cover', 'heavy'].includes(field) ? 'hit' : 'wound')
+      if (field === 'ap' || field === 'save' || field === 'invulnerable') return saveAdjustmentMatters(current, without)
+      if (field === 'halfRange') return halfRangeMatters(current)
+      return JSON.stringify(current) !== JSON.stringify(without)
+    })
+  }
   const requestKey = JSON.stringify(scenarios)
   const canSimulate = Boolean(scenarios.ranged || scenarios.melee)
   const updating = pending || (canSimulate && (outcome?.key !== requestKey || outcome?.attempt !== retry))
@@ -258,16 +326,16 @@ export function CombatMatchup({
     }
     return stop
   }, [requestKey, pending, failed, retry])
-  const change = <K extends keyof CombatOptions>(phase: Phase, name: K, value: CombatOptions[K]) =>
-    setAdjustments((current) => ({ ...current, [phase]: { ...current[phase], [name]: value } }))
-  const changeWeapon = <K extends keyof WeaponAdjustment>(phase: Phase, name: K, value: WeaponAdjustment[K]) =>
-    setAdjustments((current) => ({ ...current, weapons: { ...current.weapons, [phase]: { ...current.weapons?.[phase], [name]: value } } }))
+  const change = <K extends keyof CombatOptions>(scope: Scope, name: K, value: CombatOptions[K] | undefined) =>
+    setAdjustments((current) => ({ ...current, [scope]: { ...current[scope], [name]: value } }))
+  const changeWeapon = <K extends keyof WeaponAdjustment>(scope: Scope, name: K, value: WeaponAdjustment[K]) =>
+    setAdjustments((current) => ({ ...current, weapons: { ...current.weapons, [scope]: { ...current.weapons?.[scope], [name]: value } } }))
   const changeTarget = <K extends keyof TargetAdjustment>(name: K, value: TargetAdjustment[K]) =>
     setAdjustments((current) => ({ ...current, target: { ...current.target, [name]: value } }))
-  const weaponAdjustment = (phase: Phase) => adjustments.weapons?.[phase] ?? {}
-  const activeCount = (phase: Phase) =>
-    [...Object.values(adjustments[phase] ?? {}), ...Object.values(weaponAdjustment(phase))].filter(
-      (value) => value !== undefined && value !== false && value !== 0 && value !== 'none' && value !== 'direct',
+  const weaponAdjustment = (scope: Scope) => adjustments.weapons?.[scope] ?? {}
+  const activeCount = (scope: Scope) =>
+    [...Object.values(adjustments[scope] ?? {}), ...Object.values(weaponAdjustment(scope))].filter(
+      (value) => value !== undefined && value !== 'direct',
     ).length
   const sources = [
     ...new Set(
@@ -381,10 +449,27 @@ export function CombatMatchup({
                     />
                   ))}
                   <div className="space-y-1.5">
-                    <WeaponProfiles
-                      weapons={plan?.used.map(({ profile, count }) => ({ ...profile, count })) ?? []}
-                      rules={attacker?.sheet.keywordRules ?? []}
-                    />
+                    {weaponToggleGroups(plan?.used ?? []).map(([key, group]) => {
+                      const included = !excludedWeapons[phase].includes(key)
+                      return (
+                        <div key={group[0]!.id} className="flex min-w-0 items-start gap-2">
+                          <Switch
+                            className="mt-3"
+                            aria-label={`Include ${group[0]!.name} in ${title.toLowerCase()} calculation`}
+                            checked={included}
+                            onCheckedChange={(checked) =>
+                              setExcludedWeapons((current) => ({
+                                ...current,
+                                [phase]: checked ? current[phase].filter((candidate) => candidate !== key) : [...current[phase], key],
+                              }))
+                            }
+                          />
+                          <div className={`min-w-0 flex-1 ${included ? '' : 'opacity-50'}`}>
+                            <WeaponProfiles weapons={group} rules={attacker?.sheet.keywordRules ?? []} />
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </section>
@@ -420,120 +505,192 @@ export function CombatMatchup({
         )}
         <section aria-label="Modifiers" className="mt-4 border-t border-edge pt-3">
           <Tabs defaultValue="ranged" className="flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center justify-between gap-2">
               <h2 className="rubric">Modifiers</h2>
               <Button
                 variant="ghost"
                 size="sm"
-                className="ml-auto @xl:order-last"
                 onClick={() => {
                   setAdjustments({})
                   setPreferences({})
+                  setExcludedWeapons({ ranged: [], melee: [] })
                 }}
               >
                 <RotateCcw aria-hidden />
                 Reset
               </Button>
-              <TabsList
-                aria-label="Attack modifiers"
-                className="order-last h-8! w-full border border-edge/60 bg-transparent @xl:order-none @xl:w-fit"
-              >
-                {phases.map(([phase, title]) => {
-                  const active = activeCount(phase)
-                  return (
-                    <TabsTrigger key={phase} value={phase} className="px-3 text-xs data-active:bg-raised data-active:text-bone">
-                      <PhaseIcon phase={phase} />
-                      {title}
-                      {active ? <span className="readout text-xs text-primary">{active}</span> : null}
-                    </TabsTrigger>
-                  )
-                })}
-              </TabsList>
             </div>
-            {phases.map(([phase, title]) => {
-              const weapon = weaponAdjustment(phase)
+            <TabsList aria-label="Attack modifiers" className="h-11! w-full border border-edge bg-raised p-1">
+              {([['all', 'All'], ...phases] as const).map(([scope, title]) => {
+                const active = activeCount(scope)
+                return (
+                  <TabsTrigger
+                    key={scope}
+                    value={scope}
+                    className="min-w-0 px-2 text-sm font-semibold data-active:bg-panel data-active:text-primary"
+                  >
+                    {scope === 'all' ? null : <PhaseIcon phase={scope} />}
+                    {title}
+                    {active ? <span className="readout text-xs text-primary">{active}</span> : null}
+                  </TabsTrigger>
+                )
+              })}
+            </TabsList>
+            {([['all', 'All'], ...phases] as const).map(([scope, title]) => {
+              const weapon = weaponAdjustment(scope)
               const set =
                 <K extends keyof WeaponAdjustment>(field: K) =>
                 (value: WeaponAdjustment[K]) =>
-                  changeWeapon(phase, field, value)
-              const skill = phase === 'ranged' ? 'BS' : 'WS'
+                  changeWeapon(scope, field, value)
+              const skill = scope === 'ranged' ? 'BS' : scope === 'melee' ? 'WS' : 'BS/WS'
               return (
-                <TabsContent key={phase} value={phase} aria-label={`${title} modifiers`} className="space-y-2.5">
+                <TabsContent key={scope} value={scope} aria-label={`${title} modifiers`} className="space-y-2.5">
                   <ChipRow label="Rolls">
                     <ChipFamily
-                      value={adjustments[phase]?.hitModifier}
+                      value={adjustments[scope]?.hitModifier}
                       options={signedOptions([1, -1], 'Hit')}
-                      onChange={(value) => change(phase, 'hitModifier', value ?? 0)}
+                      onChange={(value) => change(scope, 'hitModifier', value)}
+                      ineffective={!modifierHasEffect(scope, 'attack', 'hitModifier')}
                     />
                     <ChipFamily
-                      value={adjustments[phase]?.woundModifier}
+                      value={adjustments[scope]?.woundModifier}
                       options={signedOptions([1, -1], 'Wound')}
-                      onChange={(value) => change(phase, 'woundModifier', value ?? 0)}
+                      onChange={(value) => change(scope, 'woundModifier', value)}
+                      ineffective={!modifierHasEffect(scope, 'attack', 'woundModifier')}
                     />
                     <ChipFamily
-                      value={adjustments[phase]?.hitReroll}
-                      options={hitRerolls}
-                      onChange={(value) => change(phase, 'hitReroll', value ?? 'none')}
+                      value={adjustments[scope]?.hitReroll}
+                      options={
+                        scope !== 'all' && adjustments.all?.hitReroll ? ([...hitRerolls, ['none', 'No hit re-roll']] as const) : hitRerolls
+                      }
+                      onChange={(value) => change(scope, 'hitReroll', value)}
+                      ineffective={!modifierHasEffect(scope, 'attack', 'hitReroll')}
                     />
                     <ChipFamily
-                      value={adjustments[phase]?.woundReroll}
-                      options={woundRerolls}
-                      onChange={(value) => change(phase, 'woundReroll', value ?? 'none')}
+                      value={adjustments[scope]?.woundReroll}
+                      options={
+                        scope !== 'all' && adjustments.all?.woundReroll
+                          ? ([...woundRerolls, ['none', 'No wound re-roll']] as const)
+                          : woundRerolls
+                      }
+                      onChange={(value) => change(scope, 'woundReroll', value)}
+                      ineffective={!modifierHasEffect(scope, 'attack', 'woundReroll')}
                     />
-                    <ChipFamily value={weapon.criticalHit} options={rollOptions([5, 4], 'Crit hits ')} onChange={set('criticalHit')} />
+                    <ChipFamily
+                      value={weapon.criticalHit}
+                      options={rollOptions(scope !== 'all' && adjustments.weapons?.all?.criticalHit ? [5, 4, 6] : [5, 4], 'Crit hits ')}
+                      onChange={set('criticalHit')}
+                      ineffective={!modifierHasEffect(scope, 'weapon', 'criticalHit')}
+                    />
                     <ChipFamily
                       value={weapon.criticalWound}
-                      options={rollOptions([5, 4, 3, 2], 'Crit wounds ')}
+                      options={rollOptions(
+                        scope !== 'all' && adjustments.weapons?.all?.criticalWound ? [5, 4, 3, 2, 6] : [5, 4, 3, 2],
+                        'Crit wounds ',
+                      )}
                       onChange={set('criticalWound')}
+                      ineffective={!modifierHasEffect(scope, 'weapon', 'criticalWound')}
                     />
                   </ChipRow>
                   <ChipRow label="Stats">
-                    <ChipFamily value={weapon.skill} options={signedOptions([1, -1], skill)} onChange={set('skill')} />
-                    <ChipFamily value={weapon.strength} options={signedOptions([1, 2, 3, -1], 'S')} onChange={set('strength')} />
-                    <ChipFamily value={weapon.attacks} options={signedOptions([1, 2, -1], 'A')} onChange={set('attacks')} />
-                    <ChipFamily value={weapon.ap} options={signedOptions([1, 2, -1], 'AP')} onChange={set('ap')} />
-                    <ChipFamily value={weapon.damage} options={signedOptions([1, 2, -1], 'D')} onChange={set('damage')} />
+                    <ChipFamily
+                      value={weapon.skill}
+                      options={signedOptions([1, -1], skill)}
+                      onChange={set('skill')}
+                      ineffective={!modifierHasEffect(scope, 'weapon', 'skill')}
+                    />
+                    <ChipFamily
+                      value={weapon.strength}
+                      options={signedOptions([1, 2, 3, -1], 'S')}
+                      onChange={set('strength')}
+                      ineffective={!modifierHasEffect(scope, 'weapon', 'strength')}
+                    />
+                    <ChipFamily
+                      value={weapon.attacks}
+                      options={signedOptions([1, 2, -1], 'A')}
+                      onChange={set('attacks')}
+                      ineffective={!modifierHasEffect(scope, 'weapon', 'attacks')}
+                    />
+                    <ChipFamily
+                      value={weapon.ap}
+                      options={signedOptions([1, 2, -1], 'AP')}
+                      onChange={set('ap')}
+                      ineffective={!modifierHasEffect(scope, 'weapon', 'ap')}
+                    />
+                    <ChipFamily
+                      value={weapon.damage}
+                      options={signedOptions([1, 2, -1], 'D')}
+                      onChange={set('damage')}
+                      ineffective={!modifierHasEffect(scope, 'weapon', 'damage')}
+                    />
                   </ChipRow>
                   <ChipRow label="Abilities">
                     <ChipFamily
                       value={sustainedKey(weapon.sustained)}
-                      options={sustainedOptions}
-                      onChange={(value) => changeWeapon(phase, 'sustained', value === undefined ? undefined : sustainedAmounts[value])}
+                      options={
+                        scope !== 'all' && adjustments.weapons?.all?.sustained
+                          ? [...sustainedOptions, ['0', 'No Sustained Hits']]
+                          : sustainedOptions
+                      }
+                      onChange={(value) =>
+                        changeWeapon(scope, 'sustained', value === undefined ? undefined : value === '0' ? 0 : sustainedAmounts[value])
+                      }
+                      ineffective={!modifierHasEffect(scope, 'weapon', 'sustained')}
                     />
                     {grants.map(([field, name]) => (
-                      <ChipFamily key={field} value={weapon[field]} options={[[true, name]]} onChange={set(field)} />
-                    ))}
-                  </ChipRow>
-                  <ChipRow label="Situation">
-                    {situations[phase].map(([field, label]) => (
-                      <Chip
-                        key={field}
-                        label={label}
-                        checked={inheritedOptions(phase)[field] || Boolean(adjustments[phase]?.[field])}
-                        disabled={inheritedOptions(phase)[field]}
-                        onChange={(value) => change(phase, field, value)}
-                      />
-                    ))}
-                    {phase === 'ranged' && plans.ranged?.weapons.some((entry) => entry.indirectFire) ? (
                       <ChipFamily
-                        value={adjustments.ranged?.indirectFire === 'direct' ? undefined : adjustments.ranged?.indirectFire}
+                        key={field}
+                        value={weapon[field]}
                         options={
-                          [
-                            ['unobserved', 'Indirect, unobserved or moving'],
-                            ['spotted', 'Indirect, stationary and spotted'],
-                          ] as const
+                          scope !== 'all' && adjustments.weapons?.all?.[field]
+                            ? [
+                                [true, name],
+                                [false, `No ${name}`],
+                              ]
+                            : [[true, name]]
                         }
-                        onChange={(value) => change('ranged', 'indirectFire', value ?? 'direct')}
+                        onChange={set(field)}
+                        ineffective={!modifierHasEffect(scope, 'weapon', field)}
                       />
-                    ) : null}
-                    {plans[phase]?.weapons.some((entry) => entry.lethal) ? (
-                      <Chip
-                        label="Decline Lethal Hits"
-                        checked={!options(phase).lethal}
-                        onChange={(value) => change(phase, 'lethal', !value)}
-                      />
-                    ) : null}
+                    ))}
                   </ChipRow>
+                  {scope === 'all' ? null : (
+                    <ChipRow label="Situation">
+                      {situations[scope].map(([field, label]) => (
+                        <span key={field} className="inline-flex items-center gap-1">
+                          <Chip
+                            label={label}
+                            checked={inheritedOptions(scope)[field] || Boolean(adjustments[scope]?.[field])}
+                            disabled={inheritedOptions(scope)[field]}
+                            onChange={(value) => change(scope, field, value ? true : undefined)}
+                          />
+                          {adjustments[scope]?.[field] && !modifierHasEffect(scope, 'attack', field) ? (
+                            <span className="text-3xs text-amber-400">No effect</span>
+                          ) : null}
+                        </span>
+                      ))}
+                      {scope === 'ranged' && plans.ranged?.weapons.some((entry) => entry.indirectFire) ? (
+                        <ChipFamily
+                          value={adjustments.ranged?.indirectFire === 'direct' ? undefined : adjustments.ranged?.indirectFire}
+                          options={
+                            [
+                              ['unobserved', 'Indirect, unobserved or moving'],
+                              ['spotted', 'Indirect, stationary and spotted'],
+                            ] as const
+                          }
+                          onChange={(value) => change('ranged', 'indirectFire', value ?? 'direct')}
+                          ineffective={!modifierHasEffect('ranged', 'attack', 'indirectFire')}
+                        />
+                      ) : null}
+                      {plans[scope]?.weapons.some((entry) => entry.lethal) ? (
+                        <Chip
+                          label="Decline Lethal Hits"
+                          checked={!options(scope).lethal}
+                          onChange={(value) => change(scope, 'lethal', !value)}
+                        />
+                      ) : null}
+                    </ChipRow>
+                  )}
                 </TabsContent>
               )
             })}
@@ -545,11 +702,13 @@ export function CombatMatchup({
                 value={adjustments.target?.toughness}
                 options={signedOptions([1, -1], 'T')}
                 onChange={(value) => changeTarget('toughness', value)}
+                ineffective={!modifierHasEffect('all', 'target', 'toughness')}
               />
               <ChipFamily
                 value={adjustments.target?.save}
                 options={signedOptions([1, -1], 'Sv')}
                 onChange={(value) => changeTarget('save', value)}
+                ineffective={!modifierHasEffect('all', 'target', 'save')}
               />
             </ChipRow>
             <ChipRow label="Protection">
@@ -557,26 +716,31 @@ export function CombatMatchup({
                 value={adjustments.target?.invulnerable ?? undefined}
                 options={[6, 5, 4, 3].map((roll) => [roll, `${roll}++`] as const)}
                 onChange={(value) => changeTarget('invulnerable', value)}
+                ineffective={!modifierHasEffect('all', 'target', 'invulnerable')}
               />
               <ChipFamily
                 value={extraFeelNoPain ?? undefined}
                 options={rollOptions([6, 5, 4, 3, 2], 'FNP ')}
                 onChange={(value) => setAdjustments((current) => ({ ...current, feelNoPain: value ?? null }))}
+                ineffective={!modifierHasEffect('all', 'feelNoPain', 'feelNoPain')}
               />
               <ChipFamily
                 value={adjustments.target?.saveReroll}
                 options={saveRerolls}
                 onChange={(value) => changeTarget('saveReroll', value)}
+                ineffective={!modifierHasEffect('all', 'target', 'saveReroll')}
               />
               <ChipFamily
                 value={adjustments.target?.damageReduction}
                 options={[[true, '−1 Damage']]}
                 onChange={(value) => changeTarget('damageReduction', value)}
+                ineffective={!modifierHasEffect('all', 'target', 'damageReduction')}
               />
               <ChipFamily
                 value={adjustments.target?.halveDamage}
                 options={[[true, 'Half damage']]}
                 onChange={(value) => changeTarget('halveDamage', value)}
+                ineffective={!modifierHasEffect('all', 'target', 'halveDamage')}
               />
             </ChipRow>
           </div>
@@ -731,12 +895,17 @@ function ChipFamily<T>({
   value,
   options,
   onChange,
+  ineffective = false,
 }: {
   value: T | undefined
   options: readonly (readonly [T, string])[]
   onChange: (value: T | undefined) => void
+  ineffective?: boolean
 }) {
   return options.map(([option, label]) => (
-    <Chip key={label} label={label} checked={value === option} onChange={(checked) => onChange(checked ? option : undefined)} />
+    <span key={label} className="inline-flex items-center gap-1">
+      <Chip label={label} checked={value === option} onChange={(checked) => onChange(checked ? option : undefined)} />
+      {ineffective && value === option ? <span className="text-3xs text-amber-400">No effect</span> : null}
+    </span>
   ))
 }

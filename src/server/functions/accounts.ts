@@ -220,6 +220,15 @@ export const acceptFriend = createServerFn({ method: 'POST' })
     }),
   )
 
+export const rejectFriend = createServerFn({ method: 'POST' })
+  .validator(friendSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      return app().service.rejectFriend(userId, data.userId)
+    }),
+  )
+
 export const removeFriend = createServerFn({ method: 'POST' })
   .validator(friendSchema)
   .handler(({ data }) =>
