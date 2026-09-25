@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.78.1
+
+### Patch Changes
+
+- 2b2d695: Keep roster sorting responsive and guest builders within the mobile viewport.
+
 ## 0.78.0
 
 ### Minor Changes
