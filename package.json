@@ -36,6 +36,7 @@
     "auth:db:generate": "drizzle-kit generate --config drizzle.auth.config.ts",
     "auth:db:check": "drizzle-kit check --config drizzle.auth.config.ts",
     "auth:export": "tsx scripts/exportAuth.ts",
+    "auth:verify": "tsx scripts/verifyAuthBundle.ts",
     "catalogue:check": "tsx scripts/syncCatalogue.ts --check",
     "catalogue:compile": "tsx scripts/compileCatalogue.ts",
     "catalogue:combat": "tsx scripts/auditCombatRules.ts",
