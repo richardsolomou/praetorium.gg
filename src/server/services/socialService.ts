@@ -10,19 +10,7 @@ export class SocialService {
     private readonly notifier: Notifier,
   ) {}
 
-  /**
-   * The players this one may open a battle with: their friends, and the practice
-   * opponents the instance seats.
-   *
-   * One list rather than two, because `createBattle` asks exactly this question of
-   * exactly this answer. Splitting them would put a second rule about who may be
-   * in a battle next to the first, and the two would eventually disagree.
-   *
-   * Asked for on its own rather than taken out of the friends page, because the
-   * page also offers strangers to invite — and reaching for that here put a scan
-   * of every account on the instance behind every battle opened and every link
-   * followed, to answer a question about a handful of rows.
-   */
+  /** Use one opponent list for both battle creation and its picker; friend search can include strangers and must not serve this path. */
   async opponents(userId: string): Promise<{ id: string; name: string; image: string | null; automated: boolean }[]> {
     const [relationships, practice] = await Promise.all([this.repository.relationships(userId), this.repository.practiceOpponents()])
     return [

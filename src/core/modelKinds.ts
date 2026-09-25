@@ -275,19 +275,7 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
   )
 }
 
-/**
- * The models a datasheet stands in the unit itself.
- *
- * A choice reports only what a player may change, so the models the data insists on
- * are named nowhere else — and a squad's sergeant is nearly always one of them. He is
- * read from the datasheet and counted from the selection, the way the owner of a
- * choice is: how many of him there are is the catalogue's answer, not the player's.
- *
- * Only what the unit is actually holding. A model no selection stands would be a card
- * for something the squad does not have and cannot ask for. Upgrades are walked through
- * rather than stopped at, because a catalogue can bundle a whole squad size into one —
- * a Jakhals pack is written as "8 chainblades", with the eight Jakhals inside it.
- */
+/** Count required models from the current selection, including those nested in upgrades; choices describe only what the player can change. */
 function standingModels(entryId: string, selection: Selection, index: CatalogueIndex, options: ChoiceOptions): Loadout[] {
   const entry = index.definitions.get(entryId)
   if (!entry) return []

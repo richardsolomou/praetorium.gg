@@ -2,19 +2,7 @@ import { Button } from '@/components/ui/button'
 import { changesPrimary, type Twist, TwistInfo } from '../MissionTwist'
 import { CHOOSABLE, CHOSEN, SetupNote, SetupPanel } from './chrome'
 
-/**
- * The optional twist a pack offers, chosen once the matchup is known.
- *
- * It changes one rule for the whole battle, so it is settled with the missions it
- * bends rather than buried in the format — its own panel under them, now that reading
- * the mission is a section of its own with room for both. "No twist" is a choice on
- * the same row as the rest, because most games are played without one.
- *
- * What each one says opens in a dialog from the mark beside it — every one of them,
- * not only the one already taken, because what they say is how the choice is made.
- *
- * A pack that prints none offers none, and nothing is invented to fill the gap.
- */
+/** Offer only twists printed by the pack, including “No twist”; each option’s rule text is available before selection. */
 export function TwistChoice({
   twists,
   chosenId,

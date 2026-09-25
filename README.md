@@ -14,28 +14,9 @@ Warhammer 40,000 army building and game tracking, from setup to final score.
 
 ## Product
 
-Praetorium is a Warhammer 40,000 army builder and battle tracker. It supports 1v1, 2v1, and 2v2 games between friends, plus practice games for one player. Mission choice, setup, turns, command points, scoring, and casualties are all part of the tracked game. Public live and finished battles appear on the home page for anyone who wants to follow along.
+Praetorium is a free, open source Warhammer 40,000 army builder and battle tracker. Build and share lists, browse the community catalogue, and compare units in the combat simulator. Play 1v1, 2v1, or 2v2 games with friends, or run a practice game. Track setup, turns, scoring, and casualties.
 
-Praetorium is free to use and open source.
-
-Players can:
-
-- Build, import, save, share, print, and export army lists.
-- Browse factions, detachments, datasheets, loadouts, enhancements, and points.
-- See what each army data update changed in points, datasheets, detachments, and enhancements, and which saved lists it broke.
-- Compare unit loadouts in a public combat simulator from the roster editor, or during battles, with buffs and damage and kill probabilities.
-- Search that public reference through a documented read-only API or MCP client.
-- Set up missions, deployment, terrain, formations, stratagems, and mission cards.
-- Play 1v1, 2v1, and 2v2 games with friends or practise on your own.
-- Track rounds, phases, command points, victory points, models, wounds, and losses.
-- Watch live or finished public battles without joining the game.
-- Paste a watchable battle, a shared list, or a profile into a chat and have it unfurl as a scoreboard or summary card.
-- See who is winning overall, or with a given faction, from finished public battles.
-- Choose whether anyone, friends, or only the players at the table can watch your battles.
-- Invite someone with a one-time link, even before they have an account.
-- Get a phone notification when someone starts a battle with you, answers a friend request, or when a league you entered accepts you, reveals its rosters, or unseals your roster.
-- Run public or private league events with registration, sealed rosters, and organizer-controlled reveal.
-- Review and correct a finished battle without losing its history.
+Anyone can watch public battles and see the leaderboard. Players can control who sees their battles and run league events with sealed rosters.
 
 ## Scope
 
@@ -51,27 +32,7 @@ Self-hosting is available for experienced operators. See [Self-hosting](docs/dep
 
 ## Development
 
-Development requires Node 24.x, pnpm 11.15.0, and just 1.58.0.
-
-```sh
-just install
-just catalogue-sync
-just dev
-```
-
-`just check` is the local change gate. [CONTRIBUTING.md](CONTRIBUTING.md) covers setup and tests, while [AGENTS.md](AGENTS.md) records the architecture rules used by coding agents.
-
-## Architecture
-
-- Each battle is stored as an append-only command log. The current score, round, phase, and other state are derived from that history, and every command is validated before it is added.
-- `src/core` contains the IO-free battle, catalogue, and roster domain.
-- `src/contracts` contains serializable types shared across runtime boundaries.
-- `src/db` contains the Postgres schema and Drizzle repository.
-- `src/server` contains authentication, application services, catalogue loading, and server functions.
-- `src/client/features` groups React code by product area; `src/client/components` holds shared components.
-- `src/routes` contains thin TanStack Router route files.
-
-[Architecture](docs/development/architecture.md) describes the dependency direction and placement rules.
+See [Contributing](CONTRIBUTING.md) to run the app and its checks, [Architecture](docs/development/architecture.md) for code placement, and [AGENTS.md](AGENTS.md) for coding-agent rules.
 
 ## Data and trademarks
 

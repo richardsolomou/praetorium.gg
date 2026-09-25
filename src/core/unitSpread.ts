@@ -332,19 +332,7 @@ function combineIdentical(selections: readonly Selection[]) {
   return [...combined.values()]
 }
 
-/**
- * The squad the size it was, after a request armed something inside it.
- *
- * How many models a squad fields is the size the player set, and asking for a weapon
- * is not asking for that to change: a magna-rail rifle is one of the ten warriors
- * carrying it, and a Chaos Biker's flamer is taken *instead of* his combi-bolter. So
- * a model brought into the squad's own group costs a squadmate their place, and one
- * put down hands the place back.
- *
- * Only inside that group. A drone, a plasmacyte or a pack of hunting wolves is filed
- * outside the group whose bounds are the squad's size, because it is an addition to
- * the squad rather than one of its models, and taking one has to make the unit bigger.
- */
+/** A weapon swap inside the squad’s size group replaces a model rather than growing the squad; models outside that group remain additions. */
 function keepingTheSquad(before: Selection, after: Selection, path: readonly string[], index: CatalogueIndex): Selection {
   const squad = sizeOf(before, index).path.slice(0, -1)
   const inside = squad.length > 0 && path.length > squad.length && squad.every((step, depth) => path[depth] === step)

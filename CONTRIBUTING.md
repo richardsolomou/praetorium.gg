@@ -1,8 +1,8 @@
 # Contributing to Praetorium
 
-Praetorium's contribution model favours small, predictable, inspectable changes. Existing issues carry prior discussion, while changes to product scope begin in a new issue. Coding-agent rules are in [AGENTS.md](AGENTS.md).
+Keep changes small and include tests for new behavior and failure paths. Discuss changes to product scope in an issue first. Coding-agent rules are in [AGENTS.md](AGENTS.md).
 
-## Development setup
+## Start the app
 
 Install Node 24.x, pnpm 11.15.0, and just 1.58.0, then run:
 
@@ -12,73 +12,22 @@ just catalogue-sync
 just dev
 ```
 
-The catalogue sync is optional unless you work on list building. It downloads the release-pinned snapshot once into `CATALOGUE_CACHE_DIR`, or the platform cache directory when that variable is unset, and points `catalogue-data/` at the immutable cached copy. Every worktree reuses it. Set `CATALOGUE_CACHE_DIR=off` for a worktree-local copy, or run `just catalogue-latest` to follow the hourly publisher. The app can run without catalogue data and still serve battles.
+`just catalogue-sync` is needed for list building, missions, and battlefields. It reuses a release-pinned snapshot across worktrees. [Running locally](docs/development/running-locally.md) covers the cache, services, and individual commands.
 
-See [Running locally](docs/development/running-locally.md) for individual commands and end-to-end test setup.
-
-## Checks
-
-Run the full local check suite:
+## Check a change
 
 ```sh
 just check
 ```
 
-This command checks formatting, lint, documentation, database migrations, catalogue sources, the production build, types, and unit tests. The build generates `src/routeTree.gen.ts` before type checking.
+This runs formatting, lint, documentation and database checks, a production build, type checking, and tests. Use `just test-unit` for a fast loop, `just test-integration` for database and service boundaries, and `just e2e` for browser flows. Run `just points` separately after points or roster-legality changes.
 
-Run `just e2e` for rendered behavior or complete user flows. It builds the production container and runs Playwright. Sync the catalogue before list-building tests.
+Browser tests wait for page elements rather than `networkidle` on live battle pages. Locate unit cards with `data-unit` and roster rows with `data-roster`; scope assertions to the card or row so a menu item cannot satisfy them before the change takes effect.
 
-Use `just test-unit` for a fast loop without database or subprocess-backed tests. Name tests for repository, application service, authentication, and snapshot boundaries `*.integration.test.ts` and run them with `just test-integration`. `just check` runs the complete suite.
+## Pull requests and releases
 
-Run `just points` after changes to points or roster legality. The result is a ratchet. A lower match rate is a regression unless the set of generated checks changed and the new baseline is explained.
+Use a conventional commit title and the [pull request template](.github/pull_request_template.md). Branches receive a disposable [preview](docs/development/pr-previews.md).
 
-Browser tests account for three repository behaviours:
+Released application changes need a `pnpm changeset` entry for `praetorium.gg`: `minor` for a new capability, `patch` for a fix, and one imperative sentence describing the player-visible change. Documentation, tests, refactors, and tooling-only changes need no changeset. Merging a changeset to `main` triggers the version update, changelog, tag, and GitHub Release.
 
-- Battle pages keep a live connection open and never reach network idle; page elements provide the readiness signal.
-- Unit cards expose `data-unit` and roster rows expose `data-roster`. CSS changes displayed case, making visible-text matching unreliable.
-- Assertions are scoped to their row or card. `getByText` matches substrings case-insensitively, so an unscoped word can also match the menu item that changes it and pass before the change lands.
-
-## Layout
-
-- `src/core` contains the domain model for battles, catalogues, evaluation, and rosters. It has no IO or framework imports.
-- `src/contracts` contains serializable types shared by the client and server.
-- `src/db` contains the Drizzle repository facade, bounded repositories, Postgres schema, and database connection.
-- `src/server` contains the application-service facade and bounded services, authentication, server functions, catalogue loading, and realtime publishing.
-- `src/client/queries` groups React Query options by feature; `src/client/queries.ts` is their public barrel.
-- `src/client/features` groups browser code by product area, while `src/client/components` contains shared components.
-- `src/routes` contains thin TanStack Router route files.
-- `catalogue` records community source locations. Snapshot manifests outside Git pin their revisions and checksums; the repository contains no game data.
-- `e2e` contains Playwright coverage against the production container.
-
-## Conventions
-
-- Each decision has one implementation in the lowest layer that can own it. `validate` decides whether a command is legal, while `violations` decides whether a roster is legal.
-- Derived battle state stays out of the database. Scores, rounds, phases, and missions fold from the command log and attached lists.
-- Unknown catalogue rules remain unknown and are reported rather than guessed.
-- `just db-generate` creates schema migrations, and an applied migration is immutable.
-- An operator-facing setting appears together in `.env.example`, `docker-compose.yml`, and [the deployment guide](docs/deployment.md).
-- Reference documentation describes current behavior in the present tense. Imperative wording is reserved for procedures, checklists, and required contributor actions.
-- Rendered changes are inspected at desktop and phone widths.
-- New behavior and negative paths have test coverage.
-
-See [Architecture](docs/development/architecture.md) for dependency direction and code-placement rules.
-
-## Pull requests
-
-Pull requests use a conventional commit title and the repository template. Branches in this repository receive a disposable preview linked from the pull request. [Pull request previews](docs/development/pr-previews.md) describes its lifecycle.
-
-Vulnerability reports follow the private process in [SECURITY.md](SECURITY.md).
-
-## Release notes
-
-Changes to released application behavior carry a `pnpm changeset` entry for the exact package name from `package.json` (`praetorium.gg`). New capabilities use `minor`, fixes use `patch`, and the note is one imperative, user-visible sentence. Documentation, tests, refactors, and tooling-only changes need no changeset.
-
-When a changeset reaches `main`, CI updates `package.json` and `CHANGELOG.md`, then creates the matching tag and GitHub Release.
-
-## Repository backup
-
-`just repository-backup /absolute/destination` creates and verifies a complete Git bundle containing every local ref. The command refuses a destination inside the repository. Store that bundle on infrastructure independent of GitHub; uncommitted working-tree files are not part of a Git backup.
-
-## Shared infrastructure checks
-
-`ras policy check` validates existing Changesets against workspace package names. The opt-in Oxlint domain and layer presets enforce the documented dependency direction, with test files excluded so integration tests can exercise real adapters. Search limits live in core and are shared by schemas and browser queries. The canonical-host middleware retains the health endpoint exception and serves loopback requests locally.
+Report vulnerabilities through [SECURITY.md](SECURITY.md).

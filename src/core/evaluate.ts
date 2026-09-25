@@ -467,18 +467,7 @@ function modifierErrors(node: Node, root: Node, index: CatalogueIndex, census: C
   })
 }
 
-/**
- * Whether the data hides this entry from a roster of this kind.
- *
- * Campaign-only content — Crusade honours, relics, battle traits — is marked
- * hidden unless the roster is a Crusade force, and there is a great deal of it
- * hanging off every datasheet. Without asking, a list builder offers a player
- * fourteen choices that have nothing to do with the game they are playing.
- *
- * The candidate is judged inside its root entry when one is known, and beside the
- * roster otherwise. A gate written against a deeper parent would need the complete
- * path to the candidate.
- */
+/** Evaluate visibility inside the root entry when available, otherwise beside the roster; deeper parent gates need the full path. */
 export function hiddenByRules(
   definition: Definition,
   index: CatalogueIndex,
@@ -612,20 +601,7 @@ export function battleSizeSelection(index: CatalogueIndex, limit: number | null)
   return id ? { id } : null
 }
 
-/**
- * How many of one datasheet a roster may hold, or null when nothing limits it.
- *
- * The number is in the data but not as a number: a roster-scoped `max` constraint
- * carries the Strike Force figure, and a modifier aimed at that constraint's id
- * lowers it for a smaller game. So it is read the same way legality reads it —
- * through `constraintValue`, with the rest of the list present, because the
- * modifier's condition is usually about the roster — the battle size above all, so
- * a caller that knows which game this is passes `battleSizeSelection` in `roster`.
- *
- * Nothing here refuses anything. It is what lets the picker say "3 in roster" and
- * offer to hide what is already full; `violations` remains the only authority on
- * whether a list is legal.
- */
+/** Resolve roster-scoped limits with the full selection and battle size; `violations` remains the authority on legality. */
 export function rosterLimit(definition: Definition, index: CatalogueIndex, options: EvaluateOptions = {}): number | null {
   const census = new Census()
   const { root, node } = candidateContext(definition, index, options, census)
@@ -734,19 +710,7 @@ const isLink = (definition: Definition): definition is EntryLink => 'targetId' i
 /** Only entries carry an entry type; a group is the container around them. */
 const isGroup = (node: Node) => node.target.type === undefined
 
-/**
- * The selections under a node, with group layers promoted away.
- *
- * A group organises a catalogue; it is not a selection in a roster. A condition
- * counting `model` selections directly under a unit must see the models even
- * though the data nests them in a group, and a condition naming a group counts
- * the selections that came from it — which is what `matches` uses the group chain
- * for. Treating a group as a level of nesting priced every one of these units as
- * if the unit were empty.
- *
- * `deep` follows the data's own `includeChildSelections`: without it, only what
- * sits immediately under the node, groups notwithstanding.
- */
+/** Selection groups organize the catalogue but do not add roster depth. Preserve their ancestry for group conditions; `deep` follows `includeChildSelections`. */
 function selectionsUnder(node: Node, deep: boolean): Node[] {
   const cached = node.under?.[deep ? 1 : 0]
   if (cached) return cached

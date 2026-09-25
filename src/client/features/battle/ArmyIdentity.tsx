@@ -8,18 +8,7 @@ import { armyRulesRequest } from './sideRules'
 import type { Army } from '../../sides'
 import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
 
-/**
- * What one army is: its faction, the detachments it fields, and the list it came
- * from, each a way out to the page about it.
- *
- * Written once because it is read wherever an army is named — the side panel and
- * the scoreboard during a battle, and the armies step and the roster chooser while
- * the table is being set. Copies of this markup meant the faction was a link in one
- * place, a chip in another and plain text in a third.
- *
- * A list the battle does not know the saved id of is still named, because the
- * snapshot in the log is the army whatever became of the list it came from.
- */
+/** Reuse one army identity across setup and battle; frozen lists remain named even when their saved roster no longer exists. */
 export function ArmyIdentity({
   army,
   token,

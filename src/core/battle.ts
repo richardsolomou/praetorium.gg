@@ -386,19 +386,7 @@ export const isKotcLimit = (limit: number | null): boolean =>
   limit !== null && [...KOTC_LIMITS, ...RETIRED_KOTC_LIMITS].some((candidate) => candidate === limit)
 export const battleRoundLimit = (_limit: number | null) => BATTLE_ROUNDS
 
-/**
- * The army-construction rules a battle size adds, each one a roster may switch off.
- *
- * A format's restrictions describe the event most people are building for, not the
- * game in front of this player: a group agreeing to play King of the Colosseum with
- * Epic Heroes allowed is playing the game they agreed on, and a builder that refuses
- * to draw their list is wrong about a table it cannot see. So every restriction the
- * price enforces is named here, and a roster carries the ids it has waived.
- *
- * The names are read in both directions: `kotcViolations` asks before it reports and
- * the picker asks before it hides, so a waived rule cannot go on quietly filtering
- * datasheets out of the book while the roster says it is allowed.
- */
+/** Name every waivable format restriction here so legality and picker filtering read the same roster waiver. */
 export const FORMAT_RULE_IDS = [
   'detachments',
   'detachment-points',
@@ -520,18 +508,7 @@ export function optionalRules(limit: number | null): OptionalRule[] {
 export const pickedOptionalRules = (limit: number | null, picked: readonly string[] | undefined): OptionalRule[] =>
   optionalRules(limit).filter((rule) => plays(picked, rule.id))
 
-/**
- * Whether a roster may play a Force Disposition belonging to a detachment it did not take.
- *
- * A optional rule, so no battle size turns it on and nothing offers it unasked: a roster opts
- * in by naming the detachment it borrows from, and carries that name wherever it is read.
- * It buys the disposition and nothing else — the borrowed detachment's rules, enhancements
- * and stratagems stay with the detachment that owns them, and a disposition only ever
- * decides which primary mission the matchup plays.
- *
- * An unpriced detachment refuses the borrow rather than costing it nothing, because a
- * catalogue that cannot say what something costs has not said that it is free.
- */
+/** A borrowed disposition requires an explicit optional-rule choice and a known price; it grants no rules, enhancements, or stratagems from that detachment. */
 export function borrowedDispositionError(
   limit: number | null,
   picked: readonly string[] | undefined,

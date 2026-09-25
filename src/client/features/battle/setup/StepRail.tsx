@@ -15,24 +15,7 @@ type Props = {
   onGo: (step: number) => void
 }
 
-/**
- * The sections of setup, as one rail.
- *
- * The section is folded from the log, so pressing one moves every seated device to
- * it — this is the shared place in setup, not a private table of contents. The way
- * forward is not on the rail: arrows at its ends read as the rail's own scroll
- * controls, so moving on is a single button over the section that is asking.
- *
- * Which sections can be pressed is the caller's to say, because it is the same
- * question as what still has to be settled before one is left behind.
- *
- * The sections fill the rail where they fit and scroll where they do not: each one
- * grows into whatever room there is, and none is allowed narrower than its name. Six
- * of them do not fit a phone at a readable size, and numbering them instead left a
- * player counting chips to work out where they were — so each keeps its name at
- * every width and the rail slides, carrying the current one into view whenever the
- * table moves.
- */
+/** Setup navigation is shared battle state. Keep section names readable at every width and scroll the current section into view. */
 export function StepRail({ steps, at, onGo }: Props) {
   const current = useRef<HTMLLIElement>(null)
   useEffect(() => {

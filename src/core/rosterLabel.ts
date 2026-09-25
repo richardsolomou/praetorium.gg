@@ -1,18 +1,4 @@
-/**
- * What a list is called when it has no name of its own.
- *
- * A player who has not named a list still has to tell it apart from the four others
- * they brought, and the facts that do that are the ones they would have typed: the
- * detachment, the size, and the two models the list is built around. So this reads
- * them back out of the list — "HL 1K - C'tan & Hexmark" — rather than repeating the
- * faction and detachment the interface already draws as chips beside it.
- *
- * Nothing here is stored. A label is folded from the list every time it is asked
- * for, so it cannot go stale when a detachment changes, and a name the player typed
- * is never touched: a list has a name or it has this, never both.
- *
- * Pure, like the rest of `src/core`.
- */
+/** Derive unnamed list labels from their current detachment, size, and notable units; never store or replace a player-entered name. */
 
 import { ROSTER_NAME_MAX_LENGTH } from './battle'
 
@@ -37,19 +23,7 @@ const ARTICLES = new Set(['the', 'a', 'an'])
 
 const EDGE_PUNCTUATION = /^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu
 
-/**
- * What a model is known by.
- *
- * Games Workshop usually writes a character as a name with a description hung off
- * it — a C'tan Shard of the Nightbringer, Hexmark Destroyer — and the word a player
- * says out loud is the first one. A name that opens with an article is the other
- * shape: "The Silent King" is the whole name, so only the article comes off, and
- * shortening it to its first word would leave "Silent".
- *
- * It is still not always the right word: a Chaplain Grimaldus shortens to Chaplain.
- * That is a suggestion being slightly wrong, which the player can type over, rather
- * than a fact being reported wrongly.
- */
+/** Shorten descriptive character names, but keep names such as “The Silent King” intact after removing the article; the result is only a suggestion. */
 function keyword(name: string): string {
   const words = name
     .split(/\s+/)

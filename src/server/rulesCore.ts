@@ -18,22 +18,7 @@ export type {
   RuleSectionSummary,
 } from '../contracts/rules'
 
-/**
- * The rules documents the datacards source ships beside its cards: the core rules
- * themselves, Chapter Approved, the event companion, Combat Patrol and the Legends
- * appendix.
- *
- * Every one of them is written in the same format — sections of numbered entries,
- * each entry a run of prose, headings and collapsible clarifications — so whatever
- * documents the snapshot's `core` directory holds are read, rather than five names
- * being written down here. A file that does not declare itself a rules document is
- * skipped, a field the format does not describe is left out, and the numbers the
- * source prints are the only rule references, so nothing on these pages is this
- * app's paraphrase of a rule.
- *
- * The pictures are the printed rulebook's own photography and are not republished,
- * which is the one thing these pages leave out of what the source carries.
- */
+/** Read every declared core rules document from the snapshot and use only its printed rule numbers; omit the printed rulebook’s photography. */
 const RULES_CARD_TYPE = 'coreRules'
 
 /** Read first, because it is the document the other four amend. */

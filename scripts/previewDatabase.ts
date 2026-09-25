@@ -1,18 +1,7 @@
 import postgres from 'postgres'
 import { assertPreviewDatabase, databaseNameFrom } from './previewEnv'
 
-/**
- * Gives this preview an empty database of its own, before anything migrates.
- *
- * Runs inside the container because the preview Postgres is reachable from
- * Dokploy's network and not from a CI runner. Dropping first is what makes
- * "every deployment starts empty" true: the database outlives the container, so
- * without this a preview would accumulate battles across deployments.
- *
- * The name is checked rather than trusted. It is interpolated into DDL, which
- * cannot take parameters, so `assertPreviewDatabase` is the thing standing
- * between a malformed variable and somebody's real database.
- */
+/** Reset the persistent preview database from inside its network before migration. Validate its name before interpolating it into DDL. */
 export async function resetPreviewDatabase(adminUrl: string, databaseUrl: string) {
   const name = assertPreviewDatabase(databaseNameFrom(databaseUrl))
   const admin = postgres(adminUrl, { max: 1, onnotice: () => undefined })

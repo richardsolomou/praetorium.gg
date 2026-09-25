@@ -1,15 +1,4 @@
-/**
- * A battle in a list, folded into the two sides it was actually played between.
- *
- * The rows carry a value per seat, and for most of this app's life the first seat was
- * one side and everything after it was the other. A 2v1 opened from the allied side
- * seats an ally second, so reading a row that way puts a player's own ally across the
- * table from them — and reads the side's score off a seat that never holds one, since
- * a side's points fold onto its first seat.
- *
- * The same fold as `sides()` makes for a battle on screen, over the far smaller thing
- * a list row knows.
- */
+/** Fold list rows by side, not seat order: a 2v1 creator can sit beside an ally in the first two seats. */
 export type BattleSummary = {
   players: readonly string[]
   playerDetails?: readonly { id: string; name: string; image: string | null; automated: boolean }[]

@@ -1,15 +1,4 @@
-/**
- * One player's record, folded from the battles they were in.
- *
- * The leaderboard answers "who is winning" across everybody; this answers "how
- * does this player play" for one of them. Both read `battleOutcome` and
- * `sideScore` from `standings.ts`, so a profile can never decide a battle
- * differently from the table that ranks it.
- *
- * Nothing here is stored either. Every number is a fold over the same finished
- * battles a reader of the profile is allowed to open, which is why a filtered
- * record costs nothing but narrowing the list first.
- */
+/** Fold a player’s visible finished battles with the same outcome and score functions as the leaderboard; store no second record. */
 
 import { type BattleState, mayNameCard, type PlayerId } from './battle'
 import { battleOutcome, sideScore, type StandingBattle, type StandingFaction, winRate } from './standings'

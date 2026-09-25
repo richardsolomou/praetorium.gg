@@ -184,20 +184,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
         })
       }
 
-      /**
-       * An upgrade the data hangs on the unit itself rather than inside a group.
-       *
-       * A group is the usual way to write "one of these", so everything that reads
-       * choices looks for one — but a lone yes-or-no needs no group to hold it and
-       * is written without one, leaving nothing for the group branch to notice.
-       * That is a Chaos unit's icon, an Infiltrator Squad's comms array, the
-       * demolition charge on Imperial Navy Breachers, and the Tank Ace Character
-       * upgrade a Land Raider needs before it can lead an army.
-       *
-       * Only where the carrier is a real entry: inside a group the occupants are
-       * already reported together, and reporting them again would draw one control
-       * for the group and a second for every option in it.
-       */
+      /** Report ungrouped unit upgrades once; grouped options are already represented by their group. */
       if (
         boundedUpgrade &&
         upper !== null &&

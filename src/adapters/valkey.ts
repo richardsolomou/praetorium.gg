@@ -2,19 +2,7 @@ import Valkey from 'iovalkey'
 
 export { valkeyUrl } from './valkeyConfig'
 
-/**
- * Valkey, which is what "more than one replica" means here.
- *
- * Three things use it, and only one of them is a cache. Centrifugo takes it as
- * its engine, so a command published by one replica reaches a page connected to
- * another. better-auth keeps sessions in it, so validating one is not a Postgres
- * round trip. And the auth limiter counts in it, so a per-IP ceiling is one
- * ceiling across every replica rather than one apiece.
- *
- * Battle state is deliberately absent. The log is the only record of a game, and
- * a cached fold of it would be a second copy free to disagree — the exact thing
- * the domain is shaped to prevent.
- */
+/** Valkey shares realtime events, sessions, and rate limits across replicas. Battle state remains in the Postgres log. */
 export type ValkeyClient = Valkey
 
 export function openValkey(url: string): ValkeyClient {

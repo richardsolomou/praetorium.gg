@@ -394,23 +394,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
           }
         })
       : []
-  /**
-   * Units the catalogue builds itself, model for model, per squad size.
-   *
-   * It offers the player no choice inside them, so a limit broken inside one was
-   * broken by the catalogue's own composition rather than by anything a player did
-   * or could undo. There is nothing here for a player to act on and nothing worth
-   * telling them about.
-   *
-   * Only what the catalogue puts there by itself, which is why this reads the unit
-   * built with no choices at all rather than the one in the list: an enhancement the
-   * player picked is inside that unit too, and its own limits are theirs to answer
-   * for — two of the same relic in one army is a mistake worth being told about.
-   *
-   * What is inside the unit, and never the unit itself: how many of a datasheet a
-   * roster may hold is broken by picking another one, which is the plainest mistake
-   * a list can make and the one this must never swallow.
-   */
+  /** Ignore limits broken inside a unit with no player choices; never suppress a limit on the unit itself or on a player-selected upgrade. */
   const composedByCatalogue = new Map<string, string>()
   for (const unit of picked) {
     if (modelKindsFor(unit).length) continue

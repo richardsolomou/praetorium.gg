@@ -4,18 +4,7 @@ import type { MissionAction } from '../contracts/missions'
 
 export type { MissionAction } from '../contracts/missions'
 
-/**
- * The action a mission card puts a unit up to, in the words the pack prints.
- *
- * A card's payouts say what has to be true when the points are due; several of them
- * are only ever true because a unit spent a phase performing an action the card names
- * and nothing else does. That action is printed beside the mission in the pack and
- * appears nowhere in the rules source, so a card shown without it asks a player to
- * remember how its points are actually earned.
- *
- * Every field is the pack's own sentence. A field the pack leaves out is absent
- * rather than filled in, so an action with no stated limit states none.
- */
+/** Keep mission actions in the pack’s own words; omit fields the pack does not state rather than inferring limits. */
 /** Every card's actions in every pack under `missions`, keyed by card name. */
 export function loadMissionActions(directory: string): Map<string, MissionAction[]> {
   return actionsIn(readMissionPacks(directory))

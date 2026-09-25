@@ -4,18 +4,7 @@ import { type Side, sideName } from '../../../sides'
 import { SidePlayers } from '../PlayerName'
 import { CHOOSABLE, CHOSEN, SetupNote, SetupPanel } from './chrome'
 
-/**
- * Which Force Disposition an allied side plays, where its two armies brought different ones.
- *
- * A side fields one army between them and plays one card, so a pair that wrote down
- * different cards has to say which of the two the side is playing — it sets the
- * primary mission the side is given and the battlefields the matchup offers. Nothing
- * is chosen for them: taking the first seat's card would play one ally's answer for
- * both without ever asking.
- *
- * Drawn only when there is something to settle. A duel, and a pair who brought the
- * same card, are never shown a question with one answer.
- */
+/** Ask allied players which disposition their side uses only when their armies brought different ones. */
 export function SideDispositionChoice({
   sides,
   nameDisposition,

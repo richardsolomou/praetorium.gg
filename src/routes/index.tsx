@@ -14,15 +14,7 @@ import {
   standingsQuery,
 } from '../client/queries'
 
-/**
- * Everything the home page shows is on it at first paint.
- *
- * The feeds are the page rather than an afterthought below it, so fetching them
- * after hydration would leave the first frame a band over empty space and then
- * move it. A visitor with no account still gets the public feed, because that is
- * what says the instance is being played — and its first battle is the hero. A
- * player's lists and what is waiting on them are here for the same reason.
- */
+/** Fetch home feeds in the loader so the first frame has its final layout. */
 export const Route = createFileRoute('/')({
   loader: async ({ context }) => {
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })

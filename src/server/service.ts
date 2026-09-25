@@ -384,29 +384,7 @@ export class PraetoriumService {
     return { battles: this.battleSummaries(histories, userId, rules, factions), nextCursor }
   }
 
-  /**
-   * The standings, counted from the finished battles anyone may watch.
-   *
-   * A row is always a player. Beside the overall table there is one per faction
-   * anybody has actually played, answering who is best with that army rather than
-   * how the army itself does — a faction has no record, the people fielding it do.
-   * Only factions with a finished battle behind them get a table, because an empty
-   * one answers nothing.
-   *
-   * One read of the battles answers all of them: the logs are the expensive part,
-   * and each table is the same finished games counted through a different filter.
-   *
-   * Held for a minute rather than counted again for every visitor. A standing is
-   * derived, so a copy of it that goes stale costs a reader a minute of accuracy
-   * and nothing else — which is exactly the trade a battle screen may not make,
-   * because a stale battle is a player acting on a board that has moved. It is
-   * kept in the process rather than in Valkey for the same reason: losing it on a
-   * restart costs one recomputation, so it does not need somewhere to survive.
-   *
-   * `factions` names the catalogue armies, the same as it does for the battle
-   * list, so a table can be headed with a name a player recognises and addressed
-   * by a slug rather than a catalogue id.
-   */
+  /** The leaderboard folds one bounded set of watchable battles for all faction filters and caches the derived result for one minute. */
   private async standingsFold(factions: readonly BattleFaction[]) {
     const now = this.clock()
     if (this.standingsHeld && this.standingsHeld.until > now) return this.standingsHeld.fold
@@ -470,22 +448,7 @@ export class PraetoriumService {
     }
   }
 
-  /**
-   * One player's profile: the battles a reader may see them in, and their record.
-   *
-   * Open to anybody, the same as their name is. What a reader gets is narrowed by
-   * `watchable`, so the list holds exactly the battles whose links would answer
-   * them — a player who keeps their battles private has a profile with a name on
-   * it and nothing else, which is the promise `battleAudience` already makes.
-   *
-   * The record is folded over every battle in that list rather than a page of it,
-   * because a record over a page would be a different record for every reader. The
-   * list is bounded instead, the same way the standings are.
-   *
-   * Practice opponents are left out of the record for the reason they are left out
-   * of the leaderboard: beating a seat nobody sits in is not a result. They stay in
-   * the battle list, because a player's own history is still their history.
-   */
+  /** Fold the record over the full bounded watchable set, while paginating only the battle list; practice games stay in history but not the record. */
   async playerProfile(
     userId: string,
     viewerId: string | null,
@@ -544,18 +507,7 @@ export class PraetoriumService {
     return this.repository.unregisterPushToken(userId, token)
   }
 
-  /**
-   * Which of these battles a viewer may read, answered for all of them at once.
-   *
-   * Every seat's answer comes back in one read and the viewer's friendships in
-   * another, because a query per battle is a round trip per battle. Friendships are
-   * only read when some battle's fold actually turns on one, so a page of ordinary
-   * public battles costs the audience read alone.
-   *
-   * The decision itself stays `battleAudience` and `maySpectate`. A viewer holding
-   * a seat always sees their own battle, which is the same answer `screen` gives
-   * before it ever asks this.
-   */
+  /** Batch audience and friendship reads, then use `battleAudience` and `maySpectate` for each final visibility decision. */
   private async watchable(histories: readonly BattleHistory[], viewerId: string | null) {
     const seats = [...new Set(histories.flatMap((history) => history.players.map((player) => player.id)))]
     const audiences = await this.repository.battleAudiences(seats)

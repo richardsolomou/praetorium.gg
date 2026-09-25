@@ -33,19 +33,7 @@ import {
   type TerrainTemplate,
 } from './rulesTerrain'
 
-/**
- * Everything the app knows that the community catalogues do not carry: stratagems,
- * mission cards, force dispositions, battlefields and the rules documents themselves.
- *
- * The bulk of it comes from the Tabletop Developer Consortium's dataset, which is
- * licensed CC BY 4.0 — the whole reason it can be used at all. Attribution is a
- * condition of that licence rather than a courtesy, so `attribution` goes on screen
- * wherever this data does. The prose beside it — what a stratagem, enhancement or
- * detachment rule says — is Game Datacards', matched to the dataset by name.
- *
- * This module only assembles. Each source is read by the `rules*` module named after
- * it, and an absent source leaves its part of `LoadedRules` empty rather than guessed.
- */
+/** Assemble rules from the available sources without guessing missing parts; preserve the source attribution required by CC BY 4.0. */
 export const RULES_DATA_ATTRIBUTION = `${catalogueSources.rules.attribution}, CC BY 4.0`
 const RULES_ATTRIBUTION = 'Stratagems and mission cards by the Tabletop Developer Consortium, CC BY 4.0'
 const BATTLEMASTER_ATTRIBUTION = 'Terrain geometry provided by Battlemaster'

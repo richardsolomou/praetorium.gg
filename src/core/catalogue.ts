@@ -1,17 +1,4 @@
-/**
- * The community catalogue format, as the 11th edition data actually uses it.
- *
- * These are BattleScribe's shapes serialized as JSON rather than XML. The types
- * here cover the vocabulary present in the real files — two constraint types,
- * eight condition types, seven modifier types — and stop short of the display-only
- * parts, which no legality or points question depends on.
- *
- * Base attachment targets are sentences inside ability descriptions, so `profiles`
- * and `infoGroups` are carried for them. Conditional additions can be structured
- * associations gated by a selected enhancement. See `attachmentOf`.
- *
- * Nothing in this file reads the filesystem or the network.
- */
+/** Model the BattleScribe fields used for pricing, legality, and attachments; display-only fields stay outside core. */
 
 type CostType = { id: string; name: string; defaultCostLimit?: number; hidden?: boolean }
 
@@ -297,19 +284,7 @@ export type CatalogueIndex = {
   catalogues: Map<string, { id: string; name: string; revision?: number; library?: boolean; gameSystem: boolean }>
   /** Which catalogue each definition came from, for the chapter-specific pricing that asks. */
   catalogueOf: Map<string, string>
-  /**
-   * The datasheets each faction offers, keyed by catalogue id.
-   *
-   * A book states its own roster as links at its root, and borrows another book's
-   * by importing a catalogue link — which is how Blood Angels reach the Space
-   * Marines range, and how Astra Militarum reach a library holding every one of
-   * their units and nothing else. Libraries and the game system are not keys here:
-   * nobody plays them.
-   *
-   * Reading the entries at the top of a file instead answered "nothing" for eight
-   * factions and offered a Burna Boy as a datasheet, because a body inside a squad
-   * sits at the top of a file exactly as the squad does.
-   */
+  /** Follow root links and imported catalogue links to find faction datasheets; top-level entries alone can include models inside a squad. */
   datasheets: Map<string, ReadonlySet<string>>
   /** Datasheets contributed by secondary imports, with their source for picker presentation. */
   alliedDatasheets: Map<string, ReadonlyMap<string, { name: string; order: number }>>

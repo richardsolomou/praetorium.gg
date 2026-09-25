@@ -13,16 +13,7 @@ import type { EvaluationError, Selection } from './evaluate'
 import { normalizedName } from './name'
 import { sameText } from './text'
 
-/**
- * A character joining a unit, as eleventh edition writes it.
- *
- * `leader` is the unit's Leader; `support` is a character attached alongside one.
- * The data does not say which in a field — the distinction is that a Leader's
- * ability is titled "Leader", where a supporting character's is titled after the
- * model. So `support` is the weaker claim and therefore the default: mislabelling
- * a leader reads as the wrong word on a row, where inventing a Leader where the
- * data does not have one would tell a player something untrue about the game.
- */
+/** Only an ability titled "Leader" establishes that role; other attachments default to support. */
 export type Attachment = { kind: 'leader' | 'support'; targets: string[] }
 export type AttachmentLimits = Record<Attachment['kind'], number> & {
   categories: Record<string, { name: string; maximum: number }>

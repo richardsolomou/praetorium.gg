@@ -1,22 +1,10 @@
 # Product design
 
-Praetorium uses a compact, dark interface for players at one table. The roster builder is dense. The battle tracker uses clear ownership and large controls.
+Praetorium uses a compact, dark interface. The roster builder is dense; the battle tracker makes ownership and actions clear.
 
 ## Scope
 
-Praetorium includes:
-
-- Catalogue-backed roster construction, validation, import, and export.
-- A public combat simulator that automatically compares shooting and melee from catalogue loadouts, using one compact matchup view in the standalone page, roster editor, and battles, with roster buffs and live casualties.
-- Compact roster presentation and battle tracking.
-- One synchronized 1v1, 2v1, or 2v2 battle between signed-in players, against a friend or a practice opponent. Every player is named when the battle is created; there are no open seats to join.
-- Mutual friendships for choosing private battle opponents, one-time links for inviting someone who does not have an account yet, and practice opponents for playing without one.
-- Public or private organized-play registration with reusable events, approved entry, replaceable sealed roster snapshots, simultaneous reveal, and read-only event battle viewing.
-- A home page of shared activity, ordered outwards from the reader: the player's unfinished games, whatever else is waiting on them, their recent lists, the games they have recently finished, their friends' recent games, and recent public battles including finished ones. A visitor also sees the head of the leaderboard and the tools that need no account. Practice games stay in battle history rather than appearing on the home page.
-- A per-player audience setting covering every battle they sit in: anyone, friends, or nobody outside the table.
-- Mobile notifications for a few rare events that ask something of the player: a battle created with them, a friend request to them or accepted from them, and league entry acceptance, reveal, and roster unsealing. A table's own commands never notify anyone.
-- A reading copy of the rules documents the community data carries, browsable by document, section, and rule number.
-- A public record of what each army data update changed — datasheet points, datasheets and detachments added or removed, and detachment and enhancement points — with saved lists flagged when the current data makes them over their limit or not legal, and named changes on any list an update reached since it was saved.
+Praetorium covers catalogue-backed lists, combat comparisons, friend and practice battles, league registration with sealed rosters, and a public rules reference drawn from community data. The home page shows relevant games and lists, public activity, and the leaderboard. Players control who may watch their battles.
 
 It does not include pairings, brackets, locations, chat, matchmaking, rules this project wrote itself, or model positions.
 
@@ -26,7 +14,7 @@ A battle is watchable by default. Anyone may open a public battle's link, and th
 
 The audience belongs to the player rather than the battle, because a player answers it once instead of at every game. A battle takes the narrowest answer of everyone seated in it, so one player choosing to keep their battles private keeps the whole table private. The setting applies to battles already being played, and a player who has never opened it is public.
 
-A player's profile is open to anybody, split across tabs for the record, the battles and the published rosters. It shows where they sit on the leaderboard, any rosters they have made public, a service record folded from their battles — totals, win rate split by who took the first turn, average victory points, win streaks, command points spent, the stratagems their side used most, how each secondary mission card has scored for them, and their results by primary mission and by the army they faced — and the battles themselves. Every part of it is narrowed to what the reader may watch, so a player who keeps their battles private shows a name and nothing else. The record can be narrowed by their army, their detachment, the opponent, what they faced, the mission pack and the battle size, and the narrowing is carried by the address.
+A player's profile is public, but its battle record and leaderboard place include only games the reader may watch. A player who keeps their battles private shows a name without a record. Readers can filter the record by army, detachment, opponent, mission pack, and battle size.
 
 The leaderboard counts finished public battles over the last 90 days. A row is a player, ranked by wins and then win rate. Beside the overall table there is one per faction anybody has played, ranking the players who fielded it rather than giving the faction a record of its own. A concession is a loss whatever the score said, allies share their side's points, games of every table shape count together, and a battle with a practice opponent in it counts for nobody.
 
@@ -46,34 +34,10 @@ Battle setup is a walked rail of sections with a persistent summary. It separate
 
 Screenshots containing roster or battle data stay outside version control.
 
-## Current coverage
-
-| Area              | Coverage                                                                                                                                                                                                                                      |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Accounts          | Email and password work without provider configuration. Google and Discord are optional and linkable. Players can manage their profile, password, sign-in methods, and authenticator 2FA. Administrators can manage and impersonate accounts. |
-| Battles           | Shared or practice 1v1, 2v1, and 2v2 setup drafts, server-side legality, corrections, concessions, reopening, and live updates.                                                                                                               |
-| Turn tracker      | Five battle rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion.                                                                                               |
-| Rosters           | Build, import, save, copy, rename, private, unlisted or public share, print, export, attach, and warnings when a data update breaks a saved list.                                                                                             |
-| Leagues           | Public or private reusable events, automatic or approved entry, replaceable roster snapshots, organizer-controlled simultaneous reveal, and live or finished battle viewing.                                                                  |
-| Notifications     | Optional iOS push notifications for new battles, friend requests, and league entry, reveal, and unsealing, with a per-account switch and a per-device system permission.                                                                      |
-| Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                                                                                                                           |
-| Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs.                                                                                                                                      |
-| Missions          | Force dispositions, deployment zones, objectives, mission cards, and scoring awards.                                                                                                                                                          |
-| Battle review     | Per-round scoring, command points, result reasons, stratagems, unit outcomes, timestamped events, and corrections.                                                                                                                            |
-| Responsive design | Three desktop panes and one mobile roster with movable picker and loadout sheets.                                                                                                                                                             |
-
 ## Known data limits
-
-`just points` currently matches every generated reference check. A new mismatch is a regression unless the generated reference set has changed.
 
 The sources do not structure every restriction or replacement rule. Praetorium reports missing semantics. It does not reconstruct rules from memory.
 
 The current sources do not provide enough transport relationships to automate embarking. Battle photos also remain outside the product boundary. These features stay absent rather than becoming local-only or guessed state.
-
-## Verification
-
-The browser suite builds or imports a roster, validates and saves it, attaches two rosters to a battle, completes setup and five standard rounds from two browser contexts, and reviews the finished battle and event history.
-
-Unit cards are located through `data-unit` because CSS changes their displayed text to uppercase. Picker and loadout panes have one component instance that CSS moves between layouts. Pricing, saving, import, and export preserve `spreads`, `models`, `choices`, `toggles`, and attachments. Changes to `defaultSelection`, `buildUnit`, `refit`, or evaluation logic include a `just points` run.
 
 [Catalogue data](development/catalogue-data.md), [Battles](development/battles.md), and [Interface](development/interface.md) describe the implementation in detail.

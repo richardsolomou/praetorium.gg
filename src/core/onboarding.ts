@@ -33,7 +33,7 @@ export type OnboardingProgressOperation =
   | { operation: 'skip' | 'restore'; task: OnboardingTaskId }
   | { operation: 'welcome' }
 
-function isTourTask(task: OnboardingTaskId): task is TourTaskId {
+export function isTourTask(task: OnboardingTaskId): task is TourTaskId {
   return (tourTaskIds as readonly string[]).includes(task)
 }
 

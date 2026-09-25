@@ -3,21 +3,7 @@ import { routeSlug } from '../core/slug'
 import { datacardsFactionKeys, type SectionProse } from './datacards'
 import { joinKey } from './rulesSource'
 
-/**
- * The words behind a section a rules card names and does not describe.
- *
- * Game Datacards writes the Aeldari Agile Manoeuvres as six titles and nothing else,
- * so the card prints a heading over an empty section. What each manoeuvre triggers on
- * and does is in the community catalogue instead, on an entry the catalogue names
- * after the card and the section together — `Battle Focus - Agile Manoeuvres` — and
- * that name is the join. Reaching it by title alone would have let any entry in any
- * book answer: Star Engines is a Vyper's upgrade as well as a manoeuvre.
- *
- * So a section is answered only by an entry in this faction's own books, named for the
- * card and section, carrying a profile for every title the section lists. Anything
- * else — a renamed entry, a section only half described, two entries disagreeing —
- * leaves the source's own titles standing with no invented prose beneath them.
- */
+/** Fill an undescribed card section only from a complete matching entry in the same faction’s books; a title match alone can name unrelated wargear. */
 export function catalogueSections(index: CatalogueIndex): SectionProse {
   return ({ faction, entry, titles }) => {
     const found = new Map<string, string>()
