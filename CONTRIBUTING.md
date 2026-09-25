@@ -14,6 +14,18 @@ just dev
 
 `just catalogue-sync` is needed for list building, missions, and battlefields. It reuses a release-pinned snapshot across worktrees. [Running locally](docs/development/running-locally.md) covers the cache, services, and individual commands.
 
+## Coherence
+
+Codex hooks read the project lexicon, specs, and verification journal at session start. Coherence is a linked checkout rather than a package dependency. On a fresh checkout, clone it beside this project and link it:
+
+```sh
+git clone git@github.com:PostHog/coherence.git ../coherence
+npm --prefix ../coherence ci
+npm link ../coherence
+```
+
+If the sibling checkout already exists, use that path for the last two commands. Run `node_modules/.bin/coherence spec --check`, `node_modules/.bin/coherence run --session <session-id> --agent <name>`, and `node_modules/.bin/coherence scope` to inspect the declared rules and their latest verification.
+
 ## Check a change
 
 ```sh
