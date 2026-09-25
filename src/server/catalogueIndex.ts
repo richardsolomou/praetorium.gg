@@ -13,10 +13,11 @@ import {
 import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
 import { compareText, sameText } from '../core/text'
-import { type FactionContent, type LoadedDatacards, loadDatacards } from './datacards'
+import { type FactionContent, type LoadedDatacards, type RuleCard, loadDatacards } from './datacards'
 import { catalogueSections } from './catalogueSections'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { type ExternalReferences, loadExternalReferences } from './externalReferences'
+import { prepareCatalogueProfileRules } from './catalogueProfileRules'
 
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
@@ -28,6 +29,9 @@ export type LoadedCatalogue = {
   factions: { id: string; name: string; references: CatalogueReference[] }[]
   detachments: Map<string, DetachmentOptions>
   factionContents: Map<string, FactionContent>
+  profiledCatalogueIds: Set<string>
+  profiledDetachmentIds: Set<string>
+  profiledArmyRules: Map<string, RuleCard[]>
   /** Game Datacards, read once here and handed to the rules loader. */
   datacards: LoadedDatacards
   sourceReferences: ExternalReferences
@@ -48,10 +52,13 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
   const revision: { definitions?: string } = JSON.parse(fs.readFileSync(revisionFile, 'utf8'))
   if (!revision.definitions) return null
 
-  const files: CatalogueFile[] = fs
-    .readdirSync(definitions)
-    .filter((name) => name.endsWith('.json'))
-    .map((name): CatalogueFile => JSON.parse(fs.readFileSync(path.join(definitions, name), 'utf8')))
+  const prepared = prepareCatalogueProfileRules(
+    fs
+      .readdirSync(definitions)
+      .filter((name) => name.endsWith('.json'))
+      .map((name): CatalogueFile => JSON.parse(fs.readFileSync(path.join(definitions, name), 'utf8'))),
+  )
+  const { files, profiledCatalogueIds, profiledDetachmentIds, profiledArmyRules } = prepared
   if (!files.length) return null
 
   const index = buildIndex(files, revision.definitions)
@@ -66,6 +73,9 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
     factions: factionsIn(index, detachments),
     detachments,
     factionContents: datacards.factions,
+    profiledCatalogueIds,
+    profiledDetachmentIds,
+    profiledArmyRules,
     datacards,
     sourceReferences,
   }
@@ -172,6 +182,7 @@ export function isReferenceDatasheet(loaded: LoadedCatalogue, catalogueId: strin
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return false
   const target = targetOf(entry, loaded.index.definitions)
+  if (loaded.profiledCatalogueIds.has(catalogueId)) return loaded.index.catalogueOf.get(target.id) === catalogueId
   const canonicalFaction = referenceFactionOf(
     loaded,
     [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].map((category) => category.name),

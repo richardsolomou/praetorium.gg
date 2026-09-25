@@ -23,6 +23,7 @@ import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
+import { isProfiledDetachment, profiledDetachmentPoints } from './catalogueProfileRules'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
 import { deploymentRules, grantsStrategicReserveExemption, strategicReserveExemptionSelectors } from './rosterDeployment'
@@ -269,17 +270,24 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   const rulesId = rulesFaction(rules, factionSlug)
   const references = rules?.detachmentReferences.get(rulesId)
   const details = rules?.detachmentDetails.get(rulesId)
+  const referenceFor = (option: (typeof chosen)[number]) =>
+    isProfiledDetachment(loaded, option.id)
+      ? {
+          points: profiledDetachmentPoints(loaded, option.id),
+          dispositions: option.disposition ? [option.disposition] : [],
+        }
+      : detachmentNamed(references, option.name)
   const allowedDispositions = [
     ...new Set(
       chosen.flatMap((option) => {
-        const reference = detachmentNamed(references, option.name)
+        const reference = referenceFor(option)
         return reference ? reference.dispositions : option.disposition ? [option.disposition] : []
       }),
     ),
   ]
   const purchased = chosen.map((option) => ({
     name: option.name,
-    points: detachmentNamed(references, option.name)?.points ?? null,
+    points: referenceFor(option)?.points ?? null,
   }))
   // The King of the Colosseum optional rule. The borrowed detachment is never added to the
   // roster, so it brings no rules, enhancements or stratagems: it sells its Force
@@ -289,7 +297,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   const borrowedDetachment = data.borrowedDetachmentId
     ? (rosterDetachments(loaded, data.catalogueId, [data.borrowedDetachmentId]).chosen[0] ?? null)
     : null
-  const borrowedReference = borrowedDetachment ? detachmentNamed(references, borrowedDetachment.name) : undefined
+  const borrowedReference = borrowedDetachment ? referenceFor(borrowedDetachment) : undefined
   const ownPoints = purchased.some((option) => option.points === null)
     ? null
     : purchased.reduce((total, option) => total + (option.points ?? 0), 0)
@@ -305,7 +313,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       : (borrowedReference?.dispositions ?? (borrowedDetachment.disposition ? [borrowedDetachment.disposition] : []))
   const { disposition, error: dispositionError } = resolveDisposition([...allowedDispositions, ...borrowedDispositions], data.disposition)
   const detachmentSpecials = chosen.map((option) => {
-    const detail = detachmentNamed(details, option.name)
+    const detail = isProfiledDetachment(loaded, option.id) ? undefined : detachmentNamed(details, option.name)
     return { option, detail, ...describedEnhancements(loaded, data.catalogueId, option, detail) }
   })
   const strategicReserveFactsComplete =
@@ -428,8 +436,8 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
    */
   const enhancementsAllowed = enhancementLimit(loaded.index, forces, options)
   const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
-  // The 10e catalogue wrapper caps detachments at one; the 11e rules source
-  // replaces that constraint with the DP budget checked above.
+  // Profile-backed detachments use the DP budget above rather than a wrapper's
+  // single-selection constraint.
   const reported = [
     ...whole.errors.filter(
       (error) =>

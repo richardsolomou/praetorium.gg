@@ -19,6 +19,10 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 - `just catalogue-sync` calls the same sync code as the server.
 - The server loads the catalogue on first use. An instance without catalogue data can still serve battles and pasted rosters.
 
+### Profile-backed catalogue rules
+
+The definitions source remains on BSData's `main` branch, so released catalogue updates arrive through the normal snapshot refresh. `catalogueProfileRules.ts` exposes shared units and detachment groups through the same root shape as existing books. When a catalogue carries army rules, detachment rules, stratagems, dispositions, and DP costs in profiles, those current definitions take priority over stale companion-source records. Imported chapter catalogues inherit the parent options through their ordinary catalogue link. Stratagem text is shown without inferred timing or eligibility until a structured source supplies those fields.
+
 Server catalogue code is split by responsibility:
 
 - `catalogueIndex.ts` loads files and indexes books, detachments, datasheet membership, and 40kdc's namespaced source references.

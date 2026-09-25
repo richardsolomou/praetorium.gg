@@ -141,6 +141,60 @@ describe('the abilities and wargear a datasheet lists', () => {
     expect(described?.contributions.datacards).toBe(true)
   })
 
+  it('uses a profiled parent army rule on a chapter datasheet', () => {
+    const detachment = (id: string, name: string) => ({ id, name, type: 'upgrade' as const })
+    const wrapper = (id: string, option: ReturnType<typeof detachment>) => ({
+      id: `${id}-wrapper`,
+      name: 'Detachment',
+      type: 'upgrade' as const,
+      selectionEntryGroups: [{ id: `${id}-choices`, name: 'Detachment', selectionEntries: [option] }],
+    })
+    const book = shelfOf(
+      {
+        name: 'Dark Angels',
+        sharedRules: [{ id: 'oath', name: 'Oath of Moment', description: 'Mark a target.' }],
+        selectionEntries: [
+          {
+            id: 'apothecary',
+            name: 'Apothecary',
+            type: 'model',
+            infoLinks: [{ id: 'oath-link', targetId: 'oath', name: 'Oath of Moment', type: 'rule' }],
+          },
+        ],
+        sharedSelectionEntries: [wrapper('current', detachment('wrath', 'Wrath of the Rock'))],
+      },
+      {
+        name: 'Space Marines',
+        selectionEntries: [{ id: 'intercessors', name: 'Intercessors', type: 'unit' }],
+        sharedSelectionEntries: [wrapper('parent', detachment('assault', 'Assault Brethren'))],
+      },
+    )
+    const inherited = book.detachments.get('cat-1')!.options[0]!
+    book.detachments.get('cat')!.options.push(inherited)
+    book.profiledDetachmentIds.add('assault')
+    book.profiledArmyRules.set('cat-1', [{ name: 'Combat Doctrines', description: 'Select a doctrine.' }])
+    book.factionContents.set('dark-angels', {
+      name: 'Dark Angels',
+      datasheets: new Set(),
+      datasheetDetails: new Map(),
+      datasheetIds: new Map(),
+      detachments: new Set(),
+      enhancements: new Map(),
+      detachmentRules: new Map(),
+      armyRules: [{ name: 'Oath of Moment', description: 'Mark a target.' }],
+      factionAbilityNames: new Set(['Oath of Moment']),
+    })
+
+    expect(describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'apothecary'), null)?.abilities).toEqual([
+      {
+        id: 'profile-army-rule:combat-doctrines',
+        name: 'Combat Doctrines',
+        description: 'Select a doctrine.',
+        kind: 'faction',
+      },
+    ])
+  })
+
   it('shows a unit enhancement ability only when the enhancement is selected', () => {
     const book = bookOf({
       selectionEntries: [

@@ -5,13 +5,38 @@ import { descriptionKey } from './datacards'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { detachmentNamed, isReferenceDetachment } from './factionReferences'
+import { isProfiledDetachment, profiledDetachmentCards, profiledDetachmentPoints } from './catalogueProfileRules'
 
 export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules, catalogueId: string, detachmentSlug: string) {
   const faction = loaded.index.catalogues.get(catalogueId)
   if (!faction) return null
-  const detail = detachmentNamed(rules.detachmentDetails.get(rulesFaction(rules, routeSlug(faction.name))), detachmentSlug)
   const option = loaded.detachments.get(catalogueId)?.options.find((candidate) => routeSlug(candidate.name) === detachmentSlug)
-  if (!detail || !option || !isReferenceDetachment(loaded, rules, faction, option)) return null
+  if (!option || (!isProfiledDetachment(loaded, option.id) && !isReferenceDetachment(loaded, rules, faction, option))) return null
+  if (isProfiledDetachment(loaded, option.id)) {
+    const cards = profiledDetachmentCards(loaded, option.id)
+    return {
+      id: option.id,
+      name: option.name,
+      points: profiledDetachmentPoints(loaded, option.id),
+      dispositions: option.disposition ? [rules.dispositions?.get(option.disposition) ?? option.disposition] : [],
+      rules: cards.rules,
+      enhancements: [],
+      upgrades: [],
+      stratagems: cards.stratagems.map((card) => ({
+        ...card,
+        type: null,
+        phases: [],
+        turn: null,
+      })),
+      keywordRules: rulesReferencedIn(
+        loaded,
+        [...cards.rules, ...cards.stratagems].map((card) => card.description),
+      ),
+      attribution: 'BSData community catalogue',
+    }
+  }
+  const detail = detachmentNamed(rules.detachmentDetails.get(rulesFaction(rules, routeSlug(faction.name))), detachmentSlug)
+  if (!detail) return null
   const { catalogue: catalogueDetail, described } = describedEnhancements(loaded, catalogueId, option, detail)
   const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rules ?? [], detail.rules)
   const enhancements = [

@@ -10,6 +10,7 @@ import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
 import { factionIndexFor, factionsFor } from '../factionReferences'
 import { factionDisplayName } from '../factionNames'
+import { isProfiledDetachment, profiledArmyRulesFor, profiledDetachmentCards } from '../catalogueProfileRules'
 import { unitsIn } from '../cataloguePicker'
 
 import { gameReferencesFor } from '../gameReferences'
@@ -238,7 +239,7 @@ function rosterLoadoutDatasheets(
 
 function rosterDatasheet(
   loaded: NonNullable<ReturnType<ReturnType<typeof app>['catalogue']>>,
-  data: { catalogueId: string; entryId: string },
+  data: { catalogueId: string; entryId: string; detachmentIds?: string[] },
   context: ReturnType<typeof rosterDatasheetContext>,
   everyWeapon: boolean,
 ) {
@@ -276,7 +277,10 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       cacheUntilSnapshotChanges()
-      return referenceDatasheetBySlug(app(), data)
+      const loaded = app().catalogue()
+      const book = loaded?.index.catalogues.get(data.catalogueId)
+      const live = Boolean(loaded && book && (loaded.profiledCatalogueIds.has(book.id) || profiledArmyRulesFor(loaded, book.id).length))
+      return referenceDatasheetBySlug(app(), data, { live })
     }),
   )
 
@@ -303,9 +307,21 @@ export const detachmentRules = createServerFn({ method: 'GET' })
       const factionSlug = book ? routeSlug(book.name) : null
       const detachments = factionSlug ? rules.byDetachment.get(rulesFaction(rules, factionSlug)) : undefined
       const details = factionSlug ? rules.detachmentDetails.get(rulesFaction(rules, factionSlug)) : undefined
+      const options = book
+        ? (catalogue.detachments.get(book.id)?.options.filter((candidate) => data.detachmentNames.includes(candidate.name)) ?? [])
+        : []
+      const profiledOptions = options.filter((option) => isProfiledDetachment(catalogue, option.id))
+      const profiledNames = new Set(profiledOptions.map((option) => option.name))
       // Detachment cards use the same text as their reference page; core cards join them from Game Datacards.
-      const selected = selectedDetachmentRules(data.detachmentNames, detachments, details)
-      const written = [...selected.written, ...rules.coreDetails]
+      const selected = selectedDetachmentRules(
+        data.detachmentNames.filter((name) => !profiledNames.has(name)),
+        detachments,
+        details,
+      )
+      const profiledWritten = profiledOptions.flatMap((option) =>
+        profiledDetachmentCards(catalogue, option.id).stratagems.map((card) => ({ ...card, type: null })),
+      )
+      const written = [...selected.written, ...profiledWritten, ...rules.coreDetails]
       return {
         attribution: rules.attribution,
         dataslate: rules.dataslate,
