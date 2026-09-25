@@ -172,7 +172,9 @@ function LiveGames({ going, viewerId, onDelete }: { going: readonly Battle[]; vi
 function Columns({ lead, aside, rest }: { lead: ReactNode; aside?: ReactNode; rest?: ReactNode }) {
   if (!lead) return aside
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-16">
+    <div
+      className={`grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-16 ${rest ? 'lg:grid-rows-[min-content_1fr]' : ''}`}
+    >
       <div className="min-w-0 space-y-8 lg:col-start-1">{lead}</div>
       {aside ? <aside className="min-w-0 space-y-8 lg:col-start-2 lg:row-span-2 lg:row-start-1">{aside}</aside> : null}
       {rest ? <div className="min-w-0 space-y-8 lg:col-start-1">{rest}</div> : null}
