@@ -10,7 +10,7 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
 import { activeFriendInviteQuery, friendshipsQuery, meQuery, opponentsQuery, playerSearchKey, playerSearchQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
-import { acceptFriend, cancelFriendInvite, createFriendInvite, removeFriend, requestFriend } from '../../../server/functions'
+import { acceptFriend, cancelFriendInvite, createFriendInvite, rejectFriend, removeFriend, requestFriend } from '../../../server/functions'
 import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../../core/playerSearch'
 import { errorMessage } from '../../queryClient'
 import { shareLink } from '../../nativeBridge'
@@ -36,6 +36,7 @@ export function FriendsPage() {
   }
   const request = useMutation({ mutationFn: (userId: string) => requestFriend({ data: { userId } }), onSuccess: refresh })
   const accept = useMutation({ mutationFn: (userId: string) => acceptFriend({ data: { userId } }), onSuccess: refresh })
+  const reject = useMutation({ mutationFn: (userId: string) => rejectFriend({ data: { userId } }), onSuccess: refresh })
   const remove = useMutation({ mutationFn: (userId: string) => removeFriend({ data: { userId } }), onSuccess: refresh })
   // Only the pressed row waits: one mutation serves every row in its list.
   const inFlight = (mutation: { isPending: boolean; variables: string | undefined }) =>
@@ -59,9 +60,9 @@ export function FriendsPage() {
         description="Connect with the people you know, then invite confirmed friends to private battles."
       />
       <PageContent className="space-y-6">
-        {request.error || accept.error || remove.error ? (
+        {request.error || accept.error || reject.error || remove.error ? (
           <p role="alert" className="border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-            {errorMessage(request.error ?? accept.error ?? remove.error)}
+            {errorMessage(request.error ?? accept.error ?? reject.error ?? remove.error)}
           </p>
         ) : null}
 
@@ -74,8 +75,10 @@ export function FriendsPage() {
             empty="No requests are waiting for you."
             people={data.incoming}
             action="Accept"
-            pendingId={inFlight(accept)}
+            secondaryAction="Reject"
+            pendingId={inFlight(accept) ?? inFlight(reject)}
             onAction={(person) => accept.mutate(person.id)}
+            onSecondaryAction={(person) => reject.mutate(person.id)}
           />
           <People
             onboarding="friend-list"
@@ -226,6 +229,8 @@ function People({
   onboarding,
   pendingId,
   onAction,
+  secondaryAction,
+  onSecondaryAction,
 }: {
   title: string
   people: Person[]
@@ -235,6 +240,8 @@ function People({
   onboarding?: OnboardingTarget
   pendingId: string | null
   onAction: (person: Person) => void
+  secondaryAction?: string
+  onSecondaryAction?: (person: Person) => void
 }) {
   return (
     <section data-onboarding={onboarding}>
@@ -252,6 +259,8 @@ function People({
               destructive={destructive}
               pending={pendingId === person.id}
               onAction={() => onAction(person)}
+              secondaryAction={secondaryAction}
+              onSecondaryAction={onSecondaryAction ? () => onSecondaryAction(person) : undefined}
             />
           ))
         ) : (
@@ -280,12 +289,16 @@ function PersonRow({
   destructive = false,
   pending,
   onAction,
+  secondaryAction,
+  onSecondaryAction,
 }: {
   person: Person
   action: string
   destructive?: boolean
   pending: boolean
   onAction: () => void
+  secondaryAction?: string
+  onSecondaryAction?: () => void
 }) {
   return (
     <div
@@ -296,9 +309,16 @@ function PersonRow({
         <PlayerAvatar name={person.name} image={person.image} className="size-9 text-xs" />
         <span className="truncate font-bold uppercase">{person.name}</span>
       </Link>
-      <Button variant={destructive ? 'destructive' : 'outline'} size="sm" disabled={pending} onClick={onAction}>
-        {action}
-      </Button>
+      <span className="flex shrink-0 gap-1">
+        <Button variant={destructive ? 'destructive' : 'outline'} size="sm" disabled={pending} onClick={onAction}>
+          {action}
+        </Button>
+        {secondaryAction ? (
+          <Button variant="ghost" size="sm" disabled={pending} onClick={onSecondaryAction}>
+            {secondaryAction}
+          </Button>
+        ) : null}
+      </span>
     </div>
   )
 }

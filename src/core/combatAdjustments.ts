@@ -1,4 +1,4 @@
-import type { CombatInput, CombatWeapon, DiceExpression } from './combat'
+import { rerollRank, type CombatInput, type CombatOptions, type CombatWeapon, type DiceExpression } from './combat'
 
 type Amount = CombatWeapon['sustained']
 
@@ -25,6 +25,30 @@ export type TargetAdjustment = {
   saveReroll?: 'ones' | 'failed'
   damageReduction?: boolean
   halveDamage?: boolean
+}
+
+type AttackAdjustment = Partial<Omit<CombatOptions, 'phase'>>
+
+/** A phase chooses its own grants, while numeric modifiers from both scopes cancel or accumulate. */
+export function combineAttackAdjustments(all: AttackAdjustment, phase: AttackAdjustment): AttackAdjustment {
+  return {
+    ...all,
+    ...Object.fromEntries(Object.entries(phase).filter(([, value]) => value !== undefined)),
+    hitModifier: (all.hitModifier ?? 0) + (phase.hitModifier ?? 0),
+    woundModifier: (all.woundModifier ?? 0) + (phase.woundModifier ?? 0),
+  }
+}
+
+export function combineWeaponAdjustments(all: WeaponAdjustment, phase: WeaponAdjustment): WeaponAdjustment {
+  return {
+    ...all,
+    ...Object.fromEntries(Object.entries(phase).filter(([, value]) => value !== undefined)),
+    skill: (all.skill ?? 0) + (phase.skill ?? 0),
+    strength: (all.strength ?? 0) + (phase.strength ?? 0),
+    attacks: (all.attacks ?? 0) + (phase.attacks ?? 0),
+    ap: (all.ap ?? 0) + (phase.ap ?? 0),
+    damage: (all.damage ?? 0) + (phase.damage ?? 0),
+  }
 }
 
 const average = (amount: Amount) => (typeof amount === 'number' ? amount : (amount.dice * (amount.sides + 1)) / 2 + amount.bonus)
@@ -61,7 +85,9 @@ export function adjustCombatTarget(target: CombatInput['target'], adjustment: Ta
       save: between(group.save - (adjustment.save ?? 0), 2, 7),
       invulnerable: extra && (group.invulnerable === null || extra < group.invulnerable) ? extra : group.invulnerable,
     })),
-    ...(adjustment.saveReroll ? { saveReroll: adjustment.saveReroll } : {}),
+    ...(adjustment.saveReroll && rerollRank[adjustment.saveReroll] > rerollRank[target.saveReroll ?? 'none']
+      ? { saveReroll: adjustment.saveReroll }
+      : {}),
     ...(adjustment.damageReduction ? { damageReduction: (target.damageReduction ?? 0) + 1 } : {}),
     ...(adjustment.halveDamage ? { damageDivisor: Math.max(target.damageDivisor ?? 1, 2) } : {}),
   }

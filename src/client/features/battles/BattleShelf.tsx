@@ -71,7 +71,9 @@ export function BattleShelf({
                   <span className="border-b border-edge pb-2 text-center sm:order-2 sm:border-0 sm:pb-0">
                     <span className={`chip ${battleStage(battle.status).tint}`}>{battleStage(battle.status).name}</span>
                     <span className="mt-1 block text-xs text-dim">
-                      {battle.status === 'playing' ? `Round ${battle.round} · ${battle.phase} phase` : formatDate(battle.lastActivity)}
+                      {battle.status === 'playing'
+                        ? `Round ${battle.round} · ${battle.phase} phase · ${formatDate(battle.lastActivity)}`
+                        : formatDate(battle.lastActivity)}
                     </span>
                     <span className="mt-1 block text-3xs text-faint">
                       {battle.settings.limit ? `${battle.settings.limit} pts` : 'Legacy format'}

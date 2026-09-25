@@ -37,6 +37,7 @@ export function BattleCombatDialog({
           key={JSON.stringify([first.player.id, second.player.id, first.roster, second.roster])}
           roster={roster}
           opponentRoster={second.roster}
+          inDialog
           firstArmyControl={
             chooseArmy ? (
               <Choice

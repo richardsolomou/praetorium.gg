@@ -1,7 +1,7 @@
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import { datasheetCharacteristicKind, datasheetProfileKind, datasheetProfilesByKind } from './datasheetStructure'
 import type { CombatCarrier } from './combatLoadout'
-import { sameWargear, wargearBaseName } from './wargear'
+import { sameWargear, wargearBaseName, wargearKey } from './wargear'
 import { combatSchema, diceExpression, type CombatInput, type CombatWeapon } from './combat'
 import { combatKeyword, combatKeywordApplies, normalizeCombatKeyword as normalized } from './combatKeywords'
 
@@ -200,6 +200,7 @@ export function combatPlan(
   targetKeywords: readonly string[],
   phase: CombatInput['options']['phase'],
   preferences: Readonly<Record<string, string>> = {},
+  excluded: ReadonlySet<string> = new Set(),
 ) {
   const counts = new Map<string, number>()
   const choices: CombatWeaponChoice[] = []
@@ -300,11 +301,13 @@ export function combatPlan(
     const count = counts.get(entry.profile.id) ?? 0
     return count ? [{ ...entry, count }] : []
   })
-  for (const entry of used) if (entry.error) errors.push(`${entry.profile.name}: ${entry.error}`)
+  const active = used.filter((entry) => !excluded.has(wargearKey(entry.profile.name)))
+  for (const entry of active) if (entry.error) errors.push(`${entry.profile.name}: ${entry.error}`)
   return {
     used,
+    active,
     choices,
     errors: [...new Set(errors)],
-    weapons: used.flatMap(({ weapon, count }) => (weapon ? [{ ...weapon, count }] : [])),
+    weapons: active.flatMap(({ weapon, count }) => (weapon ? [{ ...weapon, count }] : [])),
   }
 }

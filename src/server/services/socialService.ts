@@ -55,6 +55,10 @@ export class SocialService {
     this.notifier.notify([{ kind: 'friend-accepted', actorId: userId, recipientIds: [requesterId] }])
   }
 
+  async rejectFriend(userId: string, requesterId: string) {
+    if (!(await this.repository.rejectFriend(requesterId, userId))) throw new Response('no such friend request', { status: 404 })
+  }
+
   async removeFriend(userId: string, friendId: string) {
     if (!(await this.repository.removeFriend(userId, friendId))) throw new Response('no such friendship', { status: 404 })
   }

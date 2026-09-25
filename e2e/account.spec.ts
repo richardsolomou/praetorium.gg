@@ -276,6 +276,43 @@ test('a one-time link connects a new player after they create an account and acc
   await recipientContext.close()
 })
 
+test('a player can reject an incoming friend request', async ({ browser }) => {
+  const requesterContext = await browser.newContext()
+  const recipientContext = await browser.newContext()
+  const requester = await requesterContext.newPage()
+  const recipient = await recipientContext.newPage()
+  const requesterName = uniqueName('Requester')
+  const recipientName = uniqueName('Recipient')
+  try {
+    await signUp(requester, requesterName)
+    await signUp(recipient, recipientName)
+    await requester.goto('/friends')
+    await requester.getByPlaceholder('Search by account name').fill(recipientName)
+    await requester.locator(`[data-person="${recipientName}"]`).getByRole('button', { name: 'Add friend' }).click()
+    await expect(
+      requester.locator('section').filter({ hasText: 'Sent requests' }).locator(`[data-person="${recipientName}"]`),
+    ).toBeVisible()
+
+    await recipient.goto('/')
+    await expect(recipient.getByText('1 item to review')).toBeVisible()
+    await expect(recipient.getByText('Needs your attention')).toBeVisible()
+    await recipient.goto('/friends')
+    const incoming = recipient.locator('section').filter({ hasText: 'Friend requests' }).locator(`[data-person="${requesterName}"]`)
+    await recipient.screenshot({ path: 'test-results/friend-request-reject.png' })
+    await incoming.getByRole('button', { name: 'Reject' }).click()
+
+    await expect(incoming).toHaveCount(0)
+    await recipient.goto('/')
+    await expect(recipient.getByText('Nothing to review')).toBeVisible()
+    await requester.reload()
+    await expect(requester.locator('section').filter({ hasText: 'Sent requests' }).locator(`[data-person="${recipientName}"]`)).toHaveCount(
+      0,
+    )
+  } finally {
+    await Promise.all([requesterContext.close(), recipientContext.close()])
+  }
+})
+
 test('onboarding waits in the profile menu and disappears when complete', async ({ page }) => {
   const name = uniqueName('Feedback')
   await signUp(page, name)

@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ReportEntry } from '../../../core/battleReport'
-import { formatTime } from '../../dates'
+import { formatDate, formatTime } from '../../dates'
 import { reportQuery } from '../../queries'
 
 export type ReportPlayer = { id: string; name: string; className: string }
@@ -72,19 +72,21 @@ export function Report({
       <div className="mt-3 h-72 overflow-x-hidden overflow-y-auto pr-1">
         {visible.length ? (
           <ol className="w-full space-y-1">
-            {visible.map((entry) => (
-              <li
-                key={entry.seq}
-                className="grid w-full grid-cols-[3.5rem_minmax(0,1fr)] gap-2 text-sm sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3"
-              >
-                <span className="readout text-right text-xs text-dim">
-                  {formatTime(entry.at)}
-                  <span className="block text-3xs text-faint">
-                    {entry.round ? `R${entry.round}` : '—'} {PHASE_LABELS[entry.phase] ?? entry.phase}
+            {visible.map((entry, index) => (
+              <Fragment key={entry.seq}>
+                {index === 0 || formatDate(visible[index - 1]!.at) !== formatDate(entry.at) ? (
+                  <li className="eyebrow border-b border-edge pb-1 text-faint">{formatDate(entry.at)}</li>
+                ) : null}
+                <li className="grid w-full grid-cols-[3.5rem_minmax(0,1fr)] gap-2 text-sm sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3">
+                  <span className="readout text-right text-xs text-dim">
+                    {formatTime(entry.at)}
+                    <span className="block text-3xs text-faint">
+                      {entry.round ? `R${entry.round}` : '—'} {PHASE_LABELS[entry.phase] ?? entry.phase}
+                    </span>
                   </span>
-                </span>
-                <span className="min-w-0 break-words text-bone">{colourNames(entry.text, players)}</span>
-              </li>
+                  <span className="min-w-0 break-words text-bone">{colourNames(entry.text, players)}</span>
+                </li>
+              </Fragment>
             ))}
             {hidden > 0 ? (
               <li>

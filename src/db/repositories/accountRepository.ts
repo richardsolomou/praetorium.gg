@@ -315,6 +315,17 @@ export class AccountRepository {
     })
   }
 
+  async rejectFriend(requesterId: string, addresseeId: string) {
+    return this.database.transaction(async (tx) => {
+      await lockFriendshipPair(tx, requesterId, addresseeId)
+      const removed = await tx
+        .delete(friendships)
+        .where(and(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, addresseeId), isNull(friendships.acceptedAt)))
+        .returning({ requesterId: friendships.requesterId })
+      return removed.length > 0
+    })
+  }
+
   async removeFriend(leftId: string, rightId: string) {
     return this.database.transaction(async (tx) => {
       await lockFriendshipPair(tx, leftId, rightId)
