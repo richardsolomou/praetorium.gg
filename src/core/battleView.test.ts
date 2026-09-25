@@ -88,6 +88,10 @@ describe('the view', () => {
       remainingSecondaries: [cards[1]],
       secondaries: [{ key: 'secret', name: 'Hidden purpose', secret: true, revealed: false }],
     })
+    expect(battleView({ token: 'abc' }, NAMES, state, '').players[1]).toMatchObject({
+      remainingSecondaries: [],
+      secondaries: [{ key: 'secret', name: 'Secret mission', secret: true, revealed: false }],
+    })
   })
 
   it('offers the latest undo to both players', () => {

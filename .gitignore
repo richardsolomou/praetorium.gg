@@ -17,3 +17,7 @@ catalogue-current.json
 catalogue-snapshot.zip
 .combat-rule-cache/
 combat-reports/
+.coherence/*
+!.coherence/journal/
+!.coherence/runs/
+!.coherence/work/

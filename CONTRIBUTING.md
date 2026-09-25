@@ -14,6 +14,18 @@ just dev
 
 `just catalogue-sync` is needed for list building, missions, and battlefields. It reuses a release-pinned snapshot across worktrees. [Running locally](docs/development/running-locally.md) covers the cache, services, and individual commands.
 
+## Coherence
+
+Codex hooks read the project lexicon, specs, and verification journal at session start. Coherence is a linked checkout rather than a package dependency. After `just install`, clone it beside this project and link its executable:
+
+```sh
+git clone git@github.com:PostHog/coherence.git ../coherence
+npm --prefix ../coherence ci
+ln -s ../../../coherence/src/cli.ts node_modules/.bin/coherence
+```
+
+If the sibling checkout already exists, use its path for the install and executable link. The direct link keeps npm from installing a second dependency tree over pnpm's locked packages. Run `node_modules/.bin/coherence spec --check`, `node_modules/.bin/coherence run --session <session-id> --agent <name>`, and `node_modules/.bin/coherence scope` to inspect the declared rules and their latest verification. The Codex Stop hook checks vocabulary in changed files. Run `node_modules/.bin/coherence lexicon --check <changed-files>` to check selected files earlier; it reports older uses in those files too.
+
 ## Check a change
 
 ```sh
