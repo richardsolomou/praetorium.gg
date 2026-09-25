@@ -148,7 +148,7 @@ test('critical threshold cue follows wound modifiers and Devastating Wounds', as
   await criticalFour.hover()
   await expect(page.getByRole('tooltip')).toContainText('Those rolls already wound')
   await criticalFour.click()
-  await expect(criticalFour).toHaveClass(/opacity-45/)
+  await expect(criticalFour).not.toHaveClass(/opacity-45/)
   await criticalFour.hover()
   await expect(page.getByRole('tooltip')).toContainText('Those rolls already wound')
   await expect(shooting.getByRole('region', { name: 'Applied modifiers' })).not.toContainText('Critical wounds on 4+ (Shooting)')
@@ -161,7 +161,9 @@ test('critical threshold cue follows wound modifiers and Devastating Wounds', as
   await criticalThree.click()
   await expect(criticalThree).not.toHaveClass(/opacity-45/)
   await shooting.getByRole('button', { name: '+1 Wound' }).click()
-  await expect(criticalThree).toHaveClass(/opacity-45/)
+  await expect(criticalThree).not.toHaveClass(/opacity-45/)
+  await criticalThree.hover()
+  await expect(page.getByRole('tooltip')).toContainText('Those rolls already wound')
 })
 
 test('a printed wound re-roll makes a weaker modifier show no effect', async ({ page }) => {
@@ -172,7 +174,7 @@ test('a printed wound re-roll makes a weaker modifier show no effect', async ({ 
   const modifiers = page.getByRole('region', { name: 'Modifiers', exact: true })
   await expect(modifiers.getByRole('button', { name: 'Re-roll wound 1s' })).toHaveClass(/opacity-45/)
   await modifiers.getByRole('button', { name: 'Re-roll wound 1s' }).click()
-  await expect(modifiers.getByRole('button', { name: 'Re-roll wound 1s' })).toHaveClass(/opacity-45/)
+  await expect(modifiers.getByRole('button', { name: 'Re-roll wound 1s' })).not.toHaveClass(/opacity-45/)
   await modifiers.getByRole('button', { name: 'Re-roll wound 1s' }).hover()
   await expect(page.getByRole('tooltip')).toContainText('An active unit rule already grants an equal or better re-roll')
   await expect(modifiers.getByRole('region', { name: 'Applied modifiers' })).toContainText('Re-roll wound 1s from rules')
