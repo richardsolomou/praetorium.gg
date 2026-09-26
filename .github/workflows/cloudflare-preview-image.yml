@@ -323,10 +323,35 @@ jobs:
             revision="$(awk 'tolower($1) == "x-praetorium-revision:" { gsub("\\r", "", $2); print $2 }' <<< "$headers")"
             if [[ "$revision" == "$GITHUB_SHA" ]]; then
               echo "Protected candidate serves $GITHUB_SHA"
-              exit 0
+              break
             fi
             echo "Waiting for protected candidate revision ($attempt/30)"
             sleep 10
           done
-          echo "Protected candidate did not serve $GITHUB_SHA" >&2
-          exit 1
+          if [[ "$revision" != "$GITHUB_SHA" ]]; then
+            echo "Protected candidate did not serve $GITHUB_SHA" >&2
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 30 \
+            --header "CF-Access-Client-Id: $CANDIDATE_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $CANDIDATE_ACCESS_CLIENT_SECRET" \
+            --output "$RUNNER_TEMP/candidate-home.html" https://candidate.praetorium.gg/
+          grep -q 'Praetorium' "$RUNNER_TEMP/candidate-home.html"
+          curl --fail --silent --show-error --max-time 30 \
+            --header "CF-Access-Client-Id: $CANDIDATE_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $CANDIDATE_ACCESS_CLIENT_SECRET" \
+            --output "$RUNNER_TEMP/candidate-faction.html" https://candidate.praetorium.gg/factions/necrons/datasheets
+          grep -q 'Necrons' "$RUNNER_TEMP/candidate-faction.html"
+          curl --fail --silent --show-error --max-time 15 \
+            --header "CF-Access-Client-Id: $CANDIDATE_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $CANDIDATE_ACCESS_CLIENT_SECRET" \
+            --output "$RUNNER_TEMP/candidate-openid.json" \
+            https://candidate.praetorium.gg/api/auth/.well-known/openid-configuration
+          jq -e '.issuer == "https://candidate.praetorium.gg/api/auth" and .jwks_uri == "https://candidate.praetorium.gg/api/auth/jwks"' \
+            "$RUNNER_TEMP/candidate-openid.json" > /dev/null
+          curl --fail --silent --show-error --max-time 15 \
+            --header "CF-Access-Client-Id: $CANDIDATE_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $CANDIDATE_ACCESS_CLIENT_SECRET" \
+            --output "$RUNNER_TEMP/candidate-jwks.json" https://candidate.praetorium.gg/api/auth/jwks
+          jq -e '.keys | type == "array" and length > 0' "$RUNNER_TEMP/candidate-jwks.json" > /dev/null
+          echo 'Protected candidate pages and auth metadata are healthy'
