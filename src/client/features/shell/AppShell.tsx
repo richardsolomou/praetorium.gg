@@ -17,6 +17,7 @@ import { NativePushRegistration } from './NativePushRegistration'
 import { OnboardingGuide } from '../onboarding/OnboardingGuide'
 import { meQuery } from '../../queries'
 import { guestDraftOpen, subscribeGuestDraft } from '../rosters/guestDraft'
+import { useRealtimeConfig, useSpacetimeLiveProduct } from '../../spacetimeLive'
 // A local dev server shares the production project token, so gate the browser
 // SDK on a built bundle to keep localhost sessions out of the production project.
 const posthog = import.meta.env.PROD
@@ -148,6 +149,9 @@ export function AppShell() {
   )
   const guestBuilder = (path === '/rosters' || path === '/rosters/') && guestDraft
   const immersive = guestBuilder || /^\/rosters\/(?:new|import|[^/]+(?:\/edit)?)$/.test(path)
+  const { data: me } = useQuery(meQuery())
+  const realtime = useRealtimeConfig()
+  useSpacetimeLiveProduct(realtime, Boolean(me))
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

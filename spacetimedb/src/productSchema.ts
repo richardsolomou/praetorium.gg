@@ -215,6 +215,24 @@ const favouriteDetachments = table(
   },
 )
 
+const productRevisions = table(
+  { name: 'product_revisions' },
+  {
+    key: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    scope: t.string(),
+    revision: t.u64(),
+  },
+)
+
+const publicRevisions = table(
+  { name: 'public_revisions' },
+  {
+    scope: t.string().primaryKey(),
+    revision: t.u64(),
+  },
+)
+
 export const productTables = {
   userOnboarding,
   userOnboardingTasks,
@@ -235,4 +253,6 @@ export const productTables = {
   favouriteFactions,
   practiceOpponents,
   favouriteDetachments,
+  productRevisions,
+  publicRevisions,
 }

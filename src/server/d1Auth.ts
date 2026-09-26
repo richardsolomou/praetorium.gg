@@ -197,7 +197,13 @@ export function createD1Auth(binding: Parameters<typeof drizzle>[0], secret: str
           getSubject: ({ session }) => session.id,
           definePayload: ({ session, user: currentUser }) => {
             const expiresAt = Math.min(Math.floor(Date.now() / 1000) + 300, Math.floor(session.expiresAt.getTime() / 1000))
-            return { userId: currentUser.id, accessExpiresAt: expiresAt, tokenType: 'spacetime-access', exp: expiresAt }
+            return {
+              userId: currentUser.id,
+              accessExpiresAt: expiresAt,
+              tokenType: 'spacetime-access',
+              isAdmin: currentUser.role === 'admin',
+              exp: expiresAt,
+            }
           },
         },
       }),

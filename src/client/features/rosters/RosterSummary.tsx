@@ -1,6 +1,6 @@
 import { GAME_SIZES } from '../../../core/battle'
 import { rosterLabel } from '../../../core/rosterLabel'
-import { formatDate } from '../../dates'
+import { useDateFormatting } from '../../dates'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
 import { rosterWaivers, WaiverChip } from '../../components/FormatWaivers'
@@ -52,6 +52,7 @@ export function RosterSummary({
   pointsLoading?: boolean
   problem?: RosterProblem | null
 }) {
+  const { date } = useDateFormatting()
   const detachments = detachmentNames(roster, faction)
   const size = GAME_SIZES.find((entry) => entry.limit === roster.limit)
   const waivers = rosterWaivers(roster)
@@ -71,7 +72,7 @@ export function RosterSummary({
         </span>
         <span className="mt-1 block text-xs text-dim">
           11th edition · {size?.name ?? `${roster.limit} points`} · {roster.unitCount} {roster.unitCount === 1 ? 'unit' : 'units'} · updated{' '}
-          {formatDate(roster.updatedAt)}
+          {date(roster.updatedAt)}
         </span>
       </span>
       {/* Wide enough for a warning beside the visibility, so one arriving late moves nothing. */}

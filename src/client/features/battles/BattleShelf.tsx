@@ -5,7 +5,7 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { battleStage } from '../../battleStage'
 import { summarySides } from '../../battleSummary'
-import { formatDate } from '../../dates'
+import { useDateFormatting } from '../../dates'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import type { OnboardingTarget } from '../onboarding/onboarding'
@@ -33,6 +33,7 @@ export function BattleShelf({
   onboarding?: OnboardingTarget
   onDelete?: (battle: Battle) => void
 }) {
+  const { date } = useDateFormatting()
   if (!battles.length) return null
   return (
     <section data-onboarding={onboarding} data-battle-shelf={title ?? ''}>
@@ -72,8 +73,8 @@ export function BattleShelf({
                     <span className={`chip ${battleStage(battle.status).tint}`}>{battleStage(battle.status).name}</span>
                     <span className="mt-1 block text-xs text-dim">
                       {battle.status === 'playing'
-                        ? `Round ${battle.round} · ${battle.phase} phase · ${formatDate(battle.lastActivity)}`
-                        : formatDate(battle.lastActivity)}
+                        ? `Round ${battle.round} · ${battle.phase} phase · ${date(battle.lastActivity)}`
+                        : date(battle.lastActivity)}
                     </span>
                     <span className="mt-1 block text-3xs text-faint">
                       {battle.settings.limit ? `${battle.settings.limit} pts` : 'Legacy format'}

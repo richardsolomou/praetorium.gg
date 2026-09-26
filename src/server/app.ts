@@ -289,6 +289,7 @@ export function app(): App {
         events,
         randomInt,
         push ? pushNotifier(repository, push, undefined, worker?.waitUntil) : silentNotifier,
+        operator ? () => operator.publicStandingsRevision() : undefined,
       ),
       events,
       auth,

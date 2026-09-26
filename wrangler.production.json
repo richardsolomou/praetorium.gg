@@ -3,6 +3,11 @@
   "main": "cloudflare/nativeWorker.ts",
   "compatibility_date": "2026-09-17",
   "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "logs": { "enabled": true, "invocation_logs": false, "persist": true }
+  },
   "vars": {
     "APP_URL": "https://praetorium.gg",
     "SPACETIME_AUDIENCE": "praetorium-production",

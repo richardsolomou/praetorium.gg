@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ReportEntry } from '../../../core/battleReport'
-import { formatDate, formatTime } from '../../dates'
+import { useDateFormatting } from '../../dates'
 import { reportQuery } from '../../queries'
 
 export type ReportPlayer = { id: string; name: string; className: string }
@@ -42,6 +42,7 @@ export function Report({
   players?: readonly ReportPlayer[]
   entries?: readonly ReportEntry[]
 }) {
+  const { date, time } = useDateFormatting()
   const reportResult = useQuery(reportQuery(token, open && suppliedEntries === undefined))
   const fetchedEntries = reportResult.data
   const entries = suppliedEntries ?? fetchedEntries
@@ -74,12 +75,12 @@ export function Report({
           <ol className="w-full space-y-1">
             {visible.map((entry, index) => (
               <Fragment key={entry.seq}>
-                {index === 0 || formatDate(visible[index - 1]!.at) !== formatDate(entry.at) ? (
-                  <li className="eyebrow border-b border-edge pb-1 text-faint">{formatDate(entry.at)}</li>
+                {index === 0 || date(visible[index - 1]!.at) !== date(entry.at) ? (
+                  <li className="eyebrow border-b border-edge pb-1 text-faint">{date(entry.at)}</li>
                 ) : null}
                 <li className="grid w-full grid-cols-[3.5rem_minmax(0,1fr)] gap-2 text-sm sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3">
                   <span className="readout text-right text-xs text-dim">
-                    {formatTime(entry.at)}
+                    {time(entry.at)}
                     <span className="block text-3xs text-faint">
                       {entry.round ? `R${entry.round}` : '—'} {PHASE_LABELS[entry.phase] ?? entry.phase}
                     </span>

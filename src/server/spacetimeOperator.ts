@@ -192,6 +192,14 @@ export class SpacetimeOperator
     return battleSnapshot.parse(await this.read('battle_for_operator', [battleId]))
   }
 
+  async publicStandingsRevision() {
+    const response = await this.call('public_standings_revision', [])
+    return z
+      .string()
+      .regex(/^[0-9]+$/)
+      .parse(await response.json())
+  }
+
   async createBattle(input: {
     id: string
     token: string

@@ -5,12 +5,13 @@ import { z } from 'zod'
 import { DbConnection, tables } from '../spacetime/generated'
 import { battleQuery, battlesQuery } from './queries'
 import { maintainSpacetimeConnection } from './spacetimeConnection'
+import { invalidateAdminProductQueries, invalidateProductQueries, invalidatePublicProductQueries } from './productSignals'
 
-type RealtimeMode = 'centrifugo' | 'spacetime'
-let modePromise: Promise<RealtimeMode> | null = null
+type RealtimeConfig = { mode: 'centrifugo' } | { mode: 'spacetime'; database: string; uri: string }
+let modePromise: Promise<RealtimeConfig> | null = null
 
-export function useRealtimeMode() {
-  const [mode, setMode] = useState<RealtimeMode | null>(null)
+export function useRealtimeConfig() {
+  const [config, setConfig] = useState<RealtimeConfig | null>(null)
   useEffect(() => {
     let active = true
     modePromise ??= fetch('/api/realtime/mode')
@@ -18,21 +19,32 @@ export function useRealtimeMode() {
         if (!response.ok) throw new Error(`Realtime mode failed with HTTP ${response.status}`)
         return response.json()
       })
-      .then((value: unknown) => z.object({ mode: z.enum(['centrifugo', 'spacetime']) }).parse(value).mode)
+      .then((value: unknown) =>
+        z
+          .discriminatedUnion('mode', [
+            z.object({ mode: z.literal('centrifugo') }),
+            z.object({ mode: z.literal('spacetime'), database: z.string().min(1), uri: z.url() }),
+          ])
+          .parse(value),
+      )
       .catch((error: unknown) => {
         modePromise = null
         throw error
       })
     void modePromise
       .then((value) => {
-        if (active) setMode(value)
+        if (active) setConfig(value)
       })
       .catch(report)
     return () => {
       active = false
     }
   }, [])
-  return mode
+  return config
+}
+
+export function useRealtimeMode() {
+  return useRealtimeConfig()?.mode ?? null
 }
 
 const ticketSchema = z.object({
@@ -47,6 +59,13 @@ async function ticket(battle?: string) {
   const response = await fetch(url, { cache: 'no-store' })
   if (!response.ok) throw new Error(`Spacetime token failed with HTTP ${response.status}`)
   return ticketSchema.parse(await response.json())
+}
+
+async function guestTicket(config: Extract<RealtimeConfig, { mode: 'spacetime' }>) {
+  const response = await fetch(new URL('v1/identity', config.uri), { method: 'POST', cache: 'no-store' })
+  if (!response.ok) throw new Error(`Spacetime guest token failed with HTTP ${response.status}`)
+  const { token } = z.object({ token: z.string().min(1) }).parse(await response.json())
+  return { token, database: config.database, uri: config.uri, battleId: null }
 }
 
 function report(error: unknown) {
@@ -123,16 +142,33 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
   }, [enabled, refresh, subscribed])
 }
 
-export function useSpacetimeLiveBattles(enabled: boolean) {
+export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn: boolean) {
   const queryClient = useQueryClient()
   const [subscribed, setSubscribed] = useState(false)
-  const refresh = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
-  }, [queryClient])
+  const enabled = config?.mode === 'spacetime'
+  const refresh = useCallback(
+    (scope?: string) => {
+      void invalidateProductQueries(queryClient, scope)
+    },
+    [queryClient],
+  )
+  const refreshPublic = useCallback(
+    (scope?: string) => {
+      void invalidatePublicProductQueries(queryClient, scope)
+    },
+    [queryClient],
+  )
+  const refreshAdmin = useCallback(
+    (scope?: string) => {
+      void invalidateAdminProductQueries(queryClient, scope)
+    },
+    [queryClient],
+  )
+
   useEffect(() => {
-    if (!enabled) return
+    if (config?.mode !== 'spacetime') return
     return maintainSpacetimeConnection({
-      issue: ticket,
+      issue: signedIn ? ticket : () => guestTicket(config),
       open: (issued, failed, isCurrent) =>
         DbConnection.builder()
           .withUri(issued.uri)
@@ -140,20 +176,46 @@ export function useSpacetimeLiveBattles(enabled: boolean) {
           .withToken(issued.token)
           .onConnect((current) => {
             if (!isCurrent()) return
-            current.db.mySession.onDelete(() => failed())
-            current.db.myBattleList.onInsert(refresh)
-            current.db.myBattleList.onUpdate(refresh)
-            current.db.myBattleList.onDelete(refresh)
+            let applied = false
+            if (signedIn)
+              current.db.mySession.onDelete(() => {
+                void queryClient.invalidateQueries({ queryKey: ['me'] })
+                failed()
+              })
+            current.db.myProductSignals.onInsert((_context, row) => {
+              if (applied && signedIn) refresh(row.scope)
+            })
+            current.db.myProductSignals.onUpdate((_context, _old, row) => {
+              if (applied && signedIn) refresh(row.scope)
+            })
+            current.db.myAdminSignals.onInsert((_context, row) => {
+              if (applied && signedIn) refreshAdmin(row.scope)
+            })
+            current.db.myAdminSignals.onUpdate((_context, _old, row) => {
+              if (applied && signedIn) refreshAdmin(row.scope)
+            })
+            current.db.publicProductSignals.onInsert((_context, row) => {
+              if (applied) refreshPublic(row.scope)
+            })
+            current.db.publicProductSignals.onUpdate((_context, _old, row) => {
+              if (applied) refreshPublic(row.scope)
+            })
             current
               .subscriptionBuilder()
               .onApplied(() => {
-                if (isCurrent()) {
-                  setSubscribed(true)
-                  refresh()
-                }
+                if (!isCurrent()) return
+                applied = true
+                setSubscribed(true)
+                if (signedIn) refresh()
+                if (signedIn) refreshAdmin()
+                refreshPublic()
               })
-              .onError((context) => failed(new Error(context.event?.message || 'Battle list subscription failed')))
-              .subscribe([tables.mySession, tables.myBattleList])
+              .onError((context) => failed(new Error(context.event?.message || 'Product subscription failed')))
+              .subscribe(
+                signedIn
+                  ? [tables.mySession, tables.myProductSignals, tables.myAdminSignals, tables.publicProductSignals]
+                  : [tables.publicProductSignals],
+              )
           })
           .onDisconnect(() => failed())
           .onConnectError((_current, error) => failed(error))
@@ -161,11 +223,15 @@ export function useSpacetimeLiveBattles(enabled: boolean) {
       inactive: () => setSubscribed(false),
       report,
     })
-  }, [enabled, refresh])
+  }, [config, queryClient, refresh, refreshAdmin, refreshPublic, signedIn])
 
   useEffect(() => {
     if (!enabled || subscribed) return
-    const timer = window.setInterval(refresh, 5_000)
+    const timer = window.setInterval(() => {
+      if (signedIn) refresh()
+      if (signedIn) refreshAdmin()
+      refreshPublic()
+    }, 20_000)
     return () => window.clearInterval(timer)
-  }, [enabled, refresh, subscribed])
+  }, [enabled, refresh, refreshAdmin, refreshPublic, signedIn, subscribed])
 }

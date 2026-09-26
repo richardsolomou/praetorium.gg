@@ -1,12 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import type { LinkedChange, LinkedChangeSet } from '../../../contracts/catalogueChanges'
 import { type ChangeSection, changeDetail, changeSection } from '../../catalogueChanges'
-import { formatDate, formatTime } from '../../dates'
 
 const SECTIONS: readonly ChangeSection[] = ['Datasheets', 'Detachments', 'Enhancements', 'Upgrades']
-
-/** When an update was recorded. Updates can arrive hourly, so a date alone does not tell two apart. */
-export const updateTime = (recordedAt: number) => `${formatDate(recordedAt)} ${formatTime(recordedAt)}`
 
 export const changesLabel = (count: number) => `${count} ${count === 1 ? 'change' : 'changes'}`
 

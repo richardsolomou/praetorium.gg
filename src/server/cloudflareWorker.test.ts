@@ -70,3 +70,40 @@ it('requires bearer authorization for websocket token exchange', async () => {
   ).toBe(413)
   expect(upstream).toHaveBeenCalledTimes(1)
 })
+
+it('forwards an anonymous subscription only to the configured database', async () => {
+  const upstream = vi.fn(async (_request: Request) => new Response('connected'))
+  vi.stubGlobal('fetch', upstream)
+  const request = new Request('https://preview.example/spacetime/v1/database/preview-one/subscribe', {
+    headers: { upgrade: 'websocket' },
+  })
+
+  expect((await spacetimeSocket(request, environment)).status).toBe(200)
+  expect(new URL(upstream.mock.calls[0]![0].url).pathname).toBe('/v1/database/preview-one/subscribe')
+})
+
+it('issues only a server-native guest identity without forwarding browser cookies', async () => {
+  const upstream = vi.fn(async (_request: Request) => Response.json({ token: 'guest' }))
+  vi.stubGlobal('fetch', upstream)
+  const request = new Request('https://preview.example/spacetime/v1/identity', {
+    method: 'POST',
+    headers: { cookie: 'session=private', authorization: 'Bearer caller-supplied' },
+  })
+
+  expect((await spacetimeSocket(request, environment)).status).toBe(200)
+  expect(upstream.mock.calls[0]![0].headers.get('cookie')).toBeNull()
+  expect(upstream.mock.calls[0]![0].headers.get('authorization')).toBeNull()
+  expect(new URL(upstream.mock.calls[0]![0].url).pathname).toBe('/v1/identity')
+})
+
+it('allows an HTTP SpacetimeDB origin only when both endpoints are loopback', async () => {
+  const upstream = vi.fn(async (_request: Request) => Response.json({ token: 'guest' }))
+  vi.stubGlobal('fetch', upstream)
+  const request = (host: string) => new Request(`http://${host}/spacetime/v1/identity`, { method: 'POST' })
+  const local = { ...environment, SPACETIME_URL: 'http://127.0.0.1:3301/' }
+
+  expect((await spacetimeSocket(request('localhost:8799'), local)).status).toBe(200)
+  expect((await spacetimeSocket(request('preview.example'), local)).status).toBe(503)
+  expect((await spacetimeSocket(request('localhost:8799'), { ...local, SPACETIME_URL: 'http://private.example/' })).status).toBe(503)
+  expect(upstream).toHaveBeenCalledTimes(1)
+})

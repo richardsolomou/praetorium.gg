@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { z } from 'zod'
 import { battleQuery, battlesQuery } from './queries'
 import { isExpectedRealtimeDisconnect } from './realtimeErrors'
-import { useRealtimeMode, useSpacetimeLiveBattle, useSpacetimeLiveBattles } from './spacetimeLive'
+import { useRealtimeMode, useSpacetimeLiveBattle } from './spacetimeLive'
 
 const TICKET = z.object({ token: z.string(), channel: z.string().optional() })
 const clientChannels = new WeakMap<Centrifuge, string>()
@@ -139,7 +139,6 @@ function useCentrifugoLiveBattle(token: string, enabled: boolean) {
 export function useLiveBattles(enabled: boolean) {
   const mode = useRealtimeMode()
   useCentrifugoLiveBattles(enabled && mode === 'centrifugo')
-  useSpacetimeLiveBattles(enabled && mode === 'spacetime')
 }
 
 function useCentrifugoLiveBattles(enabled: boolean) {

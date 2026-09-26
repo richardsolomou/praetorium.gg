@@ -68,6 +68,7 @@ import * as FavouriteFactionsByUserProcedure from './favourite_factions_by_user_
 import * as FriendInviteByInviterProcedure from './friend_invite_by_inviter_procedure'
 import * as FriendInviteByTokenProcedure from './friend_invite_by_token_procedure'
 import * as FriendshipsByUserProcedure from './friendships_by_user_procedure'
+import * as HomeRostersByUserProcedure from './home_rosters_by_user_procedure'
 import * as LeagueBattleCandidatesProcedure from './league_battle_candidates_procedure'
 import * as LeagueByTokenProcedure from './league_by_token_procedure'
 import * as LeagueCommandProcedure from './league_command_procedure'
@@ -78,8 +79,10 @@ import * as OnboardingByUserProcedure from './onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from './operator_health_procedure'
 import * as PracticeOpponentIdsProcedure from './practice_opponent_ids_procedure'
 import * as ProductStatsProcedure from './product_stats_procedure'
+import * as PublicStandingsRevisionProcedure from './public_standings_revision_procedure'
 import * as PushEnabledProcedure from './push_enabled_procedure'
 import * as PushTargetsProcedure from './push_targets_procedure'
+import * as RejectFriendProcedure from './reject_friend_procedure'
 import * as RemoveBattleProcedure from './remove_battle_procedure'
 import * as RemoveFriendProcedure from './remove_friend_procedure'
 import * as RequestFriendProcedure from './request_friend_procedure'
@@ -94,14 +97,25 @@ import * as SubmitBattleProcedure from './submit_battle_procedure'
 import * as UpdateOnboardingProcedure from './update_onboarding_procedure'
 
 // Import all table schema definitions
+import MyAdminSignalsRow from './my_admin_signals_table'
 import MyBattleListRow from './my_battle_list_table'
 import MyBattleSignalsRow from './my_battle_signals_table'
+import MyProductSignalsRow from './my_product_signals_table'
 import MySessionRow from './my_session_table'
+import PublicProductSignalsRow from './public_product_signals_table'
 
 /** Type-only namespace exports for generated type groups. */
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  myAdminSignals: __table(
+    {
+      name: 'my_admin_signals',
+      indexes: [],
+      constraints: [],
+    },
+    MyAdminSignalsRow,
+  ),
   myBattleList: __table(
     {
       name: 'my_battle_list',
@@ -118,6 +132,14 @@ const tablesSchema = __schema({
     },
     MyBattleSignalsRow,
   ),
+  myProductSignals: __table(
+    {
+      name: 'my_product_signals',
+      indexes: [],
+      constraints: [],
+    },
+    MyProductSignalsRow,
+  ),
   mySession: __table(
     {
       name: 'my_session',
@@ -125,6 +147,14 @@ const tablesSchema = __schema({
       constraints: [],
     },
     MySessionRow,
+  ),
+  publicProductSignals: __table(
+    {
+      name: 'public_product_signals',
+      indexes: [],
+      constraints: [],
+    },
+    PublicProductSignalsRow,
   ),
 })
 
@@ -170,6 +200,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('friend_invite_by_inviter', FriendInviteByInviterProcedure.params, FriendInviteByInviterProcedure.returnType),
   __procedureSchema('friend_invite_by_token', FriendInviteByTokenProcedure.params, FriendInviteByTokenProcedure.returnType),
   __procedureSchema('friendships_by_user', FriendshipsByUserProcedure.params, FriendshipsByUserProcedure.returnType),
+  __procedureSchema('home_rosters_by_user', HomeRostersByUserProcedure.params, HomeRostersByUserProcedure.returnType),
   __procedureSchema('league_battle_candidates', LeagueBattleCandidatesProcedure.params, LeagueBattleCandidatesProcedure.returnType),
   __procedureSchema('league_by_token', LeagueByTokenProcedure.params, LeagueByTokenProcedure.returnType),
   __procedureSchema('league_command', LeagueCommandProcedure.params, LeagueCommandProcedure.returnType),
@@ -180,8 +211,10 @@ const proceduresSchema = __procedures(
   __procedureSchema('operator_health', OperatorHealthProcedure.params, OperatorHealthProcedure.returnType),
   __procedureSchema('practice_opponent_ids', PracticeOpponentIdsProcedure.params, PracticeOpponentIdsProcedure.returnType),
   __procedureSchema('product_stats', ProductStatsProcedure.params, ProductStatsProcedure.returnType),
+  __procedureSchema('public_standings_revision', PublicStandingsRevisionProcedure.params, PublicStandingsRevisionProcedure.returnType),
   __procedureSchema('push_enabled', PushEnabledProcedure.params, PushEnabledProcedure.returnType),
   __procedureSchema('push_targets', PushTargetsProcedure.params, PushTargetsProcedure.returnType),
+  __procedureSchema('reject_friend', RejectFriendProcedure.params, RejectFriendProcedure.returnType),
   __procedureSchema('remove_battle', RemoveBattleProcedure.params, RemoveBattleProcedure.returnType),
   __procedureSchema('remove_friend', RemoveFriendProcedure.params, RemoveFriendProcedure.returnType),
   __procedureSchema('request_friend', RequestFriendProcedure.params, RequestFriendProcedure.returnType),
