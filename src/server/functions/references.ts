@@ -2,14 +2,15 @@ import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
 import { routeSlug } from '../../core/slug'
+import { DEFAULT_GAME_LIMIT } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import { datasheetIn, datasheetViewsIn, rulesReferencedIn, unitWoundsIn } from '../catalogue'
 import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
 import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
-import { factionDisplayName } from '../factionNames'
 import { unitsIn } from '../cataloguePicker'
+import { pickerUnitsFor } from '../pickerUnits'
 
 import { gameReferencesFor } from '../gameReferences'
 import { rulesFaction } from '../rules'
@@ -107,21 +108,14 @@ export const units = createServerFn({ method: 'GET' })
   .validator(unitsSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const loaded = await app().catalogueFor(data.catalogueId)
+      const instance = app()
+      if (!data.query.trim() && data.battleSize === DEFAULT_GAME_LIMIT && !data.waivedRules?.length && instance.workerReferences) {
+        const compiled = await instance.workerReferences.pickerUnits(data.catalogueId)
+        if (compiled) return compiled
+      }
+      const loaded = await instance.catalogueFor(data.catalogueId)
       if (!loaded) return []
-      const rules = await app().rulesFor()
-      const names = rules?.factionNames
-      const book = loaded.factions.find((entry) => entry.id === data.catalogueId)
-      const displayName = book ? factionDisplayName(book.name, names) : ''
-      const restrictions = rules?.factionRestrictions.get(routeSlug(displayName))
-      return unitsIn(loaded, data.catalogueId, data.query, {
-        restrictions,
-        battleSize: data.battleSize,
-        waivedRules: data.waivedRules,
-      }).map((unit) => ({
-        ...unit,
-        alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
-      }))
+      return pickerUnitsFor(loaded, await instance.rulesFor(), data.catalogueId, data.query, data.battleSize, data.waivedRules)
     }),
   )
 

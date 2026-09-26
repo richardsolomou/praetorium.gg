@@ -19,9 +19,9 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 - `just catalogue-sync` calls the same sync code as the server.
 - The server loads the catalogue on first use. An instance without catalogue data can still serve battles and pasted rosters.
 
-The client keeps catalogue picker indexes and unit search results for the lifetime of the page, as it does faction records and datasheets. A reload takes the server's current snapshot after an update.
+The client keeps catalogue picker entries and searches their structured fields locally for the lifetime of the page, as it does faction records and datasheets. A reload takes the server's current snapshot after an update.
 
-The hosted service reads checksum-verified compiled assets. Compact navigation data includes faction icons and datasheet lists. Search uses a separate compiled index so a public query does not load the full rules object. Roster and simulator requests read the selected faction partition and shared rules concurrently, while reference datasheet pages read one small sheet record. A hosted release keeps its packaged snapshot until its next deployment, so publishing a new source snapshot alone does not change the live reference.
+The hosted service reads checksum-verified compiled assets. Compact navigation data includes faction icons and datasheet lists. Public search uses a separate compiled index, and the default roster picker uses a small faction asset, so neither needs to load the full rules object. Roster pricing and simulator requests read the selected faction partition and shared rules concurrently, while reference datasheet pages read one small sheet record. A hosted release keeps its packaged snapshot until its next deployment, so publishing a new source snapshot alone does not change the live reference.
 
 Server catalogue code is split by responsibility:
 

@@ -20,11 +20,11 @@ import { SSR_STALE_TIME } from './shared'
 
 export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })
 
-export const unitsQuery = (catalogueId: string, query: string, battleSize?: number, waivedRules: readonly FormatRuleId[] = []) =>
+export const unitsQuery = (catalogueId: string, battleSize?: number, waivedRules: readonly FormatRuleId[] = []) =>
   queryOptions({
-    queryKey: ['units', catalogueId, query, battleSize ?? null, waivedRules],
+    queryKey: ['units', catalogueId, battleSize ?? null, waivedRules],
     queryFn: () =>
-      units({ data: { catalogueId, query, ...(battleSize === undefined ? {} : { battleSize }), waivedRules: [...waivedRules] } }),
+      units({ data: { catalogueId, query: '', ...(battleSize === undefined ? {} : { battleSize }), waivedRules: [...waivedRules] } }),
     enabled: Boolean(catalogueId),
     staleTime: Infinity,
   })

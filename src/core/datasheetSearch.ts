@@ -1,4 +1,4 @@
-import { wargearKey } from '../core/wargear'
+import { wargearKey } from './wargear'
 
 /**
  * One entry per weapon, keyed by base name so firing modes (`- Standard`) and
@@ -23,11 +23,29 @@ export type DatasheetSearchFields = {
   wargear: string[]
 }
 
-import type { DatasheetSearchReason } from '../contracts/catalogue'
-
-export type { DatasheetSearchReason } from '../contracts/catalogue'
+export type DatasheetSearchReason = {
+  kind: 'keyword' | 'ability' | 'weapon' | 'weapon keyword' | 'wargear'
+  value: string
+}
 
 export type DatasheetSearchMatch = { score: number; reasons: DatasheetSearchReason[] }
+
+export function searchDatasheetEntries<T extends { name: string }>(
+  entries: readonly T[],
+  query: string,
+  fieldsFor: (entry: T) => DatasheetSearchFields | null,
+): (T & { matchReasons?: DatasheetSearchReason[] })[] {
+  const wanted = query.trim().toLowerCase()
+  if (!wanted) return [...entries]
+  return entries
+    .flatMap((entry) => {
+      const fields = fieldsFor(entry)
+      const match = fields ? matchDatasheet(wanted, fields) : null
+      return match ? [{ entry: match.reasons.length ? { ...entry, matchReasons: match.reasons } : entry, score: match.score }] : []
+    })
+    .toSorted((left, right) => left.score - right.score || left.entry.name.localeCompare(right.entry.name))
+    .map(({ entry }) => entry)
+}
 
 const METADATA = [
   { field: 'keywords', kind: 'keyword', weight: 100 },

@@ -11,17 +11,18 @@ import type { factionsFor } from './factionReferences'
 import type { GlobalSearchIndex } from './globalSearch'
 import type { ReferenceCorpus } from './referenceCorpus'
 import type { referenceFactions, referenceIndex } from './referenceService'
-import type { CanonicalDatasheet, UnitSummary } from '../contracts/catalogue'
+import type { CanonicalDatasheet, PickerUnit, UnitSummary } from '../contracts/catalogue'
 import { finishReferenceSearch, rankReferencePart, type ReferenceSearchInput } from './referenceSearch'
 import { globalSingleton } from 'ras-stack/server'
 
 type Entry = { sha256: string; bytes: number }
 export type WorkerCatalogueManifest = {
-  format: 'praetorium.worker-catalogue.v1'
+  format: 'praetorium.worker-catalogue.v2'
   snapshotId: string
   revision: string
   entries: Record<string, Entry>
   partitions: Record<string, string>
+  pickers: Record<string, string>
 }
 type Shared = {
   datacards: LoadedDatacards
@@ -66,6 +67,7 @@ const MAX_SHARED_BYTES = 20 * 1024 * 1024
 const MAX_NAVIGATION_BYTES = 2 * 1024 * 1024
 const MAX_SEARCH_BYTES = 3 * 1024 * 1024
 const MAX_PARTITION_BYTES = 10 * 1024 * 1024
+const MAX_PICKER_BYTES = 512 * 1024
 const MAX_REFERENCE_METADATA_BYTES = 2 * 1024 * 1024
 const MAX_REFERENCE_SHARD_BYTES = 8 * 1024 * 1024
 const MAX_SHEET_BYTES = 1024 * 1024
@@ -79,20 +81,22 @@ export function workerCatalogueManifest(value: unknown, snapshotId: string): Wor
   if (!value || typeof value !== 'object') throw new Error('Invalid Worker catalogue manifest')
   const manifest = value as Partial<WorkerCatalogueManifest>
   if (
-    manifest.format !== 'praetorium.worker-catalogue.v1' ||
+    manifest.format !== 'praetorium.worker-catalogue.v2' ||
     manifest.snapshotId !== snapshotId ||
     typeof manifest.revision !== 'string' ||
     !manifest.revision ||
     !manifest.entries ||
     !manifest.partitions ||
+    !manifest.pickers ||
     Object.keys(manifest.entries).length > 2000 ||
-    Object.keys(manifest.partitions).length > 100
+    Object.keys(manifest.partitions).length > 100 ||
+    Object.keys(manifest.pickers).length !== Object.keys(manifest.partitions).length
   ) {
     throw new Error('Invalid Worker catalogue manifest')
   }
   for (const [name, entry] of Object.entries(manifest.entries)) {
     if (
-      !/^(?:shared|navigation|search|reference-meta|partitions\/[0-9a-f]{24}|references\/(?:global|[0-7]|factions\/[0-9a-f]{24}|sheets\/[0-9a-f]{24}))\.json$/.test(
+      !/^(?:shared|navigation|search|reference-meta|partitions\/[0-9a-f]{24}|pickers\/[0-9a-f]{24}|references\/(?:global|[0-7]|factions\/[0-9a-f]{24}|sheets\/[0-9a-f]{24}))\.json$/.test(
         name,
       ) ||
       !entry ||
@@ -108,11 +112,13 @@ export function workerCatalogueManifest(value: unknown, snapshotId: string): Wor
               ? MAX_SEARCH_BYTES
               : name === 'reference-meta.json'
                 ? MAX_REFERENCE_METADATA_BYTES
-                : name.startsWith('references/sheets/')
-                  ? MAX_SHEET_BYTES
-                  : name.startsWith('references/')
-                    ? MAX_REFERENCE_SHARD_BYTES
-                    : MAX_PARTITION_BYTES)
+                : name.startsWith('pickers/')
+                  ? MAX_PICKER_BYTES
+                  : name.startsWith('references/sheets/')
+                    ? MAX_SHEET_BYTES
+                    : name.startsWith('references/')
+                      ? MAX_REFERENCE_SHARD_BYTES
+                      : MAX_PARTITION_BYTES)
     ) {
       throw new Error('Invalid Worker catalogue entry')
     }
@@ -124,6 +130,10 @@ export function workerCatalogueManifest(value: unknown, snapshotId: string): Wor
   for (const [id, name] of Object.entries(manifest.partitions)) {
     if (!id || id.length > 128 || typeof name !== 'string' || !Object.hasOwn(manifest.entries, name)) {
       throw new Error('Invalid Worker catalogue partition')
+    }
+    const picker = manifest.pickers[id]
+    if (typeof picker !== 'string' || !picker.startsWith('pickers/') || !Object.hasOwn(manifest.entries, picker)) {
+      throw new Error('Invalid Worker catalogue picker')
     }
   }
   return manifest as WorkerCatalogueManifest
@@ -294,6 +304,31 @@ export class WorkerCatalogueStore {
     const index = buildIndex(files as CatalogueFile[], manifest.revision)
     if (!index.catalogues.has(catalogueId)) throw new Error('Worker catalogue partition has no faction')
     return catalogueFromIndex(index, files as CatalogueFile[], shared.datacards, shared.sourceReferences)
+  }
+
+  async pickerUnits(catalogueId: string): Promise<PickerUnit[] | null> {
+    const manifest = await this.manifest()
+    const name = Object.hasOwn(manifest.pickers, catalogueId) ? manifest.pickers[catalogueId] : null
+    if (!name) return null
+    const units = decodeCatalogueArtifact(await this.bytes(name, manifest.entries[name]!))
+    if (
+      !Array.isArray(units) ||
+      units.length > 1000 ||
+      !units.every(
+        (unit) =>
+          unit &&
+          typeof unit === 'object' &&
+          typeof unit.id === 'string' &&
+          typeof unit.name === 'string' &&
+          (unit.search === null ||
+            (unit.search &&
+              typeof unit.search.name === 'string' &&
+              ['keywords', 'abilities', 'weapons', 'weaponKeywords', 'wargear'].every((field) => Array.isArray(unit.search[field])))),
+      )
+    ) {
+      throw new Error('Invalid Worker catalogue picker')
+    }
+    return units as PickerUnit[]
   }
 
   async referenceDatasheets(catalogueId: string) {

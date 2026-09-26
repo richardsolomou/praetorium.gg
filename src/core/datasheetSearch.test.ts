@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dedupeWeapons, matchDatasheet } from './datasheetSearch'
+import { dedupeWeapons, matchDatasheet, searchDatasheetEntries } from './datasheetSearch'
 
 const fields = {
   name: 'Technomancer',
@@ -11,6 +11,20 @@ const fields = {
 }
 
 describe('datasheet search', () => {
+  it('filters loaded picker entries with the same ranking and match reasons', () => {
+    const entries = [
+      { id: 'technomancer', name: 'Technomancer', search: fields },
+      { id: 'conclave', name: 'Cryptek Conclave', search: { ...fields, name: 'Cryptek Conclave', keywords: [] } },
+      { id: 'missing', name: 'Unknown', search: null },
+    ]
+    expect(
+      searchDatasheetEntries(entries, 'cryptek', (entry) => entry.search).map(({ id, matchReasons }) => ({ id, matchReasons })),
+    ).toEqual([
+      { id: 'conclave', matchReasons: undefined },
+      { id: 'technomancer', matchReasons: [{ kind: 'keyword', value: 'Cryptek' }] },
+    ])
+  })
+
   it('matches words across structured fields', () => {
     expect(matchDatasheet('cryptek staff', fields)?.reasons).toEqual([
       { kind: 'keyword', value: 'Cryptek' },

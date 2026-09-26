@@ -7,6 +7,7 @@ import { WorkerCatalogueStore } from './workerCatalogueStore'
 
 const snapshotId = 'a'.repeat(64)
 const part = 'partitions/000000000000000000000000.json'
+const picker = 'pickers/000000000000000000000000.json'
 const globalReference = 'references/global.json'
 const factionReference = 'references/factions/000000000000000000000000.json'
 const sheetReference = 'references/sheets/000000000000000000000000.json'
@@ -37,6 +38,19 @@ function fixture() {
   const partition = encode([
     { gameSystem: { id: 'system', name: 'Test system', costTypes: [{ id: 'points', name: 'pts' }] } },
     { catalogue: { id: 'army', name: 'Test army', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] } },
+  ])
+  const pickerUnits = encode([
+    {
+      id: 'unit',
+      slug: 'unit',
+      name: 'Unit',
+      points: 100,
+      group: 'infantry',
+      limit: 3,
+      allied: false,
+      alliedFaction: null,
+      search: { name: 'Unit', keywords: ['Infantry'], abilities: [], weapons: [], weaponKeywords: [], wargear: [] },
+    },
   ])
   const referenceShard = encode({
     catalogue: {
@@ -82,7 +96,7 @@ function fixture() {
     paths: ['/factions', '/rules'],
   })
   const manifest = encode({
-    format: 'praetorium.worker-catalogue.v1',
+    format: 'praetorium.worker-catalogue.v2',
     snapshotId,
     revision: 'test-revision',
     entries: {
@@ -94,8 +108,10 @@ function fixture() {
       [factionReference]: { sha256: sha256(referenceShard), bytes: referenceShard.byteLength },
       [sheetReference]: { sha256: sha256(sheet), bytes: sheet.byteLength },
       [part]: { sha256: sha256(partition), bytes: partition.byteLength },
+      [picker]: { sha256: sha256(pickerUnits), bytes: pickerUnits.byteLength },
     },
     partitions: { army: part },
+    pickers: { army: picker },
   })
   const manifestSha256 = sha256(manifest)
   const prefix = `snapshots/${snapshotId}/${manifestSha256}`
@@ -109,6 +125,7 @@ function fixture() {
     [`${prefix}/${factionReference}`, referenceShard],
     [`${prefix}/${sheetReference}`, sheet],
     [`${prefix}/${part}`, partition],
+    [`${prefix}/${picker}`, pickerUnits],
   ])
   const read = async (key: string, maxBytes: number) => {
     const bytes = objects.get(key)
@@ -158,6 +175,20 @@ it('starts a faction partition read while shared data is loading', async () => {
   releaseShared()
   await loading
   expect(partitionStartedBeforeShared).toBe(true)
+})
+
+it('serves the priced roster picker without loading shared data or a faction partition', async () => {
+  const { read, manifestSha256 } = fixture()
+  const store = new WorkerCatalogueStore(
+    (key, maxBytes) => {
+      if (key.includes('/partitions/') || key.endsWith('/shared.json')) throw new Error('unrelated data should not be read')
+      return read(key, maxBytes)
+    },
+    snapshotId,
+    manifestSha256,
+  )
+  expect((await store.pickerUnits('army'))?.[0]?.search?.keywords).toEqual(['Infantry'])
+  expect(await store.pickerUnits('other')).toBeNull()
 })
 
 it('serves the initial faction list from eager shared data', async () => {

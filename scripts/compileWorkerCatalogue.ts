@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../src/core/catalogue'
+import { DEFAULT_GAME_LIMIT } from '../src/core/battle'
 import { isReferenceDatasheet, loadCatalogue } from '../src/server/catalogueIndex'
 import { cataloguePartitions } from '../src/server/cataloguePartitions'
 import { encodeCatalogueArtifact } from '../src/server/catalogueArtifactCodec'
@@ -15,6 +16,7 @@ import { referenceCatalogue } from '../src/server/canonicalCatalogue'
 import { referenceCorpusFor } from '../src/server/referenceCorpus'
 import { referenceFactions, referenceIndex } from '../src/server/referenceService'
 import { unitsIn } from '../src/server/cataloguePicker'
+import { pickerUnitsFor } from '../src/server/pickerUnits'
 import type { CanonicalDatasheet, CanonicalDetachment, CanonicalCatalogueIssue } from '../src/contracts/catalogue'
 import type { ReferenceDocument } from '../src/contracts/reference'
 
@@ -43,6 +45,7 @@ const byName = new Map(named.map((entry) => [entry.name, entry.file]))
 const partitions = cataloguePartitions(named)
 const entries: Record<string, { sha256: string; bytes: number }> = {}
 const byFaction: Record<string, string> = {}
+const pickers: Record<string, string> = {}
 
 function write(name: string, value: unknown) {
   const bytes = Buffer.from(encodeCatalogueArtifact(value))
@@ -208,10 +211,14 @@ for (const [catalogueId, names] of partitions) {
   if (entries[name]) throw new Error(`Catalogue partition collision ${catalogueId}`)
   write(name, files)
   byFaction[catalogueId] = name
+  const picker = `pickers/${createHash('sha256').update(catalogueId).digest('hex').slice(0, 24)}.json`
+  if (entries[picker]) throw new Error(`Catalogue picker collision ${catalogueId}`)
+  write(picker, pickerUnitsFor(loaded, rules, catalogueId, '', DEFAULT_GAME_LIMIT))
+  pickers[catalogueId] = picker
 }
 
 fs.writeFileSync(
   path.join(output, 'manifest.json'),
-  `${JSON.stringify({ format: 'praetorium.worker-catalogue.v1', snapshotId: pointer.id, revision: loaded.index.revision, entries, partitions: byFaction })}\n`,
+  `${JSON.stringify({ format: 'praetorium.worker-catalogue.v2', snapshotId: pointer.id, revision: loaded.index.revision, entries, partitions: byFaction, pickers })}\n`,
 )
 console.log(`worker catalogue: ${Object.keys(byFaction).length} partitions from ${pointer.id}`)

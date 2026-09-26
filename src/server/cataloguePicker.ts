@@ -5,7 +5,7 @@ import type { UnitGroup } from '../core/unitGroups'
 import type { UnitSummary } from '../contracts/catalogue'
 import { datasheetSearchFieldsIn, datasheetIn, keywordsIn, toughnessOf } from './catalogue'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
-import { matchDatasheet } from './datasheetSearch'
+import { searchDatasheetEntries } from '../core/datasheetSearch'
 import { type FactionRestrictions, restrictedBy } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { factionContentOf } from './factionNames'
@@ -154,15 +154,7 @@ export function unitsIn(
 }
 
 function searchUnits(loaded: LoadedCatalogue, catalogueId: string, query: string, units: UnitSummary[]) {
-  if (!query) return units
-  return units
-    .flatMap((unit) => {
-      const fields = datasheetSearchFieldsIn(loaded, catalogueId, unit.id)
-      const match = fields ? matchDatasheet(query, fields) : null
-      return match ? [{ unit: match.reasons.length ? { ...unit, matchReasons: match.reasons } : unit, score: match.score }] : []
-    })
-    .toSorted((left, right) => left.score - right.score || left.unit.name.localeCompare(right.unit.name))
-    .map(({ unit }) => unit)
+  return searchDatasheetEntries(units, query, (unit) => datasheetSearchFieldsIn(loaded, catalogueId, unit.id))
 }
 
 /**

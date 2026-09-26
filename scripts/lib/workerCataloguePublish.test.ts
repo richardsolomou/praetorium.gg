@@ -21,7 +21,7 @@ async function fixture() {
   }
   await writeFile(
     path.join(directory, 'manifest.json'),
-    `${JSON.stringify({ format: 'praetorium.worker-catalogue.v1', snapshotId, revision: 'revision', entries, partitions: {} })}\n`,
+    `${JSON.stringify({ format: 'praetorium.worker-catalogue.v2', snapshotId, revision: 'revision', entries, partitions: {}, pickers: {} })}\n`,
   )
   const store = {
     get: async (key: string) => objects.get(key) ?? null,

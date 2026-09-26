@@ -1,5 +1,6 @@
 import type { UnitGroup } from '../core/unitGroups'
 import type { Datasheet, StructuredDatasheetProfile } from '../core/datasheet'
+import type { DatasheetSearchFields, DatasheetSearchReason } from '../core/datasheetSearch'
 import type { RuleDocument } from './rules'
 
 export type {
@@ -12,10 +13,7 @@ export type {
   StructuredDatasheetProfile,
 } from '../core/datasheet'
 
-export type DatasheetSearchReason = {
-  kind: 'keyword' | 'ability' | 'weapon' | 'weapon keyword' | 'wargear'
-  value: string
-}
+export type { DatasheetSearchReason } from '../core/datasheetSearch'
 
 export type UnitSummary = {
   id: string
@@ -28,6 +26,8 @@ export type UnitSummary = {
   alliedFaction: string | null
   matchReasons?: DatasheetSearchReason[]
 }
+
+export type PickerUnit = UnitSummary & { search: DatasheetSearchFields | null }
 
 export type CanonicalSourceName = 'definitions' | 'points' | 'rules' | 'datacards' | 'battlemaster'
 
