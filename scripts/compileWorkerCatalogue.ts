@@ -17,6 +17,7 @@ import { referenceCorpusFor } from '../src/server/referenceCorpus'
 import { referenceFactions, referenceIndex } from '../src/server/referenceService'
 import { unitsIn } from '../src/server/cataloguePicker'
 import { pickerUnitsFor } from '../src/server/pickerUnits'
+import { battleDetachmentData } from '../src/server/battleDetachmentData'
 import type { CanonicalDatasheet, CanonicalDetachment, CanonicalCatalogueIssue } from '../src/contracts/catalogue'
 import type { ReferenceDocument } from '../src/contracts/reference'
 
@@ -46,6 +47,7 @@ const partitions = cataloguePartitions(named)
 const entries: Record<string, { sha256: string; bytes: number }> = {}
 const byFaction: Record<string, string> = {}
 const pickers: Record<string, string> = {}
+const terrainMatchups: Record<string, string> = {}
 
 function write(name: string, value: unknown) {
   const bytes = Buffer.from(encodeCatalogueArtifact(value))
@@ -60,10 +62,33 @@ write('shared.json', {
   sourceReferences: loaded.sourceReferences,
   rules,
 })
+write('battle-missions.json', { missions: rules.missions, fixedSecondaryCaps: rules.fixedSecondaryCaps })
+write('battle-read.json', {
+  missions: rules.missions,
+  fixedSecondaryCaps: rules.fixedSecondaryCaps,
+  primaries: rules.primaries,
+  secondaries: rules.secondaries,
+  missionTwists: rules.missionTwists,
+  dispositions: rules.dispositions,
+  dispositionDetails: rules.dispositionDetails,
+  deployments: rules.deployments,
+  attribution: rules.attribution,
+})
+write('terrain.json', { terrainTemplates: rules.terrainTemplates })
+for (const matchupId of [...new Set(rules.terrainLayouts.map((layout) => layout.matchupId))].toSorted()) {
+  const name = `terrain/${createHash('sha256').update(matchupId).digest('hex').slice(0, 24)}.json`
+  if (entries[name]) throw new Error(`Terrain matchup collision ${matchupId}`)
+  write(
+    name,
+    rules.terrainLayouts.filter((layout) => layout.matchupId === matchupId),
+  )
+  terrainMatchups[matchupId] = name
+}
 write('search.json', compiledGlobalSearchIndex(loaded, rules))
 write('navigation.json', {
   factionIndex: factionIndexFor(loaded, rules),
   factions: factionsFor(loaded, rules),
+  factionNames: rules.factionNames,
   factionIcons: rules.factionIcons,
   combatUnits: combatUnitsFor(loaded, rules),
   referenceDatasheets: new Map(
@@ -207,10 +232,15 @@ for (const [catalogueId, names] of partitions) {
   if (expected.size !== actual.size || [...expected].some((id) => !actual.has(id))) {
     throw new Error(`Incomplete catalogue partition ${catalogueId}`)
   }
-  const name = `partitions/${createHash('sha256').update(catalogueId).digest('hex').slice(0, 24)}.json`
+  const suffix = createHash('sha256').update(catalogueId).digest('hex').slice(0, 24)
+  const name = `partitions/${suffix}.json`
   if (entries[name]) throw new Error(`Catalogue partition collision ${catalogueId}`)
   write(name, files)
   byFaction[catalogueId] = name
+  const detachmentName = `detachments/${suffix}.json`
+  const detachmentData = battleDetachmentData({ index }, rules, catalogueId)
+  if (!detachmentData) throw new Error(`Missing battle detachment data for ${catalogueId}`)
+  write(detachmentName, detachmentData)
   const picker = `pickers/${createHash('sha256').update(catalogueId).digest('hex').slice(0, 24)}.json`
   if (entries[picker]) throw new Error(`Catalogue picker collision ${catalogueId}`)
   write(picker, pickerUnitsFor(loaded, rules, catalogueId, '', DEFAULT_GAME_LIMIT))
@@ -219,6 +249,6 @@ for (const [catalogueId, names] of partitions) {
 
 fs.writeFileSync(
   path.join(output, 'manifest.json'),
-  `${JSON.stringify({ format: 'praetorium.worker-catalogue.v2', snapshotId: pointer.id, revision: loaded.index.revision, entries, partitions: byFaction, pickers })}\n`,
+  `${JSON.stringify({ format: 'praetorium.worker-catalogue.v2', snapshotId: pointer.id, revision: loaded.index.revision, entries, partitions: byFaction, pickers, terrainMatchups })}\n`,
 )
 console.log(`worker catalogue: ${Object.keys(byFaction).length} partitions from ${pointer.id}`)

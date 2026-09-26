@@ -22,6 +22,7 @@ export type HomeData = {
   open: readonly Battle[]
   /** The player's saved lists, most recently changed first. */
   rosters: readonly HomeRoster[]
+  rosterCount: number
   rostersDue: readonly RosterDue[]
   friendRequests: number
   /** The head of the leaderboard, which only a visitor is shown. */
@@ -37,7 +38,20 @@ export type HomeData = {
 const RECENT = 5
 
 /** Keep one page width and show the player’s own pending games before friends’ and public games; visitors share the layout but see the public entry points. */
-export function HomeView({ me, mine, friends, open, rosters, rostersDue, friendRequests, leaders, newBattle, onDelete, more }: HomeData) {
+export function HomeView({
+  me,
+  mine,
+  friends,
+  open,
+  rosters,
+  rosterCount,
+  rostersDue,
+  friendRequests,
+  leaders,
+  newBattle,
+  onDelete,
+  more,
+}: HomeData) {
   // The feeds arrive without practice games; the player's own list is their whole history.
   const ours = mine.filter((battle) => !battle.playerDetails?.some((player) => player.automated))
   const going = ours.filter((battle) => battle.status !== 'finished')
@@ -71,7 +85,7 @@ export function HomeView({ me, mine, friends, open, rosters, rostersDue, friendR
             aside={
               <>
                 <HomeWaiting rostersDue={rostersDue} friendRequests={friendRequests} />
-                <HomeRosters rosters={rosters} />
+                <HomeRosters rosters={rosters} count={rosterCount} />
                 <HomePlayed played={played} viewerId={me.id} />
               </>
             }

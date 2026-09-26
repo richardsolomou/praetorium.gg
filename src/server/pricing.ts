@@ -175,7 +175,7 @@ function labelUnitsOf(
   }))
 }
 
-const factionNameOf = (loaded: LoadedCatalogue, catalogueId: string, rules: LoadedRules | null | undefined) =>
+const factionNameOf = (loaded: LoadedCatalogue, catalogueId: string, rules: Pick<LoadedRules, 'factionNames'> | null | undefined) =>
   factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? '', rules?.factionNames)
 
 /**
@@ -186,7 +186,7 @@ const factionNameOf = (loaded: LoadedCatalogue, catalogueId: string, rules: Load
  */
 export function rosterSetupLabel(
   loaded: LoadedCatalogue,
-  rules: LoadedRules | null | undefined,
+  rules: Pick<LoadedRules, 'factionNames'> | null | undefined,
   roster: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
 ) {
   const { chosen } = rosterDetachments(loaded, roster.catalogueId, roster.detachmentIds)
@@ -204,7 +204,11 @@ export function rosterSetupLabel(
  * owner never named, the label instead of an empty line. Pricing every unit twice to
  * answer two halves of one question would double the cost of opening the library.
  */
-export function calculateRosterTotals(data: PriceInput, loaded: LoadedCatalogue | null, loadedRules: LoadedRules | null) {
+export function calculateRosterTotals(
+  data: PriceInput,
+  loaded: LoadedCatalogue | null,
+  loadedRules: Pick<LoadedRules, 'factionNames'> | null,
+) {
   if (!loaded) return null
   const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
   const { picked, forceSelections } = rosterForces(loaded, data, detachmentSelection)

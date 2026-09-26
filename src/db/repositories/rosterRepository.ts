@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, asc, count, desc, eq } from 'drizzle-orm'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { PraetoriumDatabase } from '../connection'
 import { collection, favouriteDetachments, favouriteFactions, rosters } from '../schema'
@@ -59,6 +59,19 @@ export class RosterRepository {
 
   async rostersByUser(userId: string) {
     return this.database.select().from(rosters).where(eq(rosters.userId, userId)).orderBy(desc(rosters.createdAt))
+  }
+
+  async homeRostersByUser(userId: string) {
+    const [rows, totals] = await Promise.all([
+      this.database
+        .select()
+        .from(rosters)
+        .where(eq(rosters.userId, userId))
+        .orderBy(desc(rosters.updatedAt), asc(rosters.name), asc(rosters.id))
+        .limit(5),
+      this.database.select({ count: count() }).from(rosters).where(eq(rosters.userId, userId)),
+    ])
+    return { count: totals[0]?.count ?? 0, rows }
   }
 
   /**

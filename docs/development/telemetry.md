@@ -34,6 +34,8 @@ Onboarding events are the guide's own answers. The welcome, a finished tour, a s
 
 Server-side roster events that have setup data carry `limit`, `faction`, `detachment`, and `detachment_count`. Faction and detachment values are normalized source names, not catalogue ids. `detachment_rules_covered` says whether every selected detachment has the rules-source semantics that Game Datacards does not supply; it is absent when no detachment is selected.
 
+Server-rendered root and home loaders log their total duration when a loader exceeds one second. The home log includes bounded query durations. Neither log carries account identifiers or payloads. Use them to distinguish the shared session from feed and roster delays on a slow refresh. Onboarding progress loads after the document and does not hold up every signed-in route.
+
 Builder events cover structural roster changes, not autosave or each loadout
 stepper click. Search events carry only the bounded result group and result count;
 import failures carry only a bounded reason and input kind.

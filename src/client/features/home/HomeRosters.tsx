@@ -11,12 +11,7 @@ export type HomeRoster = {
   points?: number | null
   label?: string
   problem: RosterProblem | null
-  /** How many data updates since it was saved reached something in it. */
-  changes: number
 }
-
-/** Enough lists to reach the one being worked on; the library is the archive. */
-const RECENT = 5
 
 /**
  * The lists the player touched last, because between games the list is what they came back for.
@@ -25,18 +20,16 @@ const RECENT = 5
  * summary: the library is where a list is read in full, printed, shared or deleted,
  * and this is only the way back into the one being worked on.
  */
-export function HomeRosters({ rosters }: { rosters: readonly HomeRoster[] }) {
-  const changed = rosters.filter((entry) => entry.changes > 0).length
-  const recent = rosters.slice(0, RECENT)
+export function HomeRosters({ rosters, count }: { rosters: readonly HomeRoster[]; count: number }) {
   return (
     <section data-home-rosters>
       <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
         <span>Your rosters</span>
-        <span className="readout">{rosters.length}</span>
+        <span className="readout">{count}</span>
       </p>
-      {recent.length ? (
+      {rosters.length ? (
         <ul className="divide-y divide-edge border-b border-edge">
-          {recent.map(({ roster, faction, points, label, problem }) => (
+          {rosters.map(({ roster, faction, points, label, problem }) => (
             <li key={roster.id}>
               <Link
                 to="/rosters/$id"
@@ -66,9 +59,9 @@ export function HomeRosters({ rosters }: { rosters: readonly HomeRoster[] }) {
         <Link to="/rosters" className="eyebrow inline-flex items-center gap-1 text-info hover:text-parchment">
           All my rosters <ChevronRight className="size-3.5" />
         </Link>
-        {changed ? (
+        {count ? (
           <Link to="/data-updates" className="text-xs font-semibold text-discarded hover:text-bone">
-            {changed} {changed === 1 ? 'list' : 'lists'} changed by a data update
+            Data updates
           </Link>
         ) : null}
       </p>

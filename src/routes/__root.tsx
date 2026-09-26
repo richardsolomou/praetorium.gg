@@ -9,14 +9,19 @@ import rules600 from '@fontsource/barlow/files/barlow-latin-600-normal.woff2?url
 import { PageState } from '../client/components/PageState'
 import { siteMeta } from '../client/linkPreview'
 import { AppShell } from '../client/features/shell/AppShell'
-import { meQuery, onboardingQuery } from '../client/queries'
+import { meQuery } from '../client/queries'
 import appCss from '../styles.css?url'
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient; origin: string }>()({
   loader: async ({ context }) => {
-    const player = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
-    // The guide sits in the shell on every page, so it is fetched with the shell rather than after it hydrates.
-    if (player) await context.queryClient.query({ ...onboardingQuery(), staleTime: 'static' })
+    const startedAt = performance.now()
+    await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
+    if (import.meta.env.SSR && performance.now() - startedAt > 1000) {
+      console.warn({
+        event: 'slow_root_loader',
+        duration_ms: Math.round(performance.now() - startedAt),
+      })
+    }
   },
   head: ({ match }) => ({
     meta: [

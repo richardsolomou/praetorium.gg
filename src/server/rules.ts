@@ -85,6 +85,23 @@ export type LoadedRules = {
   sourceJoinExacts: LoadedFactions['sourceJoinExacts']
 }
 
+export type BattleMissionRules = Pick<LoadedRules, 'missions' | 'fixedSecondaryCaps'>
+
+export type BattleReadRules = Pick<
+  LoadedRules,
+  | 'missions'
+  | 'fixedSecondaryCaps'
+  | 'primaries'
+  | 'secondaries'
+  | 'missionTwists'
+  | 'dispositions'
+  | 'dispositionDetails'
+  | 'deployments'
+  | 'attribution'
+>
+
+export type TerrainReadRules = Pick<LoadedRules, 'terrainLayouts' | 'terrainTemplates'>
+
 export function loadRules(
   directory = rulesDirectory(),
   battlemasterDirectory = path.join(path.dirname(directory), 'battlemaster'),
@@ -148,7 +165,7 @@ export function loadRules(
  * One place decides it, because the rules maps are keyed by the dataset's own name for
  * a book and the rest of the app knows a faction by the name it shows a player.
  */
-export const rulesFaction = (rules: LoadedRules | null | undefined, factionSlug: string) =>
+export const rulesFaction = (rules: Pick<LoadedRules, 'factionKeys'> | null | undefined, factionSlug: string) =>
   rules?.factionKeys?.get(factionSlug) ?? factionSlug
 
 export function hasDetachmentSemantics(
@@ -168,7 +185,7 @@ export function hasDetachmentSemantics(
 
 /** The primary an army plays, derived from its disposition and the one opposing it. */
 export function missionFor(
-  rules: LoadedRules,
+  rules: BattleMissionRules,
   one: string | null,
   two: string | null,
   missionPackId: string | null = null,

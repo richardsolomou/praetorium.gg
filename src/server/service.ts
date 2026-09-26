@@ -27,7 +27,7 @@ import { factionsPlayed, type Standing, type StandingFaction, standings } from '
 import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
 import type { BattleHistory, BattleSeats, BattlesCursor, Repository, RepositoryPort } from '../db/repository'
 import { gameReferencesFor } from './gameReferences'
-import { type Mission, missionFor } from './rules'
+import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type Mission, missionFor } from './rules'
 import { type Notifier, silentNotifier } from './pushNotifier'
 import { LeagueService } from './services/leagueService'
 import { RosterService } from './services/rosterService'
@@ -224,6 +224,10 @@ export class PraetoriumService {
     return this.rosterService.savedRosterSummaries(...args)
   }
 
+  homeRosters(...args: Parameters<RosterService['homeRosters']>) {
+    return this.rosterService.homeRosters(...args)
+  }
+
   publicRosters(...args: Parameters<RosterService['publicRosters']>) {
     return this.rosterService.publicRosters(...args)
   }
@@ -317,7 +321,8 @@ export class PraetoriumService {
   }
 
   /** The last standings folded, and when they stop being offered. See `standings`. */
-  private standingsHeld: { until: number; fold: StandingsFold } | null = null
+  private standingsHeld: { key: string; until: number; fold: StandingsFold } | null = null
+  private standingsPending: { key: string; promise: Promise<StandingsFold> } | null = null
 
   adminUsers(input: Parameters<Repository['adminUsers']>[0]) {
     return this.repository.adminUsers(input)
@@ -345,7 +350,7 @@ export class PraetoriumService {
    */
   async battles(
     userId: string,
-    rules?: Parameters<typeof missionFor>[0] | null,
+    rules?: BattleMissionRules | null,
     page?: { limit: number; before?: BattlesCursor; withUserId?: string },
     factions?: readonly BattleFaction[],
   ) {
@@ -362,7 +367,7 @@ export class PraetoriumService {
    */
   async publicBattles(
     viewerId: string | null,
-    rules?: Parameters<typeof missionFor>[0] | null,
+    rules?: BattleMissionRules | null,
     page?: { limit: number; before?: BattlesCursor },
     factions?: readonly BattleFaction[],
   ) {
@@ -377,7 +382,7 @@ export class PraetoriumService {
   /** The battles this player's friends are in and they are not. */
   async friendBattles(
     userId: string,
-    rules?: Parameters<typeof missionFor>[0] | null,
+    rules?: BattleMissionRules | null,
     page?: { limit: number; before?: BattlesCursor },
     factions?: readonly BattleFaction[],
   ) {
@@ -391,29 +396,39 @@ export class PraetoriumService {
   /** The leaderboard folds one bounded set of watchable battles for all faction filters and caches the derived result for one minute. */
   private async standingsFold(factions: readonly BattleFaction[]) {
     const now = this.clock()
-    if (this.standingsHeld && this.standingsHeld.until > now) return this.standingsHeld.fold
-    const [histories, practice] = await Promise.all([
-      this.repository.watchableBattlesSince(now - STANDINGS_WINDOW_MS, STANDINGS_BATTLE_LIMIT),
-      this.repository.practiceOpponents(),
-    ])
-    const summaries = this.battleSummaries(histories, null, null, factions)
-    const exclude = practice.map((opponent) => opponent.id)
-    const table = <T extends StandingFaction | null>(faction: T) => ({
-      faction,
-      rows: standings(summaries, { exclude, faction: faction?.slug }),
-    })
-    // The battle limit can bite before the window does, so the fold reports the days
-    // it actually reached back rather than the ninety it asked for: a page claiming a
-    // window nothing was counted from is a number no reader can check.
-    const oldest =
-      summaries.length < STANDINGS_BATTLE_LIMIT ? now - STANDINGS_WINDOW_MS : Math.min(...summaries.map((battle) => battle.lastActivity))
-    const fold = {
-      days: Math.max(1, Math.round((now - oldest) / DAY_MS)),
-      overall: table(null),
-      factions: factionsPlayed(summaries, exclude).map(table),
+    const key = JSON.stringify(factions.map(({ id, slug, displayName }) => [id, slug, displayName]))
+    if (this.standingsHeld?.key === key && this.standingsHeld.until > now) return this.standingsHeld.fold
+    if (this.standingsPending?.key === key) return this.standingsPending.promise
+    const pending = (async () => {
+      const [histories, practice] = await Promise.all([
+        this.repository.watchableBattlesSince(now - STANDINGS_WINDOW_MS, STANDINGS_BATTLE_LIMIT),
+        this.repository.practiceOpponents(),
+      ])
+      const summaries = this.battleSummaries(histories, null, null, factions)
+      const exclude = practice.map((opponent) => opponent.id)
+      const table = <T extends StandingFaction | null>(faction: T) => ({
+        faction,
+        rows: standings(summaries, { exclude, faction: faction?.slug }),
+      })
+      // The battle limit can bite before the window does, so the fold reports the days
+      // it actually reached back rather than the ninety it asked for: a page claiming a
+      // window nothing was counted from is a number no reader can check.
+      const oldest =
+        summaries.length < STANDINGS_BATTLE_LIMIT ? now - STANDINGS_WINDOW_MS : Math.min(...summaries.map((battle) => battle.lastActivity))
+      const fold = {
+        days: Math.max(1, Math.round((now - oldest) / DAY_MS)),
+        overall: table(null),
+        factions: factionsPlayed(summaries, exclude).map(table),
+      }
+      this.standingsHeld = { key, until: this.clock() + STANDINGS_HOLD_MS, fold }
+      return fold
+    })()
+    this.standingsPending = { key, promise: pending }
+    try {
+      return await pending
+    } finally {
+      if (this.standingsPending?.promise === pending) this.standingsPending = null
     }
-    this.standingsHeld = { until: now + STANDINGS_HOLD_MS, fold }
-    return fold
   }
 
   async standings(factions: readonly BattleFaction[] = []): Promise<StandingsAnswer> {
@@ -457,7 +472,7 @@ export class PraetoriumService {
     userId: string,
     viewerId: string | null,
     filter: RecordFilter = {},
-    rules?: Parameters<typeof missionFor>[0] | null,
+    rules?: BattleReadRules | null,
     factions: readonly BattleFaction[] = [],
   ) {
     const [seated, practice] = await Promise.all([
@@ -539,7 +554,7 @@ export class PraetoriumService {
     leagueToken: string,
     eventToken: string,
     page: { limit: number; before?: BattlesCursor },
-    rules?: Parameters<typeof missionFor>[0] | null,
+    rules?: BattleMissionRules | null,
     factions?: readonly BattleFaction[],
   ) {
     const { battles: histories, nextCursor } = await this.repository.battlesByLeagueEvent(leagueToken, eventToken, page)
@@ -549,7 +564,7 @@ export class PraetoriumService {
   private battleSummaries(
     histories: readonly BattleHistory[],
     viewerId: string | null,
-    rules?: Parameters<typeof missionFor>[0] | null,
+    rules?: BattleMissionRules | null,
     factions: readonly BattleFaction[] = [],
   ) {
     const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
@@ -563,7 +578,7 @@ export class PraetoriumService {
   private recordBattles(
     histories: readonly BattleHistory[],
     viewerId: string | null,
-    rules: Parameters<typeof missionFor>[0] | null | undefined,
+    rules: BattleReadRules | null | undefined,
     factions: readonly BattleFaction[],
   ) {
     const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
@@ -580,7 +595,7 @@ export class PraetoriumService {
     { battle, players, log }: BattleHistory,
     state: BattleState,
     viewerId: string | null,
-    rules: Parameters<typeof missionFor>[0] | null | undefined,
+    rules: BattleMissionRules | null | undefined,
     factionsById: ReadonlyMap<string, BattleFaction>,
   ) {
     const viewerSide = state.players.find((player) => player.id === viewerId)?.side ?? 0
@@ -766,7 +781,7 @@ export class PraetoriumService {
    * `rules` is passed in rather than reached for, so the service stays testable
    * without a synced dataset.
    */
-  async screen(token: string, userId: string | null, rules?: Parameters<typeof missionFor>[0] | null): Promise<BattleScreen> {
+  async screen(token: string, userId: string | null, rules?: BattleReadRules | null): Promise<BattleScreen> {
     const history = await this.mustFind(token)
     const viewerId = userId && this.seated(history, userId) ? userId : SPECTATOR_ID
     const screen = this.battleScreen(history, viewerId, rules)
@@ -791,7 +806,7 @@ export class PraetoriumService {
   }
 
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */
-  async report(token: string, userId: string, rules?: Parameters<typeof missionFor>[0] | null) {
+  async report(token: string, userId: string, rules?: BattleReadRules | null) {
     const history = await this.mustFind(token)
     if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
     return battleReport(
@@ -804,13 +819,7 @@ export class PraetoriumService {
     )
   }
 
-  async submit(
-    token: string,
-    userId: string,
-    expectedSeq: number,
-    command: Command,
-    rules?: Parameters<typeof missionFor>[0] | null,
-  ): Promise<SubmitAnswer> {
+  async submit(token: string, userId: string, expectedSeq: number, command: Command, rules?: LoadedRules | null): Promise<SubmitAnswer> {
     const seats = await this.mustSeat(token, userId)
     if (command.kind === 'lock-league-rosters') throw new Response('league roster locks are created by the server', { status: 403 })
     // The log comes back with the answer, so a refusal and a lost race both report
@@ -874,7 +883,7 @@ export class PraetoriumService {
   }
 
   /** The only place a visibility-filtered battle view is built. */
-  private battleScreen(history: BattleHistory, userId: string, rules?: Parameters<typeof missionFor>[0] | null): SeatedScreen {
+  private battleScreen(history: BattleHistory, userId: string, rules?: BattleReadRules | null): SeatedScreen {
     const state = reduceBattle(
       history.players.map((player) => player.id),
       history.log,
@@ -933,7 +942,7 @@ function foldHistory({ players, log }: BattleHistory) {
 function referencedPlays(
   state: BattleState,
   plays: SeatPlay[],
-  rules: Parameters<typeof missionFor>[0] | null | undefined,
+  rules: BattleReadRules | null | undefined,
   factionsById: ReadonlyMap<string, BattleFaction>,
 ): SeatPlay[] {
   const packId = state.settings.missionPackId
@@ -977,7 +986,7 @@ function referencedPlays(
 
 function withAuthoritativeAwards<T extends Pick<Extract<Command, { kind: 'set-prep' }>, 'primary' | 'secondaries' | 'secondaryDeck'>>(
   prep: T,
-  rules: NonNullable<Parameters<typeof missionFor>[0]>,
+  rules: LoadedRules,
 ): T {
   const primaryByKey = new Map((rules.primaries ?? []).map((card) => [card.key, card]))
   const secondaryByKey = new Map((rules.secondaries ?? []).map((card) => [card.key, card]))
@@ -998,7 +1007,7 @@ function authoritativeCard(submitted: Secondary, available: Map<string, Availabl
     : { key: submitted.key, name: submitted.name }
 }
 
-function hydrateAuthoritativeAwards(state: BattleState, rules: NonNullable<Parameters<typeof missionFor>[0]>) {
+function hydrateAuthoritativeAwards(state: BattleState, rules: BattleReadRules) {
   const primaryByKey = new Map((rules.primaries ?? []).map((card) => [card.key, card]))
   const secondaryByKey = new Map((rules.secondaries ?? []).map((card) => [card.key, card]))
   const hydrate = (card: Secondary, available: Map<string, AvailableCard>) =>
@@ -1020,14 +1029,14 @@ function hydrateAuthoritativeAwards(state: BattleState, rules: NonNullable<Param
   }
 }
 
-function resolvedMissionForSide(state: BattleState, rules: NonNullable<Parameters<typeof missionFor>[0]>, side: number) {
+function resolvedMissionForSide(state: BattleState, rules: BattleReadRules, side: number) {
   const ownDisposition = sideDisposition(state, side)
   const opposingSide = state.players.find((player) => player.side !== side)?.side
   const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
   return missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId)
 }
 
-function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonNullable<Parameters<typeof missionFor>[0]>): string | null {
+function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: LoadedRules): string | null {
   // A matchup is between the two sides, so it is read off each side's captain. Taking
   // the first two seats instead held while side 0 was always one player, and put a 2v1
   // whose pair opened the battle into a matchup between its own allies.
@@ -1086,7 +1095,7 @@ function repairPrepReferenceError(
   state: ReturnType<typeof reduceBattle>,
   by: PlayerId,
   command: Extract<Command, { kind: 'set-prep' }>,
-  rules: NonNullable<Parameters<typeof missionFor>[0]>,
+  rules: LoadedRules,
 ): string | null {
   const player = commandArmy(state, by, command)
   if (!player) return null
@@ -1118,7 +1127,7 @@ function scoringCapError(
   state: ReturnType<typeof reduceBattle>,
   by: PlayerId,
   command: Extract<Command, { kind: 'score' } | { kind: 'score-secondary' } | { kind: 'score-settlement' }>,
-  rules: NonNullable<Parameters<typeof missionFor>[0]>,
+  rules: LoadedRules,
 ): string | null {
   const target = scoringTarget(state, by, command)
   if (!target) return null

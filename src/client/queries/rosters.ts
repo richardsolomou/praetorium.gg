@@ -5,6 +5,7 @@ import {
   collection,
   datasheet,
   factionDatasheets,
+  homeRosters,
   loadoutDatasheets,
   priceRoster,
   rosterAccess,
@@ -133,12 +134,14 @@ export const savedRosterSummariesQuery = () =>
   queryOptions({ queryKey: ['saved-roster-summaries'], queryFn: () => savedRosterSummaries(), staleTime: SSR_STALE_TIME })
 export const savedRosterTotalsQuery = () =>
   queryOptions({ queryKey: ['saved-roster-totals'], queryFn: () => savedRosterTotals(), staleTime: SSR_STALE_TIME })
+export const homeRostersQuery = () => queryOptions({ queryKey: ['home-rosters'], queryFn: () => homeRosters(), staleTime: SSR_STALE_TIME })
 
 export function invalidateSavedRosters(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['roster-access'] }),
     queryClient.invalidateQueries({ queryKey: savedRosterSummariesQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: savedRosterTotalsQuery().queryKey }),
+    queryClient.invalidateQueries({ queryKey: homeRostersQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: savedRosterStatusQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: ['roster-changes'] }),
   ])

@@ -5,7 +5,7 @@ import { historySince } from '../../core/catalogueHistory'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
 import { calculateRosterPrice } from '../pricing'
-import { cachedRosterPrice, cachedRosterTotals, cachedRosterVerdict } from '../rosterPrices'
+import { cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, importRosterFaction, importRosterFile, matchesImportFaction } from '../rosterFiles'
 import { rosterTelemetryProperties } from '../rosterTelemetry'
@@ -51,6 +51,24 @@ export const savedRosterSummaries = createServerFn({ method: 'GET' }).handler(()
   }),
 )
 
+export const homeRosters = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    if (!id) return { count: 0, rosters: [] }
+    const instance = app()
+    const { count, summaries, priceable } = await instance.service.homeRosters(id)
+    if (!priceable.length) return { count, rosters: [] }
+    const [totals, verdicts] = await Promise.all([cachedRosterTotalsFor(priceable), cachedRosterVerdictsFor(priceable)])
+    const rosters = priceable.map((_, index) => ({
+      roster: summaries[index]!,
+      points: totals[index]?.points ?? null,
+      label: totals[index]?.label ?? '',
+      problem: verdicts[index]!.problem,
+    }))
+    return { count, rosters }
+  }),
+)
+
 /**
  * The lists a player has published, for anybody reading their profile.
  *
@@ -63,11 +81,12 @@ export const playerRosters = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const { summaries, priceable } = await app().service.publicRosters(data.userId)
-      const totals = []
-      for (const roster of priceable) {
-        const value = await cachedRosterTotals(roster)
-        totals.push({ id: roster.id, points: value?.points ?? null, label: value?.label ?? '' })
-      }
+      const values = await cachedRosterTotalsFor(priceable)
+      const totals = priceable.map((roster, index) => ({
+        id: roster.id,
+        points: values[index]?.points ?? null,
+        label: values[index]?.label ?? '',
+      }))
       return { rosters: summaries, totals }
     }),
   )
@@ -77,12 +96,8 @@ export const savedRosterTotals = createServerFn({ method: 'GET' }).handler(() =>
     const id = await currentUserId()
     if (!id) return []
     const saved = await app().service.savedRosters(id)
-    const totals = []
-    for (const roster of saved) {
-      const value = await cachedRosterTotals(roster)
-      totals.push({ id: roster.id, points: value?.points ?? null, label: value?.label ?? '' })
-    }
-    return totals
+    const values = await cachedRosterTotalsFor(saved)
+    return saved.map((roster, index) => ({ id: roster.id, points: values[index]?.points ?? null, label: values[index]?.label ?? '' }))
   }),
 )
 
@@ -90,8 +105,12 @@ export const sharedRoster = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
   .handler(({ data }) => rpc(async () => app().service.sharedRoster(data.id, await currentUserId(), data.battle ?? null)))
 
+async function accessToRoster(data: { id: string; battle?: string }) {
+  return app().service.rosterAccess(data.id, await currentUserId(), data.battle ?? null)
+}
+
 async function accessibleRoster(data: { id: string; battle?: string }) {
-  const access = await app().service.rosterAccess(data.id, await currentUserId(), data.battle ?? null)
+  const access = await accessToRoster(data)
   if (!access) return null
   const faction = (await app().factionsFor())?.factions.find((candidate) => candidate.id === access.roster.catalogueId) ?? null
   return { ...access, faction }
@@ -126,9 +145,8 @@ export const savedRosterStatus = createServerFn({ method: 'GET' }).handler(() =>
       Math.min(...saved.map((roster) => roster.updatedAt)),
       CHANGE_SETS_READ,
     )
-    const statuses = []
-    for (const roster of saved) statuses.push(rosterStatus(roster, await cachedRosterVerdict(roster), sets))
-    return statuses
+    const verdicts = await cachedRosterVerdictsFor(saved)
+    return saved.map((roster, index) => rosterStatus(roster, verdicts[index]!, sets))
   }),
 )
 
@@ -145,10 +163,11 @@ export const rosterBootstrap = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const access = await accessibleRoster(data)
+      const access = await accessToRoster(data)
       if (!access) return null
-      const price = await cachedRosterPrice(access.roster)
-      return { ...access, price, changes: await changesSinceSaved(access.roster, price) }
+      const [navigation, price] = await Promise.all([app().factionsFor(), cachedRosterPrice(access.roster)])
+      const faction = navigation?.factions.find((candidate) => candidate.id === access.roster.catalogueId) ?? null
+      return { ...access, faction, price, changes: await changesSinceSaved(access.roster, price) }
     }),
   )
 

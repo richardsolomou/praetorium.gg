@@ -117,6 +117,7 @@ The visitor hero contains the most recent public battle, whether it is setting u
 Empty shelves explain rather than disappear. A signed-in player with no live game sees how to start one, and one with no friend games sees where friendships are kept — that shelf's text claims nothing about whether they have friends, because a table of friends who all play together has no friend games either. Both are absent when the page is otherwise empty, where the product introduction says more.
 
 `Home` owns data fetching and `HomeView` composes the page from props and fixtures. Every shelf is loaded by the route loader so the server-rendered frame has its final geometry. Friends remains in the signed-in account menu rather than global navigation.
+The home roster shelf counts all saved lists but prices and checks only the five most recently edited lists it displays. It links to data updates without computing an all-list changed count; the full library computes status for every list.
 
 A profile splits into three tabs: the record, the battles, and the rosters the player has published. The tab rides in the address so a tab is a link, and it is not a loader dependency, since every tab's data is fetched for the first frame and switching one is a render rather than a request. A tab nothing would fill is not offered, and an address naming one that is absent falls back to the record. The tab bar carries each section's name and count, so the panel below it does not repeat them.
 

@@ -1,7 +1,7 @@
 import { routeSlug } from '../core/slug'
-import type { LoadedRules } from './rules'
+import type { BattleReadRules } from './rules'
 
-function buildGameReferences(rules: LoadedRules) {
+function buildGameReferences(rules: BattleReadRules) {
   const missions = [
     ...new Map([...rules.missions.values()].map((mission) => [`${mission.packId ?? 'legacy'}:${mission.id}`, mission])).values(),
   ]
@@ -49,9 +49,9 @@ function buildGameReferences(rules: LoadedRules) {
   }
 }
 
-const cache = new WeakMap<LoadedRules, ReturnType<typeof buildGameReferences>>()
+const cache = new WeakMap<BattleReadRules, ReturnType<typeof buildGameReferences>>()
 
-export function gameReferencesFor(rules: LoadedRules) {
+export function gameReferencesFor(rules: BattleReadRules) {
   const cached = cache.get(rules)
   if (cached) return cached
   const references = buildGameReferences(rules)

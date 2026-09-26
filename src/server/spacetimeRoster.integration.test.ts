@@ -31,6 +31,7 @@ it.skipIf(!url || !database || !token)('keeps roster writes atomic and owned in 
   try {
     expect(await store.saveRoster(input)).toBe('inserted')
     expect((await store.roster(id))?.userId).toBe(userId)
+    expect(await store.homeRostersByUser(userId)).toMatchObject({ count: 1, rows: [{ id }] })
     expect(await store.saveRoster({ ...input, userId: 'other', name: 'stolen' })).toBeNull()
     expect((await store.roster(id))?.name).toBe('Proof roster')
     expect(await store.saveRoster({ ...input, name: 'Updated', now: input.now + 1 })).toBe('updated')

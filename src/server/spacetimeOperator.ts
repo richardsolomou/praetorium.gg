@@ -383,6 +383,12 @@ export class SpacetimeOperator
     return this.readRosters(userId, false, 1_000)
   }
 
+  async homeRostersByUser(userId: string) {
+    return z
+      .object({ count: z.number().int().nonnegative(), rows: z.array(rosterRow).max(5) })
+      .parse(await this.read('home_rosters_by_user', [userId]))
+  }
+
   async publicRostersByUser(userId: string, limit: number) {
     return this.readRosters(userId, true, limit)
   }
