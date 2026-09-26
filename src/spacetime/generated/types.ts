@@ -12,6 +12,17 @@ export const AccessExpiry = __t.object('AccessExpiry', {
 })
 export type AccessExpiry = __Infer<typeof AccessExpiry>
 
+export const AdminRevisions = __t.object('AdminRevisions', {
+  scope: __t.string(),
+  revision: __t.u64(),
+})
+export type AdminRevisions = __Infer<typeof AdminRevisions>
+
+export const AdminSessions = __t.object('AdminSessions', {
+  subject: __t.string(),
+})
+export type AdminSessions = __Infer<typeof AdminSessions>
+
 export const BattleSharing = __t.object('BattleSharing', {
   userId: __t.string(),
   audience: __t.string(),
@@ -139,6 +150,15 @@ export const Leagues = __t.object('Leagues', {
 })
 export type Leagues = __Infer<typeof Leagues>
 
+export const MyAdminSignal = __t.object('MyAdminSignal', {
+  scope: __t.string(),
+  revision: __t.u64(),
+})
+export type MyAdminSignal = __Infer<typeof MyAdminSignal>
+
+export const MyAdminSignals = __t.object('MyAdminSignals', {})
+export type MyAdminSignals = __Infer<typeof MyAdminSignals>
+
 export const MyBattleList = __t.object('MyBattleList', {})
 export type MyBattleList = __Infer<typeof MyBattleList>
 
@@ -151,6 +171,15 @@ export type MyBattleListEntry = __Infer<typeof MyBattleListEntry>
 export const MyBattleSignals = __t.object('MyBattleSignals', {})
 export type MyBattleSignals = __Infer<typeof MyBattleSignals>
 
+export const MyProductSignal = __t.object('MyProductSignal', {
+  scope: __t.string(),
+  revision: __t.u64(),
+})
+export type MyProductSignal = __Infer<typeof MyProductSignal>
+
+export const MyProductSignals = __t.object('MyProductSignals', {})
+export type MyProductSignals = __Infer<typeof MyProductSignals>
+
 export const MySession = __t.object('MySession', {})
 export type MySession = __Infer<typeof MySession>
 
@@ -158,6 +187,29 @@ export const PracticeOpponents = __t.object('PracticeOpponents', {
   userId: __t.string(),
 })
 export type PracticeOpponents = __Infer<typeof PracticeOpponents>
+
+export const ProductRevisions = __t.object('ProductRevisions', {
+  key: __t.string(),
+  userId: __t.string(),
+  scope: __t.string(),
+  revision: __t.u64(),
+})
+export type ProductRevisions = __Infer<typeof ProductRevisions>
+
+export const PublicProductSignal = __t.object('PublicProductSignal', {
+  scope: __t.string(),
+  revision: __t.u64(),
+})
+export type PublicProductSignal = __Infer<typeof PublicProductSignal>
+
+export const PublicProductSignals = __t.object('PublicProductSignals', {})
+export type PublicProductSignals = __Infer<typeof PublicProductSignals>
+
+export const PublicRevisions = __t.object('PublicRevisions', {
+  scope: __t.string(),
+  revision: __t.u64(),
+})
+export type PublicRevisions = __Infer<typeof PublicRevisions>
 
 export const PushPreferences = __t.object('PushPreferences', {
   userId: __t.string(),

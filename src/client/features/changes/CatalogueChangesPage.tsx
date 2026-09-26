@@ -4,9 +4,10 @@ import { ChevronRight, History } from 'lucide-react'
 import type { IndexedUpdate } from '../../../contracts/catalogueChanges'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
+import { useDateFormatting } from '../../dates'
 import { catalogueChangeLogQuery } from '../../queries'
 import { useOpenHashTarget } from './hashTarget'
-import { changesLabel, UpdateChanges, updateTime } from './UpdateChanges'
+import { changesLabel, UpdateChanges } from './UpdateChanges'
 
 /**
  * Every army data update, newest first, a page at a time. Each is a row naming the factions it
@@ -67,7 +68,8 @@ export function CatalogueChangesPage({ before }: { before?: string }) {
  * disagrees with what the reader did. Its faction links are fragments into its own body.
  */
 function Update({ update }: { update: IndexedUpdate }) {
-  const when = updateTime(update.recordedAt)
+  const { date, time } = useDateFormatting()
+  const when = `${date(update.recordedAt)} ${time(update.recordedAt)}`
   return (
     <details id={update.anchor} open={update.open} className="group scroll-mt-16">
       <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">

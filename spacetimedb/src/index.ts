@@ -33,6 +33,21 @@ const sessionAccess = table(
   },
 )
 
+const adminSessions = table(
+  { name: 'admin_sessions' },
+  {
+    subject: t.string().primaryKey(),
+  },
+)
+
+const adminRevisions = table(
+  { name: 'admin_revisions' },
+  {
+    scope: t.string().primaryKey(),
+    revision: t.u64(),
+  },
+)
+
 const revokedSession = table(
   { name: 'revoked_session' },
   {
@@ -67,7 +82,17 @@ const watchedBattles = table(
   },
 )
 
-const spacetime = schema({ settings, sessionAccess, revokedSession, accessExpiry, revocationExpiry, watchedBattles, ...productTables })
+const spacetime = schema({
+  settings,
+  sessionAccess,
+  adminSessions,
+  adminRevisions,
+  revokedSession,
+  accessExpiry,
+  revocationExpiry,
+  watchedBattles,
+  ...productTables,
+})
 export default spacetime
 
 type Context = ReducerCtx<InferSchema<typeof spacetime>>
@@ -83,6 +108,7 @@ function revoke(ctx: Context, subject: string) {
   if (ctx.db.revokedSession.subject.find(subject)) return
   ctx.db.revokedSession.insert({ subject })
   ctx.db.sessionAccess.subject.delete(subject)
+  ctx.db.adminSessions.subject.delete(subject)
   for (const row of Array.from(ctx.db.watchedBattles.subject.filter(subject))) ctx.db.watchedBattles.key.delete(row.key)
   ctx.db.revocationExpiry.insert({
     scheduledId: 0n,
@@ -104,7 +130,58 @@ function requireOperator(ctx: Context) {
   if (!configured?.operator || ctx.sender.toHexString() !== configured.operator) throw new SenderError('Operator required')
 }
 
+type ProductScope = 'rosters' | 'collection' | 'favourites' | 'friends' | 'invites' | 'onboarding' | 'settings' | 'leagues' | 'battles'
+
+function touchProduct(ctx: Context, userId: string, ...scopes: ProductScope[]) {
+  for (const scope of scopes) {
+    const key = JSON.stringify([userId, scope])
+    const current = ctx.db.productRevisions.key.find(key)
+    if (current) ctx.db.productRevisions.key.update({ ...current, revision: current.revision + 1n })
+    else ctx.db.productRevisions.insert({ key, userId, scope, revision: 1n })
+  }
+}
+
+type PublicScope = 'battles' | 'rosters' | 'leagues' | 'invites' | 'standings' | 'opponents'
+
+function touchPublic(ctx: Context, scope: PublicScope) {
+  const current = ctx.db.publicRevisions.scope.find(scope)
+  if (current) ctx.db.publicRevisions.scope.update({ ...current, revision: current.revision + 1n })
+  else ctx.db.publicRevisions.insert({ scope, revision: 1n })
+}
+
+function touchAdmin(ctx: Context) {
+  const scope = 'admin-users'
+  const current = ctx.db.adminRevisions.scope.find(scope)
+  if (current) ctx.db.adminRevisions.scope.update({ ...current, revision: current.revision + 1n })
+  else ctx.db.adminRevisions.insert({ scope, revision: 1n })
+}
+
+function touchFriends(ctx: Context, leftId: string, rightId: string) {
+  touchProduct(ctx, leftId, 'friends', 'onboarding')
+  touchProduct(ctx, rightId, 'friends', 'onboarding')
+}
+
+function touchLeague(ctx: Context, leagueId: string, eventId?: string) {
+  const league = ctx.db.leagues.id.find(leagueId)
+  if (!league) return
+  const users = new Set([league.ownerId])
+  const event = eventId ? ctx.db.leagueEvents.id.find(eventId) : leagueEventFor(ctx, leagueId, null)
+  if (event) for (const entry of ctx.db.leagueEventEntries.eventId.filter(event.id)) users.add(entry.userId)
+  for (const userId of users) touchProduct(ctx, userId, 'leagues', 'onboarding')
+  touchPublic(ctx, 'leagues')
+}
+
 function deleteBattle(ctx: Context, battleId: string) {
+  const seats = Array.from(ctx.db.battleUsers.battleId.filter(battleId))
+  const leagueEvent = ctx.db.leagueEventBattles.battleId.find(battleId)
+  for (const seat of seats) touchProduct(ctx, seat.userId, 'battles', 'onboarding')
+  touchPublic(ctx, 'battles')
+  touchPublic(ctx, 'standings')
+  touchAdmin(ctx)
+  if (leagueEvent) {
+    const leagueId = ctx.db.leagueEvents.id.find(leagueEvent.eventId)?.leagueId
+    if (leagueId) touchLeague(ctx, leagueId, leagueEvent.eventId)
+  }
   for (const row of Array.from(ctx.db.watchedBattles.battleId.filter(battleId))) ctx.db.watchedBattles.key.delete(row.key)
   for (const row of Array.from(ctx.db.commands.battleId.filter(battleId))) ctx.db.commands.key.delete(row.key)
   for (const row of Array.from(ctx.db.battleUsers.battleId.filter(battleId))) ctx.db.battleUsers.key.delete(row.key)
@@ -113,6 +190,7 @@ function deleteBattle(ctx: Context, battleId: string) {
 }
 
 function deleteLeague(ctx: Context, leagueId: string) {
+  touchLeague(ctx, leagueId)
   for (const event of Array.from(ctx.db.leagueEvents.leagueId.filter(leagueId))) {
     for (const row of Array.from(ctx.db.leagueEventEntries.eventId.filter(event.id))) ctx.db.leagueEventEntries.key.delete(row.key)
     for (const row of Array.from(ctx.db.leagueEventBattles.eventId.filter(event.id)))
@@ -153,6 +231,13 @@ export const onConnect = spacetime.clientConnected((ctx) => {
   if (configured?.owner.isEqual(ctx.sender) || (configured?.operator && configured.operator === ctx.sender.toHexString())) return
   const jwt = ctx.senderAuth.jwt
   if (
+    jwt?.audience.length === 1 &&
+    jwt.audience[0] === 'spacetimedb' &&
+    jwt.fullPayload.hex_identity === ctx.sender.toHexString() &&
+    jwt.fullPayload.userId === undefined
+  )
+    return
+  if (
     !configured?.issuer ||
     !jwt ||
     jwt.issuer !== configured.issuer ||
@@ -165,6 +250,7 @@ export const onConnect = spacetime.clientConnected((ctx) => {
   const expiresAt = jwt.fullPayload.accessExpiresAt
   const tokenExpiresAt = jwt.fullPayload.exp
   const tokenType = jwt.fullPayload.tokenType
+  const isAdmin = jwt.fullPayload.isAdmin
   const now = nowSeconds(ctx)
   if (
     typeof jwt.subject !== 'string' ||
@@ -178,6 +264,7 @@ export const onConnect = spacetime.clientConnected((ctx) => {
     typeof tokenExpiresAt !== 'number' ||
     !Number.isSafeInteger(tokenExpiresAt) ||
     tokenType !== 'spacetime-access' ||
+    (isAdmin !== undefined && typeof isAdmin !== 'boolean') ||
     BigInt(expiresAt) <= now ||
     BigInt(expiresAt) > now + MAX_TOKEN_SECONDS ||
     BigInt(tokenExpiresAt) <= now ||
@@ -189,7 +276,15 @@ export const onConnect = spacetime.clientConnected((ctx) => {
   const current = ctx.db.sessionAccess.subject.find(jwt.subject)
   if (current && (!current.identity.isEqual(ctx.sender) || current.userId !== userId)) throw new SenderError('Session identity changed')
   if (current) ctx.db.sessionAccess.subject.update({ ...current, expiresAt: BigInt(expiresAt) })
-  else ctx.db.sessionAccess.insert({ subject: jwt.subject, identity: ctx.sender, userId, expiresAt: BigInt(expiresAt) })
+  else
+    ctx.db.sessionAccess.insert({
+      subject: jwt.subject,
+      identity: ctx.sender,
+      userId,
+      expiresAt: BigInt(expiresAt),
+    })
+  if (isAdmin === true && !ctx.db.adminSessions.subject.find(jwt.subject)) ctx.db.adminSessions.insert({ subject: jwt.subject })
+  if (isAdmin !== true) ctx.db.adminSessions.subject.delete(jwt.subject)
   ctx.db.accessExpiry.insert({ scheduledId: 0n, subject: jwt.subject, scheduledAt: ScheduleAt.time(BigInt(expiresAt) * 1_000_000n) })
 })
 
@@ -213,24 +308,51 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   ctx.db.battleSharing.userId.delete(userId)
   ctx.db.pushPreferences.userId.delete(userId)
   for (const row of Array.from(ctx.db.pushTokens.userId.filter(userId))) ctx.db.pushTokens.token.delete(row.token)
-  for (const row of Array.from(ctx.db.friendships.requesterId.filter(userId))) ctx.db.friendships.key.delete(row.key)
-  for (const row of Array.from(ctx.db.friendships.addresseeId.filter(userId))) ctx.db.friendships.key.delete(row.key)
+  for (const row of Array.from(ctx.db.friendships.requesterId.filter(userId))) {
+    touchFriends(ctx, row.requesterId, row.addresseeId)
+    ctx.db.friendships.key.delete(row.key)
+  }
+  for (const row of Array.from(ctx.db.friendships.addresseeId.filter(userId))) {
+    touchFriends(ctx, row.requesterId, row.addresseeId)
+    ctx.db.friendships.key.delete(row.key)
+  }
   const invite = ctx.db.friendInvites.inviterId.find(userId)
-  if (invite) ctx.db.friendInvites.token.delete(invite.token)
+  if (invite) {
+    ctx.db.friendInvites.token.delete(invite.token)
+    touchPublic(ctx, 'invites')
+  }
   for (const row of Array.from(ctx.db.commands.userId.filter(userId))) ctx.db.commands.key.delete(row.key)
   for (const row of Array.from(ctx.db.battleUsers.userId.filter(userId))) ctx.db.battleUsers.key.delete(row.key)
-  for (const row of Array.from(ctx.db.rosters.userId.filter(userId))) ctx.db.rosters.id.delete(row.id)
-  for (const row of Array.from(ctx.db.leagueEventEntries.userId.filter(userId))) ctx.db.leagueEventEntries.key.delete(row.key)
+  const ownedRosters = Array.from(ctx.db.rosters.userId.filter(userId))
+  for (const row of ownedRosters) {
+    if (row.visibility !== 'private') touchPublic(ctx, 'rosters')
+    ctx.db.rosters.id.delete(row.id)
+  }
+  if (ownedRosters.length) touchAdmin(ctx)
+  const affectedEvents = new Set<string>()
+  for (const row of Array.from(ctx.db.leagueEventEntries.userId.filter(userId))) {
+    affectedEvents.add(row.eventId)
+    ctx.db.leagueEventEntries.key.delete(row.key)
+  }
+  for (const eventId of affectedEvents) {
+    const leagueId = ctx.db.leagueEvents.id.find(eventId)?.leagueId
+    if (leagueId) touchLeague(ctx, leagueId, eventId)
+  }
   for (const row of Array.from(ctx.db.collection.userId.filter(userId))) ctx.db.collection.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteFactions.userId.filter(userId))) ctx.db.favouriteFactions.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteDetachments.userId.filter(userId))) ctx.db.favouriteDetachments.key.delete(row.key)
-  ctx.db.practiceOpponents.userId.delete(userId)
+  if (ctx.db.practiceOpponents.userId.delete(userId)) {
+    touchPublic(ctx, 'opponents')
+    touchAdmin(ctx)
+  }
+  for (const row of Array.from(ctx.db.productRevisions.userId.filter(userId))) ctx.db.productRevisions.key.delete(row.key)
 })
 
 export const expireAccess = spacetime.reducer({ onSchedule: accessExpiry }, { timer: accessExpiry.rowType }, (ctx, { timer }) => {
   const current = ctx.db.sessionAccess.subject.find(timer.subject)
   if (current && current.expiresAt <= nowSeconds(ctx)) {
     ctx.db.sessionAccess.subject.delete(timer.subject)
+    ctx.db.adminSessions.subject.delete(timer.subject)
     for (const row of Array.from(ctx.db.watchedBattles.subject.filter(timer.subject))) ctx.db.watchedBattles.key.delete(row.key)
   }
 })
@@ -247,6 +369,32 @@ export const mySession = spacetime.view({ name: 'my_session', public: true }, t.
   const current = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
   return current && !ctx.db.revokedSession.subject.find(current.subject) ? current : undefined
 })
+
+export const myProductSignals = spacetime.view(
+  { name: 'my_product_signals', public: true },
+  t.array(t.row('MyProductSignal', { scope: t.string().primaryKey(), revision: t.u64() })),
+  (ctx) => {
+    const session = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
+    if (!session || ctx.db.revokedSession.subject.find(session.subject)) return []
+    return Array.from(ctx.db.productRevisions.userId.filter(session.userId), ({ scope, revision }) => ({ scope, revision }))
+  },
+)
+
+export const myAdminSignals = spacetime.view(
+  { name: 'my_admin_signals', public: true },
+  t.array(t.row('MyAdminSignal', { scope: t.string().primaryKey(), revision: t.u64() })),
+  (ctx) => {
+    const session = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
+    if (!session || !ctx.db.adminSessions.subject.find(session.subject) || ctx.db.revokedSession.subject.find(session.subject)) return []
+    return Array.from(ctx.db.adminRevisions.iter(), ({ scope, revision }) => ({ scope, revision }))
+  },
+)
+
+export const publicProductSignals = spacetime.view(
+  { name: 'public_product_signals', public: true },
+  t.array(t.row('PublicProductSignal', { scope: t.string().primaryKey(), revision: t.u64() })),
+  (ctx) => Array.from(ctx.db.publicRevisions.iter(), ({ scope, revision }) => ({ scope, revision })),
+)
 
 export const watchBattle = spacetime.reducer({ battleId: t.string() }, (ctx, { battleId }) => {
   const session = activeSession(ctx)
@@ -364,7 +512,10 @@ export const createBattle = spacetime.procedure({ payload: t.string() }, t.strin
         side: seat.side,
         joinedAt: BigInt(now + index),
       })
+      touchProduct(tx, seat.id, 'battles', 'onboarding')
     }
+    touchPublic(tx, 'battles')
+    touchAdmin(tx)
     const log: LoggedCommand[] = []
     for (const [index, command] of initialCommands.entries()) {
       const state = reduceBattle(
@@ -535,6 +686,9 @@ export const submitBattle = spacetime.procedure(
         at: input.now,
         body: JSON.stringify(parsed.data),
       })
+      for (const seat of seats) touchProduct(tx, seat.id, 'battles')
+      touchPublic(tx, 'battles')
+      if (state.status === 'finished' || parsed.data.kind === 'end-battle') touchPublic(tx, 'standings')
       return productJson({
         result: { outcome: 'appended', seq },
         log: [...log, { seq, by: input.userId, at: safeNumber(input.now), command: parsed.data }],
@@ -604,6 +758,7 @@ export const requestFriend = spacetime.procedure(
         requestedAt: input.now,
         acceptedAt: undefined,
       })
+      touchFriends(tx, input.requesterId, input.addresseeId)
       return true
     }),
 )
@@ -617,6 +772,7 @@ export const acceptFriend = spacetime.procedure(
       const current = tx.db.friendships.key.find(friendshipKey(input.requesterId, input.addresseeId))
       if (!current || current.acceptedAt !== undefined) return false
       tx.db.friendships.key.update({ ...current, acceptedAt: input.now })
+      touchFriends(tx, input.requesterId, input.addresseeId)
       return true
     }),
 )
@@ -632,7 +788,9 @@ export const rejectFriend = spacetime.procedure({ requesterId: t.string(), addre
       current.acceptedAt !== undefined
     )
       return false
-    return tx.db.friendships.key.delete(current.key)
+    const deleted = tx.db.friendships.key.delete(current.key)
+    if (deleted) touchFriends(tx, input.requesterId, input.addresseeId)
+    return deleted
   }),
 )
 
@@ -640,7 +798,10 @@ export const removeFriend = spacetime.procedure({ leftId: t.string(), rightId: t
   ctx.withTx((tx) => {
     requireOperator(tx)
     const current = friendshipBetween(tx, input.leftId, input.rightId)
-    return current ? tx.db.friendships.key.delete(current.key) : false
+    if (!current) return false
+    const deleted = tx.db.friendships.key.delete(current.key)
+    if (deleted) touchFriends(tx, current.requesterId, current.addresseeId)
+    return deleted
   }),
 )
 
@@ -665,13 +826,21 @@ export const replaceFriendInvite = spacetime.reducer({ inviterId: t.string(), to
   const current = ctx.db.friendInvites.inviterId.find(input.inviterId)
   if (current) ctx.db.friendInvites.token.delete(current.token)
   ctx.db.friendInvites.insert({ inviterId: input.inviterId, token: input.token, createdAt: input.now })
+  touchProduct(ctx, input.inviterId, 'invites')
+  touchPublic(ctx, 'invites')
 })
 
 export const cancelFriendInvite = spacetime.procedure({ inviterId: t.string() }, t.bool(), (ctx, { inviterId }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
     const current = tx.db.friendInvites.inviterId.find(inviterId)
-    return current ? tx.db.friendInvites.token.delete(current.token) : false
+    if (!current) return false
+    const deleted = tx.db.friendInvites.token.delete(current.token)
+    if (deleted) {
+      touchProduct(tx, inviterId, 'invites')
+      touchPublic(tx, 'invites')
+    }
+    return deleted
   }),
 )
 
@@ -697,6 +866,9 @@ export const acceptFriendInvite = spacetime.procedure(
         })
       }
       tx.db.friendInvites.token.delete(input.token)
+      touchFriends(tx, invite.inviterId, input.recipientId)
+      touchProduct(tx, invite.inviterId, 'invites')
+      touchPublic(tx, 'invites')
       return productJson({ inviterId: invite.inviterId })
     }),
 )
@@ -724,6 +896,9 @@ export const setBattleAudience = spacetime.procedure({ userId: t.string(), audie
     const row = { userId: input.userId, audience: input.audience, at: input.now }
     if (current) tx.db.battleSharing.userId.update(row)
     else tx.db.battleSharing.insert(row)
+    touchProduct(tx, input.userId, 'settings', 'battles')
+    touchPublic(tx, 'battles')
+    touchPublic(tx, 'standings')
     return input.audience
   }),
 )
@@ -791,6 +966,7 @@ export const updateOnboarding = spacetime.procedure(
           else tx.db.userOnboardingTasks.insert(row)
         } else throw new SenderError('Invalid onboarding operation')
       }
+      touchProduct(tx, input.userId, 'onboarding')
       return productJson(onboardingData(tx, input.userId))
     }),
 )
@@ -928,9 +1104,14 @@ export const saveRoster = spacetime.procedure({ payload: t.string() }, t.string(
     }
     if (current) {
       tx.db.rosters.id.update({ ...current, ...fields })
+      touchProduct(tx, input.userId, 'rosters', 'onboarding')
+      if (current.visibility !== 'private' || input.visibility !== 'private') touchPublic(tx, 'rosters')
       return 'updated'
     }
     tx.db.rosters.insert({ id: input.id, userId: input.userId, createdAt: BigInt(input.now), ...fields })
+    touchProduct(tx, input.userId, 'rosters', 'onboarding')
+    if (input.visibility !== 'private') touchPublic(tx, 'rosters')
+    touchAdmin(tx)
     return 'inserted'
   })
 })
@@ -945,6 +1126,8 @@ export const setRosterVisibility = spacetime.procedure(
       const current = tx.db.rosters.id.find(id)
       if (!current || current.userId !== userId) return false
       tx.db.rosters.id.update({ ...current, visibility, updatedAt: now })
+      touchProduct(tx, userId, 'rosters')
+      if (current.visibility !== 'private' || visibility !== 'private') touchPublic(tx, 'rosters')
       return true
     }),
 )
@@ -952,7 +1135,12 @@ export const setRosterVisibility = spacetime.procedure(
 export const deleteRoster = spacetime.reducer({ id: t.string(), userId: t.string() }, (ctx, { id, userId }) => {
   requireOperator(ctx)
   const current = ctx.db.rosters.id.find(id)
-  if (current?.userId === userId) ctx.db.rosters.id.delete(id)
+  if (current?.userId === userId) {
+    ctx.db.rosters.id.delete(id)
+    touchProduct(ctx, userId, 'rosters', 'onboarding')
+    if (current.visibility !== 'private') touchPublic(ctx, 'rosters')
+    touchAdmin(ctx)
+  }
 })
 
 export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
@@ -967,12 +1155,15 @@ export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.st
 export const addToCollection = spacetime.reducer({ userId: t.string(), entryId: t.string(), at: t.u64() }, (ctx, input) => {
   requireOperator(ctx)
   const key = JSON.stringify([input.userId, input.entryId])
-  if (!ctx.db.collection.key.find(key)) ctx.db.collection.insert({ key, ...input })
+  if (!ctx.db.collection.key.find(key)) {
+    ctx.db.collection.insert({ key, ...input })
+    touchProduct(ctx, input.userId, 'collection')
+  }
 })
 
 export const removeFromCollection = spacetime.reducer({ userId: t.string(), entryId: t.string() }, (ctx, input) => {
   requireOperator(ctx)
-  ctx.db.collection.key.delete(JSON.stringify([input.userId, input.entryId]))
+  if (ctx.db.collection.key.delete(JSON.stringify([input.userId, input.entryId]))) touchProduct(ctx, input.userId, 'collection')
 })
 
 export const favouriteFactionsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
@@ -991,12 +1182,15 @@ export const favouriteFactionsByUser = spacetime.procedure({ userId: t.string() 
 export const addFavouriteFaction = spacetime.reducer({ userId: t.string(), catalogueId: t.string(), at: t.u64() }, (ctx, input) => {
   requireOperator(ctx)
   const key = JSON.stringify([input.userId, input.catalogueId])
-  if (!ctx.db.favouriteFactions.key.find(key)) ctx.db.favouriteFactions.insert({ key, ...input })
+  if (!ctx.db.favouriteFactions.key.find(key)) {
+    ctx.db.favouriteFactions.insert({ key, ...input })
+    touchProduct(ctx, input.userId, 'favourites')
+  }
 })
 
 export const removeFavouriteFaction = spacetime.reducer({ userId: t.string(), catalogueId: t.string() }, (ctx, input) => {
   requireOperator(ctx)
-  ctx.db.favouriteFactions.key.delete(JSON.stringify([input.userId, input.catalogueId]))
+  if (ctx.db.favouriteFactions.key.delete(JSON.stringify([input.userId, input.catalogueId]))) touchProduct(ctx, input.userId, 'favourites')
 })
 
 export const favouriteDetachmentsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
@@ -1018,7 +1212,10 @@ export const addFavouriteDetachment = spacetime.reducer(
   (ctx, input) => {
     requireOperator(ctx)
     const key = JSON.stringify([input.userId, input.catalogueId, input.detachmentId])
-    if (!ctx.db.favouriteDetachments.key.find(key)) ctx.db.favouriteDetachments.insert({ key, ...input })
+    if (!ctx.db.favouriteDetachments.key.find(key)) {
+      ctx.db.favouriteDetachments.insert({ key, ...input })
+      touchProduct(ctx, input.userId, 'favourites')
+    }
   },
 )
 
@@ -1026,7 +1223,8 @@ export const removeFavouriteDetachment = spacetime.reducer(
   { userId: t.string(), catalogueId: t.string(), detachmentId: t.string() },
   (ctx, input) => {
     requireOperator(ctx)
-    ctx.db.favouriteDetachments.key.delete(JSON.stringify([input.userId, input.catalogueId, input.detachmentId]))
+    if (ctx.db.favouriteDetachments.key.delete(JSON.stringify([input.userId, input.catalogueId, input.detachmentId])))
+      touchProduct(ctx, input.userId, 'favourites')
   },
 )
 
@@ -1045,6 +1243,7 @@ export const setPushEnabled = spacetime.procedure({ userId: t.string(), enabled:
     const row = { userId: input.userId, enabled: input.enabled, at: input.now }
     if (current) tx.db.pushPreferences.userId.update(row)
     else tx.db.pushPreferences.insert(row)
+    touchProduct(tx, input.userId, 'settings')
     return input.enabled
   }),
 )
@@ -1123,6 +1322,13 @@ export const operatorHealth = spacetime.procedure({}, t.bool(), (ctx) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
     return true
+  }),
+)
+
+export const publicStandingsRevision = spacetime.procedure({}, t.string(), (ctx) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    return (tx.db.publicRevisions.scope.find('standings')?.revision ?? 0n).toString()
   }),
 )
 
@@ -1356,6 +1562,8 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         createdAt: BigInt(input.now),
         revealedAt: undefined,
       })
+      touchProduct(tx, input.ownerId, 'leagues', 'onboarding')
+      touchPublic(tx, 'leagues')
       return 'null'
     }
     const base = leagueCommandInput(z.object({ token: leagueTokenInput }), value)
@@ -1402,6 +1610,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
           requiredLimit: undefined,
           teamId: undefined,
         })
+      touchLeague(tx, league.id, event.id)
       return productJson(status)
     }
     if (!league) return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'missing')
@@ -1436,6 +1645,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         createdAt: BigInt(input.now),
         revealedAt: undefined,
       })
+      touchLeague(tx, league.id, latest.id)
       return productJson('created')
     }
     if (operation === 'update') {
@@ -1467,6 +1677,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
           admitted.push(entry.userId)
         }
       }
+      touchLeague(tx, league.id)
       return productJson({ admitted })
     }
     if (operation === 'delete') {
@@ -1474,7 +1685,10 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
       return productJson('deleted')
     }
     if (operation === 'recurring') {
-      if (!league.recurring) tx.db.leagues.id.update({ ...league, recurring: true })
+      if (!league.recurring) {
+        tx.db.leagues.id.update({ ...league, recurring: true })
+        touchLeague(tx, league.id)
+      }
       return productJson('updated')
     }
     const eventToken = leagueCommandInput(z.object({ eventToken: z.string().max(128) }), value).eventToken
@@ -1490,6 +1704,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
       if (entries.some((entry) => entry.rosterSnapshot !== undefined)) return productJson('sealed')
       tx.db.leagueEvents.id.update({ ...event, format: input.format, rosterLimit: input.rosterLimit })
       for (const entry of entries) tx.db.leagueEventEntries.key.update({ ...entry, requiredLimit: undefined, teamId: undefined })
+      touchLeague(tx, league.id, event.id)
       return productJson('updated')
     }
     if (operation === 'moderate') {
@@ -1536,6 +1751,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
           submittedAt: undefined,
         })
       else tx.db.leagueEventEntries.key.update({ ...entry, status: input.status })
+      touchLeague(tx, league.id, event.id)
       return productJson(input.status === 'accepted' && entry.status !== 'accepted' ? 'admitted' : 'updated')
     }
     if (operation === 'assign-limit') {
@@ -1562,6 +1778,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
           rosterSnapshot: undefined,
           submittedAt: undefined,
         })
+        touchLeague(tx, league.id, event.id)
       }
       return productJson('updated')
     }
@@ -1605,6 +1822,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
             rosterSnapshot: undefined,
             submittedAt: undefined,
           })
+      touchLeague(tx, league.id, event.id)
       return productJson('updated')
     }
     if (operation === 'submit') {
@@ -1673,6 +1891,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         rosterSnapshot: input.snapshot,
         submittedAt: BigInt(input.now),
       })
+      touchLeague(tx, league.id, event.id)
       return productJson({ outcome: 'sealed', format: event.format ?? null, requiredLimit })
     }
     if (operation === 'reveal') {
@@ -1739,6 +1958,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
       for (const entry of all.filter((row) => row.status === 'pending'))
         tx.db.leagueEventEntries.key.update({ ...entry, status: 'rejected' })
       tx.db.leagueEvents.id.update({ ...event, revealedAt: BigInt(input.now) })
+      touchLeague(tx, league.id, event.id)
       return productJson({ outcome: 'revealed', entrantIds: entries.map((entry) => entry.userId) })
     }
     if (operation === 'unseal') {
@@ -1747,6 +1967,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
       const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId]))
       if (!entry || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) return productJson('missing')
       resetLeagueEntry(tx, entry)
+      touchLeague(tx, league.id, event.id)
       return productJson('unsealed')
     }
     if (operation === 'create-battle') {
@@ -1817,6 +2038,10 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         log.push({ seq, by: input.userId, at: input.now, command })
       }
       tx.db.leagueEventBattles.insert({ battleId: input.id, eventId: event.id })
+      touchLeague(tx, league.id, event.id)
+      for (const seat of seats) touchProduct(tx, seat.id, 'battles', 'onboarding')
+      touchPublic(tx, 'battles')
+      touchAdmin(tx)
       return productJson(true)
     }
     throw new SenderError('Unknown league command')
@@ -1915,4 +2140,5 @@ export const importProductBatch = spacetime.reducer({ name: t.string(), rows: t.
     if (!row || typeof row !== 'object' || Array.isArray(row)) throw new SenderError('Invalid product row')
     importRow(ctx, name, row as Record<string, unknown>)
   }
+  if (['rosters', 'battles', 'battle_users', 'practice_opponents'].includes(name)) touchAdmin(ctx)
 })

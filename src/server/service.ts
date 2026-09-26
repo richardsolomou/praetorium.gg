@@ -126,6 +126,7 @@ export class PraetoriumService {
     private readonly events: BattleEvents,
     private readonly randomIndex: (limit: number) => number,
     private readonly notifier: Notifier = silentNotifier,
+    private readonly standingsRevision?: () => Promise<string>,
   ) {
     this.leagueService = new LeagueService(repository, clock, events, notifier)
     this.rosterService = new RosterService(repository, clock)
@@ -396,7 +397,8 @@ export class PraetoriumService {
   /** The leaderboard folds one bounded set of watchable battles for all faction filters and caches the derived result for one minute. */
   private async standingsFold(factions: readonly BattleFaction[]) {
     const now = this.clock()
-    const key = JSON.stringify(factions.map(({ id, slug, displayName }) => [id, slug, displayName]))
+    const revision = await this.standingsRevision?.()
+    const key = JSON.stringify([revision, factions.map(({ id, slug, displayName }) => [id, slug, displayName])])
     if (this.standingsHeld?.key === key && this.standingsHeld.until > now) return this.standingsHeld.fold
     if (this.standingsPending?.key === key) return this.standingsPending.promise
     const pending = (async () => {

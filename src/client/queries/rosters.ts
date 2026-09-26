@@ -127,6 +127,19 @@ export const savedRosterPriceQuery = (
 ) =>
   queryOptions({
     ...priceQuery(catalogueId, detachmentIds, disposition, limit, picked, waivedRules, borrowedDetachmentId, optionalRules),
+    queryKey: [
+      'saved-roster-price',
+      id,
+      battle ?? null,
+      catalogueId,
+      detachmentIds,
+      disposition,
+      limit,
+      picked,
+      waivedRules,
+      borrowedDetachmentId,
+      optionalRules,
+    ],
     queryFn: () => savedRosterPrice({ data: { id, ...(battle ? { battle } : {}) } }),
   })
 
@@ -139,6 +152,11 @@ export const homeRostersQuery = () => queryOptions({ queryKey: ['home-rosters'],
 export function invalidateSavedRosters(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['roster-access'] }),
+    queryClient.invalidateQueries({ queryKey: ['shared-roster'] }),
+    queryClient.invalidateQueries({ queryKey: ['saved-roster-price'] }),
+    queryClient.invalidateQueries({ queryKey: ['saved-roster-loadout-datasheets'] }),
+    queryClient.invalidateQueries({ queryKey: ['player-rosters'] }),
+    queryClient.invalidateQueries({ queryKey: ['player-profile'] }),
     queryClient.invalidateQueries({ queryKey: savedRosterSummariesQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: savedRosterTotalsQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: homeRostersQuery().queryKey }),

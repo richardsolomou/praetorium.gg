@@ -65,6 +65,37 @@ it.skipIf(!url || !database || !token)('rolls back battle creation when an initi
   expect(await operator.battleByToken(battleToken)).toBeUndefined()
 })
 
+it.skipIf(!url || !database || !token)('advances standings revision only when a battle changes its result', async () => {
+  const operator = new SpacetimeOperator(url!, database!, token!)
+  const battleId = randomUUID()
+  const userId = randomUUID()
+  const opponentId = randomUUID()
+  await operator.createBattle({ id: battleId, token: randomUUID(), userId, opponentIds: [opponentId], now: Date.now() })
+  try {
+    const before = await operator.publicStandingsRevision()
+    const send = (by: string, expectedSeq: number, command: Parameters<typeof operator.submit>[0]['command']) =>
+      operator.submit({ battleId, userId: by, expectedSeq, command, now: Date.now() })
+
+    expect((await send(userId, 0, { kind: 'attach-roster', roster: { name: 'Army one', text: 'Army one' } })).result.outcome).toBe(
+      'appended',
+    )
+    expect((await send(opponentId, 1, { kind: 'attach-roster', roster: { name: 'Army two', text: 'Army two' } })).result.outcome).toBe(
+      'appended',
+    )
+    expect((await send(userId, 2, { kind: 'begin-battle', firstPlayerId: userId })).result.outcome).toBe('appended')
+    expect(await operator.publicStandingsRevision()).toBe(before)
+
+    expect((await send(userId, 3, { kind: 'end-battle' })).result.outcome).toBe('appended')
+    const finished = await operator.publicStandingsRevision()
+    expect(BigInt(finished)).toBeGreaterThan(BigInt(before))
+
+    expect((await send(userId, 4, { kind: 'reopen-battle' })).result.outcome).toBe('appended')
+    expect(BigInt(await operator.publicStandingsRevision())).toBeGreaterThan(BigInt(finished))
+  } finally {
+    await operator.deleteBattle(battleId, userId)
+  }
+})
+
 it.skipIf(!url || !database || !token)('orders a player feed by activity across cursor pages', async () => {
   const operator = new SpacetimeOperator(url!, database!, token!)
   const userId = randomUUID()

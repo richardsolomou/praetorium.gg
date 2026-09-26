@@ -5,7 +5,7 @@ import type { Command, Roster } from '../core/battle'
 import type { RosterVisibility } from '../core/savedRoster'
 import type { LoadedRules } from './rules'
 import { createBattleSchema } from './schemas'
-import type { PraetoriumService } from './service'
+import { PraetoriumService } from './service'
 import { befriend, database, enrol, leagueSnapshot, refusalStatus, service, started, view } from './serviceTestHarness'
 
 describe('favourite factions', () => {
@@ -1940,6 +1940,29 @@ describe("a player's profile", () => {
 })
 
 describe('standings', () => {
+  it('recomputes a hosted standings fold when the battle revision advances', async () => {
+    let revision = '1'
+    const revised = new PraetoriumService(
+      new Repository(database),
+      () => 0,
+      { publish: () => {} },
+      () => 0,
+      undefined,
+      async () => revision,
+    )
+    const read = vi.spyOn(Repository.prototype, 'watchableBattlesSince')
+    try {
+      await revised.standings()
+      await revised.standings()
+      revision = '2'
+      await revised.standings()
+
+      expect(read).toHaveBeenCalledTimes(2)
+    } finally {
+      read.mockRestore()
+    }
+  })
+
   it('shares one cold standings read between simultaneous pages', async () => {
     let release!: () => void
     const ready = new Promise<void>((resolve) => {

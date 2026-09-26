@@ -20,6 +20,7 @@ import * as FavouriteFactionsByUserProcedure from '../favourite_factions_by_user
 import * as FriendInviteByInviterProcedure from '../friend_invite_by_inviter_procedure'
 import * as FriendInviteByTokenProcedure from '../friend_invite_by_token_procedure'
 import * as FriendshipsByUserProcedure from '../friendships_by_user_procedure'
+import * as HomeRostersByUserProcedure from '../home_rosters_by_user_procedure'
 import * as LeagueBattleCandidatesProcedure from '../league_battle_candidates_procedure'
 import * as LeagueByTokenProcedure from '../league_by_token_procedure'
 import * as LeagueCommandProcedure from '../league_command_procedure'
@@ -30,8 +31,10 @@ import * as OnboardingByUserProcedure from '../onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from '../operator_health_procedure'
 import * as PracticeOpponentIdsProcedure from '../practice_opponent_ids_procedure'
 import * as ProductStatsProcedure from '../product_stats_procedure'
+import * as PublicStandingsRevisionProcedure from '../public_standings_revision_procedure'
 import * as PushEnabledProcedure from '../push_enabled_procedure'
 import * as PushTargetsProcedure from '../push_targets_procedure'
+import * as RejectFriendProcedure from '../reject_friend_procedure'
 import * as RemoveBattleProcedure from '../remove_battle_procedure'
 import * as RemoveFriendProcedure from '../remove_friend_procedure'
 import * as RequestFriendProcedure from '../request_friend_procedure'
@@ -73,6 +76,8 @@ export type FriendInviteByTokenArgs = __Infer<typeof FriendInviteByTokenProcedur
 export type FriendInviteByTokenResult = __Infer<typeof FriendInviteByTokenProcedure.returnType>
 export type FriendshipsByUserArgs = __Infer<typeof FriendshipsByUserProcedure.params>
 export type FriendshipsByUserResult = __Infer<typeof FriendshipsByUserProcedure.returnType>
+export type HomeRostersByUserArgs = __Infer<typeof HomeRostersByUserProcedure.params>
+export type HomeRostersByUserResult = __Infer<typeof HomeRostersByUserProcedure.returnType>
 export type LeagueBattleCandidatesArgs = __Infer<typeof LeagueBattleCandidatesProcedure.params>
 export type LeagueBattleCandidatesResult = __Infer<typeof LeagueBattleCandidatesProcedure.returnType>
 export type LeagueByTokenArgs = __Infer<typeof LeagueByTokenProcedure.params>
@@ -93,10 +98,14 @@ export type PracticeOpponentIdsArgs = __Infer<typeof PracticeOpponentIdsProcedur
 export type PracticeOpponentIdsResult = __Infer<typeof PracticeOpponentIdsProcedure.returnType>
 export type ProductStatsArgs = __Infer<typeof ProductStatsProcedure.params>
 export type ProductStatsResult = __Infer<typeof ProductStatsProcedure.returnType>
+export type PublicStandingsRevisionArgs = __Infer<typeof PublicStandingsRevisionProcedure.params>
+export type PublicStandingsRevisionResult = __Infer<typeof PublicStandingsRevisionProcedure.returnType>
 export type PushEnabledArgs = __Infer<typeof PushEnabledProcedure.params>
 export type PushEnabledResult = __Infer<typeof PushEnabledProcedure.returnType>
 export type PushTargetsArgs = __Infer<typeof PushTargetsProcedure.params>
 export type PushTargetsResult = __Infer<typeof PushTargetsProcedure.returnType>
+export type RejectFriendArgs = __Infer<typeof RejectFriendProcedure.params>
+export type RejectFriendResult = __Infer<typeof RejectFriendProcedure.returnType>
 export type RemoveBattleArgs = __Infer<typeof RemoveBattleProcedure.params>
 export type RemoveBattleResult = __Infer<typeof RemoveBattleProcedure.returnType>
 export type RemoveFriendArgs = __Infer<typeof RemoveFriendProcedure.params>

@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronLeft } from 'lucide-react'
-import { formatDate } from '../../../dates'
+import { useDateFormatting } from '../../../dates'
 import { ruleIndexQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
 
 /** One document's contents: every section, and every rule in it by number and name. */
 export function RuleContents({ documentId }: { documentId: string }) {
+  const { date } = useDateFormatting()
   const { data } = useQuery(ruleIndexQuery())
   const document = data?.documents.find((candidate) => candidate.slug === documentId)
   if (!data || !document) return null
@@ -20,7 +21,7 @@ export function RuleContents({ documentId }: { documentId: string }) {
           <>
             {document.sections.length} sections. Open one to read it.
             {/* When the source last wrote this document, which is how current these rules are. */}
-            {document.updated ? ` Updated ${formatDate(document.updated)}.` : null}
+            {document.updated ? ` Updated ${date(document.updated)}.` : null}
           </>
         }
       />
