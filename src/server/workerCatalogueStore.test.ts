@@ -8,7 +8,9 @@ import { WorkerCatalogueStore } from './workerCatalogueStore'
 const snapshotId = 'a'.repeat(64)
 const part = 'partitions/000000000000000000000000.json'
 const globalReference = 'references/global.json'
+const factionReference = 'references/factions/000000000000000000000000.json'
 const documentId = 'rule:core:move'
+const datasheetDocumentId = 'datasheet:army:unit'
 const encode = (value: unknown) => new TextEncoder().encode(encodeCatalogueArtifact(value)).buffer
 const sha256 = (bytes: ArrayBuffer) => createHash('sha256').update(Buffer.from(bytes)).digest('hex')
 
@@ -41,6 +43,16 @@ function fixture() {
     },
     documents: [
       {
+        id: datasheetDocumentId,
+        kind: 'datasheet',
+        title: 'Unit',
+        faction: 'Test army',
+        url: '/factions/army/datasheets/unit',
+        sections: [],
+        revisions: {},
+        attribution: [],
+      },
+      {
         id: documentId,
         kind: 'rule',
         title: 'Move Units',
@@ -59,8 +71,8 @@ function fixture() {
     index: { factions: [] },
     factions: [],
     shards: [globalReference],
-    factionShards: { army: globalReference },
-    documentShards: { [documentId]: globalReference },
+    factionShards: { army: factionReference },
+    documentShards: { [documentId]: globalReference, [datasheetDocumentId]: factionReference },
     paths: ['/factions', '/rules'],
   })
   const manifest = encode({
@@ -71,6 +83,7 @@ function fixture() {
       'shared.json': { sha256: sha256(shared), bytes: shared.byteLength },
       'reference-meta.json': { sha256: sha256(referenceMetadata), bytes: referenceMetadata.byteLength },
       [globalReference]: { sha256: sha256(referenceShard), bytes: referenceShard.byteLength },
+      [factionReference]: { sha256: sha256(referenceShard), bytes: referenceShard.byteLength },
       [part]: { sha256: sha256(partition), bytes: partition.byteLength },
     },
     partitions: { army: part },
@@ -82,6 +95,7 @@ function fixture() {
     [`${prefix}/shared.json`, shared],
     [`${prefix}/reference-meta.json`, referenceMetadata],
     [`${prefix}/${globalReference}`, referenceShard],
+    [`${prefix}/${factionReference}`, referenceShard],
     [`${prefix}/${part}`, partition],
   ])
   const read = async (key: string, maxBytes: number) => {
@@ -118,7 +132,7 @@ it('serves a reference datasheet without loading its faction partition', async (
   const { read, manifestSha256 } = fixture()
   const store = new WorkerCatalogueStore(
     (key, maxBytes) => {
-      if (key.includes('/partitions/')) throw new Error('partition should not be read')
+      if (key.includes('/partitions/') || key.endsWith('/references/global.json')) throw new Error('unrelated shard should not be read')
       return read(key, maxBytes)
     },
     snapshotId,
@@ -144,6 +158,19 @@ it('looks up one verified reference document without loading other shards', asyn
   const { read, manifestSha256 } = fixture()
   const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
   expect((await store.referenceForDocument(documentId))?.byId.get(documentId)?.title).toBe('Move Units')
+})
+
+it('reads a datasheet document from its dedicated faction shard', async () => {
+  const { read, manifestSha256 } = fixture()
+  const store = new WorkerCatalogueStore(
+    (key, maxBytes) => {
+      if (key.endsWith('/references/global.json')) throw new Error('search shard should not be read')
+      return read(key, maxBytes)
+    },
+    snapshotId,
+    manifestSha256,
+  )
+  expect((await store.referenceForDocument(datasheetDocumentId))?.byId.get(datasheetDocumentId)?.title).toBe('Unit')
 })
 
 it('finds a reference through a bounded shard search', async () => {

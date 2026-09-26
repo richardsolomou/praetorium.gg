@@ -123,7 +123,7 @@ for (const { id, bytes } of weightedGroups.toSorted((left, right) => right.bytes
   bucket.bytes += bytes
 }
 
-function writeReferenceShard(name: string, ids: readonly string[], documents: ReferenceDocument[], ruleDocuments = false) {
+function writeReferenceShard(name: string, ids: readonly string[], documents: ReferenceDocument[], ruleDocuments = false, search = true) {
   const selected = ids.map((id) => groups.get(id)!)
   write(name, {
     catalogue: {
@@ -136,7 +136,7 @@ function writeReferenceShard(name: string, ids: readonly string[], documents: Re
     documents,
     revision: reference.revision,
   })
-  referenceShards.push(name)
+  if (search) referenceShards.push(name)
   for (const id of ids) factionShards[id] = name
   for (const document of documents) documentShards[document.id] = name
 }
@@ -151,6 +151,11 @@ for (const [index, bucket] of buckets.entries()) {
     bucket.ids,
     bucket.ids.flatMap((id) => groups.get(id)!.documents),
   )
+}
+for (const [id, group] of groups) {
+  const name = `references/factions/${createHash('sha256').update(id).digest('hex').slice(0, 24)}.json`
+  if (entries[name]) throw new Error(`Reference faction shard collision ${id}`)
+  writeReferenceShard(name, [id], group.documents, false, false)
 }
 const paths = new Set<string>(['/factions', '/rules'])
 for (const document of reference.documents) {

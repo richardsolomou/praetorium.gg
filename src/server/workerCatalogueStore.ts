@@ -79,7 +79,7 @@ export function workerCatalogueManifest(value: unknown, snapshotId: string): Wor
   }
   for (const [name, entry] of Object.entries(manifest.entries)) {
     if (
-      !/^(?:shared|reference-meta|partitions\/[0-9a-f]{24}|references\/(?:global|[0-7]))\.json$/.test(name) ||
+      !/^(?:shared|reference-meta|partitions\/[0-9a-f]{24}|references\/(?:global|[0-7]|factions\/[0-9a-f]{24}))\.json$/.test(name) ||
       !entry ||
       !HASH.test(entry.sha256) ||
       !Number.isSafeInteger(entry.bytes) ||
@@ -247,11 +247,12 @@ export class WorkerCatalogueStore {
           throw new Error('Invalid Worker reference metadata')
         }
         const shards = new Set(metadata.shards)
+        const factionShards = new Set(Object.values(metadata.factionShards))
         if (
           !shards.has('references/global.json') ||
           [...shards].some((name) => !manifest.entries[name]) ||
-          Object.values(metadata.factionShards).some((name) => !shards.has(name)) ||
-          Object.values(metadata.documentShards).some((name) => !shards.has(name)) ||
+          [...factionShards].some((name) => !name.startsWith('references/factions/') || !manifest.entries[name]) ||
+          Object.values(metadata.documentShards).some((name) => !shards.has(name) && !factionShards.has(name)) ||
           metadata.paths.some((name) => typeof name !== 'string' || !name.startsWith('/') || name.length > 500)
         ) {
           throw new Error('Invalid Worker reference metadata')
@@ -270,7 +271,9 @@ export class WorkerCatalogueStore {
 
   async referenceShard(name: string): Promise<ReferenceCorpus> {
     const [manifest, metadata] = await Promise.all([this.manifest(), this.referenceMetadata()])
-    if (!metadata.shards.includes(name)) throw new Error('Invalid Worker reference shard')
+    if (!metadata.shards.includes(name) && !Object.values(metadata.factionShards).includes(name)) {
+      throw new Error('Invalid Worker reference shard')
+    }
     const value = decodeCatalogueArtifact(await this.bytes(name, manifest.entries[name]!))
     if (!value || typeof value !== 'object') throw new Error('Invalid Worker reference shard')
     const corpus = value as Partial<ReferenceCorpus>
