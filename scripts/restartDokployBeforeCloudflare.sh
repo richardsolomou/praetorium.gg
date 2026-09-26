@@ -4,14 +4,19 @@ set -euo pipefail
 test -n "${DOKPLOY_URL:?}"
 test -n "${DOKPLOY_API_KEY:?}"
 test -n "${DOKPLOY_APPLICATION_ID:?}"
+test -n "${CLOUDFLARE_API_TOKEN:?}"
 
-headers="$(mktemp)"
-trap 'rm -f "$headers"' EXIT
-curl --silent --show-error --max-time 15 --dump-header "$headers" --output /dev/null \
-  https://praetorium.gg/api/health || true
-if tr -d '\r' < "$headers" | grep -Eiq '^x-praetorium-runtime: cloudflare$'; then
+if ! cutover_state="$(bash "$(dirname "$0")/detectCloudflareCutover.sh")"; then
+  echo 'Cannot confirm that production routes are unclaimed; leaving the previous application stopped' >&2
+  exit 1
+fi
+if [[ "$cutover_state" == needed=false ]]; then
   echo 'Cloudflare already serves production; leaving the previous application stopped'
   exit 0
+fi
+if [[ "$cutover_state" != needed=true ]]; then
+  echo "Unexpected cutover state: $cutover_state" >&2
+  exit 1
 fi
 
 details="$(curl --fail --silent --show-error --max-time 30 --get \

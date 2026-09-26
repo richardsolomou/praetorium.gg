@@ -290,9 +290,6 @@ jobs:
             '{AUTH_SECRET: $auth, SPACETIME_URL: $spacetime, SPACETIME_OPERATOR_TOKEN: $operator, SPACETIME_ACCESS_CLIENT_ID: $access_id, SPACETIME_ACCESS_CLIENT_SECRET: $access_secret, APPLE_CLIENT_ID: $apple_client, APPLE_TEAM_ID: $apple_team, APPLE_KEY_ID: $apple_key, APPLE_PRIVATE_KEY: $apple_private, GOOGLE_CLIENT_ID: $google_client, GOOGLE_CLIENT_SECRET: $google_secret, DISCORD_CLIENT_ID: $discord_client, DISCORD_CLIENT_SECRET: $discord_secret, SMTP_HOST: $smtp_host, SMTP_PORT: $smtp_port, SMTP_SECURE: $smtp_secure, SMTP_USER: $smtp_user, SMTP_PASSWORD: $smtp_password, EMAIL_FROM: $email_from, EXPO_PUSH_ACCESS_TOKEN: $expo_push}' \
             > "$RUNNER_TEMP/wrangler-production-secrets.json"
           pnpm exec wrangler deploy --config "$RUNNER_TEMP/wrangler-production.json" --dry-run --outdir "$RUNNER_TEMP/worker"
-      - name: Mark production route attempt
-        id: route_attempt
-        run: echo 'attempted=true' >> "$GITHUB_OUTPUT"
       - name: Deploy production Worker routes
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
@@ -336,8 +333,9 @@ jobs:
             test "$ready" = true
           done
       - name: Restore previous application if cutover failed before routing
-        if: failure() && steps.cutover.outputs.needed == 'true' && steps.route_attempt.outputs.attempted != 'true'
+        if: failure() && steps.cutover.outputs.needed == 'true'
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
           DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
