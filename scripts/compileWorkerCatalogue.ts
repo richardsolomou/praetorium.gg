@@ -56,8 +56,8 @@ write('shared.json', {
   datacards: loaded.datacards,
   sourceReferences: loaded.sourceReferences,
   rules,
-  searchIndex: compiledGlobalSearchIndex(loaded, rules),
 })
+write('search.json', compiledGlobalSearchIndex(loaded, rules))
 write('navigation.json', {
   factionIndex: factionIndexFor(loaded, rules),
   factions: factionsFor(loaded, rules),

@@ -264,6 +264,7 @@ export function app(): App {
               operator!.health(),
               workerCatalogue ? workerShared() : undefined,
               workerCatalogue ? workerCatalogue.navigation() : undefined,
+              workerCatalogue ? workerCatalogue.searchIndex() : undefined,
             ])
           } catch (error) {
             console.error('Hosted health check failed:', error instanceof Error ? error.message : String(error), {
@@ -307,7 +308,7 @@ export function app(): App {
       },
       factionIconFor: async (id) => (workerCatalogue ? workerCatalogue.factionIcon(id) : (instance.rules()?.factionIcons.get(id) ?? null)),
       searchIndexFor: async () => {
-        if (workerCatalogue) return (await workerShared()).searchIndex
+        if (workerCatalogue) return workerCatalogue.searchIndex()
         const catalogue = instance.catalogue()
         return catalogue ? compiledGlobalSearchIndex(catalogue, instance.rules()) : null
       },
@@ -328,7 +329,7 @@ export function app(): App {
       ready = warm(instance)
     }
     if (workerCatalogue) {
-      ready = Promise.all([workerCatalogue.navigation(), workerCatalogue.referenceMetadata()]).then(
+      ready = Promise.all([workerCatalogue.navigation(), workerCatalogue.searchIndex(), workerCatalogue.referenceMetadata()]).then(
         () => {
           nativeSyncState = { status: 'ready', detail: null }
         },

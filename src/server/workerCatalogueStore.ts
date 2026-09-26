@@ -27,7 +27,6 @@ type Shared = {
   datacards: LoadedDatacards
   sourceReferences: ExternalReferences
   rules: LoadedRules
-  searchIndex: GlobalSearchIndex
 }
 type Navigation = {
   factionIndex: ReturnType<typeof factionIndexFor>
@@ -54,6 +53,7 @@ type Resolved = {
   manifest?: WorkerCatalogueManifest
   shared?: Shared
   navigation?: Navigation
+  searchIndex?: GlobalSearchIndex
   referenceMetadata?: ReferenceMetadata
 }
 
@@ -64,6 +64,7 @@ function resolvedCache(): Resolved {
 const MAX_MANIFEST_BYTES = 512 * 1024
 const MAX_SHARED_BYTES = 20 * 1024 * 1024
 const MAX_NAVIGATION_BYTES = 2 * 1024 * 1024
+const MAX_SEARCH_BYTES = 3 * 1024 * 1024
 const MAX_PARTITION_BYTES = 10 * 1024 * 1024
 const MAX_REFERENCE_METADATA_BYTES = 2 * 1024 * 1024
 const MAX_REFERENCE_SHARD_BYTES = 8 * 1024 * 1024
@@ -91,7 +92,7 @@ export function workerCatalogueManifest(value: unknown, snapshotId: string): Wor
   }
   for (const [name, entry] of Object.entries(manifest.entries)) {
     if (
-      !/^(?:shared|navigation|reference-meta|partitions\/[0-9a-f]{24}|references\/(?:global|[0-7]|factions\/[0-9a-f]{24}|sheets\/[0-9a-f]{24}))\.json$/.test(
+      !/^(?:shared|navigation|search|reference-meta|partitions\/[0-9a-f]{24}|references\/(?:global|[0-7]|factions\/[0-9a-f]{24}|sheets\/[0-9a-f]{24}))\.json$/.test(
         name,
       ) ||
       !entry ||
@@ -103,19 +104,22 @@ export function workerCatalogueManifest(value: unknown, snapshotId: string): Wor
           ? MAX_SHARED_BYTES
           : name === 'navigation.json'
             ? MAX_NAVIGATION_BYTES
-            : name === 'reference-meta.json'
-              ? MAX_REFERENCE_METADATA_BYTES
-              : name.startsWith('references/sheets/')
-                ? MAX_SHEET_BYTES
-                : name.startsWith('references/')
-                  ? MAX_REFERENCE_SHARD_BYTES
-                  : MAX_PARTITION_BYTES)
+            : name === 'search.json'
+              ? MAX_SEARCH_BYTES
+              : name === 'reference-meta.json'
+                ? MAX_REFERENCE_METADATA_BYTES
+                : name.startsWith('references/sheets/')
+                  ? MAX_SHEET_BYTES
+                  : name.startsWith('references/')
+                    ? MAX_REFERENCE_SHARD_BYTES
+                    : MAX_PARTITION_BYTES)
     ) {
       throw new Error('Invalid Worker catalogue entry')
     }
   }
   if (!manifest.entries['shared.json']) throw new Error('Worker catalogue shared data is missing')
   if (!manifest.entries['navigation.json']) throw new Error('Worker catalogue navigation data is missing')
+  if (!manifest.entries['search.json']) throw new Error('Worker catalogue search data is missing')
   if (!manifest.entries['reference-meta.json']) throw new Error('Worker reference metadata is missing')
   for (const [id, name] of Object.entries(manifest.partitions)) {
     if (!id || id.length > 128 || typeof name !== 'string' || !Object.hasOwn(manifest.entries, name)) {
@@ -131,8 +135,7 @@ function sharedOf(value: unknown): Shared {
   if (
     !(shared.datacards?.factions instanceof Map) ||
     !(shared.sourceReferences?.units?.byCanonicalId instanceof Map) ||
-    !(shared.rules?.byDetachment instanceof Map) ||
-    !Array.isArray(shared.searchIndex?.datasheets)
+    !(shared.rules?.byDetachment instanceof Map)
   ) {
     throw new Error('Invalid Worker catalogue shared data')
   }
@@ -159,6 +162,7 @@ export class WorkerCatalogueStore {
   private manifestPromise?: Promise<WorkerCatalogueManifest>
   private sharedPromise?: Promise<Shared>
   private navigationPromise?: Promise<Navigation>
+  private searchPromise?: Promise<GlobalSearchIndex>
   private referenceMetadataPromise?: Promise<ReferenceMetadata>
   private readonly version: string
 
@@ -178,6 +182,7 @@ export class WorkerCatalogueStore {
       delete cache.manifest
       delete cache.shared
       delete cache.navigation
+      delete cache.searchIndex
       delete cache.referenceMetadata
     }
     return cache
@@ -247,6 +252,35 @@ export class WorkerCatalogueStore {
         throw error
       })
     return this.navigationPromise
+  }
+
+  async searchIndex() {
+    const cached = this.resolved().searchIndex
+    if (cached) return cached
+    this.searchPromise ??= this.manifest()
+      .then(async (manifest) => {
+        const value = decodeCatalogueArtifact(await this.bytes('search.json', manifest.entries['search.json']!))
+        if (!value || typeof value !== 'object') throw new Error('Invalid Worker catalogue search data')
+        const index = value as Partial<GlobalSearchIndex>
+        if (
+          !Array.isArray(index.factions) ||
+          !Array.isArray(index.detachments) ||
+          !Array.isArray(index.datasheets) ||
+          !Array.isArray(index.missions) ||
+          !Array.isArray(index.rules)
+        ) {
+          throw new Error('Invalid Worker catalogue search data')
+        }
+        const verified = index as GlobalSearchIndex
+        const cache = resolvedCache()
+        if (cache.version === this.version) cache.searchIndex = verified
+        return verified
+      })
+      .catch((error: unknown) => {
+        this.searchPromise = undefined
+        throw error
+      })
+    return this.searchPromise
   }
 
   async catalogue(catalogueId: string) {

@@ -63,14 +63,15 @@ export const globalSearch = createServerFn({ method: 'GET' })
   .validator(globalSearchSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const rules = await app().rulesFor()
+      const catalogueIndex = await app().searchIndexFor()
       return searchEverything(data.query, {
         catalogue: null,
-        catalogueIndex: (await app().searchIndexFor()) ?? undefined,
-        rules,
+        catalogueIndex: catalogueIndex ?? undefined,
+        rules: catalogueIndex ? null : await app().rulesFor(),
         own: async () => {
           const userId = await currentUserId()
           if (!userId) return null
+          const rules = await app().rulesFor()
           // Bounded: search offers the recently active battles, not a fold of every
           // battle the account has ever played on each keystroke.
           const [rosters, page] = await Promise.all([

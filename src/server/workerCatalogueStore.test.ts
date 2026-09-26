@@ -24,7 +24,6 @@ function fixture() {
     datacards: { factions: new Map() },
     sourceReferences: emptyExternalReferences(),
     rules: { byDetachment: new Map() },
-    searchIndex: { factions: [], detachments: [], datasheets: [] },
   })
   const navigation = encode({
     factionIndex: { revision: 'test-revision', factions: [] },
@@ -34,6 +33,7 @@ function fixture() {
     referenceDatasheets: new Map([['army', [{ id: 'unit', slug: 'unit', name: 'Unit' }]]]),
     history: null,
   })
+  const searchIndex = encode({ factions: [], detachments: [], datasheets: [], missions: [], rules: [] })
   const partition = encode([
     { gameSystem: { id: 'system', name: 'Test system', costTypes: [{ id: 'points', name: 'pts' }] } },
     { catalogue: { id: 'army', name: 'Test army', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] } },
@@ -88,6 +88,7 @@ function fixture() {
     entries: {
       'shared.json': { sha256: sha256(shared), bytes: shared.byteLength },
       'navigation.json': { sha256: sha256(navigation), bytes: navigation.byteLength },
+      'search.json': { sha256: sha256(searchIndex), bytes: searchIndex.byteLength },
       'reference-meta.json': { sha256: sha256(referenceMetadata), bytes: referenceMetadata.byteLength },
       [globalReference]: { sha256: sha256(referenceShard), bytes: referenceShard.byteLength },
       [factionReference]: { sha256: sha256(referenceShard), bytes: referenceShard.byteLength },
@@ -102,6 +103,7 @@ function fixture() {
     [`${prefix}/manifest.json`, manifest],
     [`${prefix}/shared.json`, shared],
     [`${prefix}/navigation.json`, navigation],
+    [`${prefix}/search.json`, searchIndex],
     [`${prefix}/reference-meta.json`, referenceMetadata],
     [`${prefix}/${globalReference}`, referenceShard],
     [`${prefix}/${factionReference}`, referenceShard],
@@ -137,6 +139,7 @@ it('serves the initial faction list from eager shared data', async () => {
   )
   expect((await store.referenceDatasheets('army'))?.map((sheet) => sheet.name)).toEqual(['Unit'])
   expect(await store.factionIcon('army')).toMatch(/^data:image\/svg\+xml;base64,/)
+  expect((await store.searchIndex()).datasheets).toEqual([])
 })
 
 it('serves a reference datasheet without loading its faction partition', async () => {
@@ -224,7 +227,7 @@ it('retries a transient shared object read failure', async () => {
   )
   await expect(store.shared()).rejects.toThrow('Asset unavailable')
   unavailable = false
-  expect((await store.shared()).searchIndex.datasheets).toEqual([])
+  expect((await store.shared()).datacards.factions).toBeInstanceOf(Map)
 })
 
 it('reuses verified shared data after the request that loaded it ends', async () => {
@@ -267,5 +270,5 @@ it('does not share an unfinished asset read with another request', async () => {
   release(objects.get(`${prefix}/shared.json`)!)
   await pending
 
-  expect(shared.searchIndex.datasheets).toEqual([])
+  expect(shared.datacards.factions).toBeInstanceOf(Map)
 })
