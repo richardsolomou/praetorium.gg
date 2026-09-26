@@ -10,12 +10,14 @@ import { type RosterVerdict, rosterVerdict } from './rosterStatus'
 const rosterTotalsCache = new Map<string, ReturnType<typeof calculateRosterTotals>>()
 const ROSTER_TOTALS_CACHE_LIMIT = 10_000
 
+const revisionKey = (roster: { id: string; updatedAt: Date | number }, revision: string) =>
+  `${roster.id}:${new Date(roster.updatedAt).getTime()}:${revision}`
+
 async function rosterRevisionKey(roster: { id: string; updatedAt: Date | number }) {
-  const revision = (await app().factionIndexFor())?.revision ?? 'none'
-  return `${roster.id}:${new Date(roster.updatedAt).getTime()}:${revision}`
+  return revisionKey(roster, (await app().factionIndexFor())?.revision ?? 'none')
 }
 
-export async function cachedRosterTotals(roster: {
+type TotalsRoster = {
   id: string
   updatedAt: Date | number
   catalogueId: string
@@ -24,28 +26,50 @@ export async function cachedRosterTotals(roster: {
   limit: number
   picks: Parameters<typeof calculateRosterTotals>[0]['units']
   waivedRules: Parameters<typeof calculateRosterTotals>[0]['waivedRules']
-}) {
-  const key = await rosterRevisionKey(roster)
-  const cached = rosterTotalsCache.get(key)
-  if (cached !== undefined || rosterTotalsCache.has(key)) return cached ?? null
-  const totals = calculateRosterTotals(
-    {
-      catalogueId: roster.catalogueId,
-      detachmentIds: roster.detachmentIds,
-      disposition: roster.disposition,
-      limit: roster.limit,
-      units: roster.picks,
-      waivedRules: roster.waivedRules,
-    },
-    await app().catalogueFor(roster.catalogueId),
-    await app().rulesFor(),
-  )
-  if (rosterTotalsCache.size >= ROSTER_TOTALS_CACHE_LIMIT) {
-    const oldest = rosterTotalsCache.keys().next().value
-    if (oldest !== undefined) rosterTotalsCache.delete(oldest)
+}
+
+export async function cachedRosterTotalsFor(rosters: readonly TotalsRoster[]) {
+  if (!rosters.length) return []
+  const revision = (await app().factionIndexFor())?.revision ?? 'none'
+  const values: ReturnType<typeof calculateRosterTotals>[] = Array(rosters.length).fill(null)
+  const missing = new Map<string, number[]>()
+  rosters.forEach((roster, index) => {
+    const key = revisionKey(roster, revision)
+    if (rosterTotalsCache.has(key)) {
+      values[index] = rosterTotalsCache.get(key) ?? null
+      return
+    }
+    const positions = missing.get(roster.catalogueId) ?? []
+    positions.push(index)
+    missing.set(roster.catalogueId, positions)
+  })
+  if (!missing.size) return values
+  const rules = await app().rosterLabelRulesFor()
+  for (const [catalogueId, positions] of missing) {
+    const loaded = await app().catalogueFor(catalogueId)
+    for (const index of positions) {
+      const roster = rosters[index]!
+      const totals = calculateRosterTotals(
+        {
+          catalogueId: roster.catalogueId,
+          detachmentIds: roster.detachmentIds,
+          disposition: roster.disposition,
+          limit: roster.limit,
+          units: roster.picks,
+          waivedRules: roster.waivedRules,
+        },
+        loaded,
+        rules,
+      )
+      values[index] = totals
+      if (rosterTotalsCache.size >= ROSTER_TOTALS_CACHE_LIMIT) {
+        const oldest = rosterTotalsCache.keys().next().value
+        if (oldest !== undefined) rosterTotalsCache.delete(oldest)
+      }
+      rosterTotalsCache.set(revisionKey(roster, revision), totals)
+    }
   }
-  rosterTotalsCache.set(key, totals)
-  return totals
+  return values
 }
 
 const rosterPriceCache = new Map<string, ReturnType<typeof calculateRosterPrice>>()
@@ -66,7 +90,8 @@ export async function cachedRosterPrice(roster: {
   const key = await rosterRevisionKey(roster)
   const cached = rosterPriceCache.get(key)
   if (cached !== undefined || rosterPriceCache.has(key)) return cached ?? null
-  const price = calculateRosterPrice(savedRosterPriceInput(roster), await app().catalogueFor(roster.catalogueId), await app().rulesFor())
+  const [catalogue, rules] = await Promise.all([app().catalogueFor(roster.catalogueId), app().rulesFor()])
+  const price = calculateRosterPrice(savedRosterPriceInput(roster), catalogue, rules)
   if (rosterPriceCache.size >= ROSTER_PRICE_CACHE_LIMIT) {
     const oldest = rosterPriceCache.keys().next().value
     if (oldest !== undefined) rosterPriceCache.delete(oldest)
@@ -83,21 +108,40 @@ export async function cachedRosterPrice(roster: {
 const rosterVerdictCache = new Map<string, RosterVerdict>()
 const ROSTER_VERDICT_CACHE_LIMIT = 10_000
 
-export async function cachedRosterVerdict(roster: Parameters<typeof cachedRosterPrice>[0]) {
-  const key = await rosterRevisionKey(roster)
-  const cached = rosterVerdictCache.get(key)
-  if (cached) return cached
+export async function cachedRosterVerdictsFor(rosters: readonly Parameters<typeof cachedRosterPrice>[0][]) {
+  if (!rosters.length) return []
+  const revision = (await app().factionIndexFor())?.revision ?? 'none'
+  const values: RosterVerdict[] = Array(rosters.length)
+  const missing = new Map<string, number[]>()
+  rosters.forEach((roster, index) => {
+    const key = revisionKey(roster, revision)
+    const cached = rosterVerdictCache.get(key)
+    if (cached) {
+      values[index] = cached
+      return
+    }
+    const positions = missing.get(roster.catalogueId) ?? []
+    positions.push(index)
+    missing.set(roster.catalogueId, positions)
+  })
+  if (!missing.size) return values
   // Without the rules source a list cannot be judged the way a battle judges it.
   const rules = await app().rulesFor()
-  const priced = rules
-    ? (rosterPriceCache.get(key) ??
-      calculateRosterPrice(savedRosterPriceInput(roster), await app().catalogueFor(roster.catalogueId), rules))
-    : null
-  const verdict = rosterVerdict(roster, priced)
-  if (rosterVerdictCache.size >= ROSTER_VERDICT_CACHE_LIMIT) {
-    const oldest = rosterVerdictCache.keys().next().value
-    if (oldest !== undefined) rosterVerdictCache.delete(oldest)
+  for (const [catalogueId, positions] of missing) {
+    const unpriced = positions.some((index) => !rosterPriceCache.get(revisionKey(rosters[index]!, revision)))
+    const loaded = rules && unpriced ? await app().catalogueFor(catalogueId) : null
+    for (const index of positions) {
+      const roster = rosters[index]!
+      const key = revisionKey(roster, revision)
+      const priced = rules ? (rosterPriceCache.get(key) ?? calculateRosterPrice(savedRosterPriceInput(roster), loaded, rules)) : null
+      const verdict = rosterVerdict(roster, priced)
+      values[index] = verdict
+      if (rosterVerdictCache.size >= ROSTER_VERDICT_CACHE_LIMIT) {
+        const oldest = rosterVerdictCache.keys().next().value
+        if (oldest !== undefined) rosterVerdictCache.delete(oldest)
+      }
+      rosterVerdictCache.set(key, verdict)
+    }
   }
-  rosterVerdictCache.set(key, verdict)
-  return verdict
+  return values
 }

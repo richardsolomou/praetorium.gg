@@ -466,6 +466,10 @@ export class SpacetimeRepository implements RepositoryPort {
     return this.product.rostersByUser(...args)
   }
 
+  homeRostersByUser(...args: Parameters<Repository['homeRostersByUser']>) {
+    return this.product.homeRostersByUser(...args)
+  }
+
   publicRostersByUser(...args: Parameters<Repository['publicRostersByUser']>) {
     return this.product.publicRostersByUser(...args)
   }

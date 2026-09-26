@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { Repository } from '../db/repository'
 import { battles, battleUsers, practiceOpponents } from '../db/schema'
 import type { Command, Roster } from '../core/battle'
 import type { RosterVisibility } from '../core/savedRoster'
@@ -1190,6 +1191,47 @@ describe('saved rosters', () => {
       source: 'editable',
     })
 
+  it('returns an empty home roster shelf for a new account', async () => {
+    expect(await service.homeRosters('alice')).toEqual({ count: 0, summaries: [], priceable: [] })
+  })
+
+  it('counts one saved roster on home', async () => {
+    const { id } = await save()
+    const home = await service.homeRosters('alice')
+    expect({ count: home.count, ids: home.summaries.map((roster) => roster.id) }).toEqual({ count: 1, ids: [id] })
+  })
+
+  it('keeps the full roster count while selecting the five most recently edited lists', async () => {
+    const first = await save()
+    const later = []
+    for (let index = 0; index < 5; index++) later.push(await save())
+    await service.saveRoster('alice', {
+      id: first.id,
+      name: 'Edited force',
+      catalogueId: 'necrons',
+      detachmentIds: ['awakened-dynasty'],
+      disposition: 'reconnaissance',
+      limit: 2000,
+      picks: [],
+      prep: null,
+      visibility: 'private',
+      source: 'editable',
+    })
+
+    const home = await service.homeRosters('alice')
+    expect({ count: home.count, ids: home.summaries.map((roster) => roster.id), priceable: home.priceable.length }).toEqual({
+      count: 6,
+      ids: [
+        first.id,
+        ...later
+          .slice(1)
+          .toReversed()
+          .map((roster) => roster.id),
+      ],
+      priceable: 5,
+    })
+  })
+
   it('keeps roster metadata', async () => {
     await save()
     expect((await service.savedRosters('alice'))[0]).toMatchObject({
@@ -1898,6 +1940,40 @@ describe("a player's profile", () => {
 })
 
 describe('standings', () => {
+  it('shares one cold standings read between simultaneous pages', async () => {
+    let release!: () => void
+    const ready = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const read = vi.spyOn(Repository.prototype, 'watchableBattlesSince').mockImplementation(async () => {
+      await ready
+      return []
+    })
+    try {
+      const first = service.standings()
+      const second = service.standings()
+      release()
+      await Promise.all([first, second])
+      expect(read).toHaveBeenCalledTimes(1)
+    } finally {
+      read.mockRestore()
+    }
+  })
+
+  it('retries a failed standings read', async () => {
+    const read = vi.spyOn(Repository.prototype, 'watchableBattlesSince').mockImplementationOnce(async () => {
+      throw new Error('standings unavailable')
+    })
+    try {
+      await expect(service.standings()).rejects.toThrow('standings unavailable')
+      read.mockResolvedValue([])
+      await expect(service.standings()).resolves.toMatchObject({ overall: { rows: [] } })
+      expect(read).toHaveBeenCalledTimes(2)
+    } finally {
+      read.mockRestore()
+    }
+  })
+
   it('counts a finished battle and leaves a running one out', async () => {
     const running = await started()
     const finished = await started()
@@ -1937,6 +2013,7 @@ describe('standings', () => {
     await send('alice', { kind: 'score', category: 'primary', delta: 10 })
     await send('alice', { kind: 'end-battle' })
 
+    await service.standings()
     const table = await service.standings([{ id: 'catalogue', slug: 'ultramarines', displayName: 'Ultramarines', icon: null }])
 
     // One table per faction played, ranking the players who fielded it.

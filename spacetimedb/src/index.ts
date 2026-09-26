@@ -883,6 +883,26 @@ export const rostersByUser = spacetime.procedure(
     }),
 )
 
+export const homeRostersByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (!userId || userId.length > 128) throw new SenderError('Invalid roster query')
+    const rows: NonNullable<ReturnType<typeof tx.db.rosters.id.find>>[] = []
+    let count = 0
+    const compare = (left: (typeof rows)[number], right: (typeof rows)[number]) => {
+      if (left.updatedAt !== right.updatedAt) return left.updatedAt > right.updatedAt ? -1 : 1
+      return left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
+    }
+    for (const row of tx.db.rosters.userId.filter(userId)) {
+      if (++count > 1_000) throw new SenderError('Roster list exceeds the supported limit')
+      rows.push(row)
+      rows.sort(compare)
+      if (rows.length > 5) rows.pop()
+    }
+    return productJson({ count, rows })
+  }),
+)
+
 export const saveRoster = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) => {
   if (payload.length > 1_200_000) throw new SenderError('Roster is too large')
   const input = parseRoster(payload)

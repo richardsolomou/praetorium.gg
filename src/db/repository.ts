@@ -263,6 +263,10 @@ export class Repository {
     return this.rosterRepository.rostersByUser(...args)
   }
 
+  homeRostersByUser(...args: Parameters<RosterRepository['homeRostersByUser']>) {
+    return this.rosterRepository.homeRostersByUser(...args)
+  }
+
   publicRostersByUser(...args: Parameters<RosterRepository['publicRostersByUser']>) {
     return this.rosterRepository.publicRostersByUser(...args)
   }

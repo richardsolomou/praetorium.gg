@@ -16,16 +16,23 @@ type SavedPrep = {
 }
 const PROFILE_ROSTER_LIMIT = 50
 
-function rosterSummaries<T extends { detachmentId: string | null; waivedRules: string; optionalRules: string; picks: string }>(
-  rows: readonly T[],
-) {
-  return rows.map(({ detachmentId, waivedRules, optionalRules, picks, ...row }) => {
-    const units = picksSchema.parse(JSON.parse(picks))
+function rosterSummaries(rows: readonly Awaited<ReturnType<RepositoryPort['rosterSummariesByUser']>>[number][]) {
+  return rows.map((row) => {
+    const units = picksSchema.parse(JSON.parse(row.picks))
     return {
-      ...row,
-      detachmentIds: detachmentIds(detachmentId),
-      waivedRules: waivedRulesFrom(waivedRules),
-      optionalRules: optionalRulesFrom(optionalRules),
+      id: row.id,
+      name: row.name,
+      catalogueId: row.catalogueId,
+      detachmentIds: detachmentIds(row.detachmentId),
+      disposition: row.disposition,
+      limit: row.limit,
+      waivedRules: waivedRulesFrom(row.waivedRules),
+      optionalRules: optionalRulesFrom(row.optionalRules),
+      borrowedDetachmentId: row.borrowedDetachmentId,
+      visibility: row.visibility,
+      source: row.source,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
       unitCount: attachedUnitCount(units.map((unit, key) => ({ key, attachedTo: unit.attachedTo }))),
     }
   })
@@ -87,6 +94,11 @@ export class RosterService {
 
   async savedRosterSummaries(userId: string) {
     return rosterSummaries(await this.repository.rosterSummariesByUser(userId))
+  }
+
+  async homeRosters(userId: string) {
+    const { count, rows } = await this.repository.homeRostersByUser(userId)
+    return { count, summaries: rosterSummaries(rows), priceable: rows.map((row) => rosterFromRow(row)) }
   }
 
   /** Public profile rosters exclude private and unlisted lists. Return priceable picks separately from summaries so they stay server-side. */

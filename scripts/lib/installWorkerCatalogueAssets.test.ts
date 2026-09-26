@@ -13,14 +13,22 @@ async function fixture() {
   const source = path.join(root, 'source')
   const destination = path.join(root, 'public')
   const entries: Record<string, { sha256: string; bytes: number }> = {}
-  for (const name of ['shared.json', 'navigation.json', 'search.json', 'reference-meta.json']) {
+  for (const name of [
+    'shared.json',
+    'battle-missions.json',
+    'battle-read.json',
+    'terrain.json',
+    'navigation.json',
+    'search.json',
+    'reference-meta.json',
+  ]) {
     const bytes = Buffer.from(`{"name":"${name}"}\n`)
     await mkdir(path.dirname(path.join(source, name)), { recursive: true })
     await writeFile(path.join(source, name), bytes)
     entries[name] = { sha256: sha256(bytes), bytes: bytes.length }
   }
   const manifest = Buffer.from(
-    `${JSON.stringify({ format: 'praetorium.worker-catalogue.v2', snapshotId, revision: 'test', entries, partitions: {}, pickers: {} })}\n`,
+    `${JSON.stringify({ format: 'praetorium.worker-catalogue.v2', snapshotId, revision: 'test', entries, partitions: {}, pickers: {}, terrainMatchups: {} })}\n`,
   )
   await writeFile(path.join(source, 'manifest.json'), manifest)
   return { root, source, destination, manifest, entries }

@@ -1,10 +1,9 @@
 import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
-import { routeSlug } from '../../core/slug'
 import { DEFAULT_GAME_LIMIT } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
-import { datasheetIn, datasheetViewsIn, rulesReferencedIn, unitWoundsIn } from '../catalogue'
+import { datasheetIn, datasheetViewsIn, unitWoundsIn } from '../catalogue'
 import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
 import { datacardJoinOutcome } from '../datasheetJoin'
@@ -13,7 +12,6 @@ import { unitsIn } from '../cataloguePicker'
 import { pickerUnitsFor } from '../pickerUnits'
 
 import { gameReferencesFor } from '../gameReferences'
-import { rulesFaction } from '../rules'
 import { type GlobalSearchResult, searchEverything } from '../globalSearch'
 import { mutationRpc, rpc } from '../rpc'
 import { rosterLabel } from '../../core/rosterLabel'
@@ -21,7 +19,7 @@ import { rosterDatasheetContext } from '../rosterDatasheetContext'
 import { rosterCombatant } from '../rosterCombatRules'
 import { currentUserId } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
-import { selectedDetachmentRules } from '../selectedDetachmentRules'
+import { selectedBattleDetachmentData } from '../battleDetachmentData'
 import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
 import {
   datasheetSchema,
@@ -314,28 +312,8 @@ export const detachmentRules = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       cacheUntilSnapshotChanges()
-      const rules = await app().rulesFor()
-      const catalogue = await app().catalogueFor(data.catalogueId)
-      if (!rules || !catalogue) return null
-
-      const book = catalogue.index.catalogues.get(data.catalogueId)
-      const factionSlug = book ? routeSlug(book.name) : null
-      const detachments = factionSlug ? rules.byDetachment.get(rulesFaction(rules, factionSlug)) : undefined
-      const details = factionSlug ? rules.detachmentDetails.get(rulesFaction(rules, factionSlug)) : undefined
-      // Detachment cards use the same text as their reference page; core cards join them from Game Datacards.
-      const selected = selectedDetachmentRules(data.detachmentNames, detachments, details)
-      const written = [...selected.written, ...rules.coreDetails]
-      return {
-        attribution: rules.attribution,
-        dataslate: rules.dataslate,
-        stratagems: selected.live,
-        core: rules.core,
-        written: written.map(({ id, type, description }) => ({ key: id, type, description })),
-        keywordRules: rulesReferencedIn(
-          catalogue,
-          written.map((stratagem) => stratagem.description),
-        ),
-      }
+      const selected = await app().battleDetachmentDataFor(data.catalogueId)
+      return selected ? selectedBattleDetachmentData(selected, data.detachmentNames) : null
     }),
   )
 
@@ -354,7 +332,7 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
 export const deployments = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     cacheUntilSnapshotChanges()
-    const rules = await app().rulesFor()
+    const rules = await app().battleReadRulesFor()
     return rules?.deployments ?? []
   }),
 )
@@ -362,7 +340,7 @@ export const deployments = createServerFn({ method: 'GET' }).handler(() =>
 export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     cacheUntilSnapshotChanges()
-    const rules = await app().rulesFor()
+    const rules = await app().battleReadRulesFor()
     if (!rules) return null
     return gameReferencesFor(rules)
   }),
@@ -395,11 +373,10 @@ export const terrainReferences = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       cacheUntilSnapshotChanges()
-      const rules = await app().rulesFor()
+      const rules = await app().terrainReadRulesFor(data.matchupIds)
       if (!rules) return { layouts: [], templates: [] }
-      const wanted = new Set(data.matchupIds)
       return {
-        layouts: rules.terrainLayouts.filter((layout) => wanted.has(layout.matchupId)),
+        layouts: rules.terrainLayouts,
         templates: rules.terrainTemplates,
       }
     }),

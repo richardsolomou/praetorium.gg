@@ -1,9 +1,9 @@
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
-import { catalogueFromIndex } from './catalogueIndex'
+import { catalogueFromIndex, type LoadedCatalogue } from './catalogueIndex'
 import { decodeCatalogueArtifact } from './catalogueArtifactCodec'
 import type { LoadedDatacards } from './datacards'
 import type { ExternalReferences } from './externalReferences'
-import type { LoadedRules } from './rules'
+import type { BattleMissionRules, BattleReadRules, LoadedRules, TerrainReadRules } from './rules'
 import type { factionIndexFor } from './factionReferences'
 import type { combatUnitsFor } from './combatUnits'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
@@ -14,6 +14,7 @@ import type { referenceFactions, referenceIndex } from './referenceService'
 import type { CanonicalDatasheet, PickerUnit, UnitSummary } from '../contracts/catalogue'
 import { finishReferenceSearch, rankReferencePart, type ReferenceSearchInput } from './referenceSearch'
 import { globalSingleton } from 'ras-stack/server'
+import type { BattleDetachmentData } from './battleDetachmentData'
 
 type Entry = { sha256: string; bytes: number }
 export type WorkerCatalogueManifest = {
@@ -23,6 +24,7 @@ export type WorkerCatalogueManifest = {
   entries: Record<string, Entry>
   partitions: Record<string, string>
   pickers: Record<string, string>
+  terrainMatchups: Record<string, string>
 }
 type Shared = {
   datacards: LoadedDatacards
@@ -32,6 +34,7 @@ type Shared = {
 type Navigation = {
   factionIndex: ReturnType<typeof factionIndexFor>
   factions: ReturnType<typeof factionsFor>
+  factionNames: LoadedRules['factionNames']
   factionIcons: LoadedRules['factionIcons']
   combatUnits: ReturnType<typeof combatUnitsFor>
   referenceDatasheets: Map<string, UnitSummary[]>
@@ -53,6 +56,9 @@ type Resolved = {
   version: string
   manifest?: WorkerCatalogueManifest
   shared?: Shared
+  battleMissions?: BattleMissionRules
+  battleReadRules?: BattleReadRules
+  terrainTemplates?: TerrainReadRules['terrainTemplates']
   navigation?: Navigation
   searchIndex?: GlobalSearchIndex
   referenceMetadata?: ReferenceMetadata
@@ -64,6 +70,10 @@ function resolvedCache(): Resolved {
 
 const MAX_MANIFEST_BYTES = 512 * 1024
 const MAX_SHARED_BYTES = 20 * 1024 * 1024
+const MAX_BATTLE_MISSIONS_BYTES = 128 * 1024
+const MAX_BATTLE_READ_BYTES = 2 * 1024 * 1024
+const MAX_TERRAIN_BYTES = 512 * 1024
+const MAX_DETACHMENT_BYTES = 2 * 1024 * 1024
 const MAX_NAVIGATION_BYTES = 2 * 1024 * 1024
 const MAX_SEARCH_BYTES = 3 * 1024 * 1024
 const MAX_PARTITION_BYTES = 10 * 1024 * 1024
@@ -88,15 +98,17 @@ export function workerCatalogueManifest(value: unknown, snapshotId: string): Wor
     !manifest.entries ||
     !manifest.partitions ||
     !manifest.pickers ||
+    !manifest.terrainMatchups ||
     Object.keys(manifest.entries).length > 2000 ||
     Object.keys(manifest.partitions).length > 100 ||
+    Object.keys(manifest.terrainMatchups).length > 50 ||
     Object.keys(manifest.pickers).length !== Object.keys(manifest.partitions).length
   ) {
     throw new Error('Invalid Worker catalogue manifest')
   }
   for (const [name, entry] of Object.entries(manifest.entries)) {
     if (
-      !/^(?:shared|navigation|search|reference-meta|partitions\/[0-9a-f]{24}|pickers\/[0-9a-f]{24}|references\/(?:global|[0-7]|factions\/[0-9a-f]{24}|sheets\/[0-9a-f]{24}))\.json$/.test(
+      !/^(?:shared|battle-missions|battle-read|terrain|navigation|search|reference-meta|partitions\/[0-9a-f]{24}|detachments\/[0-9a-f]{24}|terrain\/[0-9a-f]{24}|pickers\/[0-9a-f]{24}|references\/(?:global|[0-7]|factions\/[0-9a-f]{24}|sheets\/[0-9a-f]{24}))\.json$/.test(
         name,
       ) ||
       !entry ||
@@ -106,34 +118,55 @@ export function workerCatalogueManifest(value: unknown, snapshotId: string): Wor
       entry.bytes >
         (name === 'shared.json'
           ? MAX_SHARED_BYTES
-          : name === 'navigation.json'
-            ? MAX_NAVIGATION_BYTES
-            : name === 'search.json'
-              ? MAX_SEARCH_BYTES
-              : name === 'reference-meta.json'
-                ? MAX_REFERENCE_METADATA_BYTES
-                : name.startsWith('pickers/')
-                  ? MAX_PICKER_BYTES
-                  : name.startsWith('references/sheets/')
-                    ? MAX_SHEET_BYTES
-                    : name.startsWith('references/')
-                      ? MAX_REFERENCE_SHARD_BYTES
-                      : MAX_PARTITION_BYTES)
+          : name === 'battle-missions.json'
+            ? MAX_BATTLE_MISSIONS_BYTES
+            : name === 'battle-read.json'
+              ? MAX_BATTLE_READ_BYTES
+              : name === 'terrain.json'
+                ? MAX_TERRAIN_BYTES
+                : name.startsWith('detachments/')
+                  ? MAX_DETACHMENT_BYTES
+                  : name.startsWith('terrain/')
+                    ? MAX_TERRAIN_BYTES
+                    : name === 'navigation.json'
+                      ? MAX_NAVIGATION_BYTES
+                      : name === 'search.json'
+                        ? MAX_SEARCH_BYTES
+                        : name === 'reference-meta.json'
+                          ? MAX_REFERENCE_METADATA_BYTES
+                          : name.startsWith('pickers/')
+                            ? MAX_PICKER_BYTES
+                            : name.startsWith('references/sheets/')
+                              ? MAX_SHEET_BYTES
+                              : name.startsWith('references/')
+                                ? MAX_REFERENCE_SHARD_BYTES
+                                : MAX_PARTITION_BYTES)
     ) {
       throw new Error('Invalid Worker catalogue entry')
     }
   }
   if (!manifest.entries['shared.json']) throw new Error('Worker catalogue shared data is missing')
+  if (!manifest.entries['battle-missions.json']) throw new Error('Worker battle mission data is missing')
+  if (!manifest.entries['battle-read.json']) throw new Error('Worker battle read data is missing')
+  if (!manifest.entries['terrain.json']) throw new Error('Worker terrain data is missing')
   if (!manifest.entries['navigation.json']) throw new Error('Worker catalogue navigation data is missing')
   if (!manifest.entries['search.json']) throw new Error('Worker catalogue search data is missing')
   if (!manifest.entries['reference-meta.json']) throw new Error('Worker reference metadata is missing')
   for (const [id, name] of Object.entries(manifest.partitions)) {
-    if (!id || id.length > 128 || typeof name !== 'string' || !Object.hasOwn(manifest.entries, name)) {
+    if (!id || id.length > 128 || typeof name !== 'string' || !name.startsWith('partitions/') || !Object.hasOwn(manifest.entries, name)) {
       throw new Error('Invalid Worker catalogue partition')
+    }
+    if (!manifest.entries[name.replace('partitions/', 'detachments/')]) {
+      throw new Error('Worker battle detachment data is missing')
     }
     const picker = manifest.pickers[id]
     if (typeof picker !== 'string' || !picker.startsWith('pickers/') || !Object.hasOwn(manifest.entries, picker)) {
       throw new Error('Invalid Worker catalogue picker')
+    }
+  }
+  for (const [matchupId, name] of Object.entries(manifest.terrainMatchups)) {
+    if (!/^[a-z0-9-]{1,128}$/.test(matchupId) || typeof name !== 'string' || !name.startsWith('terrain/') || !manifest.entries[name]) {
+      throw new Error('Invalid Worker terrain matchup')
     }
   }
   return manifest as WorkerCatalogueManifest
@@ -152,12 +185,74 @@ function sharedOf(value: unknown): Shared {
   return shared as Shared
 }
 
+function battleMissionsOf(value: unknown): BattleMissionRules {
+  if (!value || typeof value !== 'object') throw new Error('Invalid Worker battle mission data')
+  const rules = value as Partial<BattleMissionRules>
+  if (!(rules.missions instanceof Map) || !(rules.fixedSecondaryCaps instanceof Map)) {
+    throw new Error('Invalid Worker battle mission data')
+  }
+  return rules as BattleMissionRules
+}
+
+function battleReadRulesOf(value: unknown): BattleReadRules {
+  if (!value || typeof value !== 'object') throw new Error('Invalid Worker battle read data')
+  const rules = value as Partial<BattleReadRules>
+  if (
+    !(rules.missions instanceof Map) ||
+    !(rules.fixedSecondaryCaps instanceof Map) ||
+    !Array.isArray(rules.primaries) ||
+    !Array.isArray(rules.secondaries) ||
+    !(rules.missionTwists instanceof Map) ||
+    !(rules.dispositions instanceof Map) ||
+    !Array.isArray(rules.dispositionDetails) ||
+    !Array.isArray(rules.deployments) ||
+    typeof rules.attribution !== 'string'
+  ) {
+    throw new Error('Invalid Worker battle read data')
+  }
+  return rules as BattleReadRules
+}
+
+function terrainTemplatesOf(value: unknown): TerrainReadRules['terrainTemplates'] {
+  if (!value || typeof value !== 'object') throw new Error('Invalid Worker terrain data')
+  const terrain = value as Partial<TerrainReadRules>
+  if (!Array.isArray(terrain.terrainTemplates)) {
+    throw new Error('Invalid Worker terrain data')
+  }
+  return terrain.terrainTemplates
+}
+
+function terrainLayoutsOf(value: unknown): TerrainReadRules['terrainLayouts'] {
+  if (!Array.isArray(value) || !value.every((layout) => layout && typeof layout === 'object' && typeof layout.matchupId === 'string')) {
+    throw new Error('Invalid Worker terrain layouts')
+  }
+  return value as TerrainReadRules['terrainLayouts']
+}
+
+function battleDetachmentDataOf(value: unknown): BattleDetachmentData {
+  if (!value || typeof value !== 'object') throw new Error('Invalid Worker battle detachment data')
+  const data = value as Partial<BattleDetachmentData>
+  if (
+    !(data.index?.rules instanceof Map) ||
+    !(data.live instanceof Map) ||
+    !(data.details instanceof Map) ||
+    !Array.isArray(data.core) ||
+    !Array.isArray(data.coreDetails) ||
+    typeof data.attribution !== 'string' ||
+    (data.dataslate !== null && typeof data.dataslate !== 'string')
+  ) {
+    throw new Error('Invalid Worker battle detachment data')
+  }
+  return data as BattleDetachmentData
+}
+
 function navigationOf(value: unknown): Navigation {
   if (!value || typeof value !== 'object') throw new Error('Invalid Worker catalogue navigation data')
   const navigation = value as Partial<Navigation>
   if (
     !Array.isArray(navigation.factionIndex?.factions) ||
     !Array.isArray(navigation.factions?.factions) ||
+    !(navigation.factionNames instanceof Map) ||
     !(navigation.factionIcons instanceof Map) ||
     !Array.isArray(navigation.combatUnits) ||
     !(navigation.referenceDatasheets instanceof Map) ||
@@ -169,8 +264,12 @@ function navigationOf(value: unknown): Navigation {
 }
 
 export class WorkerCatalogueStore {
+  private cataloguePromises = new Map<string, Promise<LoadedCatalogue | null>>()
   private manifestPromise?: Promise<WorkerCatalogueManifest>
   private sharedPromise?: Promise<Shared>
+  private battleMissionsPromise?: Promise<BattleMissionRules>
+  private battleReadRulesPromise?: Promise<BattleReadRules>
+  private terrainPromise?: Promise<TerrainReadRules['terrainTemplates']>
   private navigationPromise?: Promise<Navigation>
   private searchPromise?: Promise<GlobalSearchIndex>
   private referenceMetadataPromise?: Promise<ReferenceMetadata>
@@ -191,6 +290,9 @@ export class WorkerCatalogueStore {
       cache.version = this.version
       delete cache.manifest
       delete cache.shared
+      delete cache.battleMissions
+      delete cache.battleReadRules
+      delete cache.terrainTemplates
       delete cache.navigation
       delete cache.searchIndex
       delete cache.referenceMetadata
@@ -247,6 +349,84 @@ export class WorkerCatalogueStore {
     return this.sharedPromise
   }
 
+  async battleMissions() {
+    const cached = this.resolved().battleMissions
+    if (cached) return cached
+    this.battleMissionsPromise ??= this.manifest()
+      .then(async (manifest) => {
+        const rules = battleMissionsOf(
+          decodeCatalogueArtifact(await this.bytes('battle-missions.json', manifest.entries['battle-missions.json']!)),
+        )
+        const cache = resolvedCache()
+        if (cache.version === this.version) cache.battleMissions = rules
+        return rules
+      })
+      .catch((error: unknown) => {
+        this.battleMissionsPromise = undefined
+        throw error
+      })
+    return this.battleMissionsPromise
+  }
+
+  async battleReadRules() {
+    const cached = this.resolved().battleReadRules
+    if (cached) return cached
+    this.battleReadRulesPromise ??= this.manifest()
+      .then(async (manifest) => {
+        const rules = battleReadRulesOf(
+          decodeCatalogueArtifact(await this.bytes('battle-read.json', manifest.entries['battle-read.json']!)),
+        )
+        const cache = resolvedCache()
+        if (cache.version === this.version) cache.battleReadRules = rules
+        return rules
+      })
+      .catch((error: unknown) => {
+        this.battleReadRulesPromise = undefined
+        throw error
+      })
+    return this.battleReadRulesPromise
+  }
+
+  private async terrainTemplates() {
+    const cached = this.resolved().terrainTemplates
+    if (cached) return cached
+    this.terrainPromise ??= this.manifest()
+      .then(async (manifest) => {
+        const terrain = terrainTemplatesOf(decodeCatalogueArtifact(await this.bytes('terrain.json', manifest.entries['terrain.json']!)))
+        const cache = resolvedCache()
+        if (cache.version === this.version) cache.terrainTemplates = terrain
+        return terrain
+      })
+      .catch((error: unknown) => {
+        this.terrainPromise = undefined
+        throw error
+      })
+    return this.terrainPromise
+  }
+
+  async terrain(matchupIds: readonly string[]): Promise<TerrainReadRules> {
+    const manifest = await this.manifest()
+    const [terrainTemplates, ...groups] = await Promise.all([
+      this.terrainTemplates(),
+      ...[...new Set(matchupIds)].map(async (matchupId) => {
+        const name = Object.hasOwn(manifest.terrainMatchups, matchupId) ? manifest.terrainMatchups[matchupId] : null
+        if (!name) return []
+        const layouts = terrainLayoutsOf(decodeCatalogueArtifact(await this.bytes(name, manifest.entries[name]!)))
+        if (layouts.some((layout) => layout.matchupId !== matchupId)) throw new Error('Invalid Worker terrain matchup layouts')
+        return layouts
+      }),
+    ])
+    return { terrainTemplates, terrainLayouts: groups.flat() }
+  }
+
+  async detachmentRead(catalogueId: string): Promise<BattleDetachmentData | null> {
+    const manifest = await this.manifest()
+    const partition = Object.hasOwn(manifest.partitions, catalogueId) ? manifest.partitions[catalogueId] : null
+    if (!partition) return null
+    const name = partition.replace('partitions/', 'detachments/')
+    return battleDetachmentDataOf(decodeCatalogueArtifact(await this.bytes(name, manifest.entries[name]!)))
+  }
+
   async navigation() {
     const cached = this.resolved().navigation
     if (cached) return cached
@@ -262,6 +442,10 @@ export class WorkerCatalogueStore {
         throw error
       })
     return this.navigationPromise
+  }
+
+  async rosterLabelRules() {
+    return { factionNames: (await this.navigation()).factionNames }
   }
 
   async searchIndex() {
@@ -294,6 +478,18 @@ export class WorkerCatalogueStore {
   }
 
   async catalogue(catalogueId: string) {
+    const existing = this.cataloguePromises.get(catalogueId)
+    if (existing) return existing
+    const pending = this.loadCatalogue(catalogueId)
+    this.cataloguePromises.set(catalogueId, pending)
+    try {
+      return await pending
+    } finally {
+      this.cataloguePromises.delete(catalogueId)
+    }
+  }
+
+  private async loadCatalogue(catalogueId: string) {
     const manifest = await this.manifest()
     const name = Object.hasOwn(manifest.partitions, catalogueId) ? manifest.partitions[catalogueId] : null
     if (!name) return null

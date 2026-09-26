@@ -7,7 +7,7 @@ import { readWorkerCatalogueAsset } from './workerCatalogueAssets'
 import { type BattleEvents, RealtimePublisher } from '../adapters/events'
 import { serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
-import { type LoadedRules, loadRules } from './rules'
+import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type TerrainReadRules, loadRules } from './rules'
 import {
   catalogueBaseUrl,
   catalogueLock,
@@ -44,6 +44,7 @@ import { factionIndexFor, factionsFor } from './factionReferences'
 import { WorkerCatalogueStore } from './workerCatalogueStore'
 import { workerAppContext } from './workerAppContext'
 import { compiledGlobalSearchIndex } from './globalSearch'
+import { battleDetachmentData, type BattleDetachmentData } from './battleDetachmentData'
 
 type App = {
   health: () => Promise<void>
@@ -58,6 +59,11 @@ type App = {
   /** Stratagems and mission cards, null when that source has not been synced. */
   rules: () => LoadedRules | null
   rulesFor: () => Promise<LoadedRules | null>
+  battleMissionRulesFor: () => Promise<BattleMissionRules | null>
+  battleReadRulesFor: () => Promise<BattleReadRules | null>
+  terrainReadRulesFor: (matchupIds: readonly string[]) => Promise<TerrainReadRules | null>
+  battleDetachmentDataFor: (catalogueId: string) => Promise<BattleDetachmentData | null>
+  rosterLabelRulesFor: () => Promise<Pick<LoadedRules, 'factionNames'> | null>
   /** What each army-data update changed, as the snapshot carries it; null when it carries none. */
   catalogueHistory: () => CatalogueHistoryEntry[] | null
   catalogueHistoryFor: () => Promise<CatalogueHistoryEntry[] | null>
@@ -291,13 +297,31 @@ export function app(): App {
       catalogue: loaded.catalogue,
       catalogueFor: async (catalogueId) => {
         if (!workerCatalogue) return instance.catalogue()
-        await workerShared()
         return workerCatalogue.catalogue(catalogueId)
       },
       canonicalCatalogue: loaded.canonical,
       canonicalCatalogueFor: async () => (workerCatalogue ? null : instance.canonicalCatalogue()),
       rules: loaded.rules,
       rulesFor: async () => (workerCatalogue ? (await workerShared()).rules : instance.rules()),
+      battleMissionRulesFor: async () => (workerCatalogue ? workerCatalogue.battleMissions() : instance.rules()),
+      battleReadRulesFor: async () => (workerCatalogue ? workerCatalogue.battleReadRules() : instance.rules()),
+      terrainReadRulesFor: async (matchupIds) => {
+        if (workerCatalogue) return workerCatalogue.terrain(matchupIds)
+        const rules = instance.rules()
+        return rules
+          ? {
+              terrainTemplates: rules.terrainTemplates,
+              terrainLayouts: rules.terrainLayouts.filter((layout) => matchupIds.includes(layout.matchupId)),
+            }
+          : null
+      },
+      battleDetachmentDataFor: async (catalogueId) => {
+        if (workerCatalogue) return workerCatalogue.detachmentRead(catalogueId)
+        const catalogue = instance.catalogue()
+        const rules = instance.rules()
+        return catalogue && rules ? battleDetachmentData(catalogue, rules, catalogueId) : null
+      },
+      rosterLabelRulesFor: async () => (workerCatalogue ? workerCatalogue.rosterLabelRules() : instance.rules()),
       catalogueHistory: loaded.history,
       catalogueHistoryFor: async () => (workerCatalogue ? (await workerCatalogue.navigation()).history : instance.catalogueHistory()),
       combatUnits: loaded.combatUnits,

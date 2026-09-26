@@ -6,19 +6,16 @@ import {
   factionIndexQuery,
   friendBattlesQuery,
   friendshipsQuery,
+  homeRostersQuery,
   leaguesQuery,
   meQuery,
   publicBattlesQuery,
-  savedRosterStatusQuery,
-  savedRosterSummariesQuery,
-  savedRosterTotalsQuery,
   standingsQuery,
 } from '../../queries'
 import { useLiveBattles } from '../../useLiveBattle'
 import type { Battle } from '../battles/battle'
 import { CreateBattle } from '../battles/CreateBattle'
 import { DeleteBattleDialog } from '../battles/DeleteBattle'
-import { sortRosters } from '../rosters/rosterSort'
 import type { HomeRoster } from './HomeRosters'
 import { HomeView } from './HomeView'
 
@@ -35,22 +32,14 @@ export function Home() {
   const { data: mine } = useInfiniteQuery({ ...battlesQuery(), enabled: signedIn })
   const { data: friends } = useInfiniteQuery({ ...friendBattlesQuery(), enabled: signedIn })
   const { data: open, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery(publicBattlesQuery())
-  const { data: saved = [] } = useQuery({ ...savedRosterSummariesQuery(), enabled: signedIn })
-  const { data: totals = [] } = useQuery({ ...savedRosterTotalsQuery(), enabled: signedIn })
-  const { data: status = [] } = useQuery({ ...savedRosterStatusQuery(), enabled: signedIn })
+  const { data: homeRosters } = useQuery({ ...homeRostersQuery(), enabled: signedIn })
   const { data: factions } = useQuery({ ...factionIndexQuery(), enabled: signedIn })
   const { data: leagues = [] } = useQuery({ ...leaguesQuery(), enabled: signedIn })
   const { data: friendships } = useQuery({ ...friendshipsQuery(), enabled: signedIn })
   const { data: standings } = useQuery({ ...standingsQuery(), enabled: !signedIn })
-  const totalsById = new Map(totals.map((entry) => [entry.id, entry]))
-  const statusById = new Map(status.map((entry) => [entry.id, entry]))
-  const rosters: HomeRoster[] = sortRosters(saved, 'updated-desc').map((roster) => ({
-    roster,
-    faction: factions?.factions.find((entry) => entry.id === roster.catalogueId),
-    points: totalsById.get(roster.id)?.points,
-    label: totalsById.get(roster.id)?.label,
-    problem: statusById.get(roster.id)?.problem ?? null,
-    changes: statusById.get(roster.id)?.changes ?? 0,
+  const rosters: HomeRoster[] = (homeRosters?.rosters ?? []).map((entry) => ({
+    ...entry,
+    faction: factions?.factions.find((faction) => faction.id === entry.roster.catalogueId),
   }))
   // An accepted entry with no list in it, before the reveal that would seal the event without it.
   const rostersDue = leagues
@@ -67,6 +56,7 @@ export function Home() {
         friends={signedIn ? battlesFrom(friends) : []}
         open={battlesFrom(open)}
         rosters={signedIn ? rosters : []}
+        rosterCount={signedIn ? (homeRosters?.count ?? 0) : 0}
         rostersDue={signedIn ? rostersDue : []}
         friendRequests={signedIn ? (friendships?.incoming.length ?? 0) : 0}
         leaders={standings ? { rows: standings.overall.rows, days: standings.days } : null}

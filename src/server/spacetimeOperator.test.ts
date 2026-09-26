@@ -48,3 +48,12 @@ it('sends account deletion to the selected database', async () => {
   expect(url.pathname).toBe('/v1/database/preview-42/call/delete_user_data')
   expect(init.body).toBe('["user-1"]')
 })
+
+it('reads a bounded home roster page through the operator procedure', async () => {
+  const request = vi.fn(async () => Response.json(JSON.stringify({ count: 0, rows: [] })))
+  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
+  expect(await operator.homeRostersByUser('user-1')).toEqual({ count: 0, rows: [] })
+  const [url, init] = request.mock.calls[0] as unknown as [URL, RequestInit]
+  expect(url.pathname).toBe('/v1/database/preview-42/call/home_rosters_by_user')
+  expect(init.body).toBe('["user-1"]')
+})

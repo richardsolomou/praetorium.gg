@@ -1,7 +1,9 @@
 import { bracketedRuleReferences, normalizeRuleReference, ruleReferenceKeys } from '../core/ruleReference'
 import type { LoadedCatalogue } from './catalogueIndex'
 
-export function rulesReferencedIn(loaded: LoadedCatalogue, texts: readonly (string | null)[]) {
+type RuleSource = { index: Pick<LoadedCatalogue['index'], 'rules'> }
+
+export function rulesReferencedIn(loaded: RuleSource, texts: readonly (string | null)[]) {
   return rulesNamed(
     loaded,
     texts.flatMap((text) => [
@@ -15,9 +17,9 @@ export function rulesReferencedIn(loaded: LoadedCatalogue, texts: readonly (stri
 }
 
 type NamedRule = { name: string; descriptions: Set<string>; order: number }
-const ruleNameIndexCache = new WeakMap<LoadedCatalogue, Map<string, NamedRule[]>>()
+const ruleNameIndexCache = new WeakMap<RuleSource, Map<string, NamedRule[]>>()
 
-function ruleNameIndex(loaded: LoadedCatalogue) {
+function ruleNameIndex(loaded: RuleSource) {
   const cached = ruleNameIndexCache.get(loaded)
   if (cached) return cached
   const index = new Map<string, NamedRule[]>()
@@ -35,7 +37,7 @@ function ruleNameIndex(loaded: LoadedCatalogue) {
   return index
 }
 
-export function rulesNamed(loaded: LoadedCatalogue, names: readonly string[]) {
+export function rulesNamed(loaded: RuleSource, names: readonly string[]) {
   const index = ruleNameIndex(loaded)
   const matched = new Set<NamedRule>()
   for (const reference of names) {
