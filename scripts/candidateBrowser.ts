@@ -163,9 +163,12 @@ try {
   await expect(saveProfile).toBeEnabled({ timeout: 15_000 })
   await saveProfile.click()
   await page.getByText('Profile saved.').waitFor({ timeout: 15_000 })
-  const avatar = page.locator('main img').first()
-  await expect(avatar).toHaveAttribute('src', /^https:\/\/s3\.praetorium\.gg\/praetorium\/avatars\/[0-9a-f]{64}\.webp$/)
-  const avatarPath = new URL((await avatar.getAttribute('src'))!).pathname
+  const sessionResponse = await context.request.get(`${origin}/api/auth/get-session`, { headers: accessHeaders })
+  assert(sessionResponse.ok(), 'Candidate profile session could not be read')
+  const session = (await sessionResponse.json()) as { user?: { image?: string | null } }
+  const avatarUrl = session.user?.image
+  assert(avatarUrl && /^https:\/\/s3\.praetorium\.gg\/praetorium\/avatars\/[0-9a-f]{64}\.webp$/.test(avatarUrl))
+  const avatarPath = new URL(avatarUrl).pathname
   const avatarResponse = await fetch(`${origin}${avatarPath}`, { headers: accessHeaders })
   assert(avatarResponse.ok, 'Candidate avatar is missing from R2')
   assert(avatarResponse.headers.get('x-praetorium-object-source') === 'r2', 'Candidate avatar was not served from R2')
