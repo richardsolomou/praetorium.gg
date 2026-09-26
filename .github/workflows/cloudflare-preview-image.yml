@@ -306,9 +306,15 @@ jobs:
           set -euo pipefail
           test -n "$CANDIDATE_ACCESS_CLIENT_ID"
           test -n "$CANDIDATE_ACCESS_CLIENT_SECRET"
-          unauthenticated="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+          unauthenticated="$(curl --silent --show-error --output /dev/null \
+            --dump-header "$RUNNER_TEMP/candidate-unauthenticated-headers" --write-out '%{http_code}' \
             --max-time 15 https://candidate.praetorium.gg/api/health)"
-          test "$unauthenticated" = 403
+          if [[ "$unauthenticated" == 302 ]]; then
+            grep -Eiq '^location: https://[^/]+/cdn-cgi/access/login/candidate\.praetorium\.gg' \
+              "$RUNNER_TEMP/candidate-unauthenticated-headers"
+          else
+            test "$unauthenticated" = 403
+          fi
           for attempt in {1..30}; do
             headers="$(curl --silent --show-error --dump-header - --output /dev/null --max-time 10 \
               --header "CF-Access-Client-Id: $CANDIDATE_ACCESS_CLIENT_ID" \
