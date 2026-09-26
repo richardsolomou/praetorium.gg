@@ -234,6 +234,14 @@ jobs:
           echo 'd25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831  '"$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" | sha256sum --check
           tar -xzf "$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" -C "$RUNNER_TEMP" spacetimedb-cli
           "$RUNNER_TEMP/spacetimedb-cli" build -p spacetimedb
+          if [[ "${{ inputs.rehearsal }}" == candidate ]]; then
+            status="$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' \
+              --header "Authorization: Bearer $SPACETIME_OWNER_TOKEN" \
+              --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+              --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+              --request DELETE "${SPACETIME_URL%/}/v1/database/praetorium-candidate")"
+            [[ "$status" == 200 || "$status" == 204 || "$status" == 404 ]]
+          fi
           curl --fail --silent --show-error --max-time 90 \
             --header "Authorization: Bearer $SPACETIME_OWNER_TOKEN" \
             --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \

@@ -87,11 +87,15 @@ try {
 
   await visit('/battles', 'My battles')
   if (accessCookie) await expect.poll(() => realtimeConnected, { timeout: 15_000 }).toBe(true)
-  let temporaryBattleId: string | undefined
+  let temporaryBattleToken: string | undefined
+  const operator = new SpacetimeOperator(spacetimeUrl, 'praetorium-candidate', operatorToken, fetch, {
+    clientId: spacetimeAccessId,
+    clientSecret: spacetimeAccessSecret,
+  })
   try {
     const battleUrl = await createBattle(page, { practice: true })
-    temporaryBattleId = new URL(battleUrl).pathname.split('/').at(-1)
-    assert(temporaryBattleId, 'Candidate battle URL has no ID')
+    temporaryBattleToken = new URL(battleUrl).pathname.split('/').at(-1)
+    assert(temporaryBattleToken, 'Candidate battle URL has no token')
     const observer = await context.newPage()
     await observer.goto(battleUrl)
     const observedSize = observer.getByRole('combobox', { name: 'Battle size' })
@@ -102,12 +106,9 @@ try {
     await observer.close()
     console.log('Candidate battle setup reached a second live client')
   } finally {
-    if (temporaryBattleId) {
-      const operator = new SpacetimeOperator(spacetimeUrl, 'praetorium-candidate', operatorToken, fetch, {
-        clientId: spacetimeAccessId,
-        clientSecret: spacetimeAccessSecret,
-      })
-      assert(await operator.deleteBattle(temporaryBattleId, userId), 'Candidate practice battle cleanup failed')
+    if (temporaryBattleToken) {
+      const battle = await operator.battleByToken(temporaryBattleToken)
+      assert(battle && (await operator.deleteBattle(battle.battle.id, userId)), 'Candidate practice battle cleanup failed')
     }
   }
   await visit('/leagues', 'Leagues')
