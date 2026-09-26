@@ -22,28 +22,20 @@ jobs:
           "$RUNNER_TEMP/spacetimedb-cli" build -p spacetimedb
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Build container image
+      - name: Build native Worker
         env:
-          PREVIEW_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          docker build --file Dockerfile.cloudflare --platform linux/amd64 \
-            --build-arg VITE_POSTHOG_HOST='${{ vars.VITE_POSTHOG_HOST }}' \
-            --build-arg VITE_POSTHOG_PROJECT_TOKEN='${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}' \
-            --build-arg GITHUB_ACTIONS=true \
-            --build-arg GITHUB_SHA="$PREVIEW_SHA" \
-            --build-arg GITHUB_REF_NAME="$GITHUB_HEAD_REF" \
-            --build-arg GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
-            --build-arg GITHUB_SERVER_URL="$GITHUB_SERVER_URL" \
-            --tag "praetorium-pr-$PR_NUMBER:sha-$PREVIEW_SHA" .
-          docker save "praetorium-pr-$PR_NUMBER:sha-$PREVIEW_SHA" --output "$RUNNER_TEMP/container.tar"
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+          VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
+          VITE_POSTHOG_PROJECT_TOKEN: ${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
+          NITRO_PRESET: cloudflare_module
+        run: pnpm build
       - name: Bundle Worker without credentials
-        run: pnpm exec wrangler deploy --config wrangler.staging.jsonc --dry-run --outdir "$RUNNER_TEMP/worker"
+        run: pnpm exec wrangler deploy --config wrangler.staging.json --dry-run --outdir "$RUNNER_TEMP/worker"
       - name: Assemble preview artifact
         run: |
           mkdir -p "$RUNNER_TEMP/cloudflare-preview"
-          mv "$RUNNER_TEMP/container.tar" "$RUNNER_TEMP/cloudflare-preview/container.tar"
-          cp "$RUNNER_TEMP/worker/worker.js" "$RUNNER_TEMP/cloudflare-preview/worker.js"
+          cp "$RUNNER_TEMP/worker/nativeWorker.js" "$RUNNER_TEMP/cloudflare-preview/worker.js"
+          cp -a .output/public "$RUNNER_TEMP/cloudflare-preview/assets"
           cp spacetimedb/dist/bundle.js "$RUNNER_TEMP/cloudflare-preview/product.js"
       - uses: actions/upload-artifact@v7
         with:

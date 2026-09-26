@@ -16,25 +16,37 @@ export function previewNames(number: number) {
   }
 }
 
-export function previewConfig(input: { number: number; main: string; image: string; databaseId: string }) {
+export function previewConfig(input: {
+  number: number
+  main: string
+  assets: string
+  accountId: string
+  databaseId: string
+  snapshotId: string
+  manifestSha256: string
+}) {
   const names = previewNames(input.number)
-  if (
-    !path.isAbsolute(input.main) ||
-    !new RegExp(`^registry\\.cloudflare\\.com/[0-9a-f]{32}/${names.worker}:sha-[0-9a-f]{40}$`).test(input.image)
-  ) {
-    throw new Error('Invalid preview artifact')
-  }
+  if (!path.isAbsolute(input.main) || !path.isAbsolute(input.assets)) throw new Error('Invalid preview artifact')
+  if (!/^[0-9a-f]{32}$/.test(input.accountId)) throw new Error('Invalid Cloudflare account ID')
   if (!/^[0-9a-f-]{36}$/.test(input.databaseId)) throw new Error('Invalid D1 database ID')
+  if (!/^[0-9a-f]{64}$/.test(input.snapshotId) || !/^[0-9a-f]{64}$/.test(input.manifestSha256)) {
+    throw new Error('Invalid Worker catalogue version')
+  }
   return {
     name: names.worker,
     main: input.main,
     compatibility_date: '2026-09-17',
     compatibility_flags: ['nodejs_compat'],
-    vars: { APP_URL: names.origin, SPACETIME_AUDIENCE: names.audience, SPACETIME_DATABASE: names.product, PRAETORIUM_SEED_PREVIEW: 'true' },
-    d1_databases: [{ binding: 'AUTH_DB', database_name: names.auth, database_id: input.databaseId }],
-    containers: [{ class_name: 'WebContainer', image: input.image, max_instances: 1, instance_type: 'basic' }],
-    durable_objects: { bindings: [{ name: 'WEB', class_name: 'WebContainer' }] },
-    migrations: [{ tag: 'v1', new_sqlite_classes: ['WebContainer'] }],
+    vars: {
+      APP_URL: names.origin,
+      SPACETIME_AUDIENCE: names.audience,
+      SPACETIME_DATABASE: names.product,
+      CATALOGUE_SNAPSHOT_ID: input.snapshotId,
+      CATALOGUE_MANIFEST_SHA256: input.manifestSha256,
+      CLOUDFLARE_ACCOUNT_ID: input.accountId,
+    },
+    d1_databases: [{ binding: 'AUTH_DB', database_name: names.auth, database_id: input.databaseId, remote: true }],
+    assets: { directory: input.assets, binding: 'ASSETS' },
   }
 }
 

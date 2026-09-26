@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { randomInt } from 'node:crypto'
 import { sql } from 'drizzle-orm'
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { persistedSecret } from 'ras-stack/auth'
 import { globalSingleton } from 'ras-stack/server'
 import { type BattleEvents, RealtimePublisher } from '../adapters/events'
@@ -176,21 +177,46 @@ export function app(): App {
           CATALOGUE?: { get: (key: string) => Promise<{ size: number; arrayBuffer: () => Promise<ArrayBuffer> } | null> }
           CATALOGUE_SNAPSHOT_ID?: string
           CATALOGUE_MANIFEST_SHA256?: string
+          CLOUDFLARE_ACCOUNT_ID?: string
         }
       }
     ).__env__
     const binding = hosted ? (cloudflare?.AUTH_DB ?? remoteD1()) : null
+    const catalogueBinding = cloudflare?.CATALOGUE
+    const readCatalogue = catalogueBinding
+      ? async (key: string, maxBytes: number) => {
+          const object = await catalogueBinding.get(key)
+          if (!object || object.size > maxBytes) throw new Error('Worker catalogue object unavailable')
+          return object.arrayBuffer()
+        }
+      : hosted &&
+          cloudflare?.CLOUDFLARE_ACCOUNT_ID &&
+          process.env.CATALOGUE_READ_ACCESS_KEY_ID &&
+          process.env.CATALOGUE_READ_SECRET_ACCESS_KEY
+        ? (() => {
+            const client = new S3Client({
+              endpoint: `https://${cloudflare.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+              region: 'auto',
+              forcePathStyle: true,
+              credentials: {
+                accessKeyId: process.env.CATALOGUE_READ_ACCESS_KEY_ID,
+                secretAccessKey: process.env.CATALOGUE_READ_SECRET_ACCESS_KEY,
+              },
+            })
+            return async (key: string, maxBytes: number) => {
+              const object = await client.send(new GetObjectCommand({ Bucket: 'praetorium-catalogue', Key: key }))
+              if (!object.Body || (object.ContentLength ?? maxBytes + 1) > maxBytes) {
+                throw new Error('Worker catalogue object unavailable')
+              }
+              const bytes = await object.Body.transformToByteArray()
+              if (bytes.byteLength > maxBytes) throw new Error('Worker catalogue object unavailable')
+              return bytes.slice().buffer
+            }
+          })()
+        : null
     const workerCatalogue =
-      hosted && cloudflare?.CATALOGUE
-        ? new WorkerCatalogueStore(
-            async (key, maxBytes) => {
-              const object = await cloudflare.CATALOGUE!.get(key)
-              if (!object || object.size > maxBytes) throw new Error('Worker catalogue object unavailable')
-              return object.arrayBuffer()
-            },
-            cloudflare.CATALOGUE_SNAPSHOT_ID ?? '',
-            cloudflare.CATALOGUE_MANIFEST_SHA256 ?? '',
-          )
+      hosted && readCatalogue
+        ? new WorkerCatalogueStore(readCatalogue, cloudflare?.CATALOGUE_SNAPSHOT_ID ?? '', cloudflare?.CATALOGUE_MANIFEST_SHA256 ?? '')
         : null
     if (hosted) {
       operator = new SpacetimeOperator(

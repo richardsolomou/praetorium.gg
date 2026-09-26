@@ -14,7 +14,7 @@ import type { referenceFactions, referenceIndex } from './referenceService'
 import { finishReferenceSearch, rankReferencePart, type ReferenceSearchInput } from './referenceSearch'
 
 type Entry = { sha256: string; bytes: number }
-type Manifest = {
+export type WorkerCatalogueManifest = {
   format: 'praetorium.worker-catalogue.v1'
   snapshotId: string
   revision: string
@@ -54,9 +54,9 @@ async function hash(bytes: ArrayBuffer) {
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-function manifestOf(value: unknown, snapshotId: string): Manifest {
+export function workerCatalogueManifest(value: unknown, snapshotId: string): WorkerCatalogueManifest {
   if (!value || typeof value !== 'object') throw new Error('Invalid Worker catalogue manifest')
-  const manifest = value as Partial<Manifest>
+  const manifest = value as Partial<WorkerCatalogueManifest>
   if (
     manifest.format !== 'praetorium.worker-catalogue.v1' ||
     manifest.snapshotId !== snapshotId ||
@@ -95,7 +95,7 @@ function manifestOf(value: unknown, snapshotId: string): Manifest {
       throw new Error('Invalid Worker catalogue partition')
     }
   }
-  return manifest as Manifest
+  return manifest as WorkerCatalogueManifest
 }
 
 function sharedOf(value: unknown): Shared {
@@ -117,7 +117,7 @@ function sharedOf(value: unknown): Shared {
 }
 
 export class WorkerCatalogueStore {
-  private manifestPromise?: Promise<Manifest>
+  private manifestPromise?: Promise<WorkerCatalogueManifest>
   private sharedPromise?: Promise<Shared>
   private referenceMetadataPromise?: Promise<ReferenceMetadata>
 
@@ -147,7 +147,7 @@ export class WorkerCatalogueStore {
         if (bytes.byteLength > MAX_MANIFEST_BYTES || (await hash(bytes)) !== this.manifestSha256) {
           throw new Error('Worker catalogue manifest checksum does not match')
         }
-        return manifestOf(JSON.parse(new TextDecoder().decode(bytes)), this.snapshotId)
+        return workerCatalogueManifest(JSON.parse(new TextDecoder().decode(bytes)), this.snapshotId)
       })
       .catch((error: unknown) => {
         this.manifestPromise = undefined

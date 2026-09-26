@@ -1,0 +1,97 @@
+name: Cloudflare staging
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: cloudflare-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Fetch verified catalogue
+        run: pnpm catalogue:sync
+      - name: Build native Worker
+        env:
+          NITRO_PRESET: cloudflare_module
+          VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
+          VITE_POSTHOG_PROJECT_TOKEN: ${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
+        run: pnpm build
+      - name: Publish immutable catalogue
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CATALOGUE_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+          CATALOGUE_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+        run: |
+          pnpm catalogue:worker
+          pnpm catalogue:worker:publish
+      - name: Build SpacetimeDB module
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v2.7.0-hotfix3 -R clockworklabs/SpacetimeDB -p spacetime-x86_64-unknown-linux-gnu.tar.gz -D "$RUNNER_TEMP"
+          echo 'd25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831  '"$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" -C "$RUNNER_TEMP" spacetimedb-cli
+          "$RUNNER_TEMP/spacetimedb-cli" build -p spacetimedb
+      - name: Publish staging product module
+        env:
+          SPACETIME_URL: ${{ vars.SPACETIME_URL }}
+          SPACETIME_ADMIN_TOKEN: ${{ secrets.SPACETIME_ADMIN_TOKEN }}
+          SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.SPACETIME_ACCESS_CLIENT_ID }}
+          SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
+        run: |
+          curl --fail --silent --show-error --max-time 90 \
+            --header "Authorization: Bearer $SPACETIME_ADMIN_TOKEN" \
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+            --header 'Content-Type: application/octet-stream' \
+            --request PUT --data-binary @spacetimedb/dist/bundle.js \
+            "${SPACETIME_URL%/}/v1/database/praetorium-staging?host_type=Js"
+      - name: Deploy staging Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          SPACETIME_URL: ${{ vars.SPACETIME_URL }}
+          STAGING_AUTH_SECRET: ${{ secrets.STAGING_AUTH_SECRET }}
+          STAGING_SPACETIME_OPERATOR_TOKEN: ${{ secrets.STAGING_SPACETIME_OPERATOR_TOKEN }}
+          SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.SPACETIME_ACCESS_CLIENT_ID }}
+          SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
+        run: |
+          test -n "$STAGING_AUTH_SECRET"
+          test -n "$STAGING_SPACETIME_OPERATOR_TOKEN"
+          mkdir -p "$RUNNER_TEMP/native-staging"
+          snapshot_id="$(jq -r .snapshotId .output/worker-catalogue/manifest.json)"
+          manifest_sha="$(sha256sum .output/worker-catalogue/manifest.json | cut -d ' ' -f 1)"
+          jq --arg main "$GITHUB_WORKSPACE/cloudflare/nativeWorker.ts" \
+            --arg assets "$GITHUB_WORKSPACE/.output/public" \
+            --arg snapshot "$snapshot_id" --arg manifest "$manifest_sha" \
+            '.main = $main | .assets.directory = $assets | .vars.CATALOGUE_SNAPSHOT_ID = $snapshot | .vars.CATALOGUE_MANIFEST_SHA256 = $manifest' \
+            wrangler.staging.json > "$RUNNER_TEMP/native-staging/wrangler.json"
+          jq -n --arg auth "$STAGING_AUTH_SECRET" --arg spacetime "$SPACETIME_URL" \
+            --arg operator "$STAGING_SPACETIME_OPERATOR_TOKEN" \
+            --arg access_id "$SPACETIME_ACCESS_CLIENT_ID" --arg access_secret "$SPACETIME_ACCESS_CLIENT_SECRET" \
+            '{AUTH_SECRET: $auth, SPACETIME_URL: $spacetime, SPACETIME_OPERATOR_TOKEN: $operator, SPACETIME_ACCESS_CLIENT_ID: $access_id, SPACETIME_ACCESS_CLIENT_SECRET: $access_secret}' \
+            > "$RUNNER_TEMP/native-staging/secrets.json"
+          pnpm exec wrangler deploy --config "$RUNNER_TEMP/native-staging/wrangler.json" \
+            --secrets-file "$RUNNER_TEMP/native-staging/secrets.json" --domain staging.praetorium.gg
+      - name: Verify staging revision
+        env:
+          EXPECTED_REVISION: ${{ github.sha }}
+        run: |
+          for attempt in {1..30}; do
+            headers="$(curl --silent --show-error --dump-header - --output /dev/null --max-time 10 https://staging.praetorium.gg/api/health || true)"
+            revision="$(awk 'tolower($1) == "x-praetorium-revision:" { gsub("\\r", "", $2); print $2 }' <<< "$headers")"
+            if [[ "$revision" == "$EXPECTED_REVISION" ]]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Staging did not serve revision $EXPECTED_REVISION" >&2
+          exit 1

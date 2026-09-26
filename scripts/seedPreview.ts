@@ -288,12 +288,16 @@ function seedable(url: string) {
   }
 }
 
-export async function seedPreview(provided?: PraetoriumDatabase, providedSnapshots?: PreviewSnapshots) {
+export async function seedPreview(
+  provided?: PraetoriumDatabase,
+  providedSnapshots?: PreviewSnapshots,
+  hostedBinding?: Parameters<typeof drizzle>[0],
+) {
   if (provided) return seedIntoPostgres(provided, providedSnapshots ?? (await verifiedSnapshots()))
   if (process.env.SPACETIME_URL) {
     if (process.env.PRAETORIUM_SEED_PREVIEW !== 'true') throw new Error('Refusing to seed a hosted database without the preview flag')
     const snapshots = providedSnapshots ?? (await verifiedSnapshots())
-    const binding = remoteD1()
+    const binding = hostedBinding ?? remoteD1()
     const database = drizzle(binding, { schema: d1Schema })
     const product = new SpacetimeOperator(
       process.env.SPACETIME_URL,
@@ -336,7 +340,7 @@ export async function seedPreview(provided?: PraetoriumDatabase, providedSnapsho
 }
 
 async function verifiedSnapshots(): Promise<PreviewSnapshots> {
-  const directory = catalogueDirectory()
+  const directory = process.env.CATALOGUE_DIR ? path.resolve(process.env.CATALOGUE_DIR) : catalogueDirectory()
   if (!installedSnapshot(directory)) await fetchCurrentSnapshot(directory, s3PublicBaseUrl(), (message) => console.log(message))
   const catalogue = loadCatalogue(directory)
   const rules = loadRules(path.join(directory, 'rules'))

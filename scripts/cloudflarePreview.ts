@@ -1,14 +1,15 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { execFile as execFileCallback } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { closedPreviewNumbers, d1DatabaseId, previewConfig, previewNames, previewNumber } from './lib/cloudflarePreview'
+import { workerCatalogueManifest } from '../src/server/workerCatalogueStore'
 
 const execFile = promisify(execFileCallback)
-const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
-if (!accountId || !/^[0-9a-f]{32}$/.test(accountId)) throw new Error('CLOUDFLARE_ACCOUNT_ID is required')
+const accountId = required('CLOUDFLARE_ACCOUNT_ID')
+if (!/^[0-9a-f]{32}$/.test(accountId)) throw new Error('Invalid CLOUDFLARE_ACCOUNT_ID')
 
 async function wrangler(...args: string[]) {
   const { stdout } = await execFile('pnpm', ['exec', 'wrangler', ...args], { maxBuffer: 4_000_000 })
@@ -77,12 +78,21 @@ async function deploy() {
   const names = previewNames(number)
   const sha = required('PREVIEW_SHA')
   if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error('Invalid preview revision')
-  const image = required('PREVIEW_IMAGE')
-  if (image !== `praetorium-pr-${number}:sha-${sha}`) throw new Error('Invalid preview image')
   const workerBundle = path.resolve(required('PREVIEW_WORKER_BUNDLE'))
+  const assets = path.resolve(required('PREVIEW_ASSETS_DIR'))
   const productBundle = await readFile(path.resolve(required('PREVIEW_PRODUCT_BUNDLE')))
-  const registryImage = `registry.cloudflare.com/${accountId}/${image}`
-  await wrangler('containers', 'push', image)
+  const manifestBytes = await readFile(path.resolve('.output/worker-catalogue/manifest.json'))
+  const manifestValue: unknown = JSON.parse(manifestBytes.toString('utf8'))
+  if (
+    !manifestValue ||
+    typeof manifestValue !== 'object' ||
+    !('snapshotId' in manifestValue) ||
+    typeof manifestValue.snapshotId !== 'string'
+  ) {
+    throw new Error('Invalid Worker catalogue snapshot ID')
+  }
+  const manifest = workerCatalogueManifest(manifestValue, manifestValue.snapshotId)
+  const manifestSha256 = createHash('sha256').update(manifestBytes).digest('hex')
 
   const existing = d1DatabaseId(await databases(), names.auth)
   if (existing) await wrangler('d1', 'delete', names.auth, '--skip-confirmation')
@@ -117,16 +127,23 @@ async function deploy() {
   try {
     const configPath = path.join(directory, 'wrangler.json')
     const secretsPath = path.join(directory, 'secrets.json')
-    await writeFile(configPath, JSON.stringify(previewConfig({ number, main: workerBundle, image: registryImage, databaseId })))
+    const authSecret = randomBytes(32).toString('base64url')
+    await writeFile(
+      configPath,
+      JSON.stringify(
+        previewConfig({ number, main: workerBundle, assets, accountId, databaseId, snapshotId: manifest.snapshotId, manifestSha256 }),
+      ),
+    )
     await writeFile(
       secretsPath,
       JSON.stringify({
-        AUTH_SECRET: randomBytes(32).toString('base64url'),
+        AUTH_SECRET: authSecret,
         SPACETIME_URL: serverUrl().toString(),
         SPACETIME_OPERATOR_TOKEN: issued.token,
         SPACETIME_ACCESS_CLIENT_ID: required('SPACETIME_ACCESS_CLIENT_ID'),
         SPACETIME_ACCESS_CLIENT_SECRET: required('SPACETIME_ACCESS_CLIENT_SECRET'),
-        ...(process.env.CATALOGUE_BASE_URL ? { CATALOGUE_BASE_URL: process.env.CATALOGUE_BASE_URL } : {}),
+        CATALOGUE_READ_ACCESS_KEY_ID: required('CATALOGUE_READ_ACCESS_KEY_ID'),
+        CATALOGUE_READ_SECRET_ACCESS_KEY: required('CATALOGUE_READ_SECRET_ACCESS_KEY'),
       }),
       { mode: 0o600 },
     )
@@ -141,6 +158,20 @@ async function deploy() {
       '--config',
       configPath,
     )
+    await execFile('pnpm', ['exec', 'tsx', 'scripts/seedCloudflarePreview.ts'], {
+      env: {
+        ...process.env,
+        PREVIEW_WRANGLER_CONFIG: configPath,
+        APP_URL: names.origin,
+        AUTH_SECRET: authSecret,
+        SPACETIME_OPERATOR_TOKEN: issued.token,
+        SPACETIME_DATABASE: names.product,
+        SPACETIME_AUDIENCE: names.audience,
+        PRAETORIUM_SEED_PREVIEW: 'true',
+        CATALOGUE_DIR: path.resolve('catalogue-data'),
+      },
+      maxBuffer: 4_000_000,
+    })
     await wrangler(
       'deploy',
       '--no-bundle',

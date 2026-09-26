@@ -21,24 +21,34 @@ it('binds the matching D1 database and product audience to one worker', () => {
   const config = previewConfig({
     number: 606,
     main: '/tmp/worker.js',
-    image: `registry.cloudflare.com/149ad7c463f2ec95a4b1878f990f6532/praetorium-pr-606:sha-${'a'.repeat(40)}`,
+    assets: '/tmp/assets',
+    accountId: '149ad7c463f2ec95a4b1878f990f6532',
     databaseId: 'a776d5fd-d22a-4683-8dbf-e2b36a023f47',
+    snapshotId: 'a'.repeat(64),
+    manifestSha256: 'b'.repeat(64),
   })
-  expect([config.name, config.vars.SPACETIME_DATABASE, config.vars.SPACETIME_AUDIENCE, config.d1_databases[0]!.database_name]).toEqual([
-    'praetorium-pr-606',
-    'praetorium-pr-606',
-    'praetorium-pr-606',
-    'praetorium-auth-pr-606',
-  ])
+  expect(config).toMatchObject({
+    name: 'praetorium-pr-606',
+    vars: {
+      SPACETIME_DATABASE: 'praetorium-pr-606',
+      SPACETIME_AUDIENCE: 'praetorium-pr-606',
+      CLOUDFLARE_ACCOUNT_ID: '149ad7c463f2ec95a4b1878f990f6532',
+    },
+    d1_databases: [{ database_name: 'praetorium-auth-pr-606', remote: true }],
+    assets: { directory: '/tmp/assets' },
+  })
 })
 
-it('rejects an image built for another pull request', () => {
+it('rejects a relative preview artifact path', () => {
   expect(() =>
     previewConfig({
       number: 606,
-      main: '/tmp/worker.js',
-      image: `registry.cloudflare.com/149ad7c463f2ec95a4b1878f990f6532/praetorium-pr-607:sha-${'a'.repeat(40)}`,
+      main: 'worker.js',
+      assets: '/tmp/assets',
+      accountId: '149ad7c463f2ec95a4b1878f990f6532',
       databaseId: 'a776d5fd-d22a-4683-8dbf-e2b36a023f47',
+      snapshotId: 'a'.repeat(64),
+      manifestSha256: 'b'.repeat(64),
     }),
   ).toThrow('Invalid preview artifact')
 })

@@ -24,7 +24,7 @@ jobs:
     secrets: inherit
 
   production-image:
-    if: needs.release.outputs.created == 'true' && vars.CLOUDFLARE_IMAGE_DEPLOY != 'true'
+    if: needs.release.outputs.created == 'true' && vars.CLOUDFLARE_WORKER_DEPLOY != 'true'
     needs: [release]
     runs-on: ubuntu-latest
     permissions:
@@ -81,7 +81,7 @@ jobs:
           exit 1
 
   cloudflare-production:
-    if: (needs.release.outputs.created == 'true' || github.event_name == 'workflow_dispatch') && vars.CLOUDFLARE_IMAGE_DEPLOY == 'true'
+    if: (needs.release.outputs.created == 'true' || github.event_name == 'workflow_dispatch') && vars.CLOUDFLARE_WORKER_DEPLOY == 'true'
     needs: [release]
     runs-on: ubuntu-latest
     steps:
@@ -89,6 +89,23 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.sha || github.sha }}
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Fetch verified catalogue
+        run: pnpm catalogue:sync
+      - name: Build native Worker
+        env:
+          NITRO_PRESET: cloudflare_module
+          GITHUB_SHA: ${{ needs.release.outputs.sha || github.sha }}
+          VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
+          VITE_POSTHOG_PROJECT_TOKEN: ${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
+        run: pnpm build
+      - name: Publish immutable catalogue
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CATALOGUE_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+          CATALOGUE_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+        run: |
+          pnpm catalogue:worker
+          pnpm catalogue:worker:publish
       - name: Build SpacetimeDB module
         env:
           GH_TOKEN: ${{ github.token }}
@@ -97,34 +114,36 @@ jobs:
           echo 'd25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831  '"$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" | sha256sum --check
           tar -xzf "$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" -C "$RUNNER_TEMP" spacetimedb-cli
           "$RUNNER_TEMP/spacetimedb-cli" build -p spacetimedb
-      - name: Build application image
-        env:
-          REVISION: ${{ needs.release.outputs.sha || github.sha }}
-        run: |
-          docker build --file Dockerfile.cloudflare --platform linux/amd64 \
-            --build-arg VITE_POSTHOG_HOST='${{ vars.VITE_POSTHOG_HOST }}' \
-            --build-arg VITE_POSTHOG_PROJECT_TOKEN='${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}' \
-            --build-arg POSTHOG_PROJECT_ID='${{ vars.POSTHOG_PROJECT_ID }}' \
-            --build-arg POSTHOG_HOST='${{ vars.POSTHOG_HOST }}' \
-            --build-arg GITHUB_ACTIONS=true \
-            --build-arg GITHUB_SHA="$REVISION" \
-            --build-arg GITHUB_REF_NAME=main \
-            --build-arg GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
-            --build-arg GITHUB_SERVER_URL="$GITHUB_SERVER_URL" \
-            --tag "praetorium-production:sha-$REVISION" .
       - name: Publish product module and deploy application
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           SPACETIME_URL: ${{ vars.PRODUCTION_SPACETIME_URL }}
           SPACETIME_OWNER_TOKEN: ${{ secrets.PRODUCTION_SPACETIME_OWNER_TOKEN }}
+          SPACETIME_OPERATOR_TOKEN: ${{ secrets.PRODUCTION_SPACETIME_OPERATOR_TOKEN }}
           SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_ID }}
           SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_SECRET }}
-          REVISION: ${{ needs.release.outputs.sha || github.sha }}
+          AUTH_SECRET: ${{ secrets.PRODUCTION_AUTH_SECRET }}
+          APPLE_CLIENT_ID: ${{ secrets.APPLE_CLIENT_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          APPLE_PRIVATE_KEY: ${{ secrets.APPLE_PRIVATE_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
+          DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
         run: |
           set -euo pipefail
-          image="praetorium-production:sha-$REVISION"
-          pnpm exec wrangler containers push "$image"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$SPACETIME_URL"
+          test -n "$SPACETIME_OWNER_TOKEN"
+          test -n "$SPACETIME_OPERATOR_TOKEN"
+          test -n "$SPACETIME_ACCESS_CLIENT_ID"
+          test -n "$SPACETIME_ACCESS_CLIENT_SECRET"
+          test -n "$AUTH_SECRET"
+          test -n "$APPLE_CLIENT_ID"
+          test -n "$APPLE_TEAM_ID"
+          test -n "$APPLE_KEY_ID"
+          test -n "$APPLE_PRIVATE_KEY"
           curl --fail --silent --show-error --max-time 90 \
             --header "Authorization: Bearer $SPACETIME_OWNER_TOKEN" \
             --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
@@ -132,13 +151,25 @@ jobs:
             --header 'Content-Type: application/octet-stream' \
             --request PUT --data-binary @spacetimedb/dist/bundle.js \
             "${SPACETIME_URL%/}/v1/database/praetorium-production?host_type=Js"
-          jq --arg image "registry.cloudflare.com/$CLOUDFLARE_ACCOUNT_ID/$image" \
-            --arg main "$GITHUB_WORKSPACE/cloudflare/worker.ts" \
-            '.containers[0].image = $image | .main = $main' wrangler.production.jsonc > "$RUNNER_TEMP/wrangler-production.json"
+          snapshot_id="$(jq -r .snapshotId .output/worker-catalogue/manifest.json)"
+          manifest_sha="$(sha256sum .output/worker-catalogue/manifest.json | cut -d ' ' -f 1)"
+          jq --arg main "$GITHUB_WORKSPACE/cloudflare/nativeWorker.ts" \
+            --arg assets "$GITHUB_WORKSPACE/.output/public" \
+            --arg snapshot "$snapshot_id" --arg manifest "$manifest_sha" \
+            '.main = $main | .assets.directory = $assets | .vars.CATALOGUE_SNAPSHOT_ID = $snapshot | .vars.CATALOGUE_MANIFEST_SHA256 = $manifest' \
+            wrangler.production.json > "$RUNNER_TEMP/wrangler-production.json"
+          jq -n --arg auth "$AUTH_SECRET" --arg spacetime "$SPACETIME_URL" \
+            --arg operator "$SPACETIME_OPERATOR_TOKEN" \
+            --arg access_id "$SPACETIME_ACCESS_CLIENT_ID" --arg access_secret "$SPACETIME_ACCESS_CLIENT_SECRET" \
+            --arg apple_client "$APPLE_CLIENT_ID" --arg apple_team "$APPLE_TEAM_ID" \
+            --arg apple_key "$APPLE_KEY_ID" --arg apple_private "$APPLE_PRIVATE_KEY" \
+            --arg google_client "$GOOGLE_CLIENT_ID" --arg google_secret "$GOOGLE_CLIENT_SECRET" \
+            --arg discord_client "$DISCORD_CLIENT_ID" --arg discord_secret "$DISCORD_CLIENT_SECRET" \
+            '{AUTH_SECRET: $auth, SPACETIME_URL: $spacetime, SPACETIME_OPERATOR_TOKEN: $operator, SPACETIME_ACCESS_CLIENT_ID: $access_id, SPACETIME_ACCESS_CLIENT_SECRET: $access_secret, APPLE_CLIENT_ID: $apple_client, APPLE_TEAM_ID: $apple_team, APPLE_KEY_ID: $apple_key, APPLE_PRIVATE_KEY: $apple_private, GOOGLE_CLIENT_ID: $google_client, GOOGLE_CLIENT_SECRET: $google_secret, DISCORD_CLIENT_ID: $discord_client, DISCORD_CLIENT_SECRET: $discord_secret}' \
+            > "$RUNNER_TEMP/wrangler-production-secrets.json"
           pnpm exec wrangler deploy --config "$RUNNER_TEMP/wrangler-production.json" --dry-run --outdir "$RUNNER_TEMP/worker"
-          jq --arg main "$RUNNER_TEMP/worker/worker.js" \
-            '.main = $main' "$RUNNER_TEMP/wrangler-production.json" > "$RUNNER_TEMP/wrangler-production-bundled.json"
-          pnpm exec wrangler deploy --no-bundle --config "$RUNNER_TEMP/wrangler-production-bundled.json" --route 'praetorium.gg/*'
+          pnpm exec wrangler deploy --config "$RUNNER_TEMP/wrangler-production.json" \
+            --secrets-file "$RUNNER_TEMP/wrangler-production-secrets.json" --route 'praetorium.gg/*'
       - name: Verify production revision
         env:
           EXPECTED_REVISION: ${{ needs.release.outputs.sha || github.sha }}
