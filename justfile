@@ -159,10 +159,6 @@ seed:
     pnpm db:migrate
     pnpm db:seed
 
-# One-off: move any inline profile picture still in DATABASE_URL into S3_* object storage
-profile-images-migrate:
-    pnpm profile-images:migrate
-
 e2e-install:
     pnpm exec playwright install chromium --only-shell
 
