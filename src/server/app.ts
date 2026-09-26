@@ -42,6 +42,7 @@ import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { combatUnitsFor } from './combatUnits'
 import { factionIndexFor, factionsFor } from './factionReferences'
 import { WorkerCatalogueStore } from './workerCatalogueStore'
+import { workerAppContext } from './workerAppContext'
 import { compiledGlobalSearchIndex } from './globalSearch'
 
 type App = {
@@ -161,7 +162,7 @@ function canonicalCatalogue(instance: Pick<App, 'catalogue' | 'rules'>, director
 }
 
 export function app(): App {
-  return globalSingleton('praetorium.app', () => {
+  const createApp = (): App => {
     const telemetry = serverTelemetry()
     const dataDirectory = path.resolve(process.env.DATA_DIR ?? '/data')
     const catalogueDataDirectory = catalogueDirectory(dataDirectory)
@@ -186,6 +187,10 @@ export function app(): App {
       }
     ).__env__
     const binding = hosted ? (cloudflare?.AUTH_DB ?? remoteD1()) : null
+    const hostedD1 = () => {
+      if (!binding) throw new Error('D1 unavailable')
+      return binding
+    }
     const accessClientId = cloudflare?.SPACETIME_ACCESS_CLIENT_ID ?? process.env.SPACETIME_ACCESS_CLIENT_ID
     const accessClientSecret = cloudflare?.SPACETIME_ACCESS_CLIENT_SECRET ?? process.env.SPACETIME_ACCESS_CLIENT_SECRET
     const spacetimeAccess =
@@ -241,7 +246,7 @@ export function app(): App {
     const realtime = hosted ? null : realtimeConfig()
     if (!hosted && !realtime) throw new Error('Realtime secret is not configured')
     const events: BattleEvents = realtime ? new RealtimePublisher(realtime.apiUrl, realtime.apiKey) : { publish: () => {} }
-    const repository = hosted ? new SpacetimeRepository(new D1AccountRepository(binding), operator!) : new Repository(database!)
+    const repository = hosted ? new SpacetimeRepository(new D1AccountRepository(hostedD1()), operator!) : new Repository(database!)
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     let ready = Promise.resolve()
     let nativeSyncState: SyncState = { status: 'working', detail: 'loading the community data' }
@@ -270,7 +275,7 @@ export function app(): App {
     })
     const loaded = loaders()
     const auth = hosted
-      ? createD1Auth(binding, process.env.AUTH_SECRET ?? '', {
+      ? createD1Auth(hostedD1(), process.env.AUTH_SECRET ?? '', {
           environment: process.env,
           email,
           deleteUserData: (userId) => operator!.deleteUserData(userId),
@@ -283,7 +288,7 @@ export function app(): App {
       health: async () => {
         if (hosted) {
           try {
-            await Promise.all([binding.prepare('select 1').first(), operator!.health(), workerCatalogue ? workerShared() : undefined])
+            await Promise.all([hostedD1().prepare('select 1').first(), operator!.health(), workerCatalogue ? workerShared() : undefined])
           } catch (error) {
             console.error('Hosted health check failed:', error instanceof Error ? error.message : String(error), {
               accessConfigured: Boolean(spacetimeAccess),
@@ -333,7 +338,7 @@ export function app(): App {
       push: Boolean(push),
       sync: () => (workerCatalogue ? nativeSyncState : sync.state),
       telemetry,
-      ready: () => ready,
+      ready: () => (workerCatalogue ? workerShared().then(() => {}) : ready),
     }
     // Everything read from the snapshot is read again from the one now on disk.
     const swap = () => {
@@ -345,12 +350,7 @@ export function app(): App {
       instance.combatUnits = next.combatUnits
       ready = warm(instance)
     }
-    if (workerCatalogue) {
-      ready = workerShared().then(
-        () => {},
-        () => {},
-      )
-    } else {
+    if (!workerCatalogue) {
       // A self-hosted instance fetches a snapshot without blocking battle requests.
       sync.begin(catalogueDataDirectory, swap)
       const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap), 60 * 60 * 1000)
@@ -358,5 +358,8 @@ export function app(): App {
       if (sync.state.status === 'ready') ready = warm(instance)
     }
     return instance
-  })
+  }
+  const worker = workerAppContext.getStore()
+  if (worker) return (worker.app ??= createApp()) as App
+  return globalSingleton('praetorium.app', createApp)
 }

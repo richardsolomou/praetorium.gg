@@ -226,7 +226,9 @@ export function loadFactions(
         factionNames.set(found.id, found.name)
         const icon = path.join(iconDirectory, `${found.id}.svg`)
         if (found.logo_url) {
-          const source = fs.existsSync(icon) ? `data:image/svg+xml;base64,${fs.readFileSync(icon).toString('base64')}` : found.logo_url
+          const source = fs.existsSync(icon)
+            ? `data:image/svg+xml;base64,${Buffer.from(fs.readFileSync(icon)).toString('base64')}`
+            : found.logo_url
           factionIcons.set(found.id, source)
           for (const alias of found.aliases ?? []) factionIcons.set(routeSlug(alias), source)
         }
@@ -412,7 +414,10 @@ export function loadFactions(
   for (const { id, logoUrl } of SUPPLEMENTAL_FACTION_ICONS) {
     if (factionIcons.has(id)) continue
     const icon = path.join(iconDirectory, `${id}.svg`)
-    factionIcons.set(id, fs.existsSync(icon) ? `data:image/svg+xml;base64,${fs.readFileSync(icon).toString('base64')}` : logoUrl)
+    factionIcons.set(
+      id,
+      fs.existsSync(icon) ? `data:image/svg+xml;base64,${Buffer.from(fs.readFileSync(icon)).toString('base64')}` : logoUrl,
+    )
   }
 
   return {

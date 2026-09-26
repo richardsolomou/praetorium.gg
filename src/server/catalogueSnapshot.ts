@@ -330,7 +330,7 @@ export function verifyInstalledSnapshot(directory: string): SnapshotPointer {
   const pointer = parsePointer(JSON.parse(fs.readFileSync(path.join(directory, '.snapshot.json'), 'utf8')))
   const rawManifest = fs.readFileSync(path.join(directory, '.snapshot-manifest.json'))
   if (sha256(rawManifest) !== pointer.id) throw new Error('catalogue snapshot manifest does not match its id')
-  const manifest = JSON.parse(rawManifest.toString('utf8')) as SnapshotManifest
+  const manifest = JSON.parse(Buffer.from(rawManifest).toString('utf8')) as SnapshotManifest
   if (![FORMAT, COMPLETE_FORMAT, LEGACY_FORMAT].includes(manifest.format)) throw new Error('catalogue snapshot format is unsupported')
   const sources = manifestSources(manifest)
   assertAllowed(pointer, sources, configuredRevocations())
