@@ -346,15 +346,65 @@ jobs:
             --output "$RUNNER_TEMP/candidate-faction.html" https://candidate.praetorium.gg/factions/necrons/datasheets
           grep -q 'Necrons' "$RUNNER_TEMP/candidate-faction.html"
           curl --fail --silent --show-error --max-time 15 \
-            --header "CF-Access-Client-Id: $CANDIDATE_ACCESS_CLIENT_ID" \
-            --header "CF-Access-Client-Secret: $CANDIDATE_ACCESS_CLIENT_SECRET" \
             --output "$RUNNER_TEMP/candidate-openid.json" \
             https://candidate.praetorium.gg/api/auth/.well-known/openid-configuration
           jq -e '.issuer == "https://candidate.praetorium.gg/api/auth" and .jwks_uri == "https://candidate.praetorium.gg/api/auth/jwks"' \
             "$RUNNER_TEMP/candidate-openid.json" > /dev/null
           curl --fail --silent --show-error --max-time 15 \
-            --header "CF-Access-Client-Id: $CANDIDATE_ACCESS_CLIENT_ID" \
-            --header "CF-Access-Client-Secret: $CANDIDATE_ACCESS_CLIENT_SECRET" \
             --output "$RUNNER_TEMP/candidate-jwks.json" https://candidate.praetorium.gg/api/auth/jwks
           jq -e '.keys | type == "array" and length > 0' "$RUNNER_TEMP/candidate-jwks.json" > /dev/null
+          for path in /api/auth/jwks/ /api/auth/.well-known/openid-configuration/ /api/auth/get-session; do
+            protected="$(curl --silent --show-error --output /dev/null \
+              --dump-header "$RUNNER_TEMP/candidate-protected-headers" --write-out '%{http_code}' \
+              --max-time 15 "https://candidate.praetorium.gg$path")"
+            if [[ "$protected" == 302 ]]; then
+              grep -Eiq '^location: https://[^/]+/cdn-cgi/access/login/candidate\.praetorium\.gg' \
+                "$RUNNER_TEMP/candidate-protected-headers"
+            else
+              test "$protected" = 403
+            fi
+          done
           echo 'Protected candidate pages and auth metadata are healthy'
+      - name: Verify imported candidate session and SpacetimeDB access
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          AUTH_SECRET: ${{ secrets.PRODUCTION_AUTH_SECRET }}
+          CANDIDATE_ACCESS_CLIENT_ID: ${{ secrets.CANDIDATE_ACCESS_CLIENT_ID }}
+          CANDIDATE_ACCESS_CLIENT_SECRET: ${{ secrets.CANDIDATE_ACCESS_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          session="$(pnpm exec wrangler d1 execute AUTH_DB --config wrangler.candidate.json --remote \
+            --command 'SELECT token, userId FROM session WHERE expiresAt > unixepoch() * 1000 ORDER BY expiresAt DESC LIMIT 1' \
+            --json)"
+          session_token="$(jq -er '.[0].results[0].token' <<< "$session")"
+          expected_user="$(jq -er '.[0].results[0].userId' <<< "$session")"
+          cookie="$(SESSION_TOKEN="$session_token" node -e '
+            const { createHmac } = require("node:crypto")
+            const token = process.env.SESSION_TOKEN
+            const signature = createHmac("sha256", process.env.AUTH_SECRET).update(token).digest("base64")
+            process.stdout.write("__Secure-better-auth.session_token=" + token + "." + signature)
+          ')"
+          curl --fail --silent --show-error --max-time 20 \
+            --header "CF-Access-Client-Id: $CANDIDATE_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $CANDIDATE_ACCESS_CLIENT_SECRET" \
+            --header "Cookie: $cookie" \
+            --output "$RUNNER_TEMP/candidate-session.json" \
+            https://candidate.praetorium.gg/api/auth/get-session
+          test "$(jq -er '.user.id' "$RUNNER_TEMP/candidate-session.json")" = "$expected_user"
+          curl --fail --silent --show-error --max-time 20 \
+            --header "CF-Access-Client-Id: $CANDIDATE_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $CANDIDATE_ACCESS_CLIENT_SECRET" \
+            --header "Cookie: $cookie" \
+            --output "$RUNNER_TEMP/candidate-ticket.json" \
+            https://candidate.praetorium.gg/api/spacetime/token
+          test "$(jq -er '.database' "$RUNNER_TEMP/candidate-ticket.json")" = praetorium-candidate
+          ticket="$(jq -er '.token' "$RUNNER_TEMP/candidate-ticket.json")"
+          curl --fail --silent --show-error --max-time 20 --request POST \
+            --header "CF-Access-Client-Id: $CANDIDATE_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $CANDIDATE_ACCESS_CLIENT_SECRET" \
+            --header "Authorization: Bearer $ticket" \
+            --output "$RUNNER_TEMP/candidate-websocket-token.json" \
+            https://candidate.praetorium.gg/spacetime/v1/identity/websocket-token
+          jq -e '.token | type == "string" and length > 0' "$RUNNER_TEMP/candidate-websocket-token.json" > /dev/null
+          echo 'Imported candidate session and SpacetimeDB token exchange are healthy'
