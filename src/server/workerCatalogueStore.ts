@@ -287,8 +287,7 @@ export class WorkerCatalogueStore {
     const manifest = await this.manifest()
     const name = Object.hasOwn(manifest.partitions, catalogueId) ? manifest.partitions[catalogueId] : null
     if (!name) return null
-    const shared = await this.shared()
-    const files = decodeCatalogueArtifact(await this.bytes(name, manifest.entries[name]!))
+    const [shared, files] = await Promise.all([this.shared(), this.bytes(name, manifest.entries[name]!).then(decodeCatalogueArtifact)])
     if (!Array.isArray(files) || !files.every((file) => file && typeof file === 'object')) {
       throw new Error('Invalid Worker catalogue partition')
     }
@@ -412,7 +411,11 @@ export class WorkerCatalogueStore {
   async searchReferences(input: ReferenceSearchInput) {
     const metadata = await this.referenceMetadata()
     const matches: ReturnType<typeof rankReferencePart> = []
-    for (const name of metadata.shards) matches.push(...rankReferencePart(await this.referenceShard(name), input))
+    for (let offset = 0; offset < metadata.shards.length; offset += 2) {
+      const batch = metadata.shards.slice(offset, offset + 2)
+      const parts = await Promise.all(batch.map(async (name) => rankReferencePart(await this.referenceShard(name), input)))
+      for (const part of parts) matches.push(...part)
+    }
     return finishReferenceSearch(input, metadata.revisions, matches)
   }
 }
