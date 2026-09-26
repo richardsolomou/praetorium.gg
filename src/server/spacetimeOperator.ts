@@ -524,9 +524,7 @@ export class SpacetimeOperator
       signal: AbortSignal.timeout(10_000),
     })
     if (!response.ok)
-      throw new Error(
-        `SpacetimeDB ${reducer} failed with HTTP ${response.status} at ${endpoint.host} (Access domain: ${response.headers.get('cf-access-domain') ?? 'none'}, ray: ${response.headers.get('cf-ray') ?? 'none'}): ${(await response.text()).slice(0, 300)}`,
-      )
+      throw new Error(`SpacetimeDB ${reducer} failed with HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`)
     return response
   }
 }
