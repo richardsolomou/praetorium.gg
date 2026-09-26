@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.79.1
+
+### Patch Changes
+
+- 05ab5e5: Reduce document delays on home, battle, profile, leaderboard, and roster pages.
+
 ## 0.79.0
 
 ### Minor Changes
