@@ -53,6 +53,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          file: e2e/Dockerfile
           tags: ${{ steps.image.outputs.local-image }}
           outputs: type=docker,dest=${{ runner.temp }}/preview-image.tar
           cache-from: type=gha,scope=e2e-image

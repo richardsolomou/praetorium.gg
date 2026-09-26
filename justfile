@@ -159,17 +159,13 @@ seed:
     pnpm db:migrate
     pnpm db:seed
 
-# One-off: move any inline profile picture still in DATABASE_URL into S3_* object storage
-profile-images-migrate:
-    pnpm profile-images:migrate
-
 e2e-install:
     pnpm exec playwright install chromium --only-shell
 
 e2e-build:
-    docker build -t praetorium-e2e .
+    docker build -f e2e/Dockerfile -t praetorium-e2e .
 
-# Browsers against the container image, which is the topology that ships
+# Browsers against the isolated local test stack
 e2e *args: e2e-build e2e-down
     pnpm exec playwright test {{ args }}
 

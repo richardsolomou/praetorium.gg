@@ -1,6 +1,5 @@
 #!/bin/sh
-# The production container against a real Postgres and Valkey, on a network of
-# their own.
+# The local test container against isolated Postgres and Valkey services.
 #
 # POSIX, and run with `sh`: on a CI runner that is dash, which has no `pipefail`.
 # There is nothing to pipe here anyway.

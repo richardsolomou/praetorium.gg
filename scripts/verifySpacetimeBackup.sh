@@ -12,10 +12,9 @@ api() {
     "${DOKPLOY_URL%/}/api/$procedure"
 }
 
-postgres="$(api postgres.one postgresId Ww_-3KD0nTcVW4JZMYZ2V)"
-destination_id="$(jq -er '[.backups[] | select(.enabled == true and .databaseType == "postgres" and .database == "postgres" and .prefix == "production/postgres")] | select(length == 1) | .[0].destinationId' <<< "$postgres")"
-destination="$(api destination.one destinationId "$destination_id")"
-test "$(jq -er '.bucket' <<< "$destination")" = praetorium-backups
+destination="$(curl --fail --silent --show-error --max-time 30 \
+  --header "x-api-key: $DOKPLOY_API_KEY" "${DOKPLOY_URL%/}/api/destination.all" \
+  | jq -er '[.[] | select(.bucket == "praetorium-backups")] | select(length == 1) | .[0]')"
 endpoint="$(jq -er '.endpoint | select(test("^https://[0-9a-f]{32}[.]r2[.]cloudflarestorage[.]com/?$"))' <<< "$destination")"
 AWS_ACCESS_KEY_ID="$(jq -er '.accessKey | select(length > 0)' <<< "$destination")"
 AWS_SECRET_ACCESS_KEY="$(jq -er '.secretAccessKey | select(length > 0)' <<< "$destination")"

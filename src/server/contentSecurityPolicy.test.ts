@@ -8,7 +8,7 @@ it('allows SpacetimeDB binary codecs in the hosted browser', () => {
   expect(contentSecurityPolicy(base, imageOrigin, true)).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval'")
 })
 
-it('keeps self-hosted pages free of dynamic code evaluation', () => {
+it('keeps local pages free of dynamic code evaluation', () => {
   expect(contentSecurityPolicy(base, imageOrigin, false)).not.toContain("'unsafe-eval'")
 })
 

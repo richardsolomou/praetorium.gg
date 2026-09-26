@@ -104,7 +104,7 @@ The home page shows three lists of battles. A player sees their own unfinished g
 
 The friends' and public lists are ordered by when a battle was started, newest first, and carry finished games alongside running ones — they are read to find a game to watch or to read back through. Ordering them by activity made the page reshuffle under a reader whenever anybody anywhere took a turn, and buried a battle that finished an hour ago beneath one nobody had moved in since. A player's own list still orders by activity, because that one is for getting back to a game rather than browsing.
 
-Hosted friends' and public feeds subscribe to a small revision shared by readers, then refetch through their usual visibility checks. They never receive battle rows from the subscription. A player's own battles also have a user-scoped revision. Self-hosted feeds poll because Centrifugo only names seated players and battles.
+Hosted friends' and public feeds subscribe to a small revision shared by readers, then refetch through their usual visibility checks. They never receive battle rows from the subscription. A player's own battles also have a user-scoped revision. Local development feeds poll because Centrifugo only names seated players and battles.
 
 ## Standings
 
