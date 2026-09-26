@@ -22,13 +22,13 @@ Anyone can watch public battles and see the leaderboard. Players can control who
 
 Praetorium does not provide matchmaking, chat, tournament pairings, or a rules encyclopedia. An account is required to play or to keep a list, though not to watch a public battle, read the leaderboard, or try the roster builder.
 
-This repository contains no game data. Each instance downloads verified snapshots from the configured community sources.
+This repository contains no game data. The service uses verified snapshots from the configured community sources.
 
 ## Use
 
 [praetorium.gg](https://praetorium.gg) is the supported service and the easiest way to use Praetorium. It keeps the community rules data current and saves your rosters and battles.
 
-Self-hosting is available for experienced operators. See [Self-hosting](docs/deployment.md).
+The source is open so anyone can inspect the product and contribute to it. [Contributing](CONTRIBUTING.md) covers running a local development copy.
 
 ## Development
 

@@ -23,12 +23,12 @@ jobs:
     timeout-minutes: 360
     env:
       GH_TOKEN: ${{ github.token }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: us-east-1
-      SNAPSHOT_BUCKET: ${{ vars.S3_BUCKET }}
-      SNAPSHOT_ENDPOINT: ${{ vars.S3_ENDPOINT }}
-      CATALOGUE_BASE_URL: ${{ vars.S3_PUBLIC_BASE_URL }}
+      SNAPSHOT_BUCKET: praetorium-catalogue
+      SNAPSHOT_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      CATALOGUE_BASE_URL: https://s3.praetorium.gg/praetorium
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
@@ -38,7 +38,7 @@ jobs:
         run: |
           test -n "$SNAPSHOT_BUCKET"
           test -n "$SNAPSHOT_ENDPOINT"
-          aws s3 cp /tmp/catalogue-history-seed.json "s3://$SNAPSHOT_BUCKET/changes/seed.json" \
+          aws s3 cp /tmp/catalogue-history-seed.json "s3://$SNAPSHOT_BUCKET/praetorium/changes/seed.json" \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
       # A dispatch is the one event a workflow token may start another workflow with.
       - name: Publish a snapshot that carries it

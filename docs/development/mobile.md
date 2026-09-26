@@ -37,7 +37,7 @@ Compact roster panes use browser history, which is inside the roster section. Th
 
 A compact unit pane is a screen inside the roster tab whenever the application tab bar is visible: it stops above the tab bar, and the tab bar stays live beside it on mobile web and in the native application. Required battle prompts block battle actions but leave the application tab bar live, so a player can inspect a roster, mission, or rule and return to the unanswered prompt. At intermediate website widths that use the desktop header, the same compact pane remains a modal dialog.
 
-After a real background cycle, the shell nudges the WebView's browser lifecycle. This closes and reconnects Centrifugo, then refetches active TanStack Query data through the web application's existing browser handlers. The shell holds no native battle state or lifecycle-specific fetch path.
+After a real background cycle, the shell nudges the WebView's browser lifecycle. This reconnects realtime updates, then refetches active TanStack Query data through the web application's existing browser handlers. The shell holds no native battle state or lifecycle-specific fetch path.
 
 ## Notifications
 

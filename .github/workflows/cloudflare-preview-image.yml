@@ -8,7 +8,7 @@ on:
       rehearsal:
         type: choice
         required: true
-        options: [identity, staging, preview, preview-cleanup, candidate, candidate-deploy]
+        options: [identity, staging, preview, preview-cleanup, candidate, candidate-deploy, public-objects]
 
 permissions:
   contents: read
@@ -146,6 +146,22 @@ jobs:
           PR_NUMBER: 99990606
         run: pnpm exec tsx scripts/cloudflarePreview.ts delete
 
+  public-objects:
+    if: github.event_name == 'workflow_dispatch' && github.actor == 'richardsolomou' && github.ref == 'refs/heads/feat/better-auth-d1' && inputs.rehearsal == 'public-objects'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - name: Copy and verify MinIO objects in R2
+        env:
+          SOURCE_S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          SOURCE_S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          SOURCE_S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+        run: bash scripts/migratePublicObjects.sh
+
   candidate:
     if: github.event_name == 'workflow_dispatch' && github.actor == 'richardsolomou' && github.ref == 'refs/heads/feat/better-auth-d1' && (inputs.rehearsal == 'candidate' || inputs.rehearsal == 'candidate-deploy')
     runs-on: ubuntu-latest
@@ -258,11 +274,6 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
           DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
-          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
-          S3_BUCKET: ${{ vars.S3_BUCKET }}
-          S3_PUBLIC_BASE_URL: ${{ vars.S3_PUBLIC_BASE_URL }}
-          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
-          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
           SMTP_HOST: ${{ vars.SMTP_HOST }}
           SMTP_PORT: ${{ vars.SMTP_PORT }}
           SMTP_SECURE: ${{ vars.SMTP_SECURE }}
@@ -290,13 +301,11 @@ jobs:
             --arg apple_key "$APPLE_KEY_ID" --arg apple_private "$APPLE_PRIVATE_KEY" \
             --arg google_client "$GOOGLE_CLIENT_ID" --arg google_secret "$GOOGLE_CLIENT_SECRET" \
             --arg discord_client "$DISCORD_CLIENT_ID" --arg discord_secret "$DISCORD_CLIENT_SECRET" \
-            --arg s3_endpoint "$S3_ENDPOINT" --arg s3_bucket "$S3_BUCKET" \
-            --arg s3_public "$S3_PUBLIC_BASE_URL" --arg s3_key "$S3_ACCESS_KEY_ID" \
-            --arg s3_secret "$S3_SECRET_ACCESS_KEY" --arg smtp_host "$SMTP_HOST" \
+            --arg smtp_host "$SMTP_HOST" \
             --arg smtp_port "$SMTP_PORT" --arg smtp_secure "$SMTP_SECURE" \
             --arg smtp_user "$SMTP_USER" --arg smtp_password "$SMTP_PASSWORD" \
             --arg email_from "$EMAIL_FROM" --arg expo_push "$EXPO_PUSH_ACCESS_TOKEN" \
-            '{AUTH_SECRET: $auth, SPACETIME_URL: $spacetime, SPACETIME_OPERATOR_TOKEN: $operator, SPACETIME_ACCESS_CLIENT_ID: $access_id, SPACETIME_ACCESS_CLIENT_SECRET: $access_secret, APPLE_CLIENT_ID: $apple_client, APPLE_TEAM_ID: $apple_team, APPLE_KEY_ID: $apple_key, APPLE_PRIVATE_KEY: $apple_private, GOOGLE_CLIENT_ID: $google_client, GOOGLE_CLIENT_SECRET: $google_secret, DISCORD_CLIENT_ID: $discord_client, DISCORD_CLIENT_SECRET: $discord_secret, S3_ENDPOINT: $s3_endpoint, S3_BUCKET: $s3_bucket, S3_PUBLIC_BASE_URL: $s3_public, S3_ACCESS_KEY_ID: $s3_key, S3_SECRET_ACCESS_KEY: $s3_secret, SMTP_HOST: $smtp_host, SMTP_PORT: $smtp_port, SMTP_SECURE: $smtp_secure, SMTP_USER: $smtp_user, SMTP_PASSWORD: $smtp_password, EMAIL_FROM: $email_from, EXPO_PUSH_ACCESS_TOKEN: $expo_push}' \
+            '{AUTH_SECRET: $auth, SPACETIME_URL: $spacetime, SPACETIME_OPERATOR_TOKEN: $operator, SPACETIME_ACCESS_CLIENT_ID: $access_id, SPACETIME_ACCESS_CLIENT_SECRET: $access_secret, APPLE_CLIENT_ID: $apple_client, APPLE_TEAM_ID: $apple_team, APPLE_KEY_ID: $apple_key, APPLE_PRIVATE_KEY: $apple_private, GOOGLE_CLIENT_ID: $google_client, GOOGLE_CLIENT_SECRET: $google_secret, DISCORD_CLIENT_ID: $discord_client, DISCORD_CLIENT_SECRET: $discord_secret, SMTP_HOST: $smtp_host, SMTP_PORT: $smtp_port, SMTP_SECURE: $smtp_secure, SMTP_USER: $smtp_user, SMTP_PASSWORD: $smtp_password, EMAIL_FROM: $email_from, EXPO_PUSH_ACCESS_TOKEN: $expo_push}' \
             > "$RUNNER_TEMP/candidate-secrets.json"
           pnpm exec wrangler deploy --config "$RUNNER_TEMP/wrangler-candidate.json" --dry-run --outdir "$RUNNER_TEMP/worker"
           pnpm exec wrangler deploy --config "$RUNNER_TEMP/wrangler-candidate.json" \

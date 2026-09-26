@@ -119,16 +119,16 @@ The fold reads whole logs, so it is bounded by a window and a count, and the ser
 ## Realtime updates
 
 - Realtime messages contain only the battle ID, plus the log's new sequence number when one command caused them. The client refetches through the normal read path, unless its screen already holds that sequence, and never draws state from the message. While the battle subscription is unavailable, the open battle polls until it subscribes, so a connected transport with a failed subscription cannot leave the table stale. A subscription token carries its subject and its channel and nothing else — nothing on a screen is drawn from a connection, so nothing needs to be.
-- `/api/realtime/token` requires an account and a seat in the requested battle.
+- The hosted `/api/spacetime/token` requires an account and issues a token for that deployment's product database. The local Centrifugo path uses `/api/realtime/token` for seated battles.
 - Realtime channels use the internal battle ID, not the shared token.
 - A second channel is named after a player, so the list of battles hears about a battle the player has not opened yet. The home page listens on it for the same reason.
 - Spectators poll. Nothing on a public feed names the person reading it, so there is no channel to give them.
-- Every channel prefix has a namespace in `realtime.json`; Centrifugo rejects an unconfigured prefix.
-- Caddy and the Vite development proxy serve Centrifugo on the app origin, so `connect-src 'self'` remains sufficient.
+- The local Centrifugo setup declares its channel namespaces in `realtime.json`; it rejects an unconfigured prefix.
+- The Vite development proxy serves local Centrifugo on the app origin.
 
 ## Server boundaries
 
-- A deployment with more than one replica requires `VALKEY_URL`. Centrifugo then fans out through Valkey, allowing a command handled by one replica to reach a page connected to another. A deployment without Valkey supports one replica.
+- Hosted product changes are committed in SpacetimeDB and reach connected clients through its realtime transport.
 - Server-function reads use `rpc()` and mutations use `mutationRpc()`.
 - `/api/health` sits outside canonical-host redirects so container health checks remain local.
 - Sign-in `next` values are paths on the current installation. Absolute redirect targets would create an open redirect.

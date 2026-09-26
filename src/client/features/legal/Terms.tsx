@@ -2,11 +2,11 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function Terms() {
   return (
-    <LegalPage title="Terms of service" updated="1 September 2026">
+    <LegalPage title="Terms of service" updated="26 September 2026">
       <LegalSection title="The service">
         <p>
           Praetorium at praetorium.gg helps you build Warhammer 40,000 army lists and track games between the players seated at them. Using
-          it requires an account. These terms cover the hosted service; a self-hosted installation is governed by whoever operates it.
+          it requires an account. These terms cover that service.
         </p>
         <p>By creating an account you agree to these terms. If you do not agree, do not use the service.</p>
       </LegalSection>
