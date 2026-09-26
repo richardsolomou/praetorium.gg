@@ -7,7 +7,7 @@ it('sends a session revocation to the selected database with the operator creden
   await operator.revokeSession('session-1')
   const [url, init] = request.mock.calls[0] as unknown as [URL, RequestInit]
   expect(url.toString()).toBe('https://spacetime.example/v1/database/preview-42/call/revoke_session')
-  expect(init).toMatchObject({ method: 'POST', body: '["session-1"]', redirect: 'error' })
+  expect(init).toMatchObject({ method: 'POST', body: '["session-1"]', redirect: 'manual' })
   expect(new Headers(init.headers).get('authorization')).toBe('Bearer operator-secret')
 })
 

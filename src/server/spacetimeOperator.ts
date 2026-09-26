@@ -520,7 +520,7 @@ export class SpacetimeOperator
         ...(this.access ? { 'CF-Access-Client-Id': this.access.clientId, 'CF-Access-Client-Secret': this.access.clientSecret } : {}),
       },
       body: JSON.stringify(arguments_),
-      redirect: 'error',
+      redirect: 'manual',
       signal: AbortSignal.timeout(10_000),
     })
     if (!response.ok)
