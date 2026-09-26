@@ -177,11 +177,21 @@ export function app(): App {
           CATALOGUE?: { get: (key: string) => Promise<{ size: number; arrayBuffer: () => Promise<ArrayBuffer> } | null> }
           CATALOGUE_SNAPSHOT_ID?: string
           CATALOGUE_MANIFEST_SHA256?: string
+          CATALOGUE_READ_ACCESS_KEY_ID?: string
+          CATALOGUE_READ_SECRET_ACCESS_KEY?: string
           CLOUDFLARE_ACCOUNT_ID?: string
+          SPACETIME_ACCESS_CLIENT_ID?: string
+          SPACETIME_ACCESS_CLIENT_SECRET?: string
         }
       }
     ).__env__
     const binding = hosted ? (cloudflare?.AUTH_DB ?? remoteD1()) : null
+    const accessClientId = cloudflare?.SPACETIME_ACCESS_CLIENT_ID ?? process.env.SPACETIME_ACCESS_CLIENT_ID
+    const accessClientSecret = cloudflare?.SPACETIME_ACCESS_CLIENT_SECRET ?? process.env.SPACETIME_ACCESS_CLIENT_SECRET
+    const spacetimeAccess =
+      accessClientId && accessClientSecret ? { clientId: accessClientId, clientSecret: accessClientSecret } : undefined
+    const catalogueAccessKeyId = cloudflare?.CATALOGUE_READ_ACCESS_KEY_ID ?? process.env.CATALOGUE_READ_ACCESS_KEY_ID
+    const catalogueSecretAccessKey = cloudflare?.CATALOGUE_READ_SECRET_ACCESS_KEY ?? process.env.CATALOGUE_READ_SECRET_ACCESS_KEY
     const catalogueBinding = cloudflare?.CATALOGUE
     const readCatalogue = catalogueBinding
       ? async (key: string, maxBytes: number) => {
@@ -189,18 +199,15 @@ export function app(): App {
           if (!object || object.size > maxBytes) throw new Error('Worker catalogue object unavailable')
           return object.arrayBuffer()
         }
-      : hosted &&
-          cloudflare?.CLOUDFLARE_ACCOUNT_ID &&
-          process.env.CATALOGUE_READ_ACCESS_KEY_ID &&
-          process.env.CATALOGUE_READ_SECRET_ACCESS_KEY
+      : hosted && cloudflare?.CLOUDFLARE_ACCOUNT_ID && catalogueAccessKeyId && catalogueSecretAccessKey
         ? (() => {
             const client = new S3Client({
               endpoint: `https://${cloudflare.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
               region: 'auto',
               forcePathStyle: true,
               credentials: {
-                accessKeyId: process.env.CATALOGUE_READ_ACCESS_KEY_ID,
-                secretAccessKey: process.env.CATALOGUE_READ_SECRET_ACCESS_KEY,
+                accessKeyId: catalogueAccessKeyId,
+                secretAccessKey: catalogueSecretAccessKey,
               },
             })
             return async (key: string, maxBytes: number) => {
@@ -224,9 +231,7 @@ export function app(): App {
         process.env.SPACETIME_DATABASE ?? '',
         process.env.SPACETIME_OPERATOR_TOKEN ?? '',
         (request) => fetch(request),
-        process.env.SPACETIME_ACCESS_CLIENT_ID && process.env.SPACETIME_ACCESS_CLIENT_SECRET
-          ? { clientId: process.env.SPACETIME_ACCESS_CLIENT_ID, clientSecret: process.env.SPACETIME_ACCESS_CLIENT_SECRET }
-          : undefined,
+        spacetimeAccess,
       )
     } else {
       database = openDatabase(databaseUrl()).database
@@ -280,7 +285,9 @@ export function app(): App {
           try {
             await Promise.all([binding.prepare('select 1').first(), operator!.health(), workerCatalogue ? workerShared() : undefined])
           } catch (error) {
-            console.error('Hosted health check failed:', error instanceof Error ? error.message : String(error))
+            console.error('Hosted health check failed:', error instanceof Error ? error.message : String(error), {
+              accessConfigured: Boolean(spacetimeAccess),
+            })
             throw error
           }
         } else {
