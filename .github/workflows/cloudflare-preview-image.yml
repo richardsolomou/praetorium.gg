@@ -8,7 +8,7 @@ on:
       rehearsal:
         type: choice
         required: true
-        options: [identity, staging, preview, preview-cleanup, candidate]
+        options: [identity, staging, preview, preview-cleanup, candidate, candidate-deploy]
 
 permissions:
   contents: read
@@ -147,7 +147,7 @@ jobs:
         run: pnpm exec tsx scripts/cloudflarePreview.ts delete
 
   candidate:
-    if: github.event_name == 'workflow_dispatch' && github.actor == 'richardsolomou' && github.ref == 'refs/heads/feat/better-auth-d1' && inputs.rehearsal == 'candidate'
+    if: github.event_name == 'workflow_dispatch' && github.actor == 'richardsolomou' && github.ref == 'refs/heads/feat/better-auth-d1' && (inputs.rehearsal == 'candidate' || inputs.rehearsal == 'candidate-deploy')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     concurrency:
@@ -157,6 +157,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
       - name: Copy imported auth and product data
+        if: inputs.rehearsal == 'candidate'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -234,7 +235,9 @@ jobs:
             --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
             --header 'Content-Type: application/json' --request POST --data-binary '[]' \
             "${SPACETIME_URL%/}/v1/database/praetorium-candidate/call/operator_health"
-          pnpm product:import "$RUNNER_TEMP/candidate-product" "$SPACETIME_URL" praetorium-candidate
+          if [[ "${{ inputs.rehearsal }}" == candidate ]]; then
+            pnpm product:import "$RUNNER_TEMP/candidate-product" "$SPACETIME_URL" praetorium-candidate
+          fi
       - name: Build and deploy protected candidate Worker
         env:
           NITRO_PRESET: cloudflare_module
