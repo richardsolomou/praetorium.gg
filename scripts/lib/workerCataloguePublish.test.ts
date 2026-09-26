@@ -44,7 +44,7 @@ it('publishes verified objects before the manifest and skips matching retries', 
       hash: first.manifestSha256,
     }).toEqual({
       count: 4,
-      last: `snapshots/${snapshotId}/manifest.json`,
+      last: `snapshots/${snapshotId}/${first.manifestSha256}/manifest.json`,
       hash: sha256(await readFile(path.join(directory, 'manifest.json'))),
     })
   } finally {
@@ -55,7 +55,8 @@ it('publishes verified objects before the manifest and skips matching retries', 
 it('refuses to overwrite different bytes at an immutable key', async () => {
   const { directory, objects, store } = await fixture()
   try {
-    objects.set(`snapshots/${snapshotId}/shared.json`, Buffer.from('different'))
+    const manifestSha256 = sha256(await readFile(path.join(directory, 'manifest.json')))
+    objects.set(`snapshots/${snapshotId}/${manifestSha256}/shared.json`, Buffer.from('different'))
     await expect(publishWorkerCatalogue(directory, store)).rejects.toThrow('Published Worker catalogue shared.json differs')
   } finally {
     await rm(directory, { recursive: true, force: true })
@@ -69,7 +70,29 @@ it('does not publish a manifest when an object fails readback', async () => {
       uploads.push(key)
     }
     await expect(publishWorkerCatalogue(directory, store)).rejects.toThrow('failed readback')
-    expect(uploads).not.toContain(`snapshots/${snapshotId}/manifest.json`)
+    const manifestSha256 = sha256(await readFile(path.join(directory, 'manifest.json')))
+    expect(uploads).not.toContain(`snapshots/${snapshotId}/${manifestSha256}/manifest.json`)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('publishes a revised compilation beside the previous version of one source snapshot', async () => {
+  const { directory, objects, store } = await fixture()
+  try {
+    const first = await publishWorkerCatalogue(directory, store)
+    const changed = Buffer.from('{"name":"updated shared"}\n')
+    await writeFile(path.join(directory, 'shared.json'), changed)
+    const manifest = JSON.parse(await readFile(path.join(directory, 'manifest.json'), 'utf8'))
+    manifest.entries['shared.json'] = { sha256: sha256(changed), bytes: changed.byteLength }
+    await writeFile(path.join(directory, 'manifest.json'), `${JSON.stringify(manifest)}\n`)
+    const second = await publishWorkerCatalogue(directory, store)
+
+    expect({
+      different: first.manifestSha256 !== second.manifestSha256,
+      old: objects.has(`snapshots/${snapshotId}/${first.manifestSha256}/manifest.json`),
+      next: objects.has(`snapshots/${snapshotId}/${second.manifestSha256}/manifest.json`),
+    }).toEqual({ different: true, old: true, next: true })
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

@@ -17,7 +17,8 @@ export async function publishWorkerCatalogue(directory: string, store: Store) {
     throw new Error('Invalid Worker catalogue snapshot ID')
   }
   const manifest = workerCatalogueManifest(value, value.snapshotId)
-  const prefix = `snapshots/${manifest.snapshotId}/`
+  const manifestSha256 = sha256(manifestBytes)
+  const prefix = `snapshots/${manifest.snapshotId}/${manifestSha256}/`
 
   async function publish(name: string, bytes: Uint8Array, expected: string) {
     if (sha256(bytes) !== expected) throw new Error(`Worker catalogue ${name} checksum does not match`)
@@ -37,7 +38,6 @@ export async function publishWorkerCatalogue(directory: string, store: Store) {
     if (bytes.byteLength !== entry.bytes) throw new Error(`Worker catalogue ${name} size does not match`)
     await publish(name, bytes, entry.sha256)
   }
-  const manifestSha256 = sha256(manifestBytes)
   await publish('manifest.json', manifestBytes, manifestSha256)
   return { snapshotId: manifest.snapshotId, manifestSha256 }
 }

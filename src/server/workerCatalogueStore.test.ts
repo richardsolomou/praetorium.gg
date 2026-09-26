@@ -75,19 +75,21 @@ function fixture() {
     },
     partitions: { army: part },
   })
+  const manifestSha256 = sha256(manifest)
+  const prefix = `snapshots/${snapshotId}/${manifestSha256}`
   const objects = new Map([
-    [`snapshots/${snapshotId}/manifest.json`, manifest],
-    [`snapshots/${snapshotId}/shared.json`, shared],
-    [`snapshots/${snapshotId}/reference-meta.json`, referenceMetadata],
-    [`snapshots/${snapshotId}/${globalReference}`, referenceShard],
-    [`snapshots/${snapshotId}/${part}`, partition],
+    [`${prefix}/manifest.json`, manifest],
+    [`${prefix}/shared.json`, shared],
+    [`${prefix}/reference-meta.json`, referenceMetadata],
+    [`${prefix}/${globalReference}`, referenceShard],
+    [`${prefix}/${part}`, partition],
   ])
   const read = async (key: string, maxBytes: number) => {
     const bytes = objects.get(key)
     if (!bytes || bytes.byteLength > maxBytes) throw new Error('Catalogue object unavailable')
     return bytes
   }
-  return { objects, read, manifestSha256: sha256(manifest) }
+  return { objects, read, manifestSha256, prefix }
 }
 
 it('loads one verified faction partition with shared maps', async () => {
@@ -126,8 +128,8 @@ it('serves a reference datasheet without loading its faction partition', async (
 })
 
 it('refuses a changed partition before building its index', async () => {
-  const { objects, read, manifestSha256 } = fixture()
-  objects.set(`snapshots/${snapshotId}/${part}`, encode([{ catalogue: { id: 'other', name: 'Other' } }]))
+  const { objects, read, manifestSha256, prefix } = fixture()
+  objects.set(`${prefix}/${part}`, encode([{ catalogue: { id: 'other', name: 'Other' } }]))
   const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
   await expect(store.catalogue('army')).rejects.toThrow('checksum does not match')
 })
@@ -151,7 +153,8 @@ it('finds a reference through a bounded shard search', async () => {
 })
 
 it('refuses a manifest whose hash differs from the deployed version', async () => {
-  const { read } = fixture()
+  const { objects, read, prefix } = fixture()
+  objects.set(`snapshots/${snapshotId}/${'b'.repeat(64)}/manifest.json`, objects.get(`${prefix}/manifest.json`)!)
   const store = new WorkerCatalogueStore(read, snapshotId, 'b'.repeat(64))
   await expect(store.catalogue('army')).rejects.toThrow('manifest checksum does not match')
 })
@@ -188,7 +191,7 @@ it('reuses verified shared data after the request that loaded it ends', async ()
 })
 
 it('does not share an unfinished R2 read with another request', async () => {
-  const { objects, read, manifestSha256 } = fixture()
+  const { objects, read, manifestSha256, prefix } = fixture()
   let release!: (bytes: ArrayBuffer) => void
   let entered!: () => void
   const waiting = new Promise<void>((resolve) => {
@@ -209,7 +212,7 @@ it('does not share an unfinished R2 read with another request', async () => {
   await waiting
   const second = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
   const shared = await second.shared()
-  release(objects.get(`snapshots/${snapshotId}/shared.json`)!)
+  release(objects.get(`${prefix}/shared.json`)!)
   await pending
 
   expect(shared.factions.factions).toEqual([])

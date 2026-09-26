@@ -152,7 +152,7 @@ export class WorkerCatalogueStore {
   }
 
   private key(name: string) {
-    return `snapshots/${this.snapshotId}/${name}`
+    return `snapshots/${this.snapshotId}/${this.manifestSha256}/${name}`
   }
 
   private async bytes(name: string, entry: Entry) {
