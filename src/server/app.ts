@@ -277,7 +277,12 @@ export function app(): App {
     const instance: App = {
       health: async () => {
         if (hosted) {
-          await Promise.all([binding.prepare('select 1').first(), operator!.health(), workerCatalogue ? workerShared() : undefined])
+          try {
+            await Promise.all([binding.prepare('select 1').first(), operator!.health(), workerCatalogue ? workerShared() : undefined])
+          } catch (error) {
+            console.error('Hosted health check failed:', error instanceof Error ? error.message : String(error))
+            throw error
+          }
         } else {
           await database!.execute(sql`select 1`)
           if (cache && !(await valkeyReachable(cache))) throw new Error('Valkey unavailable')
