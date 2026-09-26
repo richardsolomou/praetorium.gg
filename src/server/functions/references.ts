@@ -135,6 +135,9 @@ export const factionDatasheets = createServerFn({ method: 'GET' })
   .validator(unitsSchema)
   .handler(({ data }) =>
     rpc(async () => {
+      cacheUntilSnapshotChanges()
+      const references = app().workerReferences
+      if (!data.query.trim() && references) return (await references.referenceDatasheets(data.catalogueId)) ?? []
       const loaded = await app().catalogueFor(data.catalogueId)
       if (!loaded) return []
       return unitsIn(loaded, data.catalogueId, data.query, { factionCards: true }).filter((unit) =>
@@ -292,6 +295,8 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       cacheUntilSnapshotChanges()
+      const references = app().workerReferences
+      if (references) return references.referenceDatasheet(data.catalogueId, data.slug)
       const catalogue = await app().catalogueFor(data.catalogueId)
       const rules = await app().rulesFor()
       const canonical = await app().canonicalCatalogueFor()

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../src/core/catalogue'
-import { loadCatalogue } from '../src/server/catalogueIndex'
+import { isReferenceDatasheet, loadCatalogue } from '../src/server/catalogueIndex'
 import { cataloguePartitions } from '../src/server/cataloguePartitions'
 import { encodeCatalogueArtifact } from '../src/server/catalogueArtifactCodec'
 import { verifyInstalledSnapshot } from '../src/server/catalogueSnapshot'
@@ -14,6 +14,7 @@ import { compiledGlobalSearchIndex } from '../src/server/globalSearch'
 import { referenceCatalogue } from '../src/server/canonicalCatalogue'
 import { referenceCorpusFor } from '../src/server/referenceCorpus'
 import { referenceFactions, referenceIndex } from '../src/server/referenceService'
+import { unitsIn } from '../src/server/cataloguePicker'
 import type { CanonicalDatasheet, CanonicalDetachment, CanonicalCatalogueIssue } from '../src/contracts/catalogue'
 import type { ReferenceDocument } from '../src/contracts/reference'
 
@@ -59,6 +60,12 @@ write('shared.json', {
   factions: factionsFor(loaded, rules),
   combatUnits: combatUnitsFor(loaded, rules),
   searchIndex: compiledGlobalSearchIndex(loaded, rules),
+  referenceDatasheets: new Map(
+    loaded.factions.map((faction) => [
+      faction.id,
+      unitsIn(loaded, faction.id, '', { factionCards: true }).filter((unit) => isReferenceDatasheet(loaded, faction.id, unit.id)),
+    ]),
+  ),
   history: loadCatalogueHistory(directory),
 })
 

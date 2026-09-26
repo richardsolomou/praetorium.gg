@@ -11,6 +11,7 @@ import type { factionsFor } from './factionReferences'
 import type { GlobalSearchIndex } from './globalSearch'
 import type { ReferenceCorpus } from './referenceCorpus'
 import type { referenceFactions, referenceIndex } from './referenceService'
+import type { UnitSummary } from '../contracts/catalogue'
 import { finishReferenceSearch, rankReferencePart, type ReferenceSearchInput } from './referenceSearch'
 import { globalSingleton } from 'ras-stack/server'
 
@@ -30,6 +31,7 @@ type Shared = {
   factions: ReturnType<typeof factionsFor>
   combatUnits: ReturnType<typeof combatUnitsFor>
   searchIndex: GlobalSearchIndex
+  referenceDatasheets: Map<string, UnitSummary[]>
   history: CatalogueHistoryEntry[] | null
 }
 type ReferenceMetadata = {
@@ -115,6 +117,7 @@ function sharedOf(value: unknown): Shared {
     !Array.isArray(shared.factions?.factions) ||
     !Array.isArray(shared.combatUnits) ||
     !Array.isArray(shared.searchIndex?.datasheets) ||
+    !(shared.referenceDatasheets instanceof Map) ||
     (shared.history !== null && !Array.isArray(shared.history))
   ) {
     throw new Error('Invalid Worker catalogue shared data')
@@ -209,6 +212,15 @@ export class WorkerCatalogueStore {
     const index = buildIndex(files as CatalogueFile[], manifest.revision)
     if (!index.catalogues.has(catalogueId)) throw new Error('Worker catalogue partition has no faction')
     return catalogueFromIndex(index, files as CatalogueFile[], shared.datacards, shared.sourceReferences)
+  }
+
+  async referenceDatasheets(catalogueId: string) {
+    return (await this.shared()).referenceDatasheets.get(catalogueId) ?? null
+  }
+
+  async referenceDatasheet(catalogueId: string, slug: string) {
+    const corpus = await this.referenceForFaction(catalogueId)
+    return corpus?.catalogue.datasheets.find((sheet) => sheet.catalogueId === catalogueId && sheet.slug === slug) ?? null
   }
 
   async referenceMetadata(): Promise<ReferenceMetadata> {

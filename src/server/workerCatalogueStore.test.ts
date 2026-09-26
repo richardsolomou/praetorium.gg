@@ -25,6 +25,7 @@ function fixture() {
     factions: { revision: 'test-revision', factions: [] },
     combatUnits: [],
     searchIndex: { factions: [], detachments: [], datasheets: [] },
+    referenceDatasheets: new Map([['army', [{ id: 'unit', slug: 'unit', name: 'Unit' }]]]),
     history: null,
   })
   const partition = encode([
@@ -32,7 +33,12 @@ function fixture() {
     { catalogue: { id: 'army', name: 'Test army', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] } },
   ])
   const referenceShard = encode({
-    catalogue: { datasheets: [], detachments: [], ruleDocuments: [], revisions: {} },
+    catalogue: {
+      datasheets: [{ catalogueId: 'army', slug: 'unit', name: 'Unit' }],
+      detachments: [],
+      ruleDocuments: [],
+      revisions: {},
+    },
     documents: [
       {
         id: documentId,
@@ -53,7 +59,7 @@ function fixture() {
     index: { factions: [] },
     factions: [],
     shards: [globalReference],
-    factionShards: {},
+    factionShards: { army: globalReference },
     documentShards: { [documentId]: globalReference },
     paths: ['/factions', '/rules'],
   })
@@ -91,6 +97,32 @@ it('loads one verified faction partition with shared maps', async () => {
   expect((await store.shared()).rules.byDetachment).toBeInstanceOf(Map)
   expect((await store.referenceMetadata()).revision).toBe('b'.repeat(64))
   expect(await store.catalogue('other')).toBeNull()
+})
+
+it('serves the initial faction list from eager shared data', async () => {
+  const { read, manifestSha256 } = fixture()
+  const store = new WorkerCatalogueStore(
+    (key, maxBytes) => {
+      if (key.includes('/partitions/')) throw new Error('partition should not be read')
+      return read(key, maxBytes)
+    },
+    snapshotId,
+    manifestSha256,
+  )
+  expect((await store.referenceDatasheets('army'))?.map((sheet) => sheet.name)).toEqual(['Unit'])
+})
+
+it('serves a reference datasheet without loading its faction partition', async () => {
+  const { read, manifestSha256 } = fixture()
+  const store = new WorkerCatalogueStore(
+    (key, maxBytes) => {
+      if (key.includes('/partitions/')) throw new Error('partition should not be read')
+      return read(key, maxBytes)
+    },
+    snapshotId,
+    manifestSha256,
+  )
+  expect((await store.referenceDatasheet('army', 'unit'))?.name).toBe('Unit')
 })
 
 it('refuses a changed partition before building its index', async () => {
