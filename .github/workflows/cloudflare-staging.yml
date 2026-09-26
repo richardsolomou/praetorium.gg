@@ -45,9 +45,13 @@ jobs:
         env:
           SPACETIME_URL: ${{ vars.SPACETIME_URL }}
           SPACETIME_ADMIN_TOKEN: ${{ secrets.SPACETIME_ADMIN_TOKEN }}
+          SPACETIME_OPERATOR_ID: ${{ vars.STAGING_SPACETIME_OPERATOR_ID }}
+          SPACETIME_OPERATOR_TOKEN: ${{ secrets.STAGING_SPACETIME_OPERATOR_TOKEN }}
           SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.SPACETIME_ACCESS_CLIENT_ID }}
           SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
         run: |
+          test -n "$SPACETIME_OPERATOR_ID"
+          test -n "$SPACETIME_OPERATOR_TOKEN"
           curl --fail --silent --show-error --max-time 90 \
             --header "Authorization: Bearer $SPACETIME_ADMIN_TOKEN" \
             --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
@@ -55,6 +59,23 @@ jobs:
             --header 'Content-Type: application/octet-stream' \
             --request PUT --data-binary @spacetimedb/dist/bundle.js \
             "${SPACETIME_URL%/}/v1/database/praetorium-staging?host_type=Js"
+          jq -nc --arg operator "$SPACETIME_OPERATOR_ID" \
+            '["https://staging.praetorium.gg/api/auth", "praetorium-staging", $operator]' \
+            > "$RUNNER_TEMP/staging-configure.json"
+          curl --fail --silent --show-error --max-time 30 \
+            --header "Authorization: Bearer $SPACETIME_ADMIN_TOKEN" \
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+            --header 'Content-Type: application/json' \
+            --request POST --data-binary @"$RUNNER_TEMP/staging-configure.json" \
+            "${SPACETIME_URL%/}/v1/database/praetorium-staging/call/configure"
+          curl --fail --silent --show-error --max-time 30 \
+            --header "Authorization: Bearer $SPACETIME_OPERATOR_TOKEN" \
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+            --header 'Content-Type: application/json' \
+            --request POST --data-binary '[]' \
+            "${SPACETIME_URL%/}/v1/database/praetorium-staging/call/operator_health"
       - name: Deploy staging Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
