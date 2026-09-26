@@ -72,12 +72,17 @@ try {
   await visit('/leagues', 'Leagues')
 
   await visit('/factions', 'Factions')
-  const favourite = page.locator('section[data-shelf="Necrons"]').getByRole('button', { name: /Necrons.*favourites/ })
+  const favourite = page.locator('section[data-shelf="Xenos"] [data-faction="Necrons"]').getByRole('button', {
+    name: /Necrons.*favourites/,
+  })
   await favourite.waitFor({ timeout: 15_000 })
   const original = await favourite.getAttribute('aria-pressed')
   assert(original === 'true' || original === 'false', 'Candidate faction favourite did not load')
   const readback = await context.newPage()
-  const savedFavourite = () => readback.locator('section[data-shelf="Necrons"]').getByRole('button', { name: /Necrons.*favourites/ })
+  const savedFavourite = () =>
+    readback.locator('section[data-shelf="Xenos"] [data-faction="Necrons"]').getByRole('button', {
+      name: /Necrons.*favourites/,
+    })
   try {
     await favourite.click()
     await expect
