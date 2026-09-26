@@ -53,6 +53,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/cloudflare-preview"
           cp -a "$RUNNER_TEMP/worker/." "$RUNNER_TEMP/cloudflare-preview/"
+          cp "$RUNNER_TEMP/worker/nativeWorker.js" "$RUNNER_TEMP/cloudflare-preview/worker.js"
           cp -a .output/public "$RUNNER_TEMP/cloudflare-preview/assets"
           cp spacetimedb/dist/bundle.js "$RUNNER_TEMP/cloudflare-preview/product.js"
       - uses: actions/upload-artifact@v7
