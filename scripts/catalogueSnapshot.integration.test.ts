@@ -14,6 +14,7 @@ import {
   fetchSnapshot,
   installedSnapshot,
   packCatalogueSnapshot,
+  verifyInstalledSnapshot,
 } from '../src/server/catalogueSnapshot'
 
 const roots: string[] = []
@@ -61,6 +62,27 @@ it('packs and verifies a complete catalogue', () => {
   execFileSync('pnpm', ['catalogue:snapshot', 'pack'], { env: environment })
   expect(unzipSync(fs.readFileSync(archive))['catalogue/canonical/catalogue.json']).toBeDefined()
   expect(() => execFileSync('pnpm', ['catalogue:snapshot', 'verify'], { env: environment })).not.toThrow()
+})
+
+it('rejects a changed file in an installed snapshot', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
+  roots.push(root)
+  const source = completeCatalogue(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointerFile = path.join(root, 'pointer.json')
+  const pointer = packCatalogueSnapshot(source, archive, pointerFile)
+  const destination = path.join(root, 'installed')
+  for (const [name, bytes] of Object.entries(unzipSync(fs.readFileSync(archive)))) {
+    if (!name.startsWith('catalogue/')) continue
+    const file = path.join(destination, name.slice('catalogue/'.length))
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, bytes)
+  }
+  fs.writeFileSync(path.join(destination, '.snapshot.json'), JSON.stringify(pointer))
+  fs.writeFileSync(path.join(destination, '.snapshot-manifest.json'), unzipSync(fs.readFileSync(archive))['manifest.json']!)
+  expect(verifyInstalledSnapshot(destination).id).toBe(installedSnapshot(destination)?.id)
+  fs.writeFileSync(path.join(destination, 'definitions', 'test.json'), '{"catalogue":false}\n')
+  expect(() => verifyInstalledSnapshot(destination)).toThrow('catalogue snapshot has an invalid definitions/test.json')
 })
 
 it('rejects a snapshot built for different source pins', () => {

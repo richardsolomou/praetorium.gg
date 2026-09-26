@@ -326,6 +326,33 @@ export function installedSnapshot(directory: string): SnapshotPointer | null {
   return installedSnapshotDetails(directory)?.pointer ?? null
 }
 
+export function verifyInstalledSnapshot(directory: string): SnapshotPointer {
+  const pointer = parsePointer(JSON.parse(fs.readFileSync(path.join(directory, '.snapshot.json'), 'utf8')))
+  const rawManifest = fs.readFileSync(path.join(directory, '.snapshot-manifest.json'))
+  if (sha256(rawManifest) !== pointer.id) throw new Error('catalogue snapshot manifest does not match its id')
+  const manifest = JSON.parse(rawManifest.toString('utf8')) as SnapshotManifest
+  if (![FORMAT, COMPLETE_FORMAT, LEGACY_FORMAT].includes(manifest.format)) throw new Error('catalogue snapshot format is unsupported')
+  const sources = manifestSources(manifest)
+  assertAllowed(pointer, sources, configuredRevocations())
+  const revisions = revisionsOf(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')))
+  if (JSON.stringify(revisions) !== JSON.stringify(manifest.revisions)) throw new Error('catalogue revisions do not match the manifest')
+  let size = 0
+  for (const [name, hash] of Object.entries(manifest.files)) {
+    if (path.isAbsolute(name) || name.split('/').includes('..')) throw new Error(`unsafe catalogue snapshot path ${name}`)
+    const file = path.join(directory, name)
+    if (!fs.statSync(file).isFile()) throw new Error(`catalogue snapshot has an invalid ${name}`)
+    const bytes = fs.readFileSync(file)
+    size += bytes.length
+    if (sha256(bytes) !== hash) throw new Error(`catalogue snapshot has an invalid ${name}`)
+  }
+  if (size > MAX_EXTRACTED_BYTES) throw new Error('catalogue snapshot expands beyond its size limit')
+  const listed = new Set(Object.keys(manifest.files))
+  if (filesUnder(directory).some((name) => !name.startsWith('.snapshot') && !listed.has(name))) {
+    throw new Error('catalogue snapshot contains an unlisted file')
+  }
+  return pointer
+}
+
 /**
  * The sources an installed snapshot carries, read as history rather than as the data to
  * serve: a revision for a source this code no longer has is passed over, since nothing reads
