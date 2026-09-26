@@ -1,9 +1,10 @@
-import { createHash, randomBytes } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import { execFile as execFileCallback } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import { verifyPreviewCatalogueAssets } from './lib/previewCatalogueAssets'
 import {
   closedPreviewNumbers,
   d1DatabaseId,
@@ -12,7 +13,6 @@ import {
   previewNames,
   previewNumber,
 } from './lib/cloudflarePreview'
-import { workerCatalogueManifest } from '../src/server/workerCatalogueStore'
 
 const execFile = promisify(execFileCallback)
 const accountId = required('CLOUDFLARE_ACCOUNT_ID')
@@ -83,18 +83,7 @@ async function deploy() {
   const workerBundle = path.resolve(required('PREVIEW_WORKER_BUNDLE'))
   const assets = path.resolve(required('PREVIEW_ASSETS_DIR'))
   const productBundle = await readFile(path.resolve(required('PREVIEW_PRODUCT_BUNDLE')))
-  const manifestBytes = await readFile(path.resolve('.output/worker-catalogue/manifest.json'))
-  const manifestValue: unknown = JSON.parse(manifestBytes.toString('utf8'))
-  if (
-    !manifestValue ||
-    typeof manifestValue !== 'object' ||
-    !('snapshotId' in manifestValue) ||
-    typeof manifestValue.snapshotId !== 'string'
-  ) {
-    throw new Error('Invalid Worker catalogue snapshot ID')
-  }
-  const manifest = workerCatalogueManifest(manifestValue, manifestValue.snapshotId)
-  const manifestSha256 = createHash('sha256').update(manifestBytes).digest('hex')
+  const { snapshotId, manifestSha256 } = await verifyPreviewCatalogueAssets(path.dirname(assets))
 
   const existing = d1DatabaseId(await databases(), names.auth)
   if (existing) await wrangler('d1', 'delete', names.auth, '--skip-confirmation')
@@ -139,7 +128,7 @@ async function deploy() {
           assets,
           accountId,
           databaseId,
-          snapshotId: manifest.snapshotId,
+          snapshotId,
           manifestSha256,
           revision: sha,
         }),
