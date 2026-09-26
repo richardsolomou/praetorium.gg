@@ -3,11 +3,29 @@ name: Cloudflare preview image
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+  workflow_dispatch:
+    inputs:
+      backup_readback:
+        type: boolean
+        required: true
 
 permissions:
   contents: read
 
 jobs:
+  backup-readback-rehearsal:
+    if: github.event_name == 'workflow_dispatch' && inputs.backup_readback && github.ref == 'refs/heads/chore/remove-cloudflare-cutover'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Restore off-host SpacetimeDB volumes and read private rows
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          SPACETIME_OWNER_TOKEN: ${{ secrets.PRODUCTION_SPACETIME_OWNER_TOKEN }}
+        run: bash scripts/verifySpacetimeBackup.sh
+
   build:
     if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-candidate/') == false
     runs-on: ubuntu-latest
