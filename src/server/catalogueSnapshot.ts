@@ -94,7 +94,7 @@ function revisionsOf(value: unknown, historical = false): Record<string, string>
   return revisions
 }
 
-function parseLock(value: unknown): CatalogueLock {
+export function parseCatalogueLock(value: unknown): CatalogueLock {
   if (!value || typeof value !== 'object') throw new Error('catalogue lock is invalid')
   const candidate = value as Partial<CatalogueLock>
   if (candidate.format !== LOCK_FORMAT) throw new Error('catalogue lock format is unsupported')
@@ -121,7 +121,7 @@ function parseRevocations(value: unknown): CatalogueRevocations {
   return { format: REVOCATIONS_FORMAT, snapshots, sources }
 }
 
-export const catalogueLock = parseLock(rawLock)
+export const catalogueLock = parseCatalogueLock(rawLock)
 export const catalogueRevocations = parseRevocations(rawRevocations)
 
 export function catalogueBaseUrl(value = process.env.CATALOGUE_BASE_URL) {

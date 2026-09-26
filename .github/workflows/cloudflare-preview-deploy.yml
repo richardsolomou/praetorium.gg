@@ -84,14 +84,9 @@ jobs:
           PREVIEW_SHA: ${{ github.event.workflow_run.head_sha }}
           RUN_ID: ${{ github.event.workflow_run.id }}
         run: gh run download "$RUN_ID" --name "cloudflare-preview-$PR_NUMBER-$PREVIEW_SHA" --dir "$RUNNER_TEMP/cloudflare-preview"
-      - name: Install verified catalogue assets for the preview
+      - name: Fetch the preview's verified catalogue snapshot for seeding
         if: steps.current.outputs.active == 'true'
-        env:
-          WORKER_CATALOGUE_ASSETS_DIR: ${{ runner.temp }}/cloudflare-preview/assets
-        run: |
-          pnpm catalogue:sync
-          pnpm catalogue:worker
-          pnpm catalogue:worker:assets
+        run: pnpm exec tsx scripts/syncPreviewCatalogue.ts "$RUNNER_TEMP/cloudflare-preview"
       - name: Provision and deploy isolated preview
         if: steps.current.outputs.active == 'true'
         env:

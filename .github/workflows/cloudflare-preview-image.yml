@@ -49,6 +49,11 @@ jobs:
         run: pnpm build
       - name: Bundle Worker without credentials
         run: pnpm exec wrangler deploy --config wrangler.staging.json --dry-run --outdir "$RUNNER_TEMP/worker"
+      - name: Compile preview catalogue assets
+        run: |
+          pnpm catalogue:sync
+          pnpm catalogue:worker
+          pnpm catalogue:worker:assets
       - name: Assemble preview artifact
         run: |
           mkdir -p "$RUNNER_TEMP/cloudflare-preview"
@@ -56,6 +61,8 @@ jobs:
           cp "$RUNNER_TEMP/worker/nativeWorker.js" "$RUNNER_TEMP/cloudflare-preview/worker.js"
           cp -a .output/public "$RUNNER_TEMP/cloudflare-preview/assets"
           cp spacetimedb/dist/bundle.js "$RUNNER_TEMP/cloudflare-preview/product.js"
+          cp catalogue/lock.json "$RUNNER_TEMP/cloudflare-preview/catalogue-lock.json"
+          cp .output/worker-catalogue/manifest.json "$RUNNER_TEMP/cloudflare-preview/catalogue-manifest.json"
       - uses: actions/upload-artifact@v7
         with:
           name: cloudflare-preview-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
