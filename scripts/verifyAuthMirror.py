@@ -15,15 +15,16 @@ def load(sql: str, schema: str = "") -> sqlite3.Connection:
 
 
 def main() -> None:
-    if len(sys.argv) != 4:
-        raise SystemExit("usage: verifyAuthMirror.py schema.sql auth.sql d1-export.sql")
-    schema, source, remote = (Path(name).read_text() for name in sys.argv[1:])
+    if len(sys.argv) not in (4, 5):
+        raise SystemExit("usage: verifyAuthMirror.py schema.sql auth.sql d1-export.sql [previous-d1-export.sql]")
+    schema, source, remote = (Path(name).read_text() for name in sys.argv[1:4])
     expected = load(source, schema)
     actual = load(remote)
+    previous = load(Path(sys.argv[4]).read_text()) if len(sys.argv) == 5 else None
     counts = {}
     for table in ("user", "account", "session", "verification", "twoFactor", "rateLimit", "jwks"):
         query = f'SELECT * FROM "{table}"'
-        left = Counter(expected.execute(query).fetchall())
+        left = Counter((previous if table == "jwks" and previous else expected).execute(query).fetchall())
         right = Counter(actual.execute(query).fetchall())
         if left != right:
             raise ValueError(f"D1 auth import mismatch in {table}")

@@ -19,11 +19,17 @@ export default {
     }
     if (pathname.startsWith('/_catalogue/')) return new Response(null, { status: 404 })
     if (pathname.startsWith('/spacetime/')) return spacetimeSocket(request, environment)
-    return withWorkerAppContext(
+    const response = withWorkerAppContext(
       () => application.fetch(request, environment, context),
       context,
       { resvg, yoga },
       environment.PUBLIC_OBJECTS,
     )
+    if (pathname !== '/api/health') return response
+    return Promise.resolve(response).then((result) => {
+      const marked = new Response(result.body, result)
+      marked.headers.set('x-praetorium-runtime', 'cloudflare')
+      return marked
+    })
   },
 }

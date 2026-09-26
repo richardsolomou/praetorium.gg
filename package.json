@@ -20,7 +20,7 @@
     "policy:check": "ras policy check",
     "architecture:check": "tsx scripts/checkImportBoundaries.ts",
     "check": "pnpm format:check && pnpm lint && pnpm docs:lint && pnpm policy:check && pnpm architecture:check && pnpm db:check && pnpm auth:db:check && pnpm catalogue:check && pnpm build && pnpm typecheck && pnpm test",
-    "test": "vitest run",
+    "test": "vitest run && python3 -B -m unittest discover -s scripts -p 'test_*.py'",
     "test:unit": "vitest run --config vitest.unit.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "check:changesets": "ras policy check",

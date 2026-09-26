@@ -27,19 +27,9 @@ jobs:
     needs: [release]
     runs-on: ubuntu-latest
     steps:
-      - name: Require completed data cutover
-        env:
-          CLOUDFLARE_CUTOVER_READY: ${{ vars.CLOUDFLARE_CUTOVER_READY }}
-        run: test "$CLOUDFLARE_CUTOVER_READY" = true
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release.outputs.sha || github.sha }}
-      - name: Require previous application writes frozen
-        env:
-          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
-          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
-        run: bash scripts/verifyCutoverFreeze.sh
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
       - name: Fetch verified catalogue
         run: pnpm catalogue:sync
@@ -54,6 +44,132 @@ jobs:
         run: |
           pnpm catalogue:worker
           pnpm catalogue:worker:assets
+      - name: Build SpacetimeDB module
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v2.7.0-hotfix3 -R clockworklabs/SpacetimeDB -p spacetime-x86_64-unknown-linux-gnu.tar.gz -D "$RUNNER_TEMP"
+          echo 'd25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831  '"$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" -C "$RUNNER_TEMP" spacetimedb-cli
+          "$RUNNER_TEMP/spacetimedb-cli" build -p spacetimedb
+      - name: Detect first production cutover
+        id: cutover
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
+        run: bash scripts/detectCloudflareCutover.sh >> "$GITHUB_OUTPUT"
+      - name: Freeze previous application writes
+        if: steps.cutover.outputs.needed == 'true'
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+        run: bash scripts/freezeDokployRuntime.sh
+      - name: Copy final public objects to R2
+        if: steps.cutover.outputs.needed == 'true'
+        env:
+          SOURCE_S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          SOURCE_S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          SOURCE_S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+        run: bash scripts/migratePublicObjects.sh
+      - name: Restore final Postgres backup and export data
+        if: steps.cutover.outputs.needed == 'true'
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+          DOKPLOY_POSTGRES_ID: Ww_-3KD0nTcVW4JZMYZ2V
+          BACKUP_OUTPUT: ${{ runner.temp }}/cutover-postgres.sql.gz
+          RUN_MANUAL_BACKUP: true
+          AUTH_SECRET: ${{ secrets.PRODUCTION_AUTH_SECRET }}
+        run: |
+          set -euo pipefail
+          umask 077
+          bash scripts/verifyCutoverFreeze.sh
+          bash scripts/fetchDokployPostgresBackup.sh
+          docker run --detach --name praetorium-cutover-postgres \
+            --env POSTGRES_PASSWORD=cutover-local \
+            --publish 127.0.0.1:55432:5432 postgres:18-alpine > /dev/null
+          trap 'docker rm --force praetorium-cutover-postgres > /dev/null 2>&1 || true' EXIT
+          for _ in {1..30}; do
+            if docker exec praetorium-cutover-postgres pg_isready -U postgres > /dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          gzip -cd "$BACKUP_OUTPUT" | docker exec -i praetorium-cutover-postgres \
+            pg_restore --exit-on-error --no-owner --no-privileges -U postgres -d postgres
+          export DATABASE_URL=postgres://postgres:cutover-local@127.0.0.1:55432/postgres
+          pnpm auth:export "$RUNNER_TEMP/cutover-auth"
+          pnpm auth:verify "$RUNNER_TEMP/cutover-auth"
+          pnpm product:export "$RUNNER_TEMP/cutover-product"
+          pnpm product:verify "$RUNNER_TEMP/cutover-product"
+      - name: Refresh production D1 accounts
+        if: steps.cutover.outputs.needed == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          umask 077
+          pnpm exec wrangler d1 export AUTH_DB --config wrangler.production.json --remote \
+            --output "$RUNNER_TEMP/previous-production-auth.sql" --skip-confirmation
+          cat drizzle-auth/[0-9]*.sql "$RUNNER_TEMP/cutover-auth/auth.sql" > "$RUNNER_TEMP/source-auth.sql"
+          python3 scripts/refreshAuthD1.py "$RUNNER_TEMP/source-auth.sql" \
+            "$RUNNER_TEMP/previous-production-auth.sql" "$RUNNER_TEMP/production-refresh.sql"
+          pnpm exec wrangler d1 execute AUTH_DB --config wrangler.production.json --remote \
+            --file "$RUNNER_TEMP/production-refresh.sql" --yes
+          pnpm exec wrangler d1 export AUTH_DB --config wrangler.production.json --remote \
+            --output "$RUNNER_TEMP/current-production-auth.sql" --skip-confirmation
+          python3 scripts/verifyAuthMirror.py drizzle-auth/0000_curly_gambit.sql \
+            "$RUNNER_TEMP/cutover-auth/auth.sql" "$RUNNER_TEMP/current-production-auth.sql" \
+            "$RUNNER_TEMP/previous-production-auth.sql"
+      - name: Replace stale product import with final Postgres data
+        if: steps.cutover.outputs.needed == 'true'
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+          SPACETIME_URL: ${{ vars.PRODUCTION_SPACETIME_URL }}
+          SPACETIME_OWNER_TOKEN: ${{ secrets.PRODUCTION_SPACETIME_OWNER_TOKEN }}
+          SPACETIME_OPERATOR_TOKEN: ${{ secrets.PRODUCTION_SPACETIME_OPERATOR_TOKEN }}
+          SPACETIME_IMPORT_TOKEN: ${{ secrets.PRODUCTION_SPACETIME_OWNER_TOKEN }}
+          SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_ID }}
+          SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_SECRET }}
+          PRODUCTION_SPACETIME_OPERATOR_ID: ${{ vars.PRODUCTION_SPACETIME_OPERATOR_ID }}
+        run: |
+          set -euo pipefail
+          bash scripts/verifyCutoverFreeze.sh
+          status="$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' \
+            --header "Authorization: Bearer $SPACETIME_OWNER_TOKEN" \
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+            --request DELETE "${SPACETIME_URL%/}/v1/database/praetorium-production")"
+          [[ "$status" == 200 || "$status" == 204 || "$status" == 404 ]]
+          curl --fail --silent --show-error --max-time 90 \
+            --header "Authorization: Bearer $SPACETIME_OWNER_TOKEN" \
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+            --header 'Content-Type: application/octet-stream' \
+            --request PUT --data-binary @spacetimedb/dist/bundle.js \
+            "${SPACETIME_URL%/}/v1/database/praetorium-production?host_type=Js"
+          jq -nc --arg operator "$PRODUCTION_SPACETIME_OPERATOR_ID" \
+            '["https://praetorium.gg/api/auth", "praetorium-production", $operator]' \
+            > "$RUNNER_TEMP/production-configure.json"
+          curl --fail --silent --show-error --max-time 30 \
+            --header "Authorization: Bearer $SPACETIME_OWNER_TOKEN" \
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+            --header 'Content-Type: application/json' --request POST \
+            --data-binary @"$RUNNER_TEMP/production-configure.json" \
+            "${SPACETIME_URL%/}/v1/database/praetorium-production/call/configure"
+          curl --fail --silent --show-error --max-time 30 \
+            --header "Authorization: Bearer $SPACETIME_OPERATOR_TOKEN" \
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+            --header 'Content-Type: application/json' --request POST --data-binary '[]' \
+            "${SPACETIME_URL%/}/v1/database/praetorium-production/call/operator_health"
+          pnpm product:import "$RUNNER_TEMP/cutover-product" "$SPACETIME_URL" praetorium-production
       - name: Verify public objects in R2
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
@@ -88,15 +204,7 @@ jobs:
             count=$((count + 1))
           done < <(jq -r '.[0].results[].image // empty' <<< "$images")
           echo "Verified catalogue archive and $count profile images in R2"
-      - name: Build SpacetimeDB module
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release download v2.7.0-hotfix3 -R clockworklabs/SpacetimeDB -p spacetime-x86_64-unknown-linux-gnu.tar.gz -D "$RUNNER_TEMP"
-          echo 'd25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831  '"$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" | sha256sum --check
-          tar -xzf "$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" -C "$RUNNER_TEMP" spacetimedb-cli
-          "$RUNNER_TEMP/spacetimedb-cli" build -p spacetimedb
-      - name: Publish product module and deploy application
+      - name: Prepare production Worker deployment
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -124,6 +232,7 @@ jobs:
           RELEASE_SHA: ${{ needs.release.outputs.sha || github.sha }}
         run: |
           set -euo pipefail
+          umask 077
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test -n "$SPACETIME_URL"
@@ -181,6 +290,14 @@ jobs:
             '{AUTH_SECRET: $auth, SPACETIME_URL: $spacetime, SPACETIME_OPERATOR_TOKEN: $operator, SPACETIME_ACCESS_CLIENT_ID: $access_id, SPACETIME_ACCESS_CLIENT_SECRET: $access_secret, APPLE_CLIENT_ID: $apple_client, APPLE_TEAM_ID: $apple_team, APPLE_KEY_ID: $apple_key, APPLE_PRIVATE_KEY: $apple_private, GOOGLE_CLIENT_ID: $google_client, GOOGLE_CLIENT_SECRET: $google_secret, DISCORD_CLIENT_ID: $discord_client, DISCORD_CLIENT_SECRET: $discord_secret, SMTP_HOST: $smtp_host, SMTP_PORT: $smtp_port, SMTP_SECURE: $smtp_secure, SMTP_USER: $smtp_user, SMTP_PASSWORD: $smtp_password, EMAIL_FROM: $email_from, EXPO_PUSH_ACCESS_TOKEN: $expo_push}' \
             > "$RUNNER_TEMP/wrangler-production-secrets.json"
           pnpm exec wrangler deploy --config "$RUNNER_TEMP/wrangler-production.json" --dry-run --outdir "$RUNNER_TEMP/worker"
+      - name: Mark production route attempt
+        id: route_attempt
+        run: echo 'attempted=true' >> "$GITHUB_OUTPUT"
+      - name: Deploy production Worker routes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
           pnpm exec wrangler deploy --config "$RUNNER_TEMP/wrangler-production.json" \
             --secrets-file "$RUNNER_TEMP/wrangler-production-secrets.json" \
             --route 'praetorium.gg/*' --route 's3.praetorium.gg/*' --route 'catalogue.praetorium.gg/*'
@@ -191,13 +308,14 @@ jobs:
           for _ in {1..60}; do
             headers="$(curl --silent --show-error --dump-header - --output /dev/null --max-time 10 https://praetorium.gg/api/health || true)"
             revision="$(awk 'tolower($1) == "x-praetorium-revision:" { gsub("\\r", "", $2); print $2 }' <<< "$headers")"
-            if [[ "$revision" == "$EXPECTED_REVISION" ]]; then
+            if [[ "$revision" == "$EXPECTED_REVISION" ]] && grep -Eiq '^x-praetorium-runtime: cloudflare\r?$' <<< "$headers"; then
               exit 0
             fi
             sleep 10
           done
           echo "Production did not serve revision $EXPECTED_REVISION" >&2
           exit 1
+
       - name: Verify public object routes
         run: |
           set -euo pipefail
@@ -217,6 +335,13 @@ jobs:
             done
             test "$ready" = true
           done
+      - name: Restore previous application if cutover failed before routing
+        if: failure() && steps.cutover.outputs.needed == 'true' && steps.route_attempt.outputs.attempted != 'true'
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+        run: bash scripts/restartDokployBeforeCloudflare.sh
 
   retire-dokploy-runtime:
     needs: [cloudflare-production]

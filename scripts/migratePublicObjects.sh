@@ -43,7 +43,7 @@ copy_object() {
 verified=0
 for prefix in avatars/ snapshots/ changes/; do
   source_s3api list-objects-v2 --bucket praetorium --prefix "$prefix" --output json > "$work/list.json"
-  jq -e '(.Contents // []) | type == "array"' "$work/list.json" > /dev/null
+  jq -e '.IsTruncated != true and ((.Contents // []) | type == "array")' "$work/list.json" > /dev/null
   while IFS= read -r key; do
     [[ "$key" =~ ^avatars/[0-9a-f]{64}\.(jpg|png|webp)$|^snapshots/[0-9a-f]{64}\.zip$|^changes/seed\.json$ ]] || {
       echo 'Unexpected listed public object key' >&2

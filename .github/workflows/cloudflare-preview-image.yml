@@ -8,7 +8,19 @@ on:
       rehearsal:
         type: choice
         required: true
-        options: [identity, staging, preview, preview-cleanup, candidate, candidate-deploy, public-objects, retire-check]
+        options:
+          [
+            identity,
+            staging,
+            preview,
+            preview-cleanup,
+            candidate,
+            candidate-deploy,
+            public-objects,
+            retire-check,
+            cutover-readiness,
+            backup-readback,
+          ]
 
 permissions:
   contents: read
@@ -175,6 +187,36 @@ jobs:
           DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
         run: bash scripts/retireDokployRuntime.sh
 
+  cutover-readiness:
+    if: github.event_name == 'workflow_dispatch' && github.actor == 'richardsolomou' && github.ref == 'refs/heads/feat/better-auth-d1' && inputs.rehearsal == 'cutover-readiness'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check current production route
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
+        run: test "$(bash scripts/detectCloudflareCutover.sh)" = needed=true
+      - name: Fetch and validate latest off-host Postgres backup
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_POSTGRES_ID: Ww_-3KD0nTcVW4JZMYZ2V
+          BACKUP_OUTPUT: ${{ runner.temp }}/rehearsal-postgres.sql.gz
+        run: bash scripts/fetchDokployPostgresBackup.sh
+
+  backup-readback:
+    if: github.event_name == 'workflow_dispatch' && github.actor == 'richardsolomou' && github.ref == 'refs/heads/feat/better-auth-d1' && inputs.rehearsal == 'backup-readback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Restore off-host SpacetimeDB volumes and read private rows
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          SPACETIME_OWNER_TOKEN: ${{ secrets.PRODUCTION_SPACETIME_OWNER_TOKEN }}
+        run: bash scripts/verifySpacetimeBackup.sh
+
   candidate:
     if: github.event_name == 'workflow_dispatch' && github.actor == 'richardsolomou' && github.ref == 'refs/heads/feat/better-auth-d1' && (inputs.rehearsal == 'candidate' || inputs.rehearsal == 'candidate-deploy')
     runs-on: ubuntu-latest
@@ -197,6 +239,7 @@ jobs:
           SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_SECRET }}
         run: |
           set -euo pipefail
+          umask 077
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test -n "$SPACETIME_URL"
@@ -205,18 +248,18 @@ jobs:
           test -n "$SPACETIME_ACCESS_CLIENT_SECRET"
           pnpm exec wrangler d1 export AUTH_DB --config wrangler.production.json --remote \
             --output "$RUNNER_TEMP/production-auth.sql" --skip-confirmation
-          candidate_tables="$(pnpm exec wrangler d1 execute AUTH_DB --config wrangler.candidate.json --remote \
-            --command "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'user'" \
-            --json | jq -er '.[0].results[0].count')"
-          if [[ "$candidate_tables" == 0 ]]; then
-            pnpm exec wrangler d1 execute AUTH_DB --config wrangler.candidate.json --remote \
-              --file "$RUNNER_TEMP/production-auth.sql" --yes
-          fi
+          pnpm exec wrangler d1 export AUTH_DB --config wrangler.candidate.json --remote \
+            --output "$RUNNER_TEMP/previous-candidate-auth.sql" --skip-confirmation
+          python3 scripts/refreshAuthD1.py "$RUNNER_TEMP/production-auth.sql" \
+            "$RUNNER_TEMP/previous-candidate-auth.sql" "$RUNNER_TEMP/candidate-refresh.sql"
+          pnpm exec wrangler d1 execute AUTH_DB --config wrangler.candidate.json --remote \
+            --file "$RUNNER_TEMP/candidate-refresh.sql" --yes
           pnpm exec wrangler d1 export AUTH_DB --config wrangler.candidate.json --remote \
             --output "$RUNNER_TEMP/candidate-auth.sql" --skip-confirmation
           touch "$RUNNER_TEMP/empty.sql"
           python3 scripts/verifyAuthMirror.py "$RUNNER_TEMP/empty.sql" \
-            "$RUNNER_TEMP/production-auth.sql" "$RUNNER_TEMP/candidate-auth.sql"
+            "$RUNNER_TEMP/production-auth.sql" "$RUNNER_TEMP/candidate-auth.sql" \
+            "$RUNNER_TEMP/previous-candidate-auth.sql"
           pnpm product:export:spacetime "$SPACETIME_URL" praetorium-production "$RUNNER_TEMP/candidate-product"
           pnpm product:verify "$RUNNER_TEMP/candidate-product"
       - name: Publish candidate product database
@@ -304,6 +347,7 @@ jobs:
           EXPO_PUSH_ACCESS_TOKEN: ${{ secrets.EXPO_PUSH_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
+          umask 077
           pnpm catalogue:sync
           pnpm build
           pnpm catalogue:worker
@@ -354,14 +398,14 @@ jobs:
               --header "CF-Access-Client-Secret: $CANDIDATE_ACCESS_CLIENT_SECRET" \
               https://candidate.praetorium.gg/api/health || true)"
             revision="$(awk 'tolower($1) == "x-praetorium-revision:" { gsub("\\r", "", $2); print $2 }' <<< "$headers")"
-            if [[ "$revision" == "$GITHUB_SHA" ]]; then
+            if [[ "$revision" == "$GITHUB_SHA" ]] && grep -Eiq '^x-praetorium-runtime: cloudflare\r?$' <<< "$headers"; then
               echo "Protected candidate serves $GITHUB_SHA"
               break
             fi
             echo "Waiting for protected candidate revision ($attempt/30)"
             sleep 10
           done
-          if [[ "$revision" != "$GITHUB_SHA" ]]; then
+          if [[ "$revision" != "$GITHUB_SHA" ]] || ! grep -Eiq '^x-praetorium-runtime: cloudflare\r?$' <<< "$headers"; then
             echo "Protected candidate did not serve $GITHUB_SHA" >&2
             exit 1
           fi
