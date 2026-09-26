@@ -66,5 +66,9 @@ for _ in {1..30}; do
   [[ "$status" != 401 && "$status" != 403 ]] || break
   sleep 2
 done
-echo 'Restored SpacetimeDB backup did not allow an authenticated private row read' >&2
+echo "Restored SpacetimeDB private SQL read failed with HTTP $status" >&2
+docker inspect praetorium-backup-readback --format 'Container state: {{.State.Status}}, exit code: {{.State.ExitCode}}' >&2
+if [[ "$status" == 000 ]]; then
+  docker logs --tail 10 praetorium-backup-readback >&2
+fi
 exit 1

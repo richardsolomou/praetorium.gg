@@ -179,7 +179,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Verify the four services to retire
+      - name: Verify the services to retire
         env:
           DRY_RUN: true
           DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
