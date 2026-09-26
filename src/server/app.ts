@@ -287,6 +287,9 @@ export function app(): App {
           } catch (error) {
             console.error('Hosted health check failed:', error instanceof Error ? error.message : String(error), {
               accessConfigured: Boolean(spacetimeAccess),
+              accessClientIdType: typeof accessClientId,
+              accessClientSecretType: typeof accessClientSecret,
+              spacetimeHost: new URL(process.env.SPACETIME_URL!).host,
             })
             throw error
           }
