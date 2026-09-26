@@ -2,6 +2,7 @@ name: Cloudflare staging
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: cloudflare-staging

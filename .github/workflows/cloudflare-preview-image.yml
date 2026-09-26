@@ -3,13 +3,19 @@ name: Cloudflare preview image
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+  workflow_dispatch:
+    inputs:
+      rehearsal:
+        type: choice
+        required: true
+        options: [identity, staging]
 
 permissions:
   contents: read
 
 jobs:
   build:
-    if: startsWith(github.head_ref, 'release-candidate/') == false
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-candidate/') == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -44,3 +50,37 @@ jobs:
           retention-days: 3
           compression-level: 1
           if-no-files-found: error
+
+  staging-identity:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/better-auth-d1' && inputs.rehearsal == 'identity'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Issue an operator identity through the protected tunnel
+        env:
+          SPACETIME_URL: ${{ vars.SPACETIME_URL }}
+          SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.SPACETIME_ACCESS_CLIENT_ID }}
+          SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
+          STAGING_EXPORT_KEY: ${{ secrets.STAGING_EXPORT_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$STAGING_EXPORT_KEY"
+          curl --fail --silent --show-error --max-time 30 \
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+            --request POST "${SPACETIME_URL%/}/v1/identity" \
+            --output "$RUNNER_TEMP/identity.json"
+          jq -e '.identity | test("^[0-9a-f]{64}$")' "$RUNNER_TEMP/identity.json" > /dev/null
+          jq -e '.token | type == "string" and length > 0' "$RUNNER_TEMP/identity.json" > /dev/null
+          openssl enc -aes-256-cbc -salt -pbkdf2 \
+            -in "$RUNNER_TEMP/identity.json" -out "$RUNNER_TEMP/identity.enc" -pass env:STAGING_EXPORT_KEY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: staging-operator-identity
+          path: ${{ runner.temp }}/identity.enc
+          retention-days: 1
+          if-no-files-found: error
+
+  staging-rehearsal:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/better-auth-d1' && inputs.rehearsal == 'staging'
+    uses: ./.github/workflows/cloudflare-staging.yml
+    secrets: inherit
