@@ -9,7 +9,7 @@ headers="$(mktemp)"
 trap 'rm -f "$headers"' EXIT
 curl --silent --show-error --max-time 15 --dump-header "$headers" --output /dev/null \
   https://praetorium.gg/api/health || true
-if grep -Eiq '^x-praetorium-runtime: cloudflare\r?$' "$headers"; then
+if tr -d '\r' < "$headers" | grep -Eiq '^x-praetorium-runtime: cloudflare$'; then
   echo 'Cloudflare already serves production; leaving the previous application stopped'
   exit 0
 fi

@@ -306,9 +306,9 @@ jobs:
           EXPECTED_REVISION: ${{ needs.release.outputs.sha || github.sha }}
         run: |
           for _ in {1..60}; do
-            headers="$(curl --silent --show-error --dump-header - --output /dev/null --max-time 10 https://praetorium.gg/api/health || true)"
-            revision="$(awk 'tolower($1) == "x-praetorium-revision:" { gsub("\\r", "", $2); print $2 }' <<< "$headers")"
-            if [[ "$revision" == "$EXPECTED_REVISION" ]] && grep -Eiq '^x-praetorium-runtime: cloudflare\r?$' <<< "$headers"; then
+            headers="$(curl --silent --show-error --dump-header - --output /dev/null --max-time 10 https://praetorium.gg/api/health | tr -d '\r' || true)"
+            revision="$(awk 'tolower($1) == "x-praetorium-revision:" { print $2 }' <<< "$headers")"
+            if [[ "$revision" == "$EXPECTED_REVISION" ]] && grep -Eiq '^x-praetorium-runtime: cloudflare$' <<< "$headers"; then
               exit 0
             fi
             sleep 10

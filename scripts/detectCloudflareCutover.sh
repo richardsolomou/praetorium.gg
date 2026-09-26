@@ -14,7 +14,7 @@ headers="$(mktemp)"
 trap 'rm -f "$headers"' EXIT
 curl --silent --show-error --max-time 15 --dump-header "$headers" --output /dev/null \
   https://praetorium.gg/api/health || true
-if grep -Eiq '^x-praetorium-runtime: cloudflare\r?$' "$headers"; then
+if tr -d '\r' < "$headers" | grep -Eiq '^x-praetorium-runtime: cloudflare$'; then
   if [[ "$assigned" != 3 || "$claimed" != 3 ]]; then
     echo "Cloudflare serves production but only $assigned of 3 expected routes are assigned ($claimed claimed)" >&2
     exit 1
