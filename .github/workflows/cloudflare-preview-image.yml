@@ -19,6 +19,15 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+      - name: Inspect backup destination metadata
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 30 \
+            --header "x-api-key: $DOKPLOY_API_KEY" "${DOKPLOY_URL%/}/api/destination.all" \
+            | jq -c 'if type == "array" then {shape: "array", destinations: map({name, bucket, keys: keys, endpoint_matches: ((.endpoint // "") | test("^https://[0-9a-f]{32}[.]r2[.]cloudflarestorage[.]com/?$"))})} else {shape: type, keys: keys} end'
       - name: Restore off-host SpacetimeDB volumes and read private rows
         env:
           DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
