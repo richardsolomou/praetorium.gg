@@ -93,6 +93,12 @@ it('serves bounded JSON search with snapshot caching', async () => {
   expect((await referenceSearchResponse(new Request(request, { headers: { 'If-None-Match': etag! } }))).status).toBe(304)
 })
 
+it('accepts a weak ETag after an intermediary compresses reference search', async () => {
+  const request = new Request('https://praetorium.gg/api/reference/v1/search?q=battlefield')
+  const etag = (await referenceSearchResponse(request)).headers.get('etag')!
+  expect((await referenceSearchResponse(new Request(request, { headers: { 'If-None-Match': `W/${etag}` } }))).status).toBe(304)
+})
+
 it('serves the same document as source-attributed Markdown', async () => {
   const response = await referenceDocumentResponse(
     new Request(`https://praetorium.gg/api/reference/v1/documents/${encodeURIComponent(document.id)}`, {

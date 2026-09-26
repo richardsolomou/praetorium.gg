@@ -6,6 +6,7 @@ import { PRAETORIUM_GUIDE, praetoriumGuideMarkdown } from './referenceGuide'
 import { REFERENCE_QUERY_MAX_LENGTH, REFERENCE_RESULT_MAX, searchReference, validReferenceCursor } from './referenceSearch'
 import { referenceFactions, referenceIndex, referenceRecord, referenceUnits } from './referenceService'
 import { DATACARDS_ATTRIBUTION } from './datacards'
+import { ifNoneMatch } from './ifNoneMatch'
 
 type ReferenceRecord = {
   kind: ReferenceKind
@@ -282,7 +283,7 @@ function referenceResponse(request: Request, revision: string, key: string, data
     ETag: etag,
     Vary: 'Accept',
   }
-  if (request.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers })
+  if (ifNoneMatch(request, etag)) return new Response(null, { status: 304, headers })
   return asMarkdown
     ? new Response(markdown, { headers: { ...headers, 'Content-Type': 'text/markdown; charset=utf-8' } })
     : Response.json(data, { headers })

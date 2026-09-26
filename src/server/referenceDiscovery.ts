@@ -3,6 +3,7 @@ import { publicOrigin } from './requestOrigin'
 import { activeReferenceCorpus, activeWorkerReferences } from './referenceApi'
 import { app } from './app'
 import { updateId } from './catalogueHistory'
+import { ifNoneMatch } from './ifNoneMatch'
 
 export async function referenceSitemap(request: Request) {
   const worker = activeWorkerReferences()
@@ -99,7 +100,7 @@ Praetorium is AGPL-3.0 open source software. Community game data remains subject
 function cachedText(request: Request, revision: string, key: string, body: string, contentType: string) {
   const etag = `"${createHash('sha256').update(`${revision}\0${key}`).digest('hex')}"`
   const headers = { 'Cache-Control': 'public, max-age=3600', 'Content-Type': contentType, ETag: etag }
-  return request.headers.get('if-none-match') === etag ? new Response(null, { status: 304, headers }) : new Response(body, { headers })
+  return ifNoneMatch(request, etag) ? new Response(null, { status: 304, headers }) : new Response(body, { headers })
 }
 
 const xml = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
