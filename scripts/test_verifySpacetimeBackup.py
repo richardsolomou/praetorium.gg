@@ -54,7 +54,7 @@ class VerifySpacetimeBackupTest(unittest.TestCase):
             [
                 {"name": "other", "bucket": "other"},
                 {
-                    "name": "praetorium-backups",
+                    "name": "praetorium-backups R2",
                     "bucket": "praetorium-backups",
                     "endpoint": "https://" + "a" * 32 + ".r2.cloudflarestorage.com",
                     "accessKey": "test-access",

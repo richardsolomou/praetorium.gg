@@ -14,7 +14,7 @@ api() {
 
 destination="$(curl --fail --silent --show-error --max-time 30 \
   --header "x-api-key: $DOKPLOY_API_KEY" "${DOKPLOY_URL%/}/api/destination.all" \
-  | jq -er '[.[] | select(.name == "praetorium-backups" and .bucket == "praetorium-backups")] | select(length == 1) | .[0]')"
+  | jq -er '[.[] | select(.bucket == "praetorium-backups")] | select(length == 1) | .[0]')"
 endpoint="$(jq -er '.endpoint | select(test("^https://[0-9a-f]{32}[.]r2[.]cloudflarestorage[.]com/?$"))' <<< "$destination")"
 AWS_ACCESS_KEY_ID="$(jq -er '.accessKey | select(length > 0)' <<< "$destination")"
 AWS_SECRET_ACCESS_KEY="$(jq -er '.secretAccessKey | select(length > 0)' <<< "$destination")"
