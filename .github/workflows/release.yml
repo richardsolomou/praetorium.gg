@@ -131,6 +131,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
           DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
+          RELEASE_SHA: ${{ needs.release.outputs.sha || github.sha }}
         run: |
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
@@ -155,8 +156,8 @@ jobs:
           manifest_sha="$(sha256sum .output/worker-catalogue/manifest.json | cut -d ' ' -f 1)"
           jq --arg main "$GITHUB_WORKSPACE/cloudflare/nativeWorker.ts" \
             --arg assets "$GITHUB_WORKSPACE/.output/public" \
-            --arg snapshot "$snapshot_id" --arg manifest "$manifest_sha" \
-            '.main = $main | .assets.directory = $assets | .vars.CATALOGUE_SNAPSHOT_ID = $snapshot | .vars.CATALOGUE_MANIFEST_SHA256 = $manifest' \
+            --arg snapshot "$snapshot_id" --arg manifest "$manifest_sha" --arg revision "$RELEASE_SHA" \
+            '.main = $main | .assets.directory = $assets | .vars.CATALOGUE_SNAPSHOT_ID = $snapshot | .vars.CATALOGUE_MANIFEST_SHA256 = $manifest | .vars.GITHUB_SHA = $revision' \
             wrangler.production.json > "$RUNNER_TEMP/wrangler-production.json"
           jq -n --arg auth "$AUTH_SECRET" --arg spacetime "$SPACETIME_URL" \
             --arg operator "$SPACETIME_OPERATOR_TOKEN" \

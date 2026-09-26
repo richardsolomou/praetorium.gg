@@ -24,6 +24,7 @@ export function previewConfig(input: {
   databaseId: string
   snapshotId: string
   manifestSha256: string
+  revision: string
 }) {
   const names = previewNames(input.number)
   if (!path.isAbsolute(input.main) || !path.isAbsolute(input.assets)) throw new Error('Invalid preview artifact')
@@ -32,6 +33,7 @@ export function previewConfig(input: {
   if (!/^[0-9a-f]{64}$/.test(input.snapshotId) || !/^[0-9a-f]{64}$/.test(input.manifestSha256)) {
     throw new Error('Invalid Worker catalogue version')
   }
+  if (!/^[0-9a-f]{40}$/.test(input.revision)) throw new Error('Invalid preview revision')
   return {
     name: names.worker,
     main: input.main,
@@ -44,6 +46,7 @@ export function previewConfig(input: {
       CATALOGUE_SNAPSHOT_ID: input.snapshotId,
       CATALOGUE_MANIFEST_SHA256: input.manifestSha256,
       CLOUDFLARE_ACCOUNT_ID: input.accountId,
+      GITHUB_SHA: input.revision,
     },
     d1_databases: [{ binding: 'AUTH_DB', database_name: names.auth, database_id: input.databaseId, remote: true }],
     assets: { directory: input.assets, binding: 'ASSETS' },

@@ -93,8 +93,8 @@ jobs:
           manifest_sha="$(sha256sum .output/worker-catalogue/manifest.json | cut -d ' ' -f 1)"
           jq --arg main "$GITHUB_WORKSPACE/cloudflare/nativeWorker.ts" \
             --arg assets "$GITHUB_WORKSPACE/.output/public" \
-            --arg snapshot "$snapshot_id" --arg manifest "$manifest_sha" \
-            '.main = $main | .assets.directory = $assets | .vars.CATALOGUE_SNAPSHOT_ID = $snapshot | .vars.CATALOGUE_MANIFEST_SHA256 = $manifest' \
+            --arg snapshot "$snapshot_id" --arg manifest "$manifest_sha" --arg revision "$GITHUB_SHA" \
+            '.main = $main | .assets.directory = $assets | .vars.CATALOGUE_SNAPSHOT_ID = $snapshot | .vars.CATALOGUE_MANIFEST_SHA256 = $manifest | .vars.GITHUB_SHA = $revision' \
             wrangler.staging.json > "$RUNNER_TEMP/native-staging/wrangler.json"
           jq -n --arg auth "$STAGING_AUTH_SECRET" --arg spacetime "$SPACETIME_URL" \
             --arg operator "$STAGING_SPACETIME_OPERATOR_TOKEN" \

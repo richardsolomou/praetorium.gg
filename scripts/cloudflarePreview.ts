@@ -131,7 +131,16 @@ async function deploy() {
     await writeFile(
       configPath,
       JSON.stringify(
-        previewConfig({ number, main: workerBundle, assets, accountId, databaseId, snapshotId: manifest.snapshotId, manifestSha256 }),
+        previewConfig({
+          number,
+          main: workerBundle,
+          assets,
+          accountId,
+          databaseId,
+          snapshotId: manifest.snapshotId,
+          manifestSha256,
+          revision: sha,
+        }),
       ),
     )
     await writeFile(
