@@ -6,6 +6,8 @@ import { WorkerCatalogueStore } from './workerCatalogueStore'
 
 const snapshotId = 'a'.repeat(64)
 const part = 'partitions/000000000000000000000000.json'
+const globalReference = 'references/global.json'
+const documentId = 'rule:core:move'
 const encode = (value: unknown) => new TextEncoder().encode(encodeCatalogueArtifact(value)).buffer
 const sha256 = (bytes: ArrayBuffer) => createHash('sha256').update(Buffer.from(bytes)).digest('hex')
 
@@ -24,12 +26,40 @@ function fixture() {
     { gameSystem: { id: 'system', name: 'Test system', costTypes: [{ id: 'points', name: 'pts' }] } },
     { catalogue: { id: 'army', name: 'Test army', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] } },
   ])
+  const referenceShard = encode({
+    catalogue: { datasheets: [], detachments: [], ruleDocuments: [], revisions: {} },
+    documents: [
+      {
+        id: documentId,
+        kind: 'rule',
+        title: 'Move Units',
+        faction: null,
+        url: '/rules/core/move',
+        sections: [{ id: 'move', title: 'Move Units', text: 'Move across the battlefield.', url: '/rules/core/move#move' }],
+        revisions: {},
+        attribution: [],
+      },
+    ],
+    revision: 'b'.repeat(64),
+  })
+  const referenceMetadata = encode({
+    revision: 'b'.repeat(64),
+    revisions: {},
+    index: { factions: [] },
+    factions: [],
+    shards: [globalReference],
+    factionShards: {},
+    documentShards: { [documentId]: globalReference },
+    paths: ['/factions', '/rules'],
+  })
   const manifest = encode({
     format: 'praetorium.worker-catalogue.v1',
     snapshotId,
     revision: 'test-revision',
     entries: {
       'shared.json': { sha256: sha256(shared), bytes: shared.byteLength },
+      'reference-meta.json': { sha256: sha256(referenceMetadata), bytes: referenceMetadata.byteLength },
+      [globalReference]: { sha256: sha256(referenceShard), bytes: referenceShard.byteLength },
       [part]: { sha256: sha256(partition), bytes: partition.byteLength },
     },
     partitions: { army: part },
@@ -37,6 +67,8 @@ function fixture() {
   const objects = new Map([
     [`snapshots/${snapshotId}/manifest.json`, manifest],
     [`snapshots/${snapshotId}/shared.json`, shared],
+    [`snapshots/${snapshotId}/reference-meta.json`, referenceMetadata],
+    [`snapshots/${snapshotId}/${globalReference}`, referenceShard],
     [`snapshots/${snapshotId}/${part}`, partition],
   ])
   const read = async (key: string, maxBytes: number) => {
@@ -52,6 +84,7 @@ it('loads one verified faction partition with shared maps', async () => {
   const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
   expect((await store.catalogue('army'))?.index.definitions.has('unit')).toBe(true)
   expect((await store.shared()).rules.byDetachment).toBeInstanceOf(Map)
+  expect((await store.referenceMetadata()).revision).toBe('b'.repeat(64))
   expect(await store.catalogue('other')).toBeNull()
 })
 
@@ -66,6 +99,18 @@ it('treats inherited object keys as absent factions', async () => {
   const { read, manifestSha256 } = fixture()
   const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
   expect(await store.catalogue('toString')).toBeNull()
+})
+
+it('looks up one verified reference document without loading other shards', async () => {
+  const { read, manifestSha256 } = fixture()
+  const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
+  expect((await store.referenceForDocument(documentId))?.byId.get(documentId)?.title).toBe('Move Units')
+})
+
+it('finds a reference through a bounded shard search', async () => {
+  const { read, manifestSha256 } = fixture()
+  const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
+  expect((await store.searchReferences({ query: 'battlefield' })).results[0]?.id).toBe(documentId)
 })
 
 it('refuses a manifest whose hash differs from the deployed version', async () => {

@@ -65,6 +65,7 @@ type App = {
   factionIndexFor: () => Promise<ReturnType<typeof factionIndexFor> | null>
   factionsFor: () => Promise<ReturnType<typeof factionsFor> | null>
   searchIndexFor: () => Promise<ReturnType<typeof compiledGlobalSearchIndex> | null>
+  workerReferences: WorkerCatalogueStore | null
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
   auth: ReturnType<typeof createAuth> | ReturnType<typeof createD1Auth>
@@ -215,7 +216,7 @@ export function app(): App {
     let nativeSyncState: SyncState = { status: 'working', detail: 'loading the community data' }
     const workerShared = async () => {
       try {
-        const shared = await workerCatalogue!.shared()
+        const [shared] = await Promise.all([workerCatalogue!.shared(), workerCatalogue!.referenceMetadata()])
         nativeSyncState = { status: 'ready', detail: null }
         return shared
       } catch (error) {
@@ -290,6 +291,7 @@ export function app(): App {
         const catalogue = instance.catalogue()
         return catalogue ? compiledGlobalSearchIndex(catalogue, instance.rules()) : null
       },
+      workerReferences: workerCatalogue,
       push: Boolean(push),
       sync: () => (workerCatalogue ? nativeSyncState : sync.state),
       telemetry,

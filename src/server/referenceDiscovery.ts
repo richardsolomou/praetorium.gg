@@ -1,36 +1,46 @@
 import { createHash } from 'node:crypto'
 import { publicOrigin } from './requestOrigin'
-import { activeReferenceCorpus } from './referenceApi'
+import { activeReferenceCorpus, activeWorkerReferences } from './referenceApi'
 import { app } from './app'
 import { updateId } from './catalogueHistory'
 
-export function referenceSitemap(request: Request) {
-  const corpus = activeReferenceCorpus()
-  if (!corpus) return new Response('Reference data is unavailable', { status: 503, headers: { 'Cache-Control': 'no-store' } })
+export async function referenceSitemap(request: Request) {
+  const worker = activeWorkerReferences()
+  const corpus = worker ? null : await activeReferenceCorpus()
+  if (!worker && !corpus) return new Response('Reference data is unavailable', { status: 503, headers: { 'Cache-Control': 'no-store' } })
   const origin = publicOrigin(request)
-  const paths = new Set<string>(['/factions', '/rules'])
-  for (const document of corpus.documents) {
-    paths.add(document.url.split('#')[0]!)
-    for (const section of document.sections) paths.add(section.url.split('#')[0]!)
-  }
-  for (const sheet of corpus.catalogue.datasheets) {
-    const route = sheet.referenceRoute
-    if (route) paths.add(`/factions/${route.catalogueId}`)
-  }
-  for (const detachment of corpus.catalogue.detachments) paths.add(`/factions/${detachment.factionSlug}`)
-  for (const document of corpus.catalogue.ruleDocuments) {
-    paths.add(`/rules/${document.slug}`)
-    for (const section of document.sections) paths.add(`/rules/${document.slug}/${section.slug}`)
+  const metadata = worker ? await worker.referenceMetadata() : null
+  const paths = new Set<string>(metadata?.paths ?? ['/factions', '/rules'])
+  if (corpus) {
+    for (const document of corpus.documents) {
+      paths.add(document.url.split('#')[0]!)
+      for (const section of document.sections) paths.add(section.url.split('#')[0]!)
+    }
+    for (const sheet of corpus.catalogue.datasheets) {
+      const route = sheet.referenceRoute
+      if (route) paths.add(`/factions/${route.catalogueId}`)
+    }
+    for (const detachment of corpus.catalogue.detachments) paths.add(`/factions/${detachment.factionSlug}`)
+    for (const document of corpus.catalogue.ruleDocuments) {
+      paths.add(`/rules/${document.slug}`)
+      for (const section of document.sections) paths.add(`/rules/${document.slug}/${section.slug}`)
+    }
   }
   // The history rides in the snapshot but is not part of the corpus revision, so the updates
   // it carries are part of the cache key.
-  const updates = (app().catalogueHistory() ?? []).map(updateId)
+  const updates = ((await app().catalogueHistoryFor()) ?? []).map(updateId)
   if (updates.length) paths.add('/data-updates')
   const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...paths]
     .toSorted()
     .map((path) => `  <url><loc>${xml(`${origin}${path}`)}</loc></url>`)
     .join('\n')}\n</urlset>\n`
-  return cachedText(request, corpus.revision, `sitemap\0${updates.join(',')}`, body, 'application/xml; charset=utf-8')
+  return cachedText(
+    request,
+    metadata?.revision ?? corpus!.revision,
+    `sitemap\0${updates.join(',')}`,
+    body,
+    'application/xml; charset=utf-8',
+  )
 }
 
 export function referenceRobots(request: Request) {
@@ -40,10 +50,15 @@ export function referenceRobots(request: Request) {
   })
 }
 
-export function referenceLlms(request: Request) {
-  const corpus = activeReferenceCorpus()
+export async function referenceLlms(request: Request) {
+  const worker = activeWorkerReferences()
+  const corpus = worker ? null : await activeReferenceCorpus()
+  const metadata = worker ? await worker.referenceMetadata() : null
   const origin = publicOrigin(request)
-  const revisions = corpus ? Object.entries(corpus.catalogue.revisions).map(([source, revision]) => `- ${source}: ${revision}`) : []
+  const revisions =
+    metadata || corpus
+      ? Object.entries(metadata?.revisions ?? corpus!.catalogue.revisions).map(([source, revision]) => `- ${source}: ${revision}`)
+      : []
   const body = `# Praetorium
 
 Praetorium is a public Warhammer 40,000 army builder, battle tracker, and community-data reference. Reference answers come from verified immutable snapshots and never from generated summaries.
@@ -78,7 +93,7 @@ The reference changes only when Praetorium activates another verified immutable 
 
 Praetorium is AGPL-3.0 open source software. Community game data remains subject to the terms of its upstream sources. Follow the attribution returned with each record and the [data sources](${origin}/sources) page when reproducing it.
 `
-  return cachedText(request, corpus?.revision ?? 'unavailable', 'llms', body, 'text/markdown; charset=utf-8')
+  return cachedText(request, metadata?.revision ?? corpus?.revision ?? 'unavailable', 'llms', body, 'text/markdown; charset=utf-8')
 }
 
 function cachedText(request: Request, revision: string, key: string, body: string, contentType: string) {

@@ -37,8 +37,12 @@ const corpus: ReferenceCorpus = {
 
 const { rateLimit } = vi.hoisted(() => ({ rateLimit: vi.fn(() => null as Response | null) }))
 
-vi.mock('./referenceApi', () => ({ activeReferenceCorpus: () => corpus, referenceRateLimit: rateLimit }))
-vi.mock('./app', () => ({ app: () => ({ catalogue: () => null, rules: () => null }) }))
+vi.mock('./referenceApi', () => ({
+  activeReferenceCorpus: () => corpus,
+  activeWorkerReferences: () => null,
+  referenceRateLimit: rateLimit,
+}))
+vi.mock('./app', () => ({ app: () => ({ catalogueFor: async () => null, rulesFor: async () => null }) }))
 
 import { handleReferenceMcp, referenceMcpOptions } from './referenceMcp'
 

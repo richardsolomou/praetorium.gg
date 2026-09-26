@@ -66,14 +66,14 @@ const { corpus } = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('./referenceApi', () => ({ activeReferenceCorpus: () => corpus }))
+vi.mock('./referenceApi', () => ({ activeReferenceCorpus: () => corpus, activeWorkerReferences: () => null }))
 
 const { history } = vi.hoisted(() => ({
   history: {
     entries: [] as { from: string; revisions: Record<string, string>; recordedAt: number; changes: { factions: []; omitted: number } }[],
   },
 }))
-vi.mock('./app', () => ({ app: () => ({ catalogueHistory: () => history.entries }) }))
+vi.mock('./app', () => ({ app: () => ({ catalogueHistoryFor: async () => history.entries }) }))
 
 import { referenceLlms, referenceRobots, referenceSitemap } from './referenceDiscovery'
 
@@ -90,39 +90,39 @@ const update = (from: string) => ({
 })
 
 it('lists canonical reference pages in the snapshot sitemap', async () => {
-  const response = referenceSitemap(new Request('https://praetorium.gg/sitemap.xml'))
+  const response = await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml'))
 
   expect(await response.text()).toMatch(
     /<url><loc>https:\/\/praetorium\.gg\/factions\/test\/datasheets\/unit<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/factions\/test\/detachments\/detachment<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/mission-matchups\/test\/one\/two<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/mission-packs\/test\/secondary-missions\/test-secondary<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/rules\/core\/movement<\/loc><\/url>/s,
   )
 })
 
-it('invalidates the sitemap ETag with the snapshot', () => {
+it('invalidates the sitemap ETag with the snapshot', async () => {
   const request = new Request('https://praetorium.gg/sitemap.xml')
-  const before = referenceSitemap(request).headers.get('etag')
+  const before = (await referenceSitemap(request)).headers.get('etag')
   corpus.revision = 'snapshot-two'
 
-  expect(referenceSitemap(request).headers.get('etag')).not.toBe(before)
+  expect((await referenceSitemap(request)).headers.get('etag')).not.toBe(before)
 })
 
 it('lists the data updates page once for a snapshot that carries any', async () => {
   history.entries = [update('a')]
 
-  const body = await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml')).text()
+  const body = await (await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml'))).text()
 
   expect(body.match(/\/data-updates[^<]*<\/loc>/g)).toEqual(['/data-updates</loc>'])
 })
 
 it('lists no data updates for a snapshot that carries none', async () => {
-  expect(await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml')).text()).not.toContain('/data-updates')
+  expect(await (await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml'))).text()).not.toContain('/data-updates')
 })
 
-it('invalidates the sitemap ETag when the history gains an update', () => {
+it('invalidates the sitemap ETag when the history gains an update', async () => {
   const request = new Request('https://praetorium.gg/sitemap.xml')
-  const before = referenceSitemap(request).headers.get('etag')
+  const before = (await referenceSitemap(request)).headers.get('etag')
   history.entries = [update('a')]
 
-  expect(referenceSitemap(request).headers.get('etag')).not.toBe(before)
+  expect((await referenceSitemap(request)).headers.get('etag')).not.toBe(before)
 })
 
 it('advertises the canonical sitemap to crawlers', async () => {
@@ -132,16 +132,16 @@ it('advertises the canonical sitemap to crawlers', async () => {
 })
 
 it('documents reference updates, licensing, and attribution for agents', async () => {
-  const response = referenceLlms(new Request('https://praetorium.gg/llms.txt'))
+  const response = await referenceLlms(new Request('https://praetorium.gg/llms.txt'))
 
   expect(await response.text()).toMatch(
     /Praetorium guide.*Reference index.*search missions, deployments, terrain, rules, detachments, and datasheets.*instead of reading every datasheet.*Mission packs.*## Update model.*verified immutable snapshot.*## Licence and attribution.*AGPL-3\.0.*https:\/\/praetorium\.gg\/sources/s,
   )
 })
 
-it('serves conditional llms.txt responses', () => {
+it('serves conditional llms.txt responses', async () => {
   const request = new Request('https://praetorium.gg/llms.txt')
-  const etag = referenceLlms(request).headers.get('etag')!
+  const etag = (await referenceLlms(request)).headers.get('etag')!
 
-  expect(referenceLlms(new Request(request, { headers: { 'If-None-Match': etag } })).status).toBe(304)
+  expect((await referenceLlms(new Request(request, { headers: { 'If-None-Match': etag } }))).status).toBe(304)
 })
