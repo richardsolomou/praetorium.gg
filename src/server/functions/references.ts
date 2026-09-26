@@ -2,21 +2,21 @@ import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
 import { routeSlug } from '../../core/slug'
+import { DEFAULT_GAME_LIMIT } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import { datasheetIn, datasheetViewsIn, rulesReferencedIn, unitWoundsIn } from '../catalogue'
 import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
 import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
-import { factionIndexFor, factionsFor } from '../factionReferences'
-import { factionDisplayName } from '../factionNames'
 import { unitsIn } from '../cataloguePicker'
+import { pickerUnitsFor } from '../pickerUnits'
 
 import { gameReferencesFor } from '../gameReferences'
 import { rulesFaction } from '../rules'
 import { type GlobalSearchResult, searchEverything } from '../globalSearch'
 import { mutationRpc, rpc } from '../rpc'
-import { rosterSetupLabel } from '../pricing'
+import { rosterLabel } from '../../core/rosterLabel'
 import { rosterDatasheetContext } from '../rosterDatasheetContext'
 import { rosterCombatant } from '../rosterCombatRules'
 import { currentUserId } from '../playerSession'
@@ -41,11 +41,9 @@ import {
 export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => rpc(() => app().sync()))
 
 export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => {
+  rpc(async () => {
     cacheUntilSnapshotChanges()
-    const loaded = app().catalogue()
-    if (!loaded) return null
-    return factionIndexFor(loaded, app().rules())
+    return app().factionIndexFor()
   }),
 )
 
@@ -53,11 +51,11 @@ export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
 export const faction = createServerFn({ method: 'GET' })
   .validator(factionSchema)
   .handler(({ data }) =>
-    rpc(() => {
+    rpc(async () => {
       cacheUntilSnapshotChanges()
-      const loaded = app().catalogue()
-      if (!loaded) return null
-      const { factions: all } = factionsFor(loaded, app().rules())
+      const result = await app().factionsFor()
+      if (!result) return null
+      const { factions: all } = result
       return all.find((candidate) => candidate.slug === data.catalogueId || candidate.id === data.catalogueId) ?? null
     }),
   )
@@ -65,67 +63,77 @@ export const faction = createServerFn({ method: 'GET' })
 export const globalSearch = createServerFn({ method: 'GET' })
   .validator(globalSearchSchema)
   .handler(({ data }) =>
-    rpc(async () =>
-      searchEverything(data.query, {
-        catalogue: app().catalogue(),
-        rules: app().rules(),
+    rpc(async () => {
+      const catalogueIndex = await app().searchIndexFor()
+      return searchEverything(data.query, {
+        catalogue: null,
+        catalogueIndex: catalogueIndex ?? undefined,
+        rules: catalogueIndex ? null : await app().rulesFor(),
         own: async () => {
           const userId = await currentUserId()
           if (!userId) return null
+          const rules = await app().rulesFor()
           // Bounded: search offers the recently active battles, not a fold of every
           // battle the account has ever played on each keystroke.
           const [rosters, page] = await Promise.all([
             app().service.savedRosterSummaries(userId),
-            app().service.battles(userId, app().rules(), { limit: 50 }),
+            app().service.battles(userId, rules, { limit: 50 }),
           ])
-          const loaded = app().catalogue()
-          const rules = app().rules()
+          const factions = (await app().factionsFor())?.factions ?? []
           return {
             rosters: rosters.map((roster) => ({
               ...roster,
-              label: loaded ? rosterSetupLabel(loaded, rules, roster) : '',
+              label: (() => {
+                const rosterFaction = factions.find((entry) => entry.id === roster.catalogueId)
+                return rosterFaction
+                  ? rosterLabel({
+                      factionName: rosterFaction.displayName,
+                      detachmentNames: roster.detachmentIds.flatMap((id) => {
+                        const detachment = rosterFaction.detachments.find((entry) => entry.id === id)
+                        return detachment ? [detachment.name] : []
+                      }),
+                      limit: roster.limit,
+                    })
+                  : ''
+              })(),
             })),
             battles: page.battles,
           }
         },
-      }),
-    ),
+      })
+    }),
   )
 
 export const units = createServerFn({ method: 'GET' })
   .validator(unitsSchema)
   .handler(({ data }) =>
-    rpc(() => {
-      const loaded = app().catalogue()
+    rpc(async () => {
+      const instance = app()
+      if (!data.query.trim() && data.battleSize === DEFAULT_GAME_LIMIT && !data.waivedRules?.length && instance.workerReferences) {
+        const compiled = await instance.workerReferences.pickerUnits(data.catalogueId)
+        if (compiled) return compiled
+      }
+      const loaded = await instance.catalogueFor(data.catalogueId)
       if (!loaded) return []
-      const rules = app().rules()
-      const names = rules?.factionNames
-      const book = loaded.factions.find((entry) => entry.id === data.catalogueId)
-      const displayName = book ? factionDisplayName(book.name, names) : ''
-      const restrictions = rules?.factionRestrictions.get(routeSlug(displayName))
-      return unitsIn(loaded, data.catalogueId, data.query, {
-        restrictions,
-        battleSize: data.battleSize,
-        waivedRules: data.waivedRules,
-      }).map((unit) => ({
-        ...unit,
-        alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
-      }))
+      return pickerUnitsFor(loaded, await instance.rulesFor(), data.catalogueId, data.query, data.battleSize, data.waivedRules)
     }),
   )
 
 export const combatUnits = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => {
+  rpc(async () => {
     cacheUntilSnapshotChanges()
-    return app().combatUnits()
+    return app().combatUnitsFor()
   }),
 )
 
 export const factionDatasheets = createServerFn({ method: 'GET' })
   .validator(unitsSchema)
   .handler(({ data }) =>
-    rpc(() => {
-      const loaded = app().catalogue()
+    rpc(async () => {
+      cacheUntilSnapshotChanges()
+      const references = app().workerReferences
+      if (!data.query.trim() && references) return (await references.referenceDatasheets(data.catalogueId)) ?? []
+      const loaded = await app().catalogueFor(data.catalogueId)
       if (!loaded) return []
       return unitsIn(loaded, data.catalogueId, data.query, { factionCards: true }).filter((unit) =>
         isReferenceDatasheet(loaded, data.catalogueId, unit.id),
@@ -136,11 +144,11 @@ export const factionDatasheets = createServerFn({ method: 'GET' })
 export const datasheet = createServerFn({ method: 'GET' })
   .validator(datasheetSchema)
   .handler(({ data }) =>
-    rpc(() => {
-      const loaded = app().catalogue()
+    rpc(async () => {
+      const loaded = await app().catalogueFor(data.catalogueId)
       if (!loaded) return null
       const context = rosterDatasheetContext(loaded, data)
-      return rosterDatasheet(loaded, data, context, data.everyWeapon)
+      return rosterDatasheet(loaded, data, context, data.everyWeapon, await app().rulesFor())
     }),
   )
 
@@ -158,9 +166,9 @@ export const loadoutDatasheets = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const startedAt = performance.now()
-      const loaded = app().catalogue()
+      const loaded = await app().catalogueFor(data.catalogueId)
       if (!loaded) return null
-      const result = rosterLoadoutDatasheets(loaded, data)
+      const result = rosterLoadoutDatasheets(loaded, data, await app().rulesFor())
       const userId = await currentUserId()
       if (userId)
         await app().telemetry.capture(userId, 'roster_datasheet_loaded', {
@@ -176,9 +184,9 @@ export const loadoutDatasheets = createServerFn({ method: 'POST' })
 export const combatantDatasheet = createServerFn({ method: 'POST' })
   .validator(datasheetSchema.extend({ inactivePicks: z.array(z.int().min(0).max(99)).max(100).default([]) }))
   .handler(({ data }) =>
-    mutationRpc(() => {
-      const loaded = app().catalogue()
-      return loaded ? rosterCombatant(loaded, app().rules(), data) : null
+    mutationRpc(async () => {
+      const loaded = await app().catalogueFor(data.catalogueId)
+      return loaded ? rosterCombatant(loaded, await app().rulesFor(), data) : null
     }),
   )
 
@@ -191,15 +199,19 @@ export const savedRosterLoadoutDatasheets = createServerFn({ method: 'GET' })
       const userId = await currentUserId()
       const roster = await app().service.sharedRoster(data.id, userId, data.battle ?? null)
       const pick = roster?.picks[data.pickIndex]
-      const loaded = app().catalogue()
+      const loaded = await app().catalogueFor(roster?.catalogueId ?? '')
       if (!roster || !pick || !loaded) return null
-      const result = rosterLoadoutDatasheets(loaded, {
-        catalogueId: roster.catalogueId,
-        entryId: pick.entryId,
-        detachmentIds: roster.detachmentIds,
-        picks: roster.picks,
-        pickIndex: data.pickIndex,
-      })
+      const result = rosterLoadoutDatasheets(
+        loaded,
+        {
+          catalogueId: roster.catalogueId,
+          entryId: pick.entryId,
+          detachmentIds: roster.detachmentIds,
+          picks: roster.picks,
+          pickIndex: data.pickIndex,
+        },
+        await app().rulesFor(),
+      )
       if (userId)
         await app().telemetry.capture(userId, 'roster_datasheet_loaded', {
           unit_count: roster.picks.length,
@@ -220,6 +232,7 @@ function rosterLoadoutDatasheets(
     picks: RosterPick[]
     pickIndex: number | null
   },
+  rules: Awaited<ReturnType<ReturnType<typeof app>['rulesFor']>>,
 ) {
   const context = rosterDatasheetContext(loaded, data)
   const views = context ? datasheetViewsIn(loaded, data.catalogueId, data.entryId, context) : null
@@ -228,11 +241,11 @@ function rosterLoadoutDatasheets(
     controlledChoices: views?.controlledChoices ?? [],
     carriers: views?.carriers ?? [],
     selected: views
-      ? describeDatasheetAbilities(loaded, data.catalogueId, views.selected, app().rules())
-      : rosterDatasheet(loaded, data, undefined, false),
+      ? describeDatasheetAbilities(loaded, data.catalogueId, views.selected, rules)
+      : rosterDatasheet(loaded, data, undefined, false, rules),
     available: views
-      ? describeDatasheetAbilities(loaded, data.catalogueId, views.available, app().rules())
-      : rosterDatasheet(loaded, data, undefined, true),
+      ? describeDatasheetAbilities(loaded, data.catalogueId, views.available, rules)
+      : rosterDatasheet(loaded, data, undefined, true, rules),
   }
 }
 
@@ -241,12 +254,13 @@ function rosterDatasheet(
   data: { catalogueId: string; entryId: string },
   context: ReturnType<typeof rosterDatasheetContext>,
   everyWeapon: boolean,
+  rules: Awaited<ReturnType<ReturnType<typeof app>['rulesFor']>>,
 ) {
   return describeDatasheetAbilities(
     loaded,
     data.catalogueId,
     datasheetIn(loaded, data.catalogueId, data.entryId, context ? { ...context, everyWeapon } : undefined),
-    app().rules(),
+    rules,
   )
 }
 
@@ -264,8 +278,8 @@ function rosterDatasheet(
 export const unitWounds = createServerFn({ method: 'GET' })
   .validator(unitWoundsSchema)
   .handler(({ data }) =>
-    rpc(() => {
-      const loaded = app().catalogue()
+    rpc(async () => {
+      const loaded = await app().catalogueFor(data.catalogueId)
       if (!loaded) return []
       return unitWoundsIn(loaded, data.catalogueId, data.entryIds)
     }),
@@ -274,9 +288,14 @@ export const unitWounds = createServerFn({ method: 'GET' })
 export const datasheetBySlug = createServerFn({ method: 'GET' })
   .validator(datasheetSlugSchema)
   .handler(({ data }) =>
-    rpc(() => {
+    rpc(async () => {
       cacheUntilSnapshotChanges()
-      return referenceDatasheetBySlug(app(), data)
+      const references = app().workerReferences
+      if (references) return references.referenceDatasheet(data.catalogueId, data.slug)
+      const catalogue = await app().catalogueFor(data.catalogueId)
+      const rules = await app().rulesFor()
+      const canonical = await app().canonicalCatalogueFor()
+      return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data)
     }),
   )
 
@@ -293,10 +312,10 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
 export const detachmentRules = createServerFn({ method: 'GET' })
   .validator(detachmentRulesSchema)
   .handler(({ data }) =>
-    rpc(() => {
+    rpc(async () => {
       cacheUntilSnapshotChanges()
-      const rules = app().rules()
-      const catalogue = app().catalogue()
+      const rules = await app().rulesFor()
+      const catalogue = await app().catalogueFor(data.catalogueId)
       if (!rules || !catalogue) return null
 
       const book = catalogue.index.catalogues.get(data.catalogueId)
@@ -323,27 +342,27 @@ export const detachmentRules = createServerFn({ method: 'GET' })
 export const detachmentDetail = createServerFn({ method: 'GET' })
   .validator(detachmentDetailSchema)
   .handler(({ data }) =>
-    rpc(() => {
+    rpc(async () => {
       cacheUntilSnapshotChanges()
-      const rules = app().rules()
-      const catalogue = app().catalogue()
+      const rules = await app().rulesFor()
+      const catalogue = await app().catalogueFor(data.catalogueId)
       return rules && catalogue ? detachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
     }),
   )
 
 /** The battlefields on offer, as polygons, so the interface can draw one. */
 export const deployments = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => {
+  rpc(async () => {
     cacheUntilSnapshotChanges()
-    const rules = app().rules()
+    const rules = await app().rulesFor()
     return rules?.deployments ?? []
   }),
 )
 
 export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => {
+  rpc(async () => {
     cacheUntilSnapshotChanges()
-    const rules = app().rules()
+    const rules = await app().rulesFor()
     if (!rules) return null
     return gameReferencesFor(rules)
   }),
@@ -351,9 +370,11 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
 
 /** Every rules document and section by name, with the numbers their prose quotes. */
 export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => {
+  rpc(async () => {
     cacheUntilSnapshotChanges()
-    return referenceRuleIndex(app())
+    const rules = await app().rulesFor()
+    const canonical = await app().canonicalCatalogueFor()
+    return referenceRuleIndex({ catalogue: () => null, canonicalCatalogue: () => canonical, rules: () => rules })
   }),
 )
 
@@ -361,18 +382,20 @@ export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>
 export const ruleSection = createServerFn({ method: 'GET' })
   .validator(ruleSectionSchema)
   .handler(({ data }) =>
-    rpc(() => {
+    rpc(async () => {
       cacheUntilSnapshotChanges()
-      return referenceRuleSection(app(), data)
+      const rules = await app().rulesFor()
+      const canonical = await app().canonicalCatalogueFor()
+      return referenceRuleSection({ catalogue: () => null, canonicalCatalogue: () => canonical, rules: () => rules }, data)
     }),
   )
 
 export const terrainReferences = createServerFn({ method: 'GET' })
   .validator(terrainReferencesSchema)
   .handler(({ data }) =>
-    rpc(() => {
+    rpc(async () => {
       cacheUntilSnapshotChanges()
-      const rules = app().rules()
+      const rules = await app().rulesFor()
       if (!rules) return { layouts: [], templates: [] }
       const wanted = new Set(data.matchupIds)
       return {

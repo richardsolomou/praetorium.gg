@@ -55,11 +55,20 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
   if (!files.length) return null
 
   const index = buildIndex(files, revision.definitions)
-  const detachments = detachmentsOf(files, index)
   // The cards name sections they do not describe, and the catalogue is where those words are.
   const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index))
   const rulesCore = path.join(directory, 'rules', 'data', 'core')
   const sourceReferences = loadExternalReferences(rulesCore)
+  return catalogueFromIndex(index, files, datacards, sourceReferences)
+}
+
+export function catalogueFromIndex(
+  index: CatalogueIndex,
+  files: readonly CatalogueFile[],
+  datacards: LoadedDatacards,
+  sourceReferences: ExternalReferences,
+): LoadedCatalogue {
+  const detachments = detachmentsOf(files, index)
   return {
     index,
     characteristicNames: characteristicNamesOf(files),

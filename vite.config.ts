@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
       : undefined
   return {
     resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
-    // The preview renderer inlines its WebAssembly with `?inline`, which only an asset type accepts.
+    // The Node preview renderer inlines its WebAssembly, which only an asset type accepts.
     assetsInclude: ['**/*.wasm'],
     build: {
       rolldownOptions: {
@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
       tanstackStart({ serverFns: { disableCsrfMiddlewareWarning: true } }),
       nitro({
         plugins: [
-          path.resolve(import.meta.dirname, 'src/server/warmPlugin.ts'),
+          ...(process.env.NITRO_PRESET?.startsWith('cloudflare') ? [] : [path.resolve(import.meta.dirname, 'src/server/warmPlugin.ts')]),
           path.resolve(import.meta.dirname, 'src/server/cspPlugin.ts'),
         ],
         routeRules: {

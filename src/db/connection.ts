@@ -33,11 +33,12 @@ export type PraetoriumConnection = {
  * standalone migrate step, and `tsx` runs it straight from source. Only the first
  * would define `import.meta.env`, and the other two would fault on it.
  */
-const migrationsFolder = bundledDirectory({
-  developmentUrl: new URL('../../drizzle', import.meta.url),
-  production: process.env.NODE_ENV === 'production',
-  name: 'drizzle',
-})
+const migrationsFolder = () =>
+  bundledDirectory({
+    developmentUrl: new URL('../../drizzle', import.meta.url),
+    production: process.env.NODE_ENV === 'production',
+    name: 'drizzle',
+  })
 
 /**
  * The Postgres this instance owns.
@@ -83,7 +84,7 @@ export function openDatabase(url: string): PraetoriumConnection {
       const held = await connection.client.reserve()
       try {
         await held`select pg_advisory_lock(${MIGRATION_LOCK})`
-        await migrateDrizzlePostgres(connection, migrationsFolder)
+        await migrateDrizzlePostgres(connection, migrationsFolder())
       } finally {
         await held`select pg_advisory_unlock(${MIGRATION_LOCK})`
         held.release()

@@ -401,6 +401,12 @@ test('a mixed-model squad shows its own profile instead of an optional model', a
 
 test('datasheet metadata is searchable in the picker and global search', async ({ page }) => {
   await openBuilder(page)
+  await expect(page.getByRole('button', { name: 'Add Immortals', exact: true })).toBeVisible()
+  const pickerRequests: string[] = []
+  page.on('request', (request) => {
+    const url = decodeURIComponent(request.url())
+    if (url.includes('/_serverFn/') && url.includes('"catalogueId"') && url.includes('"query"')) pickerRequests.push(url)
+  })
   await page.getByLabel('Add a unit').fill('cryptek')
 
   await expect(page.locator('[data-picker-unit="Technomancer"]')).toContainText('Matches Cryptek keyword')
@@ -408,6 +414,7 @@ test('datasheet metadata is searchable in the picker and global search', async (
   await expect(page.locator('[data-picker-unit="Necron Warriors"]')).toHaveCount(0)
   await page.getByLabel('Add a unit').fill('cryptek staff')
   await expect(page.locator('[data-picker-unit="Technomancer"]')).toContainText('Matches Cryptek keyword · Staff of light weapon')
+  expect(pickerRequests).toHaveLength(0)
   await shot(page.locator('[data-pane="picker"]'), 'test-results/roster-picker-metadata-search.png')
 
   await page.getByRole('button', { name: 'Search Praetorium' }).click()

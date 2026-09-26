@@ -1,5 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { configuredObjectStore, DEFAULT_S3_PUBLIC_BASE_URL } from './objectStorage'
+import type { R2Bucket } from '@cloudflare/workers-types'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { configuredObjectStore, DEFAULT_S3_PUBLIC_BASE_URL, putIfAbsent } from './objectStorage'
+import { withWorkerAppContext } from './workerAppContext'
 
 const ENV_KEYS = ['S3_ENDPOINT', 'S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_PUBLIC_BASE_URL', 'S3_REGION'] as const
 
@@ -30,5 +32,24 @@ describe('configuredObjectStore', () => {
     process.env.S3_SECRET_ACCESS_KEY = 'secret'
     process.env.S3_PUBLIC_BASE_URL = 'http://localhost:9000/praetorium/'
     expect(configuredObjectStore()?.publicBaseUrl).toBe('http://localhost:9000/praetorium')
+  })
+
+  it('writes an avatar through the Worker R2 binding without S3 credentials', async () => {
+    const head = vi.fn(async () => null)
+    const put = vi.fn(async () => ({}))
+    const bucket = { head, put } as unknown as R2Bucket
+    await withWorkerAppContext(
+      async () => {
+        const store = configuredObjectStore()
+        expect(store?.kind).toBe('r2')
+        await putIfAbsent(store!, 'avatars/example.webp', new Uint8Array([1, 2]), 'image/webp')
+      },
+      { waitUntil: () => {} },
+      undefined,
+      bucket,
+    )
+    expect(put).toHaveBeenCalledWith('praetorium/avatars/example.webp', new Uint8Array([1, 2]), {
+      httpMetadata: { contentType: 'image/webp', cacheControl: 'public, max-age=31536000, immutable' },
+    })
   })
 })

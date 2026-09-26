@@ -1,7 +1,9 @@
 import path from 'node:path'
 import { randomInt } from 'node:crypto'
+import { sql } from 'drizzle-orm'
 import { persistedSecret } from 'ras-stack/auth'
 import { globalSingleton } from 'ras-stack/server'
+import { readWorkerCatalogueAsset } from './workerCatalogueAssets'
 import { type BattleEvents, RealtimePublisher } from '../adapters/events'
 import { serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
@@ -19,8 +21,15 @@ import type { SyncState } from './sync'
 import { databaseUrl, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
 import { createAuth } from './auth'
+import { createD1Auth } from './d1Auth'
+import { remoteD1 } from './d1Bridge'
+import { D1AccountRepository } from './d1AccountRepository'
+import { SpacetimeOperator } from './spacetimeOperator'
+import { SpacetimeRepository } from './spacetimeRepository'
+import { storeProfileImageFromUrl } from './avatarStorage'
+import { profileUpdate } from './profile'
 import { realtimeConfig } from '../adapters/realtime'
-import { openValkey, type ValkeyClient, valkeySecondaryStorage, valkeyUrl } from '../adapters/valkey'
+import { openValkey, type ValkeyClient, valkeyReachable, valkeySecondaryStorage, valkeyUrl } from '../adapters/valkey'
 import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
 import { pushSenderFromEnvironment } from '../adapters/push'
@@ -31,26 +40,39 @@ import { loadCatalogueHistory } from './catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { combatUnitsFor } from './combatUnits'
+import { factionIndexFor, factionsFor } from './factionReferences'
+import { WorkerCatalogueStore } from './workerCatalogueStore'
+import { workerAppContext } from './workerAppContext'
+import { compiledGlobalSearchIndex } from './globalSearch'
 
 type App = {
-  database: PraetoriumDatabase
-  /** Null on a single-replica instance, which needs none of it. */
-  valkey: ValkeyClient | null
+  health: () => Promise<void>
   service: PraetoriumService
   events: BattleEvents
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
   catalogue: () => LoadedCatalogue | null
+  catalogueFor: (catalogueId: string) => Promise<LoadedCatalogue | null>
   /** The validated, source-independent reference data compiled into the snapshot. */
   canonicalCatalogue: () => CanonicalCatalogue | null
+  canonicalCatalogueFor: () => Promise<CanonicalCatalogue | null>
   /** Stratagems and mission cards, null when that source has not been synced. */
   rules: () => LoadedRules | null
+  rulesFor: () => Promise<LoadedRules | null>
   /** What each army-data update changed, as the snapshot carries it; null when it carries none. */
   catalogueHistory: () => CatalogueHistoryEntry[] | null
+  catalogueHistoryFor: () => Promise<CatalogueHistoryEntry[] | null>
   /** The simulator's all-factions picker, prepared once for the active snapshot. */
   combatUnits: () => ReturnType<typeof combatUnitsFor>
+  combatUnitsFor: () => Promise<ReturnType<typeof combatUnitsFor>>
+  factionIndexFor: () => Promise<ReturnType<typeof factionIndexFor> | null>
+  factionsFor: () => Promise<ReturnType<typeof factionsFor> | null>
+  factionIconFor: (id: string) => Promise<string | null>
+  searchIndexFor: () => Promise<ReturnType<typeof compiledGlobalSearchIndex> | null>
+  workerReferences: WorkerCatalogueStore | null
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
-  auth: ReturnType<typeof createAuth>
+  auth: ReturnType<typeof createAuth> | ReturnType<typeof createD1Auth>
+  spacetimeToken: ((headers: Headers) => Promise<string>) | null
   email: ReturnType<typeof emailDelivery>
   /** Whether this instance sends push notifications; nothing else depends on it. */
   push: boolean
@@ -141,21 +163,74 @@ function canonicalCatalogue(instance: Pick<App, 'catalogue' | 'rules'>, director
 }
 
 export function app(): App {
-  return globalSingleton('praetorium.app', () => {
+  const createApp = (): App => {
     const telemetry = serverTelemetry()
-    // Secrets and the catalogue cache still live on disk; only the game data moved.
     const dataDirectory = path.resolve(process.env.DATA_DIR ?? '/data')
     const catalogueDataDirectory = catalogueDirectory(dataDirectory)
-    const { database } = openDatabase(databaseUrl())
-    const valkey = valkeyUrl()
-    const cache = valkey ? openValkey(valkey) : null
-    const realtime = realtimeConfig()
-    if (!realtime) throw new Error('Realtime secret is not configured')
-    const events = new RealtimePublisher(realtime.apiUrl, realtime.apiKey)
     const email = emailDelivery()
-    const repository = new Repository(database)
-    const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
+    const hosted = Boolean(process.env.SPACETIME_URL)
+    let database: PraetoriumDatabase | null = null
+    let cache: ValkeyClient | null = null
+    let operator: SpacetimeOperator | null = null
+    const cloudflare = (
+      globalThis as typeof globalThis & {
+        __env__?: {
+          AUTH_DB?: ReturnType<typeof remoteD1>
+          ASSETS?: { fetch: (request: string) => Promise<Response> }
+          CATALOGUE_SNAPSHOT_ID?: string
+          CATALOGUE_MANIFEST_SHA256?: string
+          SPACETIME_ACCESS_CLIENT_ID?: string
+          SPACETIME_ACCESS_CLIENT_SECRET?: string
+        }
+      }
+    ).__env__
+    const binding = hosted ? (cloudflare?.AUTH_DB ?? remoteD1()) : null
+    const hostedD1 = () => {
+      if (!binding) throw new Error('D1 unavailable')
+      return binding
+    }
+    const accessClientId = cloudflare?.SPACETIME_ACCESS_CLIENT_ID ?? process.env.SPACETIME_ACCESS_CLIENT_ID
+    const accessClientSecret = cloudflare?.SPACETIME_ACCESS_CLIENT_SECRET ?? process.env.SPACETIME_ACCESS_CLIENT_SECRET
+    const spacetimeAccess =
+      accessClientId && accessClientSecret ? { clientId: accessClientId, clientSecret: accessClientSecret } : undefined
+    const catalogueAssets = cloudflare?.ASSETS
+    const readCatalogue = catalogueAssets
+      ? (key: string, maxBytes: number) => readWorkerCatalogueAsset(catalogueAssets, key, maxBytes)
+      : null
+    const workerCatalogue =
+      hosted && readCatalogue
+        ? new WorkerCatalogueStore(readCatalogue, cloudflare?.CATALOGUE_SNAPSHOT_ID ?? '', cloudflare?.CATALOGUE_MANIFEST_SHA256 ?? '')
+        : null
+    if (hosted) {
+      operator = new SpacetimeOperator(
+        process.env.SPACETIME_URL!,
+        process.env.SPACETIME_DATABASE ?? '',
+        process.env.SPACETIME_OPERATOR_TOKEN ?? '',
+        (request, init) => fetch(request, init),
+        spacetimeAccess,
+      )
+    } else {
+      database = openDatabase(databaseUrl()).database
+      const valkey = valkeyUrl()
+      cache = valkey ? openValkey(valkey) : null
+    }
+    const realtime = hosted ? null : realtimeConfig()
+    if (!hosted && !realtime) throw new Error('Realtime secret is not configured')
+    const events: BattleEvents = realtime ? new RealtimePublisher(realtime.apiUrl, realtime.apiKey) : { publish: () => {} }
+    const repository = hosted ? new SpacetimeRepository(new D1AccountRepository(hostedD1()), operator!) : new Repository(database!)
+    const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens), process.env, !hosted)
     let ready = Promise.resolve()
+    let nativeSyncState: SyncState = { status: 'working', detail: 'loading the community data' }
+    const workerShared = async () => {
+      try {
+        const [shared] = await Promise.all([workerCatalogue!.shared(), workerCatalogue!.referenceMetadata()])
+        nativeSyncState = { status: 'ready', detail: null }
+        return shared
+      } catch (error) {
+        nativeSyncState = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
+        throw error
+      }
+    }
     const loaders = () => ({
       catalogue: memoize(loadCatalogue),
       canonical: memoize(() => canonicalCatalogue(instance, catalogueDataDirectory)),
@@ -170,20 +245,82 @@ export function app(): App {
       }),
     })
     const loaded = loaders()
+    const auth = hosted
+      ? createD1Auth(hostedD1(), process.env.AUTH_SECRET ?? '', {
+          environment: process.env,
+          email,
+          deleteUserData: (userId) => operator!.deleteUserData(userId),
+          revokeSessionAccess: (sessionId) => operator!.revokeSession(sessionId),
+          storeSocialAvatar: storeProfileImageFromUrl,
+          updateProfile: profileUpdate,
+        })
+      : createAuth(database!, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email)
     const instance: App = {
-      database,
-      valkey: cache,
-      service: new PraetoriumService(repository, Date.now, events, randomInt, push ? pushNotifier(repository, push) : silentNotifier),
+      health: async () => {
+        if (hosted) {
+          try {
+            await Promise.all([
+              hostedD1().prepare('select 1').first(),
+              operator!.health(),
+              workerCatalogue ? workerShared() : undefined,
+              workerCatalogue ? workerCatalogue.navigation() : undefined,
+              workerCatalogue ? workerCatalogue.searchIndex() : undefined,
+            ])
+          } catch (error) {
+            console.error('Hosted health check failed:', error instanceof Error ? error.message : String(error), {
+              accessConfigured: Boolean(spacetimeAccess),
+            })
+            throw error
+          }
+        } else {
+          await database!.execute(sql`select 1`)
+          if (cache && !(await valkeyReachable(cache))) throw new Error('Valkey unavailable')
+        }
+      },
+      service: new PraetoriumService(
+        repository,
+        Date.now,
+        events,
+        randomInt,
+        push ? pushNotifier(repository, push, undefined, worker?.waitUntil) : silentNotifier,
+      ),
       events,
-      auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email),
+      auth,
+      spacetimeToken: hosted ? async (headers) => (await (auth as ReturnType<typeof createD1Auth>).api.getToken({ headers })).token : null,
       email,
       catalogue: loaded.catalogue,
+      catalogueFor: async (catalogueId) => {
+        if (!workerCatalogue) return instance.catalogue()
+        await workerShared()
+        return workerCatalogue.catalogue(catalogueId)
+      },
       canonicalCatalogue: loaded.canonical,
+      canonicalCatalogueFor: async () => (workerCatalogue ? null : instance.canonicalCatalogue()),
       rules: loaded.rules,
+      rulesFor: async () => (workerCatalogue ? (await workerShared()).rules : instance.rules()),
       catalogueHistory: loaded.history,
+      catalogueHistoryFor: async () => (workerCatalogue ? (await workerCatalogue.navigation()).history : instance.catalogueHistory()),
       combatUnits: loaded.combatUnits,
+      combatUnitsFor: async () => (workerCatalogue ? (await workerCatalogue.navigation()).combatUnits : instance.combatUnits()),
+      factionIndexFor: async () => {
+        if (workerCatalogue) return (await workerCatalogue.navigation()).factionIndex
+        const catalogue = instance.catalogue()
+        return catalogue ? factionIndexFor(catalogue, instance.rules()) : null
+      },
+      factionsFor: async () => {
+        if (workerCatalogue) return (await workerCatalogue.navigation()).factions
+        const catalogue = instance.catalogue()
+        return catalogue ? factionsFor(catalogue, instance.rules()) : null
+      },
+      factionIconFor: async (id) => (workerCatalogue ? workerCatalogue.factionIcon(id) : (instance.rules()?.factionIcons.get(id) ?? null)),
+      searchIndexFor: async () => {
+        if (workerCatalogue) return workerCatalogue.searchIndex()
+        const catalogue = instance.catalogue()
+        return catalogue ? compiledGlobalSearchIndex(catalogue, instance.rules()) : null
+      },
+      workerReferences: workerCatalogue,
       push: Boolean(push),
-      sync: () => sync.state,
+      sync: () => (workerCatalogue ? nativeSyncState : sync.state),
       telemetry,
       ready: () => ready,
     }
@@ -197,12 +334,26 @@ export function app(): App {
       instance.combatUnits = next.combatUnits
       ready = warm(instance)
     }
-    // Fetched in the background rather than at boot: an instance must start and
-    // serve battles whether or not it has the catalogues yet.
-    sync.begin(catalogueDataDirectory, swap)
-    const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap), 60 * 60 * 1000)
-    catalogueRefresh.unref()
-    if (sync.state.status === 'ready') ready = warm(instance)
+    if (workerCatalogue) {
+      ready = Promise.all([workerCatalogue.navigation(), workerCatalogue.searchIndex(), workerCatalogue.referenceMetadata()]).then(
+        () => {
+          nativeSyncState = { status: 'ready', detail: null }
+        },
+        (error: unknown) => {
+          nativeSyncState = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
+        },
+      )
+      worker?.waitUntil?.(ready)
+    } else {
+      // A self-hosted instance fetches a snapshot without blocking battle requests.
+      sync.begin(catalogueDataDirectory, swap)
+      const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap), 60 * 60 * 1000)
+      catalogueRefresh.unref()
+      if (sync.state.status === 'ready') ready = warm(instance)
+    }
     return instance
-  })
+  }
+  const worker = workerAppContext.getStore()
+  if (worker) return (worker.app ??= createApp()) as App
+  return globalSingleton('praetorium.app', createApp)
 }

@@ -299,4 +299,27 @@ describe('global rules search', () => {
     const results = await searchEverything('03.01', { catalogue: null, rules, own: async () => null })
     expect(results.filter((result) => result.group === 'Rules').map((result) => result.label)).toEqual(['Moving Units'])
   })
+
+  it('searches compiled rules without loading the rules source', async () => {
+    const catalogueIndex = {
+      factions: [],
+      detachments: [],
+      datasheets: [],
+      missions: [],
+      rules: [
+        {
+          search: '03.01 moving units',
+          result: {
+            id: 'rule:core-rules:03.01',
+            group: 'Rules' as const,
+            label: 'Moving Units',
+            detail: '03.01 · Core Rules',
+            href: '/rules/core-rules/moving#03.01',
+          },
+        },
+      ],
+    }
+    const results = await searchEverything('moving units', { catalogue: null, catalogueIndex, rules: null, own: async () => null })
+    expect(results.map((result) => result.id)).toEqual(['rule:core-rules:03.01'])
+  })
 })

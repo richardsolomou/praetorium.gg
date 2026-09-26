@@ -3,7 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { z } from 'zod'
 import { REFERENCE_KINDS } from '../contracts/reference'
 import { app } from './app'
-import { activeReferenceCorpus, referenceRateLimit } from './referenceApi'
+import { activeReferenceCorpus, activeWorkerReferences, referenceRateLimit } from './referenceApi'
 import { referenceDocumentMarkdown } from './referenceCorpus'
 import { PRAETORIUM_MCP_INSTRUCTIONS, praetoriumGuideMarkdown } from './referenceGuide'
 import { REFERENCE_RESULT_MAX, searchReference, validReferenceCursor } from './referenceSearch'
@@ -107,9 +107,11 @@ function referenceMcpServer() {
       annotations: READ_ONLY_TOOL,
     },
     async ({ query, kinds, faction, pack, document, limit, cursor }) => {
-      const corpus = activeReferenceCorpus()
-      if (!corpus) return unavailable()
-      const result = searchReference(corpus, { query, kinds, faction, pack, document, limit, cursor })
+      const worker = activeWorkerReferences()
+      const corpus = worker ? null : await activeReferenceCorpus()
+      if (!worker && !corpus) return unavailable()
+      const input = { query, kinds, faction, pack, document, limit, cursor }
+      const result = worker ? await worker.searchReferences(input) : searchReference(corpus!, input)
       return structured(result)
     },
   )
@@ -124,7 +126,7 @@ function referenceMcpServer() {
       annotations: READ_ONLY_TOOL,
     },
     async ({ id }) => {
-      const corpus = activeReferenceCorpus()
+      const corpus = await activeReferenceCorpus(id)
       if (!corpus) return unavailable()
       const document = corpus.byId.get(id)
       if (!document) return { content: [{ type: 'text', text: 'Reference document not found.' }], isError: true }
@@ -142,9 +144,9 @@ function referenceMcpServer() {
       annotations: READ_ONLY_TOOL,
     },
     async ({ id }) => {
-      const corpus = activeReferenceCorpus()
+      const corpus = await activeReferenceCorpus(id)
       if (!corpus) return unavailable()
-      const result = referenceRecord(corpus, app().rules(), id)
+      const result = referenceRecord(corpus, await app().rulesFor(), id)
       if (!result) return { content: [{ type: 'text', text: 'Structured reference record not found.' }], isError: true }
       return structured(result)
     },
@@ -159,9 +161,15 @@ function referenceMcpServer() {
       annotations: READ_ONLY_TOOL,
     },
     async () => {
-      const corpus = activeReferenceCorpus()
-      if (!corpus) return unavailable()
-      return structured({ factions: referenceFactions(corpus), revisions: corpus.catalogue.revisions })
+      const worker = activeWorkerReferences()
+      const corpus = worker ? null : await activeReferenceCorpus()
+      if (!worker && !corpus) return unavailable()
+      const metadata = worker ? await worker.referenceMetadata() : null
+      return structured(
+        metadata
+          ? { factions: metadata.factions, revisions: metadata.revisions }
+          : { factions: referenceFactions(corpus!), revisions: corpus!.catalogue.revisions },
+      )
     },
   )
   server.registerTool(
@@ -183,9 +191,10 @@ function referenceMcpServer() {
       annotations: READ_ONLY_TOOL,
     },
     async () => {
-      const corpus = activeReferenceCorpus()
-      if (!corpus) return unavailable()
-      return structured(referenceIndex(corpus))
+      const worker = activeWorkerReferences()
+      const corpus = worker ? null : await activeReferenceCorpus()
+      if (!worker && !corpus) return unavailable()
+      return structured(worker ? (await worker.referenceMetadata()).index : referenceIndex(corpus!))
     },
   )
   server.registerTool(
@@ -209,11 +218,19 @@ function referenceMcpServer() {
       annotations: READ_ONLY_TOOL,
     },
     async ({ faction, battleSize, detachment }) => {
-      const corpus = activeReferenceCorpus()
       const instance = app()
-      const loaded = instance.catalogue()
+      const worker = activeWorkerReferences()
+      const metadata = worker ? await worker.referenceMetadata() : null
+      const wanted = faction.toLocaleLowerCase()
+      const found = metadata?.factions.find((candidate) =>
+        [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted),
+      )
+      if (metadata && !found) return { content: [{ type: 'text', text: 'Faction or detachment not found.' }], isError: true }
+      const factionId = found?.id ?? faction
+      const corpus = await activeReferenceCorpus(undefined, factionId)
+      const [loaded, rules] = await Promise.all([instance.catalogueFor(factionId), instance.rulesFor()])
       if (!corpus || !loaded) return unavailable()
-      const result = referenceUnits(corpus, loaded, instance.rules(), faction, battleSize, detachment)
+      const result = referenceUnits(corpus, loaded, rules, faction, battleSize, detachment)
       if (!result) return { content: [{ type: 'text', text: 'Faction or detachment not found.' }], isError: true }
       return structured(result)
     },
@@ -238,8 +255,13 @@ function referenceMcpServer() {
       mimeType: 'application/json',
     },
     async (uri) => {
-      const corpus = activeReferenceCorpus()
-      const status = corpus ? { available: true, ...referenceIndex(corpus) } : { available: false }
+      const worker = activeWorkerReferences()
+      const corpus = worker ? null : await activeReferenceCorpus()
+      const status = worker
+        ? { available: true, ...(await worker.referenceMetadata()).index }
+        : corpus
+          ? { available: true, ...referenceIndex(corpus) }
+          : { available: false }
       return { contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(status, null, 2) }] }
     },
   )

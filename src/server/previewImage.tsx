@@ -1,12 +1,13 @@
 import type { CSSProperties } from 'react'
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
-import satori, { type Font } from 'satori'
+import satori, { init as initYoga, type Font } from 'satori/standalone'
 import display500 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-500-normal.woff?inline'
 import display500Extended from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-ext-500-normal.woff?inline'
 import display700 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-700-normal.woff?inline'
 import display700Extended from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-ext-700-normal.woff?inline'
 import logo from '../../public/logo.svg?raw'
 import { PREVIEW_SIZE, type PreviewCard, SITE } from '../contracts/linkPreview'
+import { workerAppContext } from './workerAppContext'
 
 /** Renders at once, and renders waiting behind them, before a request is turned away. */
 const RENDERS_AT_ONCE = 2
@@ -33,20 +34,27 @@ let ready: Promise<Font[]> | undefined
 /**
  * The rasteriser and the fonts, prepared once and only when a preview is first asked for.
  *
- * The WebAssembly is inlined rather than read from disk, so the production bundle, the
- * development server and the tests all find it without a path to agree on. It is
- * imported here so its megabytes load with the first preview rather than at startup.
+ * Workers provide compiled modules because they cannot compile WebAssembly at request time.
+ * Node loads the inline bytes only when a preview is first requested.
  */
 function prepare() {
-  ready ??= import('@resvg/resvg-wasm/index_bg.wasm?inline').then(async ({ default: wasm }) => {
-    await initWasm(bytes(wasm))
+  ready ??= (async () => {
+    const module = workerAppContext.getStore()?.previewWasm
+    if (module) await Promise.all([initWasm(module.resvg), initYoga(module.yoga)])
+    else {
+      const [{ default: resvg }, { default: yoga }] = await Promise.all([
+        import('@resvg/resvg-wasm/index_bg.wasm?inline'),
+        import('satori/yoga.wasm?inline'),
+      ])
+      await Promise.all([initWasm(bytes(resvg)), initYoga(bytes(yoga))])
+    }
     return [
       { data: display500, weight: 500 as const, name: FAMILY },
       { data: display500Extended, weight: 500 as const, name: EXTENDED },
       { data: display700, weight: 700 as const, name: FAMILY },
       { data: display700Extended, weight: 700 as const, name: EXTENDED },
     ].map(({ data, ...font }) => ({ ...font, data: bytes(data), style: 'normal' as const }))
-  })
+  })()
   return ready
 }
 

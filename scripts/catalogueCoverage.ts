@@ -74,6 +74,7 @@ const snapshot = snapshotFactions.map((faction) => {
       const priced = calculateRosterPrice(
         { catalogueId: faction.id, detachmentIds: [], disposition: null, limit: 2_000, units: [{ entryId }] },
         loaded,
+        rules,
       )
       const unit = priced?.units[0]
       // The loadout pane's view: every weapon the unit could take, in the context of the

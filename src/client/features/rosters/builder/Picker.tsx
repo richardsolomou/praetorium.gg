@@ -20,7 +20,7 @@ import type { UnitSummary } from '../../../../contracts/catalogue'
 import { SearchField } from '../../../components/SearchField'
 import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons'
 import { useCollectionMutation } from '../../../useCollection'
-import { useSettled } from '../../../useSettled'
+import { searchDatasheetEntries } from '../../../../core/datasheetSearch'
 import { collectionQuery, meQuery, unitsQuery } from '../../../queries'
 import { shortName } from './factions'
 import { GROUPS } from '../../../unitGroups'
@@ -74,9 +74,8 @@ export const Picker = memo(function Picker({
   active,
   onFilterToggle,
 }: Props) {
-  const settledQuery = useSettled(query.trim())
   const unitsResult = useQuery({
-    ...unitsQuery(catalogueId, settledQuery, battleSize, waivedRules),
+    ...unitsQuery(catalogueId, battleSize, waivedRules),
     enabled: enabled && Boolean(catalogueId),
     placeholderData: keepPreviousData,
   })
@@ -84,7 +83,7 @@ export const Picker = memo(function Picker({
   const { data: me } = useQuery(meQuery())
   const signedIn = Boolean(me)
   const collectionResult = useQuery({ ...collectionQuery(), enabled: enabled && signedIn })
-  const found = unitsResult.data
+  const found = useMemo(() => searchDatasheetEntries(unitsResult.data ?? [], query, (unit) => unit.search), [unitsResult.data, query])
   const owned = collectionResult.data
   const own = useCollectionMutation()
   const { mutate: mutateCollection } = own
@@ -119,6 +118,7 @@ export const Picker = memo(function Picker({
           placeholder="Search units, keywords, abilities…"
           label="Add a unit"
           clearLabel="Empty the picker filter"
+          maxLength={80}
           inputClassName="h-9"
         />
         <div className="flex flex-wrap items-center gap-1.5">
@@ -213,7 +213,7 @@ export const Picker = memo(function Picker({
                         collectionPending={own.isPending && own.variables?.entryId === unit.id}
                         battleSize={battleSize}
                         waivedRules={waivedRules}
-                        query={settledQuery}
+                        query={query}
                         onPreview={onPreview}
                         onOwned={signedIn ? setOwned : undefined}
                         onAdd={onAdd}

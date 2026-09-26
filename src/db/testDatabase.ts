@@ -16,7 +16,7 @@ export async function openTestDatabase(): Promise<PraetoriumConnection> {
   const database = drizzle(client, { schema })
   const connection: PraetoriumConnection = {
     database,
-    migrate: () => migrate(database, { migrationsFolder }),
+    migrate: () => migrate(database, { migrationsFolder: migrationsFolder() }),
     close: () => client.close(),
   }
   await connection.migrate()

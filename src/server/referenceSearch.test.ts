@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { ReferenceDocument } from '../contracts/reference'
 import type { ReferenceCorpus } from './referenceCorpus'
-import { searchReference } from './referenceSearch'
+import { finishReferenceSearch, rankReferencePart, searchReference } from './referenceSearch'
 
 const documents: ReferenceDocument[] = [
   {
@@ -120,6 +120,14 @@ it('paginates ranked results without repeating them', () => {
   expect(first.nextCursor).not.toBeNull()
   expect(second.results[0]?.id).not.toBe(first.results[0]?.id)
   expect(second.nextCursor).toBeNull()
+})
+
+it('keeps global ranking and pagination when documents are searched in shards', () => {
+  const input = { query: 'unit', limit: 1 }
+  const parts = documents.flatMap((document) => rankReferencePart({ ...corpus, documents: [document] }, input))
+  const first = finishReferenceSearch(input, catalogue.revisions, parts)
+  const second = finishReferenceSearch({ ...input, cursor: first.nextCursor! }, catalogue.revisions, parts)
+  expect([first, second]).toEqual([searchReference(corpus, input), searchReference(corpus, { ...input, cursor: first.nextCursor! })])
 })
 
 it('filters mission setup records by pack and rules by document', () => {

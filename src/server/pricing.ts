@@ -17,7 +17,6 @@ import { buildUnit } from '../core/roster'
 import { type ChoiceOptions, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearOf } from '../core/wargear'
-import { app } from './app'
 import { contextualAbilityNamesIn, datasheetIn, matchesKeywordSelector, rulesReferencedIn, toughnessOf } from './catalogue'
 import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey } from './datacards'
@@ -205,7 +204,7 @@ export function rosterSetupLabel(
  * owner never named, the label instead of an empty line. Pricing every unit twice to
  * answer two halves of one question would double the cost of opening the library.
  */
-export function calculateRosterTotals(data: PriceInput, loaded = app().catalogue(), loadedRules = app().rules()) {
+export function calculateRosterTotals(data: PriceInput, loaded: LoadedCatalogue | null, loadedRules: LoadedRules | null) {
   if (!loaded) return null
   const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
   const { picked, forceSelections } = rosterForces(loaded, data, detachmentSelection)
@@ -257,7 +256,7 @@ export function savedRosterPriceInput(saved: {
   }
 }
 
-export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(), loadedRules = app().rules()) {
+export function calculateRosterPrice(data: PriceInput, loaded: LoadedCatalogue | null, loadedRules: LoadedRules | null) {
   if (!loaded) return null
 
   const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)

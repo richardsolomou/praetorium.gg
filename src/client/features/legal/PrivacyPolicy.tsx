@@ -2,11 +2,11 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="24 September 2026">
+    <LegalPage title="Privacy policy" updated="26 September 2026">
       <LegalSection title="Scope">
         <p>
-          Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the hosted
-          service at praetorium.gg. It does not cover self-hosted installations, whose data is controlled by whoever operates them.
+          Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
+          service at praetorium.gg.
         </p>
         <p>
           An account is required to keep rosters or play battles, so everything below is about signed-in use. A roster you try without an

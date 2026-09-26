@@ -24,7 +24,7 @@ import {
   referenceDatasheetRoute,
   type LoadedCatalogue,
 } from './catalogueIndex'
-import { type DatasheetSearchFields, dedupeWeapons } from './datasheetSearch'
+import { type DatasheetSearchFields, dedupeWeapons } from '../core/datasheetSearch'
 import { priceOf } from './catalogueUnit'
 import { datacardOf } from './datasheetJoin'
 import { mergeDetachmentRules } from './catalogueDescriptions'

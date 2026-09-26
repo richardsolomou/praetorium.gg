@@ -6,18 +6,12 @@ import { valkeyUrl } from '../src/adapters/valkeyConfig'
 
 const secret = persistedRealtimeSecret()
 
-// A preview owns a database on a Postgres it shares with other previews, and the
-// database outlives the container, so it is emptied before anything migrates into it.
-if (process.env.PRAETORIUM_PREVIEW_ADMIN_DATABASE_URL?.trim()) {
-  execFileSync(process.execPath, ['.output/server/preview-database.mjs'], { stdio: 'inherit' })
-}
-
 // Before the app, never alongside it: a replica must not answer a request against
 // a schema that is still moving. An advisory lock inside makes replicas starting
 // together take turns rather than race.
 execFileSync(process.execPath, ['.output/server/migrate.mjs'], { stdio: 'inherit' })
 
-if (process.env.PRAETORIUM_SEED_PREVIEW === 'true' || previewDeployment(process.env.APP_URL)) {
+if (process.env.PRAETORIUM_SEED_PREVIEW === 'true') {
   // Said out loud to the seeder, which refuses a database it was not sent at
   // deliberately: the accounts it creates sign in with passwords this repository prints.
   execFileSync(process.execPath, ['.output/server/seed-preview.mjs'], {
@@ -49,12 +43,3 @@ process.exitCode = await runRealtimeStack({
   },
   caddy: { configPath: '/tmp/praetorium-Caddyfile', env: process.env },
 })
-
-function previewDeployment(value: string | undefined) {
-  if (!value) return false
-  try {
-    return /^pr-\d+\.praetorium\.gg$/.test(new URL(value).hostname)
-  } catch {
-    return false
-  }
-}

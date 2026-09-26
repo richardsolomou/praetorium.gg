@@ -4,7 +4,7 @@ import { datasheetSearchFieldsIn } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { datasheetSlug, datasheetsOf, isReferenceDatasheet } from './catalogueIndex'
 import { isMatchedPlayDatasheet } from './cataloguePicker'
-import { matchDatasheet, type DatasheetSearchFields, type DatasheetSearchReason } from './datasheetSearch'
+import { matchDatasheet, type DatasheetSearchFields, type DatasheetSearchReason } from '../core/datasheetSearch'
 import { factionsFor } from './factionReferences'
 import { gameReferencesFor } from './gameReferences'
 import { ruleIndexOf } from './rulesCore'
@@ -45,6 +45,7 @@ type Battle = {
 
 type Sources = {
   catalogue: LoadedCatalogue | null
+  catalogueIndex?: GlobalSearchIndex
   rules: LoadedRules | null
   /** The signed-in player's own data, or nothing when the request carries no session. */
   own: () => Promise<{ rosters: SavedRoster[]; battles: Battle[] } | null>
@@ -58,7 +59,13 @@ type IndexedDatasheet = {
   fields: DatasheetSearchFields
   result: GlobalSearchResult
 }
-type GlobalSearchIndex = { factions: IndexedResult[]; detachments: IndexedResult[]; datasheets: IndexedDatasheet[] }
+export type GlobalSearchIndex = {
+  factions: IndexedResult[]
+  detachments: IndexedResult[]
+  datasheets: IndexedDatasheet[]
+  missions: IndexedResult[]
+  rules: IndexedResult[]
+}
 
 const globalSearchIndexes = new WeakMap<LoadedCatalogue, { rules: LoadedRules | null; index: GlobalSearchIndex }>()
 
@@ -118,18 +125,23 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
       })
     }
   }
-  const index = { factions, detachments, datasheets }
+  const index = { factions, detachments, datasheets, missions: indexedMissions(rules), rules: indexedRules(rules) }
   globalSearchIndexes.set(loaded, { rules, index })
   return index
+}
+
+export function compiledGlobalSearchIndex(loaded: LoadedCatalogue, rules: LoadedRules | null) {
+  return globalSearchIndexFor(loaded, rules)
 }
 
 export async function searchEverything(query: string, sources: Sources): Promise<GlobalSearchResult[]> {
   const wanted = query.toLowerCase()
   const matches = (...text: (string | null | undefined)[]) => text.filter(Boolean).join(' ').toLowerCase().includes(wanted)
+  const index = sources.catalogueIndex ?? (sources.catalogue ? globalSearchIndexFor(sources.catalogue, sources.rules) : null)
   const results: GlobalSearchResult[] = [
-    ...catalogueResults(wanted, sources),
-    ...missionResults(matches, sources.rules),
-    ...ruleResults(wanted, sources.rules),
+    ...catalogueResults(wanted, index),
+    ...(index?.missions ?? indexedMissions(sources.rules)).filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
+    ...(index?.rules ?? indexedRules(sources.rules)).filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
     ...(await ownResults(matches, sources.own)),
   ]
   return GROUPS.flatMap((group) => results.filter((result) => result.group === group).slice(0, PER_GROUP))
@@ -137,11 +149,8 @@ export async function searchEverything(query: string, sources: Sources): Promise
 
 type Matcher = (...text: (string | null | undefined)[]) => boolean
 
-function catalogueResults(wanted: string, sources: Sources): GlobalSearchResult[] {
-  const loaded = sources.catalogue
-  if (!loaded) return []
-
-  const index = globalSearchIndexFor(loaded, sources.rules)
+function catalogueResults(wanted: string, index: GlobalSearchIndex | null): GlobalSearchResult[] {
+  if (!index) return []
   const results: GlobalSearchResult[] = [
     ...index.factions.filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
     ...index.detachments.filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
@@ -200,29 +209,32 @@ function fuzzyScore(query: string, name: string) {
 
 const wordsIn = (value: string) => value.toLowerCase().match(/[a-z0-9]+/g) ?? []
 
-function missionResults(matches: Matcher, rules: LoadedRules | null): GlobalSearchResult[] {
+function indexedMissions(rules: LoadedRules | null): IndexedResult[] {
   if (!rules) return []
   const references = gameReferencesFor(rules)
-  const results: GlobalSearchResult[] = []
+  const results: IndexedResult[] = []
 
   for (const pack of references.packs) {
-    if (matches(pack.name)) {
-      results.push({
+    results.push({
+      search: pack.name.toLowerCase(),
+      result: {
         id: `pack:${pack.id}`,
         group: 'Missions',
         label: pack.name,
         detail: 'Mission pack',
         href: `/mission-packs/${pack.id}`,
-      })
-    }
+      },
+    })
     for (const mission of pack.missions) {
-      if (!matches(mission.name)) continue
       results.push({
-        id: `mission:${pack.id}:${mission.id}`,
-        group: 'Missions',
-        label: mission.name,
-        detail: pack.name,
-        href: `/mission-packs/${pack.id}`,
+        search: mission.name.toLowerCase(),
+        result: {
+          id: `mission:${pack.id}:${mission.id}`,
+          group: 'Missions',
+          label: mission.name,
+          detail: pack.name,
+          href: `/mission-packs/${pack.id}`,
+        },
       })
     }
   }
@@ -231,13 +243,15 @@ function missionResults(matches: Matcher, rules: LoadedRules | null): GlobalSear
   const firstPack = references.packs[0]
   if (!firstPack) return results
   for (const mission of references.secondaries) {
-    if (!matches(mission.name)) continue
     results.push({
-      id: `secondary:${mission.key}`,
-      group: 'Missions',
-      label: mission.name,
-      detail: 'Secondary mission',
-      href: `/mission-packs/${firstPack.id}`,
+      search: mission.name.toLowerCase(),
+      result: {
+        id: `secondary:${mission.key}`,
+        group: 'Missions',
+        label: mission.name,
+        detail: 'Secondary mission',
+        href: `/mission-packs/${firstPack.id}`,
+      },
     })
   }
   return results
@@ -249,19 +263,20 @@ function missionResults(matches: Matcher, rules: LoadedRules | null): GlobalSear
  * The number is searched as well as the name because that is how one rule quotes
  * another, so a player reading `(10.05)` on a card can type it straight in.
  */
-function ruleResults(wanted: string, rules: LoadedRules | null): GlobalSearchResult[] {
+function indexedRules(rules: LoadedRules | null): IndexedResult[] {
   if (!rules) return []
   return ruleIndexOf(rules.ruleDocuments).documents.flatMap((document) =>
     document.sections.flatMap((section) =>
-      section.entries
-        .filter((entry) => `${entry.code ?? ''} ${entry.title}`.toLowerCase().includes(wanted))
-        .map((entry) => ({
+      section.entries.map((entry) => ({
+        search: `${entry.code ?? ''} ${entry.title}`.toLowerCase(),
+        result: {
           id: `rule:${document.slug}:${entry.anchor}`,
           group: 'Rules' as const,
           label: entry.title,
           detail: [entry.code, document.title].filter(Boolean).join(' · '),
           href: `/rules/${document.slug}/${section.slug}#${entry.anchor}`,
-        })),
+        },
+      })),
     ),
   )
 }

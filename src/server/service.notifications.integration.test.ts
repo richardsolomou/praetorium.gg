@@ -262,6 +262,18 @@ describe('push delivery', () => {
     await vi.waitFor(() => expect(log).toHaveBeenCalledOnce())
   })
 
+  it('keeps a Worker request alive until its push notice is sent', async () => {
+    await register('bob')
+    const send = vi.fn(async () => undefined)
+    const waitUntil = vi.fn<(promise: Promise<unknown>) => void>()
+    const notifier = pushNotifier(new Repository(database), { send }, undefined, waitUntil)
+
+    notifier.notify([{ kind: 'friend-requested', actorId: 'alice', recipientIds: ['bob'] }])
+    await waitUntil.mock.calls[0]![0]
+
+    expect(send).toHaveBeenCalledOnce()
+  })
+
   it('answers the request that caused a notice without waiting for the push service', async () => {
     await register('bob')
     const repository = new Repository(database)

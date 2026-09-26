@@ -103,13 +103,13 @@ if (process.env.VERIFY_DEPLOYMENT_ABILITIES) {
   }
 }
 if (process.env.PROFILE) {
-  for (let repetition = 0; repetition < 10; repetition += 1) calculateRosterPrice(input(40))
+  for (let repetition = 0; repetition < 10; repetition += 1) calculateRosterPrice(input(40), loaded, app().rules())
   process.exit(0)
 }
 console.log('units\tprice_ms\tduplicate_datasheets_ms\tshared_datasheets_ms\treused_context_ms\tsimulator_ms\treuse_speedup\tcontext_kib')
 for (const size of sizes) {
   const data = input(size)
-  const price = median(() => void calculateRosterPrice(data), 3)
+  const price = median(() => void calculateRosterPrice(data, loaded, app().rules()), 3)
   const oldSheets = median(() => project(data.units, false))
   const newSheets = median(() => project(data.units, true))
   const prepared = context(data.units, Math.floor(data.units.length / 2))

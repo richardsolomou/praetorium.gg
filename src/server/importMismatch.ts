@@ -30,10 +30,10 @@ export const normalized = (value: string) =>
     .replace(/\[\d+\]$/, '')
     .replaceAll(/[’‘]/g, "'")
 
-export function unmatchedFactionReason(stated: string, loaded: LoadedCatalogue): string {
+export function unmatchedFactionReason(stated: string, availableNames: readonly string[]): string {
   const near = closestName(
     stated,
-    loaded.factions.map((faction) => factionDisplayName(faction.name)),
+    availableNames.map((name) => factionDisplayName(name)),
   )
   return near ? `no faction is called that; the closest is "${near}"` : 'no faction in the catalogue is called that'
 }

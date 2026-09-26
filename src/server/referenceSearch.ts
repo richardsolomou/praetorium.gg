@@ -44,17 +44,40 @@ type IndexedDocument = {
 
 const indices = new WeakMap<ReferenceDocument[], IndexedDocument[]>()
 
+type RankedReferenceResult = ReferenceSearchResult & { score: number }
+
 export function searchReference(corpus: ReferenceCorpus, input: ReferenceSearchInput): ReferenceSearchResponse {
+  return finishReferenceSearch(input, corpus.catalogue.revisions, rankReferencePart(corpus, input))
+}
+
+export function finishReferenceSearch(
+  input: ReferenceSearchInput,
+  revisions: ReferenceCorpus['catalogue']['revisions'],
+  parts: readonly RankedReferenceResult[],
+): ReferenceSearchResponse {
+  const limit = Math.min(Math.max(input.limit ?? 10, 1), REFERENCE_RESULT_MAX)
+  const offset = decodeCursor(input.cursor)
+  const ranked = parts.toSorted(
+    (left, right) => right.score - left.score || left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
+  )
+  const results = ranked.slice(offset, offset + limit).map(({ score: _score, ...result }) => result)
+  return {
+    query: input.query.trim(),
+    results,
+    revisions,
+    nextCursor: offset + limit < ranked.length ? encodeCursor(offset + limit) : null,
+  }
+}
+
+export function rankReferencePart(corpus: ReferenceCorpus, input: ReferenceSearchInput): RankedReferenceResult[] {
   const query = input.query.trim()
   const wanted = normalize(query)
   const tokens = [...new Set(words(query))]
-  const limit = Math.min(Math.max(input.limit ?? 10, 1), REFERENCE_RESULT_MAX)
-  const offset = decodeCursor(input.cursor)
   const kinds = input.kinds?.length ? new Set(input.kinds) : null
   const faction = input.faction ? normalize(input.faction) : null
   const pack = input.pack ? normalize(input.pack) : null
   const ruleDocument = input.document ? normalize(input.document) : null
-  const ranked = indexFor(corpus)
+  return indexFor(corpus)
     .flatMap((indexed) => {
       const { document } = indexed
       if (kinds && !kinds.has(document.kind)) return []
@@ -64,29 +87,18 @@ export function searchReference(corpus: ReferenceCorpus, input: ReferenceSearchI
       const match = bestSection(indexed, wanted, tokens)
       return match ? [{ document, ...match }] : []
     })
-    .toSorted(
-      (left, right) =>
-        right.score - left.score ||
-        left.document.title.localeCompare(right.document.title) ||
-        left.document.id.localeCompare(right.document.id),
-    )
-  const results = ranked.slice(offset, offset + limit).map(({ document, section }): ReferenceSearchResult => ({
-    id: document.id,
-    kind: document.kind,
-    title: document.title,
-    faction: document.faction,
-    url: document.url,
-    section: { id: section.id, title: section.title, url: section.url },
-    excerpt: excerpt(section.text, query, tokens),
-    revisions: document.revisions,
-    attribution: document.attribution,
-  }))
-  return {
-    query,
-    results,
-    revisions: corpus.catalogue.revisions,
-    nextCursor: offset + limit < ranked.length ? encodeCursor(offset + limit) : null,
-  }
+    .map(({ document, section, score }): RankedReferenceResult => ({
+      id: document.id,
+      kind: document.kind,
+      title: document.title,
+      faction: document.faction,
+      url: document.url,
+      section: { id: section.id, title: section.title, url: section.url },
+      excerpt: excerpt(section.text, query, tokens),
+      revisions: document.revisions,
+      attribution: document.attribution,
+      score,
+    }))
 }
 
 function missionPackOf(document: ReferenceDocument) {

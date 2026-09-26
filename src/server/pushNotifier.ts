@@ -14,6 +14,7 @@ export function pushNotifier(
   repository: PushRepository,
   sender: PushSender,
   log = (error: unknown) => console.warn('push notice failed', { error }),
+  waitUntil?: (promise: Promise<unknown>) => void,
 ) {
   async function deliver(notices: readonly Notice[]) {
     const addressed = notices.map((notice) => ({ notice, recipients: noticeRecipients(notice) })).filter((one) => one.recipients.length)
@@ -38,7 +39,8 @@ export function pushNotifier(
   return {
     deliver,
     notify(notices: readonly Notice[]) {
-      void deliver(notices).catch(log)
+      const pending = deliver(notices).catch(log)
+      waitUntil?.(pending)
     },
   }
 }

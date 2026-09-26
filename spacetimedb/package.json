@@ -1,0 +1,14 @@
+{
+  "name": "praetorium-spacetimedb",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "spacetimedb": "2.7.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

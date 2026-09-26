@@ -7,8 +7,7 @@ import { currentUserId, requireUser } from '../playerSession'
 import { calculateRosterPrice } from '../pricing'
 import { cachedRosterPrice, cachedRosterTotals, cachedRosterVerdict } from '../rosterPrices'
 import { mutationRpc, rpc } from '../rpc'
-import { exportRosterFile, importRosterFile } from '../rosterFiles'
-import { factionsFor } from '../factionReferences'
+import { exportRosterFile, importRosterFaction, importRosterFile, matchesImportFaction } from '../rosterFiles'
 import { rosterTelemetryProperties } from '../rosterTelemetry'
 import { rosterStatus, rosterVerdict } from '../rosterStatus'
 import {
@@ -28,8 +27,8 @@ export const priceRoster = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const startedAt = performance.now()
       const instance = app()
-      const loaded = instance.catalogue()
-      const rules = instance.rules()
+      const loaded = await instance.catalogueFor(data.catalogueId)
+      const rules = await instance.rulesFor()
       const result = calculateRosterPrice(data, loaded, rules)
       const userId = await currentUserId()
       if (userId && Math.random() < 0.1)
@@ -64,13 +63,12 @@ export const playerRosters = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const { summaries, priceable } = await app().service.publicRosters(data.userId)
-      return {
-        rosters: summaries,
-        totals: priceable.map((roster) => {
-          const totals = cachedRosterTotals(roster)
-          return { id: roster.id, points: totals?.points ?? null, label: totals?.label ?? '' }
-        }),
+      const totals = []
+      for (const roster of priceable) {
+        const value = await cachedRosterTotals(roster)
+        totals.push({ id: roster.id, points: value?.points ?? null, label: value?.label ?? '' })
       }
+      return { rosters: summaries, totals }
     }),
   )
 
@@ -79,10 +77,12 @@ export const savedRosterTotals = createServerFn({ method: 'GET' }).handler(() =>
     const id = await currentUserId()
     if (!id) return []
     const saved = await app().service.savedRosters(id)
-    return saved.map((roster) => {
-      const totals = cachedRosterTotals(roster)
-      return { id: roster.id, points: totals?.points ?? null, label: totals?.label ?? '' }
-    })
+    const totals = []
+    for (const roster of saved) {
+      const value = await cachedRosterTotals(roster)
+      totals.push({ id: roster.id, points: value?.points ?? null, label: value?.label ?? '' })
+    }
+    return totals
   }),
 )
 
@@ -93,10 +93,7 @@ export const sharedRoster = createServerFn({ method: 'GET' })
 async function accessibleRoster(data: { id: string; battle?: string }) {
   const access = await app().service.rosterAccess(data.id, await currentUserId(), data.battle ?? null)
   if (!access) return null
-  const loaded = app().catalogue()
-  const faction = loaded
-    ? (factionsFor(loaded, app().rules()).factions.find((candidate) => candidate.id === access.roster.catalogueId) ?? null)
-    : null
+  const faction = (await app().factionsFor())?.factions.find((candidate) => candidate.id === access.roster.catalogueId) ?? null
   return { ...access, faction }
 }
 
@@ -124,17 +121,23 @@ export const savedRosterStatus = createServerFn({ method: 'GET' }).handler(() =>
     const instance = app()
     const saved = await instance.service.savedRosters(id)
     if (!saved.length) return []
-    const sets = historySince(instance.catalogueHistory() ?? [], Math.min(...saved.map((roster) => roster.updatedAt)), CHANGE_SETS_READ)
-    return saved.map((roster) => rosterStatus(roster, cachedRosterVerdict(roster), sets))
+    const sets = historySince(
+      (await instance.catalogueHistoryFor()) ?? [],
+      Math.min(...saved.map((roster) => roster.updatedAt)),
+      CHANGE_SETS_READ,
+    )
+    const statuses = []
+    for (const roster of saved) statuses.push(rosterStatus(roster, await cachedRosterVerdict(roster), sets))
+    return statuses
   }),
 )
 
 /** The recorded data updates since a list was saved that reached something it holds. */
-function changesSinceSaved(
+async function changesSinceSaved(
   roster: Parameters<typeof cachedRosterPrice>[0] & { updatedAt: number },
-  priced: ReturnType<typeof cachedRosterPrice>,
+  priced: Awaited<ReturnType<typeof cachedRosterPrice>>,
 ) {
-  const sets = historySince(app().catalogueHistory() ?? [], roster.updatedAt, CHANGE_SETS_READ)
+  const sets = historySince((await app().catalogueHistoryFor()) ?? [], roster.updatedAt, CHANGE_SETS_READ)
   return sets.length ? changesTouching(rosterVerdict(roster, priced).contents, roster.updatedAt, sets) : []
 }
 
@@ -144,8 +147,8 @@ export const rosterBootstrap = createServerFn({ method: 'GET' })
     rpc(async () => {
       const access = await accessibleRoster(data)
       if (!access) return null
-      const price = cachedRosterPrice(access.roster)
-      return { ...access, price, changes: changesSinceSaved(access.roster, price) }
+      const price = await cachedRosterPrice(access.roster)
+      return { ...access, price, changes: await changesSinceSaved(access.roster, price) }
     }),
   )
 
@@ -154,7 +157,7 @@ export const rosterChanges = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const roster = await app().service.sharedRoster(data.id, await currentUserId(), data.battle ?? null)
-      return roster ? changesSinceSaved(roster, cachedRosterPrice(roster)) : []
+      return roster ? changesSinceSaved(roster, await cachedRosterPrice(roster)) : []
     }),
   )
 
@@ -177,7 +180,7 @@ export const saveRoster = createServerFn({ method: 'POST' })
       // Counted when a row is made, which a visitor's list does while arriving with the id it was built under.
       if (created)
         await instance.telemetry.capture(player.id, 'roster_created', {
-          ...rosterTelemetryProperties(data, instance.catalogue(), instance.rules()),
+          ...rosterTelemetryProperties(data, await instance.catalogueFor(data.catalogueId), await instance.rulesFor()),
           unit_count: attachedUnitCount(data.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
           source: data.source,
           visibility: data.visibility,
@@ -213,17 +216,25 @@ export const importRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const instance = app()
-      const loaded = instance.catalogue()
-      if (!loaded) throw new Response('army data is not available', { status: 409 })
-      const result = importRosterFile(data, loaded)
+      const factionName = importRosterFaction(data.file)
+      const factions = (await instance.factionsFor())?.factions ?? []
+      const faction = factionName ? factions.find((candidate) => matchesImportFaction(factionName, candidate.name)) : null
+      const loaded = faction ? await instance.catalogueFor(faction.id) : null
+      if (faction && !loaded) throw new Response('army data is not available', { status: 409 })
+      const rules = await instance.rulesFor()
+      const result = importRosterFile(
+        data,
+        loaded,
+        factions.map((candidate) => candidate.name),
+      )
       const userId = await currentUserId()
       if (userId) {
         await instance.telemetry.capture(userId, 'roster_imported', {
-          ...(result.catalogueId && typeof result.limit === 'number'
+          ...(result.catalogueId && typeof result.limit === 'number' && loaded
             ? rosterTelemetryProperties(
                 { catalogueId: result.catalogueId, detachmentIds: result.detachmentIds, limit: result.limit },
                 loaded,
-                instance.rules(),
+                rules,
               )
             : {}),
           unit_count: result.units.length,
@@ -241,9 +252,9 @@ export const exportRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const instance = app()
-      const loaded = instance.catalogue()
+      const loaded = await instance.catalogueFor(data.catalogueId)
       if (!loaded) throw new Response('army data is not available', { status: 409 })
-      const rules = instance.rules()
+      const rules = await instance.rulesFor()
       const priced = calculateRosterPrice(data, loaded, rules)
       if (!priced) throw new Response('army data is not available', { status: 409 })
       const dispositionNames = priced.dispositions.map((disposition) => rules?.dispositions.get(disposition) ?? disposition)

@@ -92,8 +92,8 @@ export function nativeAuthToken() {
           if (!accounts.some((account) => account.providerId === context.body.provider)) {
             throw context.error('BAD_REQUEST', { message: 'Provider is not linked' })
           }
-          const id = randomBytes(24).toString('base64url')
-          const token = randomBytes(32).toString('base64url')
+          const id = Buffer.from(randomBytes(24)).toString('base64url')
+          const token = Buffer.from(randomBytes(32)).toString('base64url')
           const value: ExchangeRecord = {
             ...context.body,
             sessionToken: authenticated.session.token,

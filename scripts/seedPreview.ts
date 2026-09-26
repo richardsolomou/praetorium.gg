@@ -1,12 +1,20 @@
 import path from 'node:path'
 import { eq } from 'drizzle-orm'
+import { drizzle } from 'drizzle-orm/d1'
 import type { Command, Roster } from '../src/core/battle'
 import type { RosterPick } from '../src/core/roster'
 import { rosterSnapshot } from '../src/core/rosterSnapshot'
 import { databaseUrl, openDatabase, type PraetoriumDatabase } from '../src/db/connection'
 import { user } from '../src/db/schema'
 import { Repository } from '../src/db/repository'
+import type { RepositoryPort } from '../src/db/repository'
+import { schema as d1Schema, user as d1User } from '../src/db/d1AuthSchema'
 import { createAuth } from '../src/server/auth'
+import { createD1Auth } from '../src/server/d1Auth'
+import { remoteD1 } from '../src/server/d1Bridge'
+import { D1AccountRepository } from '../src/server/d1AccountRepository'
+import { SpacetimeOperator } from '../src/server/spacetimeOperator'
+import { SpacetimeRepository } from '../src/server/spacetimeRepository'
 import { unitWoundsIn } from '../src/server/catalogue'
 import { fetchCurrentSnapshot, installedSnapshot } from '../src/server/catalogueSnapshot'
 import { catalogueDirectory, loadCatalogue } from '../src/server/catalogueIndex'
@@ -280,8 +288,44 @@ function seedable(url: string) {
   }
 }
 
-export async function seedPreview(provided?: PraetoriumDatabase, providedSnapshots?: PreviewSnapshots) {
-  if (provided) return seedInto(provided, providedSnapshots ?? (await verifiedSnapshots()))
+export async function seedPreview(
+  provided?: PraetoriumDatabase,
+  providedSnapshots?: PreviewSnapshots,
+  hostedBinding?: Parameters<typeof drizzle>[0],
+) {
+  if (provided) return seedIntoPostgres(provided, providedSnapshots ?? (await verifiedSnapshots()))
+  if (process.env.SPACETIME_URL) {
+    if (process.env.PRAETORIUM_SEED_PREVIEW !== 'true') throw new Error('Refusing to seed a hosted database without the preview flag')
+    const snapshots = providedSnapshots ?? (await verifiedSnapshots())
+    const binding = hostedBinding ?? remoteD1()
+    const database = drizzle(binding, { schema: d1Schema })
+    const product = new SpacetimeOperator(
+      process.env.SPACETIME_URL,
+      process.env.SPACETIME_DATABASE ?? '',
+      process.env.SPACETIME_OPERATOR_TOKEN ?? '',
+      fetch,
+      process.env.SPACETIME_ACCESS_CLIENT_ID && process.env.SPACETIME_ACCESS_CLIENT_SECRET
+        ? { clientId: process.env.SPACETIME_ACCESS_CLIENT_ID, clientSecret: process.env.SPACETIME_ACCESS_CLIENT_SECRET }
+        : undefined,
+    )
+    const auth = createD1Auth(binding, process.env.AUTH_SECRET ?? '', {
+      environment: process.env,
+      deleteUserData: (userId) => product.deleteUserData(userId),
+      revokeSessionAccess: (sessionId) => product.revokeSession(sessionId),
+      storeSocialAvatar: async () => null,
+      updateProfile: async (data) => ({ ok: true, data }),
+    })
+    const repository = new SpacetimeRepository(new D1AccountRepository(binding), product)
+    return seedInto(
+      repository,
+      auth,
+      async (email) => {
+        const [row] = await database.select({ id: d1User.id }).from(d1User).where(eq(d1User.email, email)).limit(1)
+        return row?.id ?? null
+      },
+      snapshots,
+    )
+  }
   const url = databaseUrl()
   if (!seedable(url)) {
     throw new Error('refusing to seed: DATABASE_URL is not local. Set PRAETORIUM_SEED_PREVIEW=true to seed it deliberately.')
@@ -289,14 +333,14 @@ export async function seedPreview(provided?: PraetoriumDatabase, providedSnapsho
   const snapshots = providedSnapshots ?? (await verifiedSnapshots())
   const connection = openDatabase(url)
   try {
-    await seedInto(connection.database, snapshots)
+    await seedIntoPostgres(connection.database, snapshots)
   } finally {
     await connection.close()
   }
 }
 
 async function verifiedSnapshots(): Promise<PreviewSnapshots> {
-  const directory = catalogueDirectory()
+  const directory = process.env.CATALOGUE_DIR ? path.resolve(process.env.CATALOGUE_DIR) : catalogueDirectory()
   if (!installedSnapshot(directory)) await fetchCurrentSnapshot(directory, s3PublicBaseUrl(), (message) => console.log(message))
   const catalogue = loadCatalogue(directory)
   const rules = loadRules(path.join(directory, 'rules'))
@@ -337,9 +381,24 @@ async function verifiedSnapshots(): Promise<PreviewSnapshots> {
   )
 }
 
-async function seedInto(database: PraetoriumDatabase, snapshots: PreviewSnapshots) {
-  const auth = createAuth(database, 'praetorium-disposable-preview-secret')
-  const repository = new Repository(database)
+async function seedIntoPostgres(database: PraetoriumDatabase, snapshots: PreviewSnapshots) {
+  return seedInto(
+    new Repository(database),
+    createAuth(database, 'praetorium-disposable-preview-secret'),
+    async (email) => {
+      const [row] = await database.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1)
+      return row?.id ?? null
+    },
+    snapshots,
+  )
+}
+
+async function seedInto(
+  repository: RepositoryPort,
+  auth: ReturnType<typeof createAuth> | ReturnType<typeof createD1Auth>,
+  userIdByEmail: (email: string) => Promise<string | null>,
+  snapshots: PreviewSnapshots,
+) {
   let clock = Date.now() - 1_000
   const now = () => ++clock
   const ids = new Map<string, string>()
@@ -500,13 +559,13 @@ async function seedInto(database: PraetoriumDatabase, snapshots: PreviewSnapshot
   await createOpenLeague()
 
   async function ensurePreviewUser(email: string, password: string, name: string) {
-    let [account] = await database.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1)
-    if (!account) {
+    let id = await userIdByEmail(email)
+    if (!id) {
       await auth.api.signUpEmail({ body: { email, password, name } })
-      ;[account] = await database.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1)
+      id = await userIdByEmail(email)
     }
-    if (!account) throw new Error(`${name} account was not created`)
-    return account.id
+    if (!id) throw new Error(`${name} account was not created`)
+    return id
   }
 
   function accountId(email: string) {

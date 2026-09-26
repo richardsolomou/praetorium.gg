@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { z } from 'zod'
 import { battleQuery, battlesQuery } from './queries'
 import { isExpectedRealtimeDisconnect } from './realtimeErrors'
+import { useRealtimeMode, useSpacetimeLiveBattle, useSpacetimeLiveBattles } from './spacetimeLive'
 
 const TICKET = z.object({ token: z.string(), channel: z.string().optional() })
 const clientChannels = new WeakMap<Centrifuge, string>()
@@ -33,6 +34,12 @@ const reportRealtimeError = (error: unknown) => {
  * Subscribing refetches, and polling continues until the battle channel is subscribed.
  */
 export function useLiveBattle(token: string, enabled: boolean) {
+  const mode = useRealtimeMode()
+  useCentrifugoLiveBattle(token, enabled && mode === 'centrifugo')
+  useSpacetimeLiveBattle(token, enabled && mode === 'spacetime')
+}
+
+function useCentrifugoLiveBattle(token: string, enabled: boolean) {
   const queryClient = useQueryClient()
   const [subscribed, setSubscribed] = useState(false)
   const [retry, setRetry] = useState(0)
@@ -130,6 +137,12 @@ export function useLiveBattle(token: string, enabled: boolean) {
  * it yet, and the list is exactly that page.
  */
 export function useLiveBattles(enabled: boolean) {
+  const mode = useRealtimeMode()
+  useCentrifugoLiveBattles(enabled && mode === 'centrifugo')
+  useSpacetimeLiveBattles(enabled && mode === 'spacetime')
+}
+
+function useCentrifugoLiveBattles(enabled: boolean) {
   const queryClient = useQueryClient()
   const ask = useCallback(
     (init?: RequestInit) => requestRealtimeTicket('/api/realtime/token', { init, parse: (value) => TICKET.parse(value) }),

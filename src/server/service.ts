@@ -25,7 +25,7 @@ import { filterBattles, type RecordFilter, recordFacets, type SeatPlay, seatPlay
 import { routeSlug } from '../core/slug'
 import { factionsPlayed, type Standing, type StandingFaction, standings } from '../core/standings'
 import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
-import type { BattleHistory, BattleSeats, BattlesCursor, Repository } from '../db/repository'
+import type { BattleHistory, BattleSeats, BattlesCursor, Repository, RepositoryPort } from '../db/repository'
 import { gameReferencesFor } from './gameReferences'
 import { type Mission, missionFor } from './rules'
 import { type Notifier, silentNotifier } from './pushNotifier'
@@ -121,7 +121,7 @@ export class PraetoriumService {
   private readonly socialService: SocialService
 
   constructor(
-    private readonly repository: Repository,
+    private readonly repository: RepositoryPort,
     private readonly clock: () => number,
     private readonly events: BattleEvents,
     private readonly randomIndex: (limit: number) => number,

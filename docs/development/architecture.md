@@ -14,8 +14,8 @@ routes ──> client ──> contracts ──> core
 
 - `src/core` owns deterministic domain decisions. It contains no IO or framework imports.
 - `src/contracts` owns serializable types shared across runtime boundaries. Contracts may depend on core types but not application layers.
-- `src/db` owns Postgres schema, migrations, and repositories. `Repository` is the stable facade; bounded persistence areas live under `src/db/repositories`.
-- `src/adapters` owns external transports such as email, realtime, telemetry, and Valkey.
+- `src/db` owns the D1 account schema and the Postgres repository retained for local development and the production transition. Hosted product storage lives in `src/server/spacetimeRepository.ts`.
+- `src/adapters` owns external transports such as email, realtime, and telemetry.
 - `src/server` owns application services, catalogue loading, authentication, and server functions. `PraetoriumService` is the stable facade; bounded application areas live under `src/server/services`.
 - `src/client/features` groups browser code by product area. A feature contains its components, local models, and tests.
 - `src/client/components` contains components shared by multiple features.

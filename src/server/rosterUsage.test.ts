@@ -43,8 +43,8 @@ it('does not snapshot a roster when the rules source is unavailable', async () =
     service: {
       ownRoster: vi.fn().mockResolvedValue({ id: 'roster' }),
     },
-    catalogue: () => ({}),
-    rules: () => null,
+    catalogueFor: async () => ({}),
+    rulesFor: async () => null,
   } as never)
 
   await expect(rosterForUse('player', 'roster')).rejects.toMatchObject({ status: 409 })

@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { rosterPreview } from '../../client/linkPreview'
 import { app } from '../../server/app'
-import { factionIndexFor } from '../../server/factionReferences'
 import { previewResponse } from '../../server/previewImage'
 import { cachedRosterPrice } from '../../server/rosterPrices'
 import { rosterIdSchema } from '../../server/schemas'
@@ -20,11 +19,8 @@ export const Route = createFileRoute('/api/previews/rosters/$id')({
           const access = await instance.service.rosterAccess(params.id, null, null)
           if (!access) return null
           const { roster } = access
-          const loaded = instance.catalogue()
-          const faction = loaded
-            ? (factionIndexFor(loaded, instance.rules()).factions.find((one) => one.id === roster.catalogueId) ?? null)
-            : null
-          return { card: rosterPreview(roster, faction, cachedRosterPrice(roster)).card, maxAge: ROSTER_SECONDS }
+          const faction = (await instance.factionIndexFor())?.factions.find((one) => one.id === roster.catalogueId) ?? null
+          return { card: rosterPreview(roster, faction, await cachedRosterPrice(roster)).card, maxAge: ROSTER_SECONDS }
         }),
     },
   },

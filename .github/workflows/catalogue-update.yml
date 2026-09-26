@@ -17,14 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-      # The same S3-compatible store the app now uploads profile pictures to, not
-      # a catalogue-only credential: it publishes here and the app writes there.
-      AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: us-east-1
-      SNAPSHOT_BUCKET: ${{ vars.S3_BUCKET }}
-      SNAPSHOT_ENDPOINT: ${{ vars.S3_ENDPOINT }}
-      S3_PUBLIC_BASE_URL: ${{ vars.S3_PUBLIC_BASE_URL }}
+      SNAPSHOT_BUCKET: praetorium-catalogue
+      SNAPSHOT_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
       CATALOGUE_SNAPSHOT_FILE: /tmp/catalogue-snapshot.zip
       CATALOGUE_SNAPSHOT_POINTER_FILE: /tmp/catalogue-current.json
       CATALOGUE_DISABLED_SOURCES: ${{ vars.CATALOGUE_DISABLED_SOURCES }}
@@ -50,37 +47,28 @@ jobs:
       # publish: what it cannot read it logs, and it carries forward only what it measured.
       - name: Carry the data-update history forward
         env:
-          CATALOGUE_BASE_URL: ${{ vars.S3_PUBLIC_BASE_URL }}
+          CATALOGUE_BASE_URL: https://s3.praetorium.gg/praetorium
         run: pnpm catalogue:history
       - name: Build and publish the immutable snapshot
         run: |
           test -n "$SNAPSHOT_BUCKET"
           test -n "$SNAPSHOT_ENDPOINT"
-          test -n "$S3_PUBLIC_BASE_URL"
+          test -n "$AWS_ACCESS_KEY_ID"
+          test -n "$AWS_SECRET_ACCESS_KEY"
           pnpm catalogue:snapshot pack
           id="$(jq -r .id "$CATALOGUE_SNAPSHOT_POINTER_FILE")"
-          aws s3api head-object --bucket "$SNAPSHOT_BUCKET" --key "snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" >/dev/null 2>&1 \
-            || aws s3 cp "$CATALOGUE_SNAPSHOT_FILE" "s3://$SNAPSHOT_BUCKET/snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
-          # The public URL can briefly lag the object store right after an upload, so a fresh
-          # publish sometimes reads back stale bytes for a moment. Retry before failing the job.
-          for attempt in 1 2 3 4 5; do
-            if curl --fail --location --silent --show-error "$S3_PUBLIC_BASE_URL/snapshots/$id.zip" --output /tmp/published-catalogue.zip \
-              && CATALOGUE_SNAPSHOT_FILE=/tmp/published-catalogue.zip pnpm catalogue:snapshot verify; then
-              break
-            fi
-            if [ "$attempt" = 5 ]; then
-              echo "published catalogue snapshot still fails verification after $attempt attempts" >&2
-              exit 1
-            fi
-            echo "published catalogue snapshot did not verify yet (attempt $attempt/5) — retrying"
-            sleep 5
-          done
-          aws s3 cp catalogue/revocations.json "s3://$SNAPSHOT_BUCKET/revocations.json" \
+          aws s3api head-object --bucket "$SNAPSHOT_BUCKET" --key "praetorium/snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" >/dev/null 2>&1 \
+            || aws s3 cp "$CATALOGUE_SNAPSHOT_FILE" "s3://$SNAPSHOT_BUCKET/praetorium/snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
+          aws s3 cp "s3://$SNAPSHOT_BUCKET/praetorium/snapshots/$id.zip" /tmp/published-catalogue.zip \
+            --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
+          CATALOGUE_SNAPSHOT_FILE=/tmp/published-catalogue.zip pnpm catalogue:snapshot verify
+          pnpm catalogue:worker
+          aws s3 cp catalogue/revocations.json "s3://$SNAPSHOT_BUCKET/praetorium/revocations.json" \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
-          aws s3 cp "$CATALOGUE_SNAPSHOT_POINTER_FILE" "s3://$SNAPSHOT_BUCKET/current.json" \
+          aws s3 cp "$CATALOGUE_SNAPSHOT_POINTER_FILE" "s3://$SNAPSHOT_BUCKET/praetorium/current.json" \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
           jq -r '.snapshots[]' catalogue/revocations.json | while read -r revoked; do
-            aws s3 rm "s3://$SNAPSHOT_BUCKET/snapshots/$revoked.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
+            aws s3 rm "s3://$SNAPSHOT_BUCKET/praetorium/snapshots/$revoked.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
           done
 
   combat-rules:
