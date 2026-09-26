@@ -1036,8 +1036,11 @@ test.describe('data update anchors', () => {
   /** A row that starts closed, and a faction link inside its summary. */
   async function closedRow(page: Page) {
     await page.goto('/data-updates')
-    const row = page.locator('main details:not([open])').first()
-    await expect(row).toBeAttached()
+    const closed = page.locator('main details:not([open])').first()
+    await expect(closed).toBeAttached()
+    const id = await closed.getAttribute('id')
+    if (!id) throw new Error('Data update row is missing its anchor')
+    const row = page.locator(`#${id}`)
     return { row, chip: row.locator('summary a').first() }
   }
 
@@ -1060,7 +1063,10 @@ test.describe('data update anchors', () => {
 
   test('a faction link in an open update leaves it open', async ({ page }) => {
     await page.goto('/data-updates')
-    const row = page.locator('main details[open]').first()
+    const open = page.locator('main details[open]').first()
+    const id = await open.getAttribute('id')
+    if (!id) throw new Error('Data update row is missing its anchor')
+    const row = page.locator(`#${id}`)
     await row.locator('summary a').first().click()
 
     await expect(row).toHaveAttribute('open', '')
