@@ -218,7 +218,7 @@ export function app(): App {
     if (!hosted && !realtime) throw new Error('Realtime secret is not configured')
     const events: BattleEvents = realtime ? new RealtimePublisher(realtime.apiUrl, realtime.apiKey) : { publish: () => {} }
     const repository = hosted ? new SpacetimeRepository(new D1AccountRepository(hostedD1()), operator!) : new Repository(database!)
-    const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
+    const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens), process.env, !hosted)
     let ready = Promise.resolve()
     let nativeSyncState: SyncState = { status: 'working', detail: 'loading the community data' }
     const workerShared = async () => {
@@ -277,7 +277,13 @@ export function app(): App {
           if (cache && !(await valkeyReachable(cache))) throw new Error('Valkey unavailable')
         }
       },
-      service: new PraetoriumService(repository, Date.now, events, randomInt, push ? pushNotifier(repository, push) : silentNotifier),
+      service: new PraetoriumService(
+        repository,
+        Date.now,
+        events,
+        randomInt,
+        push ? pushNotifier(repository, push, undefined, worker?.waitUntil) : silentNotifier,
+      ),
       events,
       auth,
       spacetimeToken: hosted ? async (headers) => (await (auth as ReturnType<typeof createD1Auth>).api.getToken({ headers })).token : null,

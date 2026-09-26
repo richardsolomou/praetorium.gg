@@ -206,9 +206,20 @@ export async function importProductBundle(
     }
     return true
   }
+  const existingCounts = new Map<string, number>()
   for (const table of manifest.tables) {
     const existing = await countRows(table.name)
     if (existing > table.count) throw new Error(`SpacetimeDB product table has extra rows: ${table.name}`)
+    existingCounts.set(table.name, existing)
+    if (!existing) continue
+    let matching = 0
+    await scanRows(table.name, join(directory, `${table.name}.jsonl`), async (row) => {
+      if (await readRow(table.name, row)) matching += 1
+    })
+    if (matching !== existing) throw new Error(`SpacetimeDB product table has unrelated rows: ${table.name}`)
+  }
+  for (const table of manifest.tables) {
+    const existing = existingCounts.get(table.name) ?? 0
     let batch: Record<string, unknown>[] = []
     let size = 0
     const flush = async () => {

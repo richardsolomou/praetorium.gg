@@ -1,4 +1,6 @@
 import application from '../.output/server/index.mjs'
+import resvg from '@resvg/resvg-wasm/index_bg.wasm'
+import yoga from 'satori/yoga.wasm'
 import { withWorkerAppContext } from '../src/server/workerAppContext'
 import { spacetimeSocket } from './spacetimeProxy'
 
@@ -11,6 +13,6 @@ export default {
     const pathname = new URL(request.url).pathname
     if (pathname.startsWith('/_catalogue/')) return new Response(null, { status: 404 })
     if (pathname.startsWith('/spacetime/')) return spacetimeSocket(request, environment)
-    return withWorkerAppContext(() => application.fetch(request, environment, context), context)
+    return withWorkerAppContext(() => application.fetch(request, environment, context), context, { resvg, yoga })
   },
 }

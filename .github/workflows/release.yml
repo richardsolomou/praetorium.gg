@@ -113,6 +113,7 @@ jobs:
       - name: Publish product module and deploy application
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           SPACETIME_URL: ${{ vars.PRODUCTION_SPACETIME_URL }}
           SPACETIME_OWNER_TOKEN: ${{ secrets.PRODUCTION_SPACETIME_OWNER_TOKEN }}
           SPACETIME_OPERATOR_TOKEN: ${{ secrets.PRODUCTION_SPACETIME_OPERATOR_TOKEN }}
@@ -127,10 +128,23 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
           DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_BUCKET: ${{ vars.S3_BUCKET }}
+          S3_PUBLIC_BASE_URL: ${{ vars.S3_PUBLIC_BASE_URL }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+          SMTP_SECURE: ${{ vars.SMTP_SECURE }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ vars.EMAIL_FROM }}
+          EXPO_PUSH_ACCESS_TOKEN: ${{ secrets.EXPO_PUSH_ACCESS_TOKEN }}
           RELEASE_SHA: ${{ needs.release.outputs.sha || github.sha }}
         run: |
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
           test -n "$SPACETIME_URL"
           test -n "$SPACETIME_OWNER_TOKEN"
           test -n "$SPACETIME_OPERATOR_TOKEN"
@@ -141,6 +155,28 @@ jobs:
           test -n "$APPLE_TEAM_ID"
           test -n "$APPLE_KEY_ID"
           test -n "$APPLE_PRIVATE_KEY"
+          test -n "$S3_ENDPOINT"
+          test -n "$S3_BUCKET"
+          test -n "$S3_PUBLIC_BASE_URL"
+          test -n "$S3_ACCESS_KEY_ID"
+          test -n "$S3_SECRET_ACCESS_KEY"
+          test -n "$SMTP_HOST"
+          test -n "$SMTP_PORT"
+          test -n "$SMTP_USER"
+          test -n "$SMTP_PASSWORD"
+          test -n "$EMAIL_FROM"
+          test -n "$EXPO_PUSH_ACCESS_TOKEN"
+          auth_count="$(pnpm exec wrangler d1 execute AUTH_DB --config wrangler.production.json --remote \
+            --command 'SELECT COUNT(*) AS count FROM "user"' --json | jq -er '.[0].results[0].count | select(type == "number" and . > 0)')"
+          roster_count="$(curl --fail --silent --show-error --max-time 15 \
+            --header "Authorization: Bearer $SPACETIME_OWNER_TOKEN" \
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+            --header 'Content-Type: text/plain' \
+            --request POST --data-binary 'SELECT COUNT(*) AS count FROM rosters' \
+            "${SPACETIME_URL%/}/v1/database/praetorium-production/sql" \
+            | jq -er '.[0].rows[0][0] | select(type == "number" and . > 0)')"
+          echo "Migrated production data present: $auth_count users, $roster_count rosters"
           curl --fail --silent --show-error --max-time 90 \
             --header "Authorization: Bearer $SPACETIME_OWNER_TOKEN" \
             --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
@@ -162,7 +198,13 @@ jobs:
             --arg apple_key "$APPLE_KEY_ID" --arg apple_private "$APPLE_PRIVATE_KEY" \
             --arg google_client "$GOOGLE_CLIENT_ID" --arg google_secret "$GOOGLE_CLIENT_SECRET" \
             --arg discord_client "$DISCORD_CLIENT_ID" --arg discord_secret "$DISCORD_CLIENT_SECRET" \
-            '{AUTH_SECRET: $auth, SPACETIME_URL: $spacetime, SPACETIME_OPERATOR_TOKEN: $operator, SPACETIME_ACCESS_CLIENT_ID: $access_id, SPACETIME_ACCESS_CLIENT_SECRET: $access_secret, APPLE_CLIENT_ID: $apple_client, APPLE_TEAM_ID: $apple_team, APPLE_KEY_ID: $apple_key, APPLE_PRIVATE_KEY: $apple_private, GOOGLE_CLIENT_ID: $google_client, GOOGLE_CLIENT_SECRET: $google_secret, DISCORD_CLIENT_ID: $discord_client, DISCORD_CLIENT_SECRET: $discord_secret}' \
+            --arg s3_endpoint "$S3_ENDPOINT" --arg s3_bucket "$S3_BUCKET" \
+            --arg s3_public "$S3_PUBLIC_BASE_URL" --arg s3_key "$S3_ACCESS_KEY_ID" \
+            --arg s3_secret "$S3_SECRET_ACCESS_KEY" --arg smtp_host "$SMTP_HOST" \
+            --arg smtp_port "$SMTP_PORT" --arg smtp_secure "$SMTP_SECURE" \
+            --arg smtp_user "$SMTP_USER" --arg smtp_password "$SMTP_PASSWORD" \
+            --arg email_from "$EMAIL_FROM" --arg expo_push "$EXPO_PUSH_ACCESS_TOKEN" \
+            '{AUTH_SECRET: $auth, SPACETIME_URL: $spacetime, SPACETIME_OPERATOR_TOKEN: $operator, SPACETIME_ACCESS_CLIENT_ID: $access_id, SPACETIME_ACCESS_CLIENT_SECRET: $access_secret, APPLE_CLIENT_ID: $apple_client, APPLE_TEAM_ID: $apple_team, APPLE_KEY_ID: $apple_key, APPLE_PRIVATE_KEY: $apple_private, GOOGLE_CLIENT_ID: $google_client, GOOGLE_CLIENT_SECRET: $google_secret, DISCORD_CLIENT_ID: $discord_client, DISCORD_CLIENT_SECRET: $discord_secret, S3_ENDPOINT: $s3_endpoint, S3_BUCKET: $s3_bucket, S3_PUBLIC_BASE_URL: $s3_public, S3_ACCESS_KEY_ID: $s3_key, S3_SECRET_ACCESS_KEY: $s3_secret, SMTP_HOST: $smtp_host, SMTP_PORT: $smtp_port, SMTP_SECURE: $smtp_secure, SMTP_USER: $smtp_user, SMTP_PASSWORD: $smtp_password, EMAIL_FROM: $email_from, EXPO_PUSH_ACCESS_TOKEN: $expo_push}' \
             > "$RUNNER_TEMP/wrangler-production-secrets.json"
           pnpm exec wrangler deploy --config "$RUNNER_TEMP/wrangler-production.json" --dry-run --outdir "$RUNNER_TEMP/worker"
           pnpm exec wrangler deploy --config "$RUNNER_TEMP/wrangler-production.json" \

@@ -101,6 +101,21 @@ describe('Expo push sender', () => {
     await vi.waitFor(() => expect(unregistered).toEqual([[message(1).to]]))
   })
 
+  it('skips receipt timers when no durable scheduler is available', async () => {
+    const later = vi.fn()
+    const push = expoPushSender({
+      accessToken: 'access-token',
+      onUnregistered: () => undefined,
+      checkReceipts: false,
+      fetch: async (_input, init) => okTickets(JSON.parse(init?.body as string)),
+      later,
+    })
+
+    await push.send([message(0)])
+
+    expect(later).not.toHaveBeenCalled()
+  })
+
   it('retries a server error a bounded number of times', async () => {
     const { push, requests } = sender(() => json({ errors: [{ code: 'INTERNAL' }] }, 503))
 

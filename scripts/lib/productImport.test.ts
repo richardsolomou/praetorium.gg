@@ -87,3 +87,31 @@ it('sends Access credentials when importing through a protected SpacetimeDB endp
     await rm(directory, { recursive: true, force: true })
   }
 })
+
+it('rejects unrelated target rows before importing product data', async () => {
+  const { directory } = await bundle({
+    user_onboarding: [{ user_id: 'exported-user', welcomed: true }],
+    user_onboarding_tasks: [{ user_id: 'exported-user', task: 'guide', state: 'completed' }],
+  })
+  let imported = false
+  const request = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    if (url.includes('/call/')) {
+      imported = true
+      return Response.json({})
+    }
+    const statement = typeof init?.body === 'string' ? init.body : ''
+    const count = statement.startsWith('SELECT COUNT')
+    return Response.json([{ schema: { elements: [] }, rows: count ? [[statement.includes('user_onboarding_tasks') ? 1 : 0]] : [] }])
+  })
+  vi.stubGlobal('fetch', request)
+  try {
+    await expect(importProductBundle(directory, 'https://spacetime.example/', 'praetorium-staging', 'owner-token')).rejects.toThrow(
+      'SpacetimeDB product table has unrelated rows: user_onboarding_tasks',
+    )
+    expect(imported).toBe(false)
+  } finally {
+    vi.unstubAllGlobals()
+    await rm(directory, { recursive: true, force: true })
+  }
+})

@@ -10,6 +10,7 @@ export type PushSender = { send: (messages: readonly PushMessage[]) => Promise<v
 
 type PushSenderOptions = {
   accessToken: string
+  checkReceipts?: boolean
   /** Called with devices the service says no longer exist, so they stop being sent to. */
   onUnregistered: (tokens: string[]) => Promise<void> | void
   fetch?: typeof fetch
@@ -35,9 +36,10 @@ type Outcome = { status?: unknown; id?: unknown; details?: { error?: unknown } }
 export function pushSenderFromEnvironment(
   onUnregistered: PushSenderOptions['onUnregistered'],
   environment: NodeJS.ProcessEnv = process.env,
+  checkReceipts = true,
 ): PushSender | null {
   const accessToken = environment.EXPO_PUSH_ACCESS_TOKEN?.trim()
-  return accessToken ? expoPushSender({ accessToken, onUnregistered }) : null
+  return accessToken ? expoPushSender({ accessToken, onUnregistered, checkReceipts }) : null
 }
 
 export function expoPushSender(options: PushSenderOptions): PushSender {
@@ -119,7 +121,7 @@ export function expoPushSender(options: PushSenderOptions): PushSender {
         })
       }
       await forget(gone)
-      if (tickets.size) later(() => void checkReceipts(tickets), RECEIPT_DELAY_MS)
+      if (tickets.size && options.checkReceipts !== false) later(() => void checkReceipts(tickets), RECEIPT_DELAY_MS)
     },
   }
 }
