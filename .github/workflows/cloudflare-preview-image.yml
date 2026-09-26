@@ -394,6 +394,10 @@ jobs:
           AUTH_SECRET: ${{ secrets.PRODUCTION_AUTH_SECRET }}
           CANDIDATE_ACCESS_CLIENT_ID: ${{ secrets.CANDIDATE_ACCESS_CLIENT_ID }}
           CANDIDATE_ACCESS_CLIENT_SECRET: ${{ secrets.CANDIDATE_ACCESS_CLIENT_SECRET }}
+          SPACETIME_URL: ${{ vars.PRODUCTION_SPACETIME_URL }}
+          SPACETIME_OPERATOR_TOKEN: ${{ secrets.PRODUCTION_SPACETIME_OPERATOR_TOKEN }}
+          SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_ID }}
+          SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_SECRET }}
         run: |
           set -euo pipefail
           session="$(pnpm exec wrangler d1 execute AUTH_DB --config wrangler.candidate.json --remote \
@@ -401,6 +405,21 @@ jobs:
             --json)"
           session_token="$(jq -er '.[0].results[0].token' <<< "$session")"
           expected_user="$(jq -er '.[0].results[0].userId' <<< "$session")"
+          [[ "$expected_user" =~ ^[a-zA-Z0-9_-]+$ ]]
+          original_image="$(pnpm exec wrangler d1 execute AUTH_DB --config wrangler.candidate.json --remote \
+            --command "SELECT image FROM \"user\" WHERE id = '$expected_user'" --json \
+            | jq -er '.[0].results[0].image // ""')"
+          if [[ -n "$original_image" ]]; then
+            [[ "$original_image" =~ ^https://s3[.]praetorium[.]gg/praetorium/avatars/[0-9a-f]{64}[.](jpg|png|webp)$ ]]
+            restore_image="'$original_image'"
+          else
+            restore_image=NULL
+          fi
+          restore_avatar() {
+            pnpm exec wrangler d1 execute AUTH_DB --config wrangler.candidate.json --remote \
+              --command "UPDATE \"user\" SET image = $restore_image WHERE id = '$expected_user'" --yes > /dev/null
+          }
+          trap restore_avatar EXIT
           cookie="$(SESSION_TOKEN="$session_token" node -e '
             const { createHmac } = require("node:crypto")
             const token = process.env.SESSION_TOKEN
@@ -431,4 +450,4 @@ jobs:
           jq -e '.token | type == "string" and length > 0' "$RUNNER_TEMP/candidate-websocket-token.json" > /dev/null
           echo 'Imported candidate session and SpacetimeDB token exchange are healthy'
           pnpm exec playwright install chromium --only-shell
-          SESSION_TOKEN="$session_token" pnpm exec tsx scripts/candidateBrowser.ts
+          SESSION_TOKEN="$session_token" CANDIDATE_USER_ID="$expected_user" pnpm exec tsx scripts/candidateBrowser.ts

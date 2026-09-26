@@ -1,13 +1,31 @@
 import assert from 'node:assert/strict'
 import { createHmac } from 'node:crypto'
 import { chromium, expect } from '@playwright/test'
+import { createBattle } from '../e2e/account'
+import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 
 const origin = 'https://candidate.praetorium.gg'
 const sessionToken = process.env.SESSION_TOKEN
 const authSecret = process.env.AUTH_SECRET
 const accessId = process.env.CANDIDATE_ACCESS_CLIENT_ID
 const accessSecret = process.env.CANDIDATE_ACCESS_CLIENT_SECRET
-assert(sessionToken && authSecret && accessId && accessSecret, 'Candidate browser credentials are missing')
+const spacetimeUrl = process.env.SPACETIME_URL
+const operatorToken = process.env.SPACETIME_OPERATOR_TOKEN
+const spacetimeAccessId = process.env.SPACETIME_ACCESS_CLIENT_ID
+const spacetimeAccessSecret = process.env.SPACETIME_ACCESS_CLIENT_SECRET
+const userId = process.env.CANDIDATE_USER_ID
+assert(
+  sessionToken &&
+    authSecret &&
+    accessId &&
+    accessSecret &&
+    spacetimeUrl &&
+    operatorToken &&
+    spacetimeAccessId &&
+    spacetimeAccessSecret &&
+    userId,
+  'Candidate browser credentials are missing',
+)
 
 const accessHeaders = { 'CF-Access-Client-Id': accessId, 'CF-Access-Client-Secret': accessSecret }
 const accessResponse = await fetch(`${origin}/api/health`, { headers: accessHeaders })
@@ -20,7 +38,7 @@ const accessCookie = accessResponse.headers
 const signature = createHmac('sha256', authSecret).update(sessionToken).digest('base64')
 const browser = await chromium.launch()
 try {
-  const context = await browser.newContext()
+  const context = await browser.newContext({ baseURL: origin })
   await context.addCookies([
     {
       name: '__Secure-better-auth.session_token',
@@ -69,6 +87,29 @@ try {
 
   await visit('/battles', 'My battles')
   if (accessCookie) await expect.poll(() => realtimeConnected, { timeout: 15_000 }).toBe(true)
+  let temporaryBattleId: string | undefined
+  try {
+    const battleUrl = await createBattle(page, { practice: true })
+    temporaryBattleId = new URL(battleUrl).pathname.split('/').at(-1)
+    assert(temporaryBattleId, 'Candidate battle URL has no ID')
+    const observer = await context.newPage()
+    await observer.goto(battleUrl)
+    const observedSize = observer.getByRole('combobox', { name: 'Battle size' })
+    await expect(observedSize).toContainText('Strike Force')
+    await page.getByRole('combobox', { name: 'Battle size' }).click()
+    await page.getByRole('option', { name: /Incursion/ }).click()
+    await expect(observedSize).toContainText('Incursion', { timeout: 15_000 })
+    await observer.close()
+    console.log('Candidate battle setup reached a second live client')
+  } finally {
+    if (temporaryBattleId) {
+      const operator = new SpacetimeOperator(spacetimeUrl, 'praetorium-candidate', operatorToken, fetch, {
+        clientId: spacetimeAccessId,
+        clientSecret: spacetimeAccessSecret,
+      })
+      assert(await operator.deleteBattle(temporaryBattleId, userId), 'Candidate practice battle cleanup failed')
+    }
+  }
   await visit('/leagues', 'Leagues')
 
   await visit('/factions', 'Factions')
@@ -108,6 +149,23 @@ try {
     .toBe(original)
   await readback.close()
   console.log('Candidate faction favourite write and fresh readback passed')
+
+  await page.goto(`${origin}/profile`)
+  await page.getByLabel('Choose profile picture').setInputFiles({
+    name: 'candidate-avatar.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+  })
+  await page.getByRole('button', { name: 'Save profile' }).click()
+  await page.getByText('Profile saved.').waitFor({ timeout: 15_000 })
+  const avatar = page.locator('main img').first()
+  await expect(avatar).toHaveAttribute('src', /^https:\/\/s3\.praetorium\.gg\/praetorium\/avatars\/[0-9a-f]{64}\.webp$/)
+  const avatarPath = new URL((await avatar.getAttribute('src'))!).pathname
+  const avatarResponse = await fetch(`${origin}${avatarPath}`, { headers: accessHeaders })
+  assert(avatarResponse.ok, 'Candidate avatar is missing from R2')
+  assert(avatarResponse.headers.get('x-praetorium-object-source') === 'r2', 'Candidate avatar was not served from R2')
+  assert((await avatarResponse.arrayBuffer()).byteLength > 0, 'Candidate avatar is empty')
+  console.log('Candidate avatar upload and R2 delivery passed')
 
   console.log(accessCookie ? 'Candidate realtime WebSocket connected' : 'Candidate Access did not issue a browser cookie')
   console.log('Candidate authenticated browser journeys passed')
