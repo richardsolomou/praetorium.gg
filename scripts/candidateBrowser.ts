@@ -70,6 +70,40 @@ try {
   await visit('/battles', 'My battles')
   if (accessCookie) await expect.poll(() => realtimeConnected, { timeout: 15_000 }).toBe(true)
   await visit('/leagues', 'Leagues')
+
+  await visit('/factions', 'Factions')
+  const favourite = page.locator('section[data-shelf="Necrons"]').getByRole('button', { name: /Necrons.*favourites/ })
+  await favourite.waitFor({ timeout: 15_000 })
+  const original = await favourite.getAttribute('aria-pressed')
+  assert(original === 'true' || original === 'false', 'Candidate faction favourite did not load')
+  const readback = await context.newPage()
+  const savedFavourite = () => readback.locator('section[data-shelf="Necrons"]').getByRole('button', { name: /Necrons.*favourites/ })
+  try {
+    await favourite.click()
+    await expect
+      .poll(
+        async () => {
+          await readback.goto(`${origin}/factions`)
+          return savedFavourite().getAttribute('aria-pressed')
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(original === 'true' ? 'false' : 'true')
+  } finally {
+    if ((await favourite.getAttribute('aria-pressed')) !== original) await favourite.click()
+  }
+  await expect
+    .poll(
+      async () => {
+        await readback.reload()
+        return savedFavourite().getAttribute('aria-pressed')
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(original)
+  await readback.close()
+  console.log('Candidate faction favourite write and fresh readback passed')
+
   console.log(accessCookie ? 'Candidate realtime WebSocket connected' : 'Candidate Access did not issue a browser cookie')
   console.log('Candidate authenticated browser journeys passed')
 } finally {
