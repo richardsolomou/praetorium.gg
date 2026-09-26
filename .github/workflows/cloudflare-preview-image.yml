@@ -8,10 +8,7 @@ on:
       rehearsal:
         type: choice
         required: true
-        options: [identity, staging, preview, preview-cleanup, production-import]
-      archive_sha256:
-        type: string
-        required: false
+        options: [identity, staging, preview, preview-cleanup]
 
 permissions:
   contents: read
@@ -148,64 +145,3 @@ jobs:
           SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
           PR_NUMBER: 99990606
         run: pnpm exec tsx scripts/cloudflarePreview.ts delete
-
-  production-import:
-    if: github.event_name == 'workflow_dispatch' && github.actor == 'richardsolomou' && github.ref == 'refs/heads/feat/better-auth-d1' && inputs.rehearsal == 'production-import'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - name: Verify private migration snapshot
-        env:
-          IMPORT_PART_0: ${{ secrets.PRAETORIUM_IMPORT_PART_0 }}
-          IMPORT_PART_1: ${{ secrets.PRAETORIUM_IMPORT_PART_1 }}
-          IMPORT_PART_2: ${{ secrets.PRAETORIUM_IMPORT_PART_2 }}
-          IMPORT_PART_3: ${{ secrets.PRAETORIUM_IMPORT_PART_3 }}
-          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
-          PRODUCTION_AUTH_SECRET: ${{ secrets.PRODUCTION_AUTH_SECRET }}
-        run: |
-          set -euo pipefail
-          [[ "$ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]]
-          test -n "$IMPORT_PART_0"
-          test -n "$IMPORT_PART_1"
-          test -n "$IMPORT_PART_2"
-          test -n "$IMPORT_PART_3"
-          test -n "$PRODUCTION_AUTH_SECRET"
-          printf '%s%s%s%s' "$IMPORT_PART_0" "$IMPORT_PART_1" "$IMPORT_PART_2" "$IMPORT_PART_3" \
-            | base64 --decode > "$RUNNER_TEMP/import.tar.gz"
-          echo "$ARCHIVE_SHA256  $RUNNER_TEMP/import.tar.gz" | sha256sum --check
-          mkdir -p "$RUNNER_TEMP/import"
-          tar -xzf "$RUNNER_TEMP/import.tar.gz" -C "$RUNNER_TEMP/import"
-          secret_sha="$(printf '%s' "$PRODUCTION_AUTH_SECRET" | sha256sum | cut -d ' ' -f 1)"
-          test "$secret_sha" = "$(cat "$RUNNER_TEMP/import/auth/auth-secret.sha256")"
-          printf '%s\n' "$PRODUCTION_AUTH_SECRET" > "$RUNNER_TEMP/import/auth/auth.secret"
-          pnpm auth:verify "$RUNNER_TEMP/import/auth"
-          pnpm product:verify "$RUNNER_TEMP/import/product"
-      - name: Import and compare hosted stores
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          SPACETIME_URL: ${{ vars.PRODUCTION_SPACETIME_URL }}
-          SPACETIME_IMPORT_TOKEN: ${{ secrets.PRODUCTION_SPACETIME_OWNER_TOKEN }}
-          SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_ID }}
-          SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_SECRET }}
-        run: |
-          set -euo pipefail
-          test -n "$CLOUDFLARE_API_TOKEN"
-          test -n "$CLOUDFLARE_ACCOUNT_ID"
-          test -n "$SPACETIME_URL"
-          test -n "$SPACETIME_IMPORT_TOKEN"
-          test -n "$SPACETIME_ACCESS_CLIENT_ID"
-          test -n "$SPACETIME_ACCESS_CLIENT_SECRET"
-          auth_count="$(pnpm exec wrangler d1 execute AUTH_DB --config wrangler.production.json --remote \
-            --command 'SELECT (SELECT COUNT(*) FROM "user") + (SELECT COUNT(*) FROM "account") + (SELECT COUNT(*) FROM "session") + (SELECT COUNT(*) FROM "verification") + (SELECT COUNT(*) FROM "twoFactor") + (SELECT COUNT(*) FROM "rateLimit") + (SELECT COUNT(*) FROM "jwks") AS count' \
-            --json | jq -er '.[0].results[0].count')"
-          test "$auth_count" = 0
-          pnpm product:import "$RUNNER_TEMP/import/product" "$SPACETIME_URL" praetorium-production
-          pnpm exec wrangler d1 execute AUTH_DB --config wrangler.production.json --remote \
-            --file "$RUNNER_TEMP/import/auth/auth.sql" --yes
-          pnpm exec wrangler d1 export AUTH_DB --config wrangler.production.json --remote \
-            --output "$RUNNER_TEMP/d1-export.sql" --skip-confirmation
-          python3 scripts/verifyAuthMirror.py drizzle-auth/0000_curly_gambit.sql \
-            "$RUNNER_TEMP/import/auth/auth.sql" "$RUNNER_TEMP/d1-export.sql"
