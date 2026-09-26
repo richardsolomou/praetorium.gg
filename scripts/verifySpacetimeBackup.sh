@@ -46,7 +46,10 @@ tar -xf "$work/identity.tar" -C "$work/identity"
 test -s "$work/data/metadata.toml"
 test -s "$work/identity/id_ecdsa"
 test -s "$work/identity/id_ecdsa.pub"
+rm -f -- "$work/data/spacetime.pid"
 docker run --detach --name praetorium-backup-readback \
+  --user "$(id -u):$(id -g)" \
+  --env HOME=/tmp \
   --publish 127.0.0.1:3301:3000 \
   --volume "$work/data:/data" --volume "$work/identity:/identity" \
   clockworklabs/spacetime:v2.7.0-hotfix3 \

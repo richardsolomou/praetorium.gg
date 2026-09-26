@@ -393,19 +393,24 @@ jobs:
             test "$unauthenticated" = 403
           fi
           for attempt in {1..30}; do
-            headers="$(curl --silent --show-error --dump-header - --output /dev/null --max-time 10 \
+            status="$(curl --silent --show-error \
+              --dump-header "$RUNNER_TEMP/candidate-health-headers" --output /dev/null \
+              --write-out '%{http_code}' --max-time 10 \
               --header "CF-Access-Client-Id: $CANDIDATE_ACCESS_CLIENT_ID" \
               --header "CF-Access-Client-Secret: $CANDIDATE_ACCESS_CLIENT_SECRET" \
               https://candidate.praetorium.gg/api/health || true)"
-            revision="$(awk 'tolower($1) == "x-praetorium-revision:" { gsub("\\r", "", $2); print $2 }' <<< "$headers")"
-            if [[ "$revision" == "$GITHUB_SHA" ]] && grep -Eiq '^x-praetorium-runtime: cloudflare\r?$' <<< "$headers"; then
+            revision="$(tr -d '\r' < "$RUNNER_TEMP/candidate-health-headers" | awk 'tolower($1) == "x-praetorium-revision:" { print $2 }')"
+            runtime="$(tr -d '\r' < "$RUNNER_TEMP/candidate-health-headers" | awk 'tolower($1) == "x-praetorium-runtime:" { print $2 }')"
+            if [[ "$status" == 200 && "$revision" == "$GITHUB_SHA" && "$runtime" == cloudflare ]]; then
               echo "Protected candidate serves $GITHUB_SHA"
               break
             fi
-            echo "Waiting for protected candidate revision ($attempt/30)"
+            [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || revision=missing
+            [[ "$runtime" == cloudflare ]] || runtime=missing
+            echo "Waiting for protected candidate revision ($attempt/30): HTTP $status, revision $revision, runtime $runtime"
             sleep 10
           done
-          if [[ "$revision" != "$GITHUB_SHA" ]] || ! grep -Eiq '^x-praetorium-runtime: cloudflare\r?$' <<< "$headers"; then
+          if [[ "$status" != 200 || "$revision" != "$GITHUB_SHA" || "$runtime" != cloudflare ]]; then
             echo "Protected candidate did not serve $GITHUB_SHA" >&2
             exit 1
           fi
