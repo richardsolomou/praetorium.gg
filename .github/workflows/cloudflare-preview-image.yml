@@ -365,7 +365,7 @@ jobs:
             fi
           done
           echo 'Protected candidate pages and auth metadata are healthy'
-      - name: Verify imported candidate session and SpacetimeDB access
+      - name: Verify imported candidate session and browser journeys
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -408,3 +408,5 @@ jobs:
             https://candidate.praetorium.gg/spacetime/v1/identity/websocket-token
           jq -e '.token | type == "string" and length > 0' "$RUNNER_TEMP/candidate-websocket-token.json" > /dev/null
           echo 'Imported candidate session and SpacetimeDB token exchange are healthy'
+          pnpm exec playwright install chromium --only-shell
+          SESSION_TOKEN="$session_token" pnpm exec tsx scripts/candidateBrowser.ts
