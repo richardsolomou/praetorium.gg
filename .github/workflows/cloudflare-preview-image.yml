@@ -8,7 +8,7 @@ on:
       rehearsal:
         type: choice
         required: true
-        options: [identity, staging]
+        options: [identity, staging, preview, preview-cleanup]
 
 permissions:
   contents: read
@@ -84,3 +84,70 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/better-auth-d1' && inputs.rehearsal == 'staging'
     uses: ./.github/workflows/cloudflare-staging.yml
     secrets: inherit
+
+  preview-rehearsal:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/better-auth-d1' && inputs.rehearsal == 'preview'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Fetch verified catalogue
+        run: pnpm catalogue:sync
+      - name: Build native Worker
+        env:
+          NITRO_PRESET: cloudflare_module
+          GITHUB_SHA: ${{ github.sha }}
+          VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
+          VITE_POSTHOG_PROJECT_TOKEN: ${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
+        run: pnpm build
+      - name: Bundle Worker without credentials
+        run: pnpm exec wrangler deploy --config wrangler.staging.json --dry-run --outdir "$RUNNER_TEMP/worker"
+      - name: Build SpacetimeDB module
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v2.7.0-hotfix3 -R clockworklabs/SpacetimeDB -p spacetime-x86_64-unknown-linux-gnu.tar.gz -D "$RUNNER_TEMP"
+          echo 'd25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831  '"$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" -C "$RUNNER_TEMP" spacetimedb-cli
+          "$RUNNER_TEMP/spacetimedb-cli" build -p spacetimedb
+      - name: Publish verified catalogue
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CATALOGUE_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+          CATALOGUE_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+        run: |
+          pnpm catalogue:worker
+          pnpm catalogue:worker:publish
+      - name: Deploy disposable isolated preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          SPACETIME_URL: ${{ vars.SPACETIME_URL }}
+          SPACETIME_ADMIN_TOKEN: ${{ secrets.SPACETIME_ADMIN_TOKEN }}
+          SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.SPACETIME_ACCESS_CLIENT_ID }}
+          SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
+          CATALOGUE_READ_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_READ_ACCESS_KEY_ID }}
+          CATALOGUE_READ_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_READ_SECRET_ACCESS_KEY }}
+          PR_NUMBER: 99990606
+          PREVIEW_SHA: ${{ github.sha }}
+          PREVIEW_WORKER_BUNDLE: ${{ runner.temp }}/worker/nativeWorker.js
+          PREVIEW_ASSETS_DIR: ${{ github.workspace }}/.output/public
+          PREVIEW_PRODUCT_BUNDLE: ${{ github.workspace }}/spacetimedb/dist/bundle.js
+        run: pnpm exec tsx scripts/cloudflarePreview.ts deploy
+
+  preview-cleanup:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/better-auth-d1' && inputs.rehearsal == 'preview-cleanup'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Remove disposable isolated preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          SPACETIME_URL: ${{ vars.SPACETIME_URL }}
+          SPACETIME_ADMIN_TOKEN: ${{ secrets.SPACETIME_ADMIN_TOKEN }}
+          SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.SPACETIME_ACCESS_CLIENT_ID }}
+          SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
+          PR_NUMBER: 99990606
+        run: pnpm exec tsx scripts/cloudflarePreview.ts delete
