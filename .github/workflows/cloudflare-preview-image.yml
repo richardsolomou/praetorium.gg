@@ -3,46 +3,11 @@ name: Cloudflare preview image
 on:
   pull_request:
     types: [opened, reopened, synchronize]
-  workflow_dispatch:
-    inputs:
-      candidate_cleanup:
-        type: boolean
-        required: true
 
 permissions:
   contents: read
 
 jobs:
-  candidate-cleanup:
-    if: github.event_name == 'workflow_dispatch' && inputs.candidate_cleanup && github.ref == 'refs/heads/chore/remove-cloudflare-cutover'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Delete candidate SpacetimeDB copy
-        env:
-          SPACETIME_URL: ${{ vars.PRODUCTION_SPACETIME_URL }}
-          SPACETIME_OWNER_TOKEN: ${{ secrets.PRODUCTION_SPACETIME_OWNER_TOKEN }}
-          SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_ID }}
-          SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_SECRET }}
-        run: |
-          set -euo pipefail
-          test -n "$SPACETIME_URL"
-          test -n "$SPACETIME_OWNER_TOKEN"
-          test -n "$SPACETIME_ACCESS_CLIENT_ID"
-          test -n "$SPACETIME_ACCESS_CLIENT_SECRET"
-          url="${SPACETIME_URL%/}/v1/database/praetorium-candidate"
-          status="$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' \
-            --header "Authorization: Bearer $SPACETIME_OWNER_TOKEN" \
-            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
-            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
-            --request DELETE "$url")"
-          [[ "$status" == 200 || "$status" == 204 ]]
-          status="$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' \
-            --header "Authorization: Bearer $SPACETIME_OWNER_TOKEN" \
-            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
-            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
-            "$url")"
-          [[ "$status" == 404 ]]
-
   build:
     if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-candidate/') == false
     runs-on: ubuntu-latest
