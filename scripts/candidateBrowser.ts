@@ -151,13 +151,17 @@ try {
   await readback.close()
   console.log('Candidate faction favourite write and fresh readback passed')
 
-  await page.goto(`${origin}/profile`)
+  await page.getByRole('button', { name: /Account menu for/ }).click()
+  await page.getByRole('menuitem', { name: 'Edit profile' }).click()
+  await expect(page).toHaveURL(`${origin}/profile`)
   await page.getByLabel('Choose profile picture').setInputFiles({
     name: 'candidate-avatar.png',
     mimeType: 'image/png',
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
   })
-  await page.getByRole('button', { name: 'Save profile' }).click()
+  const saveProfile = page.getByRole('button', { name: 'Save profile' })
+  await expect(saveProfile).toBeEnabled({ timeout: 15_000 })
+  await saveProfile.click()
   await page.getByText('Profile saved.').waitFor({ timeout: 15_000 })
   const avatar = page.locator('main img').first()
   await expect(avatar).toHaveAttribute('src', /^https:\/\/s3\.praetorium\.gg\/praetorium\/avatars\/[0-9a-f]{64}\.webp$/)
