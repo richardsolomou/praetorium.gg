@@ -8,7 +8,14 @@ import { service, started } from './serviceTestHarness'
 
 vi.mock('./app', async () => {
   const harness = await import('./serviceTestHarness')
-  return { app: () => ({ service: harness.service, catalogue: () => null, rules: () => null }) }
+  return {
+    app: () => ({
+      service: harness.service,
+      catalogueFor: async () => null,
+      rulesFor: async () => null,
+      factionIndexFor: async () => null,
+    }),
+  }
 })
 
 /** Calls an image route the way a crawler does: no session, only the address. */

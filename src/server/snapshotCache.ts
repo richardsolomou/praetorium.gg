@@ -4,7 +4,7 @@ import { app } from './app'
 /** Cache direct reference responses for an hour with a snapshot ETag; never add shared cache headers to SSR documents. */
 export function cacheUntilSnapshotChanges() {
   if (process.env.NODE_ENV !== 'production') return
-  const revision = app().catalogue()?.index.revision
+  const revision = process.env.CATALOGUE_SNAPSHOT_ID ?? app().catalogue()?.index.revision
   if (!revision) return
   if (!new URL(getRequest().url).pathname.startsWith('/_serverFn/')) return
   setResponseHeader('Cache-Control', 'public, max-age=3600')

@@ -30,14 +30,29 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { rosterDetachments } from './rosterDetachments'
 import type { ExportRosterInput, ImportRosterInput } from './schemas'
 
-export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogue) {
-  const battleBase = fromBattleBaseText(data.file)
-  if (battleBase) {
-    const source = /Exported with Praetorium\.gg/i.test(data.file) ? ('praetorium' as const) : ('battlebase' as const)
-    return { ...importTextRoster(battleBase, loaded), source }
-  }
-  const newRecruit = fromNewRecruitText(data.file)
-  if (newRecruit) return { ...importTextRoster(newRecruit, loaded), source: 'newrecruit' as const }
+function parsedImport(file: string) {
+  const battleBase = fromBattleBaseText(file)
+  if (battleBase)
+    return { parsed: battleBase, source: /Exported with Praetorium\.gg/i.test(file) ? ('praetorium' as const) : ('battlebase' as const) }
+  const newRecruit = fromNewRecruitText(file)
+  return newRecruit ? { parsed: newRecruit, source: 'newrecruit' as const } : null
+}
+
+export function importRosterFaction(file: string) {
+  return parsedImport(file)?.parsed.faction ?? null
+}
+
+export function matchesImportFaction(stated: string, name: string) {
+  return [name, name.split(' - ').at(-1) ?? ''].some((candidate) => normalized(candidate) === normalized(stated))
+}
+
+export function importRosterFile(
+  data: ImportRosterInput,
+  loaded: LoadedCatalogue | null,
+  factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
+) {
+  const found = parsedImport(data.file)
+  if (found) return { ...importTextRoster(found.parsed, loaded, factionNames), source: found.source }
   return {
     name: 'Imported list',
     catalogueId: null,
@@ -58,19 +73,16 @@ const slug = (value: string) =>
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 
-function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
-  const faction = loaded.factions.find((candidate) => {
-    const names = [candidate.name, candidate.name.split(' - ').at(-1) ?? '']
-    return names.some((name) => normalized(name) === normalized(parsed.faction))
-  })
-  if (!faction) {
+function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, factionNames: readonly string[]) {
+  const faction = loaded?.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name))
+  if (!loaded || !faction) {
     return {
       name: parsed.name,
       catalogueId: null,
       catalogueName: parsed.faction,
       detachmentIds: [],
       units: [],
-      unknown: [{ name: parsed.faction, reason: unmatchedFactionReason(parsed.faction, loaded) }],
+      unknown: [{ name: parsed.faction, reason: unmatchedFactionReason(parsed.faction, factionNames) }],
       unplaced: [],
     }
   }

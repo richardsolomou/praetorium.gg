@@ -1,6 +1,6 @@
 {
   "extends": "../tsconfig.json",
-  "include": ["./worker.ts", "../src/server/d1Bridge.ts"],
+  "include": ["./worker.ts", "./nativeWorker.ts", "./nitro.d.ts", "../src/server/d1Bridge.ts"],
   "compilerOptions": {
     "types": ["@cloudflare/workers-types"],
     "noEmit": true

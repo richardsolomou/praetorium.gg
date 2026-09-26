@@ -17,11 +17,11 @@ const CHANGE_LOG_PAGE = 20
 export const catalogueChangeLog = createServerFn({ method: 'GET' })
   .validator(z.object({ before: z.string().max(4096).optional() }))
   .handler(({ data }) =>
-    rpc((): { updates: IndexedUpdate[]; older: string | null } => {
+    rpc(async (): Promise<{ updates: IndexedUpdate[]; older: string | null }> => {
       const instance = app()
       const before = data.before ? decodeHistoryCursor(data.before) : null
-      const page = historyPage(instance.catalogueHistory() ?? [], CHANGE_LOG_PAGE, before ?? undefined)
-      const canonical = page.entries.length ? instance.canonicalCatalogue() : null
+      const page = historyPage((await instance.catalogueHistoryFor()) ?? [], CHANGE_LOG_PAGE, before ?? undefined)
+      const canonical = page.entries.length ? await instance.canonicalCatalogueFor() : null
       return {
         updates: page.entries.map((entry) => indexedUpdate(entry, canonical)),
         older: page.next ? encodeHistoryCursor(page.next) : null,

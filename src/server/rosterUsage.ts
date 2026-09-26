@@ -26,9 +26,9 @@ export const rosterUseError = (priced: PricedRosterLegality, limit: number) => r
 export async function rosterForUse(userId: string, rosterId: string) {
   const saved = await app().service.ownRoster(userId, rosterId)
   if (!saved) throw new Response('you do not own this roster', { status: 403 })
-  const catalogue = app().catalogue()
+  const catalogue = await app().catalogueFor(saved.catalogueId)
   if (!catalogue) throw new Response('army data is not available', { status: 409 })
-  const rules = app().rules()
+  const rules = await app().rulesFor()
   if (!rules) throw new Response('army rules data is not available', { status: 409 })
   const priced = calculateRosterPrice(savedRosterPriceInput(saved), catalogue, rules)
   if (!priced) throw new Response('army data is not available', { status: 409 })

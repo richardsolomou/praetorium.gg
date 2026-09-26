@@ -73,3 +73,19 @@ it('refuses a manifest whose hash differs from the deployed version', async () =
   const store = new WorkerCatalogueStore(read, snapshotId, 'b'.repeat(64))
   await expect(store.catalogue('army')).rejects.toThrow('manifest checksum does not match')
 })
+
+it('retries a transient shared object read failure', async () => {
+  const { read, manifestSha256 } = fixture()
+  let unavailable = true
+  const store = new WorkerCatalogueStore(
+    (key, maxBytes) => {
+      if (key.endsWith('/shared.json') && unavailable) throw new Error('R2 unavailable')
+      return read(key, maxBytes)
+    },
+    snapshotId,
+    manifestSha256,
+  )
+  await expect(store.shared()).rejects.toThrow('R2 unavailable')
+  unavailable = false
+  expect((await store.shared()).factions.factions).toEqual([])
+})

@@ -39,6 +39,9 @@ import { loadCatalogueHistory } from './catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { combatUnitsFor } from './combatUnits'
+import { factionIndexFor, factionsFor } from './factionReferences'
+import { WorkerCatalogueStore } from './workerCatalogueStore'
+import { compiledGlobalSearchIndex } from './globalSearch'
 
 type App = {
   health: () => Promise<void>
@@ -46,14 +49,22 @@ type App = {
   events: BattleEvents
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
   catalogue: () => LoadedCatalogue | null
+  catalogueFor: (catalogueId: string) => Promise<LoadedCatalogue | null>
   /** The validated, source-independent reference data compiled into the snapshot. */
   canonicalCatalogue: () => CanonicalCatalogue | null
+  canonicalCatalogueFor: () => Promise<CanonicalCatalogue | null>
   /** Stratagems and mission cards, null when that source has not been synced. */
   rules: () => LoadedRules | null
+  rulesFor: () => Promise<LoadedRules | null>
   /** What each army-data update changed, as the snapshot carries it; null when it carries none. */
   catalogueHistory: () => CatalogueHistoryEntry[] | null
+  catalogueHistoryFor: () => Promise<CatalogueHistoryEntry[] | null>
   /** The simulator's all-factions picker, prepared once for the active snapshot. */
   combatUnits: () => ReturnType<typeof combatUnitsFor>
+  combatUnitsFor: () => Promise<ReturnType<typeof combatUnitsFor>>
+  factionIndexFor: () => Promise<ReturnType<typeof factionIndexFor> | null>
+  factionsFor: () => Promise<ReturnType<typeof factionsFor> | null>
+  searchIndexFor: () => Promise<ReturnType<typeof compiledGlobalSearchIndex> | null>
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
   auth: ReturnType<typeof createAuth> | ReturnType<typeof createD1Auth>
@@ -150,7 +161,6 @@ function canonicalCatalogue(instance: Pick<App, 'catalogue' | 'rules'>, director
 export function app(): App {
   return globalSingleton('praetorium.app', () => {
     const telemetry = serverTelemetry()
-    // Secrets and the catalogue cache still live on disk; only the game data moved.
     const dataDirectory = path.resolve(process.env.DATA_DIR ?? '/data')
     const catalogueDataDirectory = catalogueDirectory(dataDirectory)
     const email = emailDelivery()
@@ -158,8 +168,29 @@ export function app(): App {
     let database: PraetoriumDatabase | null = null
     let cache: ValkeyClient | null = null
     let operator: SpacetimeOperator | null = null
-    const cloudflare = (globalThis as typeof globalThis & { __env__?: { AUTH_DB?: ReturnType<typeof remoteD1> } }).__env__
+    const cloudflare = (
+      globalThis as typeof globalThis & {
+        __env__?: {
+          AUTH_DB?: ReturnType<typeof remoteD1>
+          CATALOGUE?: { get: (key: string) => Promise<{ size: number; arrayBuffer: () => Promise<ArrayBuffer> } | null> }
+          CATALOGUE_SNAPSHOT_ID?: string
+          CATALOGUE_MANIFEST_SHA256?: string
+        }
+      }
+    ).__env__
     const binding = hosted ? (cloudflare?.AUTH_DB ?? remoteD1()) : null
+    const workerCatalogue =
+      hosted && cloudflare?.CATALOGUE
+        ? new WorkerCatalogueStore(
+            async (key, maxBytes) => {
+              const object = await cloudflare.CATALOGUE!.get(key)
+              if (!object || object.size > maxBytes) throw new Error('Worker catalogue object unavailable')
+              return object.arrayBuffer()
+            },
+            cloudflare.CATALOGUE_SNAPSHOT_ID ?? '',
+            cloudflare.CATALOGUE_MANIFEST_SHA256 ?? '',
+          )
+        : null
     if (hosted) {
       operator = new SpacetimeOperator(
         process.env.SPACETIME_URL!,
@@ -181,6 +212,17 @@ export function app(): App {
     const repository = hosted ? new SpacetimeRepository(new D1AccountRepository(binding), operator!) : new Repository(database!)
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     let ready = Promise.resolve()
+    let nativeSyncState: SyncState = { status: 'working', detail: 'loading the community data' }
+    const workerShared = async () => {
+      try {
+        const shared = await workerCatalogue!.shared()
+        nativeSyncState = { status: 'ready', detail: null }
+        return shared
+      } catch (error) {
+        nativeSyncState = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
+        throw error
+      }
+    }
     const loaders = () => ({
       catalogue: memoize(loadCatalogue),
       canonical: memoize(() => canonicalCatalogue(instance, catalogueDataDirectory)),
@@ -208,7 +250,7 @@ export function app(): App {
     const instance: App = {
       health: async () => {
         if (hosted) {
-          await Promise.all([binding.prepare('select 1').first(), operator!.health()])
+          await Promise.all([binding.prepare('select 1').first(), operator!.health(), workerCatalogue ? workerShared() : undefined])
         } else {
           await database!.execute(sql`select 1`)
           if (cache && !(await valkeyReachable(cache))) throw new Error('Valkey unavailable')
@@ -220,12 +262,36 @@ export function app(): App {
       spacetimeToken: hosted ? async (headers) => (await (auth as ReturnType<typeof createD1Auth>).api.getToken({ headers })).token : null,
       email,
       catalogue: loaded.catalogue,
+      catalogueFor: async (catalogueId) => {
+        if (!workerCatalogue) return instance.catalogue()
+        await workerShared()
+        return workerCatalogue.catalogue(catalogueId)
+      },
       canonicalCatalogue: loaded.canonical,
+      canonicalCatalogueFor: async () => (workerCatalogue ? null : instance.canonicalCatalogue()),
       rules: loaded.rules,
+      rulesFor: async () => (workerCatalogue ? (await workerShared()).rules : instance.rules()),
       catalogueHistory: loaded.history,
+      catalogueHistoryFor: async () => (workerCatalogue ? (await workerShared()).history : instance.catalogueHistory()),
       combatUnits: loaded.combatUnits,
+      combatUnitsFor: async () => (workerCatalogue ? (await workerShared()).combatUnits : instance.combatUnits()),
+      factionIndexFor: async () => {
+        if (workerCatalogue) return (await workerShared()).factionIndex
+        const catalogue = instance.catalogue()
+        return catalogue ? factionIndexFor(catalogue, instance.rules()) : null
+      },
+      factionsFor: async () => {
+        if (workerCatalogue) return (await workerShared()).factions
+        const catalogue = instance.catalogue()
+        return catalogue ? factionsFor(catalogue, instance.rules()) : null
+      },
+      searchIndexFor: async () => {
+        if (workerCatalogue) return (await workerShared()).searchIndex
+        const catalogue = instance.catalogue()
+        return catalogue ? compiledGlobalSearchIndex(catalogue, instance.rules()) : null
+      },
       push: Boolean(push),
-      sync: () => sync.state,
+      sync: () => (workerCatalogue ? nativeSyncState : sync.state),
       telemetry,
       ready: () => ready,
     }
@@ -239,12 +305,18 @@ export function app(): App {
       instance.combatUnits = next.combatUnits
       ready = warm(instance)
     }
-    // Fetched in the background rather than at boot: an instance must start and
-    // serve battles whether or not it has the catalogues yet.
-    sync.begin(catalogueDataDirectory, swap)
-    const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap), 60 * 60 * 1000)
-    catalogueRefresh.unref()
-    if (sync.state.status === 'ready') ready = warm(instance)
+    if (workerCatalogue) {
+      ready = workerShared().then(
+        () => {},
+        () => {},
+      )
+    } else {
+      // A self-hosted instance fetches a snapshot without blocking battle requests.
+      sync.begin(catalogueDataDirectory, swap)
+      const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap), 60 * 60 * 1000)
+      catalogueRefresh.unref()
+      if (sync.state.status === 'ready') ready = warm(instance)
+    }
     return instance
   })
 }

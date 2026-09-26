@@ -45,6 +45,7 @@ type Battle = {
 
 type Sources = {
   catalogue: LoadedCatalogue | null
+  catalogueIndex?: GlobalSearchIndex
   rules: LoadedRules | null
   /** The signed-in player's own data, or nothing when the request carries no session. */
   own: () => Promise<{ rosters: SavedRoster[]; battles: Battle[] } | null>
@@ -58,7 +59,7 @@ type IndexedDatasheet = {
   fields: DatasheetSearchFields
   result: GlobalSearchResult
 }
-type GlobalSearchIndex = { factions: IndexedResult[]; detachments: IndexedResult[]; datasheets: IndexedDatasheet[] }
+export type GlobalSearchIndex = { factions: IndexedResult[]; detachments: IndexedResult[]; datasheets: IndexedDatasheet[] }
 
 const globalSearchIndexes = new WeakMap<LoadedCatalogue, { rules: LoadedRules | null; index: GlobalSearchIndex }>()
 
@@ -123,6 +124,10 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
   return index
 }
 
+export function compiledGlobalSearchIndex(loaded: LoadedCatalogue, rules: LoadedRules | null) {
+  return globalSearchIndexFor(loaded, rules)
+}
+
 export async function searchEverything(query: string, sources: Sources): Promise<GlobalSearchResult[]> {
   const wanted = query.toLowerCase()
   const matches = (...text: (string | null | undefined)[]) => text.filter(Boolean).join(' ').toLowerCase().includes(wanted)
@@ -139,9 +144,8 @@ type Matcher = (...text: (string | null | undefined)[]) => boolean
 
 function catalogueResults(wanted: string, sources: Sources): GlobalSearchResult[] {
   const loaded = sources.catalogue
-  if (!loaded) return []
-
-  const index = globalSearchIndexFor(loaded, sources.rules)
+  const index = sources.catalogueIndex ?? (loaded ? globalSearchIndexFor(loaded, sources.rules) : null)
+  if (!index) return []
   const results: GlobalSearchResult[] = [
     ...index.factions.filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
     ...index.detachments.filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
