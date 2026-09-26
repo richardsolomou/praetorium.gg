@@ -111,6 +111,10 @@ export class SpacetimeRepository implements RepositoryPort {
     return this.product.acceptFriend(...args)
   }
 
+  rejectFriend(...args: Parameters<Repository['rejectFriend']>) {
+    return this.product.rejectFriend(...args)
+  }
+
   removeFriend(...args: Parameters<Repository['removeFriend']>) {
     return this.product.removeFriend(...args)
   }

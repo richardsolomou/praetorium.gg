@@ -123,6 +123,7 @@ export type CombatWeapon = CombatInput['weapons'][number]
 export type CombatOptions = CombatInput['options']
 export type DiceExpression = z.infer<typeof diceSchema>
 export type CombatResult = { trials: number; kills: number[]; damage: number[]; meanKills: number; meanDamage: number; wipe: number }
+export const rerollRank = { none: 0, ones: 1, failed: 2 } as const
 
 export const DEFAULT_COMBAT_OPTIONS: CombatOptions = {
   phase: 'ranged',
@@ -170,11 +171,149 @@ function roll(expression: DiceExpression | number, random: () => number) {
   return result
 }
 
+const rollSucceeds = (value: number, target: number, bonus: number, critical: number, minimum: number) =>
+  value >= minimum && (value >= critical || value + bonus >= target)
+const saveSucceeds = (value: number, critical: boolean, group: CombatTargetGroup, weapon: CombatWeapon) =>
+  value !== 1 &&
+  (value + weapon.ap + (critical ? (weapon.criticalAp ?? 0) : 0) >= group.save ||
+    (group.invulnerable !== null && value >= group.invulnerable))
+
 function check(target: number, bonus: number, critical: number, rerolls: CombatOptions['hitReroll'], random: () => number, minimum = 2) {
-  const succeeds = (value: number) => value >= minimum && (value >= critical || value + bonus >= target)
+  const succeeds = (value: number) => rollSucceeds(value, target, bonus, critical, minimum)
   let value = d6(random)
   if ((rerolls === 'ones' && value === 1) || (rerolls === 'failed' && !succeeds(value))) value = d6(random)
   return { success: succeeds(value), critical: value !== 1 && value >= critical, value }
+}
+
+function attackRolls(weapon: CombatWeapon, options: CombatOptions, toughness: number) {
+  const ranged = options.phase === 'ranged'
+  const indirect = ranged && weapon.indirectFire === true && (options.indirectFire === 'unobserved' || options.indirectFire === 'spotted')
+  const cover = ranged && (options.cover || indirect) && !weapon.ignoresCover && !weapon.psychic
+  const skill =
+    weapon.ignoreSkillModifiers || (ranged && weapon.psychic)
+      ? Math.min(weapon.baseSkill ?? weapon.skill, weapon.skill)
+      : Math.min(6, weapon.skill + Number(cover))
+  const hitBonus = cappedModifier(
+    (weapon.psychic || weapon.ignoreHitModifiers ? (options.psychicHitModifier ?? Math.max(0, options.hitModifier)) : options.hitModifier) +
+      Number(ranged && weapon.heavy && options.heavy) +
+      (weapon.psychic || weapon.ignoreHitModifiers
+        ? (weapon.positiveHitModifier ?? Math.max(0, weapon.hitModifier ?? 0))
+        : (weapon.hitModifier ?? 0)),
+  )
+  const woundBonus = cappedModifier(
+    (weapon.ignoreWoundModifiers ? (options.positiveWoundModifier ?? Math.max(0, options.woundModifier)) : options.woundModifier) +
+      (weapon.ignoreWoundModifiers
+        ? (weapon.positiveWoundModifier ?? Math.max(0, weapon.woundModifier ?? 0))
+        : (weapon.woundModifier ?? 0)) +
+      (weapon.strength > toughness
+        ? weapon.ignoreWoundModifiers
+          ? Math.max(0, weapon.strongerWoundModifier ?? 0)
+          : (weapon.strongerWoundModifier ?? 0)
+        : 0) +
+      (weapon.strength >= toughness * 2
+        ? weapon.ignoreWoundModifiers
+          ? Math.max(0, weapon.doubleStrengthWoundModifier ?? 0)
+          : (weapon.doubleStrengthWoundModifier ?? 0)
+        : 0) +
+      (weapon.strength <= toughness
+        ? weapon.ignoreWoundModifiers
+          ? Math.max(0, weapon.notStrongerWoundModifier ?? 0)
+          : (weapon.notStrongerWoundModifier ?? 0)
+        : 0) +
+      Number(!ranged && weapon.lance && options.charged),
+  )
+  return { indirect, skill, hitBonus, woundBonus, wound: woundTarget(weapon.strength, toughness) }
+}
+
+/** Whether changing a critical threshold changes any possible roll in the current matchup. */
+export function criticalThresholdMatters(current: CombatInput, previous: CombatInput, kind: 'hit' | 'wound') {
+  return current.weapons.some((weapon, index) => {
+    const before = previous.weapons[index]
+    if (!before || (weapon.torrent && kind === 'hit')) return false
+    const threshold = kind === 'hit' ? (weapon.criticalHit ?? 6) : weapon.criticalWound
+    const oldThreshold = kind === 'hit' ? (before.criticalHit ?? 6) : before.criticalWound
+    if (threshold === oldThreshold) return false
+    return current.target.groups.some((group) => {
+      const rolls = attackRolls(weapon, current.options, group.toughness)
+      const target = kind === 'hit' ? rolls.skill : rolls.wound
+      const bonus = kind === 'hit' ? rolls.hitBonus : rolls.woundBonus
+      const minimum = kind === 'hit' && rolls.indirect ? (current.options.indirectFire === 'spotted' ? 4 : 6) : 2
+      for (let value = 2; value <= 6; value++) {
+        const success = (critical: number) => rollSucceeds(value, target, bonus, critical, minimum)
+        if (success(threshold) !== success(oldThreshold)) return true
+        if (!success(threshold)) continue
+        const critical = (limit: number) =>
+          value >= limit ||
+          (kind === 'hit'
+            ? weapon.allHitsCritical || Boolean(weapon.successfulCriticalHit && value >= weapon.successfulCriticalHit)
+            : Boolean(weapon.successfulCriticalWound && value >= weapon.successfulCriticalWound))
+        if (critical(threshold) === critical(oldThreshold)) continue
+        if (kind === 'hit' && ((weapon.lethal && current.options.lethal) || maximum(weapon.sustained) > 0)) return true
+        if (kind === 'wound' && (weapon.devastating || Boolean(weapon.criticalAp))) return true
+      }
+      return false
+    })
+  })
+}
+
+/** Compare the effective re-roll after datasheet and situational rules combine. */
+export function rerollAdjustmentMatters(current: CombatInput, previous: CombatInput, kind: 'hit' | 'wound') {
+  return current.weapons.some((weapon, index) => {
+    if (kind === 'hit' && weapon.torrent) return false
+    const before = previous.weapons[index]
+    if (!before) return false
+    const effective = (input: CombatInput, own: CombatWeapon) => {
+      const option = kind === 'hit' ? input.options.hitReroll : input.options.woundReroll
+      const printed = kind === 'hit' ? own.hitReroll : own.twinLinked ? 'failed' : own.woundReroll
+      return Math.max(rerollRank[option], rerollRank[printed ?? 'none'])
+    }
+    return effective(current, weapon) !== effective(previous, before)
+  })
+}
+
+/** Compare the six possible roll outcomes after modifiers, limits, and weapon rules apply. */
+export function rollAdjustmentMatters(current: CombatInput, previous: CombatInput, kind: 'hit' | 'wound') {
+  return current.weapons.some((weapon, index) => {
+    const before = previous.weapons[index]
+    if (!before || (kind === 'hit' && weapon.torrent)) return false
+    return current.target.groups.some((group, groupIndex) => {
+      const now = attackRolls(weapon, current.options, group.toughness)
+      const old = attackRolls(before, previous.options, previous.target.groups[groupIndex]?.toughness ?? group.toughness)
+      const target = kind === 'hit' ? now.skill : now.wound
+      const oldTarget = kind === 'hit' ? old.skill : old.wound
+      const bonus = kind === 'hit' ? now.hitBonus : now.woundBonus
+      const oldBonus = kind === 'hit' ? old.hitBonus : old.woundBonus
+      const threshold = kind === 'hit' ? (weapon.criticalHit ?? 6) : weapon.criticalWound
+      const oldThreshold = kind === 'hit' ? (before.criticalHit ?? 6) : before.criticalWound
+      const minimum = kind === 'hit' && now.indirect ? (current.options.indirectFire === 'spotted' ? 4 : 6) : 2
+      const oldMinimum = kind === 'hit' && old.indirect ? (previous.options.indirectFire === 'spotted' ? 4 : 6) : 2
+      return [2, 3, 4, 5, 6].some(
+        (value) =>
+          rollSucceeds(value, target, bonus, threshold, minimum) !== rollSucceeds(value, oldTarget, oldBonus, oldThreshold, oldMinimum),
+      )
+    })
+  })
+}
+
+/** A save or AP change matters only if some possible save result changes. */
+export function saveAdjustmentMatters(current: CombatInput, previous: CombatInput) {
+  return current.weapons.some((weapon, index) => {
+    const before = previous.weapons[index]
+    if (!before) return false
+    return current.target.groups.some((group, groupIndex) => {
+      const old = previous.target.groups[groupIndex]
+      return (
+        old &&
+        [false, true].some((critical) =>
+          [2, 3, 4, 5, 6].some((value) => saveSucceeds(value, critical, group, weapon) !== saveSucceeds(value, critical, old, before)),
+        )
+      )
+    })
+  })
+}
+
+export function halfRangeMatters(input: CombatInput) {
+  return input.weapons.some((weapon) => maximum(weapon.rapidFire) > 0 || maximum(weapon.melta) > 0)
 }
 
 export function attackSequence({ target, weapons, options, mortalWounds = [] }: CombatInput, random: () => number) {
@@ -221,47 +360,10 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
   for (const weapon of weapons) {
     if (killed === models) return { damage, killed }
     const defending = toughness()
-    const indirect = ranged && weapon.indirectFire === true && (options.indirectFire === 'unobserved' || options.indirectFire === 'spotted')
-    const cover = ranged && (options.cover || indirect) && !weapon.ignoresCover && !weapon.psychic
-    const skill =
-      weapon.ignoreSkillModifiers || (ranged && weapon.psychic)
-        ? Math.min(weapon.baseSkill ?? weapon.skill, weapon.skill)
-        : Math.min(6, weapon.skill + Number(cover))
-    const hitBonus = cappedModifier(
-      (weapon.psychic || weapon.ignoreHitModifiers
-        ? (options.psychicHitModifier ?? Math.max(0, options.hitModifier))
-        : options.hitModifier) +
-        Number(ranged && weapon.heavy && options.heavy) +
-        (weapon.psychic || weapon.ignoreHitModifiers
-          ? (weapon.positiveHitModifier ?? Math.max(0, weapon.hitModifier ?? 0))
-          : (weapon.hitModifier ?? 0)),
-    )
-    const woundBonus = cappedModifier(
-      (weapon.ignoreWoundModifiers ? (options.positiveWoundModifier ?? Math.max(0, options.woundModifier)) : options.woundModifier) +
-        (weapon.ignoreWoundModifiers
-          ? (weapon.positiveWoundModifier ?? Math.max(0, weapon.woundModifier ?? 0))
-          : (weapon.woundModifier ?? 0)) +
-        (weapon.strength > defending
-          ? weapon.ignoreWoundModifiers
-            ? Math.max(0, weapon.strongerWoundModifier ?? 0)
-            : (weapon.strongerWoundModifier ?? 0)
-          : 0) +
-        (weapon.strength >= defending * 2
-          ? weapon.ignoreWoundModifiers
-            ? Math.max(0, weapon.doubleStrengthWoundModifier ?? 0)
-            : (weapon.doubleStrengthWoundModifier ?? 0)
-          : 0) +
-        (weapon.strength <= defending
-          ? weapon.ignoreWoundModifiers
-            ? Math.max(0, weapon.notStrongerWoundModifier ?? 0)
-            : (weapon.notStrongerWoundModifier ?? 0)
-          : 0) +
-        Number(!ranged && weapon.lance && options.charged),
-    )
+    const { indirect, skill, hitBonus, woundBonus, wound } = attackRolls(weapon, options, defending)
     const bestReroll = (first: CombatOptions['hitReroll'], second?: CombatOptions['hitReroll']) =>
       first === 'failed' || second === 'failed' ? 'failed' : first === 'ones' || second === 'ones' ? 'ones' : 'none'
     const halfRange = ranged && options.halfRange
-    const wound = woundTarget(weapon.strength, defending)
     const feelNoPain = weapon.psychic ? Math.min(target.feelNoPain ?? 7, target.psychicFeelNoPain ?? 7) : (target.feelNoPain ?? 7)
     const inflict = (mortal = false) => {
       let rolledDamage = roll(weapon.damage, random)
@@ -324,23 +426,20 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
         }
       }
     }
-    const saved = (value: number, critical: boolean, group: CombatTargetGroup) =>
-      value !== 1 &&
-      (value + weapon.ap + (critical ? (weapon.criticalAp ?? 0) : 0) >= group.save ||
-        (group.invulnerable !== null && value >= group.invulnerable))
     // Re-rolls happen while the pool's saves are rolled, before any of them is allocated, so they judge the group current then.
     const rolling = target.groups[current]!
     const rolls = saves
       .map((critical) => {
         const value = d6(random)
-        const again = target.saveReroll === 'failed' ? !saved(value, critical, rolling) : target.saveReroll === 'ones' && value === 1
+        const again =
+          target.saveReroll === 'failed' ? !saveSucceeds(value, critical, rolling, weapon) : target.saveReroll === 'ones' && value === 1
         return { value: again ? d6(random) : value, critical }
       })
       .toSorted((a, b) => a.value - b.value)
     // Save rolls resolve from lowest to highest against whichever group is current (05.04).
     for (const save of rolls) {
       if (killed === models) return { damage, killed }
-      if (saved(save.value, save.critical, target.groups[current]!)) continue
+      if (saveSucceeds(save.value, save.critical, target.groups[current]!, weapon)) continue
       inflict()
     }
   }

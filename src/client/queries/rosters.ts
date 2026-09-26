@@ -26,7 +26,7 @@ export const unitsQuery = (catalogueId: string, query: string, battleSize?: numb
     queryFn: () =>
       units({ data: { catalogueId, query, ...(battleSize === undefined ? {} : { battleSize }), waivedRules: [...waivedRules] } }),
     enabled: Boolean(catalogueId),
-    staleTime: SSR_STALE_TIME,
+    staleTime: Infinity,
   })
 
 export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
@@ -34,7 +34,7 @@ export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
     queryKey: ['faction-datasheets', catalogueId, query],
     queryFn: () => factionDatasheets({ data: { catalogueId, query } }),
     enabled: Boolean(catalogueId),
-    staleTime: SSR_STALE_TIME,
+    staleTime: Infinity,
   })
 
 export const datasheetQuery = (

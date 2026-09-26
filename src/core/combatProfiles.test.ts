@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Datasheet } from '../contracts/catalogue'
 import { combatSurvivorSheet } from './combatSurvivors'
 import { combatPlan, combatTarget, combatWeapons } from './combatProfiles'
+import { wargearKey } from './wargear'
 
 const sheet = (keywords = ''): Datasheet => ({
   id: 'unit',
@@ -302,6 +303,37 @@ describe('automatic combat loadouts', () => {
     expect(selected(combatPlan(data, [carrier(1, ['Rifle', 1], ['Sidearm', 1])], [], 'ranged', { 'ranged:0:group': 'close' }))).toEqual([
       ['Sidearm', 1],
     ])
+  })
+  it('keeps a disabled weapon visible while omitting its attacks', () => {
+    const data = { ...sheet(), profiles: [weaponProfile('Rifle', 'ranged', 1), weaponProfile('Grenade', 'ranged', 1)] }
+    const selection = combatPlan(data, [carrier(1, ['Rifle', 1], ['Grenade', 1])], [], 'ranged', {}, new Set([wargearKey('Grenade')]))
+    expect({
+      shown: selection.used.map((entry) => entry.profile.name),
+      active: selection.active.map((entry) => entry.profile.name),
+    }).toEqual({
+      shown: ['Rifle', 'Grenade'],
+      active: ['Rifle'],
+    })
+  })
+  it('keeps the same weapon disabled when its profile mode changes', () => {
+    const data = {
+      ...sheet(),
+      profiles: [weaponProfile('Cannon (focused)', 'ranged', 1), weaponProfile('Cannon (dispersed)', 'ranged', 1)],
+    }
+    const selection = combatPlan(
+      data,
+      [carrier(1, ['Cannon', 1])],
+      [],
+      'ranged',
+      { 'ranged:0:cannon': 'Cannon (dispersed)' },
+      new Set([wargearKey('Cannon')]),
+    )
+    expect({ shown: selection.used[0]?.profile.name, weapons: selection.weapons }).toEqual({ shown: 'Cannon (dispersed)', weapons: [] })
+  })
+  it('does not let an excluded unsupported weapon block another weapon', () => {
+    const data = { ...sheet(), profiles: [weaponProfile('Rifle', 'ranged', 1), weaponProfile('Grenade', 'ranged', 1, 'Unknown')] }
+    const selection = combatPlan(data, [carrier(1, ['Rifle', 1], ['Grenade', 1])], [], 'ranged', {}, new Set([wargearKey('Grenade')]))
+    expect(selection.errors).toEqual([])
   })
   it('combines a specialist with the other models’ melee weapons', () => {
     expect(

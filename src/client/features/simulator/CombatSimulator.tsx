@@ -30,11 +30,13 @@ export function CombatSimulatorMatchup({
   opponentRoster,
   firstArmyControl,
   secondArmyControl,
+  inDialog = false,
 }: {
   roster?: CombatRoster
   opponentRoster?: CombatRoster
   firstArmyControl?: ReactNode
   secondArmyControl?: ReactNode
+  inDialog?: boolean
 }) {
   const first = useCombatant(roster)
   const second = useCombatant(opponentRoster)
@@ -48,6 +50,7 @@ export function CombatSimulatorMatchup({
       defender={defender.snapshot}
       pending={!attacker.ready || !defender.ready}
       failed={failed}
+      inDialog={inDialog}
       attackerControl={
         <CombatantCard
           side="Attacker"

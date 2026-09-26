@@ -621,6 +621,21 @@ export const acceptFriend = spacetime.procedure(
     }),
 )
 
+export const rejectFriend = spacetime.procedure({ requesterId: t.string(), addresseeId: t.string() }, t.bool(), (ctx, input) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    const current = tx.db.friendships.key.find(friendshipKey(input.requesterId, input.addresseeId))
+    if (
+      !current ||
+      current.requesterId !== input.requesterId ||
+      current.addresseeId !== input.addresseeId ||
+      current.acceptedAt !== undefined
+    )
+      return false
+    return tx.db.friendships.key.delete(current.key)
+  }),
+)
+
 export const removeFriend = spacetime.procedure({ leftId: t.string(), rightId: t.string() }, t.bool(), (ctx, input) =>
   ctx.withTx((tx) => {
     requireOperator(tx)

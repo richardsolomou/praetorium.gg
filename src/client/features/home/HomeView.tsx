@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Swords, Users } from 'lucide-react'
+import { Users } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import type { Battle } from '../battles/battle'
@@ -56,17 +56,21 @@ export function HomeView({ me, mine, friends, open, rosters, rostersDue, friendR
   // empty, which is a new account on a new instance — otherwise the page would be
   // a long scroll of nothing, under a menu they have not learned yet.
   const bare = !going.length && !played.length && !shownFriends.length && !rest.length
-  const waiting = rostersDue.length + friendRequests + rosters.filter((entry) => entry.problem).length
+  const waiting = rostersDue.length + friendRequests
   if (me) {
     return (
       <main className="w-full">
         <Welcome name={me.name} going={going.length} waiting={waiting} newBattle={newBattle} />
         <div className="mx-auto w-full max-w-6xl space-y-10 px-5 py-8 sm:px-6">
           <Columns
-            lead={<LiveGames going={going} viewerId={me.id} onDelete={onDelete} />}
+            lead={
+              going.length ? (
+                <BattleShelf title={going.length === 1 ? 'Your game' : 'Your games'} battles={going} viewerId={me.id} onDelete={onDelete} />
+              ) : null
+            }
             aside={
               <>
-                <HomeWaiting rostersDue={rostersDue} friendRequests={friendRequests} rosters={rosters} />
+                <HomeWaiting rostersDue={rostersDue} friendRequests={friendRequests} />
                 <HomeRosters rosters={rosters} />
                 <HomePlayed played={played} viewerId={me.id} />
               </>
@@ -117,14 +121,20 @@ function Welcome({ name, going, waiting, newBattle }: { name: string; going: num
         <div>
           <h1 className="text-2xl leading-none sm:text-3xl">Welcome back, {name.trim().split(/\s+/)[0]}</h1>
           <p className="mt-3 text-sm text-dim">
-            <span className="readout font-semibold text-bone">{going}</span> {going === 1 ? 'game' : 'games'} in progress
+            {going ? (
+              <>
+                <span className="readout font-semibold text-bone">{going}</span> {going === 1 ? 'game' : 'games'} in progress
+              </>
+            ) : (
+              'No game in progress'
+            )}
             <span className="mx-2 text-faint">·</span>
             {waiting ? (
               <>
-                <span className="readout font-semibold text-discarded">{waiting}</span> waiting on you
+                <span className="readout font-semibold text-discarded">{waiting}</span> {waiting === 1 ? 'item' : 'items'} to review
               </>
             ) : (
-              'Nothing waiting on you'
+              'Nothing to review'
             )}
           </p>
         </div>
@@ -140,28 +150,6 @@ function Welcome({ name, going, waiting, newBattle }: { name: string; going: num
 }
 
 /**
- * The player's games still being set up or played, which are the reason most visits happen.
- *
- * The empty state explains and points up rather than carrying a second New battle
- * button: the band above it already has one, and two of the same control on one
- * screen is two dialogs and two labels for one intent.
- */
-function LiveGames({ going, viewerId, onDelete }: { going: readonly Battle[]; viewerId: string; onDelete?: (battle: Battle) => void }) {
-  if (!going.length) {
-    return (
-      <section data-my-table>
-        <p className="rubric border-b border-edge pb-2">Your games</p>
-        <p className="flex items-start gap-3 border-b border-edge py-5 font-rules text-sm text-dim">
-          <Swords className="size-5 shrink-0 text-parchment" aria-hidden />
-          Start a game with a friend, or practise on your own against a practice opponent.
-        </p>
-      </section>
-    )
-  }
-  return <BattleShelf title="Your games" battles={[...going]} viewerId={viewerId} onDelete={onDelete} />
-}
-
-/**
  * The page's two columns on a wide screen, and one in reading order on a narrow one.
  *
  * `lead` and `rest` are the wide column, the games to watch or play; `aside` is the
@@ -170,14 +158,14 @@ function LiveGames({ going, viewerId, onDelete }: { going: readonly Battle[]; vi
  * instead of after every feed below them.
  */
 function Columns({ lead, aside, rest }: { lead: ReactNode; aside?: ReactNode; rest?: ReactNode }) {
-  if (!lead) return aside
+  if (!lead && !rest) return aside
   return (
     <div
-      className={`grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-16 ${rest ? 'lg:grid-rows-[min-content_1fr]' : ''}`}
+      className={`grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-16 ${lead && rest ? 'lg:grid-rows-[min-content_1fr]' : ''}`}
     >
-      <div className="min-w-0 space-y-8 lg:col-start-1">{lead}</div>
+      {lead ? <div className="min-w-0 space-y-8 lg:col-start-1">{lead}</div> : null}
       {aside ? <aside className="min-w-0 space-y-8 lg:col-start-2 lg:row-span-2 lg:row-start-1">{aside}</aside> : null}
-      {rest ? <div className="min-w-0 space-y-8 lg:col-start-1">{rest}</div> : null}
+      {rest ? <div className={`min-w-0 space-y-8 lg:col-start-1 ${lead ? '' : 'lg:row-start-1'}`}>{rest}</div> : null}
     </div>
   )
 }

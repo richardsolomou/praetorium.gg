@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.79.0
+
+### Minor Changes
+
+- 84d76b2: Show battle dates, let players reject friend requests, and keep routine roster legality out of home-page actions.
+- 84d76b2: Let players exclude individual weapons and apply shared or phase-specific combat modifiers without duplicate imported units in the simulator.
+
 ## 0.78.2
 
 ### Patch Changes

@@ -307,6 +307,11 @@ export class SpacetimeOperator
     return z.boolean().parse(await response.json())
   }
 
+  async rejectFriend(requesterId: string, addresseeId: string) {
+    const response = await this.call('reject_friend', [requesterId, addresseeId])
+    return z.boolean().parse(await response.json())
+  }
+
   async removeFriend(leftId: string, rightId: string) {
     const response = await this.call('remove_friend', [leftId, rightId])
     return z.boolean().parse(await response.json())

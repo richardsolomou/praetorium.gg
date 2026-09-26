@@ -31,3 +31,23 @@ it.skipIf(!url || !database || !token)('keeps friendship requests and invite acc
     await operator.deleteUserData(right)
   }
 })
+
+it.skipIf(!url || !database || !token)('rejects only a pending request from the named requester', async () => {
+  const operator = new SpacetimeOperator(url!, database!, token!)
+  const requester = randomUUID()
+  const addressee = randomUUID()
+  const now = Date.now()
+  try {
+    expect(await operator.requestFriend(requester, addressee, now)).toBe(true)
+    expect(await operator.rejectFriend(addressee, requester)).toBe(false)
+    expect(await operator.rejectFriend(requester, addressee)).toBe(true)
+    expect(await operator.rejectFriend(requester, addressee)).toBe(false)
+    expect(await operator.requestFriend(requester, addressee, now + 1)).toBe(true)
+    expect(await operator.acceptFriend(requester, addressee, now + 2)).toBe(true)
+    expect(await operator.rejectFriend(requester, addressee)).toBe(false)
+    expect((await operator.friendshipsByUser(requester))[0]).toMatchObject({ acceptedAt: now + 2 })
+  } finally {
+    await operator.deleteUserData(requester)
+    await operator.deleteUserData(addressee)
+  }
+})

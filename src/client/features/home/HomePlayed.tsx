@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react'
 import { battleOutcome } from '../../../core/standings'
 import { summarySides } from '../../battleSummary'
 import { FactionMark } from '../../components/FactionMark'
+import { formatDate } from '../../dates'
 import type { Battle } from '../battles/battle'
 
 const OUTCOME = {
@@ -48,6 +49,7 @@ export function HomePlayed({ played, viewerId }: { played: readonly Battle[]; vi
                   <span className="text-faint">vs </span>
                   <span className="font-bold uppercase">{opponent.map((seat) => seat.player.name).join(' & ') || 'Unknown'}</span>
                 </span>
+                <span className="readout shrink-0 text-xs text-faint">{formatDate(battle.lastActivity)}</span>
                 <span className="readout shrink-0 text-sm text-dim">
                   {ours?.score ?? 0}–{Math.max(0, ...theirs.map((entry) => entry.score))}
                 </span>

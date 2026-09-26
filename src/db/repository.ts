@@ -199,6 +199,10 @@ export class Repository {
     return this.accountRepository.acceptFriend(...args)
   }
 
+  rejectFriend(...args: Parameters<AccountRepository['rejectFriend']>) {
+    return this.accountRepository.rejectFriend(...args)
+  }
+
   removeFriend(...args: Parameters<AccountRepository['removeFriend']>) {
     return this.accountRepository.removeFriend(...args)
   }

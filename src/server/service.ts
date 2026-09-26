@@ -288,6 +288,10 @@ export class PraetoriumService {
     return this.socialService.acceptFriend(...args)
   }
 
+  rejectFriend(...args: Parameters<SocialService['rejectFriend']>) {
+    return this.socialService.rejectFriend(...args)
+  }
+
   removeFriend(...args: Parameters<SocialService['removeFriend']>) {
     return this.socialService.removeFriend(...args)
   }

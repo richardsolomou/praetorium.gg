@@ -161,30 +161,33 @@ const unitCount = (index: CatalogueIndex, catalogueId: string) => index.datashee
 export const datasheetsOf = (index: CatalogueIndex, catalogueId: string) => index.datasheets.get(catalogueId) ?? new Set<string>()
 
 /**
- * Whether a datasheet belongs on this faction's reference pages.
+ * Whether a datasheet belongs on this faction's public discovery surfaces.
  *
- * An army can offer allied units from another faction. Reference pages instead
- * give a datasheet one canonical home, read from its Faction keyword. The roster
- * picker deliberately does not use this predicate.
+ * An army can offer allied units from another faction. Reference pages, global
+ * search, and the simulator use the written Faction category or the defining
+ * book as their canonical home. The roster picker deliberately keeps all offers.
  */
 export function isReferenceDatasheet(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return false
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return false
   const target = targetOf(entry, loaded.index.definitions)
-  const canonicalFaction = referenceFactionOf(
+  const factions = referenceFactionsOf(
     loaded,
     [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].map((category) => category.name),
   )
-  return !canonicalFaction || factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? '') === canonicalFaction
+  if (factions.size > 1) return true
+  if (factions.size === 1) return factions.has(factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? ''))
+  const owner = loaded.index.catalogueOf.get(entryId)
+  return !owner || owner === catalogueId || !loaded.factions.some((faction) => faction.id === owner)
 }
 
 const FACTION_CATEGORY = /^Faction:\s*(.+)$/i
 
 const factionNamesCache = new WeakMap<LoadedCatalogue, ReadonlySet<string>>()
 
-/** The owner must be unambiguous: a datasheet genuinely filed under two factions stays visible on both pages. */
-function referenceFactionOf(loaded: LoadedCatalogue, categories: readonly (string | undefined)[]) {
+/** A datasheet genuinely filed under two factions stays visible on both pages. */
+function referenceFactionsOf(loaded: LoadedCatalogue, categories: readonly (string | undefined)[]) {
   const factionNames =
     factionNamesCache.get(loaded) ?? new Set(loaded.factions.map((faction) => factionDisplayName(faction.name).toLowerCase()))
   if (!factionNamesCache.has(loaded)) factionNamesCache.set(loaded, factionNames)
@@ -196,7 +199,7 @@ function referenceFactionOf(loaded: LoadedCatalogue, categories: readonly (strin
       return factionNames.has(canonical.toLowerCase()) ? [canonical] : []
     }),
   )
-  return candidates.size === 1 ? [...candidates][0] : null
+  return candidates
 }
 
 export function isDatasheetId(index: CatalogueIndex, entryId: string, catalogueId?: string | null) {

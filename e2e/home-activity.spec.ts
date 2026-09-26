@@ -82,6 +82,17 @@ test('the home page fits a phone at both signed-out and signed-in widths', async
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
 })
 
+test('omits the games shelf when the player has no active game', async ({ page }) => {
+  await signUp(page, uniqueName('Idle'))
+  await page.goto('/')
+
+  await expect(page.locator('[data-battle-shelf="Your game"], [data-battle-shelf="Your games"]')).toHaveCount(0)
+  await expect(page.getByText('No game in progress')).toBeVisible()
+  await expect(page.getByText('Nothing to review')).toBeVisible()
+  await expect(page.getByRole('main').getByText('Public games', { exact: true })).toBeVisible()
+  await page.screenshot({ path: 'test-results/home-no-active-game.png' })
+})
+
 /**
  * The signed-in home page runs outwards from the reader.
  *
@@ -113,17 +124,19 @@ test('orders the signed-in home page from the player outwards', async ({ browser
 
     await host.goto('/')
     await expect(host.getByRole('heading', { name: `Welcome back, ${hostName}` })).toBeVisible()
-    const rubrics = host.locator('main').getByText(/^(Your games|Games you have played|Friends' games|Public games)$/)
-    await expect(rubrics).toHaveText(['Your games', 'Games you have played', "Friends' games", 'Public games'])
+    const rubrics = host.locator('main').getByText(/^(Your game|Games you have played|Friends' games|Public games)$/)
+    await expect(rubrics).toHaveText(['Your game', 'Games you have played', "Friends' games", 'Public games'])
 
     await expect(host.locator('[data-home-rosters]').getByRole('link', { name: /Host list/ })).toHaveCount(1)
 
-    const yours = host.locator('[data-battle-shelf="Your games"]')
+    const yours = host.locator('[data-battle-shelf="Your game"]')
     const history = host.locator('[data-home-played]')
     await expect(yours.locator(`a[href="${new URL(going).pathname}"]`)).toHaveCount(1)
     await expect(yours.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(0)
     await expect(history.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)
     await expect(history.locator(`a[href="${new URL(going).pathname}"]`)).toHaveCount(0)
+    await host.setViewportSize({ width: 390, height: 844 })
+    expect(await host.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   } finally {
     await Promise.all([hostContext.close(), guestContext.close()])
   }
