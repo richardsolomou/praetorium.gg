@@ -8,7 +8,6 @@ import { WorkerCatalogueStore } from './workerCatalogueStore'
 const snapshotId = 'a'.repeat(64)
 const part = 'partitions/000000000000000000000000.json'
 const globalReference = 'references/global.json'
-const searchReferenceShards = [globalReference, 'references/0.json', 'references/1.json']
 const factionReference = 'references/factions/000000000000000000000000.json'
 const sheetReference = 'references/sheets/000000000000000000000000.json'
 const documentId = 'rule:core:move'
@@ -20,7 +19,7 @@ beforeEach(async () => {
   await clearGlobalSingleton('praetorium.worker-catalogue-resolved')
 })
 
-function fixture(shards = [globalReference]) {
+function fixture() {
   const shared = encode({
     datacards: { factions: new Map() },
     sourceReferences: emptyExternalReferences(),
@@ -76,7 +75,7 @@ function fixture(shards = [globalReference]) {
     revisions: {},
     index: { factions: [] },
     factions: [],
-    shards,
+    shards: [globalReference],
     factionShards: { army: factionReference },
     documentShards: { [documentId]: globalReference, [datasheetDocumentId]: factionReference },
     sheetAssets: { army: { unit: sheetReference } },
@@ -92,7 +91,6 @@ function fixture(shards = [globalReference]) {
       'search.json': { sha256: sha256(searchIndex), bytes: searchIndex.byteLength },
       'reference-meta.json': { sha256: sha256(referenceMetadata), bytes: referenceMetadata.byteLength },
       [globalReference]: { sha256: sha256(referenceShard), bytes: referenceShard.byteLength },
-      ...Object.fromEntries(shards.map((name) => [name, { sha256: sha256(referenceShard), bytes: referenceShard.byteLength }])),
       [factionReference]: { sha256: sha256(referenceShard), bytes: referenceShard.byteLength },
       [sheetReference]: { sha256: sha256(sheet), bytes: sheet.byteLength },
       [part]: { sha256: sha256(partition), bytes: partition.byteLength },
@@ -108,7 +106,6 @@ function fixture(shards = [globalReference]) {
     [`${prefix}/search.json`, searchIndex],
     [`${prefix}/reference-meta.json`, referenceMetadata],
     [`${prefix}/${globalReference}`, referenceShard],
-    ...shards.map((name) => [`${prefix}/${name}`, referenceShard] as const),
     [`${prefix}/${factionReference}`, referenceShard],
     [`${prefix}/${sheetReference}`, sheet],
     [`${prefix}/${part}`, partition],
@@ -241,42 +238,6 @@ it('finds a reference through a bounded shard search', async () => {
   const { read, manifestSha256 } = fixture()
   const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
   expect((await store.searchReferences({ query: 'battlefield' })).results[0]?.id).toBe(documentId)
-})
-
-it('searches at most two reference shards at once', async () => {
-  const { read, manifestSha256 } = fixture(searchReferenceShards)
-  const started: string[] = []
-  let releaseFirst!: () => void
-  let firstStarted!: () => void
-  const firstReading = new Promise<void>((resolve) => {
-    firstStarted = resolve
-  })
-  const firstReady = new Promise<void>((resolve) => {
-    releaseFirst = resolve
-  })
-  const store = new WorkerCatalogueStore(
-    async (key, maxBytes) => {
-      if (searchReferenceShards.some((name) => key.endsWith(`/${name}`))) {
-        started.push(key)
-        if (key.endsWith(`/${globalReference}`)) {
-          firstStarted()
-          await firstReady
-        }
-      }
-      return read(key, maxBytes)
-    },
-    snapshotId,
-    manifestSha256,
-  )
-
-  const searching = store.searchReferences({ query: 'battlefield' })
-  await firstReading
-  await new Promise(setImmediate)
-  const initialReads = started.length
-  releaseFirst()
-  await searching
-  expect(initialReads).toBe(2)
-  expect(started).toHaveLength(3)
 })
 
 it('refuses a manifest whose hash differs from the deployed version', async () => {

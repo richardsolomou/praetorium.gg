@@ -411,11 +411,7 @@ export class WorkerCatalogueStore {
   async searchReferences(input: ReferenceSearchInput) {
     const metadata = await this.referenceMetadata()
     const matches: ReturnType<typeof rankReferencePart> = []
-    for (let offset = 0; offset < metadata.shards.length; offset += 2) {
-      const batch = metadata.shards.slice(offset, offset + 2)
-      const parts = await Promise.all(batch.map(async (name) => rankReferencePart(await this.referenceShard(name), input)))
-      for (const part of parts) matches.push(...part)
-    }
+    for (const name of metadata.shards) matches.push(...rankReferencePart(await this.referenceShard(name), input))
     return finishReferenceSearch(input, metadata.revisions, matches)
   }
 }
