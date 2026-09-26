@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { Route } from './health'
 
-const { ready, execute } = vi.hoisted(() => ({ ready: vi.fn(), execute: vi.fn() }))
-vi.mock('../../server/app', () => ({ app: () => ({ ready, database: { execute } }) }))
+const { ready, check } = vi.hoisted(() => ({ ready: vi.fn(), check: vi.fn() }))
+vi.mock('../../server/app', () => ({ app: () => ({ ready, health: check }) }))
 beforeEach(() => {
   ready.mockReset().mockResolvedValue(undefined)
-  execute.mockReset().mockResolvedValue(undefined)
+  check.mockReset().mockResolvedValue(undefined)
 })
 afterEach(() => vi.unstubAllEnvs())
 
@@ -15,9 +15,9 @@ async function health() {
   return handlers.GET({} as never) as Promise<Response>
 }
 
-it('checks the application database before reporting health', async () => {
+it('checks the application data stores before reporting health', async () => {
   await health()
-  expect(execute).toHaveBeenCalledOnce()
+  expect(check).toHaveBeenCalledOnce()
 })
 
 it('identifies the ready release for deployment verification', async () => {
@@ -27,7 +27,7 @@ it('identifies the ready release for deployment verification', async () => {
 
 it('redacts a real health-handler database failure', async () => {
   vi.stubEnv('GITHUB_SHA', 'failed-release-sha')
-  execute.mockRejectedValue(new Error('postgres://user:secret@db/private'))
+  check.mockRejectedValue(new Error('postgres://user:secret@db/private'))
   const response = await health()
   expect(response.status).toBe(503)
   expect(response.headers.get('x-praetorium-revision')).toBeNull()

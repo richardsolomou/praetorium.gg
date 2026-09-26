@@ -809,6 +809,8 @@ export class Repository {
   }
 }
 
+export type RepositoryPort = Pick<Repository, keyof Repository>
+
 /**
  * Serializes everything that appends to one battle.
  *

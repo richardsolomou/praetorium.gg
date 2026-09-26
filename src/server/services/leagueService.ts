@@ -15,13 +15,13 @@ import {
   type LeagueVisibility,
 } from '../../core/league'
 import type { TableShape } from '../../core/tableShape'
-import type { Repository } from '../../db/repository'
+import type { RepositoryPort } from '../../db/repository'
 import type { Notifier } from '../pushNotifier'
 import { rosterFromRow } from '../rosterPersistence'
 
 export class LeagueService {
   constructor(
-    private readonly repository: Repository,
+    private readonly repository: RepositoryPort,
     private readonly clock: () => number,
     private readonly events: BattleEvents,
     private readonly notifier: Notifier,

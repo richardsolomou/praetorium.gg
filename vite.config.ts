@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
       tanstackStart({ serverFns: { disableCsrfMiddlewareWarning: true } }),
       nitro({
         plugins: [
-          path.resolve(import.meta.dirname, 'src/server/warmPlugin.ts'),
+          ...(process.env.NITRO_PRESET?.startsWith('cloudflare') ? [] : [path.resolve(import.meta.dirname, 'src/server/warmPlugin.ts')]),
           path.resolve(import.meta.dirname, 'src/server/cspPlugin.ts'),
         ],
         routeRules: {

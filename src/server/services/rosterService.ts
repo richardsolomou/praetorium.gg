@@ -4,7 +4,7 @@ import type { FormatRuleId, OptionalRuleId, Secondary, Stratagem } from '../../c
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { RosterReminder } from '../../core/reminders'
-import type { Repository } from '../../db/repository'
+import type { RepositoryPort } from '../../db/repository'
 import { picksSchema } from '../schemas'
 import { detachmentIds, optionalRulesFrom, rosterFromRow, waivedRulesFrom } from '../rosterPersistence'
 
@@ -33,7 +33,7 @@ function rosterSummaries<T extends { detachmentId: string | null; waivedRules: s
 
 export class RosterService {
   constructor(
-    private readonly repository: Repository,
+    private readonly repository: RepositoryPort,
     private readonly clock: () => number,
   ) {}
 

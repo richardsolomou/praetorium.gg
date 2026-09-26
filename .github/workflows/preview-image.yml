@@ -11,38 +11,29 @@ permissions:
   contents: read
 
 jobs:
-  release-candidate:
-    if: startsWith(github.head_ref, 'release-candidate/')
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Preview images are not built for release candidates"
-
   preview:
-    if: startsWith(github.head_ref, 'release-candidate/') == false
+    if: startsWith(github.head_ref, 'release-candidate/') == false && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      checks: write
-      issues: write
-      pull-requests: write
-    uses: richardsolomou/ras-stack/.github/workflows/build-dokploy-preview.yml@v2
-    with:
-      package: praetorium.gg
-      local-image: praetorium.gg
-      domain: praetorium.gg
-      marker: <!-- praetorium-preview -->
-      note: Test battles with `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Preview data is disposable and resets on every deployment.
-      cache-scope: e2e-image
-      build-args: |
-        VITE_POSTHOG_HOST=${{ vars.VITE_POSTHOG_HOST }}
-        VITE_POSTHOG_PROJECT_TOKEN=${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
-        POSTHOG_PROJECT_ID=${{ vars.POSTHOG_PROJECT_ID }}
-        POSTHOG_HOST=${{ vars.POSTHOG_HOST }}
-        GITHUB_ACTIONS=true
-        GITHUB_SHA=${{ github.event.pull_request.head.sha }}
-        GITHUB_REF_NAME=${{ github.head_ref }}
-        GITHUB_REPOSITORY=${{ github.repository }}
-        GITHUB_SERVER_URL=${{ github.server_url }}
-      build-secret-id: POSTHOG_API_KEY
-    secrets:
-      build-secret: ${{ secrets.POSTHOG_API_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build the E2E image without deployment credentials
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PREVIEW_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          docker build --build-arg GITHUB_SHA="$PREVIEW_SHA" \
+            --tag "praetorium.gg:preview-pr-$PR_NUMBER-sha-$PREVIEW_SHA" .
+      - name: Publish internal image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PREVIEW_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          image="ghcr.io/$GITHUB_REPOSITORY_OWNER/praetorium.gg:preview-pr-$PR_NUMBER-sha-$PREVIEW_SHA"
+          docker tag "praetorium.gg:preview-pr-$PR_NUMBER-sha-$PREVIEW_SHA" "$image"
+          docker push "$image"

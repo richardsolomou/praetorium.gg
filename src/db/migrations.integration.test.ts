@@ -5,14 +5,14 @@ import { expect, it } from 'vitest'
 import { migrationsFolder } from './connection'
 
 async function executeMigration(client: PGlite, file: string) {
-  const contents = await readFile(join(migrationsFolder, file), 'utf8')
+  const contents = await readFile(join(migrationsFolder(), file), 'utf8')
   for (const statement of contents.split('--> statement-breakpoint').map((part) => part.trim())) {
     if (statement) await client.exec(statement)
   }
 }
 
 async function executeMigrationsBefore(client: PGlite, target: string) {
-  const migrations = (await readdir(migrationsFolder)).filter((file) => /^\d{4}_.*\.sql$/.test(file) && file < target).sort()
+  const migrations = (await readdir(migrationsFolder())).filter((file) => /^\d{4}_.*\.sql$/.test(file) && file < target).sort()
   for (const migration of migrations) await executeMigration(client, migration)
 }
 

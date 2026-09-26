@@ -1,0 +1,161 @@
+name: Cloudflare preview deploy
+
+on:
+  workflow_run:
+    workflows: [Cloudflare preview image]
+    types: [completed]
+  pull_request_target:
+    types: [closed]
+
+concurrency:
+  group: cloudflare-preview-${{ github.event.workflow_run.pull_requests[0].number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+jobs:
+  report-awaiting:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'action_required' && github.event.workflow_run.pull_requests[0] && !startsWith(github.event.workflow_run.head_branch, 'release-candidate/')
+    permissions:
+      contents: read
+      checks: write
+      issues: write
+      pull-requests: write
+    uses: richardsolomou/ras-stack/.github/workflows/report-preview-status.yml@v1
+    with:
+      state: awaiting
+      pr-number: ${{ github.event.workflow_run.pull_requests[0].number }}
+      sha: ${{ github.event.workflow_run.head_sha }}
+      preview-url: https://pr-${{ github.event.workflow_run.pull_requests[0].number }}.praetorium.gg
+      marker: <!-- praetorium-preview -->
+      check-name: Cloudflare preview deploy
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
+
+  report-build-failure:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success' && github.event.workflow_run.conclusion != 'action_required' && github.event.workflow_run.pull_requests[0] && !startsWith(github.event.workflow_run.head_branch, 'release-candidate/')
+    permissions:
+      contents: read
+      checks: write
+      issues: write
+      pull-requests: write
+    uses: richardsolomou/ras-stack/.github/workflows/report-preview-status.yml@v1
+    with:
+      state: failed
+      pr-number: ${{ github.event.workflow_run.pull_requests[0].number }}
+      sha: ${{ github.event.workflow_run.head_sha }}
+      preview-url: https://pr-${{ github.event.workflow_run.pull_requests[0].number }}.praetorium.gg
+      run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
+      marker: <!-- praetorium-preview -->
+      check-name: Cloudflare preview deploy
+      note: Test battles with `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Preview data is disposable and resets on every deployment.
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.pull_requests[0] && !startsWith(github.event.workflow_run.head_branch, 'release-candidate/')
+    environment: ${{ startsWith(github.event.workflow_run.head_branch, 'dependabot/') && 'dependabot-preview' || github.event.workflow_run.head_repository.full_name != github.repository && 'pr-preview' || 'cloudflare-preview' }}
+    runs-on: ubuntu-latest
+    outputs:
+      active: ${{ steps.current.outputs.active }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Check the PR still points at this build
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          PREVIEW_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          state="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.state')"
+          head="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.head.sha')"
+          if [[ "$state" = open && "$head" = "$PREVIEW_SHA" ]]; then
+            echo 'active=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Download untrusted build output
+        if: steps.current.outputs.active == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          PREVIEW_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: gh run download "$RUN_ID" --name "cloudflare-preview-$PR_NUMBER-$PREVIEW_SHA" --dir "$RUNNER_TEMP/cloudflare-preview"
+      - name: Load container image
+        if: steps.current.outputs.active == 'true'
+        run: docker load --input "$RUNNER_TEMP/cloudflare-preview/container.tar"
+      - name: Provision and deploy isolated preview
+        if: steps.current.outputs.active == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          SPACETIME_URL: ${{ vars.SPACETIME_URL }}
+          SPACETIME_ADMIN_TOKEN: ${{ secrets.SPACETIME_ADMIN_TOKEN }}
+          SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.SPACETIME_ACCESS_CLIENT_ID }}
+          SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
+          CATALOGUE_BASE_URL: ${{ vars.CATALOGUE_BASE_URL }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          PREVIEW_SHA: ${{ github.event.workflow_run.head_sha }}
+          PREVIEW_WORKER_BUNDLE: ${{ runner.temp }}/cloudflare-preview/worker.js
+          PREVIEW_PRODUCT_BUNDLE: ${{ runner.temp }}/cloudflare-preview/product.js
+        run: |
+          PREVIEW_IMAGE="praetorium-pr-$PR_NUMBER:sha-$PREVIEW_SHA" pnpm exec tsx scripts/cloudflarePreview.ts deploy
+
+  report-deploy:
+    needs: [deploy]
+    if: always() && (needs.deploy.result == 'failure' || needs.deploy.outputs.active == 'true') && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.pull_requests[0] && !startsWith(github.event.workflow_run.head_branch, 'release-candidate/')
+    permissions:
+      contents: read
+      checks: write
+      issues: write
+      pull-requests: write
+    uses: richardsolomou/ras-stack/.github/workflows/report-preview-status.yml@v1
+    with:
+      state: ${{ needs.deploy.result == 'success' && 'ready' || 'failed' }}
+      pr-number: ${{ github.event.workflow_run.pull_requests[0].number }}
+      sha: ${{ github.event.workflow_run.head_sha }}
+      preview-url: https://pr-${{ github.event.workflow_run.pull_requests[0].number }}.praetorium.gg
+      run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      marker: <!-- praetorium-preview -->
+      check-name: Cloudflare preview deploy
+      note: Test battles with `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Preview data is disposable and resets on every deployment.
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
+
+  delete:
+    if: github.event_name == 'pull_request_target' && !startsWith(github.event.pull_request.head.ref, 'release-candidate/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Remove the closed PR's isolated resources
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          SPACETIME_URL: ${{ vars.SPACETIME_URL }}
+          SPACETIME_ADMIN_TOKEN: ${{ secrets.SPACETIME_ADMIN_TOKEN }}
+          SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.SPACETIME_ACCESS_CLIENT_ID }}
+          SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: pnpm exec tsx scripts/cloudflarePreview.ts delete
+
+  report-delete:
+    needs: [delete]
+    if: always() && github.event_name == 'pull_request_target' && !startsWith(github.event.pull_request.head.ref, 'release-candidate/')
+    permissions:
+      contents: read
+      checks: write
+      issues: write
+      pull-requests: write
+    uses: richardsolomou/ras-stack/.github/workflows/report-preview-status.yml@v1
+    with:
+      state: ${{ needs.delete.result == 'success' && 'deleted' || 'failed' }}
+      pr-number: ${{ github.event.pull_request.number }}
+      sha: ${{ github.event.pull_request.head.sha }}
+      marker: <!-- praetorium-preview -->
+      check-name: Cloudflare preview deploy
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}

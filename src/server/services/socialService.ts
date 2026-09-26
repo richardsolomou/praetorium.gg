@@ -1,11 +1,11 @@
-import type { Repository } from '../../db/repository'
+import type { Repository, RepositoryPort } from '../../db/repository'
 import { PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
 import { randomToken } from 'ras-stack/auth'
 import type { Notifier } from '../pushNotifier'
 
 export class SocialService {
   constructor(
-    private readonly repository: Repository,
+    private readonly repository: RepositoryPort,
     private readonly clock: () => number,
     private readonly notifier: Notifier,
   ) {}

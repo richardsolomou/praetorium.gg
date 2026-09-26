@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { randomInt } from 'node:crypto'
+import { sql } from 'drizzle-orm'
 import { persistedSecret } from 'ras-stack/auth'
 import { globalSingleton } from 'ras-stack/server'
 import { type BattleEvents, RealtimePublisher } from '../adapters/events'
@@ -19,8 +20,15 @@ import type { SyncState } from './sync'
 import { databaseUrl, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
 import { createAuth } from './auth'
+import { createD1Auth } from './d1Auth'
+import { remoteD1 } from './d1Bridge'
+import { D1AccountRepository } from './d1AccountRepository'
+import { SpacetimeOperator } from './spacetimeOperator'
+import { SpacetimeRepository } from './spacetimeRepository'
+import { storeProfileImageFromUrl } from './avatarStorage'
+import { profileUpdate } from './profile'
 import { realtimeConfig } from '../adapters/realtime'
-import { openValkey, type ValkeyClient, valkeySecondaryStorage, valkeyUrl } from '../adapters/valkey'
+import { openValkey, type ValkeyClient, valkeyReachable, valkeySecondaryStorage, valkeyUrl } from '../adapters/valkey'
 import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
 import { pushSenderFromEnvironment } from '../adapters/push'
@@ -33,9 +41,7 @@ import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { combatUnitsFor } from './combatUnits'
 
 type App = {
-  database: PraetoriumDatabase
-  /** Null on a single-replica instance, which needs none of it. */
-  valkey: ValkeyClient | null
+  health: () => Promise<void>
   service: PraetoriumService
   events: BattleEvents
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
@@ -50,7 +56,8 @@ type App = {
   combatUnits: () => ReturnType<typeof combatUnitsFor>
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
-  auth: ReturnType<typeof createAuth>
+  auth: ReturnType<typeof createAuth> | ReturnType<typeof createD1Auth>
+  spacetimeToken: ((headers: Headers) => Promise<string>) | null
   email: ReturnType<typeof emailDelivery>
   /** Whether this instance sends push notifications; nothing else depends on it. */
   push: boolean
@@ -146,14 +153,32 @@ export function app(): App {
     // Secrets and the catalogue cache still live on disk; only the game data moved.
     const dataDirectory = path.resolve(process.env.DATA_DIR ?? '/data')
     const catalogueDataDirectory = catalogueDirectory(dataDirectory)
-    const { database } = openDatabase(databaseUrl())
-    const valkey = valkeyUrl()
-    const cache = valkey ? openValkey(valkey) : null
-    const realtime = realtimeConfig()
-    if (!realtime) throw new Error('Realtime secret is not configured')
-    const events = new RealtimePublisher(realtime.apiUrl, realtime.apiKey)
     const email = emailDelivery()
-    const repository = new Repository(database)
+    const hosted = Boolean(process.env.SPACETIME_URL)
+    let database: PraetoriumDatabase | null = null
+    let cache: ValkeyClient | null = null
+    let operator: SpacetimeOperator | null = null
+    const cloudflare = (globalThis as typeof globalThis & { __env__?: { AUTH_DB?: ReturnType<typeof remoteD1> } }).__env__
+    const binding = hosted ? (cloudflare?.AUTH_DB ?? remoteD1()) : null
+    if (hosted) {
+      operator = new SpacetimeOperator(
+        process.env.SPACETIME_URL!,
+        process.env.SPACETIME_DATABASE ?? '',
+        process.env.SPACETIME_OPERATOR_TOKEN ?? '',
+        (request) => fetch(request),
+        process.env.SPACETIME_ACCESS_CLIENT_ID && process.env.SPACETIME_ACCESS_CLIENT_SECRET
+          ? { clientId: process.env.SPACETIME_ACCESS_CLIENT_ID, clientSecret: process.env.SPACETIME_ACCESS_CLIENT_SECRET }
+          : undefined,
+      )
+    } else {
+      database = openDatabase(databaseUrl()).database
+      const valkey = valkeyUrl()
+      cache = valkey ? openValkey(valkey) : null
+    }
+    const realtime = hosted ? null : realtimeConfig()
+    if (!hosted && !realtime) throw new Error('Realtime secret is not configured')
+    const events: BattleEvents = realtime ? new RealtimePublisher(realtime.apiUrl, realtime.apiKey) : { publish: () => {} }
+    const repository = hosted ? new SpacetimeRepository(new D1AccountRepository(binding), operator!) : new Repository(database!)
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     let ready = Promise.resolve()
     const loaders = () => ({
@@ -170,12 +195,29 @@ export function app(): App {
       }),
     })
     const loaded = loaders()
+    const auth = hosted
+      ? createD1Auth(binding, process.env.AUTH_SECRET ?? '', {
+          environment: process.env,
+          email,
+          deleteUserData: (userId) => operator!.deleteUserData(userId),
+          revokeSessionAccess: (sessionId) => operator!.revokeSession(sessionId),
+          storeSocialAvatar: storeProfileImageFromUrl,
+          updateProfile: profileUpdate,
+        })
+      : createAuth(database!, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email)
     const instance: App = {
-      database,
-      valkey: cache,
+      health: async () => {
+        if (hosted) {
+          await Promise.all([binding.prepare('select 1').first(), operator!.health()])
+        } else {
+          await database!.execute(sql`select 1`)
+          if (cache && !(await valkeyReachable(cache))) throw new Error('Valkey unavailable')
+        }
+      },
       service: new PraetoriumService(repository, Date.now, events, randomInt, push ? pushNotifier(repository, push) : silentNotifier),
       events,
-      auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email),
+      auth,
+      spacetimeToken: hosted ? async (headers) => (await (auth as ReturnType<typeof createD1Auth>).api.getToken({ headers })).token : null,
       email,
       catalogue: loaded.catalogue,
       canonicalCatalogue: loaded.canonical,

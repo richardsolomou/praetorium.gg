@@ -17,7 +17,7 @@
       }
     }
   ],
-  "ignorePatterns": ["src/routeTree.gen.ts", ".output/**", "node_modules/**", "src/components/ui/**"],
+  "ignorePatterns": ["src/routeTree.gen.ts", "src/spacetime/generated/**", ".output/**", "node_modules/**", "src/components/ui/**"],
   "env": {
     "builtin": true
   }

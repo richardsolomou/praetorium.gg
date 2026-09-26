@@ -13,7 +13,9 @@ export const user = sqliteTable(
     image: text('image'),
     createdAt: date('createdAt').notNull(),
     updatedAt: date('updatedAt').notNull(),
-    role: text('role').notNull().default('user'),
+    role: text('role', { enum: ['admin', 'user'] })
+      .notNull()
+      .default('user'),
     banned: flag('banned').notNull().default(false),
     banReason: text('banReason'),
     banExpires: date('banExpires'),

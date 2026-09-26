@@ -1,4 +1,5 @@
 import { z } from 'zod'
+export { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from './notificationConfig'
 
 /**
  * Something a player who is not looking may want to act on.
@@ -16,14 +17,6 @@ export type Notice = { actorId: string; recipientIds: readonly string[] } & (
 )
 
 export type NoticeMessage = { title: string; body: string; path: string }
-
-/** What a player who has never answered gets. Nothing reaches a device the player has not allowed at the system prompt. */
-export const DEFAULT_PUSH_NOTIFICATIONS = true
-
-/** Devices one account keeps; registering another forgets the one seen longest ago. */
-export const PUSH_TOKENS_PER_USER = 10
-
-export const PUSH_PLATFORMS = ['ios', 'android'] as const
 
 export const pushTokenSchema = z
   .string()
