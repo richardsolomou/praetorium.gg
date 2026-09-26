@@ -370,7 +370,7 @@ export function app(): App {
       )
       worker?.waitUntil?.(ready)
     } else {
-      // A self-hosted instance fetches a snapshot without blocking battle requests.
+      // Local development fetches a snapshot without blocking battle requests.
       sync.begin(catalogueDataDirectory, swap)
       const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap), 60 * 60 * 1000)
       catalogueRefresh.unref()

@@ -26,16 +26,8 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL, trace: process.env.PLAYWRIGHT_TRACE ? 'on' : 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } }],
-  /*
-   * The container, not the bundle: Centrifugo and Caddy are part of how this app
-   * serves a request, so a suite that ran the Node output alone would be testing a
-   * topology nobody deploys — and the websocket would cross an origin it never
-   * crosses in production.
-   *
-   * Postgres and Valkey come up beside it for the same reason. The script owns
-   * the whole stack so it can take all of it down again, including after a
-   * failure.
-   */
+  // The script owns the isolated local app, Postgres, Valkey, and realtime
+  // service so the suite can shut them all down after a failure.
   webServer: {
     command: `sh e2e/stack.sh ${port}`,
     env: {

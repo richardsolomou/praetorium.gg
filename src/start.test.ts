@@ -29,7 +29,7 @@ it.each([
   expect(await (await request(url)).text()).toBe('application')
 })
 
-it('leaves unconfigured deployments on their incoming host', async () => {
+it('leaves local requests on their incoming host', async () => {
   vi.stubEnv('APP_URL', '')
-  expect(await (await request('https://self-hosted.example/')).text()).toBe('application')
+  expect(await (await request('https://local.example/')).text()).toBe('application')
 })

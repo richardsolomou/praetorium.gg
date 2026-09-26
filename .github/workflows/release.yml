@@ -39,6 +39,9 @@ jobs:
           GITHUB_SHA: ${{ needs.release.outputs.sha || github.sha }}
           VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
           VITE_POSTHOG_PROJECT_TOKEN: ${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ vars.POSTHOG_PROJECT_ID }}
+          POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
         run: pnpm build
       - name: Install verified catalogue assets
         run: |
@@ -179,7 +182,7 @@ jobs:
         run: |
           pnpm exec wrangler deploy --config "$RUNNER_TEMP/wrangler-production.json" \
             --secrets-file "$RUNNER_TEMP/wrangler-production-secrets.json" \
-            --route 'praetorium.gg/*' --route 's3.praetorium.gg/*' --route 'catalogue.praetorium.gg/*'
+            --route 'praetorium.gg/*' --route 's3.praetorium.gg/*'
       - name: Verify production revision
         env:
           EXPECTED_REVISION: ${{ needs.release.outputs.sha || github.sha }}
@@ -195,22 +198,20 @@ jobs:
           echo "Production did not serve revision $EXPECTED_REVISION" >&2
           exit 1
 
-      - name: Verify public object routes
+      - name: Verify public object route
         run: |
           set -euo pipefail
-          for host in s3.praetorium.gg catalogue.praetorium.gg; do
-            ready=false
-            for _ in {1..12}; do
-              if curl --fail --silent --show-error --max-time 20 \
-                --dump-header "$RUNNER_TEMP/$host.headers" \
-                --output "$RUNNER_TEMP/$host.json" \
-                "https://$host/praetorium/current.json" \
-                && grep -Eiq '^x-praetorium-object-source: r2' "$RUNNER_TEMP/$host.headers" \
-                && jq -e '.id | test("^[0-9a-f]{64}$")' "$RUNNER_TEMP/$host.json" > /dev/null; then
-                ready=true
-                break
-              fi
-              sleep 5
-            done
-            test "$ready" = true
+          ready=false
+          for _ in {1..12}; do
+            if curl --fail --silent --show-error --max-time 20 \
+              --dump-header "$RUNNER_TEMP/s3.headers" \
+              --output "$RUNNER_TEMP/s3.json" \
+              https://s3.praetorium.gg/praetorium/current.json \
+              && grep -Eiq '^x-praetorium-object-source: r2' "$RUNNER_TEMP/s3.headers" \
+              && jq -e '.id | test("^[0-9a-f]{64}$")' "$RUNNER_TEMP/s3.json" > /dev/null; then
+              ready=true
+              break
+            fi
+            sleep 5
           done
+          test "$ready" = true

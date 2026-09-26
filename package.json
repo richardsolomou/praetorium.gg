@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "vite dev",
     "realtime": "sh scripts/realtime.sh",
-    "build": "vite build && vite build --config vite.seed.config.ts && esbuild scripts/containerRuntime.ts --bundle --platform=node --format=esm --target=node24 --outfile=.output/server/container-runtime.mjs --log-level=warning && esbuild scripts/migrate.ts --bundle --platform=node --format=esm --target=node24 --outfile=.output/server/migrate.mjs --log-level=warning && ras assets sync",
+    "build": "vite build && vite build --config vite.seed.config.ts && ras assets sync",
+    "build:e2e-runtime": "esbuild scripts/containerRuntime.ts --bundle --platform=node --format=esm --target=node24 --outfile=.output/server/container-runtime.mjs --log-level=warning && esbuild scripts/migrate.ts --bundle --platform=node --format=esm --target=node24 --outfile=.output/server/migrate.mjs --log-level=warning",
     "start": "node .output/server/index.mjs",
     "typecheck": "tsc --noEmit && tsc -p cloudflare/tsconfig.json && pnpm --dir mobile typecheck && pnpm --dir spacetimedb typecheck",
     "lint": "oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity=error .",
@@ -27,7 +28,7 @@
     "changeset": "changeset",
     "version-packages": "changeset version && tsx scripts/clearAcceptedCoverageLosses.ts",
     "release": "changeset git-tag",
-    "test:e2e": "docker build -t praetorium-e2e . && playwright test",
+    "test:e2e": "docker build -f e2e/Dockerfile -t praetorium-e2e . && playwright test",
     "test:e2e:run": "playwright test",
     "test:e2e:native-auth:ios": "tsx e2e/nativeAuthIos.ts",
     "test:e2e:install": "playwright install chromium --only-shell",

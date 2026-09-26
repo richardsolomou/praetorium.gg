@@ -163,9 +163,9 @@ e2e-install:
     pnpm exec playwright install chromium --only-shell
 
 e2e-build:
-    docker build -t praetorium-e2e .
+    docker build -f e2e/Dockerfile -t praetorium-e2e .
 
-# Browsers against the container image, which is the topology that ships
+# Browsers against the isolated local test stack
 e2e *args: e2e-build e2e-down
     pnpm exec playwright test {{ args }}
 

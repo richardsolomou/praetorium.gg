@@ -6,7 +6,7 @@ import { schema } from './schema'
 /**
  * Any Postgres drizzle holds, named at the widest type that still knows the schema.
  *
- * Production talks to a server over `postgres-js`; the unit suites run the same
+ * Local and browser tests talk to a server over `postgres-js`; unit suites run the same
  * SQL against an in-process Postgres. Naming one driver here would fork the
  * repository into two implementations of every query, which is the thing this
  * layer exists to prevent.
