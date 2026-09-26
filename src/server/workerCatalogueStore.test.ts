@@ -9,6 +9,7 @@ const snapshotId = 'a'.repeat(64)
 const part = 'partitions/000000000000000000000000.json'
 const globalReference = 'references/global.json'
 const factionReference = 'references/factions/000000000000000000000000.json'
+const sheetReference = 'references/sheets/000000000000000000000000.json'
 const documentId = 'rule:core:move'
 const datasheetDocumentId = 'datasheet:army:unit'
 const encode = (value: unknown) => new TextEncoder().encode(encodeCatalogueArtifact(value)).buffer
@@ -23,10 +24,13 @@ function fixture() {
     datacards: { factions: new Map() },
     sourceReferences: emptyExternalReferences(),
     rules: { byDetachment: new Map() },
+    searchIndex: { factions: [], detachments: [], datasheets: [] },
+  })
+  const navigation = encode({
     factionIndex: { revision: 'test-revision', factions: [] },
     factions: { revision: 'test-revision', factions: [] },
+    factionIcons: new Map([['army', 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=']]),
     combatUnits: [],
-    searchIndex: { factions: [], detachments: [], datasheets: [] },
     referenceDatasheets: new Map([['army', [{ id: 'unit', slug: 'unit', name: 'Unit' }]]]),
     history: null,
   })
@@ -65,6 +69,7 @@ function fixture() {
     ],
     revision: 'b'.repeat(64),
   })
+  const sheet = encode({ catalogueId: 'army', slug: 'unit', name: 'Unit' })
   const referenceMetadata = encode({
     revision: 'b'.repeat(64),
     revisions: {},
@@ -73,6 +78,7 @@ function fixture() {
     shards: [globalReference],
     factionShards: { army: factionReference },
     documentShards: { [documentId]: globalReference, [datasheetDocumentId]: factionReference },
+    sheetAssets: { army: { unit: sheetReference } },
     paths: ['/factions', '/rules'],
   })
   const manifest = encode({
@@ -81,9 +87,11 @@ function fixture() {
     revision: 'test-revision',
     entries: {
       'shared.json': { sha256: sha256(shared), bytes: shared.byteLength },
+      'navigation.json': { sha256: sha256(navigation), bytes: navigation.byteLength },
       'reference-meta.json': { sha256: sha256(referenceMetadata), bytes: referenceMetadata.byteLength },
       [globalReference]: { sha256: sha256(referenceShard), bytes: referenceShard.byteLength },
       [factionReference]: { sha256: sha256(referenceShard), bytes: referenceShard.byteLength },
+      [sheetReference]: { sha256: sha256(sheet), bytes: sheet.byteLength },
       [part]: { sha256: sha256(partition), bytes: partition.byteLength },
     },
     partitions: { army: part },
@@ -93,9 +101,11 @@ function fixture() {
   const objects = new Map([
     [`${prefix}/manifest.json`, manifest],
     [`${prefix}/shared.json`, shared],
+    [`${prefix}/navigation.json`, navigation],
     [`${prefix}/reference-meta.json`, referenceMetadata],
     [`${prefix}/${globalReference}`, referenceShard],
     [`${prefix}/${factionReference}`, referenceShard],
+    [`${prefix}/${sheetReference}`, sheet],
     [`${prefix}/${part}`, partition],
   ])
   const read = async (key: string, maxBytes: number) => {
@@ -119,26 +129,41 @@ it('serves the initial faction list from eager shared data', async () => {
   const { read, manifestSha256 } = fixture()
   const store = new WorkerCatalogueStore(
     (key, maxBytes) => {
-      if (key.includes('/partitions/')) throw new Error('partition should not be read')
+      if (key.includes('/partitions/') || key.endsWith('/shared.json')) throw new Error('unrelated data should not be read')
       return read(key, maxBytes)
     },
     snapshotId,
     manifestSha256,
   )
   expect((await store.referenceDatasheets('army'))?.map((sheet) => sheet.name)).toEqual(['Unit'])
+  expect(await store.factionIcon('army')).toMatch(/^data:image\/svg\+xml;base64,/)
 })
 
 it('serves a reference datasheet without loading its faction partition', async () => {
   const { read, manifestSha256 } = fixture()
   const store = new WorkerCatalogueStore(
     (key, maxBytes) => {
-      if (key.includes('/partitions/') || key.endsWith('/references/global.json')) throw new Error('unrelated shard should not be read')
+      if (
+        key.includes('/partitions/') ||
+        key.endsWith('/shared.json') ||
+        key.endsWith('/references/global.json') ||
+        key.endsWith(`/${factionReference}`)
+      ) {
+        throw new Error('unrelated shard should not be read')
+      }
       return read(key, maxBytes)
     },
     snapshotId,
     manifestSha256,
   )
   expect((await store.referenceDatasheet('army', 'unit'))?.name).toBe('Unit')
+})
+
+it('rejects a changed individual datasheet', async () => {
+  const { objects, read, manifestSha256, prefix } = fixture()
+  objects.set(`${prefix}/${sheetReference}`, encode({ catalogueId: 'army', slug: 'unit', name: 'Fake' }))
+  const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
+  await expect(store.referenceDatasheet('army', 'unit')).rejects.toThrow('checksum does not match')
 })
 
 it('refuses a changed partition before building its index', async () => {
@@ -191,15 +216,15 @@ it('retries a transient shared object read failure', async () => {
   let unavailable = true
   const store = new WorkerCatalogueStore(
     (key, maxBytes) => {
-      if (key.endsWith('/shared.json') && unavailable) throw new Error('R2 unavailable')
+      if (key.endsWith('/shared.json') && unavailable) throw new Error('Asset unavailable')
       return read(key, maxBytes)
     },
     snapshotId,
     manifestSha256,
   )
-  await expect(store.shared()).rejects.toThrow('R2 unavailable')
+  await expect(store.shared()).rejects.toThrow('Asset unavailable')
   unavailable = false
-  expect((await store.shared()).factions.factions).toEqual([])
+  expect((await store.shared()).searchIndex.datasheets).toEqual([])
 })
 
 it('reuses verified shared data after the request that loaded it ends', async () => {
@@ -208,7 +233,7 @@ it('reuses verified shared data after the request that loaded it ends', async ()
   const shared = await first.shared()
   const second = new WorkerCatalogueStore(
     async () => {
-      throw new Error('unexpected R2 read')
+      throw new Error('unexpected asset read')
     },
     snapshotId,
     manifestSha256,
@@ -217,7 +242,7 @@ it('reuses verified shared data after the request that loaded it ends', async ()
   expect(await second.shared()).toBe(shared)
 })
 
-it('does not share an unfinished R2 read with another request', async () => {
+it('does not share an unfinished asset read with another request', async () => {
   const { objects, read, manifestSha256, prefix } = fixture()
   let release!: (bytes: ArrayBuffer) => void
   let entered!: () => void
@@ -242,5 +267,5 @@ it('does not share an unfinished R2 read with another request', async () => {
   release(objects.get(`${prefix}/shared.json`)!)
   await pending
 
-  expect(shared.factions.factions).toEqual([])
+  expect(shared.searchIndex.datasheets).toEqual([])
 })

@@ -25,14 +25,10 @@ jobs:
           VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
           VITE_POSTHOG_PROJECT_TOKEN: ${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
         run: pnpm build
-      - name: Publish immutable catalogue
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          CATALOGUE_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
-          CATALOGUE_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+      - name: Install verified catalogue assets
         run: |
           pnpm catalogue:worker
-          pnpm catalogue:worker:publish
+          pnpm catalogue:worker:assets
       - name: Build SpacetimeDB module
         env:
           GH_TOKEN: ${{ github.token }}
@@ -117,3 +113,15 @@ jobs:
           done
           echo "Staging did not serve revision $EXPECTED_REVISION" >&2
           exit 1
+      - name: Verify reference and private catalogue assets
+        run: |
+          pnpm reference:verify https://staging.praetorium.gg
+          snapshot_id="$(jq -r .snapshotId .output/worker-catalogue/manifest.json)"
+          manifest_sha="$(sha256sum .output/worker-catalogue/manifest.json | cut -d ' ' -f 1)"
+          status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 20 \
+            "https://staging.praetorium.gg/_catalogue/snapshots/$snapshot_id/$manifest_sha/manifest.json")"
+          test "$status" = 404
+          curl --fail --silent --show-error --max-time 30 \
+            https://staging.praetorium.gg/factions/necrons/datasheets/necron-warriors \
+            --output "$RUNNER_TEMP/necron-warriors.html"
+          grep -q 'Necron Warriors' "$RUNNER_TEMP/necron-warriors.html"

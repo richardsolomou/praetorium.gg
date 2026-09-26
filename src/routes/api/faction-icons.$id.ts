@@ -5,7 +5,7 @@ export const Route = createFileRoute('/api/faction-icons/$id')({
   server: {
     handlers: {
       GET: async ({ params }) => {
-        const icon = (await app().rulesFor())?.factionIcons.get(params.id)
+        const icon = await app().factionIconFor(params.id)
         if (!icon) return new Response('Not found', { status: 404 })
         const encoded = icon.match(/^data:image\/svg\+xml;base64,(.+)$/)?.[1]
         if (!encoded) return Response.redirect(icon, 307)

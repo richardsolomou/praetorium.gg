@@ -98,14 +98,10 @@ jobs:
           VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
           VITE_POSTHOG_PROJECT_TOKEN: ${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
         run: pnpm build
-      - name: Publish immutable catalogue
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          CATALOGUE_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
-          CATALOGUE_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+      - name: Install verified catalogue assets
         run: |
           pnpm catalogue:worker
-          pnpm catalogue:worker:publish
+          pnpm catalogue:worker:assets
       - name: Build SpacetimeDB module
         env:
           GH_TOKEN: ${{ github.token }}

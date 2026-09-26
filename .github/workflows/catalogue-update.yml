@@ -28,9 +28,6 @@ jobs:
       CATALOGUE_SNAPSHOT_FILE: /tmp/catalogue-snapshot.zip
       CATALOGUE_SNAPSHOT_POINTER_FILE: /tmp/catalogue-current.json
       CATALOGUE_DISABLED_SOURCES: ${{ vars.CATALOGUE_DISABLED_SOURCES }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-      CATALOGUE_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
-      CATALOGUE_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
@@ -78,10 +75,10 @@ jobs:
             echo "published catalogue snapshot did not verify yet (attempt $attempt/5) — retrying"
             sleep 5
           done
+          pnpm catalogue:worker
+          pnpm catalogue:worker:assets
           aws s3 cp catalogue/revocations.json "s3://$SNAPSHOT_BUCKET/revocations.json" \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
-          pnpm catalogue:worker
-          pnpm catalogue:worker:publish
           aws s3 cp "$CATALOGUE_SNAPSHOT_POINTER_FILE" "s3://$SNAPSHOT_BUCKET/current.json" \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
           jq -r '.snapshots[]' catalogue/revocations.json | while read -r revoked; do

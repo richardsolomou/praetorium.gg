@@ -56,10 +56,13 @@ write('shared.json', {
   datacards: loaded.datacards,
   sourceReferences: loaded.sourceReferences,
   rules,
+  searchIndex: compiledGlobalSearchIndex(loaded, rules),
+})
+write('navigation.json', {
   factionIndex: factionIndexFor(loaded, rules),
   factions: factionsFor(loaded, rules),
+  factionIcons: rules.factionIcons,
   combatUnits: combatUnitsFor(loaded, rules),
-  searchIndex: compiledGlobalSearchIndex(loaded, rules),
   referenceDatasheets: new Map(
     loaded.factions.map((faction) => [
       faction.id,
@@ -115,6 +118,17 @@ for (const document of reference.documents) {
 const referenceShards: string[] = []
 const factionShards: Record<string, string> = {}
 const documentShards: Record<string, string> = {}
+const sheetAssets: Record<string, Record<string, string>> = Object.create(null)
+const sheetNames = new Set<string>()
+for (const sheet of reference.catalogue.datasheets) {
+  const name = `references/sheets/${createHash('sha256').update(`${sheet.catalogueId}\0${sheet.slug}`).digest('hex').slice(0, 24)}.json`
+  if (sheetNames.has(name) || sheetAssets[sheet.catalogueId]?.[sheet.slug]) {
+    throw new Error(`Reference datasheet asset collision ${sheet.catalogueId}:${sheet.slug}`)
+  }
+  sheetNames.add(name)
+  write(name, sheet)
+  ;(sheetAssets[sheet.catalogueId] ??= Object.create(null))[sheet.slug] = name
+}
 const buckets = Array.from({ length: 8 }, () => ({ ids: [] as string[], bytes: 0 }))
 const weightedGroups = [...groups].map(([id, group]) => ({ id, bytes: Buffer.byteLength(JSON.stringify(group)) }))
 for (const { id, bytes } of weightedGroups.toSorted((left, right) => right.bytes - left.bytes || left.id.localeCompare(right.id))) {
@@ -178,6 +192,7 @@ write('reference-meta.json', {
   shards: referenceShards,
   factionShards,
   documentShards,
+  sheetAssets,
   paths: [...paths].toSorted(),
 })
 

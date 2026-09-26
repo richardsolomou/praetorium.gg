@@ -110,14 +110,10 @@ jobs:
           echo 'd25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831  '"$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" | sha256sum --check
           tar -xzf "$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" -C "$RUNNER_TEMP" spacetimedb-cli
           "$RUNNER_TEMP/spacetimedb-cli" build -p spacetimedb
-      - name: Publish verified catalogue
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          CATALOGUE_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
-          CATALOGUE_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+      - name: Install verified catalogue assets
         run: |
           pnpm catalogue:worker
-          pnpm catalogue:worker:publish
+          pnpm catalogue:worker:assets
       - name: Deploy disposable isolated preview
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -126,8 +122,6 @@ jobs:
           SPACETIME_ADMIN_TOKEN: ${{ secrets.SPACETIME_ADMIN_TOKEN }}
           SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.SPACETIME_ACCESS_CLIENT_ID }}
           SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
-          CATALOGUE_READ_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_READ_ACCESS_KEY_ID }}
-          CATALOGUE_READ_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_READ_SECRET_ACCESS_KEY }}
           PR_NUMBER: 99990606
           PREVIEW_SHA: ${{ github.sha }}
           PREVIEW_WORKER_BUNDLE: ${{ runner.temp }}/worker/nativeWorker.js

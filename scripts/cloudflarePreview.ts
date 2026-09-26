@@ -4,7 +4,14 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { closedPreviewNumbers, d1DatabaseId, previewConfig, previewNames, previewNumber } from './lib/cloudflarePreview'
+import {
+  closedPreviewNumbers,
+  d1DatabaseId,
+  deletePreviewWorker,
+  previewConfig,
+  previewNames,
+  previewNumber,
+} from './lib/cloudflarePreview'
 import { workerCatalogueManifest } from '../src/server/workerCatalogueStore'
 
 const execFile = promisify(execFileCallback)
@@ -53,12 +60,7 @@ async function spacetime(method: string, pathname: string, body?: BodyInit, auth
 
 async function remove(number: number) {
   const names = previewNames(number)
-  const worker = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/services/${names.worker}`, {
-    headers: { authorization: `Bearer ${required('CLOUDFLARE_API_TOKEN')}` },
-    signal: AbortSignal.timeout(10_000),
-  })
-  if (worker.ok) await wrangler('delete', names.worker, '--force')
-  else if (worker.status !== 404) throw new Error(`Cloudflare Worker lookup failed with HTTP ${worker.status}`)
+  await deletePreviewWorker(accountId, names.worker, required('CLOUDFLARE_API_TOKEN'))
   const response = await fetch(new URL(`/v1/database/${names.product}`, serverUrl()), {
     headers: {
       'CF-Access-Client-Id': required('SPACETIME_ACCESS_CLIENT_ID'),
@@ -151,8 +153,6 @@ async function deploy() {
         SPACETIME_OPERATOR_TOKEN: issued.token,
         SPACETIME_ACCESS_CLIENT_ID: required('SPACETIME_ACCESS_CLIENT_ID'),
         SPACETIME_ACCESS_CLIENT_SECRET: required('SPACETIME_ACCESS_CLIENT_SECRET'),
-        CATALOGUE_READ_ACCESS_KEY_ID: required('CATALOGUE_READ_ACCESS_KEY_ID'),
-        CATALOGUE_READ_SECRET_ACCESS_KEY: required('CATALOGUE_READ_SECRET_ACCESS_KEY'),
       }),
       { mode: 0o600 },
     )

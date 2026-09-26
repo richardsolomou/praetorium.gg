@@ -84,16 +84,14 @@ jobs:
           PREVIEW_SHA: ${{ github.event.workflow_run.head_sha }}
           RUN_ID: ${{ github.event.workflow_run.id }}
         run: gh run download "$RUN_ID" --name "cloudflare-preview-$PR_NUMBER-$PREVIEW_SHA" --dir "$RUNNER_TEMP/cloudflare-preview"
-      - name: Publish verified catalogue for the preview
+      - name: Install verified catalogue assets for the preview
         if: steps.current.outputs.active == 'true'
         env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          CATALOGUE_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
-          CATALOGUE_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+          WORKER_CATALOGUE_ASSETS_DIR: ${{ runner.temp }}/cloudflare-preview/assets
         run: |
           pnpm catalogue:sync
           pnpm catalogue:worker
-          pnpm catalogue:worker:publish
+          pnpm catalogue:worker:assets
       - name: Provision and deploy isolated preview
         if: steps.current.outputs.active == 'true'
         env:
@@ -103,8 +101,6 @@ jobs:
           SPACETIME_ADMIN_TOKEN: ${{ secrets.SPACETIME_ADMIN_TOKEN }}
           SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.SPACETIME_ACCESS_CLIENT_ID }}
           SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
-          CATALOGUE_READ_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_READ_ACCESS_KEY_ID }}
-          CATALOGUE_READ_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_READ_SECRET_ACCESS_KEY }}
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
           PREVIEW_SHA: ${{ github.event.workflow_run.head_sha }}
           PREVIEW_WORKER_BUNDLE: ${{ runner.temp }}/cloudflare-preview/worker.js

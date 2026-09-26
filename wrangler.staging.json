@@ -15,6 +15,5 @@
       "database_id": "a776d5fd-d22a-4683-8dbf-e2b36a023f47"
     }
   ],
-  "r2_buckets": [{ "binding": "CATALOGUE", "bucket_name": "praetorium-catalogue" }],
-  "assets": { "directory": ".output/public", "binding": "ASSETS" }
+  "assets": { "directory": ".output/public", "binding": "ASSETS", "run_worker_first": ["/_catalogue/*"] }
 }

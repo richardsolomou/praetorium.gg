@@ -1,9 +1,9 @@
 import path from 'node:path'
 import { randomInt } from 'node:crypto'
 import { sql } from 'drizzle-orm'
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { persistedSecret } from 'ras-stack/auth'
 import { globalSingleton } from 'ras-stack/server'
+import { readWorkerCatalogueAsset } from './workerCatalogueAssets'
 import { type BattleEvents, RealtimePublisher } from '../adapters/events'
 import { serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
@@ -66,6 +66,7 @@ type App = {
   combatUnitsFor: () => Promise<ReturnType<typeof combatUnitsFor>>
   factionIndexFor: () => Promise<ReturnType<typeof factionIndexFor> | null>
   factionsFor: () => Promise<ReturnType<typeof factionsFor> | null>
+  factionIconFor: (id: string) => Promise<string | null>
   searchIndexFor: () => Promise<ReturnType<typeof compiledGlobalSearchIndex> | null>
   workerReferences: WorkerCatalogueStore | null
   /** How the community data is doing, so the interface can say rather than guess. */
@@ -175,12 +176,9 @@ export function app(): App {
       globalThis as typeof globalThis & {
         __env__?: {
           AUTH_DB?: ReturnType<typeof remoteD1>
-          CATALOGUE?: { get: (key: string) => Promise<{ size: number; arrayBuffer: () => Promise<ArrayBuffer> } | null> }
+          ASSETS?: { fetch: (request: string) => Promise<Response> }
           CATALOGUE_SNAPSHOT_ID?: string
           CATALOGUE_MANIFEST_SHA256?: string
-          CATALOGUE_READ_ACCESS_KEY_ID?: string
-          CATALOGUE_READ_SECRET_ACCESS_KEY?: string
-          CLOUDFLARE_ACCOUNT_ID?: string
           SPACETIME_ACCESS_CLIENT_ID?: string
           SPACETIME_ACCESS_CLIENT_SECRET?: string
         }
@@ -195,37 +193,10 @@ export function app(): App {
     const accessClientSecret = cloudflare?.SPACETIME_ACCESS_CLIENT_SECRET ?? process.env.SPACETIME_ACCESS_CLIENT_SECRET
     const spacetimeAccess =
       accessClientId && accessClientSecret ? { clientId: accessClientId, clientSecret: accessClientSecret } : undefined
-    const catalogueAccessKeyId = cloudflare?.CATALOGUE_READ_ACCESS_KEY_ID ?? process.env.CATALOGUE_READ_ACCESS_KEY_ID
-    const catalogueSecretAccessKey = cloudflare?.CATALOGUE_READ_SECRET_ACCESS_KEY ?? process.env.CATALOGUE_READ_SECRET_ACCESS_KEY
-    const catalogueBinding = cloudflare?.CATALOGUE
-    const readCatalogue = catalogueBinding
-      ? async (key: string, maxBytes: number) => {
-          const object = await catalogueBinding.get(key)
-          if (!object || object.size > maxBytes) throw new Error('Worker catalogue object unavailable')
-          return object.arrayBuffer()
-        }
-      : hosted && cloudflare?.CLOUDFLARE_ACCOUNT_ID && catalogueAccessKeyId && catalogueSecretAccessKey
-        ? (() => {
-            const client = new S3Client({
-              endpoint: `https://${cloudflare.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-              region: 'auto',
-              forcePathStyle: true,
-              credentials: {
-                accessKeyId: catalogueAccessKeyId,
-                secretAccessKey: catalogueSecretAccessKey,
-              },
-            })
-            return async (key: string, maxBytes: number) => {
-              const object = await client.send(new GetObjectCommand({ Bucket: 'praetorium-catalogue', Key: key }))
-              if (!object.Body || (object.ContentLength ?? maxBytes + 1) > maxBytes) {
-                throw new Error('Worker catalogue object unavailable')
-              }
-              const bytes = await object.Body.transformToByteArray()
-              if (bytes.byteLength > maxBytes) throw new Error('Worker catalogue object unavailable')
-              return bytes.slice().buffer
-            }
-          })()
-        : null
+    const catalogueAssets = cloudflare?.ASSETS
+    const readCatalogue = catalogueAssets
+      ? (key: string, maxBytes: number) => readWorkerCatalogueAsset(catalogueAssets, key, maxBytes)
+      : null
     const workerCatalogue =
       hosted && readCatalogue
         ? new WorkerCatalogueStore(readCatalogue, cloudflare?.CATALOGUE_SNAPSHOT_ID ?? '', cloudflare?.CATALOGUE_MANIFEST_SHA256 ?? '')
@@ -288,7 +259,12 @@ export function app(): App {
       health: async () => {
         if (hosted) {
           try {
-            await Promise.all([hostedD1().prepare('select 1').first(), operator!.health(), workerCatalogue ? workerShared() : undefined])
+            await Promise.all([
+              hostedD1().prepare('select 1').first(),
+              operator!.health(),
+              workerCatalogue ? workerShared() : undefined,
+              workerCatalogue ? workerCatalogue.navigation() : undefined,
+            ])
           } catch (error) {
             console.error('Hosted health check failed:', error instanceof Error ? error.message : String(error), {
               accessConfigured: Boolean(spacetimeAccess),
@@ -316,19 +292,20 @@ export function app(): App {
       rules: loaded.rules,
       rulesFor: async () => (workerCatalogue ? (await workerShared()).rules : instance.rules()),
       catalogueHistory: loaded.history,
-      catalogueHistoryFor: async () => (workerCatalogue ? (await workerShared()).history : instance.catalogueHistory()),
+      catalogueHistoryFor: async () => (workerCatalogue ? (await workerCatalogue.navigation()).history : instance.catalogueHistory()),
       combatUnits: loaded.combatUnits,
-      combatUnitsFor: async () => (workerCatalogue ? (await workerShared()).combatUnits : instance.combatUnits()),
+      combatUnitsFor: async () => (workerCatalogue ? (await workerCatalogue.navigation()).combatUnits : instance.combatUnits()),
       factionIndexFor: async () => {
-        if (workerCatalogue) return (await workerShared()).factionIndex
+        if (workerCatalogue) return (await workerCatalogue.navigation()).factionIndex
         const catalogue = instance.catalogue()
         return catalogue ? factionIndexFor(catalogue, instance.rules()) : null
       },
       factionsFor: async () => {
-        if (workerCatalogue) return (await workerShared()).factions
+        if (workerCatalogue) return (await workerCatalogue.navigation()).factions
         const catalogue = instance.catalogue()
         return catalogue ? factionsFor(catalogue, instance.rules()) : null
       },
+      factionIconFor: async (id) => (workerCatalogue ? workerCatalogue.factionIcon(id) : (instance.rules()?.factionIcons.get(id) ?? null)),
       searchIndexFor: async () => {
         if (workerCatalogue) return (await workerShared()).searchIndex
         const catalogue = instance.catalogue()
@@ -351,9 +328,13 @@ export function app(): App {
       ready = warm(instance)
     }
     if (workerCatalogue) {
-      ready = workerShared().then(
-        () => {},
-        () => {},
+      ready = Promise.all([workerCatalogue.navigation(), workerCatalogue.referenceMetadata()]).then(
+        () => {
+          nativeSyncState = { status: 'ready', detail: null }
+        },
+        (error: unknown) => {
+          nativeSyncState = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
+        },
       )
       worker?.waitUntil?.(ready)
     } else {

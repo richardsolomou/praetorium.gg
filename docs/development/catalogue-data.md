@@ -10,7 +10,7 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 - `catalogue-data/` contains fetched data and is gitignored. Game data and copied rules text never enter version control.
 - Snapshot publication compiles the source-specific records into `canonical/catalogue.json`. That artifact gives datasheets, detachments, and rule documents one versioned, validated shape, retains the source labels used for display, adds semantic profile and characteristic kinds for UI decisions, and records source revisions and join methods as provenance.
 - An hourly automation checks upstream revisions and publishes a complete immutable snapshot. It excludes source-repository files no product or verification reader consumes, publishes revocations, and replaces the remote `current.json` pointer only after reading and verifying the published archive. A source disagreeing with another about a name is reported there rather than blocking the publish; see [Points ratchet](#points-ratchet).
-- The hosted service checks that pointer hourly. Released self-hosted instances use the committed pin unless their operator selects the latest channel. Developers activate the pin from one platform cache shared by every worktree. All three verify a changed snapshot and swap it into place atomically; none contacts an upstream data provider.
+- Hosted releases compile a verified snapshot into versioned assets. Self-hosted instances use the committed pin unless their operator selects the latest channel, which checks the pointer hourly. Developers activate the pin from one platform cache shared by every worktree. Every path verifies a changed snapshot; none contacts an upstream data provider.
 - Community-data requests have a per-attempt timeout and retry only transient network failures, timeouts, rate limits, and server errors. Checksums and invalid data fail immediately.
 - `src/server/sync.ts` fetches upstream data only for the snapshot publisher. `src/server/catalogueSnapshot.ts` owns packing, verification, and instance downloads.
 - Repository sources extract only their configured path. The sync checks archive size, output size, paths, and required contents before replacement.
@@ -20,6 +20,8 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 - The server loads the catalogue on first use. An instance without catalogue data can still serve battles and pasted rosters.
 
 The client keeps catalogue picker indexes and unit search results for the lifetime of the page, as it does faction records and datasheets. A reload takes the server's current snapshot after an update.
+
+The hosted service reads checksum-verified compiled assets. Compact navigation data includes faction icons and datasheet lists; roster and simulator requests load the selected faction partition and shared rules, while reference datasheet pages read one small sheet record. A hosted release keeps its packaged snapshot until its next deployment, so publishing a new source snapshot alone does not change the live reference.
 
 Server catalogue code is split by responsibility:
 

@@ -13,7 +13,7 @@ async function fixture() {
   const objects = new Map<string, Uint8Array>()
   const uploads: string[] = []
   const entries: Record<string, { sha256: string; bytes: number }> = {}
-  for (const name of ['shared.json', 'reference-meta.json', 'references/global.json']) {
+  for (const name of ['shared.json', 'navigation.json', 'reference-meta.json', 'references/global.json']) {
     const bytes = Buffer.from(`{"name":"${name}"}\n`)
     await mkdir(path.dirname(path.join(directory, name)), { recursive: true })
     await writeFile(path.join(directory, name), bytes)
@@ -43,7 +43,7 @@ it('publishes verified objects before the manifest and skips matching retries', 
       last: uploads.at(-1),
       hash: first.manifestSha256,
     }).toEqual({
-      count: 4,
+      count: 5,
       last: `snapshots/${snapshotId}/${first.manifestSha256}/manifest.json`,
       hash: sha256(await readFile(path.join(directory, 'manifest.json'))),
     })

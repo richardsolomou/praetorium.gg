@@ -11,7 +11,7 @@ import type { factionsFor } from './factionReferences'
 import type { GlobalSearchIndex } from './globalSearch'
 import type { ReferenceCorpus } from './referenceCorpus'
 import type { referenceFactions, referenceIndex } from './referenceService'
-import type { UnitSummary } from '../contracts/catalogue'
+import type { CanonicalDatasheet, UnitSummary } from '../contracts/catalogue'
 import { finishReferenceSearch, rankReferencePart, type ReferenceSearchInput } from './referenceSearch'
 import { globalSingleton } from 'ras-stack/server'
 
@@ -27,10 +27,13 @@ type Shared = {
   datacards: LoadedDatacards
   sourceReferences: ExternalReferences
   rules: LoadedRules
+  searchIndex: GlobalSearchIndex
+}
+type Navigation = {
   factionIndex: ReturnType<typeof factionIndexFor>
   factions: ReturnType<typeof factionsFor>
+  factionIcons: LoadedRules['factionIcons']
   combatUnits: ReturnType<typeof combatUnitsFor>
-  searchIndex: GlobalSearchIndex
   referenceDatasheets: Map<string, UnitSummary[]>
   history: CatalogueHistoryEntry[] | null
 }
@@ -42,20 +45,29 @@ type ReferenceMetadata = {
   shards: string[]
   factionShards: Record<string, string>
   documentShards: Record<string, string>
+  sheetAssets: Record<string, Record<string, string>>
   paths: string[]
 }
 type Read = (key: string, maxBytes: number) => Promise<ArrayBuffer>
-type Resolved = { version: string; manifest?: WorkerCatalogueManifest; shared?: Shared; referenceMetadata?: ReferenceMetadata }
+type Resolved = {
+  version: string
+  manifest?: WorkerCatalogueManifest
+  shared?: Shared
+  navigation?: Navigation
+  referenceMetadata?: ReferenceMetadata
+}
 
 function resolvedCache(): Resolved {
   return globalSingleton('praetorium.worker-catalogue-resolved', () => ({ version: '' }))
 }
 
-const MAX_MANIFEST_BYTES = 64 * 1024
+const MAX_MANIFEST_BYTES = 512 * 1024
 const MAX_SHARED_BYTES = 20 * 1024 * 1024
+const MAX_NAVIGATION_BYTES = 2 * 1024 * 1024
 const MAX_PARTITION_BYTES = 10 * 1024 * 1024
 const MAX_REFERENCE_METADATA_BYTES = 2 * 1024 * 1024
 const MAX_REFERENCE_SHARD_BYTES = 8 * 1024 * 1024
+const MAX_SHEET_BYTES = 1024 * 1024
 const HASH = /^[0-9a-f]{64}$/
 
 async function hash(bytes: ArrayBuffer) {
@@ -72,14 +84,16 @@ export function workerCatalogueManifest(value: unknown, snapshotId: string): Wor
     !manifest.revision ||
     !manifest.entries ||
     !manifest.partitions ||
-    Object.keys(manifest.entries).length > 100 ||
+    Object.keys(manifest.entries).length > 2000 ||
     Object.keys(manifest.partitions).length > 100
   ) {
     throw new Error('Invalid Worker catalogue manifest')
   }
   for (const [name, entry] of Object.entries(manifest.entries)) {
     if (
-      !/^(?:shared|reference-meta|partitions\/[0-9a-f]{24}|references\/(?:global|[0-7]|factions\/[0-9a-f]{24}))\.json$/.test(name) ||
+      !/^(?:shared|navigation|reference-meta|partitions\/[0-9a-f]{24}|references\/(?:global|[0-7]|factions\/[0-9a-f]{24}|sheets\/[0-9a-f]{24}))\.json$/.test(
+        name,
+      ) ||
       !entry ||
       !HASH.test(entry.sha256) ||
       !Number.isSafeInteger(entry.bytes) ||
@@ -87,16 +101,21 @@ export function workerCatalogueManifest(value: unknown, snapshotId: string): Wor
       entry.bytes >
         (name === 'shared.json'
           ? MAX_SHARED_BYTES
-          : name === 'reference-meta.json'
-            ? MAX_REFERENCE_METADATA_BYTES
-            : name.startsWith('references/')
-              ? MAX_REFERENCE_SHARD_BYTES
-              : MAX_PARTITION_BYTES)
+          : name === 'navigation.json'
+            ? MAX_NAVIGATION_BYTES
+            : name === 'reference-meta.json'
+              ? MAX_REFERENCE_METADATA_BYTES
+              : name.startsWith('references/sheets/')
+                ? MAX_SHEET_BYTES
+                : name.startsWith('references/')
+                  ? MAX_REFERENCE_SHARD_BYTES
+                  : MAX_PARTITION_BYTES)
     ) {
       throw new Error('Invalid Worker catalogue entry')
     }
   }
   if (!manifest.entries['shared.json']) throw new Error('Worker catalogue shared data is missing')
+  if (!manifest.entries['navigation.json']) throw new Error('Worker catalogue navigation data is missing')
   if (!manifest.entries['reference-meta.json']) throw new Error('Worker reference metadata is missing')
   for (const [id, name] of Object.entries(manifest.partitions)) {
     if (!id || id.length > 128 || typeof name !== 'string' || !Object.hasOwn(manifest.entries, name)) {
@@ -113,21 +132,33 @@ function sharedOf(value: unknown): Shared {
     !(shared.datacards?.factions instanceof Map) ||
     !(shared.sourceReferences?.units?.byCanonicalId instanceof Map) ||
     !(shared.rules?.byDetachment instanceof Map) ||
-    !Array.isArray(shared.factionIndex?.factions) ||
-    !Array.isArray(shared.factions?.factions) ||
-    !Array.isArray(shared.combatUnits) ||
-    !Array.isArray(shared.searchIndex?.datasheets) ||
-    !(shared.referenceDatasheets instanceof Map) ||
-    (shared.history !== null && !Array.isArray(shared.history))
+    !Array.isArray(shared.searchIndex?.datasheets)
   ) {
     throw new Error('Invalid Worker catalogue shared data')
   }
   return shared as Shared
 }
 
+function navigationOf(value: unknown): Navigation {
+  if (!value || typeof value !== 'object') throw new Error('Invalid Worker catalogue navigation data')
+  const navigation = value as Partial<Navigation>
+  if (
+    !Array.isArray(navigation.factionIndex?.factions) ||
+    !Array.isArray(navigation.factions?.factions) ||
+    !(navigation.factionIcons instanceof Map) ||
+    !Array.isArray(navigation.combatUnits) ||
+    !(navigation.referenceDatasheets instanceof Map) ||
+    (navigation.history !== null && !Array.isArray(navigation.history))
+  ) {
+    throw new Error('Invalid Worker catalogue navigation data')
+  }
+  return navigation as Navigation
+}
+
 export class WorkerCatalogueStore {
   private manifestPromise?: Promise<WorkerCatalogueManifest>
   private sharedPromise?: Promise<Shared>
+  private navigationPromise?: Promise<Navigation>
   private referenceMetadataPromise?: Promise<ReferenceMetadata>
   private readonly version: string
 
@@ -146,6 +177,7 @@ export class WorkerCatalogueStore {
       cache.version = this.version
       delete cache.manifest
       delete cache.shared
+      delete cache.navigation
       delete cache.referenceMetadata
     }
     return cache
@@ -200,6 +232,23 @@ export class WorkerCatalogueStore {
     return this.sharedPromise
   }
 
+  async navigation() {
+    const cached = this.resolved().navigation
+    if (cached) return cached
+    this.navigationPromise ??= this.manifest()
+      .then(async (manifest) => {
+        const navigation = navigationOf(decodeCatalogueArtifact(await this.bytes('navigation.json', manifest.entries['navigation.json']!)))
+        const cache = resolvedCache()
+        if (cache.version === this.version) cache.navigation = navigation
+        return navigation
+      })
+      .catch((error: unknown) => {
+        this.navigationPromise = undefined
+        throw error
+      })
+    return this.navigationPromise
+  }
+
   async catalogue(catalogueId: string) {
     const manifest = await this.manifest()
     const name = Object.hasOwn(manifest.partitions, catalogueId) ? manifest.partitions[catalogueId] : null
@@ -215,12 +264,24 @@ export class WorkerCatalogueStore {
   }
 
   async referenceDatasheets(catalogueId: string) {
-    return (await this.shared()).referenceDatasheets.get(catalogueId) ?? null
+    return (await this.navigation()).referenceDatasheets.get(catalogueId) ?? null
+  }
+
+  async factionIcon(id: string) {
+    return (await this.navigation()).factionIcons.get(id) ?? null
   }
 
   async referenceDatasheet(catalogueId: string, slug: string) {
-    const corpus = await this.referenceForFaction(catalogueId)
-    return corpus?.catalogue.datasheets.find((sheet) => sheet.catalogueId === catalogueId && sheet.slug === slug) ?? null
+    const metadata = await this.referenceMetadata()
+    const sheets = Object.hasOwn(metadata.sheetAssets, catalogueId) ? metadata.sheetAssets[catalogueId] : null
+    const name = sheets && Object.hasOwn(sheets, slug) ? sheets[slug] : null
+    if (!name) return null
+    const manifest = await this.manifest()
+    const value = decodeCatalogueArtifact(await this.bytes(name, manifest.entries[name]!)) as Partial<CanonicalDatasheet> | null
+    if (!value || typeof value !== 'object' || value.catalogueId !== catalogueId || value.slug !== slug) {
+      throw new Error('Invalid Worker reference datasheet')
+    }
+    return value as CanonicalDatasheet
   }
 
   async referenceMetadata(): Promise<ReferenceMetadata> {
@@ -241,6 +302,7 @@ export class WorkerCatalogueStore {
           metadata.shards.length > 9 ||
           !metadata.factionShards ||
           !metadata.documentShards ||
+          !metadata.sheetAssets ||
           !Array.isArray(metadata.paths) ||
           metadata.paths.length > 10_000
         ) {
@@ -248,11 +310,18 @@ export class WorkerCatalogueStore {
         }
         const shards = new Set(metadata.shards)
         const factionShards = new Set(Object.values(metadata.factionShards))
+        const sheetMaps = Object.values(metadata.sheetAssets)
+        if (sheetMaps.some((sheets) => !sheets || typeof sheets !== 'object' || Array.isArray(sheets))) {
+          throw new Error('Invalid Worker reference metadata')
+        }
+        const sheetAssets = sheetMaps.flatMap((sheets) => Object.values(sheets))
         if (
           !shards.has('references/global.json') ||
           [...shards].some((name) => !manifest.entries[name]) ||
           [...factionShards].some((name) => !name.startsWith('references/factions/') || !manifest.entries[name]) ||
           Object.values(metadata.documentShards).some((name) => !shards.has(name) && !factionShards.has(name)) ||
+          sheetAssets.length > 5000 ||
+          sheetAssets.some((name) => typeof name !== 'string' || !name.startsWith('references/sheets/') || !manifest.entries[name]) ||
           metadata.paths.some((name) => typeof name !== 'string' || !name.startsWith('/') || name.length > 500)
         ) {
           throw new Error('Invalid Worker reference metadata')

@@ -1,5 +1,19 @@
 import path from 'node:path'
 
+export async function deletePreviewWorker(accountId: string, name: string, token: string, fetcher: typeof fetch = fetch) {
+  const base = `https://api.cloudflare.com/client/v4/accounts/${accountId}/workers`
+  const headers = { authorization: `Bearer ${token}` }
+  const worker = await fetcher(`${base}/services/${name}`, { headers, signal: AbortSignal.timeout(10_000) })
+  if (worker.status === 404) return
+  if (!worker.ok) throw new Error(`Cloudflare Worker lookup failed with HTTP ${worker.status}`)
+  const deleted = await fetcher(`${base}/scripts/${name}?force=true`, {
+    method: 'DELETE',
+    headers,
+    signal: AbortSignal.timeout(10_000),
+  })
+  if (!deleted.ok) throw new Error(`Cloudflare Worker delete failed with HTTP ${deleted.status}`)
+}
+
 export function previewNumber(value: string | undefined) {
   if (!value || !/^[1-9][0-9]{0,7}$/.test(value)) throw new Error('Invalid preview number')
   return Number(value)
@@ -45,11 +59,10 @@ export function previewConfig(input: {
       SPACETIME_DATABASE: names.product,
       CATALOGUE_SNAPSHOT_ID: input.snapshotId,
       CATALOGUE_MANIFEST_SHA256: input.manifestSha256,
-      CLOUDFLARE_ACCOUNT_ID: input.accountId,
       GITHUB_SHA: input.revision,
     },
     d1_databases: [{ binding: 'AUTH_DB', database_name: names.auth, database_id: input.databaseId, remote: true }],
-    assets: { directory: input.assets, binding: 'ASSETS' },
+    assets: { directory: input.assets, binding: 'ASSETS', run_worker_first: ['/_catalogue/*'] },
   }
 }
 

@@ -8,7 +8,9 @@ type Environment = Parameters<typeof spacetimeSocket>[1] & {
 
 export default {
   fetch(request: Request, environment: Environment, context: ExecutionContext) {
-    if (new URL(request.url).pathname.startsWith('/spacetime/')) return spacetimeSocket(request, environment)
+    const pathname = new URL(request.url).pathname
+    if (pathname.startsWith('/_catalogue/')) return new Response(null, { status: 404 })
+    if (pathname.startsWith('/spacetime/')) return spacetimeSocket(request, environment)
     return withWorkerAppContext(() => application.fetch(request, environment, context), context)
   },
 }
