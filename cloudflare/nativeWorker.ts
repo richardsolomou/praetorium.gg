@@ -9,6 +9,6 @@ type Environment = Parameters<typeof spacetimeSocket>[1] & {
 export default {
   fetch(request: Request, environment: Environment, context: ExecutionContext) {
     if (new URL(request.url).pathname.startsWith('/spacetime/')) return spacetimeSocket(request, environment)
-    return withWorkerAppContext(() => application.fetch(request, environment, context))
+    return withWorkerAppContext(() => application.fetch(request, environment, context), context)
   },
 }

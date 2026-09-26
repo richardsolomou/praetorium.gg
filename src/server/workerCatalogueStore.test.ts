@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
-import { expect, it } from 'vitest'
+import { clearGlobalSingleton } from 'ras-stack/server'
+import { beforeEach, expect, it } from 'vitest'
 import { encodeCatalogueArtifact } from './catalogueArtifactCodec'
 import { emptyExternalReferences } from './externalReferences'
 import { WorkerCatalogueStore } from './workerCatalogueStore'
@@ -10,6 +11,10 @@ const globalReference = 'references/global.json'
 const documentId = 'rule:core:move'
 const encode = (value: unknown) => new TextEncoder().encode(encodeCatalogueArtifact(value)).buffer
 const sha256 = (bytes: ArrayBuffer) => createHash('sha256').update(Buffer.from(bytes)).digest('hex')
+
+beforeEach(async () => {
+  await clearGlobalSingleton('praetorium.worker-catalogue-resolved')
+})
 
 function fixture() {
   const shared = encode({
@@ -133,4 +138,47 @@ it('retries a transient shared object read failure', async () => {
   await expect(store.shared()).rejects.toThrow('R2 unavailable')
   unavailable = false
   expect((await store.shared()).factions.factions).toEqual([])
+})
+
+it('reuses verified shared data after the request that loaded it ends', async () => {
+  const { read, manifestSha256 } = fixture()
+  const first = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
+  const shared = await first.shared()
+  const second = new WorkerCatalogueStore(
+    async () => {
+      throw new Error('unexpected R2 read')
+    },
+    snapshotId,
+    manifestSha256,
+  )
+
+  expect(await second.shared()).toBe(shared)
+})
+
+it('does not share an unfinished R2 read with another request', async () => {
+  const { objects, read, manifestSha256 } = fixture()
+  let release!: (bytes: ArrayBuffer) => void
+  let entered!: () => void
+  const waiting = new Promise<void>((resolve) => {
+    entered = resolve
+  })
+  const first = new WorkerCatalogueStore(
+    (key, maxBytes) =>
+      key.endsWith('/shared.json')
+        ? new Promise<ArrayBuffer>((resolve) => {
+            release = resolve
+            entered()
+          })
+        : read(key, maxBytes),
+    snapshotId,
+    manifestSha256,
+  )
+  const pending = first.shared()
+  await waiting
+  const second = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
+  const shared = await second.shared()
+  release(objects.get(`snapshots/${snapshotId}/shared.json`)!)
+  await pending
+
+  expect(shared.factions.factions).toEqual([])
 })

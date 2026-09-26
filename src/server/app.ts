@@ -338,7 +338,7 @@ export function app(): App {
       push: Boolean(push),
       sync: () => (workerCatalogue ? nativeSyncState : sync.state),
       telemetry,
-      ready: () => (workerCatalogue ? workerShared().then(() => {}) : ready),
+      ready: () => ready,
     }
     // Everything read from the snapshot is read again from the one now on disk.
     const swap = () => {
@@ -350,7 +350,13 @@ export function app(): App {
       instance.combatUnits = next.combatUnits
       ready = warm(instance)
     }
-    if (!workerCatalogue) {
+    if (workerCatalogue) {
+      ready = workerShared().then(
+        () => {},
+        () => {},
+      )
+      worker?.waitUntil?.(ready)
+    } else {
       // A self-hosted instance fetches a snapshot without blocking battle requests.
       sync.begin(catalogueDataDirectory, swap)
       const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap), 60 * 60 * 1000)

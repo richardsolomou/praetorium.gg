@@ -12,6 +12,7 @@ import type { GlobalSearchIndex } from './globalSearch'
 import type { ReferenceCorpus } from './referenceCorpus'
 import type { referenceFactions, referenceIndex } from './referenceService'
 import { finishReferenceSearch, rankReferencePart, type ReferenceSearchInput } from './referenceSearch'
+import { globalSingleton } from 'ras-stack/server'
 
 type Entry = { sha256: string; bytes: number }
 export type WorkerCatalogueManifest = {
@@ -42,6 +43,11 @@ type ReferenceMetadata = {
   paths: string[]
 }
 type Read = (key: string, maxBytes: number) => Promise<ArrayBuffer>
+type Resolved = { version: string; manifest?: WorkerCatalogueManifest; shared?: Shared; referenceMetadata?: ReferenceMetadata }
+
+function resolvedCache(): Resolved {
+  return globalSingleton('praetorium.worker-catalogue-resolved', () => ({ version: '' }))
+}
 
 const MAX_MANIFEST_BYTES = 64 * 1024
 const MAX_SHARED_BYTES = 20 * 1024 * 1024
@@ -120,6 +126,7 @@ export class WorkerCatalogueStore {
   private manifestPromise?: Promise<WorkerCatalogueManifest>
   private sharedPromise?: Promise<Shared>
   private referenceMetadataPromise?: Promise<ReferenceMetadata>
+  private readonly version: string
 
   constructor(
     private readonly read: Read,
@@ -127,6 +134,18 @@ export class WorkerCatalogueStore {
     private readonly manifestSha256: string,
   ) {
     if (!HASH.test(snapshotId) || !HASH.test(manifestSha256)) throw new Error('Invalid Worker catalogue version')
+    this.version = `${snapshotId}:${manifestSha256}`
+  }
+
+  private resolved() {
+    const cache = resolvedCache()
+    if (cache.version !== this.version) {
+      cache.version = this.version
+      delete cache.manifest
+      delete cache.shared
+      delete cache.referenceMetadata
+    }
+    return cache
   }
 
   private key(name: string) {
@@ -142,12 +161,17 @@ export class WorkerCatalogueStore {
   }
 
   private manifest() {
+    const cached = this.resolved().manifest
+    if (cached) return Promise.resolve(cached)
     this.manifestPromise ??= this.read(this.key('manifest.json'), MAX_MANIFEST_BYTES)
       .then(async (bytes) => {
         if (bytes.byteLength > MAX_MANIFEST_BYTES || (await hash(bytes)) !== this.manifestSha256) {
           throw new Error('Worker catalogue manifest checksum does not match')
         }
-        return workerCatalogueManifest(JSON.parse(new TextDecoder().decode(bytes)), this.snapshotId)
+        const manifest = workerCatalogueManifest(JSON.parse(new TextDecoder().decode(bytes)), this.snapshotId)
+        const cache = resolvedCache()
+        if (cache.version === this.version) cache.manifest = manifest
+        return manifest
       })
       .catch((error: unknown) => {
         this.manifestPromise = undefined
@@ -157,8 +181,15 @@ export class WorkerCatalogueStore {
   }
 
   async shared() {
+    const cached = this.resolved().shared
+    if (cached) return cached
     this.sharedPromise ??= this.manifest()
-      .then(async (manifest) => sharedOf(decodeCatalogueArtifact(await this.bytes('shared.json', manifest.entries['shared.json']!))))
+      .then(async (manifest) => {
+        const shared = sharedOf(decodeCatalogueArtifact(await this.bytes('shared.json', manifest.entries['shared.json']!)))
+        const cache = resolvedCache()
+        if (cache.version === this.version) cache.shared = shared
+        return shared
+      })
       .catch((error: unknown) => {
         this.sharedPromise = undefined
         throw error
@@ -181,6 +212,8 @@ export class WorkerCatalogueStore {
   }
 
   async referenceMetadata(): Promise<ReferenceMetadata> {
+    const cached = this.resolved().referenceMetadata
+    if (cached) return cached
     this.referenceMetadataPromise ??= this.manifest()
       .then(async (manifest) => {
         const value = decodeCatalogueArtifact(await this.bytes('reference-meta.json', manifest.entries['reference-meta.json']!))
@@ -211,7 +244,10 @@ export class WorkerCatalogueStore {
         ) {
           throw new Error('Invalid Worker reference metadata')
         }
-        return metadata as ReferenceMetadata
+        const verified = metadata as ReferenceMetadata
+        const cache = resolvedCache()
+        if (cache.version === this.version) cache.referenceMetadata = verified
+        return verified
       })
       .catch((error: unknown) => {
         this.referenceMetadataPromise = undefined
