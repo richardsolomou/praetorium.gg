@@ -40,6 +40,7 @@
     "product:export": "tsx scripts/exportProduct.ts",
     "product:verify": "tsx scripts/verifyProduct.ts",
     "product:import": "tsx scripts/importProduct.ts",
+    "product:export:spacetime": "tsx scripts/exportSpacetimeProduct.ts",
     "catalogue:check": "tsx scripts/syncCatalogue.ts --check",
     "catalogue:compile": "tsx scripts/compileCatalogue.ts",
     "catalogue:worker": "tsx scripts/compileWorkerCatalogue.ts",

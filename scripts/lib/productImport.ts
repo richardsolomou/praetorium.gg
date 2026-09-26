@@ -6,6 +6,7 @@ import { getTableColumns, getTableName } from 'drizzle-orm'
 import { z } from 'zod'
 import { schema } from '../../src/db/schema'
 import { PRODUCT_ROW_MAX_BYTES, productOrderColumns, productTableNames, type ProductExportManifest } from './productExport'
+import { spacetimeSqlEndpoint } from './spacetimeSqlEndpoint'
 
 const manifestSchema = z.strictObject({
   version: z.literal(1),
@@ -123,16 +124,6 @@ function numericValue(value: unknown) {
   return null
 }
 
-function sqlEndpoint(baseUrl: string, database: string) {
-  const base = new URL(baseUrl)
-  const local = base.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(base.hostname)
-  if ((!local && base.protocol !== 'https:') || base.username || base.password || base.search || base.hash || base.pathname !== '/') {
-    throw new Error('Invalid SpacetimeDB URL')
-  }
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(database)) throw new Error('Invalid SpacetimeDB database name')
-  return new URL(`/v1/database/${database}/sql`, base)
-}
-
 export async function importProductBundle(
   directory: string,
   baseUrl: string,
@@ -141,7 +132,7 @@ export async function importProductBundle(
   access?: { clientId: string; clientSecret: string },
 ) {
   if (!token) throw new Error('SPACETIME_IMPORT_TOKEN is required')
-  const endpoint = sqlEndpoint(baseUrl, database)
+  const endpoint = spacetimeSqlEndpoint(baseUrl, database)
   const manifest = await verifyProductBundle(directory)
   const accessHeaders: Record<string, string> = access
     ? { 'CF-Access-Client-Id': access.clientId, 'CF-Access-Client-Secret': access.clientSecret }

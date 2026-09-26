@@ -1,0 +1,22 @@
+{
+  "name": "praetorium-candidate",
+  "main": "cloudflare/nativeWorker.ts",
+  "compatibility_date": "2026-09-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "candidate.praetorium.gg", "custom_domain": true }],
+  "vars": {
+    "APP_URL": "https://candidate.praetorium.gg",
+    "SPACETIME_AUDIENCE": "praetorium-candidate",
+    "SPACETIME_DATABASE": "praetorium-candidate"
+  },
+  "d1_databases": [
+    {
+      "binding": "AUTH_DB",
+      "database_name": "praetorium-auth-candidate",
+      "database_id": "6c952bce-ae7a-4489-9276-998a2c601953"
+    }
+  ],
+  "assets": { "directory": ".output/public", "binding": "ASSETS", "run_worker_first": ["/_catalogue/*"] }
+}
