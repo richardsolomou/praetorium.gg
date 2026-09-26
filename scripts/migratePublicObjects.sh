@@ -11,9 +11,9 @@ test -n "${R2_SECRET_ACCESS_KEY:?}"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-source_s3() {
+source_s3api() {
   AWS_ACCESS_KEY_ID="$SOURCE_S3_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$SOURCE_S3_SECRET_ACCESS_KEY" \
-    AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url "$SOURCE_S3_ENDPOINT" s3 "$@"
+    AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url "$SOURCE_S3_ENDPOINT" s3api "$@"
 }
 
 r2() {
@@ -21,23 +21,42 @@ r2() {
     AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url "$R2_ENDPOINT" s3 "$@"
 }
 
-for prefix in avatars snapshots changes combat-rule-judgments; do
-  mkdir -p "$work/$prefix"
-  source_s3 sync "s3://praetorium/$prefix/" "$work/$prefix/" --only-show-errors
-  r2 sync "$work/$prefix/" "s3://praetorium-catalogue/praetorium/$prefix/" --only-show-errors
-done
-
-for name in current.json revocations.json; do
-  source_s3 cp "s3://praetorium/$name" "$work/$name" --only-show-errors
-  r2 cp "$work/$name" "s3://praetorium-catalogue/praetorium/$name" --only-show-errors \
-    --content-type application/json --cache-control no-store
-done
+copy_object() {
+  local key="$1"
+  local content_type
+  case "$key" in
+    avatars/*.jpg) content_type=image/jpeg ;;
+    avatars/*.png) content_type=image/png ;;
+    avatars/*.webp) content_type=image/webp ;;
+    snapshots/*.zip) content_type=application/zip ;;
+    current.json|revocations.json|changes/seed.json) content_type=application/json ;;
+    *) echo "Unexpected public object key" >&2; exit 1 ;;
+  esac
+  curl --fail --location --silent --show-error --retry 3 --max-time 120 \
+    "${SOURCE_S3_ENDPOINT%/}/praetorium/$key" --output "$work/object"
+  r2 cp "$work/object" "s3://praetorium-catalogue/praetorium/$key" --only-show-errors \
+    --content-type "$content_type"
+  r2 cp "s3://praetorium-catalogue/praetorium/$key" "$work/readback" --only-show-errors
+  cmp "$work/object" "$work/readback"
+}
 
 verified=0
-while IFS= read -r -d '' file; do
-  key="${file#"$work/"}"
-  r2 cp "s3://praetorium-catalogue/praetorium/$key" "$work/readback" --only-show-errors
-  cmp "$file" "$work/readback"
+for prefix in avatars/ snapshots/ changes/; do
+  source_s3api list-objects-v2 --bucket praetorium --prefix "$prefix" --output json > "$work/list.json"
+  jq -e '(.Contents // []) | type == "array"' "$work/list.json" > /dev/null
+  while IFS= read -r key; do
+    [[ "$key" =~ ^avatars/[0-9a-f]{64}\.(jpg|png|webp)$|^snapshots/[0-9a-f]{64}\.zip$|^changes/seed\.json$ ]] || {
+      echo 'Unexpected listed public object key' >&2
+      exit 1
+    }
+    copy_object "$key"
+    verified=$((verified + 1))
+  done < <(jq -r '.Contents[]?.Key' "$work/list.json")
+done
+
+for key in revocations.json current.json; do
+  copy_object "$key"
   verified=$((verified + 1))
-done < <(find "$work" -type f ! -name readback -print0)
+done
+
 echo "Verified $verified public-store objects in R2"

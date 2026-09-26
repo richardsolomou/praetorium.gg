@@ -177,7 +177,7 @@ jobs:
           pnpm exec wrangler deploy --config "$RUNNER_TEMP/wrangler-production.json" --dry-run --outdir "$RUNNER_TEMP/worker"
           pnpm exec wrangler deploy --config "$RUNNER_TEMP/wrangler-production.json" \
             --secrets-file "$RUNNER_TEMP/wrangler-production-secrets.json" \
-            --route 'praetorium.gg/*' --route 's3.praetorium.gg/*'
+            --route 'praetorium.gg/*' --route 's3.praetorium.gg/*' --route 'catalogue.praetorium.gg/*'
       - name: Verify production revision
         env:
           EXPECTED_REVISION: ${{ needs.release.outputs.sha || github.sha }}
@@ -192,3 +192,34 @@ jobs:
           done
           echo "Production did not serve revision $EXPECTED_REVISION" >&2
           exit 1
+      - name: Verify public object routes
+        run: |
+          set -euo pipefail
+          for host in s3.praetorium.gg catalogue.praetorium.gg; do
+            ready=false
+            for _ in {1..12}; do
+              if curl --fail --silent --show-error --max-time 20 \
+                --dump-header "$RUNNER_TEMP/$host.headers" \
+                --output "$RUNNER_TEMP/$host.json" \
+                "https://$host/praetorium/current.json" \
+                && grep -Eiq '^x-praetorium-object-source: r2' "$RUNNER_TEMP/$host.headers" \
+                && jq -e '.id | test("^[0-9a-f]{64}$")' "$RUNNER_TEMP/$host.json" > /dev/null; then
+                ready=true
+                break
+              fi
+              sleep 5
+            done
+            test "$ready" = true
+          done
+
+  retire-dokploy-runtime:
+    needs: [cloudflare-production]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Stop the replaced VM services
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+        run: bash scripts/retireDokployRuntime.sh

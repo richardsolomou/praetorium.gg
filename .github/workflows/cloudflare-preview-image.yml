@@ -8,7 +8,7 @@ on:
       rehearsal:
         type: choice
         required: true
-        options: [identity, staging, preview, preview-cleanup, candidate, candidate-deploy, public-objects]
+        options: [identity, staging, preview, preview-cleanup, candidate, candidate-deploy, public-objects, retire-check]
 
 permissions:
   contents: read
@@ -161,6 +161,19 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
         run: bash scripts/migratePublicObjects.sh
+
+  retire-check:
+    if: github.event_name == 'workflow_dispatch' && github.actor == 'richardsolomou' && github.ref == 'refs/heads/feat/better-auth-d1' && inputs.rehearsal == 'retire-check'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify the four services to retire
+        env:
+          DRY_RUN: true
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+        run: bash scripts/retireDokployRuntime.sh
 
   candidate:
     if: github.event_name == 'workflow_dispatch' && github.actor == 'richardsolomou' && github.ref == 'refs/heads/feat/better-auth-d1' && (inputs.rehearsal == 'candidate' || inputs.rehearsal == 'candidate-deploy')

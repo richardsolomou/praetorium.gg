@@ -23,6 +23,7 @@ export async function publicObject(request: Request, bucket: R2Bucket): Promise<
     'Content-Type': contentType,
     'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'no-store',
     'X-Content-Type-Options': 'nosniff',
+    'X-Praetorium-Object-Source': 'r2',
     ETag: object.httpEtag,
   })
   if (request.headers.get('if-none-match') === object.httpEtag) return new Response(null, { status: 304, headers })

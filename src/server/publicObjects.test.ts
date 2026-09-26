@@ -21,6 +21,7 @@ describe('publicObject', () => {
   it('streams a public avatar from its existing URL', async () => {
     const response = await publicObject(new Request(`https://s3.praetorium.gg/praetorium/avatars/${hash}.webp`), bucket)
     expect([response.status, response.headers.get('content-type'), await response.text()]).toEqual([200, 'image/webp', 'image'])
+    expect(response.headers.get('x-praetorium-object-source')).toBe('r2')
     expect(get).toHaveBeenCalledWith(`praetorium/avatars/${hash}.webp`)
   })
 
