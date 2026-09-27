@@ -4,11 +4,13 @@ import resvg from '@resvg/resvg-wasm/index_bg.wasm'
 import yoga from 'satori/yoga.wasm'
 import { withWorkerAppContext } from '../src/server/workerAppContext'
 import { publicObject } from './publicObjects'
+import { previewOidcRequest } from './previewOidc'
 import { spacetimeSocket } from './spacetimeProxy'
 
 type Environment = Parameters<typeof spacetimeSocket>[1] & {
   ASSETS: Fetcher
   PUBLIC_OBJECTS?: R2Bucket
+  SPACETIME_ISSUER?: string
 }
 
 export default {
@@ -20,7 +22,7 @@ export default {
     if (pathname.startsWith('/_catalogue/')) return new Response(null, { status: 404 })
     if (pathname.startsWith('/spacetime/')) return spacetimeSocket(request, environment)
     const response = withWorkerAppContext(
-      () => application.fetch(request, environment, context),
+      () => application.fetch(previewOidcRequest(request, environment.SPACETIME_ISSUER), environment, context),
       context,
       { resvg, yoga },
       environment.PUBLIC_OBJECTS,

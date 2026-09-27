@@ -75,6 +75,49 @@ it('signs up, claims an administrator, and revokes a D1 session through the runt
   expect(await auth.api.getSession({ headers })).toBeNull()
 })
 
+it('signs preview tokens with the revisioned issuer advertised by discovery', async () => {
+  const issuer = `https://pr-606.praetorium.gg/api/auth/preview/${'c'.repeat(40)}`
+  const auth = createD1Auth(proxy.env.AUTH_DB, secret, {
+    environment: {
+      APP_URL: 'https://pr-606.praetorium.gg',
+      AUTH_RATE_LIMIT: 'off',
+      SPACETIME_AUDIENCE: 'praetorium-pr-606',
+      SPACETIME_ISSUER: issuer,
+    },
+    deleteUserData: async () => {},
+    revokeSessionAccess: async () => {},
+    storeSocialAvatar: async () => null,
+    updateProfile: async (data) => ({ ok: true, data }),
+  })
+  const created = await auth.api.signUpEmail({
+    body: { email: 'preview-issuer@example.com', password: 'password1234', name: 'Preview issuer' },
+    returnHeaders: true,
+  })
+  const cookie = created.headers.get('set-cookie')?.split(';')[0]
+  if (!cookie) throw new Error('Preview sign-up did not set a session cookie')
+  const headers = new Headers({ cookie })
+  const { token } = await auth.api.getToken({ headers })
+  await jwtVerify(token, createLocalJWKSet(await auth.api.getJwks()), { issuer, audience: 'praetorium-pr-606' })
+  const discovery = await auth.handler(new Request('https://pr-606.praetorium.gg/api/auth/.well-known/openid-configuration'))
+  expect(await discovery.json()).toMatchObject({ issuer, jwks_uri: `${issuer}/jwks` })
+})
+
+it('rejects a preview issuer on another origin', () => {
+  expect(() =>
+    createD1Auth(proxy.env.AUTH_DB, secret, {
+      environment: {
+        APP_URL: 'https://pr-606.praetorium.gg',
+        SPACETIME_AUDIENCE: 'praetorium-pr-606',
+        SPACETIME_ISSUER: `https://other.example/api/auth/preview/${'c'.repeat(40)}`,
+      },
+      deleteUserData: async () => {},
+      revokeSessionAccess: async () => {},
+      storeSocialAvatar: async () => null,
+      updateProfile: async (data) => ({ ok: true, data }),
+    }),
+  ).toThrow('Invalid SpacetimeDB preview issuer')
+})
+
 it('runs Better Auth requests through the container D1 bridge', async () => {
   const binding = remoteD1('http://d1.internal/query', async (url, init) => handleD1Bridge(new Request(url, init), proxy.env.AUTH_DB))
   const auth = createD1Auth(binding, secret, {
