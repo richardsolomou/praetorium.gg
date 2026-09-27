@@ -1,4 +1,4 @@
-name: VM staging canary product database
+name: VM staging canary
 
 on:
   workflow_dispatch:
@@ -16,11 +16,34 @@ jobs:
   publish:
     if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'vm-canary-deploy'))
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.REVISION }}
+      - name: Build and publish Node canary image
+        id: image
+        uses: richardsolomou/ras-stack/actions/publish-production-image@v1
+        with:
+          image: ghcr.io/${{ github.repository }}-vm-canary
+          sha: ${{ env.REVISION }}
+          release-tag: canary
+          token: ${{ github.token }}
+          dockerfile: Dockerfile.node-canary
+          build-args: |
+            GITHUB_SHA=${{ env.REVISION }}
+          cache-scope: vm-canary-image
+      - name: Verify Dokploy can pull the image
+        env:
+          IMAGE: ${{ steps.image.outputs.reference }}
+        run: |
+          docker logout ghcr.io
+          docker buildx imagetools inspect --raw "$IMAGE" > /dev/null
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - name: Build Node canary image
-        run: docker build -f Dockerfile.node-canary -t praetorium-vm-staging-canary .
       - name: Build SpacetimeDB module
         env:
           GH_TOKEN: ${{ github.token }}
@@ -111,3 +134,10 @@ jobs:
           const saved = await inspect()
           if (saved.env !== env) throw new Error('Dokploy canary credentials did not persist')
           NODE
+      - name: Deploy published canary image
+        uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v1
+        with:
+          url: ${{ secrets.DOKPLOY_URL }}
+          api-key: ${{ secrets.DOKPLOY_API_KEY }}
+          application-id: HBfSup0NWyUKq5Paar-63
+          image: ${{ steps.image.outputs.reference }}

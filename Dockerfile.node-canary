@@ -11,7 +11,9 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --filte
 COPY . .
 RUN NITRO_PRESET=node-server pnpm build && CI=true pnpm install --filter praetorium.gg --prod --frozen-lockfile
 
-ENV NODE_ENV=production PORT=3000 DATA_DIR=/data CATALOGUE_UPDATE_MODE=pinned
+ARG GITHUB_SHA
+LABEL org.opencontainers.image.source="https://github.com/richardsolomou/praetorium.gg"
+ENV NODE_ENV=production PORT=3000 DATA_DIR=/data CATALOGUE_UPDATE_MODE=pinned GITHUB_SHA=$GITHUB_SHA
 RUN mkdir /data && chown node:node /data
 USER node
 EXPOSE 3000
