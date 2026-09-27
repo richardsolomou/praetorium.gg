@@ -1,1 +1,0 @@
-ALTER TABLE "league_event_entries" ADD COLUMN "team_id" text;
