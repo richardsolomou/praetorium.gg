@@ -1,1 +1,0 @@
-ALTER TABLE "leagues" ADD COLUMN "player_limit" integer;

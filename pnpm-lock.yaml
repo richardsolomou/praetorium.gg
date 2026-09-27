@@ -126,9 +126,6 @@ importers:
       '@cloudflare/workers-types':
         specifier: 5.20260918.1
         version: 5.20260918.1
-      '@electric-sql/pglite':
-        specifier: ^0.5.8
-        version: 0.5.8
       '@playwright/test':
         specifier: ^1.62.1
         version: 1.62.1
@@ -7763,7 +7760,8 @@ snapshots:
 
   '@drizzle-team/brocli@0.10.2': {}
 
-  '@electric-sql/pglite@0.5.8': {}
+  '@electric-sql/pglite@0.5.8':
+    optional: true
 
   '@emnapi/runtime@1.11.3':
     dependencies:
