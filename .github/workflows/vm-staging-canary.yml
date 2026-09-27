@@ -66,3 +66,48 @@ jobs:
             --header 'Content-Type: application/json' \
             --request POST --data-binary '[]' \
             "${SPACETIME_URL%/}/v1/database/praetorium-vm-staging/call/operator_health"
+      - name: Configure Dokploy canary credentials
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          SPACETIME_OPERATOR_TOKEN: ${{ secrets.STAGING_SPACETIME_OPERATOR_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { randomBytes } from 'node:crypto'
+
+          const applicationId = 'HBfSup0NWyUKq5Paar-63'
+          const origin = new URL(process.env.DOKPLOY_URL)
+          if (origin.protocol !== 'https:' || !process.env.DOKPLOY_API_KEY || !process.env.SPACETIME_OPERATOR_TOKEN) {
+            throw new Error('Dokploy canary credentials are missing')
+          }
+          const headers = { 'x-api-key': process.env.DOKPLOY_API_KEY }
+          const inspect = async () => {
+            const url = new URL('/api/application.one', origin)
+            url.searchParams.set('applicationId', applicationId)
+            const response = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) })
+            if (!response.ok) throw new Error(`Dokploy application read failed: HTTP ${response.status}`)
+            return response.json()
+          }
+          const application = await inspect()
+          if (application.applicationId !== applicationId || application.name !== 'vm-canary' || typeof application.env !== 'string') {
+            throw new Error('Unexpected Dokploy canary application')
+          }
+          const variables = application.env.split('\n').filter(Boolean)
+          const authIndex = variables.findIndex((line) => line.startsWith('AUTH_SECRET='))
+          if (authIndex === -1) variables.push(`AUTH_SECRET=${randomBytes(32).toString('hex')}`)
+          else if (variables[authIndex] === 'AUTH_SECRET=') variables[authIndex] = `AUTH_SECRET=${randomBytes(32).toString('hex')}`
+          const operator = `SPACETIME_OPERATOR_TOKEN=${process.env.SPACETIME_OPERATOR_TOKEN}`
+          const operatorIndex = variables.findIndex((line) => line.startsWith('SPACETIME_OPERATOR_TOKEN='))
+          if (operatorIndex === -1) variables.push(operator)
+          else variables[operatorIndex] = operator
+          const env = variables.join('\n')
+          const response = await fetch(new URL('/api/application.saveEnvironment', origin), {
+            method: 'POST',
+            headers: { ...headers, 'content-type': 'application/json' },
+            body: JSON.stringify({ applicationId, env, buildArgs: application.buildArgs ?? null, buildSecrets: application.buildSecrets ?? null, createEnvFile: false }),
+            signal: AbortSignal.timeout(30_000),
+          })
+          if (!response.ok) throw new Error(`Dokploy environment save failed: HTTP ${response.status}`)
+          const saved = await inspect()
+          if (saved.env !== env) throw new Error('Dokploy canary credentials did not persist')
+          NODE
