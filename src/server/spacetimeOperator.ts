@@ -1,7 +1,5 @@
 import { z } from 'zod'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
-import type { RosterRepository } from '../db/repositories/rosterRepository'
-import type { NotificationRepository } from '../db/repositories/notificationRepository'
 import { reduceBattle, type Command, type LoggedCommand, type SubmitResult } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, type BattleAudience } from '../core/battleAudience'
@@ -144,9 +142,7 @@ type SaveRosterInput = {
   now: number
 }
 
-export class SpacetimeOperator
-  implements Pick<RosterRepository, keyof RosterRepository>, Pick<NotificationRepository, keyof NotificationRepository>
-{
+export class SpacetimeOperator {
   private readonly baseUrl: URL
 
   constructor(

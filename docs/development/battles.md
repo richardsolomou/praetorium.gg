@@ -129,7 +129,7 @@ The fold reads whole logs, so it is bounded by a window and a count, and the ser
 
 - Hosted product changes are committed in SpacetimeDB and reach connected clients through its realtime transport.
 - Server-function reads use `rpc()` and mutations use `mutationRpc()`.
-- `/api/health` sits outside canonical-host redirects so container health checks remain local.
+- `/api/health` sits outside canonical-host redirects so readiness checks work on the local and hosted service.
 - Sign-in `next` values are paths on the current installation. Absolute redirect targets would create an open redirect.
 
 ## Accounts

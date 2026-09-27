@@ -14,7 +14,7 @@ import {
   type LeagueVisibility,
 } from '../../core/league'
 import type { TableShape } from '../../core/tableShape'
-import type { RepositoryPort } from '../../db/repository'
+import type { RepositoryPort } from '../spacetimeRepository'
 import type { Notifier } from '../pushNotifier'
 import { rosterFromRow } from '../rosterPersistence'
 

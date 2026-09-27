@@ -24,13 +24,14 @@ import { filterBattles, type RecordFilter, recordFacets, type SeatPlay, seatPlay
 import { routeSlug } from '../core/slug'
 import { factionsPlayed, type Standing, type StandingFaction, standings } from '../core/standings'
 import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
-import type { BattleHistory, BattleSeats, BattlesCursor, Repository, RepositoryPort } from '../db/repository'
+import type { BattlesCursor } from '../contracts/battles'
 import { gameReferencesFor } from './gameReferences'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type Mission, missionFor } from './rules'
 import { type Notifier, silentNotifier } from './pushNotifier'
 import { LeagueService } from './services/leagueService'
 import { RosterService } from './services/rosterService'
 import { SocialService, sortedFriends } from './services/socialService'
+import type { BattleHistory, BattleSeats, RepositoryPort, SpacetimeRepository } from './spacetimeRepository'
 
 /** A catalogue faction as the battle lists name it, with the detachments its reference pages answer for. */
 type BattleFaction = { id: string; slug: string; displayName: string; icon: string | null; detachments?: readonly { name: string }[] }
@@ -323,7 +324,7 @@ export class PraetoriumService {
   private standingsHeld: { key: string; until: number; fold: StandingsFold } | null = null
   private standingsPending: { key: string; promise: Promise<StandingsFold> } | null = null
 
-  adminUsers(input: Parameters<Repository['adminUsers']>[0]) {
+  adminUsers(input: Parameters<SpacetimeRepository['adminUsers']>[0]) {
     return this.repository.adminUsers(input)
   }
 

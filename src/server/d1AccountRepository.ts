@@ -2,8 +2,11 @@ import { and, asc, desc, eq, exists, inArray, lt, ne, not, or, sql } from 'drizz
 import { alias } from 'drizzle-orm/sqlite-core'
 import { drizzle } from 'drizzle-orm/d1'
 import { account, schema, user } from '../db/d1AuthSchema'
-import type { UnlinkAccountResult } from '../db/repository'
 import type { AdminUsersCursor } from '../admin'
+
+type UnlinkAccountResult =
+  | { status: 'removed'; account: { accessToken: string | null; refreshToken: string | null } }
+  | { status: 'missing' | 'two-factor' | 'last-method' }
 
 function contains(query: string) {
   return `%${query.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
