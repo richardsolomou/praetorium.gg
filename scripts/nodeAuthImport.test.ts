@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest'
-import { importAuthDumpFromR2, uploadD1AuthDumpToR2 } from './nodeAuthSqlite'
+import { importAuthDumpFromR2, uploadD1AuthDumpToR2, verifyAuthSqlite } from './nodeAuthSqlite'
 
 let directory: string
 const saved = Object.fromEntries(['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY'].map((key) => [key, process.env[key]]))
@@ -61,6 +61,28 @@ it('uploads a verified staging export and reads it back before use', async () =>
     uploaded: { user: 0, session: 0, jwks: 0 },
     imported: { user: 0, session: 0, jwks: 0 },
   })
+})
+
+it('lets simultaneous replicas install the same verified auth export', async () => {
+  const compressed = gzipSync(await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql')))
+  const hash = createHash('sha256').update(compressed).digest('hex')
+  const key = `backups/auth/import/staging/${hash}.sql.gz`
+  process.env.R2_ACCOUNT_ID = 'a'.repeat(32)
+  process.env.R2_ACCESS_KEY_ID = 'key'
+  process.env.R2_SECRET_ACCESS_KEY = 'secret'
+  let requests = 0
+  let release!: () => void
+  const bothRequested = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  vi.stubGlobal('fetch', async () => {
+    if (++requests === 2) release()
+    await bothRequested
+    return new Response(compressed, { status: 200 })
+  })
+  const target = path.join(directory, 'shared.sqlite')
+  const [first, second] = await Promise.all([importAuthDumpFromR2(key, target), importAuthDumpFromR2(key, target)])
+  expect([first, second]).toEqual([verifyAuthSqlite(target), verifyAuthSqlite(target)])
 })
 
 it('rejects a changed export without installing an auth database', async () => {

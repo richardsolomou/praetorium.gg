@@ -91,6 +91,14 @@ export async function importAuthDumpFromR2(key: string, target: string) {
   const match = importKey.exec(key)
   if (!match) throw new Error('Invalid auth import key')
   if (!path.isAbsolute(target)) throw new Error('Auth SQLite target must be absolute')
+  await stat(target).then(
+    () => {
+      throw new Error('Auth SQLite target already exists')
+    },
+    (error: unknown) => {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    },
+  )
   const r2 = r2Client()
   if (!r2) throw new Error('R2 import credentials are required')
   const response = await r2.client.fetch(`${r2.base}${key}`, { signal: AbortSignal.timeout(60_000) })
@@ -105,8 +113,13 @@ export async function importAuthDumpFromR2(key: string, target: string) {
     await writeFile(dump, gunzipSync(compressed, { maxOutputLength: maxImportBytes }), { mode: 0o600, flag: 'wx' })
     const counts = await importAuthSqlite(dump, imported)
     if (match[1] === 'production' && counts.user === 0) throw new Error('Production auth import is empty')
-    await link(imported, target)
-    return counts
+    try {
+      await link(imported, target)
+      return counts
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+      return verifyAuthSqlite(target)
+    }
   } finally {
     await Promise.all([dump, imported].map((file) => rm(file, { force: true })))
   }
