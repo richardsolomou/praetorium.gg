@@ -10,6 +10,7 @@ import {
   d1DatabaseId,
   deletePreviewWorker,
   previewConfig,
+  previewIssuer,
   previewNames,
   previewNumber,
 } from './lib/cloudflarePreview'
@@ -79,7 +80,7 @@ async function deploy() {
   const number = previewNumber(process.env.PR_NUMBER)
   const names = previewNames(number)
   const sha = required('PREVIEW_SHA')
-  if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error('Invalid preview revision')
+  const issuer = previewIssuer(number, sha)
   const workerBundle = path.resolve(required('PREVIEW_WORKER_BUNDLE'))
   const assets = path.resolve(required('PREVIEW_ASSETS_DIR'))
   const productBundle = await readFile(path.resolve(required('PREVIEW_PRODUCT_BUNDLE')))
@@ -109,7 +110,7 @@ async function deploy() {
   await spacetime(
     'POST',
     `/v1/database/${names.product}/call/configure`,
-    JSON.stringify([`${names.origin}/api/auth`, names.audience, issued.identity]),
+    JSON.stringify([issuer, names.audience, issued.identity]),
     adminToken,
   )
   await spacetime('POST', `/v1/database/${names.product}/call/operator_health`, '[]', issued.token)
@@ -165,6 +166,7 @@ async function deploy() {
         SPACETIME_OPERATOR_TOKEN: issued.token,
         SPACETIME_DATABASE: names.product,
         SPACETIME_AUDIENCE: names.audience,
+        SPACETIME_ISSUER: issuer,
         PRAETORIUM_SEED_PREVIEW: 'true',
         CATALOGUE_DIR: path.resolve('catalogue-data'),
       },

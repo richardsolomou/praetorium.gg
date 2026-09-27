@@ -207,7 +207,7 @@ export const init = spacetime.init((ctx) => {
 export const configure = spacetime.reducer({ issuer: t.string(), audience: t.string(), operator: t.string() }, (ctx, input) => {
   const current = ctx.db.settings.id.find(0)
   if (!current || !ctx.sender.isEqual(current.owner)) throw new SenderError('Only the database owner can configure auth')
-  const secureIssuer = /^https:\/\/[^/?#@]+\/api\/auth$/.test(input.issuer)
+  const secureIssuer = /^https:\/\/[^/?#@]+\/api\/auth(?:\/preview\/[0-9a-f]{40})?$/.test(input.issuer)
   const localIssuer = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::[0-9]{1,5})?\/api\/auth$/.test(input.issuer)
   if (
     input.issuer.length > 256 ||
@@ -742,6 +742,16 @@ export const practiceOpponentIds = spacetime.procedure({}, t.string(), (ctx) =>
     return productJson(ids.sort())
   }),
 )
+
+export const registerPracticeOpponent = spacetime.reducer({ userId: t.string() }, (ctx, { userId }) => {
+  requireOperator(ctx)
+  if (!userId || userId.length > 128) throw new SenderError('Invalid user ID')
+  if (ctx.db.practiceOpponents.userId.find(userId)) return
+  if (Array.from(ctx.db.practiceOpponents.iter()).length >= 100) throw new SenderError('Too many practice opponents')
+  ctx.db.practiceOpponents.insert({ userId })
+  touchPublic(ctx, 'opponents')
+  touchAdmin(ctx)
+})
 
 export const requestFriend = spacetime.procedure(
   { requesterId: t.string(), addresseeId: t.string(), now: t.u64() },

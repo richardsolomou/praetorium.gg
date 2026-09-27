@@ -4,7 +4,7 @@ Keep changes small and include tests for new behavior and failure paths. Discuss
 
 ## Start the app
 
-Install Node 24.x, pnpm 11.15.0, and just 1.58.0, then run:
+Install Node 24.x, pnpm 11.15.0, just 1.58.0, and SpacetimeDB CLI 2.7.0, then run:
 
 ```sh
 just install
@@ -12,7 +12,7 @@ just catalogue-sync
 just dev
 ```
 
-`just catalogue-sync` is needed for list building, missions, and battlefields. It reuses a release-pinned snapshot across worktrees. [Running locally](docs/development/running-locally.md) covers the cache, services, and individual commands.
+`just catalogue-sync` is needed for list building, missions, and battlefields. It reuses a release-pinned snapshot across worktrees. [Running locally](docs/development/running-locally.md) covers the cache, local databases, and individual commands.
 
 ## Check a change
 

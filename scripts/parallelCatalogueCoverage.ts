@@ -20,14 +20,7 @@ const runShard = (index: number) =>
     const child = spawn(
       process.execPath,
       ['--max-old-space-size=2048', '--import', 'tsx', script, partialFiles[index]!, '--shard', `${index}/${workerCount}`],
-      {
-        env: {
-          ...process.env,
-          BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? 'http://localhost',
-          DATA_DIR: path.join(temporaryDirectory, `data-${index}`),
-        },
-        stdio: ['ignore', 'ignore', 'inherit'],
-      },
+      { stdio: ['ignore', 'ignore', 'inherit'] },
     )
     child.on('error', reject)
     child.on('exit', (code, signal) => {

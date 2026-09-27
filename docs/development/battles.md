@@ -104,7 +104,7 @@ The home page shows three lists of battles. A player sees their own unfinished g
 
 The friends' and public lists are ordered by when a battle was started, newest first, and carry finished games alongside running ones — they are read to find a game to watch or to read back through. Ordering them by activity made the page reshuffle under a reader whenever anybody anywhere took a turn, and buried a battle that finished an hour ago beneath one nobody had moved in since. A player's own list still orders by activity, because that one is for getting back to a game rather than browsing.
 
-Hosted friends' and public feeds subscribe to a small revision shared by readers, then refetch through their usual visibility checks. They never receive battle rows from the subscription. A player's own battles also have a user-scoped revision. Local development feeds poll because Centrifugo only names seated players and battles.
+Friends' and public feeds subscribe to a small revision shared by readers, then refetch through their usual visibility checks. They never receive battle rows from the subscription. A player's own battles also have a user-scoped revision.
 
 ## Standings
 
@@ -119,14 +119,11 @@ The fold reads whole logs, so it is bounded by a window and a count, and the ser
 ## Realtime updates
 
 - Realtime messages contain only the battle ID, plus the log's new sequence number when one command caused them. The client refetches through the normal read path, unless its screen already holds that sequence, and never draws state from the message. While the battle subscription is unavailable, the open battle polls until it subscribes, so a connected transport with a failed subscription cannot leave the table stale. A subscription token carries its subject and its channel and nothing else — nothing on a screen is drawn from a connection, so nothing needs to be.
-- The hosted `/api/spacetime/token` requires an account and issues a token for that deployment's product database. A guest receives only a SpacetimeDB-native identity through the restricted `/spacetime/v1/identity` proxy; private views return no rows for it, and product reducers require an authenticated session or the operator. The local Centrifugo path uses `/api/realtime/token` for seated battles.
-- Realtime channels use the internal battle ID, not the shared token.
-- Hosted deployments use one authenticated, user-scoped SpacetimeDB product signal subscription across pages. A battle create, command, or deletion advances that player's `battles` revision and refetches their cached lists. The open battle also subscribes to its own sequence view. Local Centrifugo uses a player channel for the battle list.
-- A second hosted view carries only global revision counters for shared reads: battle feeds, spectator screens, standings, public and unlisted rosters, league pages, invite links, and practice opponent choices. Both guests and signed-in readers can subscribe to those counters. Server functions still enforce every viewer's permissions; the counters contain no IDs or product rows. The browser coalesces overlapping refetches through React Query, and a disconnected subscription falls back to periodic active-query refetches.
+- `/api/spacetime/token` requires an account and issues a token for that deployment's product database. A guest receives only a SpacetimeDB-native identity through the restricted `/spacetime/v1/identity` proxy; private views return no rows for it, and product reducers require an authenticated session or the operator.
+- Battle signals use the internal battle ID, not the shared token.
+- Deployments use one authenticated, user-scoped SpacetimeDB product signal subscription across pages. A battle create, command, or deletion advances that player's `battles` revision and refetches their cached lists. The open battle also subscribes to its own sequence view.
+- A second view carries only global revision counters for shared reads: battle feeds, spectator screens, standings, public and unlisted rosters, league pages, invite links, and practice opponent choices. Both guests and signed-in readers can subscribe to those counters. Server functions still enforce every viewer's permissions; the counters contain no IDs or product rows. The browser coalesces overlapping refetches through React Query, and a disconnected subscription falls back to periodic active-query refetches.
 - The admin user list receives a separate revision for SpacetimeDB roster counts, battle counts, and practice opponent flags. Only a session whose signed access token carries the admin role can read it; the list still loads through its account and product read paths.
-- Local spectators poll because Centrifugo has no channel for them.
-- The local Centrifugo setup declares its channel namespaces in `realtime.json`; it rejects an unconfigured prefix.
-- The Vite development proxy serves local Centrifugo on the app origin.
 
 ## Server boundaries
 

@@ -36,7 +36,22 @@ type D1AuthOptions = {
 export function createD1Auth(binding: Parameters<typeof drizzle>[0], secret: string, options: D1AuthOptions) {
   const database = drizzle(binding, { schema })
   const environment = options.environment
-  const issuer = new URL('/api/auth', environment.APP_URL).toString()
+  const authUrl = new URL('/api/auth', environment.APP_URL)
+  const issuer = environment.SPACETIME_ISSUER ?? authUrl.toString()
+  if (environment.SPACETIME_ISSUER) {
+    const previewUrl = new URL(issuer)
+    if (
+      previewUrl.protocol !== 'https:' ||
+      previewUrl.origin !== authUrl.origin ||
+      !/^\/api\/auth\/preview\/[0-9a-f]{40}$/.test(previewUrl.pathname) ||
+      previewUrl.username ||
+      previewUrl.password ||
+      previewUrl.search ||
+      previewUrl.hash
+    ) {
+      throw new Error('Invalid SpacetimeDB preview issuer')
+    }
+  }
   const audience = environment.SPACETIME_AUDIENCE
   if (!/^[a-z0-9][a-z0-9-]{0,127}$/.test(audience ?? '')) throw new Error('SPACETIME_AUDIENCE is required')
   const configuredApple = appleCredentials(environment)

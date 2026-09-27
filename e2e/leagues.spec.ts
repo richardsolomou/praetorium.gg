@@ -1,233 +1,239 @@
-import { and, desc, eq } from 'drizzle-orm'
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { z } from 'zod'
 import { befriend, createRoster, uniqueName, signUp, waitForRosterSave } from './account'
-import { openDatabase } from '../src/db/connection'
-import { leagueEventEntries, leagueEvents, leagues, rosters, user } from '../src/db/schema'
-import { postgresPort } from './stackEnv'
+import { productOperator, productSql, withAuthSql } from './storage'
 
 test.setTimeout(180_000)
 
+async function eventForLeague(leagueToken: string) {
+  const [league] = await productSql<{ id: string }>`SELECT id FROM leagues WHERE token = ${leagueToken}`
+  if (!league) throw new Error('The league test league is missing.')
+  const events = await productSql<{ id: string; number: number }>`SELECT id, number FROM league_events WHERE league_id = ${league.id}`
+  const event = events.toSorted((left, right) => right.number - left.number)[0]
+  if (!event) throw new Error('The league test event is missing.')
+  return event
+}
+
+function snapshot(userId: string, limit: number, warlord: boolean, name: string, unitName: string) {
+  return JSON.stringify({
+    name,
+    text: `${limit.toLocaleString()} points`,
+    built: {
+      catalogueId: 'test-catalogue',
+      revision: 'test-revision',
+      limit,
+      detachment: null,
+      disposition: null,
+      units: [
+        {
+          key: `${userId}-unit`,
+          name: unitName,
+          points: 80,
+          models: 1,
+          group: 'character',
+          warlord,
+          warlordEligible: true,
+        },
+      ],
+    },
+  })
+}
+
+function option<T>(value: [number, T | []]): T | null {
+  return value[0] === 0 ? (value[1] as T) : null
+}
+
+async function submitFixtureRoster(
+  leagueToken: string,
+  eventId: string,
+  userId: string,
+  limit: number,
+  warlord: boolean,
+  name: string,
+  unitName = 'Test unit',
+) {
+  const product = await productOperator()
+  const [league] = await productSql<{ owner_id: string }>`SELECT owner_id FROM leagues WHERE token = ${leagueToken}`
+  if (!league) throw new Error('The league test league is missing.')
+  const [event] = await productSql<{ token: string }>`SELECT token FROM league_events WHERE id = ${eventId}`
+  if (!event) throw new Error('The league test event is missing.')
+  const now = Date.now()
+  const rosterId = `${eventId}-${userId}-fixture`
+  const saved = await product.saveRoster({
+    id: rosterId,
+    userId,
+    name,
+    catalogueId: 'test-catalogue',
+    detachmentId: null,
+    disposition: null,
+    limit,
+    picks: '[]',
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    visibility: 'private',
+    source: 'editable',
+    now,
+  })
+  if (!saved) throw new Error('The league fixture roster was refused.')
+  const result = await product.leagueCommand(
+    {
+      op: 'submit',
+      token: leagueToken,
+      eventToken: event.token,
+      ownerId: league.owner_id,
+      userId,
+      rosterId,
+      rosterName: name,
+      rosterLimit: limit,
+      rosterUpdatedAt: now,
+      snapshot: snapshot(userId, limit, warlord, name, unitName),
+      now,
+    },
+    z.object({ outcome: z.string() }),
+  )
+  return result.outcome
+}
+
 async function sealEventRosters(leagueToken: string) {
-  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
-  try {
-    const [event] = await connection.database
-      .select({ id: leagueEvents.id })
-      .from(leagueEvents)
-      .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
-      .where(eq(leagues.token, leagueToken))
-      .orderBy(desc(leagueEvents.number))
-      .limit(1)
-    if (!event) throw new Error('The league test event is missing.')
-    const sealed = await connection.database
-      .update(leagueEventEntries)
-      .set({
-        rosterName: 'Sealed roster',
-        rosterSnapshot: JSON.stringify({
-          name: 'Sealed roster',
-          text: '2,000 points',
-          built: {
-            catalogueId: 'test-catalogue',
-            revision: 'test-revision',
-            limit: 2_000,
-            detachment: null,
-            disposition: null,
-            units: [
-              {
-                key: 'test-unit',
-                name: 'Test unit',
-                points: 80,
-                models: 5,
-                group: 'character',
-                warlord: true,
-                warlordEligible: true,
-              },
-            ],
-          },
-        }),
-        submittedAt: Date.now(),
-      })
-      .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'accepted')))
-      .returning({ userId: leagueEventEntries.userId })
-    if (sealed.length !== 2) throw new Error('The league test entrants are missing.')
-  } finally {
-    await connection.close()
+  const event = await eventForLeague(leagueToken)
+  const entries = await productSql<{
+    user_id: string
+  }>`SELECT user_id FROM league_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
+  if (entries.length !== 2) throw new Error('The league test entrants are missing.')
+  for (const entry of entries) {
+    if ((await submitFixtureRoster(leagueToken, event.id, entry.user_id, 2_000, true, 'Sealed roster')) !== 'sealed') {
+      throw new Error('The league fixture roster was not sealed.')
+    }
   }
 }
 
-async function makeLeagueEventLegacy(leagueToken: string) {
-  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
-  try {
-    const [event] = await connection.database
-      .select({ id: leagueEvents.id })
-      .from(leagueEvents)
-      .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
-      .where(eq(leagues.token, leagueToken))
-      .orderBy(desc(leagueEvents.number))
-      .limit(1)
-    if (!event) throw new Error('The legacy league test event is missing.')
-    const updated = await connection.database
-      .update(leagueEvents)
-      .set({ format: null, rosterLimit: null })
-      .where(eq(leagueEvents.id, event.id))
-      .returning({ id: leagueEvents.id })
-    if (updated.length !== 1) throw new Error('The legacy league test event is missing.')
-  } finally {
-    await connection.close()
-  }
+async function createLegacyLeague(ownerName: string, leagueName: string) {
+  const owner = await withAuthSql(
+    (database) => database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(ownerName) as { id: string } | undefined,
+  )
+  if (!owner) throw new Error('The legacy league owner is missing.')
+  const token = crypto.randomUUID()
+  const product = await productOperator()
+  await product.leagueCommand(
+    {
+      op: 'create',
+      id: crypto.randomUUID(),
+      token,
+      eventId: crypto.randomUUID(),
+      eventToken: crypto.randomUUID(),
+      ownerId: owner.id,
+      name: leagueName,
+      description: '',
+      visibility: 'public',
+      admission: 'automatic',
+      playerLimit: null,
+      recurring: false,
+      format: null,
+      rosterLimit: null,
+      now: Date.now(),
+    },
+    z.null(),
+  )
+  return token
 }
 
 async function seedRosters(playerName: string, values: { name: string; limit: number }[]) {
-  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
-  try {
-    const [player] = await connection.database.select({ id: user.id }).from(user).where(eq(user.name, playerName)).limit(1)
-    if (!player) throw new Error('The roster test player is missing.')
-    const now = Date.now()
-    await connection.database.insert(rosters).values(
-      values.map((value, index) => ({
-        id: `${player.id}-${value.limit}-${index}`,
-        userId: player.id,
-        name: value.name,
-        catalogueId: 'test-catalogue',
-        detachmentId: null,
-        disposition: null,
-        limit: value.limit,
-        picks: '[]',
-        prep: null,
-        tags: '[]',
-        visibility: 'private' as const,
-        source: 'editable' as const,
-        createdAt: now + index,
-        updatedAt: now + index,
-      })),
-    )
-  } finally {
-    await connection.close()
+  const player = await withAuthSql(
+    (database) => database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(playerName) as { id: string } | undefined,
+  )
+  if (!player) throw new Error('The roster test player is missing.')
+  const now = Date.now()
+  const product = await productOperator()
+  for (const [index, value] of values.entries()) {
+    const id = `${player.id}-${value.limit}-${index}`
+    await product.saveRoster({
+      id,
+      userId: player.id,
+      name: value.name,
+      catalogueId: 'test-catalogue',
+      detachmentId: null,
+      disposition: null,
+      limit: value.limit,
+      picks: '[]',
+      prep: null,
+      tags: '[]',
+      waivedRules: '[]',
+      visibility: 'private',
+      source: 'editable',
+      now: now + index,
+    })
   }
 }
 
 async function givePlayersTheSameName(existingName: string, playerName: string) {
-  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
-  try {
-    const [existing] = await connection.database.select({ id: user.id }).from(user).where(eq(user.name, existingName)).limit(1)
-    const [player] = await connection.database.select({ id: user.id }).from(user).where(eq(user.name, playerName)).limit(1)
+  return withAuthSql((database) => {
+    const existing = database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(existingName) as { id: string } | undefined
+    const player = database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(playerName) as { id: string } | undefined
     if (!existing || !player) throw new Error('The duplicate-name test players are missing.')
-    await connection.database.update(user).set({ name: existingName }).where(eq(user.id, player.id))
+    database.prepare('UPDATE user SET name = ? WHERE id = ?').run(existingName, player.id)
     return {
       existingLabel: `${existingName} · ${existing.id.slice(0, 8)}`,
       playerLabel: `${existingName} · ${player.id.slice(0, 8)}`,
     }
-  } finally {
-    await connection.close()
-  }
+  })
 }
 
 async function sealTeamEventRosters(leagueToken: string) {
-  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
-  try {
-    const [event] = await connection.database
-      .select({ id: leagueEvents.id })
-      .from(leagueEvents)
-      .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
-      .where(eq(leagues.token, leagueToken))
-      .orderBy(desc(leagueEvents.number))
-      .limit(1)
-    if (!event) throw new Error('The team league event is missing.')
-    const entries = await connection.database
-      .select({ userId: leagueEventEntries.userId, requiredLimit: leagueEventEntries.requiredLimit })
-      .from(leagueEventEntries)
-      .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'accepted')))
-    if (entries.length !== 3 || entries.some((entry) => entry.requiredLimit === null)) {
-      throw new Error('The team league assignments are incomplete.')
-    }
-    for (const entry of entries) {
-      const limit = entry.requiredLimit!
-      await connection.database
-        .update(leagueEventEntries)
-        .set({
-          rosterName: `${limit.toLocaleString()}-point roster`,
-          rosterSnapshot: JSON.stringify({
-            name: `${limit.toLocaleString()}-point roster`,
-            text: `${limit.toLocaleString()} points`,
-            built: {
-              catalogueId: 'test-catalogue',
-              revision: 'test-revision',
-              limit,
-              detachment: null,
-              disposition: null,
-              units: [
-                {
-                  key: `${entry.userId}-unit`,
-                  name: 'Test unit',
-                  points: 80,
-                  models: 5,
-                  group: 'character',
-                  warlord: true,
-                  warlordEligible: true,
-                },
-              ],
-            },
-          }),
-          submittedAt: Date.now(),
-        })
-        .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, entry.userId)))
-    }
-  } finally {
-    await connection.close()
+  const event = await eventForLeague(leagueToken)
+  const entries = await productSql<{
+    user_id: string
+    required_limit: [number, number | []]
+  }>`SELECT user_id, required_limit FROM league_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
+  if (entries.length !== 3 || entries.some((entry) => option(entry.required_limit) === null)) {
+    throw new Error('The team league assignments are incomplete.')
+  }
+  for (const entry of entries) {
+    const limit = option(entry.required_limit)!
+    const name = `${limit.toLocaleString()}-point roster`
+    const outcome = await submitFixtureRoster(leagueToken, event.id, entry.user_id, limit, true, name)
+    if (outcome !== 'sealed') throw new Error(`The team league fixture roster returned ${outcome} for ${entry.user_id}.`)
   }
 }
 
 async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = false) {
-  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
-  try {
-    const [event] = await connection.database
-      .select({ id: leagueEvents.id })
-      .from(leagueEvents)
-      .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
-      .where(eq(leagues.token, leagueToken))
-      .orderBy(desc(leagueEvents.number))
-      .limit(1)
-    if (!event) throw new Error('The doubles league event is missing.')
-    const entries = await connection.database
-      .select({ userId: leagueEventEntries.userId, teamId: leagueEventEntries.teamId })
-      .from(leagueEventEntries)
-      .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'accepted')))
-    if (entries.length !== 4 || entries.some((entry) => entry.teamId === null)) throw new Error('The doubles teams are incomplete.')
-    const warlords = new Set<string>()
-    for (const entry of entries) {
-      const warlord = invalidWarlords || !warlords.has(entry.teamId!)
-      warlords.add(entry.teamId!)
-      await connection.database
-        .update(leagueEventEntries)
-        .set({
-          rosterName: '1,000-point doubles roster',
-          rosterSnapshot: JSON.stringify({
-            name: '1,000-point doubles roster',
-            text: '1,000 points',
-            built: {
-              catalogueId: 'test-catalogue',
-              revision: 'test-revision',
-              limit: 1_000,
-              detachment: null,
-              disposition: null,
-              units: [
-                {
-                  key: `${entry.userId}-unit`,
-                  name: 'Test character',
-                  points: 80,
-                  models: 1,
-                  group: 'character',
-                  warlord,
-                  warlordEligible: true,
-                },
-              ],
-            },
-          }),
-          submittedAt: Date.now(),
-        })
-        .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, entry.userId)))
+  const event = await eventForLeague(leagueToken)
+  const entries = await productSql<{
+    user_id: string
+    team_id: [number, string | []]
+  }>`SELECT user_id, team_id FROM league_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
+  if (entries.length !== 4 || entries.some((entry) => option(entry.team_id) === null)) throw new Error('The doubles teams are incomplete.')
+  const warlords = new Set<string>()
+  let teammate: (typeof entries)[number] | undefined
+  for (const entry of entries) {
+    const teamId = option(entry.team_id)!
+    const warlord = !warlords.has(teamId)
+    if (!warlord) teammate = entry
+    warlords.add(teamId)
+    const outcome = await submitFixtureRoster(
+      leagueToken,
+      event.id,
+      entry.user_id,
+      1_000,
+      warlord,
+      '1,000-point doubles roster',
+      'Test character',
+    )
+    if (outcome !== 'sealed') {
+      throw new Error(`The doubles league fixture roster returned ${outcome}.`)
     }
-  } finally {
-    await connection.close()
+  }
+  if (invalidWarlords && teammate) {
+    const outcome = await submitFixtureRoster(
+      leagueToken,
+      event.id,
+      teammate.user_id,
+      1_000,
+      true,
+      '1,000-point doubles roster',
+      'Test character',
+    )
+    if (outcome !== 'invalid-warlords') throw new Error(`A doubles team accepted two Warlords: ${outcome}.`)
   }
 }
 
@@ -255,7 +261,9 @@ async function sealableRoster(page: Page, name: string, extraUnit?: string) {
 }
 
 async function join(page: Page) {
-  await page.getByRole('button', { name: 'Join league' }).click()
+  const button = page.getByRole('button', { name: 'Join league' })
+  await button.click()
+  await expect(button).toBeHidden()
 }
 
 async function expectNoHorizontalOverflow(page: Page, ...elements: Locator[]) {
@@ -305,6 +313,15 @@ async function submitLeagueCreation(page: Page, dialog: Locator) {
   await expect(page).toHaveURL(/\/leagues\/[^/?]+/)
 }
 
+async function openLeagueCreation(page: Page) {
+  const dialog = page.getByRole('dialog', { name: 'Create league' })
+  await expect(async () => {
+    await page.getByRole('button', { name: 'New league' }).click()
+    await expect(dialog).toBeVisible({ timeout: 1_000 })
+  }).toPass({ timeout: 10_000 })
+  return dialog
+}
+
 /** The organizer settles the shape of the games on the league page, before anyone seals a list. */
 async function chooseBattleFormat(page: Page, format: RegExp) {
   await page.getByRole('button', { name: 'Change format and points' }).click()
@@ -327,8 +344,7 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await page.getByLabel('Add a unit').fill('Captain')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Captain', exact: true }).first().click())
   await page.goto('/leagues')
-  await page.getByRole('button', { name: 'New league' }).click()
-  const create = page.getByRole('dialog', { name: 'Create league' })
+  const create = await openLeagueCreation(page)
   await create.getByLabel('Name').fill(leagueName)
   await expect(create.getByText('One-off', { exact: true })).toHaveCount(0)
   await expect(create.getByText('Recurring', { exact: true })).toHaveCount(0)
@@ -378,8 +394,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await sealableRoster(entrant, 'Mistaken list')
   await sealableRoster(entrant, 'Corrected list', 'Lokhust Destroyers')
   await owner.goto('/leagues')
-  await owner.getByRole('button', { name: 'New league' }).click()
-  const create = owner.getByRole('dialog', { name: 'Create league' })
+  const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Unseal League'))
   await create.getByRole('button', { name: /^Automatic/ }).click()
   await submitLeagueCreation(owner, create)
@@ -445,16 +460,9 @@ test('an eligible casual matchup is directed through its league event', async ({
   await signUp(owner, ownerName)
   await signUp(entrant, entrantName)
   await befriend(owner, entrant)
-  await owner.goto('/leagues')
-  await owner.getByRole('button', { name: 'New league' }).click()
-  const create = owner.getByRole('dialog', { name: 'Create league' })
-  await create.getByLabel('Name').fill(leagueName)
-  await create.getByRole('button', { name: /^Automatic/ }).click()
-  await submitLeagueCreation(owner, create)
-  const leagueUrl = new URL(owner.url())
-  leagueUrl.search = ''
-  const leagueToken = leagueUrl.pathname.split('/').at(-1)
-  if (!leagueToken) throw new Error('The created league URL has no token.')
+  const leagueToken = await createLegacyLeague(ownerName, leagueName)
+  const leagueUrl = new URL(`/leagues/${leagueToken}`, owner.url())
+  await owner.goto(leagueUrl.toString())
 
   await join(owner)
   await entrant.goto(leagueUrl.toString())
@@ -463,7 +471,6 @@ test('an eligible casual matchup is directed through its league event', async ({
   await owner.reload()
   await owner.getByRole('button', { name: 'Reveal all rosters' }).click()
   await owner.getByRole('alertdialog', { name: 'Reveal every roster?' }).getByRole('button', { name: 'Reveal all rosters' }).click()
-  await makeLeagueEventLegacy(leagueToken)
   await owner.reload()
   await expect(owner.getByRole('button', { name: 'Start 1 vs 1 battle' })).toBeVisible()
   expect(await owner.locator('aside h2').allTextContents()).toEqual(['Sealed rosters', 'League events'])
@@ -524,8 +531,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Select Deepening Madness' }).click())
 
   await owner.goto('/leagues')
-  await owner.getByRole('button', { name: 'New league' }).click()
-  const create = owner.getByRole('dialog', { name: 'Create league' })
+  const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Roster reveal'))
   await create.getByRole('button', { name: /^Automatic/ }).click()
   await create.getByRole('button', { name: 'Create league' }).click()
@@ -625,8 +631,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await owner.getByRole('button', { name: 'Save profile' }).click()
   await expect(owner.getByText('Profile saved.')).toBeVisible()
   await owner.goto('/leagues')
-  await owner.getByRole('button', { name: 'New league' }).click()
-  const create = owner.getByRole('dialog', { name: 'Create league' })
+  const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(leagueName)
   await submitLeagueCreation(owner, create)
   const leagueUrl = new URL(owner.url())
@@ -778,8 +783,7 @@ test('a league starts each event with fresh registration', async ({ browser }) =
   await signUp(entrant, entrantName)
 
   await owner.goto('/leagues')
-  await owner.getByRole('button', { name: 'New league' }).click()
-  const create = owner.getByRole('dialog', { name: 'Create league' })
+  const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(leagueName)
   await expect(create.getByText('One-off', { exact: true })).toHaveCount(0)
   await expect(create.getByText('Recurring', { exact: true })).toHaveCount(0)
@@ -870,8 +874,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   ])
 
   await owner.goto('/leagues')
-  await owner.getByRole('button', { name: 'New league' }).click()
-  const create = owner.getByRole('dialog', { name: 'Create league' })
+  const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(leagueName)
   await create.getByRole('button', { name: /^Automatic/ }).click()
   await owner.setViewportSize({ width: 390, height: 844 })
@@ -897,9 +900,15 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await join(secondAllied)
   const { existingLabel: alliedLabel, playerLabel: secondAlliedLabel } = await givePlayersTheSameName(alliedName, secondAlliedAccountName)
   await owner.reload()
-  await owner.getByRole('button', { name: `Assign ${ownerName} a solo roster` }).click()
-  await owner.getByRole('button', { name: `Assign ${alliedLabel} a solo roster` }).click()
-  await owner.getByRole('button', { name: `Assign ${secondAlliedLabel} an allied roster` }).click()
+  const ownerAssignment = owner.getByRole('button', { name: `Assign ${ownerName} a solo roster` })
+  await ownerAssignment.click()
+  await expect(ownerAssignment).toHaveAttribute('aria-pressed', 'true')
+  const alliedAssignment = owner.getByRole('button', { name: `Assign ${alliedLabel} a solo roster` })
+  await alliedAssignment.click()
+  await expect(alliedAssignment).toHaveAttribute('aria-pressed', 'true')
+  const secondAlliedAssignment = owner.getByRole('button', { name: `Assign ${secondAlliedLabel} an allied roster` })
+  await secondAlliedAssignment.click()
+  await expect(secondAlliedAssignment).toHaveAttribute('aria-pressed', 'true')
   await sealTeamEventRosters(leagueToken)
   await owner.reload()
   await expect(owner.getByRole('button', { name: 'Reveal all rosters' })).toBeDisabled()
@@ -912,6 +921,15 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const reassignment = owner.getByRole('alertdialog', { name: `Change ${alliedLabel}’s roster size?` })
   await expectNoHorizontalOverflow(owner, reassignment)
   await reassignment.getByRole('button', { name: 'Change size' }).click()
+  await expect
+    .poll(async () => {
+      const event = await eventForLeague(leagueToken)
+      const entries = await productSql<{
+        required_limit: [number, number | []]
+      }>`SELECT required_limit FROM league_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
+      return entries.map((entry) => option(entry.required_limit)).toSorted((left, right) => (left ?? 0) - (right ?? 0))
+    })
+    .toEqual([1_000, 1_000, 2_000])
   await sealTeamEventRosters(leagueToken)
   await owner.reload()
   await expect(owner.getByRole('button', { name: 'Reveal all rosters' })).toBeEnabled()
@@ -1055,8 +1073,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   ])
 
   await owner.goto('/leagues')
-  await owner.getByRole('button', { name: 'New league' }).click()
-  const create = owner.getByRole('dialog', { name: 'Create league' })
+  const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Doubles League'))
   await create.getByLabel('Player limit').fill('4')
   await create.getByRole('button', { name: /^Automatic/ }).click()
@@ -1205,10 +1222,8 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(reveal.getByRole('button', { name: 'Keep rosters sealed' })).toBeDisabled()
   await expect(reveal.getByRole('button', { name: 'Revealing…' })).toBeDisabled()
   releaseReveal()
-  await expect(reveal.getByRole('alert')).toHaveText('each doubles team must select exactly one eligible Warlord before reveal')
+  await expect(reveal).toBeHidden()
   await owner.unrouteAll({ behavior: 'wait' })
-  await sealDoublesEventRosters(leagueToken)
-  await reveal.getByRole('button', { name: 'Reveal all rosters' }).click()
   await owner.getByRole('button', { name: 'Start 2 vs 2 battle' }).click()
   const battleChooser = owner.getByRole('dialog', { name: 'Start 2 vs 2 battle' })
   await battleChooser.getByLabel('Opposing team').click()

@@ -1,33 +1,24 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import { eq } from 'drizzle-orm'
 import { nativeAuthCompletionScript, nativeAuthConsumeScript, nativeAuthExchangeScript } from '../mobile/src/nativeAuth'
-import { openDatabase } from '../src/db/connection'
-import { account, user } from '../src/db/schema'
 import { signUp, uniqueName } from './account'
-import { baseURL, postgresPort } from './stackEnv'
+import { baseURL } from './stackEnv'
+import { withAuthSql } from './storage'
 
 test('a native proof signs the WebView in and survives its final reload', async ({ browser }) => {
   const systemPage = await (await browser.newContext()).newPage()
   const name = uniqueName('Native auth')
   await signUp(systemPage, name)
 
-  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
-  try {
-    const [player] = await connection.database.select({ id: user.id }).from(user).where(eq(user.name, name)).limit(1)
-    if (!player) throw new Error('The native authentication player is missing.')
-    await connection.database.insert(account).values({
-      id: randomUUID(),
-      accountId: randomUUID(),
-      issuer: 'https://accounts.google.com',
-      providerId: 'google',
-      userId: player.id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })
-  } finally {
-    await connection.close()
-  }
+  const player = await withAuthSql(
+    (database) => database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(name) as { id: string } | undefined,
+  )
+  if (!player) throw new Error('The native authentication player is missing.')
+  await withAuthSql((database) =>
+    database
+      .prepare('INSERT INTO account (id, accountId, issuer, providerId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(randomUUID(), randomUUID(), 'https://accounts.google.com', 'google', player.id, Date.now(), Date.now()),
+  )
 
   const verifier = randomBytes(32).toString('base64url')
   const challenge = createHash('sha256').update(verifier).digest('base64url')

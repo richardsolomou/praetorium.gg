@@ -12,7 +12,6 @@ import {
   publicBattlesQuery,
   standingsQuery,
 } from '../../queries'
-import { useLiveBattles } from '../../useLiveBattle'
 import type { Battle } from '../battles/battle'
 import { CreateBattle } from '../battles/CreateBattle'
 import { DeleteBattleDialog } from '../battles/DeleteBattle'
@@ -46,8 +45,6 @@ export function Home() {
     .filter((league) => league.ownEntry?.status === 'accepted' && !league.ownEntry.submitted && !league.revealedAt)
     .map((league) => ({ token: league.token, name: league.name }))
   const [deleting, setDeleting] = useState<Battle | null>(null)
-  // Being added to a battle happens on someone else's device, so this page is told.
-  useLiveBattles(signedIn)
   return (
     <>
       <HomeView

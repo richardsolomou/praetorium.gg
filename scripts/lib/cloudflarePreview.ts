@@ -30,6 +30,11 @@ export function previewNames(number: number) {
   }
 }
 
+export function previewIssuer(number: number, revision: string) {
+  if (!/^[0-9a-f]{40}$/.test(revision)) throw new Error('Invalid preview revision')
+  return `${previewNames(number).origin}/api/auth/preview/${revision}`
+}
+
 export function previewConfig(input: {
   number: number
   main: string
@@ -47,7 +52,6 @@ export function previewConfig(input: {
   if (!/^[0-9a-f]{64}$/.test(input.snapshotId) || !/^[0-9a-f]{64}$/.test(input.manifestSha256)) {
     throw new Error('Invalid Worker catalogue version')
   }
-  if (!/^[0-9a-f]{40}$/.test(input.revision)) throw new Error('Invalid preview revision')
   return {
     name: names.worker,
     main: input.main,
@@ -57,6 +61,7 @@ export function previewConfig(input: {
       APP_URL: names.origin,
       SPACETIME_AUDIENCE: names.audience,
       SPACETIME_DATABASE: names.product,
+      SPACETIME_ISSUER: previewIssuer(input.number, input.revision),
       CATALOGUE_SNAPSHOT_ID: input.snapshotId,
       CATALOGUE_MANIFEST_SHA256: input.manifestSha256,
       GITHUB_SHA: input.revision,

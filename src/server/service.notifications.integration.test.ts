@@ -277,13 +277,7 @@ describe('push delivery', () => {
   it('answers the request that caused a notice without waiting for the push service', async () => {
     await register('bob')
     const repository = new Repository(database)
-    const hanging = new PraetoriumService(
-      repository,
-      Date.now,
-      { publish: () => {} },
-      () => 0,
-      pushNotifier(repository, { send: () => new Promise(() => {}) }),
-    )
+    const hanging = new PraetoriumService(repository, Date.now, () => 0, pushNotifier(repository, { send: () => new Promise(() => {}) }))
 
     await expect(hanging.createBattle('alice', 'bob')).resolves.toMatchObject({ practice: false })
   })

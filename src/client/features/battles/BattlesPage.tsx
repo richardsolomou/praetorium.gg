@@ -10,15 +10,12 @@ import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { SignInRequired } from '../../components/SignInRequired'
 import { battlesFrom, battlesQuery, meQuery } from '../../queries'
-import { useLiveBattles } from '../../useLiveBattle'
 
 export function BattlesPage() {
   const { data: me } = useQuery(meQuery())
   const { data: pages, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery(battlesQuery())
   const battles = battlesFrom(pages)
   const [deleting, setDeleting] = useState<Battle | null>(null)
-  // Being added to a battle happens on someone else's device, so this page is told.
-  useLiveBattles(Boolean(me))
   if (!me) return <SignInRequired title="Your battles" explanation="Sign in to see the battles you have played and the ones still going." />
   const active = battles.filter((battle) => battle.status === 'playing')
   const setup = battles.filter((battle) => battle.status === 'setup')

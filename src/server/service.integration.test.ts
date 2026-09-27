@@ -1945,7 +1945,6 @@ describe('standings', () => {
     const revised = new PraetoriumService(
       new Repository(database),
       () => 0,
-      { publish: () => {} },
       () => 0,
       undefined,
       async () => revision,

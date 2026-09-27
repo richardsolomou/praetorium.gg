@@ -12,7 +12,7 @@ const proxy = await getPlatformProxy<{ AUTH_DB: Parameters<typeof drizzle>[0] }>
   remoteBindings: true,
 })
 try {
-  await seedPreview(undefined, undefined, proxy.env.AUTH_DB)
+  await seedPreview(undefined, proxy.env.AUTH_DB)
 } finally {
   await proxy.dispose()
 }

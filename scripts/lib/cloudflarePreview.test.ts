@@ -58,6 +58,7 @@ it('binds the matching D1 database and product audience to one worker', () => {
     vars: {
       SPACETIME_DATABASE: 'praetorium-pr-606',
       SPACETIME_AUDIENCE: 'praetorium-pr-606',
+      SPACETIME_ISSUER: `https://pr-606.praetorium.gg/api/auth/preview/${'c'.repeat(40)}`,
       GITHUB_SHA: 'c'.repeat(40),
     },
     d1_databases: [{ database_name: 'praetorium-auth-pr-606', remote: true }],

@@ -3,11 +3,11 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { drizzle } from 'drizzle-orm/d1'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { getPlatformProxy } from 'wrangler'
 import { expect, it, vi } from 'vitest'
 import type { Roster } from '../src/core/battle'
-import { schema, user } from '../src/db/d1AuthSchema'
+import { account as d1Account, schema, user } from '../src/db/d1AuthSchema'
 import { handleD1Bridge } from '../src/server/d1Bridge'
 import { D1AccountRepository } from '../src/server/d1AccountRepository'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
@@ -82,8 +82,8 @@ it.skipIf(!url || !databaseName || !token)(
         const request = new Request(input, init)
         return new URL(request.url).hostname === 'd1.internal' ? handleD1Bridge(request, proxy.env.AUTH_DB) : originalFetch(input, init)
       })
-      await seedPreview(undefined, snapshots)
-      await seedPreview(undefined, snapshots)
+      await seedPreview(snapshots)
+      await seedPreview(snapshots)
       const accounts = new D1AccountRepository(proxy.env.AUTH_DB)
       const product = new SpacetimeOperator(url!, databaseName!, token!)
       const repository = new SpacetimeRepository(accounts, product)
@@ -92,6 +92,12 @@ it.skipIf(!url || !databaseName || !token)(
       expect((await repository.adminUsers({ limit: 10 })).users.find((row) => row.id === preview.id)?.rosterCount).toBe(8)
       expect((await repository.leagueByToken('preview-league-doubles', preview.id))?.entries).toHaveLength(4)
       expect((await repository.battleHistoryByToken('preview-league-battle-duel'))?.players).toHaveLength(2)
+      expect(await product.practiceOpponentIds()).toEqual(['practice-opponent-1', 'practice-opponent-2'])
+      const practiceCredentials = await drizzle(proxy.env.AUTH_DB)
+        .select({ userId: d1Account.userId })
+        .from(d1Account)
+        .where(inArray(d1Account.userId, ['practice-opponent-1', 'practice-opponent-2']))
+      expect(practiceCredentials).toEqual([])
     } finally {
       vi.unstubAllGlobals()
       vi.unstubAllEnvs()

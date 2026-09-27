@@ -11,6 +11,7 @@ One pull request comment shows the current state:
 - 🗑️ The pull request closed, and the preview was deleted.
 
 Each preview has a separate authentication database, product database, application secret, and product operator identity. The trusted deployment job seeds the two databases for one pull request with four test accounts, saved rosters, friendships, favourites, a collection, battles, and league events before deploying the Worker. A fresh deployment recreates its disposable data. Previews share a product database server and use their own pull request's pinned catalogue snapshot, but their database names, authentication issuers, and token audiences are distinct.
+The preview's token issuer includes the commit revision so SpacetimeDB fetches the new signing keys when a deployment recreates its authentication database. Existing preview sessions end on redeployment.
 The untrusted build compiles the pull request's pinned snapshot into private preview assets. The trusted deployment job verifies the artifact's catalogue paths, sizes, checksums, and snapshot identity, then fetches the pinned snapshot separately for database seeding.
 
 The primary test logins are `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Supporting team seats use two more disposable accounts. Previews are public and are not a place for sensitive data.

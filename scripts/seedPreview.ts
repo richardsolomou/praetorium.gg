@@ -4,12 +4,8 @@ import { drizzle } from 'drizzle-orm/d1'
 import type { Command, Roster } from '../src/core/battle'
 import type { RosterPick } from '../src/core/roster'
 import { rosterSnapshot } from '../src/core/rosterSnapshot'
-import { databaseUrl, openDatabase, type PraetoriumDatabase } from '../src/db/connection'
-import { user } from '../src/db/schema'
-import { Repository } from '../src/db/repository'
 import type { RepositoryPort } from '../src/db/repository'
-import { schema as d1Schema, user as d1User } from '../src/db/d1AuthSchema'
-import { createAuth } from '../src/server/auth'
+import { account as d1Account, schema as d1Schema, user as d1User } from '../src/db/d1AuthSchema'
 import { createD1Auth } from '../src/server/d1Auth'
 import { remoteD1 } from '../src/server/d1Bridge'
 import { D1AccountRepository } from '../src/server/d1AccountRepository'
@@ -30,6 +26,11 @@ export const PREVIEW_ALLY_EMAIL = 'ally@praetorium.gg'
 const PREVIEW_ALLY_PASSWORD = 'ally-ally-ally-ally'
 export const PREVIEW_RIVAL_EMAIL = 'rival@praetorium.gg'
 const PREVIEW_RIVAL_PASSWORD = 'rival-rival-rival-rival'
+
+const PRACTICE_OPPONENTS = [
+  { id: 'practice-opponent-1', name: 'Practice Opponent' },
+  { id: 'practice-opponent-2', name: 'Practice Opponent II' },
+] as const
 
 export type PreviewRoster = {
   id: string
@@ -277,65 +278,58 @@ const PREVIEW_ALL_ROSTERS = PREVIEW_ACCOUNTS.flatMap((account) => account.roster
 
 export type PreviewSnapshots = ReadonlyMap<string, Roster>
 
-// Public passwords make an explicit preview flag or local database non-negotiable.
-function seedable(url: string) {
-  if (process.env.PRAETORIUM_SEED_PREVIEW === 'true') return true
-  try {
-    const host = new URL(url).hostname
-    return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === 'postgres'
-  } catch {
-    return false
-  }
-}
-
-export async function seedPreview(
-  provided?: PraetoriumDatabase,
-  providedSnapshots?: PreviewSnapshots,
-  hostedBinding?: Parameters<typeof drizzle>[0],
-) {
-  if (provided) return seedIntoPostgres(provided, providedSnapshots ?? (await verifiedSnapshots()))
-  if (process.env.SPACETIME_URL) {
-    if (process.env.PRAETORIUM_SEED_PREVIEW !== 'true') throw new Error('Refusing to seed a hosted database without the preview flag')
-    const snapshots = providedSnapshots ?? (await verifiedSnapshots())
-    const binding = hostedBinding ?? remoteD1()
-    const database = drizzle(binding, { schema: d1Schema })
-    const product = new SpacetimeOperator(
-      process.env.SPACETIME_URL,
-      process.env.SPACETIME_DATABASE ?? '',
-      process.env.SPACETIME_OPERATOR_TOKEN ?? '',
-      fetch,
-      process.env.SPACETIME_ACCESS_CLIENT_ID && process.env.SPACETIME_ACCESS_CLIENT_SECRET
-        ? { clientId: process.env.SPACETIME_ACCESS_CLIENT_ID, clientSecret: process.env.SPACETIME_ACCESS_CLIENT_SECRET }
-        : undefined,
-    )
-    const auth = createD1Auth(binding, process.env.AUTH_SECRET ?? '', {
-      environment: process.env,
-      deleteUserData: (userId) => product.deleteUserData(userId),
-      revokeSessionAccess: (sessionId) => product.revokeSession(sessionId),
-      storeSocialAvatar: async () => null,
-      updateProfile: async (data) => ({ ok: true, data }),
-    })
-    const repository = new SpacetimeRepository(new D1AccountRepository(binding), product)
-    return seedInto(
-      repository,
-      auth,
-      async (email) => {
-        const [row] = await database.select({ id: d1User.id }).from(d1User).where(eq(d1User.email, email)).limit(1)
-        return row?.id ?? null
-      },
-      snapshots,
-    )
-  }
-  const url = databaseUrl()
-  if (!seedable(url)) {
-    throw new Error('refusing to seed: DATABASE_URL is not local. Set PRAETORIUM_SEED_PREVIEW=true to seed it deliberately.')
+export async function seedPreview(providedSnapshots?: PreviewSnapshots, hostedBinding?: Parameters<typeof drizzle>[0]) {
+  if (process.env.PRAETORIUM_SEED_PREVIEW !== 'true') throw new Error('Refusing to seed a database without the preview flag')
+  if (!process.env.SPACETIME_URL || !process.env.SPACETIME_DATABASE || !process.env.SPACETIME_OPERATOR_TOKEN || !process.env.AUTH_SECRET) {
+    throw new Error('Preview seed requires SpacetimeDB and auth configuration')
   }
   const snapshots = providedSnapshots ?? (await verifiedSnapshots())
-  const connection = openDatabase(url)
-  try {
-    await seedIntoPostgres(connection.database, snapshots)
-  } finally {
-    await connection.close()
+  const binding = hostedBinding ?? remoteD1()
+  const database = drizzle(binding, { schema: d1Schema })
+  const product = new SpacetimeOperator(
+    process.env.SPACETIME_URL,
+    process.env.SPACETIME_DATABASE,
+    process.env.SPACETIME_OPERATOR_TOKEN,
+    fetch,
+    process.env.SPACETIME_ACCESS_CLIENT_ID && process.env.SPACETIME_ACCESS_CLIENT_SECRET
+      ? { clientId: process.env.SPACETIME_ACCESS_CLIENT_ID, clientSecret: process.env.SPACETIME_ACCESS_CLIENT_SECRET }
+      : undefined,
+  )
+  const auth = createD1Auth(binding, process.env.AUTH_SECRET, {
+    environment: process.env,
+    deleteUserData: (userId) => product.deleteUserData(userId),
+    revokeSessionAccess: (sessionId) => product.revokeSession(sessionId),
+    storeSocialAvatar: async () => null,
+    updateProfile: async (data) => ({ ok: true, data }),
+  })
+  const repository = new SpacetimeRepository(new D1AccountRepository(binding), product)
+  await seedInto(
+    repository,
+    auth,
+    async (email) => {
+      const [row] = await database.select({ id: d1User.id }).from(d1User).where(eq(d1User.email, email)).limit(1)
+      return row?.id ?? null
+    },
+    snapshots,
+  )
+  for (const opponent of PRACTICE_OPPONENTS) {
+    const email = `${opponent.id}@praetorium.invalid`
+    const [existing] = await database.select({ email: d1User.email }).from(d1User).where(eq(d1User.id, opponent.id)).limit(1)
+    if (existing && existing.email !== email) throw new Error(`Practice opponent ${opponent.id} is an existing account`)
+    const [credential] = await database.select({ id: d1Account.id }).from(d1Account).where(eq(d1Account.userId, opponent.id)).limit(1)
+    if (credential) throw new Error(`Practice opponent ${opponent.id} has sign-in credentials`)
+    if (!existing) {
+      const now = new Date()
+      await database.insert(d1User).values({
+        id: opponent.id,
+        name: opponent.name,
+        email,
+        emailVerified: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+    }
+    await product.registerPracticeOpponent(opponent.id)
   }
 }
 
@@ -381,21 +375,9 @@ async function verifiedSnapshots(): Promise<PreviewSnapshots> {
   )
 }
 
-async function seedIntoPostgres(database: PraetoriumDatabase, snapshots: PreviewSnapshots) {
-  return seedInto(
-    new Repository(database),
-    createAuth(database, 'praetorium-disposable-preview-secret'),
-    async (email) => {
-      const [row] = await database.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1)
-      return row?.id ?? null
-    },
-    snapshots,
-  )
-}
-
 async function seedInto(
   repository: RepositoryPort,
-  auth: ReturnType<typeof createAuth> | ReturnType<typeof createD1Auth>,
+  auth: ReturnType<typeof createD1Auth>,
   userIdByEmail: (email: string) => Promise<string | null>,
   snapshots: PreviewSnapshots,
 ) {

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
-import { createRoster, signUp, waitForRosterSave } from './account'
+import { createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import {
   shot,
   expectNoHorizontalOverflow,
@@ -609,8 +609,8 @@ test('contained faction datasheet rows stay accessible and resize without horizo
 test('favourite detachments rise to the top of roster setup', async ({ page }) => {
   await signUp(page, 'Richard')
   await page.goto('/rosters')
-  await page.getByRole('button', { name: 'Create editable roster' }).click()
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create editable roster' }).click())
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
@@ -632,8 +632,8 @@ test('favourite detachments rise to the top of roster setup', async ({ page }) =
 test('King of the Colosseum creation keeps exactly one detachment selected', async ({ page }) => {
   await signUp(page, 'Richard')
   await page.goto('/rosters')
-  await page.getByRole('button', { name: 'Create editable roster' }).click()
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create editable roster' }).click())
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()

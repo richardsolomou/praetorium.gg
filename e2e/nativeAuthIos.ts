@@ -1,18 +1,17 @@
 import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { request as httpRequest, type IncomingMessage, type ServerResponse } from 'node:http'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createServer as createHttpsServer, request as httpsRequest } from 'node:https'
 import path from 'node:path'
-import { eq } from 'drizzle-orm'
-import { openDatabase } from '../src/db/connection'
-import { account, user } from '../src/db/schema'
+import { withAuthSql } from './storage'
 
 const root = path.join(import.meta.dirname, '..')
 const backendPort = Number(process.env.NATIVE_AUTH_BACKEND_PORT ?? 4274)
 const publicPort = Number(process.env.NATIVE_AUTH_PUBLIC_PORT ?? 4273)
-const postgresPort = backendPort + 20_000
-const backendUrl = `http://127.0.0.1:${backendPort}`
+const dataDirectory = `/tmp/praetorium-native-auth-ios-${backendPort}`
+const backendUrl = `https://127.0.0.1:${backendPort}`
+const readyUrl = `http://127.0.0.1:${backendPort + 20_000}/ready`
 const publicUrl = `https://localhost:${publicPort}`
 const fixtureName = 'Native Auth Simulator'
 const fixtureEmail = `native-auth-${randomUUID()}@example.test`
@@ -121,13 +120,19 @@ function requestPublic(pathname: string, method: string, headers: Record<string,
 function forward(request: IncomingMessage, response: ServerResponse) {
   const target = new URL(request.url ?? '/', backendUrl)
   return new Promise<void>((resolve, reject) => {
-    const forwarded = httpRequest(
+    const forwarded = httpsRequest(
       {
         hostname: '127.0.0.1',
         port: backendPort,
         path: `${target.pathname}${target.search}`,
         method: request.method,
-        headers: { ...request.headers, host: new URL(publicUrl).host },
+        ca: readFileSync(tlsCertificate),
+        headers: {
+          ...request.headers,
+          host: new URL(publicUrl).host,
+          'x-forwarded-host': new URL(publicUrl).host,
+          'x-forwarded-proto': 'https',
+        },
       },
       (upstream) => {
         const status = upstream.statusCode ?? 502
@@ -213,7 +218,7 @@ function startProxy() {
 
 async function waitForHealth() {
   for (let attempt = 0; attempt < 240; attempt += 1) {
-    if ((await fetch(`${backendUrl}/api/health`).catch(() => null))?.ok) return
+    if ((await fetch(readyUrl).catch(() => null))?.ok) return
     await new Promise((resolve) => setTimeout(resolve, 1_000))
   }
   throw new Error('The native authentication test stack did not become healthy.')
@@ -230,22 +235,26 @@ async function createFixture() {
   fixtureCookie = (response.headers['set-cookie'] ?? []).map((cookie) => cookie.split(';', 1)[0]).join('; ')
   if (!fixtureCookie) throw new Error('Fixture account creation did not return a session cookie.')
 
-  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
-  try {
-    const [player] = await connection.database.select({ id: user.id }).from(user).where(eq(user.email, fixtureEmail)).limit(1)
-    if (!player) throw new Error('The native authentication fixture account is missing.')
-    await connection.database.insert(account).values({
-      id: randomUUID(),
-      accountId: createHash('sha256').update(fixtureEmail).digest('hex'),
-      issuer: 'https://accounts.google.com',
-      providerId: 'google',
-      userId: player.id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })
-  } finally {
-    await connection.close()
-  }
+  const player = await withAuthSql(
+    (database) => database.prepare('SELECT id FROM user WHERE email = ? LIMIT 1').get(fixtureEmail) as { id: string } | undefined,
+    dataDirectory,
+  )
+  if (!player) throw new Error('The native authentication fixture account is missing.')
+  await withAuthSql(
+    (database) =>
+      database
+        .prepare('INSERT INTO account (id, accountId, issuer, providerId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(
+          randomUUID(),
+          createHash('sha256').update(fixtureEmail).digest('hex'),
+          'https://accounts.google.com',
+          'google',
+          player.id,
+          Date.now(),
+          Date.now(),
+        ),
+    dataDirectory,
+  )
 }
 
 async function bootedSimulator() {
@@ -275,19 +284,23 @@ function skipLocalPostHogUpload(projectFile: string) {
 }
 
 async function main() {
-  await run('sh', ['e2e/stack-down.sh', String(backendPort)])
   await ensureTlsCertificate()
   await startProxy()
-  const stack = spawn('sh', ['e2e/stack.sh', String(backendPort)], {
+  const stack = spawn('pnpm', ['exec', 'tsx', 'scripts/localDev.ts'], {
     cwd: root,
     env: {
       ...process.env,
       CATALOGUE_HOST_DIR: process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data'),
       GOOGLE_CLIENT_ID: 'native-auth-simulator',
       GOOGLE_CLIENT_SECRET: 'native-auth-simulator-secret',
-      PLAYWRIGHT_APP_URL: publicUrl,
-      PLAYWRIGHT_DATA_ROOT: `/tmp/praetorium-native-auth-ios-${backendPort}`,
-      PLAYWRIGHT_IMAGE: process.env.PLAYWRIGHT_IMAGE ?? 'praetorium-e2e',
+      LOCAL_PUBLIC_URL: publicUrl,
+      LOCAL_APP_PORT: String(backendPort),
+      LOCAL_DATA_DIR: dataDirectory,
+      LOCAL_TEST_MODE: 'true',
+      LOCAL_WORKER_PROTOCOL: 'https',
+      LOCAL_WORKER_CERT: tlsCertificate,
+      LOCAL_WORKER_KEY: tlsKey,
+      NODE_EXTRA_CA_CERTS: tlsCertificate,
     },
     stdio: 'inherit',
   })
@@ -362,5 +375,4 @@ try {
 } finally {
   if (proxy) await new Promise<void>((resolve) => proxy!.close(() => resolve()))
   stopStack?.()
-  await run('sh', ['e2e/stack-down.sh', String(backendPort)]).catch(() => undefined)
 }

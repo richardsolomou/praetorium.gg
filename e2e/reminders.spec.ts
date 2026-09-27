@@ -118,6 +118,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await page.keyboard.press('Escape')
   await page.setViewportSize(desktopContext.viewport)
   await advance(page, { dismissReminders: false })
+  await expect(opponent.getByRole('heading', { name: 'movement phase' })).toBeVisible()
   await advance(opponent, { dismissReminders: false })
 
   const reminder = page.getByRole('dialog', { name: 'Battle reminder' })

@@ -1,5 +1,4 @@
 import { expect, test, type Locator } from '@playwright/test'
-import postgres from 'postgres'
 import {
   advance,
   advanceButton,
@@ -17,7 +16,7 @@ import {
   uniqueName,
   waitForRosterSave,
 } from './account'
-import { postgresPort } from './stackEnv'
+import { productSql } from './storage'
 
 test('native battle controls leave the application tabs reachable', async ({ page }) => {
   await signUp(page, uniqueName('Native controls'))
@@ -67,15 +66,14 @@ test('a running battle restores mission prompts when its tactical prep is missin
   await startBattle(page)
 
   const token = new URL(page.url()).pathname.split('/').at(-1)!
-  const database = postgres(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`, { max: 1 })
-  await database`
-    delete from commands
-    using battles
-    where commands.battle_id = battles.id
-      and battles.token = ${token}
-      and commands.body::jsonb->>'kind' in ('set-prep', 'draw-secondaries')
-  `
-  await database.end()
+  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
+  if (!battle) throw new Error('Battle is missing')
+  const commands = await productSql<{ key: string; body: string }>`SELECT key, body FROM commands WHERE battle_id = ${battle.id}`
+  for (const command of commands) {
+    if (['set-prep', 'draw-secondaries'].includes((JSON.parse(command.body) as { kind: string }).kind)) {
+      await productSql`DELETE FROM commands WHERE key = ${command.key}`
+    }
+  }
   await page.reload()
 
   const draw = page.getByRole('dialog', { name: 'Your secondary missions' })
@@ -99,31 +97,20 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   await startBattle(page)
 
   const token = new URL(page.url()).pathname.split('/').at(-1)!
-  const database = postgres(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`, { max: 1 })
-  const [battle] = await database<{ id: string; body: string }[]>`
-    select battles.id, commands.body
-    from battles
-    join commands on commands.battle_id = battles.id
-    where battles.token = ${token}
-      and commands.body::jsonb->>'kind' = 'begin-battle'
-  `
+  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
   if (!battle) throw new Error('Battle did not start')
-  const firstPlayerId = JSON.parse(battle.body).firstPlayerId as string
-  const [opponent] = await database<{ userId: string }[]>`
-    select user_id as "userId"
-    from battle_users
-    where battle_id = ${battle.id}
-      and user_id <> ${firstPlayerId}
-  `
-  const [latest] = await database<{ seq: number }[]>`select max(seq)::int as seq from commands where battle_id = ${battle.id}`
-  if (!opponent || !latest) throw new Error('Battle seats are incomplete')
-  let seq = latest.seq
+  const commands = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`
+  const started = commands.find((command) => (JSON.parse(command.body) as { kind: string }).kind === 'begin-battle')
+  if (!started) throw new Error('Battle did not start')
+  const firstPlayerId = (JSON.parse(started.body) as { firstPlayerId: string }).firstPlayerId
+  const [opponent] = await productSql<{
+    user_id: string
+  }>`SELECT user_id FROM battle_users WHERE battle_id = ${battle.id} AND user_id <> ${firstPlayerId}`
+  if (!opponent) throw new Error('Battle seats are incomplete')
+  let seq = Math.max(...commands.map((command) => command.seq))
   const append = async (by: string, body: object) => {
     seq += 1
-    await database`
-      insert into commands (battle_id, seq, user_id, at, body)
-      values (${battle.id}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(body)})
-    `
+    await productSql`INSERT INTO commands (key, battle_id, seq, user_id, at, body) VALUES (${JSON.stringify([battle.id, seq])}, ${battle.id}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(body)})`
   }
   await append(firstPlayerId, {
     kind: 'select-secret',
@@ -149,11 +136,10 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   }
   for (let round = 1; round < 5; round += 1) {
     await passPhases(firstPlayerId, 6)
-    await passPhases(opponent.userId, 6)
+    await passPhases(opponent.user_id, 6)
   }
   await passPhases(firstPlayerId, 6)
-  await passPhases(opponent.userId, 5)
-  await database.end()
+  await passPhases(opponent.user_id, 5)
   await page.reload()
 
   await expect(page.locator('[data-scoreboard] h1')).toContainText('end phase')
@@ -595,8 +581,10 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
         const fixed = prep.getByRole('button', { name: 'Fixed' })
         const press = async (button: Locator) => {
           await expect(async () => {
+            await expect(button).toBeEnabled({ timeout: 1_000 })
             if ((await button.getAttribute('aria-pressed')) === 'true') return
             await button.click({ timeout: 1_000 })
+            await expect(button).toBeEnabled({ timeout: 3_000 })
             await expect(button).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
           }).toPass({ timeout: 10_000 })
         }
@@ -607,18 +595,33 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
       }
       await chooseFixed(0)
       await chooseFixed(1)
+      await alice.reload()
+      await setupStep(alice, 'Secondaries')
+      for (const side of [0, 1]) {
+        const prep = alice.getByRole('group', { name: 'Secondary play' }).nth(side).locator('..')
+        await expect(prep.getByRole('button', { name: 'Fixed' })).toHaveAttribute('aria-pressed', 'true')
+        await expect(prep.getByRole('button', { name: 'Remove Engage on All Fronts' })).toHaveAttribute('aria-pressed', 'true')
+        await expect(prep.getByRole('button', { name: 'Remove Bring It Down' })).toHaveAttribute('aria-pressed', 'true')
+      }
       await alice.screenshot({ path: 'test-results/opponent-secondary-setup.png', fullPage: true })
     },
   })
 
   for (let phase = 0; phase < 6; phase += 1) await advance(alice)
   await takeTheTurn(bob)
+  const openingOwed = alice.getByRole('dialog', { name: /^Scoring end of their turn points/ })
+  await expect(openingOwed).toBeVisible()
+  await openingOwed.getByRole('button', { name: 'Take the turn' }).click()
+  await expect(openingOwed).toBeHidden()
 
   const alicePanel = alice.locator('[data-panel="player"]').filter({ hasText: aliceName })
   await alicePanel.getByRole('button', { name: 'Select secret mission' }).click()
   await alice.getByRole('dialog', { name: 'Select a secret mission' }).getByRole('button', { name: 'Assassination' }).click()
   await expect(alicePanel.locator('[data-secondary="assassination"]')).toContainText('secret')
   const bobPanel = bob.locator('[data-panel="player"]').filter({ hasText: bobName })
+  await expect(bob.locator('[data-panel="player"]').filter({ hasText: aliceName }).locator('[data-secondary="secret"]')).toContainText(
+    'Secret mission',
+  )
   await bobPanel.getByRole('button', { name: 'Select secret mission' }).click()
   await bob.getByRole('dialog', { name: 'Select a secret mission' }).getByRole('button', { name: 'Beacon' }).click()
   await expect(bobPanel.locator('[data-secondary="beacon"]')).toContainText('secret')
