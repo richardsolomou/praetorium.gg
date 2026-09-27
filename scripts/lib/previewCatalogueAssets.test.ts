@@ -13,23 +13,24 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
 
-async function fixture() {
+async function fixture(format: 'v2' | 'v3' = 'v3') {
   const root = await mkdtemp(path.join(tmpdir(), 'praetorium-preview-assets-'))
   roots.push(root)
   const bytes = Buffer.from('{}\n')
+  const names = format === 'v2' ? ['shared.json'] : ['sources.json', 'partitions.bin', 'references.bin', 'auxiliary.bin']
   const manifest = {
-    format: 'praetorium.worker-catalogue.v3',
+    format: `praetorium.worker-catalogue.${format}`,
     snapshotId,
     revision: 'test',
-    entries: {
-      'sources.json': { sha256: sha256(bytes), bytes: bytes.length },
-      'partitions.bin': { sha256: sha256(bytes), bytes: bytes.length },
-      'references.bin': { sha256: sha256(bytes), bytes: bytes.length },
-      'auxiliary.bin': { sha256: sha256(bytes), bytes: bytes.length },
-    },
-    referenceRanges: { 'references/global.json': { offset: 0, bytes: bytes.length, expandedBytes: 1 } },
-    auxiliaryRanges: { 'battle-missions.json': { offset: 0, bytes: bytes.length, expandedBytes: 1 } },
-    detachments: {},
+    entries: Object.fromEntries(names.map((name) => [name, { sha256: sha256(bytes), bytes: bytes.length }])),
+    partitions: {},
+    ...(format === 'v3'
+      ? {
+          referenceRanges: { 'references/global.json': { offset: 0, bytes: bytes.length, expandedBytes: 1 } },
+          auxiliaryRanges: { 'battle-missions.json': { offset: 0, bytes: bytes.length, expandedBytes: 1 } },
+          detachments: {},
+        }
+      : {}),
     pickers: {},
   }
   const manifestBytes = Buffer.from(`${JSON.stringify(manifest)}\n`)
@@ -46,15 +47,17 @@ async function fixture() {
   )
   await writeFile(path.join(root, 'catalogue-manifest.json'), manifestBytes)
   await writeFile(path.join(assets, 'manifest.json'), manifestBytes)
-  await writeFile(path.join(assets, 'sources.json'), bytes)
-  await writeFile(path.join(assets, 'partitions.bin'), bytes)
-  await writeFile(path.join(assets, 'references.bin'), bytes)
-  await writeFile(path.join(assets, 'auxiliary.bin'), bytes)
+  for (const name of names) await writeFile(path.join(assets, name), bytes)
   return { root, assets, manifest, manifestSha256 }
 }
 
 it('accepts a checked catalogue artifact pinned by the PR', async () => {
   const { root, manifestSha256 } = await fixture()
+  await expect(verifyPreviewCatalogueAssets(root)).resolves.toEqual({ snapshotId, manifestSha256 })
+})
+
+it('accepts v2 catalogue assets from an existing preview build', async () => {
+  const { root, manifestSha256 } = await fixture('v2')
   await expect(verifyPreviewCatalogueAssets(root)).resolves.toEqual({ snapshotId, manifestSha256 })
 })
 

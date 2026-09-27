@@ -38,7 +38,7 @@ export async function verifyPreviewCatalogueAssets(directory: string) {
   const manifest = JSON.parse(manifestBytes.toString('utf8')) as Record<string, unknown>
   if (
     !manifest ||
-    manifest.format !== 'praetorium.worker-catalogue.v3' ||
+    !['praetorium.worker-catalogue.v2', 'praetorium.worker-catalogue.v3'].includes(manifest.format as string) ||
     manifest.snapshotId !== lock.pointer.id ||
     typeof manifest.entries !== 'object' ||
     !manifest.entries ||
