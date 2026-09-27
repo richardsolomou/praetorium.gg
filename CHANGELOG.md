@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.79.2
+
+### Patch Changes
+
+- 51082af: Keep the verified catalogue in Worker memory for faster faction and roster navigation.
+
 ## 0.79.1
 
 ### Patch Changes
