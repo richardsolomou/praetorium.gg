@@ -5,7 +5,7 @@ import { parseCatalogueLock } from '../../src/server/catalogueSnapshot'
 
 const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 const HASH = /^[0-9a-f]{64}$/
-const ASSET_PATH = /^[a-z0-9-]+(?:\/[a-z0-9-]+)*\.json$/
+const ASSET_PATH = /^(?:(?:partitions|references|auxiliary)\.bin|[a-z0-9-]+(?:\/[a-z0-9-]+)*\.json)$/
 const MAX_MANIFEST_BYTES = 512 * 1024
 const MAX_ASSET_BYTES = 20 * 1024 * 1024
 const MAX_TOTAL_BYTES = 512 * 1024 * 1024
@@ -38,7 +38,7 @@ export async function verifyPreviewCatalogueAssets(directory: string) {
   const manifest = JSON.parse(manifestBytes.toString('utf8')) as Record<string, unknown>
   if (
     !manifest ||
-    manifest.format !== 'praetorium.worker-catalogue.v2' ||
+    !['praetorium.worker-catalogue.v2', 'praetorium.worker-catalogue.v3'].includes(manifest.format as string) ||
     manifest.snapshotId !== lock.pointer.id ||
     typeof manifest.entries !== 'object' ||
     !manifest.entries ||

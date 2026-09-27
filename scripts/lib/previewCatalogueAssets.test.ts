@@ -13,15 +13,16 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
 
-async function fixture() {
+async function fixture(format: 'v2' | 'v3' = 'v2') {
   const root = await mkdtemp(path.join(tmpdir(), 'praetorium-preview-assets-'))
   roots.push(root)
   const bytes = Buffer.from('{}\n')
+  const names = format === 'v2' ? ['shared.json'] : ['sources.json', 'partitions.bin', 'references.bin', 'auxiliary.bin']
   const manifest = {
-    format: 'praetorium.worker-catalogue.v2',
+    format: `praetorium.worker-catalogue.${format}`,
     snapshotId,
     revision: 'test',
-    entries: { 'shared.json': { sha256: sha256(bytes), bytes: bytes.length } },
+    entries: Object.fromEntries(names.map((name) => [name, { sha256: sha256(bytes), bytes: bytes.length }])),
     partitions: {},
     pickers: {},
   }
@@ -39,12 +40,17 @@ async function fixture() {
   )
   await writeFile(path.join(root, 'catalogue-manifest.json'), manifestBytes)
   await writeFile(path.join(assets, 'manifest.json'), manifestBytes)
-  await writeFile(path.join(assets, 'shared.json'), bytes)
+  for (const name of names) await writeFile(path.join(assets, name), bytes)
   return { root, assets, manifest, manifestSha256 }
 }
 
 it('accepts a checked catalogue artifact pinned by the PR', async () => {
   const { root, manifestSha256 } = await fixture()
+  await expect(verifyPreviewCatalogueAssets(root)).resolves.toEqual({ snapshotId, manifestSha256 })
+})
+
+it('accepts bundled v3 catalogue assets from a preview build', async () => {
+  const { root, manifestSha256 } = await fixture('v3')
   await expect(verifyPreviewCatalogueAssets(root)).resolves.toEqual({ snapshotId, manifestSha256 })
 })
 
