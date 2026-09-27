@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { gzipSync } from 'node:zlib'
 import { clearGlobalSingleton } from 'ras-stack/server'
 import { beforeEach, expect, it } from 'vitest'
 import { encodeCatalogueArtifact } from './catalogueArtifactCodec'
@@ -8,7 +9,9 @@ import { WorkerCatalogueStore, workerCatalogueManifest } from './workerCatalogue
 import { selectedBattleDetachmentData } from './battleDetachmentData'
 
 const snapshotId = 'a'.repeat(64)
-const part = 'partitions/000000000000000000000000.json'
+const partitions = 'partitions.bin'
+const references = 'references.bin'
+const auxiliary = 'auxiliary.bin'
 const detachment = 'detachments/000000000000000000000000.json'
 const terrainMatchup = 'terrain/000000000000000000000000.json'
 const picker = 'pickers/000000000000000000000000.json'
@@ -24,12 +27,12 @@ beforeEach(async () => {
   await clearGlobalSingleton('praetorium.worker-catalogue-resolved')
 })
 
-function fixture(layoutMatchupId = 'one-vs-two') {
-  const shared = encode({
+function fixture(layoutMatchupId = 'one-vs-two', expandedDelta = 0) {
+  const sources = encode({
     datacards: { factions: new Map() },
     sourceReferences: emptyExternalReferences(),
-    rules: { byDetachment: new Map() },
   })
+  const rules = encode({ byDetachment: new Map() })
   const battleMissions = encode({
     missions: new Map([['pack|one|two', { name: 'Vital Link', packId: 'pack' }]]),
     fixedSecondaryCaps: new Map([['pack', 20]]),
@@ -66,10 +69,18 @@ function fixture(layoutMatchupId = 'one-vs-two') {
     history: null,
   })
   const searchIndex = encode({ factions: [], detachments: [], datasheets: [], missions: [], rules: [] })
-  const partition = encode([
-    { gameSystem: { id: 'system', name: 'Test system', costTypes: [{ id: 'points', name: 'pts' }] } },
+  const system = { gameSystem: { id: 'system', name: 'Test system', costTypes: [{ id: 'points', name: 'pts' }] } }
+  const army = encode([
+    system,
     { catalogue: { id: 'army', name: 'Test army', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] } },
   ])
+  const other = encode([
+    system,
+    { catalogue: { id: 'other', name: 'Other army', selectionEntries: [{ id: 'other-unit', name: 'Other unit', type: 'unit' }] } },
+  ])
+  const armyCompressed = gzipSync(new Uint8Array(army))
+  const otherCompressed = gzipSync(new Uint8Array(other))
+  const bundle = Uint8Array.from(Buffer.concat([armyCompressed, otherCompressed])).buffer
   const pickerUnits = encode([
     {
       id: 'unit',
@@ -83,6 +94,24 @@ function fixture(layoutMatchupId = 'one-vs-two') {
       search: { name: 'Unit', keywords: ['Infantry'], abilities: [], weapons: [], weaponKeywords: [], wargear: [] },
     },
   ])
+  const auxiliaryEntries: [string, ArrayBuffer][] = [
+    ['battle-missions.json', battleMissions],
+    ['battle-read.json', battleRead],
+    ['terrain.json', terrain],
+    [terrainMatchup, layouts],
+    [detachment, detachmentRead],
+    [picker, pickerUnits],
+  ]
+  const auxiliaryRanges: Record<string, { offset: number; bytes: number; expandedBytes: number }> = {}
+  const auxiliaryCompressed: Buffer[] = []
+  let auxiliaryOffset = 0
+  for (const [name, value] of auxiliaryEntries) {
+    const compressed = gzipSync(new Uint8Array(value))
+    auxiliaryRanges[name] = { offset: auxiliaryOffset, bytes: compressed.length, expandedBytes: value.byteLength }
+    auxiliaryCompressed.push(compressed)
+    auxiliaryOffset += compressed.length
+  }
+  const auxiliaryBundle = Uint8Array.from(Buffer.concat(auxiliaryCompressed)).buffer
   const referenceShard = encode({
     catalogue: {
       datasheets: [{ catalogueId: 'army', slug: 'unit', name: 'Unit' }],
@@ -115,6 +144,10 @@ function fixture(layoutMatchupId = 'one-vs-two') {
     revision: 'b'.repeat(64),
   })
   const sheet = encode({ catalogueId: 'army', slug: 'unit', name: 'Unit' })
+  const globalCompressed = gzipSync(new Uint8Array(referenceShard))
+  const factionCompressed = gzipSync(new Uint8Array(referenceShard))
+  const sheetCompressed = gzipSync(new Uint8Array(sheet))
+  const referenceBundle = Uint8Array.from(Buffer.concat([globalCompressed, factionCompressed, sheetCompressed])).buffer
   const referenceMetadata = encode({
     revision: 'b'.repeat(64),
     revisions: {},
@@ -127,47 +160,49 @@ function fixture(layoutMatchupId = 'one-vs-two') {
     paths: ['/factions', '/rules'],
   })
   const manifest = encode({
-    format: 'praetorium.worker-catalogue.v2',
+    format: 'praetorium.worker-catalogue.v3',
     snapshotId,
     revision: 'test-revision',
     entries: {
-      'shared.json': { sha256: sha256(shared), bytes: shared.byteLength },
-      'battle-missions.json': { sha256: sha256(battleMissions), bytes: battleMissions.byteLength },
-      'battle-read.json': { sha256: sha256(battleRead), bytes: battleRead.byteLength },
-      'terrain.json': { sha256: sha256(terrain), bytes: terrain.byteLength },
-      [terrainMatchup]: { sha256: sha256(layouts), bytes: layouts.byteLength },
-      [detachment]: { sha256: sha256(detachmentRead), bytes: detachmentRead.byteLength },
+      'sources.json': { sha256: sha256(sources), bytes: sources.byteLength },
+      'rules.json': { sha256: sha256(rules), bytes: rules.byteLength },
       'navigation.json': { sha256: sha256(navigation), bytes: navigation.byteLength },
       'search.json': { sha256: sha256(searchIndex), bytes: searchIndex.byteLength },
       'reference-meta.json': { sha256: sha256(referenceMetadata), bytes: referenceMetadata.byteLength },
-      [globalReference]: { sha256: sha256(referenceShard), bytes: referenceShard.byteLength },
-      [factionReference]: { sha256: sha256(referenceShard), bytes: referenceShard.byteLength },
-      [sheetReference]: { sha256: sha256(sheet), bytes: sheet.byteLength },
-      [part]: { sha256: sha256(partition), bytes: partition.byteLength },
-      [picker]: { sha256: sha256(pickerUnits), bytes: pickerUnits.byteLength },
+      [references]: { sha256: sha256(referenceBundle), bytes: referenceBundle.byteLength },
+      [partitions]: { sha256: sha256(bundle), bytes: bundle.byteLength },
+      [auxiliary]: { sha256: sha256(auxiliaryBundle), bytes: auxiliaryBundle.byteLength },
     },
-    partitions: { army: part },
-    pickers: { army: picker },
+    partitions: {
+      army: { offset: 0, bytes: armyCompressed.length, expandedBytes: army.byteLength + expandedDelta },
+      other: { offset: armyCompressed.length, bytes: otherCompressed.length, expandedBytes: other.byteLength },
+    },
+    referenceRanges: {
+      [globalReference]: { offset: 0, bytes: globalCompressed.length, expandedBytes: referenceShard.byteLength },
+      [factionReference]: { offset: globalCompressed.length, bytes: factionCompressed.length, expandedBytes: referenceShard.byteLength },
+      [sheetReference]: {
+        offset: globalCompressed.length + factionCompressed.length,
+        bytes: sheetCompressed.length,
+        expandedBytes: sheet.byteLength,
+      },
+    },
+    auxiliaryRanges,
+    detachments: { army: detachment, other: detachment },
+    pickers: { army: picker, other: picker },
     terrainMatchups: { 'one-vs-two': terrainMatchup },
   })
   const manifestSha256 = sha256(manifest)
   const prefix = `snapshots/${snapshotId}/${manifestSha256}`
   const objects = new Map([
     [`${prefix}/manifest.json`, manifest],
-    [`${prefix}/shared.json`, shared],
-    [`${prefix}/battle-missions.json`, battleMissions],
-    [`${prefix}/battle-read.json`, battleRead],
-    [`${prefix}/terrain.json`, terrain],
-    [`${prefix}/${terrainMatchup}`, layouts],
-    [`${prefix}/${detachment}`, detachmentRead],
+    [`${prefix}/sources.json`, sources],
+    [`${prefix}/rules.json`, rules],
     [`${prefix}/navigation.json`, navigation],
     [`${prefix}/search.json`, searchIndex],
     [`${prefix}/reference-meta.json`, referenceMetadata],
-    [`${prefix}/${globalReference}`, referenceShard],
-    [`${prefix}/${factionReference}`, referenceShard],
-    [`${prefix}/${sheetReference}`, sheet],
-    [`${prefix}/${part}`, partition],
-    [`${prefix}/${picker}`, pickerUnits],
+    [`${prefix}/${references}`, referenceBundle],
+    [`${prefix}/${partitions}`, bundle],
+    [`${prefix}/${auxiliary}`, auxiliaryBundle],
   ])
   const read = async (key: string, maxBytes: number) => {
     const bytes = objects.get(key)
@@ -177,47 +212,133 @@ function fixture(layoutMatchupId = 'one-vs-two') {
   return { objects, read, manifestSha256, prefix }
 }
 
-it('loads one verified faction partition with shared maps', async () => {
+it('loads verified faction partitions with shared maps', async () => {
   const { read, manifestSha256 } = fixture()
   const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
   expect((await store.catalogue('army'))?.index.definitions.has('unit')).toBe(true)
   expect((await store.shared()).rules.byDetachment).toBeInstanceOf(Map)
   expect((await store.referenceMetadata()).revision).toBe('b'.repeat(64))
-  expect(await store.catalogue('other')).toBeNull()
+  expect((await store.catalogue('other'))?.index.definitions.has('other-unit')).toBe(true)
 })
 
-it('shares concurrent faction builds without retaining them after the reads finish', async () => {
+it('reuses resident compressed partitions across factions and later requests', async () => {
   const { read, manifestSha256 } = fixture()
-  let partitionReads = 0
+  let bundleReads = 0
   const store = new WorkerCatalogueStore(
     (key, maxBytes) => {
-      if (key.endsWith(`/${part}`)) partitionReads++
+      if (key.endsWith(`/${partitions}`)) bundleReads++
       return read(key, maxBytes)
     },
     snapshotId,
     manifestSha256,
   )
-  await Promise.all([store.catalogue('army'), store.catalogue('army')])
-  expect(partitionReads).toBe(1)
-  await store.catalogue('army')
-  expect(partitionReads).toBe(2)
+  const [army, other] = await Promise.all([store.catalogue('army'), store.catalogue('other')])
+  const later = new WorkerCatalogueStore(
+    async () => {
+      throw new Error('unexpected asset read')
+    },
+    snapshotId,
+    manifestSha256,
+  )
+  const laterArmy = await later.catalogue('army')
+  expect({
+    separateIndexes: army !== other && army !== laterArmy,
+    bundleReads,
+    otherUnitInArmy: army?.index.definitions.has('other-unit'),
+  }).toEqual({
+    separateIndexes: true,
+    bundleReads: 1,
+    otherUnitInArmy: false,
+  })
 })
 
-it('retries a faction build after its partition read fails', async () => {
+it('serves all catalogue data from memory after warm-up', async () => {
   const { read, manifestSha256 } = fixture()
-  let fail = true
-  const store = new WorkerCatalogueStore(
-    (key, maxBytes) => {
-      if (key.endsWith(`/${part}`) && fail) {
-        fail = false
-        throw new Error('partition unavailable')
+  const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
+  await store.preload()
+  const later = new WorkerCatalogueStore(
+    async () => {
+      throw new Error('unexpected asset read')
+    },
+    snapshotId,
+    manifestSha256,
+  )
+  expect({
+    unit: (await later.catalogue('other'))?.index.definitions.has('other-unit'),
+    rules: (await later.shared()).rules.byDetachment instanceof Map,
+    reference: (await later.referenceDatasheet('army', 'unit'))?.name,
+    factionReference: (await later.referenceForFaction('army'))?.catalogue.datasheets[0]?.name,
+    picker: (await later.pickerUnits('army'))?.[0]?.name,
+    detachment: (await later.detachmentRead('army'))?.attribution,
+    terrain: (await later.terrain(['one-vs-two'])).terrainLayouts.length,
+    mission: missionFor(await later.battleMissions(), 'one', 'two', 'pack')?.name,
+    battleRead: (await later.battleReadRules()).attribution,
+  }).toEqual({
+    unit: true,
+    rules: true,
+    reference: 'Unit',
+    factionReference: 'Unit',
+    picker: 'Unit',
+    detachment: 'Test source',
+    terrain: 1,
+    mission: 'Vital Link',
+    battleRead: 'Test source',
+  })
+})
+
+it('lets one cold request load the bundle for concurrent requests', async () => {
+  const { read, manifestSha256 } = fixture()
+  let release!: () => void
+  let started!: () => void
+  const reading = new Promise<void>((resolve) => {
+    started = resolve
+  })
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const first = new WorkerCatalogueStore(
+    async (key, maxBytes) => {
+      if (key.endsWith(`/${partitions}`)) {
+        started()
+        await held
       }
       return read(key, maxBytes)
     },
     snapshotId,
     manifestSha256,
   )
-  await expect(store.catalogue('army')).rejects.toThrow('partition unavailable')
+  const loading = first.preload()
+  await reading
+  let secondReads = 0
+  const second = new WorkerCatalogueStore(
+    (key, maxBytes) => {
+      if (key.endsWith(`/${partitions}`) || key.endsWith(`/${references}`)) secondReads++
+      return read(key, maxBytes)
+    },
+    snapshotId,
+    manifestSha256,
+  )
+  const waiting = second.preload()
+  release()
+  await Promise.all([loading, waiting])
+  expect(secondReads).toBe(0)
+})
+
+it('retries a bundle read failure', async () => {
+  const { read, manifestSha256 } = fixture()
+  let fail = true
+  const store = new WorkerCatalogueStore(
+    (key, maxBytes) => {
+      if (key.endsWith(`/${partitions}`) && fail) {
+        fail = false
+        throw new Error('bundle unavailable')
+      }
+      return read(key, maxBytes)
+    },
+    snapshotId,
+    manifestSha256,
+  )
+  await expect(store.catalogue('army')).rejects.toThrow('bundle unavailable')
   await expect(store.catalogue('army')).resolves.toMatchObject({ index: { revision: 'test-revision' } })
 })
 
@@ -225,7 +346,7 @@ it('serves battle mission rules without loading shared data', async () => {
   const { read, manifestSha256 } = fixture()
   const store = new WorkerCatalogueStore(
     (key, maxBytes) => {
-      if (key.endsWith('/shared.json')) throw new Error('full rules should not be read')
+      if (key.endsWith('/sources.json') || key.endsWith('/rules.json')) throw new Error('full rules should not be read')
       return read(key, maxBytes)
     },
     snapshotId,
@@ -236,7 +357,7 @@ it('serves battle mission rules without loading shared data', async () => {
 
 it('rejects changed battle mission rules', async () => {
   const { objects, read, manifestSha256, prefix } = fixture()
-  objects.set(`${prefix}/battle-missions.json`, encode({ missions: new Map(), fixedSecondaryCaps: new Map() }))
+  objects.set(`${prefix}/${auxiliary}`, encode({ missions: new Map(), fixedSecondaryCaps: new Map() }))
   const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
   await expect(store.battleMissions()).rejects.toThrow('checksum does not match')
 })
@@ -245,7 +366,7 @@ it('serves battle read rules without loading the full rules', async () => {
   const { read, manifestSha256 } = fixture()
   const store = new WorkerCatalogueStore(
     (key, maxBytes) => {
-      if (key.endsWith('/shared.json')) throw new Error('full rules should not be read')
+      if (key.endsWith('/sources.json') || key.endsWith('/rules.json')) throw new Error('full rules should not be read')
       return read(key, maxBytes)
     },
     snapshotId,
@@ -256,7 +377,7 @@ it('serves battle read rules without loading the full rules', async () => {
 
 it('rejects changed battle read rules', async () => {
   const { objects, read, manifestSha256, prefix } = fixture()
-  objects.set(`${prefix}/battle-read.json`, encode({ missions: new Map(), fixedSecondaryCaps: new Map() }))
+  objects.set(`${prefix}/${auxiliary}`, encode({ missions: new Map(), fixedSecondaryCaps: new Map() }))
   const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
   await expect(store.battleReadRules()).rejects.toThrow('checksum does not match')
 })
@@ -265,7 +386,7 @@ it('serves terrain without loading the full rules', async () => {
   const { read, manifestSha256 } = fixture()
   const store = new WorkerCatalogueStore(
     (key, maxBytes) => {
-      if (key.endsWith('/shared.json')) throw new Error('full rules should not be read')
+      if (key.endsWith('/sources.json') || key.endsWith('/rules.json')) throw new Error('full rules should not be read')
       return read(key, maxBytes)
     },
     snapshotId,
@@ -276,7 +397,7 @@ it('serves terrain without loading the full rules', async () => {
 
 it('rejects changed terrain layouts', async () => {
   const { objects, read, manifestSha256, prefix } = fixture()
-  objects.set(`${prefix}/${terrainMatchup}`, encode([{ matchupId: 'other' }]))
+  objects.set(`${prefix}/${auxiliary}`, encode([{ matchupId: 'other' }]))
   const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
   await expect(store.terrain(['one-vs-two'])).rejects.toThrow('checksum does not match')
 })
@@ -290,15 +411,24 @@ it('rejects layouts assigned to the wrong matchup', async () => {
 it('rejects a manifest missing a battle detachment asset', () => {
   const { objects, prefix } = fixture()
   const manifest = JSON.parse(new TextDecoder().decode(objects.get(`${prefix}/manifest.json`)))
-  delete manifest.entries[detachment]
+  manifest.detachments.army = 'detachments/ffffffffffffffffffffffff.json'
   expect(() => workerCatalogueManifest(manifest, snapshotId)).toThrow('Worker battle detachment data is missing')
 })
 
-it('serves selected battle detachments without loading shared rules or the faction partition', async () => {
+it('rejects overlapping partition ranges', () => {
+  const { objects, prefix } = fixture()
+  const manifest = JSON.parse(new TextDecoder().decode(objects.get(`${prefix}/manifest.json`)))
+  manifest.partitions.other.offset = 0
+  expect(() => workerCatalogueManifest(manifest, snapshotId)).toThrow('Invalid Worker catalogue partition range')
+})
+
+it('serves selected battle detachments without loading the complete catalogue', async () => {
   const { read, manifestSha256 } = fixture()
   const store = new WorkerCatalogueStore(
     (key, maxBytes) => {
-      if (key.endsWith('/shared.json') || key.includes('/partitions/')) throw new Error('unrelated data should not be read')
+      if (key.endsWith('/sources.json') || key.endsWith('/rules.json') || key.endsWith('/partitions.bin')) {
+        throw new Error('unrelated data should not be read')
+      }
       return read(key, maxBytes)
     },
     snapshotId,
@@ -306,68 +436,39 @@ it('serves selected battle detachments without loading shared rules or the facti
   )
   const data = await store.detachmentRead('army')
   expect(data && selectedBattleDetachmentData(data, [])).toMatchObject({ attribution: 'Test source', stratagems: [], written: [] })
-  expect(await store.detachmentRead('other')).toBeNull()
+  expect(await store.detachmentRead('unknown')).toBeNull()
 })
 
 it('rejects changed battle detachment data', async () => {
   const { objects, read, manifestSha256, prefix } = fixture()
-  objects.set(`${prefix}/${detachment}`, encode({ index: { rules: new Map() } }))
+  objects.set(`${prefix}/${auxiliary}`, encode({ index: { rules: new Map() } }))
   const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
   await expect(store.detachmentRead('army')).rejects.toThrow('checksum does not match')
 })
 
-it('starts a faction partition read while shared data is loading', async () => {
+it('serves the priced roster picker without loading shared data or partitions', async () => {
   const { read, manifestSha256 } = fixture()
-  const started: string[] = []
-  let releaseShared!: () => void
-  let sharedStarted!: () => void
-  const sharedReading = new Promise<void>((resolve) => {
-    sharedStarted = resolve
-  })
-  const sharedReady = new Promise<void>((resolve) => {
-    releaseShared = resolve
-  })
   const store = new WorkerCatalogueStore(
-    async (key, maxBytes) => {
-      if (key.endsWith('/shared.json') || key.includes('/partitions/')) started.push(key)
-      if (key.endsWith('/shared.json')) {
-        sharedStarted()
-        await sharedReady
+    (key, maxBytes) => {
+      if (key.endsWith('/partitions.bin') || key.endsWith('/sources.json') || key.endsWith('/rules.json')) {
+        throw new Error('unrelated data should not be read')
       }
       return read(key, maxBytes)
     },
     snapshotId,
     manifestSha256,
   )
-
-  const loading = store.catalogue('army')
-  await sharedReading
-  await new Promise(setImmediate)
-  const partitionStartedBeforeShared = started.some((key) => key.includes('/partitions/'))
-  releaseShared()
-  await loading
-  expect(partitionStartedBeforeShared).toBe(true)
-})
-
-it('serves the priced roster picker without loading shared data or a faction partition', async () => {
-  const { read, manifestSha256 } = fixture()
-  const store = new WorkerCatalogueStore(
-    (key, maxBytes) => {
-      if (key.includes('/partitions/') || key.endsWith('/shared.json')) throw new Error('unrelated data should not be read')
-      return read(key, maxBytes)
-    },
-    snapshotId,
-    manifestSha256,
-  )
   expect((await store.pickerUnits('army'))?.[0]?.search?.keywords).toEqual(['Infantry'])
-  expect(await store.pickerUnits('other')).toBeNull()
+  expect(await store.pickerUnits('unknown')).toBeNull()
 })
 
 it('serves the initial faction list from eager shared data', async () => {
   const { read, manifestSha256 } = fixture()
   const store = new WorkerCatalogueStore(
     (key, maxBytes) => {
-      if (key.includes('/partitions/') || key.endsWith('/shared.json')) throw new Error('unrelated data should not be read')
+      if (key.endsWith('/partitions.bin') || key.endsWith('/sources.json') || key.endsWith('/rules.json')) {
+        throw new Error('unrelated data should not be read')
+      }
       return read(key, maxBytes)
     },
     snapshotId,
@@ -379,13 +480,14 @@ it('serves the initial faction list from eager shared data', async () => {
   expect((await store.searchIndex()).datasheets).toEqual([])
 })
 
-it('serves a reference datasheet without loading its faction partition', async () => {
+it('serves a reference datasheet without loading partitions', async () => {
   const { read, manifestSha256 } = fixture()
   const store = new WorkerCatalogueStore(
     (key, maxBytes) => {
       if (
-        key.includes('/partitions/') ||
-        key.endsWith('/shared.json') ||
+        key.endsWith('/partitions.bin') ||
+        key.endsWith('/sources.json') ||
+        key.endsWith('/rules.json') ||
         key.endsWith('/references/global.json') ||
         key.endsWith(`/${factionReference}`)
       ) {
@@ -399,18 +501,24 @@ it('serves a reference datasheet without loading its faction partition', async (
   expect((await store.referenceDatasheet('army', 'unit'))?.name).toBe('Unit')
 })
 
-it('rejects a changed individual datasheet', async () => {
+it('rejects a changed reference bundle', async () => {
   const { objects, read, manifestSha256, prefix } = fixture()
-  objects.set(`${prefix}/${sheetReference}`, encode({ catalogueId: 'army', slug: 'unit', name: 'Fake' }))
+  objects.set(`${prefix}/${references}`, encode({ catalogueId: 'army', slug: 'unit', name: 'Fake' }))
   const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
   await expect(store.referenceDatasheet('army', 'unit')).rejects.toThrow('checksum does not match')
 })
 
-it('refuses a changed partition before building its index', async () => {
+it('refuses a changed partition bundle before building an index', async () => {
   const { objects, read, manifestSha256, prefix } = fixture()
-  objects.set(`${prefix}/${part}`, encode([{ catalogue: { id: 'other', name: 'Other' } }]))
+  objects.set(`${prefix}/${partitions}`, encode([{ catalogue: { id: 'other', name: 'Other' } }]))
   const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
   await expect(store.catalogue('army')).rejects.toThrow('checksum does not match')
+})
+
+it('refuses a partition whose expanded size differs from the verified manifest', async () => {
+  const { read, manifestSha256 } = fixture('one-vs-two', 1)
+  const store = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
+  await expect(store.catalogue('army')).rejects.toThrow('partition size does not match')
 })
 
 it('treats inherited object keys as absent factions', async () => {
@@ -456,7 +564,7 @@ it('retries a transient shared object read failure', async () => {
   let unavailable = true
   const store = new WorkerCatalogueStore(
     (key, maxBytes) => {
-      if (key.endsWith('/shared.json') && unavailable) throw new Error('Asset unavailable')
+      if (key.endsWith('/sources.json') && unavailable) throw new Error('Asset unavailable')
       return read(key, maxBytes)
     },
     snapshotId,
@@ -480,32 +588,4 @@ it('reuses verified shared data after the request that loaded it ends', async ()
   )
 
   expect(await second.shared()).toBe(shared)
-})
-
-it('does not share an unfinished asset read with another request', async () => {
-  const { objects, read, manifestSha256, prefix } = fixture()
-  let release!: (bytes: ArrayBuffer) => void
-  let entered!: () => void
-  const waiting = new Promise<void>((resolve) => {
-    entered = resolve
-  })
-  const first = new WorkerCatalogueStore(
-    (key, maxBytes) =>
-      key.endsWith('/shared.json')
-        ? new Promise<ArrayBuffer>((resolve) => {
-            release = resolve
-            entered()
-          })
-        : read(key, maxBytes),
-    snapshotId,
-    manifestSha256,
-  )
-  const pending = first.shared()
-  await waiting
-  const second = new WorkerCatalogueStore(read, snapshotId, manifestSha256)
-  const shared = await second.shared()
-  release(objects.get(`${prefix}/shared.json`)!)
-  await pending
-
-  expect(shared.datacards.factions).toBeInstanceOf(Map)
 })

@@ -324,7 +324,12 @@ export function app(): App {
       ready = warm(instance)
     }
     if (workerCatalogue) {
-      ready = Promise.all([workerCatalogue.navigation(), workerCatalogue.searchIndex(), workerCatalogue.referenceMetadata()]).then(
+      ready = Promise.all([
+        workerCatalogue.navigation(),
+        workerCatalogue.searchIndex(),
+        workerCatalogue.referenceMetadata(),
+        workerCatalogue.preload(),
+      ]).then(
         () => {
           nativeSyncState = { status: 'ready', detail: null }
         },

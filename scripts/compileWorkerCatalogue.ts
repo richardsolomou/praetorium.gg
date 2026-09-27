@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import { gzipSync } from 'node:zlib'
 import { buildIndex, type CatalogueFile } from '../src/core/catalogue'
 import { DEFAULT_GAME_LIMIT } from '../src/core/battle'
 import { isReferenceDatasheet, loadCatalogue } from '../src/server/catalogueIndex'
@@ -45,23 +46,55 @@ const named = fs
 const byName = new Map(named.map((entry) => [entry.name, entry.file]))
 const partitions = cataloguePartitions(named)
 const entries: Record<string, { sha256: string; bytes: number }> = {}
-const byFaction: Record<string, string> = {}
+const partitionRanges: Record<string, { offset: number; bytes: number; expandedBytes: number }> = {}
+const compressedPartitions: Buffer[] = []
+let partitionBytes = 0
+const referenceRanges: Record<string, { offset: number; bytes: number; expandedBytes: number }> = {}
+const compressedReferences: Buffer[] = []
+let referenceBytes = 0
+const auxiliaryRanges: Record<string, { offset: number; bytes: number; expandedBytes: number }> = {}
+const compressedAuxiliary: Buffer[] = []
+let auxiliaryBytes = 0
+const detachments: Record<string, string> = {}
 const pickers: Record<string, string> = {}
 const terrainMatchups: Record<string, string> = {}
 
-function write(name: string, value: unknown) {
-  const bytes = Buffer.from(encodeCatalogueArtifact(value))
+function writeBytes(name: string, bytes: Buffer) {
   const file = path.join(output, name)
   fs.mkdirSync(path.dirname(file), { recursive: true })
   fs.writeFileSync(file, bytes)
   entries[name] = { sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length }
 }
 
-write('shared.json', {
+function write(name: string, value: unknown) {
+  const bytes = Buffer.from(encodeCatalogueArtifact(value))
+  if (/^(?:battle-(?:missions|read)|terrain|terrain\/[0-9a-f]{24}|detachments\/[0-9a-f]{24}|pickers\/[0-9a-f]{24})\.json$/.test(name)) {
+    const compressed = gzipSync(bytes, { level: 9 })
+    auxiliaryRanges[name] = { offset: auxiliaryBytes, bytes: compressed.length, expandedBytes: bytes.length }
+    compressedAuxiliary.push(compressed)
+    auxiliaryBytes += compressed.length
+    return
+  }
+  writeBytes(name, bytes)
+}
+
+function writeReference(name: string, value: unknown) {
+  if (referenceRanges[name]) throw new Error(`Reference asset collision ${name}`)
+  const expanded = Buffer.from(encodeCatalogueArtifact(value))
+  if (expanded.length > (name.startsWith('references/sheets/') ? 1024 * 1024 : 8 * 1024 * 1024)) {
+    throw new Error(`Reference asset exceeds Worker memory limit ${name}`)
+  }
+  const compressed = gzipSync(expanded, { level: 9 })
+  referenceRanges[name] = { offset: referenceBytes, bytes: compressed.length, expandedBytes: expanded.length }
+  compressedReferences.push(compressed)
+  referenceBytes += compressed.length
+}
+
+write('sources.json', {
   datacards: loaded.datacards,
   sourceReferences: loaded.sourceReferences,
-  rules,
 })
+write('rules.json', rules)
 write('battle-missions.json', { missions: rules.missions, fixedSecondaryCaps: rules.fixedSecondaryCaps })
 write('battle-read.json', {
   missions: rules.missions,
@@ -154,7 +187,7 @@ for (const sheet of reference.catalogue.datasheets) {
     throw new Error(`Reference datasheet asset collision ${sheet.catalogueId}:${sheet.slug}`)
   }
   sheetNames.add(name)
-  write(name, sheet)
+  writeReference(name, sheet)
   ;(sheetAssets[sheet.catalogueId] ??= Object.create(null))[sheet.slug] = name
 }
 const buckets = Array.from({ length: 8 }, () => ({ ids: [] as string[], bytes: 0 }))
@@ -167,7 +200,7 @@ for (const { id, bytes } of weightedGroups.toSorted((left, right) => right.bytes
 
 function writeReferenceShard(name: string, ids: readonly string[], documents: ReferenceDocument[], ruleDocuments = false, search = true) {
   const selected = ids.map((id) => groups.get(id)!)
-  write(name, {
+  writeReference(name, {
     catalogue: {
       ...reference.catalogue,
       datasheets: selected.flatMap((group) => group.datasheets),
@@ -196,7 +229,7 @@ for (const [index, bucket] of buckets.entries()) {
 }
 for (const [id, group] of groups) {
   const name = `references/factions/${createHash('sha256').update(id).digest('hex').slice(0, 24)}.json`
-  if (entries[name]) throw new Error(`Reference faction shard collision ${id}`)
+  if (referenceRanges[name]) throw new Error(`Reference faction shard collision ${id}`)
   writeReferenceShard(name, [id], group.documents, false, false)
 }
 const paths = new Set<string>(['/factions', '/rules'])
@@ -223,9 +256,17 @@ write('reference-meta.json', {
   sheetAssets,
   paths: [...paths].toSorted(),
 })
+if (referenceBytes > 12 * 1024 * 1024) throw new Error('Reference assets exceed Worker asset limit')
+writeBytes('references.bin', Buffer.concat(compressedReferences, referenceBytes))
 
 for (const [catalogueId, names] of partitions) {
   const files = names.map((name) => byName.get(name)!)
+  const expanded = Buffer.from(JSON.stringify(files))
+  if (expanded.length > 10 * 1024 * 1024) throw new Error(`Catalogue partition exceeds Worker memory limit ${catalogueId}`)
+  const compressed = gzipSync(expanded, { level: 9 })
+  partitionRanges[catalogueId] = { offset: partitionBytes, bytes: compressed.length, expandedBytes: expanded.length }
+  compressedPartitions.push(compressed)
+  partitionBytes += compressed.length
   const index = buildIndex(files, loaded.index.revision)
   const expected = loaded.index.datasheets.get(catalogueId) ?? new Set<string>()
   const actual = index.datasheets.get(catalogueId) ?? new Set<string>()
@@ -233,22 +274,24 @@ for (const [catalogueId, names] of partitions) {
     throw new Error(`Incomplete catalogue partition ${catalogueId}`)
   }
   const suffix = createHash('sha256').update(catalogueId).digest('hex').slice(0, 24)
-  const name = `partitions/${suffix}.json`
-  if (entries[name]) throw new Error(`Catalogue partition collision ${catalogueId}`)
-  write(name, files)
-  byFaction[catalogueId] = name
   const detachmentName = `detachments/${suffix}.json`
+  if (entries[detachmentName]) throw new Error(`Catalogue detachment collision ${catalogueId}`)
   const detachmentData = battleDetachmentData({ index }, rules, catalogueId)
   if (!detachmentData) throw new Error(`Missing battle detachment data for ${catalogueId}`)
   write(detachmentName, detachmentData)
+  detachments[catalogueId] = detachmentName
   const picker = `pickers/${createHash('sha256').update(catalogueId).digest('hex').slice(0, 24)}.json`
   if (entries[picker]) throw new Error(`Catalogue picker collision ${catalogueId}`)
   write(picker, pickerUnitsFor(loaded, rules, catalogueId, '', DEFAULT_GAME_LIMIT))
   pickers[catalogueId] = picker
 }
+if (partitionBytes > 20 * 1024 * 1024) throw new Error('Catalogue partitions exceed Worker asset limit')
+writeBytes('partitions.bin', Buffer.concat(compressedPartitions, partitionBytes))
+if (auxiliaryBytes > 4 * 1024 * 1024) throw new Error('Auxiliary catalogue assets exceed Worker asset limit')
+writeBytes('auxiliary.bin', Buffer.concat(compressedAuxiliary, auxiliaryBytes))
 
 fs.writeFileSync(
   path.join(output, 'manifest.json'),
-  `${JSON.stringify({ format: 'praetorium.worker-catalogue.v2', snapshotId: pointer.id, revision: loaded.index.revision, entries, partitions: byFaction, pickers, terrainMatchups })}\n`,
+  `${JSON.stringify({ format: 'praetorium.worker-catalogue.v3', snapshotId: pointer.id, revision: loaded.index.revision, entries, partitions: partitionRanges, referenceRanges, auxiliaryRanges, detachments, pickers, terrainMatchups })}\n`,
 )
-console.log(`worker catalogue: ${Object.keys(byFaction).length} partitions from ${pointer.id}`)
+console.log(`worker catalogue: ${Object.keys(detachments).length} factions from ${pointer.id}`)

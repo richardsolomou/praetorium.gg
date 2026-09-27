@@ -17,12 +17,16 @@ import { globalSingleton } from 'ras-stack/server'
 import type { BattleDetachmentData } from './battleDetachmentData'
 
 type Entry = { sha256: string; bytes: number }
+type PartitionRange = { offset: number; bytes: number; expandedBytes: number }
 export type WorkerCatalogueManifest = {
-  format: 'praetorium.worker-catalogue.v2'
+  format: 'praetorium.worker-catalogue.v3'
   snapshotId: string
   revision: string
   entries: Record<string, Entry>
-  partitions: Record<string, string>
+  partitions: Record<string, PartitionRange>
+  referenceRanges: Record<string, PartitionRange>
+  auxiliaryRanges: Record<string, PartitionRange>
+  detachments: Record<string, string>
   pickers: Record<string, string>
   terrainMatchups: Record<string, string>
 }
@@ -31,6 +35,7 @@ type Shared = {
   sourceReferences: ExternalReferences
   rules: LoadedRules
 }
+type Sources = Pick<Shared, 'datacards' | 'sourceReferences'>
 type Navigation = {
   factionIndex: ReturnType<typeof factionIndexFor>
   factions: ReturnType<typeof factionsFor>
@@ -52,9 +57,12 @@ type ReferenceMetadata = {
   paths: string[]
 }
 type Read = (key: string, maxBytes: number) => Promise<ArrayBuffer>
+type ResidentField = 'sources' | 'rules' | 'partitionBytes' | 'referenceBytes' | 'auxiliaryBytes'
 type Resolved = {
   version: string
   manifest?: WorkerCatalogueManifest
+  sources?: Sources
+  rules?: LoadedRules
   shared?: Shared
   battleMissions?: BattleMissionRules
   battleReadRules?: BattleReadRules
@@ -62,6 +70,10 @@ type Resolved = {
   navigation?: Navigation
   searchIndex?: GlobalSearchIndex
   referenceMetadata?: ReferenceMetadata
+  partitionBytes?: Uint8Array<ArrayBuffer>
+  referenceBytes?: Uint8Array<ArrayBuffer>
+  auxiliaryBytes?: Uint8Array<ArrayBuffer>
+  loading?: Partial<Record<ResidentField, { startedAt: number }>>
 }
 
 function resolvedCache(): Resolved {
@@ -69,120 +81,222 @@ function resolvedCache(): Resolved {
 }
 
 const MAX_MANIFEST_BYTES = 512 * 1024
-const MAX_SHARED_BYTES = 20 * 1024 * 1024
+const MAX_SOURCES_BYTES = 10 * 1024 * 1024
+const MAX_RULES_BYTES = 12 * 1024 * 1024
 const MAX_BATTLE_MISSIONS_BYTES = 128 * 1024
 const MAX_BATTLE_READ_BYTES = 2 * 1024 * 1024
 const MAX_TERRAIN_BYTES = 512 * 1024
 const MAX_DETACHMENT_BYTES = 2 * 1024 * 1024
 const MAX_NAVIGATION_BYTES = 2 * 1024 * 1024
 const MAX_SEARCH_BYTES = 3 * 1024 * 1024
+const MAX_PARTITION_BUNDLE_BYTES = 20 * 1024 * 1024
+const MAX_REFERENCE_BUNDLE_BYTES = 12 * 1024 * 1024
+const MAX_AUXILIARY_BUNDLE_BYTES = 4 * 1024 * 1024
 const MAX_PARTITION_BYTES = 10 * 1024 * 1024
 const MAX_PICKER_BYTES = 512 * 1024
 const MAX_REFERENCE_METADATA_BYTES = 2 * 1024 * 1024
 const MAX_REFERENCE_SHARD_BYTES = 8 * 1024 * 1024
 const MAX_SHEET_BYTES = 1024 * 1024
 const HASH = /^[0-9a-f]{64}$/
+const ENTRY_LIMITS: Record<string, number> = {
+  'partitions.bin': MAX_PARTITION_BUNDLE_BYTES,
+  'references.bin': MAX_REFERENCE_BUNDLE_BYTES,
+  'auxiliary.bin': MAX_AUXILIARY_BUNDLE_BYTES,
+  'sources.json': MAX_SOURCES_BYTES,
+  'rules.json': MAX_RULES_BYTES,
+  'navigation.json': MAX_NAVIGATION_BYTES,
+  'search.json': MAX_SEARCH_BYTES,
+  'reference-meta.json': MAX_REFERENCE_METADATA_BYTES,
+}
 
 async function hash(bytes: ArrayBuffer) {
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+async function inflatePartition(compressed: Uint8Array<ArrayBuffer>, expectedBytes: number) {
+  const reader = new Blob([compressed.slice().buffer]).stream().pipeThrough(new DecompressionStream('gzip')).getReader()
+  const decoder = new TextDecoder()
+  let size = 0
+  let text = ''
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      size += value.byteLength
+      if (size > expectedBytes) {
+        await reader.cancel()
+        throw new Error('Worker catalogue partition is too large')
+      }
+      text += decoder.decode(value, { stream: true })
+    }
+  } finally {
+    reader.releaseLock()
+  }
+  if (size !== expectedBytes) throw new Error('Worker catalogue partition size does not match')
+  return text + decoder.decode()
 }
 
 export function workerCatalogueManifest(value: unknown, snapshotId: string): WorkerCatalogueManifest {
   if (!value || typeof value !== 'object') throw new Error('Invalid Worker catalogue manifest')
   const manifest = value as Partial<WorkerCatalogueManifest>
   if (
-    manifest.format !== 'praetorium.worker-catalogue.v2' ||
+    manifest.format !== 'praetorium.worker-catalogue.v3' ||
     manifest.snapshotId !== snapshotId ||
     typeof manifest.revision !== 'string' ||
     !manifest.revision ||
     !manifest.entries ||
     !manifest.partitions ||
+    !manifest.referenceRanges ||
+    !manifest.auxiliaryRanges ||
+    !manifest.detachments ||
     !manifest.pickers ||
     !manifest.terrainMatchups ||
     Object.keys(manifest.entries).length > 2000 ||
-    Object.keys(manifest.partitions).length > 100 ||
+    Object.keys(manifest.detachments).length > 100 ||
+    Object.keys(manifest.partitions).length !== Object.keys(manifest.detachments).length ||
     Object.keys(manifest.terrainMatchups).length > 50 ||
-    Object.keys(manifest.pickers).length !== Object.keys(manifest.partitions).length
+    Object.keys(manifest.pickers).length !== Object.keys(manifest.detachments).length
   ) {
     throw new Error('Invalid Worker catalogue manifest')
   }
   for (const [name, entry] of Object.entries(manifest.entries)) {
     if (
-      !/^(?:shared|battle-missions|battle-read|terrain|navigation|search|reference-meta|partitions\/[0-9a-f]{24}|detachments\/[0-9a-f]{24}|terrain\/[0-9a-f]{24}|pickers\/[0-9a-f]{24}|references\/(?:global|[0-7]|factions\/[0-9a-f]{24}|sheets\/[0-9a-f]{24}))\.json$/.test(
-        name,
-      ) ||
+      !Object.hasOwn(ENTRY_LIMITS, name) ||
       !entry ||
       !HASH.test(entry.sha256) ||
       !Number.isSafeInteger(entry.bytes) ||
       entry.bytes < 1 ||
-      entry.bytes >
-        (name === 'shared.json'
-          ? MAX_SHARED_BYTES
-          : name === 'battle-missions.json'
-            ? MAX_BATTLE_MISSIONS_BYTES
-            : name === 'battle-read.json'
-              ? MAX_BATTLE_READ_BYTES
-              : name === 'terrain.json'
-                ? MAX_TERRAIN_BYTES
-                : name.startsWith('detachments/')
-                  ? MAX_DETACHMENT_BYTES
-                  : name.startsWith('terrain/')
-                    ? MAX_TERRAIN_BYTES
-                    : name === 'navigation.json'
-                      ? MAX_NAVIGATION_BYTES
-                      : name === 'search.json'
-                        ? MAX_SEARCH_BYTES
-                        : name === 'reference-meta.json'
-                          ? MAX_REFERENCE_METADATA_BYTES
-                          : name.startsWith('pickers/')
-                            ? MAX_PICKER_BYTES
-                            : name.startsWith('references/sheets/')
-                              ? MAX_SHEET_BYTES
-                              : name.startsWith('references/')
-                                ? MAX_REFERENCE_SHARD_BYTES
-                                : MAX_PARTITION_BYTES)
+      entry.bytes > ENTRY_LIMITS[name]!
     ) {
       throw new Error('Invalid Worker catalogue entry')
     }
   }
-  if (!manifest.entries['shared.json']) throw new Error('Worker catalogue shared data is missing')
-  if (!manifest.entries['battle-missions.json']) throw new Error('Worker battle mission data is missing')
-  if (!manifest.entries['battle-read.json']) throw new Error('Worker battle read data is missing')
-  if (!manifest.entries['terrain.json']) throw new Error('Worker terrain data is missing')
+  if (!manifest.entries['sources.json']) throw new Error('Worker catalogue sources are missing')
+  if (!manifest.entries['rules.json']) throw new Error('Worker catalogue rules are missing')
   if (!manifest.entries['navigation.json']) throw new Error('Worker catalogue navigation data is missing')
   if (!manifest.entries['search.json']) throw new Error('Worker catalogue search data is missing')
   if (!manifest.entries['reference-meta.json']) throw new Error('Worker reference metadata is missing')
-  for (const [id, name] of Object.entries(manifest.partitions)) {
-    if (!id || id.length > 128 || typeof name !== 'string' || !name.startsWith('partitions/') || !Object.hasOwn(manifest.entries, name)) {
-      throw new Error('Invalid Worker catalogue partition')
+  const bundle = manifest.entries['partitions.bin']
+  if (!bundle) throw new Error('Worker catalogue partitions are missing')
+  let partitionEnd = 0
+  for (const [id, range] of Object.entries(manifest.partitions)) {
+    if (
+      !Object.hasOwn(manifest.detachments, id) ||
+      !range ||
+      !Number.isSafeInteger(range.offset) ||
+      range.offset !== partitionEnd ||
+      !Number.isSafeInteger(range.bytes) ||
+      range.bytes < 1 ||
+      range.bytes > bundle.bytes - partitionEnd ||
+      !Number.isSafeInteger(range.expandedBytes) ||
+      range.expandedBytes < 1 ||
+      range.expandedBytes > MAX_PARTITION_BYTES
+    ) {
+      throw new Error('Invalid Worker catalogue partition range')
     }
-    if (!manifest.entries[name.replace('partitions/', 'detachments/')]) {
+    partitionEnd += range.bytes
+  }
+  if (partitionEnd !== bundle.bytes) throw new Error('Invalid Worker catalogue partition ranges')
+  const references = manifest.entries['references.bin']
+  if (!references) throw new Error('Worker catalogue references are missing')
+  if (Object.keys(manifest.referenceRanges).length > 5000) throw new Error('Invalid Worker reference ranges')
+  let referenceEnd = 0
+  for (const [name, range] of Object.entries(manifest.referenceRanges)) {
+    if (
+      !/^references\/(?:global|[0-7]|factions\/[0-9a-f]{24}|sheets\/[0-9a-f]{24})\.json$/.test(name) ||
+      !range ||
+      !Number.isSafeInteger(range.offset) ||
+      range.offset !== referenceEnd ||
+      !Number.isSafeInteger(range.bytes) ||
+      range.bytes < 1 ||
+      range.bytes > references.bytes - referenceEnd ||
+      !Number.isSafeInteger(range.expandedBytes) ||
+      range.expandedBytes < 1 ||
+      range.expandedBytes > (name.startsWith('references/sheets/') ? MAX_SHEET_BYTES : MAX_REFERENCE_SHARD_BYTES)
+    ) {
+      throw new Error('Invalid Worker reference range')
+    }
+    referenceEnd += range.bytes
+  }
+  if (referenceEnd !== references.bytes) throw new Error('Invalid Worker reference ranges')
+  const auxiliary = manifest.entries['auxiliary.bin']
+  if (!auxiliary) throw new Error('Worker auxiliary catalogue data is missing')
+  if (Object.keys(manifest.auxiliaryRanges).length > 200) throw new Error('Invalid Worker auxiliary ranges')
+  let auxiliaryEnd = 0
+  for (const [name, range] of Object.entries(manifest.auxiliaryRanges)) {
+    const limit =
+      name === 'battle-missions.json'
+        ? MAX_BATTLE_MISSIONS_BYTES
+        : name === 'battle-read.json'
+          ? MAX_BATTLE_READ_BYTES
+          : name.startsWith('detachments/')
+            ? MAX_DETACHMENT_BYTES
+            : name.startsWith('pickers/')
+              ? MAX_PICKER_BYTES
+              : name.startsWith('terrain')
+                ? MAX_TERRAIN_BYTES
+                : 0
+    if (
+      !/^(?:battle-(?:missions|read)|terrain|terrain\/[0-9a-f]{24}|detachments\/[0-9a-f]{24}|pickers\/[0-9a-f]{24})\.json$/.test(name) ||
+      !range ||
+      !Number.isSafeInteger(range.offset) ||
+      range.offset !== auxiliaryEnd ||
+      !Number.isSafeInteger(range.bytes) ||
+      range.bytes < 1 ||
+      range.bytes > auxiliary.bytes - auxiliaryEnd ||
+      !Number.isSafeInteger(range.expandedBytes) ||
+      range.expandedBytes < 1 ||
+      range.expandedBytes > limit
+    )
+      throw new Error('Invalid Worker auxiliary range')
+    auxiliaryEnd += range.bytes
+  }
+  if (auxiliaryEnd !== auxiliary.bytes) throw new Error('Invalid Worker auxiliary ranges')
+  if (!manifest.auxiliaryRanges['battle-missions.json']) throw new Error('Worker battle mission data is missing')
+  if (!manifest.auxiliaryRanges['battle-read.json']) throw new Error('Worker battle read data is missing')
+  if (!manifest.auxiliaryRanges['terrain.json']) throw new Error('Worker terrain data is missing')
+  for (const [id, name] of Object.entries(manifest.detachments)) {
+    if (
+      !id ||
+      id.length > 128 ||
+      typeof name !== 'string' ||
+      !name.startsWith('detachments/') ||
+      !Object.hasOwn(manifest.auxiliaryRanges, name)
+    ) {
       throw new Error('Worker battle detachment data is missing')
     }
     const picker = manifest.pickers[id]
-    if (typeof picker !== 'string' || !picker.startsWith('pickers/') || !Object.hasOwn(manifest.entries, picker)) {
+    if (typeof picker !== 'string' || !picker.startsWith('pickers/') || !Object.hasOwn(manifest.auxiliaryRanges, picker)) {
       throw new Error('Invalid Worker catalogue picker')
     }
   }
   for (const [matchupId, name] of Object.entries(manifest.terrainMatchups)) {
-    if (!/^[a-z0-9-]{1,128}$/.test(matchupId) || typeof name !== 'string' || !name.startsWith('terrain/') || !manifest.entries[name]) {
+    if (
+      !/^[a-z0-9-]{1,128}$/.test(matchupId) ||
+      typeof name !== 'string' ||
+      !name.startsWith('terrain/') ||
+      !manifest.auxiliaryRanges[name]
+    ) {
       throw new Error('Invalid Worker terrain matchup')
     }
   }
   return manifest as WorkerCatalogueManifest
 }
 
-function sharedOf(value: unknown): Shared {
-  if (!value || typeof value !== 'object') throw new Error('Invalid Worker catalogue shared data')
-  const shared = value as Partial<Shared>
-  if (
-    !(shared.datacards?.factions instanceof Map) ||
-    !(shared.sourceReferences?.units?.byCanonicalId instanceof Map) ||
-    !(shared.rules?.byDetachment instanceof Map)
-  ) {
-    throw new Error('Invalid Worker catalogue shared data')
+function sourcesOf(value: unknown): Sources {
+  if (!value || typeof value !== 'object') throw new Error('Invalid Worker catalogue sources')
+  const sources = value as Partial<Sources>
+  if (!(sources.datacards?.factions instanceof Map) || !(sources.sourceReferences?.units?.byCanonicalId instanceof Map)) {
+    throw new Error('Invalid Worker catalogue sources')
   }
-  return shared as Shared
+  return sources as Sources
+}
+
+function rulesOf(value: unknown): LoadedRules {
+  if (!value || typeof value !== 'object' || !('byDetachment' in value) || !(value.byDetachment instanceof Map)) {
+    throw new Error('Invalid Worker catalogue rules')
+  }
+  return value as LoadedRules
 }
 
 function battleMissionsOf(value: unknown): BattleMissionRules {
@@ -266,7 +380,8 @@ function navigationOf(value: unknown): Navigation {
 export class WorkerCatalogueStore {
   private cataloguePromises = new Map<string, Promise<LoadedCatalogue | null>>()
   private manifestPromise?: Promise<WorkerCatalogueManifest>
-  private sharedPromise?: Promise<Shared>
+  private sourcesPromise?: Promise<Sources>
+  private rulesPromise?: Promise<LoadedRules>
   private battleMissionsPromise?: Promise<BattleMissionRules>
   private battleReadRulesPromise?: Promise<BattleReadRules>
   private terrainPromise?: Promise<TerrainReadRules['terrainTemplates']>
@@ -289,6 +404,8 @@ export class WorkerCatalogueStore {
     if (cache.version !== this.version) {
       cache.version = this.version
       delete cache.manifest
+      delete cache.sources
+      delete cache.rules
       delete cache.shared
       delete cache.battleMissions
       delete cache.battleReadRules
@@ -296,6 +413,10 @@ export class WorkerCatalogueStore {
       delete cache.navigation
       delete cache.searchIndex
       delete cache.referenceMetadata
+      delete cache.partitionBytes
+      delete cache.referenceBytes
+      delete cache.auxiliaryBytes
+      delete cache.loading
     }
     return cache
   }
@@ -304,12 +425,41 @@ export class WorkerCatalogueStore {
     return `snapshots/${this.snapshotId}/${this.manifestSha256}/${name}`
   }
 
-  private async bytes(name: string, entry: Entry) {
+  private async verifiedBytes(name: string, entry: Entry) {
     const bytes = await this.read(this.key(name), entry.bytes)
     if (bytes.byteLength !== entry.bytes || (await hash(bytes)) !== entry.sha256) {
       throw new Error(`Worker catalogue ${name} checksum does not match`)
     }
-    return new TextDecoder().decode(bytes)
+    return bytes
+  }
+
+  private async bytes(name: string, entry: Entry) {
+    return new TextDecoder().decode(await this.verifiedBytes(name, entry))
+  }
+
+  private async resident<K extends ResidentField>(
+    field: K,
+    load: () => Promise<NonNullable<Resolved[K]>>,
+  ): Promise<NonNullable<Resolved[K]>> {
+    for (;;) {
+      const cache = this.resolved()
+      const cached = cache[field]
+      if (cached) return cached
+      const loading = cache.loading?.[field]
+      if (!loading || Date.now() - loading.startedAt > 10_000) {
+        const owner = { startedAt: Date.now() }
+        const inFlight = (cache.loading ??= {})
+        inFlight[field] = owner
+        try {
+          const value = await load()
+          if (cache.version === this.version) cache[field] = value
+          return value
+        } finally {
+          if (cache.loading?.[field] === owner) delete cache.loading[field]
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
   }
 
   private manifest() {
@@ -332,21 +482,35 @@ export class WorkerCatalogueStore {
     return this.manifestPromise
   }
 
-  async shared() {
+  private async sources() {
+    this.sourcesPromise ??= this.resident('sources', async () => {
+      const manifest = await this.manifest()
+      return sourcesOf(decodeCatalogueArtifact(await this.bytes('sources.json', manifest.entries['sources.json']!)))
+    }).catch((error: unknown) => {
+      this.sourcesPromise = undefined
+      throw error
+    })
+    return this.sourcesPromise
+  }
+
+  private async rules() {
+    this.rulesPromise ??= this.resident('rules', async () => {
+      const manifest = await this.manifest()
+      return rulesOf(decodeCatalogueArtifact(await this.bytes('rules.json', manifest.entries['rules.json']!)))
+    }).catch((error: unknown) => {
+      this.rulesPromise = undefined
+      throw error
+    })
+    return this.rulesPromise
+  }
+
+  async shared(): Promise<Shared> {
     const cached = this.resolved().shared
     if (cached) return cached
-    this.sharedPromise ??= this.manifest()
-      .then(async (manifest) => {
-        const shared = sharedOf(decodeCatalogueArtifact(await this.bytes('shared.json', manifest.entries['shared.json']!)))
-        const cache = resolvedCache()
-        if (cache.version === this.version) cache.shared = shared
-        return shared
-      })
-      .catch((error: unknown) => {
-        this.sharedPromise = undefined
-        throw error
-      })
-    return this.sharedPromise
+    const [sources, rules] = await Promise.all([this.sources(), this.rules()])
+    const cache = resolvedCache()
+    if (cache.version !== this.version) return { ...sources, rules }
+    return (cache.shared ??= { ...sources, rules })
   }
 
   async battleMissions() {
@@ -354,9 +518,7 @@ export class WorkerCatalogueStore {
     if (cached) return cached
     this.battleMissionsPromise ??= this.manifest()
       .then(async (manifest) => {
-        const rules = battleMissionsOf(
-          decodeCatalogueArtifact(await this.bytes('battle-missions.json', manifest.entries['battle-missions.json']!)),
-        )
+        const rules = battleMissionsOf(await this.auxiliaryValue('battle-missions.json', manifest))
         const cache = resolvedCache()
         if (cache.version === this.version) cache.battleMissions = rules
         return rules
@@ -373,9 +535,7 @@ export class WorkerCatalogueStore {
     if (cached) return cached
     this.battleReadRulesPromise ??= this.manifest()
       .then(async (manifest) => {
-        const rules = battleReadRulesOf(
-          decodeCatalogueArtifact(await this.bytes('battle-read.json', manifest.entries['battle-read.json']!)),
-        )
+        const rules = battleReadRulesOf(await this.auxiliaryValue('battle-read.json', manifest))
         const cache = resolvedCache()
         if (cache.version === this.version) cache.battleReadRules = rules
         return rules
@@ -392,7 +552,7 @@ export class WorkerCatalogueStore {
     if (cached) return cached
     this.terrainPromise ??= this.manifest()
       .then(async (manifest) => {
-        const terrain = terrainTemplatesOf(decodeCatalogueArtifact(await this.bytes('terrain.json', manifest.entries['terrain.json']!)))
+        const terrain = terrainTemplatesOf(await this.auxiliaryValue('terrain.json', manifest))
         const cache = resolvedCache()
         if (cache.version === this.version) cache.terrainTemplates = terrain
         return terrain
@@ -411,7 +571,7 @@ export class WorkerCatalogueStore {
       ...[...new Set(matchupIds)].map(async (matchupId) => {
         const name = Object.hasOwn(manifest.terrainMatchups, matchupId) ? manifest.terrainMatchups[matchupId] : null
         if (!name) return []
-        const layouts = terrainLayoutsOf(decodeCatalogueArtifact(await this.bytes(name, manifest.entries[name]!)))
+        const layouts = terrainLayoutsOf(await this.auxiliaryValue(name, manifest))
         if (layouts.some((layout) => layout.matchupId !== matchupId)) throw new Error('Invalid Worker terrain matchup layouts')
         return layouts
       }),
@@ -421,10 +581,9 @@ export class WorkerCatalogueStore {
 
   async detachmentRead(catalogueId: string): Promise<BattleDetachmentData | null> {
     const manifest = await this.manifest()
-    const partition = Object.hasOwn(manifest.partitions, catalogueId) ? manifest.partitions[catalogueId] : null
-    if (!partition) return null
-    const name = partition.replace('partitions/', 'detachments/')
-    return battleDetachmentDataOf(decodeCatalogueArtifact(await this.bytes(name, manifest.entries[name]!)))
+    const name = Object.hasOwn(manifest.detachments, catalogueId) ? manifest.detachments[catalogueId] : null
+    if (!name) return null
+    return battleDetachmentDataOf(await this.auxiliaryValue(name, manifest))
   }
 
   async navigation() {
@@ -478,9 +637,12 @@ export class WorkerCatalogueStore {
   }
 
   async catalogue(catalogueId: string) {
+    const manifest = await this.manifest()
+    const range = Object.hasOwn(manifest.partitions, catalogueId) ? manifest.partitions[catalogueId] : null
+    if (!range) return null
     const existing = this.cataloguePromises.get(catalogueId)
     if (existing) return existing
-    const pending = this.loadCatalogue(catalogueId)
+    const pending = this.loadCatalogue(manifest, catalogueId, range)
     this.cataloguePromises.set(catalogueId, pending)
     try {
       return await pending
@@ -489,24 +651,65 @@ export class WorkerCatalogueStore {
     }
   }
 
-  private async loadCatalogue(catalogueId: string) {
+  async preload() {
     const manifest = await this.manifest()
-    const name = Object.hasOwn(manifest.partitions, catalogueId) ? manifest.partitions[catalogueId] : null
-    if (!name) return null
-    const [shared, files] = await Promise.all([this.shared(), this.bytes(name, manifest.entries[name]!).then(decodeCatalogueArtifact)])
-    if (!Array.isArray(files) || !files.every((file) => file && typeof file === 'object')) {
+    await Promise.all([this.partitionData(manifest), this.referenceData(manifest), this.auxiliaryData(manifest), this.referenceMetadata()])
+    await this.sources()
+    await this.rules()
+  }
+
+  private async partitionData(manifest: WorkerCatalogueManifest): Promise<Uint8Array<ArrayBuffer>> {
+    return this.resident(
+      'partitionBytes',
+      async () => new Uint8Array(await this.verifiedBytes('partitions.bin', manifest.entries['partitions.bin']!)),
+    )
+  }
+
+  private async referenceData(manifest: WorkerCatalogueManifest): Promise<Uint8Array<ArrayBuffer>> {
+    return this.resident(
+      'referenceBytes',
+      async () => new Uint8Array(await this.verifiedBytes('references.bin', manifest.entries['references.bin']!)),
+    )
+  }
+
+  private async auxiliaryData(manifest: WorkerCatalogueManifest): Promise<Uint8Array<ArrayBuffer>> {
+    return this.resident(
+      'auxiliaryBytes',
+      async () => new Uint8Array(await this.verifiedBytes('auxiliary.bin', manifest.entries['auxiliary.bin']!)),
+    )
+  }
+
+  private async auxiliaryValue(name: string, manifest: WorkerCatalogueManifest) {
+    const range = Object.hasOwn(manifest.auxiliaryRanges, name) ? manifest.auxiliaryRanges[name] : null
+    if (!range) throw new Error('Invalid Worker auxiliary asset')
+    const bundle = await this.auxiliaryData(manifest)
+    return decodeCatalogueArtifact(await inflatePartition(bundle.subarray(range.offset, range.offset + range.bytes), range.expandedBytes))
+  }
+
+  private async referenceValue(name: string, manifest: WorkerCatalogueManifest) {
+    const range = Object.hasOwn(manifest.referenceRanges, name) ? manifest.referenceRanges[name] : null
+    if (!range) throw new Error('Invalid Worker reference asset')
+    const bundle = await this.referenceData(manifest)
+    return decodeCatalogueArtifact(await inflatePartition(bundle.subarray(range.offset, range.offset + range.bytes), range.expandedBytes))
+  }
+
+  private async loadCatalogue(manifest: WorkerCatalogueManifest, catalogueId: string, range: PartitionRange) {
+    const [sources, bundle] = await Promise.all([this.sources(), this.partitionData(manifest)])
+    const compressed = bundle.subarray(range.offset, range.offset + range.bytes)
+    const files: unknown = JSON.parse(await inflatePartition(compressed, range.expandedBytes))
+    if (!Array.isArray(files) || !files.every((file) => file && typeof file === 'object' && (file.catalogue || file.gameSystem))) {
       throw new Error('Invalid Worker catalogue partition')
     }
-    const index = buildIndex(files as CatalogueFile[], manifest.revision)
+    const index = buildIndex(files, manifest.revision)
     if (!index.catalogues.has(catalogueId)) throw new Error('Worker catalogue partition has no faction')
-    return catalogueFromIndex(index, files as CatalogueFile[], shared.datacards, shared.sourceReferences)
+    return catalogueFromIndex(index, files as CatalogueFile[], sources.datacards, sources.sourceReferences)
   }
 
   async pickerUnits(catalogueId: string): Promise<PickerUnit[] | null> {
     const manifest = await this.manifest()
     const name = Object.hasOwn(manifest.pickers, catalogueId) ? manifest.pickers[catalogueId] : null
     if (!name) return null
-    const units = decodeCatalogueArtifact(await this.bytes(name, manifest.entries[name]!))
+    const units = await this.auxiliaryValue(name, manifest)
     if (
       !Array.isArray(units) ||
       units.length > 1000 ||
@@ -541,7 +744,7 @@ export class WorkerCatalogueStore {
     const name = sheets && Object.hasOwn(sheets, slug) ? sheets[slug] : null
     if (!name) return null
     const manifest = await this.manifest()
-    const value = decodeCatalogueArtifact(await this.bytes(name, manifest.entries[name]!)) as Partial<CanonicalDatasheet> | null
+    const value = (await this.referenceValue(name, manifest)) as Partial<CanonicalDatasheet> | null
     if (!value || typeof value !== 'object' || value.catalogueId !== catalogueId || value.slug !== slug) {
       throw new Error('Invalid Worker reference datasheet')
     }
@@ -581,11 +784,13 @@ export class WorkerCatalogueStore {
         const sheetAssets = sheetMaps.flatMap((sheets) => Object.values(sheets))
         if (
           !shards.has('references/global.json') ||
-          [...shards].some((name) => !manifest.entries[name]) ||
-          [...factionShards].some((name) => !name.startsWith('references/factions/') || !manifest.entries[name]) ||
+          [...shards].some((name) => !manifest.referenceRanges[name]) ||
+          [...factionShards].some((name) => !name.startsWith('references/factions/') || !manifest.referenceRanges[name]) ||
           Object.values(metadata.documentShards).some((name) => !shards.has(name) && !factionShards.has(name)) ||
           sheetAssets.length > 5000 ||
-          sheetAssets.some((name) => typeof name !== 'string' || !name.startsWith('references/sheets/') || !manifest.entries[name]) ||
+          sheetAssets.some(
+            (name) => typeof name !== 'string' || !name.startsWith('references/sheets/') || !manifest.referenceRanges[name],
+          ) ||
           metadata.paths.some((name) => typeof name !== 'string' || !name.startsWith('/') || name.length > 500)
         ) {
           throw new Error('Invalid Worker reference metadata')
@@ -607,7 +812,7 @@ export class WorkerCatalogueStore {
     if (!metadata.shards.includes(name) && !Object.values(metadata.factionShards).includes(name)) {
       throw new Error('Invalid Worker reference shard')
     }
-    const value = decodeCatalogueArtifact(await this.bytes(name, manifest.entries[name]!))
+    const value = await this.referenceValue(name, manifest)
     if (!value || typeof value !== 'object') throw new Error('Invalid Worker reference shard')
     const corpus = value as Partial<ReferenceCorpus>
     if (

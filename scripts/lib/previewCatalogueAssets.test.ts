@@ -13,7 +13,7 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
 
-async function fixture(format: 'v2' | 'v3' = 'v2') {
+async function fixture(format: 'v2' | 'v3' = 'v3') {
   const root = await mkdtemp(path.join(tmpdir(), 'praetorium-preview-assets-'))
   roots.push(root)
   const bytes = Buffer.from('{}\n')
@@ -24,6 +24,13 @@ async function fixture(format: 'v2' | 'v3' = 'v2') {
     revision: 'test',
     entries: Object.fromEntries(names.map((name) => [name, { sha256: sha256(bytes), bytes: bytes.length }])),
     partitions: {},
+    ...(format === 'v3'
+      ? {
+          referenceRanges: { 'references/global.json': { offset: 0, bytes: bytes.length, expandedBytes: 1 } },
+          auxiliaryRanges: { 'battle-missions.json': { offset: 0, bytes: bytes.length, expandedBytes: 1 } },
+          detachments: {},
+        }
+      : {}),
     pickers: {},
   }
   const manifestBytes = Buffer.from(`${JSON.stringify(manifest)}\n`)
@@ -49,8 +56,8 @@ it('accepts a checked catalogue artifact pinned by the PR', async () => {
   await expect(verifyPreviewCatalogueAssets(root)).resolves.toEqual({ snapshotId, manifestSha256 })
 })
 
-it('accepts bundled v3 catalogue assets from a preview build', async () => {
-  const { root, manifestSha256 } = await fixture('v3')
+it('accepts v2 catalogue assets from an existing preview build', async () => {
+  const { root, manifestSha256 } = await fixture('v2')
   await expect(verifyPreviewCatalogueAssets(root)).resolves.toEqual({ snapshotId, manifestSha256 })
 })
 
@@ -69,7 +76,7 @@ it('rejects assets compiled from a different catalogue snapshot', async () => {
 
 it('rejects a changed catalogue asset', async () => {
   const { root, assets } = await fixture()
-  await writeFile(path.join(assets, 'shared.json'), '{} ')
+  await writeFile(path.join(assets, 'sources.json'), '{} ')
   await expect(verifyPreviewCatalogueAssets(root)).rejects.toThrow('checksum')
 })
 
