@@ -305,6 +305,10 @@ export class SpacetimeOperator
     return z.array(z.string()).parse(await this.read('practice_opponent_ids', []))
   }
 
+  async registerPracticeOpponent(userId: string) {
+    await this.call('register_practice_opponent', [userId])
+  }
+
   async requestFriend(requesterId: string, addresseeId: string, now: number) {
     const response = await this.call('request_friend', [requesterId, addresseeId, now])
     return z.boolean().parse(await response.json())

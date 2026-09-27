@@ -1,4 +1,3 @@
-import type { BattleEvents } from '../adapters/events'
 import { randomId, randomToken } from 'ras-stack/auth'
 import {
   battleCapacity,
@@ -123,12 +122,11 @@ export class PraetoriumService {
   constructor(
     private readonly repository: RepositoryPort,
     private readonly clock: () => number,
-    private readonly events: BattleEvents,
     private readonly randomIndex: (limit: number) => number,
     private readonly notifier: Notifier = silentNotifier,
     private readonly standingsRevision?: () => Promise<string>,
   ) {
-    this.leagueService = new LeagueService(repository, clock, events, notifier)
+    this.leagueService = new LeagueService(repository, clock, notifier)
     this.rosterService = new RosterService(repository, clock)
     this.socialService = new SocialService(repository, clock, notifier)
   }
@@ -710,9 +708,6 @@ export class PraetoriumService {
         : undefined,
       now: this.clock(),
     })
-    // Everyone invited is told before they have the battle open, which is what puts
-    // it on their list without a reload.
-    this.events.publish(id, [userId, ...invited])
     this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, league: false }])
     return { token, practice }
   }
@@ -773,10 +768,6 @@ export class PraetoriumService {
     const seats = await this.mustSeat(token, userId)
     if (!(await this.repository.deleteBattle(seats.battle.id, userId)))
       throw new Response('only the battle creator can delete it', { status: 403 })
-    this.events.publish(
-      seats.battle.id,
-      seats.players.map((player) => player.id),
-    )
   }
 
   /**
@@ -869,12 +860,6 @@ export class PraetoriumService {
         return { ...submitted, secondaries }
       },
     )
-    if (result.outcome === 'appended')
-      this.events.publish(
-        seats.battle.id,
-        seats.players.map((player) => player.id),
-        result.seq,
-      )
     return { result, screen: this.battleScreen({ ...seats, log }, userId, rules) }
   }
 

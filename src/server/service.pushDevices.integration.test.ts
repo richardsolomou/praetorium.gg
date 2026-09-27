@@ -47,7 +47,7 @@ const stored = async () => (await connection.database.select({ token: pushTokens
 beforeEach(async () => {
   connection = await openTestDatabase()
   auth = createAuth(connection.database, SECRET)
-  instance.current = { auth, service: new PraetoriumService(new Repository(connection.database), Date.now, { publish: () => {} }, () => 0) }
+  instance.current = { auth, service: new PraetoriumService(new Repository(connection.database), Date.now, () => 0) }
   const signedUp = await auth.api.signUpEmail({
     body: { email: 'native@example.com', password: 'password1234', name: 'Native' },
     returnHeaders: true,

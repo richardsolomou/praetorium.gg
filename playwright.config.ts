@@ -1,15 +1,13 @@
 import { defineConfig, devices } from '@playwright/test'
-import { baseURL, catalogue, image, port, root } from './e2e/stackEnv'
+import { baseURL, catalogue, port, root } from './e2e/stackEnv'
 
 export default defineConfig({
   testDir: './e2e',
-  // Playwright is still alive here, unlike the shell that started the stack.
-  globalTeardown: './e2e/globalTeardown.ts',
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results',
   // Sharding reads this setting before it assigns tests. Keeping it only on the
   // command line leaves the large builder spec on one runner while others are empty.
   fullyParallel: true,
-  // One worker owns each container and database; CI starts isolated processes for parallelism.
+  // Each CI shard owns its local D1 and SpacetimeDB data.
   workers: 1,
   retries: 0,
   /*
@@ -20,25 +18,23 @@ export default defineConfig({
    * something, and it stays where it was.
    */
   timeout: 120_000,
-  // Both pages settle through Centrifugo rather than by polling, so assertions
-  // need room for the nudge and the refetch behind it.
+  // Live updates include a SpacetimeDB subscription and a refetch.
   expect: { timeout: 15_000 },
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL, trace: process.env.PLAYWRIGHT_TRACE ? 'on' : 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } }],
-  // The script owns the isolated local app, Postgres, Valkey, and realtime
-  // service so the suite can shut them all down after a failure.
+  // The runner starts the Worker with isolated local D1, R2, and SpacetimeDB data.
   webServer: {
-    command: `sh e2e/stack.sh ${port}`,
+    command: 'pnpm exec tsx scripts/localDev.ts',
     env: {
-      PLAYWRIGHT_IMAGE: image,
-      PLAYWRIGHT_DATA_ROOT: root,
+      LOCAL_APP_PORT: String(port),
+      LOCAL_DATA_DIR: root,
+      LOCAL_TEST_MODE: 'true',
       CATALOGUE_HOST_DIR: catalogue,
     },
-    url: `${baseURL}/api/health`,
+    url: `http://127.0.0.1:${port + 20_000}/ready`,
     reuseExistingServer: false,
-    // Longer than before: Postgres has to accept connections and the schema has
-    // to be applied before the app answers its first health check.
+    // The first run builds and seeds the local Worker and product database.
     timeout: 240_000,
   },
 })

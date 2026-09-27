@@ -36,38 +36,8 @@ jobs:
       - run: pnpm catalogue:sync
       - run: pnpm reference:evaluate
 
-  e2e-image:
-    runs-on: ubuntu-latest
-    outputs:
-      artifact-name: ${{ steps.image.outputs.artifact-name }}
-      local-image: ${{ steps.image.outputs.local-image }}
-    steps:
-      - name: Name the image
-        id: image
-        run: |
-          echo "local-image=praetorium-e2e:sha-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
-          echo "artifact-name=e2e-image-$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
-      - name: Build the application image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: e2e/Dockerfile
-          tags: ${{ steps.image.outputs.local-image }}
-          outputs: type=docker,dest=${{ runner.temp }}/preview-image.tar
-          cache-from: type=gha,scope=e2e-image
-      - name: Store the application image
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ steps.image.outputs.artifact-name }}
-          path: ${{ runner.temp }}/preview-image.tar
-          retention-days: 1
-          compression-level: 1
-
   e2e-shard:
     name: E2E runner ${{ matrix.runner }} of 8
-    needs: [e2e-image]
     strategy:
       fail-fast: false
       matrix:
@@ -82,23 +52,21 @@ jobs:
       - run: pnpm catalogue:sync
       - name: Require the terrain geometry
         run: pnpm catalogue:terrain
-      - uses: actions/download-artifact@v8
-        with:
-          name: ${{ needs.e2e-image.outputs.artifact-name }}
-          path: ${{ runner.temp }}/praetorium-e2e-image
-      - name: Load the application image
+      - name: Install pinned SpacetimeDB CLI
         env:
-          LOCAL_IMAGE: ${{ needs.e2e-image.outputs.local-image }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          docker load --input "$RUNNER_TEMP/praetorium-e2e-image/preview-image.tar"
-          docker tag "$LOCAL_IMAGE" praetorium-e2e
+          gh release download v2.7.0-hotfix3 -R clockworklabs/SpacetimeDB -p spacetime-x86_64-unknown-linux-gnu.tar.gz -D "$RUNNER_TEMP"
+          echo 'd25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831  '"$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" -C "$RUNNER_TEMP" spacetimedb-cli
       - name: Run the E2E shard
         env:
           E2E_SHARD: ${{ matrix.runner }}
+          SPACETIME_BIN: ${{ runner.temp }}/spacetimedb-cli
         run: |
           set -euo pipefail
           PLAYWRIGHT_PORT="$((4170 + E2E_SHARD))" \
-            PLAYWRIGHT_DATA_ROOT="/tmp/praetorium-e2e-$E2E_SHARD" \
+            PLAYWRIGHT_DATA_ROOT="/tmp/praetorium-e2e-$((4170 + E2E_SHARD))" \
             PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
             pnpm exec playwright test --workers=1 --shard="$E2E_SHARD/8"
       - if: failure()
@@ -211,10 +179,6 @@ jobs:
             sha: ${{ needs.coverage-data.outputs.base-sha }}
           - revision: head
             sha: ${{ needs.coverage-data.outputs.head-sha }}
-    # Pricing a unit boots the app, which keeps its auth secret on disk. The deployed
-    # default is /data, which the runner cannot write to.
-    env:
-      DATA_DIR: ${{ github.workspace }}/.coverage-data
     steps:
       # Each snapshot installs the dependencies of the revision it measures, so a
       # dependency bump is compared honestly instead of running both sides on the

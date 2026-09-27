@@ -743,6 +743,16 @@ export const practiceOpponentIds = spacetime.procedure({}, t.string(), (ctx) =>
   }),
 )
 
+export const registerPracticeOpponent = spacetime.reducer({ userId: t.string() }, (ctx, { userId }) => {
+  requireOperator(ctx)
+  if (!userId || userId.length > 128) throw new SenderError('Invalid user ID')
+  if (ctx.db.practiceOpponents.userId.find(userId)) return
+  if (Array.from(ctx.db.practiceOpponents.iter()).length >= 100) throw new SenderError('Too many practice opponents')
+  ctx.db.practiceOpponents.insert({ userId })
+  touchPublic(ctx, 'opponents')
+  touchAdmin(ctx)
+})
+
 export const requestFriend = spacetime.procedure(
   { requesterId: t.string(), addresseeId: t.string(), now: t.u64() },
   t.bool(),

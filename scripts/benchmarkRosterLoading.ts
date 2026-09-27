@@ -2,15 +2,14 @@ import { rosterCombatant } from '../src/server/rosterCombatRules'
 import { performance } from 'node:perf_hooks'
 import { attachedUnit } from '../src/core/attach'
 import { buildUnit, type RosterPick } from '../src/core/roster'
-import { app } from '../src/server/app'
 import { abilityNamesIn, datasheetIn, datasheetViewsIn } from '../src/server/catalogue'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { describeDatasheetAbilities } from '../src/server/datasheetDescriptions'
 import { calculateRosterPrice, rosterDetachments } from '../src/server/pricing'
 import { deploymentRules } from '../src/server/pricing'
+import { loadRules } from '../src/server/rules'
 
 process.env.CATALOGUE_DIR ??= new URL('../catalogue-data', import.meta.url).pathname
-process.env.DATABASE_URL ??= 'postgres://benchmark:benchmark@localhost/benchmark'
 
 const requireCatalogue = () => {
   const catalogue = loadCatalogue(process.env.CATALOGUE_DIR)
@@ -18,6 +17,7 @@ const requireCatalogue = () => {
   return catalogue
 }
 const loaded = requireCatalogue()
+const rules = loadRules(undefined, undefined, undefined, undefined, loaded.datacards, loaded.sourceReferences)
 const faction = loaded.factions.toSorted(
   (left, right) => (right.references[0]?.datasheets ?? 0) - (left.references[0]?.datasheets ?? 0),
 )[0]!
@@ -53,8 +53,8 @@ function projectWithContext(picks: readonly RosterPick[], prepared: ReturnType<t
   const selectedIndex = Math.floor(picks.length / 2)
   const selectedId = picks[selectedIndex]!.entryId
   const views = datasheetViewsIn(loaded, faction.id, selectedId, prepared)
-  describeDatasheetAbilities(loaded, faction.id, views.selected, app().rules())
-  describeDatasheetAbilities(loaded, faction.id, views.available, app().rules())
+  describeDatasheetAbilities(loaded, faction.id, views.selected, rules)
+  describeDatasheetAbilities(loaded, faction.id, views.available, rules)
 }
 
 function project(picks: readonly RosterPick[], shared: boolean) {
@@ -65,14 +65,9 @@ function project(picks: readonly RosterPick[], shared: boolean) {
     projectWithContext(picks, first)
     return
   }
-  describeDatasheetAbilities(loaded, faction.id, datasheetIn(loaded, faction.id, selectedId, first), app().rules())
+  describeDatasheetAbilities(loaded, faction.id, datasheetIn(loaded, faction.id, selectedId, first), rules)
   const second = context(picks, selectedIndex)
-  describeDatasheetAbilities(
-    loaded,
-    faction.id,
-    datasheetIn(loaded, faction.id, selectedId, { ...second, everyWeapon: true }),
-    app().rules(),
-  )
+  describeDatasheetAbilities(loaded, faction.id, datasheetIn(loaded, faction.id, selectedId, { ...second, everyWeapon: true }), rules)
 }
 
 function median(work: () => void, repetitions = 9) {
@@ -103,20 +98,20 @@ if (process.env.VERIFY_DEPLOYMENT_ABILITIES) {
   }
 }
 if (process.env.PROFILE) {
-  for (let repetition = 0; repetition < 10; repetition += 1) calculateRosterPrice(input(40), loaded, app().rules())
+  for (let repetition = 0; repetition < 10; repetition += 1) calculateRosterPrice(input(40), loaded, rules)
   process.exit(0)
 }
 console.log('units\tprice_ms\tduplicate_datasheets_ms\tshared_datasheets_ms\treused_context_ms\tsimulator_ms\treuse_speedup\tcontext_kib')
 for (const size of sizes) {
   const data = input(size)
-  const price = median(() => void calculateRosterPrice(data, loaded, app().rules()), 3)
+  const price = median(() => void calculateRosterPrice(data, loaded, rules), 3)
   const oldSheets = median(() => project(data.units, false))
   const newSheets = median(() => project(data.units, true))
   const prepared = context(data.units, Math.floor(data.units.length / 2))
   const reused = median(() => projectWithContext(data.units, prepared))
   const simulator = median(
     () =>
-      void rosterCombatant(loaded, app().rules(), {
+      void rosterCombatant(loaded, rules, {
         catalogueId: faction.id,
         detachmentIds: [],
         picks: data.units,

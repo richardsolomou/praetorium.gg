@@ -7,7 +7,7 @@ import { Spectator } from './Spectator'
 import { Tracker } from './Tracker'
 import { battleQuery } from '../../queries'
 import { useCommand } from './useCommand'
-import { useLiveBattle } from '../../useLiveBattle'
+import { useSpacetimeLiveBattle } from '../../spacetimeLive'
 import { setNativeBattleActive } from '../../nativeBridge'
 import type { openBattle } from '../../../server/functions'
 
@@ -21,7 +21,7 @@ export function BattlePage({ token }: { token: string }) {
 }
 
 function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
-  useLiveBattle(token, true)
+  useSpacetimeLiveBattle(token, true)
   useEffect(() => {
     setNativeBattleActive(true)
     return () => {

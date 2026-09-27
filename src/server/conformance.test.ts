@@ -1,6 +1,5 @@
 import { assertMutationOriginConformance } from 'ras-stack/conformance'
 import { describe, expect, it } from 'vitest'
-import { databaseUrl } from '../db/connection'
 import { POSTHOG_BROWSER_OPTIONS } from '../posthog'
 import { mutationRpc } from './rpc'
 
@@ -9,15 +8,6 @@ describe('shared infrastructure conformance', () => {
     await expect(
       assertMutationOriginConformance((request) => mutationRpc(() => undefined, request), { trustForwardedHeaders: true }),
     ).resolves.toBeUndefined()
-  })
-
-  it('insists on a Postgres URL', () => {
-    expect(databaseUrl({ DATABASE_URL: 'postgres://user:pw@db:5432/praetorium' })).toBe('postgres://user:pw@db:5432/praetorium')
-    expect(databaseUrl({ DATABASE_URL: 'postgresql://user:pw@db:5432/praetorium' })).toBe('postgresql://user:pw@db:5432/praetorium')
-    // A missing or wrong-protocol URL must fail at boot, not on the first query.
-    expect(() => databaseUrl({})).toThrow(/DATABASE_URL/)
-    expect(() => databaseUrl({ DATABASE_URL: '  ' })).toThrow(/DATABASE_URL/)
-    expect(() => databaseUrl({ DATABASE_URL: 'mysql://user:pw@db:3306/praetorium' })).toThrow(/postgres/)
   })
 
   it('masks authentication tokens in browser telemetry URLs', () => {

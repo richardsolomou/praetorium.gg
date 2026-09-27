@@ -1,5 +1,4 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { inArray } from 'drizzle-orm'
 import {
   attachRoster,
   befriend,
@@ -14,31 +13,25 @@ import {
   takeTheTurn,
   uniqueName,
 } from './account'
-import { openDatabase } from '../src/db/connection'
-import { friendships, user } from '../src/db/schema'
-import { postgresPort } from './stackEnv'
+import { productOperator, withAuthSql } from './storage'
 
 async function connectPlayers(requesterName: string, addresseeNames: string[]) {
-  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
-  try {
-    const players = await connection.database
-      .select({ id: user.id, name: user.name })
-      .from(user)
-      .where(inArray(user.name, [requesterName, ...addresseeNames]))
-    const requester = players.find((player) => player.name === requesterName)
-    const addressees = addresseeNames.map((name) => players.find((player) => player.name === name))
-    if (!requester || addressees.some((player) => !player)) throw new Error('The doubles test players are missing.')
-    const now = Date.now()
-    await connection.database.insert(friendships).values(
-      addressees.map((addressee, index) => ({
-        requesterId: requester.id,
-        addresseeId: addressee!.id,
-        requestedAt: now + index,
-        acceptedAt: now + index,
-      })),
-    )
-  } finally {
-    await connection.close()
+  const names = [requesterName, ...addresseeNames]
+  const players = await withAuthSql(
+    (database) =>
+      database.prepare(`SELECT id, name FROM user WHERE name IN (${names.map(() => '?').join(', ')})`).all(...names) as {
+        id: string
+        name: string
+      }[],
+  )
+  const requester = players.find((player) => player.name === requesterName)
+  const addressees = addresseeNames.map((name) => players.find((player) => player.name === name))
+  if (!requester || addressees.some((player) => !player)) throw new Error('The doubles test players are missing.')
+  const now = Date.now()
+  const product = await productOperator()
+  for (const [index, addressee] of addressees.entries()) {
+    await product.requestFriend(requester.id, addressee!.id, now + index)
+    await product.acceptFriend(requester.id, addressee!.id, now + index)
   }
 }
 

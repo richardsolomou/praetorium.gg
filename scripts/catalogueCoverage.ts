@@ -7,25 +7,19 @@
  * the earlier snapshot had that this one does not.
  */
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
-import { app } from '../src/server/app'
 import { abilityNamesIn, datasheetIn, datasheetSearchFieldsIn } from '../src/server/catalogue'
 import { datasheetsOf, isReferenceDatasheet, loadCatalogue } from '../src/server/catalogueIndex'
 import { describeDatasheetAbilities } from '../src/server/datasheetDescriptions'
 import { detachmentReference } from '../src/server/detachmentReference'
 import { factionsFor } from '../src/server/factionReferences'
 import { calculateRosterPrice } from '../src/server/pricing'
+import { loadRules } from '../src/server/rules'
 import { routeSlug } from '../src/core/slug'
 import { compareCatalogueCoverage } from './lib/catalogueCoverageComparison'
 
 process.env.CATALOGUE_DIR ??= path.join(import.meta.dirname, '..', 'catalogue-data')
 process.env.RULES_DIR ??= path.join(process.env.CATALOGUE_DIR, 'rules')
-process.env.DATABASE_URL ??= 'postgres://coverage:coverage@localhost/coverage'
-// Pricing a unit boots the app, which wants somewhere to keep its auth secret. The
-// deployed default is /data, which no CI runner or developer machine can write to.
-// Only the secret lands here: CATALOGUE_DIR and RULES_DIR already say where the data is.
-process.env.DATA_DIR ??= path.join(os.tmpdir(), 'praetorium-coverage')
 
 const arguments_ = process.argv.slice(2)
 const output = arguments_[0]
@@ -43,7 +37,7 @@ if (shardAt >= 0 && (!shard || Number(shard[2]) < 1 || Number(shard[1]) >= Numbe
 
 const loaded = loadCatalogue(process.env.CATALOGUE_DIR)
 if (!loaded) throw new Error('catalogue unavailable')
-const rules = app().rules()
+const rules = loadRules(undefined, undefined, undefined, undefined, loaded.datacards, loaded.sourceReferences)
 if (!rules) throw new Error('rules unavailable')
 
 type Described = { name: string; described: boolean }

@@ -1,4 +1,3 @@
-import type { BattleEvents } from '../../adapters/events'
 import { randomId, randomToken } from 'ras-stack/auth'
 import { GAME_SIZES, type Command, type Roster } from '../../core/battle'
 import { commandSchema, parseRosterSnapshot } from '../../core/commands'
@@ -23,7 +22,6 @@ export class LeagueService {
   constructor(
     private readonly repository: RepositoryPort,
     private readonly clock: () => number,
-    private readonly events: BattleEvents,
     private readonly notifier: Notifier,
   ) {}
 
@@ -412,7 +410,6 @@ export class LeagueService {
       },
     )
     if (!result) throw new Response('no such league', { status: 404 })
-    this.events.publish(id, result.participantIds)
     this.notifier.notify([
       { kind: 'battle-created', actorId: userId, recipientIds: result.participantIds, battleToken: token, league: true },
     ])

@@ -1,10 +1,7 @@
 import path from 'node:path'
 import { randomInt } from 'node:crypto'
-import { sql } from 'drizzle-orm'
-import { persistedSecret } from 'ras-stack/auth'
 import { globalSingleton } from 'ras-stack/server'
 import { readWorkerCatalogueAsset } from './workerCatalogueAssets'
-import { type BattleEvents, RealtimePublisher } from '../adapters/events'
 import { serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type TerrainReadRules, loadRules } from './rules'
@@ -18,9 +15,6 @@ import {
   installedSnapshot,
 } from './catalogueSnapshot'
 import type { SyncState } from './sync'
-import { databaseUrl, type PraetoriumDatabase, openDatabase } from '../db/connection'
-import { Repository } from '../db/repository'
-import { createAuth } from './auth'
 import { createD1Auth } from './d1Auth'
 import { remoteD1 } from './d1Bridge'
 import { D1AccountRepository } from './d1AccountRepository'
@@ -28,8 +22,6 @@ import { SpacetimeOperator } from './spacetimeOperator'
 import { SpacetimeRepository } from './spacetimeRepository'
 import { storeProfileImageFromUrl } from './avatarStorage'
 import { profileUpdate } from './profile'
-import { realtimeConfig } from '../adapters/realtime'
-import { openValkey, type ValkeyClient, valkeyReachable, valkeySecondaryStorage, valkeyUrl } from '../adapters/valkey'
 import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
 import { pushSenderFromEnvironment } from '../adapters/push'
@@ -49,7 +41,6 @@ import { battleDetachmentData, type BattleDetachmentData } from './battleDetachm
 type App = {
   health: () => Promise<void>
   service: PraetoriumService
-  events: BattleEvents
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
   catalogue: () => LoadedCatalogue | null
   catalogueFor: (catalogueId: string) => Promise<LoadedCatalogue | null>
@@ -77,7 +68,7 @@ type App = {
   workerReferences: WorkerCatalogueStore | null
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
-  auth: ReturnType<typeof createAuth> | ReturnType<typeof createD1Auth>
+  auth: ReturnType<typeof createD1Auth>
   spacetimeToken: ((headers: Headers) => Promise<string>) | null
   email: ReturnType<typeof emailDelivery>
   /** Whether this instance sends push notifications; nothing else depends on it. */
@@ -174,10 +165,6 @@ export function app(): App {
     const dataDirectory = path.resolve(process.env.DATA_DIR ?? '/data')
     const catalogueDataDirectory = catalogueDirectory(dataDirectory)
     const email = emailDelivery()
-    const hosted = Boolean(process.env.SPACETIME_URL)
-    let database: PraetoriumDatabase | null = null
-    let cache: ValkeyClient | null = null
-    let operator: SpacetimeOperator | null = null
     const cloudflare = (
       globalThis as typeof globalThis & {
         __env__?: {
@@ -190,11 +177,7 @@ export function app(): App {
         }
       }
     ).__env__
-    const binding = hosted ? (cloudflare?.AUTH_DB ?? remoteD1()) : null
-    const hostedD1 = () => {
-      if (!binding) throw new Error('D1 unavailable')
-      return binding
-    }
+    const binding = cloudflare?.AUTH_DB ?? remoteD1()
     const accessClientId = cloudflare?.SPACETIME_ACCESS_CLIENT_ID ?? process.env.SPACETIME_ACCESS_CLIENT_ID
     const accessClientSecret = cloudflare?.SPACETIME_ACCESS_CLIENT_SECRET ?? process.env.SPACETIME_ACCESS_CLIENT_SECRET
     const spacetimeAccess =
@@ -203,28 +186,18 @@ export function app(): App {
     const readCatalogue = catalogueAssets
       ? (key: string, maxBytes: number) => readWorkerCatalogueAsset(catalogueAssets, key, maxBytes)
       : null
-    const workerCatalogue =
-      hosted && readCatalogue
-        ? new WorkerCatalogueStore(readCatalogue, cloudflare?.CATALOGUE_SNAPSHOT_ID ?? '', cloudflare?.CATALOGUE_MANIFEST_SHA256 ?? '')
-        : null
-    if (hosted) {
-      operator = new SpacetimeOperator(
-        process.env.SPACETIME_URL!,
-        process.env.SPACETIME_DATABASE ?? '',
-        process.env.SPACETIME_OPERATOR_TOKEN ?? '',
-        (request, init) => fetch(request, init),
-        spacetimeAccess,
-      )
-    } else {
-      database = openDatabase(databaseUrl()).database
-      const valkey = valkeyUrl()
-      cache = valkey ? openValkey(valkey) : null
-    }
-    const realtime = hosted ? null : realtimeConfig()
-    if (!hosted && !realtime) throw new Error('Realtime secret is not configured')
-    const events: BattleEvents = realtime ? new RealtimePublisher(realtime.apiUrl, realtime.apiKey) : { publish: () => {} }
-    const repository = hosted ? new SpacetimeRepository(new D1AccountRepository(hostedD1()), operator!) : new Repository(database!)
-    const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens), process.env, !hosted)
+    const workerCatalogue = readCatalogue
+      ? new WorkerCatalogueStore(readCatalogue, cloudflare?.CATALOGUE_SNAPSHOT_ID ?? '', cloudflare?.CATALOGUE_MANIFEST_SHA256 ?? '')
+      : null
+    const operator = new SpacetimeOperator(
+      process.env.SPACETIME_URL ?? '',
+      process.env.SPACETIME_DATABASE ?? '',
+      process.env.SPACETIME_OPERATOR_TOKEN ?? '',
+      (request, init) => fetch(request, init),
+      spacetimeAccess,
+    )
+    const repository = new SpacetimeRepository(new D1AccountRepository(binding), operator)
+    const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens), process.env, false)
     let ready = Promise.resolve()
     let nativeSyncState: SyncState = { status: 'working', detail: 'loading the community data' }
     const workerShared = async () => {
@@ -251,49 +224,40 @@ export function app(): App {
       }),
     })
     const loaded = loaders()
-    const auth = hosted
-      ? createD1Auth(hostedD1(), process.env.AUTH_SECRET ?? '', {
-          environment: process.env,
-          email,
-          deleteUserData: (userId) => operator!.deleteUserData(userId),
-          revokeSessionAccess: (sessionId) => operator!.revokeSession(sessionId),
-          storeSocialAvatar: storeProfileImageFromUrl,
-          updateProfile: profileUpdate,
-        })
-      : createAuth(database!, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email)
+    const auth = createD1Auth(binding, process.env.AUTH_SECRET ?? '', {
+      environment: process.env,
+      email,
+      deleteUserData: (userId) => operator.deleteUserData(userId),
+      revokeSessionAccess: (sessionId) => operator.revokeSession(sessionId),
+      storeSocialAvatar: storeProfileImageFromUrl,
+      updateProfile: profileUpdate,
+    })
     const instance: App = {
       health: async () => {
-        if (hosted) {
-          try {
-            await Promise.all([
-              hostedD1().prepare('select 1').first(),
-              operator!.health(),
-              workerCatalogue ? workerShared() : undefined,
-              workerCatalogue ? workerCatalogue.navigation() : undefined,
-              workerCatalogue ? workerCatalogue.searchIndex() : undefined,
-            ])
-          } catch (error) {
-            console.error('Hosted health check failed:', error instanceof Error ? error.message : String(error), {
-              accessConfigured: Boolean(spacetimeAccess),
-            })
-            throw error
-          }
-        } else {
-          await database!.execute(sql`select 1`)
-          if (cache && !(await valkeyReachable(cache))) throw new Error('Valkey unavailable')
+        try {
+          await Promise.all([
+            binding.prepare('select 1').first(),
+            operator.health(),
+            workerCatalogue ? workerShared() : undefined,
+            workerCatalogue ? workerCatalogue.navigation() : undefined,
+            workerCatalogue ? workerCatalogue.searchIndex() : undefined,
+          ])
+        } catch (error) {
+          console.error('Hosted health check failed:', error instanceof Error ? error.message : String(error), {
+            accessConfigured: Boolean(spacetimeAccess),
+          })
+          throw error
         }
       },
       service: new PraetoriumService(
         repository,
         Date.now,
-        events,
         randomInt,
         push ? pushNotifier(repository, push, undefined, worker?.waitUntil) : silentNotifier,
-        operator ? () => operator.publicStandingsRevision() : undefined,
+        () => operator.publicStandingsRevision(),
       ),
-      events,
       auth,
-      spacetimeToken: hosted ? async (headers) => (await (auth as ReturnType<typeof createD1Auth>).api.getToken({ headers })).token : null,
+      spacetimeToken: async (headers) => (await auth.api.getToken({ headers })).token,
       email,
       catalogue: loaded.catalogue,
       catalogueFor: async (catalogueId) => {

@@ -14,7 +14,6 @@ import {
   trustedOrigins,
 } from 'ras-stack/auth'
 import { standardAuthEmails, type EmailDelivery } from 'ras-stack/email'
-import type { valkeySecondaryStorage } from '../adapters/valkey'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import type { PraetoriumDatabase } from '../db/connection'
 import { account, battles, battleUsers, schema, user } from '../db/schema'
@@ -25,7 +24,7 @@ import { profileUpdate } from './profile'
 import { nativeAuthToken } from './nativeAuthToken'
 import { isNativeOAuthState } from './nativeOAuthState'
 
-type AuthStorage = ReturnType<typeof valkeySecondaryStorage>
+type AuthStorage = NonNullable<Parameters<typeof betterAuth>[0]['secondaryStorage']>
 
 export function createAuth(database: PraetoriumDatabase, secret: string, storage?: AuthStorage, email?: EmailDelivery) {
   const configuredApple = appleCredentials()

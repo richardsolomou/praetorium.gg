@@ -7,7 +7,7 @@ import { battleQuery, battlesQuery } from './queries'
 import { maintainSpacetimeConnection } from './spacetimeConnection'
 import { invalidateAdminProductQueries, invalidateProductQueries, invalidatePublicProductQueries } from './productSignals'
 
-type RealtimeConfig = { mode: 'centrifugo' } | { mode: 'spacetime'; database: string; uri: string }
+type RealtimeConfig = { mode: 'spacetime'; database: string; uri: string }
 let modePromise: Promise<RealtimeConfig> | null = null
 
 export function useRealtimeConfig() {
@@ -19,14 +19,7 @@ export function useRealtimeConfig() {
         if (!response.ok) throw new Error(`Realtime mode failed with HTTP ${response.status}`)
         return response.json()
       })
-      .then((value: unknown) =>
-        z
-          .discriminatedUnion('mode', [
-            z.object({ mode: z.literal('centrifugo') }),
-            z.object({ mode: z.literal('spacetime'), database: z.string().min(1), uri: z.url() }),
-          ])
-          .parse(value),
-      )
+      .then((value: unknown) => z.object({ mode: z.literal('spacetime'), database: z.string().min(1), uri: z.url() }).parse(value))
       .catch((error: unknown) => {
         modePromise = null
         throw error
@@ -43,10 +36,6 @@ export function useRealtimeConfig() {
   return config
 }
 
-export function useRealtimeMode() {
-  return useRealtimeConfig()?.mode ?? null
-}
-
 const ticketSchema = z.object({
   token: z.string().min(1),
   database: z.string().min(1),
@@ -61,7 +50,7 @@ async function ticket(battle?: string) {
   return ticketSchema.parse(await response.json())
 }
 
-async function guestTicket(config: Extract<RealtimeConfig, { mode: 'spacetime' }>) {
+async function guestTicket(config: RealtimeConfig) {
   const response = await fetch(new URL('v1/identity', config.uri), { method: 'POST', cache: 'no-store' })
   if (!response.ok) throw new Error(`Spacetime guest token failed with HTTP ${response.status}`)
   const { token } = z.object({ token: z.string().min(1) }).parse(await response.json())
@@ -145,7 +134,7 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
 export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn: boolean) {
   const queryClient = useQueryClient()
   const [subscribed, setSubscribed] = useState(false)
-  const enabled = config?.mode === 'spacetime'
+  const enabled = Boolean(config)
   const refresh = useCallback(
     (scope?: string) => {
       void invalidateProductQueries(queryClient, scope)
@@ -166,7 +155,7 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
   )
 
   useEffect(() => {
-    if (config?.mode !== 'spacetime') return
+    if (!config) return
     return maintainSpacetimeConnection({
       issue: signedIn ? ticket : () => guestTicket(config),
       open: (issued, failed, isCurrent) =>

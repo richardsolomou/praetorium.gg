@@ -21,7 +21,6 @@ beforeEach(async () => {
   service = new PraetoriumService(
     new Repository(database),
     () => ++now,
-    { publish: () => {} },
     () => 0,
     { notify: (raised) => notices.push(...raised) },
   )
