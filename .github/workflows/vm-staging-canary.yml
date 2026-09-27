@@ -2,6 +2,8 @@ name: VM staging canary product database
 
 on:
   workflow_dispatch:
+  pull_request:
+    types: [labeled, synchronize]
 
 concurrency:
   group: vm-staging-canary
@@ -12,6 +14,7 @@ permissions:
 
 jobs:
   publish:
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'vm-canary-deploy'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
