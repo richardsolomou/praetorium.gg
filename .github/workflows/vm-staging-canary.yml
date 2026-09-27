@@ -190,3 +190,28 @@ jobs:
           api-key: ${{ secrets.DOKPLOY_API_KEY }}
           application-id: ${{ vars.DOKPLOY_STAGING_WEB_APP_ID }}
           image: ${{ steps.image.outputs.reference }}
+      - name: Resolve PR 624 preview image
+        if: github.event_name == 'workflow_dispatch'
+        id: preview-image
+        uses: richardsolomou/ras-stack/actions/resolve-container-image@v1
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/praetorium.gg-node:preview-pr-624-sha-${{ github.sha }}
+      - name: Rehearse the isolated Dokploy preview
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_ENVIRONMENT_ID: ${{ secrets.DOKPLOY_ENVIRONMENT_ID }}
+          PREVIEW_IMAGE: ${{ steps.preview-image.outputs.reference }}
+          PREVIEW_APPLICATION_PREFIX: praetorium-node
+          PREVIEW_DOMAIN: praetorium.gg
+          PREVIEW_SUBDOMAIN_PREFIX: vm-pr
+          PREVIEW_PORT: 3000
+          PR_NUMBER: 624
+          SPACETIME_URL: ${{ vars.SPACETIME_URL }}
+          SPACETIME_ADMIN_TOKEN: ${{ secrets.SPACETIME_ADMIN_TOKEN }}
+          SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.SPACETIME_ACCESS_CLIENT_ID }}
+          SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PRAETORIUM_PREVIEW_DNS_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
+        run: pnpm exec tsx scripts/dokployPreview.ts deploy
