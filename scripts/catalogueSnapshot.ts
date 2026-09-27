@@ -39,8 +39,9 @@ if (command === 'pack') {
   await downloadSnapshotArchive(archive, catalogueBaseUrl())
   console.log(`${catalogueLock.pointer.id} ${archive}`)
 } else if (command === 'install') {
-  installSnapshotArchive(directory, archive)
-  console.log(`${catalogueLock.pointer.id} ${directory}`)
+  const published = process.env.CATALOGUE_SNAPSHOT_POINTER_FILE ? verifySnapshotArchive(archive, pointer) : null
+  installSnapshotArchive(directory, archive, published ?? catalogueLock.pointer, published ? null : catalogueLock.revisions)
+  console.log(`${(published ?? catalogueLock.pointer).id} ${directory}`)
 } else if (command === 'lock') {
   await fetchCurrentSnapshot(directory, catalogueBaseUrl(), (message) => console.log(message))
   const current = installedSnapshot(directory)
