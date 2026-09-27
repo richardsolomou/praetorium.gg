@@ -44,10 +44,15 @@ type PricedRoster = {
     formationOptions: readonly ('battlefield' | 'strategic-reserves' | 'deep-strike' | 'embarked')[]
     prebattleRules: readonly ('infiltrators' | 'scouts')[]
     strategicReserveExempt?: boolean
+    transport?: boolean
   }[]
 }
 
-export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds: readonly { entryId: string; wounds: number }[]): Roster {
+export function rosterSnapshot(
+  saved: SavedRoster,
+  priced: PricedRoster,
+  details: readonly { entryId: string; wounds?: number; transportRule?: string }[],
+): Roster {
   const keyedPicks = saved.picks.map((pick, key) => ({ ...pick, key }))
   // Both spaces of the same army: what each pick was priced into, and what the
   // snapshot calls it. A pick the catalogue could not build has neither.
@@ -60,7 +65,7 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds:
       return host === undefined ? [] : [[at, host] as const]
     }),
   )
-  const woundsOf = new Map(wounds.map((entry) => [entry.entryId, entry.wounds]))
+  const detailsByEntry = new Map(details.map((entry) => [entry.entryId, entry]))
   return {
     // A list nobody named is fielded under the label it had when it was fielded. The
     // log and the seat then keep saying that, whatever the library later folds.
@@ -95,25 +100,30 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds:
       // one screen where nothing can be done about it.
       waivedRules: [...saved.waivedRules],
       picks: saved.picks.map((pick) => ({ ...pick })),
-      units: priced.units.map((unit, index) => ({
-        key: `${index}-${unit.entryId}`,
-        entryId: unit.entryId,
-        name: unit.name,
-        points: unit.points,
-        models: unit.size.models,
-        ...(woundsOf.has(unit.entryId) ? { wounds: woundsOf.get(unit.entryId) } : {}),
-        group: unit.group,
-        warlord: unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected),
-        warlordEligible: unit.toggles.some((toggle) => toggle.name === 'Warlord'),
-        wargear: unit.wargear.map((piece) => ({ ...piece })),
-        enhancements: [...unit.enhancements],
-        upgrades: [...unit.upgrades],
-        joined: attachmentRows(keyedPicks, unitsByPick, unit.key).map(({ label, name }) => ({ label, name })),
-        ...(hostsByPick.has(unit.key) ? { attachedTo: hostsByPick.get(unit.key) } : {}),
-        formationOptions: [...unit.formationOptions],
-        prebattleRules: [...unit.prebattleRules],
-        ...(unit.strategicReserveExempt ? { strategicReserveExempt: true } : {}),
-      })),
+      units: priced.units.map((unit, index) => {
+        const detail = detailsByEntry.get(unit.entryId)
+        return {
+          key: `${index}-${unit.entryId}`,
+          entryId: unit.entryId,
+          name: unit.name,
+          points: unit.points,
+          models: unit.size.models,
+          ...(detail?.wounds ? { wounds: detail.wounds } : {}),
+          ...(detail?.transportRule ? { transportRule: detail.transportRule } : {}),
+          group: unit.group,
+          warlord: unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected),
+          warlordEligible: unit.toggles.some((toggle) => toggle.name === 'Warlord'),
+          wargear: unit.wargear.map((piece) => ({ ...piece })),
+          enhancements: [...unit.enhancements],
+          upgrades: [...unit.upgrades],
+          joined: attachmentRows(keyedPicks, unitsByPick, unit.key).map(({ label, name }) => ({ label, name })),
+          ...(hostsByPick.has(unit.key) ? { attachedTo: hostsByPick.get(unit.key) } : {}),
+          formationOptions: [...unit.formationOptions],
+          prebattleRules: [...unit.prebattleRules],
+          ...(unit.strategicReserveExempt ? { strategicReserveExempt: true } : {}),
+          ...(unit.transport ? { transport: true } : {}),
+        }
+      }),
     },
   }
 }

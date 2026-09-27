@@ -2,7 +2,7 @@ import { Minus, Plus, Scroll, Swords } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import type { Command, UnitState } from '../../../core/battle'
+import { type Command, transportLabel, type UnitState } from '../../../core/battle'
 import { armyModels, armyShelves } from './armyUnits'
 import type { Army, Side } from '../../sides'
 import { ArmyIdentity } from './ArmyIdentity'
@@ -151,7 +151,9 @@ function BattleUnit({
                 <Swords aria-hidden /> Simulate
               </Button>
             ) : null}
-            {worthSaying ? <UnitStatus unit={unit} playerId={army.playerId} actionable={actionable} send={send} /> : null}
+            {worthSaying ? (
+              <UnitStatus unit={unit} units={army.units} playerId={army.playerId} actionable={actionable} send={send} />
+            ) : null}
           </>
         ) : undefined
       }
@@ -162,11 +164,13 @@ function BattleUnit({
 /** Expose model and wound controls only where the frozen unit has those counts; the domain decides whether a wound removes a model. */
 function UnitStatus({
   unit,
+  units,
   playerId,
   actionable,
   send,
 }: {
   unit: UnitState
+  units: UnitState[]
   playerId: string
   actionable: boolean
   send: (command: Command) => void
@@ -197,7 +201,12 @@ function UnitStatus({
   return (
     <>
       {/* Where a unit is, when it is anywhere but on the table. */}
-      {unit.formation === 'battlefield' ? null : <span className="chip shrink-0">{formationLabel(unit.formation)}</span>}
+      {unit.formation === 'battlefield' ? null : (
+        <span className="chip shrink-0">
+          {formationLabel(unit.formation)}
+          {unit.embarkedIn ? ` in ${transportLabel(units, unit.embarkedIn) ?? 'transport'}` : ''}
+        </span>
+      )}
       {unit.models > 1 ? (
         <Counter
           noun="models"

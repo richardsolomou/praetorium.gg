@@ -141,6 +141,10 @@ type SubmittedUnit = {
   prebattleRules?: ('infiltrators' | 'scouts')[]
   /** A selected rule says this unit's points do not count towards the starting reserve limit. */
   strategicReserveExempt?: boolean
+  /** Whether the frozen datasheet can carry other units. */
+  transport?: boolean
+  /** The transport's printed rule, frozen with the roster. */
+  transportRule?: string
 }
 
 export const UNIT_FORMATIONS = ['battlefield', 'strategic-reserves', 'deep-strike', 'embarked'] as const
@@ -149,10 +153,14 @@ export type UnitFormation = (typeof UNIT_FORMATIONS)[number]
 export const strategicReserveLimit = (pointsLimit: number) => pointsLimit / 2
 const startsInStrategicReserves = (formation: UnitFormation) => formation === 'strategic-reserves' || formation === 'deep-strike'
 
-type ReserveUnit = Pick<UnitState, 'key' | 'attachedTo' | 'formation' | 'points' | 'strategicReserveExempt' | 'postDeploymentReserve'>
+type ReserveUnit = Pick<
+  UnitState,
+  'key' | 'attachedTo' | 'formation' | 'embarkedIn' | 'points' | 'strategicReserveExempt' | 'postDeploymentReserve'
+>
 
 /** Deep Strike changes an ingress move; the unit still starts in Strategic Reserves. */
 export function strategicReservePoints(units: readonly ReserveUnit[]): number {
+  const byKey = new Map(units.map((unit) => [unit.key, unit]))
   const groups = new Map<string, ReserveUnit[]>()
   for (const unit of units) {
     const group = unit.attachedTo ?? unit.key
@@ -161,11 +169,56 @@ export function strategicReservePoints(units: readonly ReserveUnit[]): number {
     else groups.set(group, [unit])
   }
   return [...groups.values()].reduce((total, attached) => {
-    const reserved = attached.filter((unit) => startsInStrategicReserves(unit.formation))
+    const reserved = attached.filter(
+      (unit) =>
+        startsInStrategicReserves(unit.formation) ||
+        (unit.embarkedIn && startsInStrategicReserves(byKey.get(unit.embarkedIn)?.formation ?? 'battlefield')),
+    )
     if (reserved.some((unit) => unit.strategicReserveExempt || unit.postDeploymentReserve)) return total
     return total + reserved.reduce((points, unit) => points + unit.points, 0)
   }, 0)
 }
+
+export function transportLabel(units: readonly Pick<UnitState, 'key' | 'name'>[], key: string): string | null {
+  const transport = units.find((unit) => unit.key === key)
+  if (!transport) return null
+  const matching = units.filter((unit) => unit.name === transport.name)
+  return matching.length > 1 ? `${transport.name} #${matching.findIndex((unit) => unit.key === key) + 1}` : transport.name
+}
+
+export function transportCapacity(rule: string | undefined, wargear?: readonly { name: string; count: number }[]): number | null {
+  if (!rule || /\btransport capacity (?:is |can be )?(?:reduced|increased|changed) to\b/i.test(rule)) return null
+  const capacities = [...rule.matchAll(/\btransport capacity of\s+(\d+)\b[^.!?]*\bmodels\b/gi)]
+  if (!capacities.length) return null
+  const conditions = [
+    ...rule.matchAll(
+      /\bIf this model is equipped with (?:a |an |the )?([^,]+), it has a transport capacity of\s+(\d+)\b[^.!?]*\bmodels\b/gi,
+    ),
+  ]
+  if (conditions.length !== capacities.length - 1 || (conditions.length && !wargear)) return null
+  const selected = conditions.filter((condition) =>
+    wargear?.some((piece) => piece.count > 0 && piece.name.toLowerCase() === condition[1]?.replaceAll('*', '').toLowerCase().trim()),
+  )
+  if (selected.length > 1) return null
+  const capacity = Number(selected[0]?.[2] ?? capacities[0]?.[1])
+  return Number.isSafeInteger(capacity) && capacity > 0 ? capacity : null
+}
+
+export function embarkedModelCount(units: readonly Pick<UnitState, 'embarkedIn' | 'alive'>[], transportKey: string): number {
+  return units.reduce((models, unit) => models + (unit.embarkedIn === transportKey ? unit.alive : 0), 0)
+}
+
+function embarkedCapacityError(units: readonly UnitState[], unit: UnitState, nextAlive: number): string | null {
+  if (!unit.embarkedIn || nextAlive <= unit.alive) return null
+  const transport = units.find((candidate) => candidate.key === unit.embarkedIn)
+  const capacity = transportCapacity(transport?.transportRule, transport?.wargear)
+  if (capacity === null) return 'this transport has no known model capacity'
+  return embarkedModelCount(units, unit.embarkedIn) - unit.alive + nextAlive > capacity
+    ? `this transport can carry at most ${capacity} models`
+    : null
+}
+
+export const canTransport = (unit: Pick<UnitState, 'transport' | 'group'>): boolean => unit.transport === true || unit.group === 'transport'
 
 export function strategicReserveError(units: readonly ReserveUnit[], reserveLimit: number): string | null {
   return strategicReservePoints(units) > reserveLimit
@@ -183,13 +236,21 @@ function strategicReserveChangeError(
   return strategicReservePoints(changed) <= strategicReservePoints(current) ? null : strategicReserveError(changed, reserveLimit)
 }
 
-function changedFormation(unit: UnitState, formation: UnitFormation, redeployed = false): UnitState {
+function changedFormation(unit: UnitState, formation: UnitFormation, redeployed = false, transportKey?: string): UnitState {
   const remainsInReserves = startsInStrategicReserves(unit.formation) && startsInStrategicReserves(formation)
   return {
     ...unit,
     formation,
+    embarkedIn: formation === 'embarked' ? transportKey : undefined,
     deployed: formation === 'battlefield',
     postDeploymentReserve: startsInStrategicReserves(formation) && (redeployed || (remainsInReserves && unit.postDeploymentReserve)),
+  }
+}
+
+function disembarkPassengers(units: UnitState[], transport: UnitState): void {
+  if (!transport.destroyed || !canTransport(transport)) return
+  for (const passenger of units.filter((unit) => unit.embarkedIn === transport.key)) {
+    Object.assign(passenger, changedFormation(passenger, 'battlefield'))
   }
 }
 
@@ -198,6 +259,8 @@ export type UnitState = SubmittedUnit & {
   destroyed: boolean
   deployed: boolean
   formation: UnitFormation
+  /** The key of this unit's transport when embarked. */
+  embarkedIn?: string
   /** Whether the unit was on the battlefield when the first-turn roll was recorded. */
   deployedAtRollOff?: boolean
   /** The unit entered reserves after deployment, when the mission rules exempt it from the starting cap. */
@@ -564,7 +627,7 @@ export type Command =
   /** `delta` is the change in wounds left, so a unit taking damage is negative, like models. */
   | ({ kind: 'damage-unit'; unitKey: string; delta: number } & OnBehalfOf)
   | ({ kind: 'deploy-unit'; unitKey: string; deployed: boolean } & OnBehalfOf)
-  | ({ kind: 'set-unit-formation'; unitKey: string; formation: UnitFormation } & OnBehalfOf)
+  | ({ kind: 'set-unit-formation'; unitKey: string; formation: UnitFormation; transportKey?: string } & OnBehalfOf)
   | ({ kind: 'set-painted'; painted: boolean } & OnBehalfOf)
   | { kind: 'set-deployment'; patternId: string | null }
   | { kind: 'set-battlefield'; patternId: string; terrainLayoutId: string }
@@ -1110,7 +1173,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
       if (!unit) return 'that is not one of your units'
       if (unit.destroyed === command.destroyed) return command.destroyed ? 'the unit is already lost' : 'the unit is already standing'
-      return null
+      return command.destroyed ? null : embarkedCapacityError(player.units, unit, unit.models)
     }
     case 'deploy-unit': {
       if (state.status === 'finished') return 'the battle is over'
@@ -1129,11 +1192,27 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (state.status === 'finished') return 'the battle is over'
       const attached = attachedUnits(player.units, command.unitKey)
       if (!attached.length) return namesAnotherArmy(command, actor) ? 'that is not one of their units' : 'that is not one of your units'
+      if (command.formation === 'embarked') {
+        if (!command.transportKey) return 'choose a transport for the embarked unit'
+        const transport = player.units.find((unit) => unit.key === command.transportKey)
+        if (!transport || !canTransport(transport) || transport.attachedTo || transport.destroyed || transport.formation === 'embarked')
+          return 'choose a transport in this army'
+        if (attached.some((unit) => unit.key === transport.key || canTransport(unit)))
+          return 'a transport cannot embark in another transport'
+        if (attached.some((unit) => unit.destroyed)) return 'a destroyed unit cannot embark'
+        const capacity = transportCapacity(transport.transportRule, transport.wargear)
+        if (capacity === null) return 'this transport has no known model capacity'
+        const aboard = embarkedModelCount(player.units, transport.key) - embarkedModelCount(attached, transport.key)
+        if (aboard + attached.reduce((models, unit) => models + unit.alive, 0) > capacity)
+          return `this transport can carry at most ${capacity} models`
+      } else if (command.transportKey) {
+        return 'only an embarked unit can name a transport'
+      }
       // Asked of the whole attached unit, because a deployment ability needs every
       // model in it: a character who can deep strike cannot take a bodyguard unit
       // that cannot with him.
       if (
-        !['battlefield', 'strategic-reserves'].includes(command.formation) &&
+        !['battlefield', 'strategic-reserves', 'embarked'].includes(command.formation) &&
         !attached.every((unit) => unit.formationOptions?.includes(command.formation))
       ) {
         return 'the roster data does not support that formation'
@@ -1145,7 +1224,9 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
           Boolean(state.firstPlayerId) &&
           command.formation === 'strategic-reserves' &&
           attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
-        const changed = player.units.map((unit) => (keys.has(unit.key) ? changedFormation(unit, command.formation, redeployed) : unit))
+        const changed = player.units.map((unit) =>
+          keys.has(unit.key) ? changedFormation(unit, command.formation, redeployed, command.transportKey) : unit,
+        )
         const reserveError = strategicReserveChangeError(player.units, changed, reserveLimit)
         if (reserveError) return reserveError
       }
@@ -1161,7 +1242,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (!Number.isInteger(command.delta) || command.delta === 0) return 'models come off in whole numbers'
       if (unit.alive + command.delta < 0) return 'there are not that many models left'
       if (unit.alive + command.delta > unit.models) return 'that is more models than the unit has'
-      return null
+      return embarkedCapacityError(player.units, unit, unit.alive + command.delta)
     }
     case 'damage-unit': {
       if (state.status !== 'playing') return 'the battle is not running'
@@ -1175,7 +1256,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (!Number.isInteger(command.delta) || command.delta === 0) return 'wounds come off in whole numbers'
       if (left + command.delta < 0) return 'there are not that many wounds left'
       if (left + command.delta > unit.models * unit.wounds) return 'that is more wounds than the unit has'
-      return null
+      return embarkedCapacityError(player.units, unit, Math.ceil((left + command.delta) / unit.wounds))
     }
     case 'set-deployment':
     case 'set-battlefield': {
@@ -1438,6 +1519,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       // and a unit that is gone has nothing left standing to be carrying a wound.
       unit.alive = command.destroyed ? 0 : unit.models
       unit.damage = 0
+      disembarkPassengers(player.units, unit)
       return
     }
     case 'deploy-unit': {
@@ -1455,7 +1537,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         command.formation === 'strategic-reserves' &&
         attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
       for (const unit of attached) {
-        Object.assign(unit, changedFormation(unit, command.formation, redeployed))
+        Object.assign(unit, changedFormation(unit, command.formation, redeployed, command.transportKey))
       }
       return
     }
@@ -1473,6 +1555,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       // Losing the last model is losing the unit: one event, not two states that
       // could contradict each other.
       unit.destroyed = unit.alive === 0
+      disembarkPassengers(player.units, unit)
       return
     }
     case 'damage-unit': {
@@ -1491,6 +1574,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       unit.alive = Math.ceil(remaining / unit.wounds)
       unit.damage = unit.alive * unit.wounds - remaining
       unit.destroyed = unit.alive === 0
+      disembarkPassengers(player.units, unit)
       return
     }
     case 'set-deployment': {

@@ -19,6 +19,7 @@ import {
   type PlayerState,
   replay,
   sameSide,
+  transportLabel,
 } from './battle'
 
 /** One thing that happened, in the words a player would use about it. */
@@ -135,6 +136,10 @@ function describe(
     }
     case 'set-unit-formation': {
       const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
+      if (command.formation === 'embarked') {
+        const transport = transportLabel(player?.units ?? [], command.transportKey ?? '') ?? 'a transport'
+        return `${who} embarks ${whose} ${unit} in ${transport}`
+      }
       return `${who} places ${whose} ${unit} in ${titled(command.formation)}`
     }
     case 'set-painted':
