@@ -1,5 +1,6 @@
 import { workerAppContext } from './workerAppContext'
 import { r2Client } from './r2Client'
+import { localObjectStore } from './localObjectStore'
 
 /** Existing profile image and catalogue URLs remain stable across bucket key changes. */
 export const DEFAULT_S3_PUBLIC_BASE_URL = 'https://s3.praetorium.gg/praetorium'
@@ -18,6 +19,10 @@ export function s3PublicBaseUrl(): string {
 export function configuredObjectStore(): ObjectStore | null {
   const publicObjects = workerAppContext.getStore()?.publicObjects
   if (publicObjects) return { bucket: publicObjects, publicBaseUrl: s3PublicBaseUrl() }
+  if (process.env.PRAETORIUM_LOCAL_DEV === 'true') {
+    if (!process.env.LOCAL_OBJECT_DIR) throw new Error('LOCAL_OBJECT_DIR is required for local development')
+    return { bucket: localObjectStore(process.env.LOCAL_OBJECT_DIR), publicBaseUrl: s3PublicBaseUrl() }
+  }
   const r2 = r2Client()
   if (!r2) return null
   const { client, base } = r2

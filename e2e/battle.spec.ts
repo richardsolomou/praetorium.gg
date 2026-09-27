@@ -608,11 +608,11 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
   })
 
   for (let phase = 0; phase < 6; phase += 1) await advance(alice)
-  await takeTheTurn(bob)
   const openingOwed = alice.getByRole('dialog', { name: /^Scoring end of their turn points/ })
   await expect(openingOwed).toBeVisible()
   await openingOwed.getByRole('button', { name: 'Take the turn' }).click()
   await expect(openingOwed).toBeHidden()
+  await expect(bob.getByRole('heading', { name: 'command phase' })).toBeVisible()
 
   const alicePanel = alice.locator('[data-panel="player"]').filter({ hasText: aliceName })
   await alicePanel.getByRole('button', { name: 'Select secret mission' }).click()

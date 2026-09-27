@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import { request as httpRequest, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer as createHttpsServer, request as httpsRequest } from 'node:https'
 import path from 'node:path'
 import { withAuthSql } from './storage'
@@ -10,7 +10,7 @@ const root = path.join(import.meta.dirname, '..')
 const backendPort = Number(process.env.NATIVE_AUTH_BACKEND_PORT ?? 4274)
 const publicPort = Number(process.env.NATIVE_AUTH_PUBLIC_PORT ?? 4273)
 const dataDirectory = `/tmp/praetorium-native-auth-ios-${backendPort}`
-const backendUrl = `https://127.0.0.1:${backendPort}`
+const backendUrl = `http://127.0.0.1:${backendPort}`
 const readyUrl = `http://127.0.0.1:${backendPort + 20_000}/ready`
 const publicUrl = `https://localhost:${publicPort}`
 const fixtureName = 'Native Auth Simulator'
@@ -120,13 +120,12 @@ function requestPublic(pathname: string, method: string, headers: Record<string,
 function forward(request: IncomingMessage, response: ServerResponse) {
   const target = new URL(request.url ?? '/', backendUrl)
   return new Promise<void>((resolve, reject) => {
-    const forwarded = httpsRequest(
+    const forwarded = httpRequest(
       {
         hostname: '127.0.0.1',
         port: backendPort,
         path: `${target.pathname}${target.search}`,
         method: request.method,
-        ca: readFileSync(tlsCertificate),
         headers: {
           ...request.headers,
           host: new URL(publicUrl).host,
@@ -297,9 +296,6 @@ async function main() {
       LOCAL_APP_PORT: String(backendPort),
       LOCAL_DATA_DIR: dataDirectory,
       LOCAL_TEST_MODE: 'true',
-      LOCAL_WORKER_PROTOCOL: 'https',
-      LOCAL_WORKER_CERT: tlsCertificate,
-      LOCAL_WORKER_KEY: tlsKey,
       NODE_EXTRA_CA_CERTS: tlsCertificate,
     },
     stdio: 'inherit',

@@ -2,6 +2,11 @@ name: VM staging canary
 
 on:
   workflow_dispatch:
+    inputs:
+      objects_only:
+        description: Rehearse the public object route without rebuilding the canary
+        type: boolean
+        default: false
   pull_request:
     types: [labeled, synchronize]
 
@@ -14,7 +19,7 @@ permissions:
 
 jobs:
   publish:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'vm-canary-deploy'))
+    if: (github.event_name == 'workflow_dispatch' && !inputs.objects_only) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'vm-canary-deploy'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -217,3 +222,26 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.PRAETORIUM_PREVIEW_DNS_API_TOKEN }}
           CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
         run: pnpm exec tsx scripts/dokployPreview.ts deploy
+
+  public-objects:
+    if: github.event_name == 'workflow_dispatch' && inputs.objects_only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Deploy public object route
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler deploy --config wrangler.objects.json --route 's3.praetorium.gg/*'
+      - name: Verify catalogue remains public and backups remain private
+        run: |
+          set -euo pipefail
+          base='https://s3.praetorium.gg/praetorium'
+          curl --fail --silent --show-error --max-time 30 --dump-header "$RUNNER_TEMP/current.headers" \
+            "$base/current.json" --output "$RUNNER_TEMP/current.json"
+          grep -Eiq '^x-praetorium-object-source: r2' "$RUNNER_TEMP/current.headers"
+          jq -e '.id | test("^[0-9a-f]{64}$")' "$RUNNER_TEMP/current.json" > /dev/null
+          curl --fail --silent --show-error --head --max-time 30 "$base/revocations.json" > /dev/null
+          status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 30 "$base/backups/auth/production/private.zip")"
+          test "$status" = 404

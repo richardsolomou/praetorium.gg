@@ -7,7 +7,7 @@ install:
     corepack enable
     pnpm install
 
-# The Worker, local D1 and R2 bindings, and a local SpacetimeDB instance
+# The Node app, local SQLite and object storage, and a local SpacetimeDB instance
 dev:
     pnpm dev
 
@@ -117,7 +117,7 @@ db-check:
 e2e-install:
     pnpm exec playwright install chromium --only-shell
 
-# Browsers against isolated local D1, R2, and SpacetimeDB
+# Browsers against isolated local SQLite, object storage, and SpacetimeDB
 e2e *args:
     pnpm exec playwright test {{ args }}
 

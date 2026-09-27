@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { app } from '../../server/app'
 import { currentUser } from '../../server/playerSession'
+import { spacetimePublicUri } from '../../server/spacetimePublicUri'
 
 export const Route = createFileRoute('/api/spacetime/token')({
   server: {
@@ -14,7 +15,7 @@ export const Route = createFileRoute('/api/spacetime/token')({
         const battleId = battle ? await instance.service.userBattleId(battle, user.id) : null
         const token = await instance.spacetimeToken(request.headers)
         return Response.json(
-          { token, database: process.env.SPACETIME_DATABASE, uri: new URL('/spacetime/', request.url).toString(), battleId },
+          { token, database: process.env.SPACETIME_DATABASE, uri: spacetimePublicUri(process.env.APP_URL), battleId },
           { headers: { 'cache-control': 'no-store' } },
         )
       },

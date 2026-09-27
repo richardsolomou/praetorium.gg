@@ -10,6 +10,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import httpProxy from 'http-proxy'
 import { backupAuthSqlite, importAuthDumpFromR2, importAuthSqlite } from './nodeAuthSqlite.ts'
+import { publicObject } from '../cloudflare/publicObjects.ts'
+import { localObjectStore } from '../src/server/localObjectStore.ts'
 import { r2Client } from '../src/server/r2Client.ts'
 
 const execFile = promisify(execFileCallback)
@@ -62,6 +64,15 @@ async function requestBody(request: IncomingMessage) {
 function send(response: ServerResponse, status: number, body?: Uint8Array) {
   response.writeHead(status, { 'cache-control': 'no-store', ...(body ? { 'content-type': 'application/json' } : {}) })
   response.end(body)
+}
+
+async function serveLocalObject(request: IncomingMessage, response: ServerResponse, root: string) {
+  const url = new URL(request.url ?? '/', 'http://localhost')
+  const headers = new Headers()
+  if (request.headers['if-none-match']) headers.set('if-none-match', request.headers['if-none-match'])
+  const result = await publicObject(new Request(url, { method: request.method, headers }), localObjectStore(root))
+  response.writeHead(result.status, Object.fromEntries(result.headers))
+  response.end(result.body ? Buffer.from(await result.arrayBuffer()) : undefined)
 }
 
 async function proxySpacetimeHttp(request: IncomingMessage, response: ServerResponse, route: 'identity' | 'exchange', upstream: URL) {
@@ -118,7 +129,9 @@ export async function startNodeServer() {
     }
   }
   if (!existsSync(authPath)) throw new Error('Auth SQLite file is missing')
-  if (!r2Client() && process.env.PRAETORIUM_SEED_PREVIEW !== 'true') throw new Error('R2 object storage is required')
+  if (!r2Client() && process.env.PRAETORIUM_LOCAL_DEV !== 'true' && process.env.PRAETORIUM_SEED_PREVIEW !== 'true') {
+    throw new Error('Object storage is required')
+  }
   const publicPort = Number(process.env.PORT ?? 3000)
   const internalPort = Number(process.env.NODE_INTERNAL_PORT ?? 3001)
   if (
@@ -165,6 +178,12 @@ export async function startNodeServer() {
     else response.destroy()
   }
   const server = createServer((request, response) => {
+    if (process.env.PRAETORIUM_LOCAL_DEV === 'true' && request.url?.startsWith('/praetorium/')) {
+      void serveLocalObject(request, response, process.env.LOCAL_OBJECT_DIR!).catch((error: unknown) =>
+        appError(error as Error, request, response),
+      )
+      return
+    }
     if (request.url?.startsWith('/spacetime/')) {
       const route = spacetimeRoute(request, database)
       if (route === 'identity' || route === 'exchange') {
