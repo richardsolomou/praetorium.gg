@@ -40,8 +40,11 @@ Map URLs and API requests to validated loaders and handlers.
 - route api/previews.users.$userId.ts: Handles /api/previews/users/$userId.
   handler: Route in api/previews.users.$userId.ts
   trust: external-request
-- route api/realtime.token.ts: Handles /api/realtime/token.
-  handler: Route in api/realtime.token.ts
+- route api/realtime.mode.ts: Handles /api/realtime/mode.
+  handler: Route in api/realtime.mode.ts
+  trust: external-request
+- route api/spacetime.token.ts: Handles /api/spacetime/token.
+  handler: Route in api/spacetime.token.ts
   trust: external-request
 - route api/reference/v1/about.ts: Handles /api/reference/v1/about.
   handler: Route in api/reference/v1/about.ts

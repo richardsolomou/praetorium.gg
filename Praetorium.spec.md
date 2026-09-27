@@ -9,7 +9,7 @@ Build and watch catalogue-backed battles, rosters, and league events with accoun
 - device-state (outside): Browser storage, cookies, native callbacks, and push payloads supplied by a device.
 - verified-session: Server-established user identity after authentication.
 - validated-data: Parsed, verified, and authorized application input.
-- persisted-record: Postgres rows and append-only logs, including records written by older versions.
+- persisted-record: D1 account rows and SpacetimeDB product records, including battle command logs.
 - public-output: Responses and rendered data visible to an account or spectator.
 
 ## invariants
