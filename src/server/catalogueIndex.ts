@@ -17,7 +17,7 @@ import { type FactionContent, type LoadedDatacards, type RuleCard, loadDatacards
 import { catalogueSections } from './catalogueSections'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { type ExternalReferences, loadExternalReferences } from './externalReferences'
-import { prepareCatalogueProfileRules } from './catalogueProfileRules'
+import { catalogueProfileMetadata, prepareCatalogueProfileRules } from './catalogueProfileRules'
 
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
@@ -74,7 +74,10 @@ export function catalogueFromIndex(
   files: readonly CatalogueFile[],
   datacards: LoadedDatacards,
   sourceReferences: ExternalReferences,
-  profiled = prepareCatalogueProfileRules(files),
+  profiled: Pick<
+    ReturnType<typeof catalogueProfileMetadata>,
+    'profiledCatalogueIds' | 'profiledDetachmentIds' | 'profiledArmyRules'
+  > = catalogueProfileMetadata(files),
 ): LoadedCatalogue {
   const detachments = detachmentsOf(files, index)
   return {

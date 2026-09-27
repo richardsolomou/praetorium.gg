@@ -288,8 +288,12 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
       const rules = await app().rulesFor()
       const canonical = await app().canonicalCatalogueFor()
       const book = catalogue?.index.catalogues.get(data.catalogueId)
-      const live = Boolean(catalogue && book && (catalogue.profiledCatalogueIds.has(book.id) || profiledArmyRulesFor(catalogue, book.id).length))
-      return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data, { live })
+      const live = Boolean(
+        catalogue && book && (catalogue.profiledCatalogueIds.has(book.id) || profiledArmyRulesFor(catalogue, book.id).length),
+      )
+      return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data, {
+        live,
+      })
     }),
   )
 

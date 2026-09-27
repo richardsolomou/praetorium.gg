@@ -46,10 +46,8 @@ export function selectedBattleDetachmentData(data: BattleDetachmentData, names: 
     data.live,
     data.details,
   )
-  const previewWritten = names.flatMap((name) =>
-    (data.profiledStratagems.get(name) ?? []).map((card) => ({ ...card, type: null })),
-  )
-  const written = [...selected.written, ...previewWritten, ...data.coreDetails]
+  const profiledWritten = names.flatMap((name) => (data.profiledStratagems.get(name) ?? []).map((card) => ({ ...card, type: null })))
+  const written = [...selected.written, ...profiledWritten, ...data.coreDetails]
   return {
     attribution: data.attribution,
     dataslate: data.dataslate,

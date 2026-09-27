@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { detachmentsOf, factionsIn, isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
 import {
+  catalogueProfileMetadata,
   isProfiledDetachment,
   prepareCatalogueProfileRules,
   profiledArmyRulesFor,
@@ -9,6 +10,9 @@ import {
   profiledDetachmentPoints,
 } from './catalogueProfileRules'
 import { factionsFor } from './factionReferences'
+import { battleDetachmentData, selectedBattleDetachmentData } from './battleDetachmentData'
+import { cataloguePartitions } from './cataloguePartitions'
+import type { LoadedRules } from './rules'
 
 const files: CatalogueFile[] = [
   {
@@ -303,4 +307,39 @@ it('reads army rules, detachment cards, and DP costs from catalogue profiles', (
     rules: [{ id: 'rule', name: 'Tactical Mastery', description: 'Rule text' }],
     stratagems: [{ id: 'stratagem', name: 'Rapid Advance', description: 'Stratagem text', cp: 1 }],
   })
+})
+
+it('serves profiled stratagems from compiled battle detachment data', () => {
+  const { loaded } = loadedCatalogue()
+  const rules = {
+    byDetachment: new Map(),
+    detachmentDetails: new Map(),
+    core: [],
+    coreDetails: [],
+    attribution: 'Rules source',
+    dataslate: null,
+  } as Partial<LoadedRules> as LoadedRules
+  const data = battleDetachmentData(loaded, rules, 'space-marines')!
+
+  expect(selectedBattleDetachmentData(data, ['Tacticus Attack Force']).written).toEqual([
+    { key: 'stratagem', type: null, description: 'Stratagem text' },
+  ])
+})
+
+it('recovers profile metadata from prepared catalogue partitions', () => {
+  const { files: prepared } = loadedCatalogue()
+  const named = prepared.map((file, index) => ({ name: `${index}.json`, file }))
+  const names = cataloguePartitions(named).get('dark-angels')!
+  const partition = names.map((name) => named.find((entry) => entry.name === name)!.file)
+  const index = buildIndex(partition, 'revision')
+  const metadata = catalogueProfileMetadata(partition)
+  const loaded = { index, detachments: detachmentsOf(partition, index), ...metadata }
+
+  expect(loaded.profiledArmyRules.get('space-marines')?.map((rule) => rule.name)).toEqual(['Combat Doctrines'])
+  expect(
+    loaded.detachments
+      .get('dark-angels')
+      ?.options.filter((option) => isProfiledDetachment(loaded, option.id))
+      .map((option) => option.name),
+  ).toEqual(['Assault Brethren', 'Tacticus Attack Force'])
 })

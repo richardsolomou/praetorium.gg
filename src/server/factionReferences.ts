@@ -130,9 +130,7 @@ function withProfiledArmyRules<
 function buildFactionIndex(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
   return {
     revision: loaded.index.revision,
-    factions: loaded.factions
-      .filter((faction) => !isSupersededCatalogue(loaded, faction))
-      .map((faction) => factionSummary(loaded, rules, faction).summary),
+    factions: loaded.factions.map((faction) => factionSummary(loaded, rules, faction).summary),
   }
 }
 

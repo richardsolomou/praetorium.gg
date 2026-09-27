@@ -38,14 +38,9 @@ function directDetachmentOptions(book: Catalogue) {
     .flatMap((group) => group.selectionEntries ?? [])
 }
 
-/**
- * Some released catalogues define units and detachments only as shared entries.
- * Give those definitions ordinary roots so the rest of the evaluator can consume
- * them without knowing which upstream layout produced them.
- */
-export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
+/** Prepared Worker partitions retain the generated wrapper that identifies a profiled source. */
+export function catalogueProfileMetadata(files: readonly CatalogueFile[], rawIndex?: CatalogueIndex) {
   const books = new Map(files.flatMap((file) => (file.catalogue ? [[file.catalogue.id, file.catalogue] as const] : [])))
-  const rawIndex = buildIndex(files, 'source')
   const profiledCatalogueIds = new Set<string>()
   const profiledDetachmentIds = new Set<string>()
   const profiledOptions = new Map<string, SelectionEntry[]>()
@@ -54,17 +49,36 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
     const options = directDetachmentOptions(book)
     const sharedUnits = (book.sharedSelectionEntries ?? []).filter((entry) => entry.type === 'unit' || entry.type === 'model')
     const library = book.name.split(' - ').some((part) => part.toLowerCase() === 'library')
+    const generatedRoot = book.selectionEntries?.some((entry) => entry.id === `profile-detachment-${book.id}`)
     if (
       library ||
       !sharedUnits.length ||
       !options.some((option) => option.profiles?.length) ||
-      rootDetachmentOptions(book, rawIndex).length
+      (!generatedRoot && (!rawIndex || rootDetachmentOptions(book, rawIndex).length))
     )
       continue
     profiledCatalogueIds.add(book.id)
     profiledOptions.set(book.id, options)
     options.filter((option) => option.profiles?.length).forEach((option) => profiledDetachmentIds.add(option.id))
   }
+
+  return {
+    profiledCatalogueIds,
+    profiledDetachmentIds,
+    profiledArmyRules: profiledArmyRules(files, profiledCatalogueIds),
+    profiledOptions,
+  }
+}
+
+/** Give shared units and detachments ordinary roots for the evaluator. */
+export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
+  const rawIndex = buildIndex(files, 'source')
+  const {
+    profiledCatalogueIds,
+    profiledDetachmentIds,
+    profiledArmyRules: profiledRuleCards,
+    profiledOptions,
+  } = catalogueProfileMetadata(files, rawIndex)
 
   const prepared = files.map((file): CatalogueFile => {
     const book = file.catalogue
@@ -131,7 +145,7 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
     files: prepared,
     profiledCatalogueIds,
     profiledDetachmentIds,
-    profiledArmyRules: profiledArmyRules(prepared, profiledCatalogueIds),
+    profiledArmyRules: profiledRuleCards,
   }
 }
 
