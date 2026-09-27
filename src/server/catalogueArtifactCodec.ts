@@ -9,17 +9,32 @@ export function encodeCatalogueArtifact(value: unknown): string {
 }
 
 export function decodeCatalogueArtifact(value: string): unknown {
-  return JSON.parse(value, (_key, current: unknown) => {
-    if (!current || typeof current !== 'object' || Array.isArray(current) || !(COLLECTION in current)) return current
-    const collection = current as Record<string, unknown>
-    if (Object.keys(collection).length !== 2 || !Array.isArray(collection.values)) throw new Error('Invalid catalogue collection')
-    if (collection[COLLECTION] === 'map') {
-      if (!collection.values.every((entry) => Array.isArray(entry) && entry.length === 2)) {
-        throw new Error('Invalid catalogue map')
-      }
-      return new Map(collection.values as [unknown, unknown][])
+  const revive = (current: unknown): unknown => {
+    if (Array.isArray(current)) {
+      for (let index = 0; index < current.length; index++) current[index] = revive(current[index])
+      return current
     }
-    if (collection[COLLECTION] === 'set') return new Set(collection.values)
-    throw new Error('Invalid catalogue collection type')
-  })
+    if (!current || typeof current !== 'object') return current
+    const record = current as Record<string, unknown>
+    if (Object.hasOwn(record, COLLECTION)) {
+      if (Object.keys(record).length !== 2 || !Array.isArray(record.values)) throw new Error('Invalid catalogue collection')
+      const values = revive(record.values) as unknown[]
+      if (record[COLLECTION] === 'map') {
+        if (!values.every((entry) => Array.isArray(entry) && entry.length === 2)) throw new Error('Invalid catalogue map')
+        return new Map(values as [unknown, unknown][])
+      }
+      if (record[COLLECTION] === 'set') return new Set(values)
+      throw new Error('Invalid catalogue collection type')
+    }
+    for (const key of Object.keys(record)) {
+      const original = record[key]
+      const converted = revive(original)
+      if (converted === original) continue
+      if (key === '__proto__')
+        Object.defineProperty(record, key, { value: converted, writable: true, enumerable: true, configurable: true })
+      else record[key] = converted
+    }
+    return record
+  }
+  return revive(JSON.parse(value))
 }
