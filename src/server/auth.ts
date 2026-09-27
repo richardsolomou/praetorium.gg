@@ -111,9 +111,6 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
 
   const auth = betterAuth({
     database: drizzleAdapter(database, { provider: 'pg', schema }),
-    // Sessions and limiter counts live in Valkey when there is one, so a request
-    // that only needs to know who is asking does not reach Postgres, and a
-    // per-IP ceiling is shared by every replica instead of held once apiece.
     ...(storage ? { secondaryStorage: storage } : {}),
     secret,
     baseURL: process.env.APP_URL?.trim() || undefined,
@@ -193,8 +190,6 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
     rateLimit: {
       ...standardRateLimitOptions(),
       enabled: process.env.AUTH_RATE_LIMIT !== 'off',
-      // Counting in Valkey is one atomic increment; counting in the database is a
-      // row read and a row write on every request that passes through here.
       ...(storage ? { storage: 'secondary-storage' as const } : {}),
     },
     session: standardSessionOptions(),

@@ -108,11 +108,7 @@ export const twoFactor = pgTable(
   (table) => [index('twoFactor_secret_idx').on(table.secret), index('twoFactor_userId_idx').on(table.userId)],
 )
 
-/**
- * better-auth's own limiter table, kept for the case where Valkey is absent.
- * With Valkey configured the counters live there instead, one round trip
- * instead of a write per request.
- */
+/** Better Auth's limiter table for the legacy Postgres integration tests. */
 export const rateLimit = pgTable(
   'rateLimit',
   {
