@@ -30,6 +30,21 @@ it('does not send an operator credential to a non-local HTTP origin', () => {
   expect(() => new SpacetimeOperator('http://spacetime.example/', 'preview-42', 'operator-secret')).toThrow('Invalid SpacetimeDB URL')
 })
 
+it('permits only the configured internal Docker host over HTTP', () => {
+  const operator = new SpacetimeOperator(
+    'http://spacetimedb-staging:3000/',
+    'preview-42',
+    'operator-secret',
+    fetch,
+    undefined,
+    'spacetimedb-staging',
+  )
+  expect(operator).toBeInstanceOf(SpacetimeOperator)
+  expect(
+    () => new SpacetimeOperator('http://other-service:3000/', 'preview-42', 'operator-secret', fetch, undefined, 'spacetimedb-staging'),
+  ).toThrow('Invalid SpacetimeDB URL')
+})
+
 it('fails a session revocation when SpacetimeDB refuses it', async () => {
   const operator = new SpacetimeOperator(
     'https://spacetime.example/',

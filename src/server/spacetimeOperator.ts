@@ -151,9 +151,13 @@ export class SpacetimeOperator {
     private readonly token: string,
     private readonly request: typeof fetch = fetch,
     private readonly access?: { clientId: string; clientSecret: string },
+    internalHost?: string,
   ) {
     const parsed = new URL(baseUrl)
-    const local = parsed.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(parsed.hostname)
+    const local =
+      parsed.protocol === 'http:' &&
+      (['localhost', '127.0.0.1'].includes(parsed.hostname) ||
+        (/^[a-z][a-z0-9-]{1,63}$/.test(internalHost ?? '') && parsed.hostname === internalHost))
     if (
       (!local && parsed.protocol !== 'https:') ||
       parsed.username ||

@@ -1,0 +1,65 @@
+name: VM staging canary product database
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vm-staging-canary
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Build Node canary image
+        run: docker build -f Dockerfile.node-canary -t praetorium-vm-staging-canary .
+      - name: Build SpacetimeDB module
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v2.7.0-hotfix3 -R clockworklabs/SpacetimeDB -p spacetime-x86_64-unknown-linux-gnu.tar.gz -D "$RUNNER_TEMP"
+          echo 'd25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831  '"$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" -C "$RUNNER_TEMP" spacetimedb-cli
+          "$RUNNER_TEMP/spacetimedb-cli" build -p spacetimedb
+      - name: Publish isolated canary database
+        env:
+          SPACETIME_URL: ${{ vars.SPACETIME_URL }}
+          SPACETIME_ADMIN_TOKEN: ${{ secrets.SPACETIME_ADMIN_TOKEN }}
+          SPACETIME_OPERATOR_ID: ${{ vars.STAGING_SPACETIME_OPERATOR_ID }}
+          SPACETIME_OPERATOR_TOKEN: ${{ secrets.STAGING_SPACETIME_OPERATOR_TOKEN }}
+          SPACETIME_ACCESS_CLIENT_ID: ${{ secrets.SPACETIME_ACCESS_CLIENT_ID }}
+          SPACETIME_ACCESS_CLIENT_SECRET: ${{ secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
+        run: |
+          test -n "$SPACETIME_URL"
+          test -n "$SPACETIME_ADMIN_TOKEN"
+          test -n "$SPACETIME_OPERATOR_ID"
+          test -n "$SPACETIME_OPERATOR_TOKEN"
+          curl --fail --silent --show-error --max-time 90 \
+            --header "Authorization: Bearer $SPACETIME_ADMIN_TOKEN" \
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+            --header 'Content-Type: application/octet-stream' \
+            --request PUT --data-binary @spacetimedb/dist/bundle.js \
+            "${SPACETIME_URL%/}/v1/database/praetorium-vm-staging?host_type=Js"
+          jq -nc --arg operator "$SPACETIME_OPERATOR_ID" \
+            '["https://vm-staging.praetorium.gg/api/auth", "praetorium-vm-staging", $operator]' \
+            > "$RUNNER_TEMP/vm-staging-configure.json"
+          curl --fail --silent --show-error --max-time 30 \
+            --header "Authorization: Bearer $SPACETIME_ADMIN_TOKEN" \
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+            --header 'Content-Type: application/json' \
+            --request POST --data-binary @"$RUNNER_TEMP/vm-staging-configure.json" \
+            "${SPACETIME_URL%/}/v1/database/praetorium-vm-staging/call/configure"
+          curl --fail --silent --show-error --max-time 30 \
+            --header "Authorization: Bearer $SPACETIME_OPERATOR_TOKEN" \
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+            --header 'Content-Type: application/json' \
+            --request POST --data-binary '[]' \
+            "${SPACETIME_URL%/}/v1/database/praetorium-vm-staging/call/operator_health"

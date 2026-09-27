@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, exists, inArray, lt, ne, not, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/sqlite-core'
-import { drizzle } from 'drizzle-orm/d1'
+import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1'
 import { account, schema, user } from '../db/d1AuthSchema'
 import type { AdminUsersCursor } from '../admin'
 
@@ -12,11 +12,11 @@ function contains(query: string) {
   return `%${query.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
 }
 
-export class D1AccountRepository {
-  private readonly database: ReturnType<typeof drizzle<typeof schema>>
+export class SqliteAccountRepository {
+  private readonly database: DrizzleD1Database<typeof schema>
 
-  constructor(binding: Parameters<typeof drizzle>[0]) {
-    this.database = drizzle(binding, { schema })
+  constructor(database: DrizzleD1Database<typeof schema>) {
+    this.database = database
   }
 
   async userById(id: string) {
@@ -161,5 +161,11 @@ export class D1AccountRepository {
     if (!methods.some((method) => method.providerId === providerId)) return { status: 'missing' }
     if (providerId === 'credential' && owner[0]?.twoFactorEnabled) return { status: 'two-factor' }
     return { status: 'last-method' }
+  }
+}
+
+export class D1AccountRepository extends SqliteAccountRepository {
+  constructor(binding: Parameters<typeof drizzle>[0]) {
+    super(drizzle(binding, { schema }))
   }
 }

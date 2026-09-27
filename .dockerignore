@@ -1,0 +1,12 @@
+.git
+.github
+.output
+.wrangler
+node_modules
+catalogue-data
+data-dev
+.env*
+*.log
+mobile/ios
+mobile/android
+mobile/.simulator-derived
