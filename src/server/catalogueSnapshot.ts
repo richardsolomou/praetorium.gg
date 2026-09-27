@@ -456,6 +456,7 @@ export async function downloadSnapshotArchive(
 export function verifySnapshotArchive(archiveFile: string, pointerFile: string) {
   const pointer = parsePointer(JSON.parse(fs.readFileSync(pointerFile, 'utf8')))
   validatedArchive(fs.readFileSync(archiveFile), pointer, configuredRevocations())
+  return pointer
 }
 
 export function activateCachedSnapshot(directory: string, cachedDirectory: string) {

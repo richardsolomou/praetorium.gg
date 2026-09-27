@@ -64,6 +64,26 @@ it('packs and verifies a complete catalogue', () => {
   expect(() => execFileSync('pnpm', ['catalogue:snapshot', 'verify'], { env: environment })).not.toThrow()
 })
 
+it('installs a published snapshot using its explicit pointer', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
+  roots.push(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointerFile = path.join(root, 'pointer.json')
+  const pointer = packCatalogueSnapshot(completeCatalogue(root), archive, pointerFile)
+  const destination = path.join(root, 'installed')
+
+  execFileSync('pnpm', ['catalogue:snapshot', 'install'], {
+    env: {
+      ...process.env,
+      CATALOGUE_DIR: destination,
+      CATALOGUE_SNAPSHOT_FILE: archive,
+      CATALOGUE_SNAPSHOT_POINTER_FILE: pointerFile,
+    },
+  })
+
+  expect(installedSnapshot(destination)).toEqual(pointer)
+})
+
 it('rejects a changed file in an installed snapshot', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
   roots.push(root)

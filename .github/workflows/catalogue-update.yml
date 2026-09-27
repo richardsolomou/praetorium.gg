@@ -62,6 +62,7 @@ jobs:
           aws s3 cp "s3://$SNAPSHOT_BUCKET/catalogue/snapshots/$id.zip" /tmp/published-catalogue.zip \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
           CATALOGUE_SNAPSHOT_FILE=/tmp/published-catalogue.zip pnpm catalogue:snapshot verify
+          CATALOGUE_SNAPSHOT_FILE=/tmp/published-catalogue.zip pnpm catalogue:snapshot install
           pnpm catalogue:worker
           aws s3 cp catalogue/revocations.json "s3://$SNAPSHOT_BUCKET/catalogue/revocations.json" \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
