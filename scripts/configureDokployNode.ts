@@ -21,17 +21,18 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
   const url = target === 'production' ? 'https://praetorium.gg' : 'https://staging.praetorium.gg'
   const database = `praetorium-${target}`
   const authImportKey = required(environment, 'AUTH_IMPORT_R2_KEY')
+  const internalHost = required(environment, 'SPACETIME_INTERNAL_HOST')
+  if (!/^[a-z][a-z0-9-]{1,63}$/.test(internalHost)) throw new Error('Invalid SpacetimeDB internal host')
   const entries: Record<string, string> = {
     APP_URL: url,
     AUTH_SECRET: required(environment, 'AUTH_SECRET'),
     AUTH_SQLITE_PATH: '/data/auth.sqlite',
     AUTH_IMPORT_R2_KEY: authImportKey,
-    SPACETIME_URL: required(environment, 'SPACETIME_URL'),
+    SPACETIME_URL: `http://${internalHost}:3000/`,
+    SPACETIME_INTERNAL_HOST: internalHost,
     SPACETIME_DATABASE: database,
     SPACETIME_AUDIENCE: database,
     SPACETIME_OPERATOR_TOKEN: required(environment, 'SPACETIME_OPERATOR_TOKEN'),
-    SPACETIME_ACCESS_CLIENT_ID: required(environment, 'SPACETIME_ACCESS_CLIENT_ID'),
-    SPACETIME_ACCESS_CLIENT_SECRET: required(environment, 'SPACETIME_ACCESS_CLIENT_SECRET'),
     R2_ACCOUNT_ID: required(environment, 'R2_ACCOUNT_ID'),
     R2_ACCESS_KEY_ID: required(environment, 'R2_ACCESS_KEY_ID'),
     R2_SECRET_ACCESS_KEY: required(environment, 'R2_SECRET_ACCESS_KEY'),

@@ -35,6 +35,7 @@ jobs:
       DOKPLOY_ENVIRONMENT_ID: ${{ inputs.environment == 'production' && vars.DOKPLOY_PRODUCTION_ENVIRONMENT_ID || secrets.DOKPLOY_ENVIRONMENT_ID }}
       AUTH_SECRET: ${{ inputs.environment == 'production' && secrets.PRODUCTION_AUTH_SECRET || secrets.STAGING_AUTH_SECRET }}
       SPACETIME_URL: ${{ inputs.environment == 'production' && vars.PRODUCTION_SPACETIME_URL || vars.SPACETIME_URL }}
+      SPACETIME_INTERNAL_HOST: ${{ inputs.environment == 'production' && vars.PRODUCTION_SPACETIME_INTERNAL_HOST || vars.STAGING_SPACETIME_INTERNAL_HOST }}
       SPACETIME_OPERATOR_TOKEN: ${{ inputs.environment == 'production' && secrets.PRODUCTION_SPACETIME_OPERATOR_TOKEN || secrets.STAGING_SPACETIME_OPERATOR_TOKEN }}
       SPACETIME_ACCESS_CLIENT_ID: ${{ inputs.environment == 'production' && secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_ID || secrets.SPACETIME_ACCESS_CLIENT_ID }}
       SPACETIME_ACCESS_CLIENT_SECRET: ${{ inputs.environment == 'production' && secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_SECRET || secrets.SPACETIME_ACCESS_CLIENT_SECRET }}

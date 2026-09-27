@@ -1,0 +1,6 @@
+{
+  "name": "praetorium-objects",
+  "main": "cloudflare/objectWorker.ts",
+  "compatibility_date": "2026-09-17",
+  "r2_buckets": [{ "binding": "PUBLIC_OBJECTS", "bucket_name": "praetorium" }]
+}

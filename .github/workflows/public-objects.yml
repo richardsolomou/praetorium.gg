@@ -1,0 +1,37 @@
+name: Public objects
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/public-objects.yml
+      - cloudflare/objectWorker.ts
+      - cloudflare/publicObjects.ts
+      - wrangler.objects.json
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Deploy the public object route
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler deploy --config wrangler.objects.json --route 's3.praetorium.gg/*'
+      - name: Verify public objects stay readable and backups stay private
+        run: |
+          set -euo pipefail
+          base='https://s3.praetorium.gg/praetorium'
+          curl --fail --silent --show-error --max-time 30 --dump-header "$RUNNER_TEMP/current.headers" \
+            "$base/current.json" --output "$RUNNER_TEMP/current.json"
+          grep -Eiq '^x-praetorium-object-source: r2' "$RUNNER_TEMP/current.headers"
+          jq -e '.id | test("^[0-9a-f]{64}$")' "$RUNNER_TEMP/current.json" > /dev/null
+          curl --fail --silent --show-error --head --max-time 30 "$base/revocations.json" > /dev/null
+          status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 30 "$base/backups/auth/production/private.zip")"
+          test "$status" = 404

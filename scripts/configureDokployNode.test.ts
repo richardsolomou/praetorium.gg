@@ -5,6 +5,7 @@ const environment = {
   AUTH_SECRET: 's'.repeat(64),
   AUTH_IMPORT_R2_KEY: `backups/auth/import/staging/${'a'.repeat(64)}.sql.gz`,
   SPACETIME_URL: 'https://stdb-staging.praetorium.gg/',
+  SPACETIME_INTERNAL_HOST: 'praetoriumgg-spacetimedb-sjtfrn',
   SPACETIME_OPERATOR_TOKEN: 'operator',
   SPACETIME_ACCESS_CLIENT_ID: 'client-id',
   SPACETIME_ACCESS_CLIENT_SECRET: 'client-secret',
@@ -15,8 +16,16 @@ const environment = {
 
 it('pins staging auth import, database, and audience together', () => {
   const config = nodeEnvironment(environment, 'staging')
+  expect(config).toContain('SPACETIME_URL=http://praetoriumgg-spacetimedb-sjtfrn:3000/\n')
+  expect(config).not.toContain('SPACETIME_ACCESS_CLIENT_SECRET=')
   expect(config).toContain('SPACETIME_DATABASE=praetorium-staging\nSPACETIME_AUDIENCE=praetorium-staging\n')
   expect(config).toContain(`AUTH_IMPORT_R2_KEY=${environment.AUTH_IMPORT_R2_KEY}\n`)
+})
+
+it('rejects an external SpacetimeDB host for the VM runtime', () => {
+  expect(() => nodeEnvironment({ ...environment, SPACETIME_INTERNAL_HOST: 'stdb-staging.praetorium.gg' }, 'staging')).toThrow(
+    'Invalid SpacetimeDB internal host',
+  )
 })
 
 it('rejects a production import in staging', () => {

@@ -8,7 +8,13 @@ import { promisify } from 'node:util'
 import { DokployClient, dokployPreviewFromEnvironment, loadPreviewAppSecrets, pullRequestNumber } from 'ras-stack/preview/dokploy'
 
 const execFile = promisify(execFileCallback)
-const allowedSecrets = ['SPACETIME_URL', 'SPACETIME_ADMIN_TOKEN', 'SPACETIME_ACCESS_CLIENT_ID', 'SPACETIME_ACCESS_CLIENT_SECRET']
+const allowedSecrets = [
+  'SPACETIME_URL',
+  'SPACETIME_ADMIN_TOKEN',
+  'SPACETIME_ACCESS_CLIENT_ID',
+  'SPACETIME_ACCESS_CLIENT_SECRET',
+  'SPACETIME_INTERNAL_HOST',
+]
 
 function required(name: string) {
   const value = process.env[name]?.trim()
@@ -32,6 +38,12 @@ function spacetimeOrigin() {
     throw new Error('SPACETIME_URL must be an HTTPS origin')
   }
   return origin
+}
+
+function internalSpacetimeHost() {
+  const host = required('SPACETIME_INTERNAL_HOST')
+  if (!/^[a-z][a-z0-9-]{1,63}$/.test(host)) throw new Error('Invalid SpacetimeDB internal host')
+  return host
 }
 
 async function spacetime(method: string, pathname: string, body?: BodyInit, token?: string) {
@@ -94,6 +106,7 @@ async function deploy() {
   const name = previewDatabase(number)
   const previewUrl = `https://${config.subdomainPrefix}-${number}.${config.domain}`
   const admin = required('SPACETIME_ADMIN_TOKEN')
+  const internalHost = internalSpacetimeHost()
   await removeDatabase(number)
   const identity = (await (await spacetime('POST', '/v1/identity')).json()) as { identity?: unknown; token?: unknown }
   if (typeof identity.identity !== 'string' || !/^[0-9a-f]{64}$/.test(identity.identity) || typeof identity.token !== 'string') {
@@ -109,13 +122,12 @@ async function deploy() {
     'AUTH_SQLITE_PATH=/data/auth.sqlite',
     'AUTH_INITIALIZE_EMPTY=true',
     'PRAETORIUM_SEED_PREVIEW=true',
-    `SPACETIME_URL=${spacetimeOrigin()}`,
+    `SPACETIME_URL=http://${internalHost}:3000/`,
+    `SPACETIME_INTERNAL_HOST=${internalHost}`,
     `SPACETIME_DATABASE=${name}`,
     `SPACETIME_AUDIENCE=${name}`,
     `SPACETIME_ISSUER=${issuer}`,
     `SPACETIME_OPERATOR_TOKEN=${identity.token}`,
-    `SPACETIME_ACCESS_CLIENT_ID=${required('SPACETIME_ACCESS_CLIENT_ID')}`,
-    `SPACETIME_ACCESS_CLIENT_SECRET=${required('SPACETIME_ACCESS_CLIENT_SECRET')}`,
   ].join('\n')
   await execFile('pnpm', ['exec', 'ras', 'preview', 'dokploy', 'deploy'], { env: process.env, timeout: 900_000, maxBuffer: 4_000_000 })
   const health = await fetch(`${previewUrl}/api/health`, { signal: AbortSignal.timeout(15_000) })
