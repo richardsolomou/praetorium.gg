@@ -149,7 +149,7 @@ export function ListBuilder({
   const { data: me } = useQuery(meQuery())
   const { data: factionIndex } = useQuery(factionIndexQuery())
   const [catalogueId, setCatalogueId] = useState(initial.catalogueId)
-  const { picks, setPicks, positioned, held, allocateKey } = usePicks(initial.picks)
+  const { picks, setPicks, resetPicks, positioned, held, allocateKey } = usePicks(initial.picks)
   const [limit, setLimit] = useState(initial.limit)
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial.detachmentIds)
   const [disposition, setDisposition] = useState<string | null>(initial.disposition)
@@ -159,6 +159,7 @@ export function ListBuilder({
   const [name, setName] = useState(initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [reminders, setReminders] = useState<RosterReminder[]>(prep.reminders ?? [])
+  const [savedPrep, setSavedPrep] = useState(prep)
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
@@ -244,8 +245,8 @@ export function ListBuilder({
   // A name the player typed, which may be nothing at all.
   const listName = name.trim()
   const storedPrep = useMemo(
-    () => ({ stratagems: prep.stratagems, secondaries: prep.secondaries, reminders, remindersEnabled: true }),
-    [prep.secondaries, prep.stratagems, reminders],
+    () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, reminders, remindersEnabled: true }),
+    [savedPrep, reminders],
   )
   const draft: RosterDraft = {
     id: savedId,
@@ -262,10 +263,12 @@ export function ListBuilder({
     visibility,
     source: initial.source,
   }
+  const currentDraftKey = draftKey(draft)
   // The last draft sent, starting from the row the list was opened from. A list nobody
   // has saved yet has no row, so its first draft is always sent.
   const [openedAs] = useState(() => (savedId ? draftKey(savedDraft(initial, prep)) : null))
   const lastSaved = useRef(openedAs)
+  const lastApplied = useRef(openedAs)
   const save = useMutation({
     scope: { id: 'roster-autosave' },
     mutationFn: () => saveRoster({ data: draft }),
@@ -280,6 +283,27 @@ export function ListBuilder({
   // trigger one save per pause while the mutation still reads the newest draft.
   const settledPicks = useSettled(positioned)
   const settledListName = useSettled(listName)
+  useEffect(() => {
+    if (!savedId) return
+    const incoming = draftKey(savedDraft(initial, prep))
+    if (incoming === lastApplied.current) return
+    if (save.isPending || currentDraftKey !== lastSaved.current || settledListName !== listName || settledPicks !== positioned) return
+
+    lastApplied.current = incoming
+    lastSaved.current = incoming
+    setCatalogueId(initial.catalogueId)
+    resetPicks(initial.picks)
+    setLimit(initial.limit)
+    setDetachmentIds(initial.detachmentIds)
+    setDisposition(initial.disposition)
+    setWaivedRules(initial.waivedRules)
+    setOptionalRules(initial.optionalRules ?? [])
+    setBorrowedDetachmentId(initial.borrowedDetachmentId ?? null)
+    setName(initial.name)
+    setVisibility(initial.visibility)
+    setSavedPrep(prep)
+    setReminders(prep.reminders ?? [])
+  }, [currentDraftKey, initial, listName, positioned, prep, resetPicks, save.isPending, savedId, settledListName, settledPicks])
   useEffect(() => {
     if (!editable || !catalogueId) return
     const key = draftKey(draft)

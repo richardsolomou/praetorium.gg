@@ -20,7 +20,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: us-east-1
-      SNAPSHOT_BUCKET: praetorium-catalogue
+      SNAPSHOT_BUCKET: praetorium
       SNAPSHOT_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
       CATALOGUE_SNAPSHOT_FILE: /tmp/catalogue-snapshot.zip
       CATALOGUE_SNAPSHOT_POINTER_FILE: /tmp/catalogue-current.json

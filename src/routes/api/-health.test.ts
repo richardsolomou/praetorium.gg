@@ -25,9 +25,9 @@ it('identifies the ready release for deployment verification', async () => {
   expect((await health()).headers.get('x-praetorium-revision')).toBe('release-sha')
 })
 
-it('redacts a real health-handler database failure', async () => {
+it('redacts a health-handler storage failure', async () => {
   vi.stubEnv('GITHUB_SHA', 'failed-release-sha')
-  check.mockRejectedValue(new Error('postgres://user:secret@db/private'))
+  check.mockRejectedValue(new Error('https://token:secret@storage.example/private'))
   const response = await health()
   expect(response.status).toBe(503)
   expect(response.headers.get('x-praetorium-revision')).toBeNull()

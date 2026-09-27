@@ -55,40 +55,6 @@ jobs:
           echo 'd25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831  '"$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" | sha256sum --check
           tar -xzf "$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" -C "$RUNNER_TEMP" spacetimedb-cli
           "$RUNNER_TEMP/spacetimedb-cli" build -p spacetimedb
-      - name: Verify public objects in R2
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_READ_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_READ_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: us-east-1
-        run: |
-          set -euo pipefail
-          test -n "$AWS_ACCESS_KEY_ID"
-          test -n "$AWS_SECRET_ACCESS_KEY"
-          endpoint="https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
-          aws s3 cp s3://praetorium-catalogue/praetorium/current.json "$RUNNER_TEMP/r2-current.json" \
-            --endpoint-url "$endpoint" --only-show-errors
-          id="$(jq -er '.id | select(test("^[0-9a-f]{64}$"))' "$RUNNER_TEMP/r2-current.json")"
-          expected="$(jq -er '.archiveSha256 | select(test("^[0-9a-f]{64}$"))' "$RUNNER_TEMP/r2-current.json")"
-          aws s3 cp "s3://praetorium-catalogue/praetorium/snapshots/$id.zip" "$RUNNER_TEMP/r2-catalogue.zip" \
-            --endpoint-url "$endpoint" --only-show-errors
-          test "$(sha256sum "$RUNNER_TEMP/r2-catalogue.zip" | cut -d ' ' -f 1)" = "$expected"
-          aws s3api head-object --bucket praetorium-catalogue --key praetorium/revocations.json \
-            --endpoint-url "$endpoint" > /dev/null
-          images="$(pnpm exec wrangler d1 execute AUTH_DB --config wrangler.production.json --remote \
-            --command 'SELECT image FROM "user" WHERE image IS NOT NULL' --json)"
-          count=0
-          while IFS= read -r url; do
-            if [[ ! "$url" =~ ^https://s3[.]praetorium[.]gg/praetorium/(avatars/[0-9a-f]{64}[.](jpg|png|webp))$ ]]; then
-              echo 'An imported profile image has no R2 object key' >&2
-              exit 1
-            fi
-            aws s3api head-object --bucket praetorium-catalogue --key "praetorium/${BASH_REMATCH[1]}" \
-              --endpoint-url "$endpoint" > /dev/null
-            count=$((count + 1))
-          done < <(jq -r '.[0].results[].image // empty' <<< "$images")
-          echo "Verified catalogue archive and $count profile images in R2"
       - name: Prepare production Worker deployment
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
@@ -198,6 +164,31 @@ jobs:
           echo "Production did not serve revision $EXPECTED_REVISION" >&2
           exit 1
 
+      - name: Verify served catalogue and profile images
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          base='https://s3.praetorium.gg/praetorium'
+          curl --fail --silent --show-error --retry 3 --max-time 30 "$base/current.json" --output "$RUNNER_TEMP/r2-current.json"
+          id="$(jq -er '.id | select(test("^[0-9a-f]{64}$"))' "$RUNNER_TEMP/r2-current.json")"
+          expected="$(jq -er '.archiveSha256 | select(test("^[0-9a-f]{64}$"))' "$RUNNER_TEMP/r2-current.json")"
+          curl --fail --silent --show-error --retry 3 --max-time 300 "$base/snapshots/$id.zip" --output "$RUNNER_TEMP/r2-catalogue.zip"
+          test "$(sha256sum "$RUNNER_TEMP/r2-catalogue.zip" | cut -d ' ' -f 1)" = "$expected"
+          curl --fail --silent --show-error --head --max-time 30 "$base/revocations.json" > /dev/null
+          images="$(pnpm exec wrangler d1 execute AUTH_DB --config wrangler.production.json --remote \
+            --command 'SELECT image FROM "user" WHERE image IS NOT NULL' --json)"
+          count=0
+          while IFS= read -r url; do
+            if [[ ! "$url" =~ ^https://s3[.]praetorium[.]gg/praetorium/(avatars/[0-9a-f]{64}[.](jpg|png|webp))$ ]]; then
+              echo 'An imported profile image has no R2 object key' >&2
+              exit 1
+            fi
+            curl --fail --silent --show-error --head --max-time 30 "$base/${BASH_REMATCH[1]}" > /dev/null
+            count=$((count + 1))
+          done < <(jq -r '.[0].results[].image // empty' <<< "$images")
+          echo "Verified catalogue archive and $count profile images in R2"
       - name: Verify public object route
         run: |
           set -euo pipefail
