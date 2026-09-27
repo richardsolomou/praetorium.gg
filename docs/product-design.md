@@ -38,6 +38,6 @@ Screenshots containing roster or battle data stay outside version control.
 
 The sources do not structure every restriction or replacement rule. Praetorium reports missing semantics. It does not reconstruct rules from memory.
 
-The current sources do not provide enough transport relationships to automate embarking. Battle photos also remain outside the product boundary. These features stay absent rather than becoming local-only or guessed state.
+The current sources describe transport capacity and passenger restrictions in prose. Players can record which unit starts in which transport; the app enforces the printed numeric model limit and leaves special space costs and passenger restrictions to the table. Battle photos remain outside the product boundary.
 
 [Catalogue data](development/catalogue-data.md), [Battles](development/battles.md), and [Interface](development/interface.md) describe the implementation in detail.

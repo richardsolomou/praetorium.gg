@@ -1,10 +1,42 @@
 import { describe, expect, it } from 'vitest'
-import { type Command, reduceBattle, validate } from './battle'
+import {
+  type Command,
+  embarkedModelCount,
+  reduceBattle,
+  strategicReservePoints,
+  transportCapacity,
+  transportLabel,
+  validate,
+} from './battle'
 import { battleView } from './battleView'
 import { battleReport } from './battleReport'
 import { ALICE, BOB, CAROL, NAMES, PLAYERS, attachedRoster, builtRoster, log, roster, started, text } from './battle.fixtures'
 
 describe('battle management', () => {
+  it.each([
+    ['This model has a transport capacity of 12 **INFANTRY** models.', 12],
+    ['This model has a transport capacity of 7 **TACTICUS** or **PHOBOS INFANTRY** models.', 7],
+    ['This model has a transport capacity of 1 NECRONS INFANTRY unit.', null],
+    [undefined, null],
+  ])('reads a model capacity from the printed rule', (rule, capacity) => {
+    expect(transportCapacity(rule)).toBe(capacity)
+  })
+
+  it.each([
+    [[], 20],
+    [[{ name: 'supa-kannon', count: 1 }], 15],
+  ])('uses the Battlewagon capacity for its selected wargear', (wargear, capacity) => {
+    const rule =
+      'This model has a transport capacity of 20 **ORKS INFANTRY** models. If this model is equipped with a supa-kannon, it has a transport capacity of 15 **ORKS INFANTRY** models.'
+    expect(transportCapacity(rule, wargear)).toBe(capacity)
+  })
+
+  it('does not guess a capacity when a conditional reduction cannot be resolved', () => {
+    const rule =
+      'This model has a transport capacity of 12 INFANTRY models. While carrying a DREADNOUGHT, its transport capacity is reduced to 6 INFANTRY models.'
+    expect(transportCapacity(rule)).toBeNull()
+  })
+
   it('requires a conceding player for a concession', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
     expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded' })).toBe('choose who conceded')
@@ -100,6 +132,272 @@ describe('battle management', () => {
       ),
     )
     expect(state.players[1]?.units[0]?.formation).toBe('strategic-reserves')
+  })
+
+  it('records an embarked unit and its transport through the battle view and report', () => {
+    const armyRoster = builtRoster('Ultramarines', ['Intercessors', 'Rhino'])
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.units[1]!.transport = true
+    armyRoster.roster.built.units[1]!.transportRule = 'This model has a transport capacity of 12 models.'
+    const history = log(
+      [ALICE, armyRoster],
+      [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u1' }],
+    )
+    const state = reduceBattle(PLAYERS, history)
+
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.units[0]).toMatchObject({
+      formation: 'embarked',
+      embarkedIn: 'u1',
+    })
+    expect(text(battleReport(NAMES, history))).toContain('Alice embarks their Intercessors in Rhino')
+  })
+
+  it('moves an attached character with the embarked unit and clears the transport when it disembarks', () => {
+    const armyRoster = attachedRoster()
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.units.push({
+      key: 'u2',
+      name: 'Rhino',
+      points: 100,
+      models: 1,
+      transport: true,
+      transportRule: 'This model has a transport capacity of 12 models.',
+    })
+    const embarked = log(
+      [ALICE, armyRoster],
+      [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u2' }],
+    )
+    expect(
+      reduceBattle(PLAYERS, embarked)
+        .players[0]?.units.slice(0, 2)
+        .map((unit) => unit.embarkedIn),
+    ).toEqual(['u2', 'u2'])
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, armyRoster],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u2' }],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'battlefield' }],
+      ),
+    )
+
+    expect(state.players[0]?.units.map((unit) => [unit.formation, unit.embarkedIn])).toEqual([
+      ['battlefield', undefined],
+      ['battlefield', undefined],
+      ['battlefield', undefined],
+    ])
+  })
+
+  it('rejects an unknown, opposing, or non-transport destination', () => {
+    const armyRoster = builtRoster('Ultramarines', ['Intercessors', 'Rhino'])
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.units[1]!.transport = true
+    armyRoster.roster.built.units[1]!.transportRule = 'This model has a transport capacity of 12 models.'
+    const state = reduceBattle(PLAYERS, log([ALICE, armyRoster], [BOB, builtRoster('Death Guard', ['Rhino'])]))
+    const embark = (transportKey?: string): Extract<Command, { kind: 'set-unit-formation' }> => ({
+      kind: 'set-unit-formation',
+      unitKey: 'u0',
+      formation: 'embarked',
+      ...(transportKey ? { transportKey } : {}),
+    })
+
+    expect(validate(state, ALICE, embark())).toBe('choose a transport for the embarked unit')
+    expect(validate(state, ALICE, embark('missing'))).toBe('choose a transport in this army')
+    expect(validate(state, ALICE, embark('u0'))).toBe('choose a transport in this army')
+    expect(validate(state, ALICE, { ...embark('u1'), unitKey: 'u0', playerId: BOB })).toBe('choose a transport in this army')
+    expect(validate(state, ALICE, { ...embark('u1'), unitKey: 'u1' })).toBe('a transport cannot embark in another transport')
+    expect(validate(state, ALICE, embark('u1'))).toBeNull()
+  })
+
+  it.each([
+    ['fits exactly with its leader', 6, null],
+    ['exceeds capacity with its leader', 5, 'this transport can carry at most 5 models'],
+  ])('%s', (_scenario, capacity, expected) => {
+    const armyRoster = attachedRoster()
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.units.push({
+      key: 'u2',
+      name: 'Rhino',
+      points: 100,
+      models: 1,
+      transport: true,
+      transportRule: `This model has a transport capacity of ${capacity} models.`,
+    })
+    const state = reduceBattle(PLAYERS, log([ALICE, armyRoster]))
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u2' })).toBe(expected)
+  })
+
+  it('counts passengers already aboard before accepting another unit', () => {
+    const armyRoster = builtRoster('Ultramarines', ['Intercessors', 'Scouts', 'Rhino'], { models: 5 })
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.units[2]!.transport = true
+    armyRoster.roster.built.units[2]!.transportRule = 'This model has a transport capacity of 8 models.'
+    const state = reduceBattle(
+      PLAYERS,
+      log([ALICE, armyRoster], [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u2' }]),
+    )
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'embarked', transportKey: 'u2' })).toBe(
+      'this transport can carry at most 8 models',
+    )
+  })
+
+  it('rejects boarding above a transport’s selected loadout capacity', () => {
+    const armyRoster = builtRoster('Orks', ['Boyz', 'Battlewagon'], { models: 16 })
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.units[1]!.transport = true
+    armyRoster.roster.built.units[1]!.wargear = [{ name: 'supa-kannon', count: 1 }]
+    armyRoster.roster.built.units[1]!.transportRule =
+      'This model has a transport capacity of 20 ORKS INFANTRY models. If this model is equipped with a supa-kannon, it has a transport capacity of 15 ORKS INFANTRY models.'
+    const state = reduceBattle(PLAYERS, log([ALICE, armyRoster]))
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u1' })).toBe(
+      'this transport can carry at most 15 models',
+    )
+  })
+
+  it.each([
+    ['wound-unit', { kind: 'wound-unit', unitKey: 'u0', delta: -2 }, { kind: 'wound-unit', unitKey: 'u0', delta: 2 }],
+    ['damage-unit', { kind: 'damage-unit', unitKey: 'u0', delta: -4 }, { kind: 'damage-unit', unitKey: 'u0', delta: 4 }],
+    ['set-unit', { kind: 'set-unit', unitKey: 'u0', destroyed: true }, { kind: 'set-unit', unitKey: 'u0', destroyed: false }],
+  ] as const)('rejects %s restoring models beyond occupied capacity', (_scenario, loss, restore) => {
+    const armyRoster = builtRoster('Ultramarines', ['Intercessors', 'Scouts', 'Rhino'], { models: 5, wounds: 2 })
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.units[2]!.transport = true
+    armyRoster.roster.built.units[2]!.transportRule = 'This model has a transport capacity of 8 models.'
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, armyRoster],
+        [BOB, roster('Death Guard')],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u2' }],
+        [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+        [ALICE, loss],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'embarked', transportKey: 'u2' }],
+      ),
+    )
+
+    expect(validate(state, ALICE, restore)).toBe('this transport can carry at most 8 models')
+  })
+
+  it.each([
+    ['no passengers', [], 0],
+    ['one squad', ['u0'], 5],
+    ['two squads', ['u0', 'u1'], 10],
+  ])('shows the occupied model count for %s after folding the log', (_scenario, passengers, expected) => {
+    const armyRoster = builtRoster('Ultramarines', ['Intercessors', 'Scouts', 'Rhino'], { models: 5 })
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.units[2]!.transport = true
+    armyRoster.roster.built.units[2]!.transportRule = 'This model has a transport capacity of 12 models.'
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, armyRoster],
+        ...passengers.map((unitKey): [string, Command] => [
+          ALICE,
+          { kind: 'set-unit-formation', unitKey, formation: 'embarked', transportKey: 'u2' },
+        ]),
+      ),
+    )
+
+    expect(embarkedModelCount(state.players[0]!.units, 'u2')).toBe(expected)
+  })
+
+  it('refuses boarding when the printed capacity is unavailable', () => {
+    const armyRoster = builtRoster('Ultramarines', ['Intercessors', 'Rhino'])
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.units[1]!.transport = true
+    const state = reduceBattle(PLAYERS, log([ALICE, armyRoster]))
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u1' })).toBe(
+      'this transport has no known model capacity',
+    )
+  })
+
+  it('checks the reserve limit when embarking in a transport already held back', () => {
+    const armyRoster = builtRoster('Ultramarines', ['Intercessors', 'Rhino'])
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.strategicReserveLimit = 100
+    armyRoster.roster.built.units[1]!.transport = true
+    armyRoster.roster.built.units[1]!.transportRule = 'This model has a transport capacity of 12 models.'
+    const state = reduceBattle(
+      PLAYERS,
+      log([ALICE, armyRoster], [ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'strategic-reserves' }]),
+    )
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u1' })).toBe(
+      'no more than 100 points of this army can start in strategic reserves',
+    )
+  })
+
+  it('counts passengers when their transport starts in strategic reserves', () => {
+    const armyRoster = builtRoster('Ultramarines', ['Intercessors', 'Rhino'])
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.strategicReserveLimit = 100
+    armyRoster.roster.built.units[1]!.transport = true
+    armyRoster.roster.built.units[1]!.transportRule = 'This model has a transport capacity of 12 models.'
+    const state = reduceBattle(
+      PLAYERS,
+      log([ALICE, armyRoster], [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u1' }]),
+    )
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'strategic-reserves' })).toBe(
+      'no more than 100 points of this army can start in strategic reserves',
+    )
+  })
+
+  it.each([
+    ['no passengers', [], 100],
+    ['one passenger', ['u0'], 200],
+    ['two passengers', ['u0', 'u1'], 300],
+  ])('counts %s with a transport held in reserve', (_scenario, passengers, expected) => {
+    const armyRoster = builtRoster('Ultramarines', ['Intercessors', 'Scouts', 'Rhino'])
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.units[2]!.transport = true
+    armyRoster.roster.built.units[2]!.transportRule = 'This model has a transport capacity of 12 models.'
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, armyRoster],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u2', formation: 'strategic-reserves' }],
+        ...passengers.map((unitKey): [string, Command] => [
+          ALICE,
+          { kind: 'set-unit-formation', unitKey, formation: 'embarked', transportKey: 'u2' },
+        ]),
+      ),
+    )
+
+    expect(strategicReservePoints(state.players[0]!.units)).toBe(expected)
+  })
+
+  it('disembarks passengers when their transport is lost', () => {
+    const armyRoster = builtRoster('Ultramarines', ['Intercessors', 'Rhino'])
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.units[1]!.transport = true
+    armyRoster.roster.built.units[1]!.transportRule = 'This model has a transport capacity of 12 models.'
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, armyRoster],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u1' }],
+        [ALICE, { kind: 'set-unit', unitKey: 'u1', destroyed: true }],
+      ),
+    )
+
+    expect(state.players[0]?.units[0]).toMatchObject({ formation: 'battlefield', embarkedIn: undefined })
+  })
+
+  it('distinguishes transports with the same datasheet name', () => {
+    expect(
+      transportLabel(
+        [
+          { key: 'u0', name: 'Rhino' },
+          { key: 'u1', name: 'Rhino' },
+        ],
+        'u1',
+      ),
+    ).toBe('Rhino #2')
   })
 
   it('lets one participant arrange another army after the battle starts', () => {

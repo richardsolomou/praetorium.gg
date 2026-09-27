@@ -67,12 +67,22 @@ export function woundsOf(profiles: readonly { type: string; values: readonly { n
   return values.size === 1 ? [...values][0]! : null
 }
 
-export function unitWoundsIn(loaded: LoadedCatalogue, catalogueId: string, entryIds: readonly string[]) {
+export function unitBattleDetailsIn(loaded: LoadedCatalogue, catalogueId: string, entryIds: readonly string[]) {
   return [...new Set(entryIds)].flatMap((entryId) => {
     const ownerId = loaded.index.catalogueOf.get(entryId) ?? catalogueId
-    const wounds = woundsOf(datasheetIn(loaded, ownerId, entryId)?.profiles ?? [])
-    return wounds === null ? [] : [{ entryId, wounds }]
+    const sheet = datasheetIn(loaded, ownerId, entryId)
+    const wounds = woundsOf(sheet?.profiles ?? [])
+    const transportRule = sheet?.transport ?? null
+    return wounds === null && !transportRule
+      ? []
+      : [{ entryId, ...(wounds === null ? {} : { wounds }), ...(transportRule ? { transportRule } : {}) }]
   })
+}
+
+export function unitWoundsIn(loaded: LoadedCatalogue, catalogueId: string, entryIds: readonly string[]) {
+  return unitBattleDetailsIn(loaded, catalogueId, entryIds).flatMap(({ entryId, wounds }) =>
+    wounds === undefined ? [] : [{ entryId, wounds }],
+  )
 }
 
 /** The keywords a weapon profile prints as one comma-joined characteristic, none where it prints a dash. */

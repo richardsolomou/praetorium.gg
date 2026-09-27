@@ -10,7 +10,7 @@ import { remoteD1 } from '../src/server/d1Bridge'
 import { D1AccountRepository } from '../src/server/d1AccountRepository'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { SpacetimeRepository } from '../src/server/spacetimeRepository'
-import { unitWoundsIn } from '../src/server/catalogue'
+import { unitBattleDetailsIn } from '../src/server/catalogue'
 import { fetchCurrentSnapshot, installedSnapshot } from '../src/server/catalogueSnapshot'
 import { catalogueDirectory, loadCatalogue } from '../src/server/catalogueIndex'
 import { s3PublicBaseUrl } from '../src/server/objectStorage'
@@ -361,7 +361,7 @@ async function verifiedSnapshots(): Promise<PreviewSnapshots> {
       const snapshot = rosterSnapshot(
         { ...saved, detachmentIds: [...saved.detachmentIds], waivedRules: [], picks: saved.picks.map((pick) => ({ ...pick })) },
         priced,
-        unitWoundsIn(
+        unitBattleDetailsIn(
           catalogue,
           saved.catalogueId,
           saved.picks.map((pick) => pick.entryId),

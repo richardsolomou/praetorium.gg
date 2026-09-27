@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { abilityNamesIn, datasheetIn, datasheetSearchFieldsIn, datasheetViewsIn, woundsOf } from './catalogue'
-import { ability, bookOf, categories, shelfOf } from './catalogue.fixtures'
+import { abilityNamesIn, datasheetIn, datasheetSearchFieldsIn, datasheetViewsIn, unitBattleDetailsIn, woundsOf } from './catalogue'
+import { ability, bookOf, card, categories, shelfOf, withCards } from './catalogue.fixtures'
 
 describe('a datasheet', () => {
+  it('reads the printed transport rule for a battle snapshot', () => {
+    const book = bookOf({ selectionEntries: [{ id: 'rhino', name: 'Rhino', type: 'model' }] })
+    const rule = 'This model has a transport capacity of 12 Adeptus Astartes Infantry models.'
+    book.factionContents.set('test-catalogue', withCards('Test catalogue', new Map([['Rhino', card({ transport: rule })]])))
+
+    expect(unitBattleDetailsIn(book, 'cat', ['rhino'])).toEqual([{ entryId: 'rhino', transportRule: rule }])
+  })
+
   it('links same-named datasheets to their own faction references', () => {
     const book = shelfOf(
       {

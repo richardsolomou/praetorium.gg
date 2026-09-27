@@ -3,6 +3,10 @@ import { FIXED_SECONDARIES, SECONDARIES_MAX, SETUP_STEP_MAX } from './battle'
 import { commandSchema } from './commands'
 
 describe('command schema', () => {
+  it('keeps the transport key on an embarked formation command', () => {
+    const command = { kind: 'set-unit-formation', unitKey: 'squad', formation: 'embarked', transportKey: 'rhino' }
+    expect(commandSchema.parse(command)).toEqual(command)
+  })
   it('keeps old team-battle logs readable and accepts an explicit four-seat battle', () => {
     const legacy = {
       kind: 'configure-battle' as const,
@@ -44,6 +48,7 @@ describe('command schema', () => {
               upgrades: [],
               joined: [{ label: 'Leading', name: 'Immortals' }],
               strategicReserveExempt: true,
+              transportRule: 'This model has a transport capacity of 12 models.',
             },
           ],
         },
