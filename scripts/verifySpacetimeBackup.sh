@@ -14,7 +14,7 @@ api() {
 
 destination="$(curl --fail --silent --show-error --max-time 30 \
   --header "x-api-key: $DOKPLOY_API_KEY" "${DOKPLOY_URL%/}/api/destination.all" \
-  | jq -er '[.[] | select(.bucket == "praetorium-backups")] | select(length == 1) | .[0]')"
+  | jq -er '[.[] | select(.bucket == "praetorium")] | select(length == 1) | .[0]')"
 endpoint="$(jq -er '.endpoint | select(test("^https://[0-9a-f]{32}[.]r2[.]cloudflarestorage[.]com/?$"))' <<< "$destination")"
 AWS_ACCESS_KEY_ID="$(jq -er '.accessKey | select(length > 0)' <<< "$destination")"
 AWS_SECRET_ACCESS_KEY="$(jq -er '.secretAccessKey | select(length > 0)' <<< "$destination")"
@@ -26,7 +26,7 @@ app_name="$(jq -er '. | select(.applicationId == "-Su13uDBf96psvGEiBula" and .na
 
 latest_key() {
   local kind="$1" prefix="$app_name/praetorium/production/spacetimedb/$1/" listing
-  listing="$(aws s3api list-objects-v2 --bucket praetorium-backups --prefix "$prefix" --endpoint-url "$endpoint" --output json)"
+  listing="$(aws s3api list-objects-v2 --bucket praetorium --prefix "$prefix" --endpoint-url "$endpoint" --output json)"
   jq -er --arg prefix "$prefix" --arg kind "$kind" \
     '. | select(.IsTruncated != true) | [.Contents[]?.Key | select(startswith($prefix)) | select((ltrimstr($prefix)) | test("^praetorium-spacetime-production-" + $kind + "-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z[.]tar$"))] | sort | last | select(type == "string")' \
     <<< "$listing"
@@ -37,8 +37,8 @@ trap 'docker rm --force praetorium-backup-readback > /dev/null 2>&1 || true; rm 
 umask 077
 data_key="$(latest_key data)"
 identity_key="$(latest_key identity)"
-aws s3 cp "s3://praetorium-backups/$data_key" "$work/data.tar" --endpoint-url "$endpoint" --only-show-errors
-aws s3 cp "s3://praetorium-backups/$identity_key" "$work/identity.tar" --endpoint-url "$endpoint" --only-show-errors
+aws s3 cp "s3://praetorium/$data_key" "$work/data.tar" --endpoint-url "$endpoint" --only-show-errors
+aws s3 cp "s3://praetorium/$identity_key" "$work/identity.tar" --endpoint-url "$endpoint" --only-show-errors
 mkdir "$work/data" "$work/identity"
 tar -xf "$work/data.tar" --strip-components=2 -C "$work/data"
 tar -xf "$work/identity.tar" -C "$work/identity"

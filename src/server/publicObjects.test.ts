@@ -25,10 +25,18 @@ describe('publicObject', () => {
     expect(get).toHaveBeenCalledWith(`praetorium/avatars/${hash}.webp`)
   })
 
-  it('does not expose backup or audit objects', async () => {
+  it('does not expose audit objects', async () => {
     const response = await publicObject(new Request('https://s3.praetorium.gg/praetorium/combat-rule-judgments/v1/private.json'), bucket)
     expect(response.status).toBe(404)
     expect(get).not.toHaveBeenCalledWith('praetorium/combat-rule-judgments/v1/private.json')
+  })
+
+  it('does not read backups in the shared bucket', async () => {
+    const response = await publicObject(
+      new Request('https://s3.praetorium.gg/spacetimedb-production/praetorium/production/spacetimedb/data/archive.tar'),
+      bucket,
+    )
+    expect([response.status, get.mock.calls.length]).toEqual([404, 0])
   })
 
   it('does not serve a mutable pointer from an unapproved key', async () => {

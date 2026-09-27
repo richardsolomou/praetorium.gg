@@ -37,6 +37,10 @@ export function usePicks(initial: readonly RosterPick[]) {
   const [picks, setPicks] = useState<KeyedPick[]>(() => initial.map((pick, key) => ({ ...pick, key })))
   const nextKey = useRef(initial.length)
   const allocateKey = useCallback(() => nextKey.current++, [])
+  const resetPicks = useCallback((saved: readonly RosterPick[]) => {
+    nextKey.current = saved.length
+    setPicks(saved.map((pick, key) => ({ ...pick, key })))
+  }, [])
   const positioned = useMemo(() => positionedPicks(picks), [picks])
   /** How many of each datasheet the list already holds, so the picker can say so. */
   const held = useMemo(() => {
@@ -45,7 +49,7 @@ export function usePicks(initial: readonly RosterPick[]) {
     return counts
   }, [picks])
 
-  return { picks, setPicks, positioned, held, allocateKey }
+  return { picks, setPicks, resetPicks, positioned, held, allocateKey }
 }
 
 /**

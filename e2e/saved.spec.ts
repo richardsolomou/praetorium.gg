@@ -70,6 +70,55 @@ test('opening an unchanged list saves nothing, and an edit still saves', async (
   expect(saves).toHaveLength(1)
 })
 
+test('an open roster follows edits saved in another tab', async ({ page }) => {
+  await signUp(page, 'Live roster')
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Live roster' })
+
+  const viewer = await page.context().newPage()
+  await viewer.goto(page.url())
+  await expect(viewer.getByLabel('List name')).toHaveValue('Live roster')
+  await viewer.getByRole('button', { name: 'View', exact: true }).click()
+
+  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Updated live roster'), 'Updated live roster')
+  await expect(viewer.getByLabel('List name')).toHaveValue('Updated live roster')
+
+  await viewer.getByRole('button', { name: 'Build', exact: true }).click()
+  await waitForRosterSave(page, async () => {
+    await page.getByLabel('Add a unit').fill('Immortals')
+    await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+  })
+  await expect(viewer.locator('[data-unit="Immortals"]')).toBeVisible()
+
+  let releaseSave = () => {}
+  const heldSave = new Promise<void>((resolve) => {
+    releaseSave = resolve
+  })
+  let localSaveStarted = false
+  let remoteUpdateFetched = false
+  viewer.on('response', (response) => {
+    if (response.request().method() !== 'GET' || !response.url().includes('/_serverFn/')) return
+    void response.text().then((body) => {
+      if (body.includes('Changed elsewhere')) remoteUpdateFetched = true
+    })
+  })
+  await viewer.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'POST') {
+      localSaveStarted = true
+      await heldSave
+    }
+    await route.continue()
+  })
+  try {
+    await viewer.getByLabel('List name').fill('Local unsaved edit')
+    await expect.poll(() => localSaveStarted).toBe(true)
+    await waitForRosterSave(page, () => page.getByLabel('List name').fill('Changed elsewhere'), 'Changed elsewhere')
+    await expect.poll(() => remoteUpdateFetched).toBe(true)
+    await expect(viewer.getByLabel('List name')).toHaveValue('Local unsaved edit')
+  } finally {
+    releaseSave()
+  }
+})
+
 test('a visitor opening the roster library is given the builder instead', async ({ page }) => {
   await page.goto('/rosters')
 
