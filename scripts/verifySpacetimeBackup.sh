@@ -25,7 +25,7 @@ application="$(api application.one applicationId -Su13uDBf96psvGEiBula)"
 app_name="$(jq -er '. | select(.applicationId == "-Su13uDBf96psvGEiBula" and .name == "spacetimedb-production") | .appName | select(test("^[a-z0-9-]+$"))' <<< "$application")"
 
 latest_key() {
-  local kind="$1" prefix="$app_name/praetorium/production/spacetimedb/$1/" listing
+  local kind="$1" prefix="$app_name/backups/$1/" listing
   listing="$(aws s3api list-objects-v2 --bucket praetorium --prefix "$prefix" --endpoint-url "$endpoint" --output json)"
   jq -er --arg prefix "$prefix" --arg kind "$kind" \
     '. | select(.IsTruncated != true) | [.Contents[]?.Key | select(startswith($prefix)) | select((ltrimstr($prefix)) | test("^praetorium-spacetime-production-" + $kind + "-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z[.]tar$"))] | sort | last | select(type == "string")' \

@@ -38,7 +38,7 @@ jobs:
           test -n "$S3_BUCKET"
           test -n "$S3_ENDPOINT"
           mkdir -p .combat-rule-cache
-          aws s3 sync "s3://$S3_BUCKET/praetorium/combat-rule-judgments/v1/" .combat-rule-cache \
+          aws s3 sync "s3://$S3_BUCKET/catalogue/combat-rule-judgments/v1/" .combat-rule-cache \
             --endpoint-url "$S3_ENDPOINT" --exclude '*' --include '*.json' --only-show-errors
       - name: Validate damage relevance questions
         env:
@@ -51,7 +51,7 @@ jobs:
       - name: Preserve completed judgments for the next run
         if: always() && steps.judgments.outcome == 'success'
         run: |
-          aws s3 sync .combat-rule-cache "s3://$S3_BUCKET/praetorium/combat-rule-judgments/v1/" \
+          aws s3 sync .combat-rule-cache "s3://$S3_BUCKET/catalogue/combat-rule-judgments/v1/" \
             --endpoint-url "$S3_ENDPOINT" --exclude '*' --include '*.json' --no-follow-symlinks --only-show-errors
       - name: Store the inventory and shortlist
         if: always()

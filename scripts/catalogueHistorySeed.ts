@@ -19,7 +19,6 @@ import { appendHistory, CATALOGUE_HISTORY_FORMAT, type CatalogueHistoryEntry } f
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from '../src/server/canonicalCatalogueSources'
 import { catalogueBaseUrl, remoteRevocations } from '../src/server/catalogueSnapshot'
 import { catalogueSourcesSchema } from '../src/server/catalogueSources'
-import { fetchWithRetry } from '../src/server/fetch'
 import {
   compareInOrder,
   dailyCheckpoints,
@@ -56,14 +55,25 @@ const git = (...command: string[]) => execFileSync('git', command, { encoding: '
 async function listed() {
   const found: ListedSnapshot[] = []
   let token: string | null = null
+  const bucket = process.env.SNAPSHOT_BUCKET ?? 'praetorium'
+  const endpoint = process.env.SNAPSHOT_ENDPOINT
+  if (!endpoint) throw new Error('SNAPSHOT_ENDPOINT is required to list published catalogue snapshots')
   do {
-    const url = new URL(base)
-    url.searchParams.set('list-type', '2')
-    url.searchParams.set('prefix', 'snapshots/')
-    if (token) url.searchParams.set('continuation-token', token)
-    const response = await fetchWithRetry(url.toString(), { cache: 'no-store' })
-    if (!response.ok) throw new Error(`snapshot listing answered ${response.status}`)
-    const page = parseSnapshotListing(await response.text())
+    const command = [
+      's3api',
+      'list-objects-v2',
+      '--bucket',
+      bucket,
+      '--prefix',
+      'catalogue/snapshots/',
+      '--endpoint-url',
+      endpoint,
+      '--no-paginate',
+      '--output',
+      'json',
+    ]
+    if (token) command.push('--continuation-token', token)
+    const page = parseSnapshotListing(JSON.parse(execFileSync('aws', command, { encoding: 'utf8' })))
     found.push(...page.snapshots)
     token = page.next
   } while (token)

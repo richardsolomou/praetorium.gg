@@ -1,7 +1,7 @@
 import type { R2Bucket } from '@cloudflare/workers-types'
 import { workerAppContext } from './workerAppContext'
 
-/** Existing profile image and catalogue URLs keep this base after storage moves to R2. */
+/** Existing profile image and catalogue URLs remain stable across bucket key changes. */
 export const DEFAULT_S3_PUBLIC_BASE_URL = 'https://s3.praetorium.gg/praetorium'
 
 export type ObjectStore = { publicBaseUrl: string; bucket: R2Bucket }
@@ -19,8 +19,7 @@ export function configuredObjectStore(): ObjectStore | null {
 
 /** Uploads only when the key is not already there — every caller here writes content-addressed keys, so a hit means the bytes already match. */
 export async function putIfAbsent(store: ObjectStore, key: string, body: Uint8Array, contentType: string) {
-  const objectKey = `praetorium/${key}`
-  if (!(await store.bucket.head(objectKey))) {
-    await store.bucket.put(objectKey, body, { httpMetadata: { contentType, cacheControl: 'public, max-age=31536000, immutable' } })
+  if (!(await store.bucket.head(key))) {
+    await store.bucket.put(key, body, { httpMetadata: { contentType, cacheControl: 'public, max-age=31536000, immutable' } })
   }
 }

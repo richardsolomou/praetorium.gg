@@ -57,18 +57,18 @@ jobs:
           test -n "$AWS_SECRET_ACCESS_KEY"
           pnpm catalogue:snapshot pack
           id="$(jq -r .id "$CATALOGUE_SNAPSHOT_POINTER_FILE")"
-          aws s3api head-object --bucket "$SNAPSHOT_BUCKET" --key "praetorium/snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" >/dev/null 2>&1 \
-            || aws s3 cp "$CATALOGUE_SNAPSHOT_FILE" "s3://$SNAPSHOT_BUCKET/praetorium/snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
-          aws s3 cp "s3://$SNAPSHOT_BUCKET/praetorium/snapshots/$id.zip" /tmp/published-catalogue.zip \
+          aws s3api head-object --bucket "$SNAPSHOT_BUCKET" --key "catalogue/snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" >/dev/null 2>&1 \
+            || aws s3 cp "$CATALOGUE_SNAPSHOT_FILE" "s3://$SNAPSHOT_BUCKET/catalogue/snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
+          aws s3 cp "s3://$SNAPSHOT_BUCKET/catalogue/snapshots/$id.zip" /tmp/published-catalogue.zip \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
           CATALOGUE_SNAPSHOT_FILE=/tmp/published-catalogue.zip pnpm catalogue:snapshot verify
           pnpm catalogue:worker
-          aws s3 cp catalogue/revocations.json "s3://$SNAPSHOT_BUCKET/praetorium/revocations.json" \
+          aws s3 cp catalogue/revocations.json "s3://$SNAPSHOT_BUCKET/catalogue/revocations.json" \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
-          aws s3 cp "$CATALOGUE_SNAPSHOT_POINTER_FILE" "s3://$SNAPSHOT_BUCKET/praetorium/current.json" \
+          aws s3 cp "$CATALOGUE_SNAPSHOT_POINTER_FILE" "s3://$SNAPSHOT_BUCKET/catalogue/current.json" \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
           jq -r '.snapshots[]' catalogue/revocations.json | while read -r revoked; do
-            aws s3 rm "s3://$SNAPSHOT_BUCKET/praetorium/snapshots/$revoked.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
+            aws s3 rm "s3://$SNAPSHOT_BUCKET/catalogue/snapshots/$revoked.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
           done
 
   combat-rules:
