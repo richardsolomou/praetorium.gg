@@ -11,8 +11,16 @@ permissions:
   contents: read
 
 jobs:
+  approve-fork:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name != github.repository
+    runs-on: ubuntu-latest
+    environment: pr-preview
+    steps:
+      - run: true
+
   deploy:
-    if: (github.event_name == 'pull_request_target' || github.event.workflow_run.pull_requests[0]) && !startsWith(github.event.workflow_run.head_branch || github.event.pull_request.head.ref, 'release-candidate/')
+    needs: approve-fork
+    if: always() && (needs.approve-fork.result == 'success' || needs.approve-fork.result == 'skipped') && (github.event_name == 'pull_request_target' || github.event.workflow_run.pull_requests[0]) && !startsWith(github.event.workflow_run.head_branch || github.event.pull_request.head.ref, 'release-candidate/')
     permissions:
       actions: read
       contents: read
