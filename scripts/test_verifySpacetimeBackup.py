@@ -28,7 +28,7 @@ class VerifySpacetimeBackupTest(unittest.TestCase):
                 "else: sys.exit(18)\n"
             )
             aws = bin_dir / "aws"
-            aws.write_text("#!/bin/sh\necho aws >> \"$CALLS\"\nexit 17\n")
+            aws.write_text("#!/bin/sh\nprintf 'aws %s\\n' \"$*\" >> \"$CALLS\"\nexit 17\n")
             docker = bin_dir / "docker"
             docker.write_text("#!/bin/sh\nexit 0\n")
             for executable in (curl, aws, docker):
@@ -65,7 +65,16 @@ class VerifySpacetimeBackupTest(unittest.TestCase):
         )
         self.assertEqual(
             (result.returncode != 0, calls),
-            (True, ["https://dokploy.example/api/destination.all", "https://dokploy.example/api/application.one", "aws"]),
+            (
+                True,
+                [
+                    "https://dokploy.example/api/destination.all",
+                    "https://dokploy.example/api/application.one",
+                    "aws s3api list-objects-v2 --bucket praetorium --prefix spacetimedb-production/backups/data/ --endpoint-url https://"
+                    + "a" * 32
+                    + ".r2.cloudflarestorage.com --output json",
+                ],
+            ),
         )
 
     def test_rejects_ambiguous_backup_destination(self) -> None:

@@ -17,29 +17,30 @@ const id = (digit: string) => digit.repeat(64)
 const at = (day: number) => Date.UTC(2026, 8, day)
 const listed = (digit: string, day: number): ListedSnapshot => ({ id: id(digit), publishedAt: at(day) })
 
-const page = (entries: string, tail: string) =>
-  `<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>praetorium</Name><Prefix>snapshots/</Prefix>${tail}${entries}</ListBucketResult>`
-const contents = (key: string, modified: string) =>
-  `<Contents><Key>${key}</Key><LastModified>${modified}</LastModified><ETag>&#34;x&#34;</ETag><Size>1</Size></Contents>`
+const contents = (key: string, modified: string) => ({ Key: key, LastModified: modified })
 
 describe('reading the snapshot listing', () => {
   it('reads each archive by its snapshot id and publication time', () => {
-    const xml = page(contents(`snapshots/${id('a')}.zip`, '2026-09-19T10:56:18.139Z'), '<IsTruncated>false</IsTruncated>')
+    const page = { Contents: [contents(`catalogue/snapshots/${id('a')}.zip`, '2026-09-19T10:56:18.139Z')], IsTruncated: false }
 
-    expect(parseSnapshotListing(xml)).toEqual({
+    expect(parseSnapshotListing(page)).toEqual({
       snapshots: [{ id: id('a'), publishedAt: Date.parse('2026-09-19T10:56:18.139Z') }],
       next: null,
     })
   })
 
   it('ignores anything under the prefix that is not a snapshot archive', () => {
-    expect(parseSnapshotListing(page(contents('snapshots/readme.txt', '2026-09-19T10:56:18.139Z'), '')).snapshots).toEqual([])
+    expect(parseSnapshotListing({ Contents: [contents('catalogue/snapshots/readme.txt', '2026-09-19T10:56:18.139Z')] }).snapshots).toEqual(
+      [],
+    )
   })
 
-  it('hands back the next page token, unescaped, while the listing is truncated', () => {
-    const xml = page('', '<NextContinuationToken>c25h&amp;cA==</NextContinuationToken><IsTruncated>true</IsTruncated>')
+  it('hands back the next page token while the listing is truncated', () => {
+    expect(parseSnapshotListing({ IsTruncated: true, NextContinuationToken: 'c25h&cA==' }).next).toBe('c25h&cA==')
+  })
 
-    expect(parseSnapshotListing(xml).next).toBe('c25h&cA==')
+  it('rejects a truncated listing without a continuation token', () => {
+    expect(() => parseSnapshotListing({ IsTruncated: true })).toThrow('Snapshot listing has no continuation token')
   })
 })
 

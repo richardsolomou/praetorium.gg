@@ -38,7 +38,7 @@ jobs:
         run: |
           test -n "$SNAPSHOT_BUCKET"
           test -n "$SNAPSHOT_ENDPOINT"
-          aws s3 cp /tmp/catalogue-history-seed.json "s3://$SNAPSHOT_BUCKET/praetorium/changes/seed.json" \
+          aws s3 cp /tmp/catalogue-history-seed.json "s3://$SNAPSHOT_BUCKET/catalogue/changes/seed.json" \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
       # A dispatch is the one event a workflow token may start another workflow with.
       - name: Publish a snapshot that carries it

@@ -6,29 +6,19 @@ import { compareText } from '../../src/core/text'
 /** One published snapshot in the bucket, as its listing names it. */
 export type ListedSnapshot = { id: string; publishedAt: number }
 
-const decodeXml = (value: string) =>
-  value
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&quot;', '"')
-    .replaceAll('&#34;', '"')
-    .replaceAll('&apos;', "'")
-    .replaceAll('&amp;', '&')
-
-/**
- * One page of an S3 ListObjectsV2 answer for `snapshots/`: every archive named by its
- * snapshot id, with when it was published, and the token for the next page.
- */
-export function parseSnapshotListing(xml: string): { snapshots: ListedSnapshot[]; next: string | null } {
-  const snapshots = [...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].flatMap(([, contents]) => {
-    const id = contents?.match(/<Key>snapshots\/([0-9a-f]{64})\.zip<\/Key>/)?.[1]
-    const modified = contents?.match(/<LastModified>([^<]+)<\/LastModified>/)?.[1]
-    const publishedAt = modified ? Date.parse(modified) : Number.NaN
+/** One page of the authenticated S3 listing for published catalogue archives. */
+export function parseSnapshotListing(page: {
+  Contents?: { Key: string; LastModified: string }[]
+  IsTruncated?: boolean
+  NextContinuationToken?: string
+}): { snapshots: ListedSnapshot[]; next: string | null } {
+  const snapshots = (page.Contents ?? []).flatMap(({ Key, LastModified }) => {
+    const id = /^catalogue\/snapshots\/([0-9a-f]{64})\.zip$/.exec(Key)?.[1]
+    const publishedAt = Date.parse(LastModified)
     return id && Number.isFinite(publishedAt) ? [{ id, publishedAt }] : []
   })
-  const truncated = /<IsTruncated>true<\/IsTruncated>/.test(xml)
-  const token = xml.match(/<NextContinuationToken>([^<]+)<\/NextContinuationToken>/)?.[1]
-  return { snapshots, next: truncated && token ? decodeXml(token) : null }
+  if (page.IsTruncated && !page.NextContinuationToken) throw new Error('Snapshot listing has no continuation token')
+  return { snapshots, next: page.IsTruncated ? page.NextContinuationToken! : null }
 }
 
 /**

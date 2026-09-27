@@ -11,7 +11,7 @@ export async function publicObject(request: Request, bucket: R2Bucket): Promise<
   const name = pathname.slice('/praetorium/'.length)
   const immutable = IMMUTABLE.test(name)
   if (!immutable && !MUTABLE.has(name)) return new Response(null, { status: 404 })
-  const key = `praetorium/${name}`
+  const key = name.startsWith('avatars/') ? name : `catalogue/${name}`
   const object = request.method === 'HEAD' ? await bucket.head(key) : await bucket.get(key)
   if (!object) return new Response(null, { status: 404 })
   const contentType = name.startsWith('avatars/')

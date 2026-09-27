@@ -26,7 +26,7 @@ describe('configuredObjectStore', () => {
       undefined,
       bucket,
     )
-    expect(put).toHaveBeenCalledWith('praetorium/avatars/example.webp', new Uint8Array([1, 2]), {
+    expect(put).toHaveBeenCalledWith('avatars/example.webp', new Uint8Array([1, 2]), {
       httpMetadata: { contentType: 'image/webp', cacheControl: 'public, max-age=31536000, immutable' },
     })
   })

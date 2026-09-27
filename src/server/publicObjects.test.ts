@@ -22,18 +22,18 @@ describe('publicObject', () => {
     const response = await publicObject(new Request(`https://s3.praetorium.gg/praetorium/avatars/${hash}.webp`), bucket)
     expect([response.status, response.headers.get('content-type'), await response.text()]).toEqual([200, 'image/webp', 'image'])
     expect(response.headers.get('x-praetorium-object-source')).toBe('r2')
-    expect(get).toHaveBeenCalledWith(`praetorium/avatars/${hash}.webp`)
+    expect(get).toHaveBeenCalledWith(`avatars/${hash}.webp`)
   })
 
   it('does not expose audit objects', async () => {
     const response = await publicObject(new Request('https://s3.praetorium.gg/praetorium/combat-rule-judgments/v1/private.json'), bucket)
     expect(response.status).toBe(404)
-    expect(get).not.toHaveBeenCalledWith('praetorium/combat-rule-judgments/v1/private.json')
+    expect(get).not.toHaveBeenCalled()
   })
 
   it('does not read backups in the shared bucket', async () => {
     const response = await publicObject(
-      new Request('https://s3.praetorium.gg/spacetimedb-production/praetorium/production/spacetimedb/data/archive.tar'),
+      new Request('https://s3.praetorium.gg/praetoriumgg-spacetimedb-prod-fc6ghi/backups/data/archive.tar'),
       bucket,
     )
     expect([response.status, get.mock.calls.length]).toEqual([404, 0])
@@ -47,6 +47,7 @@ describe('publicObject', () => {
   it('uses a no-store policy for the current pointer', async () => {
     const response = await publicObject(new Request('https://s3.praetorium.gg/praetorium/current.json'), bucket)
     expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(get).toHaveBeenCalledWith('catalogue/current.json')
   })
 
   it('rejects writes to the public route', async () => {
@@ -60,6 +61,6 @@ describe('publicObject', () => {
       bucket,
     )
     expect([response.status, response.body]).toEqual([200, null])
-    expect(head).toHaveBeenCalledWith(`praetorium/snapshots/${hash}.zip`)
+    expect(head).toHaveBeenCalledWith(`catalogue/snapshots/${hash}.zip`)
   })
 })
