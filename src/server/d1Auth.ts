@@ -7,6 +7,7 @@ import { decryptOAuthToken } from 'better-auth/oauth2'
 import { admin, jwt, oneTimeToken, twoFactor } from 'better-auth/plugins'
 import { and, eq, notExists, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/d1'
+import pRetry from 'p-retry'
 import {
   standardAccountOptions,
   standardEmailAndPasswordOptions,
@@ -23,6 +24,13 @@ import { nativeAuthToken } from './nativeAuthToken'
 import { isNativeOAuthState } from './nativeOAuthState'
 
 type Environment = NodeJS.ProcessEnv
+
+function isSqliteBusy(error: unknown) {
+  for (let current = error, depth = 0; current instanceof Error && depth < 4; current = current.cause, depth++) {
+    if (current.message.includes('SQLITE_BUSY')) return true
+  }
+  return false
+}
 
 type D1AuthOptions = {
   environment: Environment
@@ -58,11 +66,22 @@ export function createD1Auth(binding: Parameters<typeof drizzle>[0], secret: str
   const authEmails = options.email ? standardAuthEmails(options.email, { productName: 'Praetorium' }) : undefined
 
   const claimInitialAdmin = async (userId: string) => {
-    const [promoted] = await database
-      .update(user)
-      .set({ role: 'admin' })
-      .where(and(eq(user.id, userId), notExists(database.select({ id: user.id }).from(user).where(eq(user.role, 'admin')))))
-      .returning()
+    const [promoted] = await pRetry(
+      () =>
+        database
+          .update(user)
+          .set({ role: 'admin' })
+          .where(and(eq(user.id, userId), notExists(database.select({ id: user.id }).from(user).where(eq(user.role, 'admin')))))
+          .returning(),
+      {
+        retries: 5,
+        minTimeout: 20,
+        maxTimeout: 250,
+        maxRetryTime: 1_500,
+        randomize: true,
+        shouldRetry: ({ error }) => isSqliteBusy(error),
+      },
+    )
     if (promoted) await (await auth.$context).internalAdapter.refreshUserSessions(promoted)
   }
 

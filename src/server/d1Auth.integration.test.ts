@@ -3,12 +3,13 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createLocalJWKSet, jwtVerify } from 'jose'
 import { drizzle } from 'drizzle-orm/d1'
+import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { getPlatformProxy, type PlatformProxy } from 'wrangler'
 import { createD1Auth } from './d1Auth'
 import { handleD1Bridge, remoteD1 } from './d1Bridge'
 import { D1AccountRepository } from './d1AccountRepository'
-import { account, schema } from '../db/d1AuthSchema'
+import { account, schema, user } from '../db/d1AuthSchema'
 
 const secret = 'praetorium-d1-auth-integration-secret'
 let directory: string
@@ -37,6 +38,30 @@ afterAll(async () => {
   await proxy?.dispose()
   if (directory) await rm(directory, { recursive: true, force: true })
 })
+
+function claimFailure(message: string, count: number) {
+  let attempts = 0
+  const binding = remoteD1('http://d1.internal/query', async (url, init) => {
+    if (typeof init?.body !== 'string') throw new Error('Expected a D1 bridge JSON body')
+    const query = JSON.parse(init.body) as { statements: { sql: string }[] }
+    if (query.statements.some(({ sql }) => sql.startsWith('update "user" set "role"'))) {
+      attempts++
+      if (attempts <= count) return Response.json({ error: message }, { status: 500 })
+    }
+    return handleD1Bridge(new Request(url, init), proxy.env.AUTH_DB)
+  })
+  return { binding, attempts: () => attempts }
+}
+
+function authForClaimTest(binding: Parameters<typeof drizzle>[0]) {
+  return createD1Auth(binding, secret, {
+    environment: { APP_URL: 'https://praetorium.gg', AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' },
+    deleteUserData: async () => {},
+    revokeSessionAccess: async () => {},
+    storeSocialAvatar: async () => null,
+    updateProfile: async (data) => ({ ok: true, data }),
+  })
+}
 
 it('signs up, claims an administrator, and revokes a D1 session through the runtime hook', async () => {
   const revoked: string[] = []
@@ -73,6 +98,32 @@ it('signs up, claims an administrator, and revokes a D1 session through the runt
   await auth.api.signOut({ headers })
   expect(revoked).toEqual([current!.session.id])
   expect(await auth.api.getSession({ headers })).toBeNull()
+})
+
+it('retries a locked administrator claim without repeating sign-up', async () => {
+  const { binding, attempts } = claimFailure('D1_ERROR: database is locked: SQLITE_BUSY', 1)
+  await authForClaimTest(binding).api.signUpEmail({
+    body: { email: 'busy-claim@example.com', password: 'password1234', name: 'Busy claim' },
+  })
+  const rows = await drizzle(proxy.env.AUTH_DB).select().from(user).where(eq(user.email, 'busy-claim@example.com'))
+  expect({ attempts: attempts(), accounts: rows.length }).toEqual({ attempts: 2, accounts: 1 })
+})
+
+it('does not retry a non-lock administrator claim error', async () => {
+  const { binding, attempts } = claimFailure('D1_ERROR: malformed query', 1)
+  const failure = await authForClaimTest(binding)
+    .api.signUpEmail({ body: { email: 'bad-claim@example.com', password: 'password1234', name: 'Bad claim' } })
+    .then(
+      () => null,
+      (error: unknown) => error,
+    )
+  expect({
+    cause: failure instanceof Error && failure.cause instanceof Error ? failure.cause.message : null,
+    attempts: attempts(),
+  }).toEqual({
+    cause: 'D1_ERROR: malformed query',
+    attempts: 1,
+  })
 })
 
 it('signs preview tokens with the revisioned issuer advertised by discovery', async () => {

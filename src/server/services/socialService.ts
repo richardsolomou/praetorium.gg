@@ -1,4 +1,4 @@
-import type { Repository, RepositoryPort } from '../../db/repository'
+import type { RepositoryPort } from '../spacetimeRepository'
 import { PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
 import { randomToken } from 'ras-stack/auth'
 import type { Notifier } from '../pushNotifier'
@@ -95,7 +95,7 @@ export class SocialService {
   }
 }
 
-export function sortedFriends(relationships: Awaited<ReturnType<Repository['relationships']>>, userId: string) {
+export function sortedFriends(relationships: Awaited<ReturnType<RepositoryPort['relationships']>>, userId: string) {
   const named = (row: (typeof relationships)[number]) => ({ id: row.otherId, name: row.otherName, image: row.otherImage })
   return {
     friends: relationships.filter((row) => row.acceptedAt !== null).map(named),

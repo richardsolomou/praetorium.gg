@@ -1,8 +1,8 @@
 import { FORMAT_RULE_IDS, OPTIONAL_RULE_IDS, type FormatRuleId, type OptionalRuleId } from '../core/battle'
-import type { Repository } from '../db/repository'
 import { picksSchema, savedPrepSchema } from './schemas'
+import type { SpacetimeOperator } from './spacetimeOperator'
 
-export function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>>>, includePrep = false) {
+export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOperator['roster']>>>, includePrep = false) {
   const prep = includePrep && row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null
   return {
     id: row.id,

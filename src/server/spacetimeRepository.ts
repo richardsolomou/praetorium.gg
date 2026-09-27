@@ -1,7 +1,7 @@
 import type { AdminUserPage } from '../admin'
-import type { BattleHistory, BattlesCursor, Repository, RepositoryPort } from '../db/repository'
+import type { BattlesCursor } from '../contracts/battles'
 import { parseRosterSnapshot } from '../core/commands'
-import { requiredLeagueRosterLimit } from '../core/league'
+import { requiredLeagueRosterLimit, type LeagueAdmission, type LeagueVisibility } from '../core/league'
 import type { TableShape } from '../core/tableShape'
 import type { Command } from '../core/battle'
 import { z } from 'zod'
@@ -9,8 +9,12 @@ import { D1AccountRepository } from './d1AccountRepository'
 import { SpacetimeOperator } from './spacetimeOperator'
 
 type Snapshot = NonNullable<Awaited<ReturnType<SpacetimeOperator['battleByToken']>>>
+type BattlePlayer = NonNullable<Awaited<ReturnType<D1AccountRepository['profileByUserId']>>> & { side: number; automated: boolean }
+type RosterSummary = Omit<Awaited<ReturnType<SpacetimeOperator['rosterSummariesByUser']>>[number], 'userId' | 'prep' | 'tags'>
+export type BattleSeats = { battle: Snapshot['battle']; players: BattlePlayer[] }
+export type BattleHistory = BattleSeats & { log: Snapshot['log'] }
 
-export class SpacetimeRepository implements RepositoryPort {
+export class SpacetimeRepository {
   constructor(
     private readonly accounts: D1AccountRepository,
     private readonly product: SpacetimeOperator,
@@ -24,11 +28,11 @@ export class SpacetimeRepository implements RepositoryPort {
     return this.product.onboardingProgress(userId)
   }
 
-  updateOnboardingProgress(...args: Parameters<Repository['updateOnboardingProgress']>) {
+  updateOnboardingProgress(...args: Parameters<SpacetimeOperator['updateOnboardingProgress']>) {
     return this.product.updateOnboardingProgress(...args)
   }
 
-  async adminUsers(input: Parameters<Repository['adminUsers']>[0] = {}): Promise<AdminUserPage> {
+  async adminUsers(input: Parameters<D1AccountRepository['adminUserRows']>[0] = {}): Promise<AdminUserPage> {
     const practice = await this.product.practiceOpponentIds()
     const page = await this.accounts.adminUserRows(input, practice)
     const stats = await this.product.productStats(page.users.map((row) => row.id))
@@ -42,7 +46,7 @@ export class SpacetimeRepository implements RepositoryPort {
     }
   }
 
-  unlinkAccount(...args: Parameters<Repository['unlinkAccount']>) {
+  unlinkAccount(...args: Parameters<D1AccountRepository['unlinkAccount']>) {
     return this.accounts.unlinkAccount(...args)
   }
 
@@ -103,19 +107,19 @@ export class SpacetimeRepository implements RepositoryPort {
       .sort((left, right) => left.otherName.localeCompare(right.otherName))
   }
 
-  requestFriend(...args: Parameters<Repository['requestFriend']>) {
+  requestFriend(...args: Parameters<SpacetimeOperator['requestFriend']>) {
     return this.product.requestFriend(...args)
   }
 
-  acceptFriend(...args: Parameters<Repository['acceptFriend']>) {
+  acceptFriend(...args: Parameters<SpacetimeOperator['acceptFriend']>) {
     return this.product.acceptFriend(...args)
   }
 
-  rejectFriend(...args: Parameters<Repository['rejectFriend']>) {
+  rejectFriend(...args: Parameters<SpacetimeOperator['rejectFriend']>) {
     return this.product.rejectFriend(...args)
   }
 
-  removeFriend(...args: Parameters<Repository['removeFriend']>) {
+  removeFriend(...args: Parameters<SpacetimeOperator['removeFriend']>) {
     return this.product.removeFriend(...args)
   }
 
@@ -132,47 +136,62 @@ export class SpacetimeRepository implements RepositoryPort {
     return { token, inviterId: inviter.id, inviterName: inviter.name, inviterImage: inviter.image }
   }
 
-  replaceFriendInvite(...args: Parameters<Repository['replaceFriendInvite']>) {
+  replaceFriendInvite(...args: Parameters<SpacetimeOperator['replaceFriendInvite']>) {
     return this.product.replaceFriendInvite(...args)
   }
 
-  cancelFriendInvite(...args: Parameters<Repository['cancelFriendInvite']>) {
+  cancelFriendInvite(...args: Parameters<SpacetimeOperator['cancelFriendInvite']>) {
     return this.product.cancelFriendInvite(...args)
   }
 
-  acceptFriendInvite(...args: Parameters<Repository['acceptFriendInvite']>) {
+  acceptFriendInvite(...args: Parameters<SpacetimeOperator['acceptFriendInvite']>) {
     return this.product.acceptFriendInvite(...args)
   }
 
-  pushEnabled(...args: Parameters<Repository['pushEnabled']>) {
+  pushEnabled(...args: Parameters<SpacetimeOperator['pushEnabled']>) {
     return this.product.pushEnabled(...args)
   }
 
-  setPushEnabled(...args: Parameters<Repository['setPushEnabled']>) {
+  setPushEnabled(...args: Parameters<SpacetimeOperator['setPushEnabled']>) {
     return this.product.setPushEnabled(...args)
   }
 
-  registerPushToken(...args: Parameters<Repository['registerPushToken']>) {
+  registerPushToken(...args: Parameters<SpacetimeOperator['registerPushToken']>) {
     return this.product.registerPushToken(...args)
   }
 
-  unregisterPushToken(...args: Parameters<Repository['unregisterPushToken']>) {
+  unregisterPushToken(...args: Parameters<SpacetimeOperator['unregisterPushToken']>) {
     return this.product.unregisterPushToken(...args)
   }
 
-  deletePushTokens(...args: Parameters<Repository['deletePushTokens']>) {
+  deletePushTokens(...args: Parameters<SpacetimeOperator['deletePushTokens']>) {
     return this.product.deletePushTokens(...args)
   }
 
-  pushTargets(...args: Parameters<Repository['pushTargets']>) {
+  pushTargets(...args: Parameters<SpacetimeOperator['pushTargets']>) {
     return this.product.pushTargets(...args)
   }
 
-  leagueNames(...args: Parameters<Repository['leagueNames']>) {
+  leagueNames(...args: Parameters<SpacetimeOperator['leagueNames']>) {
     return this.product.leagueNames(...args)
   }
 
-  async createLeague(input: Parameters<Repository['createLeague']>[0]) {
+  async createLeague(input: {
+    id: string
+    token: string
+    eventId?: string
+    eventToken?: string
+    ownerId: string
+    name: string
+    description: string
+    visibility: LeagueVisibility
+    admission: LeagueAdmission
+    playerLimit?: number | null
+    recurring?: boolean
+    format?: TableShape
+    rosterLimit?: number
+    now: number
+  }) {
     await this.product.leagueCommand(
       {
         ...input,
@@ -188,7 +207,15 @@ export class SpacetimeRepository implements RepositoryPort {
     )
   }
 
-  createLeagueEvent(input: Parameters<Repository['createLeagueEvent']>[0]) {
+  createLeagueEvent(input: {
+    id: string
+    token: string
+    leagueToken: string
+    ownerId: string
+    format?: TableShape
+    rosterLimit?: number
+    now: number
+  }) {
     return this.product.leagueCommand(
       {
         ...input,
@@ -213,7 +240,11 @@ export class SpacetimeRepository implements RepositoryPort {
     return this.product.leagueCommand({ op: 'recurring', token, ownerId }, z.enum(['updated', 'missing', 'forbidden']))
   }
 
-  updateLeague(token: string, ownerId: string, input: Parameters<Repository['updateLeague']>[2]) {
+  updateLeague(
+    token: string,
+    ownerId: string,
+    input: { name: string; description: string; visibility: LeagueVisibility; admission: LeagueAdmission; playerLimit: number | null },
+  ) {
     return this.product.leagueCommand(
       { op: 'update', token, ownerId, ...input },
       z.union([z.object({ admitted: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'below-accepted', 'team-minimum'])]),
@@ -357,7 +388,17 @@ export class SpacetimeRepository implements RepositoryPort {
     )
   }
 
-  submitLeagueRoster(input: Parameters<Repository['submitLeagueRoster']>[0]) {
+  submitLeagueRoster(input: {
+    token: string
+    userId: string
+    rosterId: string
+    rosterName: string
+    rosterLimit?: number
+    rosterUpdatedAt: number
+    snapshot: string
+    now: number
+    eventToken?: string
+  }) {
     return this.product.leagueCommand(
       { ...input, op: 'submit', ownerId: input.userId, eventToken: input.eventToken ?? '', rosterLimit: input.rosterLimit ?? null },
       z.union([
@@ -458,79 +499,79 @@ export class SpacetimeRepository implements RepositoryPort {
     return created ? prepared.result : undefined
   }
 
-  saveRoster(...args: Parameters<Repository['saveRoster']>) {
+  saveRoster(...args: Parameters<SpacetimeOperator['saveRoster']>) {
     return this.product.saveRoster(...args)
   }
 
-  rostersByUser(...args: Parameters<Repository['rostersByUser']>) {
+  rostersByUser(...args: Parameters<SpacetimeOperator['rostersByUser']>) {
     return this.product.rostersByUser(...args)
   }
 
-  homeRostersByUser(...args: Parameters<Repository['homeRostersByUser']>) {
+  homeRostersByUser(...args: Parameters<SpacetimeOperator['homeRostersByUser']>) {
     return this.product.homeRostersByUser(...args)
   }
 
-  publicRostersByUser(...args: Parameters<Repository['publicRostersByUser']>) {
+  publicRostersByUser(...args: Parameters<SpacetimeOperator['publicRostersByUser']>) {
     return this.product.publicRostersByUser(...args)
   }
 
-  rosterSummariesByUser(...args: Parameters<Repository['rosterSummariesByUser']>) {
+  rosterSummariesByUser(...args: Parameters<SpacetimeOperator['rosterSummariesByUser']>): Promise<RosterSummary[]> {
     return this.product.rosterSummariesByUser(...args)
   }
 
-  roster(...args: Parameters<Repository['roster']>) {
+  roster(...args: Parameters<SpacetimeOperator['roster']>) {
     return this.product.roster(...args)
   }
 
-  setRosterVisibility(...args: Parameters<Repository['setRosterVisibility']>) {
+  setRosterVisibility(...args: Parameters<SpacetimeOperator['setRosterVisibility']>) {
     return this.product.setRosterVisibility(...args)
   }
 
-  collectionByUser(...args: Parameters<Repository['collectionByUser']>) {
+  collectionByUser(...args: Parameters<SpacetimeOperator['collectionByUser']>) {
     return this.product.collectionByUser(...args)
   }
 
-  addToCollection(...args: Parameters<Repository['addToCollection']>) {
+  addToCollection(...args: Parameters<SpacetimeOperator['addToCollection']>) {
     return this.product.addToCollection(...args)
   }
 
-  removeFromCollection(...args: Parameters<Repository['removeFromCollection']>) {
+  removeFromCollection(...args: Parameters<SpacetimeOperator['removeFromCollection']>) {
     return this.product.removeFromCollection(...args)
   }
 
-  favouriteFactionsByUser(...args: Parameters<Repository['favouriteFactionsByUser']>) {
+  favouriteFactionsByUser(...args: Parameters<SpacetimeOperator['favouriteFactionsByUser']>) {
     return this.product.favouriteFactionsByUser(...args)
   }
 
-  addFavouriteFaction(...args: Parameters<Repository['addFavouriteFaction']>) {
+  addFavouriteFaction(...args: Parameters<SpacetimeOperator['addFavouriteFaction']>) {
     return this.product.addFavouriteFaction(...args)
   }
 
-  removeFavouriteFaction(...args: Parameters<Repository['removeFavouriteFaction']>) {
+  removeFavouriteFaction(...args: Parameters<SpacetimeOperator['removeFavouriteFaction']>) {
     return this.product.removeFavouriteFaction(...args)
   }
 
-  favouriteDetachmentsByUser(...args: Parameters<Repository['favouriteDetachmentsByUser']>) {
+  favouriteDetachmentsByUser(...args: Parameters<SpacetimeOperator['favouriteDetachmentsByUser']>) {
     return this.product.favouriteDetachmentsByUser(...args)
   }
 
-  addFavouriteDetachment(...args: Parameters<Repository['addFavouriteDetachment']>) {
+  addFavouriteDetachment(...args: Parameters<SpacetimeOperator['addFavouriteDetachment']>) {
     return this.product.addFavouriteDetachment(...args)
   }
 
-  removeFavouriteDetachment(...args: Parameters<Repository['removeFavouriteDetachment']>) {
+  removeFavouriteDetachment(...args: Parameters<SpacetimeOperator['removeFavouriteDetachment']>) {
     return this.product.removeFavouriteDetachment(...args)
   }
 
-  deleteRoster(...args: Parameters<Repository['deleteRoster']>) {
+  deleteRoster(...args: Parameters<SpacetimeOperator['deleteRoster']>) {
     return this.product.deleteRoster(...args)
   }
 
-  async createBattle(...args: Parameters<Repository['createBattle']>) {
+  async createBattle(...args: Parameters<SpacetimeOperator['createBattle']>) {
     await this.product.createBattle(...args)
   }
 
-  deleteBattle(...args: Parameters<Repository['deleteBattle']>) {
+  deleteBattle(...args: Parameters<SpacetimeOperator['deleteBattle']>) {
     return this.product.deleteBattle(...args)
   }
 
@@ -600,27 +641,29 @@ export class SpacetimeRepository implements RepositoryPort {
     return (await this.feed({ scope: 'profile', userId, viewerId, limit })).battles
   }
 
-  battleAudiences(...args: Parameters<Repository['battleAudiences']>) {
+  battleAudiences(...args: Parameters<SpacetimeOperator['battleAudiences']>) {
     return this.product.battleAudiences(...args)
   }
 
-  battleAudience(...args: Parameters<Repository['battleAudience']>) {
+  battleAudience(...args: Parameters<SpacetimeOperator['battleAudience']>) {
     return this.product.battleAudience(...args)
   }
 
-  setBattleAudience(...args: Parameters<Repository['setBattleAudience']>) {
+  setBattleAudience(...args: Parameters<SpacetimeOperator['setBattleAudience']>) {
     return this.product.setBattleAudience(...args)
   }
 
-  shareBattle(...args: Parameters<Repository['shareBattle']>) {
+  shareBattle(...args: Parameters<SpacetimeOperator['shareBattle']>) {
     return this.product.shareBattle(...args)
   }
 
-  log(...args: Parameters<Repository['log']>) {
+  log(...args: Parameters<SpacetimeOperator['log']>) {
     return this.product.log(...args)
   }
 
-  submit(...args: Parameters<Repository['submit']>) {
+  submit(...args: Parameters<SpacetimeOperator['submit']>) {
     return this.product.submit(...args)
   }
 }
+
+export type RepositoryPort = Pick<SpacetimeRepository, keyof SpacetimeRepository>

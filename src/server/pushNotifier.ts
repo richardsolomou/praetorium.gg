@@ -1,6 +1,6 @@
 import type { PushMessage, PushSender } from '../adapters/push'
 import { type Notice, noticeMessage, noticeRecipients } from '../core/notifications'
-import type { Repository } from '../db/repository'
+import type { SpacetimeRepository } from './spacetimeRepository'
 
 /** Told about a notice after its write has committed. Never awaited by the request that caused it. */
 export type Notifier = { notify: (notices: readonly Notice[]) => void }
@@ -8,7 +8,7 @@ export type Notifier = { notify: (notices: readonly Notice[]) => void }
 /** An instance without a push service sends nothing, and nothing else changes. */
 export const silentNotifier: Notifier = { notify: () => {} }
 
-type PushRepository = Pick<Repository, 'pushTargets' | 'namesByIds' | 'leagueNames'>
+type PushRepository = Pick<SpacetimeRepository, 'pushTargets' | 'namesByIds' | 'leagueNames'>
 
 export function pushNotifier(
   repository: PushRepository,

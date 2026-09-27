@@ -4,7 +4,6 @@ import { drizzle } from 'drizzle-orm/d1'
 import type { Command, Roster } from '../src/core/battle'
 import type { RosterPick } from '../src/core/roster'
 import { rosterSnapshot } from '../src/core/rosterSnapshot'
-import type { RepositoryPort } from '../src/db/repository'
 import { account as d1Account, schema as d1Schema, user as d1User } from '../src/db/d1AuthSchema'
 import { createD1Auth } from '../src/server/d1Auth'
 import { remoteD1 } from '../src/server/d1Bridge'
@@ -376,7 +375,7 @@ async function verifiedSnapshots(): Promise<PreviewSnapshots> {
 }
 
 async function seedInto(
-  repository: RepositoryPort,
+  repository: SpacetimeRepository,
   auth: ReturnType<typeof createD1Auth>,
   userIdByEmail: (email: string) => Promise<string | null>,
   snapshots: PreviewSnapshots,
