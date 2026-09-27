@@ -271,8 +271,14 @@ export function ListBuilder({
   const lastApplied = useRef(openedAs)
   const save = useMutation({
     scope: { id: 'roster-autosave' },
-    mutationFn: () => saveRoster({ data: draft }),
-    onSuccess: () => invalidateSavedRosters(queryClient),
+    mutationFn: async () => {
+      await saveRoster({ data: draft })
+      return currentDraftKey
+    },
+    onSuccess: async (savedKey) => {
+      lastApplied.current = savedKey
+      await invalidateSavedRosters(queryClient)
+    },
     // What the row holds is unknown after a failure, so the next draft is sent whatever it is.
     onError: () => {
       lastSaved.current = null
