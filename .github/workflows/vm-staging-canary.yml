@@ -29,13 +29,15 @@ jobs:
         id: image
         uses: richardsolomou/ras-stack/actions/publish-production-image@v1
         with:
-          image: ghcr.io/${{ github.repository }}-vm-canary
+          image: ghcr.io/${{ github.repository }}-node
           sha: ${{ env.REVISION }}
           release-tag: canary
           token: ${{ github.token }}
-          dockerfile: Dockerfile.node-canary
+          dockerfile: Dockerfile.node
           build-args: |
             GITHUB_SHA=${{ env.REVISION }}
+            VITE_POSTHOG_HOST=${{ vars.VITE_POSTHOG_HOST }}
+            VITE_POSTHOG_PROJECT_TOKEN=${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
           cache-scope: vm-canary-image
       - name: Verify Dokploy can pull the image
         env:

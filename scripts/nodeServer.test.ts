@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { spacetimeOrigin, spacetimeRoute } from './nodeCanary'
+import { spacetimeOrigin, spacetimeRoute } from './nodeServer'
 
 const database = 'praetorium-vm-staging'
 

@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "tsx scripts/localDev.ts",
     "build": "vite build && vite build --config vite.seed.config.ts && ras assets sync",
-    "start:node-canary": "node scripts/nodeCanary.ts",
+    "start:node": "node scripts/nodeServer.ts",
     "auth:node:backup": "node scripts/nodeAuthBackup.ts backup",
     "typecheck": "tsc --noEmit && tsc -p cloudflare/tsconfig.json && pnpm --dir mobile typecheck && pnpm --dir spacetimedb typecheck",
     "lint": "oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity=error .",

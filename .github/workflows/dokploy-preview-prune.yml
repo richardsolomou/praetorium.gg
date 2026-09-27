@@ -1,0 +1,31 @@
+name: Dokploy preview prune
+
+on:
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prune:
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: read
+    uses: richardsolomou/ras-stack/.github/workflows/prune-dokploy-previews.yml@v1
+    with:
+      package: praetorium.gg-node
+      application-prefix: praetorium-node
+      domain: praetorium.gg
+      subdomain-prefix: vm-pr
+      cloudflare-zone-id: ${{ vars.CLOUDFLARE_ZONE_ID }}
+      port: 3000
+      deploy-script: scripts/dokployPreview.ts
+    secrets:
+      DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+      DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+      DOKPLOY_ENVIRONMENT_ID: ${{ secrets.DOKPLOY_ENVIRONMENT_ID }}
+      PREVIEW_APP_SECRETS: ${{ format('{{"SPACETIME_URL":"{0}","SPACETIME_ADMIN_TOKEN":"{1}","SPACETIME_ACCESS_CLIENT_ID":"{2}","SPACETIME_ACCESS_CLIENT_SECRET":"{3}"}}', vars.SPACETIME_URL, secrets.SPACETIME_ADMIN_TOKEN, secrets.SPACETIME_ACCESS_CLIENT_ID, secrets.SPACETIME_ACCESS_CLIENT_SECRET) }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.PRAETORIUM_PREVIEW_DNS_API_TOKEN }}

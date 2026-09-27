@@ -1,12 +1,18 @@
+import { execFile as execFileCallback } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync } from 'node:fs'
+import { rm } from 'node:fs/promises'
 import type { Socket } from 'node:net'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { promisify } from 'node:util'
 import httpProxy from 'http-proxy'
-import { importAuthSqlite } from './nodeAuthSqlite.ts'
+import { backupAuthSqlite, importAuthDumpFromR2, importAuthSqlite } from './nodeAuthSqlite.ts'
 import { r2Client } from '../src/server/r2Client.ts'
+
+const execFile = promisify(execFileCallback)
 
 type SpacetimeRoute = 'identity' | 'exchange' | 'subscribe' | null
 
@@ -79,14 +85,40 @@ async function proxySpacetimeHttp(request: IncomingMessage, response: ServerResp
   }
 }
 
-export async function startNodeCanary() {
+export async function startNodeServer() {
+  if (process.env.APPLE_PRIVATE_KEY_BASE64) {
+    if (process.env.APPLE_PRIVATE_KEY) throw new Error('Configure one Apple private key source')
+    process.env.APPLE_PRIVATE_KEY = Buffer.from(process.env.APPLE_PRIVATE_KEY_BASE64, 'base64').toString('utf8')
+  }
   const authPath = process.env.AUTH_SQLITE_PATH
   if (!authPath || !path.isAbsolute(authPath)) throw new Error('AUTH_SQLITE_PATH must be absolute')
+  if (process.env.AUTH_IMPORT_R2_KEY && process.env.AUTH_INITIALIZE_EMPTY === 'true') {
+    throw new Error('Auth import and empty initialization cannot both be enabled')
+  }
+  if (!existsSync(authPath) && process.env.AUTH_IMPORT_R2_KEY) {
+    await importAuthDumpFromR2(process.env.AUTH_IMPORT_R2_KEY, authPath)
+  }
   if (!existsSync(authPath) && process.env.AUTH_INITIALIZE_EMPTY === 'true') {
-    await importAuthSqlite(fileURLToPath(new URL('../drizzle-auth/0000_curly_gambit.sql', import.meta.url)), authPath)
+    const migration = fileURLToPath(new URL('../drizzle-auth/0000_curly_gambit.sql', import.meta.url))
+    if (process.env.PRAETORIUM_SEED_PREVIEW === 'true') {
+      const temporary = `${authPath}.${randomUUID()}.seed`
+      try {
+        await importAuthSqlite(migration, temporary)
+        await execFile(process.execPath, [fileURLToPath(new URL('../.output/server/seed-preview.mjs', import.meta.url))], {
+          env: { ...process.env, AUTH_SQLITE_PATH: temporary },
+          maxBuffer: 4_000_000,
+          timeout: 180_000,
+        })
+        await backupAuthSqlite(temporary, authPath)
+      } finally {
+        await Promise.all([temporary, `${temporary}-wal`, `${temporary}-shm`].map((file) => rm(file, { force: true })))
+      }
+    } else {
+      await importAuthSqlite(migration, authPath)
+    }
   }
   if (!existsSync(authPath)) throw new Error('Auth SQLite file is missing')
-  if (!r2Client()) throw new Error('R2 object storage is required')
+  if (!r2Client() && process.env.PRAETORIUM_SEED_PREVIEW !== 'true') throw new Error('R2 object storage is required')
   const publicPort = Number(process.env.PORT ?? 3000)
   const internalPort = Number(process.env.NODE_INTERNAL_PORT ?? 3001)
   if (
@@ -98,7 +130,7 @@ export async function startNodeCanary() {
     internalPort > 65_535 ||
     publicPort === internalPort
   )
-    throw new Error('Invalid Node canary ports')
+    throw new Error('Invalid Node server ports')
   const database = process.env.SPACETIME_DATABASE ?? ''
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(database)) throw new Error('Invalid SpacetimeDB database')
   const upstream = spacetimeOrigin(process.env)
@@ -119,7 +151,7 @@ export async function startNodeCanary() {
     }
     await delay(1_000)
   }
-  if (!ready) throw new Error('Node canary did not become healthy')
+  if (!ready) throw new Error('Node server did not become healthy')
   const proxy = httpProxy.createProxyServer({ changeOrigin: false, xfwd: true })
   proxy.on('proxyReqWs', (upstreamRequest, request) => {
     if (!request.url?.startsWith(`/v1/database/${database}/subscribe`)) return
@@ -159,9 +191,9 @@ export async function startNodeCanary() {
     server.once('error', reject)
     server.listen(publicPort, '0.0.0.0', resolve)
   })
-  console.log(`Node canary ready on port ${publicPort}`)
+  console.log(`Node server ready on port ${publicPort}`)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  await startNodeCanary()
+  await startNodeServer()
 }
