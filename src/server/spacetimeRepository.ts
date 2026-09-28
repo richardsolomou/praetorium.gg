@@ -10,7 +10,7 @@ import { SpacetimeOperator } from './spacetimeOperator'
 
 type Snapshot = NonNullable<Awaited<ReturnType<SpacetimeOperator['battleByToken']>>>
 type BattlePlayer = NonNullable<Awaited<ReturnType<SqliteAccountRepository['profileByUserId']>>> & { side: number; automated: boolean }
-type RosterSummary = Omit<Awaited<ReturnType<SpacetimeOperator['rosterSummariesByUser']>>[number], 'userId' | 'prep' | 'tags'>
+type RosterSummary = Awaited<ReturnType<SpacetimeOperator['rosterSummariesByUser']>>[number]
 export type BattleSeats = { battle: Snapshot['battle']; players: BattlePlayer[] }
 export type BattleHistory = BattleSeats & { log: Snapshot['log'] }
 
@@ -509,6 +509,10 @@ export class SpacetimeRepository {
 
   rostersByUser(...args: Parameters<SpacetimeOperator['rostersByUser']>) {
     return this.product.rostersByUser(...args)
+  }
+
+  rostersByIds(...args: Parameters<SpacetimeOperator['rostersByIds']>) {
+    return this.product.rostersByIds(...args)
   }
 
   homeRostersByUser(...args: Parameters<SpacetimeOperator['homeRostersByUser']>) {

@@ -7,6 +7,7 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOpera
   return {
     id: row.id,
     name: row.name,
+    automaticName: row.automaticName ?? !row.name,
     catalogueId: row.catalogueId,
     detachmentIds: detachmentIds(row.detachmentId),
     disposition: row.disposition,

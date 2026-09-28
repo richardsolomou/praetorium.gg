@@ -224,6 +224,10 @@ export class PraetoriumService {
     return this.rosterService.savedRosters(...args)
   }
 
+  savedRostersByIds(...args: Parameters<RosterService['savedRostersByIds']>) {
+    return this.rosterService.savedRostersByIds(...args)
+  }
+
   savedRosterSummaries(...args: Parameters<RosterService['savedRosterSummaries']>) {
     return this.rosterService.savedRosterSummaries(...args)
   }

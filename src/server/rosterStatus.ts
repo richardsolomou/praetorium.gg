@@ -40,3 +40,23 @@ export function rosterVerdict(
 export function rosterStatus(roster: { id: string; updatedAt: number }, verdict: RosterVerdict, sets: readonly RecordedChangeSet[]) {
   return { id: roster.id, problem: verdict.problem, changes: changesTouching(verdict.contents, roster.updatedAt, sets).length }
 }
+
+/** Only a selected option needs pricing to decide whether its recorded change reaches a list. */
+export function rosterChangeWithoutPricing(
+  roster: Parameters<typeof rosterVerdict>[0] & { updatedAt: number },
+  sets: readonly RecordedChangeSet[],
+): 'changed' | 'needs-price' | 'unchanged' {
+  if (changesTouching(rosterVerdict(roster, null).contents, roster.updatedAt, sets).length) return 'changed'
+  const detachments = new Set(roster.detachmentIds)
+  return sets.some(
+    (set) =>
+      set.recordedAt > roster.updatedAt &&
+      set.changes.factions.some(
+        (faction) =>
+          faction.catalogueId === roster.catalogueId &&
+          faction.changes.some((change) => 'detachmentId' in change && detachments.has(change.detachmentId)),
+      ),
+  )
+    ? 'needs-price'
+    : 'unchanged'
+}

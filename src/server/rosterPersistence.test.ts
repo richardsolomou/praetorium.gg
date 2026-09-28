@@ -27,4 +27,12 @@ describe('rosterFromRow', () => {
   it('validates preparation data when the caller requests it', () => {
     expect(() => rosterFromRow(row, true)).toThrow()
   })
+
+  it('keeps a stored automatic name distinct from a name the player chose', () => {
+    expect(rosterFromRow({ ...row, name: 'CL 2K', automaticName: true }).automaticName).toBe(true)
+  })
+
+  it('treats existing unnamed rows as automatic', () => {
+    expect(rosterFromRow({ ...row, name: '', automaticName: null }).automaticName).toBe(true)
+  })
 })

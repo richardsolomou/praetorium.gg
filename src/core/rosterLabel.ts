@@ -1,4 +1,4 @@
-/** Derive unnamed list labels from their current detachment, size, and notable units; never store or replace a player-entered name. */
+/** Derive automatic list names from their current detachment, size, and notable units. */
 
 import { ROSTER_NAME_MAX_LENGTH } from './battle'
 
@@ -23,7 +23,7 @@ const ARTICLES = new Set(['the', 'a', 'an'])
 
 const EDGE_PUNCTUATION = /^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu
 
-/** Shorten descriptive character names, but keep names such as “The Silent King” intact after removing the article; the result is only a suggestion. */
+/** Shorten descriptive character names, but keep names such as “The Silent King” intact after removing the article. */
 function keyword(name: string): string {
   const words = name
     .split(/\s+/)

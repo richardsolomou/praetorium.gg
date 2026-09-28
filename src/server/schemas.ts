@@ -19,6 +19,7 @@ import {
 import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
 import { commandSchema, rosterPickSchema } from '../core/commands'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
+import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import {
   LEAGUE_ADMISSIONS,
   LEAGUE_DESCRIPTION_MAX_LENGTH,
@@ -258,11 +259,7 @@ const prepSchema = z.object({
 
 export const saveRosterSchema = z.object({
   id: id.optional(),
-  /**
-   * Empty when the player has not named this list, which is the ordinary case: a
-   * name is stored only if somebody typed one, and `rosterLabel` folds what to call
-   * the rest. Storing a name the app invented is what let one go stale.
-   */
+  /** Empty when the player wants a name generated from the saved roster. */
   name: z.string().trim().max(ROSTER_NAME_MAX_LENGTH),
   catalogueId,
   detachmentIds: z.array(id).max(MAX_DETACHMENTS),
@@ -288,6 +285,13 @@ export const detachmentRulesSchema = z.object({
 export const detachmentDetailSchema = z.object({ catalogueId, slug })
 
 export const rosterIdSchema = z.object({ id })
+export const rosterIdsSchema = z.object({
+  ids: z
+    .array(id)
+    .min(1)
+    .max(ROSTER_LIBRARY_BATCH_SIZE)
+    .refine((ids) => new Set(ids).size === ids.length),
+})
 export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_VISIBILITIES) })
 
 export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })

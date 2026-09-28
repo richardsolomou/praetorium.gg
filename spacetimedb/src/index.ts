@@ -1,6 +1,8 @@
 import { ScheduleAt } from 'spacetimedb'
 import { SenderError, schema, table, t, type InferSchema, type ReducerCtx } from 'spacetimedb/server'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
+import { attachedUnitCount } from '../../src/core/attachedUnits'
+import { ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
 import { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from '../../src/core/notificationConfig'
 import { reduceBattle, validate, type FormatRuleId, type LoggedCommand } from '../../src/core/battle'
 import { commandSchema } from '../../src/core/commands'
@@ -1031,6 +1033,7 @@ function parseRoster(payload: string) {
     id: string('id', 128, 1),
     userId: string('userId', 128, 1),
     name: string('name', 80),
+    automaticName: row.automaticName === true,
     catalogueId: string('catalogueId', 128, 1),
     detachmentId: nullable('detachmentId', 1_000),
     disposition: nullable('disposition', 128),
@@ -1070,6 +1073,59 @@ export const rostersByUser = spacetime.procedure(
     }),
 )
 
+export const rosterSummariesByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (!userId || userId.length > 128) throw new SenderError('Invalid roster query')
+    const rows = Array.from(tx.db.rosters.userId.filter(userId))
+    if (rows.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
+    rows.sort((left, right) => (right.createdAt > left.createdAt ? 1 : right.createdAt < left.createdAt ? -1 : 0))
+    return productJson(
+      rows.map((row) => {
+        const picks = JSON.parse(row.picks) as { attachedTo?: number }[]
+        return {
+          id: row.id,
+          name: row.name,
+          automaticName: row.automaticName,
+          catalogueId: row.catalogueId,
+          detachmentId: row.detachmentId,
+          disposition: row.disposition,
+          limit: row.limit,
+          waivedRules: row.waivedRules,
+          optionalRules: row.optionalRules,
+          borrowedDetachmentId: row.borrowedDetachmentId,
+          visibility: row.visibility,
+          source: row.source,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          unitCount: attachedUnitCount(picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
+        }
+      }),
+    )
+  }),
+)
+
+export const rostersByIds = spacetime.procedure({ userId: t.string(), ids: t.array(t.string()) }, t.string(), (ctx, { userId, ids }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (
+      !userId ||
+      userId.length > 128 ||
+      !ids.length ||
+      ids.length > ROSTER_LIBRARY_BATCH_SIZE ||
+      new Set(ids).size !== ids.length ||
+      ids.some((id) => !id || id.length > 128)
+    )
+      throw new SenderError('Invalid roster query')
+    return productJson(
+      ids.flatMap((id) => {
+        const row = tx.db.rosters.id.find(id)
+        return row?.userId === userId ? [row] : []
+      }),
+    )
+  }),
+)
+
 export const homeRostersByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
@@ -1099,6 +1155,7 @@ export const saveRoster = spacetime.procedure({ payload: t.string() }, t.string(
     if (current?.userId !== undefined && current.userId !== input.userId) return 'forbidden'
     const fields = {
       name: input.name,
+      automaticName: input.automaticName,
       catalogueId: input.catalogueId,
       detachmentId: input.detachmentId ?? undefined,
       disposition: input.disposition ?? undefined,

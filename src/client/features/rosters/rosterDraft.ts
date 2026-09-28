@@ -11,6 +11,7 @@ export type RosterDraft = Parameters<typeof saveRoster>[0]['data']
 type SavedRoster = {
   id: string
   name: string
+  automaticName?: boolean
   catalogueId: string
   detachmentIds: string[]
   disposition: string | null
@@ -39,7 +40,7 @@ export const draftKey = (draft: RosterDraft) => JSON.stringify(draft)
 export function savedDraft(roster: SavedRoster, prep: SavedPrep): RosterDraft {
   return {
     id: roster.id,
-    name: roster.name.trim(),
+    name: roster.automaticName ? '' : roster.name.trim(),
     catalogueId: roster.catalogueId,
     detachmentIds: roster.detachmentIds,
     disposition: roster.disposition,

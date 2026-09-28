@@ -4,17 +4,18 @@ import { changesTouching } from '../../core/catalogueChanges'
 import { historySince } from '../../core/catalogueHistory'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
-import { calculateRosterPrice } from '../pricing'
-import { cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
+import { calculateRosterPrice, calculateRosterTotals } from '../pricing'
+import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, importRosterFaction, importRosterFile, matchesImportFaction } from '../rosterFiles'
 import { rosterTelemetryProperties } from '../rosterTelemetry'
-import { rosterStatus, rosterVerdict } from '../rosterStatus'
+import { rosterChangeWithoutPricing, rosterStatus, rosterVerdict } from '../rosterStatus'
 import {
   exportRosterSchema,
   importRosterSchema,
   priceSchema,
   rosterIdSchema,
+  rosterIdsSchema,
   rosterInBattleSchema,
   rosterVisibilitySchema,
   saveRosterSchema,
@@ -125,28 +126,61 @@ export const rosterAccess = createServerFn({ method: 'GET' })
  * untouched for longer than this many updates is only told about the most recent.
  */
 const CHANGE_SETS_READ = 50
+const CHANGED_COUNT_BATCH_SIZE = 2
 
-/**
- * Which of a player's lists the current data says they cannot field, and how many data
- * updates since each was saved reached something in it.
- *
- * Asked separately from the totals, which the library row cannot draw without: judging a
- * list prices every unit's projection, and a row's points should not wait for it.
- */
-export const savedRosterStatus = createServerFn({ method: 'GET' }).handler(() =>
+/** Points, legality and changes for the bounded set of library rows currently shown. */
+export const savedRosterPage = createServerFn({ method: 'GET' })
+  .validator(rosterIdsSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const userId = await currentUserId()
+      if (!userId) return []
+      const instance = app()
+      const saved = await instance.service.savedRostersByIds(userId, data.ids)
+      if (!saved.length) return []
+      const [assessments, history] = await Promise.all([cachedRosterAssessmentsFor(saved), instance.catalogueHistoryFor()])
+      const needingTotals = saved.filter((roster, index) => !roster.name || assessments[index]!.points === null)
+      const fallbackTotals = await cachedRosterTotalsFor(needingTotals)
+      const totalsById = new Map(needingTotals.map((roster, index) => [roster.id, fallbackTotals[index]]))
+      const sets = historySince(history ?? [], Math.min(...saved.map((roster) => roster.updatedAt)), CHANGE_SETS_READ)
+      return saved.map((roster, index) => ({
+        ...rosterStatus(roster, assessments[index]!.verdict, sets),
+        points: assessments[index]!.points ?? totalsById.get(roster.id)?.points ?? null,
+        label: roster.name || totalsById.get(roster.id)?.label || '',
+      }))
+    }),
+  )
+
+/** The full-library banner settles after the visible rows without monopolising the server. */
+export const savedRosterChangedCount = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    if (!id) return []
+    if (!id) return 0
     const instance = app()
+    const history = (await instance.catalogueHistoryFor()) ?? []
+    if (!history.length) return 0
     const saved = await instance.service.savedRosters(id)
-    if (!saved.length) return []
-    const sets = historySince(
-      (await instance.catalogueHistoryFor()) ?? [],
-      Math.min(...saved.map((roster) => roster.updatedAt)),
-      CHANGE_SETS_READ,
-    )
-    const verdicts = await cachedRosterVerdictsFor(saved)
-    return saved.map((roster, index) => rosterStatus(roster, verdicts[index]!, sets))
+    if (!saved.length) return 0
+    const sets = historySince(history, Math.min(...saved.map((roster) => roster.updatedAt)), CHANGE_SETS_READ)
+    if (!sets.length) return 0
+    const latestChangeAt = sets.at(-1)!.recordedAt
+    let changed = 0
+    for (let index = 0; index < saved.length; index += CHANGED_COUNT_BATCH_SIZE) {
+      const batch = saved.slice(index, index + CHANGED_COUNT_BATCH_SIZE)
+      const uncertain: typeof batch = []
+      for (const roster of batch) {
+        if (roster.updatedAt >= latestChangeAt) continue
+        const result = rosterChangeWithoutPricing(roster, sets)
+        if (result === 'changed') changed++
+        else if (result === 'needs-price') uncertain.push(roster)
+      }
+      if (uncertain.length) {
+        const verdicts = await cachedRosterVerdictsFor(uncertain)
+        changed += uncertain.filter((roster, at) => rosterStatus(roster, verdicts[at]!, sets).changes > 0).length
+      }
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    }
+    return changed
   }),
 )
 
@@ -195,7 +229,19 @@ export const saveRoster = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const instance = app()
-      const { id, created } = await instance.service.saveRoster(player.id, data)
+      const automaticName = !data.name
+      const totals = automaticName
+        ? calculateRosterTotals(
+            { ...data, units: data.picks },
+            await instance.catalogueFor(data.catalogueId),
+            await instance.rosterLabelRulesFor(),
+          )
+        : null
+      const { id, created } = await instance.service.saveRoster(player.id, {
+        ...data,
+        name: data.name || totals?.label || '',
+        automaticName,
+      })
       // Counted when a row is made, which a visitor's list does while arriving with the id it was built under.
       if (created)
         await instance.telemetry.capture(player.id, 'roster_created', {

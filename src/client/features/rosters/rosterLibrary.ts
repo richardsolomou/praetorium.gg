@@ -37,9 +37,8 @@ export function useRosterActions(origin: string) {
       const roster = await load(summary)
       return saveRoster({
         data: {
-          // A copy of a list nobody named stays unnamed: freezing the label here
-          // would make it the one thing a folded name can never be, which is stale.
-          name: roster.name ? `Copy of ${roster.name}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '',
+          // A copy with an automatic name gets its own name when saved.
+          name: roster.automaticName ? '' : roster.name ? `Copy of ${roster.name}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '',
           catalogueId: roster.catalogueId,
           detachmentIds: roster.detachmentIds,
           disposition: roster.disposition,

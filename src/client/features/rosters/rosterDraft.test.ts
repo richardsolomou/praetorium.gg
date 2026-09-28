@@ -37,6 +37,10 @@ it('sees an unchanged list read back from its row as the draft already saved', (
   expect(draftKey(untouched(stored))).toBe(draftKey(savedDraft(roster(stored), prep)))
 })
 
+it('sends an empty name for a roster whose generated name is stored', () => {
+  expect(savedDraft({ ...roster([]), name: 'CL 2K', automaticName: true }, prep).name).toBe('')
+})
+
 it('sees an edit as a draft to save', () => {
   const edited = {
     ...untouched(picks),

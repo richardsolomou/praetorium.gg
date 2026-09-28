@@ -39,6 +39,8 @@ import * as RemoveBattleProcedure from '../remove_battle_procedure'
 import * as RemoveFriendProcedure from '../remove_friend_procedure'
 import * as RequestFriendProcedure from '../request_friend_procedure'
 import * as RosterByIdProcedure from '../roster_by_id_procedure'
+import * as RosterSummariesByUserProcedure from '../roster_summaries_by_user_procedure'
+import * as RostersByIdsProcedure from '../rosters_by_ids_procedure'
 import * as RostersByUserProcedure from '../rosters_by_user_procedure'
 import * as SaveRosterProcedure from '../save_roster_procedure'
 import * as SetBattleAudienceProcedure from '../set_battle_audience_procedure'
@@ -114,6 +116,10 @@ export type RequestFriendArgs = __Infer<typeof RequestFriendProcedure.params>
 export type RequestFriendResult = __Infer<typeof RequestFriendProcedure.returnType>
 export type RosterByIdArgs = __Infer<typeof RosterByIdProcedure.params>
 export type RosterByIdResult = __Infer<typeof RosterByIdProcedure.returnType>
+export type RosterSummariesByUserArgs = __Infer<typeof RosterSummariesByUserProcedure.params>
+export type RosterSummariesByUserResult = __Infer<typeof RosterSummariesByUserProcedure.returnType>
+export type RostersByIdsArgs = __Infer<typeof RostersByIdsProcedure.params>
+export type RostersByIdsResult = __Infer<typeof RostersByIdsProcedure.returnType>
 export type RostersByUserArgs = __Infer<typeof RostersByUserProcedure.params>
 export type RostersByUserResult = __Infer<typeof RostersByUserProcedure.returnType>
 export type SaveRosterArgs = __Infer<typeof SaveRosterProcedure.params>

@@ -13,7 +13,7 @@ import {
 } from '../core/evaluate'
 import { type ModelKind, modelKindsOf, modelRowSources, choiceOptionWargear } from '../core/modelKinds'
 import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
-import { buildUnit } from '../core/roster'
+import { buildUnit, type BuiltUnit } from '../core/roster'
 import { type ChoiceOptions, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearOf } from '../core/wargear'
@@ -44,7 +44,12 @@ export { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolati
  * library row and the editor showing different totals for one list would be the
  * plainest possible version of the same question answered twice.
  */
-function rosterForces(loaded: LoadedCatalogue, data: PriceInput, detachmentSelection: readonly Selection[]) {
+function rosterForces(
+  loaded: LoadedCatalogue,
+  data: PriceInput,
+  detachmentSelection: readonly Selection[],
+  unitCache?: Map<string, BuiltUnit | null>,
+) {
   // Every force says which battle size it is, because the caps conditioned on it are
   // written for the largest game and lowered from there. An ally sits in a force of
   // its own and asks the same question, and the answer has to be in there with it —
@@ -53,13 +58,20 @@ function rosterForces(loaded: LoadedCatalogue, data: PriceInput, detachmentSelec
   const configuration = battleSize ? [battleSize] : []
   const roster = [...configuration, ...detachmentSelection]
   const picked = data.units.flatMap((wanted, key) => {
-    const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
-      primaryCatalogueId: data.catalogueId,
-      mustering: true,
-      roster,
-      spreads: wanted.spreads,
-      toggles: wanted.toggles,
-    })
+    const cacheKey = unitCache && JSON.stringify([loaded.index.revision, data.catalogueId, roster, wanted])
+    let built = cacheKey ? unitCache?.get(cacheKey) : undefined
+    if (built === undefined) {
+      built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
+        primaryCatalogueId: data.catalogueId,
+        mustering: true,
+        roster,
+        spreads: wanted.spreads,
+        toggles: wanted.toggles,
+      })
+      if (cacheKey) unitCache?.set(cacheKey, built)
+    }
+    // Repeated picks need distinct top-level identities for contextual evaluation.
+    if (unitCache && built) built = { ...built, selection: { ...built.selection } }
     const entry = loaded.index.definitions.get(wanted.entryId)
     return built ? [{ key, entryId: wanted.entryId, name: entry?.name ?? wanted.entryId, ...built }] : []
   })
@@ -198,16 +210,14 @@ export function rosterSetupLabel(
 }
 
 /**
- * A list's total and the name it falls back on, which come out of one fold.
- *
- * The library asks for both at once: a row shows a points total and, for a list its
- * owner never named, the label instead of an empty line. Pricing every unit twice to
- * answer two halves of one question would double the cost of opening the library.
+ * A list's total and display name. Saved names need no new label; legacy unnamed
+ * rows get one from the same evaluated units used to total their points.
  */
 export function calculateRosterTotals(
   data: PriceInput,
   loaded: LoadedCatalogue | null,
   loadedRules: Pick<LoadedRules, 'factionNames'> | null,
+  storedName = '',
 ) {
   if (!loaded) return null
   const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
@@ -220,12 +230,14 @@ export function calculateRosterTotals(
   )
   return {
     points: evaluated.points,
-    label: rosterLabel({
-      factionName: factionNameOf(loaded, data.catalogueId, loadedRules),
-      detachmentNames: chosen.map((option) => option.name),
-      limit: data.limit,
-      units: labelUnitsOf(picked, pointsBySelection, data),
-    }),
+    label:
+      storedName ||
+      rosterLabel({
+        factionName: factionNameOf(loaded, data.catalogueId, loadedRules),
+        detachmentNames: chosen.map((option) => option.name),
+        limit: data.limit,
+        units: labelUnitsOf(picked, pointsBySelection, data),
+      }),
   }
 }
 
@@ -260,7 +272,42 @@ export function savedRosterPriceInput(saved: {
   }
 }
 
-export function calculateRosterPrice(data: PriceInput, loaded: LoadedCatalogue | null, loadedRules: LoadedRules | null) {
+function specialKind(choice: UnitChoice, upgradeNames: ReadonlySet<string>) {
+  if (!choice.name.toLowerCase().includes('enhancement')) return null
+  return choiceOptionsForPricing(choice).every((option) => upgradeNames.has(routeSlug(option.name)))
+    ? ('upgrade' as const)
+    : ('enhancement' as const)
+}
+
+function selectedSpecials(
+  choices: readonly UnitChoice[],
+  catalogued: ReturnType<typeof wargearOf>,
+  upgradeNames: ReadonlySet<string>,
+  enhancementNames: ReadonlySet<string>,
+) {
+  const selected = choices.flatMap((choice) =>
+    choiceOptionsForPricing(choice)
+      .filter((option) => option.count > 0)
+      .map((option) => ({ name: option.name, kind: specialKind(choice, upgradeNames) })),
+  )
+  const automatic = catalogued.filter((piece) => enhancementNames.has(routeSlug(piece.name))).map((piece) => piece.name)
+  return {
+    enhancements: uniqueNames([...selected.filter((option) => option.kind === 'enhancement').map((option) => option.name), ...automatic]),
+    upgrades: selected.filter((option) => option.kind === 'upgrade').map((option) => option.name),
+    specialSelections: new Set([
+      ...selected.filter((option) => option.kind).map((option) => routeSlug(option.name)),
+      ...automatic.map(routeSlug),
+    ]),
+  }
+}
+
+function calculateRoster(
+  data: PriceInput,
+  loaded: LoadedCatalogue | null,
+  loadedRules: LoadedRules | null,
+  mode: 'full' | 'assessment',
+  unitCache?: Map<string, BuiltUnit | null>,
+) {
   if (!loaded) return null
 
   const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
@@ -336,7 +383,7 @@ export function calculateRosterPrice(data: PriceInput, loaded: LoadedCatalogue |
   )
   const detachmentError = detachmentPointsError(purchased, budget, data.waivedRules)
 
-  const { picked, forceSelections, roster } = rosterForces(loaded, data, detachmentSelection)
+  const { picked, forceSelections, roster } = rosterForces(loaded, data, detachmentSelection, unitCache)
   // Pricing is a roster being mustered, which is what a datasheet's force-scoped rules ask about.
   const options = { primaryCatalogueId: data.catalogueId, mustering: true }
   const forces = [...forceSelections.values()]
@@ -399,21 +446,23 @@ export function calculateRosterPrice(data: PriceInput, loaded: LoadedCatalogue |
       : []
   /** Ignore limits broken inside a unit with no player choices; never suppress a limit on the unit itself or on a player-selected upgrade. */
   const composedByCatalogue = new Map<string, string>()
-  for (const unit of picked) {
-    if (modelKindsFor(unit).length) continue
-    const composed = buildUnit(unit.entryId, loaded.index, unit.size.models, undefined, {
-      primaryCatalogueId: data.catalogueId,
-      mustering: true,
-      roster,
-    })
-    if (!composed) continue
-    const walk = (node: Selection) => {
-      composedByCatalogue.set(node.id, unit.name)
-      const definition = loaded.index.definitions.get(node.id)
-      if (definition) composedByCatalogue.set(targetOf(definition, loaded.index.definitions).id, unit.name)
-      node.selections?.forEach(walk)
+  if (whole.errors.some((error) => error.message.startsWith('allows at most '))) {
+    for (const unit of picked) {
+      if (modelKindsFor(unit).length) continue
+      const composed = buildUnit(unit.entryId, loaded.index, unit.size.models, undefined, {
+        primaryCatalogueId: data.catalogueId,
+        mustering: true,
+        roster,
+      })
+      if (!composed) continue
+      const walk = (node: Selection) => {
+        composedByCatalogue.set(node.id, unit.name)
+        const definition = loaded.index.definitions.get(node.id)
+        if (definition) composedByCatalogue.set(targetOf(definition, loaded.index.definitions).id, unit.name)
+        node.selections?.forEach(walk)
+      }
+      composed.selection.selections?.forEach(walk)
     }
-    composed.selection.selections?.forEach(walk)
   }
   const selfContradictory = new Set(whole.errors.filter((error) => isCatalogueSelfContradiction(error, composedByCatalogue)))
   const pickedSelections = data.units.map((_, key) => picked.find((unit) => unit.key === key)?.selection)
@@ -458,7 +507,22 @@ export function calculateRosterPrice(data: PriceInput, loaded: LoadedCatalogue |
     (error, at) => reported.findIndex((other) => other.entryId === error.entryId && other.message === error.message) === at,
   )
 
+  if (mode === 'assessment')
+    return {
+      kind: 'assessment' as const,
+      points: whole.points,
+      detachmentError,
+      dispositionError,
+      errors,
+      units: picked.map((unit) => {
+        const catalogued = enhancementNames.size ? wargearOf(unit.selection, loaded.index) : []
+        const { enhancements, upgrades } = selectedSpecials(unit.choices, catalogued, upgradeNames, enhancementNames)
+        return { enhancements, upgrades }
+      }),
+    }
+
   return {
+    kind: 'full' as const,
     revision: loaded.index.revision,
     // Folded here rather than in the browser so a battle snapshot, a library row and
     // the field's own placeholder all read the one answer.
@@ -511,15 +575,19 @@ export function calculateRosterPrice(data: PriceInput, loaded: LoadedCatalogue |
           rosterKeywordIds: keywordMatrixFor(catalogueId),
         }),
       )
+      const catalogued = wargearOf(unit.selection, loaded.index)
+      const {
+        enhancements: selectedEnhancements,
+        upgrades,
+        specialSelections,
+      } = selectedSpecials(unit.choices, catalogued, upgradeNames, enhancementNames)
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         const choiceOptions = choiceOptionsForPricing(choice).map((option) => {
           const pieceCounts = choiceOptionWargear(choice.key, option.id, unit.selection, loaded.index, options)
           return pieceCounts.length ? { ...option, pieces: pieceCounts.map((piece) => piece.name), pieceCounts } : option
         })
-        if (!choice.name.toLowerCase().includes('enhancement')) return { ...choice, options: choiceOptions }
-        const kind = choiceOptions.every((option) => upgradeNames.has(routeSlug(option.name)))
-          ? ('upgrade' as const)
-          : ('enhancement' as const)
+        const kind = specialKind(choice, upgradeNames)
+        if (!kind) return { ...choice, options: choiceOptions }
         return {
           ...choice,
           kind,
@@ -529,8 +597,6 @@ export function calculateRosterPrice(data: PriceInput, loaded: LoadedCatalogue |
           }),
         }
       })
-      const catalogued = wargearOf(unit.selection, loaded.index)
-      const automaticEnhancements = catalogued.filter((piece) => enhancementNames.has(routeSlug(piece.name))).map((piece) => piece.name)
       const models = modelKindsFor(unit)
       const replacementPairs = legalReplacementPairs(unit.entryId, unit.selection, describedChoices, models, loaded.index, {
         ...options,
@@ -543,18 +609,6 @@ export function calculateRosterPrice(data: PriceInput, loaded: LoadedCatalogue |
           return replacements?.length ? { ...option, replacements } : option
         }),
       }))
-      const specialChoices = new Set(
-        choices
-          .filter((choice) => choice.kind)
-          .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => routeSlug(option.name))),
-      )
-      const selectedEnhancements = uniqueNames([
-        ...choices
-          .filter((choice) => choice.kind === 'enhancement')
-          .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
-        ...automaticEnhancements,
-      ])
-      const specialSelections = new Set([...specialChoices, ...automaticEnhancements.map(routeSlug)])
       const strategicReserveExempt =
         reserveExemptionSelectors.some((selector) => matchesKeywordSelector(selector, keywordNames)) ||
         selectedEnhancements.some((enhancement) =>
@@ -581,9 +635,7 @@ export function calculateRosterPrice(data: PriceInput, loaded: LoadedCatalogue |
         models,
         toggles: unit.toggles,
         enhancements: selectedEnhancements,
-        upgrades: choices
-          .filter((choice) => choice.kind === 'upgrade')
-          .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
+        upgrades,
         wargear: wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name))),
         group: groupOfEntry(loaded.index, unit.entryId),
         attachment,
@@ -592,6 +644,25 @@ export function calculateRosterPrice(data: PriceInput, loaded: LoadedCatalogue |
       }
     }),
   }
+}
+
+export function calculateRosterPrice(data: PriceInput, loaded: LoadedCatalogue | null, loadedRules: LoadedRules | null) {
+  const result = calculateRoster(data, loaded, loadedRules, 'full')
+  if (!result || result.kind !== 'full') return null
+  const { kind: _, ...price } = result
+  return price
+}
+
+export function calculateRosterAssessment(
+  data: PriceInput,
+  loaded: LoadedCatalogue | null,
+  loadedRules: LoadedRules | null,
+  unitCache?: Map<string, BuiltUnit | null>,
+) {
+  const result = calculateRoster(data, loaded, loadedRules, 'assessment', unitCache)
+  if (!result || result.kind !== 'assessment') return null
+  const { kind: _, ...assessment } = result
+  return assessment
 }
 
 export function uniqueNames(names: readonly string[]): string[] {

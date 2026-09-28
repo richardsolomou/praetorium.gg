@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { ScrollText } from 'lucide-react'
@@ -28,9 +28,10 @@ import { type SavedRoster, useRosterActions } from './rosterLibrary'
 import { keepRosterSort, type RosterSort, sortRosters } from './rosterSort'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import { factionIndexQuery, meQuery, savedRosterStatusQuery, savedRosterSummariesQuery, savedRosterTotalsQuery } from '../../queries'
+import { factionIndexQuery, meQuery, savedRosterChangedCountQuery, savedRosterPageQuery, savedRosterSummariesQuery } from '../../queries'
 import { useOrigin } from '../../useOrigin'
 import type { RosterVisibility } from '../../../core/savedRoster'
+import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
 
 export type RosterLibrarySearch = { limit?: number; faction?: string; visibility?: RosterVisibility }
 /** An unsaved setup edit, kept per tab so a refresh does not lose it. */
@@ -41,14 +42,14 @@ const EDITING_STATE = 'roster-setup'
 
 export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearch; sort: RosterSort }) {
   const [selectedSort, setSelectedSort] = useState(sort)
+  const pageKey = JSON.stringify([search.limit ?? null, search.faction ?? null, search.visibility ?? null, selectedSort])
+  const [page, setPage] = useState({ key: pageKey, visibleCount: ROSTER_LIBRARY_BATCH_SIZE })
+  const visibleCount = page.key === pageKey ? page.visibleCount : ROSTER_LIBRARY_BATCH_SIZE
   useEffect(() => setSelectedSort(sort), [sort])
   const { data: me } = useQuery(meQuery())
   const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
-  const totalsResult = useQuery({ ...savedRosterTotalsQuery(), enabled: Boolean(me) })
-  const statusResult = useQuery({ ...savedRosterStatusQuery(), enabled: Boolean(me) })
   const availableResult = useQuery({ ...factionIndexQuery(), enabled: Boolean(me) })
   const saved = savedResult.data ?? []
-  const totals = totalsResult.data
   const available = availableResult.data
   const navigate = useNavigate()
   const router = useRouter()
@@ -70,10 +71,19 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
   )
   const libraryPending = savedResult.isPending || (Boolean(search.faction) && availableResult.isPending)
   const libraryError = savedResult.isError || (Boolean(search.faction) && availableResult.isError)
-
-  const totalsById = new Map((totals ?? []).map((entry) => [entry.id, entry]))
-  const statusById = new Map((statusResult.data ?? []).map((entry) => [entry.id, entry]))
-  const changedLists = (statusResult.data ?? []).filter((entry) => entry.changes > 0).length
+  const visible = shown.slice(0, visibleCount)
+  const batches = Array.from({ length: Math.ceil(visible.length / ROSTER_LIBRARY_BATCH_SIZE) }, (_, index) =>
+    visible.slice(index * ROSTER_LIBRARY_BATCH_SIZE, (index + 1) * ROSTER_LIBRARY_BATCH_SIZE).map((roster) => roster.id),
+  )
+  const pageResults = useQueries({
+    queries: batches.map((ids) => ({ ...savedRosterPageQuery(ids), enabled: Boolean(me && savedResult.isSuccess) })),
+  })
+  const changedCountResult = useQuery({
+    ...savedRosterChangedCountQuery(),
+    enabled: Boolean(me && savedResult.isSuccess && pageResults.every((result) => result.isSuccess)),
+  })
+  const pageById = new Map(pageResults.flatMap((result) => result.data ?? []).map((entry) => [entry.id, entry]))
+  const changedLists = changedCountResult.data ?? 0
 
   const origin = useOrigin()
   const actions = useRosterActions(origin)
@@ -87,7 +97,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
     writeWorkspaceState(WORKSPACE_PATH, EDITING_STATE, next)
   }
   const setupOf = (roster: SavedRoster): RosterSetup => ({
-    name: roster.name,
+    name: roster.automaticName ? '' : roster.name,
     catalogueId: roster.catalogueId,
     detachmentIds: roster.detachmentIds,
     disposition: roster.disposition,
@@ -166,22 +176,41 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
             ) : libraryPending ? (
               <RosterLibrarySkeleton />
             ) : shown.length ? (
-              shown.map((roster) => (
-                <RosterRow
-                  key={roster.id}
-                  roster={roster}
-                  faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
-                  points={totalsById.get(roster.id)?.points}
-                  label={totalsById.get(roster.id)?.label}
-                  factionLoading={availableResult.isPending}
-                  pointsLoading={totalsResult.isPending}
-                  problem={statusById.get(roster.id)?.problem ?? null}
-                  actions={actions}
-                  origin={origin}
-                  onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
-                  onDelete={() => setDeleting(roster)}
-                />
-              ))
+              <>
+                {visible.map((roster, index) => (
+                  <RosterRow
+                    key={roster.id}
+                    roster={roster}
+                    faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
+                    points={pageById.get(roster.id)?.points}
+                    label={pageById.get(roster.id)?.label}
+                    factionLoading={availableResult.isPending}
+                    pointsLoading={pageResults[Math.floor(index / ROSTER_LIBRARY_BATCH_SIZE)]?.isPending}
+                    problem={pageById.get(roster.id)?.problem ?? null}
+                    actions={actions}
+                    origin={origin}
+                    onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
+                    onDelete={() => setDeleting(roster)}
+                  />
+                ))}
+                {pageResults.some((result) => result.isError) ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => void Promise.all(pageResults.filter((result) => result.isError).map((result) => result.refetch()))}
+                  >
+                    Retry roster points and legality
+                  </Button>
+                ) : null}
+                {visible.length < shown.length ? (
+                  <Button
+                    variant="outline"
+                    disabled={pageResults.some((result) => !result.isSuccess)}
+                    onClick={() => setPage({ key: pageKey, visibleCount: visibleCount + ROSTER_LIBRARY_BATCH_SIZE })}
+                  >
+                    Show more rosters
+                  </Button>
+                ) : null}
+              </>
             ) : (
               <PageState
                 headingLevel={2}
