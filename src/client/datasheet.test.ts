@@ -3,6 +3,7 @@ import {
   addedKeywords,
   attachmentGroups,
   compositionCount,
+  unitCostsSummary,
   datasheetDescription,
   primaryUnitProfile,
   profileTableColumns,
@@ -15,21 +16,31 @@ import {
 
 describe('datasheet search description', () => {
   it('answers points and base-size searches from printed facts', () => {
-    expect(datasheetDescription({ name: 'Enginseer', points: 55, baseSize: '32mm' }, 'Adeptus Mechanicus')).toBe(
+    expect(datasheetDescription({ name: 'Enginseer', points: 55, costs: [], baseSize: '32mm' }, 'Adeptus Mechanicus')).toBe(
       'Enginseer datasheet for Adeptus Mechanicus. 55 points. Base size: 32mm. Profiles, weapons, abilities and wargear.',
     )
   })
 
+  it('states every unconditional unit size in place of the single points value', () => {
+    const costs = [
+      { models: '10', cost: '90', keyword: null, faction: null, detachment: null },
+      { models: '20', cost: '180', keyword: null, faction: null, detachment: null },
+    ]
+    expect(datasheetDescription({ name: 'Boyz', points: 90, costs, baseSize: '32mm' }, 'Orks')).toBe(
+      'Boyz datasheet for Orks. 10 models for 90 pts, 20 models for 180 pts. Base size: 32mm. Profiles, weapons, abilities and wargear.',
+    )
+  })
+
   it('does not invent unavailable points or base sizes', () => {
-    expect(datasheetDescription({ name: 'Enginseer', points: null, baseSize: null }, 'Adeptus Mechanicus')).toBe(
+    expect(datasheetDescription({ name: 'Enginseer', points: null, costs: [], baseSize: null }, 'Adeptus Mechanicus')).toBe(
       'Enginseer datasheet for Adeptus Mechanicus. Profiles, weapons, abilities and wargear.',
     )
   })
 
   it('leaves multi-model base details on the page instead of crowding the snippet', () => {
-    expect(datasheetDescription({ name: 'Command Squad', points: null, baseSize: 'Captain: 40mm\nRetinue: 32mm' }, 'Space Marines')).toBe(
-      'Command Squad datasheet for Space Marines. Profiles, weapons, abilities and wargear.',
-    )
+    expect(
+      datasheetDescription({ name: 'Command Squad', points: null, costs: [], baseSize: 'Captain: 40mm\nRetinue: 32mm' }, 'Space Marines'),
+    ).toBe('Command Squad datasheet for Space Marines. Profiles, weapons, abilities and wargear.')
   })
 })
 
@@ -119,6 +130,33 @@ describe('datasheet composition count', () => {
     expect(
       compositionCount(['**1 Shock Trooper Sergeant and 9 Shock Troopers**', 'OR', '**2 Shock Trooper Sergeants and 18 Shock Troopers**']),
     ).toBe('10–20 models')
+  })
+})
+
+describe('datasheet unit costs summary', () => {
+  const cost = (models: string, points: string, condition: Partial<{ keyword: string; faction: string; detachment: string }> = {}) => ({
+    models,
+    cost: points,
+    keyword: null,
+    faction: null,
+    detachment: null,
+    ...condition,
+  })
+
+  it('states a single model in the singular', () => {
+    expect(unitCostsSummary([cost('1', '60')])).toBe('1 model for 60 pts')
+  })
+
+  it('lists several unit sizes smallest first', () => {
+    expect(unitCostsSummary([cost('10', '210'), cost('5', '105')])).toBe('5 models for 105 pts, 10 models for 210 pts')
+  })
+
+  it('leaves out a cost that depends on a detachment', () => {
+    expect(unitCostsSummary([cost('5', '105'), cost('5', '90', { detachment: 'Gladius' })])).toBe('5 models for 105 pts')
+  })
+
+  it('states nothing when every cost has a condition', () => {
+    expect(unitCostsSummary([cost('1', '60', { keyword: 'Epic Hero' })])).toBeNull()
   })
 })
 

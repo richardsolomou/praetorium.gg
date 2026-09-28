@@ -9,7 +9,7 @@ import {
   savedRosterPriceQuery,
   outdatedLeagueEntriesQuery,
 } from '../client/queries'
-import { pageMeta, rosterExposure, rosterPreview } from '../client/linkPreview'
+import { pageHead, rosterExposure, rosterPreview } from '../client/linkPreview'
 import { normalisePicks } from '../client/features/rosters/rosterPicks'
 import { rosterBootstrap } from '../server/functions'
 
@@ -62,16 +62,13 @@ export const Route = createFileRoute('/rosters/$id/')({
     const exposure = loaderData?.exposure
     if (!preview || !exposure) return loaderData?.snapshot ? { meta: [{ name: 'robots', content: 'noindex' }] } : {}
     const path = `/rosters/${params.id}`
-    return {
-      meta: pageMeta(match.context.origin, {
-        title: preview.title,
-        description: preview.description,
-        path,
-        ...(exposure.image ? { image: { path: `/api/previews${path}`, alt: preview.title } } : {}),
-        noindex: exposure.noindex,
-      }),
-      links: exposure.noindex ? [] : [{ rel: 'canonical', href: path }],
-    }
+    return pageHead(match.context.origin, {
+      title: preview.title,
+      description: preview.description,
+      path,
+      ...(exposure.image ? { image: { path: `/api/previews${path}`, alt: preview.title } } : {}),
+      noindex: exposure.noindex,
+    })
   },
   component: RosterRoute,
 })

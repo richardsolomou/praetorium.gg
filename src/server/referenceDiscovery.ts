@@ -3,33 +3,48 @@ import { publicOrigin } from './requestOrigin'
 import { activeReferenceCorpus } from './referenceApi'
 import { app } from './app'
 import { updateId } from './catalogueHistory'
+import { factionsLastUpdated } from './catalogueChangeLog'
 import { ifNoneMatch } from './ifNoneMatch'
+
+/** Pages anyone may read that no reference document names. */
+const PUBLIC_PAGES = ['/', '/factions', '/leaderboard', '/rosters', '/rules', '/simulator', '/sources']
 
 export async function referenceSitemap(request: Request) {
   const corpus = await activeReferenceCorpus()
   if (!corpus) return new Response('Reference data is unavailable', { status: 503, headers: { 'Cache-Control': 'no-store' } })
   const origin = publicOrigin(request)
-  const paths = new Set<string>(['/factions', '/rules'])
+  // A page's last modification is stated only where the history records it; nothing records
+  // when a datasheet's rules text last changed, and a guessed date teaches crawlers to ignore it.
+  const paths = new Map<string, number | null>(PUBLIC_PAGES.map((path) => [path, null]))
+  const add = (path: string) => paths.set(path, paths.get(path) ?? null)
   for (const document of corpus.documents) {
-    paths.add(document.url.split('#')[0]!)
-    for (const section of document.sections) paths.add(section.url.split('#')[0]!)
+    add(document.url.split('#')[0]!)
+    for (const section of document.sections) add(section.url.split('#')[0]!)
   }
   for (const sheet of corpus.catalogue.datasheets) {
     const route = sheet.referenceRoute
-    if (route) paths.add(`/factions/${route.catalogueId}`)
+    if (route) add(`/factions/${route.catalogueId}`)
   }
-  for (const detachment of corpus.catalogue.detachments) paths.add(`/factions/${detachment.factionSlug}`)
+  for (const detachment of corpus.catalogue.detachments) add(`/factions/${detachment.factionSlug}`)
   for (const document of corpus.catalogue.ruleDocuments) {
-    paths.add(`/rules/${document.slug}`)
-    for (const section of document.sections) paths.add(`/rules/${document.slug}/${section.slug}`)
+    add(`/rules/${document.slug}`)
+    for (const section of document.sections) add(`/rules/${document.slug}/${section.slug}`)
   }
   // The history rides in the snapshot but is not part of the corpus revision, so the updates
   // it carries are part of the cache key.
-  const updates = ((await app().catalogueHistoryFor()) ?? []).map(updateId)
-  if (updates.length) paths.add('/data-updates')
+  const history = (await app().catalogueHistoryFor()) ?? []
+  const updates = history.map(updateId)
+  if (history.length) {
+    paths.set('/data-updates', Math.max(...history.map((entry) => entry.recordedAt)))
+    const canonical = await app().canonicalCatalogueFor()
+    if (canonical) for (const [slug, recordedAt] of factionsLastUpdated(history, canonical)) paths.set(`/data-updates/${slug}`, recordedAt)
+  }
   const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...paths]
-    .toSorted()
-    .map((path) => `  <url><loc>${xml(`${origin}${path}`)}</loc></url>`)
+    .toSorted(([left], [right]) => (left < right ? -1 : 1))
+    .map(([path, modified]) => {
+      const lastmod = modified === null ? '' : `<lastmod>${new Date(modified).toISOString()}</lastmod>`
+      return `  <url><loc>${xml(`${origin}${path}`)}</loc>${lastmod}</url>`
+    })
     .join('\n')}\n</urlset>\n`
   return cachedText(request, corpus.revision, `sitemap\0${updates.join(',')}`, body, 'application/xml; charset=utf-8')
 }

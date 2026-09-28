@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
+import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 
 const { corpus } = vi.hoisted(() => ({
   corpus: {
@@ -70,10 +71,16 @@ vi.mock('./referenceApi', () => ({ activeReferenceCorpus: () => corpus }))
 
 const { history } = vi.hoisted(() => ({
   history: {
-    entries: [] as { from: string; revisions: Record<string, string>; recordedAt: number; changes: { factions: []; omitted: number } }[],
+    entries: [] as CatalogueHistoryEntry[],
   },
 }))
-vi.mock('./app', () => ({ app: () => ({ catalogueHistoryFor: async () => history.entries }) }))
+const canonical = {
+  datasheets: [{ catalogueId: 'test-catalogue', id: 'unit', referenceRoute: { catalogueId: 'test', slug: 'unit' } }],
+  detachments: [],
+}
+vi.mock('./app', () => ({
+  app: () => ({ catalogueHistoryFor: async () => history.entries, canonicalCatalogueFor: async () => canonical }),
+}))
 
 import { referenceLlms, referenceRobots, referenceSitemap } from './referenceDiscovery'
 
@@ -82,12 +89,24 @@ afterEach(() => {
   history.entries = []
 })
 
-const update = (from: string) => ({
+const update = (from: string, recordedAt = 1): CatalogueHistoryEntry => ({
   from,
   revisions: { definitions: `${from}-next` },
-  recordedAt: 1,
-  changes: { factions: [] as [], omitted: 1 },
+  recordedAt,
+  changes: { factions: [], omitted: 1 },
 })
+
+const factionUpdate = (from: string, recordedAt: number): CatalogueHistoryEntry => ({
+  ...update(from, recordedAt),
+  changes: {
+    factions: [
+      { catalogueId: 'test-catalogue', faction: 'Test Faction', changes: [{ kind: 'datasheet-added', id: 'unit', name: 'Unit' }] },
+    ],
+    omitted: 0,
+  },
+})
+
+const sitemap = async () => (await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml'))).text()
 
 it('lists canonical reference pages in the snapshot sitemap', async () => {
   const response = await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml'))
@@ -111,6 +130,30 @@ it('lists the data updates page once for a snapshot that carries any', async () 
   const body = await (await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml'))).text()
 
   expect(body.match(/\/data-updates[^<]*<\/loc>/g)).toEqual(['/data-updates</loc>'])
+})
+
+it('lists the public pages no reference document names', async () => {
+  expect(await sitemap()).toMatch(
+    /<loc>https:\/\/praetorium\.gg\/<\/loc>.*<loc>https:\/\/praetorium\.gg\/leaderboard<\/loc>.*<loc>https:\/\/praetorium\.gg\/rosters<\/loc>.*<loc>https:\/\/praetorium\.gg\/simulator<\/loc>/s,
+  )
+})
+
+it('dates the data updates page by its newest update', async () => {
+  history.entries = [update('a', Date.UTC(2026, 8, 1)), update('b', Date.UTC(2026, 8, 5))]
+
+  expect(await sitemap()).toContain('<loc>https://praetorium.gg/data-updates</loc><lastmod>2026-09-05T00:00:00.000Z</lastmod>')
+})
+
+it("dates a faction's data updates page by the newest update that reached it", async () => {
+  history.entries = [factionUpdate('a', Date.UTC(2026, 8, 2)), update('b', Date.UTC(2026, 8, 5))]
+
+  expect(await sitemap()).toContain('<loc>https://praetorium.gg/data-updates/test</loc><lastmod>2026-09-02T00:00:00.000Z</lastmod>')
+})
+
+it('dates no reference page the history cannot date', async () => {
+  history.entries = [factionUpdate('a', Date.UTC(2026, 8, 2))]
+
+  expect(await sitemap()).toContain('<loc>https://praetorium.gg/factions/test/datasheets/unit</loc></url>')
 })
 
 it('lists no data updates for a snapshot that carries none', async () => {

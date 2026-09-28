@@ -209,6 +209,10 @@ test('a signed-in player cannot return to the sign-in form', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
 })
 
+/** A page's canonical link is absolute, on the origin that served it. */
+const expectCanonical = (page: Page, path: string) =>
+  expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(path, page.url()).href)
+
 test('public reference data renders without client JavaScript', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false })
   const page = await context.newPage()
@@ -225,14 +229,14 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page.locator('#matrix')).toContainText('Disruption')
   await expect(page.getByRole('heading', { name: 'Mission twists' })).toBeVisible()
   await expect(page).toHaveTitle(/Chapter Approved 2026-2027 missions — Praetorium/)
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', '/mission-packs/chapter-approved-2026-2027')
+  await expectCanonical(page, '/mission-packs/chapter-approved-2026-2027')
 
   const secondaryLink = page.locator('a[href*="/secondary-missions/"]').first()
   const secondaryName = (await secondaryLink.locator('span').first().textContent())!
   const secondaryPath = await secondaryLink.getAttribute('href')
   await page.goto(secondaryPath!)
   await expect(page.getByRole('heading', { name: secondaryName, exact: true })).toBeVisible()
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', secondaryPath)
+  await expectCanonical(page, secondaryPath!)
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/secondary-mission-mobile.png', fullPage: true })
@@ -243,10 +247,7 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page.locator('[id^="terrain-"]').first()).toBeAttached()
   await expect(page.locator('[id^="deployment-"]').first()).toBeAttached()
   await expect(page).toHaveTitle(/Disruption vs Take and Hold — Chapter Approved 2026-2027 — Praetorium/)
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
-    'href',
-    '/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold',
-  )
+  await expectCanonical(page, '/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold')
 
   await page.goto('/factions/necrons/datasheets/overlord')
   await expect(page.getByRole('heading', { name: 'Overlord', exact: true })).toBeVisible()
@@ -254,23 +255,23 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page).toHaveTitle(/Overlord datasheet — Necrons — Praetorium/)
   await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
     'content',
-    /Overlord datasheet for Necrons\..*Profiles, weapons, abilities and wargear/,
+    /^Overlord datasheet for Necrons\. 1 model for \d+ pts\..*Profiles, weapons, abilities and wargear/,
   )
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', '/factions/necrons/datasheets/overlord')
+  await expectCanonical(page, '/factions/necrons/datasheets/overlord')
 
   await page.goto('/factions/necrons/detachments/cryptek-conclave')
   await expect(page.getByRole('heading', { name: 'Cryptek Conclave', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Technosorcerous Augmentations' })).toBeVisible()
   await expect(page).toHaveTitle(/Cryptek Conclave detachment — Necrons — Praetorium/)
   await expect(page.locator('meta[property="og:description"]')).toHaveAttribute('content', /Cryptek Conclave rules, enhancements/)
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', '/factions/necrons/detachments/cryptek-conclave')
+  await expectCanonical(page, '/factions/necrons/detachments/cryptek-conclave')
 
   await page.goto('/rules/core-rules/movement-phase')
   await expect(page.getByRole('heading', { name: 'Movement Phase', exact: true })).toBeVisible()
   await expect(page.locator('[id="09.00"]')).toContainText('In the Movement phase')
   await expect(page).toHaveTitle(/Movement Phase — Core Rules — Praetorium/)
   await expect(page.locator('meta[property="og:description"]')).toHaveAttribute('content', /Movement Phase from Core Rules/)
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', '/rules/core-rules/movement-phase')
+  await expectCanonical(page, '/rules/core-rules/movement-phase')
 
   await context.close()
 })
@@ -1077,6 +1078,22 @@ test.describe('data update anchors', () => {
     await row.locator('summary a').first().click()
 
     await expect(row).toHaveAttribute('open', '')
+  })
+
+  test("a faction's page lists only that faction's changes", async ({ page }) => {
+    await page.goto('/data-updates')
+    const heading = page.locator('main [data-faction] h3 a').first()
+    const faction = await heading.textContent()
+    const slug = (await heading.getAttribute('href'))!.split('/').at(-1)!
+    await page.goto(`/factions/${slug}`)
+
+    await page.locator('main').getByRole('link', { name: 'Data updates' }).click()
+
+    await expect(page).toHaveURL(`/data-updates/${slug}`)
+    await expect(page.locator('main [data-faction]').first()).toBeVisible()
+    expect(
+      new Set(await page.locator('main [data-faction]').evaluateAll((blocks) => blocks.map((block) => block.getAttribute('data-faction')))),
+    ).toEqual(new Set([faction]))
   })
 
   test('an address naming an update opens it', async ({ page }) => {

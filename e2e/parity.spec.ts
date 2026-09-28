@@ -35,7 +35,7 @@ test('roster visibility controls search indexing and public URL variants', async
 
   await setAccess('Public — listed on your profile', 'public')
   await page.goto(`${path}?print=true`)
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', path)
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(path, page.url()).href)
   await expect(page.locator('meta[name="robots"]')).toHaveCount(0)
 })
 

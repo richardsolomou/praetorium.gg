@@ -1,6 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { SecondaryMissionPage } from '../client/features/reference/missions/SecondaryMissionPage'
 import { gameReferencesQuery } from '../client/queries'
+import { breadcrumbMeta, canonicalLink } from '../client/linkPreview'
 
 export const Route = createFileRoute('/mission-packs/$packId_/secondary-missions/$cardId')({
   loader: async ({ context, params }) => {
@@ -10,7 +11,7 @@ export const Route = createFileRoute('/mission-packs/$packId_/secondary-missions
     if (!pack || !card) throw notFound()
     return { pack: pack.name, card: card.name }
   },
-  head: ({ loaderData, params }) => ({
+  head: ({ loaderData, match, params }) => ({
     meta: loaderData
       ? [
           { title: `${loaderData.card} — ${loaderData.pack} — Praetorium` },
@@ -18,9 +19,13 @@ export const Route = createFileRoute('/mission-packs/$packId_/secondary-missions
           { property: 'og:title', content: loaderData.card },
           { property: 'og:description', content: `${loaderData.card} secondary mission scoring, timing, and actions.` },
           { property: 'og:type', content: 'article' },
+          breadcrumbMeta(match.context.origin, [
+            { name: loaderData.pack, path: `/mission-packs/${params.packId}` },
+            { name: loaderData.card, path: `/mission-packs/${params.packId}/secondary-missions/${params.cardId}` },
+          ]),
         ]
       : [],
-    links: loaderData ? [{ rel: 'canonical', href: `/mission-packs/${params.packId}/secondary-missions/${params.cardId}` }] : [],
+    links: loaderData ? [canonicalLink(match.context.origin, `/mission-packs/${params.packId}/secondary-missions/${params.cardId}`)] : [],
   }),
   component: () => <SecondaryMissionPage {...Route.useParams()} />,
 })

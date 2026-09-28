@@ -5,10 +5,24 @@ import { normalizedName, normalizedNameVariants } from '../core/name'
 
 type AbilityKind = Datasheet['abilities'][number]['kind']
 
-export function datasheetDescription(sheet: Pick<Datasheet, 'name' | 'points' | 'baseSize'>, faction: string) {
+/**
+ * A datasheet's unconditional unit sizes and costs as one line, or null when it has none.
+ * A cost that depends on a keyword, faction or detachment is left out rather than stated
+ * without the condition that makes it true.
+ */
+export function unitCostsSummary(costs: Datasheet['costs']) {
+  const unconditional = costs
+    .filter((cost) => !cost.keyword && !cost.faction && !cost.detachment)
+    .toSorted((left, right) => Number(left.models) - Number(right.models))
+  if (!unconditional.length) return null
+  return unconditional.map((cost) => `${cost.models} ${cost.models === '1' ? 'model' : 'models'} for ${cost.cost} pts`).join(', ')
+}
+
+export function datasheetDescription(sheet: Pick<Datasheet, 'name' | 'points' | 'costs' | 'baseSize'>, faction: string) {
+  const costs = unitCostsSummary(sheet.costs) ?? (sheet.points === null ? null : `${sheet.points} points`)
   return [
     `${sheet.name} datasheet for ${faction}.`,
-    sheet.points === null ? null : `${sheet.points} points.`,
+    costs ? `${costs}.` : null,
     sheet.baseSize && !sheet.baseSize.includes('\n') ? `Base size: ${sheet.baseSize}.` : null,
     'Profiles, weapons, abilities and wargear.',
   ]

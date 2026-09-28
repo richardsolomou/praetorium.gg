@@ -87,3 +87,31 @@ export function indexedUpdate(entry: CatalogueHistoryEntry, canonical: Canonical
     changes: linkedChanges(entry.changes, canonical, anchor),
   }
 }
+
+/**
+ * The history as one faction's page lists it: every update that reached a faction the current
+ * data files under this slug, holding only that faction's changes. A change set is cut after
+ * the last faction it kept, so only that faction carries the count of what went unlisted.
+ */
+export function factionHistory(history: readonly CatalogueHistoryEntry[], canonical: CanonicalCatalogue, slug: string) {
+  const slugs = routesOf(canonical).factions
+  return history.flatMap((entry): CatalogueHistoryEntry[] => {
+    const factions = entry.changes.factions.filter((faction) => slugs.get(faction.catalogueId) === slug)
+    if (!factions.length) return []
+    const cut = factions.includes(entry.changes.factions.at(-1)!)
+    return [{ ...entry, changes: { factions, omitted: cut ? entry.changes.omitted : 0 } }]
+  })
+}
+
+/** When each faction the current data can address last had an update recorded, by its slug. */
+export function factionsLastUpdated(history: readonly CatalogueHistoryEntry[], canonical: CanonicalCatalogue) {
+  const slugs = routesOf(canonical).factions
+  const updated = new Map<string, number>()
+  for (const entry of history) {
+    for (const faction of entry.changes.factions) {
+      const slug = slugs.get(faction.catalogueId)
+      if (slug && entry.recordedAt > (updated.get(slug) ?? -1)) updated.set(slug, entry.recordedAt)
+    }
+  }
+  return updated
+}

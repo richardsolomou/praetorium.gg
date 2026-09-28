@@ -1,6 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { MissionPackPage } from '../client/features/reference/missions/MissionPackPage'
 import { gameReferencesQuery } from '../client/queries'
+import { canonicalLink } from '../client/linkPreview'
 
 export const Route = createFileRoute('/mission-packs/$packId')({
   loader: async ({ context, params }) => {
@@ -9,7 +10,7 @@ export const Route = createFileRoute('/mission-packs/$packId')({
     if (!pack) throw notFound()
     return { name: pack.name }
   },
-  head: ({ loaderData, params }) => ({
+  head: ({ loaderData, match, params }) => ({
     meta: loaderData
       ? [
           { title: `${loaderData.name} missions — Praetorium` },
@@ -19,7 +20,7 @@ export const Route = createFileRoute('/mission-packs/$packId')({
           { property: 'og:type', content: 'article' },
         ]
       : [],
-    links: loaderData ? [{ rel: 'canonical', href: `/mission-packs/${params.packId}` }] : [],
+    links: loaderData ? [canonicalLink(match.context.origin, `/mission-packs/${params.packId}`)] : [],
   }),
   component: () => <MissionPackPage packId={Route.useParams().packId} />,
 })

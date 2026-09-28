@@ -1,5 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { FactionDatasheet } from '../client/features/reference/factions/FactionDatasheet'
+import { breadcrumbMeta, canonicalLink } from '../client/linkPreview'
 import { datasheetDescription } from '../client/datasheet'
 import { datasheetSlugQuery, factionQuery } from '../client/queries'
 
@@ -11,23 +12,28 @@ export const Route = createFileRoute('/factions/$catalogueId/datasheets/$entryId
     if (!sheet) throw notFound()
     return { faction, sheet }
   },
-  head: ({ loaderData }) => ({
-    meta: loaderData
-      ? [
-          { title: `${loaderData.sheet.name} datasheet — ${loaderData.faction.displayName} — Praetorium` },
-          {
-            name: 'description',
-            content: datasheetDescription(loaderData.sheet, loaderData.faction.displayName),
-          },
-          { property: 'og:title', content: `${loaderData.sheet.name} datasheet` },
-          {
-            property: 'og:description',
-            content: datasheetDescription(loaderData.sheet, loaderData.faction.displayName),
-          },
-          { property: 'og:type', content: 'article' },
-        ]
-      : [],
-    links: loaderData ? [{ rel: 'canonical', href: `/factions/${loaderData.faction.slug}/datasheets/${loaderData.sheet.slug}` }] : [],
-  }),
+  head: ({ loaderData, match }) => {
+    if (!loaderData) return {}
+    const { faction, sheet } = loaderData
+    const origin = match.context.origin
+    const factionPath = `/factions/${faction.slug}`
+    const path = `${factionPath}/datasheets/${sheet.slug}`
+    const description = datasheetDescription(sheet, faction.displayName)
+    return {
+      meta: [
+        { title: `${sheet.name} datasheet — ${faction.displayName} — Praetorium` },
+        { name: 'description', content: description },
+        { property: 'og:title', content: `${sheet.name} datasheet` },
+        { property: 'og:description', content: description },
+        { property: 'og:type', content: 'article' },
+        breadcrumbMeta(origin, [
+          { name: 'Factions', path: '/factions' },
+          { name: faction.displayName, path: factionPath },
+          { name: sheet.name, path },
+        ]),
+      ],
+      links: [canonicalLink(origin, path)],
+    }
+  },
   component: FactionDatasheet,
 })
