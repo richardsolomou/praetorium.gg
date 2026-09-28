@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'status=$?; echo "Cutover failed at line $LINENO (status $status)" >&2' ERR
 
 operation="${1:?}"
 zone="${CLOUDFLARE_ZONE_ID:?}"
