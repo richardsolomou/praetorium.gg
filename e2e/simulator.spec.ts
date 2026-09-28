@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { chooseUnit, retryUntilVisible } from './account'
 
 async function choose(page: Page, control: string, name: string) {
@@ -7,8 +7,16 @@ async function choose(page: Page, control: string, name: string) {
   await option.click()
 }
 
-function chip(page: Page, name: string) {
-  return page.getByRole('button', { name, exact: true })
+function chip(scope: Page | Locator, name: string) {
+  return scope.getByRole('button', { name, exact: true })
+}
+
+/** Every modifier tab offers the same chips, and the previous panel can linger while the next one opens. */
+async function modifierTab(page: Page, title: 'All' | 'Shooting' | 'Melee') {
+  // A tab, and the panel it labels, count the modifiers selected in it.
+  const name = new RegExp(`^${title}(?: \\d+)?$`)
+  await page.getByRole('tab', { name }).click()
+  return page.getByRole('tabpanel', { name })
 }
 
 async function matchup(page: Page) {
@@ -78,26 +86,23 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
   await boltRifle.click()
   await expect.poll(async () => Number(await shootingDamage.textContent())).toBe(startingShooting)
 
-  await page.getByRole('tab', { name: 'All' }).click()
-  await chip(page, 'Sustained Hits 1').click()
+  await chip(await modifierTab(page, 'All'), 'Sustained Hits 1').click()
   await expect.poll(async () => Number(await shootingDamage.textContent())).toBeGreaterThan(startingShooting)
   await expect.poll(async () => Number(await meleeDamage.textContent())).toBeGreaterThan(startingMelee)
   const sharedMelee = Number(await meleeDamage.textContent())
   const sharedShooting = Number(await shootingDamage.textContent())
-  await page.getByRole('tab', { name: /Shooting/ }).click()
-  await chip(page, 'Sustained Hits 2').click()
+  const shootingModifiers = await modifierTab(page, 'Shooting')
+  await chip(shootingModifiers, 'Sustained Hits 2').click()
   await expect.poll(async () => Number(await shootingDamage.textContent())).toBeGreaterThan(sharedShooting)
   await expect.poll(async () => Number(await meleeDamage.textContent())).toBe(sharedMelee)
-  const noSustained = chip(page, 'No Sustained Hits')
+  const noSustained = chip(shootingModifiers, 'No Sustained Hits')
   await noSustained.click()
   await expect(noSustained).not.toHaveClass(/opacity-45/)
   await expect.poll(async () => Number(await shootingDamage.textContent())).toBe(startingShooting)
 
-  await page.getByRole('tab', { name: /All/ }).click()
-  await chip(page, '+1 Hit').click()
+  await chip(await modifierTab(page, 'All'), '+1 Hit').click()
   await expect.poll(async () => Number(await shootingDamage.textContent())).toBeGreaterThan(startingShooting)
-  await page.getByRole('tab', { name: /Shooting/ }).click()
-  await chip(page, '−1 Hit').click()
+  await chip(await modifierTab(page, 'Shooting'), '−1 Hit').click()
   await expect.poll(async () => Number(await shootingDamage.textContent())).toBe(startingShooting)
   const summary = page.getByRole('region', { name: 'Applied modifiers' })
   await expect(summary).toContainText('+1 to hit (All)')
@@ -117,10 +122,9 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
 test('stacked wound bonuses remain selected and explain the roll cap', async ({ page }) => {
   await page.goto('/simulator')
   await matchup(page)
-  await page.getByRole('tab', { name: 'All' }).click()
-  await chip(page, '+1 Wound').click()
-  await page.getByRole('tab', { name: /Shooting/ }).click()
-  const shootingBonus = chip(page, '+1 Wound')
+  await chip(await modifierTab(page, 'All'), '+1 Wound').click()
+  const shootingModifiers = await modifierTab(page, 'Shooting')
+  const shootingBonus = chip(shootingModifiers, '+1 Wound')
   await shootingBonus.click()
   await expect(shootingBonus).toHaveAttribute('aria-pressed', 'true')
   await expect(shootingBonus).not.toHaveClass(/opacity-45/)
@@ -131,7 +135,7 @@ test('stacked wound bonuses remain selected and explain the roll cap', async ({ 
   await shootingBonus.hover()
   await expect(page.getByRole('tooltip')).toContainText('Bonuses and penalties combine before the roll modifier is capped')
   await summary.screenshot({ path: 'test-results/simulator-stacked-wound-bonuses.png' })
-  await chip(page, '−1 Wound').click()
+  await chip(shootingModifiers, '−1 Wound').click()
   await expect(summary).toContainText('−1 to wound (Shooting)')
   await expect(summary).toContainText('Wound modifiers cancel to 0')
   await expect(summary).not.toContainText('Wound roll modifier capped')
