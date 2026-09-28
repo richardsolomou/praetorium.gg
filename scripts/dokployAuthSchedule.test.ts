@@ -21,7 +21,7 @@ it('creates and runs an hourly backup against the selected production app', asyn
     if (url.pathname.endsWith('schedule.create')) {
       if (typeof init?.body !== 'string') throw new Error('Expected a JSON body')
       expect(JSON.parse(init.body)).toMatchObject({
-        command: 'node scripts/nodeAuthBackup.ts backup /data/auth.sqlite production',
+        command: 'node /app/scripts/nodeAuthBackup.ts backup /data/auth.sqlite production',
         cronExpression: '17 * * * *',
       })
       return Response.json({ scheduleId: 'backup' })
