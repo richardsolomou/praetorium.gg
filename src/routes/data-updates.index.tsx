@@ -1,20 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { CatalogueChangesPage } from '../client/features/changes/CatalogueChangesPage'
-import { pageMeta } from '../client/linkPreview'
-import { catalogueChangeLogQuery } from '../client/queries'
+import { pageHead } from '../client/linkPreview'
+import { catalogueChangeLogQuery, historySearch } from '../client/queries'
 
 export const Route = createFileRoute('/data-updates/')({
-  validateSearch: (search: Record<string, unknown>): { before?: string } =>
-    typeof search.before === 'string' && /^[\w-]{1,4096}$/.test(search.before) ? { before: search.before } : {},
+  validateSearch: historySearch,
   loaderDeps: ({ search }) => ({ before: search.before }),
   loader: ({ context, deps }) => context.queryClient.query({ ...catalogueChangeLogQuery(deps.before), staleTime: 'static' }),
-  head: ({ match }) => ({
-    meta: pageMeta(match.context.origin, {
+  // An older page is still read, but only the newest is the address search results lead to.
+  head: ({ match }) =>
+    pageHead(match.context.origin, {
       title: 'Data updates',
       description: 'The points, datasheets and detachments each Warhammer 40,000 army data update changed.',
-      path: '/data-updates',
+      path: match.search.before ? undefined : '/data-updates',
     }),
-  }),
   component: ChangesRoute,
 })
 

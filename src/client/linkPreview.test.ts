@@ -3,7 +3,17 @@ import { type Command, reduceBattle } from '../core/battle'
 import { ALICE, BOB, CAROL, builtRoster, log, roster } from '../core/battle.fixtures'
 import { battleView } from '../core/battleView'
 import type { ServiceRecord } from '../core/serviceRecord'
-import { battlePreview, pageMeta, playerPreview, rosterExposure, rosterPreview, siteMeta } from './linkPreview'
+import {
+  battlePreview,
+  breadcrumbMeta,
+  pageHead,
+  pageMeta,
+  playerPreview,
+  rosterExposure,
+  rosterPreview,
+  siteMeta,
+  siteStructuredData,
+} from './linkPreview'
 
 const DAVE = 'dave'
 const NAMES = [
@@ -141,5 +151,40 @@ describe('a player preview', () => {
   it('reads the record and the leaderboard place a reader may see', () => {
     const rankings = { days: 90, overall: { faction: null, place: 2, of: 14, standing: {} as never }, factions: [] }
     expect(playerPreview('Alice', record, rankings).description).toBe('2 wins and 1 loss from 3 battles. Place 2 of 14 on the leaderboard.')
+  })
+})
+
+describe('search engine metadata', () => {
+  const structured = (tag: object) => (tag as { 'script:ld+json': Record<string, unknown> })['script:ld+json']
+
+  it('files an indexable page under its absolute address', () => {
+    expect(pageHead(ORIGIN, { title: 'Rules', description: 'Rules.', path: '/rules' }).links).toEqual([
+      { rel: 'canonical', href: 'https://praetorium.example/rules' },
+    ])
+  })
+
+  it('gives a page kept out of search results no canonical address', () => {
+    expect(pageHead(ORIGIN, { title: 'List', description: 'List.', path: '/rosters/one', noindex: true }).links).toEqual([])
+  })
+
+  it('numbers breadcrumbs from the top of the trail', () => {
+    expect(
+      structured(
+        breadcrumbMeta(ORIGIN, [
+          { name: 'Factions', path: '/factions' },
+          { name: 'Orks', path: '/factions/orks' },
+        ]),
+      ).itemListElement,
+    ).toEqual([
+      { '@type': 'ListItem', position: 1, name: 'Factions', item: 'https://praetorium.example/factions' },
+      { '@type': 'ListItem', position: 2, name: 'Orks', item: 'https://praetorium.example/factions/orks' },
+    ])
+  })
+
+  it('describes the site as a free application', () => {
+    expect((structured(siteStructuredData(ORIGIN))['@graph'] as { '@type': string; offers?: unknown }[])[1]).toMatchObject({
+      '@type': 'WebApplication',
+      offers: { '@type': 'Offer', price: '0' },
+    })
   })
 })

@@ -86,6 +86,19 @@ export function compositionCount(composition: readonly string[]) {
 }
 
 /**
+ * A datasheet's unconditional unit sizes and costs as one line, or null when it has none.
+ * A cost that depends on a keyword, faction or detachment is left out rather than stated
+ * without the condition that makes it true.
+ */
+export function unitCostsSummary(costs: Datasheet['costs']) {
+  const unconditional = costs
+    .filter((cost) => !cost.keyword && !cost.faction && !cost.detachment)
+    .toSorted((left, right) => Number(left.models) - Number(right.models))
+  if (!unconditional.length) return null
+  return unconditional.map((cost) => `${cost.models} ${cost.models === '1' ? 'model' : 'models'} for ${cost.cost} pts`).join(', ')
+}
+
+/**
  * The keywords something in the list put on a weapon: the ones the printed profile
  * does not have.
  *

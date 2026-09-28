@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, useRouterState } from '@tanstack/react-router'
 import { factionIndexQuery, favouriteFactionsQuery } from '../client/queries'
-import { pageMeta } from '../client/linkPreview'
+import { pageHead } from '../client/linkPreview'
 import { FactionIndexPage } from '../client/features/reference/factions/FactionIndexPage'
 
 export const Route = createFileRoute('/factions')({
@@ -11,16 +11,14 @@ export const Route = createFileRoute('/factions')({
           context.queryClient.query({ ...favouriteFactionsQuery(), staleTime: 'static' }),
         ])
       : undefined,
-  head: ({ match, matches }) => ({
-    meta:
-      matches.at(-1)?.routeId === match.routeId
-        ? pageMeta(match.context.origin, {
-            title: 'Factions',
-            description: 'Browse Warhammer 40,000 faction rules, detachments, datasheets, loadouts and points.',
-            path: '/factions',
-          })
-        : [],
-  }),
+  head: ({ match, matches }) =>
+    matches.at(-1)?.routeId === match.routeId
+      ? pageHead(match.context.origin, {
+          title: 'Factions',
+          description: 'Browse Warhammer 40,000 faction rules, detachments, datasheets, loadouts and points.',
+          path: '/factions',
+        })
+      : {},
   component: Factions,
 })
 

@@ -1,3 +1,4 @@
+import type { JSX } from 'react'
 import { PREVIEW_SIZE, type PreviewCard, SITE } from '../contracts/linkPreview'
 import type { BattleView } from '../core/battleView'
 import type { RosterVisibility } from '../core/savedRoster'
@@ -62,6 +63,54 @@ export function pageMeta(origin: string, page: Page) {
     ...(page.noindex ? [{ name: 'robots', content: 'noindex' }] : []),
   ]
 }
+
+/** The address search engines should file a page under, absolute because some crawlers resolve nothing else. */
+export const canonicalLink = (origin: string, path: string) => ({ rel: 'canonical', href: `${origin}${path}` })
+
+/** A page's tags and, for one search engines may index, its canonical address. */
+export const pageHead = (origin: string, page: Page) => ({
+  meta: pageMeta(origin, page),
+  links: page.path && !page.noindex ? [canonicalLink(origin, page.path)] : [],
+})
+
+/** A reference page's place under the site as schema.org breadcrumbs, ending with the page itself. */
+export const breadcrumbMeta = (origin: string, trail: readonly { name: string; path: string }[]) =>
+  structuredData({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: trail.map((step, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: step.name,
+      item: `${origin}${step.path}`,
+    })),
+  })
+
+/** What the home page tells search engines the site is: a free web application with its source open. */
+export const siteStructuredData = (origin: string) =>
+  structuredData({
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'WebSite', name: SITE.name, url: `${origin}/`, description: SITE.description },
+      {
+        '@type': 'WebApplication',
+        name: SITE.name,
+        url: `${origin}/`,
+        description: SITE.description,
+        applicationCategory: 'GameApplication',
+        operatingSystem: 'Any',
+        isAccessibleForFree: true,
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+        license: 'https://www.gnu.org/licenses/agpl-3.0.html',
+      },
+    ],
+  })
+
+/**
+ * A JSON-LD block among a page's meta tags. The router renders and escapes `script:ld+json`
+ * entries into a script tag, but its React types admit only meta elements.
+ */
+const structuredData = (data: Record<string, unknown>) => ({ 'script:ld+json': data }) as JSX.IntrinsicElements['meta']
 
 function imageMeta(origin: string, image: { path: string; alt: string }) {
   return [

@@ -1,10 +1,14 @@
-import { expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { CatalogueChangeSet } from '../core/catalogueChanges'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
-import { linkedChanges } from './catalogueChangeLog'
+import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
+import { factionHistory, factionsLastUpdated, linkedChanges } from './catalogueChangeLog'
 
 const canonical = {
-  datasheets: [{ catalogueId: 'marines', id: 'intercessors', referenceRoute: { catalogueId: 'space-marines', slug: 'intercessor-squad' } }],
+  datasheets: [
+    { catalogueId: 'marines', id: 'intercessors', referenceRoute: { catalogueId: 'space-marines', slug: 'intercessor-squad' } },
+    { catalogueId: 'orks', id: 'boyz', referenceRoute: { catalogueId: 'orks', slug: 'boyz' } },
+  ],
   detachments: [{ catalogueId: 'marines', id: 'gladius', factionSlug: 'space-marines', slug: 'gladius-task-force' }],
 } as unknown as CanonicalCatalogue
 
@@ -48,4 +52,46 @@ it('links nothing the current data no longer holds', () => {
 
 it('links nothing while the instance holds no data', () => {
   expect(links([{ kind: 'datasheet-points', id: 'intercessors', name: 'Intercessor Squad', rows: [] }], null)).toEqual([null])
+})
+
+const repriced: CatalogueChangeSet['factions'][number]['changes'][number] = { kind: 'datasheet-points', id: 'boyz', name: 'Boyz', rows: [] }
+
+const entry = (recordedAt: number, factions: string[], omitted = 0): CatalogueHistoryEntry => ({
+  from: `from-${recordedAt}`,
+  revisions: {},
+  recordedAt,
+  changes: { factions: factions.map((catalogueId) => ({ catalogueId, faction: catalogueId, changes: [repriced] })), omitted },
+})
+
+describe("a faction's data updates", () => {
+  it('keep only the updates that reached the faction', () => {
+    expect(factionHistory([entry(1, ['marines']), entry(2, ['orks'])], canonical, 'orks').map((update) => update.recordedAt)).toEqual([2])
+  })
+
+  it("keep only the faction's own changes from an update", () => {
+    expect(
+      factionHistory([entry(1, ['marines', 'orks'])], canonical, 'orks')[0]!.changes.factions.map((faction) => faction.catalogueId),
+    ).toEqual(['orks'])
+  })
+
+  it('count the unlisted changes on the faction an update was cut after', () => {
+    expect(factionHistory([entry(1, ['marines', 'orks'], 5)], canonical, 'orks')[0]!.changes.omitted).toBe(5)
+  })
+
+  it('count no unlisted changes on a faction listed before the cut', () => {
+    expect(factionHistory([entry(1, ['marines', 'orks'], 5)], canonical, 'space-marines')[0]!.changes.omitted).toBe(0)
+  })
+
+  it('date each faction by its newest update', () => {
+    expect(factionsLastUpdated([entry(1, ['orks', 'marines']), entry(3, ['orks']), entry(2, ['marines'])], canonical)).toEqual(
+      new Map([
+        ['orks', 3],
+        ['space-marines', 2],
+      ]),
+    )
+  })
+
+  it('date no faction the current data cannot address', () => {
+    expect(factionsLastUpdated([entry(1, ['squats'])], canonical).size).toBe(0)
+  })
 })

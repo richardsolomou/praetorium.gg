@@ -3,6 +3,7 @@ import {
   addedKeywords,
   attachmentGroups,
   compositionCount,
+  unitCostsSummary,
   primaryUnitProfile,
   profileTableColumns,
   profileTableValue,
@@ -98,6 +99,33 @@ describe('datasheet composition count', () => {
     expect(
       compositionCount(['**1 Shock Trooper Sergeant and 9 Shock Troopers**', 'OR', '**2 Shock Trooper Sergeants and 18 Shock Troopers**']),
     ).toBe('10–20 models')
+  })
+})
+
+describe('datasheet unit costs summary', () => {
+  const cost = (models: string, points: string, condition: Partial<{ keyword: string; faction: string; detachment: string }> = {}) => ({
+    models,
+    cost: points,
+    keyword: null,
+    faction: null,
+    detachment: null,
+    ...condition,
+  })
+
+  it('states a single model in the singular', () => {
+    expect(unitCostsSummary([cost('1', '60')])).toBe('1 model for 60 pts')
+  })
+
+  it('lists several unit sizes smallest first', () => {
+    expect(unitCostsSummary([cost('10', '210'), cost('5', '105')])).toBe('5 models for 105 pts, 10 models for 210 pts')
+  })
+
+  it('leaves out a cost that depends on a detachment', () => {
+    expect(unitCostsSummary([cost('5', '105'), cost('5', '90', { detachment: 'Gladius' })])).toBe('5 models for 105 pts')
+  })
+
+  it('states nothing when every cost has a condition', () => {
+    expect(unitCostsSummary([cost('1', '60', { keyword: 'Epic Hero' })])).toBeNull()
   })
 })
 

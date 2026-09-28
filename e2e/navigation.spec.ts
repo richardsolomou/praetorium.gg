@@ -1072,6 +1072,22 @@ test.describe('data update anchors', () => {
     await expect(row).toHaveAttribute('open', '')
   })
 
+  test("a faction's page lists only that faction's changes", async ({ page }) => {
+    await page.goto('/data-updates')
+    const heading = page.locator('main [data-faction] h3 a').first()
+    const faction = await heading.textContent()
+    const slug = (await heading.getAttribute('href'))!.split('/').at(-1)!
+    await page.goto(`/factions/${slug}`)
+
+    await page.locator('main').getByRole('link', { name: 'Data updates' }).click()
+
+    await expect(page).toHaveURL(`/data-updates/${slug}`)
+    await expect(page.locator('main [data-faction]').first()).toBeVisible()
+    expect(
+      new Set(await page.locator('main [data-faction]').evaluateAll((blocks) => blocks.map((block) => block.getAttribute('data-faction')))),
+    ).toEqual(new Set([faction]))
+  })
+
   test('an address naming an update opens it', async ({ page }) => {
     const { row } = await closedRow(page)
     const id = (await row.getAttribute('id'))!
