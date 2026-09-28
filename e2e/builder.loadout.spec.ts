@@ -1030,7 +1030,11 @@ for (const width of [390, 1600]) {
     await expectNoHorizontalOverflow(loadout)
     await page.screenshot({ path: `test-results/nobz-compact-${width}.png`, fullPage: true })
     await page.reload()
-    if (width >= 1000) await card.getByRole('button', { name: /^Nobz/ }).click()
+    await expect(card).toBeVisible()
+    await expect(page.locator('[data-slot="skeleton"]')).toHaveCount(0)
+    if (width >= 1000 || !(await loadout.getByRole('button', { name: 'Back to roster' }).isVisible())) {
+      await card.getByRole('button', { name: /^Nobz/ }).click()
+    }
     await expect(loadout.getByLabel('Nob models', { exact: true })).toHaveText('5')
     await expect(loadout.getByLabel(`${pair} count`, { exact: true })).toHaveText('1')
     await waitForRosterSave(page, () => loadout.getByRole('button', { name: `Fewer ${pair}`, exact: true }).click())
