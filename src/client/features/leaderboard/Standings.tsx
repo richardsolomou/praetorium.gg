@@ -1,6 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import type { Standing, StandingFaction } from '../../../core/standings'
-import { winRate } from '../../../core/standings'
+import { averagePoints, winRate } from '../../../core/standings'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
 
@@ -10,10 +10,10 @@ export type StandingsTable = { faction: StandingFaction | null; players: number;
 /**
  * A table of players, best first. Every name opens the player it belongs to.
  *
- * `Wins` and `Rate` are the two the order is taken from, in that order, so a
- * reader can check the ranking against the row instead of trusting it. `Battles`
- * and `VP` are the context: how much a player has played, and everything they
- * scored doing it. Every width shows all of them.
+ * `Rating` is what the order is taken from, so a reader can check the ranking
+ * against the row instead of trusting it. The record beside it is the context:
+ * what the rating was earned from, and the points a battle the player scores.
+ * Every width shows all of them.
  */
 export function Standings({ table }: { table: StandingsTable }) {
   return (
@@ -31,7 +31,7 @@ export function Standings({ table }: { table: StandingsTable }) {
           that widens the page is the one thing on here that pushes a phone sideways.
         */
         <div className="mt-2 overflow-x-auto border border-edge bg-panel">
-          <table className="w-full min-w-2xl table-fixed border-collapse text-sm">
+          <table className="w-full min-w-xl table-fixed border-collapse text-sm">
             <thead>
               <tr className="border-b border-edge text-left text-xs tracking-wide text-faint uppercase">
                 <th scope="col" className="w-12 p-3 font-normal">
@@ -39,6 +39,9 @@ export function Standings({ table }: { table: StandingsTable }) {
                 </th>
                 <th scope="col" className="p-3 font-normal">
                   Player
+                </th>
+                <th scope="col" className="w-20 p-3 text-right font-normal">
+                  Rating
                 </th>
                 <th scope="col" className="w-16 p-3 text-right font-normal">
                   Wins
@@ -49,8 +52,8 @@ export function Standings({ table }: { table: StandingsTable }) {
                 <th scope="col" className="w-16 p-3 text-right font-normal">
                   Rate
                 </th>
-                <th scope="col" className="w-16 p-3 text-right font-normal">
-                  VP
+                <th scope="col" className="w-20 p-3 text-right font-normal">
+                  Avg VP
                 </th>
               </tr>
             </thead>
@@ -64,10 +67,11 @@ export function Standings({ table }: { table: StandingsTable }) {
                       <span className="truncate font-bold uppercase">{row.name}</span>
                     </Link>
                   </td>
-                  <td className="readout p-3 text-right text-bone">{row.won}</td>
+                  <td className="readout p-3 text-right text-info">{row.rating}</td>
+                  <td className="readout p-3 text-right text-dim">{row.won}</td>
                   <td className="readout p-3 text-right text-dim">{row.battles}</td>
                   <td className="readout p-3 text-right text-dim">{Math.round(winRate(row) * 100)}%</td>
-                  <td className="readout p-3 text-right text-info">{row.points}</td>
+                  <td className="readout p-3 text-right text-dim">{Math.round(averagePoints(row))}</td>
                 </tr>
               ))}
             </tbody>
