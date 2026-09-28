@@ -161,7 +161,7 @@ test('a mobile web unit screen keeps the tab bar beside it', async ({ browser })
   const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
   const page = await context.newPage()
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
-  await add(page, 'Intercessor Squad')
+  await waitForRosterSave(page, () => add(page, 'Intercessor Squad'))
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
   await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
 
