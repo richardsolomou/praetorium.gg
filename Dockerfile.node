@@ -1,0 +1,28 @@
+FROM node:24-bookworm-slim AS build
+
+RUN npm install --global pnpm@11.15.0
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY mobile/package.json mobile/package.json
+COPY spacetimedb/package.json spacetimedb/package.json
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --filter praetorium.gg --frozen-lockfile
+
+COPY . .
+ARG VITE_POSTHOG_HOST
+ARG VITE_POSTHOG_PROJECT_TOKEN
+RUN CATALOGUE_CACHE_DIR=off pnpm catalogue:sync && NITRO_PRESET=node-server pnpm build
+ADD --checksum=sha256:d25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831 https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.7.0-hotfix3/spacetime-x86_64-unknown-linux-gnu.tar.gz /tmp/spacetime.tar.gz
+RUN tar -xzf /tmp/spacetime.tar.gz -C /tmp spacetimedb-cli && /tmp/spacetimedb-cli build -p spacetimedb && CI=true pnpm install --filter praetorium.gg --prod --frozen-lockfile
+
+FROM node:24-bookworm-slim
+WORKDIR /app
+COPY --from=build --chown=node:node /app /app
+
+ARG GITHUB_SHA
+LABEL org.opencontainers.image.source="https://github.com/richardsolomou/praetorium.gg"
+ENV NODE_ENV=production PORT=3000 DATA_DIR=/data CATALOGUE_DIR=/app/catalogue-data RULES_DIR=/app/catalogue-data/rules CATALOGUE_UPDATE_MODE=off GITHUB_SHA=$GITHUB_SHA
+RUN mkdir /data && chown node:node /data
+USER node
+EXPOSE 3000
+CMD ["node", "scripts/nodeServer.ts"]

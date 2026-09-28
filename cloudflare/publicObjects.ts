@@ -1,10 +1,13 @@
-import type { R2Bucket, R2ObjectBody } from '@cloudflare/workers-types'
+type PublicObjectBucket = {
+  head: (key: string) => Promise<{ httpEtag: string } | null>
+  get: (key: string) => Promise<{ httpEtag: string } | null>
+}
 
 const HASH = '[0-9a-f]{64}'
 const IMMUTABLE = new RegExp(`^(?:avatars/${HASH}\\.(?:jpg|png|webp)|snapshots/${HASH}\\.zip)$`)
 const MUTABLE = new Set(['current.json', 'revocations.json', 'changes/seed.json'])
 
-export async function publicObject(request: Request, bucket: R2Bucket): Promise<Response> {
+export async function publicObject(request: Request, bucket: PublicObjectBucket): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD' } })
   const pathname = new URL(request.url).pathname
   if (!pathname.startsWith('/praetorium/')) return new Response(null, { status: 404 })
@@ -27,5 +30,5 @@ export async function publicObject(request: Request, bucket: R2Bucket): Promise<
     ETag: object.httpEtag,
   })
   if (request.headers.get('if-none-match') === object.httpEtag) return new Response(null, { status: 304, headers })
-  return new Response(request.method === 'GET' ? ((object as R2ObjectBody).body as unknown as ReadableStream) : null, { headers })
+  return new Response(request.method === 'GET' && 'body' in object ? (object.body as ReadableStream) : null, { headers })
 }

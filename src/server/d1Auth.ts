@@ -6,7 +6,7 @@ import { applySetCookies } from 'better-auth/cookies'
 import { decryptOAuthToken } from 'better-auth/oauth2'
 import { admin, jwt, oneTimeToken, twoFactor } from 'better-auth/plugins'
 import { and, eq, notExists, sql } from 'drizzle-orm'
-import { drizzle } from 'drizzle-orm/d1'
+import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1'
 import pRetry from 'p-retry'
 import {
   standardAccountOptions,
@@ -42,7 +42,10 @@ type D1AuthOptions = {
 }
 
 export function createD1Auth(binding: Parameters<typeof drizzle>[0], secret: string, options: D1AuthOptions) {
-  const database = drizzle(binding, { schema })
+  return createSqliteAuth(drizzle(binding, { schema }), secret, options)
+}
+
+export function createSqliteAuth(database: DrizzleD1Database<typeof schema>, secret: string, options: D1AuthOptions) {
   const environment = options.environment
   const authUrl = new URL('/api/auth', environment.APP_URL)
   const issuer = environment.SPACETIME_ISSUER ?? authUrl.toString()

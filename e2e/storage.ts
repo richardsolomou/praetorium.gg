@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { spacetimeSqlEndpoint } from '../scripts/lib/spacetimeSqlEndpoint'
@@ -24,11 +24,7 @@ export async function productOperator() {
 }
 
 export async function withAuthSql<T>(work: (database: DatabaseSync) => T, directory = root): Promise<T> {
-  // A second Miniflare instance can fail against the running Worker's D1; SQLite's WAL supports these fixture connections.
-  const folder = path.join(directory, 'wrangler-state/v3/d1/miniflare-D1DatabaseObject')
-  const databases = (await readdir(folder)).filter((file) => file.endsWith('.sqlite') && file !== 'metadata.sqlite')
-  if (databases.length !== 1) throw new Error(`Expected one local auth D1 database, found ${databases.length}`)
-  const database = new DatabaseSync(path.join(folder, databases[0]), { timeout: 5_000 })
+  const database = new DatabaseSync(path.join(directory, 'auth.sqlite'), { timeout: 5_000 })
   try {
     return work(database)
   } finally {

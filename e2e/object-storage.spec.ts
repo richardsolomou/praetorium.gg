@@ -3,7 +3,7 @@ import { signUp, uniqueName } from './account'
 import { baseURL } from './stackEnv'
 import { withAuthSql } from './storage'
 
-test('a local profile upload is readable through the same Worker and R2 binding', async ({ page, request }) => {
+test('a local profile upload is readable through the Node object route', async ({ page, request }) => {
   const name = uniqueName('R2 avatar')
   await signUp(page, name)
   await page.goto('/profile')

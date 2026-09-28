@@ -4,7 +4,7 @@ import resvg from '@resvg/resvg-wasm/index_bg.wasm'
 import yoga from 'satori/yoga.wasm'
 import { withWorkerAppContext } from '../src/server/workerAppContext'
 import { publicObject } from './publicObjects'
-import { previewOidcRequest } from './previewOidc'
+import { previewOidcRequest } from '../src/server/previewOidc'
 import { spacetimeSocket } from './spacetimeProxy'
 
 type Environment = Parameters<typeof spacetimeSocket>[1] & {

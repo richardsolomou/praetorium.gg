@@ -5,9 +5,10 @@ import type { Command, Roster } from '../src/core/battle'
 import type { RosterPick } from '../src/core/roster'
 import { rosterSnapshot } from '../src/core/rosterSnapshot'
 import { account as d1Account, schema as d1Schema, user as d1User } from '../src/db/d1AuthSchema'
-import { createD1Auth } from '../src/server/d1Auth'
+import { createD1Auth, createSqliteAuth } from '../src/server/d1Auth'
 import { remoteD1 } from '../src/server/d1Bridge'
-import { D1AccountRepository } from '../src/server/d1AccountRepository'
+import { D1AccountRepository, SqliteAccountRepository } from '../src/server/d1AccountRepository'
+import { localAuthDatabase } from '../src/server/localAuthDatabase'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { SpacetimeRepository } from '../src/server/spacetimeRepository'
 import { unitBattleDetailsIn } from '../src/server/catalogue'
@@ -283,8 +284,9 @@ export async function seedPreview(providedSnapshots?: PreviewSnapshots, hostedBi
     throw new Error('Preview seed requires SpacetimeDB and auth configuration')
   }
   const snapshots = providedSnapshots ?? (await verifiedSnapshots())
-  const binding = hostedBinding ?? remoteD1()
-  const database = drizzle(binding, { schema: d1Schema })
+  const local = process.env.AUTH_SQLITE_PATH ? localAuthDatabase(process.env.AUTH_SQLITE_PATH) : null
+  const binding = local ? null : (hostedBinding ?? remoteD1())
+  const database = local?.database ?? drizzle(binding, { schema: d1Schema })
   const product = new SpacetimeOperator(
     process.env.SPACETIME_URL,
     process.env.SPACETIME_DATABASE,
@@ -293,42 +295,53 @@ export async function seedPreview(providedSnapshots?: PreviewSnapshots, hostedBi
     process.env.SPACETIME_ACCESS_CLIENT_ID && process.env.SPACETIME_ACCESS_CLIENT_SECRET
       ? { clientId: process.env.SPACETIME_ACCESS_CLIENT_ID, clientSecret: process.env.SPACETIME_ACCESS_CLIENT_SECRET }
       : undefined,
+    process.env.SPACETIME_INTERNAL_HOST,
   )
-  const auth = createD1Auth(binding, process.env.AUTH_SECRET, {
+  const authOptions: Parameters<typeof createSqliteAuth>[2] = {
     environment: process.env,
     deleteUserData: (userId) => product.deleteUserData(userId),
     revokeSessionAccess: (sessionId) => product.revokeSession(sessionId),
     storeSocialAvatar: async () => null,
     updateProfile: async (data) => ({ ok: true, data }),
-  })
-  const repository = new SpacetimeRepository(new D1AccountRepository(binding), product)
-  await seedInto(
-    repository,
-    auth,
-    async (email) => {
-      const [row] = await database.select({ id: d1User.id }).from(d1User).where(eq(d1User.email, email)).limit(1)
-      return row?.id ?? null
-    },
-    snapshots,
+  }
+  const auth = local
+    ? createSqliteAuth(local.database, process.env.AUTH_SECRET, authOptions)
+    : createD1Auth(binding, process.env.AUTH_SECRET, authOptions)
+  const repository = new SpacetimeRepository(
+    local ? new SqliteAccountRepository(local.database) : new D1AccountRepository(binding),
+    product,
   )
-  for (const opponent of PRACTICE_OPPONENTS) {
-    const email = `${opponent.id}@praetorium.invalid`
-    const [existing] = await database.select({ email: d1User.email }).from(d1User).where(eq(d1User.id, opponent.id)).limit(1)
-    if (existing && existing.email !== email) throw new Error(`Practice opponent ${opponent.id} is an existing account`)
-    const [credential] = await database.select({ id: d1Account.id }).from(d1Account).where(eq(d1Account.userId, opponent.id)).limit(1)
-    if (credential) throw new Error(`Practice opponent ${opponent.id} has sign-in credentials`)
-    if (!existing) {
-      const now = new Date()
-      await database.insert(d1User).values({
-        id: opponent.id,
-        name: opponent.name,
-        email,
-        emailVerified: false,
-        createdAt: now,
-        updatedAt: now,
-      })
+  try {
+    await seedInto(
+      repository,
+      auth,
+      async (email) => {
+        const [row] = await database.select({ id: d1User.id }).from(d1User).where(eq(d1User.email, email)).limit(1)
+        return row?.id ?? null
+      },
+      snapshots,
+    )
+    for (const opponent of PRACTICE_OPPONENTS) {
+      const email = `${opponent.id}@praetorium.invalid`
+      const [existing] = await database.select({ email: d1User.email }).from(d1User).where(eq(d1User.id, opponent.id)).limit(1)
+      if (existing && existing.email !== email) throw new Error(`Practice opponent ${opponent.id} is an existing account`)
+      const [credential] = await database.select({ id: d1Account.id }).from(d1Account).where(eq(d1Account.userId, opponent.id)).limit(1)
+      if (credential) throw new Error(`Practice opponent ${opponent.id} has sign-in credentials`)
+      if (!existing) {
+        const now = new Date()
+        await database.insert(d1User).values({
+          id: opponent.id,
+          name: opponent.name,
+          email,
+          emailVerified: false,
+          createdAt: now,
+          updatedAt: now,
+        })
+      }
+      await product.registerPracticeOpponent(opponent.id)
     }
-    await product.registerPracticeOpponent(opponent.id)
+  } finally {
+    local?.client.close()
   }
 }
 

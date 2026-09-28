@@ -45,7 +45,10 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
    */
   const backFromPane = useCallback(
     (next: RosterPaneHistory | null = null) => {
-      if (paneHistoryBackPending.current) return
+      if (paneHistoryBackPending.current) {
+        paneAfterHistoryBack.current = next
+        return
+      }
       paneHistoryBackPending.current = true
       paneAfterHistoryBack.current = next
       if (router.history.location.state.__TSR_index > openedAt.current) router.history.back()

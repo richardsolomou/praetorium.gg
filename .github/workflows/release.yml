@@ -25,6 +25,7 @@ jobs:
 
   cloudflare-production:
     needs: [release]
+    if: vars.PRAETORIUM_WEB_RUNTIME != 'dokploy'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -206,3 +207,12 @@ jobs:
             sleep 5
           done
           test "$ready" = true
+
+  dokploy-production:
+    needs: [release]
+    if: vars.PRAETORIUM_WEB_RUNTIME == 'dokploy'
+    uses: ./.github/workflows/dokploy-web.yml
+    with:
+      environment: production
+      revision: ${{ needs.release.outputs.sha || github.sha }}
+    secrets: inherit

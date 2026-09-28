@@ -7,7 +7,7 @@ export default defineConfig({
   // Sharding reads this setting before it assigns tests. Keeping it only on the
   // command line leaves the large builder spec on one runner while others are empty.
   fullyParallel: true,
-  // Each CI shard owns its local D1 and SpacetimeDB data.
+  // Each CI shard owns its local SQLite and SpacetimeDB data.
   workers: 1,
   retries: 0,
   /*
@@ -23,7 +23,7 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL, trace: process.env.PLAYWRIGHT_TRACE ? 'on' : 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } }],
-  // The runner starts the Worker with isolated local D1, R2, and SpacetimeDB data.
+  // The runner starts Node with isolated local SQLite, object, and SpacetimeDB data.
   webServer: {
     command: 'pnpm exec tsx scripts/localDev.ts',
     env: {
@@ -34,7 +34,7 @@ export default defineConfig({
     },
     url: `http://127.0.0.1:${port + 20_000}/ready`,
     reuseExistingServer: false,
-    // The first run builds and seeds the local Worker and product database.
+    // The first run builds and seeds the local web and product databases.
     timeout: 240_000,
   },
 })

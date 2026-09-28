@@ -1,6 +1,6 @@
 import path from 'node:path'
 
-/** Shared ports and data directory for Playwright and its local Worker runner. */
+/** Shared ports and data directory for Playwright and its local Node server. */
 export const port = Number(process.env.PLAYWRIGHT_PORT ?? 4173)
 export const baseURL = `http://127.0.0.1:${port}`
 export const spacetimePort = port + 10_000

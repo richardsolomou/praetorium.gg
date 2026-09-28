@@ -1,0 +1,144 @@
+name: Dokploy web deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      revision:
+        required: true
+        type: string
+      auth-import-key:
+        required: false
+        type: string
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Web environment to deploy
+        required: true
+        type: choice
+        options: [staging, production]
+      auth-import-key:
+        description: Verified R2 auth export key for the first deployment only
+        required: false
+        type: string
+
+concurrency:
+  group: dokploy-web-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TARGET: ${{ inputs.environment }}
+      DEPLOY_SHA: ${{ inputs.revision || github.sha }}
+      AUTH_IMPORT_R2_KEY: ${{ inputs.auth-import-key }}
+      DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+      DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+      DOKPLOY_APPLICATION_ID: ${{ inputs.environment == 'production' && vars.DOKPLOY_PRODUCTION_WEB_APP_ID || vars.DOKPLOY_STAGING_WEB_APP_ID }}
+      DOKPLOY_ENVIRONMENT_ID: ${{ inputs.environment == 'production' && vars.DOKPLOY_PRODUCTION_ENVIRONMENT_ID || secrets.DOKPLOY_ENVIRONMENT_ID }}
+      AUTH_SECRET: ${{ inputs.environment == 'production' && secrets.PRODUCTION_AUTH_SECRET || secrets.STAGING_AUTH_SECRET }}
+      SPACETIME_URL: ${{ inputs.environment == 'production' && vars.PRODUCTION_SPACETIME_URL || vars.SPACETIME_URL }}
+      SPACETIME_INTERNAL_HOST: ${{ inputs.environment == 'production' && vars.PRODUCTION_SPACETIME_INTERNAL_HOST || vars.STAGING_SPACETIME_INTERNAL_HOST }}
+      SPACETIME_OPERATOR_TOKEN: ${{ inputs.environment == 'production' && secrets.PRODUCTION_SPACETIME_OPERATOR_TOKEN || secrets.STAGING_SPACETIME_OPERATOR_TOKEN }}
+      SPACETIME_ACCESS_CLIENT_ID: ${{ inputs.environment == 'production' && secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_ID || secrets.SPACETIME_ACCESS_CLIENT_ID }}
+      SPACETIME_ACCESS_CLIENT_SECRET: ${{ inputs.environment == 'production' && secrets.PRODUCTION_SPACETIME_ACCESS_CLIENT_SECRET || secrets.SPACETIME_ACCESS_CLIENT_SECRET }}
+      SPACETIME_OWNER_TOKEN: ${{ inputs.environment == 'production' && secrets.PRODUCTION_SPACETIME_OWNER_TOKEN || secrets.SPACETIME_ADMIN_TOKEN }}
+      R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+      APPLE_CLIENT_ID: ${{ secrets.APPLE_CLIENT_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+      APPLE_PRIVATE_KEY: ${{ secrets.APPLE_PRIVATE_KEY }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
+      DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
+      SMTP_HOST: ${{ vars.SMTP_HOST }}
+      SMTP_PORT: ${{ vars.SMTP_PORT }}
+      SMTP_SECURE: ${{ vars.SMTP_SECURE }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      EMAIL_FROM: ${{ vars.EMAIL_FROM }}
+      EXPO_PUSH_ACCESS_TOKEN: ${{ secrets.EXPO_PUSH_ACCESS_TOKEN }}
+      POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
+      POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+      POSTHOG_PROJECT_ID: ${{ vars.POSTHOG_PROJECT_ID }}
+      VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
+      VITE_POSTHOG_PROJECT_TOKEN: ${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Require an immutable main revision for production
+        run: |
+          if [[ "$TARGET" == production && "$GITHUB_REF_NAME" != main ]]; then
+            echo 'Production web deploys must use main' >&2
+            exit 1
+          fi
+          [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test -n "$DOKPLOY_APPLICATION_ID"
+          test -n "$DOKPLOY_ENVIRONMENT_ID"
+          test -n "$SPACETIME_OWNER_TOKEN"
+      - name: Build and publish Node image
+        id: image
+        uses: richardsolomou/ras-stack/actions/publish-production-image@v1
+        with:
+          image: ghcr.io/${{ github.repository }}-node
+          sha: ${{ inputs.revision || github.sha }}
+          release-tag: ${{ inputs.environment }}
+          token: ${{ github.token }}
+          dockerfile: Dockerfile.node
+          build-args: |
+            GITHUB_SHA=${{ inputs.revision || github.sha }}
+            VITE_POSTHOG_HOST=${{ vars.VITE_POSTHOG_HOST }}
+            VITE_POSTHOG_PROJECT_TOKEN=${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
+          cache-scope: node-web-image
+      - name: Require anonymous image pulls
+        env:
+          IMAGE: ${{ steps.image.outputs.reference }}
+        run: |
+          docker logout ghcr.io
+          docker buildx imagetools inspect --raw "$IMAGE" > /dev/null
+      - name: Publish the matching product module
+        env:
+          IMAGE: ${{ steps.image.outputs.reference }}
+        run: |
+          set -euo pipefail
+          docker pull "$IMAGE"
+          container="$(docker create "$IMAGE")"
+          trap 'docker rm "$container" > /dev/null' EXIT
+          docker cp "$container:/app/spacetimedb/dist/bundle.js" "$RUNNER_TEMP/product.js"
+          database="praetorium-$TARGET"
+          curl --fail --silent --show-error --max-time 90 \
+            --header "Authorization: Bearer $SPACETIME_OWNER_TOKEN" \
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
+            --header 'Content-Type: application/octet-stream' \
+            --request PUT --data-binary @"$RUNNER_TEMP/product.js" \
+            "${SPACETIME_URL%/}/v1/database/$database?host_type=Js"
+      - name: Configure the selected web service
+        run: node scripts/configureDokployNode.ts configure "$TARGET"
+      - name: Deploy the pinned image
+        uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v1
+        with:
+          url: ${{ secrets.DOKPLOY_URL }}
+          api-key: ${{ secrets.DOKPLOY_API_KEY }}
+          application-id: ${{ env.DOKPLOY_APPLICATION_ID }}
+          image: ${{ steps.image.outputs.reference }}
+      - name: Verify and schedule production auth backups
+        if: inputs.environment == 'production'
+        run: node scripts/dokployAuthSchedule.ts
+      - name: Clear the one-time auth import key
+        if: inputs.auth-import-key != ''
+        run: node scripts/configureDokployNode.ts clear-import "$TARGET"

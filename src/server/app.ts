@@ -15,9 +15,10 @@ import {
   installedSnapshot,
 } from './catalogueSnapshot'
 import type { SyncState } from './sync'
-import { createD1Auth } from './d1Auth'
+import { createD1Auth, createSqliteAuth } from './d1Auth'
 import { remoteD1 } from './d1Bridge'
-import { D1AccountRepository } from './d1AccountRepository'
+import { D1AccountRepository, SqliteAccountRepository } from './d1AccountRepository'
+import { localAuthDatabase } from './localAuthDatabase'
 import { SpacetimeOperator } from './spacetimeOperator'
 import { SpacetimeRepository } from './spacetimeRepository'
 import { storeProfileImageFromUrl } from './avatarStorage'
@@ -177,7 +178,9 @@ export function app(): App {
         }
       }
     ).__env__
+    const localAuth = !cloudflare?.AUTH_DB && process.env.AUTH_SQLITE_PATH ? localAuthDatabase(process.env.AUTH_SQLITE_PATH) : null
     const binding = cloudflare?.AUTH_DB ?? remoteD1()
+    const authDatabase = localAuth?.database
     const accessClientId = cloudflare?.SPACETIME_ACCESS_CLIENT_ID ?? process.env.SPACETIME_ACCESS_CLIENT_ID
     const accessClientSecret = cloudflare?.SPACETIME_ACCESS_CLIENT_SECRET ?? process.env.SPACETIME_ACCESS_CLIENT_SECRET
     const spacetimeAccess =
@@ -195,8 +198,12 @@ export function app(): App {
       process.env.SPACETIME_OPERATOR_TOKEN ?? '',
       (request, init) => fetch(request, init),
       spacetimeAccess,
+      process.env.SPACETIME_INTERNAL_HOST,
     )
-    const repository = new SpacetimeRepository(new D1AccountRepository(binding), operator)
+    const repository = new SpacetimeRepository(
+      authDatabase ? new SqliteAccountRepository(authDatabase) : new D1AccountRepository(binding),
+      operator,
+    )
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens), process.env, false)
     let ready = Promise.resolve()
     let nativeSyncState: SyncState = { status: 'working', detail: 'loading the community data' }
@@ -224,19 +231,26 @@ export function app(): App {
       }),
     })
     const loaded = loaders()
-    const auth = createD1Auth(binding, process.env.AUTH_SECRET ?? '', {
+    const authOptions = {
       environment: process.env,
       email,
-      deleteUserData: (userId) => operator.deleteUserData(userId),
-      revokeSessionAccess: (sessionId) => operator.revokeSession(sessionId),
+      deleteUserData: (userId: string) => operator.deleteUserData(userId),
+      revokeSessionAccess: (sessionId: string) => operator.revokeSession(sessionId),
       storeSocialAvatar: storeProfileImageFromUrl,
       updateProfile: profileUpdate,
-    })
+    }
+    const auth = authDatabase
+      ? createSqliteAuth(authDatabase, process.env.AUTH_SECRET ?? '', authOptions)
+      : createD1Auth(binding, process.env.AUTH_SECRET ?? '', authOptions)
     const instance: App = {
       health: async () => {
         try {
+          if (!workerCatalogue) {
+            await ready
+            if (sync.state.status !== 'ready') throw new Error(`Catalogue ${sync.state.status}`)
+          }
           await Promise.all([
-            binding.prepare('select 1').first(),
+            localAuth ? localAuth.client.execute('select 1') : binding.prepare('select 1').first(),
             operator.health(),
             workerCatalogue ? workerShared() : undefined,
             workerCatalogue ? workerCatalogue.navigation() : undefined,
