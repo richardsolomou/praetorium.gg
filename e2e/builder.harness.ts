@@ -63,10 +63,8 @@ export async function add(page: Page, name: string) {
 }
 
 export async function attach(page: Page, unit: string, target: string) {
-  await page
-    .locator(`[data-unit="${unit}"]`)
-    .first()
-    .getByRole('button', { name: `Attach ${unit} to unit` })
-    .click()
+  const card = page.locator(`[data-unit="${unit}"]`).first()
+  await card.getByRole('button', { name: `Attach ${unit} to unit` }).click()
   await page.getByRole('menu').getByRole('menuitem', { name: target, exact: true }).click()
+  await expect(card).toContainText(target)
 }
