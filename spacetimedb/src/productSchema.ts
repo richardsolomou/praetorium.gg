@@ -105,7 +105,6 @@ const rosters = table(
     id: t.string().primaryKey(),
     userId: t.string().index('btree'),
     name: t.string(),
-    automaticName: t.option(t.bool()),
     catalogueId: t.string(),
     detachmentId: t.option(t.string()),
     disposition: t.option(t.string()),
@@ -120,6 +119,7 @@ const rosters = table(
     source: t.string(),
     createdAt: t.u64(),
     updatedAt: t.u64(),
+    automaticName: t.option(t.bool()).default(undefined),
   },
 )
 
