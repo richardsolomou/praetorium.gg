@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.82.0
+
+### Minor Changes
+
+- 8e76de6: Rank the leaderboard and profile places by a rating that weighs who each player beat and rates allies as one side.
+
+### Patch Changes
+
+- 0b9f4bf: Make public reference and roster pages easier for search engines to discover and understand.
+- 9598ca4: Show each player's average victory points a battle on the leaderboard instead of their total.
+
 ## 0.81.0
 
 ### Minor Changes
