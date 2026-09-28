@@ -30,7 +30,7 @@ jobs:
       pull-requests: write
     uses: richardsolomou/ras-stack/.github/workflows/deploy-dokploy-preview.yml@v1
     with:
-      package: praetorium.gg-node
+      package: praetorium.gg
       local-image: praetorium-node-preview
       application-prefix: praetorium-node
       domain: praetorium.gg
