@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
-import { DEFAULT_GAME_LIMIT } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import { datasheetIn, datasheetViewsIn, unitWoundsIn } from '../catalogue'
 import { isReferenceDatasheet } from '../catalogueIndex'
@@ -107,10 +106,6 @@ export const units = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const instance = app()
-      if (!data.query.trim() && data.battleSize === DEFAULT_GAME_LIMIT && !data.waivedRules?.length && instance.workerReferences) {
-        const compiled = await instance.workerReferences.pickerUnits(data.catalogueId)
-        if (compiled) return compiled
-      }
       const loaded = await instance.catalogueFor(data.catalogueId)
       if (!loaded) return []
       return pickerUnitsFor(loaded, await instance.rulesFor(), data.catalogueId, data.query, data.battleSize, data.waivedRules)
@@ -129,8 +124,6 @@ export const factionDatasheets = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       cacheUntilSnapshotChanges()
-      const references = app().workerReferences
-      if (!data.query.trim() && references) return (await references.referenceDatasheets(data.catalogueId)) ?? []
       const loaded = await app().catalogueFor(data.catalogueId)
       if (!loaded) return []
       return unitsIn(loaded, data.catalogueId, data.query, { factionCards: true }).filter((unit) =>
@@ -288,8 +281,6 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       cacheUntilSnapshotChanges()
-      const references = app().workerReferences
-      if (references) return references.referenceDatasheet(data.catalogueId, data.slug)
       const catalogue = await app().catalogueFor(data.catalogueId)
       const rules = await app().rulesFor()
       const canonical = await app().canonicalCatalogueFor()

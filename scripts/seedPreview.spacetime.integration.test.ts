@@ -1,15 +1,11 @@
-import { randomUUID } from 'node:crypto'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { drizzle } from 'drizzle-orm/d1'
 import { eq, inArray } from 'drizzle-orm'
-import { getPlatformProxy } from 'wrangler'
 import { expect, it, vi } from 'vitest'
 import type { Roster } from '../src/core/battle'
-import { account as d1Account, schema, user } from '../src/db/d1AuthSchema'
-import { handleD1Bridge } from '../src/server/d1Bridge'
-import { D1AccountRepository, SqliteAccountRepository } from '../src/server/d1AccountRepository'
+import { account as authAccount, user } from '../src/db/authSchema'
+import { SqliteAccountRepository } from '../src/server/accountRepository'
 import { localAuthDatabase } from '../src/server/localAuthDatabase'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { SpacetimeRepository } from '../src/server/spacetimeRepository'
@@ -20,108 +16,78 @@ const url = process.env.SPACETIME_TEST_URL
 const databaseName = process.env.SPACETIME_TEST_DATABASE
 const token = process.env.SPACETIME_TEST_OPERATOR_TOKEN
 
-for (const mode of ['d1', 'sqlite'] as const)
-  it.skipIf(!url || !databaseName || !token)(
-    `seeds an isolated ${mode} auth store and SpacetimeDB preview twice without duplicate product data`,
-    { timeout: 30_000 },
-    async () => {
-      const directory = await mkdtemp(path.join(tmpdir(), 'praetorium-preview-spacetime-'))
-      const configPath = path.join(directory, 'wrangler.jsonc')
-      await writeFile(
-        configPath,
-        JSON.stringify({
-          name: 'praetorium-preview-spacetime-test',
-          main: 'index.js',
-          compatibility_date: '2026-09-17',
-          d1_databases: [{ binding: 'AUTH_DB', database_name: 'praetorium-preview-spacetime-test', database_id: randomUUID() }],
+it.skipIf(!url || !databaseName || !token)(
+  'seeds an isolated SQLite auth store and SpacetimeDB preview twice without duplicate product data',
+  { timeout: 30_000 },
+  async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'praetorium-preview-spacetime-'))
+    const sqlitePath = path.join(directory, 'auth.sqlite')
+    await importAuthSqlite(path.resolve('drizzle-auth/0000_curly_gambit.sql'), sqlitePath)
+    const local = localAuthDatabase(sqlitePath)
+    const snapshots = new Map(
+      PREVIEW_ACCOUNTS.flatMap((account) =>
+        account.rosters.map((saved) => {
+          const snapshot: Roster = {
+            id: saved.id,
+            name: saved.name,
+            text: `${saved.limit} pts`,
+            built: {
+              catalogueId: saved.catalogueId,
+              revision: 'preview-test',
+              limit: saved.limit,
+              detachment: null,
+              disposition: saved.disposition,
+              units: [
+                {
+                  key: `${saved.id}-character`,
+                  name: `${saved.name} character`,
+                  points: 100,
+                  models: 1,
+                  group: 'character',
+                  warlord: saved.warlord,
+                  warlordEligible: true,
+                },
+              ],
+            },
+          }
+          return [saved.id, snapshot] as const
         }),
-      )
-      const proxy =
-        mode === 'd1'
-          ? await getPlatformProxy<{ AUTH_DB: Parameters<typeof drizzle>[0] }>({ configPath, persist: false, envFiles: [] })
-          : null
-      const sqlitePath = path.join(directory, 'auth.sqlite')
-      if (mode === 'sqlite') await importAuthSqlite(path.resolve('drizzle-auth/0000_curly_gambit.sql'), sqlitePath)
-      const local = mode === 'sqlite' ? localAuthDatabase(sqlitePath) : null
-      const originalFetch = globalThis.fetch
-      const snapshots = new Map(
-        PREVIEW_ACCOUNTS.flatMap((account) =>
-          account.rosters.map((saved) => {
-            const snapshot: Roster = {
-              id: saved.id,
-              name: saved.name,
-              text: `${saved.limit} pts`,
-              built: {
-                catalogueId: saved.catalogueId,
-                revision: 'preview-test',
-                limit: saved.limit,
-                detachment: null,
-                disposition: saved.disposition,
-                units: [
-                  {
-                    key: `${saved.id}-character`,
-                    name: `${saved.name} character`,
-                    points: 100,
-                    models: 1,
-                    group: 'character',
-                    warlord: saved.warlord,
-                    warlordEligible: true,
-                  },
-                ],
-              },
-            }
-            return [saved.id, snapshot] as const
-          }),
-        ),
-      )
-      try {
-        const migration = await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8')
-        for (const statement of mode === 'd1' ? migration.split('--> statement-breakpoint') : []) {
-          if (statement.trim()) await proxy!.env.AUTH_DB.prepare(statement).run()
-        }
-        vi.stubEnv('SPACETIME_URL', url)
-        vi.stubEnv('SPACETIME_DATABASE', databaseName)
-        vi.stubEnv('SPACETIME_OPERATOR_TOKEN', token)
-        vi.stubEnv('APP_URL', 'http://127.0.0.1:8799')
-        vi.stubEnv('SPACETIME_AUDIENCE', 'praetorium-auth-proof')
-        vi.stubEnv('AUTH_SECRET', 'praetorium-disposable-preview-secret')
-        vi.stubEnv('AUTH_RATE_LIMIT', 'off')
-        vi.stubEnv('PRAETORIUM_SEED_PREVIEW', 'true')
-        if (mode === 'sqlite') vi.stubEnv('AUTH_SQLITE_PATH', sqlitePath)
-        else
-          vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
-            const request = new Request(input, init)
-            return new URL(request.url).hostname === 'd1.internal'
-              ? handleD1Bridge(request, proxy!.env.AUTH_DB)
-              : originalFetch(input, init)
-          })
-        await seedPreview(snapshots)
-        await seedPreview(snapshots)
-        const accounts = local ? new SqliteAccountRepository(local.database) : new D1AccountRepository(proxy!.env.AUTH_DB)
-        const product = new SpacetimeOperator(url!, databaseName!, token!)
-        const repository = new SpacetimeRepository(accounts, product)
-        const database = local?.database ?? drizzle(proxy!.env.AUTH_DB, { schema })
-        const [preview] = await database.select({ id: user.id }).from(user).where(eq(user.email, PREVIEW_EMAIL))
-        if (!preview) throw new Error('Preview account missing')
-        expect((await repository.adminUsers({ limit: 10 })).users.find((row) => row.id === preview.id)?.rosterCount).toBe(8)
-        expect((await repository.leagueByToken('preview-league-doubles', preview.id))?.entries).toHaveLength(4)
-        expect((await repository.battleHistoryByToken('preview-league-battle-duel'))?.players).toHaveLength(2)
-        expect(await product.practiceOpponentIds()).toEqual(['practice-opponent-1', 'practice-opponent-2'])
-        const practiceCredentials = await database
-          .select({ userId: d1Account.userId })
-          .from(d1Account)
-          .where(inArray(d1Account.userId, ['practice-opponent-1', 'practice-opponent-2']))
-        expect(practiceCredentials).toEqual([])
-      } finally {
-        vi.unstubAllGlobals()
-        vi.unstubAllEnvs()
-        const database = local?.database ?? drizzle(proxy!.env.AUTH_DB, { schema })
-        const rows = await database.select({ id: user.id }).from(user)
-        const product = new SpacetimeOperator(url!, databaseName!, token!)
-        for (const row of rows) await product.deleteUserData(row.id)
-        local?.client.close()
-        await proxy?.dispose()
-        await rm(directory, { recursive: true, force: true })
-      }
-    },
-  )
+      ),
+    )
+    try {
+      vi.stubEnv('SPACETIME_URL', url)
+      vi.stubEnv('SPACETIME_DATABASE', databaseName)
+      vi.stubEnv('SPACETIME_OPERATOR_TOKEN', token)
+      vi.stubEnv('APP_URL', 'http://127.0.0.1:8799')
+      vi.stubEnv('SPACETIME_AUDIENCE', 'praetorium-auth-proof')
+      vi.stubEnv('AUTH_SECRET', 'praetorium-disposable-preview-secret')
+      vi.stubEnv('AUTH_RATE_LIMIT', 'off')
+      vi.stubEnv('PRAETORIUM_SEED_PREVIEW', 'true')
+      vi.stubEnv('AUTH_SQLITE_PATH', sqlitePath)
+      await seedPreview(snapshots)
+      await seedPreview(snapshots)
+      const accounts = new SqliteAccountRepository(local.database)
+      const product = new SpacetimeOperator(url!, databaseName!, token!)
+      const repository = new SpacetimeRepository(accounts, product)
+      const database = local.database
+      const [preview] = await database.select({ id: user.id }).from(user).where(eq(user.email, PREVIEW_EMAIL))
+      if (!preview) throw new Error('Preview account missing')
+      expect((await repository.adminUsers({ limit: 10 })).users.find((row) => row.id === preview.id)?.rosterCount).toBe(8)
+      expect((await repository.leagueByToken('preview-league-doubles', preview.id))?.entries).toHaveLength(4)
+      expect((await repository.battleHistoryByToken('preview-league-battle-duel'))?.players).toHaveLength(2)
+      expect(await product.practiceOpponentIds()).toEqual(['practice-opponent-1', 'practice-opponent-2'])
+      const practiceCredentials = await database
+        .select({ userId: authAccount.userId })
+        .from(authAccount)
+        .where(inArray(authAccount.userId, ['practice-opponent-1', 'practice-opponent-2']))
+      expect(practiceCredentials).toEqual([])
+    } finally {
+      vi.unstubAllEnvs()
+      const rows = await local.database.select({ id: user.id }).from(user)
+      const product = new SpacetimeOperator(url!, databaseName!, token!)
+      for (const row of rows) await product.deleteUserData(row.id)
+      local.client.close()
+      await rm(directory, { recursive: true, force: true })
+    }
+  },
+)

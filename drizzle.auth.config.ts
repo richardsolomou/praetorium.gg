@@ -2,6 +2,6 @@ import { defineConfig } from 'drizzle-kit'
 
 export default defineConfig({
   dialect: 'sqlite',
-  schema: './src/db/d1AuthSchema.ts',
+  schema: './src/db/authSchema.ts',
   out: './drizzle-auth',
 })

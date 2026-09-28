@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { drizzle } from 'drizzle-orm/d1'
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
-import { getPlatformProxy, type PlatformProxy } from 'wrangler'
+import { importAuthSqlite } from '../../scripts/nodeAuthSqlite'
 import { DbConnection, tables } from '../spacetime/generated'
-import { createD1Auth } from './d1Auth'
+import { createSqliteAuth } from './sqliteAuth'
+import { localAuthDatabase } from './localAuthDatabase'
 import { SpacetimeOperator } from './spacetimeOperator'
 
 const spacetimeUrl = process.env.SPACETIME_TEST_URL
@@ -17,44 +17,23 @@ const operatorToken = process.env.SPACETIME_TEST_OPERATOR_TOKEN
 const issuer = process.env.SPACETIME_TEST_ISSUER ?? 'http://127.0.0.1:8799'
 const issuerPort = Number(new URL(issuer).port)
 let directory: string
-let proxy: PlatformProxy<{ AUTH_DB: Parameters<typeof drizzle>[0] }>
+let local: ReturnType<typeof localAuthDatabase>
 
 beforeAll(async () => {
   if (!spacetimeUrl) return
   directory = await mkdtemp(path.join(tmpdir(), 'praetorium-stdb-oidc-'))
-  const configPath = path.join(directory, 'wrangler.jsonc')
-  await writeFile(
-    configPath,
-    JSON.stringify({
-      name: 'praetorium-stdb-oidc-test',
-      main: 'index.js',
-      compatibility_date: '2026-09-17',
-      d1_databases: [
-        { binding: 'AUTH_DB', database_name: 'praetorium-stdb-oidc-test', database_id: '00000000-0000-4000-8000-000000000002' },
-      ],
-    }),
-  )
-  proxy = await getPlatformProxy({
-    configPath,
-    persist: { path: path.join(tmpdir(), 'praetorium-stdb-oidc-d1-state') },
-    envFiles: [],
-  })
-  const migrated = await proxy.env.AUTH_DB.prepare("select name from sqlite_master where type = 'table' and name = 'user'").first()
-  if (!migrated) {
-    const migration = await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8')
-    for (const statement of migration.split('--> statement-breakpoint')) {
-      if (statement.trim()) await proxy.env.AUTH_DB.prepare(statement).run()
-    }
-  }
+  const file = path.join(directory, 'auth.sqlite')
+  await importAuthSqlite(path.resolve('drizzle-auth/0000_curly_gambit.sql'), file)
+  local = localAuthDatabase(file)
 })
 
 afterAll(async () => {
-  await proxy?.dispose()
+  local?.client.close()
   if (directory) await rm(directory, { recursive: true, force: true })
 })
 
 it.skipIf(!spacetimeUrl)('connects to SpacetimeDB with a session-bound Better Auth token', async () => {
-  const auth = createD1Auth(proxy.env.AUTH_DB, 'praetorium-spacetime-local-proof-secret', {
+  const auth = createSqliteAuth(local.database, 'praetorium-spacetime-local-proof-secret', {
     environment: { APP_URL: issuer, SPACETIME_AUDIENCE: spacetimeAudience, AUTH_RATE_LIMIT: 'off' },
     deleteUserData: async () => {},
     revokeSessionAccess: async () => {},
@@ -118,7 +97,7 @@ it.skipIf(!spacetimeUrl)('connects to SpacetimeDB with a session-bound Better Au
 it.skipIf(!spacetimeUrl || !operatorToken)(
   'streams private product changes to another session without exposing them to strangers',
   async () => {
-    const auth = createD1Auth(proxy.env.AUTH_DB, 'praetorium-spacetime-local-proof-secret', {
+    const auth = createSqliteAuth(local.database, 'praetorium-spacetime-local-proof-secret', {
       environment: { APP_URL: issuer, SPACETIME_AUDIENCE: spacetimeAudience, AUTH_RATE_LIMIT: 'off' },
       deleteUserData: async () => {},
       revokeSessionAccess: async () => {},
@@ -247,7 +226,7 @@ it.skipIf(!spacetimeUrl || !operatorToken)(
 )
 
 it.skipIf(!spacetimeUrl || !operatorToken)('streams private product counts only to an admin session', async () => {
-  const auth = createD1Auth(proxy.env.AUTH_DB, 'praetorium-spacetime-local-proof-secret', {
+  const auth = createSqliteAuth(local.database, 'praetorium-spacetime-local-proof-secret', {
     environment: { APP_URL: issuer, SPACETIME_AUDIENCE: spacetimeAudience, AUTH_RATE_LIMIT: 'off' },
     deleteUserData: async () => {},
     revokeSessionAccess: async () => {},
@@ -269,7 +248,7 @@ it.skipIf(!spacetimeUrl || !operatorToken)('streams private product counts only 
         body: { email: `admin-signal-${randomUUID()}@example.com`, password: 'password1234', name: 'Signal proof' },
         returnHeaders: true,
       })
-      await proxy.env.AUTH_DB.prepare('update user set role = ? where id = ?').bind(role, created.response.user.id).run()
+      await local.client.execute({ sql: 'update user set role = ? where id = ?', args: [role, created.response.user.id] })
       const cookie = created.headers.get('set-cookie')?.split(';')[0]
       if (!cookie) throw new Error('Missing session cookie')
       return { userId: created.response.user.id, token: (await auth.api.getToken({ headers: new Headers({ cookie }) })).token }
@@ -332,7 +311,7 @@ it.skipIf(!spacetimeUrl || !operatorToken)('streams private product counts only 
 })
 
 it.skipIf(!spacetimeUrl || !operatorToken)('streams only a seated player’s watched battle sequence', async () => {
-  const auth = createD1Auth(proxy.env.AUTH_DB, 'praetorium-spacetime-local-proof-secret', {
+  const auth = createSqliteAuth(local.database, 'praetorium-spacetime-local-proof-secret', {
     environment: { APP_URL: issuer, SPACETIME_AUDIENCE: spacetimeAudience, AUTH_RATE_LIMIT: 'off' },
     deleteUserData: async () => {},
     revokeSessionAccess: async () => {},
@@ -418,9 +397,9 @@ it.skipIf(!spacetimeUrl || !operatorToken)('streams only a seated player’s wat
   }
 })
 
-it.skipIf(!spacetimeUrl || !operatorToken)('removes product signal access when the D1 session is signed out', async () => {
+it.skipIf(!spacetimeUrl || !operatorToken)('removes product signal access when the SQLite session is signed out', async () => {
   const operator = new SpacetimeOperator(spacetimeUrl!, spacetimeDatabase, operatorToken!)
-  const auth = createD1Auth(proxy.env.AUTH_DB, 'praetorium-spacetime-local-proof-secret', {
+  const auth = createSqliteAuth(local.database, 'praetorium-spacetime-local-proof-secret', {
     environment: { APP_URL: issuer, SPACETIME_AUDIENCE: spacetimeAudience, AUTH_RATE_LIMIT: 'off' },
     deleteUserData: async () => {},
     revokeSessionAccess: (sessionId) => operator.revokeSession(sessionId),

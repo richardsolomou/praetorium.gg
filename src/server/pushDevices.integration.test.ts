@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { drizzle } from 'drizzle-orm/d1'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { getPlatformProxy, type PlatformProxy } from 'wrangler'
+import { importAuthSqlite } from '../../scripts/nodeAuthSqlite'
 import { SIGN_IN_REQUIRED } from '../core/session'
-import { createD1Auth } from './d1Auth'
+import { createSqliteAuth } from './sqliteAuth'
+import { localAuthDatabase } from './localAuthDatabase'
 
 const { instance } = vi.hoisted(() => {
   const current: { current: unknown } = { current: null }
@@ -21,8 +21,8 @@ const SERVER_FUNCTION = `${ORIGIN}/_serverFn/registerPushDevice`
 const DEVICE = { token: 'ExponentPushToken[webview-device]', platform: 'ios' as const }
 
 let directory: string
-let proxy: PlatformProxy<{ AUTH_DB: Parameters<typeof drizzle>[0] }>
-let auth: ReturnType<typeof createD1Auth>
+let local: ReturnType<typeof localAuthDatabase>
+let auth: ReturnType<typeof createSqliteAuth>
 let cookie: string
 let administrator: Headers
 let devices: Map<string, string>
@@ -44,22 +44,10 @@ function webViewHeaders(origin: string | null, sessionCookie = cookie) {
 
 beforeAll(async () => {
   directory = await mkdtemp(path.join(tmpdir(), 'praetorium-push-devices-'))
-  const configPath = path.join(directory, 'wrangler.jsonc')
-  await writeFile(
-    configPath,
-    JSON.stringify({
-      name: 'praetorium-push-devices-test',
-      main: 'index.js',
-      compatibility_date: '2026-09-17',
-      d1_databases: [{ binding: 'AUTH_DB', database_name: 'praetorium-push-devices-test', database_id: randomUUID() }],
-    }),
-  )
-  proxy = await getPlatformProxy<{ AUTH_DB: Parameters<typeof drizzle>[0] }>({ configPath, persist: false, envFiles: [] })
-  const migration = await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8')
-  for (const statement of migration.split('--> statement-breakpoint')) {
-    if (statement.trim()) await proxy.env.AUTH_DB.prepare(statement).run()
-  }
-  auth = createD1Auth(proxy.env.AUTH_DB, 'praetorium-push-device-test-secret', {
+  const file = path.join(directory, 'auth.sqlite')
+  await importAuthSqlite(path.resolve('drizzle-auth/0000_curly_gambit.sql'), file)
+  local = localAuthDatabase(file)
+  auth = createSqliteAuth(local.database, 'praetorium-push-device-test-secret', {
     environment: { APP_URL: ORIGIN, AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-push-device-test' },
     deleteUserData: async () => {},
     revokeSessionAccess: async () => {},
@@ -75,7 +63,7 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  await proxy?.dispose()
+  local?.client.close()
   if (directory) await rm(directory, { recursive: true, force: true })
 })
 

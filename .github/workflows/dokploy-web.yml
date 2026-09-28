@@ -9,9 +9,6 @@ on:
       revision:
         required: true
         type: string
-      auth-import-key:
-        required: false
-        type: string
   workflow_dispatch:
     inputs:
       environment:
@@ -19,10 +16,6 @@ on:
         required: true
         type: choice
         options: [staging, production]
-      auth-import-key:
-        description: Verified R2 auth export key for the first deployment only
-        required: false
-        type: string
 
 concurrency:
   group: dokploy-web-${{ inputs.environment }}
@@ -40,7 +33,6 @@ jobs:
     env:
       TARGET: ${{ inputs.environment }}
       DEPLOY_SHA: ${{ inputs.revision || github.sha }}
-      AUTH_IMPORT_R2_KEY: ${{ inputs.auth-import-key }}
       DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
       DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
       DOKPLOY_APPLICATION_ID: ${{ inputs.environment == 'production' && vars.DOKPLOY_PRODUCTION_WEB_APP_ID || vars.DOKPLOY_STAGING_WEB_APP_ID }}
@@ -139,6 +131,3 @@ jobs:
       - name: Verify and schedule production auth backups
         if: inputs.environment == 'production'
         run: node scripts/dokployAuthSchedule.ts
-      - name: Clear the one-time auth import key
-        if: inputs.auth-import-key != ''
-        run: node scripts/configureDokployNode.ts clear-import "$TARGET"

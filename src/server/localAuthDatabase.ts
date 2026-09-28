@@ -2,7 +2,7 @@ import { createClient } from '@libsql/client'
 import { drizzle } from 'drizzle-orm/libsql'
 import { statSync } from 'node:fs'
 import path from 'node:path'
-import { schema } from '../db/d1AuthSchema'
+import { schema } from '../db/authSchema'
 
 export function localAuthDatabase(file: string) {
   if (!path.isAbsolute(file)) throw new Error('AUTH_SQLITE_PATH must be absolute')

@@ -5,18 +5,18 @@ import { requiredLeagueRosterLimit, type LeagueAdmission, type LeagueVisibility 
 import type { TableShape } from '../core/tableShape'
 import type { Command } from '../core/battle'
 import { z } from 'zod'
-import { D1AccountRepository } from './d1AccountRepository'
+import { SqliteAccountRepository } from './accountRepository'
 import { SpacetimeOperator } from './spacetimeOperator'
 
 type Snapshot = NonNullable<Awaited<ReturnType<SpacetimeOperator['battleByToken']>>>
-type BattlePlayer = NonNullable<Awaited<ReturnType<D1AccountRepository['profileByUserId']>>> & { side: number; automated: boolean }
+type BattlePlayer = NonNullable<Awaited<ReturnType<SqliteAccountRepository['profileByUserId']>>> & { side: number; automated: boolean }
 type RosterSummary = Omit<Awaited<ReturnType<SpacetimeOperator['rosterSummariesByUser']>>[number], 'userId' | 'prep' | 'tags'>
 export type BattleSeats = { battle: Snapshot['battle']; players: BattlePlayer[] }
 export type BattleHistory = BattleSeats & { log: Snapshot['log'] }
 
 export class SpacetimeRepository {
   constructor(
-    private readonly accounts: D1AccountRepository,
+    private readonly accounts: SqliteAccountRepository,
     private readonly product: SpacetimeOperator,
   ) {}
 
@@ -32,7 +32,7 @@ export class SpacetimeRepository {
     return this.product.updateOnboardingProgress(...args)
   }
 
-  async adminUsers(input: Parameters<D1AccountRepository['adminUserRows']>[0] = {}): Promise<AdminUserPage> {
+  async adminUsers(input: Parameters<SqliteAccountRepository['adminUserRows']>[0] = {}): Promise<AdminUserPage> {
     const practice = await this.product.practiceOpponentIds()
     const page = await this.accounts.adminUserRows(input, practice)
     const stats = await this.product.productStats(page.users.map((row) => row.id))
@@ -46,7 +46,7 @@ export class SpacetimeRepository {
     }
   }
 
-  unlinkAccount(...args: Parameters<D1AccountRepository['unlinkAccount']>) {
+  unlinkAccount(...args: Parameters<SqliteAccountRepository['unlinkAccount']>) {
     return this.accounts.unlinkAccount(...args)
   }
 
@@ -64,7 +64,7 @@ export class SpacetimeRepository {
       ...practiceIds,
       ...relationships.map((row) => (row.requesterId === userId ? row.addresseeId : row.requesterId)),
     ])
-    const found: Awaited<ReturnType<D1AccountRepository['searchPlayerRows']>> = []
+    const found: Awaited<ReturnType<SqliteAccountRepository['searchPlayerRows']>> = []
     let after: { name: string; id: string } | null = null
     for (let page = 0; page < 12 && found.length < 20; page++) {
       const rows = await this.accounts.searchPlayerRows(userId, query, after, 100)
@@ -81,7 +81,7 @@ export class SpacetimeRepository {
     const profiles = await this.accounts.profilesByIds(ids)
     return ids.map((id) => {
       const profile = profiles.get(id)
-      if (!profile) throw new Error(`Practice opponent ${id} is missing from D1`)
+      if (!profile) throw new Error(`Practice opponent ${id} is missing from auth database`)
       return profile
     })
   }
@@ -94,7 +94,7 @@ export class SpacetimeRepository {
       .map((row) => {
         const otherId = row.requesterId === userId ? row.addresseeId : row.requesterId
         const profile = profiles.get(otherId)
-        if (!profile) throw new Error(`Friend ${otherId} is missing from D1`)
+        if (!profile) throw new Error(`Friend ${otherId} is missing from auth database`)
         return {
           requesterId: row.requesterId,
           addresseeId: row.addresseeId,
@@ -260,7 +260,7 @@ export class SpacetimeRepository {
     const owners = await this.accounts.profilesByIds(rows.map((row) => row.league.ownerId))
     return rows.map(({ league, event, personal, joined, accepted, occupied, ownEntry }) => {
       const owner = owners.get(league.ownerId)
-      if (!owner) throw new Error(`League owner ${league.ownerId} is missing from D1`)
+      if (!owner) throw new Error(`League owner ${league.ownerId} is missing from auth database`)
       return {
         ...league,
         ownerName: owner.name,
@@ -314,7 +314,7 @@ export class SpacetimeRepository {
     const { league, selected, latest, events, entries, eventCount, latestEntryCount, latestAcceptedCount } = record
     const profiles = await this.accounts.profilesByIds([league.ownerId, ...entries.map((entry) => entry.userId)])
     const owner = profiles.get(league.ownerId)
-    if (!owner) throw new Error(`League owner ${league.ownerId} is missing from D1`)
+    if (!owner) throw new Error(`League owner ${league.ownerId} is missing from auth database`)
     return {
       ...league,
       ownerName: owner.name,
@@ -336,7 +336,7 @@ export class SpacetimeRepository {
         .filter((entry) => entry.status !== 'rejected' || entry.userId === viewerId)
         .map((entry) => {
           const profile = profiles.get(entry.userId)
-          if (!profile) throw new Error(`League entrant ${entry.userId} is missing from D1`)
+          if (!profile) throw new Error(`League entrant ${entry.userId} is missing from auth database`)
           return {
             userId: entry.userId,
             name: profile.name,
@@ -591,7 +591,7 @@ export class SpacetimeRepository {
       battle: snapshot.battle,
       players: snapshot.seats.map((seat) => {
         const profile = profiles.get(seat.id)
-        if (!profile) throw new Error(`Battle seat ${seat.id} is missing from D1`)
+        if (!profile) throw new Error(`Battle seat ${seat.id} is missing from auth database`)
         return { ...profile, side: seat.side, automated: seat.automated }
       }),
     }
@@ -609,7 +609,7 @@ export class SpacetimeRepository {
       at: row.at,
       players: row.seats.map((seat) => {
         const profile = profiles.get(seat.id)
-        if (!profile) throw new Error(`Battle seat ${seat.id} is missing from D1`)
+        if (!profile) throw new Error(`Battle seat ${seat.id} is missing from auth database`)
         return { ...profile, side: seat.side, automated: seat.automated }
       }),
       log: row.log,

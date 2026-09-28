@@ -1,13 +1,11 @@
 import path from 'node:path'
 import { eq } from 'drizzle-orm'
-import { drizzle } from 'drizzle-orm/d1'
 import type { Command, Roster } from '../src/core/battle'
 import type { RosterPick } from '../src/core/roster'
 import { rosterSnapshot } from '../src/core/rosterSnapshot'
-import { account as d1Account, schema as d1Schema, user as d1User } from '../src/db/d1AuthSchema'
-import { createD1Auth, createSqliteAuth } from '../src/server/d1Auth'
-import { remoteD1 } from '../src/server/d1Bridge'
-import { D1AccountRepository, SqliteAccountRepository } from '../src/server/d1AccountRepository'
+import { account as authAccount, user } from '../src/db/authSchema'
+import { createSqliteAuth } from '../src/server/sqliteAuth'
+import { SqliteAccountRepository } from '../src/server/accountRepository'
 import { localAuthDatabase } from '../src/server/localAuthDatabase'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { SpacetimeRepository } from '../src/server/spacetimeRepository'
@@ -278,15 +276,20 @@ const PREVIEW_ALL_ROSTERS = PREVIEW_ACCOUNTS.flatMap((account) => account.roster
 
 export type PreviewSnapshots = ReadonlyMap<string, Roster>
 
-export async function seedPreview(providedSnapshots?: PreviewSnapshots, hostedBinding?: Parameters<typeof drizzle>[0]) {
+export async function seedPreview(providedSnapshots?: PreviewSnapshots) {
   if (process.env.PRAETORIUM_SEED_PREVIEW !== 'true') throw new Error('Refusing to seed a database without the preview flag')
-  if (!process.env.SPACETIME_URL || !process.env.SPACETIME_DATABASE || !process.env.SPACETIME_OPERATOR_TOKEN || !process.env.AUTH_SECRET) {
+  if (
+    !process.env.SPACETIME_URL ||
+    !process.env.SPACETIME_DATABASE ||
+    !process.env.SPACETIME_OPERATOR_TOKEN ||
+    !process.env.AUTH_SECRET ||
+    !process.env.AUTH_SQLITE_PATH
+  ) {
     throw new Error('Preview seed requires SpacetimeDB and auth configuration')
   }
   const snapshots = providedSnapshots ?? (await verifiedSnapshots())
-  const local = process.env.AUTH_SQLITE_PATH ? localAuthDatabase(process.env.AUTH_SQLITE_PATH) : null
-  const binding = local ? null : (hostedBinding ?? remoteD1())
-  const database = local?.database ?? drizzle(binding, { schema: d1Schema })
+  const local = localAuthDatabase(process.env.AUTH_SQLITE_PATH)
+  const database = local.database
   const product = new SpacetimeOperator(
     process.env.SPACETIME_URL,
     process.env.SPACETIME_DATABASE,
@@ -304,32 +307,31 @@ export async function seedPreview(providedSnapshots?: PreviewSnapshots, hostedBi
     storeSocialAvatar: async () => null,
     updateProfile: async (data) => ({ ok: true, data }),
   }
-  const auth = local
-    ? createSqliteAuth(local.database, process.env.AUTH_SECRET, authOptions)
-    : createD1Auth(binding, process.env.AUTH_SECRET, authOptions)
-  const repository = new SpacetimeRepository(
-    local ? new SqliteAccountRepository(local.database) : new D1AccountRepository(binding),
-    product,
-  )
+  const auth = createSqliteAuth(database, process.env.AUTH_SECRET, authOptions)
+  const repository = new SpacetimeRepository(new SqliteAccountRepository(database), product)
   try {
     await seedInto(
       repository,
       auth,
       async (email) => {
-        const [row] = await database.select({ id: d1User.id }).from(d1User).where(eq(d1User.email, email)).limit(1)
+        const [row] = await database.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1)
         return row?.id ?? null
       },
       snapshots,
     )
     for (const opponent of PRACTICE_OPPONENTS) {
       const email = `${opponent.id}@praetorium.invalid`
-      const [existing] = await database.select({ email: d1User.email }).from(d1User).where(eq(d1User.id, opponent.id)).limit(1)
+      const [existing] = await database.select({ email: user.email }).from(user).where(eq(user.id, opponent.id)).limit(1)
       if (existing && existing.email !== email) throw new Error(`Practice opponent ${opponent.id} is an existing account`)
-      const [credential] = await database.select({ id: d1Account.id }).from(d1Account).where(eq(d1Account.userId, opponent.id)).limit(1)
+      const [credential] = await database
+        .select({ id: authAccount.id })
+        .from(authAccount)
+        .where(eq(authAccount.userId, opponent.id))
+        .limit(1)
       if (credential) throw new Error(`Practice opponent ${opponent.id} has sign-in credentials`)
       if (!existing) {
         const now = new Date()
-        await database.insert(d1User).values({
+        await database.insert(user).values({
           id: opponent.id,
           name: opponent.name,
           email,
@@ -341,7 +343,7 @@ export async function seedPreview(providedSnapshots?: PreviewSnapshots, hostedBi
       await product.registerPracticeOpponent(opponent.id)
     }
   } finally {
-    local?.client.close()
+    local.client.close()
   }
 }
 
@@ -389,7 +391,7 @@ async function verifiedSnapshots(): Promise<PreviewSnapshots> {
 
 async function seedInto(
   repository: SpacetimeRepository,
-  auth: ReturnType<typeof createD1Auth>,
+  auth: ReturnType<typeof createSqliteAuth>,
   userIdByEmail: (email: string) => Promise<string | null>,
   snapshots: PreviewSnapshots,
 ) {

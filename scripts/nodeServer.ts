@@ -9,7 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import httpProxy from 'http-proxy'
-import { backupAuthSqlite, importAuthDumpFromR2, importAuthSqlite } from './nodeAuthSqlite.ts'
+import { backupAuthSqlite, importAuthSqlite } from './nodeAuthSqlite.ts'
 import { publicObject } from '../cloudflare/publicObjects.ts'
 import { localObjectStore } from '../src/server/localObjectStore.ts'
 import { r2Client } from '../src/server/r2Client.ts'
@@ -103,12 +103,6 @@ export async function startNodeServer() {
   }
   const authPath = process.env.AUTH_SQLITE_PATH
   if (!authPath || !path.isAbsolute(authPath)) throw new Error('AUTH_SQLITE_PATH must be absolute')
-  if (process.env.AUTH_IMPORT_R2_KEY && process.env.AUTH_INITIALIZE_EMPTY === 'true') {
-    throw new Error('Auth import and empty initialization cannot both be enabled')
-  }
-  if (!existsSync(authPath) && process.env.AUTH_IMPORT_R2_KEY) {
-    await importAuthDumpFromR2(process.env.AUTH_IMPORT_R2_KEY, authPath)
-  }
   if (!existsSync(authPath) && process.env.AUTH_INITIALIZE_EMPTY === 'true') {
     const migration = fileURLToPath(new URL('../drizzle-auth/0000_curly_gambit.sql', import.meta.url))
     if (process.env.PRAETORIUM_SEED_PREVIEW === 'true') {

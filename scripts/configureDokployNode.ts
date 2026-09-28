@@ -20,7 +20,6 @@ function required(environment: NodeJS.ProcessEnv, name: string) {
 export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging' | 'production') {
   const url = target === 'production' ? 'https://praetorium.gg' : 'https://staging.praetorium.gg'
   const database = `praetorium-${target}`
-  const authImportKey = environment.AUTH_IMPORT_R2_KEY?.trim()
   const internalHost = required(environment, 'SPACETIME_INTERNAL_HOST')
   if (!/^[a-z][a-z0-9-]{1,63}$/.test(internalHost)) throw new Error('Invalid SpacetimeDB internal host')
   const entries: Record<string, string> = {
@@ -35,12 +34,6 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
     R2_ACCOUNT_ID: required(environment, 'R2_ACCOUNT_ID'),
     R2_ACCESS_KEY_ID: required(environment, 'R2_ACCESS_KEY_ID'),
     R2_SECRET_ACCESS_KEY: required(environment, 'R2_SECRET_ACCESS_KEY'),
-  }
-  if (authImportKey) {
-    if (!new RegExp(`^backups/auth/import/${target}/[0-9a-f]{64}[.]sql[.]gz$`).test(authImportKey)) {
-      throw new Error('Auth import belongs to a different environment or has no checksum')
-    }
-    entries.AUTH_IMPORT_R2_KEY = authImportKey
   }
   for (const name of [
     'GOOGLE_CLIENT_ID',
@@ -71,13 +64,6 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
   }
   return Object.entries(entries)
     .map(([name, value]) => `${name}=${value}`)
-    .join('\n')
-}
-
-export function withoutAuthImport(env: string) {
-  return env
-    .split('\n')
-    .filter((line) => line && !line.startsWith('AUTH_IMPORT_R2_KEY='))
     .join('\n')
 }
 
@@ -138,11 +124,8 @@ export async function ensureWebDomain(origin: URL, headers: Record<string, strin
 
 async function run() {
   const [command, target] = process.argv.slice(2)
-  if (
-    (command !== 'configure' && command !== 'clear-import' && command !== 'domain') ||
-    (target !== 'staging' && target !== 'production')
-  ) {
-    throw new Error('Usage: configureDokployNode.ts configure|clear-import|domain staging|production')
+  if ((command !== 'configure' && command !== 'domain') || (target !== 'staging' && target !== 'production')) {
+    throw new Error('Usage: configureDokployNode.ts configure|domain staging|production')
   }
   const origin = new URL(required(process.env, 'DOKPLOY_URL'))
   if (origin.protocol !== 'https:' || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Invalid Dokploy URL')
@@ -166,8 +149,7 @@ async function run() {
     console.log(`Configured ${target} web domain`)
     return
   }
-  const env = command === 'configure' ? nodeEnvironment(process.env, target) : withoutAuthImport(application.env ?? '')
-  if (command === 'clear-import' && !application.env?.includes('AUTH_IMPORT_R2_KEY=')) return
+  const env = nodeEnvironment(process.env, target)
   const response = await fetch(new URL('/api/application.saveEnvironment', origin), {
     method: 'POST',
     headers: { ...headers, 'content-type': 'application/json' },
@@ -182,10 +164,8 @@ async function run() {
   })
   if (!response.ok) throw new Error(`Dokploy environment save failed with HTTP ${response.status}`)
   if ((await inspect()).env !== env) throw new Error('Dokploy environment did not persist')
-  if (command === 'configure') {
-    await ensureWebDomain(origin, headers, applicationId, target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg')
-  }
-  console.log(command === 'configure' ? `Configured ${target} web environment` : `Cleared ${target} auth import key`)
+  await ensureWebDomain(origin, headers, applicationId, target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg')
+  console.log(`Configured ${target} web environment`)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) await run()
