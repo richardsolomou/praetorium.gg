@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.80.0
+
+### Minor Changes
+
+- 4d79f6f: Show an update warning when a saved roster differs from its sealed league roster.
+
 ## 0.79.3
 
 ### Patch Changes
