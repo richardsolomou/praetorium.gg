@@ -29,6 +29,7 @@ test('account forms show the server error', async ({ page }) => {
   await page.context().clearCookies()
 
   await page.goto('/sign-in')
+  await page.waitForLoadState('networkidle')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill('the-wrong-password')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
