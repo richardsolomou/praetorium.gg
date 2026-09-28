@@ -157,7 +157,15 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
   useEffect(() => {
     if (!config) return
     return maintainSpacetimeConnection({
-      issue: signedIn ? ticket : () => guestTicket(config),
+      // Rotating a session deletes its row before the response carrying the new cookie
+      // arrives, so a deleted row only reconnects; a refused ticket is what signs out.
+      issue: signedIn
+        ? () =>
+            ticket().catch((error: unknown) => {
+              void queryClient.invalidateQueries({ queryKey: ['me'] })
+              throw error
+            })
+        : () => guestTicket(config),
       open: (issued, failed, isCurrent) =>
         DbConnection.builder()
           .withUri(issued.uri)
@@ -166,11 +174,7 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
           .onConnect((current) => {
             if (!isCurrent()) return
             let applied = false
-            if (signedIn)
-              current.db.mySession.onDelete(() => {
-                void queryClient.invalidateQueries({ queryKey: ['me'] })
-                failed()
-              })
+            if (signedIn) current.db.mySession.onDelete(() => failed())
             current.db.myProductSignals.onInsert((_context, row) => {
               if (applied && signedIn) refresh(row.scope)
             })

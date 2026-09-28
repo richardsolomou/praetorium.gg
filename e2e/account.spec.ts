@@ -455,3 +455,19 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   await expect(guest.getByRole('main')).toContainText(aliceName)
   await expect(guest.getByRole('main')).toContainText(bobName)
 })
+
+test('signing out in one tab signs the other tab out', async ({ page }) => {
+  const name = uniqueName('Two Tabs')
+  await signUp(page, name)
+  const other = await page.context().newPage()
+  await other.goto('/')
+  await expect(other.getByRole('button', { name: `Account menu for ${name}` }).first()).toBeVisible()
+
+  await page
+    .getByRole('button', { name: `Account menu for ${name}` })
+    .first()
+    .click()
+  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+
+  await expect(other.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
+})
