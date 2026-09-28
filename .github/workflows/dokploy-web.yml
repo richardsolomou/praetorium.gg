@@ -9,8 +9,8 @@ on:
         type: choice
         options: [staging, production]
       auth-import-key:
-        description: Verified R2 auth export key from the export workflow
-        required: true
+        description: Verified R2 auth export key for the first deployment only
+        required: false
         type: string
 
 concurrency:
@@ -121,3 +121,9 @@ jobs:
           api-key: ${{ secrets.DOKPLOY_API_KEY }}
           application-id: ${{ env.DOKPLOY_APPLICATION_ID }}
           image: ${{ steps.image.outputs.reference }}
+      - name: Verify and schedule production auth backups
+        if: inputs.environment == 'production'
+        run: node scripts/dokployAuthSchedule.ts
+      - name: Clear the one-time auth import key
+        if: inputs.auth-import-key != ''
+        run: node scripts/configureDokployNode.ts clear-import "$TARGET"

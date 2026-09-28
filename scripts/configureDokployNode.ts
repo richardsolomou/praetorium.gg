@@ -20,14 +20,13 @@ function required(environment: NodeJS.ProcessEnv, name: string) {
 export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging' | 'production') {
   const url = target === 'production' ? 'https://praetorium.gg' : 'https://staging.praetorium.gg'
   const database = `praetorium-${target}`
-  const authImportKey = required(environment, 'AUTH_IMPORT_R2_KEY')
+  const authImportKey = environment.AUTH_IMPORT_R2_KEY?.trim()
   const internalHost = required(environment, 'SPACETIME_INTERNAL_HOST')
   if (!/^[a-z][a-z0-9-]{1,63}$/.test(internalHost)) throw new Error('Invalid SpacetimeDB internal host')
   const entries: Record<string, string> = {
     APP_URL: url,
     AUTH_SECRET: required(environment, 'AUTH_SECRET'),
     AUTH_SQLITE_PATH: '/data/auth.sqlite',
-    AUTH_IMPORT_R2_KEY: authImportKey,
     SPACETIME_URL: `http://${internalHost}:3000/`,
     SPACETIME_INTERNAL_HOST: internalHost,
     SPACETIME_DATABASE: database,
@@ -37,8 +36,11 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
     R2_ACCESS_KEY_ID: required(environment, 'R2_ACCESS_KEY_ID'),
     R2_SECRET_ACCESS_KEY: required(environment, 'R2_SECRET_ACCESS_KEY'),
   }
-  if (!new RegExp(`^backups/auth/import/${target}/[0-9a-f]{64}\\.sql\\.gz$`).test(authImportKey)) {
-    throw new Error('Auth import belongs to a different environment or has no checksum')
+  if (authImportKey) {
+    if (!new RegExp(`^backups/auth/import/${target}/[0-9a-f]{64}[.]sql[.]gz$`).test(authImportKey)) {
+      throw new Error('Auth import belongs to a different environment or has no checksum')
+    }
+    entries.AUTH_IMPORT_R2_KEY = authImportKey
   }
   for (const name of [
     'GOOGLE_CLIENT_ID',

@@ -19,7 +19,7 @@ it('pins staging auth import, database, and audience together', () => {
   expect(config).toContain('SPACETIME_URL=http://praetoriumgg-spacetimedb-sjtfrn:3000/\n')
   expect(config).not.toContain('SPACETIME_ACCESS_CLIENT_SECRET=')
   expect(config).toContain('SPACETIME_DATABASE=praetorium-staging\nSPACETIME_AUDIENCE=praetorium-staging\n')
-  expect(config).toContain(`AUTH_IMPORT_R2_KEY=${environment.AUTH_IMPORT_R2_KEY}\n`)
+  expect(config).toContain(`AUTH_IMPORT_R2_KEY=${environment.AUTH_IMPORT_R2_KEY}`)
 })
 
 it('rejects an external SpacetimeDB host for the VM runtime', () => {
@@ -32,6 +32,11 @@ it('rejects a production import in staging', () => {
   expect(() =>
     nodeEnvironment({ ...environment, AUTH_IMPORT_R2_KEY: environment.AUTH_IMPORT_R2_KEY.replace('staging', 'production') }, 'staging'),
   ).toThrow('Auth import belongs to a different environment')
+})
+
+it('requires an existing auth file on later deployments instead of replaying an old export', () => {
+  const config = nodeEnvironment({ ...environment, AUTH_IMPORT_R2_KEY: '' }, 'staging')
+  expect(config).not.toContain('AUTH_IMPORT_R2_KEY=')
 })
 
 it('keeps a multiline Apple key on one environment line', () => {
@@ -53,5 +58,5 @@ it('keeps a multiline Apple key on one environment line', () => {
 
 it('removes the import key after verification without changing other credentials', () => {
   const configured = nodeEnvironment(environment, 'staging')
-  expect(withoutAuthImport(configured)).toBe(configured.replace(`AUTH_IMPORT_R2_KEY=${environment.AUTH_IMPORT_R2_KEY}\n`, ''))
+  expect(withoutAuthImport(configured)).toBe(configured.replace(`\nAUTH_IMPORT_R2_KEY=${environment.AUTH_IMPORT_R2_KEY}`, ''))
 })
