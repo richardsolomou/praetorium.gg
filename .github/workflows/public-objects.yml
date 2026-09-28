@@ -54,9 +54,24 @@ jobs:
           test -n "$AWS_SECRET_ACCESS_KEY"
           aws s3 sync "$SOURCE/" s3://praetorium-private/ --endpoint-url "$ENDPOINT" --only-show-errors
           aws s3 sync s3://praetorium-private/ "$VERIFY/" --endpoint-url "$ENDPOINT" --only-show-errors
-          (cd "$SOURCE" && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$RUNNER_TEMP/source.sha256"
-          (cd "$VERIFY" && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$RUNNER_TEMP/verified.sha256"
-          diff -u "$RUNNER_TEMP/source.sha256" "$RUNNER_TEMP/verified.sha256"
+          python3 - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+
+          source = Path(os.environ['RUNNER_TEMP']) / 'private-source'
+          verified = Path(os.environ['RUNNER_TEMP']) / 'private-verified'
+          for original in source.rglob('*'):
+              if not original.is_file():
+                  continue
+              copy = verified / original.relative_to(source)
+              if not copy.is_file():
+                  raise SystemExit(f'Missing private object: {original.relative_to(source)}')
+              with original.open('rb') as source_file, copy.open('rb') as copy_file:
+                  if hashlib.file_digest(source_file, 'sha256').digest() != hashlib.file_digest(copy_file, 'sha256').digest():
+                      raise SystemExit(f'Private object failed verification: {original.relative_to(source)}')
+          print('Every copied private object matches its source')
+          PY
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
       - name: Restore the latest auth archive from the private bucket
