@@ -8,7 +8,7 @@ const arguments_ = process.argv.slice(2)
 const output = arguments_[0]
 if (!output) throw new Error('usage: parallelCatalogueCoverage.ts <out.json> [--compare <before.json>] [--accept <withdrawn.json>]')
 
-const configuredWorkers = Number(process.env.CATALOGUE_COVERAGE_WORKERS ?? 3)
+const configuredWorkers = Number(process.env.CATALOGUE_COVERAGE_WORKERS ?? 4)
 if (!Number.isInteger(configuredWorkers) || configuredWorkers < 1) throw new Error('CATALOGUE_COVERAGE_WORKERS must be a positive integer')
 const workerCount = Math.min(configuredWorkers, os.availableParallelism(), 4)
 const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-coverage-'))

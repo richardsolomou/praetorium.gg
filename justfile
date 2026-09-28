@@ -127,3 +127,8 @@ e2e-native-auth-ios:
 
 e2e-trace *args:
     PLAYWRIGHT_TRACE=1 pnpm exec playwright test {{ args }}
+
+# Rebalance the CI end-to-end runners from the test durations one CI run recorded
+e2e-durations run:
+    gh run download {{ run }} --pattern 'e2e-report-*' --dir "${TMPDIR:-/tmp}/praetorium-e2e-reports-{{ run }}"
+    pnpm exec tsx scripts/e2eShard.ts --record "${TMPDIR:-/tmp}"/praetorium-e2e-reports-{{ run }}/*/*.json
