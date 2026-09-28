@@ -10,9 +10,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import httpProxy from 'http-proxy'
 import { backupAuthSqlite, importAuthSqlite } from './nodeAuthSqlite.ts'
-import { publicObject } from '../cloudflare/publicObjects.ts'
+import { localPublicObject } from '../src/server/localPublicObject.ts'
 import { localObjectStore } from '../src/server/localObjectStore.ts'
-import { r2Client } from '../src/server/r2Client.ts'
+import { publicAssetsR2Client } from '../src/server/r2Client.ts'
 
 const execFile = promisify(execFileCallback)
 
@@ -70,7 +70,7 @@ async function serveLocalObject(request: IncomingMessage, response: ServerRespon
   const url = new URL(request.url ?? '/', 'http://localhost')
   const headers = new Headers()
   if (request.headers['if-none-match']) headers.set('if-none-match', request.headers['if-none-match'])
-  const result = await publicObject(new Request(url, { method: request.method, headers }), localObjectStore(root))
+  const result = await localPublicObject(new Request(url, { method: request.method, headers }), localObjectStore(root))
   response.writeHead(result.status, Object.fromEntries(result.headers))
   response.end(result.body ? Buffer.from(await result.arrayBuffer()) : undefined)
 }
@@ -123,7 +123,7 @@ export async function startNodeServer() {
     }
   }
   if (!existsSync(authPath)) throw new Error('Auth SQLite file is missing')
-  if (!r2Client() && process.env.PRAETORIUM_LOCAL_DEV !== 'true' && process.env.PRAETORIUM_SEED_PREVIEW !== 'true') {
+  if (!publicAssetsR2Client() && process.env.PRAETORIUM_LOCAL_DEV !== 'true' && process.env.PRAETORIUM_SEED_PREVIEW !== 'true') {
     throw new Error('Object storage is required')
   }
   const publicPort = Number(process.env.PORT ?? 3000)
@@ -172,7 +172,10 @@ export async function startNodeServer() {
     else response.destroy()
   }
   const server = createServer((request, response) => {
-    if (process.env.PRAETORIUM_LOCAL_DEV === 'true' && request.url?.startsWith('/praetorium/')) {
+    if (
+      process.env.PRAETORIUM_LOCAL_DEV === 'true' &&
+      ['/praetorium/', '/catalogue/', '/avatars/'].some((prefix) => request.url?.startsWith(prefix))
+    ) {
       void serveLocalObject(request, response, process.env.LOCAL_OBJECT_DIR!).catch((error: unknown) =>
         appError(error as Error, request, response),
       )

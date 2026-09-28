@@ -10,9 +10,8 @@ import { localAuthDatabase } from '../src/server/localAuthDatabase'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { SpacetimeRepository } from '../src/server/spacetimeRepository'
 import { unitBattleDetailsIn } from '../src/server/catalogue'
-import { fetchCurrentSnapshot, installedSnapshot } from '../src/server/catalogueSnapshot'
+import { catalogueBaseUrl, fetchCurrentSnapshot, installedSnapshot } from '../src/server/catalogueSnapshot'
 import { catalogueDirectory, loadCatalogue } from '../src/server/catalogueIndex'
-import { s3PublicBaseUrl } from '../src/server/objectStorage'
 import { calculateRosterPrice } from '../src/server/pricing'
 import { loadRules } from '../src/server/rules'
 
@@ -349,7 +348,7 @@ export async function seedPreview(providedSnapshots?: PreviewSnapshots) {
 
 async function verifiedSnapshots(): Promise<PreviewSnapshots> {
   const directory = process.env.CATALOGUE_DIR ? path.resolve(process.env.CATALOGUE_DIR) : catalogueDirectory()
-  if (!installedSnapshot(directory)) await fetchCurrentSnapshot(directory, s3PublicBaseUrl(), (message) => console.log(message))
+  if (!installedSnapshot(directory)) await fetchCurrentSnapshot(directory, catalogueBaseUrl(), (message) => console.log(message))
   const catalogue = loadCatalogue(directory)
   const rules = loadRules(path.join(directory, 'rules'))
   if (!catalogue || !rules) throw new Error('the verified catalogue snapshot is incomplete')

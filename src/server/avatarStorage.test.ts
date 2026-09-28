@@ -2,15 +2,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PROFILE_IMAGE_MAX_LENGTH } from '../authConfig'
 import { isStoredProfileImageUrl, storeProfileImage, storeProfileImageFromUrl } from './avatarStorage'
 
-const PUBLIC_BASE_URL = 'https://s3.praetorium.gg/praetorium'
+const PUBLIC_BASE_URL = 'https://assets.praetorium.gg'
 
-const { configuredObjectStore, putIfAbsent, s3PublicBaseUrl } = vi.hoisted(() => ({
+const { configuredObjectStore, putIfAbsent, publicAssetsBaseUrl } = vi.hoisted(() => ({
   configuredObjectStore: vi.fn(),
   putIfAbsent: vi.fn(),
-  s3PublicBaseUrl: vi.fn(() => 'https://s3.praetorium.gg/praetorium'),
+  publicAssetsBaseUrl: vi.fn(() => 'https://assets.praetorium.gg'),
 }))
 
-vi.mock('./objectStorage', () => ({ configuredObjectStore, putIfAbsent, s3PublicBaseUrl }))
+vi.mock('./objectStorage', () => ({ configuredObjectStore, putIfAbsent, publicAssetsBaseUrl }))
 
 const STORE = { bucket: 'praetorium', publicBaseUrl: PUBLIC_BASE_URL, client: {} as never }
 
@@ -39,7 +39,7 @@ describe('storeProfileImage', () => {
   it('uploads under a content-addressed key and returns its public URL', async () => {
     configuredObjectStore.mockReturnValue(STORE)
     const url = await storeProfileImage('data:image/webp;base64,YXZhdGFy')
-    expect(url).toMatch(/^https:\/\/s3\.praetorium\.gg\/praetorium\/avatars\/[0-9a-f]{64}\.webp$/)
+    expect(url).toMatch(/^https:\/\/assets\.praetorium\.gg\/avatars\/[0-9a-f]{64}\.webp$/)
     expect(putIfAbsent).toHaveBeenCalledWith(STORE, expect.stringContaining('avatars/'), Buffer.from('YXZhdGFy', 'base64'), 'image/webp')
   })
 
@@ -70,7 +70,7 @@ describe('storeProfileImageFromUrl', () => {
       vi.fn(async () => new Response(bytes, { status: 200, headers: { 'content-type': 'image/png' } })),
     )
     const url = await storeProfileImageFromUrl('https://provider.example/avatar.png')
-    expect(url).toMatch(/^https:\/\/s3\.praetorium\.gg\/praetorium\/avatars\/[0-9a-f]{64}\.png$/)
+    expect(url).toMatch(/^https:\/\/assets\.praetorium\.gg\/avatars\/[0-9a-f]{64}\.png$/)
     expect(putIfAbsent).toHaveBeenCalledWith(STORE, expect.stringContaining('avatars/'), bytes, 'image/png')
   })
 
@@ -109,6 +109,10 @@ describe('storeProfileImageFromUrl', () => {
 describe('isStoredProfileImageUrl', () => {
   it('accepts a URL this module could have produced', () => {
     expect(isStoredProfileImageUrl(`${PUBLIC_BASE_URL}/avatars/${'a'.repeat(64)}.webp`)).toBe(true)
+  })
+
+  it('accepts a legacy avatar URL until saved profiles are updated', () => {
+    expect(isStoredProfileImageUrl(`https://s3.praetorium.gg/praetorium/avatars/${'a'.repeat(64)}.webp`)).toBe(true)
   })
 
   it('rejects a data URL, which is a fresh upload rather than something already stored', () => {

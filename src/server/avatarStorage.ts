@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { PROFILE_IMAGE_MAX_LENGTH } from '../authConfig'
-import { configuredObjectStore, type ObjectStore, putIfAbsent, s3PublicBaseUrl } from './objectStorage'
+import { configuredObjectStore, type ObjectStore, publicAssetsBaseUrl, putIfAbsent } from './objectStorage'
 
 const DATA_URL = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/
 const EXTENSION: Record<string, string> = { jpeg: 'jpg', png: 'png', webp: 'webp' }
@@ -14,8 +14,10 @@ const FETCHED_IMAGE_MAX_BYTES = 5_000_000
  * unbounded, is exactly what storing an upload's own short URL instead of its bytes was for).
  */
 export function isStoredProfileImageUrl(url: string): boolean {
-  const prefix = `${s3PublicBaseUrl()}/avatars/`
-  return url.startsWith(prefix) && /^[0-9a-f]{64}\.(?:jpg|png|webp)$/.test(url.slice(prefix.length))
+  return [publicAssetsBaseUrl(), 'https://s3.praetorium.gg/praetorium'].some((base) => {
+    const prefix = `${base}/avatars/`
+    return url.startsWith(prefix) && /^[0-9a-f]{64}\.(?:jpg|png|webp)$/.test(url.slice(prefix.length))
+  })
 }
 
 /**

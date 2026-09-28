@@ -11,6 +11,8 @@ const environment = {
   R2_ACCOUNT_ID: 'b'.repeat(32),
   R2_ACCESS_KEY_ID: 'r2-id',
   R2_SECRET_ACCESS_KEY: 'r2-secret',
+  ASSETS_R2_ACCESS_KEY_ID: 'assets-id',
+  ASSETS_R2_SECRET_ACCESS_KEY: 'assets-secret',
 }
 
 it('pins the staging database and audience together', () => {
@@ -18,6 +20,16 @@ it('pins the staging database and audience together', () => {
   expect(config).toContain('SPACETIME_URL=http://praetoriumgg-spacetimedb-sjtfrn:3000/\n')
   expect(config).not.toContain('SPACETIME_ACCESS_CLIENT_SECRET=')
   expect(config).toContain('SPACETIME_DATABASE=praetorium-staging\nSPACETIME_AUDIENCE=praetorium-staging\n')
+  expect(config).toContain('ASSETS_R2_ACCESS_KEY_ID=assets-id')
+  expect(config).not.toMatch(/^R2_ACCESS_KEY_ID=/m)
+})
+
+it('keeps private backup credentials only in production', () => {
+  const config = nodeEnvironment(
+    { ...environment, APPLE_CLIENT_ID: 'apple', APPLE_TEAM_ID: 'team', APPLE_KEY_ID: 'key', APPLE_PRIVATE_KEY: 'private' },
+    'production',
+  )
+  expect(config).toContain('R2_ACCESS_KEY_ID=r2-id')
 })
 
 it('rejects an external SpacetimeDB host for the VM runtime', () => {

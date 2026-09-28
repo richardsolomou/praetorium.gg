@@ -1,6 +1,8 @@
-export function contentSecurityPolicy(policy: string, imageOrigin: string, hosted: boolean): string {
+export function contentSecurityPolicy(policy: string, imageOrigins: readonly string[], hosted: boolean): string {
   let updated = policy
-  if (!updated.includes(imageOrigin)) updated = updated.replace(/(img-src[^;]*)/, `$1 ${imageOrigin}`)
+  for (const origin of imageOrigins) {
+    if (!updated.includes(origin)) updated = updated.replace(/(img-src[^;]*)/, `$1 ${origin}`)
+  }
   // SpacetimeDB 2.7 generates binary codecs with Function() in the browser.
   if (hosted) {
     updated = updated.replace(/(script-src[^;]*)/, (directive) =>

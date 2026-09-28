@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { unzipSync, zipSync } from 'fflate'
-import { r2Client } from '../src/server/r2Client.ts'
+import { privateR2Client } from '../src/server/r2Client.ts'
 import { backupAuthSqlite, verifyAuthSqlite } from './nodeAuthSqlite.ts'
 
 const archiveKey = /^backups\/auth\/production\/[0-9]{8}T[0-9]{6}Z-[0-9a-f]{16}\.zip$/
@@ -15,7 +15,7 @@ function digest(bytes: Uint8Array) {
 }
 
 function configuredR2() {
-  const r2 = r2Client()
+  const r2 = privateR2Client()
   if (!r2) throw new Error('R2 backup credentials are required')
   return r2
 }

@@ -32,8 +32,9 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
     SPACETIME_AUDIENCE: database,
     SPACETIME_OPERATOR_TOKEN: required(environment, 'SPACETIME_OPERATOR_TOKEN'),
     R2_ACCOUNT_ID: required(environment, 'R2_ACCOUNT_ID'),
-    R2_ACCESS_KEY_ID: required(environment, 'R2_ACCESS_KEY_ID'),
-    R2_SECRET_ACCESS_KEY: required(environment, 'R2_SECRET_ACCESS_KEY'),
+    ASSETS_R2_ACCESS_KEY_ID: required(environment, 'ASSETS_R2_ACCESS_KEY_ID'),
+    ASSETS_R2_SECRET_ACCESS_KEY: required(environment, 'ASSETS_R2_SECRET_ACCESS_KEY'),
+    PUBLIC_ASSETS_BASE_URL: 'https://assets.praetorium.gg',
   }
   for (const name of [
     'GOOGLE_CLIENT_ID',
@@ -56,6 +57,8 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
     if (environment[name]) entries[name] = required(environment, name)
   }
   if (target === 'production') {
+    entries.R2_ACCESS_KEY_ID = required(environment, 'R2_ACCESS_KEY_ID')
+    entries.R2_SECRET_ACCESS_KEY = required(environment, 'R2_SECRET_ACCESS_KEY')
     entries.APPLE_CLIENT_ID = required(environment, 'APPLE_CLIENT_ID')
     entries.APPLE_TEAM_ID = required(environment, 'APPLE_TEAM_ID')
     entries.APPLE_KEY_ID = required(environment, 'APPLE_KEY_ID')

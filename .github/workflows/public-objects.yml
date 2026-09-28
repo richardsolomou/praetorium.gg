@@ -1,39 +1,61 @@
-name: Public objects
+name: Copy public R2 objects
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/public-objects.yml
-      - cloudflare/objectWorker.ts
-      - cloudflare/publicObjects.ts
-      - wrangler.objects.json
-      - scripts/publishPublicObjects.sh
 
 permissions:
   contents: read
 
 jobs:
-  deploy:
+  copy:
     runs-on: ubuntu-latest
+    env:
+      AWS_DEFAULT_REGION: us-east-1
+      ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      SOURCE: ${{ runner.temp }}/source-assets
+      VERIFY: ${{ runner.temp }}/verified-assets
     steps:
-      - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - name: Deploy the public object route
+      - name: Download only public object prefixes from the private bucket
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
-        run: bash scripts/publishPublicObjects.sh
-      - name: Verify public objects stay readable and backups stay private
+          AWS_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
-          base='https://s3.praetorium.gg/praetorium'
-          curl --fail --silent --show-error --max-time 30 --dump-header "$RUNNER_TEMP/current.headers" \
-            "$base/current.json" --output "$RUNNER_TEMP/current.json"
-          grep -Eiq '^x-praetorium-object-source: r2' "$RUNNER_TEMP/current.headers"
-          jq -e '.id | test("^[0-9a-f]{64}$")' "$RUNNER_TEMP/current.json" > /dev/null
-          curl --fail --silent --show-error --head --max-time 30 "$base/revocations.json" > /dev/null
-          status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 30 "$base/backups/auth/production/private.zip")"
-          test "$status" = 404
+          test -n "$AWS_ACCESS_KEY_ID"
+          test -n "$AWS_SECRET_ACCESS_KEY"
+          mkdir -p "$SOURCE/avatars" "$SOURCE/catalogue/snapshots" "$SOURCE/catalogue/changes"
+          aws s3 sync s3://praetorium/avatars/ "$SOURCE/avatars/" --endpoint-url "$ENDPOINT" --only-show-errors
+          aws s3 sync s3://praetorium/catalogue/snapshots/ "$SOURCE/catalogue/snapshots/" --endpoint-url "$ENDPOINT" --only-show-errors
+          aws s3 cp s3://praetorium/catalogue/current.json "$SOURCE/catalogue/current.json" --endpoint-url "$ENDPOINT" --only-show-errors
+          aws s3 cp s3://praetorium/catalogue/revocations.json "$SOURCE/catalogue/revocations.json" --endpoint-url "$ENDPOINT" --only-show-errors
+          if aws s3api head-object --bucket praetorium --key catalogue/changes/seed.json --endpoint-url "$ENDPOINT" >/dev/null 2>&1; then
+            aws s3 cp s3://praetorium/catalogue/changes/seed.json "$SOURCE/catalogue/changes/seed.json" --endpoint-url "$ENDPOINT" --only-show-errors
+          fi
+          python3 - <<'PY'
+          import os, pathlib, re
+          root = pathlib.Path(os.environ['SOURCE'])
+          allowed = re.compile(r'(?:avatars/[0-9a-f]{64}\.(?:jpg|png|webp)|catalogue/snapshots/[0-9a-f]{64}\.zip|catalogue/(?:current|revocations)\.json|catalogue/changes/seed\.json)')
+          paths = [p.relative_to(root).as_posix() for p in root.rglob('*') if p.is_file()]
+          if not paths or any(not allowed.fullmatch(p) for p in paths):
+              raise SystemExit('Source contains an unexpected public asset key')
+          print(f'Validated {len(paths)} public asset keys')
+          PY
+      - name: Upload immutable assets to the public bucket
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.ASSETS_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ASSETS_R2_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$AWS_ACCESS_KEY_ID"
+          test -n "$AWS_SECRET_ACCESS_KEY"
+          aws s3 sync "$SOURCE/avatars/" s3://praetorium-assets/avatars/ --endpoint-url "$ENDPOINT" --cache-control 'public, max-age=31536000, immutable' --only-show-errors
+          aws s3 sync "$SOURCE/catalogue/snapshots/" s3://praetorium-assets/catalogue/snapshots/ --endpoint-url "$ENDPOINT" --cache-control 'public, max-age=31536000, immutable' --only-show-errors
+          for key in catalogue/current.json catalogue/revocations.json catalogue/changes/seed.json; do
+            if test -f "$SOURCE/$key"; then
+              aws s3 cp "$SOURCE/$key" "s3://praetorium-assets/$key" --endpoint-url "$ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
+            fi
+          done
+          aws s3 sync s3://praetorium-assets/ "$VERIFY/" --endpoint-url "$ENDPOINT" --only-show-errors
+          (cd "$SOURCE" && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$RUNNER_TEMP/source.sha256"
+          (cd "$VERIFY" && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$RUNNER_TEMP/verified.sha256"
+          diff -u "$RUNNER_TEMP/source.sha256" "$RUNNER_TEMP/verified.sha256"
