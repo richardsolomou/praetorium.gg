@@ -532,6 +532,8 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
 
   await sealOwnRoster(entrant, 'Corrected list')
   await expect(entrant.getByRole('button', { name: 'Start 1 vs 1 battle' })).toBeVisible()
+  // After the reveal an entrant reads their own sealed copy like anyone else's.
+  await expect(viewRoster(entrant.locator(`[data-person="${entrantName}"]`), entrantName)).toBeVisible()
   await owner.reload()
   await expect(entrantRow.getByText('List revealed')).toBeVisible()
   await owner.screenshot({ path: 'test-results/league-unseal-resealed.png', fullPage: true })
@@ -942,6 +944,58 @@ test('a league starts each event with fresh registration', async ({ browser }) =
 
   await ownerContext.close()
   await entrantContext.close()
+})
+
+test('an organizer answers requests, lets a turned-away player back in, and raises places for doubles', async ({ browser }) => {
+  const names = ['RequestOwner', 'FirstRequest', 'SecondRequest', 'ThirdRequest'].map(uniqueName)
+  const contexts = await Promise.all(names.map(() => browser.newContext()))
+  const [owner, first, second, third] = await Promise.all(contexts.map((context) => context.newPage()))
+  for (const [index, page] of [owner, first, second, third].entries()) await signUp(page, names[index])
+
+  await owner.goto('/leagues')
+  const create = await openLeagueCreation(owner)
+  await create.getByLabel('Name').fill(uniqueName('Request League'))
+  await create.getByLabel('Player limit').fill('2')
+  await submitLeagueCreation(owner, create)
+  const leagueUrl = owner.url()
+  for (const page of [first, second, third]) {
+    await page.goto(leagueUrl)
+    await join(page)
+    await expect(page.getByRole('heading', { name: 'Waiting for approval' })).toBeVisible()
+  }
+
+  await owner.reload()
+  const requests = owner.locator('section').filter({ has: owner.getByRole('heading', { name: /^Requests/ }) })
+  await expect(requests.locator('[data-person]')).toHaveCount(3)
+  await requests.getByRole('button', { name: `Turn away ${names[1]}` }).click()
+  await expect(requests.locator('[data-person]')).toHaveCount(2)
+
+  // A turned-away request stays with the organizer, who can still let that player in.
+  const turnedAway = owner.locator('details').filter({ hasText: 'Turned away' })
+  await turnedAway.locator('summary').click()
+  await turnedAway.getByRole('button', { name: `Let ${names[1]} in` }).click()
+  const entrants = owner.locator('[data-onboarding="league-entrants"]')
+  await expect(entrants.locator(`[data-person="${names[1]}"]`)).toBeVisible()
+  await expect(turnedAway).toHaveCount(0)
+
+  // One place is left, so the bulk accept takes only the oldest request.
+  await requests.getByRole('button', { name: 'Accept the first 1' }).click()
+  await expect(entrants.locator(`[data-person="${names[2]}"]`)).toBeVisible()
+  await expect(requests.locator(`[data-person="${names[3]}"]`)).toBeVisible()
+  await expect(headerChip(owner, '2 / 2 accepted')).toBeVisible()
+
+  // Doubles needs four places, and the format form raises the league's limit in the same save.
+  const rules = await openBattleFormat(owner)
+  await rules.getByRole('button', { name: /^Doubles/ }).click()
+  await expect(rules.getByLabel('Player limit')).toHaveValue('4')
+  await expectNoHorizontalOverflow(owner, rules)
+  await owner.screenshot({ path: 'test-results/league-format-raises-places.png', fullPage: true })
+  await rules.getByRole('button', { name: 'Save format' }).click()
+  await expect(rules).toBeHidden()
+  await expect(headerChip(owner, '2 / 4 accepted')).toBeVisible()
+  await expect(owner.locator('main header').getByText(/^Doubles ·/)).toBeVisible()
+
+  await Promise.all(contexts.map((context) => context.close()))
 })
 
 test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle', async ({ browser }) => {

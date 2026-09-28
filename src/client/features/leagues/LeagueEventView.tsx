@@ -115,9 +115,7 @@ export function LeagueEventView({
       : sealedEntrants
   // Reveal opens every sealed list; before it, an ally reads the list they will field beside.
   const readsRoster = (entry: LeagueEntryView) =>
-    entry.submitted &&
-    entry.userId !== viewerId &&
-    (Boolean(league.revealedAt) || readsAlliedLeagueRoster(league.format, league.rosterLimit, ownEntry ?? null, entry))
+    entry.submitted && (Boolean(league.revealedAt) || readsAlliedLeagueRoster(league.format, league.rosterLimit, ownEntry ?? null, entry))
   const allies =
     ownEntry && !league.revealedAt
       ? accepted.filter((entry) => readsAlliedLeagueRoster(league.format, league.rosterLimit, entry, ownEntry))
