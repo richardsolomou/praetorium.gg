@@ -15,6 +15,7 @@ type Roster = {
   prep?: ListBuilderProps['prep'] | null
   visibility: ListBuilderProps['initial']['visibility']
   source: ListBuilderProps['initial']['source']
+  updatedAt?: number
 }
 
 type Props = {

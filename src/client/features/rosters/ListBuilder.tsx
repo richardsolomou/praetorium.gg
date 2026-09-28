@@ -87,6 +87,8 @@ type Props = {
     borrowedDetachmentId?: string | null
     visibility: RosterVisibility
     source: RosterSource
+    /** When the server wrote this copy; a list nobody has saved has none. */
+    updatedAt?: number
   }
   initialFaction?: RosterSetupFaction | null
   /**
@@ -271,14 +273,18 @@ export function ListBuilder({
   const [openedAs] = useState(() => (savedId ? draftKey(savedDraft(initial, prep)) : null))
   const lastSaved = useRef(openedAs)
   const lastApplied = useRef(openedAs)
+  // A refetch can settle this save while the page still holds the copy from before it,
+  // so a copy is only adopted if the server wrote it at or after the newest save.
+  const savedAt = useRef(initial.updatedAt ?? 0)
   const save = useMutation({
     scope: { id: 'roster-autosave' },
     mutationFn: async () => {
-      await saveRoster({ data: draft })
-      return currentDraftKey
+      const { updatedAt } = await saveRoster({ data: draft })
+      return { key: currentDraftKey, updatedAt }
     },
-    onSuccess: async (savedKey) => {
-      lastApplied.current = savedKey
+    onSuccess: async ({ key, updatedAt }) => {
+      lastApplied.current = key
+      savedAt.current = Math.max(savedAt.current, updatedAt)
       await invalidateSavedRosters(queryClient)
     },
     // What the row holds is unknown after a failure, so the next draft is sent whatever it is.
@@ -294,7 +300,7 @@ export function ListBuilder({
   useEffect(() => {
     if (!savedId) return
     const incoming = draftKey(savedDraft(initial, prep))
-    if (incoming === lastApplied.current) return
+    if (incoming === lastApplied.current || (initial.updatedAt ?? 0) < savedAt.current) return
     if (save.isPending || currentDraftKey !== lastSaved.current || settledListName !== listName || settledPicks !== positioned) return
 
     lastApplied.current = incoming
