@@ -138,8 +138,11 @@ export async function ensureWebDomain(origin: URL, headers: Record<string, strin
 
 async function run() {
   const [command, target] = process.argv.slice(2)
-  if ((command !== 'configure' && command !== 'clear-import') || (target !== 'staging' && target !== 'production')) {
-    throw new Error('Usage: configureDokployNode.ts configure|clear-import staging|production')
+  if (
+    (command !== 'configure' && command !== 'clear-import' && command !== 'domain') ||
+    (target !== 'staging' && target !== 'production')
+  ) {
+    throw new Error('Usage: configureDokployNode.ts configure|clear-import|domain staging|production')
   }
   const origin = new URL(required(process.env, 'DOKPLOY_URL'))
   if (origin.protocol !== 'https:' || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Invalid Dokploy URL')
@@ -158,6 +161,11 @@ async function run() {
     return application
   }
   const application = await inspect()
+  if (command === 'domain') {
+    await ensureWebDomain(origin, headers, applicationId, target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg')
+    console.log(`Configured ${target} web domain`)
+    return
+  }
   const env = command === 'configure' ? nodeEnvironment(process.env, target) : withoutAuthImport(application.env ?? '')
   if (command === 'clear-import' && !application.env?.includes('AUTH_IMPORT_R2_KEY=')) return
   const response = await fetch(new URL('/api/application.saveEnvironment', origin), {

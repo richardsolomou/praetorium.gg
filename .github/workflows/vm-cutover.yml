@@ -1,0 +1,51 @@
+name: VM web cutover
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Traffic operation
+        required: true
+        type: choice
+        options: [prepare-production, freeze-production, unfreeze-production, activate-production, activate-staging]
+      expected-revision:
+        description: Pinned Node image revision for activation
+        required: false
+        type: string
+
+concurrency:
+  group: vm-web-cutover
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'prepare-production'
+    runs-on: ubuntu-latest
+    env:
+      DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+      DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+      DOKPLOY_APPLICATION_ID: ${{ vars.DOKPLOY_PRODUCTION_WEB_APP_ID }}
+      DOKPLOY_ENVIRONMENT_ID: ${{ vars.DOKPLOY_PRODUCTION_ENVIRONMENT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - run: node scripts/configureDokployNode.ts domain production
+
+  route:
+    if: github.ref == 'refs/heads/main' && inputs.operation != 'prepare-production'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
+      CLOUDFLARE_DNS_API_TOKEN: ${{ secrets.PRAETORIUM_PREVIEW_DNS_API_TOKEN }}
+      EXPECTED_REVISION: ${{ inputs.expected-revision }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+        if: inputs.operation == 'freeze-production'
+      - name: Freeze or activate the selected hostname
+        run: bash scripts/cutoverRoutes.sh '${{ inputs.operation }}'
