@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Eye, LockKeyhole, Users } from 'lucide-react'
-import { alliedLeagueRosterLimit } from '../../../core/league'
+import { leagueRegistrationFull, leagueRosterSplit } from '../../../core/league'
+import { TABLE_SHAPE_LABELS } from '../../../core/tableShape'
 import { leaguesQuery, meQuery } from '../../queries'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
@@ -92,28 +93,20 @@ function LeagueShelf({
                 <span className="chip">
                   {league.revealedAt
                     ? 'Rosters revealed'
-                    : (
-                          league.admission === 'approval' && league.playerLimit !== null
-                            ? league.entrantCount >= league.playerLimit || league.occupiedCount >= 128
-                            : league.occupiedCount >= (league.playerLimit ?? 128)
-                        )
+                    : leagueRegistrationFull(league, league.entrantCount, league.occupiedCount)
                       ? 'Registration full'
                       : 'Registration open'}
                 </span>
                 {league.eventNumber > 1 ? <span className="chip text-info">{league.eventNumber} events</span> : null}
                 {league.format && league.rosterLimit ? (
                   <span className="chip">
-                    {league.format === '2v1'
-                      ? `2v1 · ${league.rosterLimit.toLocaleString()}/${alliedLeagueRosterLimit(league.rosterLimit).toLocaleString()}`
-                      : league.format === '2v2'
-                        ? `Doubles · ${league.rosterLimit.toLocaleString()} per force`
-                        : `1v1 · ${league.rosterLimit.toLocaleString()}`}
+                    {TABLE_SHAPE_LABELS[league.format].name} ·{' '}
+                    {leagueRosterSplit(league.format, league.rosterLimit) ?? `${league.rosterLimit.toLocaleString()} points`}
                   </span>
                 ) : null}
+                {league.ownerId === viewerId ? <span className="chip text-parchment">You organize</span> : null}
                 {league.ownEntry ? (
-                  <span className="chip text-parchment">
-                    {league.ownEntry.submitted ? (league.ownEntry.rosterName ?? 'Roster submitted') : league.ownEntry.status}
-                  </span>
+                  <span className="chip text-parchment">{ownEntryLabel(league.ownEntry, Boolean(league.revealedAt))}</span>
                 ) : null}
               </div>
             </Link>
@@ -151,4 +144,12 @@ function LeagueShelf({
       </div>
     </section>
   )
+}
+
+/** Where the reader's own entry stands, in the words the event page uses for it. */
+function ownEntryLabel(entry: { status: 'pending' | 'accepted' | 'rejected'; submitted: boolean }, revealed: boolean) {
+  if (entry.status === 'pending') return 'Waiting for approval'
+  if (entry.status === 'rejected') return 'Not in this event'
+  if (entry.submitted) return revealed ? 'You play · list revealed' : 'You play · list sealed'
+  return revealed ? 'You play · no list' : 'You play · seal a list'
 }

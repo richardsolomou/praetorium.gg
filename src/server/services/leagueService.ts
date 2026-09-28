@@ -175,6 +175,21 @@ export class LeagueService {
     throw new Response('no such event entrant', { status: 404 })
   }
 
+  /** Accepts the chosen waiting requests, oldest first, until the event's places run out. */
+  async admitLeagueEntries(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
+    const result = await this.repository.admitLeagueEntries(token, ownerId, userIds, eventToken)
+    if (typeof result === 'object') {
+      if (result.admitted.length)
+        this.notifier.notify([
+          { kind: 'league-entry-accepted', actorId: ownerId, recipientIds: result.admitted, leagueToken: token, eventToken },
+        ])
+      return result
+    }
+    if (result === 'forbidden') throw new Response('only the organizer can change entrants', { status: 403 })
+    if (result === 'closed') throw new Response('this event has already revealed its rosters', { status: 409 })
+    throw new Response('no such league event', { status: 404 })
+  }
+
   async assignLeagueRosterRequirement(token: string, ownerId: string, userId: string, requiredLimit: number, eventToken?: string) {
     const result = await this.repository.assignLeagueRosterRequirement(token, ownerId, userId, requiredLimit, eventToken)
     if (result === 'updated') return { requiredLimit }

@@ -79,6 +79,11 @@ export const moderateLeagueEntrySchema = z.object({
   userId: id,
   status: z.enum(['accepted', 'rejected']),
 })
+export const admitLeagueEntriesSchema = z.object({
+  token,
+  eventToken: token.optional(),
+  userIds: z.array(id).min(1).max(LEAGUE_MEMBER_MAX),
+})
 export const submitLeagueRosterSchema = z.object({ token, eventToken: token.optional(), rosterId: id })
 export const assignLeagueRosterRequirementSchema = z.object({
   token,

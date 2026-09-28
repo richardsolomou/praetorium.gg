@@ -8,7 +8,14 @@ import { reduceBattle, validate, type FormatRuleId, type LoggedCommand } from '.
 import { commandSchema } from '../../src/core/commands'
 import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE } from '../../src/core/battleAudience'
 import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
-import { alliedLeagueRosterLimit, matchesSealedLeagueRoster, requiredLeagueRosterLimit } from '../../src/core/league'
+import {
+  alliedLeagueRosterLimit,
+  leaguePlacesSeat,
+  leagueRegistrationFull,
+  leagueRevealChecklist,
+  matchesSealedLeagueRoster,
+  requiredLeagueRosterLimit,
+} from '../../src/core/league'
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
 import { rosterReminderSchema } from '../../src/core/reminders'
 import type { Roster } from '../../src/core/battle'
@@ -1593,6 +1600,17 @@ export const leagueRosters = spacetime.procedure(
 
 type LeagueEntryRow = NonNullable<ReturnType<Context['db']['leagueEventEntries']['key']['find']>>
 
+/** Accepts waiting requests in `leagueEntriesFor` order, oldest first, until the event's places run out, returning who got in. */
+function admitWaiting(ctx: Context, entries: LeagueEntryRow[], playerLimit: number | null, include: (entry: LeagueEntryRow) => boolean) {
+  const accepted = entries.filter((entry) => entry.status === 'accepted').length
+  const waiting = entries.filter((entry) => entry.status === 'pending' && include(entry))
+  const places = playerLimit === null ? waiting.length : Math.max(0, playerLimit - accepted)
+  return waiting.slice(0, places).map((entry) => {
+    ctx.db.leagueEventEntries.key.update({ ...entry, status: 'accepted' })
+    return entry.userId
+  })
+}
+
 function resetLeagueEntry(ctx: Context, entry: LeagueEntryRow) {
   ctx.db.leagueEventEntries.key.update({
     ...entry,
@@ -1709,11 +1727,15 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
       if (existing && existing.status !== 'rejected') return productJson(existing.status)
       const entries = leagueEntriesFor(tx, event.id).filter((entry) => entry.status !== 'rejected')
       const accepted = entries.filter((entry) => entry.status === 'accepted').length
-      const full =
-        league.admission === 'approval' && league.playerLimit !== undefined
-          ? accepted >= league.playerLimit || entries.length >= input.memberLimit
-          : entries.length >= (league.playerLimit ?? input.memberLimit)
-      if (full) return productJson('full')
+      if (
+        leagueRegistrationFull(
+          { admission: league.admission as 'automatic' | 'approval', playerLimit: league.playerLimit ?? null },
+          accepted,
+          entries.length,
+          input.memberLimit,
+        )
+      )
+        return productJson('full')
       const status = league.admission === 'automatic' || league.ownerId === input.userId ? 'accepted' : 'pending'
       if (existing) tx.db.leagueEventEntries.key.update({ ...existing, status, joinedAt: BigInt(input.now) })
       else
@@ -1750,9 +1772,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         }),
         value,
       )
-      if (input.format === '2v1' && league.playerLimit !== undefined && league.playerLimit < 3) return productJson('too-small')
-      if (input.format === '2v2' && league.playerLimit !== undefined && (league.playerLimit < 4 || league.playerLimit % 2))
-        return productJson('too-small')
+      if (!leaguePlacesSeat(input.format ?? null, league.playerLimit ?? null)) return productJson('too-small')
       const latest = leagueEventFor(tx, league.id, null)
       if (!latest || latest.revealedAt === undefined) return productJson('open')
       tx.db.leagueEvents.insert({
@@ -1775,8 +1795,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
       const entries = leagueEntriesFor(tx, current.id)
       const accepted = entries.filter((entry) => entry.status === 'accepted').length
       if (input.playerLimit !== (league.playerLimit ?? null) && current.revealedAt === undefined) {
-        if (current.format === '2v1' && input.playerLimit !== null && input.playerLimit < 3) return productJson('team-minimum')
-        if (current.format === '2v2' && input.playerLimit !== null && (input.playerLimit < 4 || input.playerLimit % 2))
+        if (!leaguePlacesSeat((current.format ?? null) as '1v1' | '2v1' | '2v2' | null, input.playerLimit))
           return productJson('team-minimum')
         if (input.playerLimit !== null && input.playerLimit < accepted) return productJson('below-accepted')
       }
@@ -1788,15 +1807,10 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         admission: input.admission,
         playerLimit: input.playerLimit ?? undefined,
       })
-      const admitted: string[] = []
-      if (input.admission === 'automatic' && league.admission === 'approval' && current.revealedAt === undefined) {
-        const waiting = entries.filter((entry) => entry.status === 'pending')
-        const places = input.playerLimit === null ? waiting.length : Math.max(0, input.playerLimit - accepted)
-        for (const entry of waiting.slice(0, places)) {
-          tx.db.leagueEventEntries.key.update({ ...entry, status: 'accepted' })
-          admitted.push(entry.userId)
-        }
-      }
+      const admitted =
+        input.admission === 'automatic' && league.admission === 'approval' && current.revealedAt === undefined
+          ? admitWaiting(tx, entries, input.playerLimit, () => true)
+          : []
       touchLeague(tx, league.id)
       return productJson({ admitted })
     }
@@ -1816,9 +1830,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
     if (!event) return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'missing')
     if (operation === 'update-event') {
       const input = leagueCommandInput(leagueRuleInput.extend({ op: z.literal('update-event') }), value)
-      if (input.format === '2v1' && league.playerLimit !== undefined && league.playerLimit < 3) return productJson('too-small')
-      if (input.format === '2v2' && league.playerLimit !== undefined && (league.playerLimit < 4 || league.playerLimit % 2))
-        return productJson('too-small')
+      if (!leaguePlacesSeat(input.format ?? null, league.playerLimit ?? null)) return productJson('too-small')
       if (event.revealedAt !== undefined) return productJson('closed')
       const entries = leagueEntriesFor(tx, event.id)
       if (entries.some((entry) => entry.rosterSnapshot !== undefined)) return productJson('sealed')
@@ -1826,6 +1838,14 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
       for (const entry of entries) tx.db.leagueEventEntries.key.update({ ...entry, requiredLimit: undefined, teamId: undefined })
       touchLeague(tx, league.id, event.id)
       return productJson('updated')
+    }
+    if (operation === 'admit') {
+      const input = leagueCommandInput(z.object({ op: z.literal('admit'), userIds: z.array(leagueIdInput).max(128) }), value)
+      if (event.revealedAt !== undefined) return productJson('closed')
+      const chosen = new Set(input.userIds)
+      const admitted = admitWaiting(tx, leagueEntriesFor(tx, event.id), league.playerLimit ?? null, (entry) => chosen.has(entry.userId))
+      if (admitted.length) touchLeague(tx, league.id, event.id)
+      return productJson({ admitted })
     }
     if (operation === 'moderate') {
       const input = leagueCommandInput(
@@ -2019,12 +2039,21 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
       if (event.revealedAt !== undefined) return productJson({ outcome: 'not-ready' })
       const all = leagueEntriesFor(tx, event.id)
       const entries = all.filter((entry) => entry.status === 'accepted')
-      if (
-        !entries.length ||
-        (league.playerLimit !== undefined && entries.length !== league.playerLimit) ||
-        entries.some((entry) => entry.rosterSnapshot === undefined || (event.format === '2v1' && entry.requiredLimit === undefined))
+      const checks = leagueRevealChecklist(
+        {
+          format: (event.format ?? null) as '1v1' | '2v1' | '2v2' | null,
+          rosterLimit: event.rosterLimit ?? null,
+          playerLimit: league.playerLimit ?? null,
+        },
+        all.map((entry) => ({
+          userId: entry.userId,
+          status: entry.status as 'pending' | 'accepted' | 'rejected',
+          submitted: entry.rosterSnapshot !== undefined,
+          requiredLimit: entry.requiredLimit ?? null,
+          teamId: entry.teamId ?? null,
+        })),
       )
-        return productJson({ outcome: 'not-ready' })
+      if (!checks.every((check) => check.done)) return productJson({ outcome: 'not-ready' })
       let snapshots: Roster[] = []
       if (event.format !== undefined) {
         try {
@@ -2032,11 +2061,6 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         } catch {
           return productJson({ outcome: 'not-ready' })
         }
-      }
-      if (event.format === '2v1') {
-        const solo = entries.filter((entry) => entry.requiredLimit === event.rosterLimit).length
-        const allied = entries.filter((entry) => entry.requiredLimit === alliedLeagueRosterLimit(event.rosterLimit ?? 0)).length
-        if (!solo || allied < 2) return productJson({ outcome: 'not-ready' })
       }
       if (
         event.format !== undefined &&
@@ -2048,11 +2072,8 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
       )
         return productJson({ outcome: 'invalid-warlords', format: event.format })
       if (event.format === '2v2') {
-        if (entries.length < 4 || entries.length % 2 || entries.some((entry) => entry.teamId === undefined))
-          return productJson({ outcome: 'not-ready' })
         const teams = new Map<string, Roster[]>()
         entries.forEach((entry, index) => teams.set(entry.teamId!, [...(teams.get(entry.teamId!) ?? []), snapshots[index]!]))
-        if (teams.size < 2 || [...teams.values()].some((team) => team.length !== 2)) return productJson({ outcome: 'not-ready' })
         if (
           [...teams.values()].some((team) => {
             const selected = leagueWarlords(team)
@@ -2060,7 +2081,6 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
           })
         )
           return productJson({ outcome: 'invalid-warlords', format: '2v2' })
-        if (all.some((entry) => entry.status === 'pending')) return productJson({ outcome: 'not-ready' })
       }
       if (
         event.format !== undefined &&

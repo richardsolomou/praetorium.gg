@@ -5,6 +5,7 @@ import { currentUserId, requireUser } from '../playerSession'
 import { rosterForUse } from '../rosterUsage'
 import { mutationRpc, rpc } from '../rpc'
 import {
+  admitLeagueEntriesSchema,
   assignLeagueRosterRequirementSchema,
   assignLeagueTeamSchema,
   createLeagueBattleSchema,
@@ -69,6 +70,16 @@ export const joinLeague = createServerFn({ method: 'POST' })
       const status = await app().service.joinLeague(data.token, player.id, data.eventToken)
       await app().telemetry.capture(player.id, 'league_joined', { status })
       return status
+    }),
+  )
+
+export const admitLeagueEntries = createServerFn({ method: 'POST' })
+  .validator(admitLeagueEntriesSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const { admitted } = await app().service.admitLeagueEntries(data.token, player.id, data.userIds, data.eventToken)
+      return { admitted: admitted.length }
     }),
   )
 

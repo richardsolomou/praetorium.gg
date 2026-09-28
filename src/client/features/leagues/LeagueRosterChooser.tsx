@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { FileLock2 } from 'lucide-react'
+import { CircleCheck, FileLock2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { errorMessage } from '../../queryClient'
 import { factionIndexQuery, savedRosterSummariesQuery, savedRosterTotalsQuery } from '../../queries'
@@ -29,6 +30,12 @@ export function RosterChooser({
   const { data: prices } = useQuery({ ...savedRosterTotalsQuery(), enabled: open })
   const rosters = (rosterQuery.data ?? []).filter((roster) => requiredLimit === null || roster.limit === requiredLimit)
   const points = new Map((prices ?? []).map((entry) => [entry.id, entry.points]))
+  // Picking a list and sealing it are two presses, because a seal is what every opponent reads at reveal.
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!open) setSelectedId(null)
+  }, [open])
+  const selected = rosters.find((roster) => roster.id === selectedId)
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
@@ -54,17 +61,21 @@ export function RosterChooser({
               <button
                 key={roster.id}
                 type="button"
+                aria-pressed={roster.id === selectedId}
                 data-roster={roster.name}
-                className="flex w-full flex-wrap items-center gap-2 border border-edge bg-panel p-2 hover:border-azure disabled:cursor-wait disabled:opacity-70"
+                className={`flex w-full flex-wrap items-center gap-2 border p-2 disabled:cursor-wait disabled:opacity-70 ${roster.id === selectedId ? 'border-parchment bg-raised' : 'border-edge bg-panel hover:border-info'}`}
                 disabled={pending}
-                onClick={() => onChoose(roster)}
+                onClick={() => setSelectedId(roster.id)}
               >
                 <RosterSummary
                   roster={roster}
                   faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
                   points={points.get(roster.id)}
                 />
-                <FileLock2 className="ml-1 size-4 shrink-0 text-parchment" />
+                <CircleCheck
+                  className={`ml-1 size-5 shrink-0 ${roster.id === selectedId ? 'text-parchment' : 'text-transparent'}`}
+                  aria-hidden
+                />
               </button>
             ))}
           </div>
@@ -84,6 +95,17 @@ export function RosterChooser({
             </Button>
           </div>
         )}
+        {rosters.length ? (
+          <DialogFooter className="sticky bottom-0 bg-popover">
+            <Button variant="outline" disabled={pending} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button className="max-w-full min-w-0" disabled={!selected || pending} onClick={() => selected && onChoose(selected)}>
+              <FileLock2 />
+              <span className="truncate">{pending ? 'Sealing…' : selected ? `Seal ${selected.name}` : 'Choose a list to seal'}</span>
+            </Button>
+          </DialogFooter>
+        ) : null}
       </DialogContent>
     </Dialog>
   )

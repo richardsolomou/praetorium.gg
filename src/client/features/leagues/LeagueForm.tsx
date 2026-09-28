@@ -1,7 +1,8 @@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import type { LeagueAdmission, LeagueVisibility } from '../../../core/league'
+import { leagueMinimumPlaces, LEAGUE_MEMBER_MAX, type LeagueAdmission, type LeagueVisibility } from '../../../core/league'
+import type { TableShape } from '../../../core/tableShape'
 import { Choice } from '../../components/Choice'
 
 export type LeagueFormValue = {
@@ -15,23 +16,20 @@ export type LeagueFormValue = {
 export function LeagueFormFields({
   idPrefix,
   value,
-  minimumPlayerLimit = 2,
+  format = null,
   acceptedCount = 0,
-  evenPlayerLimit = false,
   disabled = false,
   onChange,
 }: {
   idPrefix: string
   value: LeagueFormValue
-  minimumPlayerLimit?: number
+  /** The open event's shape, which the limit must still seat; null when no open event constrains it. */
+  format?: TableShape | null
   acceptedCount?: number
-  evenPlayerLimit?: boolean
   disabled?: boolean
   onChange: (value: LeagueFormValue) => void
 }) {
-  const minimum = evenPlayerLimit
-    ? Math.ceil(Math.max(minimumPlayerLimit, acceptedCount) / 2) * 2
-    : Math.max(minimumPlayerLimit, acceptedCount)
+  const minimum = leagueMinimumPlaces(format, acceptedCount)
   return (
     <>
       <div data-onboarding="league-name" className="space-y-1.5">
@@ -63,8 +61,8 @@ export function LeagueFormFields({
           id={`${idPrefix}-player-limit`}
           type="number"
           min={minimum}
-          step={evenPlayerLimit ? 2 : 1}
-          max={128}
+          step={format === '2v2' ? 2 : 1}
+          max={LEAGUE_MEMBER_MAX}
           value={value.playerLimit ?? ''}
           placeholder="No fixed limit"
           disabled={disabled}
@@ -73,9 +71,9 @@ export function LeagueFormFields({
         <p className="text-xs text-dim">
           {acceptedCount
             ? `No lower than ${minimum} while this event is open.`
-            : evenPlayerLimit
+            : format === '2v2'
               ? 'Doubles needs an even number of places, at least four.'
-              : minimumPlayerLimit === 3
+              : format === '2v1'
                 ? 'A 2v1 event needs at least three places.'
                 : 'Leave it empty for no limit. Set it, and every place must be filled before you can reveal.'}
         </p>

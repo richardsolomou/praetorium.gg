@@ -65,6 +65,89 @@ export type LeagueEntryView = {
   teamId: string | null
 }
 
+/** The fewest places each table shape can seat. */
+export const LEAGUE_SHAPE_PLACES: Record<TableShape, number> = { '1v1': 2, '2v1': 3, '2v2': 4 }
+
+/** The lowest player limit an event of this shape can have, never below its accepted entrants and even for doubles, whose teams are pairs. */
+export function leagueMinimumPlaces(format: TableShape | null, accepted = 0) {
+  const shape = leagueTableShape(format)
+  const needed = Math.max(LEAGUE_SHAPE_PLACES[shape], accepted)
+  return shape === '2v2' ? Math.ceil(needed / 2) * 2 : needed
+}
+
+/** Whether a player limit can seat an event of this shape; no limit seats any. */
+export function leaguePlacesSeat(format: TableShape | null, playerLimit: number | null, accepted = 0) {
+  if (playerLimit === null) return true
+  return playerLimit >= leagueMinimumPlaces(format, accepted) && (leagueTableShape(format) !== '2v2' || playerLimit % 2 === 0)
+}
+
+/** Whether an open event has room for another request, as the join command decides it. */
+export function leagueRegistrationFull(
+  league: { admission: LeagueAdmission; playerLimit: number | null },
+  acceptedCount: number,
+  occupiedCount: number,
+  memberLimit: number = LEAGUE_MEMBER_MAX,
+) {
+  return league.admission === 'approval' && league.playerLimit !== null
+    ? acceptedCount >= league.playerLimit || occupiedCount >= memberLimit
+    : occupiedCount >= (league.playerLimit ?? memberLimit)
+}
+
+/** The facts about an entry that reveal readiness reads; `requiredLimit` is the organizer's 2v1 assignment. */
+export type LeagueRevealEntry = {
+  userId: string
+  status: LeagueEntryStatus
+  submitted: boolean
+  requiredLimit: number | null
+  teamId: string | null
+}
+
+/**
+ * Every structural condition an event's shape puts on reveal, each with the entrants still holding it up.
+ *
+ * The reveal command refuses unless every check is done, and the organizer reads the same checks as a
+ * list. The command still inspects the sealed rosters themselves, so a done list can meet a Warlord refusal.
+ */
+export type LeagueRevealCheck =
+  | { step: 'places'; done: boolean; accepted: number; required: number | null }
+  | { step: 'requests'; done: boolean; waiting: string[] }
+  | { step: 'sizes'; done: boolean; waiting: string[]; solo: number; allied: number }
+  | { step: 'teams'; done: boolean; waiting: string[] }
+  | { step: 'lists'; done: boolean; waiting: string[] }
+
+export function leagueRevealChecklist(
+  event: { format: TableShape | null; rosterLimit: number | null; playerLimit: number | null },
+  entries: readonly LeagueRevealEntry[],
+): LeagueRevealCheck[] {
+  const accepted = entries.filter((entry) => entry.status === 'accepted')
+  const checks: LeagueRevealCheck[] = [
+    {
+      step: 'places',
+      done: accepted.length > 0 && (event.playerLimit === null || accepted.length === event.playerLimit),
+      accepted: accepted.length,
+      required: event.playerLimit,
+    },
+  ]
+  if (event.format === '2v2') {
+    const pending = entries.filter((entry) => entry.status === 'pending').map((entry) => entry.userId)
+    checks.push({ step: 'requests', done: pending.length === 0, waiting: pending })
+    const teamSizes = new Map<string, number>()
+    for (const entry of accepted) if (entry.teamId) teamSizes.set(entry.teamId, (teamSizes.get(entry.teamId) ?? 0) + 1)
+    const unpaired = accepted.filter((entry) => !entry.teamId || teamSizes.get(entry.teamId) !== 2).map((entry) => entry.userId)
+    checks.push({ step: 'teams', done: accepted.length >= 4 && unpaired.length === 0, waiting: unpaired })
+  }
+  if (event.format === '2v1') {
+    const alliedLimit = alliedLeagueRosterLimit(event.rosterLimit ?? 0)
+    const solo = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === event.rosterLimit).length
+    const allied = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === alliedLimit).length
+    const unsized = accepted.filter((entry) => entry.requiredLimit === null).map((entry) => entry.userId)
+    checks.push({ step: 'sizes', done: unsized.length === 0 && solo > 0 && allied >= 2, waiting: unsized, solo, allied })
+  }
+  const unsealed = accepted.filter((entry) => !entry.submitted).map((entry) => entry.userId)
+  checks.push({ step: 'lists', done: unsealed.length === 0, waiting: unsealed })
+  return checks
+}
+
 export function visibleLeagueEntries(entries: readonly LeagueEntryView[], ownerId: string, viewerId: string | null) {
   return entries.filter((entry) => entry.status === 'accepted' || viewerId === ownerId || entry.userId === viewerId)
 }

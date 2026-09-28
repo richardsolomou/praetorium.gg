@@ -1,19 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Swords } from 'lucide-react'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { alliedLeagueRosterLimit } from '../../../core/league'
+import { alliedLeagueRosterLimit, type LeagueEntryStatus } from '../../../core/league'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
@@ -21,6 +11,7 @@ import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../../components/S
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { errorMessage } from '../../queryClient'
 import { seatedPlayers, seatsFor, type Seat } from '../../seats'
+import { doublesTeams } from './leagueEvent'
 
 /** One name for the button that starts a shape's battle and the dialog it opens. */
 export function startBattleLabel(format: TableShape) {
@@ -201,163 +192,10 @@ export function LeagueBattleChooser({
   )
 }
 
-export function LeagueTeamChooser({
-  open,
-  entrant,
-  entrantName,
-  entries,
-  projection,
-  pending,
-  error,
-  onIntentChange,
-  onClose,
-  onAssign,
-}: {
-  open: boolean
-  entrant: DoublesEntrant
-  entrantName: string
-  entries: DoublesEntrant[]
-  projection: DoublesTeamProjection
-  pending: boolean
-  error: Error | null
-  onIntentChange: () => void
-  onClose: () => void
-  onAssign: (userIds: string[]) => void
-}) {
-  const [teammateId, setTeammateId] = useState<string | null>(null)
-  const [confirmation, setConfirmation] = useState<{ userIds: string[]; sealedNames: string[] } | null>(null)
-  const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
-  const candidates = entries.filter((entry) => entry.userId !== entrant.userId)
-  const currentTeam = entrant.teamId ? projection.teams.find((team) => team.id === entrant.teamId) : undefined
-  const currentTeammate = currentTeam?.entries.find((entry) => entry.userId !== entrant.userId)
-  const requestAssignment = (userIds: string[]) => {
-    const selected = entries.filter((entry) => userIds.includes(entry.userId))
-    const existingTeamIds = new Set(selected.flatMap((entry) => (entry.teamId ? [entry.teamId] : [])))
-    const affected = entries.filter((entry) => userIds.includes(entry.userId) || (entry.teamId && existingTeamIds.has(entry.teamId)))
-    const unchanged =
-      userIds.length === 2 && entrant.teamId !== null && selected.length === 2 && selected.every((entry) => entry.teamId === entrant.teamId)
-    const sealedNames = unchanged ? [] : affected.filter((entry) => entry.submitted).map((entry) => labels.get(entry.userId) ?? entry.name)
-    if (sealedNames.length) {
-      setConfirmation({ userIds, sealedNames })
-      return
-    }
-    onIntentChange()
-    onAssign(userIds)
-  }
-  return (
-    <>
-      <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
-        <DialogContent aria-busy={pending} className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Assign {entrantName}’s team</DialogTitle>
-            <DialogDescription>
-              {currentTeam && currentTeammate
-                ? `Currently paired with ${labels.get(currentTeammate.userId) ?? currentTeammate.name}. `
-                : ''}
-              Pick one teammate. Changing a pair clears the sealed lists of everyone it touches.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-1.5">
-            <Label htmlFor="league-team-teammate">Teammate</Label>
-            <SearchableSelect
-              id="league-team-teammate"
-              className="h-11"
-              ariaLabel={`Teammate for ${entrantName}`}
-              groups={[
-                {
-                  label: '',
-                  items: candidates.map((entry) => ({
-                    label: `${labels.get(entry.userId) ?? entry.name}${
-                      entry.teamId
-                        ? ` · paired with ${
-                            labels.get(
-                              projection.members.get(entry.teamId)?.find((member) => member.userId !== entry.userId)?.userId ?? '',
-                            ) ?? 'teammate'
-                          }`
-                        : ''
-                    }`,
-                    value: entry.userId,
-                    icon: <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-3xs" />,
-                  })),
-                },
-              ]}
-              value={teammateId ?? ''}
-              onValueChange={(id) => {
-                onIntentChange()
-                setTeammateId(id)
-              }}
-              placeholder="Choose a teammate"
-              searchPlaceholder="Search entrants…"
-            />
-          </div>
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {errorMessage(error)}
-            </p>
-          ) : null}
-          {pending ? <output className="sr-only">Changing doubles team…</output> : null}
-          <DialogFooter>
-            {entrant.teamId ? (
-              <Button variant="destructive" disabled={pending} onClick={() => requestAssignment([entrant.userId])}>
-                Unpair team
-              </Button>
-            ) : null}
-            <Button variant="outline" disabled={pending} onClick={onClose}>
-              Cancel
-            </Button>
-            <Button disabled={!teammateId || pending} onClick={() => teammateId && requestAssignment([entrant.userId, teammateId])}>
-              {pending ? 'Assigning…' : 'Assign team'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <AlertDialog
-        open={confirmation !== null}
-        onOpenChange={(next) => {
-          if (!pending && !next) {
-            onIntentChange()
-            setConfirmation(null)
-          }
-        }}
-      >
-        <AlertDialogContent aria-busy={pending}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Clear sealed doubles rosters?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This clears the sealed {confirmation?.sealedNames.length === 1 ? 'list' : 'lists'} for{' '}
-              {confirmation ? formatNames(confirmation.sealedNames) : ''}. They have to seal another before you can reveal.
-            </AlertDialogDescription>
-            {error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {errorMessage(error)}
-              </p>
-            ) : null}
-            {pending ? <output className="sr-only">Changing doubles team…</output> : null}
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={pending}>Keep current teams</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={pending}
-              onClick={() => {
-                if (!confirmation) return
-                onIntentChange()
-                onAssign(confirmation.userIds)
-              }}
-            >
-              {pending ? 'Clearing…' : 'Change team and clear rosters'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  )
-}
-
 export function DoublesBattleChooser({
   open,
   ownUserId,
   entries,
-  projection,
   pending,
   error,
   onIntentChange,
@@ -367,7 +205,6 @@ export function DoublesBattleChooser({
   open: boolean
   ownUserId: string
   entries: DoublesEntrant[]
-  projection: DoublesTeamProjection
   pending: boolean
   error: Error | null
   onIntentChange: () => void
@@ -380,14 +217,14 @@ export function DoublesBattleChooser({
   }, [open])
   const ownTeamId = entries.find((entry) => entry.userId === ownUserId)?.teamId
   const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
-  const options = projection.teams
-    .filter((team) => team.id !== ownTeamId && team.entries.length === 2 && team.entries.every((entry) => entry.submitted))
+  const options = doublesTeams(entries)
+    .filter((team) => team.id !== ownTeamId && team.members.length === 2 && team.members.every((entry) => entry.submitted))
     .map((team) => ({
-      label: team.entries.map((entry) => labels.get(entry.userId) ?? entry.name).join(' & '),
-      value: team.entries[0]!.userId,
+      label: team.members.map((entry) => labels.get(entry.userId) ?? entry.name).join(' & '),
+      value: team.members[0]!.userId,
       icon: (
         <span className="flex shrink-0 -space-x-2">
-          {team.entries.map((entry) => (
+          {team.members.map((entry) => (
             <PlayerAvatar key={entry.userId} name={entry.name} image={entry.image} className="size-6 border-2 border-panel text-3xs" />
           ))}
         </span>
@@ -438,38 +275,7 @@ export type DoublesEntrant = {
   userId: string
   name: string
   image: string | null
+  status: LeagueEntryStatus
   teamId: string | null
   submitted: boolean
-}
-
-export type DoublesTeamProjection = {
-  members: Map<string, DoublesEntrant[]>
-  teams: { id: string; entries: DoublesEntrant[] }[]
-}
-
-export function projectDoublesTeams(entries: DoublesEntrant[]): DoublesTeamProjection {
-  const members = new Map<string, DoublesEntrant[]>()
-  for (const entry of entries) {
-    if (entry.teamId) members.set(entry.teamId, [...(members.get(entry.teamId) ?? []), entry])
-  }
-  return {
-    members,
-    teams: [...members].map(([id, teamEntries]) => ({ id, entries: teamEntries })),
-  }
-}
-
-export function formatNames(names: string[]) {
-  if (names.length < 2) return names[0] ?? ''
-  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
-}
-
-export function entryStatus(status: 'pending' | 'accepted' | 'rejected', submitted: boolean, revealed: boolean) {
-  if (status === 'pending') return 'Waiting for approval'
-  if (status === 'rejected') return 'Not accepted'
-  if (revealed) return submitted ? 'List revealed' : 'No list'
-  return submitted ? 'List sealed' : 'Accepted · no list yet'
-}
-
-export function missingRosterMessage(count: number) {
-  return `Waiting on ${count} list${count === 1 ? '' : 's'}.`
 }

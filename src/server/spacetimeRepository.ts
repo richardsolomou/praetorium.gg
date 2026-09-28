@@ -336,24 +336,22 @@ export class SpacetimeRepository {
       currentAcceptedCount: latestAcceptedCount,
       events: events.map(({ id: _id, leagueId: _leagueId, ...event }) => event),
       occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
-      entries: entries
-        .filter((entry) => entry.status !== 'rejected' || entry.userId === viewerId)
-        .map((entry) => {
-          const profile = profiles.get(entry.userId)
-          if (!profile) throw new Error(`League entrant ${entry.userId} is missing from auth database`)
-          return {
-            userId: entry.userId,
-            name: profile.name,
-            image: profile.image,
-            status: entry.status,
-            joinedAt: entry.joinedAt,
-            submitted: entry.rosterSnapshot !== null,
-            rosterName: viewerId === entry.userId ? entry.rosterName : null,
-            teamId: entry.teamId,
-            requiredLimit: requiredLeagueRosterLimit(selected.format, selected.rosterLimit, entry.requiredLimit, entry.teamId),
-            sealedLimit: selected.format === null && selected.revealedAt !== null ? this.frozenRosterLimit(entry.rosterSnapshot) : null,
-          }
-        }),
+      entries: entries.map((entry) => {
+        const profile = profiles.get(entry.userId)
+        if (!profile) throw new Error(`League entrant ${entry.userId} is missing from auth database`)
+        return {
+          userId: entry.userId,
+          name: profile.name,
+          image: profile.image,
+          status: entry.status,
+          joinedAt: entry.joinedAt,
+          submitted: entry.rosterSnapshot !== null,
+          rosterName: viewerId === entry.userId ? entry.rosterName : null,
+          teamId: entry.teamId,
+          requiredLimit: requiredLeagueRosterLimit(selected.format, selected.rosterLimit, entry.requiredLimit, entry.teamId),
+          sealedLimit: selected.format === null && selected.revealedAt !== null ? this.frozenRosterLimit(entry.rosterSnapshot) : null,
+        }
+      }),
     }
   }
 
@@ -375,6 +373,13 @@ export class SpacetimeRepository {
     return this.product.leagueCommand(
       { op: 'moderate', token, ownerId, userId, status, memberLimit, eventToken: eventToken ?? '' },
       z.enum(['admitted', 'updated', 'missing', 'forbidden', 'closed', 'full']),
+    )
+  }
+
+  admitLeagueEntries(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
+    return this.product.leagueCommand(
+      { op: 'admit', token, ownerId, userIds, eventToken: eventToken ?? '' },
+      z.union([z.object({ admitted: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'closed'])]),
     )
   }
 
