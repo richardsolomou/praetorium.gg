@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.79.3
+
+### Patch Changes
+
+- c975332: Show recently updated rosters first, keep finished games in the main home column, show active practice games to their player, and remove the duplicate data updates link from the home roster shelf.
+
 ## 0.79.2
 
 ### Patch Changes
