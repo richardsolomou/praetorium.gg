@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, exists, inArray, lt, ne, not, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/sqlite-core'
-import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1'
-import { account, schema, user } from '../db/d1AuthSchema'
+import type { LibSQLDatabase } from 'drizzle-orm/libsql'
+import { account, schema, user } from '../db/authSchema'
 import type { AdminUsersCursor } from '../admin'
 
 type UnlinkAccountResult =
@@ -13,9 +13,9 @@ function contains(query: string) {
 }
 
 export class SqliteAccountRepository {
-  private readonly database: DrizzleD1Database<typeof schema>
+  private readonly database: LibSQLDatabase<typeof schema>
 
-  constructor(database: DrizzleD1Database<typeof schema>) {
+  constructor(database: LibSQLDatabase<typeof schema>) {
     this.database = database
   }
 
@@ -161,11 +161,5 @@ export class SqliteAccountRepository {
     if (!methods.some((method) => method.providerId === providerId)) return { status: 'missing' }
     if (providerId === 'credential' && owner[0]?.twoFactorEnabled) return { status: 'two-factor' }
     return { status: 'last-method' }
-  }
-}
-
-export class D1AccountRepository extends SqliteAccountRepository {
-  constructor(binding: Parameters<typeof drizzle>[0]) {
-    super(drizzle(binding, { schema }))
   }
 }

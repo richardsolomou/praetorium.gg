@@ -14,8 +14,8 @@ import {
   installedSnapshot,
 } from './catalogueSnapshot'
 import type { SyncState } from './sync'
-import { createSqliteAuth } from './d1Auth'
-import { SqliteAccountRepository } from './d1AccountRepository'
+import { createSqliteAuth } from './sqliteAuth'
+import { SqliteAccountRepository } from './accountRepository'
 import { localAuthDatabase } from './localAuthDatabase'
 import { SpacetimeOperator } from './spacetimeOperator'
 import { SpacetimeRepository } from './spacetimeRepository'

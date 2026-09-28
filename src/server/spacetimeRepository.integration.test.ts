@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { drizzle } from 'drizzle-orm/d1'
 import { expect, it } from 'vitest'
-import { getPlatformProxy } from 'wrangler'
-import { schema, user } from '../db/d1AuthSchema'
-import { D1AccountRepository } from './d1AccountRepository'
+import { user } from '../db/authSchema'
+import { importAuthSqlite } from '../../scripts/nodeAuthSqlite'
+import { SqliteAccountRepository } from './accountRepository'
+import { localAuthDatabase } from './localAuthDatabase'
 import { SpacetimeOperator } from './spacetimeOperator'
 import { SpacetimeRepository } from './spacetimeRepository'
 
@@ -14,21 +14,13 @@ const url = process.env.SPACETIME_TEST_URL
 const database = process.env.SPACETIME_TEST_DATABASE
 const token = process.env.SPACETIME_TEST_OPERATOR_TOKEN
 
-it.skipIf(!url || !database || !token)('joins D1 profiles with SpacetimeDB battles and relationships', async () => {
+it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB battles and relationships', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'praetorium-joined-repository-'))
-  const configPath = path.join(directory, 'wrangler.jsonc')
-  await writeFile(
-    configPath,
-    JSON.stringify({
-      name: 'praetorium-joined-repository-test',
-      main: 'index.js',
-      compatibility_date: '2026-09-17',
-      d1_databases: [{ binding: 'AUTH_DB', database_name: 'praetorium-joined-repository-test', database_id: randomUUID() }],
-    }),
-  )
-  const proxy = await getPlatformProxy<{ AUTH_DB: Parameters<typeof drizzle>[0] }>({ configPath, persist: false, envFiles: [] })
+  const file = path.join(directory, 'auth.sqlite')
+  await importAuthSqlite(path.resolve('drizzle-auth/0000_curly_gambit.sql'), file)
+  const local = localAuthDatabase(file)
   const operator = new SpacetimeOperator(url!, database!, token!)
-  const repository = new SpacetimeRepository(new D1AccountRepository(proxy.env.AUTH_DB), operator)
+  const repository = new SpacetimeRepository(new SqliteAccountRepository(local.database), operator)
   const creatorId = randomUUID()
   const opponentId = randomUUID()
   const battleId = randomUUID()
@@ -37,17 +29,11 @@ it.skipIf(!url || !database || !token)('joins D1 profiles with SpacetimeDB battl
   const leagueToken = randomUUID()
   const leagueBattleId = randomUUID()
   try {
-    const migration = await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8')
-    for (const statement of migration.split('--> statement-breakpoint')) {
-      if (statement.trim()) await proxy.env.AUTH_DB.prepare(statement).run()
-    }
     const now = new Date()
-    await drizzle(proxy.env.AUTH_DB, { schema })
-      .insert(user)
-      .values([
-        { id: creatorId, name: 'Creator', email: `${creatorId}@example.com`, emailVerified: true, createdAt: now, updatedAt: now },
-        { id: opponentId, name: 'Opponent', email: `${opponentId}@example.com`, emailVerified: true, createdAt: now, updatedAt: now },
-      ])
+    await local.database.insert(user).values([
+      { id: creatorId, name: 'Creator', email: `${creatorId}@example.com`, emailVerified: true, createdAt: now, updatedAt: now },
+      { id: opponentId, name: 'Opponent', email: `${opponentId}@example.com`, emailVerified: true, createdAt: now, updatedAt: now },
+    ])
     await repository.createBattle({ id: battleId, token: battleToken, userId: creatorId, opponentIds: [opponentId], now: now.getTime() })
     expect((await repository.battleHistoryByToken(battleToken))?.players.map((player) => player.name)).toEqual(['Creator', 'Opponent'])
     expect((await repository.adminUsers({})).users.find((entry) => entry.id === creatorId)?.battleCount).toBe(1)
@@ -162,7 +148,7 @@ it.skipIf(!url || !database || !token)('joins D1 profiles with SpacetimeDB battl
     await operator.deleteUserData(opponentId)
     await operator.deleteBattle(battleId, creatorId)
     await operator.deleteUserData(creatorId)
-    await proxy.dispose()
+    local.client.close()
     await rm(directory, { recursive: true, force: true })
   }
 })

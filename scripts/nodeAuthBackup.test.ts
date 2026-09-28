@@ -26,7 +26,7 @@ afterAll(async () => {
 })
 
 it('uploads a consistent auth snapshot and secret to R2 and restores the downloaded archive', async () => {
-  const dump = path.join(directory, 'd1.sql')
+  const dump = path.join(directory, 'auth-schema.sql')
   const source = path.join(directory, 'auth.sqlite')
   const restored = path.join(directory, 'restored')
   await writeFile(dump, await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8'))

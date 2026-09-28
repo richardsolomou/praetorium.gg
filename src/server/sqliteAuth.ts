@@ -6,7 +6,7 @@ import { applySetCookies } from 'better-auth/cookies'
 import { decryptOAuthToken } from 'better-auth/oauth2'
 import { admin, jwt, oneTimeToken, twoFactor } from 'better-auth/plugins'
 import { and, eq, notExists, sql } from 'drizzle-orm'
-import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1'
+import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import pRetry from 'p-retry'
 import {
   standardAccountOptions,
@@ -17,7 +17,7 @@ import {
 } from 'ras-stack/auth'
 import { standardAuthEmails, type EmailDelivery } from 'ras-stack/email'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
-import { account, schema, user } from '../db/d1AuthSchema'
+import { account, schema, user } from '../db/authSchema'
 import { APPLE_AUTH_ORIGIN, appleCredentials, revokeAppleToken } from './appleAuth'
 import { configuredAuthProviderOptions, configuredAuthProviders } from './authProviders'
 import { nativeAuthToken } from './nativeAuthToken'
@@ -32,7 +32,7 @@ function isSqliteBusy(error: unknown) {
   return false
 }
 
-type D1AuthOptions = {
+type AuthOptions = {
   environment: Environment
   email?: EmailDelivery
   deleteUserData: (userId: string) => Promise<void>
@@ -41,11 +41,7 @@ type D1AuthOptions = {
   updateProfile: (data: Record<string, unknown>) => Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; error: string }>
 }
 
-export function createD1Auth(binding: Parameters<typeof drizzle>[0], secret: string, options: D1AuthOptions) {
-  return createSqliteAuth(drizzle(binding, { schema }), secret, options)
-}
-
-export function createSqliteAuth(database: DrizzleD1Database<typeof schema>, secret: string, options: D1AuthOptions) {
+export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret: string, options: AuthOptions) {
   const environment = options.environment
   const authUrl = new URL('/api/auth', environment.APP_URL)
   const issuer = environment.SPACETIME_ISSUER ?? authUrl.toString()

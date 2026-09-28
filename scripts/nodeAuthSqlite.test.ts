@@ -4,8 +4,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { user } from '../src/db/d1AuthSchema'
-import { createSqliteAuth } from '../src/server/d1Auth'
+import { user } from '../src/db/authSchema'
+import { createSqliteAuth } from '../src/server/sqliteAuth'
 import { localAuthDatabase } from '../src/server/localAuthDatabase'
 import { backupAuthSqlite, importAuthSqlite, verifyAuthSqlite } from './nodeAuthSqlite'
 
@@ -33,9 +33,9 @@ function authFor(file: string) {
   return { ...local, auth }
 }
 
-it('imports the D1 schema, handles concurrent sign-ups, and restores sessions and signing keys', async () => {
+it('imports the auth schema, handles concurrent sign-ups, and restores sessions and signing keys', async () => {
   const count = Number(process.env.AUTH_TEST_SIGNUPS ?? 6)
-  const dump = path.join(directory, 'd1.sql')
+  const dump = path.join(directory, 'auth-schema.sql')
   const source = path.join(directory, 'auth.sqlite')
   const copy = path.join(directory, 'backup.sqlite')
   await writeFile(dump, await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8'))
@@ -68,13 +68,13 @@ it('imports the D1 schema, handles concurrent sign-ups, and restores sessions an
 })
 
 it('accepts simultaneous sign-ups from two separate app processes', async () => {
-  const dump = path.join(directory, 'process-d1.sql')
+  const dump = path.join(directory, 'process-auth-schema.sql')
   const file = path.join(directory, 'process-auth.sqlite')
   await writeFile(dump, await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8'))
   await importAuthSqlite(dump, file)
   const script = `
     import { localAuthDatabase } from './src/server/localAuthDatabase.ts'
-    import { createSqliteAuth } from './src/server/d1Auth.ts'
+    import { createSqliteAuth } from './src/server/sqliteAuth.ts'
     const local = localAuthDatabase(process.env.AUTH_REPLICA_FILE)
     const auth = createSqliteAuth(local.database, process.env.AUTH_REPLICA_SECRET, {
       environment: { APP_URL: 'https://praetorium.gg', AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' },
