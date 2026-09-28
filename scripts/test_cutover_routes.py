@@ -53,11 +53,13 @@ elif '/workers/routes' in url:
         state['route'] = body['script']
     elif method == 'DELETE':
         state['route'] = None
+        result = None
 elif '/workers/domains' in url:
     if method == 'GET':
         result['result'] = [{'id': 'domain', 'hostname': 'staging.praetorium.gg', 'service': 'praetorium-staging'}] if state['domain'] else []
     elif method == 'DELETE':
         state['domain'] = False
+        result = None
 elif '/dns_records' in url:
     if method == 'GET':
         name = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)['name'][0]
@@ -70,7 +72,7 @@ elif '/dns_records' in url:
 else:
     sys.exit(f'unexpected URL: {url}')
 state_path.write_text(json.dumps(state))
-if not url.endswith('/api/health'):
+if not url.endswith('/api/health') and result is not None:
     print(json.dumps(result))
 """
         )

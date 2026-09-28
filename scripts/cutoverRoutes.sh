@@ -88,7 +88,9 @@ case "$operation" in
     record_id="$(jq -er '[.result[] | select(.name == "praetorium.gg" and .type == "A")] | if length == 1 and .[0].proxied == true and (.[0].content == "192.0.2.1" or .[0].content == "5.75.151.151") then .[0].id else error("unexpected apex DNS record") end' <<< "$records")"
     payload="$(jq -n --arg ip "$vm_ip" '{type:"A",name:"praetorium.gg",content:$ip,proxied:true,ttl:1}')"
     dns PATCH "/zones/$zone/dns_records/$record_id" "$payload" | require_success
-    workers DELETE "/zones/$zone/workers/routes/$route_id" | require_success
+    workers DELETE "/zones/$zone/workers/routes/$route_id" > /dev/null
+    route_json="$(workers GET "/zones/$zone/workers/routes")"
+    jq -e '[.result[] | select(.pattern == "praetorium.gg/*")] | length == 0' <<< "$route_json" > /dev/null
     if ! verify_health praetorium.gg 200 "$EXPECTED_REVISION"; then
       workers POST "/zones/$zone/workers/routes" \
         '{"pattern":"praetorium.gg/*","script":"praetorium-auth-cutover-maintenance"}' | require_success
@@ -102,7 +104,9 @@ case "$operation" in
     domains="$(workers GET "/accounts/$account/workers/domains")"
     domain_id="$(jq -er '[.result[] | select(.hostname == "staging.praetorium.gg")] | if length == 0 then "absent" elif length == 1 and .[0].service == "praetorium-staging" then .[0].id else error("unexpected staging Worker domain") end' <<< "$domains")"
     if [[ "$domain_id" != absent ]]; then
-      workers DELETE "/accounts/$account/workers/domains/$domain_id" | require_success
+      workers DELETE "/accounts/$account/workers/domains/$domain_id" > /dev/null
+      domains="$(workers GET "/accounts/$account/workers/domains")"
+      jq -e '[.result[] | select(.hostname == "staging.praetorium.gg")] | length == 0' <<< "$domains" > /dev/null
     fi
     for _ in {1..12}; do
       records="$(dns GET "/zones/$zone/dns_records?name=staging.praetorium.gg")"
