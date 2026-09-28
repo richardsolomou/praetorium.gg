@@ -1,50 +1,39 @@
-import { randomUUID } from 'node:crypto'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { DatabaseSync } from 'node:sqlite'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
-import { count, eq } from 'drizzle-orm'
-import { drizzle } from 'drizzle-orm/d1'
-import { getPlatformProxy } from 'wrangler'
-import { account, schema, user } from '../src/db/d1AuthSchema'
-import { D1AccountRepository } from '../src/server/d1AccountRepository'
-import { createD1Auth } from '../src/server/d1Auth'
+import { eq } from 'drizzle-orm'
+import { account, user } from '../src/db/d1AuthSchema'
+import { SqliteAccountRepository } from '../src/server/d1AccountRepository'
+import { createSqliteAuth } from '../src/server/d1Auth'
+import { localAuthDatabase } from '../src/server/localAuthDatabase'
 
-type Binding = Parameters<typeof drizzle>[0]
 const SECRET = 'test-secret-0123456789abcdef0123456789abcdef'
 
-async function isolatedDatabase(work: (left: Binding, right: Binding) => Promise<void>) {
-  const directory = await mkdtemp(path.join(tmpdir(), 'praetorium-d1-concurrency-'))
-  const configPath = path.join(directory, 'wrangler.json')
-  await writeFile(
-    configPath,
-    JSON.stringify({
-      name: 'praetorium-d1-concurrency',
-      main: 'index.js',
-      compatibility_date: '2026-09-17',
-      d1_databases: [{ binding: 'AUTH_DB', database_name: 'praetorium-d1-concurrency', database_id: randomUUID() }],
-    }),
-  )
-  const first = await getPlatformProxy<{ AUTH_DB: Binding }>({ configPath, persist: { path: directory }, envFiles: [] })
+async function isolatedDatabase(
+  work: (left: ReturnType<typeof localAuthDatabase>, right: ReturnType<typeof localAuthDatabase>) => Promise<void>,
+) {
+  const directory = await mkdtemp(path.join(tmpdir(), 'praetorium-sqlite-concurrency-'))
+  const file = path.join(directory, 'auth.sqlite')
+  const migration = await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8')
+  const initialized = new DatabaseSync(file)
+  initialized.exec(migration)
+  initialized.exec('pragma journal_mode = wal')
+  initialized.close()
+  const left = localAuthDatabase(file)
+  const right = localAuthDatabase(file)
   try {
-    const migration = await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8')
-    for (const statement of migration.split('--> statement-breakpoint')) {
-      if (statement.trim()) await first.env.AUTH_DB.prepare(statement).run()
-    }
-    const second = await getPlatformProxy<{ AUTH_DB: Binding }>({ configPath, persist: { path: directory }, envFiles: [] })
-    try {
-      await work(first.env.AUTH_DB, second.env.AUTH_DB)
-    } finally {
-      await second.dispose()
-    }
+    await work(left, right)
   } finally {
-    await first.dispose()
+    left.client.close()
+    right.client.close()
     await rm(directory, { recursive: true, force: true })
   }
 }
 
-function auth(binding: Binding) {
-  return createD1Auth(binding, SECRET, {
+function auth(connection: ReturnType<typeof localAuthDatabase>) {
+  return createSqliteAuth(connection.database, SECRET, {
     environment: { APP_URL: 'http://localhost', SPACETIME_AUDIENCE: 'praetorium-test', AUTH_RATE_LIMIT: 'off' },
     deleteUserData: async () => {},
     revokeSessionAccess: async () => {},
@@ -53,18 +42,18 @@ function auth(binding: Binding) {
   })
 }
 
-test('concurrent first sign-ups on independent D1 connections assign one administrator', async () => {
+test('concurrent first sign-ups on independent SQLite connections assign one administrator', async () => {
   await isolatedDatabase(async (left, right) => {
     await Promise.all([
       auth(left).api.signUpEmail({ body: { email: 'left@example.test', password: 'password1234', name: 'Left' } }),
       auth(right).api.signUpEmail({ body: { email: 'right@example.test', password: 'password1234', name: 'Right' } }),
     ])
-    const [administrators] = await drizzle(left).select({ count: count() }).from(user).where(eq(user.role, 'admin'))
-    expect(administrators?.count).toBe(1)
+    const administrators = await left.database.select({ id: user.id }).from(user).where(eq(user.role, 'admin'))
+    expect(administrators).toHaveLength(1)
   })
 })
 
-test('concurrent administrator demotions preserve one administrator in D1', async () => {
+test('concurrent administrator demotions preserve one administrator in SQLite', async () => {
   await isolatedDatabase(async (left, right) => {
     const leftAuth = auth(left)
     const rightAuth = auth(right)
@@ -75,18 +64,18 @@ test('concurrent administrator demotions preserve one administrator in D1', asyn
       leftAuth.changeUserRole(first.user.id, second.user.id, 'user'),
       rightAuth.changeUserRole(second.user.id, first.user.id, 'user'),
     ])
-    const [administrators] = await drizzle(left).select({ count: count() }).from(user).where(eq(user.role, 'admin'))
-    expect({ administrators: administrators?.count, results: results.toSorted() }).toEqual({
+    const administrators = await left.database.select({ id: user.id }).from(user).where(eq(user.role, 'admin'))
+    expect({ administrators: administrators.length, results: results.toSorted() }).toEqual({
       administrators: 1,
       results: ['changed', 'forbidden'],
     })
   })
 })
 
-test('concurrent unlinks on independent D1 connections preserve one sign-in method', async () => {
+test('concurrent unlinks on independent SQLite connections preserve one sign-in method', async () => {
   await isolatedDatabase(async (left, right) => {
     const created = await auth(left).api.signUpEmail({ body: { email: 'player@example.test', password: 'password1234', name: 'Player' } })
-    await drizzle(left, { schema }).insert(account).values({
+    await left.database.insert(account).values({
       id: 'google-account',
       accountId: 'google-account',
       issuer: 'https://accounts.google.com',
@@ -96,10 +85,10 @@ test('concurrent unlinks on independent D1 connections preserve one sign-in meth
       updatedAt: new Date(),
     })
     const results = await Promise.all([
-      new D1AccountRepository(left).unlinkAccount(created.user.id, 'credential', ['credential', 'google']),
-      new D1AccountRepository(right).unlinkAccount(created.user.id, 'google', ['credential', 'google']),
+      new SqliteAccountRepository(left.database).unlinkAccount(created.user.id, 'credential', ['credential', 'google']),
+      new SqliteAccountRepository(right.database).unlinkAccount(created.user.id, 'google', ['credential', 'google']),
     ])
-    const remaining = await drizzle(left)
+    const remaining = await left.database
       .select({ providerId: account.providerId })
       .from(account)
       .where(eq(account.userId, created.user.id))
