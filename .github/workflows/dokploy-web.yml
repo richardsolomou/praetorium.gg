@@ -112,13 +112,32 @@ jobs:
           trap 'docker rm "$container" > /dev/null' EXIT
           docker cp "$container:/app/spacetimedb/dist/bundle.js" "$RUNNER_TEMP/product.js"
           database="praetorium-$TARGET"
-          curl --fail --silent --show-error --max-time 90 \
-            --header "Authorization: Bearer $SPACETIME_OWNER_TOKEN" \
-            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID" \
-            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET" \
-            --header 'Content-Type: application/octet-stream' \
+          module_url="${SPACETIME_URL%/}/v1/database/$database"
+          headers=(
+            --header "Authorization: Bearer $SPACETIME_OWNER_TOKEN"
+            --header "CF-Access-Client-Id: $SPACETIME_ACCESS_CLIENT_ID"
+            --header "CF-Access-Client-Secret: $SPACETIME_ACCESS_CLIENT_SECRET"
+            --header 'Content-Type: application/octet-stream'
+          )
+          pre_publish_status="$(curl --silent --show-error --max-time 90 \
+            "${headers[@]}" --request POST --data-binary @"$RUNNER_TEMP/product.js" \
+            --output "$RUNNER_TEMP/product-migration.json" --write-out '%{http_code}' \
+            "$module_url/pre_publish?host_type=Js")"
+          case "$pre_publish_status" in
+            200)
+              if ! token="$(jq -er '.AutoMigrate.token' "$RUNNER_TEMP/product-migration.json")"; then
+                cat "$RUNNER_TEMP/product-migration.json"
+                exit 1
+              fi
+              query="?host_type=Js&policy=BreakClients&token=$token"
+              ;;
+            404) query='?host_type=Js' ;;
+            *) cat "$RUNNER_TEMP/product-migration.json"; exit 1 ;;
+          esac
+          curl --fail-with-body --silent --show-error --max-time 90 \
+            "${headers[@]}" \
             --request PUT --data-binary @"$RUNNER_TEMP/product.js" \
-            "${SPACETIME_URL%/}/v1/database/$database?host_type=Js"
+            "$module_url$query"
       - name: Configure the selected web service
         run: node scripts/configureDokployNode.ts configure "$TARGET"
       - name: Deploy the pinned image
