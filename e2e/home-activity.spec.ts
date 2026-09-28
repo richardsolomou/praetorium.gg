@@ -17,19 +17,18 @@ async function makePreviewBattleMostRecent() {
  * and the last step is the promise that goes with it: the moment a player says
  * otherwise, the same link stops answering.
  */
-test('keeps practice battles off the home page', async ({ page, browser }) => {
+test('shows active practice battles to their player but not visitors', async ({ page, browser }) => {
   const name = uniqueName('Watcher')
   await signUp(page, name)
   const battleUrl = await createBattle(page, { practice: true })
 
-  // Practice is useful history, but it is not activity for other people to watch.
   await page.goto('/')
   await expect(page.getByRole('heading', { name: `Welcome back, ${name}` })).toBeVisible()
-  await expect(page.getByRole('main')).not.toContainText(PRACTICE_OPPONENT)
+  const battlePath = new URL(battleUrl).pathname
+  await expect(page.locator('[data-battle-shelf="Your game"] a').filter({ hasText: PRACTICE_OPPONENT })).toHaveAttribute('href', battlePath)
 
   const visitor = await browser.newContext()
   const guest = await visitor.newPage()
-  const battlePath = new URL(battleUrl).pathname
   try {
     await guest.goto('/')
     await expect(guest.getByRole('main').locator(`a[href="${battlePath}"]`)).toHaveCount(0)
@@ -108,6 +107,15 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await host.getByRole('menuitem', { name: 'Finish early' }).click()
     await host.getByRole('button', { name: 'Finish early' }).click()
     await expect(host.getByRole('region', { name: 'Battle scoreboard' })).toContainText('Result')
+    await host.goto('/')
+    const idleHistory = host.locator('[data-home-played]')
+    await expect(idleHistory.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)
+    expect((await idleHistory.boundingBox())!.x).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.x)
+    await host.setViewportSize({ width: 390, height: 844 })
+    expect((await host.locator('[data-home-rosters]').boundingBox())!.y).toBeLessThan((await idleHistory.boundingBox())!.y)
+    expect(await host.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await host.setViewportSize({ width: 1440, height: 900 })
+
     // A second table, still being set, so the live shelf and the history shelf are both on the page.
     const going = await createBattle(host, { opponent: guestName })
 
@@ -117,6 +125,8 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await expect(rubrics).toHaveText(['Your game', 'Games you have played', "Friends' games", 'Public games'])
 
     await expect(host.locator('[data-home-rosters]').getByRole('link', { name: /Host list/ })).toHaveCount(1)
+    await expect(host.locator('[data-home-rosters]').getByRole('link', { name: 'Data updates' })).toHaveCount(0)
+    await expect(host.getByRole('contentinfo').getByRole('link', { name: 'Data updates' })).toHaveCount(1)
 
     const yours = host.locator('[data-battle-shelf="Your game"]')
     const history = host.locator('[data-home-played]')
@@ -124,7 +134,11 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await expect(yours.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(0)
     await expect(history.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)
     await expect(history.locator(`a[href="${new URL(going).pathname}"]`)).toHaveCount(0)
+    expect((await history.boundingBox())!.x).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.x)
+    expect((await history.boundingBox())!.y).toBeGreaterThan((await yours.boundingBox())!.y)
     await host.setViewportSize({ width: 390, height: 844 })
+    expect((await yours.boundingBox())!.y).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.y)
+    expect((await host.locator('[data-home-rosters]').boundingBox())!.y).toBeLessThan((await history.boundingBox())!.y)
     expect(await host.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   } finally {
     await Promise.all([hostContext.close(), guestContext.close()])
