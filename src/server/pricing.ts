@@ -576,6 +576,7 @@ export function calculateRosterPrice(data: PriceInput, loaded: LoadedCatalogue |
         },
         ...deployment,
         ...(strategicReserveExempt ? { strategicReserveExempt: true } : {}),
+        ...(keywordNames.some((keyword) => keyword.toLowerCase() === 'transport') ? { transport: true } : {}),
         choices,
         models,
         toggles: unit.toggles,

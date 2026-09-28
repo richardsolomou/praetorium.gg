@@ -153,6 +153,8 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                   .max(2)
                   .optional(),
                 strategicReserveExempt: z.boolean().optional(),
+                transport: z.boolean().optional(),
+                transportRule: z.string().max(4_000).optional(),
               }),
             )
             .max(200),
@@ -171,6 +173,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     kind: z.literal('set-unit-formation'),
     unitKey: id,
     formation: z.enum(UNIT_FORMATIONS),
+    transportKey: id.optional(),
     playerId: id.optional(),
   }),
   z.object({ kind: z.literal('set-painted'), painted: z.boolean(), playerId: id.optional() }),

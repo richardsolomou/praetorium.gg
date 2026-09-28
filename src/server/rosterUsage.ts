@@ -1,6 +1,6 @@
 import { rosterSnapshot } from '../core/rosterSnapshot'
 import { app } from './app'
-import { unitWoundsIn } from './catalogue'
+import { unitBattleDetailsIn } from './catalogue'
 import { calculateRosterPrice, savedRosterPriceInput } from './pricing'
 
 type PricedRosterLegality = {
@@ -34,10 +34,10 @@ export async function rosterForUse(userId: string, rosterId: string) {
   if (!priced) throw new Response('army data is not available', { status: 409 })
   const error = rosterUseError(priced, saved.limit)
   if (error) throw new Response(`fix roster errors before using it: ${error}`, { status: 409 })
-  const wounds = unitWoundsIn(
+  const details = unitBattleDetailsIn(
     catalogue,
     saved.catalogueId,
     saved.picks.map((pick) => pick.entryId),
   )
-  return { saved, snapshot: rosterSnapshot(saved, priced, wounds) }
+  return { saved, snapshot: rosterSnapshot(saved, priced, details) }
 }

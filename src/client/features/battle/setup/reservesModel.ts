@@ -1,4 +1,4 @@
-import { attachedUnitList } from '../../../../core/attachedUnits'
+import { attachedUnitList, type AttachedUnit } from '../../../../core/attachedUnits'
 import type { Army } from '../../../sides'
 import { GROUPS } from '../../../unitGroups'
 
@@ -20,4 +20,10 @@ export function reserveSections(units: Army['units']) {
     ...(deepStrike.length ? [{ label: 'Deep strike', units: deepStrike }] : []),
     ...(strategicReserves.length ? [{ label: 'Strategic reserves', units: strategicReserves }] : []),
   ]
+}
+
+export function reserveUnitLabel(units: AttachedUnit<Army['units'][number]>[], unit: AttachedUnit<Army['units'][number]>): string {
+  const named = units.filter((entry) => entry.host.name === unit.host.name)
+  const name = named.length > 1 ? `${unit.host.name} #${named.findIndex((entry) => entry.host.key === unit.host.key) + 1}` : unit.host.name
+  return unit.joined.length ? `${name} with ${unit.joined.map((entry) => entry.name).join(', ')}` : name
 }

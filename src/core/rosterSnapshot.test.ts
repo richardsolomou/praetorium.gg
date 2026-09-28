@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { rosterSnapshot } from './rosterSnapshot'
 
-it('freezes unit wounds and reserve exemptions into a roster snapshot', () => {
+it('freezes unit wounds, reserve exemptions, and transport capability into a roster snapshot', () => {
   const roster = rosterSnapshot(
     {
       id: 'roster',
@@ -38,15 +38,23 @@ it('freezes unit wounds and reserve exemptions into a roster snapshot', () => {
           formationOptions: ['battlefield'],
           prebattleRules: [],
           strategicReserveExempt: true,
+          transport: true,
         },
       ],
     },
-    [{ entryId: 'unit', wounds: 3 }],
+    [{ entryId: 'unit', wounds: 3, transportRule: 'This model has a transport capacity of 12 models.' }],
   )
 
   expect(roster.built).toMatchObject({
     strategicReserveLimit: 1_000,
-    units: [expect.objectContaining({ wounds: 3, strategicReserveExempt: true })],
+    units: [
+      expect.objectContaining({
+        wounds: 3,
+        strategicReserveExempt: true,
+        transport: true,
+        transportRule: 'This model has a transport capacity of 12 models.',
+      }),
+    ],
   })
 })
 

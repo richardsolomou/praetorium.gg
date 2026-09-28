@@ -108,12 +108,6 @@ reference-evaluate:
 reference-verify origin:
     pnpm reference:verify "{{ origin }}"
 
-db-generate:
-    pnpm db:generate
-
-db-check:
-    pnpm db:check
-
 e2e-install:
     pnpm exec playwright install chromium --only-shell
 

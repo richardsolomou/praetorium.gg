@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Army } from '../../../sides'
-import { reserveSections } from './reservesModel'
+import { reserveSections, reserveUnitLabel } from './reservesModel'
 
 const unit = (
   key: string,
@@ -24,6 +24,16 @@ const unit = (
 })
 
 describe('reserve sections', () => {
+  it('distinguishes identical units and names the leader who embarks with one', () => {
+    const sections = reserveSections([
+      unit('first', 'Intercessor Squad', 'battleline'),
+      unit('second', 'Intercessor Squad', 'battleline'),
+      unit('captain', 'Captain', 'character', false, 'first'),
+    ])
+    const units = sections.flatMap((section) => section.units)
+
+    expect(units.map((entry) => reserveUnitLabel(units, entry))).toEqual(['Intercessor Squad #1 with Captain', 'Intercessor Squad #2'])
+  })
   it('lists deep strike units first and every other unit in strategic reserves', () => {
     const sections = reserveSections([
       unit('tank', 'Tank', 'vehicle'),
