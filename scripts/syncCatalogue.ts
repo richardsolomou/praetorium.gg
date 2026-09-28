@@ -1,4 +1,4 @@
-/** Fetches the current verified snapshot, or refreshes it from every upstream for publication. */
+/** Reads or fetches verified snapshots, and checks or refreshes upstream revisions. */
 
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -7,6 +7,7 @@ import os from 'node:os'
 import path from 'node:path'
 import {
   catalogueSourcesSchema,
+  SNAPSHOT_SOURCE_NAMES,
   SOURCE_NAMES,
   type CatalogueSourceConfig,
   type ResolvedCatalogueSources,
@@ -18,6 +19,8 @@ import {
   fetchCurrentPointer,
   fetchCurrentSnapshot,
   fetchPinnedSnapshot,
+  fetchSnapshot,
+  remoteRevocations,
 } from '../src/server/catalogueSnapshot'
 import { isComplete, syncSources } from '../src/server/sync'
 
@@ -57,6 +60,30 @@ const argument = process.argv[2]
 if (argument === '--check') {
   readSources()
   console.log('catalogue source definitions are well formed')
+} else if (argument === '--upstream') {
+  const base = catalogueBaseUrl()
+  const pointer = await fetchCurrentPointer(base)
+  let previous = catalogueLock.revisions
+  if (pointer.id !== catalogueLock.pointer.id) {
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-upstream-'))
+    try {
+      await fetchSnapshot(work, base, pointer, undefined, { revocations: await remoteRevocations(base) })
+      previous = JSON.parse(fs.readFileSync(path.join(work, 'revision.json'), 'utf8')) as Record<string, string>
+    } finally {
+      fs.rmSync(work, { recursive: true, force: true })
+    }
+  }
+  const current = await resolve(readSources())
+  const changed = SNAPSHOT_SOURCE_NAMES.filter((name) => previous[name] !== current[name].revision)
+  console.log(`published snapshot ${pointer.id}`)
+  if (!changed.length) console.log('all upstream source revisions match the published snapshot')
+  for (const name of changed) {
+    const source = current[name]
+    const old = previous[name] ?? 'absent'
+    const url =
+      'repository' in source && previous[name] ? ` https://github.com/${source.repository}/compare/${old}...${source.revision}` : ''
+    console.log(`${name}: ${old} -> ${source.revision}${url}`)
+  }
 } else if (argument === '--refresh' || argument === '--update') {
   const resolved = await resolve(readSources())
   await syncSources(dataDirectory, resolved, (message) => console.log(message))
@@ -82,5 +109,5 @@ if (argument === '--check') {
     console.log(`catalogue-data -> ${cached}`)
   }
 } else {
-  throw new Error('expected --check, --update, --latest, or no argument')
+  throw new Error('expected --check, --upstream, --update, --latest, or no argument')
 }

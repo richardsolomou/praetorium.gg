@@ -4,7 +4,7 @@ Setup and checks are in [Contributing](../../CONTRIBUTING.md). Run `just` to lis
 
 ## Catalogue
 
-`just catalogue-sync` downloads the release-pinned snapshot into `CATALOGUE_CACHE_DIR`, or the platform cache directory by default, and points `catalogue-data/` at it. Set `CATALOGUE_CACHE_DIR=off` for a worktree-local copy. `just catalogue-latest` follows the hourly publisher.
+`just catalogue-sync` downloads the release-pinned snapshot into `CATALOGUE_CACHE_DIR`, or the platform cache directory by default, and points `catalogue-data/` at it. Set `CATALOGUE_CACHE_DIR=off` for a worktree-local copy. `just catalogue-latest` follows the manually published snapshot. `just catalogue-upstream` checks for newer upstream revisions without changing the active snapshot.
 
 The app can run without a snapshot, but list building, mission matchups, and battlefields need one. Sync before the corresponding browser tests.
 
