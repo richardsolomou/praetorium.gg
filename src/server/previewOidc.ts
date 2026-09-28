@@ -1,10 +1,10 @@
-export function previewOidcRequest(request: Request, issuer?: string) {
+export function previewOidcRequest(request: Request, issuer?: string, externalOrigin?: string) {
   if (!issuer || request.method !== 'GET') return request
   const configured = new URL(issuer)
   const incoming = new URL(request.url)
   if (
     configured.protocol !== 'https:' ||
-    configured.origin !== incoming.origin ||
+    configured.origin !== (externalOrigin ? new URL(externalOrigin).origin : incoming.origin) ||
     !/^\/api\/auth\/preview\/[0-9a-f]{40}$/.test(configured.pathname) ||
     configured.username ||
     configured.password ||

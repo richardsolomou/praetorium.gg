@@ -233,7 +233,8 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm exec wrangler deploy --config wrangler.objects.json --route 's3.praetorium.gg/*'
+          CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
+        run: bash scripts/publishPublicObjects.sh
       - name: Verify catalogue remains public and backups remain private
         run: |
           set -euo pipefail
