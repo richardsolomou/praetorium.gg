@@ -81,6 +81,61 @@ export function withoutAuthImport(env: string) {
     .join('\n')
 }
 
+type Domain = {
+  domainId: string
+  applicationId: string
+  host: string
+  path: string
+  port: number
+  https: boolean
+  certificateType: string
+  domainType: string
+  enabled: boolean
+}
+
+export async function ensureWebDomain(origin: URL, headers: Record<string, string>, applicationId: string, host: string, request = fetch) {
+  const list = async () => {
+    const url = new URL('/api/domain.byApplicationId', origin)
+    url.searchParams.set('applicationId', applicationId)
+    const response = await request(url, { headers, signal: AbortSignal.timeout(30_000) })
+    if (!response.ok) throw new Error(`Dokploy domain read failed with HTTP ${response.status}`)
+    const domains = (await response.json()) as Domain[]
+    if (!Array.isArray(domains)) throw new Error('Dokploy returned invalid domains')
+    return domains.filter((domain) => domain.host === host)
+  }
+  let domains = await list()
+  if (domains.length === 0) {
+    const response = await request(new URL('/api/domain.create', origin), {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        applicationId,
+        host,
+        path: '/',
+        port: 3000,
+        https: true,
+        certificateType: 'letsencrypt',
+        domainType: 'application',
+      }),
+      signal: AbortSignal.timeout(30_000),
+    })
+    if (!response.ok) throw new Error(`Dokploy domain create failed with HTTP ${response.status}`)
+    domains = await list()
+  }
+  if (
+    domains.length !== 1 ||
+    domains[0]?.applicationId !== applicationId ||
+    domains[0].path !== '/' ||
+    domains[0].port !== 3000 ||
+    !domains[0].https ||
+    domains[0].certificateType !== 'letsencrypt' ||
+    domains[0].domainType !== 'application' ||
+    !domains[0].enabled
+  ) {
+    throw new Error('Dokploy web domain differs from the verified configuration')
+  }
+}
+
 async function run() {
   const [command, target] = process.argv.slice(2)
   if ((command !== 'configure' && command !== 'clear-import') || (target !== 'staging' && target !== 'production')) {
@@ -119,6 +174,9 @@ async function run() {
   })
   if (!response.ok) throw new Error(`Dokploy environment save failed with HTTP ${response.status}`)
   if ((await inspect()).env !== env) throw new Error('Dokploy environment did not persist')
+  if (command === 'configure') {
+    await ensureWebDomain(origin, headers, applicationId, target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg')
+  }
   console.log(command === 'configure' ? `Configured ${target} web environment` : `Cleared ${target} auth import key`)
 }
 

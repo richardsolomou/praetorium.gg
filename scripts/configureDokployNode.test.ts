@@ -1,5 +1,5 @@
-import { expect, it } from 'vitest'
-import { nodeEnvironment, withoutAuthImport } from './configureDokployNode'
+import { expect, it, vi } from 'vitest'
+import { ensureWebDomain, nodeEnvironment, withoutAuthImport } from './configureDokployNode'
 
 const environment = {
   AUTH_SECRET: 's'.repeat(64),
@@ -59,4 +59,47 @@ it('keeps a multiline Apple key on one environment line', () => {
 it('removes the import key after verification without changing other credentials', () => {
   const configured = nodeEnvironment(environment, 'staging')
   expect(withoutAuthImport(configured)).toBe(configured.replace(`\nAUTH_IMPORT_R2_KEY=${environment.AUTH_IMPORT_R2_KEY}`, ''))
+})
+
+it('creates one HTTPS domain for the selected web application', async () => {
+  let domains: unknown[] = []
+  const request = vi.fn(async (url: URL, init?: RequestInit) => {
+    if (url.pathname.endsWith('domain.create')) {
+      if (typeof init?.body !== 'string') throw new Error('Expected a JSON body')
+      expect(JSON.parse(init.body)).toEqual({
+        applicationId: 'web-id',
+        host: 'staging.praetorium.gg',
+        path: '/',
+        port: 3000,
+        https: true,
+        certificateType: 'letsencrypt',
+        domainType: 'application',
+      })
+      domains = [{ ...JSON.parse(init.body), domainId: 'domain-id', enabled: true }]
+    }
+    return Response.json(domains)
+  }) as typeof fetch
+  await ensureWebDomain(new URL('https://dokploy.example'), { 'x-api-key': 'test' }, 'web-id', 'staging.praetorium.gg', request)
+  expect(request).toHaveBeenCalledTimes(3)
+})
+
+it('rejects a web domain with TLS disabled', async () => {
+  const request = vi.fn(async () =>
+    Response.json([
+      {
+        domainId: 'domain-id',
+        applicationId: 'web-id',
+        host: 'praetorium.gg',
+        path: '/',
+        port: 3000,
+        https: false,
+        certificateType: 'none',
+        domainType: 'application',
+        enabled: true,
+      },
+    ]),
+  ) as typeof fetch
+  await expect(
+    ensureWebDomain(new URL('https://dokploy.example'), { 'x-api-key': 'test' }, 'web-id', 'praetorium.gg', request),
+  ).rejects.toThrow('differs from the verified configuration')
 })
