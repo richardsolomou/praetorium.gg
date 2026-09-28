@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.82.0
+
+### Minor Changes
+
+- 34bcdd5: List each faction's points and datasheet changes on its own data updates page, linked from the faction page.
+- 8e76de6: Rank the leaderboard and profile places by a rating that weighs who each player beat and rates allies as one side.
+
+### Patch Changes
+
+- 0b9f4bf: Make public reference and roster pages easier for search engines to discover and understand.
+- 34bcdd5: State every unit size and its points in a datasheet's search description, rather than only the smallest.
+- 9598ca4: Show each player's average victory points a battle on the leaderboard instead of their total.
+- 34bcdd5: Give search engines absolute canonical addresses, breadcrumbs for reference pages, and a sitemap that includes the home page, leaderboard, builder and simulator and dates each data updates page.
+
 ## 0.81.0
 
 ### Minor Changes
