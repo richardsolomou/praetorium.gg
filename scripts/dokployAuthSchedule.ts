@@ -2,7 +2,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const name = 'production auth backup to R2'
-const command = 'node scripts/nodeAuthBackup.ts backup /data/auth.sqlite production'
+const command = 'node /app/scripts/nodeAuthBackup.ts backup /data/auth.sqlite production'
 const cronExpression = '17 * * * *'
 
 function required(environment: NodeJS.ProcessEnv, key: string) {
