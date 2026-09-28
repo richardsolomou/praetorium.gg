@@ -12,8 +12,6 @@ jobs:
     env:
       AWS_DEFAULT_REGION: us-east-1
       ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
-      SOURCE: ${{ runner.temp }}/private-source
-      VERIFY: ${{ runner.temp }}/private-verified
     steps:
       - name: Inventory every key before public exposure
         env:
@@ -40,6 +38,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
+          SOURCE="$RUNNER_TEMP/private-source"
           mkdir -p "$SOURCE/backups" "$SOURCE/praetoriumgg-spacetimedb-prod-fc6ghi"
           aws s3 sync s3://praetorium/backups/ "$SOURCE/backups/" --endpoint-url "$ENDPOINT" --only-show-errors
           aws s3 sync s3://praetorium/praetoriumgg-spacetimedb-prod-fc6ghi/ "$SOURCE/praetoriumgg-spacetimedb-prod-fc6ghi/" --endpoint-url "$ENDPOINT" --only-show-errors
@@ -49,6 +48,8 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
+          SOURCE="$RUNNER_TEMP/private-source"
+          VERIFY="$RUNNER_TEMP/private-verified"
           test -n "$AWS_ACCESS_KEY_ID"
           test -n "$AWS_SECRET_ACCESS_KEY"
           aws s3 sync "$SOURCE/" s3://praetorium-private/ --endpoint-url "$ENDPOINT" --only-show-errors
