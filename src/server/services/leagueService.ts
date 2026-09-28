@@ -140,6 +140,10 @@ export class LeagueService {
     return this.repository.leaguesVisibleTo(userId)
   }
 
+  outdatedLeagueEntriesForRoster(userId: string, rosterId: string) {
+    return this.repository.outdatedLeagueEntriesForRoster(userId, rosterId)
+  }
+
   async league(token: string, viewerId: string | null, eventToken?: string) {
     const league = await this.repository.leagueByToken(token, viewerId, eventToken)
     if (!league) return null

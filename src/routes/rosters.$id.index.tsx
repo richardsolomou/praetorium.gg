@@ -1,7 +1,14 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { fieldedRoster } from '../client/features/rosters/fieldedRoster'
 import { RosterPage } from '../client/features/rosters/RosterPage'
-import { battleQuery, leagueRosterQuery, rosterAccessQuery, rosterChangesQuery, savedRosterPriceQuery } from '../client/queries'
+import {
+  battleQuery,
+  leagueRosterQuery,
+  rosterAccessQuery,
+  rosterChangesQuery,
+  savedRosterPriceQuery,
+  outdatedLeagueEntriesQuery,
+} from '../client/queries'
 import { pageMeta, rosterExposure, rosterPreview } from '../client/linkPreview'
 import { normalisePicks } from '../client/features/rosters/rosterPicks'
 import { rosterBootstrap } from '../server/functions'
@@ -31,6 +38,7 @@ export const Route = createFileRoute('/rosters/$id/')({
     const bootstrap = await rosterBootstrap({ data: { id: params.id, ...(deps.battle ? { battle: deps.battle } : {}) } })
     if (!bootstrap) throw notFound()
     const { roster, editable, faction, price, changes } = bootstrap
+    if (editable) await context.queryClient.query(outdatedLeagueEntriesQuery(params.id))
     const access = { roster, editable, faction }
     context.queryClient.setQueryData(rosterAccessQuery(params.id, deps.battle).queryKey, access)
     context.queryClient.setQueryData(rosterChangesQuery(params.id).queryKey, changes)

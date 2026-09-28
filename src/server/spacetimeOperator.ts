@@ -122,6 +122,12 @@ const visibleLeague = z.object({
 })
 const leagueCandidate = z.object({ league, event: leagueEvent, entries: z.array(leagueEntry) })
 const leagueRoster = z.object({ event: leagueEvent, entry: leagueEntry, reader: leagueEntry.nullable() })
+const outdatedLeagueEntry = z.object({
+  leagueToken: z.string(),
+  leagueName: z.string(),
+  eventToken: z.string(),
+  eventNumber: z.number().int(),
+})
 
 type SaveRosterInput = {
   id: string
@@ -509,6 +515,10 @@ export class SpacetimeOperator {
 
   async leaguesVisibleTo(userId: string | null, limit: number) {
     return z.array(visibleLeague).parse(await this.read('leagues_visible_to', [userId ?? '', limit]))
+  }
+
+  async outdatedLeagueEntriesForRoster(userId: string, rosterId: string) {
+    return z.array(outdatedLeagueEntry).parse(await this.read('outdated_league_entries_for_roster', [userId, rosterId]))
   }
 
   async leagueBattleCandidates(userId: string, participantIds: readonly string[]) {

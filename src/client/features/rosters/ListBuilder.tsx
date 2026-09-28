@@ -63,6 +63,7 @@ import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
 import { BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
 import { RosterDataChanges } from './RosterDataChanges'
+import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
 import { draftKey, type RosterDraft, savedDraft } from './rosterDraft'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
@@ -1127,6 +1128,11 @@ export function ListBuilder({
         waivers={waivers}
         waiversDismissed={dismissedWaivers === waiverKey}
         onDismissWaivers={() => dismissWaivers(waiverKey)}
+        leagueWarning={
+          editable && savedId && me ? (
+            <OutdatedLeagueRosters rosterId={savedId} saved={!save.isPending && currentDraftKey === lastApplied.current} />
+          ) : null
+        }
       />
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
       {combatRoster ? <RosterCombatDialog roster={combatRoster} onClose={() => setCombatRoster(null)} /> : null}

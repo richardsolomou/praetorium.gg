@@ -1,13 +1,48 @@
 import { describe, expect, it } from 'vitest'
+import type { Roster } from './battle'
 import {
   alliedLeagueRosterLimit,
   leagueTableShape,
+  matchesSealedLeagueRoster,
   readsAlliedLeagueRoster,
   requiredLeagueRosterLimit,
   visibleLeagueEntries,
   type LeagueAllyEntry,
   type LeagueEntryView,
 } from './league'
+
+const savedLeagueRoster = {
+  name: 'League list',
+  catalogueId: 'army',
+  detachmentIds: ['detachment'],
+  disposition: null,
+  limit: 2_000,
+  picks: [{ entryId: 'unit' }],
+  waivedRules: [],
+  reminders: [],
+}
+const sealedLeagueRoster: Roster = {
+  name: 'League list',
+  text: 'League list',
+  built: {
+    catalogueId: 'army',
+    revision: 'revision',
+    limit: 2_000,
+    detachment: 'Detachment',
+    detachmentIds: ['detachment'],
+    disposition: null,
+    picks: [{ entryId: 'unit' }],
+    units: [],
+  },
+}
+
+it('treats restored roster choices as the sealed list', () => {
+  expect(matchesSealedLeagueRoster(savedLeagueRoster, sealedLeagueRoster)).toBe(true)
+})
+
+it('detects a different unit even when the roster name is unchanged', () => {
+  expect(matchesSealedLeagueRoster({ ...savedLeagueRoster, picks: [{ entryId: 'other-unit' }] }, sealedLeagueRoster)).toBe(false)
+})
 
 const entries: LeagueEntryView[] = [
   {

@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 import { Check, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -25,6 +25,7 @@ type Props = {
   waivers: ComponentProps<typeof WaiverWarning>['rules']
   waiversDismissed: boolean
   onDismissWaivers: () => void
+  leagueWarning?: ReactNode
 }
 
 export function RosterBuilderFooter({
@@ -46,6 +47,7 @@ export function RosterBuilderFooter({
   waivers,
   waiversDismissed,
   onDismissWaivers,
+  leagueWarning,
 }: Props) {
   return (
     <footer className="sticky bottom-0 z-20 border-t border-edge bg-panel px-3 py-2">
@@ -64,6 +66,8 @@ export function RosterBuilderFooter({
           </span>
           <span className="eyebrow">points</span>
         </span>
+
+        {leagueWarning}
 
         <span className="ml-auto flex items-center gap-2">
           {editable ? (

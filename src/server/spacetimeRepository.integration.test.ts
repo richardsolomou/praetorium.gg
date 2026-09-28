@@ -65,7 +65,7 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
       [opponentId, 'Opponent'],
     ] as const) {
       const rosterId = randomUUID()
-      await operator.saveRoster({
+      const savedInput = {
         id: rosterId,
         userId,
         name,
@@ -82,7 +82,8 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
         visibility: 'private',
         source: 'editable',
         now: now.getTime(),
-      })
+      } as const
+      await operator.saveRoster(savedInput)
       const snapshot = JSON.stringify({
         name,
         text: name,
@@ -92,6 +93,9 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
           limit: 2_000,
           detachment: null,
           disposition: null,
+          detachmentIds: [],
+          waivedRules: [],
+          picks: [],
           units: [{ key: `${userId}-unit`, name: 'Test unit', points: 80, models: 5, group: 'character', warlord: true }],
         },
       })
@@ -107,11 +111,32 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
           now: now.getTime(),
         }),
       ).toEqual({ outcome: 'sealed', format: '1v1', requiredLimit: 2_000 })
+      expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toEqual([])
+      await operator.saveRoster({ ...savedInput, name: `${name} changed in the same millisecond` })
+      expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toHaveLength(1)
+      await operator.saveRoster({ ...savedInput, name: `${name} revised`, now: now.getTime() + 1 })
+      expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toEqual([
+        {
+          leagueToken,
+          leagueName: 'Test league',
+          eventToken: (await operator.leagueByToken(leagueToken))!.selected.token,
+          eventNumber: 1,
+        },
+      ])
+      await operator.saveRoster({ ...savedInput, now: now.getTime() + 2 })
+      expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toEqual([])
+      await operator.saveRoster({ ...savedInput, picks: '[{"entryId":"another-unit"}]', now: now.getTime() + 3 })
+      expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toHaveLength(1)
+      await operator.saveRoster({ ...savedInput, now: now.getTime() + 4 })
+      expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toEqual([])
+      expect(await repository.outdatedLeagueEntriesForRoster(userId === creatorId ? opponentId : creatorId, rosterId)).toEqual([])
     }
     expect(await repository.revealLeague(leagueToken, creatorId, now.getTime())).toEqual({
       outcome: 'revealed',
       entrantIds: [creatorId, opponentId],
     })
+    const creatorRosterId = (await operator.leagueByToken(leagueToken))!.entries.find((entry) => entry.userId === creatorId)!.rosterId!
+    expect(await repository.outdatedLeagueEntriesForRoster(creatorId, creatorRosterId)).toEqual([])
     expect((await repository.leagueBattleCandidates(creatorId, [creatorId, opponentId])).map((row) => row.token)).toEqual([leagueToken])
     expect((await operator.leagueByToken(leagueToken))?.entries.map((entry) => [entry.status, entry.rosterSnapshot !== null])).toEqual([
       ['accepted', true],
