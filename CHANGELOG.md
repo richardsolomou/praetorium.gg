@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.81.0
+
+### Minor Changes
+
+- f5e5b73: Show each player a single next step for a league event, with their progress from joining to playing.
+- f5e5b73: Split a league event into an Organize tab for its organizer and an Event tab for players, with a reveal checklist that names who is still holding the reveal up.
+- f5e5b73: Accept waiting league requests together, let turned-away players back in, and pair doubles teams by ticking two players.
+
+### Patch Changes
+
+- f5e5b73: Change a league event's format and player limit together, and set up the next event, without leaving the league page.
+- f5e5b73: Name league formats the same way on league cards and event pages, and open revealed league rosters in the same tab.
+- f5e5b73: Ask for a second press before sealing a league roster.
+
 ## 0.80.1
 
 ### Patch Changes
