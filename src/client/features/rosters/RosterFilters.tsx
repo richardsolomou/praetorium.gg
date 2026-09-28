@@ -57,17 +57,17 @@ const SHARING_GROUPS: SearchableGroup[] = [
 ]
 const SORT_GROUPS: { label: string; items: { label: string; value: RosterSort }[] }[] = [
   {
-    label: 'Created',
-    items: [
-      { label: 'Recently created', value: 'created-desc' },
-      { label: 'Least recently created', value: 'created-asc' },
-    ],
-  },
-  {
     label: 'Updated',
     items: [
       { label: 'Recently updated', value: 'updated-desc' },
       { label: 'Least recently updated', value: 'updated-asc' },
+    ],
+  },
+  {
+    label: 'Created',
+    items: [
+      { label: 'Recently created', value: 'created-desc' },
+      { label: 'Least recently created', value: 'created-asc' },
     ],
   },
   {
@@ -80,8 +80,8 @@ const SORT_GROUPS: { label: string; items: { label: string; value: RosterSort }[
   {
     label: 'Battle size',
     items: [
-      { label: 'Low to high', value: 'size-asc' },
       { label: 'High to low', value: 'size-desc' },
+      { label: 'Low to high', value: 'size-asc' },
     ],
   },
 ]

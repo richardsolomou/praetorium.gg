@@ -2,26 +2,26 @@ import { ROSTER_SORT_COOKIE } from '../../../contracts/rosterCookies'
 import { setRosterCookie } from './rosterCookie'
 
 export const ROSTER_SORTS = [
+  'updated-desc',
+  'updated-asc',
   'created-desc',
   'created-asc',
   'name-asc',
   'name-desc',
-  'updated-desc',
-  'updated-asc',
-  'size-asc',
   'size-desc',
+  'size-asc',
 ] as const
 export type RosterSort = (typeof ROSTER_SORTS)[number]
 
 const KEPT_FOR = 60 * 60 * 24 * 365
 
-/** The order a player last chose, or newest first when the cookie is missing or names no order. */
+/** The order a player last chose, or recently updated when the cookie is missing or invalid. */
 export const keptRosterSort = (value: string | undefined): RosterSort =>
-  ROSTER_SORTS.includes(value as RosterSort) ? (value as RosterSort) : 'created-desc'
+  ROSTER_SORTS.includes(value as RosterSort) ? (value as RosterSort) : 'updated-desc'
 
-/** Remembers the chosen order on this device; newest first is the default and needs no cookie. */
+/** Remembers the chosen order on this device; the default needs no cookie. */
 export function keepRosterSort(sort: RosterSort) {
-  setRosterCookie(ROSTER_SORT_COOKIE, sort === 'created-desc' ? null : sort, KEPT_FOR)
+  setRosterCookie(ROSTER_SORT_COOKIE, sort === 'updated-desc' ? null : sort, KEPT_FOR)
 }
 
 type SortableRoster = { id: string; name: string; limit: number; createdAt: number; updatedAt: number }

@@ -52,10 +52,10 @@ export function HomeView({
   onDelete,
   more,
 }: HomeData) {
-  // The feeds arrive without practice games; the player's own list is their whole history.
-  const ours = mine.filter((battle) => !battle.playerDetails?.some((player) => player.automated))
-  const going = ours.filter((battle) => battle.status !== 'finished')
-  const played = ours.filter((battle) => battle.status === 'finished').slice(0, RECENT)
+  const going = mine.filter((battle) => battle.status !== 'finished')
+  const played = mine
+    .filter((battle) => battle.status === 'finished' && !battle.playerDetails?.some((player) => player.automated))
+    .slice(0, RECENT)
   // A visitor's hero is the most recent public battle, so the shelf below must not
   // print it again two inches further down.
   const hero = me ? undefined : open[0]
@@ -72,6 +72,7 @@ export function HomeView({
   const bare = !going.length && !played.length && !shownFriends.length && !rest.length
   const waiting = rostersDue.length + friendRequests
   if (me) {
+    const history = <HomePlayed played={played} viewerId={me.id} />
     return (
       <main className="w-full">
         <Welcome name={me.name} going={going.length} waiting={waiting} newBattle={newBattle} />
@@ -86,11 +87,11 @@ export function HomeView({
               <>
                 <HomeWaiting rostersDue={rostersDue} friendRequests={friendRequests} />
                 <HomeRosters rosters={rosters} count={rosterCount} />
-                <HomePlayed played={played} viewerId={me.id} />
               </>
             }
             rest={
               <>
+                {history}
                 <FriendTables battles={shownFriends} explain={!bare} />
                 <PublicTables battles={rest} signedIn more={more} />
               </>

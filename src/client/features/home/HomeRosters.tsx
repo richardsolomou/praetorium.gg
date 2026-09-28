@@ -55,15 +55,10 @@ export function HomeRosters({ rosters, count }: { rosters: readonly HomeRoster[]
           Build a list from the army data, or import one from another app.
         </p>
       )}
-      <p className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <p className="mt-2">
         <Link to="/rosters" className="eyebrow inline-flex items-center gap-1 text-info hover:text-parchment">
           All my rosters <ChevronRight className="size-3.5" />
         </Link>
-        {count ? (
-          <Link to="/data-updates" className="text-xs font-semibold text-discarded hover:text-bone">
-            Data updates
-          </Link>
-        ) : null}
       </p>
     </section>
   )
