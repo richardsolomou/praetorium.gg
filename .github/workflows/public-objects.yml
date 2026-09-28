@@ -57,3 +57,18 @@ jobs:
           (cd "$SOURCE" && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$RUNNER_TEMP/source.sha256"
           (cd "$VERIFY" && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$RUNNER_TEMP/verified.sha256"
           diff -u "$RUNNER_TEMP/source.sha256" "$RUNNER_TEMP/verified.sha256"
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Restore the latest auth archive from the private bucket
+        env:
+          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          key="$(aws s3api list-objects-v2 --bucket praetorium-private --prefix backups/auth/production/ --endpoint-url "$ENDPOINT" --query 'sort_by(Contents,&Key)[-1].Key' --output text)"
+          [[ "$key" =~ ^backups/auth/production/[0-9]{8}T[0-9]{6}Z-[0-9a-f]{16}\.zip$ ]]
+          node --import tsx scripts/nodeAuthBackup.ts restore "$key" "$RUNNER_TEMP/auth-restore" > /dev/null
+          echo 'Auth archive restored and SQLite verified'
