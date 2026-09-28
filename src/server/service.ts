@@ -22,7 +22,7 @@ import type { MissionAward } from '../core/scoring'
 import type { OnboardingProgressOperation } from '../core/onboarding'
 import { filterBattles, type RecordFilter, recordFacets, type SeatPlay, seatPlays, serviceRecord } from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
-import { factionsPlayed, type Standing, type StandingFaction, standings } from '../core/standings'
+import { type Standing, type StandingFaction, standings } from '../core/standings'
 import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
 import type { BattlesCursor } from '../contracts/battles'
 import { gameReferencesFor } from './gameReferences'
@@ -418,11 +418,7 @@ export class PraetoriumService {
         this.repository.practiceOpponents(),
       ])
       const summaries = this.battleSummaries(histories, null, null, factions)
-      const exclude = practice.map((opponent) => opponent.id)
-      const table = <T extends StandingFaction | null>(faction: T) => ({
-        faction,
-        rows: standings(summaries, { exclude, faction: faction?.slug }),
-      })
+      const tables = standings(summaries, { exclude: practice.map((opponent) => opponent.id) })
       // The battle limit can bite before the window does, so the fold reports the days
       // it actually reached back rather than the ninety it asked for: a page claiming a
       // window nothing was counted from is a number no reader can check.
@@ -430,8 +426,8 @@ export class PraetoriumService {
         summaries.length < STANDINGS_BATTLE_LIMIT ? now - STANDINGS_WINDOW_MS : Math.min(...summaries.map((battle) => battle.lastActivity))
       const fold = {
         days: Math.max(1, Math.round((now - oldest) / DAY_MS)),
-        overall: table(null),
-        factions: factionsPlayed(summaries, exclude).map(table),
+        overall: { faction: null, rows: tables.overall },
+        factions: tables.factions,
       }
       this.standingsHeld = { key, until: this.clock() + STANDINGS_HOLD_MS, fold }
       return fold
