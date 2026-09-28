@@ -33,6 +33,6 @@ it('rebuilds a foreign request from its URL and headers', () => {
 })
 
 it('routes metadata through a TLS terminating proxy', () => {
-  const request = new Request(`http://vm-pr-606.praetorium.gg/api/auth/preview/${'c'.repeat(40)}/jwks`)
-  expect(previewOidcRequest(request, issuer, 'https://pr-606.praetorium.gg').url).toBe('http://vm-pr-606.praetorium.gg/api/auth/jwks')
+  const request = new Request(`http://pr-606.praetorium.gg/api/auth/preview/${'c'.repeat(40)}/jwks`)
+  expect(previewOidcRequest(request, issuer, 'https://pr-606.praetorium.gg').url).toBe('http://pr-606.praetorium.gg/api/auth/jwks')
 })

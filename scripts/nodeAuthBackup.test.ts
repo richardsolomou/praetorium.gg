@@ -31,7 +31,7 @@ it('uploads a consistent auth snapshot and secret to R2 and restores the downloa
   const restored = path.join(directory, 'restored')
   await writeFile(dump, await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8'))
   await importAuthSqlite(dump, source)
-  process.env.AUTH_SECRET = 'staging-auth-secret-preserved-in-backup'
+  process.env.AUTH_SECRET = 'production-auth-secret-preserved-in-backup'
   process.env.R2_ACCOUNT_ID = 'a'.repeat(32)
   process.env.R2_ACCESS_KEY_ID = 'key'
   process.env.R2_SECRET_ACCESS_KEY = 'secret'
@@ -43,12 +43,18 @@ it('uploads a consistent auth snapshot and secret to R2 and restores the downloa
     }
     return new Response(stored ? new Uint8Array(stored) : null, { status: stored ? 200 : 404 })
   })
-  const { key, counts } = await backupAuthToR2(source, 'staging')
-  expect(key).toMatch(/^backups\/auth\/staging\/[0-9]{8}T[0-9]{6}Z-[0-9a-f]{16}\.zip$/)
+  const { key, counts } = await backupAuthToR2(source)
+  expect(key).toMatch(/^backups\/auth\/production\/[0-9]{8}T[0-9]{6}Z-[0-9a-f]{16}\.zip$/)
   expect(await restoreAuthFromR2(key, restored)).toEqual(counts)
   expect(await readFile(path.join(restored, 'auth-secret'), 'utf8')).toBe(process.env.AUTH_SECRET)
 })
 
 it('rejects another backup key before making a request', async () => {
   await expect(restoreAuthFromR2('backups/other/private.zip', path.join(directory, 'bad'))).rejects.toThrow('Invalid auth backup key')
+})
+
+it('rejects retired staging backups', async () => {
+  await expect(
+    restoreAuthFromR2('backups/auth/staging/20260927T201947Z-1113929dbf254cb9.zip', path.join(directory, 'staging')),
+  ).rejects.toThrow('Invalid auth backup key')
 })

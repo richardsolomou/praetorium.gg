@@ -10,7 +10,7 @@ pnpm exec wrangler deploy --config wrangler.objects.json
 routes="$(curl --fail --silent --show-error --max-time 30 \
   --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/workers/routes")"
-route_id="$(jq -er '[.result[] | select(.pattern == "s3.praetorium.gg/*" and (.script == "praetorium-production" or .script == "praetorium-objects"))] | if length == 1 then .[0].id else error("unexpected public object route") end' <<< "$routes")"
+route_id="$(jq -er '[.result[] | select(.pattern == "s3.praetorium.gg/*" and .script == "praetorium-objects")] | if length == 1 then .[0].id else error("unexpected public object route") end' <<< "$routes")"
 
 curl --fail --silent --show-error --max-time 30 \
   --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \

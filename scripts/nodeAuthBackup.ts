@@ -7,7 +7,7 @@ import { unzipSync, zipSync } from 'fflate'
 import { r2Client } from '../src/server/r2Client.ts'
 import { backupAuthSqlite, verifyAuthSqlite } from './nodeAuthSqlite.ts'
 
-const archiveKey = /^backups\/auth\/(?:staging|production)\/[0-9]{8}T[0-9]{6}Z-[0-9a-f]{16}\.zip$/
+const archiveKey = /^backups\/auth\/production\/[0-9]{8}T[0-9]{6}Z-[0-9a-f]{16}\.zip$/
 const maxArchiveBytes = 128 * 1024 * 1024
 
 function digest(bytes: Uint8Array) {
@@ -52,7 +52,7 @@ export async function restoreAuthArchive(bytes: Uint8Array, target: string) {
   }
 }
 
-export async function backupAuthToR2(source: string, environment: 'staging' | 'production') {
+export async function backupAuthToR2(source: string) {
   const secret = process.env.AUTH_SECRET
   if (!secret || secret.length < 32) throw new Error('AUTH_SECRET is required for a restorable backup')
   const r2 = configuredR2()
@@ -74,7 +74,7 @@ export async function backupAuthToR2(source: string, environment: 'staging' | 'p
     )
     if (archive.byteLength > maxArchiveBytes) throw new Error('Auth archive is too large')
     const stamp = new Date().toISOString().replaceAll('-', '').replaceAll(':', '').slice(0, 15) + 'Z'
-    const key = `backups/auth/${environment}/${stamp}-${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}.zip`
+    const key = `backups/auth/production/${stamp}-${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}.zip`
     const url = `${r2.base}${key}`
     const uploaded = await r2.client.fetch(url, {
       method: 'PUT',
@@ -104,10 +104,10 @@ export async function restoreAuthFromR2(key: string, target: string) {
 
 const [, , command, first, second] = process.argv
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  if (!first || !second) throw new Error('Usage: nodeAuthBackup.ts backup SQLITE_PATH staging|production | restore R2_KEY TARGET_DIRECTORY')
+  if (!first || !second) throw new Error('Usage: nodeAuthBackup.ts backup SQLITE_PATH production | restore R2_KEY TARGET_DIRECTORY')
   const result =
-    command === 'backup' && (second === 'staging' || second === 'production')
-      ? await backupAuthToR2(first, second)
+    command === 'backup' && second === 'production'
+      ? await backupAuthToR2(first)
       : command === 'restore'
         ? await restoreAuthFromR2(first, second)
         : undefined

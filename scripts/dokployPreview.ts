@@ -22,8 +22,8 @@ function required(name: string) {
   return value
 }
 
-function previewDatabase(number: string) {
-  return `praetorium-vm-pr-${pullRequestNumber(number)}`
+export function previewDatabase(number: string) {
+  return `praetorium-pr-${pullRequestNumber(number)}`
 }
 
 export function previewImageRevision(image: string, number: string) {

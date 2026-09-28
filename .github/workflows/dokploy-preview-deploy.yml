@@ -31,10 +31,10 @@ jobs:
     uses: richardsolomou/ras-stack/.github/workflows/deploy-dokploy-preview.yml@v1
     with:
       package: praetorium.gg
-      local-image: praetorium-node-preview
-      application-prefix: praetorium-node
+      local-image: praetorium-preview
+      application-prefix: praetorium
       domain: praetorium.gg
-      subdomain-prefix: vm-pr
+      subdomain-prefix: pr
       cloudflare-zone-id: ${{ vars.CLOUDFLARE_ZONE_ID }}
       port: 3000
       marker: <!-- praetorium-vm-preview -->
