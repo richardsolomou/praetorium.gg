@@ -20,6 +20,8 @@ Restart `just dev` after source changes to rebuild the app or product module. Th
 
 `just e2e` starts isolated local SQLite, object storage, and SpacetimeDB services and runs Playwright. `just e2e-trace` records a trace, and `just e2e-install` installs Chromium.
 
+CI splits the suite across eight runners by the durations in `e2e/durations.json`, and a test missing from it counts as the median. When runner times drift apart, `just e2e-durations <run id>` records the durations of a CI run's passing tests.
+
 ## Repository backup
 
 `just repository-backup /absolute/destination` creates and verifies a Git bundle of every local ref. Keep the bundle outside this repository and separate from GitHub. It does not include uncommitted files.

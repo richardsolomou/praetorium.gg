@@ -1,0 +1,32 @@
+name: Coverage baseline
+
+# Pull request caches are scoped to their own branch, so only a snapshot saved from
+# main can serve as the coverage base for every pull request that follows it.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - run: pnpm catalogue:sync
+      - name: Restore the snapshot
+        id: cache
+        uses: actions/cache@v6
+        with:
+          path: base.json
+          # Matches the base key in the CI coverage job.
+          key: catalogue-coverage-${{ github.sha }}-${{ hashFiles('catalogue-data/.snapshot.json') }}
+      - name: Snapshot main
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: pnpm catalogue:coverage:parallel base.json

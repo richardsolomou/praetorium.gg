@@ -6,7 +6,19 @@ import { compareCatalogueCoverage } from './lib/catalogueCoverageComparison'
 
 const arguments_ = process.argv.slice(2)
 const output = arguments_[0]
-if (!output) throw new Error('usage: parallelCatalogueCoverage.ts <out.json> [--compare <before.json>] [--accept <withdrawn.json>]')
+if (!output) {
+  throw new Error(
+    'usage: parallelCatalogueCoverage.ts <out.json> [--part <index>/<count>] [--compare <before.json>] [--accept <withdrawn.json>]',
+  )
+}
+// A part takes every count-th faction, so machines can split the snapshot between them
+// whatever worker count each one chooses.
+const partAt = arguments_.indexOf('--part')
+const part = partAt < 0 ? ['', '0', '1'] : arguments_[partAt + 1]?.match(/^(\d+)\/(\d+)$/)
+if (!part || Number(part[2]) < 1 || Number(part[1]) >= Number(part[2])) {
+  throw new Error('--part must be a zero-based index and count, for example 0/2')
+}
+const [partIndex, partCount] = [Number(part[1]), Number(part[2])]
 
 const configuredWorkers = Number(process.env.CATALOGUE_COVERAGE_WORKERS ?? 3)
 if (!Number.isInteger(configuredWorkers) || configuredWorkers < 1) throw new Error('CATALOGUE_COVERAGE_WORKERS must be a positive integer')
@@ -19,7 +31,15 @@ const runShard = (index: number) =>
   new Promise<void>((resolve, reject) => {
     const child = spawn(
       process.execPath,
-      ['--max-old-space-size=2048', '--import', 'tsx', script, partialFiles[index]!, '--shard', `${index}/${workerCount}`],
+      [
+        '--max-old-space-size=2048',
+        '--import',
+        'tsx',
+        script,
+        partialFiles[index]!,
+        '--shard',
+        `${partIndex + index * partCount}/${partCount * workerCount}`,
+      ],
       { stdio: ['ignore', 'ignore', 'inherit'] },
     )
     child.on('error', reject)

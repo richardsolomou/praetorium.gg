@@ -4,10 +4,7 @@ import { baseURL, catalogue, port, root } from './e2e/stackEnv'
 export default defineConfig({
   testDir: './e2e',
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results',
-  // Sharding reads this setting before it assigns tests. Keeping it only on the
-  // command line leaves the large builder spec on one runner while others are empty.
-  fullyParallel: true,
-  // Each CI shard owns its local SQLite and SpacetimeDB data.
+  // Each CI shard owns its local SQLite and SpacetimeDB data; scripts/e2eShard.ts assigns its tests.
   workers: 1,
   retries: 0,
   /*
