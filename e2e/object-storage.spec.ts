@@ -21,7 +21,7 @@ test('a local profile upload is readable through the Node object route', async (
     (database) => database.prepare('SELECT image FROM user WHERE name = ? LIMIT 1').get(name) as { image: string | null } | undefined,
   )
   if (!player?.image) throw new Error('Uploaded profile image is missing')
-  expect(player?.image).toMatch(new RegExp(`^${baseURL}/praetorium/avatars/[0-9a-f]{64}\\.webp$`))
+  expect(player?.image).toMatch(new RegExp(`^${baseURL}/avatars/[0-9a-f]{64}\\.webp$`))
   const response = await request.get(player.image)
   expect(response.status()).toBe(200)
   expect(response.headers()['content-type']).toContain('image/webp')

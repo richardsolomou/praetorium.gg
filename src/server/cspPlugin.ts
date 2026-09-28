@@ -1,10 +1,10 @@
 import { definePlugin } from 'nitro'
 import { useNitroHooks } from 'nitro/app'
-import { s3PublicBaseUrl } from './objectStorage'
+import { publicAssetsBaseUrl } from './objectStorage'
 import { contentSecurityPolicy } from './contentSecurityPolicy'
 
 export default definePlugin(() => {
-  const origin = new URL(s3PublicBaseUrl()).origin
+  const origin = new URL(publicAssetsBaseUrl()).origin
   useNitroHooks().hook('response', (event) => {
     const csp = event.headers.get('content-security-policy')
     if (!csp) return

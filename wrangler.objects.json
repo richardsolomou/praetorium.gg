@@ -1,7 +1,0 @@
-{
-  "name": "praetorium-objects",
-  "main": "cloudflare/objectWorker.ts",
-  "workers_dev": false,
-  "compatibility_date": "2026-09-17",
-  "r2_buckets": [{ "binding": "PUBLIC_OBJECTS", "bucket_name": "praetorium" }]
-}

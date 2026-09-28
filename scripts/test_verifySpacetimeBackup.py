@@ -49,13 +49,13 @@ class VerifySpacetimeBackupTest(unittest.TestCase):
             )
             return result, calls.read_text().splitlines()
 
-    def test_reads_unified_backup_destination(self) -> None:
+    def test_reads_private_backup_destination(self) -> None:
         result, calls = self.run_with_destinations(
             [
                 {"name": "other", "bucket": "other"},
                 {
-                    "name": "praetorium R2",
-                    "bucket": "praetorium",
+                    "name": "praetorium private R2",
+                    "bucket": "praetorium-private",
                     "endpoint": "https://" + "a" * 32 + ".r2.cloudflarestorage.com",
                     "accessKey": "test-access",
                     "secretAccessKey": "test-secret",
@@ -70,7 +70,7 @@ class VerifySpacetimeBackupTest(unittest.TestCase):
                 [
                     "https://dokploy.example/api/destination.all",
                     "https://dokploy.example/api/application.one",
-                    "aws s3api list-objects-v2 --bucket praetorium --prefix spacetimedb-production/backups/data/ --endpoint-url https://"
+                    "aws s3api list-objects-v2 --bucket praetorium-private --prefix spacetimedb-production/backups/data/ --endpoint-url https://"
                     + "a" * 32
                     + ".r2.cloudflarestorage.com --output json",
                 ],
@@ -78,7 +78,7 @@ class VerifySpacetimeBackupTest(unittest.TestCase):
         )
 
     def test_rejects_ambiguous_backup_destination(self) -> None:
-        destination = {"name": "praetorium", "bucket": "praetorium"}
+        destination = {"name": "praetorium private", "bucket": "praetorium-private"}
         result, calls = self.run_with_destinations([destination, destination])
         self.assertEqual((result.returncode != 0, calls), (True, ["https://dokploy.example/api/destination.all"]))
 

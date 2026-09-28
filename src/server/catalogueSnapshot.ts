@@ -14,7 +14,7 @@ import {
 } from './catalogueSources'
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from './canonicalCatalogueSources'
 import { fetchWithRetry } from './fetch'
-import { DEFAULT_S3_PUBLIC_BASE_URL } from './objectStorage'
+import { publicAssetsBaseUrl } from './objectStorage'
 
 const LEGACY_FORMAT = 'praetorium.catalogue.v1'
 const COMPLETE_FORMAT = 'praetorium.catalogue.v2'
@@ -125,7 +125,7 @@ export const catalogueLock = parseCatalogueLock(rawLock)
 export const catalogueRevocations = parseRevocations(rawRevocations)
 
 export function catalogueBaseUrl(value = process.env.CATALOGUE_BASE_URL) {
-  return (value?.trim() || DEFAULT_S3_PUBLIC_BASE_URL).replace(/\/$/, '')
+  return (value?.trim() || `${publicAssetsBaseUrl()}/catalogue`).replace(/\/$/, '')
 }
 
 function configuredRevocations() {

@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, expect, it } from 'vitest'
-import { publicObject } from '../../cloudflare/publicObjects'
+import { localPublicObject } from './localPublicObject'
 import { localObjectStore } from './localObjectStore'
 
 const directories: string[] = []
@@ -20,14 +20,14 @@ it('serves a locally uploaded avatar through the public object allowlist', async
   const objects = await bucket()
   const key = `avatars/${'a'.repeat(64)}.webp`
   await objects.put(key, new Uint8Array([1, 2, 3]))
-  const response = await publicObject(new Request(`http://localhost/praetorium/${key}`), objects)
+  const response = await localPublicObject(new Request(`http://localhost/${key}`), objects)
   expect([...new Uint8Array(await response.arrayBuffer())]).toEqual([1, 2, 3])
 })
 
 it('keeps local backup objects private', async () => {
   const objects = await bucket()
   await objects.put('backups/auth/private.zip', new Uint8Array([1]))
-  const response = await publicObject(new Request('http://localhost/praetorium/backups/auth/private.zip'), objects)
+  const response = await localPublicObject(new Request('http://localhost/backups/auth/private.zip'), objects)
   expect(response.status).toBe(404)
 })
 

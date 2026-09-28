@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { configuredObjectStore, putIfAbsent } from './objectStorage'
 
 afterEach(() => {
-  delete process.env.S3_PUBLIC_BASE_URL
+  delete process.env.PUBLIC_ASSETS_BASE_URL
   delete process.env.R2_ACCOUNT_ID
   delete process.env.R2_ACCESS_KEY_ID
   delete process.env.R2_SECRET_ACCESS_KEY
+  delete process.env.ASSETS_R2_ACCESS_KEY_ID
+  delete process.env.ASSETS_R2_SECRET_ACCESS_KEY
   vi.unstubAllGlobals()
 })
 
@@ -14,10 +16,10 @@ describe('configuredObjectStore', () => {
     expect(configuredObjectStore()).toBeNull()
   })
 
-  it('signs a Node avatar upload to the private bucket', async () => {
+  it('signs a Node avatar upload to the public assets bucket', async () => {
     process.env.R2_ACCOUNT_ID = 'a'.repeat(32)
-    process.env.R2_ACCESS_KEY_ID = 'key'
-    process.env.R2_SECRET_ACCESS_KEY = 'secret'
+    process.env.ASSETS_R2_ACCESS_KEY_ID = 'key'
+    process.env.ASSETS_R2_SECRET_ACCESS_KEY = 'secret'
     const requests: Request[] = []
     vi.stubGlobal('fetch', async (request: Request) => {
       requests.push(request)

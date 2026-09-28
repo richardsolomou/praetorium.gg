@@ -47,7 +47,7 @@ jobs:
       # publish: what it cannot read it logs, and it carries forward only what it measured.
       - name: Carry the data-update history forward
         env:
-          CATALOGUE_BASE_URL: https://s3.praetorium.gg/praetorium
+          CATALOGUE_BASE_URL: https://s3.praetorium.gg/catalogue
         run: pnpm catalogue:history
       - name: Build and publish the immutable snapshot
         run: |
@@ -58,7 +58,7 @@ jobs:
           pnpm catalogue:snapshot pack
           id="$(jq -r .id "$CATALOGUE_SNAPSHOT_POINTER_FILE")"
           aws s3api head-object --bucket "$SNAPSHOT_BUCKET" --key "catalogue/snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" >/dev/null 2>&1 \
-            || aws s3 cp "$CATALOGUE_SNAPSHOT_FILE" "s3://$SNAPSHOT_BUCKET/catalogue/snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
+            || aws s3 cp "$CATALOGUE_SNAPSHOT_FILE" "s3://$SNAPSHOT_BUCKET/catalogue/snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/zip --cache-control 'public, max-age=31536000, immutable' --only-show-errors
           aws s3 cp "s3://$SNAPSHOT_BUCKET/catalogue/snapshots/$id.zip" /tmp/published-catalogue.zip \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
           CATALOGUE_SNAPSHOT_FILE=/tmp/published-catalogue.zip pnpm catalogue:snapshot verify

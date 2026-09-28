@@ -28,7 +28,7 @@ jobs:
       AWS_DEFAULT_REGION: us-east-1
       SNAPSHOT_BUCKET: praetorium
       SNAPSHOT_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
-      CATALOGUE_BASE_URL: https://s3.praetorium.gg/praetorium
+      CATALOGUE_BASE_URL: https://s3.praetorium.gg/catalogue
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v1

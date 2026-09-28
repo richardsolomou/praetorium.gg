@@ -11,9 +11,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  S3_PUBLIC_BASE_URL: ${{ vars.S3_PUBLIC_BASE_URL }}
-
 jobs:
   check:
     runs-on: ubuntu-latest
