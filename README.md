@@ -28,6 +28,8 @@ This repository contains no game data. The service uses verified snapshots from 
 
 [praetorium.gg](https://praetorium.gg) is the supported service and the easiest way to use Praetorium. It keeps the community rules data current and saves your rosters and battles.
 
+The public reference is available without an account: [faction datasheets](https://praetorium.gg/factions), [missions](https://praetorium.gg/mission-packs), and [rules](https://praetorium.gg/rules). Each page reads the service's verified community data snapshot.
+
 The source is open so anyone can inspect the product and contribute to it. [Contributing](CONTRIBUTING.md) covers running a local development copy.
 
 ## Development

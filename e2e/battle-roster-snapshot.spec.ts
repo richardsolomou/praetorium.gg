@@ -20,6 +20,7 @@ test('a fielded roster opens as the frozen read-only roster view', async ({ page
   )
   const token = lastPathSegment(battleUrl)
   await page.goto(`/rosters/${rosterId}?battle=${token}`)
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
   const rosterUrl = page.url()
   await page.setViewportSize({ width: 390, height: 844 })
   await page.evaluate(() => {
