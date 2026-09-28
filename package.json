@@ -33,6 +33,7 @@
     "auth:db:generate": "drizzle-kit generate --config drizzle.auth.config.ts",
     "auth:db:check": "drizzle-kit check --config drizzle.auth.config.ts",
     "catalogue:check": "tsx scripts/syncCatalogue.ts --check",
+    "catalogue:upstream": "tsx scripts/syncCatalogue.ts --upstream",
     "catalogue:compile": "tsx scripts/compileCatalogue.ts",
     "catalogue:combat": "tsx scripts/auditCombatRules.ts",
     "catalogue:combat:eval": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/checkCombatRuleQuestions.ts",

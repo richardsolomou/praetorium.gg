@@ -16,6 +16,7 @@ The points source tests the evaluator and is not loaded by the product. Evaluato
 ## Commands
 
 - `pnpm catalogue:check` validates the source definitions. It runs as part of `pnpm check`.
+- `pnpm catalogue:upstream` reports which upstream revisions moved since the published snapshot without changing the active catalogue. A moved revision may contain non-game changes; follow its comparison link to inspect the data before publishing.
 - `pnpm catalogue:sync` activates the release-pinned snapshot from a cache shared by every worktree.
 - `pnpm catalogue:sync --latest` follows the remote `current.json` pointer.
 - `pnpm catalogue:update` resolves and downloads the latest upstream revisions for snapshot publication.
@@ -31,4 +32,4 @@ The points source tests the evaluator and is not loaded by the product. Evaluato
 
 The publisher records every included upstream revision, source, licence declaration, attribution, modification notice, and file checksum before atomically replacing `current.json`. It omits repository metadata, reports, examples, Combat Patrol exports, and layout exports that neither the product nor its verification checks read. Saved rosters continue to record the definitions revision used for validation.
 
-`lock.json` is the catalogue tested with a released application. `revocations.json` blocks named snapshots or every snapshot containing a named source. The publisher uploads revocations before moving `current.json` and removes revoked archives after the pointer has moved. `CATALOGUE_DISABLED_SOURCES` provides the same fail-closed source switch to an operator or publisher.
+`lock.json` is the catalogue tested with a released application. The publisher runs only when `catalogue-update.yml` is dispatched manually; review upstream changes before running it. `revocations.json` blocks named snapshots or every snapshot containing a named source. The publisher uploads revocations before moving `current.json` and removes revoked archives after the pointer has moved. `CATALOGUE_DISABLED_SOURCES` provides the same fail-closed source switch to an operator or publisher.

@@ -68,6 +68,10 @@ repository-backup destination:
 catalogue-check:
     pnpm catalogue:check
 
+# Compare current upstream revisions with the published snapshot without activating them
+catalogue-upstream:
+    pnpm catalogue:upstream
+
 # Compile upstream sources into Praetorium's canonical datasheet catalogue
 catalogue-compile:
     pnpm catalogue:compile
