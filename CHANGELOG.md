@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.80.1
+
+### Patch Changes
+
+- 8ca93d2: Save automatic roster names and load the roster library in smaller batches.
+
 ## 0.80.0
 
 ### Minor Changes
