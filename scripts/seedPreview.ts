@@ -499,7 +499,15 @@ async function seedInto(
       opponentIds: [opponentUserId],
       tail: [
         { kind: 'begin-battle', firstPlayerId: previewUserId },
-        { kind: 'end-battle', reason: 'finished-early' },
+        ...Array.from({ length: 5 }, (_, round) => [
+          ...(round ? [{ kind: 'settle-opponent-turn' as const }] : []),
+          ...(round < 4 ? [{ kind: 'score' as const, category: 'primary' as const, delta: 5 }] : []),
+          ...Array.from({ length: 6 }, () => ({ kind: 'advance' as const, playerId: previewUserId })),
+          { kind: 'settle-opponent-turn' as const },
+          ...Array.from({ length: 6 }, () => ({ kind: 'advance' as const, playerId: opponentUserId })),
+        ]).flat(),
+        { kind: 'score-settlement', round: 5, scores: [{ category: 'primary', delta: 5 }] },
+        { kind: 'settle-opponent-turn' },
       ],
     },
   })

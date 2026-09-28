@@ -4,6 +4,24 @@ import { battleReport } from './battleReport'
 import { ALICE, BOB, CAROL, NAMES, builtRoster, log, roster, started, turns, text } from './battle.fixtures'
 
 describe('the account of the battle', () => {
+  it('reports prompt and clock actions from the command log', () => {
+    const history = log(
+      ...started(),
+      [ALICE, { kind: 'request-advance' }],
+      [ALICE, { kind: 'cancel-advance' }],
+      [ALICE, { kind: 'pause-clock' }],
+      [ALICE, { kind: 'resume-clock' }],
+    )
+    expect(text(battleReport(NAMES, history))).toEqual(
+      expect.arrayContaining([
+        'Alice requests the next phase',
+        'Alice cancels the phase advance',
+        'Alice pauses the clock',
+        'Alice resumes the clock',
+      ]),
+    )
+  })
+
   it('says who brought what', () => {
     expect(text(battleReport(NAMES, log(...started())))[0]).toBe('Alice brought Ultramarines')
   })

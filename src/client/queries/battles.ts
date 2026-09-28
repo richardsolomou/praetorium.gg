@@ -1,4 +1,4 @@
-import { infiniteQueryOptions, queryOptions, replaceEqualDeep } from '@tanstack/react-query'
+import { infiniteQueryOptions, keepPreviousData, queryOptions, replaceEqualDeep } from '@tanstack/react-query'
 import {
   battleAudience,
   battleReport,
@@ -11,6 +11,7 @@ import {
   playerRankings,
   playerRosters,
   publicBattles,
+  replayBattleAt,
   searchPlayers,
   sharedBattles,
   standings,
@@ -102,6 +103,15 @@ export const battleQuery = (token: string) =>
     staleTime: SSR_STALE_TIME,
     refetchInterval: ({ state }) => (state.data?.kind === 'spectator' && state.data.view.status !== 'finished' ? 5_000 : false),
     structuralSharing: newestBattleScreen,
+  })
+
+export const replayAtQuery = (token: string, seq: number, enabled: boolean) =>
+  queryOptions({
+    queryKey: ['battle-replay', token, seq],
+    queryFn: () => replayBattleAt({ data: { token, seq } }),
+    enabled,
+    placeholderData: keepPreviousData,
+    staleTime: SSR_STALE_TIME,
   })
 
 export function newestBattleScreen<T>(oldData: T | undefined, newData: T): T {

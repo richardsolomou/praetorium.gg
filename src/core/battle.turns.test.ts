@@ -172,7 +172,7 @@ describe('the turn sequence', () => {
     expect(reduceBattle(PLAYERS, history).phase).toBe('movement')
   })
 
-  it('shares an advance request without making it an undoable battle event', () => {
+  it('shares and reports an advance request without changing the undo target', () => {
     const history = log(
       ...started(),
       [ALICE, { kind: 'score', category: 'primary', delta: 1 }],
@@ -184,7 +184,7 @@ describe('the turn sequence', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).advanceRequested).toBe(true)
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).advanceRequested).toBe(true)
     expect(state.undoable?.seq).toBe(history.at(-2)?.seq)
-    expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'request-advance')).toBe(false)
+    expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'request-advance')).toBe(true)
 
     const cancelled = reduceBattle(
       PLAYERS,
@@ -205,7 +205,7 @@ describe('the turn sequence', () => {
     ).toBeNull()
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).scoringAcknowledged).toBe(true)
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).scoringAcknowledged).toBe(true)
-    expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'acknowledge-scoring')).toBe(false)
+    expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'acknowledge-scoring')).toBe(true)
   })
 
   it('refuses to pass a scoring moment recorded with the battle until it is reviewed', () => {
@@ -282,7 +282,7 @@ describe('the turn sequence', () => {
     expect(battleView({ token: 'abc' }, NAMES, acknowledged, ALICE).drawAcknowledged).toBe(true)
     expect(battleView({ token: 'abc' }, NAMES, acknowledged, BOB).drawAcknowledged).toBe(true)
     expect(acknowledged.undoable?.kind).toBe('draw-secondaries')
-    expect(battleReport(NAMES, acknowledgedHistory).some((entry) => entry.commandKind === 'acknowledge-draw')).toBe(false)
+    expect(battleReport(NAMES, acknowledgedHistory).some((entry) => entry.commandKind === 'acknowledge-draw')).toBe(true)
 
     const repaired = reduceBattle(
       PLAYERS,
@@ -447,12 +447,12 @@ describe('the turn sequence', () => {
     expect(validate(state, ALICE, { kind: 'settle-opponent-turn' })).toBeNull()
   })
 
-  it('keeps settlement bookkeeping out of the report and undo target', () => {
+  it('reports settlement bookkeeping without changing the undo target', () => {
     const history = log(...started(), ...turns(6, ALICE), [BOB, { kind: 'settle-opponent-turn' }])
     const state = reduceBattle(PLAYERS, history)
 
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).undoable).toBe(history.at(-2)?.seq)
-    expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'settle-opponent-turn')).toBe(false)
+    expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'settle-opponent-turn')).toBe(true)
   })
 
   it('lets an ally draw for the side they share but refuses to skip the draw', () => {

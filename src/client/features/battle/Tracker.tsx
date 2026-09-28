@@ -54,6 +54,7 @@ type Props = {
   send: (command: Command) => void
   pending: boolean
   problem: string | null
+  onReplay?: () => void
 }
 
 const EMPTY_KEYS: ReadonlySet<string> = new Set()
@@ -78,7 +79,7 @@ type Focus = (typeof VIEWS)[number]
  * allied pair is one side, because the rules make it one: they share the turn, the
  * command points, the cards and the score, and only the armies are separate.
  */
-export function Tracker({ view, missions, send, pending, problem }: Props) {
+export function Tracker({ view, missions, send, pending, problem, onReplay }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
   const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
   const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
@@ -577,6 +578,11 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             <div className="border-t border-edge pt-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="eyebrow">Battle events</p>
+                {finished ? (
+                  <Button variant="outline" size="sm" onClick={onReplay}>
+                    Replay battle
+                  </Button>
+                ) : null}
                 <BattleMenu
                   finished={finished}
                   canDelete={view.creatorId === view.viewerId}

@@ -6,6 +6,7 @@ import {
   type CardPlay,
   type RecordBattle,
   recordFacets,
+  personalPerformance,
   type SeatPlay,
   STRATAGEM_ROWS,
   seatPlays,
@@ -81,6 +82,36 @@ const sequence = (...results: ('won' | 'lost' | 'drawn')[]) =>
   )
 
 describe('a service record', () => {
+  it('has no personal breakdown for an empty record', () => {
+    expect(personalPerformance([], 'alice')).toEqual({ detachments: [], missions: [], sizes: [] })
+  })
+
+  it('counts one finished battle once per selected detachment', () => {
+    expect(personalPerformance([duel()], 'alice').detachments[0]?.total.battles).toBe(1)
+  })
+
+  it('splits personal results by detachment, mission and size in monthly order', () => {
+    const jan = Date.UTC(2026, 0, 12)
+    const feb = Date.UTC(2026, 1, 12)
+    const mission = play({ primary: { key: 'mission-a', name: 'Mission A' } })
+    const battles = [
+      duel({ lastActivity: feb, scores: [41, 55], plays: [mission, idle()] }),
+      duel({ lastActivity: jan, plays: [mission, idle()] }),
+      duel({ lastActivity: feb + 1, detachments: [['Canoptek Court'], []], settings: { missionPackId: null, limit: 1000 } }),
+    ]
+    const performance = personalPerformance(battles, 'alice')
+    expect(
+      performance.detachments.find((row) => row.key === 'Awakened Dynasty')?.months.map(({ month, split }) => [month, split.rate]),
+    ).toEqual([
+      ['2026-02', 0],
+      ['2026-01', 1],
+    ])
+    expect(performance.missions[0]?.total.rate).toBe(0.5)
+    expect(performance.sizes.map((row) => [row.key, row.total.battles])).toEqual([
+      ['2000', 2],
+      ['1000', 1],
+    ])
+  })
   it('counts what the battles did to the player whose record it is', () => {
     const record = serviceRecord(sequence('won', 'lost', 'drawn'), 'alice')
 

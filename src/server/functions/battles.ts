@@ -6,6 +6,7 @@ import { rosterForUse } from '../rosterUsage'
 import { mutationRpc, rpc } from '../rpc'
 import {
   battlesPageSchema,
+  battleReplaySchema,
   createBattleSchema,
   deleteBattleSchema,
   leagueBattleOptionsSchema,
@@ -134,6 +135,12 @@ export const openBattle = createServerFn({ method: 'GET' })
       const userId = await currentUserId()
       return orNull(async () => app().service.screen(data.token, userId, await app().battleReadRulesFor()))
     }),
+  )
+
+export const replayBattleAt = createServerFn({ method: 'GET' })
+  .validator(battleReplaySchema)
+  .handler(({ data }) =>
+    rpc(async () => app().service.replayAt(data.token, await currentUserId(), data.seq, await app().battleReadRulesFor())),
   )
 
 export const leagueBattleOptions = createServerFn({ method: 'GET' })

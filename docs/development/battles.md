@@ -10,6 +10,7 @@
 - Every command carries `expectedSeq`. A mismatch returns `stale`, and the client does not automatically resend the command under a new sequence number.
 - A successful submission returns the updated seated screen. `useCommand` writes that screen to the query cache before another command can use it.
 - Every `Command` kind has a case in both `validate` and `apply`; their exhaustive checks make an omitted case fail the build.
+- Finished battles can be replayed at every saved command, including commands later undone and the undo itself. The bottom timeline marks rounds, while the server folds the selected log prefix and filters its historical state and report for the viewer. A later reveal does not expose a mission in an earlier moment.
 
 Undo appends an `undo` command that names the latest active command. It does not delete history. Either player can undo the latest command, then continue rewinding active commands across turn boundaries.
 
@@ -19,7 +20,7 @@ Live commands can name the affected player or army. Any seated player can operat
 
 What the active side still owes before a turn moves on — cards to draw or review, a previous turn to settle, mission scoring, a tactical hand, or a secret mission to answer — is a shared prompt and an advance guard. Any seated player can complete it for either side, so the guard prevents omissions without preventing one person from refereeing the table.
 
-Every required live prompt is shared. A phase or turn advance opens the same scoring and tactical-discard sequence on every seated device, and either player may complete it once. Tactical draws and prior-turn scoring work the same way. Prompt requests and acknowledgements are folded from the log so reloads and realtime updates preserve them, but they are not battle report entries or undo targets.
+Every required live prompt is shared. A phase or turn advance opens the same scoring and tactical-discard sequence on every seated device, and either player may complete it once. Tactical draws and prior-turn scoring work the same way. Prompt requests and acknowledgements are folded from the log so reloads and realtime updates preserve them. The report describes them, while they remain outside the undo chain.
 
 Every required live prompt also carries the latest undo action. Rewinding into an earlier scoring, discard, draw, or Secret Mission prompt therefore leaves undo available to continue through the preceding actions.
 

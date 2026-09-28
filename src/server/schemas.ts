@@ -41,6 +41,7 @@ const rosterLimit = z.number().int().min(0).max(10_000)
 const battlesCursor = z.object({ at: z.number().int().min(0), id })
 
 export const tokenSchema = z.object({ token })
+export const battleReplaySchema = z.object({ token, seq: z.number().int().min(1) })
 const leagueFields = {
   name: z.string().trim().min(1, 'name the league').max(LEAGUE_NAME_MAX_LENGTH),
   description: z.string().trim().max(LEAGUE_DESCRIPTION_MAX_LENGTH),
