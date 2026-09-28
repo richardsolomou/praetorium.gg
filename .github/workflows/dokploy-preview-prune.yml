@@ -17,9 +17,9 @@ jobs:
     uses: richardsolomou/ras-stack/.github/workflows/prune-dokploy-previews.yml@v1
     with:
       package: praetorium.gg
-      application-prefix: praetorium-node
+      application-prefix: praetorium
       domain: praetorium.gg
-      subdomain-prefix: vm-pr
+      subdomain-prefix: pr
       cloudflare-zone-id: ${{ vars.CLOUDFLARE_ZONE_ID }}
       port: 3000
       deploy-script: scripts/dokployPreview.ts

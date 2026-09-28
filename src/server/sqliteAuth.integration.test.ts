@@ -66,9 +66,9 @@ it('signs up, claims an administrator, and revokes its product session', async (
 })
 
 it('signs preview tokens with the revisioned issuer advertised by discovery', async () => {
-  const issuer = `https://vm-pr-606.praetorium.gg/api/auth/preview/${'c'.repeat(40)}`
+  const issuer = `https://pr-606.praetorium.gg/api/auth/preview/${'c'.repeat(40)}`
   const auth = authFor({
-    APP_URL: 'https://vm-pr-606.praetorium.gg',
+    APP_URL: 'https://pr-606.praetorium.gg',
     AUTH_RATE_LIMIT: 'off',
     SPACETIME_AUDIENCE: 'praetorium-pr-606',
     SPACETIME_ISSUER: issuer,
@@ -81,14 +81,14 @@ it('signs preview tokens with the revisioned issuer advertised by discovery', as
   if (!cookie) throw new Error('Preview sign-up did not set a session cookie')
   const { token } = await auth.api.getToken({ headers: new Headers({ cookie }) })
   await jwtVerify(token, createLocalJWKSet(await auth.api.getJwks()), { issuer, audience: 'praetorium-pr-606' })
-  const discovery = await auth.handler(new Request('https://vm-pr-606.praetorium.gg/api/auth/.well-known/openid-configuration'))
+  const discovery = await auth.handler(new Request('https://pr-606.praetorium.gg/api/auth/.well-known/openid-configuration'))
   expect(await discovery.json()).toMatchObject({ issuer, jwks_uri: `${issuer}/jwks` })
 })
 
 it('rejects a preview issuer on another origin', () => {
   expect(() =>
     authFor({
-      APP_URL: 'https://vm-pr-606.praetorium.gg',
+      APP_URL: 'https://pr-606.praetorium.gg',
       SPACETIME_AUDIENCE: 'praetorium-pr-606',
       SPACETIME_ISSUER: `https://other.example/api/auth/preview/${'c'.repeat(40)}`,
     }),

@@ -1,6 +1,6 @@
 # Pull request previews
 
-Each pull request except an automated release candidate gets a disposable Dokploy preview. GitHub builds a digest-pinned Node image separately from the trusted deployment job. A preview is marked ready only after its application reports the expected commit from the health endpoint.
+Each pull request except an automated release candidate gets a disposable Dokploy preview at `pr-<number>.praetorium.gg`. GitHub builds a digest-pinned Node image separately from the trusted deployment job. A preview is marked ready only after its application reports the expected commit from the health endpoint.
 
 One pull request comment shows the current state:
 
