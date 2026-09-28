@@ -272,7 +272,7 @@ for (const result of [movementResult, datasheet, detachment, missionMatrix, prim
   const path = new URL(result.url, base).pathname
   const response = await request(path)
   const html = await response.text()
-  if (!response.ok || !html.includes(result.title) || !html.includes(`rel="canonical" href="${path}"`)) {
+  if (!response.ok || !html.includes(result.title) || !html.includes(`rel="canonical" href="${new URL(path, base).href}"`)) {
     throw new Error(`${path} did not return source content and its canonical link in the initial HTML`)
   }
 }
