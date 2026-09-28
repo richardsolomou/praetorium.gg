@@ -19,7 +19,7 @@ describe('standings', () => {
       won: 1,
       lost: 0,
       drawn: 0,
-      net: 1,
+      rating: 1069,
       points: 55,
       lastPlayed: 10,
     } satisfies Standing

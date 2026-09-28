@@ -944,9 +944,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     target: 'standings-table',
     page: 'leaderboard',
     href: '/leaderboard',
-    title: 'Wins, then win rate',
+    title: 'Ranked by rating',
     description:
-      'Finished public battles from the last 90 days, ranked by wins and then by the rate beside them. Open a row to read that player.',
+      'Finished public battles from the last 90 days, ranked by a rating that weighs who each player beat. Open a row to read that player.',
     placement: 'top',
     next: 'community-profile-tabs',
   },

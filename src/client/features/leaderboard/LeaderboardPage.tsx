@@ -22,14 +22,16 @@ export function LeaderboardPage({ faction }: { faction?: string }) {
       <PageHeader
         eyebrow="Who is winning"
         title="Leaderboard"
-        description={`Public battles from the last ${data?.days ?? 90} days, ranked by wins and then win rate.`}
+        description={`Public battles from the last ${data?.days ?? 90} days, ranked by rating.`}
       />
       <PageContent className="space-y-6">
         <FactionFilter factions={data?.factions.map((entry) => entry.faction) ?? []} selected={chosen?.faction?.slug} />
         <Standings table={table} />
         {/* Under the table, because it answers "why is my game not here" rather than "what am I reading". */}
         <p className="text-sm text-faint">
-          Conceding is a loss whatever the score. Allies share their side's result. Practice games and battles kept private are not counted.
+          Everyone starts at 1000. Beating a higher-rated player gains more, and a rating stays cautious until it has a few battles behind
+          it. Conceding is a loss whatever the score. Allies share their side's result. Practice games and battles kept private are not
+          counted.
         </p>
       </PageContent>
     </main>

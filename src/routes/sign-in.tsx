@@ -19,6 +19,7 @@ export const Route = createFileRoute('/sign-in')({
     if (destination) throw redirect({ href: destination, replace: true })
   },
   loader: ({ context }) => context.queryClient.query({ ...signInOptionsQuery(), staleTime: 'static' }),
+  head: () => ({ meta: [{ name: 'robots', content: 'noindex' }] }),
   component: SignInRoute,
 })
 

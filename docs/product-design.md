@@ -16,7 +16,7 @@ The audience belongs to the player rather than the battle, because a player answ
 
 A player's profile is public, but its battle record and leaderboard place include only games the reader may watch. A player who keeps their battles private shows a name without a record. Readers can filter the record by army, detachment, opponent, mission pack, and battle size.
 
-The leaderboard counts finished public battles over the last 90 days. A row is a player, ranked by wins and then win rate. Beside the overall table there is one per faction anybody has played, ranking the players who fielded it rather than giving the faction a record of its own. A concession is a loss whatever the score said, allies share their side's points, games of every table shape count together, and a battle with a practice opponent in it counts for nobody.
+The leaderboard counts finished public battles over the last 90 days. A row is a player, ranked by a rating that weighs who they beat, with allies rated as one side. Beside the overall table there is one per faction anybody has played, ranking the players who fielded it rather than giving the faction a record of its own. A concession is a loss whatever the score said, allies share their side's points, games of every table shape count together, and a battle with a practice opponent in it counts for nobody.
 
 ## Interface
 

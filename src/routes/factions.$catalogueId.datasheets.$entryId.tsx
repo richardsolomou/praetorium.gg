@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import { unitCostsSummary } from '../client/datasheet'
 import { FactionDatasheet } from '../client/features/reference/factions/FactionDatasheet'
 import { breadcrumbMeta, canonicalLink } from '../client/linkPreview'
+import { datasheetDescription } from '../client/datasheet'
 import { datasheetSlugQuery, factionQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/datasheets/$entryId')({
@@ -18,10 +18,7 @@ export const Route = createFileRoute('/factions/$catalogueId/datasheets/$entryId
     const origin = match.context.origin
     const factionPath = `/factions/${faction.slug}`
     const path = `${factionPath}/datasheets/${sheet.slug}`
-    const costs = unitCostsSummary(sheet.costs)
-    const description = costs
-      ? `${sheet.name}, ${faction.displayName}: ${costs}. Profiles, weapons, abilities, wargear and composition.`
-      : `${sheet.name} profiles, weapons, abilities, wargear, composition and points for ${faction.displayName}.`
+    const description = datasheetDescription(sheet, faction.displayName)
     return {
       meta: [
         { title: `${sheet.name} datasheet — ${faction.displayName} — Praetorium` },

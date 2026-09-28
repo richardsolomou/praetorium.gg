@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-State a datasheet's unit sizes and points in its search result description.
+State every unit size and its points in a datasheet's search description, rather than only the smallest.

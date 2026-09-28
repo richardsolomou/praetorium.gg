@@ -47,7 +47,7 @@ export function PlayerRankings({ rankings }: { rankings: Rankings }) {
               <span className="truncate font-bold uppercase">{faction?.displayName ?? 'Everyone'}</span>
             </span>
             <span className="readout shrink-0 text-xs text-dim">
-              {standing.won} won · {Math.round(winRate(standing) * 100)}% · {standing.battles}{' '}
+              {standing.rating} · {standing.won} won · {Math.round(winRate(standing) * 100)}% · {standing.battles}{' '}
               {standing.battles === 1 ? 'battle' : 'battles'}
             </span>
           </Link>

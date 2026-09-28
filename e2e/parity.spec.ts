@@ -13,6 +13,32 @@ import {
   waitForRosterSave,
 } from './account'
 
+test('roster visibility controls search indexing and public URL variants', async ({ page }) => {
+  await signUp(page, uniqueName('Search roster'))
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Search roster' })
+  const path = new URL(page.url()).pathname
+
+  const setAccess = async (name: string, value: string) => {
+    await page.getByRole('button', { name: 'Roster actions' }).click()
+    await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+    const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+    await setup.getByRole('combobox', { name: 'Access' }).click()
+    await page.getByRole('option', { name }).click()
+    const saved = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes(`"${value}"`)))
+    await setup.getByRole('button', { name: 'Save changes' }).click()
+    await saved
+  }
+
+  await setAccess('Unlisted — anyone with the link', 'unlisted')
+  await page.reload()
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
+
+  await setAccess('Public — listed on your profile', 'public')
+  await page.goto(`${path}?print=true`)
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(path, page.url()).href)
+  await expect(page.locator('meta[name="robots"]')).toHaveCount(0)
+})
+
 test('practice battle controls survive completion, reopen and deletion', async ({ page }) => {
   const player = uniqueName('Practice')
   await signUp(page, player)

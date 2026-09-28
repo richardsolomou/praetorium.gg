@@ -11,7 +11,7 @@ export const Route = createFileRoute('/leaderboard')({
   head: ({ match }) =>
     pageHead(match.context.origin, {
       title: 'Leaderboard',
-      description: 'Who is winning: players ranked by wins and win rate over recent public Warhammer 40,000 battles.',
+      description: 'Who is winning: players ranked by rating over recent public Warhammer 40,000 battles.',
       path: '/leaderboard',
     }),
   component: LeaderboardRoute,
