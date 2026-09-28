@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Navigate } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { BattleUnavailable } from './BattleUnavailable'
 import { Setup } from './setup/Setup'
 import { Spectator } from './Spectator'
@@ -16,11 +16,13 @@ export function BattlePage({ token }: { token: string }) {
 
   if (!screen) return <Navigate to="/battles" replace />
   if (screen.kind === 'unavailable') return <BattleUnavailable token={token} />
-  if (screen.kind === 'spectator') return <Spectator view={screen.view} missions={screen.missions} report={screen.report} />
+  if (screen.kind === 'spectator')
+    return <Spectator view={screen.view} missions={screen.missions} report={screen.report} timeline={screen.timeline} />
   return <SeatedBattle token={token} screen={screen} />
 }
 
 function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
+  const [replaying, setReplaying] = useState(false)
   useSpacetimeLiveBattle(token, true)
   useEffect(() => {
     setNativeBattleActive(true)
@@ -29,6 +31,8 @@ function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaite
     }
   }, [])
   const { send, attachSavedRoster, problem, pending } = useCommand(token, screen.view.seq)
+  if (replaying && screen.view.status === 'finished')
+    return <Spectator view={screen.view} missions={screen.missions} timeline={screen.timeline} onExit={() => setReplaying(false)} />
   if (screen.view.status === 'setup')
     return (
       <Setup
@@ -41,5 +45,14 @@ function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaite
         problem={problem}
       />
     )
-  return <Tracker view={screen.view} missions={screen.missions} send={send} pending={pending} problem={problem} />
+  return (
+    <Tracker
+      view={screen.view}
+      missions={screen.missions}
+      send={send}
+      pending={pending}
+      problem={problem}
+      onReplay={() => setReplaying(true)}
+    />
+  )
 }

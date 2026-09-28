@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Fragment, useState } from 'react'
+import { Fragment, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -48,6 +48,11 @@ export function Report({
   const entries = suppliedEntries ?? fetchedEntries
   const [filter, setFilter] = useState<'all' | 'cp'>('all')
   const [shownCount, setShownCount] = useState(WINDOW)
+  const scroll = useRef<HTMLDivElement>(null)
+  const scrollTop = useRef(0)
+  useLayoutEffect(() => {
+    if (suppliedEntries && scroll.current) scroll.current.scrollTop = scrollTop.current
+  }, [suppliedEntries])
   const filtered = (filter === 'cp' ? (entries ?? []).filter(isCommandPointEntry) : (entries ?? [])).toReversed()
   const visible = filtered.slice(0, shownCount)
   const hidden = filtered.length - visible.length
@@ -70,7 +75,11 @@ export function Report({
         <ToggleGroupItem value="all">All</ToggleGroupItem>
         <ToggleGroupItem value="cp">CP only</ToggleGroupItem>
       </ToggleGroup>
-      <div className="mt-3 h-72 overflow-x-hidden overflow-y-auto pr-1">
+      <div
+        ref={scroll}
+        onScroll={(event) => (scrollTop.current = event.currentTarget.scrollTop)}
+        className="mt-3 h-72 overflow-x-hidden overflow-y-auto pr-1"
+      >
         {visible.length ? (
           <ol className="w-full space-y-1">
             {visible.map((entry, index) => (

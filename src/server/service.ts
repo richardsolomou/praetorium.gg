@@ -18,9 +18,18 @@ import {
 import { type BattleAudience, battleAudience, maySpectate } from '../core/battleAudience'
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
+import { battleLogThroughSeq, battleTimeline, type ReplayPoint } from '../core/battleReplay'
 import type { MissionAward } from '../core/scoring'
 import type { OnboardingProgressOperation } from '../core/onboarding'
-import { filterBattles, type RecordFilter, recordFacets, type SeatPlay, seatPlays, serviceRecord } from '../core/serviceRecord'
+import {
+  filterBattles,
+  personalPerformance,
+  type RecordFilter,
+  recordFacets,
+  type SeatPlay,
+  seatPlays,
+  serviceRecord,
+} from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
 import { type Standing, type StandingFaction, standings } from '../core/standings'
 import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
@@ -42,12 +51,19 @@ type BattleFaction = { id: string; slug: string; displayName: string; icon: stri
  * may record a settlement for the side the turn came back to, and a side nobody signs
  * in to has its cards settled by the table facing it.
  */
-type SeatedScreen = { kind: 'battle'; view: BattleView; mission: Mission | null; missions: { side: number; mission: Mission | null }[] }
+type SeatedScreen = {
+  kind: 'battle'
+  view: BattleView
+  mission: Mission | null
+  missions: { side: number; mission: Mission | null }[]
+  timeline?: ReplayPoint[]
+}
 type SpectatorScreen = {
   kind: 'spectator'
   view: BattleView
   missions: { side: number; mission: Mission | null }[]
   report: ReturnType<typeof battleReport>
+  timeline?: ReplayPoint[]
 }
 
 /**
@@ -502,6 +518,7 @@ export class PraetoriumService {
     const shown = filterBattles(summaries, userId, filter)
     return {
       record: serviceRecord(summaries, userId, filter),
+      performance: viewerId === userId ? personalPerformance(summaries, userId, filter) : null,
       facets,
       // What each side did is the record's to count, not the battle list's to carry.
       battles: shown.slice(0, PROFILE_BATTLE_PAGE).map(({ plays: _plays, ...battle }) => battle),
@@ -628,7 +645,11 @@ export class PraetoriumService {
         const faction = player.roster?.built?.catalogueId ? factionsById.get(player.roster.built.catalogueId) : undefined
         return faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon } : null
       }),
-      detachments: state.players.map((player) => player.roster?.built?.detachments?.map((detachment) => detachment.name) ?? []),
+      detachments: state.players.map(
+        (player) =>
+          player.roster?.built?.detachments?.map((detachment) => detachment.name) ??
+          (player.roster?.built?.detachment ? [player.roster.built.detachment] : []),
+      ),
       // Who took the first turn, and the two halves each seat's score is made of,
       // so a player's record can separate going first from going second and say
       // where their points came from. `scores` only carries the total.
@@ -785,13 +806,19 @@ export class PraetoriumService {
    */
   async screen(token: string, userId: string | null, rules?: BattleReadRules | null): Promise<BattleScreen> {
     const history = await this.mustFind(token)
+    return this.visibleScreen(history, userId, rules)
+  }
+
+  private async visibleScreen(history: BattleHistory, userId: string | null, rules?: BattleReadRules | null): Promise<BattleScreen> {
     const viewerId = userId && this.seated(history, userId) ? userId : SPECTATOR_ID
     const screen = this.battleScreen(history, viewerId, rules)
-    if (viewerId !== SPECTATOR_ID) return screen
+    const timeline = screen.view.status === 'finished' ? this.replayTimeline(history, viewerId, rules) : undefined
+    if (viewerId !== SPECTATOR_ID) return { ...screen, timeline }
     const spectator = (): SpectatorScreen => ({
       kind: 'spectator',
       view: screen.view,
       missions: screen.missions,
+      timeline,
       report: battleReport(
         history.players,
         history.log,
@@ -805,6 +832,43 @@ export class PraetoriumService {
     // Everyone else either watches or is told no. Nobody arrives here to sit down:
     // the seats were filled when the battle was created.
     return (await this.mayWatch(history, userId)) ? spectator() : { kind: 'unavailable' }
+  }
+
+  private replayTimeline(history: BattleHistory, viewerId: string, rules?: BattleReadRules | null): ReplayPoint[] {
+    const playerIds = history.players.map((player) => player.id)
+    const sides = history.players.map((player) => player.side)
+    const report = battleReport(history.players, history.log, playerIds, viewerId, sides, rules)
+    const labels = new Map(report.map((entry) => [entry.seq, entry.text]))
+    const kinds = new Map(history.log.map((entry) => [entry.seq, entry.command.kind]))
+    return battleTimeline(
+      playerIds,
+      history.log,
+      sides,
+      history.players.filter((player) => player.automated).map((player) => player.id),
+    ).map((point) => ({
+      ...point,
+      text: labels.get(point.seq) ?? (kinds.get(point.seq) === 'undo' ? 'Undoes the previous action' : 'Action later undone'),
+    }))
+  }
+
+  async replayAt(token: string, userId: string | null, seq: number, rules?: BattleReadRules | null) {
+    const history = await this.mustFind(token)
+    const current = await this.visibleScreen(history, userId, rules)
+    if (current.kind === 'unavailable') return current
+    if (current.view.status !== 'finished' || !Number.isInteger(seq) || !history.log.some((entry) => entry.seq === seq)) {
+      throw new Response('no such battle event', { status: 404 })
+    }
+    const playerIds = history.players.map((player) => player.id)
+    const sides = history.players.map((player) => player.side)
+    const log = battleLogThroughSeq(history.log, seq)
+    const viewerId = current.kind === 'battle' ? userId! : SPECTATOR_ID
+    const frame = this.battleScreen({ ...history, log }, viewerId, rules)
+    return {
+      kind: 'replay' as const,
+      view: frame.view,
+      missions: frame.missions,
+      report: battleReport(history.players, log, playerIds, viewerId, sides, rules),
+    }
   }
 
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */

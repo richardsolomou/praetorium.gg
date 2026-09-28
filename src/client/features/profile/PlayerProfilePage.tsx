@@ -10,6 +10,7 @@ import { PlayerRankings } from './PlayerRankings'
 import { PlayerRosters } from './PlayerRosters'
 import { recordSummary } from './recordSummary'
 import { ServiceRecordPanel } from './ServiceRecordPanel'
+import { PersonalPerformancePanel } from './PersonalPerformancePanel'
 import {
   factionIndexQuery,
   meQuery,
@@ -130,6 +131,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
                 onFilter={(next) => void navigate({ to: '/users/$userId', params: { userId }, search: { ...next, tab: 'record' } })}
               />
             ) : null}
+            {yourself && data?.performance && data.record.battles ? <PersonalPerformancePanel performance={data.performance} /> : null}
           </TabsContent>
 
           <TabsContent value="battles" className="mt-4">

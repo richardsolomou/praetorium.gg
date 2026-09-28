@@ -66,6 +66,9 @@ export type RecordBattle = StandingBattle & {
 /** A win rate over some subset of the battles, and how many that subset was. */
 export type Split = { battles: number; won: number; lost: number; drawn: number; rate: number }
 
+export type PerformanceRow = { key: string; label: string; total: Split; months: { month: string; split: Split }[] }
+export type PersonalPerformance = { detachments: PerformanceRow[]; missions: PerformanceRow[]; sizes: PerformanceRow[] }
+
 export type ServiceRecord = {
   battles: number
   won: number
@@ -192,6 +195,49 @@ function split(taken: readonly Appearance[]): Split {
     drawn: taken.filter((one) => one.result === 'drawn').length,
   }
   return { ...counts, rate: winRate(counts) }
+}
+
+/** Monthly results from the same filtered appearances as the visible service record. */
+export function personalPerformance(battles: readonly RecordBattle[], playerId: string, filter: RecordFilter = {}): PersonalPerformance {
+  const taken = appearances(battles, playerId).filter((one) => matches(one, filter))
+  const rows = (choices: (one: Appearance) => readonly { key: string; label: string }[]): PerformanceRow[] => {
+    const groups = new Map<string, { label: string; appearances: Appearance[] }>()
+    for (const one of taken) {
+      for (const choice of choices(one)) {
+        const group = groups.get(choice.key) ?? { label: choice.label, appearances: [] }
+        group.appearances.push(one)
+        groups.set(choice.key, group)
+      }
+    }
+    return [...groups]
+      .map(([key, { label, appearances: played }]) => {
+        const byMonth = new Map<string, Appearance[]>()
+        for (const one of played) {
+          const month = new Date(one.battle.lastActivity).toISOString().slice(0, 7)
+          byMonth.set(month, [...(byMonth.get(month) ?? []), one])
+        }
+        return {
+          key,
+          label,
+          total: split(played),
+          months: [...byMonth]
+            .map(([month, entries]) => ({ month, split: split(entries) }))
+            .toSorted((left, right) => right.month.localeCompare(left.month)),
+        }
+      })
+      .toSorted((one, other) => other.total.battles - one.total.battles || one.label.localeCompare(other.label))
+  }
+  return {
+    detachments: rows((one) => [...new Set(one.battle.detachments[one.seat] ?? [])].map((name) => ({ key: name, label: name }))),
+    missions: rows((one) => {
+      const mission = sidePlay(one).primary
+      return mission ? [{ key: mission.key, label: mission.name }] : []
+    }),
+    sizes: rows((one) => {
+      const limit = one.battle.settings.limit
+      return limit ? [{ key: String(limit), label: `${limit} points` }] : []
+    }),
+  }
 }
 
 const mean = (values: readonly number[]) => (values.length ? values.reduce((total, value) => total + value, 0) / values.length : 0)

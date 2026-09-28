@@ -102,7 +102,7 @@ function describe(
     case 'reset-setup':
       return `${who} resets battle setup`
     case 'set-setup-step':
-      return null
+      return `${who} moves battle setup to step ${command.step + 1}`
     case 'set-attacker':
       return `${who} names ${named.get(command.attackerId) ?? 'someone'} as the attacker`
     case 'set-first-turn':
@@ -117,16 +117,20 @@ function describe(
       // The list is gone from the fold by the time this is written, so the line names
       // whose seat was emptied rather than what used to be in it.
       return `${who} took ${whose} army off the table`
+    case 'lock-league-rosters':
+      return 'The league rosters are sealed for this battle'
     case 'set-prep': {
       const parts = [
         command.primary ? `${command.primary.name} as the primary` : null,
         player?.secondaries.length ? `${player.secondaries.map((secondary) => secondary.name).join(' and ')} as secondaries` : null,
         command.stratagems.length ? `${command.stratagems.length} stratagems` : null,
       ].filter(Boolean)
-      return parts.length ? `${who} took ${parts.join(', ')}${forTarget}` : null
+      return parts.length ? `${who} took ${parts.join(', ')}${forTarget}` : `${who} prepares the mission cards${forTarget}`
     }
     case 'set-deployment':
-      return command.patternId ? `The battlefield is ${deployments.get(command.patternId) ?? titled(command.patternId)}` : null
+      return command.patternId
+        ? `The battlefield is ${deployments.get(command.patternId) ?? titled(command.patternId)}`
+        : `${who} clears the battlefield`
     case 'set-battlefield':
       return `The battlefield is ${deployments.get(command.patternId) ?? titled(command.patternId)}`
     case 'deploy-unit': {
@@ -202,7 +206,15 @@ function describe(
       return `${who} corrects ${target}’s ${command.resource} by ${command.delta > 0 ? '+' : ''}${command.delta}`
     }
     case 'settle-opponent-turn':
-      return null
+      return `${who} confirms the previous turn has no scores to settle`
+    case 'acknowledge-draw':
+      return `${who} reviews the drawn missions${forTarget}`
+    case 'acknowledge-scoring':
+      return `${who} reviews mission scoring${forTarget}`
+    case 'request-advance':
+      return `${who} requests the next phase${forTarget}`
+    case 'cancel-advance':
+      return `${who} cancels the phase advance${forTarget}`
     case 'score-secondary': {
       const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
       const name =
@@ -213,7 +225,8 @@ function describe(
     }
     case 'set-secondary-status': {
       const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
-      const name = secondary?.name ?? 'a secondary'
+      const hidden = player?.secretSecondary === command.key && !player.secretRevealed && !sameSide(after, viewerId ?? null, targetId)
+      const name = hidden ? 'a secret mission' : (secondary?.name ?? 'a secondary')
       // Putting a card back is not giving up on it: it goes back in the deck to be drawn again, not to the bin.
       if (command.status === 'returned') return `${who} puts ${name} back in the deck${forTarget}`
       return `${who} marks ${name} ${command.status}${forTarget}`
@@ -260,8 +273,9 @@ function describe(
       return targetId === by ? `${who} takes ${count} ${wounds} on ${name}` : `${who} puts ${count} ${wounds} on ${whose} ${name}`
     }
     case 'pause-clock':
+      return `${who} pauses the clock`
     case 'resume-clock':
-      return null
+      return `${who} resumes the clock`
     case 'end-battle': {
       if (command.reason !== 'conceded') return `${who} calls the battle early`
       const concedingPlayer = command.concededBy ? (named.get(command.concededBy) ?? 'another player') : who
@@ -269,8 +283,12 @@ function describe(
     }
     case 'reopen-battle':
       return `${who} reopens the battle`
-    default:
+    case 'undo':
       return null
+    default: {
+      const exhaustive: never = command
+      return exhaustive
+    }
   }
 }
 

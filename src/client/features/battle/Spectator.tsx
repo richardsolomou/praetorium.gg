@@ -1,13 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, Eye } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Command } from '../../../core/battle'
 import type { ReportEntry } from '../../../core/battleReport'
+import type { ReplayPoint } from '../../../core/battleReplay'
 import type { BattleView } from '../../../core/battleView'
 import { battleOutcome } from '../../battleOutcome'
-import { battleStage } from '../../battleStage'
 import { missionCardsByKey } from './missionDeck'
 import { deploymentsQuery, gameReferencesQuery, meQuery } from '../../queries'
 import { sides, type Side, type SideMission } from '../../sides'
@@ -19,17 +19,47 @@ import { ArmyRoster } from './ArmyRoster'
 import { PrimaryMission, type ReferenceCard, SecondaryMissions } from './MissionCards'
 import { Scoreboard } from './Scoreboard'
 import { tint } from './battleTints'
+import { Button } from '@/components/ui/button'
+import { replayAtQuery } from '../../queries'
 
 type Props = {
   view: BattleView
   missions: { side: number; mission: SideMission | null }[]
-  report: readonly ReportEntry[]
+  report?: readonly ReportEntry[]
+  onExit?: () => void
+  timeline?: readonly ReplayPoint[]
 }
 
 const ignoreCommand = (_command: Command) => {}
 const noAwards = () => []
+const emptyTimeline: readonly ReplayPoint[] = []
 
-export function Spectator({ view, missions, report }: Props) {
+export function Spectator({
+  view: currentView,
+  missions: currentMissions,
+  report: currentReport,
+  onExit,
+  timeline = emptyTimeline,
+}: Props) {
+  const [selectedSeq, setSelectedSeq] = useState<number | null>(null)
+  const seq = selectedSeq ?? timeline.at(-1)?.seq ?? currentView.seq
+  const selectedIndex = Math.max(
+    0,
+    timeline.findIndex((point) => point.seq === seq),
+  )
+  const queryClient = useQueryClient()
+  const replay = useQuery(replayAtQuery(currentView.token, seq, currentView.status === 'finished' && seq < currentView.seq))
+  useEffect(() => {
+    if (currentView.status !== 'finished') return
+    for (const neighbor of [timeline[selectedIndex - 1], timeline[selectedIndex + 1]]) {
+      if (neighbor && neighbor.seq < currentView.seq)
+        void queryClient.query(replayAtQuery(currentView.token, neighbor.seq, true)).catch(() => {})
+    }
+  }, [currentView.seq, currentView.status, currentView.token, queryClient, selectedIndex, timeline])
+  const frame = seq < currentView.seq && replay.data?.kind === 'replay' ? replay.data : null
+  const view = frame?.view ?? currentView
+  const missions = frame?.missions ?? currentMissions
+  const report = frame?.report ?? currentReport
   const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
   const table = useMemo(() => sides(view, missions), [missions, view])
   const { data: me } = useQuery(meQuery())
@@ -61,69 +91,171 @@ export function Spectator({ view, missions, report }: Props) {
   }, [table, view.leagueToken, view.players.length, view.status, view.token])
 
   return (
-    <main className="w-full space-y-3 px-3 pb-8">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 pt-3">
-        {view.leagueToken ? (
-          <Link
-            to="/leagues/$token"
-            params={{ token: view.leagueToken }}
-            search={view.leagueEventToken ? { event: view.leagueEventToken } : {}}
-            className="inline-flex items-center gap-1.5 text-sm text-info hover:text-bone"
-          >
-            <ArrowLeft className="size-4" /> Back to league event
-          </Link>
-        ) : null}
-        <span className="flex flex-wrap items-center gap-3">
-          {/*
-            A watchable battle opens for anybody, including the two people playing
-            it, so a seated player who has been signed out arrives here rather than
-            at a sign-in gate. Watching their own game with no way back into it is
-            the one thing this screen must not do.
-          */}
-          {me ? null : (
-            <span className="text-xs text-dim">
-              Playing in this battle?{' '}
-              <Link to="/sign-in" search={{ next: `/battles/${view.token}` }} className="text-info hover:text-bone">
-                Sign in
+    <>
+      <main className="w-full space-y-3 px-3 pb-40">
+        <div className="mx-auto flex h-11 max-w-7xl items-center justify-between gap-3 pt-1">
+          <p className="eyebrow shrink-0">
+            {currentView.status === 'finished' ? 'Battle replay' : view.status === 'playing' ? 'Watching live' : 'Battle setup'}
+          </p>
+          <div className="flex min-w-0 items-center gap-2 text-xs">
+            {onExit ? (
+              <Button variant="outline" size="sm" onClick={onExit}>
+                Back to battle
+              </Button>
+            ) : view.leagueToken ? (
+              <Link
+                to="/leagues/$token"
+                params={{ token: view.leagueToken }}
+                search={view.leagueEventToken ? { event: view.leagueEventToken } : {}}
+                className="inline-flex shrink-0 items-center gap-1 text-info hover:text-bone"
+              >
+                <ArrowLeft className="size-3.5" /> League event
               </Link>
-            </span>
-          )}
-          <span className={`chip inline-flex items-center gap-1.5 ${battleStage(view.status).tint}`}>
-            <Eye className="size-3.5" />{' '}
-            {view.status === 'finished' ? 'Battle replay' : view.status === 'playing' ? 'Watching live' : 'Battle setup'}
-          </span>
-        </span>
-      </div>
-
-      {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
-      <Scoreboard view={view} sides={table} outcome={view.status === 'finished' ? battleOutcome(table, view) : null} />
-
-      <div className="mx-auto grid max-w-7xl items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]">
-        {table.map((side) => (
-          <SpectatorSide
-            key={side.index}
-            view={view}
-            side={side}
-            onSimulate={setCombatSelection}
-            referenceFor={referenceFor}
-            className={side.index === 0 ? 'lg:col-start-1' : 'lg:col-start-3 lg:row-start-1'}
-          />
-        ))}
-
-        <section className="min-w-0 space-y-3 rounded-lg border border-edge bg-panel p-3 lg:col-start-2 lg:row-start-1">
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-            <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
-            <Fact label="Battlefield" value={deployment?.name ?? 'Not chosen'} />
-            <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
-            <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
-          </dl>
-          <div className="border-t border-edge pt-3">
-            <p className="eyebrow">Battle events</p>
-            <Report token={view.token} open players={reportPlayers} entries={report} />
+            ) : null}
+            {!me ? (
+              <Link to="/sign-in" search={{ next: `/battles/${view.token}` }} className="shrink-0 text-info hover:text-bone">
+                Sign in to play
+              </Link>
+            ) : null}
           </div>
-        </section>
+        </div>
+
+        {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
+        <Scoreboard
+          view={view}
+          sides={table}
+          outcome={view.status === 'finished' ? battleOutcome(table, view) : null}
+          replay={currentView.status === 'finished'}
+        />
+
+        <div className="mx-auto grid max-w-7xl items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]">
+          {table.map((side) => (
+            <SpectatorSide
+              key={side.index}
+              view={view}
+              side={side}
+              onSimulate={setCombatSelection}
+              referenceFor={referenceFor}
+              className={side.index === 0 ? 'lg:col-start-1' : 'lg:col-start-3 lg:row-start-1'}
+            />
+          ))}
+
+          <section className="min-w-0 space-y-3 rounded-lg border border-edge bg-panel p-3 lg:col-start-2 lg:row-start-1">
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+              <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
+              <Fact label="Battlefield" value={deployment?.name ?? 'Not chosen'} />
+              <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
+              <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
+            </dl>
+            <div className="border-t border-edge pt-3">
+              <p className="eyebrow">Battle events</p>
+              <Report token={view.token} open players={reportPlayers} entries={report} />
+            </div>
+          </section>
+        </div>
+      </main>
+      {currentView.status === 'finished' ? (
+        <ReplayTimeline
+          points={timeline}
+          index={selectedIndex}
+          onSelect={setSelectedSeq}
+          loading={replay.isFetching}
+          error={replay.isError || replay.data?.kind === 'unavailable'}
+        />
+      ) : null}
+    </>
+  )
+}
+
+function ReplayTimeline({
+  points,
+  index,
+  onSelect,
+  loading,
+  error,
+}: {
+  points: readonly ReplayPoint[]
+  index: number
+  onSelect: (seq: number) => void
+  loading: boolean
+  error: boolean
+}) {
+  if (!points.length) return null
+  const selected = points[index]!
+  const rounds = [...new Set(points.map((point) => point.round).filter((round) => round > 0))]
+  const choose = (next: number) => onSelect(points[next]!.seq)
+  const bucketSize = Math.max(1, Math.ceil(points.length / 100))
+  const bars = Array.from({ length: Math.ceil(points.length / bucketSize) }, (_, bucket) =>
+    points.slice(bucket * bucketSize, (bucket + 1) * bucketSize),
+  )
+  return (
+    <nav
+      data-replay-timeline
+      aria-label="Battle replay timeline"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-panel/95 px-3 py-2 shadow-xl backdrop-blur"
+    >
+      <div className="mx-auto max-w-3xl space-y-1.5">
+        <div className="flex items-center gap-2">
+          <p className="eyebrow shrink-0">Battle timeline</p>
+          {loading ? <span className="text-3xs text-dim">Loading…</span> : null}
+          {error ? <span className="text-3xs text-destructive">Could not load</span> : null}
+          <p className="min-w-0 flex-1 truncate text-center text-xs text-bone" aria-live="polite">
+            {selected.text}
+          </p>
+          <p className="readout shrink-0 text-xs text-dim">
+            {index + 1}/{points.length}
+          </p>
+        </div>
+        <div className="relative h-10">
+          <div aria-hidden className="absolute inset-x-0 bottom-0 flex h-8 items-end gap-px border-b border-edge">
+            {bars.map((bar, bucket) => {
+              const active = bar.some((point) => point.activity === 'action')
+              const reached = bucket * bucketSize <= index
+              return (
+                <span
+                  key={bar[0]!.seq}
+                  className={`min-w-0 flex-1 ${reached ? 'bg-parchment' : 'bg-faint'}`}
+                  style={{ height: active ? '85%' : '35%' }}
+                />
+              )
+            })}
+          </div>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute top-0 bottom-0 w-px bg-primary"
+            style={{ left: `${(index / Math.max(1, points.length - 1)) * 100}%` }}
+          />
+          <input
+            type="range"
+            min={0}
+            max={points.length - 1}
+            step={1}
+            value={index}
+            onChange={(event) => choose(Number(event.target.value))}
+            aria-label="Replay event"
+            aria-valuetext={`Event ${index + 1} of ${points.length}: ${selected.text}`}
+            className="absolute inset-0 z-10 h-10 w-full cursor-ew-resize opacity-0"
+          />
+        </div>
+        <div className="relative h-5 text-xs">
+          {rounds.map((round) => {
+            const position = points.findIndex((point) => point.round === round)
+            return (
+              <button
+                key={round}
+                type="button"
+                aria-label={`Round ${round}`}
+                className={`absolute top-0 -translate-x-1/2 whitespace-nowrap ${selected.round === round ? 'text-parchment' : 'text-dim hover:text-bone'}`}
+                style={{ left: `${Math.max(7, Math.min(93, (position / Math.max(1, points.length - 1)) * 100))}%` }}
+                onClick={() => choose(position)}
+              >
+                R{round}
+              </button>
+            )
+          })}
+        </div>
       </div>
-    </main>
+    </nav>
   )
 }
 
