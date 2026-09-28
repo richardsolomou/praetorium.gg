@@ -14,7 +14,7 @@ const secret = 'node-sqlite-rehearsal-auth-secret'
 const execFile = promisify(execFileCallback)
 
 beforeAll(async () => {
-  directory = await mkdtemp(path.join(os.tmpdir(), 'praetorium-node-auth-'))
+  directory = await mkdtemp(path.join(os.tmpdir(), 'praetorium-auth-'))
 })
 
 afterAll(async () => {

@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { spacetimeOrigin, spacetimeRoute } from './nodeServer'
 
-const database = 'praetorium-vm-staging'
+const database = 'praetorium-staging'
 
 it('allows only identity, token exchange, and the selected database subscription', () => {
   const route = (url: string, method: string, upgrade?: string) =>
