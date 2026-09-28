@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { Roster } from './battle'
 import {
   alliedLeagueRosterLimit,
+  leagueMinimumPlaces,
+  leaguePlacesSeat,
   leagueRegistrationFull,
   leagueRevealChecklist,
   leagueTableShape,
@@ -194,6 +196,48 @@ describe('leagueRegistrationFull', () => {
   it('closes an approval event once every place is accepted', () => {
     expect(leagueRegistrationFull({ admission: 'approval', playerLimit: 4 }, 4, 4)).toBe(true)
   })
+
+  it('closes an approval event whose requests reach the member cap', () => {
+    expect(leagueRegistrationFull({ admission: 'approval', playerLimit: 4 }, 3, 128)).toBe(true)
+  })
+
+  it('closes an automatic event without a limit at the member cap', () => {
+    expect(leagueRegistrationFull({ admission: 'automatic', playerLimit: null }, 128, 128)).toBe(true)
+  })
+})
+
+describe('league places', () => {
+  it('seats a 2v1 in no fewer than three places', () => {
+    expect(leagueMinimumPlaces('2v1')).toBe(3)
+  })
+
+  it('never goes below the entrants already accepted', () => {
+    expect(leagueMinimumPlaces('1v1', 5)).toBe(5)
+  })
+
+  it('rounds doubles up to whole teams', () => {
+    expect(leagueMinimumPlaces('2v2', 5)).toBe(6)
+  })
+
+  it('refuses an odd limit for doubles even when it is large enough', () => {
+    expect(leaguePlacesSeat('2v2', 5)).toBe(false)
+  })
+
+  it('accepts an even doubles limit', () => {
+    expect(leaguePlacesSeat('2v2', 6)).toBe(true)
+  })
+
+  it('refuses a limit below the shape', () => {
+    expect(leaguePlacesSeat('2v1', 2)).toBe(false)
+  })
+
+  it('seats any shape without a limit', () => {
+    expect(leaguePlacesSeat('2v2', null)).toBe(true)
+  })
+
+  it('reads a legacy event as a duel', () => {
+    expect(leagueMinimumPlaces(null)).toBe(2)
+  })
 })
 
 describe('leagueRevealChecklist', () => {
@@ -284,6 +328,10 @@ describe('leagueRevealChecklist', () => {
 
     it('names the entrants without a full team', () => {
       expect(check([...paired.slice(0, 3), entry('d')], 'teams')).toEqual({ step: 'teams', done: false, waiting: ['c', 'd'] })
+    })
+
+    it('holds up an odd entrant out of every team', () => {
+      expect(check([...paired, entry('e')], 'teams')).toEqual({ step: 'teams', done: false, waiting: ['e'] })
     })
 
     it('needs two teams even when everyone is paired', () => {

@@ -376,6 +376,13 @@ export class SpacetimeRepository {
     )
   }
 
+  admitLeagueEntries(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
+    return this.product.leagueCommand(
+      { op: 'admit', token, ownerId, userIds, eventToken: eventToken ?? '' },
+      z.union([z.object({ admitted: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'closed'])]),
+    )
+  }
+
   assignLeagueRosterRequirement(token: string, ownerId: string, userId: string, requiredLimit: number, eventToken?: string) {
     return this.product.leagueCommand(
       { op: 'assign-limit', token, ownerId, userId, requiredLimit, eventToken: eventToken ?? '' },

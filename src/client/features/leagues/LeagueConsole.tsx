@@ -18,19 +18,25 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   alliedLeagueRosterLimit,
+  leagueMinimumPlaces,
+  leaguePlacesSeat,
+  leagueRevealChecklist,
   leagueRosterSplit,
   leagueTableShape,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
+  LEAGUE_MEMBER_MAX,
   type LeagueEntryView,
   type LeagueRevealCheck,
 } from '../../../core/league'
-import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
+import { TABLE_SHAPE_LABELS } from '../../../core/tableShape'
 import {
+  admitLeagueEntries,
   assignLeagueRosterRequirement,
   assignLeagueTeam,
   createLeagueEvent,
   makeLeagueRecurring,
   moderateLeagueEntry,
+  openLeague,
   revealLeague,
   unsealLeagueRoster,
   updateLeague,
@@ -43,10 +49,7 @@ import { useOrigin } from '../../useOrigin'
 import { inviteFeedbackText, useInviteShare, type LeagueActionsController } from './LeagueActions'
 import { EntrantGroup, EntrantList, EntrantRow, SectionHeading, sealStatus, sideGroups, ViewRosterButton } from './LeagueEntrants'
 import { LeagueEventRuleFields, ROSTER_RULE, type LeagueEventRuleValue } from './LeagueEventRuleFields'
-import { doublesTeams, formatNames, namesPhrase, revealChecklist, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
-
-/** The fewest places each shape can seat, which a league's player limit may not undercut. */
-const SHAPE_PLACES: Record<TableShape, number> = { '1v1': 2, '2v1': 3, '2v2': 4 }
+import { doublesTeams, formatNames, namesPhrase, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
 
 export function LeagueConsole({
   league,
@@ -77,10 +80,7 @@ export function LeagueConsole({
     },
   })
   const acceptAll = useMutation({
-    // Oldest first, as automatic entry admits them, stopping at the first refusal so its reason is the one shown.
-    mutationFn: async (userIds: string[]) => {
-      for (const userId of userIds) await moderateLeagueEntry({ data: { token, eventToken, userId, status: 'accepted' } })
-    },
+    mutationFn: (userIds: string[]) => admitLeagueEntries({ data: { token, eventToken, userIds } }),
     onSettled: refresh,
   })
   const assign = useMutation({
@@ -124,6 +124,9 @@ export function LeagueConsole({
   const revealed = Boolean(league.revealedAt)
   const latest = league.events[0]?.token === eventToken
   const teams = doublesTeams(accepted)
+  // A picked player who was paired or removed since is dropped, so the picker never holds a place for a row it no longer shows.
+  const unpairedIds = new Set(accepted.filter((entry) => !entry.teamId).map((entry) => entry.userId))
+  const pickedLive = picked.filter((id) => unpairedIds.has(id))
   const openPlaces = league.playerLimit === null ? pending.length : Math.max(0, league.playerLimit - accepted.length)
   const sides = sideGroups(league)
 
@@ -213,7 +216,7 @@ export function LeagueConsole({
                     <SizeToggle
                       label={label(entry)}
                       side={soloOrAllied(league, entry)}
-                      pending={assign.isPending && assign.variables?.userId === entry.userId}
+                      pending={assign.isPending}
                       onAssign={(next) =>
                         requestAssignment(entry, next === 'solo' ? league.rosterLimit! : alliedLeagueRosterLimit(league.rosterLimit!))
                       }
@@ -241,10 +244,10 @@ export function LeagueConsole({
             <Button
               size="sm"
               className="pointer-coarse:h-11"
-              disabled={picked.length !== 2 || assignTeam.isPending}
-              onClick={() => requestTeam(picked)}
+              disabled={pickedLive.length !== 2 || assignTeam.isPending}
+              onClick={() => requestTeam(pickedLive)}
             >
-              {picked.length === 2 ? `Pair ${formatNames(picked.map(nameOf))}` : 'Pick two to pair'}
+              {pickedLive.length === 2 ? `Pair ${formatNames(pickedLive.map(nameOf))}` : 'Pick two to pair'}
             </Button>
           }
         >
@@ -252,7 +255,7 @@ export function LeagueConsole({
             {accepted
               .filter((entry) => !entry.teamId)
               .map((entry) => {
-                const checked = picked.includes(entry.userId)
+                const checked = pickedLive.includes(entry.userId)
                 return (
                   <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={sealStatus(entry, revealed)}>
                     <label className="flex cursor-pointer items-center gap-2 px-1 text-xs font-semibold tracking-label text-dim uppercase pointer-coarse:min-h-11">
@@ -261,10 +264,8 @@ export function LeagueConsole({
                         className="size-5 accent-parchment"
                         aria-label={`Pick ${label(entry)} for a team`}
                         checked={checked}
-                        disabled={!checked && picked.length === 2}
-                        onChange={() =>
-                          setPicked((current) => (checked ? current.filter((id) => id !== entry.userId) : [...current, entry.userId]))
-                        }
+                        disabled={!checked && pickedLive.length === 2}
+                        onChange={() => setPicked(checked ? pickedLive.filter((id) => id !== entry.userId) : [...pickedLive, entry.userId])}
                       />
                       Pick
                     </label>
@@ -333,7 +334,7 @@ export function LeagueConsole({
       ) : (
         <RevealPanel
           league={league}
-          checks={revealChecklist(league)}
+          checks={leagueRevealChecklist(league, league.entries)}
           nameOf={nameOf}
           onReveal={() => {
             reveal.reset()
@@ -355,7 +356,7 @@ export function LeagueConsole({
                       size="sm"
                       className="pointer-coarse:h-11"
                       disabled={acceptAll.isPending || moderate.isPending}
-                      onClick={() => acceptAll.mutate(pending.slice(0, openPlaces).map((entry) => entry.userId))}
+                      onClick={() => acceptAll.mutate(pending.map((entry) => entry.userId))}
                     >
                       <Check /> {openPlaces >= pending.length ? 'Accept all' : `Accept the first ${openPlaces}`}
                     </Button>
@@ -808,28 +809,35 @@ function EventRulePanel({ league, token }: { league: League; token: string }) {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState<LeagueEventRuleValue>({ format, rosterLimit: league.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT })
   const [places, setPlaces] = useState<number | null>(league.playerLimit)
-  const needed = placesNeeded(value.format, revealed ? 0 : accepted)
-  const short = league.playerLimit !== null && league.playerLimit < needed
+  // A next event starts with nobody in it, so only the open event's entrants hold places.
+  const seated = revealed ? 0 : accepted
+  const needed = leagueMinimumPlaces(value.format, seated)
+  const short = !leaguePlacesSeat(value.format, league.playerLimit, seated)
   const save = useMutation({
     mutationFn: async () => {
-      if (short) {
-        await updateLeague({
-          data: {
-            token,
-            name: league.name,
-            description: league.description,
-            visibility: league.visibility,
-            admission: league.admission,
-            playerLimit: places,
-          },
-        })
+      // Saving the league overwrites every setting, so a raised limit goes onto the league as it is now rather than this page's copy.
+      const current = short ? await openLeague({ data: { token, eventToken: league.eventToken } }) : null
+      if (short && !current) throw new Error('This league no longer exists.')
+      const details = current && {
+        token,
+        name: current.name,
+        description: current.description,
+        visibility: current.visibility,
+        admission: current.admission,
       }
-      if (!revealed) {
-        await updateLeagueEvent({ data: { token, eventToken: league.eventToken, ...value } })
-        return null
+      if (details) await updateLeague({ data: { ...details, playerLimit: places } })
+      try {
+        if (!revealed) {
+          await updateLeagueEvent({ data: { token, eventToken: league.eventToken, ...value } })
+          return null
+        }
+        await makeLeagueRecurring({ data: { token } })
+        return (await createLeagueEvent({ data: { token, ...value } })).eventToken
+      } catch (error) {
+        // Put the limit back so a refused format leaves the league as it was; a failed restore still surfaces the refusal, which is the error to act on.
+        if (details && current) await updateLeague({ data: { ...details, playerLimit: current.playerLimit } }).catch(() => undefined)
+        throw error
       }
-      await makeLeagueRecurring({ data: { token } })
-      return (await createLeagueEvent({ data: { token, ...value } })).eventToken
     },
     onSuccess: async (created) => {
       setEditing(false)
@@ -850,13 +858,15 @@ function EventRulePanel({ league, token }: { league: League; token: string }) {
     setPlaces(league.playerLimit)
     setEditing(true)
   }
-  // A shape that needs more places than the league allows starts its limit at the fewest that seat it.
+  // A shape the league's limit cannot seat starts its limit at the fewest places that do.
   const chooseRule = (rule: LeagueEventRuleValue) => {
     setValue(rule)
-    setPlaces((current) => Math.max(current ?? 0, placesNeeded(rule.format, revealed ? 0 : accepted)))
+    setPlaces((current) =>
+      leaguePlacesSeat(rule.format, current, seated) ? current : leagueMinimumPlaces(rule.format, Math.max(current ?? 0, seated)),
+    )
   }
   const next = league.eventCount + 1
-  const placesValid = !short || (places !== null && places >= needed && (value.format !== '2v2' || places % 2 === 0))
+  const placesValid = !short || leaguePlacesSeat(value.format, places, seated)
 
   if (revealed)
     return (
@@ -914,11 +924,6 @@ function EventRulePanel({ league, token }: { league: League; token: string }) {
   )
 }
 
-function placesNeeded(format: TableShape, accepted: number) {
-  const needed = Math.max(SHAPE_PLACES[format], accepted)
-  return format === '2v2' ? Math.ceil(needed / 2) * 2 : needed
-}
-
 function RuleForm({
   value,
   places,
@@ -960,7 +965,7 @@ function RuleForm({
             type="number"
             min={places.needed}
             step={places.even ? 2 : 1}
-            max={128}
+            max={LEAGUE_MEMBER_MAX}
             value={places.value ?? ''}
             disabled={pending}
             onChange={(event) => places.onChange(event.target.value ? Number(event.target.value) : null)}

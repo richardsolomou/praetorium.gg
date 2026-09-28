@@ -65,6 +65,22 @@ export type LeagueEntryView = {
   teamId: string | null
 }
 
+/** The fewest places each table shape can seat. */
+export const LEAGUE_SHAPE_PLACES: Record<TableShape, number> = { '1v1': 2, '2v1': 3, '2v2': 4 }
+
+/** The lowest player limit an event of this shape can have, never below its accepted entrants and even for doubles, whose teams are pairs. */
+export function leagueMinimumPlaces(format: TableShape | null, accepted = 0) {
+  const shape = leagueTableShape(format)
+  const needed = Math.max(LEAGUE_SHAPE_PLACES[shape], accepted)
+  return shape === '2v2' ? Math.ceil(needed / 2) * 2 : needed
+}
+
+/** Whether a player limit can seat an event of this shape; no limit seats any. */
+export function leaguePlacesSeat(format: TableShape | null, playerLimit: number | null, accepted = 0) {
+  if (playerLimit === null) return true
+  return playerLimit >= leagueMinimumPlaces(format, accepted) && (leagueTableShape(format) !== '2v2' || playerLimit % 2 === 0)
+}
+
 /** Whether an open event has room for another request, as the join command decides it. */
 export function leagueRegistrationFull(
   league: { admission: LeagueAdmission; playerLimit: number | null },
@@ -87,10 +103,10 @@ export type LeagueRevealEntry = {
 }
 
 /**
- * Every condition an event's shape puts on reveal, each with the entrants still holding it up.
+ * Every structural condition an event's shape puts on reveal, each with the entrants still holding it up.
  *
- * The reveal command refuses unless every check is done, and the organizer reads the same
- * checks as a list, so the console can never call an event ready that the server would refuse.
+ * The reveal command refuses unless every check is done, and the organizer reads the same checks as a
+ * list. The command still inspects the sealed rosters themselves, so a done list can meet a Warlord refusal.
  */
 export type LeagueRevealCheck =
   | { step: 'places'; done: boolean; accepted: number; required: number | null }
@@ -118,7 +134,7 @@ export function leagueRevealChecklist(
     const teamSizes = new Map<string, number>()
     for (const entry of accepted) if (entry.teamId) teamSizes.set(entry.teamId, (teamSizes.get(entry.teamId) ?? 0) + 1)
     const unpaired = accepted.filter((entry) => !entry.teamId || teamSizes.get(entry.teamId) !== 2).map((entry) => entry.userId)
-    checks.push({ step: 'teams', done: accepted.length >= 4 && accepted.length % 2 === 0 && unpaired.length === 0, waiting: unpaired })
+    checks.push({ step: 'teams', done: accepted.length >= 4 && unpaired.length === 0, waiting: unpaired })
   }
   if (event.format === '2v1') {
     const alliedLimit = alliedLeagueRosterLimit(event.rosterLimit ?? 0)

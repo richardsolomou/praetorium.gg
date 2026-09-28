@@ -95,6 +95,21 @@ async function submitFixtureRoster(
   return result.outcome
 }
 
+/** Asks the server to reveal the current event directly, past the console's disabled button. */
+async function revealThroughServer(leagueToken: string) {
+  const [league] = await productSql<{ owner_id: string }>`SELECT owner_id FROM leagues WHERE token = ${leagueToken}`
+  if (!league) throw new Error('The league test league is missing.')
+  const { id } = await eventForLeague(leagueToken)
+  const [event] = await productSql<{ token: string }>`SELECT token FROM league_events WHERE id = ${id}`
+  if (!event) throw new Error('The league test event is missing.')
+  const product = await productOperator()
+  const result = await product.leagueCommand(
+    { op: 'reveal', token: leagueToken, ownerId: league.owner_id, eventToken: event.token, now: Date.now() },
+    z.object({ outcome: z.string() }),
+  )
+  return result.outcome
+}
+
 async function sealEventRosters(leagueToken: string) {
   const event = await eventForLeague(leagueToken)
   const entries = await productSql<{
@@ -995,6 +1010,22 @@ test('an organizer answers requests, lets a turned-away player back in, and rais
   await expect(headerChip(owner, '2 / 4 accepted')).toBeVisible()
   await expect(owner.locator('main header').getByText(/^Doubles ·/)).toBeVisible()
 
+  // Removing a picked player frees their pick, so the pairing picker never locks on a row it no longer shows.
+  const unpaired = owner.locator('[data-group="unpaired"]')
+  await unpaired.getByRole('checkbox', { name: `Pick ${names[1]} for a team` }).check()
+  await unpaired.getByRole('checkbox', { name: `Pick ${names[2]} for a team` }).check()
+  await expect(unpaired.getByRole('button', { name: `Pair ${names[1]} and ${names[2]}` })).toBeEnabled()
+  await unpaired.getByRole('button', { name: `Remove ${names[1]}`, exact: true }).click()
+  await owner
+    .getByRole('alertdialog', { name: `Remove ${names[1]}?` })
+    .getByRole('button', { name: 'Remove entrant' })
+    .click()
+  await expect(unpaired.locator(`[data-person="${names[1]}"]`)).toHaveCount(0)
+  await expect(unpaired.getByRole('button', { name: 'Pick two to pair' })).toBeDisabled()
+  await requests.getByRole('button', { name: `Accept ${names[3]}` }).click()
+  await unpaired.getByRole('checkbox', { name: `Pick ${names[3]} for a team` }).check()
+  await expect(unpaired.getByRole('button', { name: `Pair ${names[2]} and ${names[3]}` })).toBeEnabled()
+
   await Promise.all(contexts.map((context) => context.close()))
 })
 
@@ -1065,6 +1096,8 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await owner.reload()
   await expect(owner.getByRole('button', { name: 'Reveal all rosters' })).toBeDisabled()
   await expect(owner.locator('[data-check="sizes"]')).toContainText('Make two players allied.')
+  // Every list is sealed and readable, so only the server's own checklist stands between this event and a reveal.
+  expect(await revealThroughServer(leagueToken)).toBe('not-ready')
   const assignmentRows = owner.locator('[data-person]')
   await expectNoHorizontalOverflow(owner, ...(await assignmentRows.all()))
   await owner.screenshot({ path: 'test-results/league-2v1-assignments-phone.png', fullPage: true })

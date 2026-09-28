@@ -144,16 +144,7 @@ function LeagueActionDialogs({ actions }: { actions: LeagueActionsController }) 
               idPrefix="edit-league"
               value={actions.value}
               acceptedCount={actions.league.currentEventRevealedAt === null ? actions.league.currentAcceptedCount : 0}
-              minimumPlayerLimit={
-                actions.league.currentEventRevealedAt === null
-                  ? actions.league.currentEventFormat === '2v2'
-                    ? 4
-                    : actions.league.currentEventFormat === '2v1'
-                      ? 3
-                      : 2
-                  : 2
-              }
-              evenPlayerLimit={actions.league.currentEventRevealedAt === null && actions.league.currentEventFormat === '2v2'}
+              format={actions.league.currentEventRevealedAt === null ? actions.league.currentEventFormat : null}
               disabled={actions.update.isPending}
               onChange={actions.setValue}
             />

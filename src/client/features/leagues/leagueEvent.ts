@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { alliedLeagueRosterLimit, leagueRevealChecklist, type LeagueEntryView } from '../../../core/league'
+import { alliedLeagueRosterLimit, type LeagueEntryView } from '../../../core/league'
 import type { openLeague } from '../../../server/functions'
 import { leaguesQuery } from '../../queries'
 
@@ -28,10 +28,6 @@ export function namesPhrase(names: string[], shown = 3) {
   return `${names.slice(0, shown - 1).join(', ')} and ${rest} others`
 }
 
-export function revealChecklist(league: League) {
-  return leagueRevealChecklist(league, league.entries)
-}
-
 /** Which side of a 2v1 table an entry's assigned size puts it on. */
 export function soloOrAllied(league: Pick<League, 'format' | 'rosterLimit'>, entry: Pick<LeagueEntryView, 'requiredLimit'>) {
   if (league.format !== '2v1' || league.rosterLimit === null || entry.requiredLimit === null) return null
@@ -50,25 +46,19 @@ export function doublesTeams<T extends Pick<LeagueEntryView, 'teamId' | 'status'
 
 export type EntryStep = { label: string; state: 'done' | 'current' | 'upcoming' }
 
-/**
- * The path one player walks through an event, with the step they are on.
- *
- * It reads the same facts the status card does, so the steps can never say a player is
- * further along than the action the card offers them.
- */
-export function entryProgress(league: League, entry: LeagueEntryView | undefined): EntryStep[] {
-  const labels = ['Join', ...(league.format === '2v1' ? ['Size'] : league.format === '2v2' ? ['Team'] : []), 'Seal', 'Reveal', 'Play']
-  const assignment = labels.length === 5 ? 1 : null
-  const seal = labels.indexOf('Seal')
-  const current =
-    entry?.status !== 'accepted'
-      ? 0
-      : assignment !== null && entry.requiredLimit === null && !league.revealedAt
-        ? assignment
-        : !entry.submitted
-          ? seal
-          : league.revealedAt
-            ? labels.length - 1
-            : seal + 1
-  return labels.map((label, index) => ({ label, state: index < current ? 'done' : index === current ? 'current' : 'upcoming' }))
+/** A step on the path from joining an event to playing in it; `assign` is the 2v1 size or doubles team, which a duel skips. */
+export type EntryStage = 'join' | 'assign' | 'seal' | 'reveal' | 'play'
+
+/** The path through an event with the stage the reader is on marked current, so it can only restate the status card's own decision. */
+export function entryProgress(league: Pick<League, 'format'>, stage: EntryStage): EntryStep[] {
+  const assignment = league.format === '2v1' ? 'Size' : league.format === '2v2' ? 'Team' : null
+  const stages: { stage: EntryStage; label: string }[] = [
+    { stage: 'join', label: 'Join' },
+    ...(assignment ? [{ stage: 'assign' as const, label: assignment }] : []),
+    { stage: 'seal', label: 'Seal' },
+    { stage: 'reveal', label: 'Reveal' },
+    { stage: 'play', label: 'Play' },
+  ]
+  const current = stages.findIndex((candidate) => candidate.stage === stage)
+  return stages.map(({ label }, index) => ({ label, state: index < current ? 'done' : index === current ? 'current' : 'upcoming' }))
 }

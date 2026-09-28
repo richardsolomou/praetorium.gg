@@ -24,7 +24,16 @@ import { BattleShelf } from '../battles/BattleShelf'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { DoublesBattleChooser, LeagueBattleChooser, OneOnOneBattleChooser, startBattleLabel } from './LeagueBattleChoosers'
 import { EntrantGroup, EntrantList, EntrantRow, SectionHeading, sealStatus, sideGroups, ViewRosterButton } from './LeagueEntrants'
-import { doublesTeams, entryProgress, formatNames, soloOrAllied, useLeagueRefresh, type EntryStep, type League } from './leagueEvent'
+import {
+  doublesTeams,
+  entryProgress,
+  formatNames,
+  soloOrAllied,
+  useLeagueRefresh,
+  type EntryStage,
+  type EntryStep,
+  type League,
+} from './leagueEvent'
 import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
 
 type Action =
@@ -394,16 +403,16 @@ function entryStatus({
   play: () => void
   playing: boolean
 }): Status {
-  const steps = entryProgress(league, ownEntry)
+  const steps = (stage: EntryStage) => entryProgress(league, stage)
   const revealed = Boolean(league.revealedAt)
   const hidden = allies.length
     ? `Only ${allies.length > 2 ? `${allies.length} allies` : formatNames(allies)} can see it before the reveal.`
     : 'Hidden until the reveal.'
   if (!ownEntry || ownEntry.status !== 'accepted') {
     if (revealed) return { title: 'Rosters are revealed', detail: 'Battles from this event appear below.', tone: 'closed' }
-    if (!signedIn) return { title: 'Registration is open', action: { label: 'Sign in to join', to: 'sign-in' }, steps }
+    if (!signedIn) return { title: 'Registration is open', action: { label: 'Sign in to join', to: 'sign-in' }, steps: steps('join') }
     if (ownEntry?.status === 'pending')
-      return { title: 'Waiting for approval', detail: `${league.ownerName} will let you in.`, tone: 'waiting', steps }
+      return { title: 'Waiting for approval', detail: `${league.ownerName} will let you in.`, tone: 'waiting', steps: steps('join') }
     const rejoin = ownEntry?.status === 'rejected'
     if (registrationFull) return { title: rejoin ? 'You are not in this event' : 'This event is full', tone: 'closed' }
     if (isOwner && !rejoin)
@@ -420,7 +429,7 @@ function entryStatus({
           ? `${league.ownerName} approves each player.`
           : undefined,
       action: { label: rejoin ? 'Request to join again' : 'Join event', icon: <UserPlus />, pending: joining, onClick: join },
-      steps,
+      steps: steps('join'),
     }
   }
   if (!revealed && ownEntry.requiredLimit === null && (league.format === '2v1' || league.format === '2v2')) {
@@ -436,7 +445,7 @@ function entryStatus({
           : `${league.ownerName} decides who plays solo or allied.`,
       tone: 'waiting',
       action: isOwner ? { label: 'Go to Organize', to: 'organize' } : undefined,
-      steps,
+      steps: steps('assign'),
     }
   }
   const size = ownEntry.requiredLimit ? `${ownEntry.requiredLimit.toLocaleString()}-point ` : ''
@@ -445,7 +454,7 @@ function entryStatus({
       title: revealed ? 'Seal another list' : `Seal your ${size}list`,
       detail: revealed ? 'The organizer unsealed your list.' : hidden,
       action: { label: 'Choose a list', icon: <FileLock2 />, onClick: choose },
-      steps,
+      steps: steps('seal'),
     }
   if (!revealed)
     return {
@@ -453,13 +462,14 @@ function entryStatus({
       detail: hidden,
       tone: 'sealed',
       action: { label: 'Swap list', variant: 'outline', onClick: choose },
-      steps,
+      steps: steps('reveal'),
     }
-  if (!ownSideSealed) return { title: 'Waiting for your teammate', detail: 'They are sealing another list.', tone: 'waiting', steps }
+  if (!ownSideSealed)
+    return { title: 'Waiting for your teammate', detail: 'They are sealing another list.', tone: 'waiting', steps: steps('seal') }
   return {
     title: latest ? 'Rosters are out' : 'Rosters are revealed',
     action: { label: startBattleLabel(leagueTableShape(league.format)), icon: <Swords />, pending: playing, onClick: play },
-    steps,
+    steps: steps('play'),
   }
 }
 

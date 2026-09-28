@@ -180,6 +180,10 @@ export class PraetoriumService {
     return this.leagueService.joinLeague(...args)
   }
 
+  admitLeagueEntries(...args: Parameters<LeagueService['admitLeagueEntries']>) {
+    return this.leagueService.admitLeagueEntries(...args)
+  }
+
   moderateLeagueEntry(...args: Parameters<LeagueService['moderateLeagueEntry']>) {
     return this.leagueService.moderateLeagueEntry(...args)
   }
