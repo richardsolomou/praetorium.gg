@@ -159,8 +159,11 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          pnpm exec wrangler d1 export AUTH_DB --config wrangler.staging.json --remote \
-            --skip-confirmation --output "$RUNNER_TEMP/staging-auth.sql"
+          if ! pnpm exec wrangler d1 export AUTH_DB --config wrangler.staging.json --remote \
+            --skip-confirmation --output "$RUNNER_TEMP/staging-auth.sql" > "$RUNNER_TEMP/d1-export.log" 2>&1; then
+            echo 'Staging D1 auth export failed' >&2
+            exit 1
+          fi
           node scripts/nodeAuthSqlite.ts upload-r2 "$RUNNER_TEMP/staging-auth.sql" staging \
             > "$RUNNER_TEMP/staging-auth-export.json"
           key="$(jq -er .key "$RUNNER_TEMP/staging-auth-export.json")"

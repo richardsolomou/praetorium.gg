@@ -211,6 +211,9 @@ jobs:
   dokploy-production:
     needs: [release]
     if: vars.PRAETORIUM_WEB_RUNTIME == 'dokploy'
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/dokploy-web.yml
     with:
       environment: production

@@ -37,8 +37,11 @@ jobs:
           test -n "$R2_ACCESS_KEY_ID"
           test -n "$R2_SECRET_ACCESS_KEY"
           config="wrangler.$AUTH_ENVIRONMENT.json"
-          pnpm exec wrangler d1 export AUTH_DB --config "$config" --remote \
-            --skip-confirmation --output "$RUNNER_TEMP/auth.sql"
+          if ! pnpm exec wrangler d1 export AUTH_DB --config "$config" --remote \
+            --skip-confirmation --output "$RUNNER_TEMP/auth.sql" > "$RUNNER_TEMP/d1-export.log" 2>&1; then
+            echo 'D1 auth export failed' >&2
+            exit 1
+          fi
           node scripts/nodeAuthSqlite.ts upload-r2 "$RUNNER_TEMP/auth.sql" "$AUTH_ENVIRONMENT" \
             > "$RUNNER_TEMP/auth-export.json"
           jq '{key, counts}' "$RUNNER_TEMP/auth-export.json"
