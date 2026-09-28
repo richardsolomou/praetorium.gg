@@ -73,7 +73,7 @@ test('loadout controls keep their shape while resized constraints load', async (
 
 test('a unit duplicates with its configured model count', async ({ page }) => {
   await openBuilder(page)
-  await add(page, 'Immortals')
+  await waitForRosterSave(page, () => add(page, 'Immortals'))
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await page.getByRole('button', { name: 'More models in Immortals' }).click()
   await page.getByLabel('Unit actions for Immortals').click()
@@ -553,7 +553,7 @@ test('a squad the datasheet keeps identical is asked once, not counted', async (
 
 test('a squad-wide choice has the same count on its roster card and loadout', async ({ page }) => {
   await openBuilder(page, 'Dark Angels', /Inner Circle Task Force/)
-  await add(page, 'Vanguard Veteran Squad with Jump Packs')
+  await waitForRosterSave(page, () => add(page, 'Vanguard Veteran Squad with Jump Packs'))
 
   const card = page.locator('[data-unit="Vanguard Veteran Squad with Jump Packs"]')
   await expect(card).toContainText('4x Storm Shield')
