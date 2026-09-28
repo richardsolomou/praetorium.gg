@@ -75,7 +75,17 @@ import {
 } from './LeagueBattleChoosers'
 import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
 
-export function LeaguePage({ token, eventToken, startBattle }: { token: string; eventToken?: string; startBattle?: boolean }) {
+export function LeaguePage({
+  token,
+  eventToken,
+  startBattle,
+  chooseRoster,
+}: {
+  token: string
+  eventToken?: string
+  startBattle?: boolean
+  chooseRoster?: boolean
+}) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
@@ -87,7 +97,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
   useEffect(() => {
     if (league === null) void navigate({ to: '/leagues' })
   }, [league, navigate])
-  const [choosing, setChoosing] = useState(false)
+  const [choosing, setChoosing] = useState(Boolean(chooseRoster))
   const [sealing, setSealing] = useState<SavedRoster | null>(null)
   const [revealing, setRevealing] = useState(false)
   const [starting, setStarting] = useState(false)
@@ -102,6 +112,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['league', token] }),
       queryClient.invalidateQueries({ queryKey: leaguesQuery().queryKey }),
+      queryClient.invalidateQueries({ queryKey: ['outdated-league-entries'] }),
     ])
   }
   const selectedEventToken = league?.eventToken ?? ''

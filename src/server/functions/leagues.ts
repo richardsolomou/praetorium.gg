@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
 import { rosterForUse } from '../rosterUsage'
@@ -21,6 +22,15 @@ import {
 } from '../schemas'
 
 export const listLeagues = createServerFn({ method: 'GET' }).handler(() => rpc(async () => app().service.leagues(await currentUserId())))
+
+export const outdatedLeagueEntriesForRoster = createServerFn({ method: 'GET' })
+  .validator(z.object({ rosterId: z.string().min(1).max(128) }))
+  .handler(({ data }) =>
+    rpc(async () => {
+      const player = await requireUser()
+      return app().service.outdatedLeagueEntriesForRoster(player.id, data.rosterId)
+    }),
+  )
 
 export const openLeague = createServerFn({ method: 'GET' })
   .validator(openLeagueSchema)

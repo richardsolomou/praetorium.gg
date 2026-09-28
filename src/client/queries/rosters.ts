@@ -148,6 +148,7 @@ export function invalidateSavedRosters(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: homeRostersQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: savedRosterStatusQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: ['roster-changes'] }),
+    queryClient.invalidateQueries({ queryKey: ['outdated-league-entries'] }),
   ])
 }
 

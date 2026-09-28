@@ -1,4 +1,7 @@
 import type { TableShape } from './tableShape'
+import type { FormatRuleId, Roster } from './battle'
+import type { RosterPick } from './roster'
+import type { RosterReminder } from './reminders'
 
 export const LEAGUE_VISIBILITIES = ['public', 'private'] as const
 export type LeagueVisibility = (typeof LEAGUE_VISIBILITIES)[number]
@@ -64,6 +67,35 @@ export type LeagueEntryView = {
 
 export function visibleLeagueEntries(entries: readonly LeagueEntryView[], ownerId: string, viewerId: string | null) {
   return entries.filter((entry) => entry.status === 'accepted' || viewerId === ownerId || entry.userId === viewerId)
+}
+
+export function matchesSealedLeagueRoster(
+  saved: {
+    name: string
+    catalogueId: string
+    detachmentIds: readonly string[]
+    disposition: string | null
+    limit: number
+    picks: readonly RosterPick[]
+    waivedRules: readonly FormatRuleId[]
+    reminders?: readonly RosterReminder[]
+    remindersEnabled?: boolean
+  },
+  sealed: Roster,
+) {
+  const built = sealed.built
+  return (
+    !!built?.picks &&
+    (!saved.name || saved.name === sealed.name) &&
+    saved.catalogueId === built.catalogueId &&
+    saved.limit === built.limit &&
+    saved.disposition === built.disposition &&
+    JSON.stringify(saved.detachmentIds) === JSON.stringify(built.detachmentIds ?? []) &&
+    JSON.stringify(saved.picks) === JSON.stringify(built.picks) &&
+    JSON.stringify(saved.waivedRules) === JSON.stringify(built.waivedRules ?? []) &&
+    JSON.stringify(saved.reminders ?? []) === JSON.stringify(sealed.reminders ?? []) &&
+    (saved.remindersEnabled ?? true) === (sealed.remindersEnabled ?? true)
+  )
 }
 
 /** The two facts about an entry that decide whether its reader is on the same side of the table. */

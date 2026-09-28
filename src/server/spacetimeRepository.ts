@@ -281,6 +281,10 @@ export class SpacetimeRepository {
     })
   }
 
+  outdatedLeagueEntriesForRoster(userId: string, rosterId: string) {
+    return this.product.outdatedLeagueEntriesForRoster(userId, rosterId)
+  }
+
   async leagueBattleCandidates(userId: string, participantIds: readonly string[]) {
     const rows = await this.product.leagueBattleCandidates(userId, participantIds)
     return rows.map(({ league, event, entries }) => ({

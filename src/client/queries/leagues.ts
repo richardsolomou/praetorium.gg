@@ -1,9 +1,15 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
-import { listLeagueBattles, listLeagues, openLeague, openLeagueRoster } from '../../server/functions'
+import { listLeagueBattles, listLeagues, openLeague, openLeagueRoster, outdatedLeagueEntriesForRoster } from '../../server/functions'
 import type { BattlesCursor } from './battles'
 import { SSR_STALE_TIME } from './shared'
 
 export const leaguesQuery = () => queryOptions({ queryKey: ['leagues'], queryFn: () => listLeagues(), staleTime: SSR_STALE_TIME })
+export const outdatedLeagueEntriesQuery = (rosterId: string) =>
+  queryOptions({
+    queryKey: ['outdated-league-entries', rosterId],
+    queryFn: () => outdatedLeagueEntriesForRoster({ data: { rosterId } }),
+    staleTime: SSR_STALE_TIME,
+  })
 export const leagueQuery = (token: string, eventToken?: string) =>
   queryOptions({
     queryKey: ['league', token, eventToken ?? 'current'],

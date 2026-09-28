@@ -2,12 +2,13 @@ import { ScheduleAt } from 'spacetimedb'
 import { SenderError, schema, table, t, type InferSchema, type ReducerCtx } from 'spacetimedb/server'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
 import { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from '../../src/core/notificationConfig'
-import { reduceBattle, validate, type LoggedCommand } from '../../src/core/battle'
+import { reduceBattle, validate, type FormatRuleId, type LoggedCommand } from '../../src/core/battle'
 import { commandSchema } from '../../src/core/commands'
 import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE } from '../../src/core/battleAudience'
 import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
-import { alliedLeagueRosterLimit, requiredLeagueRosterLimit } from '../../src/core/league'
-import { parseRosterSnapshot } from '../../src/core/commands'
+import { alliedLeagueRosterLimit, matchesSealedLeagueRoster, requiredLeagueRosterLimit } from '../../src/core/league'
+import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
+import { rosterReminderSchema } from '../../src/core/reminders'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
@@ -1424,6 +1425,58 @@ export const leaguesVisibleTo = spacetime.procedure({ userId: t.string(), limit:
       }),
     )
   }),
+)
+
+export const outdatedLeagueEntriesForRoster = spacetime.procedure(
+  { userId: t.string(), rosterId: t.string() },
+  t.string(),
+  (ctx, { userId, rosterId }) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      if (!userId || userId.length > 128 || !rosterId || rosterId.length > 128) throw new SenderError('Invalid roster lookup')
+      const saved = tx.db.rosters.id.find(rosterId)
+      if (!saved || saved.userId !== userId) return productJson([])
+      const prep = saved.prep ? (JSON.parse(saved.prep) as { reminders?: unknown; remindersEnabled?: boolean }) : null
+      const current = {
+        name: saved.name,
+        catalogueId: saved.catalogueId,
+        detachmentIds: saved.detachmentId
+          ? saved.detachmentId.startsWith('[')
+            ? (JSON.parse(saved.detachmentId) as string[])
+            : [saved.detachmentId]
+          : [],
+        disposition: saved.disposition ?? null,
+        limit: saved.limit,
+        picks: rosterPickSchema.array().parse(JSON.parse(saved.picks)),
+        waivedRules: JSON.parse(saved.waivedRules) as FormatRuleId[],
+        reminders: rosterReminderSchema.array().parse(prep?.reminders ?? []),
+        remindersEnabled: prep?.remindersEnabled ?? true,
+      }
+      const matches = []
+      let scanned = 0
+      for (const entry of tx.db.leagueEventEntries.userId.filter(userId)) {
+        if (++scanned > 1_000) throw new SenderError('Too many league entries')
+        if (entry.rosterId !== rosterId || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) continue
+        const event = tx.db.leagueEvents.id.find(entry.eventId)
+        if (!event || event.revealedAt !== undefined) continue
+        let sameRoster = false
+        try {
+          sameRoster = matchesSealedLeagueRoster(current, parseRosterSnapshot(entry.rosterSnapshot))
+        } catch {
+          // An unreadable snapshot cannot be considered current.
+        }
+        if (sameRoster) continue
+        const league = tx.db.leagues.id.find(event.leagueId)
+        if (!league) continue
+        matches.push({
+          leagueToken: league.token,
+          leagueName: league.name,
+          eventToken: event.token,
+          eventNumber: event.number,
+        })
+      }
+      return productJson(matches)
+    }),
 )
 
 export const leagueBattleCandidates = spacetime.procedure(

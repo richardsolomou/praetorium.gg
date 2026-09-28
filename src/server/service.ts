@@ -168,6 +168,10 @@ export class PraetoriumService {
     return this.leagueService.leagues(...args)
   }
 
+  outdatedLeagueEntriesForRoster(...args: Parameters<LeagueService['outdatedLeagueEntriesForRoster']>) {
+    return this.leagueService.outdatedLeagueEntriesForRoster(...args)
+  }
+
   league(...args: Parameters<LeagueService['league']>) {
     return this.leagueService.league(...args)
   }
