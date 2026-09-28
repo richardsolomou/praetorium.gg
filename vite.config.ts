@@ -1,6 +1,5 @@
 import { defineConfig, loadEnv } from 'vite'
 import path from 'node:path'
-import posthogRollup from '@posthog/rollup-plugin'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
@@ -13,15 +12,6 @@ export default defineConfig(({ mode }) => {
   process.env = { ...process.env, ...env }
   const posthog = postHogEnvironment({ projectToken: env.VITE_POSTHOG_PROJECT_TOKEN, host: env.VITE_POSTHOG_HOST })
   const proxy = posthog ? postHogIngestProxy(posthog) : undefined
-  const sourceMapUpload =
-    env.GITHUB_ACTIONS === 'true' && env.POSTHOG_API_KEY && env.POSTHOG_PROJECT_ID
-      ? posthogRollup({
-          personalApiKey: env.POSTHOG_API_KEY,
-          projectId: env.POSTHOG_PROJECT_ID,
-          host: env.POSTHOG_HOST,
-          sourcemaps: { enabled: true, deleteAfterUpload: true },
-        })
-      : undefined
   return {
     resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
     // The Node preview renderer inlines its WebAssembly, which only an asset type accepts.
@@ -45,7 +35,7 @@ export default defineConfig(({ mode }) => {
       tanstackStart({ serverFns: { disableCsrfMiddlewareWarning: true } }),
       nitro({
         plugins: [
-          ...(process.env.NITRO_PRESET?.startsWith('cloudflare') ? [] : [path.resolve(import.meta.dirname, 'src/server/warmPlugin.ts')]),
+          path.resolve(import.meta.dirname, 'src/server/warmPlugin.ts'),
           path.resolve(import.meta.dirname, 'src/server/cspPlugin.ts'),
         ],
         routeRules: {
@@ -67,7 +57,6 @@ export default defineConfig(({ mode }) => {
       }),
       viteReact(),
       tailwindcss(),
-      sourceMapUpload,
     ],
   }
 })

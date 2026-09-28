@@ -1,7 +1,6 @@
 import path from 'node:path'
 import { randomInt } from 'node:crypto'
 import { globalSingleton } from 'ras-stack/server'
-import { readWorkerCatalogueAsset } from './workerCatalogueAssets'
 import { serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type TerrainReadRules, loadRules } from './rules'
@@ -15,9 +14,8 @@ import {
   installedSnapshot,
 } from './catalogueSnapshot'
 import type { SyncState } from './sync'
-import { createD1Auth, createSqliteAuth } from './d1Auth'
-import { remoteD1 } from './d1Bridge'
-import { D1AccountRepository, SqliteAccountRepository } from './d1AccountRepository'
+import { createSqliteAuth } from './d1Auth'
+import { SqliteAccountRepository } from './d1AccountRepository'
 import { localAuthDatabase } from './localAuthDatabase'
 import { SpacetimeOperator } from './spacetimeOperator'
 import { SpacetimeRepository } from './spacetimeRepository'
@@ -34,8 +32,6 @@ import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { combatUnitsFor } from './combatUnits'
 import { factionIndexFor, factionsFor } from './factionReferences'
-import { WorkerCatalogueStore } from './workerCatalogueStore'
-import { workerAppContext } from './workerAppContext'
 import { compiledGlobalSearchIndex } from './globalSearch'
 import { battleDetachmentData, type BattleDetachmentData } from './battleDetachmentData'
 
@@ -66,10 +62,9 @@ type App = {
   factionsFor: () => Promise<ReturnType<typeof factionsFor> | null>
   factionIconFor: (id: string) => Promise<string | null>
   searchIndexFor: () => Promise<ReturnType<typeof compiledGlobalSearchIndex> | null>
-  workerReferences: WorkerCatalogueStore | null
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
-  auth: ReturnType<typeof createD1Auth>
+  auth: ReturnType<typeof createSqliteAuth>
   spacetimeToken: ((headers: Headers) => Promise<string>) | null
   email: ReturnType<typeof emailDelivery>
   /** Whether this instance sends push notifications; nothing else depends on it. */
@@ -166,32 +161,12 @@ export function app(): App {
     const dataDirectory = path.resolve(process.env.DATA_DIR ?? '/data')
     const catalogueDataDirectory = catalogueDirectory(dataDirectory)
     const email = emailDelivery()
-    const cloudflare = (
-      globalThis as typeof globalThis & {
-        __env__?: {
-          AUTH_DB?: ReturnType<typeof remoteD1>
-          ASSETS?: { fetch: (request: string) => Promise<Response> }
-          CATALOGUE_SNAPSHOT_ID?: string
-          CATALOGUE_MANIFEST_SHA256?: string
-          SPACETIME_ACCESS_CLIENT_ID?: string
-          SPACETIME_ACCESS_CLIENT_SECRET?: string
-        }
-      }
-    ).__env__
-    const localAuth = !cloudflare?.AUTH_DB && process.env.AUTH_SQLITE_PATH ? localAuthDatabase(process.env.AUTH_SQLITE_PATH) : null
-    const binding = cloudflare?.AUTH_DB ?? remoteD1()
-    const authDatabase = localAuth?.database
-    const accessClientId = cloudflare?.SPACETIME_ACCESS_CLIENT_ID ?? process.env.SPACETIME_ACCESS_CLIENT_ID
-    const accessClientSecret = cloudflare?.SPACETIME_ACCESS_CLIENT_SECRET ?? process.env.SPACETIME_ACCESS_CLIENT_SECRET
+    const localAuth = localAuthDatabase(process.env.AUTH_SQLITE_PATH ?? '')
+    const authDatabase = localAuth.database
+    const accessClientId = process.env.SPACETIME_ACCESS_CLIENT_ID
+    const accessClientSecret = process.env.SPACETIME_ACCESS_CLIENT_SECRET
     const spacetimeAccess =
       accessClientId && accessClientSecret ? { clientId: accessClientId, clientSecret: accessClientSecret } : undefined
-    const catalogueAssets = cloudflare?.ASSETS
-    const readCatalogue = catalogueAssets
-      ? (key: string, maxBytes: number) => readWorkerCatalogueAsset(catalogueAssets, key, maxBytes)
-      : null
-    const workerCatalogue = readCatalogue
-      ? new WorkerCatalogueStore(readCatalogue, cloudflare?.CATALOGUE_SNAPSHOT_ID ?? '', cloudflare?.CATALOGUE_MANIFEST_SHA256 ?? '')
-      : null
     const operator = new SpacetimeOperator(
       process.env.SPACETIME_URL ?? '',
       process.env.SPACETIME_DATABASE ?? '',
@@ -200,23 +175,9 @@ export function app(): App {
       spacetimeAccess,
       process.env.SPACETIME_INTERNAL_HOST,
     )
-    const repository = new SpacetimeRepository(
-      authDatabase ? new SqliteAccountRepository(authDatabase) : new D1AccountRepository(binding),
-      operator,
-    )
+    const repository = new SpacetimeRepository(new SqliteAccountRepository(authDatabase), operator)
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens), process.env, false)
     let ready = Promise.resolve()
-    let nativeSyncState: SyncState = { status: 'working', detail: 'loading the community data' }
-    const workerShared = async () => {
-      try {
-        const [shared] = await Promise.all([workerCatalogue!.shared(), workerCatalogue!.referenceMetadata()])
-        nativeSyncState = { status: 'ready', detail: null }
-        return shared
-      } catch (error) {
-        nativeSyncState = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
-        throw error
-      }
-    }
     const loaders = () => ({
       catalogue: memoize(loadCatalogue),
       canonical: memoize(() => canonicalCatalogue(instance, catalogueDataDirectory)),
@@ -239,23 +200,13 @@ export function app(): App {
       storeSocialAvatar: storeProfileImageFromUrl,
       updateProfile: profileUpdate,
     }
-    const auth = authDatabase
-      ? createSqliteAuth(authDatabase, process.env.AUTH_SECRET ?? '', authOptions)
-      : createD1Auth(binding, process.env.AUTH_SECRET ?? '', authOptions)
+    const auth = createSqliteAuth(authDatabase, process.env.AUTH_SECRET ?? '', authOptions)
     const instance: App = {
       health: async () => {
         try {
-          if (!workerCatalogue) {
-            await ready
-            if (sync.state.status !== 'ready') throw new Error(`Catalogue ${sync.state.status}`)
-          }
-          await Promise.all([
-            localAuth ? localAuth.client.execute('select 1') : binding.prepare('select 1').first(),
-            operator.health(),
-            workerCatalogue ? workerShared() : undefined,
-            workerCatalogue ? workerCatalogue.navigation() : undefined,
-            workerCatalogue ? workerCatalogue.searchIndex() : undefined,
-          ])
+          await ready
+          if (sync.state.status !== 'ready') throw new Error(`Catalogue ${sync.state.status}`)
+          await Promise.all([localAuth.client.execute('select 1'), operator.health()])
         } catch (error) {
           console.error('Hosted health check failed:', error instanceof Error ? error.message : String(error), {
             accessConfigured: Boolean(spacetimeAccess),
@@ -263,29 +214,21 @@ export function app(): App {
           throw error
         }
       },
-      service: new PraetoriumService(
-        repository,
-        Date.now,
-        randomInt,
-        push ? pushNotifier(repository, push, undefined, worker?.waitUntil) : silentNotifier,
-        () => operator.publicStandingsRevision(),
+      service: new PraetoriumService(repository, Date.now, randomInt, push ? pushNotifier(repository, push) : silentNotifier, () =>
+        operator.publicStandingsRevision(),
       ),
       auth,
       spacetimeToken: async (headers) => (await auth.api.getToken({ headers })).token,
       email,
       catalogue: loaded.catalogue,
-      catalogueFor: async (catalogueId) => {
-        if (!workerCatalogue) return instance.catalogue()
-        return workerCatalogue.catalogue(catalogueId)
-      },
+      catalogueFor: async () => instance.catalogue(),
       canonicalCatalogue: loaded.canonical,
-      canonicalCatalogueFor: async () => (workerCatalogue ? null : instance.canonicalCatalogue()),
+      canonicalCatalogueFor: async () => instance.canonicalCatalogue(),
       rules: loaded.rules,
-      rulesFor: async () => (workerCatalogue ? (await workerShared()).rules : instance.rules()),
-      battleMissionRulesFor: async () => (workerCatalogue ? workerCatalogue.battleMissions() : instance.rules()),
-      battleReadRulesFor: async () => (workerCatalogue ? workerCatalogue.battleReadRules() : instance.rules()),
+      rulesFor: async () => instance.rules(),
+      battleMissionRulesFor: async () => instance.rules(),
+      battleReadRulesFor: async () => instance.rules(),
       terrainReadRulesFor: async (matchupIds) => {
-        if (workerCatalogue) return workerCatalogue.terrain(matchupIds)
         const rules = instance.rules()
         return rules
           ? {
@@ -295,35 +238,30 @@ export function app(): App {
           : null
       },
       battleDetachmentDataFor: async (catalogueId) => {
-        if (workerCatalogue) return workerCatalogue.detachmentRead(catalogueId)
         const catalogue = instance.catalogue()
         const rules = instance.rules()
         return catalogue && rules ? battleDetachmentData(catalogue, rules, catalogueId) : null
       },
-      rosterLabelRulesFor: async () => (workerCatalogue ? workerCatalogue.rosterLabelRules() : instance.rules()),
+      rosterLabelRulesFor: async () => instance.rules(),
       catalogueHistory: loaded.history,
-      catalogueHistoryFor: async () => (workerCatalogue ? (await workerCatalogue.navigation()).history : instance.catalogueHistory()),
+      catalogueHistoryFor: async () => instance.catalogueHistory(),
       combatUnits: loaded.combatUnits,
-      combatUnitsFor: async () => (workerCatalogue ? (await workerCatalogue.navigation()).combatUnits : instance.combatUnits()),
+      combatUnitsFor: async () => instance.combatUnits(),
       factionIndexFor: async () => {
-        if (workerCatalogue) return (await workerCatalogue.navigation()).factionIndex
         const catalogue = instance.catalogue()
         return catalogue ? factionIndexFor(catalogue, instance.rules()) : null
       },
       factionsFor: async () => {
-        if (workerCatalogue) return (await workerCatalogue.navigation()).factions
         const catalogue = instance.catalogue()
         return catalogue ? factionsFor(catalogue, instance.rules()) : null
       },
-      factionIconFor: async (id) => (workerCatalogue ? workerCatalogue.factionIcon(id) : (instance.rules()?.factionIcons.get(id) ?? null)),
+      factionIconFor: async (id) => instance.rules()?.factionIcons.get(id) ?? null,
       searchIndexFor: async () => {
-        if (workerCatalogue) return workerCatalogue.searchIndex()
         const catalogue = instance.catalogue()
         return catalogue ? compiledGlobalSearchIndex(catalogue, instance.rules()) : null
       },
-      workerReferences: workerCatalogue,
       push: Boolean(push),
-      sync: () => (workerCatalogue ? nativeSyncState : sync.state),
+      sync: () => sync.state,
       telemetry,
       ready: () => ready,
     }
@@ -337,31 +275,11 @@ export function app(): App {
       instance.combatUnits = next.combatUnits
       ready = warm(instance)
     }
-    if (workerCatalogue) {
-      ready = Promise.all([
-        workerCatalogue.navigation(),
-        workerCatalogue.searchIndex(),
-        workerCatalogue.referenceMetadata(),
-        workerCatalogue.preload(),
-      ]).then(
-        () => {
-          nativeSyncState = { status: 'ready', detail: null }
-        },
-        (error: unknown) => {
-          nativeSyncState = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
-        },
-      )
-      worker?.waitUntil?.(ready)
-    } else {
-      // Local development fetches a snapshot without blocking battle requests.
-      sync.begin(catalogueDataDirectory, swap)
-      const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap), 60 * 60 * 1000)
-      catalogueRefresh.unref()
-      if (sync.state.status === 'ready') ready = warm(instance)
-    }
+    sync.begin(catalogueDataDirectory, swap)
+    const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap), 60 * 60 * 1000)
+    catalogueRefresh.unref()
+    if (sync.state.status === 'ready') ready = warm(instance)
     return instance
   }
-  const worker = workerAppContext.getStore()
-  if (worker) return (worker.app ??= createApp()) as App
   return globalSingleton('praetorium.app', createApp)
 }

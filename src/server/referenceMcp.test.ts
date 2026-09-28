@@ -39,7 +39,6 @@ const { rateLimit } = vi.hoisted(() => ({ rateLimit: vi.fn(() => null as Respons
 
 vi.mock('./referenceApi', () => ({
   activeReferenceCorpus: () => corpus,
-  activeWorkerReferences: () => null,
   referenceRateLimit: rateLimit,
 }))
 vi.mock('./app', () => ({ app: () => ({ catalogueFor: async () => null, rulesFor: async () => null }) }))

@@ -16,17 +16,8 @@ type ReferenceRecord = {
   data: unknown
 }
 
-export function activeWorkerReferences() {
-  return app().workerReferences
-}
-
-export async function activeReferenceCorpus(documentId?: string, factionId?: string) {
+export async function activeReferenceCorpus() {
   const instance = app()
-  if (instance.workerReferences) {
-    if (documentId) return instance.workerReferences.referenceForDocument(documentId)
-    if (factionId) return instance.workerReferences.referenceForFaction(factionId)
-    return instance.workerReferences.referenceShard('references/global.json')
-  }
   return instance.sync().status === 'ready' ? referenceCorpusFor(instance) : null
 }
 
@@ -35,10 +26,9 @@ export async function referenceSearchResponse(request: Request) {
   if (limited) return limited
   const parsed = parseReferenceSearch(new URL(request.url))
   if ('error' in parsed) return problem(parsed.error, 400)
-  const worker = activeWorkerReferences()
-  const corpus = worker ? null : await activeReferenceCorpus()
-  if (!worker && !corpus) return referenceUnavailable()
-  const result = worker ? await worker.searchReferences(parsed) : searchReference(corpus!, parsed)
+  const corpus = await activeReferenceCorpus()
+  if (!corpus) return referenceUnavailable()
+  const result = searchReference(corpus, parsed)
   const markdown = [
     `# Search results for ${result.query}`,
     ...result.results.map(
@@ -46,36 +36,25 @@ export async function referenceSearchResponse(request: Request) {
         `## [${entry.title}](${entry.section.url})\n\n${[entry.faction, entry.kind, entry.section.title].filter(Boolean).join(' · ')}\n\n${entry.excerpt}`,
     ),
   ].join('\n\n')
-  return referenceResponse(
-    request,
-    worker ? (await worker.referenceMetadata()).revision : corpus!.revision,
-    `search:${JSON.stringify(parsed)}`,
-    result,
-    markdown,
-  )
+  return referenceResponse(request, corpus.revision, `search:${JSON.stringify(parsed)}`, result, markdown)
 }
 
 export async function referenceFactionsResponse(request: Request) {
   const limited = referenceRateLimit(request, 120)
   if (limited) return limited
-  const worker = activeWorkerReferences()
-  const corpus = worker ? null : await activeReferenceCorpus()
-  if (!worker && !corpus) return referenceUnavailable()
-  const metadata = worker ? await worker.referenceMetadata() : null
-  const data = metadata
-    ? { factions: metadata.factions, revisions: metadata.revisions }
-    : { factions: referenceFactions(corpus!), revisions: corpus!.catalogue.revisions }
+  const corpus = await activeReferenceCorpus()
+  if (!corpus) return referenceUnavailable()
+  const data = { factions: referenceFactions(corpus), revisions: corpus.catalogue.revisions }
   const markdown = `# Factions\n\n${data.factions.map((faction) => `- [${faction.name}](/factions/${faction.slug}) (${faction.datasheets} datasheets, ${faction.detachments} detachments)`).join('\n')}\n`
-  return referenceResponse(request, metadata?.revision ?? corpus!.revision, 'factions', data, markdown)
+  return referenceResponse(request, corpus.revision, 'factions', data, markdown)
 }
 
 export async function referenceIndexResponse(request: Request) {
   const limited = referenceRateLimit(request, 120)
   if (limited) return limited
-  const worker = activeWorkerReferences()
-  const corpus = worker ? null : await activeReferenceCorpus()
-  if (!worker && !corpus) return referenceUnavailable()
-  const data = worker ? (await worker.referenceMetadata()).index : referenceIndex(corpus!)
+  const corpus = await activeReferenceCorpus()
+  if (!corpus) return referenceUnavailable()
+  const data = referenceIndex(corpus)
   const markdown = [
     '# Praetorium reference index',
     `Corpus revision: ${data.corpusRevision}`,
@@ -92,11 +71,9 @@ export async function referenceIndexResponse(request: Request) {
 export async function referenceGuideResponse(request: Request) {
   const limited = referenceRateLimit(request, 120)
   if (limited) return limited
-  const worker = activeWorkerReferences()
-  const corpus = worker ? null : await activeReferenceCorpus()
-  if (!worker && !corpus) return referenceUnavailable()
-  const revision = worker ? (await worker.referenceMetadata()).revision : corpus!.revision
-  return referenceResponse(request, revision, 'guide', PRAETORIUM_GUIDE, praetoriumGuideMarkdown())
+  const corpus = await activeReferenceCorpus()
+  if (!corpus) return referenceUnavailable()
+  return referenceResponse(request, corpus.revision, 'guide', PRAETORIUM_GUIDE, praetoriumGuideMarkdown())
 }
 
 export async function referenceUnitsResponse(request: Request, catalogueId: string) {
@@ -110,17 +87,9 @@ export async function referenceUnitsResponse(request: Request, catalogueId: stri
   }
   const detachment = url.searchParams.get('detachment')?.trim() || undefined
   if (detachment && detachment.length > 160) return problem('detachment must contain at most 160 characters', 400)
-  const worker = activeWorkerReferences()
-  const metadata = worker ? await worker.referenceMetadata() : null
-  const wanted = catalogueId.trim().toLocaleLowerCase()
-  const found = metadata?.factions.find((candidate) =>
-    [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted),
-  )
-  if (metadata && !found) return problem('faction or detachment not found', 404)
-  const factionId = found?.id ?? catalogueId
-  const corpus = await activeReferenceCorpus(undefined, factionId)
+  const corpus = await activeReferenceCorpus()
   const instance = app()
-  const [loaded, rules] = await Promise.all([instance.catalogueFor(factionId), instance.rulesFor()])
+  const [loaded, rules] = await Promise.all([instance.catalogueFor(catalogueId), instance.rulesFor()])
   if (!corpus || !loaded) return referenceUnavailable()
   const data = referenceUnits(corpus, loaded, rules, catalogueId, battleSize, detachment)
   if (!data) return problem('faction or detachment not found', 404)
@@ -141,8 +110,8 @@ export async function referenceUnitsResponse(request: Request, catalogueId: stri
 export async function referenceRecordResponse(request: Request, id: string) {
   const limited = referenceRateLimit(request, 120)
   if (limited) return limited
-  const corpus = await activeReferenceCorpus(id)
-  if (!corpus) return activeWorkerReferences() ? problem('reference record not found', 404) : referenceUnavailable()
+  const corpus = await activeReferenceCorpus()
+  if (!corpus) return referenceUnavailable()
   const record = referenceRecord(corpus, await app().rulesFor(), id)
   if (!record) return problem('reference record not found', 404)
   return referenceResponse(request, corpus.revision, `record:${id}`, record, referenceDocumentMarkdown(record.document))
@@ -151,8 +120,8 @@ export async function referenceRecordResponse(request: Request, id: string) {
 export async function referenceDatasheetResponse(request: Request, catalogueId: string, slug: string) {
   const limited = referenceRateLimit(request, 120)
   if (limited) return limited
-  const corpus = await activeReferenceCorpus(`datasheet:${catalogueId}:${slug}`)
-  if (!corpus) return activeWorkerReferences() ? problem('datasheet not found', 404) : referenceUnavailable()
+  const corpus = await activeReferenceCorpus()
+  if (!corpus) return referenceUnavailable()
   const data = corpus.catalogue.datasheets.find(
     (sheet) => sheet.slug === slug && (sheet.catalogueId === catalogueId || sheet.referenceRoute?.catalogueId === catalogueId),
   )
@@ -171,13 +140,8 @@ export async function referenceDatasheetResponse(request: Request, catalogueId: 
 export async function referenceDetachmentResponse(request: Request, catalogueId: string, slug: string) {
   const limited = referenceRateLimit(request, 120)
   if (limited) return limited
-  const metadata = await activeWorkerReferences()?.referenceMetadata()
-  const wanted = catalogueId.toLocaleLowerCase()
-  const faction = metadata?.factions.find((candidate) =>
-    [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted),
-  )
-  const corpus = await activeReferenceCorpus(undefined, faction?.id)
-  if (!corpus) return activeWorkerReferences() ? problem('detachment not found', 404) : referenceUnavailable()
+  const corpus = await activeReferenceCorpus()
+  if (!corpus) return referenceUnavailable()
   const data = corpus.catalogue.detachments.find(
     (detachment) => detachment.slug === slug && (detachment.catalogueId === catalogueId || detachment.factionSlug === catalogueId),
   )
@@ -220,8 +184,8 @@ export async function referenceRuleSectionResponse(request: Request, documentId:
 export async function referenceDocumentResponse(request: Request, id: string) {
   const limited = referenceRateLimit(request, 120)
   if (limited) return limited
-  const corpus = await activeReferenceCorpus(id)
-  if (!corpus) return activeWorkerReferences() ? problem('reference document not found', 404) : referenceUnavailable()
+  const corpus = await activeReferenceCorpus()
+  if (!corpus) return referenceUnavailable()
   const document = corpus.byId.get(id)
   if (!document) return problem('reference document not found', 404)
   return referenceResponse(request, corpus.revision, id, document, referenceDocumentMarkdown(document))

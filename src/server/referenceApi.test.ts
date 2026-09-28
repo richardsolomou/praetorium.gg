@@ -11,7 +11,7 @@ const { document, corpus, state } = vi.hoisted(() => {
     revisions: { datacards: 'revision' },
     attribution: ['Community data'],
   }
-  const mockState: { available: boolean; ready: boolean; worker: unknown } = { available: true, ready: true, worker: null }
+  const mockState = { available: true, ready: true }
   return {
     document: record,
     corpus: {
@@ -34,7 +34,6 @@ vi.mock('./app', () => ({
     catalogue: () => null,
     rules: () => null,
     rulesFor: async () => null,
-    workerReferences: state.worker,
   }),
 }))
 
@@ -52,7 +51,6 @@ afterEach(() => {
   corpus.revision = 'snapshot'
   state.available = true
   state.ready = true
-  state.worker = null
 })
 
 it('parses bounded reference search filters', () => {
@@ -145,28 +143,6 @@ it('returns not found for an unknown reference document', async () => {
   expect((await referenceDocumentResponse(new Request('https://praetorium.gg/api/reference/v1/documents/missing'), 'missing')).status).toBe(
     404,
   )
-})
-
-it('uses the Worker reference lookup for a document and preserves not found', async () => {
-  state.worker = { referenceForDocument: async (id: string) => (id === document.id ? corpus : null) }
-  const found = await referenceDocumentResponse(new Request('https://praetorium.gg/api/reference/v1/documents/move'), document.id)
-  const missing = await referenceDocumentResponse(new Request('https://praetorium.gg/api/reference/v1/documents/missing'), 'missing')
-  expect([found.status, missing.status]).toEqual([200, 404])
-})
-
-it('serves Worker references on the first request while catalogue status is loading', async () => {
-  state.ready = false
-  state.worker = {
-    referenceMetadata: async () => ({
-      revision: 'snapshot',
-      index: { corpusRevision: 'snapshot', missionPacks: [], ruleDocuments: [], factions: [] },
-    }),
-    searchReferences: async () => ({ query: 'movement', results: [], revisions: {}, nextCursor: null }),
-  }
-
-  const search = await referenceSearchResponse(new Request('https://praetorium.gg/api/reference/v1/search?q=movement'))
-  const index = await referenceIndexResponse(new Request('https://praetorium.gg/api/reference/v1/'))
-  expect([search.status, index.status]).toEqual([200, 200])
 })
 
 it('returns unavailable rather than an empty reference', async () => {

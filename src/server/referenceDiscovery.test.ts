@@ -66,7 +66,7 @@ const { corpus } = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('./referenceApi', () => ({ activeReferenceCorpus: () => corpus, activeWorkerReferences: () => null }))
+vi.mock('./referenceApi', () => ({ activeReferenceCorpus: () => corpus }))
 
 const { history } = vi.hoisted(() => ({
   history: {
