@@ -148,7 +148,7 @@ jobs:
         run: |
           pnpm exec wrangler deploy --config "$RUNNER_TEMP/wrangler-production.json" \
             --secrets-file "$RUNNER_TEMP/wrangler-production-secrets.json" \
-            --route 'praetorium.gg/*' --route 's3.praetorium.gg/*'
+            --route 'praetorium.gg/*'
       - name: Verify production revision
         env:
           EXPECTED_REVISION: ${{ needs.release.outputs.sha || github.sha }}
