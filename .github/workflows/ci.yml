@@ -182,11 +182,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Main's snapshot usually restores from the cache, so only the head is split.
         include:
           - revision: base
             sha: ${{ needs.coverage-data.outputs.base-sha }}
+            file: base.json
           - revision: head
             sha: ${{ needs.coverage-data.outputs.head-sha }}
+            file: head-0.json
+            part: 0/2
+          - revision: head
+            sha: ${{ needs.coverage-data.outputs.head-sha }}
+            file: head-1.json
+            part: 1/2
     steps:
       # Each snapshot installs the dependencies of the revision it measures, so a
       # dependency bump is compared honestly instead of running both sides on the
@@ -208,11 +216,11 @@ jobs:
           key: catalogue-coverage-${{ matrix.sha }}-${{ hashFiles('catalogue-data/.snapshot.json') }}
       - name: Snapshot the ${{ matrix.revision }}
         if: matrix.revision == 'head' || steps.base-cache.outputs.cache-hit != 'true'
-        run: pnpm catalogue:coverage:parallel ${{ matrix.revision }}.json
+        run: pnpm catalogue:coverage:parallel ${{ matrix.file }} ${{ matrix.part && format('--part {0}', matrix.part) || '' }}
       - uses: actions/upload-artifact@v7
         with:
-          name: coverage-${{ matrix.revision }}
-          path: ${{ matrix.revision }}.json
+          name: coverage-${{ matrix.file }}
+          path: ${{ matrix.file }}
           retention-days: 1
           if-no-files-found: error
 
@@ -231,13 +239,12 @@ jobs:
           path: catalogue-data
       - uses: actions/download-artifact@v8
         with:
-          name: coverage-base
-      - uses: actions/download-artifact@v8
-        with:
-          name: coverage-head
+          pattern: coverage-*.json
+          merge-multiple: true
       - name: Compare snapshots
         run: |
           set -euo pipefail
+          jq -s 'add' head-*.json > head.json
           pnpm catalogue:coverage:compare base.json head.json --accept catalogue/accepted-coverage-losses.json | tee coverage.txt
       - name: Require no lost coverage
         run: |
