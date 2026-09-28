@@ -252,17 +252,26 @@ async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = fa
   }
 }
 
+/** Retried because a tab click that lands before hydration is swallowed rather than failing. */
+async function selectTab(tab: Locator) {
+  await expect(async () => {
+    if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click()
+    await expect(tab).toHaveAttribute('aria-selected', 'true', { timeout: 1000 })
+  }).toPass()
+}
+
 /** Opens the player's view of the event, which the organizer reaches through its tab. */
 async function eventTab(page: Page) {
   const tab = page.getByRole('tab', { name: 'Event' })
-  if ((await tab.count()) && (await tab.getAttribute('aria-selected')) !== 'true') await tab.click()
-  await expect(page.locator('[data-entry-status]')).toBeVisible()
+  const status = page.locator('[data-entry-status]')
+  // The previous page stays on screen while the league loads, so a missing tab only means a player's page once either has rendered.
+  await expect(tab.or(status).first()).toBeVisible()
+  if (await tab.count()) await selectTab(tab)
+  await expect(status).toBeVisible()
 }
 
 async function organizeTab(page: Page) {
-  const tab = page.getByRole('tab', { name: /^Organize/ })
-  if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click()
-  await expect(tab).toHaveAttribute('aria-selected', 'true')
+  await selectTab(page.getByRole('tab', { name: /^Organize/ }))
 }
 
 async function chooseRosterToSeal(page: Page, rosterName: string) {
@@ -358,6 +367,8 @@ async function expectOrganizerAvatar(row: Locator, ownerName: string) {
 async function submitLeagueCreation(page: Page, dialog: Locator) {
   await dialog.getByRole('button', { name: 'Create league' }).click()
   await expect(page).toHaveURL(/\/leagues\/[^/?]+/)
+  // The address changes before the league loads, and the index stays on screen until it has.
+  await expect(page.getByRole('tab', { name: /^Organize/ })).toBeVisible()
 }
 
 async function openLeagueCreation(page: Page) {
