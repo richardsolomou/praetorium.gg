@@ -1,6 +1,17 @@
 name: Dokploy web deploy
 
 on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      revision:
+        required: true
+        type: string
+      auth-import-key:
+        required: false
+        type: string
   workflow_dispatch:
     inputs:
       environment:
@@ -28,6 +39,7 @@ jobs:
       packages: write
     env:
       TARGET: ${{ inputs.environment }}
+      DEPLOY_SHA: ${{ inputs.revision || github.sha }}
       AUTH_IMPORT_R2_KEY: ${{ inputs.auth-import-key }}
       DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
       DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
@@ -65,6 +77,8 @@ jobs:
       VITE_POSTHOG_PROJECT_TOKEN: ${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
       - name: Require an immutable main revision for production
         run: |
@@ -72,6 +86,7 @@ jobs:
             echo 'Production web deploys must use main' >&2
             exit 1
           fi
+          [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]]
           test -n "$DOKPLOY_APPLICATION_ID"
           test -n "$DOKPLOY_ENVIRONMENT_ID"
           test -n "$SPACETIME_OWNER_TOKEN"
@@ -80,12 +95,12 @@ jobs:
         uses: richardsolomou/ras-stack/actions/publish-production-image@v1
         with:
           image: ghcr.io/${{ github.repository }}-node
-          sha: ${{ github.sha }}
+          sha: ${{ inputs.revision || github.sha }}
           release-tag: ${{ inputs.environment }}
           token: ${{ github.token }}
           dockerfile: Dockerfile.node
           build-args: |
-            GITHUB_SHA=${{ github.sha }}
+            GITHUB_SHA=${{ inputs.revision || github.sha }}
             VITE_POSTHOG_HOST=${{ vars.VITE_POSTHOG_HOST }}
             VITE_POSTHOG_PROJECT_TOKEN=${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
           cache-scope: node-web-image
