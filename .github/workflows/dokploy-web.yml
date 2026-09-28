@@ -86,7 +86,7 @@ jobs:
         id: image
         uses: richardsolomou/ras-stack/actions/publish-production-image@v1
         with:
-          image: ghcr.io/${{ github.repository }}-node
+          image: ghcr.io/${{ github.repository }}
           sha: ${{ inputs.revision || github.sha }}
           release-tag: ${{ inputs.environment }}
           token: ${{ github.token }}
