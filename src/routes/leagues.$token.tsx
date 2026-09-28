@@ -1,10 +1,11 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import { LeaguePage } from '../client/features/leagues/LeaguePage'
+import { LeaguePage, type LeagueTab } from '../client/features/leagues/LeaguePage'
 import { leagueQuery } from '../client/queries'
 
 export const Route = createFileRoute('/leagues/$token')({
-  validateSearch: (search: Record<string, unknown>): { event?: string; start?: boolean; choose?: boolean } => ({
+  validateSearch: (search: Record<string, unknown>): { event?: string; view?: LeagueTab; start?: boolean; choose?: boolean } => ({
     ...(typeof search.event === 'string' ? { event: search.event } : {}),
+    ...(search.view === 'event' || search.view === 'organize' ? { view: search.view } : {}),
     ...(search.start === true || search.start === 'true' ? { start: true } : {}),
     ...(search.choose === true || search.choose === 'true' ? { choose: true } : {}),
   }),
@@ -18,6 +19,6 @@ export const Route = createFileRoute('/leagues/$token')({
 
 function LeagueRoute() {
   const { token } = Route.useParams()
-  const { event, start, choose } = Route.useSearch()
-  return <LeaguePage key={event ?? ''} token={token} eventToken={event} startBattle={start} chooseRoster={choose} />
+  const { event, view, start, choose } = Route.useSearch()
+  return <LeaguePage key={event ?? ''} token={token} eventToken={event} view={view} startBattle={start} chooseRoster={choose} />
 }

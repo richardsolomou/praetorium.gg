@@ -8,7 +8,7 @@ import { Choice } from '../../components/Choice'
 export type LeagueEventRuleValue = { format: TableShape; rosterLimit: number }
 
 /** What each shape asks of an entrant's roster, which is the whole reason an event fixes one. */
-const ROSTER_RULE: Record<TableShape, string> = {
+export const ROSTER_RULE: Record<TableShape, string> = {
   '1v1': 'Everyone builds to the same points.',
   '2v1': 'You give each entrant a solo or allied size.',
   '2v2': 'You pair entrants into fixed teams of two.',
@@ -17,10 +17,13 @@ const ROSTER_RULE: Record<TableShape, string> = {
 export function LeagueEventRuleFields({
   value,
   disabled = false,
+  stacked = false,
   onChange,
 }: {
   value: LeagueEventRuleValue
   disabled?: boolean
+  /** One card per row, for a column too narrow to set the three shapes side by side. */
+  stacked?: boolean
   onChange: (value: LeagueEventRuleValue) => void
 }) {
   const limits = value.format === '1v1' ? GAME_SIZES.map((size) => size.limit) : LEAGUE_TEAM_ROSTER_LIMITS
@@ -37,6 +40,7 @@ export function LeagueEventRuleFields({
         label="Battle format"
         value={value.format}
         options={TABLE_SHAPES.map((shape) => ({ value: shape, ...TABLE_SHAPE_LABELS[shape], detail: ROSTER_RULE[shape] }))}
+        columns={stacked ? 1 : undefined}
         disabled={disabled}
         onChange={(format) =>
           onChange({

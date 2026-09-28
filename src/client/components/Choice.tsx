@@ -8,9 +8,9 @@ export type ChoiceOption<T extends string> = { value: T; name: string; count?: s
  *
  * By default the whole set sits across one row from `sm` and stacks below it, so a set
  * of three is never two cards and an orphan. `columns` fixes the grid at every width
- * instead, for cards short enough to sit across a phone.
+ * instead, for cards short enough to sit across a phone, or one per row for a narrow column.
  */
-const COLUMNS: Record<number, string> = { 2: 'grid-cols-2', 3: 'grid-cols-3' }
+const COLUMNS: Record<number, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3' }
 const WIDE_COLUMNS: Record<number, string> = { 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3' }
 
 export function Choice<T extends string>({
@@ -25,7 +25,7 @@ export function Choice<T extends string>({
   label: string
   value: T
   options: ChoiceOption<T>[]
-  columns?: 2 | 3
+  columns?: 1 | 2 | 3
   disabled?: boolean
   onboarding?: OnboardingTarget
   onChange: (value: T) => void

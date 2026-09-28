@@ -65,6 +65,73 @@ export type LeagueEntryView = {
   teamId: string | null
 }
 
+/** Whether an open event has room for another request, as the join command decides it. */
+export function leagueRegistrationFull(
+  league: { admission: LeagueAdmission; playerLimit: number | null },
+  acceptedCount: number,
+  occupiedCount: number,
+  memberLimit: number = LEAGUE_MEMBER_MAX,
+) {
+  return league.admission === 'approval' && league.playerLimit !== null
+    ? acceptedCount >= league.playerLimit || occupiedCount >= memberLimit
+    : occupiedCount >= (league.playerLimit ?? memberLimit)
+}
+
+/** The facts about an entry that reveal readiness reads; `requiredLimit` is the organizer's 2v1 assignment. */
+export type LeagueRevealEntry = {
+  userId: string
+  status: LeagueEntryStatus
+  submitted: boolean
+  requiredLimit: number | null
+  teamId: string | null
+}
+
+/**
+ * Every condition an event's shape puts on reveal, each with the entrants still holding it up.
+ *
+ * The reveal command refuses unless every check is done, and the organizer reads the same
+ * checks as a list, so the console can never call an event ready that the server would refuse.
+ */
+export type LeagueRevealCheck =
+  | { step: 'places'; done: boolean; accepted: number; required: number | null }
+  | { step: 'requests'; done: boolean; waiting: string[] }
+  | { step: 'sizes'; done: boolean; waiting: string[]; solo: number; allied: number }
+  | { step: 'teams'; done: boolean; waiting: string[] }
+  | { step: 'lists'; done: boolean; waiting: string[] }
+
+export function leagueRevealChecklist(
+  event: { format: TableShape | null; rosterLimit: number | null; playerLimit: number | null },
+  entries: readonly LeagueRevealEntry[],
+): LeagueRevealCheck[] {
+  const accepted = entries.filter((entry) => entry.status === 'accepted')
+  const checks: LeagueRevealCheck[] = [
+    {
+      step: 'places',
+      done: accepted.length > 0 && (event.playerLimit === null || accepted.length === event.playerLimit),
+      accepted: accepted.length,
+      required: event.playerLimit,
+    },
+  ]
+  if (event.format === '2v2') {
+    const pending = entries.filter((entry) => entry.status === 'pending').map((entry) => entry.userId)
+    checks.push({ step: 'requests', done: pending.length === 0, waiting: pending })
+    const teamSizes = new Map<string, number>()
+    for (const entry of accepted) if (entry.teamId) teamSizes.set(entry.teamId, (teamSizes.get(entry.teamId) ?? 0) + 1)
+    const unpaired = accepted.filter((entry) => !entry.teamId || teamSizes.get(entry.teamId) !== 2).map((entry) => entry.userId)
+    checks.push({ step: 'teams', done: accepted.length >= 4 && accepted.length % 2 === 0 && unpaired.length === 0, waiting: unpaired })
+  }
+  if (event.format === '2v1') {
+    const alliedLimit = alliedLeagueRosterLimit(event.rosterLimit ?? 0)
+    const solo = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === event.rosterLimit).length
+    const allied = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === alliedLimit).length
+    const unsized = accepted.filter((entry) => entry.requiredLimit === null).map((entry) => entry.userId)
+    checks.push({ step: 'sizes', done: unsized.length === 0 && solo > 0 && allied >= 2, waiting: unsized, solo, allied })
+  }
+  const unsealed = accepted.filter((entry) => !entry.submitted).map((entry) => entry.userId)
+  checks.push({ step: 'lists', done: unsealed.length === 0, waiting: unsealed })
+  return checks
+}
+
 export function visibleLeagueEntries(entries: readonly LeagueEntryView[], ownerId: string, viewerId: string | null) {
   return entries.filter((entry) => entry.status === 'accepted' || viewerId === ownerId || entry.userId === viewerId)
 }

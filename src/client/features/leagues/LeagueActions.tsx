@@ -37,8 +37,6 @@ export type ManageableLeague = {
   currentAcceptedCount: number
 }
 
-type Controller = ReturnType<typeof useLeagueActions>
-
 export function LeagueCardActions({ league, children }: { league: ManageableLeague; children: (menu: ReactNode) => ReactNode }) {
   const actions = useLeagueActions(league)
   return (
@@ -50,7 +48,7 @@ export function LeagueCardActions({ league, children }: { league: ManageableLeag
           {children(<LeagueMenu actions={actions} showView />)}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">
-          <LeagueActionItems Item={ContextMenuItem} actions={actions} showView />
+          <LeagueActionItems Item={ContextMenuItem} actions={actions} showView showShare />
         </ContextMenuContent>
       </ContextMenu>
       <LeagueActionDialogs actions={actions} />
@@ -59,25 +57,32 @@ export function LeagueCardActions({ league, children }: { league: ManageableLeag
   )
 }
 
-export function LeaguePageActions({ league, onDeleted }: { league: ManageableLeague; onDeleted: () => void | Promise<void> }) {
-  const actions = useLeagueActions(league, onDeleted)
+/** The league page's own menu: the console carries the invite, so the menu keeps only what changes the league itself. */
+export function LeaguePageActions({ actions }: { actions: LeagueActionsController }) {
   return (
     <>
-      <LeagueMenu actions={actions} />
+      <LeagueMenu actions={actions} showShare={false} />
       <LeagueActionDialogs actions={actions} />
-      <LeagueActionFeedback feedback={actions.copyFeedback} />
     </>
   )
 }
 
-function LeagueMenu({ actions, showView = false }: { actions: Controller; showView?: boolean }) {
+function LeagueMenu({
+  actions,
+  showView = false,
+  showShare = true,
+}: {
+  actions: LeagueActionsController
+  showView?: boolean
+  showShare?: boolean
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${actions.league.name}`} />}>
         <EllipsisVertical />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <LeagueActionItems Item={DropdownMenuItem} actions={actions} showView={showView} />
+        <LeagueActionItems Item={DropdownMenuItem} actions={actions} showView={showView} showShare={showShare} />
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -87,10 +92,12 @@ function LeagueActionItems({
   Item,
   actions,
   showView,
+  showShare,
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
-  actions: Controller
+  actions: LeagueActionsController
   showView: boolean
+  showShare: boolean
 }) {
   return (
     <>
@@ -99,10 +106,12 @@ function LeagueActionItems({
           <Eye /> View league
         </Item>
       ) : null}
-      <Item onClick={actions.copyInvite}>
-        {actions.copyFeedback === 'shared' ? <Share2 /> : actions.copyFeedback === 'copied' ? <Check /> : <Clipboard />}{' '}
-        {actions.copyFeedback === 'shared' ? 'Invite shared' : actions.copyFeedback === 'copied' ? 'Invite link copied' : 'Share invite'}
-      </Item>
+      {showShare ? (
+        <Item onClick={actions.copyInvite}>
+          {actions.copyFeedback === 'shared' ? <Share2 /> : actions.copyFeedback === 'copied' ? <Check /> : <Clipboard />}{' '}
+          {actions.copyFeedback === 'shared' ? 'Invite shared' : actions.copyFeedback === 'copied' ? 'Invite link copied' : 'Share invite'}
+        </Item>
+      ) : null}
       <Item onClick={actions.openEdit}>
         <Pencil /> Edit league
       </Item>
@@ -113,7 +122,7 @@ function LeagueActionItems({
   )
 }
 
-function LeagueActionDialogs({ actions }: { actions: Controller }) {
+function LeagueActionDialogs({ actions }: { actions: LeagueActionsController }) {
   return (
     <>
       <Dialog open={actions.editing} onOpenChange={(open) => !actions.update.isPending && actions.setEditing(open)}>
@@ -191,29 +200,58 @@ function LeagueActionDialogs({ actions }: { actions: Controller }) {
   )
 }
 
-function LeagueActionFeedback({ feedback }: { feedback: 'copied' | 'error' | 'shared' | null }) {
+function LeagueActionFeedback({ feedback }: { feedback: InviteFeedback }) {
   if (!feedback) return null
   return (
     <p
       aria-live="polite"
       className="fixed bottom-4 left-1/2 z-60 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 border border-edge bg-panel px-4 py-3 text-sm shadow-lg"
     >
-      {feedback === 'shared' ? 'Invite shared.' : feedback === 'copied' ? 'Invite link copied.' : 'Could not share the invite. Try again.'}
+      {inviteFeedbackText(feedback)}
     </p>
   )
 }
 
-function useLeagueActions(league: ManageableLeague, onDeleted?: () => void | Promise<void>) {
+export type InviteFeedback = 'copied' | 'error' | 'shared' | null
+
+export function inviteFeedbackText(feedback: Exclude<InviteFeedback, null>) {
+  return feedback === 'shared' ? 'Invite shared.' : feedback === 'copied' ? 'Invite link copied.' : 'Could not share the invite. Try again.'
+}
+
+/** Copies a league's invite, or hands it to the native share sheet, and says which happened for a few seconds. */
+export function useInviteShare(league: { token: string; name: string }) {
+  const [feedback, setFeedback] = useState<InviteFeedback>(null)
+  useEffect(() => {
+    if (!feedback) return
+    const timeout = window.setTimeout(() => setFeedback(null), 4_000)
+    return () => window.clearTimeout(timeout)
+  }, [feedback])
+  return {
+    feedback,
+    clear: () => setFeedback(null),
+    share: async () => {
+      setFeedback(null)
+      try {
+        setFeedback(await shareLink(leagueInviteUrl(league.token), league.name))
+      } catch {
+        setFeedback('error')
+      }
+    },
+  }
+}
+
+function leagueInviteUrl(token: string) {
+  return `${window.location.origin}/leagues/${token}`
+}
+
+export type LeagueActionsController = ReturnType<typeof useLeagueActions>
+
+export function useLeagueActions(league: ManageableLeague, onDeleted?: () => void | Promise<void>) {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [copyFeedback, setCopyFeedback] = useState<'copied' | 'error' | 'shared' | null>(null)
+  const invite = useInviteShare(league)
   const [value, setValue] = useState<LeagueFormValue>(formValue(league))
-  useEffect(() => {
-    if (!copyFeedback) return
-    const timeout = window.setTimeout(() => setCopyFeedback(null), 4_000)
-    return () => window.clearTimeout(timeout)
-  }, [copyFeedback])
   useEffect(() => {
     setValue((current) =>
       league.currentEventRevealedAt === null && current.playerLimit !== null && current.playerLimit < league.currentAcceptedCount
@@ -250,30 +288,23 @@ function useLeagueActions(league: ManageableLeague, onDeleted?: () => void | Pro
     setEditing,
     deleting,
     setDeleting,
-    copyFeedback,
+    copyFeedback: invite.feedback,
     value,
     setValue,
     update,
     remove,
     openEdit: () => {
-      setCopyFeedback(null)
+      invite.clear()
       update.reset()
       setValue(formValue(league))
       setEditing(true)
     },
     openDeleting: () => {
-      setCopyFeedback(null)
+      invite.clear()
       remove.reset()
       setDeleting(true)
     },
-    copyInvite: async () => {
-      setCopyFeedback(null)
-      try {
-        setCopyFeedback(await shareLink(`${window.location.origin}/leagues/${league.token}`, league.name))
-      } catch {
-        setCopyFeedback('error')
-      }
-    },
+    copyInvite: invite.share,
   }
 }
 
