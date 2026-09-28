@@ -16,7 +16,7 @@ jobs:
       pull-requests: read
     uses: richardsolomou/ras-stack/.github/workflows/prune-dokploy-previews.yml@v1
     with:
-      package: praetorium.gg-node
+      package: praetorium.gg
       application-prefix: praetorium-node
       domain: praetorium.gg
       subdomain-prefix: vm-pr
