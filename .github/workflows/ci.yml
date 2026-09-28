@@ -11,9 +11,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  PUBLIC_ASSETS_BASE_URL: ${{ vars.PUBLIC_ASSETS_BASE_URL }}
-
 jobs:
   check:
     runs-on: ubuntu-latest
