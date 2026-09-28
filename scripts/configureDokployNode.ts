@@ -34,7 +34,7 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
     R2_ACCOUNT_ID: required(environment, 'R2_ACCOUNT_ID'),
     ASSETS_R2_ACCESS_KEY_ID: required(environment, 'ASSETS_R2_ACCESS_KEY_ID'),
     ASSETS_R2_SECRET_ACCESS_KEY: required(environment, 'ASSETS_R2_SECRET_ACCESS_KEY'),
-    PUBLIC_ASSETS_BASE_URL: 'https://assets.praetorium.gg',
+    PUBLIC_ASSETS_BASE_URL: 'https://s3.praetorium.gg',
   }
   for (const name of [
     'GOOGLE_CLIENT_ID',

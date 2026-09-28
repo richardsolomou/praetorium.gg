@@ -8,7 +8,7 @@ export default definePlugin(() => {
   useNitroHooks().hook('response', (event) => {
     const csp = event.headers.get('content-security-policy')
     if (!csp) return
-    const updated = contentSecurityPolicy(csp, [origin, 'https://s3.praetorium.gg'], Boolean(process.env.SPACETIME_URL))
+    const updated = contentSecurityPolicy(csp, origin, Boolean(process.env.SPACETIME_URL))
     if (updated !== csp) event.headers.set('content-security-policy', updated)
   })
 })

@@ -14,9 +14,9 @@ function client(environment: NodeJS.ProcessEnv, prefix: string, bucket: string) 
 }
 
 export function privateR2Client(environment: NodeJS.ProcessEnv = process.env) {
-  return client(environment, 'R2', 'praetorium')
+  return client(environment, 'R2', 'praetorium-private')
 }
 
 export function publicAssetsR2Client(environment: NodeJS.ProcessEnv = process.env) {
-  return client(environment, 'ASSETS_R2', 'praetorium-assets')
+  return client(environment, 'ASSETS_R2', 'praetorium')
 }

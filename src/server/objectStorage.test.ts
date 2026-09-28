@@ -28,8 +28,8 @@ describe('configuredObjectStore', () => {
     const store = configuredObjectStore()
     await putIfAbsent(store!, 'avatars/example.webp', new Uint8Array([1, 2]), 'image/webp')
     expect(requests.map((request) => [request.method, request.url, request.headers.has('authorization')])).toEqual([
-      ['HEAD', `https://${'a'.repeat(32)}.r2.cloudflarestorage.com/praetorium-assets/avatars/example.webp`, true],
-      ['PUT', `https://${'a'.repeat(32)}.r2.cloudflarestorage.com/praetorium-assets/avatars/example.webp`, true],
+      ['HEAD', `https://${'a'.repeat(32)}.r2.cloudflarestorage.com/praetorium/avatars/example.webp`, true],
+      ['PUT', `https://${'a'.repeat(32)}.r2.cloudflarestorage.com/praetorium/avatars/example.webp`, true],
     ])
   })
 

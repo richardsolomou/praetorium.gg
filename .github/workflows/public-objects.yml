@@ -1,4 +1,4 @@
-name: Copy public R2 objects
+name: Copy private R2 objects
 
 on:
   workflow_dispatch:
@@ -12,10 +12,10 @@ jobs:
     env:
       AWS_DEFAULT_REGION: us-east-1
       ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
-      SOURCE: ${{ runner.temp }}/source-assets
-      VERIFY: ${{ runner.temp }}/verified-assets
+      SOURCE: ${{ runner.temp }}/private-source
+      VERIFY: ${{ runner.temp }}/private-verified
     steps:
-      - name: Download only public object prefixes from the private bucket
+      - name: Inventory every key before public exposure
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
@@ -23,39 +23,36 @@ jobs:
           set -euo pipefail
           test -n "$AWS_ACCESS_KEY_ID"
           test -n "$AWS_SECRET_ACCESS_KEY"
-          mkdir -p "$SOURCE/avatars" "$SOURCE/catalogue/snapshots" "$SOURCE/catalogue/changes"
-          aws s3 sync s3://praetorium/avatars/ "$SOURCE/avatars/" --endpoint-url "$ENDPOINT" --only-show-errors
-          aws s3 sync s3://praetorium/catalogue/snapshots/ "$SOURCE/catalogue/snapshots/" --endpoint-url "$ENDPOINT" --only-show-errors
-          aws s3 cp s3://praetorium/catalogue/current.json "$SOURCE/catalogue/current.json" --endpoint-url "$ENDPOINT" --only-show-errors
-          aws s3 cp s3://praetorium/catalogue/revocations.json "$SOURCE/catalogue/revocations.json" --endpoint-url "$ENDPOINT" --only-show-errors
-          if aws s3api head-object --bucket praetorium --key catalogue/changes/seed.json --endpoint-url "$ENDPOINT" >/dev/null 2>&1; then
-            aws s3 cp s3://praetorium/catalogue/changes/seed.json "$SOURCE/catalogue/changes/seed.json" --endpoint-url "$ENDPOINT" --only-show-errors
-          fi
+          aws s3api list-objects-v2 --bucket praetorium --endpoint-url "$ENDPOINT" --query 'Contents[].Key' --output json > "$RUNNER_TEMP/source-keys.json"
           python3 - <<'PY'
-          import os, pathlib, re
-          root = pathlib.Path(os.environ['SOURCE'])
-          allowed = re.compile(r'(?:avatars/[0-9a-f]{64}\.(?:jpg|png|webp)|catalogue/snapshots/[0-9a-f]{64}\.zip|catalogue/(?:current|revocations)\.json|catalogue/changes/seed\.json)')
-          paths = [p.relative_to(root).as_posix() for p in root.rglob('*') if p.is_file()]
-          if not paths or any(not allowed.fullmatch(p) for p in paths):
-              raise SystemExit('Source contains an unexpected public asset key')
-          print(f'Validated {len(paths)} public asset keys')
+          import json, pathlib, re, os
+          keys = json.loads((pathlib.Path(os.environ['RUNNER_TEMP']) / 'source-keys.json').read_text())
+          public = re.compile(r'(?:avatars/[0-9a-f]{64}\.(?:jpg|png|webp)|catalogue/.*)')
+          private = re.compile(r'(?:backups/.*|praetoriumgg-spacetimedb-prod-fc6ghi/.*)')
+          unexpected = [key for key in keys if not public.fullmatch(key) and not private.fullmatch(key)]
+          if unexpected:
+              raise SystemExit(f'{len(unexpected)} keys do not belong in either bucket: {unexpected[:5]}')
+          print(f'Classified {sum(bool(public.fullmatch(key)) for key in keys)} public and {sum(bool(private.fullmatch(key)) for key in keys)} private objects')
           PY
-      - name: Upload immutable assets to the public bucket
+      - name: Download private objects from the current bucket
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.ASSETS_R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.ASSETS_R2_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$SOURCE/backups" "$SOURCE/praetoriumgg-spacetimedb-prod-fc6ghi"
+          aws s3 sync s3://praetorium/backups/ "$SOURCE/backups/" --endpoint-url "$ENDPOINT" --only-show-errors
+          aws s3 sync s3://praetorium/praetoriumgg-spacetimedb-prod-fc6ghi/ "$SOURCE/praetoriumgg-spacetimedb-prod-fc6ghi/" --endpoint-url "$ENDPOINT" --only-show-errors
+      - name: Upload and verify every private object in the new bucket
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
           test -n "$AWS_ACCESS_KEY_ID"
           test -n "$AWS_SECRET_ACCESS_KEY"
-          aws s3 sync "$SOURCE/avatars/" s3://praetorium-assets/avatars/ --endpoint-url "$ENDPOINT" --cache-control 'public, max-age=31536000, immutable' --only-show-errors
-          aws s3 sync "$SOURCE/catalogue/snapshots/" s3://praetorium-assets/catalogue/snapshots/ --endpoint-url "$ENDPOINT" --cache-control 'public, max-age=31536000, immutable' --only-show-errors
-          for key in catalogue/current.json catalogue/revocations.json catalogue/changes/seed.json; do
-            if test -f "$SOURCE/$key"; then
-              aws s3 cp "$SOURCE/$key" "s3://praetorium-assets/$key" --endpoint-url "$ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
-            fi
-          done
-          aws s3 sync s3://praetorium-assets/ "$VERIFY/" --endpoint-url "$ENDPOINT" --only-show-errors
+          aws s3 sync "$SOURCE/" s3://praetorium-private/ --endpoint-url "$ENDPOINT" --only-show-errors
+          aws s3 sync s3://praetorium-private/ "$VERIFY/" --endpoint-url "$ENDPOINT" --only-show-errors
           (cd "$SOURCE" && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$RUNNER_TEMP/source.sha256"
           (cd "$VERIFY" && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$RUNNER_TEMP/verified.sha256"
           diff -u "$RUNNER_TEMP/source.sha256" "$RUNNER_TEMP/verified.sha256"

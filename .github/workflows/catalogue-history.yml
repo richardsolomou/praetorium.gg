@@ -26,9 +26,9 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.ASSETS_R2_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.ASSETS_R2_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: us-east-1
-      SNAPSHOT_BUCKET: praetorium-assets
+      SNAPSHOT_BUCKET: praetorium
       SNAPSHOT_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
-      CATALOGUE_BASE_URL: https://assets.praetorium.gg/catalogue
+      CATALOGUE_BASE_URL: https://s3.praetorium.gg/catalogue
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v1

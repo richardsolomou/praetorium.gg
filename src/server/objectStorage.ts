@@ -1,7 +1,7 @@
 import { publicAssetsR2Client } from './r2Client'
 import { localObjectStore } from './localObjectStore'
 
-export const DEFAULT_PUBLIC_ASSETS_BASE_URL = 'https://assets.praetorium.gg'
+export const DEFAULT_PUBLIC_ASSETS_BASE_URL = 'https://s3.praetorium.gg'
 
 type ObjectBucket = {
   head: (key: string) => Promise<unknown>

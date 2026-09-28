@@ -20,7 +20,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.ASSETS_R2_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.ASSETS_R2_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: us-east-1
-      SNAPSHOT_BUCKET: praetorium-assets
+      SNAPSHOT_BUCKET: praetorium
       SNAPSHOT_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
       CATALOGUE_SNAPSHOT_FILE: /tmp/catalogue-snapshot.zip
       CATALOGUE_SNAPSHOT_POINTER_FILE: /tmp/catalogue-current.json
@@ -47,7 +47,7 @@ jobs:
       # publish: what it cannot read it logs, and it carries forward only what it measured.
       - name: Carry the data-update history forward
         env:
-          CATALOGUE_BASE_URL: https://assets.praetorium.gg/catalogue
+          CATALOGUE_BASE_URL: https://s3.praetorium.gg/catalogue
         run: pnpm catalogue:history
       - name: Build and publish the immutable snapshot
         run: |
