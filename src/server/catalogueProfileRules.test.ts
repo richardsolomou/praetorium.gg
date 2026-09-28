@@ -11,7 +11,6 @@ import {
 } from './catalogueProfileRules'
 import { factionsFor } from './factionReferences'
 import { battleDetachmentData, selectedBattleDetachmentData } from './battleDetachmentData'
-import { cataloguePartitions } from './cataloguePartitions'
 import type { LoadedRules } from './rules'
 
 const files: CatalogueFile[] = [
@@ -326,14 +325,11 @@ it('serves profiled stratagems from compiled battle detachment data', () => {
   ])
 })
 
-it('recovers profile metadata from prepared catalogue partitions', () => {
+it('recovers profile metadata from prepared catalogue files', () => {
   const { files: prepared } = loadedCatalogue()
-  const named = prepared.map((file, index) => ({ name: `${index}.json`, file }))
-  const names = cataloguePartitions(named).get('dark-angels')!
-  const partition = names.map((name) => named.find((entry) => entry.name === name)!.file)
-  const index = buildIndex(partition, 'revision')
-  const metadata = catalogueProfileMetadata(partition)
-  const loaded = { index, detachments: detachmentsOf(partition, index), ...metadata }
+  const index = buildIndex(prepared, 'revision')
+  const metadata = catalogueProfileMetadata(prepared)
+  const loaded = { index, detachments: detachmentsOf(prepared, index), ...metadata }
 
   expect(loaded.profiledArmyRules.get('space-marines')?.map((rule) => rule.name)).toEqual(['Combat Doctrines'])
   expect(

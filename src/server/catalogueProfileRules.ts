@@ -38,7 +38,6 @@ function directDetachmentOptions(book: Catalogue) {
     .flatMap((group) => group.selectionEntries ?? [])
 }
 
-/** Prepared Worker partitions retain the generated wrapper that identifies a profiled source. */
 export function catalogueProfileMetadata(files: readonly CatalogueFile[], rawIndex?: CatalogueIndex) {
   const books = new Map(files.flatMap((file) => (file.catalogue ? [[file.catalogue.id, file.catalogue] as const] : [])))
   const profiledCatalogueIds = new Set<string>()
