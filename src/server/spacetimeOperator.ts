@@ -3,12 +3,14 @@ import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisi
 import { reduceBattle, type Command, type LoggedCommand, type SubmitResult } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, type BattleAudience } from '../core/battleAudience'
+import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 
 const rosterRow = z.strictObject({
   id: z.string(),
   userId: z.string(),
   name: z.string(),
+  automaticName: z.boolean().nullable(),
   catalogueId: z.string(),
   detachmentId: z.string().nullable(),
   disposition: z.string().nullable(),
@@ -25,6 +27,9 @@ const rosterRow = z.strictObject({
   updatedAt: z.number().int(),
 })
 
+const rosterSummaryRow = rosterRow.omit({ userId: true, picks: true, prep: true, tags: true }).extend({
+  unitCount: z.number().int().nonnegative(),
+})
 const collectionRow = z.strictObject({ userId: z.string(), entryId: z.string(), at: z.number().int() })
 const favouriteFactionRow = z.strictObject({ userId: z.string(), catalogueId: z.string(), at: z.number().int() })
 const favouriteDetachmentRow = z.strictObject({
@@ -133,6 +138,7 @@ type SaveRosterInput = {
   id: string
   userId: string
   name: string
+  automaticName?: boolean
   catalogueId: string
   detachmentId: string | null
   disposition: string | null
@@ -401,6 +407,13 @@ export class SpacetimeOperator {
     return this.readRosters(userId, false, 1_000)
   }
 
+  async rostersByIds(userId: string, ids: string[]) {
+    return z
+      .array(rosterRow)
+      .max(ROSTER_LIBRARY_BATCH_SIZE)
+      .parse(await this.read('rosters_by_ids', [userId, ids]))
+  }
+
   async homeRostersByUser(userId: string) {
     return z
       .object({ count: z.number().int().nonnegative(), rows: z.array(rosterRow).max(5) })
@@ -412,7 +425,10 @@ export class SpacetimeOperator {
   }
 
   async rosterSummariesByUser(userId: string) {
-    return this.rostersByUser(userId)
+    return z
+      .array(rosterSummaryRow)
+      .max(1_000)
+      .parse(await this.read('roster_summaries_by_user', [userId]))
   }
 
   private async readRosters(userId: string, publicOnly: boolean, limit: number) {

@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { bookOf } from './catalogue.fixtures'
-import { cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from './rosterPrices'
+import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from './rosterPrices'
 
 const reads = vi.hoisted(() => ({
   factionIndexFor: vi.fn(),
@@ -51,6 +51,11 @@ it('reuses current totals without loading the faction again', async () => {
   expect(reads.catalogueFor).toHaveBeenCalledTimes(1)
 })
 
+it('returns the saved name with its totals', async () => {
+  const [totals] = await cachedRosterTotalsFor([{ ...roster('stored-name'), name: 'My army' }])
+  expect(totals?.label).toBe('My army')
+})
+
 it('retries totals when a faction read fails', async () => {
   reads.catalogueFor.mockRejectedValueOnce(new Error('faction unavailable'))
   await expect(cachedRosterTotalsFor([roster('batch-retry')])).rejects.toThrow('faction unavailable')
@@ -60,6 +65,14 @@ it('retries totals when a faction read fails', async () => {
 it('loads one faction catalogue for several saved roster verdicts', async () => {
   const values = await cachedRosterVerdictsFor([priceable('verdict-one'), priceable('verdict-two')])
   expect({ count: values.length, reads: reads.catalogueFor.mock.calls.length }).toEqual({ count: 2, reads: 1 })
+})
+
+it('reuses one full evaluation for library points and legality', async () => {
+  const saved = priceable('page-assessment')
+  const [assessment] = await cachedRosterAssessmentsFor([saved])
+  expect(assessment).toMatchObject({ points: 0, verdict: { problem: null } })
+  await cachedRosterVerdictsFor([saved])
+  expect(reads.catalogueFor).toHaveBeenCalledTimes(1)
 })
 
 it('does not guess legality without rules', async () => {

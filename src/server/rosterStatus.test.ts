@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { catalogueChanges, changesTouching } from '../core/catalogueChanges'
 import { bookOf, points } from './catalogue.fixtures'
-import { calculateRosterPrice, savedRosterPriceInput } from './pricing'
+import { calculateRosterAssessment, calculateRosterPrice, savedRosterPriceInput } from './pricing'
 import type { LoadedRules } from './rules'
-import { rosterStatus, rosterVerdict } from './rosterStatus'
+import { rosterChangeWithoutPricing, rosterStatus, rosterVerdict } from './rosterStatus'
 
 const rulesWithout = {
   factionKeys: new Map(),
@@ -46,6 +46,32 @@ const repricedSquad = {
 }
 
 describe('the verdict on a saved list', () => {
+  it.each([
+    ['legal', saved(['lord', 'squad'])],
+    ['over points', saved(['lord', 'squad'], 150)],
+    ['broken limit', saved(['lord', 'lord'])],
+    ['retired datasheet', saved(['retired'])],
+  ])('assesses %s like full pricing', (_scenario, roster) => {
+    const input = savedRosterPriceInput(roster)
+    expect(rosterVerdict(roster, calculateRosterAssessment(input, loaded, rulesWithout))).toEqual(
+      rosterVerdict(roster, calculateRosterPrice(input, loaded, rulesWithout)),
+    )
+  })
+
+  it('reuses a unit build across lists with duplicate picks', () => {
+    const cache: NonNullable<Parameters<typeof calculateRosterAssessment>[3]> = new Map()
+    calculateRosterAssessment(savedRosterPriceInput(saved(['lord', 'squad'])), loaded, rulesWithout, cache)
+    const roster = saved(['lord', 'lord'])
+    const input = savedRosterPriceInput(roster)
+    const assessed = calculateRosterAssessment(input, loaded, rulesWithout, cache)
+    const priced = calculateRosterPrice(input, loaded, rulesWithout)
+
+    expect({ points: assessed?.points, verdict: rosterVerdict(roster, assessed) }).toEqual({
+      points: priced?.points,
+      verdict: rosterVerdict(roster, priced),
+    })
+  })
+
   it('finds nothing wrong with a legal list', () => {
     expect(judged(saved(['lord', 'squad'])).problem).toBeNull()
   })
@@ -121,5 +147,105 @@ describe('the library row for a saved list', () => {
 
   it('counts nothing for a list whose changes all cancel out', () => {
     expect(row([squadPriced(200, 70, 80), squadPriced(300, 80, 70)]).changes).toBe(0)
+  })
+})
+
+describe('changes that do not need roster pricing', () => {
+  const optionChange = (catalogueId: string, detachmentId: string) => ({
+    recordedAt: 200,
+    changes: {
+      factions: [
+        {
+          catalogueId,
+          faction: 'Test',
+          changes: [
+            {
+              kind: 'enhancement-points' as const,
+              detachmentId,
+              detachment: 'Test Detachment',
+              name: 'Artificer Armour',
+              upgrade: false,
+              from: '10',
+              to: '15',
+            },
+          ],
+        },
+      ],
+      omitted: 0,
+    },
+  })
+
+  it('finds a changed datasheet even when it belongs to another faction', () => {
+    const alliedChange = {
+      ...repricedSquad,
+      changes: {
+        ...repricedSquad.changes,
+        factions: repricedSquad.changes.factions.map((faction) => ({ ...faction, catalogueId: 'ally' })),
+      },
+    }
+
+    expect(rosterChangeWithoutPricing(saved(['squad']), [alliedChange])).toBe('changed')
+  })
+
+  it('finds a changed detachment in the roster faction', () => {
+    const detachment = { catalogueId: 'cat', faction: 'Test', id: 'detachment', name: 'Test Detachment', enhancements: [], upgrades: [] }
+    const update = {
+      recordedAt: 200,
+      changes: catalogueChanges(
+        { datasheets: [], detachments: [{ ...detachment, points: 0 }] },
+        { datasheets: [], detachments: [{ ...detachment, points: 5 }] },
+      ),
+    }
+
+    expect(rosterChangeWithoutPricing({ ...saved(['lord']), detachmentIds: ['detachment'] }, [update])).toBe('changed')
+  })
+
+  it('does not report a change that was undone', () => {
+    const unchanged = {
+      ...repricedSquad,
+      recordedAt: 300,
+      changes: catalogueChanges(
+        { datasheets: [{ catalogueId: 'cat', faction: 'Test', id: 'squad', name: 'Squad', points: 80, costs: [] }], detachments: [] },
+        { datasheets: [{ catalogueId: 'cat', faction: 'Test', id: 'squad', name: 'Squad', points: 70, costs: [] }], detachments: [] },
+      ),
+    }
+
+    expect(rosterChangeWithoutPricing(saved(['squad']), [repricedSquad, unchanged])).toBe('unchanged')
+  })
+
+  it('leaves an enhancement-only change for the priced fallback', () => {
+    const roster = { ...saved(['lord']), detachmentIds: ['detachment'] }
+    const update = optionChange('cat', 'detachment')
+    const priced = rosterVerdict(roster, {
+      points: 100,
+      detachmentError: null,
+      dispositionError: null,
+      errors: [],
+      units: [{ enhancements: ['Artificer Armour'], upgrades: [] }],
+    })
+
+    expect({
+      certain: rosterChangeWithoutPricing(roster, [update]),
+      priced: rosterStatus({ ...roster, id: 'list' }, priced, [update]).changes,
+    }).toEqual({
+      certain: 'needs-price',
+      priced: 1,
+    })
+  })
+
+  it('skips an option change in another detachment', () => {
+    expect(rosterChangeWithoutPricing({ ...saved(['lord']), detachmentIds: ['detachment'] }, [optionChange('cat', 'other')])).toBe(
+      'unchanged',
+    )
+  })
+
+  it('skips an option change in another faction', () => {
+    expect(rosterChangeWithoutPricing({ ...saved(['lord']), detachmentIds: ['detachment'] }, [optionChange('ally', 'detachment')])).toBe(
+      'unchanged',
+    )
+  })
+
+  it('ignores updates from before the roster was saved', () => {
+    expect(rosterChangeWithoutPricing({ ...saved(['squad']), updatedAt: 300 }, [repricedSquad])).toBe('unchanged')
   })
 })

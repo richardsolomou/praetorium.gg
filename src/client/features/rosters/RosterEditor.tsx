@@ -5,6 +5,7 @@ type ListBuilderProps = Parameters<typeof ListBuilder>[0]
 type Roster = {
   id: string
   name: string
+  automaticName?: boolean
   catalogueId: string
   detachmentIds: string[]
   disposition: string | null

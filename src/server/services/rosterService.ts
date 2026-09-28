@@ -16,12 +16,19 @@ type SavedPrep = {
 }
 const PROFILE_ROSTER_LIMIT = 50
 
-function rosterSummaries(rows: readonly Awaited<ReturnType<RepositoryPort['rosterSummariesByUser']>>[number][]) {
+type SummaryRow = Awaited<ReturnType<RepositoryPort['rosterSummariesByUser']>>[number]
+type FullRow = Awaited<ReturnType<RepositoryPort['rostersByUser']>>[number]
+
+function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
   return rows.map((row) => {
-    const units = picksSchema.parse(JSON.parse(row.picks))
+    const unitCount =
+      'unitCount' in row
+        ? row.unitCount
+        : attachedUnitCount(picksSchema.parse(JSON.parse(row.picks)).map((unit, key) => ({ key, attachedTo: unit.attachedTo })))
     return {
       id: row.id,
       name: row.name,
+      automaticName: row.automaticName ?? !row.name,
       catalogueId: row.catalogueId,
       detachmentIds: detachmentIds(row.detachmentId),
       disposition: row.disposition,
@@ -33,7 +40,7 @@ function rosterSummaries(rows: readonly Awaited<ReturnType<RepositoryPort['roste
       source: row.source,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
-      unitCount: attachedUnitCount(units.map((unit, key) => ({ key, attachedTo: unit.attachedTo }))),
+      unitCount,
     }
   })
 }
@@ -49,6 +56,7 @@ export class RosterService {
     roster: {
       id?: string
       name: string
+      automaticName?: boolean
       catalogueId: string
       detachmentIds: readonly string[]
       disposition: string | null
@@ -65,6 +73,7 @@ export class RosterService {
     const id = roster.id ?? randomId()
     const saved = await this.repository.saveRoster({
       ...roster,
+      automaticName: roster.automaticName ?? false,
       detachmentId: JSON.stringify(roster.detachmentIds),
       id,
       userId,
@@ -89,7 +98,12 @@ export class RosterService {
   /** A user's own saved lists, newest first. Their picks come back parsed. */
   async savedRosters(userId: string) {
     const rows = await this.repository.rostersByUser(userId)
-    return rows.map((row) => rosterFromRow(row, true))
+    return rows.map((row) => rosterFromRow(row))
+  }
+
+  async savedRostersByIds(userId: string, ids: string[]) {
+    const rows = await this.repository.rostersByIds(userId, ids)
+    return rows.map((row) => rosterFromRow(row))
   }
 
   async savedRosterSummaries(userId: string) {

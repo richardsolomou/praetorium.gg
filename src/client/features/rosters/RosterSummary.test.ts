@@ -7,6 +7,7 @@ import { RosterSummary } from './RosterSummary'
 const roster = {
   id: 'roster-1',
   name: 'Cursed Legion',
+  automaticName: false,
   catalogueId: 'necrons',
   detachmentIds: ['awakened-dynasty'],
   disposition: null,

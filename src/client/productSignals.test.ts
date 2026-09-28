@@ -4,17 +4,20 @@ import { invalidateAdminProductQueries, invalidateProductQueries, invalidatePubl
 
 it('refreshes the home roster shelf and saved lists after a roster signal without reloading catalogue data', async () => {
   const client = new QueryClient()
-  for (const key of ['home-rosters', 'saved-roster-summaries', 'saved-roster-status', 'faction-index']) {
+  for (const key of ['home-rosters', 'saved-roster-summaries', 'saved-roster-changed-count', 'faction-index']) {
     client.setQueryData([key], {})
   }
+  client.setQueryData(['saved-roster-page', ['roster-1']], {})
 
   await invalidateProductQueries(client, 'rosters')
 
-  expect(
-    ['home-rosters', 'saved-roster-summaries', 'saved-roster-status', 'faction-index'].map(
-      (key) => client.getQueryState([key])?.isInvalidated,
-    ),
-  ).toEqual([true, true, true, false])
+  expect([
+    client.getQueryState(['home-rosters'])?.isInvalidated,
+    client.getQueryState(['saved-roster-summaries'])?.isInvalidated,
+    client.getQueryState(['saved-roster-page', ['roster-1']])?.isInvalidated,
+    client.getQueryState(['saved-roster-changed-count'])?.isInvalidated,
+    client.getQueryState(['faction-index'])?.isInvalidated,
+  ]).toEqual([true, true, true, true, false])
 })
 
 it('refreshes both sides of a friendship without reloading saved rosters', async () => {

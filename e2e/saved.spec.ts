@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
-import { createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import { createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
+import { productOperator, withAuthSql } from './storage'
 
 test('the roster library reserves its rows while the first page loads', async ({ browser, page }) => {
   await signUp(page, 'Loading')
@@ -50,6 +51,58 @@ test('the roster library reserves its rows while the first page loads', async ({
   await page.unroute('**/_serverFn/**')
 })
 
+test('the roster library counts every saved list and prices more rows on demand', async ({ page }) => {
+  const { email } = await signUp(page, 'Paged library')
+  await page.goto('/rosters')
+  const count = page.locator('main section').last().locator('.rubric .readout')
+  await expect(count).toHaveText('0')
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First roster' })
+  const rosterId = new URL(page.url()).pathname.split('/').at(-1)!
+  await page.goto('/rosters')
+  await expect(count).toHaveText('1')
+  await expect(page.locator('[data-roster]')).toHaveCount(1)
+
+  const userId = await withAuthSql((database) => (database.prepare('SELECT id FROM user WHERE email = ?').get(email) as { id: string }).id)
+  const operator = await productOperator()
+  const source = await operator.roster(rosterId)
+  if (!source) throw new Error('Saved roster missing')
+  for (let index = 1; index <= 20; index++) {
+    await operator.saveRoster({
+      id: crypto.randomUUID(),
+      userId,
+      name: `Roster ${index}`,
+      automaticName: false,
+      catalogueId: source.catalogueId,
+      detachmentId: source.detachmentId,
+      disposition: source.disposition,
+      limit: source.limit,
+      picks: source.picks,
+      prep: source.prep,
+      tags: source.tags,
+      waivedRules: source.waivedRules,
+      optionalRules: source.optionalRules,
+      borrowedDetachmentId: source.borrowedDetachmentId,
+      visibility: source.visibility,
+      source: source.source,
+      now: Date.now() + index,
+    })
+  }
+  await page.reload()
+  await expect(count).toHaveText('21')
+  await expect(page.locator('[data-roster]')).toHaveCount(20)
+  await page.getByRole('button', { name: 'Show more rosters' }).click()
+  await expect(page.locator('[data-roster]')).toHaveCount(21)
+  await expect(page.locator('[data-roster]').last().locator('.readout')).toHaveText(/^\d+\/2000$/)
+  await expect(page.getByRole('button', { name: 'Show more rosters' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Sort: Recently updated' }).click()
+  await page.getByRole('menuitemradio', { name: 'A to Z' }).click()
+  await expect(page.locator('[data-roster]')).toHaveCount(20)
+  await expect(page.getByRole('button', { name: 'Show more rosters' })).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/roster-library-paged-phone.png' })
+})
+
 test('opening an unchanged list saves nothing, and an edit still saves', async ({ page }) => {
   await signUp(page, 'Unchanged')
   // Creating the list and naming it are both saves; `createRoster` waits for the name's.
@@ -68,6 +121,45 @@ test('opening an unchanged list saves nothing, and an edit still saves', async (
 
   await waitForRosterSave(page, () => page.getByLabel('List name').fill(`${rosterName} edited`), `${rosterName} edited`)
   expect(saves).toHaveLength(1)
+})
+
+test('automatic roster names are saved with edits and a player can override or restore them', async ({ page }) => {
+  await signUp(page, 'Automatic roster')
+  await page.goto('/rosters')
+  const dialog = page.getByRole('dialog', { name: 'Create roster' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create editable roster' }).click())
+  await dialog.getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByPlaceholder('Search factions…').fill('Necrons')
+  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
+  await dialog.getByRole('button', { name: 'Create roster' }).click()
+  await page.waitForURL(/\/rosters\/[^/]+$/)
+  const name = page.getByLabel('List name')
+  await expect(name).toHaveValue('')
+  await expect(name).toHaveAttribute('placeholder', 'AD 2K')
+
+  await waitForRosterSave(page, async () => {
+    await page.getByLabel('Add a unit').fill('Immortals')
+    await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+  })
+  await expect(name).toHaveAttribute('placeholder', 'AD 2K - Immortals')
+  await page.reload()
+  await expect(name).toHaveValue('')
+  await expect(name).toHaveAttribute('placeholder', 'AD 2K - Immortals')
+
+  await waitForRosterSave(page, () => name.fill('My Necrons'), 'My Necrons')
+  await page.reload()
+  await expect(name).toHaveValue('My Necrons')
+  await waitForRosterSave(page, async () => {
+    await page.getByLabel('Add a unit').fill("C'tan Shard of the Deceiver")
+    await page.getByRole('button', { name: "Add C'tan Shard of the Deceiver", exact: true }).first().click()
+  })
+  await page.reload()
+  await expect(name).toHaveValue('My Necrons')
+  await waitForRosterSave(page, () => name.fill(''))
+  await page.reload()
+  await expect(name).toHaveValue('')
+  await expect(name).toHaveAttribute('placeholder', "AD 2K - C'tan")
 })
 
 test('an open roster follows edits saved in another tab', async ({ page }) => {
@@ -117,6 +209,23 @@ test('an open roster follows edits saved in another tab', async ({ page }) => {
   } finally {
     releaseSave()
   }
+})
+
+test('the roster library reprices a saved list edited in another tab', async ({ page }) => {
+  await signUp(page, 'Live library')
+  const rosterName = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Live library roster' })
+  const viewer = await page.context().newPage()
+  await viewer.goto('/rosters')
+  const row = viewer.locator(`[data-roster="${rosterName}"]`)
+  await expect(row.locator('.readout')).toHaveText('0/2000')
+
+  await waitForRosterSave(page, async () => {
+    await page.getByLabel('Add a unit').fill('Immortals')
+    await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+  })
+
+  await expect(row.locator('.readout')).toHaveText(/^[1-9]\d*\/2000$/)
+  await viewer.close()
 })
 
 test('a visitor opening the roster library is given the builder instead', async ({ page }) => {

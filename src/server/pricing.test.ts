@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { OptionalRuleId } from '../core/battle'
 import type { SelectionEntry } from '../core/catalogue'
 import {
+  calculateRosterAssessment,
   calculateRosterPrice,
   choiceOptionsForPricing,
   deploymentRules,
@@ -107,6 +108,17 @@ describe('a datasheet capped by the battle size', () => {
 
     expect(priceCopies(loaded, 2_000, three)).toEqual([])
     expect(priceCopies(loaded, 1_000, three)).toEqual(['allows at most 2, has 3'])
+  })
+
+  it('keeps cached unit builds scoped to their battle size', () => {
+    const loaded = bookOf({ selectionEntries: [cappedLord('lord', 'Warlord')] })
+    const units = [{ entryId: 'lord' }, { entryId: 'lord' }, { entryId: 'lord' }]
+    const cache: NonNullable<Parameters<typeof calculateRosterAssessment>[3]> = new Map()
+    const assess = (limit: number) =>
+      calculateRosterAssessment({ catalogueId: 'cat', detachmentIds: [], disposition: null, limit, units }, loaded, rulesWithout, cache)
+
+    assess(2_000)
+    expect(assess(1_000)?.errors.map((error) => error.message)).toEqual(['allows at most 2, has 3'])
   })
 
   it('caps an ally in its own force by the same battle size', () => {
@@ -495,17 +507,15 @@ describe('catalogue-backed deployment rules', () => {
       },
     ])
 
-    const priced = calculateRosterPrice(
-      {
-        catalogueId: 'cat',
-        detachmentIds: ['flyboyz'],
-        disposition: null,
-        limit: 2_000,
-        units: [{ entryId: 'warboss', choices: { enhancements: 'master' } }, { entryId: 'boyz' }],
-      },
-      loaded,
-      rules,
-    )
+    const input = {
+      catalogueId: 'cat',
+      detachmentIds: ['flyboyz'],
+      disposition: null,
+      limit: 2_000,
+      units: [{ entryId: 'warboss', choices: { enhancements: 'master' } }, { entryId: 'boyz' }],
+    }
+    const priced = calculateRosterPrice(input, loaded, rules)
+    const assessed = calculateRosterAssessment(input, loaded, rules)
 
     expect(priced).toMatchObject({
       strategicReserveFactsComplete: true,
@@ -515,6 +525,7 @@ describe('catalogue-backed deployment rules', () => {
       ],
     })
     expect(priced?.units[1]).not.toHaveProperty('strategicReserveExempt')
+    expect(assessed?.units).toEqual(priced?.units.map(({ enhancements, upgrades }) => ({ enhancements, upgrades })))
   })
 })
 

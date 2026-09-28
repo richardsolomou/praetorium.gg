@@ -76,6 +76,7 @@ type Props = {
   initial: {
     id: string
     name: string
+    automaticName?: boolean
     catalogueId: string
     detachmentIds: string[]
     disposition: string | null
@@ -157,7 +158,7 @@ export function ListBuilder({
   const [waivedRules, setWaivedRules] = useState<FormatRuleId[]>(initial.waivedRules)
   const [optionalRules, setOptionalRules] = useState<OptionalRuleId[]>(initial.optionalRules ?? [])
   const [borrowedDetachmentId, setBorrowedDetachmentId] = useState<string | null>(initial.borrowedDetachmentId ?? null)
-  const [name, setName] = useState(initial.name)
+  const [name, setName] = useState(initial.automaticName ? '' : initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [reminders, setReminders] = useState<RosterReminder[]>(prep.reminders ?? [])
   const [savedPrep, setSavedPrep] = useState(prep)
@@ -306,7 +307,7 @@ export function ListBuilder({
     setWaivedRules(initial.waivedRules)
     setOptionalRules(initial.optionalRules ?? [])
     setBorrowedDetachmentId(initial.borrowedDetachmentId ?? null)
-    setName(initial.name)
+    setName(initial.automaticName ? '' : initial.name)
     setVisibility(initial.visibility)
     setSavedPrep(prep)
     setReminders(prep.reminders ?? [])
@@ -410,9 +411,9 @@ export function ListBuilder({
   }, [picks, pricePending, priced, pricedAt])
 
   const units = priced?.units ?? NO_UNITS
-  // What an unnamed list is called, folded by the price beside the units it reads.
-  // A name the player typed is never one of its inputs and never replaced by it.
-  const label = priced?.label ?? ''
+  // Keep the saved automatic name visible while an edit is being priced.
+  const storedAutomaticName = initial.automaticName ? initial.name : ''
+  const label = pricePending ? storedAutomaticName || priced?.label || '' : priced?.label || storedAutomaticName
   const shownName = listName || label
   const shareRoster = async () => {
     setShareProblem(null)

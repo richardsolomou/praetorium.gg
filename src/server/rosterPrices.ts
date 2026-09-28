@@ -1,9 +1,10 @@
 import { app } from './app'
-import { calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from './pricing'
+import type { BuiltUnit } from '../core/roster'
+import { calculateRosterAssessment, calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from './pricing'
 import { type RosterVerdict, rosterVerdict } from './rosterStatus'
 
 /**
- * A list's total and its fallback label change only when the list or the catalogue
+ * A list's total and display name change only when the list or the catalogue
  * does, and both are in the key: `updatedAt` moves with every save and the revision
  * with every snapshot. A stale entry can therefore never be served, only evicted.
  */
@@ -19,6 +20,7 @@ async function rosterRevisionKey(roster: { id: string; updatedAt: Date | number 
 
 type TotalsRoster = {
   id: string
+  name?: string
   updatedAt: Date | number
   catalogueId: string
   detachmentIds: string[]
@@ -60,6 +62,7 @@ export async function cachedRosterTotalsFor(rosters: readonly TotalsRoster[]) {
         },
         loaded,
         rules,
+        roster.name,
       )
       values[index] = totals
       if (rosterTotalsCache.size >= ROSTER_TOTALS_CACHE_LIMIT) {
@@ -100,18 +103,15 @@ export async function cachedRosterPrice(roster: {
   return price
 }
 
-/**
- * Whether each list is legal, and what it holds, by the same key as its price: judged
- * once per save per snapshot. Only the verdict is kept, so a library of lists costs a
- * few names apiece rather than every unit's projection.
- */
-const rosterVerdictCache = new Map<string, RosterVerdict>()
+/** Library assessments keep points and verdicts without retaining unit projections. */
+type RosterAssessment = { verdict: RosterVerdict; points: number | null }
+const rosterVerdictCache = new Map<string, RosterAssessment>()
 const ROSTER_VERDICT_CACHE_LIMIT = 10_000
 
-export async function cachedRosterVerdictsFor(rosters: readonly Parameters<typeof cachedRosterPrice>[0][]) {
+export async function cachedRosterAssessmentsFor(rosters: readonly Parameters<typeof cachedRosterPrice>[0][]) {
   if (!rosters.length) return []
   const revision = (await app().factionIndexFor())?.revision ?? 'none'
-  const values: RosterVerdict[] = Array(rosters.length)
+  const values: RosterAssessment[] = Array(rosters.length)
   const missing = new Map<string, number[]>()
   rosters.forEach((roster, index) => {
     const key = revisionKey(roster, revision)
@@ -128,20 +128,27 @@ export async function cachedRosterVerdictsFor(rosters: readonly Parameters<typeo
   // Without the rules source a list cannot be judged the way a battle judges it.
   const rules = await app().rulesFor()
   for (const [catalogueId, positions] of missing) {
+    const unitCache = new Map<string, BuiltUnit | null>()
     const unpriced = positions.some((index) => !rosterPriceCache.get(revisionKey(rosters[index]!, revision)))
     const loaded = rules && unpriced ? await app().catalogueFor(catalogueId) : null
     for (const index of positions) {
       const roster = rosters[index]!
       const key = revisionKey(roster, revision)
-      const priced = rules ? (rosterPriceCache.get(key) ?? calculateRosterPrice(savedRosterPriceInput(roster), loaded, rules)) : null
-      const verdict = rosterVerdict(roster, priced)
-      values[index] = verdict
+      const priced = rules
+        ? (rosterPriceCache.get(key) ?? calculateRosterAssessment(savedRosterPriceInput(roster), loaded, rules, unitCache))
+        : null
+      const assessment = { verdict: rosterVerdict(roster, priced), points: priced?.points ?? null }
+      values[index] = assessment
       if (rosterVerdictCache.size >= ROSTER_VERDICT_CACHE_LIMIT) {
         const oldest = rosterVerdictCache.keys().next().value
         if (oldest !== undefined) rosterVerdictCache.delete(oldest)
       }
-      rosterVerdictCache.set(key, verdict)
+      rosterVerdictCache.set(key, assessment)
     }
   }
   return values
+}
+
+export async function cachedRosterVerdictsFor(rosters: readonly Parameters<typeof cachedRosterPrice>[0][]) {
+  return (await cachedRosterAssessmentsFor(rosters)).map((assessment) => assessment.verdict)
 }

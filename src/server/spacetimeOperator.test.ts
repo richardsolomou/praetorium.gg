@@ -72,3 +72,36 @@ it('reads a bounded home roster page through the operator procedure', async () =
   expect(url.pathname).toBe('/v1/database/preview-42/call/home_rosters_by_user')
   expect(init.body).toBe('["user-1"]')
 })
+
+it('reads compact roster summaries without requiring picks or preparation data', async () => {
+  const summary = {
+    id: 'roster-1',
+    name: 'Army',
+    automaticName: true,
+    catalogueId: 'faction',
+    detachmentId: '[]',
+    disposition: null,
+    limit: 2000,
+    waivedRules: '[]',
+    optionalRules: '[]',
+    borrowedDetachmentId: null,
+    visibility: 'private',
+    source: 'editable',
+    createdAt: 1,
+    updatedAt: 2,
+    unitCount: 2,
+  }
+  const request = vi.fn(async () => Response.json(JSON.stringify([summary])))
+  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
+  expect(await operator.rosterSummariesByUser('user-1')).toEqual([summary])
+  const [url, init] = request.mock.calls[0] as unknown as [URL, RequestInit]
+  expect([url.pathname, init.body]).toEqual(['/v1/database/preview-42/call/roster_summaries_by_user', '["user-1"]'])
+})
+
+it('reads only the requested roster ids for an owner', async () => {
+  const request = vi.fn(async () => Response.json(JSON.stringify([])))
+  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
+  expect(await operator.rostersByIds('user-1', ['first', 'second'])).toEqual([])
+  const [url, init] = request.mock.calls[0] as unknown as [URL, RequestInit]
+  expect([url.pathname, init.body]).toEqual(['/v1/database/preview-42/call/rosters_by_ids', '["user-1",["first","second"]]'])
+})

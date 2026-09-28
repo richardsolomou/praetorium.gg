@@ -243,6 +243,7 @@ export const Rosters = __t.object('Rosters', {
   id: __t.string(),
   userId: __t.string(),
   name: __t.string(),
+  automaticName: __t.option(__t.bool()),
   catalogueId: __t.string(),
   detachmentId: __t.option(__t.string()),
   disposition: __t.option(__t.string()),

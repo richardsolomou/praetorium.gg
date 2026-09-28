@@ -105,6 +105,7 @@ const rosters = table(
     id: t.string().primaryKey(),
     userId: t.string().index('btree'),
     name: t.string(),
+    automaticName: t.option(t.bool()),
     catalogueId: t.string(),
     detachmentId: t.option(t.string()),
     disposition: t.option(t.string()),

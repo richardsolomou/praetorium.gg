@@ -13,6 +13,7 @@ import ConfigureReducer from '../configure_reducer'
 import DeletePushTokensReducer from '../delete_push_tokens_reducer'
 import DeleteRosterReducer from '../delete_roster_reducer'
 import DeleteUserDataReducer from '../delete_user_data_reducer'
+import RegisterPracticeOpponentReducer from '../register_practice_opponent_reducer'
 import RegisterPushTokenReducer from '../register_push_token_reducer'
 import RemoveFavouriteDetachmentReducer from '../remove_favourite_detachment_reducer'
 import RemoveFavouriteFactionReducer from '../remove_favourite_faction_reducer'
@@ -31,6 +32,7 @@ export type ConfigureParams = __Infer<typeof ConfigureReducer>
 export type DeletePushTokensParams = __Infer<typeof DeletePushTokensReducer>
 export type DeleteRosterParams = __Infer<typeof DeleteRosterReducer>
 export type DeleteUserDataParams = __Infer<typeof DeleteUserDataReducer>
+export type RegisterPracticeOpponentParams = __Infer<typeof RegisterPracticeOpponentReducer>
 export type RegisterPushTokenParams = __Infer<typeof RegisterPushTokenReducer>
 export type RemoveFavouriteDetachmentParams = __Infer<typeof RemoveFavouriteDetachmentReducer>
 export type RemoveFavouriteFactionParams = __Infer<typeof RemoveFavouriteFactionReducer>
