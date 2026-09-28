@@ -213,8 +213,12 @@ test('public reference data renders without client JavaScript', async ({ browser
   const context = await browser.newContext({ javaScriptEnabled: false })
   const page = await context.newPage()
 
+  await page.goto('/sign-in?next=%2Ffactions')
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
   await page.goto('/factions')
   await expect(page.locator('[data-faction="Chaos Daemons"]')).toBeVisible()
+  await page.goto('/factions/necrons')
+  await expect(page.locator('a[href="/factions/necrons/detachments/awakened-dynasty"]')).toHaveCount(1)
   await page.goto('/mission-packs')
   await expect(page).toHaveURL(/\/mission-packs\/.+/)
   await expect(page.getByRole('heading', { name: 'Chapter Approved 2026-2027' })).toBeVisible()
@@ -248,7 +252,10 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page.getByRole('heading', { name: 'Overlord', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'My Will Be Done' })).toBeVisible()
   await expect(page).toHaveTitle(/Overlord datasheet — Necrons — Praetorium/)
-  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute('content', /Overlord profiles, weapons, abilities/)
+  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
+    'content',
+    /Overlord datasheet for Necrons\..*Profiles, weapons, abilities and wargear/,
+  )
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', '/factions/necrons/datasheets/overlord')
 
   await page.goto('/factions/necrons/detachments/cryptek-conclave')

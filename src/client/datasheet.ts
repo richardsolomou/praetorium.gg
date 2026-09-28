@@ -5,6 +5,17 @@ import { normalizedName, normalizedNameVariants } from '../core/name'
 
 type AbilityKind = Datasheet['abilities'][number]['kind']
 
+export function datasheetDescription(sheet: Pick<Datasheet, 'name' | 'points' | 'baseSize'>, faction: string) {
+  return [
+    `${sheet.name} datasheet for ${faction}.`,
+    sheet.points === null ? null : `${sheet.points} points.`,
+    sheet.baseSize && !sheet.baseSize.includes('\n') ? `Base size: ${sheet.baseSize}.` : null,
+    'Profiles, weapons, abilities and wargear.',
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
 export function primaryUnitProfile(sheet: Pick<Datasheet, 'name' | 'profiles'>) {
   const profiles = sheet.profiles.filter((profile) => datasheetProfileKindOf(profile) === 'unit')
   for (const name of normalizedNameVariants(sheet.name)) {

@@ -1,5 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { FactionDatasheet } from '../client/features/reference/factions/FactionDatasheet'
+import { datasheetDescription } from '../client/datasheet'
 import { datasheetSlugQuery, factionQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/datasheets/$entryId')({
@@ -16,12 +17,12 @@ export const Route = createFileRoute('/factions/$catalogueId/datasheets/$entryId
           { title: `${loaderData.sheet.name} datasheet — ${loaderData.faction.displayName} — Praetorium` },
           {
             name: 'description',
-            content: `${loaderData.sheet.name} profiles, weapons, abilities, wargear, composition and points for ${loaderData.faction.displayName}.`,
+            content: datasheetDescription(loaderData.sheet, loaderData.faction.displayName),
           },
           { property: 'og:title', content: `${loaderData.sheet.name} datasheet` },
           {
             property: 'og:description',
-            content: `${loaderData.sheet.name} profiles, weapons, abilities, wargear, composition and points for ${loaderData.faction.displayName}.`,
+            content: datasheetDescription(loaderData.sheet, loaderData.faction.displayName),
           },
           { property: 'og:type', content: 'article' },
         ]

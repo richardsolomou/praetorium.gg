@@ -60,7 +60,7 @@ export const Route = createFileRoute('/rosters/$id/')({
   head: ({ loaderData, match, params }) => {
     const preview = loaderData?.preview
     const exposure = loaderData?.exposure
-    if (!preview || !exposure) return {}
+    if (!preview || !exposure) return loaderData?.snapshot ? { meta: [{ name: 'robots', content: 'noindex' }] } : {}
     const path = `/rosters/${params.id}`
     return {
       meta: pageMeta(match.context.origin, {
@@ -70,6 +70,7 @@ export const Route = createFileRoute('/rosters/$id/')({
         ...(exposure.image ? { image: { path: `/api/previews${path}`, alt: preview.title } } : {}),
         noindex: exposure.noindex,
       }),
+      links: exposure.noindex ? [] : [{ rel: 'canonical', href: path }],
     }
   },
   component: RosterRoute,
