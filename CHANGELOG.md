@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.86.0
+
+### Minor Changes
+
+- 2996eee: Create roster variants that are numbered, grouped under their base list, show what they change, and switch from the roster editor.
+
+### Patch Changes
+
+- 2996eee: Keep optional rules and a borrowed detachment when duplicating a roster from the library, and start the copy at the default visibility.
+- 2996eee: Show a roster's points beside its name on phones, with its visibility in the details line.
+
 ## 0.85.0
 
 ### Minor Changes
