@@ -19,7 +19,7 @@ export function CombatEstimate({
       <PopoverTrigger
         openOnHover
         aria-label={`${label}: ${value}. Show probabilities`}
-        className={`readout mt-1 rounded-sm text-xl underline decoration-dotted decoration-current/40 underline-offset-4 outline-none hover:decoration-current focus-visible:ring-2 focus-visible:ring-primary ${muted ? 'text-dim' : 'text-primary'}`}
+        className={`readout inline-flex min-h-9 w-full items-center rounded-sm text-sm underline decoration-dotted decoration-current/40 underline-offset-4 outline-none hover:decoration-current focus-visible:ring-2 focus-visible:ring-primary sm:mt-1 sm:min-h-0 sm:text-xl ${muted ? 'text-dim' : 'text-primary'}`}
         onFocus={(event) => {
           if (event.currentTarget.matches(':focus-visible')) setOpen(true)
         }}
