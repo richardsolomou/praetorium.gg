@@ -1184,29 +1184,37 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
   const errors: EvaluationError[] = []
   const name = node.target.name ?? node.target.id
 
-  for (const constraint of sourcesOf(node).flatMap((source) => source.constraints ?? [])) {
+  const check = (constraint: Constraint, childId: string, entryId = node.target.id, entryName = name, extra: readonly Modifier[] = []) => {
     // Who a character joins is not in the selection tree, so this cannot count it:
     // `attachmentErrors` holds the whole answer, and reading zero attachments here
     // reported every such rule as broken.
-    if (constraint.field === 'associations') continue
-    const limit = constraintValue(constraint, node, root, index, census) * carriers(constraint, node, index)
-    if (limit < 0) continue
+    if (constraint.field === 'associations') return
+    const limit = constraintValue(constraint, node, root, index, census, extra) * carriers(constraint, node, index)
+    if (limit < 0) return
     if (constraint.percentValue) {
       census.note('constraint percentValue')
-      continue
+      return
     }
-    // A constraint counts this node within its scope. A non-shared one identifies
-    // its link rather than every link to the same target.
-    const childId = constraint.shared === false ? node.id : node.target.id
     const raw = measure({ ...constraint, childId }, node, root, index, census)
     // An unmarked mandatory child beneath an aggregated model is stored once as
     // the model's template, while its minimum applies once to every model.
     const measured = constraint.type === 'min' && raw === 1 ? raw * carriers(constraint, node, index) : raw
     if (constraint.type === 'min' && measured < limit) {
-      errors.push({ entryId: node.target.id, entryName: name, message: `needs at least ${limit}, has ${measured}` })
+      errors.push({ entryId, entryName, message: `needs at least ${limit}, has ${measured}` })
     }
     if (constraint.type === 'max' && measured > limit) {
-      errors.push({ entryId: node.target.id, entryName: name, message: `allows at most ${limit}, has ${measured}` })
+      errors.push({ entryId, entryName, message: `allows at most ${limit}, has ${measured}` })
+    }
+  }
+  // A non-shared entry constraint identifies its link rather than every link to the target.
+  for (const constraint of sourcesOf(node).flatMap((source) => source.constraints ?? []))
+    check(constraint, constraint.shared === false ? node.id : node.target.id)
+  for (const categoryId of linkedCategories(node)) {
+    const category = index.categories.get(categoryId)
+    if (!category) continue
+    const extra = [...(category.modifiers ?? []), ...(category.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
+    for (const constraint of category.constraints ?? []) {
+      if (constraint.type === 'max') check(constraint, categoryId, category.id, category.name, extra)
     }
   }
   return errors

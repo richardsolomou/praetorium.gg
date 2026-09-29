@@ -16,6 +16,7 @@ type BuilderUnitCardProps = {
   onSelect: (index: number) => void
   onRemove: (index: number) => void
   onDuplicate: (index: number) => void
+  canDuplicate?: boolean
   /** Absent for a visitor, whose collection has no account to live in. */
   onOwned?: (entryId: string, owned: boolean) => void
   onJoin: (index: number, targetKey: number | undefined) => void
@@ -34,6 +35,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   onSelect,
   onRemove,
   onDuplicate,
+  canDuplicate,
   onOwned,
   onJoin,
 }: BuilderUnitCardProps) {
@@ -45,6 +47,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       onSelect={() => onSelect(index)}
       onRemove={() => onRemove(index)}
       onDuplicate={() => onDuplicate(index)}
+      canDuplicate={canDuplicate}
       owned={owned}
       onOwned={onOwned ? () => onOwned(unit.entryId, !owned) : undefined}
       joined={joined.map((row) => ({ ...row, onAct: () => onJoin(row.detach, undefined) }))}

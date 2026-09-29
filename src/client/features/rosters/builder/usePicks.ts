@@ -25,6 +25,11 @@ type SizedUnit = {
   choices: { key: string; options: { id: string; count: number }[] }[]
 }
 
+export function canAddCopy(entryId: string, held: number, limits: ReadonlyMap<string, number | null>) {
+  const limit = limits.get(entryId)
+  return limit !== undefined && (limit === null || held < limit)
+}
+
 /**
  * The list being edited, in the two shapes the builder reads it in.
  *
@@ -60,7 +65,7 @@ export function usePicks(initial: readonly RosterPick[]) {
  */
 export function pickEditor(
   setPicks: Dispatch<SetStateAction<KeyedPick[]>>,
-  context: { catalogueId: string; units: readonly (SizedUnit | undefined)[] },
+  context: { catalogueId: string; units: readonly (SizedUnit | undefined)[]; limits?: ReadonlyMap<string, number | null> },
   allocateKey: () => number,
 ) {
   const editAt = (index: number, edit: (pick: KeyedPick) => KeyedPick) =>
@@ -79,9 +84,22 @@ export function pickEditor(
   }
 
   return {
-    add: (entryId: string) => insert(() => ({ pick: { entryId, catalogueId: context.catalogueId } })),
+    add: (entryId: string) =>
+      insert((current) => {
+        return context.limits && canAddCopy(entryId, current.filter((pick) => pick.entryId === entryId).length, context.limits)
+          ? { pick: { entryId, catalogueId: context.catalogueId } }
+          : null
+      }),
 
-    duplicate: (index: number) => insert((current) => (current[index] ? { pick: current[index], after: index } : null)),
+    duplicate: (index: number) =>
+      insert((current) => {
+        const pick = current[index]
+        return pick &&
+          context.limits &&
+          canAddCopy(pick.entryId, current.filter((unit) => unit.entryId === pick.entryId).length, context.limits)
+          ? { pick, after: index }
+          : null
+      }),
 
     /** Everything standing with the dropped unit is left standing alone, never pointing at a gap. */
     drop: (index: number) =>

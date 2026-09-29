@@ -83,6 +83,41 @@ describe('consecutive counter presses', () => {
   })
 })
 
+describe('datasheet roster caps', () => {
+  const editWithLimit = (limit: number | null, initial: number) => {
+    let picks: KeyedPick[] = Array.from({ length: initial }, (_, key) => ({ key, entryId: 'squad', catalogueId: 'imperium' }))
+    let nextKey = initial
+    const edit = pickEditor(
+      (update) => {
+        picks = typeof update === 'function' ? update(picks) : update
+      },
+      { catalogueId: 'imperium', units: [], limits: new Map([['squad', limit]]) },
+      () => nextKey++,
+    )
+    return { edit, count: () => picks.length }
+  }
+
+  it('adds the first and final allowed copies', () => {
+    const { edit, count } = editWithLimit(2, 0)
+    edit.add('squad')
+    edit.add('squad')
+    expect(count()).toBe(2)
+  })
+
+  it('rejects an add and duplicate at the cap', () => {
+    const { edit, count } = editWithLimit(2, 2)
+    edit.add('squad')
+    edit.duplicate(0)
+    expect(count()).toBe(2)
+  })
+
+  it('allows an uncapped datasheet', () => {
+    const { edit, count } = editWithLimit(null, 2)
+    edit.duplicate(0)
+    expect(count()).toBe(3)
+  })
+})
+
 /**
  * The same group can be answered as one chosen option or as a spread of counts, and
  * only one of those is a choice. Clearing the choice alone left the count behind,
