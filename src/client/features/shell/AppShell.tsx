@@ -104,11 +104,11 @@ function PrimaryNavigation({ path }: { path: string }) {
           Factions
         </Link>
         <Link
-          to="/mission-packs"
+          to="/missions"
           className={linkClass}
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
         >
-          Mission packs
+          Missions
         </Link>
         <Link
           to="/leaderboard"

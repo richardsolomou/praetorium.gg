@@ -56,7 +56,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
 
   await sections.getByRole('link', { name: 'Missions' }).click()
-  await expect(page).toHaveURL(/\/mission-packs\//)
+  await expect(page).toHaveURL(/\/missions\//)
 
   await page.setViewportSize({ width: 859, height: 844 })
   await expect(webHeader).toBeHidden()
@@ -120,7 +120,7 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   })
   await page.goto('/force-dispositions/take-and-hold')
   await expect(page.getByRole('heading', { name: 'Take and Hold', exact: true })).toBeVisible()
-  await expect(page.locator('a[href="/mission-matchups/chapter-approved-2026-2027/take-and-hold/disruption"]')).toContainText(
+  await expect(page.locator('a[href="/missions/chapter-approved-2026-2027/matchups/take-and-hold/disruption"]')).toContainText(
     'Determined Acquisition',
   )
   await expect(page.locator('a[href="/factions/necrons/detachments/awakened-dynasty"]')).toHaveCount(1)
@@ -235,15 +235,31 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page.locator('[data-faction="Chaos Daemons"]')).toBeVisible()
   await page.goto('/factions/necrons')
   await expect(page.locator('a[href="/factions/necrons/detachments/awakened-dynasty"]')).toHaveCount(1)
-  await page.goto('/mission-packs')
-  await expect(page).toHaveURL(/\/mission-packs\/.+/)
+  await page.goto('/missions')
+  await expect(page).toHaveURL(/\/missions\/.+/)
   await expect(page.getByRole('heading', { name: 'Chapter Approved 2026-2027' })).toBeVisible()
   await expect(page.locator('#matrix')).toContainText('Disruption')
+  const fixedSecondary = page.locator('a[href$="/secondaries/assassination"]')
+  const tacticalSecondary = page.locator('a[href$="/secondaries/forward-position"]')
+  await expect(fixedSecondary).toContainText('Fixed')
+  await expect(tacticalSecondary).toBeVisible()
+  await expect(tacticalSecondary).not.toContainText('Fixed')
   await expect(page.getByRole('heading', { name: 'Mission twists' })).toBeVisible()
   await expect(page).toHaveTitle(/Chapter Approved 2026-2027 missions — Praetorium/)
-  await expectCanonical(page, '/mission-packs/chapter-approved-2026-2027')
+  await expectCanonical(page, '/missions/chapter-approved-2026-2027')
 
-  const secondaryLink = page.locator('a[href*="/secondary-missions/"]').first()
+  await page.getByRole('link', { name: 'Force dispositions', exact: true }).click()
+  await expect(page).toHaveURL('/force-dispositions')
+  await expect(page.getByRole('heading', { name: 'Force dispositions', exact: true })).toBeVisible()
+  await expect(page.locator('a[href="/force-dispositions/take-and-hold"]')).toContainText('Take and Hold')
+  await expectCanonical(page, '/force-dispositions')
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/force-dispositions-phone.png', fullPage: true })
+  await page.setViewportSize({ width: 1_440, height: 900 })
+  await page.goBack()
+
+  const secondaryLink = page.locator('a[href*="/secondaries/"]').first()
   const secondaryName = (await secondaryLink.locator('span').first().textContent())!
   const secondaryPath = await secondaryLink.getAttribute('href')
   await page.goto(secondaryPath!)
@@ -254,12 +270,21 @@ test('public reference data renders without client JavaScript', async ({ browser
   await page.screenshot({ path: 'test-results/secondary-mission-mobile.png', fullPage: true })
   await page.setViewportSize({ width: 1_440, height: 900 })
 
-  await page.goto('/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold#mission-death-trap')
+  await page.goto('/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold#mission-death-trap')
   await expect(page.locator('#mission-death-trap')).toContainText('For each terrain area trapped this turn.')
   await expect(page.locator('[id^="terrain-"]').first()).toBeAttached()
   await expect(page.locator('[id^="deployment-"]').first()).toBeAttached()
   await expect(page).toHaveTitle(/Disruption vs Take and Hold — Chapter Approved 2026-2027 — Praetorium/)
-  await expectCanonical(page, '/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold')
+  await expectCanonical(page, '/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold')
+
+  await page.goto('/mission-packs')
+  await expect(page).toHaveURL('/missions/chapter-approved-2026-2027')
+  await page.goto('/mission-packs/chapter-approved-2026-2027')
+  await expect(page).toHaveURL('/missions/chapter-approved-2026-2027')
+  await page.goto('/mission-packs/chapter-approved-2026-2027/secondary-missions/assassination')
+  await expect(page).toHaveURL('/missions/chapter-approved-2026-2027/secondaries/assassination')
+  await page.goto('/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold#mission-death-trap')
+  await expect(page).toHaveURL('/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold#mission-death-trap')
 
   await page.goto('/factions/necrons/datasheets/overlord')
   await expect(page.getByRole('heading', { name: 'Overlord', exact: true })).toBeVisible()
@@ -321,7 +346,7 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
 
 test('server-rendered reference pages keep route-shaped payloads', async ({ request }) => {
   const factions = await (await request.get('/factions')).body()
-  const missionPack = await (await request.get('/mission-packs/chapter-approved-2026-2027')).body()
+  const missionPack = await (await request.get('/missions/chapter-approved-2026-2027')).body()
   // One section, never the five documents: the whole rules corpus is far larger.
   const ruleSection = await (await request.get('/rules/core-rules/movement-phase')).body()
 
@@ -506,7 +531,7 @@ test('account libraries share their page width and fit a phone', async ({ page }
   expect(footer ? Math.round(footer.y + footer.height) : 0).toBe(800)
 
   await page.setViewportSize({ width: 390, height: 844 })
-  for (const path of ['/rosters', '/battles', '/friends', '/factions', '/mission-packs']) {
+  for (const path of ['/rosters', '/battles', '/friends', '/factions', '/missions']) {
     await page.goto(path)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   }
@@ -527,7 +552,7 @@ test('authentication panels and empty states fill the page above the footer', as
 })
 
 test('terrain layouts open with measurement guidance', async ({ page }) => {
-  await page.goto('/mission-matchups/chapter-approved-2026-2027/purge-the-foe/take-and-hold')
+  await page.goto('/missions/chapter-approved-2026-2027/matchups/purge-the-foe/take-and-hold')
   const dialog = page.getByRole('dialog')
   const guidance = dialog.getByText('Setup distance', { exact: true })
   await expect(async () => {
@@ -548,7 +573,7 @@ test('terrain layouts open with measurement guidance', async ({ page }) => {
 })
 
 test('a mission opens while its terrain layouts load', async ({ page }) => {
-  await page.goto('/mission-packs/chapter-approved-2026-2027')
+  await page.goto('/missions/chapter-approved-2026-2027')
 
   let releaseTerrain: () => void = () => undefined
   const terrainHeld = new Promise<void>((resolve) => {
@@ -567,7 +592,7 @@ test('a mission opens while its terrain layouts load', async ({ page }) => {
     await route.continue()
   })
 
-  const opening = page.locator('a[href^="/mission-matchups/"]').first().click()
+  const opening = page.locator('a[href*="/matchups/"]').first().click()
   await started
   try {
     await expect(page.getByText('Mission matchup', { exact: true })).toBeVisible({ timeout: 5_000 })
@@ -581,7 +606,7 @@ test('a mission opens while its terrain layouts load', async ({ page }) => {
 })
 
 test('terrain placement uses structural corners and whole-inch labels', async ({ page }) => {
-  await page.goto('/mission-matchups/chapter-approved-2026-2027/take-and-hold/priority-assets')
+  await page.goto('/missions/chapter-approved-2026-2027/matchups/take-and-hold/priority-assets')
   const dialog = page.getByRole('dialog')
   await expect(async () => {
     if (await dialog.isVisible()) return
@@ -607,7 +632,7 @@ test('terrain placement uses structural corners and whole-inch labels', async ({
 test('a matchup keeps each action in the column of the side whose mission asks for it', async ({ page }) => {
   // Priority Assets asks for the action here, and it is the side drawn second, so an
   // action packed into the first free column would read as the other side's.
-  await page.goto('/mission-matchups/chapter-approved-2026-2027/take-and-hold/priority-assets')
+  await page.goto('/missions/chapter-approved-2026-2027/matchups/take-and-hold/priority-assets')
   const panels = page
     .locator('section')
     .filter({ has: page.getByRole('heading', { name: /^Actions/ }) })
@@ -1032,7 +1057,7 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   const factionScroll = await page.evaluate(() => window.scrollY)
   // The missions tab lands on the current pack, so its memory is that redirect.
   await sections.getByRole('link', { name: 'Missions' }).click()
-  await expect(page).toHaveURL(/\/mission-packs\//)
+  await expect(page).toHaveURL(/\/missions\//)
 
   await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions/dark-angels/datasheets/deathwing-terminator-squad')

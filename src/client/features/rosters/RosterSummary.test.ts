@@ -45,6 +45,23 @@ describe('roster summary', () => {
     expect(markup).not.toContain('switched off')
   })
 
+  it('shows the selected force disposition beside the detachment', () => {
+    const markup = renderToStaticMarkup(
+      createElement(RosterSummary, {
+        roster: { ...roster, disposition: 'take-and-hold' },
+        faction: {
+          slug: 'necrons',
+          displayName: 'Necrons',
+          icon: null,
+          detachments: [{ id: 'awakened-dynasty', name: 'Awakened Dynasty' }],
+        },
+        dispositionName: 'Take and Hold',
+      }),
+    )
+
+    expect(markup).toContain('Take and Hold')
+  })
+
   it('names a published roster rather than labelling it as another kind of share', () => {
     const markup = renderToStaticMarkup(createElement(RosterSummary, { roster: { ...roster, visibility: 'public' } }))
 

@@ -15,7 +15,7 @@ export function SecondaryMissionPage({ packId, cardId }: { packId: string; cardI
     <main className="w-full">
       <PageHeader eyebrow="Secondary mission" title={card.name} />
       <PageContent>
-        <Link to="/mission-packs/$packId" params={{ packId }} className="eyebrow text-info">
+        <Link to="/missions/$packId" params={{ packId }} className="eyebrow text-info">
           {pack.name}
         </Link>
         <section id={`secondary-${card.key}`} className="mt-4 scroll-mt-16 border border-edge bg-panel p-4">

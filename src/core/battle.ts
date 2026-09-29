@@ -1437,6 +1437,9 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         state.deploymentId = null
         state.settings.terrainLayoutId = null
       }
+      for (const candidate of state.players) {
+        if (candidate.roster?.built && candidate.roster.built.limit !== rosterLimit(state, candidate)) detachRoster(state, candidate)
+      }
       return
     }
     case 'reset-setup': {
@@ -1496,14 +1499,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'detach-roster': {
-      state.firstPlayerId = null
-      player.roster = null
-      player.units = []
-      // The cards followed from the army, and the battlefield from both armies'
-      // dispositions, so neither outlives the list they were derived from.
-      applyPrep(player, null)
-      state.deploymentId = null
-      state.settings.terrainLayoutId = null
+      detachRoster(state, player)
       return
     }
     case 'lock-league-rosters': {
@@ -1849,6 +1845,17 @@ function applySecondaryScore(player: PlayerState, key: string, delta: number, ro
   rounds[round - 1] = (rounds[round - 1] ?? 0) + delta
   player.scoredByRound = { ...player.scoredByRound, [key]: rounds }
   player.secondaryByRound[round - 1] = (player.secondaryByRound[round - 1] ?? 0) + delta
+}
+
+function detachRoster(state: BattleState, player: PlayerState) {
+  state.firstPlayerId = null
+  state.deploymentId = null
+  state.settings.terrainLayoutId = null
+  delete state.sideDispositions[player.side]
+  player.roster = null
+  player.units = []
+  player.painted = false
+  applyPrep(player, null)
 }
 
 function resetPlayer(player: PlayerState) {

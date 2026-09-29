@@ -262,7 +262,7 @@ export async function setupStep(page: Page, label: string) {
 
 /** Attaches a saved list to a seat: your own by default, or a named one such as a practice opponent's. */
 export async function attachRoster(page: Page, name: string, { forPlayer }: { forPlayer?: string } = {}) {
-  await setupStep(page, 'Armies')
+  await setupStep(page, 'Setup')
   const chooser = forPlayer
     ? page.getByRole('button', { name: new RegExp(`roster for ${forPlayer}$`) })
     : page.getByRole('button', { name: /^(Choose|Change) roster/ }).first()
@@ -283,7 +283,7 @@ export async function attachRoster(page: Page, name: string, { forPlayer }: { fo
     if (await dialog.isHidden()) break
   }
   await expect(dialog).toBeHidden()
-  await expect(page.getByRole('region', { name: 'Armies' }).getByText(name, { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Setup' }).getByText(name, { exact: true }).first()).toBeVisible()
 }
 
 export async function chooseBattlefield(page: Page) {
@@ -522,7 +522,7 @@ export async function setupBattle(
   const url = await createBattle(host, { opponent })
   await guest.goto(url)
   await attachRoster(host, hostRoster)
-  await setupStep(guest, 'Armies')
+  await setupStep(guest, 'Setup')
   await expect(guest.getByText(hostRoster, { exact: true }).first()).toBeVisible()
   await attachRoster(guest, guestRoster)
   await expect(host.getByText(guestRoster, { exact: true }).first()).toBeVisible()

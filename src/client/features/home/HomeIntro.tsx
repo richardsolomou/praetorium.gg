@@ -29,7 +29,7 @@ const TOOLS = [
     icon: MapIcon,
     title: 'Choose a mission',
     text: 'Packs, deployments, objectives and scoring.',
-    link: '/mission-packs' as const,
+    link: '/missions' as const,
     action: 'Explore missions',
   },
   {

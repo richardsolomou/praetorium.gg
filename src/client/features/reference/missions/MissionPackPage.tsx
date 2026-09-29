@@ -40,7 +40,11 @@ export function MissionPackPage({ packId }: { packId: string }) {
       </PageHeader>
       <PageContent className="space-y-7">
         <section id="matrix" data-onboarding="mission-dispositions">
-          <h2 className="rubric border-b border-edge pb-2">Force dispositions</h2>
+          <h2 className="rubric border-b border-edge pb-2">
+            <Link to="/force-dispositions" className="hover:text-info">
+              Force dispositions
+            </Link>
+          </h2>
           <p className="mt-2 text-sm text-dim">Select the resulting mission to read its scoring rules.</p>
           {/* Bleeds to the window on a phone, so the cut-off column reads as a scroller. */}
           <div className="-mx-3 mt-3 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
@@ -76,7 +80,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
                     return found ? (
                       <Link
                         key={opponent.id}
-                        to="/mission-matchups/$packId/$you/$opponent"
+                        to="/missions/$packId/matchups/$you/$opponent"
                         params={{ packId, you: you.id, opponent: opponent.id }}
                         className="grid min-h-16 place-items-center border border-edge bg-panel px-2 text-center text-sm font-bold text-info uppercase hover:border-info hover:bg-raised"
                       >
@@ -103,12 +107,12 @@ export function MissionPackPage({ packId }: { packId: string }) {
             {data.secondaries.map((card) => (
               <Link
                 key={card.key}
-                to="/mission-packs/$packId/secondary-missions/$cardId"
+                to="/missions/$packId/secondaries/$cardId"
                 params={{ packId, cardId: card.key }}
                 className="flex w-full items-center justify-between bg-panel px-3 py-2 text-left font-bold uppercase hover:bg-raised hover:text-info"
               >
                 <span>{card.name}</span>
-                <span className="text-xs text-dim">View</span>
+                {card.awards.some((award) => award.mode === 'fixed') ? <span className="chip shrink-0">Fixed</span> : null}
               </Link>
             ))}
           </div>

@@ -290,7 +290,7 @@ function CareerTables({ record }: { record: ServiceRecord }) {
         rowKey={(row) => row.key}
         renderName={(row) =>
           row.reference ? (
-            <Link to="/mission-matchups/$packId/$you/$opponent" params={row.reference} className={NAME_LINK}>
+            <Link to="/missions/$packId/matchups/$you/$opponent" params={row.reference} className={NAME_LINK}>
               {row.name}
             </Link>
           ) : (
@@ -400,11 +400,7 @@ function RecordTable<T>({
 
 function CardName({ card }: { card: CardRecord }) {
   return card.reference ? (
-    <Link
-      to="/mission-packs/$packId/secondary-missions/$cardId"
-      params={{ packId: card.reference.packId, cardId: card.key }}
-      className={NAME_LINK}
-    >
+    <Link to="/missions/$packId/secondaries/$cardId" params={{ packId: card.reference.packId, cardId: card.key }} className={NAME_LINK}>
       {card.name}
     </Link>
   ) : (

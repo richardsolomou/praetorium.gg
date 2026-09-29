@@ -234,7 +234,7 @@ function indexedMissions(rules: LoadedRules | null): IndexedResult[] {
         group: 'Missions',
         label: pack.name,
         detail: 'Mission pack',
-        href: `/mission-packs/${pack.id}`,
+        href: `/missions/${pack.id}`,
       },
     })
     for (const mission of pack.missions) {
@@ -245,7 +245,7 @@ function indexedMissions(rules: LoadedRules | null): IndexedResult[] {
           group: 'Missions',
           label: mission.name,
           detail: pack.name,
-          href: `/mission-packs/${pack.id}`,
+          href: `/missions/${pack.id}`,
         },
       })
     }
@@ -262,7 +262,7 @@ function indexedMissions(rules: LoadedRules | null): IndexedResult[] {
         group: 'Missions',
         label: mission.name,
         detail: 'Secondary mission',
-        href: `/mission-packs/${firstPack.id}`,
+        href: `/missions/${firstPack.id}`,
       },
     })
   }

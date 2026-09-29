@@ -30,13 +30,13 @@ const { corpus } = vi.hoisted(() => ({
         kind: 'mission',
         title: 'Test Mission',
         faction: null,
-        url: '/mission-matchups/test/one/two#mission-test',
+        url: '/missions/test/matchups/one/two#mission-test',
         sections: [
           {
             id: 'mission-test',
             title: 'Test Mission',
             text: 'Test scoring.',
-            url: '/mission-matchups/test/one/two#mission-test',
+            url: '/missions/test/matchups/one/two#mission-test',
           },
         ],
         revisions: { rules: 'revision' },
@@ -47,7 +47,7 @@ const { corpus } = vi.hoisted(() => ({
         kind: 'mission',
         title: 'Test Secondary',
         faction: null,
-        url: '/mission-packs/test/secondary-missions/test-secondary',
+        url: '/missions/test/secondaries/test-secondary',
         sections: [],
         revisions: { rules: 'revision' },
         attribution: ['Community data'],
@@ -112,7 +112,7 @@ it('lists canonical reference pages in the snapshot sitemap', async () => {
   const response = await referenceSitemap(new Request('https://praetorium.gg/sitemap.xml'))
 
   expect(await response.text()).toMatch(
-    /<url><loc>https:\/\/praetorium\.gg\/factions\/test\/datasheets\/unit<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/factions\/test\/detachments\/detachment<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/mission-matchups\/test\/one\/two<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/mission-packs\/test\/secondary-missions\/test-secondary<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/rules\/core\/movement<\/loc><\/url>/s,
+    /<url><loc>https:\/\/praetorium\.gg\/factions\/test\/datasheets\/unit<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/factions\/test\/detachments\/detachment<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/missions\/test\/matchups\/one\/two<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/missions\/test\/secondaries\/test-secondary<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/rules\/core\/movement<\/loc><\/url>/s,
   )
 })
 
@@ -178,7 +178,7 @@ it('documents reference updates, licensing, and attribution for agents', async (
   const response = await referenceLlms(new Request('https://praetorium.gg/llms.txt'))
 
   expect(await response.text()).toMatch(
-    /Praetorium guide.*Reference index.*search missions, deployments, terrain, rules, detachments, and datasheets.*instead of reading every datasheet.*Mission packs.*## Update model.*verified immutable snapshot.*## Licence and attribution.*AGPL-3\.0.*https:\/\/praetorium\.gg\/sources/s,
+    /Praetorium guide.*Reference index.*search missions, deployments, terrain, rules, detachments, and datasheets.*instead of reading every datasheet.*Missions.*## Update model.*verified immutable snapshot.*## Licence and attribution.*AGPL-3\.0.*https:\/\/praetorium\.gg\/sources/s,
   )
 })
 

@@ -28,7 +28,14 @@ import { type SavedRoster, useRosterActions } from './rosterLibrary'
 import { keepRosterSort, type RosterSort, sortRosters } from './rosterSort'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import { factionIndexQuery, meQuery, savedRosterChangedCountQuery, savedRosterPageQuery, savedRosterSummariesQuery } from '../../queries'
+import {
+  factionIndexQuery,
+  gameReferencesQuery,
+  meQuery,
+  savedRosterChangedCountQuery,
+  savedRosterPageQuery,
+  savedRosterSummariesQuery,
+} from '../../queries'
 import { useOrigin } from '../../useOrigin'
 import type { RosterVisibility } from '../../../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
@@ -49,6 +56,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
   const { data: me } = useQuery(meQuery())
   const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
   const availableResult = useQuery({ ...factionIndexQuery(), enabled: Boolean(me) })
+  const { data: references } = useQuery({ ...gameReferencesQuery(), enabled: Boolean(me) })
   const saved = savedResult.data ?? []
   const available = availableResult.data
   const navigate = useNavigate()
@@ -184,6 +192,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
                     faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
                     points={pageById.get(roster.id)?.points}
                     label={pageById.get(roster.id)?.label}
+                    dispositionName={references?.dispositions.find((entry) => entry.id === roster.disposition)?.name}
                     factionLoading={availableResult.isPending}
                     pointsLoading={pageResults[Math.floor(index / ROSTER_LIBRARY_BATCH_SIZE)]?.isPending}
                     problem={pageById.get(roster.id)?.problem ?? null}

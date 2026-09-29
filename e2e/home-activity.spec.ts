@@ -43,7 +43,7 @@ test('links each tool a visitor can use without an account as one action', async
 
   await expect(page.getByRole('link', { name: /Simulate a fight/ })).toHaveAttribute('href', '/simulator')
   await expect(page.getByRole('link', { name: /Read the datasheets/ })).toHaveAttribute('href', '/factions')
-  await expect(page.getByRole('link', { name: /Choose a mission/ })).toHaveAttribute('href', '/mission-packs')
+  await expect(page.getByRole('link', { name: /Choose a mission/ })).toHaveAttribute('href', '/missions')
   await expect(page.getByRole('link', { name: /Look up a rule/ })).toHaveAttribute('href', '/rules')
 })
 

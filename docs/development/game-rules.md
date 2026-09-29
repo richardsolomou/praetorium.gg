@@ -39,7 +39,8 @@ Praetorium reads stratagem and mission data from [40kdc-data](https://github.com
 - A scoring prompt shows what will actually bank once those ceilings have taken their cut, and says what the cap left room for once, beneath the total, rather than under each payout it refuses. The excess is still claimed on the card; it simply does not add up.
 - An unresolved active card produces a prompt before the turn passes, while the player retains the final decision because the source cannot infer objective control.
 - `PraetoriumService.screen` derives each side's primary mission from its own force disposition, the opposing disposition, and the configured mission pack. Matchup order determines ownership. Settings without a mission pack use the unqualified fallback, while a selected pack never falls through to another.
-- A force disposition's page reads its own row of each pack's matchup table and lists the detachments that offer it from each faction's own reference detachments, so a chapter's repeated parent options appear once and every listed detachment has a page to link to. Its description is the rules source's text.
+- The force dispositions index lists the rules source's descriptions and links to each disposition. A force disposition's page reads its own row of each pack's matchup table and lists the detachments that offer it from each faction's own reference detachments, so a chapter's repeated parent options appear once and every listed detachment has a page to link to. Its description is the rules source's text.
+- The mission pack lists a `Fixed` label only on secondary cards with a fixed scoring payout, matching the cards battle setup permits as fixed choices.
 - Mission, deployment, and terrain references are validated together inside the repository submission transaction before play begins. Twists remain absent when the source has no structured twist data.
 
 ## Deployment patterns

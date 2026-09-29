@@ -788,7 +788,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'reference',
     target: 'mission-secondaries',
     page: 'missions',
-    href: '/mission-packs',
+    href: '/missions',
     title: 'Secondary missions',
     description: 'The deck both players draw from during a game. Open a card to read what it scores and what it asks of you.',
     placement: 'top',
@@ -799,7 +799,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'reference',
     target: 'mission-dispositions',
     page: 'missions',
-    href: '/mission-packs',
+    href: '/missions',
     title: 'Pick the matchup',
     description:
       'Your disposition runs down the left and your opponent’s across the top. The cell between them is the mission you would play.',
@@ -810,7 +810,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'reference',
     target: 'matchup-primary',
     page: 'mission',
-    href: '/mission-packs',
+    href: '/missions',
     title: 'The primary missions',
     description: 'Both sides’ primary missions, with when each one scores and what it pays.',
     placement: 'bottom',
@@ -821,7 +821,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'reference',
     target: 'matchup-actions',
     page: 'mission',
-    href: '/mission-packs',
+    href: '/missions',
     title: 'Actions',
     description: 'What each side’s mission asks a unit to do, so it is known before the first turn.',
     placement: 'bottom',
@@ -833,7 +833,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'reference',
     target: 'matchup-terrain',
     page: 'mission',
-    href: '/mission-packs',
+    href: '/missions',
     title: 'Battlefields',
     description: 'Every terrain and deployment layout this pairing can be played on, with the distances the source prints.',
     placement: 'bottom',
@@ -1075,8 +1075,8 @@ export function onboardingPage(pathname: string): OnboardingPage | undefined {
   if (/^\/factions\/[^/]+\/datasheets\/[^/]+\/?$/.test(pathname)) return 'datasheet'
   if (/^\/factions\/[^/]+\/datasheets\/?$/.test(pathname)) return 'datasheets'
   if (/^\/factions\/[^/]+\/?$/.test(pathname)) return 'faction'
-  if (pathname === '/mission-packs' || /^\/mission-packs\/[^/]+\/?$/.test(pathname)) return 'missions'
-  if (/^\/mission-matchups\/[^/]+\/[^/]+\/[^/]+\/?$/.test(pathname)) return 'mission'
+  if (pathname === '/missions' || /^\/missions\/[^/]+\/?$/.test(pathname)) return 'missions'
+  if (/^\/missions\/[^/]+\/matchups\/[^/]+\/[^/]+\/?$/.test(pathname)) return 'mission'
   if (pathname === '/leaderboard') return 'leaderboard'
   if (pathname === '/rules') return 'rules'
   if (/^\/rules\/[^/]+\/[^/]+\/?$/.test(pathname)) return 'rule-section'

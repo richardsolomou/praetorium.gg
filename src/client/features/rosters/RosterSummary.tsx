@@ -4,6 +4,7 @@ import { useDateFormatting } from '../../dates'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
 import { rosterWaivers, WaiverChip } from '../../components/FormatWaivers'
+import { dispositionTone } from '../../components/rosterSetup'
 import type { SavedRoster } from './rosterLibrary'
 import { VISIBILITY_NAME } from './visibility'
 
@@ -39,6 +40,7 @@ export function RosterSummary({
   faction,
   points,
   label,
+  dispositionName,
   factionLoading = false,
   pointsLoading = false,
   problem = null,
@@ -48,6 +50,7 @@ export function RosterSummary({
   points?: number | null
   /** What an unnamed list is called, folded from its units. Absent until the totals land. */
   label?: string
+  dispositionName?: string
   factionLoading?: boolean
   pointsLoading?: boolean
   problem?: RosterProblem | null
@@ -68,6 +71,9 @@ export function RosterSummary({
               {name}
             </span>
           ))}
+          {roster.disposition && dispositionName ? (
+            <span className={`chip ${dispositionTone(roster.disposition)}`}>{dispositionName}</span>
+          ) : null}
           <WaiverChip rules={waivers} />
         </span>
         <span className="mt-1 block text-xs text-dim">

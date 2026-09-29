@@ -15,7 +15,7 @@ const PRIMARY_TABS: readonly Tab[] = [
   { icon: ScrollText, label: 'Rosters', section: 'rosters', to: '/rosters' },
   { icon: Swords, label: 'Battles', section: 'battles', to: '/battles' },
   { icon: UsersRound, label: 'Factions', section: 'factions', to: '/factions' },
-  { icon: BookOpen, label: 'Missions', section: 'missions', to: '/mission-packs' },
+  { icon: BookOpen, label: 'Missions', section: 'missions', to: '/missions' },
 ]
 
 const SCROLL_REGIONS = {
