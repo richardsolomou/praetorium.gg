@@ -4,6 +4,8 @@ import { reduceBattle, type Command, type LoggedCommand, type SubmitResult } fro
 import { commandSchema } from '../core/commands'
 import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, type BattleAudience } from '../core/battleAudience'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
+import type { PlayerDefaults } from '../core/playerDefaults'
+import { playerDefaultsSchema } from './schemas'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 
 const rosterRow = z.strictObject({
@@ -500,6 +502,14 @@ export class SpacetimeOperator {
   async setPushEnabled(userId: string, enabled: boolean, now: number) {
     const response = await this.call('set_push_enabled', [userId, enabled, now])
     return z.boolean().parse(await response.json())
+  }
+
+  async playerDefaults(userId: string) {
+    return playerDefaultsSchema.parse(await this.read('player_defaults', [userId]))
+  }
+
+  async setPlayerDefaults(userId: string, defaults: PlayerDefaults, now: number) {
+    return playerDefaultsSchema.parse(await this.read('set_player_defaults', [userId, defaults.rosterVisibility, defaults.battleSize, now]))
   }
 
   async registerPushToken(input: { userId: string; token: string; platform: 'ios' | 'android'; now: number }) {

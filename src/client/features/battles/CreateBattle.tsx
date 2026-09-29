@@ -4,10 +4,9 @@ import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { GAME_SIZES } from '../../../core/battle'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { createBattle, leagueBattleOptions } from '../../../server/functions'
-import { battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
+import { battlesQuery, gameReferencesQuery, opponentsQuery, playerDefaultsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { advanceOnboarding } from '../onboarding/onboarding'
@@ -25,9 +24,6 @@ const SEATING: Record<TableShape, string> = {
 
 /** A seat this player may fill: a friend, or one of the instance's practice opponents. */
 type Opponent = { id: string; name: string; image: string | null; automated: boolean }
-
-/** The size a new battle opens at. Setup's first step is where the table changes it. */
-const OPENING_LIMIT = GAME_SIZES.find((size) => size.limit === 2000)?.limit ?? GAME_SIZES[0].limit
 
 /**
  * Who may fill a seat, with the people first and the seats nobody signs in to after.
@@ -76,14 +72,17 @@ export function CreateBattle() {
         const matches = await leagueBattleOptions({ data: playerData })
         if (matches.length) return { kind: 'league' as const, matches }
       }
-      const references = await queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
+      const [references, defaults] = await Promise.all([
+        queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' }),
+        queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' }),
+      ])
       let battle
       try {
         battle = await createBattle({
           data: {
             ...playerData,
             // What the table opens with, and what its first setup step is for changing.
-            limit: OPENING_LIMIT,
+            limit: defaults.battleSize,
             missionPackId: references?.packs[0]?.id ?? null,
             casual,
           },

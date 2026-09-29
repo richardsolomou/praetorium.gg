@@ -1,4 +1,4 @@
-import type { RosterVisibility } from '../../../core/savedRoster'
+import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../../core/savedRoster'
 
 /**
  * What each answer is called, and what it means.
@@ -14,8 +14,12 @@ export const VISIBILITY_NAME: Record<RosterVisibility, string> = {
 }
 
 /** Worded as consequences, because the choice is only useful if a player can tell what changes. */
-export const VISIBILITY_DETAIL: Record<RosterVisibility, string> = {
-  private: 'Private — only you',
-  unlisted: 'Unlisted — anyone with the link',
-  public: 'Public — listed on your profile',
+export const VISIBILITY_REACH: Record<RosterVisibility, string> = {
+  private: 'Only you',
+  unlisted: 'Anyone with the link',
+  public: 'Listed on your profile',
 }
+
+export const VISIBILITY_DETAIL = Object.fromEntries(
+  ROSTER_VISIBILITIES.map((visibility) => [visibility, `${VISIBILITY_NAME[visibility]} — ${VISIBILITY_REACH[visibility].toLowerCase()}`]),
+) as Record<RosterVisibility, string>

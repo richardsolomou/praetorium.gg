@@ -38,7 +38,16 @@ import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import type { Datasheet } from '../../../contracts/catalogue'
 import { exportRoster, saveRoster } from '../../../server/functions'
 import { shareLink } from '../../nativeBridge'
-import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery, unitsQuery } from '../../queries'
+import {
+  collectionQuery,
+  factionIndexQuery,
+  factionQuery,
+  invalidateSavedRosters,
+  meQuery,
+  playerDefaultsQuery,
+  priceQuery,
+  unitsQuery,
+} from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { picksAfterDetachmentChange } from './rosterPicks'
@@ -358,7 +367,7 @@ export function ListBuilder({
   })
 
   const duplicateRoster = useMutation({
-    mutationFn: () =>
+    mutationFn: async () =>
       saveRoster({
         data: {
           name: listName ? `Copy of ${listName}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '',
@@ -371,7 +380,7 @@ export function ListBuilder({
           waivedRules,
           optionalRules,
           borrowedDetachmentId,
-          visibility: 'private',
+          visibility: (await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })).rosterVisibility,
           source: initial.source,
         },
       }),

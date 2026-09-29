@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { befriend, createBattle, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import { befriend, createBattle, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 
 async function expectOnboardingProgress(page: Parameters<typeof signUp>[0], resolved: number) {
   await page
@@ -176,6 +176,30 @@ test('a player can edit their display name and profile picture', async ({ page }
   await page.reload()
   await expect(page.getByRole('button', { name: 'Add picture' })).toBeVisible()
   await expect(page.locator('main img')).toHaveCount(0)
+})
+
+test('profile defaults choose what new rosters and battles start with', async ({ page }) => {
+  await signUp(page, uniqueName('Alice'))
+  await page.goto('/profile')
+  const visibility = page.getByRole('group', { name: 'Roster visibility' })
+  const size = page.getByRole('group', { name: 'Battle size' })
+  await visibility.getByRole('button', { name: /^Public/ }).click()
+  await expect(visibility.getByRole('button', { name: /^Public/ })).toHaveAttribute('aria-pressed', 'true')
+  await size.getByRole('button', { name: /^Incursion/ }).click()
+  await expect(size.getByRole('button', { name: /^Incursion/ })).toHaveAttribute('aria-pressed', 'true')
+  await page.reload()
+  await expect(visibility.getByRole('button', { name: /^Public/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(size.getByRole('button', { name: /^Incursion/ })).toHaveAttribute('aria-pressed', 'true')
+
+  await page.goto('/rosters')
+  const dialog = page.getByRole('dialog', { name: 'Create roster' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create editable roster' }).click())
+  await expect(dialog.getByRole('combobox', { name: 'Battle size' })).toContainText('Incursion')
+  await expect(dialog.locator('#setup-visibility')).toContainText('Public — listed on your profile')
+  await page.keyboard.press('Escape')
+
+  await createBattle(page, { practice: true })
+  await expect(page.getByRole('combobox', { name: 'Battle size' })).toContainText('Incursion')
 })
 
 test('a player can permanently delete their account', async ({ page }) => {

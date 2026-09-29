@@ -6,7 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { saveRoster } from '../../../server/functions'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
-import { factionIndexQuery, factionQuery, invalidateSavedRosters } from '../../queries'
+import { factionIndexQuery, factionQuery, invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import {
   claimInput,
@@ -175,7 +175,10 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
   const queryClient = useQueryClient()
   const started = useRef(false)
   const claim = useMutation({
-    mutationFn: (draft: GuestDraft) => saveRoster({ data: claimInput(draft) }),
+    mutationFn: async (draft: GuestDraft) => {
+      const defaults = await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })
+      return saveRoster({ data: { ...claimInput(draft), visibility: defaults.rosterVisibility } })
+    },
     onSuccess: async ({ id }) => {
       clearGuestDraft()
       await invalidateSavedRosters(queryClient)

@@ -12,6 +12,7 @@ import { authClient } from '../../authClient'
 import { AccountSecurity } from './AccountSecurity'
 import { BattleSharing } from './BattleSharing'
 import { NotificationSettings } from './NotificationSettings'
+import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
@@ -206,6 +207,7 @@ function ProfileForm({
           privacy={
             <>
               <BattleSharing />
+              <PlayerDefaultsSettings />
               <NotificationSettings />
             </>
           }

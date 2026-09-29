@@ -6,6 +6,7 @@ import { currentUser, currentUserId, requireAdmin, requireUser, requireUserId } 
 import { mutationRpc, rpc } from '../rpc'
 import {
   battleAudienceSchema,
+  playerDefaultsSchema,
   favouriteDetachmentSchema,
   favouriteFactionSchema,
   friendSchema,
@@ -48,6 +49,25 @@ export const updateOnboardingProgress = createServerFn({ method: 'POST' })
 export const battleAudience = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => app().service.battleAudience(await requireUserId())),
 )
+
+/** What this player's new rosters and battles start with. */
+export const playerDefaults = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => app().service.playerDefaults(await requireUserId())),
+)
+
+export const setPlayerDefaults = createServerFn({ method: 'POST' })
+  .validator(playerDefaultsSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const defaults = await app().service.setPlayerDefaults(player.id, data)
+      await app().telemetry.capture(player.id, 'player_defaults_set', {
+        roster_visibility: defaults.rosterVisibility,
+        battle_size: defaults.battleSize,
+      })
+      return defaults
+    }),
+  )
 
 export const setBattleAudience = createServerFn({ method: 'POST' })
   .validator(battleAudienceSchema)

@@ -7,10 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { DEFAULT_GAME_LIMIT } from '../../../core/battle'
 import { importRoster, saveRoster } from '../../../server/functions'
 import { errorMessage } from '../../queryClient'
-import { invalidateSavedRosters } from '../../queries'
+import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 
 type Imported = Awaited<ReturnType<typeof importRoster>>
 /** A list whose faction was recognised, which is the only thing an import cannot do without. */
@@ -53,16 +52,17 @@ export function RosterImport() {
 
   const keep = useMutation({
     mutationFn: async (imported: Matched) => {
+      const defaults = await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })
       const { id } = await saveRoster({
         data: {
           name: imported.name,
           catalogueId: imported.catalogueId,
           detachmentIds: imported.detachmentIds,
           disposition: 'disposition' in imported ? (imported.disposition ?? null) : null,
-          limit: 'limit' in imported && imported.limit ? imported.limit : DEFAULT_GAME_LIMIT,
+          limit: 'limit' in imported && imported.limit ? imported.limit : defaults.battleSize,
           picks: imported.units,
           prep: null,
-          visibility: 'private',
+          visibility: defaults.rosterVisibility,
           source: imported.source,
         },
       })

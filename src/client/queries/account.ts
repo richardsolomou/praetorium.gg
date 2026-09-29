@@ -8,6 +8,7 @@ import {
   me,
   notificationSettings,
   onboardingProgress,
+  playerDefaults,
   signInOptions,
   userProfile,
 } from '../../server/functions'
@@ -16,6 +17,8 @@ import { SSR_STALE_TIME } from './shared'
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(), staleTime: SSR_STALE_TIME })
 export const notificationSettingsQuery = () =>
   queryOptions({ queryKey: ['notification-settings'], queryFn: () => notificationSettings(), staleTime: SSR_STALE_TIME })
+export const playerDefaultsQuery = () =>
+  queryOptions({ queryKey: ['player-defaults'], queryFn: () => playerDefaults(), staleTime: SSR_STALE_TIME })
 export const onboardingQuery = () =>
   queryOptions({ queryKey: ['onboarding'], queryFn: () => onboardingProgress(), staleTime: SSR_STALE_TIME })
 export const activeFriendInviteQuery = () =>

@@ -156,6 +156,14 @@ export class SpacetimeRepository {
     return this.product.setPushEnabled(...args)
   }
 
+  playerDefaults(...args: Parameters<SpacetimeOperator['playerDefaults']>) {
+    return this.product.playerDefaults(...args)
+  }
+
+  setPlayerDefaults(...args: Parameters<SpacetimeOperator['setPlayerDefaults']>) {
+    return this.product.setPlayerDefaults(...args)
+  }
+
   registerPushToken(...args: Parameters<SpacetimeOperator['registerPushToken']>) {
     return this.product.registerPushToken(...args)
   }
