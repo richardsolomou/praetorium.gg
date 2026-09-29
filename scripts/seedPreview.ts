@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { eq } from 'drizzle-orm'
 import type { Command, Roster } from '../src/core/battle'
@@ -275,6 +276,10 @@ const PREVIEW_ALL_ROSTERS = PREVIEW_ACCOUNTS.flatMap((account) => account.roster
 
 export type PreviewSnapshots = ReadonlyMap<string, Roster>
 
+export function previewAccountId(database: string, email: string) {
+  return createHash('sha256').update(`${database}\0${email}`).digest('hex').slice(0, 32)
+}
+
 export async function seedPreview(providedSnapshots?: PreviewSnapshots) {
   if (process.env.PRAETORIUM_SEED_PREVIEW !== 'true') throw new Error('Refusing to seed a database without the preview flag')
   if (
@@ -301,6 +306,7 @@ export async function seedPreview(providedSnapshots?: PreviewSnapshots) {
   )
   const authOptions: Parameters<typeof createSqliteAuth>[2] = {
     environment: process.env,
+    userIdForNewAccount: (email) => previewAccountId(process.env.SPACETIME_DATABASE!, email),
     deleteUserData: (userId) => product.deleteUserData(userId),
     revokeSessionAccess: (sessionId) => product.revokeSession(sessionId),
     storeSocialAvatar: async () => null,

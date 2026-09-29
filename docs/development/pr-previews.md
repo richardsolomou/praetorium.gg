@@ -11,6 +11,7 @@ One pull request comment shows the current state:
 - 🗑️ The pull request closed, and the preview was deleted.
 
 Each preview has a separate SQLite authentication file, SpacetimeDB product database, application secret, and product operator identity. The deployed application seeds four test accounts, saved rosters, friendships, favourites, a collection, battles, and league events. A fresh deployment recreates its disposable data. Previews share a SpacetimeDB server and use their own pull request's pinned catalogue snapshot, but their database names, authentication issuers, and token audiences are distinct.
+Seed account IDs are derived from the preview database name and email, so recreating a container's SQLite file preserves its links to the preview's SpacetimeDB data. A deployment still resets both stores.
 The preview's token issuer includes the commit revision so SpacetimeDB fetches the new signing keys when a deployment recreates its authentication database. Existing preview sessions end on redeployment.
 The image contains the pull request's pinned, verified catalogue snapshot and product module. The trusted deployment job extracts that module, creates the preview database, and deploys the pinned image.
 

@@ -40,6 +40,7 @@ function isSqliteBusy(error: unknown) {
 type AuthOptions = {
   environment: Environment
   email?: EmailDelivery
+  userIdForNewAccount?: (email: string) => string
   deleteUserData: (userId: string) => Promise<void>
   revokeSessionAccess: (sessionId: string) => Promise<void>
   storeSocialAvatar: (url: string) => Promise<string | null>
@@ -174,7 +175,13 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     ],
     databaseHooks: {
       user: {
-        create: { before: rehostSocialAvatarOnSignUp },
+        create: {
+          before: async (data) => {
+            const avatar = await rehostSocialAvatarOnSignUp(data)
+            if (!options.userIdForNewAccount) return avatar
+            return { data: { ...avatar?.data, id: options.userIdForNewAccount(data.email) } }
+          },
+        },
         update: {
           before: async (data, context) => {
             if (context?.path !== '/update-user') return
