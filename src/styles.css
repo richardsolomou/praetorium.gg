@@ -110,7 +110,8 @@ html[data-native-app='true'] [data-mobile-app-header-spacer] {
     bottom: 4rem;
   }
 
-  html[data-native-app='true'] [data-setup-next] {
+  html[data-native-app='true'] [data-setup-next],
+  html[data-native-app='true'] [data-replay-timeline] {
     bottom: 4rem;
   }
 }
