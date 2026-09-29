@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.82.1
+
+### Patch Changes
+
+- e0bba17: Keep a unit that was just added to a saved roster, instead of briefly removing it and saving the roster without it.
+- 4fccda4: Keep players signed in while they turn on an authenticator app, so the recovery codes stay on screen until they are saved.
+
 ## 0.82.0
 
 ### Minor Changes
