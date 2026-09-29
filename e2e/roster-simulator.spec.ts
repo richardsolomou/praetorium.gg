@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { chooseUnit, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 
 async function choose(page: Page, control: string, name: string) {
@@ -24,6 +24,10 @@ async function noOverflow(page: Page) {
       .locator('aside, [role=dialog], [data-slot=roster-units], [data-slot=scroll-area-viewport]')
       .evaluateAll((panels) => panels.every((panel) => panel.scrollWidth <= panel.clientWidth + 1)),
   ).toBe(true)
+}
+
+function estimate(scope: Page | Locator, phase: 'Shooting' | 'Melee') {
+  return scope.getByRole('region', { name: `${phase} estimate` })
 }
 
 test('unsupported enhancements stay out of the simulator without changing the roster loadout editor', async ({ page }) => {
@@ -55,7 +59,7 @@ test('Invasion Fleet hides unsupported rules in both roles while retaining calcu
   const synapse = simulator.getByRole('switch', { name: 'Attacker Synapse', exact: true })
   await expect(synapse).toBeVisible()
   const melee = simulator.getByRole('region', { name: 'Melee results' })
-  const damage = melee.locator('.readout').first()
+  const damage = estimate(simulator, 'Melee').locator('.readout').first()
   await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
   await expect(melee).toHaveAttribute('aria-busy', 'false')
   const baseline = Number(await damage.textContent())
@@ -65,11 +69,27 @@ test('Invasion Fleet hides unsupported rules in both roles while retaining calcu
   await expect.poll(async () => Number(await damage.textContent())).toBe(baseline)
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 })
+    expect(
+      await simulator.getByLabel('Results summary').evaluate((element) => {
+        const dialog = element.closest('[role=dialog]')
+        return Boolean(dialog && Math.abs(element.getBoundingClientRect().bottom - dialog.getBoundingClientRect().bottom) <= 1)
+      }),
+    ).toBe(true)
+    if (width === 390)
+      expect(await simulator.getByLabel('Results summary').evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(160)
     for (const name of ['Hyper-adaptations', 'Sustained Hits', 'Lethal Hits', 'Hyper Adaptions', 'Not calculated'])
       await expect(buffs).not.toContainText(name)
     await noOverflow(page)
     await synapse.scrollIntoViewIfNeeded()
     await simulator.screenshot({ path: `test-results/roster-simulator-invasion-fleet-${width}.png` })
+    if (width === 390) {
+      await simulator.locator('[data-simulator-scroll]').evaluate((element) => (element.scrollTop = element.scrollHeight))
+      const footerTop = await simulator.getByLabel('Results summary').evaluate((element) => element.getBoundingClientRect().top)
+      const modifiersBottom = await simulator
+        .getByRole('region', { name: 'Applied modifiers' })
+        .evaluate((element) => element.getBoundingClientRect().bottom)
+      expect(modifiersBottom).toBeLessThanOrEqual(footerTop)
+    }
   }
   await simulator.getByRole('button', { name: 'Swap attacker and defender' }).click()
   await expect(simulator.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Hormagaunts')
@@ -93,16 +113,17 @@ test('selected friendly support calculates against the marked enemy in both phas
   await expect(rules.getByRole('switch', { name: 'Attacker Psychic Guidance', exact: true })).not.toBeChecked()
   await expect(rules).not.toContainText('Not calculated')
   const results = ['Shooting results', 'Melee results'].map((name) => simulator.getByRole('region', { name }))
+  const estimates = [estimate(simulator, 'Shooting'), estimate(simulator, 'Melee')]
   const baseline: number[] = []
-  for (const result of results) {
-    await expect(result.locator('.readout').first()).toHaveText(/^\d+(?:\.\d+)?$/)
+  for (const [index, result] of results.entries()) {
+    await expect(estimates[index].locator('.readout').first()).toHaveText(/^\d+(?:\.\d+)?$/)
     await expect(result).toHaveAttribute('aria-busy', 'false')
-    baseline.push(Number(await result.locator('.readout').first().textContent()))
+    baseline.push(Number(await estimates[index].locator('.readout').first().textContent()))
   }
   await buff.click()
   for (const [index, result] of results.entries()) {
     await expect(result).toContainText('Sustained Hits 1')
-    await expect.poll(async () => Number(await result.locator('.readout').first().textContent())).toBeGreaterThan(baseline[index])
+    await expect.poll(async () => Number(await estimates[index].locator('.readout').first().textContent())).toBeGreaterThan(baseline[index])
   }
   await buff.scrollIntoViewIfNeeded()
   await noOverflow(page)
@@ -112,8 +133,8 @@ test('selected friendly support calculates against the marked enemy in both phas
   await noOverflow(page)
   await simulator.screenshot({ path: 'test-results/roster-simulator-selected-support-390.png' })
   await buff.click()
-  for (const [index, result] of results.entries())
-    await expect.poll(async () => Number(await result.locator('.readout').first().textContent())).toBe(baseline[index])
+  for (const [index] of results.entries())
+    await expect.poll(async () => Number(await estimates[index].locator('.readout').first().textContent())).toBe(baseline[index])
   await choose(page, 'Attacker unit', 'Spiritseer')
   await expect(rules).not.toContainText('Spirit Mark')
   await choose(page, 'Attacker unit', 'Wraithguard')
@@ -138,7 +159,7 @@ test('Aeldari weapon buffs calculate their named and existing-ability effects', 
   await expect(hand).not.toBeChecked()
   await expect(blitz).not.toBeChecked()
   const shooting = simulator.getByRole('region', { name: 'Shooting results' })
-  const damage = shooting.locator('.readout').first()
+  const damage = estimate(simulator, 'Shooting').locator('.readout').first()
   await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
   const baseline = Number(await damage.textContent())
@@ -212,7 +233,9 @@ for (const width of [1440, 390, 900]) {
     await expect(
       simulator.getByRole('region', { name: 'Defender', exact: true }).locator('[data-characteristic="FNP"] .readout'),
     ).toHaveText('4+')
-    await shooting.getByRole('button', { name: /Wounds lost: .*Show probabilities/ }).click()
+    await estimate(simulator, 'Shooting')
+      .getByRole('button', { name: /Wounds lost: .*Show probabilities/ })
+      .click()
     const chart = page.getByRole('dialog', { name: 'Shooting · Wounds lost probabilities', exact: true })
     await expect(chart).toBeVisible()
     await page.keyboard.press('Escape')
@@ -290,7 +313,7 @@ test('roster simulations inherit enhancements and attached-unit context', async 
   const melee = simulator.getByRole('region', { name: 'Melee results' })
   await expect(melee).toHaveAttribute('aria-busy', 'false')
   await expect(melee.getByRole('button', { name: 'A 6, modified from 4 by Destroyer Ankh', exact: true })).toBeVisible()
-  const damage = melee.locator('.readout').first()
+  const damage = estimate(simulator, 'Melee').locator('.readout').first()
   await expect(damage).toHaveText(/^\d+\.\d+$/)
   const enhancedDamage = Number(await damage.textContent())
   await choose(page, 'Attacker Enhancements', 'No enhancement')
@@ -316,7 +339,7 @@ test('roster buffs apply conditional shooting bonuses and defensive stratagems',
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
   await chooseUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
   const shooting = simulator.getByRole('region', { name: 'Shooting results' })
-  const damage = shooting.locator('.readout').first()
+  const damage = estimate(simulator, 'Shooting').locator('.readout').first()
   await expect(damage).toHaveText('1.67')
   const rule = simulator.getByRole('button', { name: 'Attacker Hail of Bolts rules', exact: true })
   const buff = simulator.getByRole('switch', { name: 'Attacker Hail of Bolts', exact: true })
@@ -380,7 +403,7 @@ test('a support stratagem requires its source and applies to its eligible recipi
   await expect(pulse).not.toBeChecked()
   await simulator.getByRole('button', { name: 'Cover (−1 BS)', exact: true }).click()
   const shooting = simulator.getByRole('region', { name: 'Shooting results' })
-  const damage = shooting.locator('.readout').first()
+  const damage = estimate(simulator, 'Shooting').locator('.readout').first()
   await expect(damage).toHaveText(/^\d+\.\d+$/)
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
   const baseline = Number(await damage.textContent())

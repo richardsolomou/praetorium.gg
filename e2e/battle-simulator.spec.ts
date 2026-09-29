@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Locator } from '@playwright/test'
 import {
   attachRoster,
   befriend,
@@ -10,6 +10,10 @@ import {
   uniqueName,
   waitForRosterSave,
 } from './account'
+
+function estimate(simulator: Locator, phase: 'Shooting' | 'Melee') {
+  return simulator.getByRole('region', { name: `${phase} estimate` })
+}
 
 for (const width of [1440, 390, 900]) {
   test(`battle combat uses frozen loadouts and live casualties at ${width}px`, async ({ page, browser }) => {
@@ -48,7 +52,7 @@ for (const width of [1440, 390, 900]) {
     await survivors.getByRole('button', { name: 'Fewer Intercessor survivors', exact: true }).click()
     await survivors.getByRole('button', { name: 'Use survivors', exact: true }).click()
     const shooting = simulator.getByRole('region', { name: 'Shooting results' })
-    const damage = shooting.locator('.readout').first()
+    const damage = estimate(simulator, 'Shooting').locator('.readout').first()
     await expect(damage).toHaveText(/^\d+\.\d+$/)
     await expect(shooting).toContainText('4× Bolt Rifle')
     await expect(simulator.getByRole('region', { name: 'Melee results' })).toContainText('Power fist')
@@ -61,9 +65,11 @@ for (const width of [1440, 390, 900]) {
     await expect(simulator.getByLabel('Defender remaining wounds', { exact: true })).toHaveText('1')
     await expect(damage).toHaveText(/^\d+\.\d+$/)
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    const woundedKills = Number(await shooting.locator('.readout').nth(1).textContent())
+    const woundedKills = Number(await estimate(simulator, 'Shooting').locator('.readout').nth(1).textContent())
     await simulator.getByRole('button', { name: 'More defender remaining wounds', exact: true }).click()
-    await expect.poll(async () => Number(await shooting.locator('.readout').nth(1).textContent())).toBeLessThan(woundedKills)
+    await expect
+      .poll(async () => Number(await estimate(simulator, 'Shooting').locator('.readout').nth(1).textContent()))
+      .toBeLessThan(woundedKills)
     expect(await simulator.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
     await simulator.evaluate((node) => {
       const content = node.querySelector('.overflow-y-auto')
@@ -144,7 +150,7 @@ test('a team matchup switches allied armies and carries both sides through a swa
   await page.getByRole('option', { name: allyName, exact: true }).click()
   await expect(simulator.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Canoptek Reanimator')
   await expect(simulator.getByLabel('Defender faction', { exact: true })).toContainText('Space Marines')
-  await expect(simulator.getByRole('region', { name: 'Shooting results' }).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  await expect(estimate(simulator, 'Shooting').locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
   await simulator.getByRole('button', { name: 'Swap attacker and defender' }).click()
   await expect(simulator.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Canoptek Reanimator')
   await expect(simulator.getByRole('region', { name: 'Defender', exact: true })).toContainText('4+')
@@ -173,8 +179,7 @@ test('battle support auras respect the recipient, role, conditions, and living s
   const openedAt = Date.now()
   await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  const shooting = simulator.getByRole('region', { name: 'Shooting results' })
-  const damage = shooting.locator('.readout').first()
+  const damage = estimate(simulator, 'Shooting').locator('.readout').first()
   await expect(damage).toHaveText(/^\d+\.\d+$/)
   console.log(`Battle simulator first result: ${Date.now() - openedAt} ms`)
   const baseline = Number(await damage.textContent())
@@ -220,9 +225,11 @@ test('battle support auras respect the recipient, role, conditions, and living s
   await expect(attacker.getByRole('switch', { name: /Cold Fervour/ })).toBeChecked()
   const melee = simulator.getByRole('region', { name: 'Melee results' })
   await expect(melee).toHaveAttribute('aria-busy', 'false')
-  const beforePlasmacyte = Number(await melee.locator('.readout').first().textContent())
+  const beforePlasmacyte = Number(await estimate(simulator, 'Melee').locator('.readout').first().textContent())
   await attacker.getByRole('switch', { name: /Plasmacyte/ }).click()
-  await expect.poll(async () => Number(await melee.locator('.readout').first().textContent())).toBeGreaterThan(beforePlasmacyte)
+  await expect
+    .poll(async () => Number(await estimate(simulator, 'Melee').locator('.readout').first().textContent()))
+    .toBeGreaterThan(beforePlasmacyte)
   await expect(attacker).not.toContainText('Not calculated')
   await simulator.getByRole('combobox', { name: 'Attacker unit', exact: true }).click()
   await page.getByRole('option', { name: "C'tan Shard of the Nightbringer", exact: true }).click()

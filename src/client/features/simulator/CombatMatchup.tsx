@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -150,30 +150,6 @@ export function CombatMatchup({
   const [retry, setRetry] = useState(0)
   const reported = useRef(false)
   const failureReported = useRef(false)
-  const matchup = useRef<HTMLDivElement>(null)
-  const results = useRef<HTMLDivElement>(null)
-  const [resultsPast, setResultsPast] = useState(false)
-  const [matchupVisible, setMatchupVisible] = useState(true)
-  useEffect(() => {
-    const element = results.current
-    if (!element) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0]
-        if (entry) setResultsPast(entry.boundingClientRect.bottom <= (entry.rootBounds?.top ?? 0))
-      },
-      { root: inDialog ? element.closest('[data-simulator-scroll]') : null },
-    )
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [inDialog])
-  useEffect(() => {
-    const element = matchup.current
-    if (!element) return
-    const observer = new IntersectionObserver(([entry]) => setMatchupVisible(Boolean(entry?.isIntersecting)))
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
   const [allocation, setAllocation] = useState<readonly string[]>([])
   const built = defender ? combatTarget(defender.sheet, defender.models, defender.startingModels, defender.carriers) : null
   const position = (label: string) => (allocation.includes(label) ? allocation.indexOf(label) : allocation.length)
@@ -593,7 +569,7 @@ export function CombatMatchup({
     ),
   ]
   return (
-    <div ref={matchup} className="@container min-w-0 border border-edge bg-panel" aria-label="Combat matchup">
+    <div className="@container min-w-0 border border-edge bg-panel" aria-label="Combat matchup">
       <div className="grid divide-y divide-edge @xl:grid-cols-2 @xl:divide-x @xl:divide-y-0">
         <section aria-label="Attacker" className="min-w-0">
           {attackerControl ?? <CombatantHeading side="Attacker" unit={attacker} />}
@@ -624,12 +600,11 @@ export function CombatMatchup({
             {target.error}
           </p>
         ) : null}
-        <div ref={results} className="grid gap-3 @xl:grid-cols-2">
+        <div className="grid gap-3 @xl:grid-cols-2">
           {phases.map(([phase, title]) => {
             const plan = plans[phase]
             const answer = outcome?.answer[phase]
             const valid = Boolean(scenario(phase))
-            const result = valid ? answer?.result : undefined
             const error = outcome?.key === requestKey ? answer?.error : undefined
             return (
               <section
@@ -646,28 +621,6 @@ export function CombatMatchup({
                   )}
                   {title}
                 </h2>
-                <div data-result-numbers className="my-3 grid min-h-20 grid-cols-3 gap-2 border-y border-edge py-3">
-                  {[
-                    { label: 'Wounds lost', value: result?.meanDamage.toFixed(2), distribution: result?.damage },
-                    { label: 'Models lost', value: result?.meanKills.toFixed(2), distribution: result?.kills },
-                    { label: 'Unit destroyed', value: result ? `${(result.wipe * 100).toFixed(1)}%` : undefined },
-                  ].map(({ label, value, distribution }) => (
-                    <div key={label}>
-                      <p className="text-xs text-dim">{label}</p>
-                      {distribution && value ? (
-                        <CombatEstimate
-                          label={`${title} · ${label}`}
-                          value={value}
-                          distribution={distribution}
-                          muted={updating || failed}
-                        />
-                      ) : (
-                        <p className={`readout mt-1 text-xl ${updating || failed ? 'text-dim' : 'text-primary'}`}>{value ?? '—'}</p>
-                      )}
-                      {label !== 'Unit destroyed' ? <p className="text-xs text-faint">average</p> : null}
-                    </div>
-                  ))}
-                </div>
                 {!plan?.used.length ? (
                   <p className="text-xs text-dim">
                     {attacker ? `No ${title.toLowerCase()} weapons equipped.` : 'Equipped weapons appear here.'}
@@ -1022,39 +975,63 @@ export function CombatMatchup({
           </section>
         </section>
       </div>
-      {!resultsPast || !matchupVisible || !canSimulate ? null : (
-        <div
-          aria-label="Results summary"
-          data-results-summary
-          className={`fixed right-0 left-0 z-40 mx-auto grid max-w-3xl grid-cols-[auto_repeat(3,minmax(0,1fr))] items-baseline gap-x-3 border border-edge bg-panel/95 px-3 py-2 text-xs text-dim shadow-lg backdrop-blur sm:px-4 ${inDialog ? 'bottom-0' : 'bottom-16 min-[860px]:bottom-0'}`}
-        >
+      <div className="h-40 sm:h-32" aria-hidden />
+      <div
+        aria-label="Results summary"
+        data-results-summary
+        className={`fixed right-0 left-0 z-40 mx-auto grid max-w-3xl gap-1 border border-edge bg-panel/95 p-1 shadow-lg backdrop-blur sm:grid-cols-2 sm:gap-2 sm:p-2 ${inDialog ? 'bottom-0' : 'bottom-16 min-[860px]:bottom-0'}`}
+      >
+        <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2 px-2 text-xs text-dim sm:hidden">
           <span />
-          {['Wounds', 'Models', 'Destroyed'].map((label) => (
-            <span key={label} className="truncate">
-              {label}
-            </span>
-          ))}
-          {phases.map(([phase, title]) => {
-            const result = scenario(phase) ? outcome?.answer[phase]?.result : undefined
-            return (
-              <Fragment key={phase}>
-                <span className="rubric">{title}</span>
-                {(
-                  [
-                    ['Wounds lost', result?.meanDamage.toFixed(2)],
-                    ['Models lost', result?.meanKills.toFixed(2)],
-                    ['Destroyed', result ? `${(result.wipe * 100).toFixed(1)}%` : undefined],
-                  ] as const
-                ).map(([label, value]) => (
-                  <span key={label} className={`readout text-sm ${updating || failed ? 'text-dim' : 'text-primary'}`}>
-                    {value ?? '—'}
-                  </span>
-                ))}
-              </Fragment>
-            )
-          })}
+          <div className="grid grid-cols-3 gap-1">
+            <span>Wounds</span>
+            <span>Models</span>
+            <span>Destroyed</span>
+          </div>
         </div>
-      )}
+        {phases.map(([phase, title]) => {
+          const valid = Boolean(scenario(phase))
+          const result = valid ? outcome?.answer[phase]?.result : undefined
+          return (
+            <section
+              key={phase}
+              aria-label={`${title} estimate`}
+              aria-busy={valid && updating && !failed}
+              className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 rounded-md border border-edge bg-sunken px-2 py-1.5 sm:block sm:px-3 sm:py-2"
+            >
+              <h2 className="rubric flex items-center gap-1 text-xs sm:gap-2 sm:text-base">
+                {phase === 'ranged' ? (
+                  <Crosshair className="size-3 shrink-0 text-info sm:size-4" aria-hidden />
+                ) : (
+                  <Swords className="size-3 shrink-0 text-info sm:size-4" aria-hidden />
+                )}
+                {title}
+              </h2>
+              <div data-result-numbers className="grid grid-cols-3 gap-1 sm:mt-2 sm:gap-2 sm:border-t sm:pt-2">
+                {[
+                  { label: 'Wounds lost', value: result?.meanDamage.toFixed(2), distribution: result?.damage },
+                  { label: 'Models lost', value: result?.meanKills.toFixed(2), distribution: result?.kills },
+                  { label: 'Unit destroyed', value: result ? `${(result.wipe * 100).toFixed(1)}%` : undefined },
+                ].map(({ label, value, distribution }) => (
+                  <div key={label} className="min-w-0">
+                    <p className="hidden truncate text-xs text-dim sm:block">{label}</p>
+                    {distribution && value ? (
+                      <CombatEstimate label={`${title} · ${label}`} value={value} distribution={distribution} muted={updating || failed} />
+                    ) : (
+                      <p
+                        className={`readout flex min-h-9 items-center text-sm sm:mt-1 sm:min-h-0 sm:text-xl ${updating || failed ? 'text-dim' : 'text-primary'}`}
+                      >
+                        {value ?? '—'}
+                      </p>
+                    )}
+                    {label !== 'Unit destroyed' ? <p className="hidden text-xs text-faint sm:block">average</p> : null}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )
+        })}
+      </div>
     </div>
   )
 }
