@@ -115,6 +115,8 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
   await expect(summary).toContainText('+1 to hit (All)')
   await expect(summary).toContainText('−1 to hit (Shooting)')
   await expect(summary).toContainText('Hit modifiers cancel to 0')
+  await page.mouse.move(0, 0)
+  await expect(page.getByRole('tooltip')).toHaveCount(0)
   await page.getByRole('region', { name: 'Modifiers', exact: true }).evaluate((element) => element.scrollIntoView({ block: 'start' }))
   await expect(resultsSummary).toBeVisible()
   await page.setViewportSize({ width: 390, height: 900 })
