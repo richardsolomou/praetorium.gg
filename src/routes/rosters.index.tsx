@@ -7,7 +7,7 @@ import { BuilderFrame, ClaimGuestRoster, GuestRoster, useGuestDraft } from '../c
 import { GUEST_DRAFT_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
 import { requestCookie } from '../server/requestCookie'
 import { RosterLibraryPage, type RosterLibrarySearch } from '../client/features/rosters/RosterLibraryPage'
-import { factionIndexQuery, meQuery, playerDefaultsQuery } from '../client/queries'
+import { factionIndexQuery, meQuery } from '../client/queries'
 
 export const Route = createFileRoute('/rosters/')({
   validateSearch: (search: Record<string, unknown>): RosterLibrarySearch => {
@@ -27,7 +27,6 @@ export const Route = createFileRoute('/rosters/')({
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
     // A visitor's page is the roster setup, which offers every faction.
     if (!me) await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
-    else await context.queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })
     // Whether this tab holds a visitor's list, so the first frame is the builder or the claim it becomes.
     return { guestDraft: requestCookie(GUEST_DRAFT_COOKIE) === '1', sort: keptRosterSort(requestCookie(ROSTER_SORT_COOKIE)) }
   },
