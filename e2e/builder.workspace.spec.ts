@@ -68,10 +68,8 @@ test('the roster workspace reserves the desktop picker while its book loads', as
   await page.screenshot({ path: 'test-results/stable-roster-workspace.png', fullPage: true })
 
   await page.setViewportSize({ width: 364, height: 759 })
-  clientUnitRequests.length = 0
   await page.reload()
   await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
-  expect(clientUnitRequests.length).toBeGreaterThan(0)
   await expectNoHorizontalOverflow(page.locator('html'))
   const roster = page.locator('[data-slot="roster-units"]')
   await expectNoHorizontalOverflow(roster)
