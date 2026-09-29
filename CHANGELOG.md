@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.85.0
+
+### Minor Changes
+
+- 9e01f2a: Improve mission browsing, roster context, and battle setup.
+
 ## 0.84.0
 
 ### Minor Changes
