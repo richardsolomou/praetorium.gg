@@ -2,6 +2,8 @@
 
 Praetorium uses PostHog for analytics, replay, flags, errors, performance, structured logs, metrics, and distributed traces. The integration is optional. Every product path works without PostHog variables.
 
+Web Analytics uses the browser's pageviews. The public MCP reference uses the pinned `@posthog/mcp` SDK in production with the existing project token and host. MCP Analytics keeps tool names, timings, outcomes, protocol version, and anonymous sessions. It drops arguments, results, agent intent, client identifiers, and MCP exception events before capture; the SDK does not change tool schemas or responses. The dedicated MCP client uses the same shutdown path as server telemetry. The SDK is pinned because MCP Analytics is still beta and minor releases can change behavior.
+
 The browser integration inside the mobile WebView owns identified product events, session replay with every form input masked and the `ph-no-capture` account, security and administration screens left out, browser logs, and browser metrics. Server functions propagate the validated browser session into structured error logs and stable request spans, while request counts and duration histograms use only the method and outcome as bounded dimensions. The Expo shell uses a separate native client for application lifecycle events and native-shell exceptions when `EXPO_PUBLIC_POSTHOG_API_KEY` is set. Native screenshot replay stays disabled because it cannot redact the WebView DOM without masking the whole view. Production iOS builds upload native JavaScript source maps through the PostHog Expo and Metro plugins. Canary builds exercise the same native tooling in dry-run mode because the preview environment does not contain the native source-map upload credential.
 
 ## Event contract

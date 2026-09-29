@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
+import { PostHog } from 'posthog-node'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { ReferenceCorpus } from './referenceCorpus'
 
@@ -74,6 +75,31 @@ it('serves the same reference document through MCP', async () => {
 
   expect(response.status).toBe(200)
   expect(await response.json()).toMatchObject({ result: { structuredContent: document } })
+})
+
+it('captures only anonymous MCP usage in production without changing the result', async () => {
+  vi.stubEnv('NODE_ENV', 'production')
+  vi.stubEnv('VITE_POSTHOG_PROJECT_TOKEN', 'phc_test')
+  vi.stubEnv('VITE_POSTHOG_HOST', 'https://us.i.posthog.com')
+  const capture = vi.spyOn(PostHog.prototype, 'capture').mockImplementation(() => undefined)
+  try {
+    const response = await handleReferenceMcp(toolRequest('search_reference', { query: 'battlefield' }))
+
+    expect({
+      result: await response.json(),
+      event: capture.mock.calls.find(([input]) => input.event === '$mcp_tool_call')?.[0],
+    }).toMatchObject({
+      result: { result: { structuredContent: { results: [{ id: document.id }] } } },
+      event: {
+        event: '$mcp_tool_call',
+        properties: { $mcp_tool_name: 'search_reference', $process_person_profile: false },
+      },
+    })
+    expect(capture.mock.calls.find(([input]) => input.event === '$mcp_tool_call')?.[0].properties).not.toHaveProperty('$mcp_parameters')
+  } finally {
+    capture.mockRestore()
+    vi.unstubAllEnvs()
+  }
 })
 
 it('serves search and faction discovery through the shared corpus', async () => {

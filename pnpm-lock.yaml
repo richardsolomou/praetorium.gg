@@ -32,6 +32,9 @@ importers:
       '@opentelemetry/sdk-logs':
         specifier: ^0.221.0
         version: 0.221.0(@opentelemetry/api@1.9.1)
+      '@posthog/mcp':
+        specifier: 0.17.0
+        version: 0.17.0(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.5.4))(posthog-node@5.52.4)
       '@posthog/react':
         specifier: ^1.10.6
         version: 1.10.6(@types/react@19.2.18)(posthog-js@1.430.3(@types/react@19.2.18)(react@19.2.8))(react@19.2.8)
@@ -2411,6 +2414,19 @@ packages:
 
   '@posthog/core@1.55.0':
     resolution: {integrity: sha512-x+0FR+uHsK3uJeofd5X4S2YS7hjaWkzkPN0X1GROHm9SvKw2RJ91kfQ7gT1bPtFwZSHNiRtteB7fX/xEMRN0IQ==}
+
+  '@posthog/mcp@0.17.0':
+    resolution: {integrity: sha512-X6rB7SWp8bEr5P8zrtjoNif9YH9BBPD8XRLq85z/wvFxq1ufH2HMxhlZXp/DvO0ZB0VulRYVw45OzL6rjpxDqg==}
+    engines: {node: ^20.20.0 || >=22.22.0}
+    peerDependencies:
+      '@modelcontextprotocol/sdk': '>=1.26.0'
+      '@modelcontextprotocol/server': '>=2.0.0'
+      posthog-node: ^5.0.0
+    peerDependenciesMeta:
+      '@modelcontextprotocol/sdk':
+        optional: true
+      '@modelcontextprotocol/server':
+        optional: true
 
   '@posthog/react-native-plugin@2.4.1':
     resolution: {integrity: sha512-Oxg3KSjD/w44nYR7AsX4Ugseig6hIWfCuUR933GHjMTgwSFqd814vJ9axBpaZlwS0plpSTE7wdoReuDJNYsdmA==}
@@ -9863,6 +9879,13 @@ snapshots:
   '@posthog/core@1.55.0':
     dependencies:
       '@posthog/types': 1.412.2
+
+  '@posthog/mcp@0.17.0(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.5.4))(posthog-node@5.52.4)':
+    dependencies:
+      '@posthog/core': 1.55.0
+      posthog-node: 5.52.4
+    optionalDependencies:
+      '@modelcontextprotocol/sdk': 1.30.0(supports-color@10.2.2)(zod@4.5.4)
 
   '@posthog/react-native-plugin@2.4.1(react-native@0.86.2(@babel/core@7.29.7(supports-color@10.2.2))(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)':
     dependencies:
