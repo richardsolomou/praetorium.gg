@@ -2,8 +2,9 @@ import { version } from '../../../../package.json'
 import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation, useMatch } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { Menu, X } from 'lucide-react'
+import { BookOpen, ChevronDown, Dices, Gavel, Layers3, Medal, Menu, ScrollText, Swords, Trophy, UsersRound, X } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -54,7 +55,7 @@ function PrimaryNavigation({ path }: { path: string }) {
   }, [open])
 
   const linkClass =
-    'eyebrow flex min-h-11 items-center border-l-2 border-transparent px-3 hover:border-info hover:bg-raised hover:text-info min-[860px]:min-h-0 min-[860px]:border-0 min-[860px]:bg-transparent min-[860px]:px-0'
+    'eyebrow flex min-h-11 items-center gap-1.5 border-l-2 border-transparent px-3 hover:border-info hover:bg-raised hover:text-info min-[860px]:min-h-0 min-[860px]:border-0 min-[860px]:bg-transparent min-[860px]:px-0'
 
   return (
     <div ref={root} className="min-[860px]:contents">
@@ -72,7 +73,7 @@ function PrimaryNavigation({ path }: { path: string }) {
       </Button>
       <nav
         id="primary-navigation"
-        className={`${open ? 'grid' : 'hidden'} absolute top-full right-0 left-0 gap-1 border-b border-edge bg-panel p-2 shadow-lg min-[860px]:static min-[860px]:flex min-[860px]:items-center min-[860px]:gap-4 min-[860px]:border-0 min-[860px]:bg-transparent min-[860px]:p-0 min-[860px]:shadow-none`}
+        className={`${open ? 'grid' : 'hidden'} absolute top-full right-0 left-0 gap-1 border-b border-edge bg-panel p-2 shadow-lg min-[860px]:static min-[860px]:flex min-[860px]:items-center min-[860px]:gap-3 min-[1000px]:gap-4 min-[860px]:border-0 min-[860px]:bg-transparent min-[860px]:p-0 min-[860px]:shadow-none`}
         aria-label="Primary"
       >
         <Link
@@ -80,6 +81,7 @@ function PrimaryNavigation({ path }: { path: string }) {
           className={linkClass}
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
         >
+          <ScrollText aria-hidden className="size-4 shrink-0 text-info" />
           Rosters
         </Link>
         <Link
@@ -87,6 +89,7 @@ function PrimaryNavigation({ path }: { path: string }) {
           className={linkClass}
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
         >
+          <Swords aria-hidden className="size-4 shrink-0 text-info" />
           Battles
         </Link>
         <Link
@@ -94,21 +97,8 @@ function PrimaryNavigation({ path }: { path: string }) {
           className={linkClass}
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
         >
+          <Trophy aria-hidden className="size-4 shrink-0 text-info" />
           Leagues
-        </Link>
-        <Link
-          to="/factions"
-          className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
-        >
-          Factions
-        </Link>
-        <Link
-          to="/missions"
-          className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
-        >
-          Missions
         </Link>
         <Link
           to="/leaderboard"
@@ -116,22 +106,44 @@ function PrimaryNavigation({ path }: { path: string }) {
           className={linkClass}
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
         >
+          <Medal aria-hidden className="size-4 shrink-0 text-info" />
           Leaderboard
-        </Link>
-        <Link
-          to="/rules"
-          className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
-        >
-          Rules
         </Link>
         <Link
           to="/simulator"
           className={linkClass}
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
         >
+          <Dices aria-hidden className="size-4 shrink-0 text-info" />
           Simulator
         </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                aria-label="Reference"
+                className={`eyebrow flex items-center gap-1.5 hover:text-info ${/^\/(?:factions|missions|force-dispositions|rules)(?:\/|$)/.test(path) ? 'text-parchment' : ''}`}
+              />
+            }
+          >
+            <BookOpen aria-hidden className="size-4 shrink-0 text-info" /> Reference <ChevronDown aria-hidden className="size-3.5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-52">
+            <DropdownMenuItem render={<Link to="/factions" />}>
+              <UsersRound aria-hidden /> Factions
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<Link to="/missions" />}>
+              <BookOpen aria-hidden /> Missions
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<Link to="/force-dispositions" />}>
+              <Layers3 aria-hidden /> Force dispositions
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<Link to="/rules" />}>
+              <Gavel aria-hidden /> Rules
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </nav>
     </div>
   )

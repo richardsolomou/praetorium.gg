@@ -16,10 +16,8 @@ export function CombatSimulator() {
         description="Compare shooting and melee between two units. Change a loadout and the odds update automatically."
       />
       <PageContent>
-        <div className="mx-auto max-w-3xl">
-          <CombatSimulatorMatchup />
-          <p className="mt-3 text-xs text-faint">Data provided by game-datacards, BSData, and the 40kdc community contributors.</p>
-        </div>
+        <CombatSimulatorMatchup />
+        <p className="mt-3 text-xs text-faint">Data provided by game-datacards, BSData, and the 40kdc community contributors.</p>
       </PageContent>
     </main>
   )

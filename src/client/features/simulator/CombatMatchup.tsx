@@ -979,7 +979,7 @@ export function CombatMatchup({
       <div
         aria-label="Results summary"
         data-results-summary
-        className={`fixed right-0 left-0 z-40 mx-auto grid max-w-3xl gap-1 border border-edge bg-panel/95 p-1 shadow-lg backdrop-blur sm:grid-cols-2 sm:gap-2 sm:p-2 ${inDialog ? 'bottom-0' : 'bottom-16 min-[860px]:bottom-0'}`}
+        className={`fixed right-0 left-0 z-40 mx-auto grid gap-1 border border-edge bg-panel/95 p-1 shadow-lg backdrop-blur sm:grid-cols-2 sm:gap-2 sm:p-2 ${inDialog ? 'bottom-0 max-w-3xl' : 'bottom-16 w-[calc(100%-1.5rem)] max-w-[calc(64rem-2rem)] sm:w-[calc(100%-2rem)] min-[860px]:bottom-0'}`}
       >
         <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2 px-2 text-xs text-dim sm:hidden">
           <span />
