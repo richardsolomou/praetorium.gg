@@ -77,6 +77,7 @@ import * as LeagueRostersProcedure from './league_rosters_procedure'
 import * as LeaguesVisibleToProcedure from './leagues_visible_to_procedure'
 import * as OnboardingByUserProcedure from './onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from './operator_health_procedure'
+import * as PlayerDefaultsProcedure from './player_defaults_procedure'
 import * as PracticeOpponentIdsProcedure from './practice_opponent_ids_procedure'
 import * as ProductStatsProcedure from './product_stats_procedure'
 import * as PublicStandingsRevisionProcedure from './public_standings_revision_procedure'
@@ -92,6 +93,7 @@ import * as RostersByIdsProcedure from './rosters_by_ids_procedure'
 import * as RostersByUserProcedure from './rosters_by_user_procedure'
 import * as SaveRosterProcedure from './save_roster_procedure'
 import * as SetBattleAudienceProcedure from './set_battle_audience_procedure'
+import * as SetPlayerDefaultsProcedure from './set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from './set_push_enabled_procedure'
 import * as SetRosterVisibilityProcedure from './set_roster_visibility_procedure'
 import * as ShareBattleProcedure from './share_battle_procedure'
@@ -211,6 +213,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('leagues_visible_to', LeaguesVisibleToProcedure.params, LeaguesVisibleToProcedure.returnType),
   __procedureSchema('onboarding_by_user', OnboardingByUserProcedure.params, OnboardingByUserProcedure.returnType),
   __procedureSchema('operator_health', OperatorHealthProcedure.params, OperatorHealthProcedure.returnType),
+  __procedureSchema('player_defaults', PlayerDefaultsProcedure.params, PlayerDefaultsProcedure.returnType),
   __procedureSchema('practice_opponent_ids', PracticeOpponentIdsProcedure.params, PracticeOpponentIdsProcedure.returnType),
   __procedureSchema('product_stats', ProductStatsProcedure.params, ProductStatsProcedure.returnType),
   __procedureSchema('public_standings_revision', PublicStandingsRevisionProcedure.params, PublicStandingsRevisionProcedure.returnType),
@@ -226,6 +229,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('rosters_by_user', RostersByUserProcedure.params, RostersByUserProcedure.returnType),
   __procedureSchema('save_roster', SaveRosterProcedure.params, SaveRosterProcedure.returnType),
   __procedureSchema('set_battle_audience', SetBattleAudienceProcedure.params, SetBattleAudienceProcedure.returnType),
+  __procedureSchema('set_player_defaults', SetPlayerDefaultsProcedure.params, SetPlayerDefaultsProcedure.returnType),
   __procedureSchema('set_push_enabled', SetPushEnabledProcedure.params, SetPushEnabledProcedure.returnType),
   __procedureSchema('set_roster_visibility', SetRosterVisibilityProcedure.params, SetRosterVisibilityProcedure.returnType),
   __procedureSchema('share_battle', ShareBattleProcedure.params, ShareBattleProcedure.returnType),

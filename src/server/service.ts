@@ -16,6 +16,7 @@ import {
   type SubmitResult,
 } from '../core/battle'
 import { type BattleAudience, battleAudience, maySpectate } from '../core/battleAudience'
+import type { PlayerDefaults } from '../core/playerDefaults'
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import { battleLogThroughSeq, battleTimeline, type ReplayPoint } from '../core/battleReplay'
@@ -542,6 +543,15 @@ export class PraetoriumService {
 
   setPushEnabled(userId: string, enabled: boolean) {
     return this.repository.setPushEnabled(userId, enabled, this.clock())
+  }
+
+  /** What this player's new rosters and battles start with. */
+  playerDefaults(userId: string) {
+    return this.repository.playerDefaults(userId)
+  }
+
+  setPlayerDefaults(userId: string, defaults: PlayerDefaults) {
+    return this.repository.setPlayerDefaults(userId, defaults, this.clock())
   }
 
   registerPushDevice(userId: string, device: { token: string; platform: 'ios' | 'android' }) {

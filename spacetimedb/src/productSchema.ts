@@ -56,6 +56,16 @@ const pushPreferences = table(
   },
 )
 
+const playerDefaults = table(
+  { name: 'player_defaults' },
+  {
+    userId: t.string().primaryKey(),
+    rosterVisibility: t.string(),
+    battleSize: t.u32(),
+    at: t.u64(),
+  },
+)
+
 const pushTokens = table(
   { name: 'push_tokens' },
   {
@@ -241,6 +251,7 @@ export const productTables = {
   battleUsers,
   battleSharing,
   pushPreferences,
+  playerDefaults,
   pushTokens,
   friendships,
   friendInvites,

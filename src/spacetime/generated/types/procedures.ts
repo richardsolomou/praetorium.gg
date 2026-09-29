@@ -29,6 +29,7 @@ import * as LeagueRostersProcedure from '../league_rosters_procedure'
 import * as LeaguesVisibleToProcedure from '../leagues_visible_to_procedure'
 import * as OnboardingByUserProcedure from '../onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from '../operator_health_procedure'
+import * as PlayerDefaultsProcedure from '../player_defaults_procedure'
 import * as PracticeOpponentIdsProcedure from '../practice_opponent_ids_procedure'
 import * as ProductStatsProcedure from '../product_stats_procedure'
 import * as PublicStandingsRevisionProcedure from '../public_standings_revision_procedure'
@@ -44,6 +45,7 @@ import * as RostersByIdsProcedure from '../rosters_by_ids_procedure'
 import * as RostersByUserProcedure from '../rosters_by_user_procedure'
 import * as SaveRosterProcedure from '../save_roster_procedure'
 import * as SetBattleAudienceProcedure from '../set_battle_audience_procedure'
+import * as SetPlayerDefaultsProcedure from '../set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from '../set_push_enabled_procedure'
 import * as SetRosterVisibilityProcedure from '../set_roster_visibility_procedure'
 import * as ShareBattleProcedure from '../share_battle_procedure'
@@ -96,6 +98,8 @@ export type OnboardingByUserArgs = __Infer<typeof OnboardingByUserProcedure.para
 export type OnboardingByUserResult = __Infer<typeof OnboardingByUserProcedure.returnType>
 export type OperatorHealthArgs = __Infer<typeof OperatorHealthProcedure.params>
 export type OperatorHealthResult = __Infer<typeof OperatorHealthProcedure.returnType>
+export type PlayerDefaultsArgs = __Infer<typeof PlayerDefaultsProcedure.params>
+export type PlayerDefaultsResult = __Infer<typeof PlayerDefaultsProcedure.returnType>
 export type PracticeOpponentIdsArgs = __Infer<typeof PracticeOpponentIdsProcedure.params>
 export type PracticeOpponentIdsResult = __Infer<typeof PracticeOpponentIdsProcedure.returnType>
 export type ProductStatsArgs = __Infer<typeof ProductStatsProcedure.params>
@@ -126,6 +130,8 @@ export type SaveRosterArgs = __Infer<typeof SaveRosterProcedure.params>
 export type SaveRosterResult = __Infer<typeof SaveRosterProcedure.returnType>
 export type SetBattleAudienceArgs = __Infer<typeof SetBattleAudienceProcedure.params>
 export type SetBattleAudienceResult = __Infer<typeof SetBattleAudienceProcedure.returnType>
+export type SetPlayerDefaultsArgs = __Infer<typeof SetPlayerDefaultsProcedure.params>
+export type SetPlayerDefaultsResult = __Infer<typeof SetPlayerDefaultsProcedure.returnType>
 export type SetPushEnabledArgs = __Infer<typeof SetPushEnabledProcedure.params>
 export type SetPushEnabledResult = __Infer<typeof SetPushEnabledProcedure.returnType>
 export type SetRosterVisibilityArgs = __Infer<typeof SetRosterVisibilityProcedure.params>

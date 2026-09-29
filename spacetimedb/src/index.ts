@@ -7,6 +7,7 @@ import { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from
 import { reduceBattle, validate, type FormatRuleId, type LoggedCommand } from '../../src/core/battle'
 import { commandSchema } from '../../src/core/commands'
 import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE } from '../../src/core/battleAudience'
+import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
 import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
 import {
   alliedLeagueRosterLimit,
@@ -317,6 +318,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   ctx.db.userOnboarding.userId.delete(userId)
   ctx.db.battleSharing.userId.delete(userId)
   ctx.db.pushPreferences.userId.delete(userId)
+  ctx.db.playerDefaults.userId.delete(userId)
   for (const row of Array.from(ctx.db.pushTokens.userId.filter(userId))) ctx.db.pushTokens.token.delete(row.token)
   for (const row of Array.from(ctx.db.friendships.requesterId.filter(userId))) {
     touchFriends(ctx, row.requesterId, row.addresseeId)
@@ -1321,6 +1323,29 @@ export const setPushEnabled = spacetime.procedure({ userId: t.string(), enabled:
     touchProduct(tx, input.userId, 'settings')
     return input.enabled
   }),
+)
+
+export const playerDefaults = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    const row = tx.db.playerDefaults.userId.find(userId)
+    return productJson(row ? { rosterVisibility: row.rosterVisibility, battleSize: row.battleSize } : DEFAULT_PLAYER_DEFAULTS)
+  }),
+)
+
+export const setPlayerDefaults = spacetime.procedure(
+  { userId: t.string(), rosterVisibility: t.string(), battleSize: t.u32(), now: t.u64() },
+  t.string(),
+  (ctx, input) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      if (!input.userId || input.userId.length > 128 || !isPlayerDefaults(input)) throw new SenderError('Invalid player defaults')
+      const row = { userId: input.userId, rosterVisibility: input.rosterVisibility, battleSize: input.battleSize, at: input.now }
+      if (tx.db.playerDefaults.userId.find(input.userId)) tx.db.playerDefaults.userId.update(row)
+      else tx.db.playerDefaults.insert(row)
+      touchProduct(tx, input.userId, 'settings')
+      return productJson({ rosterVisibility: row.rosterVisibility, battleSize: row.battleSize })
+    }),
 )
 
 export const registerPushToken = spacetime.reducer(

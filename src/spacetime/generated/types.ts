@@ -183,6 +183,14 @@ export type MyProductSignals = __Infer<typeof MyProductSignals>
 export const MySession = __t.object('MySession', {})
 export type MySession = __Infer<typeof MySession>
 
+export const PlayerDefaults = __t.object('PlayerDefaults', {
+  userId: __t.string(),
+  rosterVisibility: __t.string(),
+  battleSize: __t.u32(),
+  at: __t.u64(),
+})
+export type PlayerDefaults = __Infer<typeof PlayerDefaults>
+
 export const PracticeOpponents = __t.object('PracticeOpponents', {
   userId: __t.string(),
 })

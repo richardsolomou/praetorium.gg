@@ -20,6 +20,7 @@ import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
 import { commandSchema, rosterPickSchema } from '../core/commands'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
+import { isPlayerDefaults } from '../core/playerDefaults'
 import {
   LEAGUE_ADMISSIONS,
   LEAGUE_DESCRIPTION_MAX_LENGTH,
@@ -147,6 +148,9 @@ export const battlesPageSchema = z.object({
   before: battlesCursor.nullable().default(null),
 })
 export const battleAudienceSchema = z.object({ audience: z.enum(BATTLE_AUDIENCES) })
+export const playerDefaultsSchema = z
+  .strictObject({ rosterVisibility: z.enum(ROSTER_VISIBILITIES), battleSize: z.number().int() })
+  .refine(isPlayerDefaults, 'choose a supported battle size')
 export const pushPreferenceSchema = z.object({ enabled: z.boolean() })
 export const pushDeviceSchema = z.object({ token: pushTokenSchema, platform: z.enum(PUSH_PLATFORMS) })
 export const pushTokenOnlySchema = z.object({ token: pushTokenSchema })

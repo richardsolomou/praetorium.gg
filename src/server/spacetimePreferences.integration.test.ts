@@ -30,3 +30,18 @@ it.skipIf(!url || !database || !token)('stores battle sharing and derives onboar
     await operator.deleteUserData(friendId)
   }
 })
+
+it.skipIf(!url || !database || !token)('stores player defaults and forgets them with the account', async () => {
+  const operator = new SpacetimeOperator(url!, database!, token!)
+  const userId = randomUUID()
+  try {
+    expect(await operator.playerDefaults(userId)).toEqual({ rosterVisibility: 'private', battleSize: 2000 })
+    await operator.setPlayerDefaults(userId, { rosterVisibility: 'public', battleSize: 1000 }, Date.now())
+    expect(await operator.playerDefaults(userId)).toEqual({ rosterVisibility: 'public', battleSize: 1000 })
+    await expect(operator.setPlayerDefaults(userId, { rosterVisibility: 'public', battleSize: 1500 }, Date.now())).rejects.toThrow()
+    await operator.deleteUserData(userId)
+    expect(await operator.playerDefaults(userId)).toEqual({ rosterVisibility: 'private', battleSize: 2000 })
+  } finally {
+    await operator.deleteUserData(userId)
+  }
+})

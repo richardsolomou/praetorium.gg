@@ -1,16 +1,19 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DEFAULT_PLAYER_DEFAULTS } from '../../../core/playerDefaults'
 import { saveRoster } from '../../../server/functions'
-import { invalidateSavedRosters } from '../../queries'
+import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { EMPTY_SETUP } from './guestDraft'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFactionOption } from './RosterSetupDialog'
 
 export function CreateRoster({ factionOptions }: { factionOptions: RosterSetupFactionOption[] }) {
   const [open, setOpen] = useState(false)
+  const { data: defaults = DEFAULT_PLAYER_DEFAULTS } = useQuery(playerDefaultsQuery())
+  const initial = { ...EMPTY_SETUP, visibility: defaults.rosterVisibility, limit: defaults.battleSize }
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useMutation({
@@ -41,11 +44,13 @@ export function CreateRoster({ factionOptions }: { factionOptions: RosterSetupFa
         <Plus /> Create editable roster
       </Button>
       <RosterSetupDialog
+        // The dialog reads its value once, so defaults that arrive later start it again.
+        key={`${initial.visibility}-${initial.limit}`}
         mode="create"
         open={open}
         onOpenChange={setOpen}
         factionOptions={factionOptions}
-        value={EMPTY_SETUP}
+        value={initial}
         hasUnits={false}
         pending={create.isPending}
         onSave={(setup) => create.mutate(setup)}

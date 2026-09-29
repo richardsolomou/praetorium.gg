@@ -20,7 +20,7 @@ const queryFamilies = {
   friends: ['friendships', 'friend-battles', 'shared-battles', 'opponents', 'player-profile', 'player-search'],
   invites: ['friend-invite'],
   onboarding: ['onboarding'],
-  settings: ['battle-audience', 'notification-settings', 'public-battles', 'friend-battles'],
+  settings: ['battle-audience', 'notification-settings', 'player-defaults', 'public-battles', 'friend-battles'],
   leagues: ['leagues', 'league', 'league-roster', 'league-battles', 'opponents'],
   battles: [
     'battles',
