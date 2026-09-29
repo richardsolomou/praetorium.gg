@@ -21,7 +21,10 @@ const EVENT_PROPERTIES = [
 
 export function privateMcpEvent(event: Parameters<BeforeSendFn>[0]) {
   if (!event.event.startsWith('$mcp_')) return null
-  event.properties = Object.fromEntries(EVENT_PROPERTIES.flatMap((key) => (key in event.properties ? [[key, event.properties[key]]] : [])))
+  event.properties = {
+    ...Object.fromEntries(EVENT_PROPERTIES.flatMap((key) => (key in event.properties ? [[key, event.properties[key]]] : []))),
+    $ip: null,
+  }
   return event
 }
 

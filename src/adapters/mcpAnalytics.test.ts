@@ -15,6 +15,7 @@ const event = (name: string) => ({
     $mcp_response: { text: 'private result' },
     $mcp_intent: 'private player question',
     $mcp_client_user_agent: 'private agent data',
+    $ip: '192.0.2.1',
   },
 })
 
@@ -24,6 +25,7 @@ it('keeps bounded MCP usage data without request or result content', () => {
     $mcp_tool_name: 'search_reference',
     $mcp_duration_ms: 12,
     $mcp_is_error: false,
+    $ip: null,
   })
 })
 
