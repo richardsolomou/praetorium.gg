@@ -106,7 +106,7 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await host.getByRole('button', { name: 'Battle options' }).click()
     await host.getByRole('menuitem', { name: 'Finish early' }).click()
     await host.getByRole('button', { name: 'Finish early' }).click()
-    await expect(host.getByRole('region', { name: 'Battle scoreboard' })).toContainText('Result')
+    await expect(host.getByRole('region', { name: 'Battle scoreboard' }).getByRole('heading')).toContainText('Drawn')
     await host.goto('/')
     const idleHistory = host.locator('[data-home-played]')
     await expect(idleHistory.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)

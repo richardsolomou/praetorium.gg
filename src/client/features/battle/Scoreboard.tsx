@@ -6,14 +6,14 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { sideName, type Side } from '../../sides'
 import { tint } from './battleTints'
 
-type Props = { view: BattleView; sides: Side[]; outcome: string | null; replay?: boolean }
+type Props = { view: BattleView; sides: Side[]; outcome: string | null }
 
 /**
  * The one line worth glancing at mid-turn: who is ahead, whose turn it is, and how
  * far through the battle everyone is. The same component at every width, so a phone
  * and a laptop never disagree about the score.
  */
-export function Scoreboard({ view, sides, outcome, replay = false }: Props) {
+export function Scoreboard({ view, sides, outcome }: Props) {
   const active = view.players.find((player) => player.isActive)
   const finished = view.status === 'finished'
 
@@ -21,7 +21,7 @@ export function Scoreboard({ view, sides, outcome, replay = false }: Props) {
     <section
       data-scoreboard
       aria-label="Battle scoreboard"
-      className={`sticky top-12 z-20 -mx-3 border-b border-edge bg-void/95 px-3 py-2 backdrop-blur ${replay ? 'flex min-h-20 items-center' : ''}`}
+      className="sticky top-12 z-20 -mx-3 border-b border-edge bg-void/95 px-3 py-2 backdrop-blur"
     >
       {/*
        * A finished battle gives the whole strip to its result on a phone. Each side's
@@ -29,7 +29,7 @@ export function Scoreboard({ view, sides, outcome, replay = false }: Props) {
        * left the winner's name fighting the numbers either side of it for the width.
        */}
       <div
-        className={`mx-auto grid w-full items-center gap-3 sm:gap-6 ${finished ? 'max-sm:grid-cols-1' : ''} ${
+        className={`mx-auto grid min-h-14 w-full items-center gap-3 sm:gap-6 ${finished ? 'max-sm:grid-cols-1' : ''} ${
           sides.length > 1 ? 'max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'max-w-3xl grid-cols-[minmax(0,1fr)_auto]'
         }`}
       >
@@ -47,7 +47,7 @@ export function Scoreboard({ view, sides, outcome, replay = false }: Props) {
         ))}
         <div className={`order-2 text-center ${finished ? 'min-w-32 sm:min-w-44' : 'min-w-28'}`}>
           {finished ? (
-            <Result view={view} sides={sides} outcome={outcome} replay={replay} />
+            <Result view={view} sides={sides} outcome={outcome} />
           ) : (
             <>
               <p className="eyebrow">
@@ -70,17 +70,15 @@ export function Scoreboard({ view, sides, outcome, replay = false }: Props) {
 /**
  * The end of the battle, said the way the table says it out loud.
  *
- * The winner is named in their own tint under their own picture, because that is what
- * the two sides have been reading all game, and the score sits under the name rather
+ * The winner is named in their own tint, and the score sits under the name rather
  * than inside the sentence. The heading still reads as one line for a screen reader.
  */
-function Result({ view, sides, outcome, replay }: Props) {
+function Result({ view, sides, outcome }: Props) {
   const result = battleResult(sides, view)
   const winner = result.kind === 'win' ? sides.find((side) => side.index === result.side.index) : undefined
   if (!winner || result.kind !== 'win') {
     return (
       <>
-        <p className="eyebrow">Result</p>
         <h1 className="text-sm leading-tight font-bold text-balance uppercase">{outcome}</h1>
       </>
     )
@@ -88,23 +86,10 @@ function Result({ view, sides, outcome, replay }: Props) {
   const colours = tint(winner.index)
   return (
     <>
-      <p className="eyebrow">Result</p>
-      {!replay ? (
-        <div className="mt-0.5 flex justify-center -space-x-2" aria-hidden>
-          {winner.armies.map((army) => (
-            <PlayerAvatar
-              key={army.playerId}
-              name={army.playerName}
-              image={army.playerImage}
-              className={`size-8 border-2 border-void text-xs sm:size-10 sm:text-sm ${colours.ring}`}
-            />
-          ))}
-        </div>
-      ) : null}
-      <h1 className="mt-1 text-base leading-tight font-bold text-balance uppercase sm:text-lg">
+      <h1 className="text-base leading-tight font-bold text-balance uppercase sm:text-lg">
         <span className={colours.text}>{sideName(winner)}</span> <span className="text-dim">{result.verb}</span>{' '}
         {result.score ? (
-          <span className="readout block text-2xl leading-none sm:text-3xl">{result.score}</span>
+          <span className="readout block text-2xl leading-none">{result.score}</span>
         ) : (
           <span className="text-dim">{result.detail}</span>
         )}

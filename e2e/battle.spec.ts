@@ -140,10 +140,13 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   }
   await passPhases(firstPlayerId, 6)
   await passPhases(opponent.user_id, 5)
+  await page.setViewportSize({ width: 390, height: 844 })
   await page.reload()
 
-  await expect(page.locator('[data-scoreboard] h1')).toContainText('end phase')
-  await expect(page.locator('[data-scoreboard]')).toContainText('Round 5 of 5')
+  const scoreboard = page.locator('[data-scoreboard]')
+  await expect(scoreboard.locator('h1')).toContainText('end phase')
+  await expect(scoreboard).toContainText('Round 5 of 5')
+  const activeHeight = (await scoreboard.boundingBox())?.height
   await page.getByRole('button', { name: 'Pass the turn' }).click()
   const activeScoring = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
   const handoff = page.getByRole('dialog', { name: /Secret Mission action/ })
@@ -154,15 +157,16 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   if (await discard.isVisible()) await discard.getByRole('button', { name: 'Keep hand' }).click()
 
   await expect(handoff).toBeVisible()
-  await expect(page.locator('[data-scoreboard]')).not.toContainText('Result')
+  await expect(scoreboard).not.toContainText('Result')
   await handoff.getByRole('button', { name: 'Reveal and continue' }).click()
   const settlement = page.getByRole('dialog', { name: /^Scoring end of their turn points/ })
   await expect(settlement.locator('[data-due="final-secret"]')).toContainText('Final Vigil')
   await settlement.locator('[data-due="final-secret"]').getByRole('button', { name: 'plus 5' }).click()
   await page.screenshot({ path: 'test-results/final-round-settlement.png', fullPage: true })
   await settlement.getByRole('button', { name: 'Take the turn' }).click()
-  // The last round ends the battle, and the strip that carried the round carries the result.
-  await expect(page.locator('[data-scoreboard]')).toContainText('Result')
+  await expect(scoreboard.locator('h1')).toContainText('wins')
+  await expect(scoreboard).not.toContainText('Result')
+  expect((await scoreboard.boundingBox())?.height).toBe(activeHeight)
 })
 
 test('a tactical hand pays out when the card says', async ({ browser }) => {

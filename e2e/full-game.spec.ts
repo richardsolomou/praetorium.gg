@@ -25,9 +25,9 @@ test('two phones complete all five rounds in step', async ({ browser }) => {
     }
   }
 
-  // The scoreboard swaps the round for the result, and both phones read the same one.
-  await expect(scoreboard(alice)).toContainText('Result')
-  await expect(scoreboard(bob)).toContainText('Result')
+  // The scoreboard swaps the round for the outcome, and both phones read the same one.
+  await expect(scoreboard(alice).getByRole('heading')).toContainText(/wins|win|Drawn/)
+  await expect(scoreboard(bob).getByRole('heading')).toContainText(/wins|win|Drawn/)
   const outcome = await scoreboard(alice).getByRole('heading').textContent()
   await expect(scoreboard(bob).getByRole('heading')).toHaveText(outcome ?? '')
   await Promise.all([aliceContext.close(), bobContext.close()])

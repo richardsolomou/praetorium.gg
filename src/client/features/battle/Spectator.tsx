@@ -92,8 +92,8 @@ export function Spectator({
 
   return (
     <>
-      <main className="w-full space-y-3 px-3 pb-40">
-        <div className="mx-auto flex h-11 max-w-7xl items-center justify-between gap-3 pt-1">
+      <main className="w-full space-y-2 px-3 pb-40">
+        <div className="mx-auto flex h-8 max-w-7xl items-center justify-between gap-3">
           <p className="eyebrow shrink-0">
             {currentView.status === 'finished' ? 'Battle replay' : view.status === 'playing' ? 'Watching live' : 'Battle setup'}
           </p>
@@ -121,12 +121,7 @@ export function Spectator({
         </div>
 
         {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
-        <Scoreboard
-          view={view}
-          sides={table}
-          outcome={view.status === 'finished' ? battleOutcome(table, view) : null}
-          replay={currentView.status === 'finished'}
-        />
+        <Scoreboard view={view} sides={table} outcome={view.status === 'finished' ? battleOutcome(table, view) : null} />
 
         <div className="mx-auto grid max-w-7xl items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]">
           {table.map((side) => (
