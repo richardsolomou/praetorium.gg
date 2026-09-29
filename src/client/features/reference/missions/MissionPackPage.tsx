@@ -62,11 +62,13 @@ export function MissionPackPage({ packId }: { packId: string }) {
               ))}
               {data.dispositions.map((you) => (
                 <div key={you.id} className="contents">
-                  <div
-                    className={`grid min-h-16 place-items-center border px-2 text-center text-xs font-bold uppercase ${dispositionTone(you.id, true)}`}
+                  <Link
+                    to="/force-dispositions/$dispositionId"
+                    params={{ dispositionId: you.id }}
+                    className={`grid min-h-16 place-items-center border px-2 text-center text-xs font-bold uppercase hover:underline ${dispositionTone(you.id, true)}`}
                   >
                     {you.name}
-                  </div>
+                  </Link>
                   {data.dispositions.map((opponent) => {
                     const found = pack.missions.find((candidate) =>
                       candidate.matchups.some((pair) => pair[0]?.id === you.id && pair[1]?.id === opponent.id),

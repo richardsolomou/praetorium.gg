@@ -115,6 +115,21 @@ test('the roster header fades nothing when every fact fits', async ({ page }) =>
   await expect.poll(() => fadedEdges(meta)).toEqual({ start: false, end: false })
 })
 
+test('the roster header opens its force disposition', async ({ page }) => {
+  await openBuilder(page)
+  await page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Take and Hold', exact: true }).click()
+  await expect(page).toHaveURL(/\/force-dispositions\/take-and-hold$/)
+  await expect(page.getByRole('heading', { name: 'Take and Hold', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: /^vs Disruption/ })).toHaveAttribute(
+    'href',
+    '/mission-matchups/chapter-approved-2026-2027/take-and-hold/disruption',
+  )
+  await expect(page.getByRole('link', { name: /^Awakened Dynasty/ })).toHaveAttribute(
+    'href',
+    '/factions/necrons/detachments/awakened-dynasty',
+  )
+})
+
 test('a native unit screen keeps the tab bar beside it', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
   await context.addInitScript({

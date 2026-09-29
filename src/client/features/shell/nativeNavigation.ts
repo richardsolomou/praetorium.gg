@@ -87,6 +87,13 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
       title: 'Mission',
     }
   }
+  if (root === 'force-dispositions') {
+    return {
+      back: { href: '/mission-packs', label: 'Back to mission packs', preferHistory: true },
+      section: 'missions',
+      title: 'Force disposition',
+    }
+  }
   if (root === 'more') return { title: 'More' }
   if (root === 'simulator') return { back: { href: '/more', label: 'Back to more', preferHistory: true }, title: 'Combat simulator' }
   if (root === 'profile') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }

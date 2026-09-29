@@ -674,7 +674,10 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
     'href',
     '/factions/necrons/detachments/cursed-legion',
   )
-  await expect(header.getByText('Purge the Foe', { exact: true })).toHaveClass(/chip/)
+  await expect(header.getByRole('link', { name: 'Purge the Foe', exact: true })).toHaveAttribute(
+    'href',
+    '/force-dispositions/purge-the-foe',
+  )
 
   await guest.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
   const unit = guest.locator('aside[aria-label="Loadout"]')

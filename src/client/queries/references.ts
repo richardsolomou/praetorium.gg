@@ -5,6 +5,7 @@ import {
   deployments,
   detachmentDetail,
   detachmentRules,
+  dispositionDetachments,
   faction,
   factionIndex,
   favouriteDetachments,
@@ -74,6 +75,12 @@ export const detachmentDetailQuery = (catalogueId: string, slug: string) =>
     queryKey: ['detachment-detail', catalogueId, slug],
     queryFn: () => detachmentDetail({ data: { catalogueId, slug } }),
     enabled: Boolean(catalogueId && slug),
+    staleTime: Infinity,
+  })
+export const dispositionDetachmentsQuery = (dispositionId: string) =>
+  queryOptions({
+    queryKey: ['disposition-detachments', dispositionId],
+    queryFn: () => dispositionDetachments({ data: { dispositionId } }),
     staleTime: Infinity,
   })
 export const deploymentsQuery = () => queryOptions({ queryKey: ['deployments'], queryFn: () => deployments(), staleTime: Infinity })

@@ -323,3 +323,21 @@ describe('global rules search', () => {
     expect(results.map((result) => result.id)).toEqual(['rule:core-rules:03.01'])
   })
 })
+
+describe('global mission search', () => {
+  it('finds a force disposition by name and links to its page', async () => {
+    const rules = {
+      missions: new Map(),
+      primaries: [],
+      secondaries: [],
+      deployments: [],
+      dispositionDetails: [{ id: 'take-and-hold', name: 'Take and Hold', text: null }],
+      ruleDocuments: [],
+      attribution: '',
+    } as Partial<LoadedRules> as LoadedRules
+    const results = await searchEverything('take and', { catalogue: null, rules, own: async () => null })
+    expect(results.filter((result) => result.group === 'Missions')).toEqual([
+      expect.objectContaining({ label: 'Take and Hold', detail: 'Force disposition', href: '/force-dispositions/take-and-hold' }),
+    ])
+  })
+})

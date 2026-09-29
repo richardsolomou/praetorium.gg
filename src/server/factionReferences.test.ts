@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { bookOf, withCards } from './catalogue.fixtures'
-import { detachmentNamed, factionsFor, isReferenceDetachment } from './factionReferences'
+import { detachmentNamed, detachmentsOffering, factionsFor, isReferenceDetachment } from './factionReferences'
 import type { LoadedRules } from './rules'
 
 describe('joining catalogue detachments to their rules reference', () => {
@@ -136,5 +136,55 @@ describe('joining catalogue detachments to their rules reference', () => {
     } as Partial<LoadedRules> as LoadedRules
 
     expect(isReferenceDetachment(loaded, rules, faction, detachment)).toBe(true)
+  })
+})
+
+describe('detachments offering a force disposition', () => {
+  const detachment = (id: string, dispositions: string[], reference: { points: number | null } | null = { points: 2 }) => ({
+    id,
+    slug: id,
+    name: id,
+    dispositions: dispositions.map((disposition) => ({ id: disposition })),
+    reference,
+  })
+  const faction = (
+    slug: string,
+    detachments: ReturnType<typeof detachment>[],
+    referenceDetachmentIds = detachments.map((entry) => entry.id),
+  ) => ({
+    slug,
+    displayName: slug,
+    icon: null,
+    referenceDetachmentIds,
+    detachments,
+  })
+
+  it('lists a detachment that offers the disposition among others', () => {
+    const factions = [faction('orks', [detachment('war-horde', ['disruption', 'purge-the-foe'])])]
+    expect(detachmentsOffering(factions, 'purge-the-foe')).toEqual([
+      { slug: 'orks', displayName: 'orks', icon: null, detachments: [{ slug: 'war-horde', name: 'war-horde', points: 2 }] },
+    ])
+  })
+
+  it('omits a faction whose detachments offer other dispositions', () => {
+    expect(detachmentsOffering([faction('orks', [detachment('war-horde', ['disruption'])])], 'purge-the-foe')).toEqual([])
+  })
+
+  it('omits a detachment a chapter repeats from its parent', () => {
+    const factions = [faction('blood-angels', [detachment('gladius', ['take-and-hold'])], [])]
+    expect(detachmentsOffering(factions, 'take-and-hold')).toEqual([])
+  })
+
+  it('omits a detachment without a reference page', () => {
+    const factions = [faction('orks', [detachment('war-horde', ['disruption'], null)])]
+    expect(detachmentsOffering(factions, 'disruption')).toEqual([])
+  })
+
+  it('orders factions by name', () => {
+    const factions = [
+      faction('tyranids', [detachment('swarm', ['disruption'])]),
+      faction('necrons', [detachment('awakened', ['disruption'])]),
+    ]
+    expect(detachmentsOffering(factions, 'disruption').map((entry) => entry.slug)).toEqual(['necrons', 'tyranids'])
   })
 })
