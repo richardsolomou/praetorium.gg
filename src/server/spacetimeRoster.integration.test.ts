@@ -48,6 +48,45 @@ it.skipIf(!url || !database || !token)('keeps roster writes atomic and owned in 
   expect(await store.roster(id)).toBeUndefined()
 })
 
+it.skipIf(!url || !database || !token)('keeps roster variants in one flat group owned by one player', async () => {
+  const store = new SpacetimeOperator(url!, database!, token!)
+  const userId = randomUUID()
+  const [base, variant, nested, stolen] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()]
+  const now = Date.now()
+  const input = (id: string, baseRosterId: string | null = null, at = 0) => ({
+    id,
+    userId,
+    name: 'Variant roster',
+    catalogueId: 'catalogue-proof',
+    detachmentId: null,
+    disposition: null,
+    limit: 1_000,
+    picks: '[]',
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    optionalRules: '[]',
+    borrowedDetachmentId: null,
+    baseRosterId,
+    visibility: 'private' as const,
+    source: 'editable' as const,
+    now: now + at,
+  })
+  try {
+    await store.saveRoster(input(base, null, 1))
+    await store.saveRoster(input(variant, base, 2))
+    expect(await store.saveRoster(input(nested, variant, 3))).toBe('inserted')
+    expect((await store.roster(nested))?.baseRosterId).toBe(base)
+    expect(await store.saveRoster({ ...input(stolen, base), userId: 'other' })).toBeNull()
+    expect(await store.roster(stolen)).toBeUndefined()
+    await store.saveRoster({ ...input(variant, null, 4), name: 'Renamed' })
+    expect((await store.rosterSummariesByUser(userId)).find((row) => row.id === variant)?.baseRosterId).toBe(base)
+    expect((await store.rosterGroupByUser(userId, base)).map((row) => row.id)).toEqual([base, variant, nested])
+  } finally {
+    for (const id of [base, variant, nested]) await store.deleteRoster(id, userId)
+  }
+})
+
 it.skipIf(!url || !database || !token)('streams public roster changes to an anonymous reader without private signals', async () => {
   const store = new SpacetimeOperator(url!, database!, token!)
   const id = randomUUID()

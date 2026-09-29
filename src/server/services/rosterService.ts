@@ -36,6 +36,7 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
       waivedRules: waivedRulesFrom(row.waivedRules),
       optionalRules: optionalRulesFrom(row.optionalRules),
       borrowedDetachmentId: row.borrowedDetachmentId,
+      baseRosterId: row.baseRosterId,
       visibility: row.visibility,
       source: row.source,
       createdAt: row.createdAt,
@@ -66,6 +67,8 @@ export class RosterService {
       waivedRules?: readonly FormatRuleId[]
       optionalRules?: readonly OptionalRuleId[]
       borrowedDetachmentId?: string | null
+      /** Only read when the roster is created; a variant keeps its group for life. */
+      baseRosterId?: string | null
       visibility: RosterVisibility
       source: RosterSource
     },
@@ -90,6 +93,7 @@ export class RosterService {
       waivedRules: JSON.stringify(roster.waivedRules ?? []),
       optionalRules: JSON.stringify(roster.optionalRules ?? []),
       borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
+      baseRosterId: roster.baseRosterId ?? null,
       now,
     })
     if (!saved) throw new Response('you do not own this roster', { status: 403 })
@@ -105,6 +109,12 @@ export class RosterService {
   async savedRostersByIds(userId: string, ids: string[]) {
     const rows = await this.repository.rostersByIds(userId, ids)
     return rows.map((row) => rosterFromRow(row))
+  }
+
+  /** Every list in an owned roster's variant group, the base first. */
+  async rosterGroup(userId: string, roster: { id: string; baseRosterId: string | null }) {
+    const rows = await this.repository.rosterGroupByUser(userId, roster.baseRosterId ?? roster.id)
+    return rows.map((row) => ({ ...row, automaticName: row.automaticName ?? !row.name }))
   }
 
   async savedRosterSummaries(userId: string) {

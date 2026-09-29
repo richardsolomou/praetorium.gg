@@ -549,6 +549,10 @@ export class SpacetimeRepository {
     return this.product.rosterSummariesByUser(...args)
   }
 
+  rosterGroupByUser(...args: Parameters<SpacetimeOperator['rosterGroupByUser']>) {
+    return this.product.rosterGroupByUser(...args)
+  }
+
   roster(...args: Parameters<SpacetimeOperator['roster']>) {
     return this.product.roster(...args)
   }

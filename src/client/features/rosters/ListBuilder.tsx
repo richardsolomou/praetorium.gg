@@ -5,6 +5,7 @@ import {
   Crown,
   Download,
   EllipsisVertical,
+  GitBranchPlus,
   Link2,
   Pencil,
   Plus,
@@ -36,7 +37,7 @@ import {
 } from '../../../core/reminders'
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import type { Datasheet } from '../../../contracts/catalogue'
-import { exportRoster, saveRoster } from '../../../server/functions'
+import { copyRoster, exportRoster, saveRoster } from '../../../server/functions'
 import { shareLink } from '../../nativeBridge'
 import {
   collectionQuery,
@@ -75,6 +76,8 @@ import { RosterDataChanges } from './RosterDataChanges'
 import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
 import { draftKey, type RosterDraft, savedDraft } from './rosterDraft'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
+import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
+import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
 import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
 import type { CombatRoster } from '../simulator/useCombatant'
@@ -109,6 +112,10 @@ type Props = {
    * at all.
    */
   frozen?: FrozenRoster
+  /** The owner's variant group this list belongs to, the base first. */
+  variants?: readonly RosterVariant[]
+  /** How this variant's saved row differs from its base's. */
+  differences?: NamedRosterDifferences | null
   editable?: boolean
   /** A battle token may entitle a read-only viewer to resolve a private roster. */
   battle?: string
@@ -133,6 +140,7 @@ const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
 /** Which set of waived restrictions this workspace has already been told about. */
 const WAIVERS_DISMISSED = 'waivers-dismissed'
 const NO_UNITS = [] as const
+const NO_VARIANTS: readonly RosterVariant[] = []
 const NO_JOINED: { label: string; name: string }[] = []
 const modelCount = (models: number) => `${models} ${models === 1 ? 'model' : 'models'}`
 
@@ -152,6 +160,8 @@ export function ListBuilder({
   initial,
   initialFaction,
   frozen,
+  variants = NO_VARIANTS,
+  differences = null,
   editable = true,
   battle,
   resolvePersistedRoster = true,
@@ -390,6 +400,19 @@ export function ListBuilder({
       await navigate({ to: '/rosters/$id', params: { id } })
     },
   })
+
+  // Queued behind the autosave, so the variant copies the row the page last sent.
+  const createVariant = useMutation({
+    scope: { id: 'roster-autosave' },
+    mutationFn: (id: string) => copyRoster({ data: { id, variant: true } }),
+    onSuccess: async ({ id }) => {
+      posthog.capture('roster_duplicated', { unit_count: attachedUnitCount(picks), variant: true })
+      await invalidateSavedRosters(queryClient)
+      await navigate({ to: '/rosters/$id', params: { id } })
+    },
+  })
+  const saving = !guest && (save.isPending || settledPicks !== positioned || settledListName !== listName)
+  const variantDisposition = faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === disposition)
 
   const {
     data: priced,
@@ -707,10 +730,7 @@ export function ListBuilder({
   )
 
   return (
-    <RosterShell
-      saving={!guest && (save.isPending || settledPicks !== positioned || settledListName !== listName)}
-      saveError={save.isError}
-    >
+    <RosterShell saving={saving} saveError={save.isError}>
       <RosterHeader
         name={name}
         nameId="listname"
@@ -734,6 +754,19 @@ export function ListBuilder({
         actions={
           editable ? (
             <>
+              {savedId ? (
+                <RosterVariantMenu
+                  current={savedId}
+                  variants={variants}
+                  differences={differences}
+                  setup={{
+                    factionName: faction?.displayName,
+                    detachmentName: (id) => faction?.detachments.find((entry) => entry.id === id)?.name,
+                    disposition: variantDisposition ? { id: variantDisposition.id, name: variantDisposition.name } : null,
+                  }}
+                  disabled={saving}
+                />
+              ) : null}
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
                   <EllipsisVertical />
@@ -756,6 +789,11 @@ export function ListBuilder({
                   >
                     <Pencil /> Edit roster setup
                   </DropdownMenuItem>
+                  {savedId && !guest ? (
+                    <DropdownMenuItem disabled={saving || createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
+                      <GitBranchPlus /> New variant
+                    </DropdownMenuItem>
+                  ) : null}
                   {visibility !== 'private' ? (
                     <DropdownMenuItem onClick={() => void shareRoster()}>
                       <Link2 /> {shareLabel}
@@ -837,6 +875,11 @@ export function ListBuilder({
         {!editable && duplicateRoster.isError ? (
           <p role="alert" className="mt-1 text-xs text-destructive">
             That roster could not be duplicated. Try again.
+          </p>
+        ) : null}
+        {createVariant.isError ? (
+          <p role="alert" className="mt-1 text-xs text-destructive">
+            The variant could not be created. Try again.
           </p>
         ) : null}
         {shareProblem ? (

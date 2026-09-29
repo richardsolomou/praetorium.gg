@@ -1053,6 +1053,7 @@ function parseRoster(payload: string) {
     waivedRules: string('waivedRules', 10_000),
     optionalRules: string('optionalRules', 10_000),
     borrowedDetachmentId: nullable('borrowedDetachmentId', 128),
+    baseRosterId: row.baseRosterId === undefined ? null : nullable('baseRosterId', 128),
     visibility,
     source,
     now,
@@ -1103,6 +1104,7 @@ export const rosterSummariesByUser = spacetime.procedure({ userId: t.string() },
           waivedRules: row.waivedRules,
           optionalRules: row.optionalRules,
           borrowedDetachmentId: row.borrowedDetachmentId,
+          baseRosterId: row.baseRosterId,
           visibility: row.visibility,
           source: row.source,
           createdAt: row.createdAt,
@@ -1112,6 +1114,28 @@ export const rosterSummariesByUser = spacetime.procedure({ userId: t.string() },
       }),
     )
   }),
+)
+
+export const rosterGroupByUser = spacetime.procedure(
+  { userId: t.string(), baseRosterId: t.string() },
+  t.string(),
+  (ctx, { userId, baseRosterId }) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      if (!userId || userId.length > 128 || !baseRosterId || baseRosterId.length > 128) throw new SenderError('Invalid roster query')
+      const rows = Array.from(tx.db.rosters.userId.filter(userId))
+      if (rows.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
+      return productJson(
+        rows
+          .filter((row) => (row.baseRosterId ?? row.id) === baseRosterId)
+          .sort(
+            (left, right) =>
+              Number(right.id === baseRosterId) - Number(left.id === baseRosterId) ||
+              (left.createdAt < right.createdAt ? -1 : left.createdAt > right.createdAt ? 1 : left.id.localeCompare(right.id)),
+          )
+          .map(({ id, name, automaticName }) => ({ id, name, automaticName })),
+      )
+    }),
 )
 
 export const rostersByIds = spacetime.procedure({ userId: t.string(), ids: t.array(t.string()) }, t.string(), (ctx, { userId, ids }) =>
@@ -1185,7 +1209,11 @@ export const saveRoster = spacetime.procedure({ payload: t.string() }, t.string(
       if (current.visibility !== 'private' || input.visibility !== 'private') touchPublic(tx, 'rosters')
       return 'updated'
     }
-    tx.db.rosters.insert({ id: input.id, userId: input.userId, createdAt: BigInt(input.now), ...fields })
+    // A variant joins its base's group, so variants of variants stay one flat group.
+    const base = input.baseRosterId ? tx.db.rosters.id.find(input.baseRosterId) : null
+    if (input.baseRosterId && base?.userId !== input.userId) return 'forbidden'
+    const baseRosterId = base ? (base.baseRosterId ?? base.id) : undefined
+    tx.db.rosters.insert({ id: input.id, userId: input.userId, createdAt: BigInt(input.now), baseRosterId, ...fields })
     touchProduct(tx, input.userId, 'rosters', 'onboarding')
     if (input.visibility !== 'private') touchPublic(tx, 'rosters')
     touchAdmin(tx)

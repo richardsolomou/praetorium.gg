@@ -295,6 +295,7 @@ export const detachmentRulesSchema = z.object({
 export const detachmentDetailSchema = z.object({ catalogueId, slug })
 
 export const rosterIdSchema = z.object({ id })
+export const copyRosterSchema = z.object({ id, variant: z.boolean() })
 export const rosterIdsSchema = z.object({
   ids: z
     .array(id)

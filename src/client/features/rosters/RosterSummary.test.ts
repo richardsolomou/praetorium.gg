@@ -20,6 +20,7 @@ const roster = {
   waivedRules: [],
   optionalRules: [],
   borrowedDetachmentId: null,
+  baseRosterId: null,
 } satisfies SavedRoster
 
 describe('roster summary', () => {

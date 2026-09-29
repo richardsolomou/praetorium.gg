@@ -23,6 +23,7 @@ const rosterRow = z.strictObject({
   waivedRules: z.string(),
   optionalRules: z.string(),
   borrowedDetachmentId: z.string().nullable(),
+  baseRosterId: z.string().nullable(),
   visibility: z.enum(ROSTER_VISIBILITIES),
   source: z.enum(ROSTER_SOURCES),
   createdAt: z.number().int(),
@@ -151,6 +152,7 @@ type SaveRosterInput = {
   waivedRules: string
   optionalRules?: string
   borrowedDetachmentId?: string | null
+  baseRosterId?: string | null
   visibility: RosterVisibility
   source: RosterSource
   now: number
@@ -424,6 +426,14 @@ export class SpacetimeOperator {
 
   async publicRostersByUser(userId: string, limit: number) {
     return this.readRosters(userId, true, limit)
+  }
+
+  /** The base first, then its variants in the order they were made. */
+  async rosterGroupByUser(userId: string, baseRosterId: string) {
+    return z
+      .array(z.strictObject({ id: z.string(), name: z.string(), automaticName: z.boolean().nullable() }))
+      .max(1_000)
+      .parse(await this.read('roster_group_by_user', [userId, baseRosterId]))
   }
 
   async rosterSummariesByUser(userId: string) {
