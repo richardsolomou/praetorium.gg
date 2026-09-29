@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.87.0
+
+### Minor Changes
+
+- 16ffcde: Show the battle timeline while watching a live battle, so spectators can scrub back to earlier events.
+
+### Patch Changes
+
+- 16ffcde: Open a finished battle as its replay.
+- 08e6b25: Remove Finish early; a battle now ends after its last turn or by concession.
+- 55a13de: Stop polling spectator screens every five seconds; realtime updates already refresh them.
+
 ## 0.86.2
 
 ### Patch Changes
