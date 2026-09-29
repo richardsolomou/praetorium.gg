@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
+import { attachRoster, createBattle, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 import { productOperator, withAuthSql } from './storage'
 
 test('the roster library reserves its rows while the first page loads', async ({ browser, page }) => {
@@ -288,6 +288,50 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await expect(page.getByRole('button', { name: /^Variant/ })).toHaveCount(0)
   // A variant's place in its group costs the header no extra line.
   expect((await header.boundingBox())?.height).toBe(variantHeight)
+})
+
+test('a battle’s roster chooser tells a variant apart from its base', async ({ page }) => {
+  await signUp(page, 'Variant chooser')
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Dynasty 2k' })
+  await waitForRosterSave(page, async () => {
+    await page.getByLabel('Add a unit').fill('Immortals')
+    await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+  })
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'New variant' }).click()
+  await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 2')
+  await waitForRosterSave(page, async () => {
+    const picker = page.getByLabel('Add a unit')
+    if (!(await picker.isVisible())) await page.getByRole('button', { name: 'Add units', exact: true }).click()
+    await picker.fill('Lychguard')
+    await page.getByRole('button', { name: 'Add Lychguard', exact: true }).first().click()
+  })
+
+  await createBattle(page, { practice: true })
+  await page
+    .getByRole('button', { name: /^Choose roster/ })
+    .first()
+    .click()
+  const chooser = page.getByRole('dialog', { name: 'Choose your roster' })
+  const group = chooser.locator('[data-roster-group]')
+  await expect(group.locator('[data-roster]')).toHaveCount(2)
+  const variant = group.locator('[data-roster="Dynasty 2k · 2"]')
+  await expect(variant).toHaveAttribute('data-variant', 'true')
+  await expect(variant.locator('[data-slot="roster-differences"]')).toHaveText(/^\+\s*1 unit: Lychguard$/)
+  await expect(variant).toContainText('150/2000')
+  await expect(group.locator('[data-roster="Dynasty 2k"]')).toContainText('70/2000')
+  await page.screenshot({ path: 'test-results/roster-chooser-variants.png' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/roster-chooser-variants-phone.png' })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.keyboard.press('Escape')
+  await expect(chooser).toBeHidden()
+
+  await attachRoster(page, 'Dynasty 2k · 2')
+  await page.getByRole('button', { name: 'Change roster' }).click()
+  await expect(chooser.locator('[data-roster="Dynasty 2k · 2"]')).toHaveAttribute('aria-pressed', 'true')
+  await expect(chooser.locator('[data-roster="Dynasty 2k"]')).toHaveAttribute('aria-pressed', 'false')
 })
 
 test('an open roster follows edits saved in another tab', async ({ page }) => {

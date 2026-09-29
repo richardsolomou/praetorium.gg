@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ROSTER_NAME_MAX_LENGTH } from './battle'
-import { variantGroups, variantName } from './rosterVariants'
+import { variantCards, variantGroups, variantName } from './rosterVariants'
 
 const roster = (id: string, baseRosterId: string | null = null) => ({ id, baseRosterId })
 const shape = (rows: ReturnType<typeof variantGroups<ReturnType<typeof roster>>>) =>
@@ -40,5 +40,20 @@ describe('the library order of variant groups', () => {
 
   it('heads a group whose base was deleted with its first member', () => {
     expect(shape(variantGroups([roster('a3', 'a'), roster('a2', 'a')]))).toEqual(['a3', '  a2'])
+  })
+})
+
+describe('the cards a grouped list is drawn as', () => {
+  it('gathers each base with the variants beneath it', () => {
+    const cards = variantCards(variantGroups([roster('a'), roster('a2', 'a'), roster('b')]))
+    expect(cards.map(({ head, variants }) => [head.roster.id, variants.map((variant) => variant.roster.id)])).toEqual([
+      ['a', ['a2']],
+      ['b', []],
+    ])
+  })
+
+  it('keeps each entry’s position in the list', () => {
+    const cards = variantCards(variantGroups([roster('a'), roster('a2', 'a'), roster('b')]))
+    expect(cards.flatMap(({ head, variants }) => [head.index, ...variants.map((variant) => variant.index)])).toEqual([0, 1, 2])
   })
 })

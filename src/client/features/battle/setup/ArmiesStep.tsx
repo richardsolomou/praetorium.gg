@@ -15,12 +15,13 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { GAME_SIZES, PAINTED_ARMY_POINTS, type Command } from '../../../../core/battle'
+import { PAINTED_ARMY_POINTS, type Command } from '../../../../core/battle'
 import { type BattleView } from '../../../../core/battleView'
 import { errorMessage } from '../../../queryClient'
-import { savedRosterSummariesQuery, savedRosterTotalsQuery } from '../../../queries'
+import { savedRosterSummariesQuery } from '../../../queries'
 import type { Army, Side } from '../../../sides'
-import { ArmyIdentity, RosterIdentity } from '../ArmyIdentity'
+import { ArmyIdentity } from '../ArmyIdentity'
+import { RosterChoices } from '../../rosters/RosterChoices'
 import { rosterWaivers, WaiverList, WaiverNote } from '../../../components/FormatWaivers'
 import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
 
@@ -51,11 +52,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
    */
   const [confirming, setConfirming] = useState<SavedRoster | null>(null)
   const rosterQuery = useQuery(savedRosterSummariesQuery())
-  // A list its owner never named still has to be told apart from the others here, so
-  // the chooser reads the same folded labels the library does.
-  const totalsQuery = useQuery(savedRosterTotalsQuery())
   const saved = rosterQuery.data ?? []
-  const labels = new Map((totalsQuery.data ?? []).map((entry) => [entry.id, entry.label]))
   const nameDisposition = useDispositionNames()
   const yourSide = sides.find((side) => side.isViewer)
   const sideOf = (army: Army) => sides.find((side) => side.armies.some((candidate) => candidate.playerId === army.playerId))
@@ -197,8 +194,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
         savedCount={saved.length}
         requiredLimit={chooserLimit}
         selectedId={choosing?.rosterId ?? null}
-        labels={labels}
-        loading={rosterQuery.isPending || totalsQuery.isPending}
+        loading={rosterQuery.isPending}
         pending={pending}
         onChoose={(savedRoster) => {
           if (rosterWaivers(savedRoster).length) setConfirming(savedRoster)
@@ -251,7 +247,6 @@ function RosterChooser({
   savedCount,
   requiredLimit,
   selectedId,
-  labels,
   loading,
   pending,
   onChoose,
@@ -265,7 +260,6 @@ function RosterChooser({
   requiredLimit: number | null
   /** The list already fielded by this army, matched by id: two lists can share a name. */
   selectedId: string | null
-  labels: ReadonlyMap<string, string>
   loading: boolean
   pending: boolean
   onChoose: (roster: SavedRoster) => void
@@ -282,8 +276,8 @@ function RosterChooser({
             {/* A practice opponent owns no lists, so the army it brings comes from yours. */}
             {forArmy?.automated ? 'One of your own lists, played by the side across the table. ' : ''}
             {requiredLimit === null
-              ? 'Rosters are shown in the same order as your roster library.'
-              : `Rosters built for ${requiredLimit} points, in the same order as your roster library.`}
+              ? 'Your rosters, most recently updated first.'
+              : `Rosters built for ${requiredLimit} points, most recently updated first.`}
           </DialogDescription>
         </DialogHeader>
         <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
@@ -304,34 +298,7 @@ function RosterChooser({
               ))}
             </div>
           ) : rosters.length ? (
-            rosters.map((roster) => (
-              <button
-                key={roster.id}
-                type="button"
-                disabled={pending}
-                onClick={() => onChoose(roster)}
-                className={`flex w-full items-center gap-3 border bg-sunken p-3 text-left disabled:opacity-60 ${
-                  selectedId === roster.id ? CHOSEN : CHOOSABLE
-                }`}
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block break-words font-bold uppercase">{roster.name || labels.get(roster.id)}</span>
-                  {/* The same line the battle draws for an army, so a list is recognisable before it is
-                      chosen. Unlinked: the row is the control, and a link inside it takes the press
-                      to a faction page instead of choosing the list. */}
-                  <RosterIdentity roster={roster} linked={false} className="mt-1" />
-                  <span className="mt-1 block text-xs text-dim">
-                    11th edition · {GAME_SIZES.find((size) => size.limit === roster.limit)?.name ?? `${roster.limit} points`} ·{' '}
-                    {roster.unitCount} units
-                  </span>
-                  <WaiverNote rules={rosterWaivers(roster)} className="mt-1" />
-                </span>
-                <span className="shrink-0 text-right">
-                  <span className="chip block">{roster.limit} pts</span>
-                  {selectedId === roster.id ? <span className="mt-1 block text-xs text-parchment">Selected</span> : null}
-                </span>
-              </button>
-            ))
+            <RosterChoices rosters={rosters} selectedId={selectedId} disabled={pending} onSelect={onChoose} />
           ) : (
             <div className="space-y-3 border border-edge bg-sunken p-4">
               <p className="text-sm text-dim">

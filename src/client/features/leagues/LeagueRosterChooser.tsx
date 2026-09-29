@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { CircleCheck, FileLock2 } from 'lucide-react'
+import { FileLock2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { errorMessage } from '../../queryClient'
-import { factionIndexQuery, savedRosterSummariesQuery, savedRosterTotalsQuery } from '../../queries'
-import { RosterSummary } from '../rosters/RosterSummary'
+import { savedRosterSummariesQuery } from '../../queries'
+import { RosterChoices } from '../rosters/RosterChoices'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 
 export function RosterChooser({
@@ -26,10 +26,7 @@ export function RosterChooser({
   onChoose: (roster: SavedRoster) => void
 }) {
   const rosterQuery = useQuery({ ...savedRosterSummariesQuery(), enabled: open })
-  const { data: available } = useQuery({ ...factionIndexQuery(), enabled: open })
-  const { data: prices } = useQuery({ ...savedRosterTotalsQuery(), enabled: open })
   const rosters = (rosterQuery.data ?? []).filter((roster) => requiredLimit === null || roster.limit === requiredLimit)
-  const points = new Map((prices ?? []).map((entry) => [entry.id, entry.points]))
   // Picking a list and sealing it are two presses, because a seal is what every opponent reads at reveal.
   const [selectedId, setSelectedId] = useState<string | null>(null)
   useEffect(() => {
@@ -56,29 +53,7 @@ export function RosterChooser({
         {rosterQuery.isPending ? (
           <RosterChooserSkeleton />
         ) : rosters.length ? (
-          <div className="space-y-2">
-            {rosters.map((roster) => (
-              <button
-                key={roster.id}
-                type="button"
-                aria-pressed={roster.id === selectedId}
-                data-roster={roster.name}
-                className={`flex w-full flex-wrap items-center gap-2 border p-2 disabled:cursor-wait disabled:opacity-70 ${roster.id === selectedId ? 'border-parchment bg-raised' : 'border-edge bg-panel hover:border-info'}`}
-                disabled={pending}
-                onClick={() => setSelectedId(roster.id)}
-              >
-                <RosterSummary
-                  roster={roster}
-                  faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
-                  points={points.get(roster.id)}
-                />
-                <CircleCheck
-                  className={`ml-1 size-5 shrink-0 ${roster.id === selectedId ? 'text-parchment' : 'text-transparent'}`}
-                  aria-hidden
-                />
-              </button>
-            ))}
-          </div>
+          <RosterChoices rosters={rosters} selectedId={selectedId} disabled={pending} onSelect={(roster) => setSelectedId(roster.id)} />
         ) : (
           <div className="border border-edge bg-panel p-5 text-center">
             <p className="text-sm text-dim">

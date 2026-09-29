@@ -96,16 +96,6 @@ export const playerRosters = createServerFn({ method: 'GET' })
     }),
   )
 
-export const savedRosterTotals = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    if (!id) return []
-    const saved = await app().service.savedRosters(id)
-    const values = await cachedRosterTotalsFor(saved)
-    return saved.map((roster, index) => ({ id: roster.id, points: values[index]?.points ?? null, label: values[index]?.label ?? '' }))
-  }),
-)
-
 export const sharedRoster = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
   .handler(({ data }) => rpc(async () => app().service.sharedRoster(data.id, await currentUserId(), data.battle ?? null)))

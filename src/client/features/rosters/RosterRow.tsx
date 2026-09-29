@@ -8,6 +8,15 @@ import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
 import { type RosterProblem, RosterSummary, type RosterSummaryFaction, RosterVariantSummary, rosterTitle } from './RosterSummary'
 
+export type RosterRowLayout = 'card' | 'base' | 'variant'
+
+/** A list on its own is a card; a base shares its card with its variants, which are the slim rows beneath it. */
+export const rosterRowFrame: Record<RosterRowLayout, string> = {
+  card: 'border border-edge bg-panel hover:border-azure',
+  base: 'hover:bg-raised',
+  variant: 'border-t border-edge py-1.5 pl-3 hover:bg-raised',
+}
+
 /**
  * One saved list in the library: what it is, what it costs, and what can be done to it.
  *
@@ -32,11 +41,7 @@ export function RosterRow({
   showVisibility = true,
 }: {
   roster: SavedRoster
-  /**
-   * A list on its own is a card; a base shares its card with its variants, which
-   * are the slim rows beneath it.
-   */
-  layout?: 'card' | 'base' | 'variant'
+  layout?: RosterRowLayout
   /** What a variant changes from its base, arriving with the points. */
   differences?: NamedRosterDifferences | null
   /** A variant names its visibility only when it differs from the base's. */
@@ -67,9 +72,7 @@ export function RosterRow({
           <article
             data-roster={title}
             data-variant={layout === 'variant' || undefined}
-            className={`flex items-center gap-2 p-2 ${
-              layout === 'card' ? 'border border-edge bg-panel hover:border-azure' : 'hover:bg-raised'
-            } ${layout === 'variant' ? 'border-t border-edge py-1.5 pl-3' : ''}`}
+            className={`flex items-center gap-2 p-2 ${rosterRowFrame[layout]}`}
           />
         }
       >
@@ -96,6 +99,7 @@ export function RosterRow({
               factionLoading={factionLoading}
               pointsLoading={pointsLoading}
               problem={problem}
+              differences={differences}
             />
           )}
         </Link>

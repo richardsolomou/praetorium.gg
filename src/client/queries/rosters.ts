@@ -12,7 +12,6 @@ import {
   savedRosterLoadoutDatasheets,
   savedRosterPrice,
   savedRosterSummaries,
-  savedRosterTotals,
   savedRosterPage,
   sharedRoster,
   units,
@@ -133,8 +132,6 @@ export const savedRosterPriceQuery = (
 
 export const savedRosterSummariesQuery = () =>
   queryOptions({ queryKey: ['saved-roster-summaries'], queryFn: () => savedRosterSummaries(), staleTime: SSR_STALE_TIME })
-export const savedRosterTotalsQuery = () =>
-  queryOptions({ queryKey: ['saved-roster-totals'], queryFn: () => savedRosterTotals(), staleTime: SSR_STALE_TIME })
 export const savedRosterPageQuery = (ids: string[]) =>
   queryOptions({ queryKey: ['saved-roster-page', ids], queryFn: () => savedRosterPage({ data: { ids } }), staleTime: SSR_STALE_TIME })
 export const homeRostersQuery = () => queryOptions({ queryKey: ['home-rosters'], queryFn: () => homeRosters(), staleTime: SSR_STALE_TIME })
@@ -147,7 +144,6 @@ export function invalidateSavedRosters(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: ['player-rosters'] }),
     queryClient.invalidateQueries({ queryKey: ['player-profile'] }),
     queryClient.invalidateQueries({ queryKey: savedRosterSummariesQuery().queryKey }),
-    queryClient.invalidateQueries({ queryKey: savedRosterTotalsQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: homeRostersQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: ['saved-roster-page'] }),
     queryClient.invalidateQueries({ queryKey: savedRosterChangedCountQuery().queryKey }),
