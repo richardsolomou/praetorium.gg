@@ -94,7 +94,7 @@ Manual battle creation presents those three shapes. Solo vs pair first asks whic
 
 Small, exclusive option sets use `components/Choice.tsx`. Table shapes, 2v1 roles, visibility, joining, and event cadence share this card style. Its `columns` layout is reserved for sets short enough to fit across a phone.
 
-One scoreboard appears at every width and contains both scores, round, and phase. Battle options sit beside the Battle events heading rather than below its log; destructive actions remain in that menu behind confirmation. Any seated player can record a concession for any non-automated player, so one device can referee the table. Both sides' controls and tactical decks are available to every seated player without changing who the battle history records as the actor.
+One compact scoreboard appears at every width and contains both scores, the round and phase during play, or the final outcome when finished. Its header keeps the same height as the battle changes state. Battle options sit beside the Battle events heading rather than below its log; destructive actions remain in that menu behind confirmation. Any seated player can record a concession for any non-automated player, so one device can referee the table. Both sides' controls and tactical decks are available to every seated player without changing who the battle history records as the actor.
 
 Spectators can open the visible mission cards and army details from the read-only battle screen. A face-down Secret Mission remains hidden.
 
