@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -40,7 +41,11 @@ export function NotificationSettings() {
   })
   const allow = useMutation({
     mutationFn: () => registerThisDevice(true),
-    onSuccess: (answer) => setDevice(answer ?? { status: 'unavailable' }),
+    onSuccess: (answer) => {
+      const status = answer?.status ?? 'unavailable'
+      setDevice(answer ?? { status: 'unavailable' })
+      posthog.capture('push_device_permission_requested', { status })
+    },
   })
 
   if (!settings?.available) return null

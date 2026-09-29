@@ -34,6 +34,7 @@ export function BattleCombatDialog({
     <CombatDialog onClose={onClose}>
       {first && second ? (
         <CombatSimulatorMatchup
+          source="battle"
           key={JSON.stringify([first.player.id, second.player.id, first.roster, second.roster])}
           roster={roster}
           opponentRoster={second.roster}

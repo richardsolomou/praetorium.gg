@@ -68,7 +68,12 @@ export function RosterImport() {
       })
       return id
     },
-    onSuccess: async (id) => {
+    onSuccess: async (id, imported) => {
+      if (imported.unknown.length || imported.unplaced.length)
+        posthog.capture('roster_import_shortfall_accepted', {
+          missing_count: imported.unknown.length,
+          unplaced_count: imported.unplaced.length,
+        })
       await invalidateSavedRosters(queryClient)
       setOpen(false)
       setText('')

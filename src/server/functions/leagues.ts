@@ -79,6 +79,7 @@ export const admitLeagueEntries = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const { admitted } = await app().service.admitLeagueEntries(data.token, player.id, data.userIds, data.eventToken)
+      await app().telemetry.capture(player.id, 'league_entries_admitted', { count: admitted.length })
       return { admitted: admitted.length }
     }),
   )
@@ -89,6 +90,7 @@ export const moderateLeagueEntry = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       await app().service.moderateLeagueEntry(data.token, player.id, data.userId, data.status, data.eventToken)
+      await app().telemetry.capture(player.id, 'league_entry_moderated', { status: data.status })
       return null
     }),
   )

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { ArrowUp, Crosshair, RotateCcw, Swords } from 'lucide-react'
@@ -72,6 +73,16 @@ type CombatAdjustments = {
 }
 export type CombatRequest = Record<Phase, CombatInput | null>
 export type CombatAnswer = Record<Phase, { result?: CombatResult; error?: string } | null>
+type CombatEntryPoint = 'standalone' | 'roster' | 'battle'
+
+export function combatOutcomeEvent(answer: CombatAnswer, source: CombatEntryPoint) {
+  const shooting = Boolean(answer.ranged?.result)
+  const melee = Boolean(answer.melee?.result)
+  if (shooting || melee) return { name: 'combat_simulation_completed', properties: { source, shooting, melee } } as const
+  if (answer.ranged?.error || answer.melee?.error)
+    return { name: 'combat_simulation_failed', properties: { source, reason: 'calculation' } } as const
+  return null
+}
 const sustainedAmounts: Record<string, WeaponAdjustment['sustained']> = {
   '1': 1,
   '2': 2,
@@ -112,6 +123,7 @@ const phases = [
 
 /** The same matchup surface accepts catalogue picks or already evaluated roster/battle units. */
 export function CombatMatchup({
+  entryPoint = 'standalone',
   attacker,
   defender,
   pending = false,
@@ -121,6 +133,7 @@ export function CombatMatchup({
   buffs,
   inDialog = false,
 }: {
+  entryPoint?: CombatEntryPoint
   attacker: CombatantSnapshot | null
   defender: CombatantSnapshot | null
   pending?: boolean
@@ -135,6 +148,8 @@ export function CombatMatchup({
   const [excludedWeapons, setExcludedWeapons] = useState<Record<Phase, string[]>>({ ranged: [], melee: [] })
   const [outcome, setOutcome] = useState<{ key: string; attempt: number; answer: CombatAnswer } | null>(null)
   const [retry, setRetry] = useState(0)
+  const reported = useRef(false)
+  const failureReported = useRef(false)
   const matchup = useRef<HTMLDivElement>(null)
   const results = useRef<HTMLDivElement>(null)
   const [resultsPast, setResultsPast] = useState(false)
@@ -416,29 +431,43 @@ export function CombatMatchup({
       worker?.terminate()
       clearTimeout(timer)
     }
-    const fail = (message: string) => {
+    const fail = (message: string, reason: 'worker_error' | 'timeout' | 'startup') => {
       if (!active) return
       setOutcome({
         key: requestKey,
         attempt: retry,
         answer: { ranged: request.ranged ? { error: message } : null, melee: request.melee ? { error: message } : null },
       })
+      if (!failureReported.current) {
+        failureReported.current = true
+        posthog.capture('combat_simulation_failed', { source: entryPoint, reason })
+      }
       stop()
     }
     try {
       worker = new Worker(new URL('./combat.worker.ts', import.meta.url), { type: 'module' })
       worker.onmessage = (event: MessageEvent<CombatAnswer>) => {
-        if (active) setOutcome({ key: requestKey, attempt: retry, answer: event.data })
+        if (active) {
+          setOutcome({ key: requestKey, attempt: retry, answer: event.data })
+          const telemetry = combatOutcomeEvent(event.data, entryPoint)
+          if (telemetry?.name === 'combat_simulation_completed' && !reported.current) {
+            reported.current = true
+            posthog.capture(telemetry.name, telemetry.properties)
+          } else if (telemetry?.name === 'combat_simulation_failed' && !failureReported.current) {
+            failureReported.current = true
+            posthog.capture(telemetry.name, telemetry.properties)
+          }
+        }
         stop()
       }
-      worker.onerror = () => fail('The calculation failed. Try again.')
-      timer = setTimeout(() => fail('The calculation took too long. Reduce the model count and try again.'), 15_000)
+      worker.onerror = () => fail('The calculation failed. Try again.', 'worker_error')
+      timer = setTimeout(() => fail('The calculation took too long. Reduce the model count and try again.', 'timeout'), 15_000)
       worker.postMessage(request)
     } catch {
-      fail('The calculation could not start. This browser must support Web Workers.')
+      fail('The calculation could not start. This browser must support Web Workers.', 'startup')
     }
     return stop
-  }, [requestKey, pending, failed, retry])
+  }, [requestKey, pending, failed, retry, entryPoint])
   const change = <K extends keyof CombatOptions>(scope: Scope, name: K, value: CombatOptions[K] | undefined) =>
     setAdjustments((current) => ({ ...current, [scope]: { ...current[scope], [name]: value } }))
   const changeWeapon = <K extends keyof WeaponAdjustment>(scope: Scope, name: K, value: WeaponAdjustment[K]) =>

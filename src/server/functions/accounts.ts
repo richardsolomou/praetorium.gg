@@ -225,7 +225,9 @@ export const rejectFriend = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      return app().service.rejectFriend(userId, data.userId)
+      const result = await app().service.rejectFriend(userId, data.userId)
+      await app().telemetry.capture(userId, 'friend_request_rejected')
+      return result
     }),
   )
 
