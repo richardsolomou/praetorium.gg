@@ -579,6 +579,12 @@ for (const width of [1440, 390, 860, 1024]) {
     await page.goto(`${baseURL}/simulator`)
     await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
     await noOverflow(page)
+    const contentWidth = await page.locator('main > div').evaluate((element) => {
+      const padding = getComputedStyle(element)
+      return element.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight)
+    })
+    expect((await page.getByLabel('Combat matchup').boundingBox())?.width).toBe(contentWidth)
+    expect((await page.getByLabel('Results summary').boundingBox())?.width).toBe(contentWidth)
     const serverBounds = await page.getByRole('region', { name: 'Attacker', exact: true }).boundingBox()
     await page.screenshot({ path: `test-results/simulator-first-frame-${width}.png`, fullPage: true })
     const interactive = await browser.newPage({ viewport: { width, height: 1000 } })

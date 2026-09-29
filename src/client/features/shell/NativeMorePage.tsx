@@ -1,6 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Dices, Gavel, History, House, Medal, MessageSquareWarning, ShieldCheck, Trophy, Users, type LucideIcon } from 'lucide-react'
+import {
+  Dices,
+  Gavel,
+  History,
+  House,
+  Layers3,
+  Medal,
+  MessageSquareWarning,
+  ShieldCheck,
+  Trophy,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 import { meQuery } from '../../queries'
 import { PageContent, PageHeader } from '../../components/Page'
 
@@ -8,13 +20,14 @@ type MoreLink = {
   description: string
   icon: LucideIcon
   label: string
-  to: '/' | '/leaderboard' | '/leagues' | '/rules' | '/simulator' | '/data-updates'
+  to: '/' | '/leagues' | '/force-dispositions' | '/rules' | '/simulator' | '/leaderboard' | '/data-updates'
 }
 
 const MORE_LINKS: readonly MoreLink[] = [
   { description: 'Live battles and activity', icon: House, label: 'Home', to: '/' },
   { description: 'Organized play', icon: Trophy, label: 'Leagues', to: '/leagues' },
   { description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
+  { description: 'Primary mission matchups', icon: Layers3, label: 'Force dispositions', to: '/force-dispositions' },
   { description: 'Game reference', icon: Gavel, label: 'Rules', to: '/rules' },
   { description: 'Damage and kill probabilities', icon: Dices, label: 'Simulator', to: '/simulator' },
   { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },

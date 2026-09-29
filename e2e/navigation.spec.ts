@@ -45,6 +45,12 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(page).toHaveURL('/more')
   await expect(more).toHaveAttribute('aria-current', 'page')
   await expect(page.getByRole('link', { name: /^Home/ })).toBeVisible()
+  expect(
+    await page
+      .locator('main #more-navigation-heading + div a')
+      .evaluateAll((links) => links.map((link) => new URL((link as HTMLAnchorElement).href).pathname)),
+  ).toEqual(['/', '/leagues', '/leaderboard', '/force-dispositions', '/rules', '/simulator', '/data-updates'])
+  await page.screenshot({ path: 'test-results/more-phone.png' })
   await mobileHeader.getByRole('button', { name: 'Search Praetorium' }).click()
   await expect(page.getByPlaceholder('Search everything…')).toHaveCount(1)
   await page.keyboard.press('Escape')
@@ -57,6 +63,12 @@ test('the mobile website uses application navigation below 860 pixels', async ({
 
   await sections.getByRole('link', { name: 'Missions' }).click()
   await expect(page).toHaveURL(/\/missions\//)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(page.getByRole('main').getByRole('link', { name: 'Force dispositions' })).toBeVisible()
+  await page.screenshot({ path: 'test-results/mission-reference-phone.png' })
+  await page.getByRole('main').getByRole('link', { name: 'Force dispositions' }).click()
+  await expect(page).toHaveURL('/force-dispositions')
+  await expect(sections.getByRole('link', { name: 'Missions' })).toHaveAttribute('aria-current', 'page')
 
   await page.setViewportSize({ width: 859, height: 844 })
   await expect(webHeader).toBeHidden()
@@ -65,6 +77,19 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await page.setViewportSize({ width: 860, height: 844 })
   await expect(page.getByRole('button', { name: 'Open primary navigation' })).toBeHidden()
   await expect(primary).toBeVisible()
+  await expect(primary.getByRole('link', { name: 'Rosters' }).locator('svg')).toHaveCount(1)
+  expect(
+    await primary.getByRole('button', { name: 'Reference' }).evaluate((button) => button.getBoundingClientRect().left),
+  ).toBeGreaterThan(await primary.getByRole('link', { name: 'Simulator' }).evaluate((link) => link.getBoundingClientRect().left))
+  await page.screenshot({ path: 'test-results/navigation-desktop-860.png' })
+  await primary.getByRole('button', { name: 'Reference' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Force dispositions' })).toBeVisible()
+  await expect(page.getByRole('menuitem')).toHaveText(['Factions', 'Missions', 'Force dispositions', 'Rules'])
+  await expect(page.getByRole('menuitem', { name: 'Force dispositions' }).locator('svg')).toHaveCount(1)
+  await page.screenshot({ path: 'test-results/navigation-desktop-menu.png' })
+  await page.getByRole('menuitem', { name: 'Force dispositions' }).click()
+  await expect(page).toHaveURL('/force-dispositions')
+  await expect(primary.getByRole('button', { name: 'Reference' })).toHaveClass(/text-parchment/)
   await expect(sections).toBeHidden()
   await expect(mobileHeader).toBeHidden()
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
@@ -75,6 +100,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
   await page.setViewportSize({ width: 1000, height: 844 })
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
+  await page.screenshot({ path: 'test-results/navigation-desktop-1000.png' })
 })
 
 test('the native application has stable route-aware phone and tablet navigation', async ({ browser }) => {
@@ -642,6 +668,7 @@ test('a matchup keeps each action in the column of the side whose mission asks f
 })
 
 test('a player can enter through the roster library and browse the product', async ({ page }) => {
+  const reference = page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Reference', exact: true })
   // Signed out, the library is the builder a visitor can use without an account.
   await page.goto('/rosters')
   await expect(page.getByRole('heading', { name: 'Build a roster' })).toBeVisible()
@@ -791,7 +818,8 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete battle' }).click()
   await expect(page.getByText('No battles yet.')).toBeVisible()
 
-  await page.getByRole('link', { name: 'Factions' }).click()
+  await reference.click()
+  await page.getByRole('menuitem', { name: 'Factions' }).click()
   await expect(page.locator('[data-shelf="Chaos"]')).toBeVisible()
   await expect(page.locator('[data-shelf="Imperium"]')).toBeVisible()
   await expect(page.locator('[data-shelf="Xenos"]')).toBeVisible()
@@ -843,7 +871,8 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('dialog', { name: 'Create roster' }).getByRole('combobox', { name: 'Faction' }).click()
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
-  await page.getByRole('link', { name: 'Factions' }).click()
+  await reference.click()
+  await page.getByRole('menuitem', { name: 'Factions' }).click()
   await necrons.getByRole('link').click()
   await expect(page).toHaveURL('/factions/necrons')
   await expect(page.getByRole('link', { name: /Datasheets/ })).toBeVisible()
