@@ -29,7 +29,7 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
           <section key={pack.id}>
             <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
               <span>Primary missions</span>
-              <Link to="/mission-packs/$packId" params={{ packId: pack.id }} className="eyebrow text-info hover:text-bone">
+              <Link to="/missions/$packId" params={{ packId: pack.id }} className="eyebrow text-info hover:text-bone">
                 {pack.name}
               </Link>
             </h2>
@@ -38,7 +38,7 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
               {matchups.map(({ opponent, mission }) => (
                 <Link
                   key={opponent.id}
-                  to="/mission-matchups/$packId/$you/$opponent"
+                  to="/missions/$packId/matchups/$you/$opponent"
                   params={{ packId: pack.id, you: dispositionId, opponent: opponent.id }}
                   className="grid grid-cols-[minmax(0,10rem)_minmax(0,1fr)] items-center gap-3 bg-panel px-3 py-2 hover:bg-raised sm:grid-cols-[12rem_minmax(0,1fr)]"
                 >

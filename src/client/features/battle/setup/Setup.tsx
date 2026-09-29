@@ -65,7 +65,9 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
   const table = foldSides(view, missions)
   const yours = table.find((side) => side.isViewer)
   const { data: references } = useQuery(gameReferencesQuery())
-  const at = view.setupStep
+  // Logs from battles already in setup can still point at the former Armies section.
+  const at = Math.max(0, view.setupStep - 1)
+  const logStep = (step: number) => (step === 0 ? 0 : step + 1)
   const nameDisposition = useDispositionNames()
   const { data: deployments } = useQuery(deploymentsQuery())
   const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
@@ -96,14 +98,15 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
   const blockedAt = (step: number) => {
     // Said at every section rather than only the first, because each of them draws
     // your army: without one they were blank screens under a cheerful heading.
+    if (step === 0 && view.settings.limit === null) return 'Choose a battle size to continue.'
+    if (step === 0 && owed.length) return `Choose an army for ${owed.map((army) => army.playerName).join(' and ')} to continue.`
     if (step >= 1 && !youHaveAnArmy) return 'Choose your army to continue.'
-    if (step === 1 && owed.length) return `Choose an army for ${owed.map((army) => army.playerName).join(' and ')} to continue.`
     const undecided = table.filter((side) => side.dispositionChoices.length > 1 && !side.disposition)
-    if (step === 2 && undecided.length) return 'Choose the Force Disposition each allied side plays to continue.'
-    if (step === 3 && !view.deploymentId) return 'Choose a battlefield layout to continue.'
-    if (step === 4 && !view.attackerId) return 'Roll off and record the defender to continue.'
+    if (step === 1 && undecided.length) return 'Choose the Force Disposition each allied side plays to continue.'
+    if (step === 2 && !view.deploymentId) return 'Choose a battlefield layout to continue.'
+    if (step === 3 && !view.attackerId) return 'Roll off and record the defender to continue.'
     const missingCards = table.filter((side) => !missionCardsReady(side))
-    if (step >= 5 && missingCards.length) return 'Wait for every side’s mission cards before continuing.'
+    if (step >= 4 && missingCards.length) return 'Wait for every side’s mission cards before continuing.'
     return null
   }
   const blocked = blockedAt(at)
@@ -115,53 +118,52 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
 
   const steps: Step[] = [
     {
-      name: 'Format',
-      detail: view.settings.limit ? `${view.settings.limit} points` : 'Choose a size',
-      complete: view.settings.limit !== null,
+      name: 'Setup',
+      detail: `${view.settings.limit === null ? 'Choose a size' : `${view.settings.limit} points`} · ${attached}/${view.players.length} armies`,
+      complete: view.settings.limit !== null && ready,
       reachable: true,
     },
-    { name: 'Armies', detail: `${attached}/${view.players.length} chosen`, complete: ready, reachable: reachable(1) },
     // Derived rather than chosen: both dispositions being in is what settles it.
-    { name: 'Mission', detail: mission?.name ?? 'Choose the armies first', complete: Boolean(mission), reachable: reachable(2) },
+    { name: 'Mission', detail: mission?.name ?? 'Choose the armies first', complete: Boolean(mission), reachable: reachable(1) },
     {
       name: 'Battlefield',
       // The layout's own name, not the slug it is stored under.
       detail: deployment?.name ?? (view.deploymentId ? view.deploymentId : 'Choose a layout'),
       complete: Boolean(view.deploymentId),
-      reachable: reachable(3),
+      reachable: reachable(2),
     },
     {
       name: 'Defender',
       detail: view.attackerId ? 'Defender chosen' : 'Roll off for it',
       complete: Boolean(view.attackerId),
-      reachable: reachable(4),
+      reachable: reachable(3),
     },
     // The cards settle themselves once an army is attached, so having them is what says this section is done.
     {
       name: 'Secondaries',
       detail: yours?.secondaryMode === 'fixed' ? `${yours.secondaries.length} of ${FIXED_SECONDARIES} fixed` : 'Drawn as the battle runs',
       complete: Boolean(yours?.stratagems.length),
-      reachable: reachable(5),
+      reachable: reachable(4),
     },
     {
       name: 'Reserves',
       detail: youHaveAnArmy ? 'Where units start' : 'Choose an army first',
       complete: ready,
-      reachable: reachable(6),
+      reachable: reachable(5),
     },
     // Where the models actually stand is the table's, so nothing here is completed.
     {
       name: 'Deploy',
       detail: defender ? 'Alternate from the defender' : 'Choose the defender first',
       complete: false,
-      reachable: reachable(7),
+      reachable: reachable(6),
     },
-    { name: 'First turn', detail: firstSide ? sideName(firstSide) : 'Record the roll-off', complete: false, reachable: reachable(8) },
+    { name: 'First turn', detail: firstSide ? sideName(firstSide) : 'Record the roll-off', complete: false, reachable: reachable(7) },
     {
       name: 'Pre-battle rules',
       detail: ready && view.deploymentId ? 'Ready to begin' : 'Setup incomplete',
       complete: false,
-      reachable: reachable(9),
+      reachable: reachable(8),
     },
   ]
 
@@ -202,7 +204,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
        * gutter than rail.
        */}
       <div className="sticky top-12 z-20 border-b border-edge bg-void/95 backdrop-blur">
-        <StepRail steps={steps} at={at} onGo={(step) => send({ kind: 'set-setup-step', step })} />
+        <StepRail steps={steps} at={at} onGo={(step) => send({ kind: 'set-setup-step', step: logStep(step) })} />
       </div>
 
       <div className="mx-auto w-full max-w-5xl space-y-5 px-4 py-6">
@@ -221,8 +223,8 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
         <section aria-label={steps[at]?.name} className="min-w-0 space-y-4">
           {at === 0 ? (
             <>
-              <SetupPanel className="space-y-4">
-                <div className="max-w-sm">
+              <SetupPanel className="grid gap-4 sm:grid-cols-2">
+                <div>
                   {view.leagueToken ? (
                     <>
                       <p className="eyebrow">Battle size</p>
@@ -252,7 +254,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
                 {references?.packs.length ? (
                   <fieldset>
                     <legend className="eyebrow">Mission pack</legend>
-                    <div className="mt-1 grid gap-2 sm:grid-cols-2">
+                    <div className="mt-1 grid gap-2">
                       {references.packs.map((pack) => (
                         <Button
                           key={pack.id}
@@ -276,11 +278,8 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
                   9-inch deployment.
                 </SetupNote>
               ) : null}
+              <ArmiesStep view={view} sides={table} send={send} attachSavedRoster={attachSavedRoster} pending={pending} problem={problem} />
             </>
-          ) : null}
-
-          {at === 1 ? (
-            <ArmiesStep view={view} sides={table} send={send} attachSavedRoster={attachSavedRoster} pending={pending} problem={problem} />
           ) : null}
 
           {/*
@@ -289,7 +288,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
            * than from a pick, so the panel reads the matchup out and then asks the
            * one question about it there is. Where it is fought is the next section.
            */}
-          {at === 2 && youHaveAnArmy ? (
+          {at === 1 && youHaveAnArmy ? (
             <>
               <SideDispositionChoice sides={table} nameDisposition={nameDisposition} send={send} />
               <SetupPanel className="space-y-3">
@@ -336,7 +335,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
             </>
           ) : null}
 
-          {at === 3 && youHaveAnArmy ? (
+          {at === 2 && youHaveAnArmy ? (
             <SetupPanel>
               <Battlefield
                 view={view}
@@ -348,19 +347,19 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
             </SetupPanel>
           ) : null}
 
-          {at === 4 ? <DefenderStep sides={table} attackerId={view.attackerId} token={view.token} send={send} /> : null}
+          {at === 3 ? <DefenderStep sides={table} attackerId={view.attackerId} token={view.token} send={send} /> : null}
 
-          {at === 5 && youHaveAnArmy ? <SecondariesStep view={view} sides={table} send={send} pending={pending} /> : null}
+          {at === 4 && youHaveAnArmy ? <SecondariesStep view={view} sides={table} send={send} pending={pending} /> : null}
 
-          {at === 6 && youHaveAnArmy ? <ReservesStep sides={table} redeploy={view.firstPlayerId !== null} send={send} /> : null}
+          {at === 5 && youHaveAnArmy ? <ReservesStep sides={table} redeploy={view.firstPlayerId !== null} send={send} /> : null}
 
-          {at === 7 && youHaveAnArmy ? <DeployStep sides={table} defender={defender} /> : null}
+          {at === 6 && youHaveAnArmy ? <DeployStep sides={table} defender={defender} /> : null}
 
-          {at === 8 && view.deploymentId ? (
+          {at === 7 && view.deploymentId ? (
             <FirstTurnStep sides={table} token={view.token} first={firstSide?.index ?? null} send={send} />
           ) : null}
 
-          {at === 9 && view.deploymentId ? (
+          {at === 8 && view.deploymentId ? (
             <PreBattleRulesStep sides={table} first={firstSide} ready={ready} pending={pending} send={send} />
           ) : null}
 
@@ -374,7 +373,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
           <Button
             className="pointer-events-auto h-11 gap-1.5 px-5 text-base shadow-lg"
             disabled={blocked !== null}
-            onClick={() => send({ kind: 'set-setup-step', step: at + 1 })}
+            onClick={() => send({ kind: 'set-setup-step', step: logStep(at + 1) })}
           >
             Next
             <ChevronRight className="size-4" />
@@ -386,8 +385,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
 }
 
 const HEADLINES = [
-  'Choose how you are playing',
-  'Choose the armies',
+  'Choose the battle size and armies',
   'Read the mission',
   'Choose the battlefield',
   'Choose the defender',
@@ -399,8 +397,7 @@ const HEADLINES = [
 ]
 
 const BLURBS = [
-  'The points apply to each side. Every side with two armies splits them evenly.',
-  'Everyone chooses their own army. Every attached army is visible here immediately.',
+  'The points apply to each side. Allies split them evenly, and everyone chooses their own roster.',
   'Each side finds its opponent’s disposition on its own Force Disposition card, and plays the primary listed there. A twist is optional and bends one rule for the whole battle.',
   'One shared choice sets the deployment zones and the terrain for both sides.',
   'Roll off. The winner decides who attacks and who defends — the defender deploys first, the attacker deploys second.',

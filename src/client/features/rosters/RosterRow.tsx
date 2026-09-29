@@ -22,6 +22,7 @@ export function RosterRow({
   onDelete,
   points,
   label,
+  dispositionName,
   factionLoading,
   pointsLoading,
   problem,
@@ -36,6 +37,7 @@ export function RosterRow({
   points?: number | null
   /** What an unnamed list is called, folded from its units beside its total. */
   label?: string
+  dispositionName?: string
   factionLoading?: boolean
   pointsLoading?: boolean
   /** Why the current army data says this list cannot be fielded, judged beside the totals. */
@@ -56,6 +58,7 @@ export function RosterRow({
             faction={faction}
             points={points}
             label={label}
+            dispositionName={dispositionName}
             factionLoading={factionLoading}
             pointsLoading={pointsLoading}
             problem={problem}

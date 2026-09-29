@@ -210,7 +210,7 @@ it('includes the force disposition matrix and primary mission scoring', () => {
   const deployment = corpus.byId.get('deployment:hammer-and-anvil')!
   const terrain = corpus.byId.get('terrain:layout-a')!
 
-  expect(document).toMatchObject({ kind: 'mission', title: 'Chapter Approved 2026-2027', url: '/mission-packs/chapter-approved-2026-2027' })
+  expect(document).toMatchObject({ kind: 'mission', title: 'Chapter Approved 2026-2027', url: '/missions/chapter-approved-2026-2027' })
   expect(document.sections.find((entry) => entry.id === 'matrix')?.text).toContain('Disruption vs Take and Hold: Death Trap')
   expect(document.sections.find((entry) => entry.id === 'force-dispositions')?.text).toContain('Break the opposing force.')
   expect(document.sections.find((entry) => entry.id === 'mission-limits')?.text).toContain(
@@ -218,12 +218,12 @@ it('includes the force disposition matrix and primary mission scoring', () => {
   )
   expect(document.sections.find((entry) => entry.id === 'twist-fog-of-war')?.text).toContain('Visibility is limited.')
   expect(mission.sections.find((entry) => entry.id === 'mission-death-trap')).toMatchObject({
-    url: '/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold#mission-death-trap',
+    url: '/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold#mission-death-trap',
     text: expect.stringMatching(/Trap an objective\..*5 VP/s),
   })
   expect(secondary).toMatchObject({
     kind: 'mission',
-    url: '/mission-packs/chapter-approved-2026-2027/secondary-missions/behind-enemy-lines',
+    url: '/missions/chapter-approved-2026-2027/secondaries/behind-enemy-lines',
     sections: [expect.objectContaining({ text: expect.stringMatching(/One unit is wholly within.*When drawn: redraw/s) })],
   })
   expect(deployment).toMatchObject({

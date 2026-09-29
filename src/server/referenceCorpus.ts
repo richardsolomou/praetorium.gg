@@ -72,7 +72,7 @@ function missionDocuments(
   references: GameReferences,
   revisions: CanonicalCatalogue['revisions'],
 ): ReferenceDocument[] {
-  const url = `/mission-packs/${pack.id}`
+  const url = `/missions/${pack.id}`
   const metadata = {
     kind: 'mission' as const,
     faction: null,
@@ -120,7 +120,7 @@ function missionDocuments(
     },
     ...pack.missions.map((mission) => {
       const [you, opponent] = mission.matchups[0] ?? []
-      const missionUrl = you && opponent ? `/mission-matchups/${pack.id}/${you.id}/${opponent.id}` : url
+      const missionUrl = you && opponent ? `/missions/${pack.id}/matchups/${you.id}/${opponent.id}` : url
       return {
         ...metadata,
         id: `mission:${pack.id}:${mission.id}`,
@@ -136,7 +136,7 @@ function secondaryDocuments(references: GameReferences, revisions: CanonicalCata
   const pack = references.packs[0]
   if (!pack) return []
   return references.secondaries.map((card) => {
-    const url = `/mission-packs/${pack.id}/secondary-missions/${card.key}`
+    const url = `/missions/${pack.id}/secondaries/${card.key}`
     return {
       id: `mission:secondary:${card.key}`,
       kind: 'mission',
@@ -157,7 +157,7 @@ function deploymentDocuments(
 ): ReferenceDocument[] {
   return (rules.deployments ?? []).map((deployment) => {
     const layout = (rules.terrainLayouts ?? []).find((candidate) => candidate.deploymentId === deployment.id)
-    const pageUrl = layout ? terrainUrl(references, layout.matchupId, layout.id).split('#')[0]! : '/mission-packs'
+    const pageUrl = layout ? terrainUrl(references, layout.matchupId, layout.id).split('#')[0]! : '/missions'
     const url = `${pageUrl}#deployment-${deployment.id}`
     return {
       id: `deployment:${deployment.id}`,
@@ -240,7 +240,7 @@ function terrainUrl(references: GameReferences, matchupId: string, layoutId: str
         ),
       )
     : null
-  return matchup && pack ? `/mission-matchups/${pack.id}/${matchup.you.id}/${matchup.opponent.id}#terrain-${layoutId}` : '/mission-packs'
+  return matchup && pack ? `/missions/${pack.id}/matchups/${matchup.you.id}/${matchup.opponent.id}#terrain-${layoutId}` : '/missions'
 }
 
 function missionReferenceLines(mission: GameReferencePack['missions'][number]): (string | null | undefined)[] {

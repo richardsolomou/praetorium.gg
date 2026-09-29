@@ -64,14 +64,28 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
     }
     return { back: { href: '/factions', label: 'Back to factions', preferHistory: true }, section: 'factions', title: 'Faction' }
   }
-  if (root === 'mission-packs') {
+  if (root === 'missions') {
+    if (child === 'matchups' && detail) {
+      return {
+        back: { href: `/missions/${id}`, label: 'Back to mission pack', preferHistory: true },
+        section: 'missions',
+        title: 'Mission',
+      }
+    }
+    if (child === 'secondaries' && detail) {
+      return {
+        back: { href: `/missions/${id}`, label: 'Back to mission pack', preferHistory: true },
+        section: 'missions',
+        title: 'Secondary mission',
+      }
+    }
     return id
       ? {
-          back: { href: '/mission-packs', label: 'Back to mission packs', preferHistory: true },
+          back: { href: '/missions', label: 'Back to missions', preferHistory: true },
           section: 'missions',
           title: 'Mission pack',
         }
-      : { section: 'missions', title: 'Mission packs' }
+      : { section: 'missions', title: 'Missions' }
   }
   if (root === 'rules') {
     if (!id) return { section: 'rules', title: 'Rules' }
@@ -80,19 +94,14 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
     }
     return { back: { href: '/rules', label: 'Back to rules', preferHistory: true }, section: 'rules', title: 'Rules' }
   }
-  if (root === 'mission-matchups') {
-    return {
-      back: { href: id ? `/mission-packs/${id}` : '/mission-packs', label: 'Back to mission pack', preferHistory: true },
-      section: 'missions',
-      title: 'Mission',
-    }
-  }
   if (root === 'force-dispositions') {
-    return {
-      back: { href: '/mission-packs', label: 'Back to mission packs', preferHistory: true },
-      section: 'missions',
-      title: 'Force disposition',
-    }
+    return id
+      ? {
+          back: { href: '/force-dispositions', label: 'Back to force dispositions', preferHistory: true },
+          section: 'missions',
+          title: 'Force disposition',
+        }
+      : { section: 'missions', title: 'Force dispositions' }
   }
   if (root === 'more') return { title: 'More' }
   if (root === 'simulator') return { back: { href: '/more', label: 'Back to more', preferHistory: true }, title: 'Combat simulator' }

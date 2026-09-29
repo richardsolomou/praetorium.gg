@@ -35,7 +35,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
     <main className="w-full">
       <PageHeader eyebrow="Mission matchup" title={`${yourDisposition.name} vs ${opponentDisposition.name}`} />
       <PageContent>
-        <Link to="/mission-packs/$packId" params={{ packId }} className="eyebrow text-info">
+        <Link to="/missions/$packId" params={{ packId }} className="eyebrow text-info">
           {pack.name}
         </Link>
         <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 border border-edge bg-sunken p-3">

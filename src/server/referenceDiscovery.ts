@@ -78,7 +78,7 @@ For roster planning, read \`/api/reference/v1/factions/{catalogueId}/units\` onc
 ## Human reference
 
 - [Factions](${origin}/factions)
-- [Mission packs](${origin}/mission-packs)
+- [Missions](${origin}/missions)
 - [Rules](${origin}/rules)
 - [Data sources](${origin}/sources)
 

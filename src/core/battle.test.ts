@@ -21,7 +21,7 @@ import { battleView } from './battleView'
 import { ALICE, BOB, CAROL, NAMES, PLAYERS, advance, builtRoster, log, roster, started } from './battle.fixtures'
 
 describe('setup', () => {
-  const fourSeatState = (sides: number[], rosterLimits: number[] = [1_000, 1_000, 1_000, 1_000]) => {
+  const fourSeatState = (sides: number[], rosterLimits: number[] = [1_000, 1_000, 1_000, 1_000], nextLimit?: number) => {
     const ids = [ALICE, BOB, CAROL, 'dave']
     const configured: Command = {
       kind: 'configure-battle',
@@ -44,7 +44,11 @@ describe('setup', () => {
     })
     return reduceBattle(
       ids,
-      log([ALICE, configured], ...ids.map((id, index) => [ALICE, list(id, rosterLimits[index]!)] as [string, Command])),
+      log(
+        [ALICE, configured],
+        ...ids.map((id, index) => [ALICE, list(id, rosterLimits[index]!)] as [string, Command]),
+        ...(nextLimit === undefined ? [] : ([[ALICE, { ...configured, limit: nextLimit }]] as [string, Command][])),
+      ),
       sides,
     )
   }
@@ -53,6 +57,40 @@ describe('setup', () => {
     const state = fourSeatState([0, 0, 1, 1])
 
     expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBeNull()
+  })
+
+  it('keeps selected rosters when the shared battle size stays the same', () => {
+    const state = fourSeatState([0, 0, 1, 1], undefined, 2_000)
+
+    expect(state.players.filter((player) => player.roster).length).toBe(4)
+  })
+
+  it('unselects all allied rosters when the shared battle size changes', () => {
+    const state = fourSeatState([0, 0, 1, 1], undefined, 1_000)
+
+    expect(state.players.filter((player) => player.roster).length).toBe(0)
+  })
+
+  it('unselects a built roster whose size no longer matches while keeping an unpriced import', () => {
+    const configured: Command = {
+      kind: 'configure-battle',
+      limit: 2_000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      clockLimitMinutes: null,
+    }
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, configured],
+        [ALICE, builtRoster('Strike Force', ['Intercessors'])],
+        [BOB, roster('Imported army')],
+        [ALICE, { ...configured, limit: 1_000 }],
+      ),
+    )
+
+    expect(state.players.map((player) => player.roster?.name ?? null)).toEqual([null, 'Imported army'])
   })
 
   it('refuses a four-seat battle seated three against one', () => {

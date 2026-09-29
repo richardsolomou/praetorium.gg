@@ -7,7 +7,7 @@ describe('native application navigation', () => {
     ['/battles', { section: 'battles', title: 'Battles' }],
     ['/leagues', { section: 'leagues', title: 'Leagues' }],
     ['/factions', { section: 'factions', title: 'Factions' }],
-    ['/mission-packs', { section: 'missions', title: 'Mission packs' }],
+    ['/missions', { section: 'missions', title: 'Missions' }],
     ['/rules', { section: 'rules', title: 'Rules' }],
     ['/leaderboard', { section: 'leaderboard', title: 'Leaderboard' }],
     ['/more', { title: 'More' }],
@@ -34,9 +34,9 @@ describe('native application navigation', () => {
       { back: { href: '/factions', label: 'Back to factions', preferHistory: true }, section: 'factions', title: 'Faction' },
     ],
     [
-      '/mission-packs/chapter-approved',
+      '/missions/chapter-approved',
       {
-        back: { href: '/mission-packs', label: 'Back to mission packs', preferHistory: true },
+        back: { href: '/missions', label: 'Back to missions', preferHistory: true },
         section: 'missions',
         title: 'Mission pack',
       },
@@ -55,21 +55,30 @@ describe('native application navigation', () => {
       },
     ],
     [
-      '/mission-matchups/chapter-approved/mission/disposition',
+      '/missions/chapter-approved/matchups/mission/disposition',
       {
-        back: { href: '/mission-packs/chapter-approved', label: 'Back to mission pack', preferHistory: true },
+        back: { href: '/missions/chapter-approved', label: 'Back to mission pack', preferHistory: true },
         section: 'missions',
         title: 'Mission',
       },
     ],
     [
+      '/missions/chapter-approved/secondaries/assassination',
+      {
+        back: { href: '/missions/chapter-approved', label: 'Back to mission pack', preferHistory: true },
+        section: 'missions',
+        title: 'Secondary mission',
+      },
+    ],
+    [
       '/force-dispositions/take-and-hold',
       {
-        back: { href: '/mission-packs', label: 'Back to mission packs', preferHistory: true },
+        back: { href: '/force-dispositions', label: 'Back to force dispositions', preferHistory: true },
         section: 'missions',
         title: 'Force disposition',
       },
     ],
+    ['/force-dispositions', { section: 'missions', title: 'Force dispositions' }],
     ['/users/player-id', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }],
     ['/support', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Support' }],
     ['/privacy', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Privacy' }],

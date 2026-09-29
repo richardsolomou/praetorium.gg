@@ -401,7 +401,7 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
   const url = await createBattle(alice, { opponent: bobName })
   await bob.goto(url)
   await attachRoster(alice, aliceRoster)
-  await setupStep(bob, 'Armies')
+  await setupStep(bob, 'Setup')
   await attachRoster(bob, bobRoster)
   // The battlefield follows from both dispositions, so the host has to have seen both armies.
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()

@@ -122,7 +122,7 @@ test('the roster header opens its force disposition', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Take and Hold', exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: /^vs Disruption/ })).toHaveAttribute(
     'href',
-    '/mission-matchups/chapter-approved-2026-2027/take-and-hold/disruption',
+    '/missions/chapter-approved-2026-2027/matchups/take-and-hold/disruption',
   )
   await expect(page.getByRole('link', { name: /^Awakened Dynasty/ })).toHaveAttribute(
     'href',

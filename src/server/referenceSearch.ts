@@ -105,7 +105,7 @@ function missionPackOf(document: ReferenceDocument) {
   if (document.id.startsWith('mission-pack:')) return [document.id.slice('mission-pack:'.length)]
   if (document.id.startsWith('mission:') && !document.id.startsWith('mission:secondary:')) return [document.id.split(':')[1] ?? '']
   const segments = document.url.split('#')[0]!.split('/')
-  const packAt = segments.findIndex((segment) => segment === 'mission-packs' || segment === 'mission-matchups')
+  const packAt = segments.indexOf('missions')
   return packAt >= 0 ? [segments[packAt + 1] ?? ''] : []
 }
 

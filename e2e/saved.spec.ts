@@ -47,7 +47,11 @@ test('the roster library reserves its rows while the first page loads', async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   await page.screenshot({ path: 'test-results/loading-roster-library-phone.png', fullPage: true })
   release()
-  await expect(page.locator(`[data-roster="${rosterName}"]`)).toBeVisible()
+  const row = page.locator(`[data-roster="${rosterName}"]`)
+  await expect(row).toBeVisible()
+  await expect(row).toContainText('Take and Hold')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/roster-library-disposition-phone.png', fullPage: true })
   await page.unroute('**/_serverFn/**')
 })
 
