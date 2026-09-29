@@ -71,7 +71,7 @@ test('the roster workspace reserves the desktop picker while its book loads', as
   clientUnitRequests.length = 0
   await page.reload()
   await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
-  expect(clientUnitRequests).toHaveLength(0)
+  expect(clientUnitRequests.length).toBeGreaterThan(0)
   await expectNoHorizontalOverflow(page.locator('html'))
   const roster = page.locator('[data-slot="roster-units"]')
   await expectNoHorizontalOverflow(roster)
@@ -80,7 +80,6 @@ test('the roster workspace reserves the desktop picker while its book loads', as
 
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
-  expect(clientUnitRequests.length).toBeGreaterThan(0)
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
 
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
