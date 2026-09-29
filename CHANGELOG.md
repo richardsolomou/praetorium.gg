@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.86.1
+
+### Patch Changes
+
+- 30b5faf: Show roster variants, their changes, points and legality when choosing a roster for a battle or a league.
+
 ## 0.86.0
 
 ### Minor Changes
