@@ -1158,12 +1158,12 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'end-battle': {
       if (state.status !== 'playing') return 'the battle is not running'
-      if (command.reason === 'completed') return 'completed battles finish after the last turn'
-      if (command.reason === 'conceded' && !command.concededBy) return 'choose who conceded'
+      // Older logs also hold battles called early; replay still applies them, but a new one only ends by concession.
+      if (command.reason !== 'conceded') return 'a battle ends after its last turn or by concession'
+      if (!command.concededBy) return 'choose who conceded'
       const concedingPlayer = state.players.find((candidate) => candidate.id === command.concededBy)
-      if (command.reason === 'conceded' && !concedingPlayer) return 'that player is not in this battle'
-      if (command.reason === 'conceded' && concedingPlayer?.automated) return 'a practice opponent cannot concede'
-      if (command.reason !== 'conceded' && command.concededBy) return 'only a concession names a conceding player'
+      if (!concedingPlayer) return 'that player is not in this battle'
+      if (concedingPlayer.automated) return 'a practice opponent cannot concede'
       return null
     }
     case 'reopen-battle':

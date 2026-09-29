@@ -26,12 +26,10 @@ import {
   type ReminderDismissalScope,
 } from './reminderDismissals'
 import { armyRulesRequest } from './sideRules'
-import { celebrateVictory } from './victory'
 import { type Side, type SideMission, sides } from '../../sides'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import { remindersDueAt, reminderTimingLabel, type ReminderTiming, type RosterReminder } from '../../../core/reminders'
-import { battleOutcome, battleResult } from '../../battleOutcome'
 import { BattleMenu } from './BattleMenu'
 import { ReminderDialog } from './ReminderDialog'
 import { DrawDialog, type WhenDrawn } from './DrawDialog'
@@ -54,7 +52,6 @@ type Props = {
   send: (command: Command) => void
   pending: boolean
   problem: string | null
-  onReplay?: () => void
 }
 
 const EMPTY_KEYS: ReadonlySet<string> = new Set()
@@ -79,7 +76,7 @@ type Focus = (typeof VIEWS)[number]
  * allied pair is one side, because the rules make it one: they share the turn, the
  * command points, the cards and the score, and only the armies are separate.
  */
-export function Tracker({ view, missions, send, pending, problem, onReplay }: Props) {
+export function Tracker({ view, missions, send, pending, problem }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
   const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
   const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
@@ -254,7 +251,6 @@ export function Tracker({ view, missions, send, pending, problem, onReplay }: Pr
       })),
     [view.players],
   )
-  const finished = view.status === 'finished'
   const attemptedPrepRepairs = useRef(new Map<string, number>())
   const repairSide = table.find(
     (side) =>
@@ -266,7 +262,7 @@ export function Tracker({ view, missions, send, pending, problem, onReplay }: Pr
   )
   const repairPrimary = repairSide?.primaryCard ?? primaryDeck.find((card) => card.key === repairSide?.mission?.id) ?? null
   useEffect(() => {
-    if (finished || pending || !references || !secondaryDeck.length || !repairSide || !repairPrimary) return
+    if (pending || !references || !secondaryDeck.length || !repairSide || !repairPrimary) return
     const key = `${view.seq}:${repairSide.captain.id}`
     if (!claimAutomaticAttempt(attemptedPrepRepairs.current, key)) return
     send({
@@ -281,7 +277,7 @@ export function Tracker({ view, missions, send, pending, problem, onReplay }: Pr
       primary: repairPrimary,
       secondaryMode: repairSide.secondaryMode,
     })
-  }, [finished, pending, references, repairPrimary, repairSide, secondaryDeck, send, view.seq])
+  }, [pending, references, repairPrimary, repairSide, secondaryDeck, send, view.seq])
   // A battle whose second seat is still empty draws one side, not a gap where the other goes.
   const oneSided = table.length < 2
   // A side's own mission can state a lower ceiling than the conventional one, and the
@@ -305,20 +301,15 @@ export function Tracker({ view, missions, send, pending, problem, onReplay }: Pr
   const settlementRound = view.settlementRound
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
   const needsDraw =
-    !finished &&
     active?.secondaryMode === 'tactical' &&
     view.phase === 'command' &&
     active.secondariesDrawnThisTurn.length < active.secondaryDrawTarget &&
     active.remainingSecondaries.length > 0
   const needsDrawAcknowledgement =
-    !finished &&
-    active?.secondaryMode === 'tactical' &&
-    view.phase === 'command' &&
-    active.secondariesToReview.length > 0 &&
-    !view.drawAcknowledged
+    active?.secondaryMode === 'tactical' && view.phase === 'command' && active.secondariesToReview.length > 0 && !view.drawAcknowledged
 
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
-  const due = active && !finished ? dueForAdvance(view, active, awardsFor) : []
+  const due = active ? dueForAdvance(view, active, awardsFor) : []
   const activeNeedsReferences = Boolean(
     (active?.primaryCard && active.primaryCard.awards === undefined) ||
     active?.secondaries.some((card) => card.status === 'active' && card.awards === undefined),
@@ -379,7 +370,7 @@ export function Tracker({ view, missions, send, pending, problem, onReplay }: Pr
   )
   const settlementRulesPending = settlementNeedsReferences && (settlementRuleResults.some((result) => result.isPending) || deckUnknown)
   const owedCards =
-    settlementRound !== null && settlementSide && !finished
+    settlementRound !== null && settlementSide
       ? dueFromTheirTurn(settlementRound, view.rounds, settlementSide, awardsFor, heldKeys(settlementSide))
       : []
   const attemptedEmptySettlements = useRef(new Map<string, number>())
@@ -393,12 +384,6 @@ export function Tracker({ view, missions, send, pending, problem, onReplay }: Pr
     send({ kind: 'settle-opponent-turn' })
   }, [emptySettlementKey, emptySettlementReady, pending, send])
   // The win is this device's to celebrate only when the side it is seated on took it.
-  const result = finished ? battleResult(table, view) : null
-  const wonSide = result?.kind === 'win' ? table.find((side) => side.index === result.side.index) : undefined
-  const wonHere = Boolean(wonSide?.isViewer)
-  useEffect(() => {
-    if (wonHere && wonSide) void celebrateVictory(view.token, wonSide.index)
-  }, [view.token, wonHere, wonSide])
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
   const discardable = active ? discardableSecondaries(active) : []
 
@@ -488,9 +473,9 @@ export function Tracker({ view, missions, send, pending, problem, onReplay }: Pr
   ])
 
   return (
-    <main data-battle-tracker className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
+    <main data-battle-tracker className="w-full space-y-3 px-3 pb-32 lg:pb-8">
       {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
-      <Scoreboard view={view} sides={table} outcome={finished ? battleOutcome(table, view) : null} />
+      <Scoreboard view={view} sides={table} outcome={null} />
 
       {/* Nobody across the table yet means neither a tab nor a column for them. */}
       <Tabs value={focus} onValueChange={(value) => setFocus(value as Focus)} className="lg:hidden">
@@ -531,23 +516,21 @@ export function Tracker({ view, missions, send, pending, problem, onReplay }: Pr
            * most-pressed control in the game, so on a phone it sits under the thumb all
            * game instead of behind the tab that holds the rest of the battle.
            */}
-          {finished ? null : (
-            <TurnControl
-              view={view}
-              send={send}
-              pending={pending}
-              onAdvance={advance}
-              blockReason={blockReason}
-              note={view.advancePrompt}
-              /*
-               * `mb-0` because the column spaces its children with a bottom margin, and
-               * a margin on a fixed box sits between it and the edge it is pinned to —
-               * which held the bar that far off the bottom of every phone and tablet.
-               * At `lg` it is an ordinary box in the column again and takes the gap back.
-               */
-              className="fixed inset-x-0 bottom-0 z-40 mb-0 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:mb-3 lg:rounded-lg lg:border lg:bg-panel lg:p-3 lg:backdrop-filter-none"
-            />
-          )}
+          <TurnControl
+            view={view}
+            send={send}
+            pending={pending}
+            onAdvance={advance}
+            blockReason={blockReason}
+            note={view.advancePrompt}
+            /*
+             * `mb-0` because the column spaces its children with a bottom margin, and
+             * a margin on a fixed box sits between it and the edge it is pinned to —
+             * which held the bar that far off the bottom of every phone and tablet.
+             * At `lg` it is an ordinary box in the column again and takes the gap back.
+             */
+            className="fixed inset-x-0 bottom-0 z-40 mb-0 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:mb-3 lg:rounded-lg lg:border lg:bg-panel lg:p-3 lg:backdrop-filter-none"
+          />
 
           <section className={`space-y-3 rounded-lg border border-edge bg-panel p-3 ${focus === 'battle' ? '' : 'hidden lg:block'}`}>
             <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
@@ -578,21 +561,13 @@ export function Tracker({ view, missions, send, pending, problem, onReplay }: Pr
             <div className="border-t border-edge pt-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="eyebrow">Battle events</p>
-                {finished ? (
-                  <Button variant="outline" size="sm" onClick={onReplay}>
-                    Replay battle
-                  </Button>
-                ) : null}
                 <BattleMenu
-                  finished={finished}
                   canDelete={view.creatorId === view.viewerId}
                   pending={pending || remove.isPending}
                   actionRemindersEnabled={actionRemindersEnabled}
                   players={view.players}
                   onActionRemindersChange={updateActionReminders}
-                  onFinishEarly={() => send({ kind: 'end-battle', reason: 'finished-early' })}
                   onConcede={(playerId) => send({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
-                  onReopen={() => send({ kind: 'reopen-battle' })}
                   onDelete={() => remove.mutate()}
                 />
               </div>

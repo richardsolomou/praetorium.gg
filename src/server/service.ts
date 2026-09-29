@@ -18,7 +18,7 @@ import {
 import { type BattleAudience, battleAudience, maySpectate } from '../core/battleAudience'
 import type { PlayerDefaults } from '../core/playerDefaults'
 import { type BattleView, battleView } from '../core/battleView'
-import { battleReport } from '../core/battleReport'
+import { battleReport, type ReportEntry } from '../core/battleReport'
 import { battleLogThroughSeq, battleTimeline, type ReplayPoint } from '../core/battleReplay'
 import type { MissionAward } from '../core/scoring'
 import type { OnboardingProgressOperation } from '../core/onboarding'
@@ -64,7 +64,7 @@ type SpectatorScreen = {
   view: BattleView
   missions: { side: number; mission: Mission | null }[]
   report: ReturnType<typeof battleReport>
-  timeline?: ReplayPoint[]
+  timeline: ReplayPoint[]
 }
 
 /**
@@ -825,32 +825,32 @@ export class PraetoriumService {
   private async visibleScreen(history: BattleHistory, userId: string | null, rules?: BattleReadRules | null): Promise<BattleScreen> {
     const viewerId = userId && this.seated(history, userId) ? userId : SPECTATOR_ID
     const screen = this.battleScreen(history, viewerId, rules)
-    const timeline = screen.view.status === 'finished' ? this.replayTimeline(history, viewerId, rules) : undefined
-    if (viewerId !== SPECTATOR_ID) return { ...screen, timeline }
-    const spectator = (): SpectatorScreen => ({
-      kind: 'spectator',
-      view: screen.view,
-      missions: screen.missions,
-      timeline,
-      report: battleReport(
-        history.players,
-        history.log,
-        history.players.map((player) => player.id),
-        SPECTATOR_ID,
-        history.players.map((player) => player.side),
-        rules,
-      ),
-    })
-    if (screen.view.leagueToken) return spectator()
+    // A seated player sees the timeline only once the battle is over; until then they are playing it.
+    if (viewerId !== SPECTATOR_ID)
+      return screen.view.status === 'finished'
+        ? { ...screen, timeline: this.replayTimeline(history, this.viewerReport(history, viewerId, rules)) }
+        : screen
     // Everyone else either watches or is told no. Nobody arrives here to sit down:
     // the seats were filled when the battle was created.
-    return (await this.mayWatch(history, userId)) ? spectator() : { kind: 'unavailable' }
+    if (!screen.view.leagueToken && !(await this.mayWatch(history, userId))) return { kind: 'unavailable' }
+    const report = this.viewerReport(history, SPECTATOR_ID, rules)
+    return { kind: 'spectator', view: screen.view, missions: screen.missions, report, timeline: this.replayTimeline(history, report) }
   }
 
-  private replayTimeline(history: BattleHistory, viewerId: string, rules?: BattleReadRules | null): ReplayPoint[] {
+  private viewerReport(history: BattleHistory, viewerId: string, rules?: BattleReadRules | null) {
+    return battleReport(
+      history.players,
+      history.log,
+      history.players.map((player) => player.id),
+      viewerId,
+      history.players.map((player) => player.side),
+      rules,
+    )
+  }
+
+  private replayTimeline(history: BattleHistory, report: readonly ReportEntry[]): ReplayPoint[] {
     const playerIds = history.players.map((player) => player.id)
     const sides = history.players.map((player) => player.side)
-    const report = battleReport(history.players, history.log, playerIds, viewerId, sides, rules)
     const labels = new Map(report.map((entry) => [entry.seq, entry.text]))
     const kinds = new Map(history.log.map((entry) => [entry.seq, entry.command.kind]))
     return battleTimeline(
@@ -868,7 +868,7 @@ export class PraetoriumService {
     const history = await this.mustFind(token)
     const current = await this.visibleScreen(history, userId, rules)
     if (current.kind === 'unavailable') return current
-    if (current.view.status !== 'finished' || !Number.isInteger(seq) || !history.log.some((entry) => entry.seq === seq)) {
+    if (!Number.isInteger(seq) || !history.log.some((entry) => entry.seq === seq)) {
       throw new Response('no such battle event', { status: 404 })
     }
     const playerIds = history.players.map((player) => player.id)
@@ -888,14 +888,7 @@ export class PraetoriumService {
   async report(token: string, userId: string, rules?: BattleReadRules | null) {
     const history = await this.mustFind(token)
     if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
-    return battleReport(
-      history.players,
-      history.log,
-      history.players.map((player) => player.id),
-      userId,
-      history.players.map((player) => player.side),
-      rules,
-    )
+    return this.viewerReport(history, userId, rules)
   }
 
   async submit(token: string, userId: string, expectedSeq: number, command: Command, rules?: LoadedRules | null): Promise<SubmitAnswer> {

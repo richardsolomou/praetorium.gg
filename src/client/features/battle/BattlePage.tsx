@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { Navigate } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { BattleUnavailable } from './BattleUnavailable'
 import { Setup } from './setup/Setup'
 import { Spectator } from './Spectator'
 import { Tracker } from './Tracker'
+import { celebrateVictory } from './victory'
+import { battleResult } from '../../battleOutcome'
+import { sides } from '../../sides'
 import { battleQuery } from '../../queries'
 import { useCommand } from './useCommand'
 import { useSpacetimeLiveBattle } from '../../spacetimeLive'
@@ -22,7 +25,6 @@ export function BattlePage({ token }: { token: string }) {
 }
 
 function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
-  const [replaying, setReplaying] = useState(false)
   useSpacetimeLiveBattle(token, true)
   useEffect(() => {
     setNativeBattleActive(true)
@@ -31,8 +33,7 @@ function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaite
     }
   }, [])
   const { send, attachSavedRoster, problem, pending } = useCommand(token, screen.view.seq)
-  if (replaying && screen.view.status === 'finished')
-    return <Spectator view={screen.view} missions={screen.missions} timeline={screen.timeline} onExit={() => setReplaying(false)} />
+  if (screen.view.status === 'finished') return <FinishedBattle screen={screen} />
   if (screen.view.status === 'setup')
     return (
       <Setup
@@ -45,14 +46,19 @@ function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaite
         problem={problem}
       />
     )
-  return (
-    <Tracker
-      view={screen.view}
-      missions={screen.missions}
-      send={send}
-      pending={pending}
-      problem={problem}
-      onReplay={() => setReplaying(true)}
-    />
-  )
+  return <Tracker view={screen.view} missions={screen.missions} send={send} pending={pending} problem={problem} />
+}
+
+function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
+  const { view, missions } = screen
+  const won = useMemo(() => {
+    const table = sides(view, missions)
+    const result = battleResult(table, view)
+    const side = result.kind === 'win' ? table.find((entry) => entry.index === result.side.index) : undefined
+    return side?.isViewer ? side.index : null
+  }, [missions, view])
+  useEffect(() => {
+    if (won !== null) void celebrateVictory(view.token, won)
+  }, [view.token, won])
+  return <Spectator view={view} missions={missions} timeline={screen.timeline} />
 }
