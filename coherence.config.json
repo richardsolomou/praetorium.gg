@@ -1,0 +1,21 @@
+{
+  "name": "Praetorium",
+  "language": "typescript",
+  "ignore": [
+    "node_modules",
+    ".output",
+    ".nitro",
+    ".tanstack",
+    "dist",
+    "catalogue-data",
+    "test-results",
+    "src/components/ui",
+    "mobile/assets",
+    "public",
+    "drizzle/meta"
+  ],
+  "typecheck": ["pnpm", "typecheck"],
+  "test": ["pnpm", "exec", "vitest", "run", "-t"],
+  "testMatch": "Tests\\s+[1-9][0-9]* passed",
+  "testJson": ["pnpm", "exec", "vitest", "run", "--reporter=json", "--outputFile={out}", "-t", "{filter}"]
+}

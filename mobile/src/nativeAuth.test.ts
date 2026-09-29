@@ -95,6 +95,9 @@ describe('native authentication bridge', () => {
     expect(parseNativeAuthCallback('https://example.com/?token=1234567890123456&provider=google&action=sign-in&next=%2Frosters')).toEqual({
       kind: 'error',
     })
+  })
+
+  it('rejects auth callbacks with a different pending challenge', () => {
     expect(
       parseNativeAuthCallback(
         `praetorium://auth?version=2&challenge=${proof.challenge}&id=${'i'.repeat(32)}&token=${'t'.repeat(32)}&provider=google&action=sign-in&next=%2Frosters`,

@@ -148,4 +148,31 @@ describe('Apple authentication', () => {
     expect(deleted).not.toHaveBeenCalled()
     expect(invalidResponse.status).toBe(400)
   })
+
+  it('never deletes an account for a notification signed by another key', async () => {
+    const { privateKey } = await generateKeyPair('RS256')
+    const { publicKey: unrelatedKey } = await generateKeyPair('RS256')
+    const payload = await new SignJWT({
+      events: { type: 'account-deleted', sub: 'apple-user', event_time: Math.floor(Date.now() / 1000) },
+    })
+      .setProtectedHeader({ alg: 'RS256', kid: 'test' })
+      .setIssuer('https://appleid.apple.com')
+      .setAudience('gg.praetorium')
+      .setIssuedAt()
+      .setJti('event-id')
+      .sign(privateKey)
+    const deleted = vi.fn(async () => undefined)
+
+    await appleNotificationResponse(
+      new Request('https://praetorium.gg/api/apple-notifications', {
+        method: 'POST',
+        body: JSON.stringify({ payload }),
+      }),
+      deleted,
+      ['gg.praetorium'],
+      unrelatedKey,
+    )
+
+    expect(deleted).not.toHaveBeenCalled()
+  })
 })

@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "project": "Praetorium",
+  "concepts": [
+    {
+      "name": "battle",
+      "definition": "A contest between two sides whose seats, actions, and derived state are recorded through a command log."
+    },
+    {
+      "name": "roster",
+      "definition": "A named selection of units and loadouts that is priced against a verified catalogue and may be saved or frozen for play."
+    },
+    {
+      "name": "catalogue",
+      "definition": "The verified snapshot of fetched community game data used to present and evaluate selectable rules and units."
+    },
+    {
+      "name": "faction",
+      "definition": "A catalogue-defined army grouping from which a roster selects its units and detachment."
+    },
+    {
+      "name": "detachment",
+      "definition": "A catalogue-defined choice within a faction that governs roster options and enhancements."
+    },
+    {
+      "name": "mission",
+      "definition": "A source-defined objective and scoring rule used during a battle."
+    },
+    {
+      "name": "league",
+      "definition": "An organized play container whose events register entrants and reveal sealed rosters."
+    },
+    {
+      "name": "league event",
+      "definition": "A registration cycle within a league that collects entrants, seals rosters, and reveals them together."
+    },
+    {
+      "name": "account",
+      "definition": "A user identity required to save a roster, occupy a battle seat, or enter a league."
+    },
+    {
+      "name": "friend",
+      "definition": "A mutual relationship between accounts that permits shared battles to be opened."
+    },
+    {
+      "name": "warlord",
+      "definition": "A selected catalogue-eligible Character or Epic Hero whose count is checked per roster or doubles team at league sealing."
+    },
+    {
+      "name": "secret mission",
+      "definition": "A mission whose choice or progress is hidden from other sides until its reveal rule permits disclosure."
+    },
+    {
+      "name": "practice opponent",
+      "definition": "An account with no credentials that occupies a battle seat as an automated opponent."
+    },
+    {
+      "name": "watchable",
+      "definition": "Permitted for a reader to observe under the narrowest audience setting of all battle seats."
+    },
+    {
+      "name": "contract",
+      "definition": "A serializable TypeScript shape shared across browser and server boundaries."
+    }
+  ]
+}

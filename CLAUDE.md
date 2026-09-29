@@ -10,7 +10,7 @@ Present Praetorium as free and open source software that anyone can read, run lo
 
 ## Where the detail lives
 
-Read the guide for the area you are changing:
+Read the guide for the area you are changing. [Coherence](CONTRIBUTING.md#coherence) records component entrances and enforced invariants.
 
 | Working on                                 | Read                                                                                                         |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
