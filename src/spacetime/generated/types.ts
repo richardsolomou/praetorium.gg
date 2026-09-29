@@ -251,7 +251,6 @@ export const Rosters = __t.object('Rosters', {
   id: __t.string(),
   userId: __t.string(),
   name: __t.string(),
-  automaticName: __t.option(__t.bool()),
   catalogueId: __t.string(),
   detachmentId: __t.option(__t.string()),
   disposition: __t.option(__t.string()),
@@ -266,6 +265,8 @@ export const Rosters = __t.object('Rosters', {
   source: __t.string(),
   createdAt: __t.u64(),
   updatedAt: __t.u64(),
+  automaticName: __t.option(__t.bool()),
+  baseRosterId: __t.option(__t.string()),
 })
 export type Rosters = __Infer<typeof Rosters>
 

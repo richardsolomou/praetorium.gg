@@ -26,11 +26,13 @@ type Props = {
   resolvePersistedRoster?: boolean
   /** The units and total a battle froze, for a list that is read rather than priced. */
   frozen?: FrozenRoster
+  variants?: ListBuilderProps['variants']
+  differences?: ListBuilderProps['differences']
 }
 
 const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true }
 
-export function RosterEditor({ roster, faction, editable, battle, resolvePersistedRoster = true, frozen }: Props) {
+export function RosterEditor({ roster, faction, editable, battle, resolvePersistedRoster = true, frozen, variants, differences }: Props) {
   return (
     <main className="flex h-full w-full min-w-0 max-w-full flex-col overflow-x-hidden">
       <ListBuilder
@@ -42,6 +44,8 @@ export function RosterEditor({ roster, faction, editable, battle, resolvePersist
         battle={battle}
         resolvePersistedRoster={resolvePersistedRoster}
         frozen={frozen}
+        variants={variants}
+        differences={differences}
       />
     </main>
   )

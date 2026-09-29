@@ -1,11 +1,12 @@
 import { Link } from '@tanstack/react-router'
-import { Copy, Download, EllipsisVertical, Eye, Link2, Lock, Pencil, Printer, Trash2 } from 'lucide-react'
+import { Copy, Download, EllipsisVertical, Eye, GitBranchPlus, Link2, Lock, Pencil, Printer, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
-import { type RosterProblem, RosterSummary, type RosterSummaryFaction, rosterTitle } from './RosterSummary'
+import { type RosterProblem, RosterSummary, type RosterSummaryFaction, RosterVariantSummary, rosterTitle } from './RosterSummary'
 
 /**
  * One saved list in the library: what it is, what it costs, and what can be done to it.
@@ -15,6 +16,7 @@ import { type RosterProblem, RosterSummary, type RosterSummaryFaction, rosterTit
  */
 export function RosterRow({
   roster,
+  layout = 'card',
   faction,
   actions,
   origin,
@@ -26,8 +28,19 @@ export function RosterRow({
   factionLoading,
   pointsLoading,
   problem,
+  differences,
+  showVisibility = true,
 }: {
   roster: SavedRoster
+  /**
+   * A list on its own is a card; a base shares its card with its variants, which
+   * are the slim rows beneath it.
+   */
+  layout?: 'card' | 'base' | 'variant'
+  /** What a variant changes from its base, arriving with the points. */
+  differences?: NamedRosterDifferences | null
+  /** A variant names its visibility only when it differs from the base's. */
+  showVisibility?: boolean
   faction?: RosterSummaryFaction
   actions: RosterActions
   origin: string
@@ -50,19 +63,41 @@ export function RosterRow({
   return (
     <ContextMenu>
       <ContextMenuTrigger
-        render={<article data-roster={title} className="flex items-center gap-2 border border-edge bg-panel p-2 hover:border-azure" />}
+        render={
+          <article
+            data-roster={title}
+            data-variant={layout === 'variant' || undefined}
+            className={`flex items-center gap-2 p-2 ${
+              layout === 'card' ? 'border border-edge bg-panel hover:border-azure' : 'hover:bg-raised'
+            } ${layout === 'variant' ? 'border-t border-edge py-1.5 pl-3' : ''}`}
+          />
+        }
       >
         <Link to="/rosters/$id" params={{ id: roster.id }} className="flex min-w-0 flex-1 flex-wrap items-center gap-2 p-1">
-          <RosterSummary
-            roster={roster}
-            faction={faction}
-            points={points}
-            label={label}
-            dispositionName={dispositionName}
-            factionLoading={factionLoading}
-            pointsLoading={pointsLoading}
-            problem={problem}
-          />
+          {layout === 'variant' ? (
+            <RosterVariantSummary
+              roster={roster}
+              faction={faction}
+              points={points}
+              label={label}
+              dispositionName={dispositionName}
+              pointsLoading={pointsLoading}
+              problem={problem}
+              differences={differences}
+              showVisibility={showVisibility}
+            />
+          ) : (
+            <RosterSummary
+              roster={roster}
+              faction={faction}
+              points={points}
+              label={label}
+              dispositionName={dispositionName}
+              factionLoading={factionLoading}
+              pointsLoading={pointsLoading}
+              problem={problem}
+            />
+          )}
         </Link>
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${title}`} />}>
@@ -124,6 +159,9 @@ function RosterActionItems({
       </Item>
       <Item onClick={onEdit}>
         <Pencil /> Edit setup
+      </Item>
+      <Item disabled={actions.variant.isPending} onClick={() => actions.variant.mutate(roster)}>
+        <GitBranchPlus /> New variant
       </Item>
       <Item disabled={actions.duplicate.isPending} onClick={() => actions.duplicate.mutate(roster)}>
         <Copy /> Duplicate

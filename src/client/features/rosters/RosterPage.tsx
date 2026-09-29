@@ -42,5 +42,14 @@ export function RosterPage({
     return fielded ? <BattleRosterSnapshot roster={fielded} /> : null
   }
   if (!roster) return null
-  return <RosterEditor roster={roster} faction={access.faction} editable={editable} battle={battle} />
+  return (
+    <RosterEditor
+      roster={roster}
+      faction={access.faction}
+      editable={editable}
+      battle={battle}
+      variants={access.variants}
+      differences={access.differences}
+    />
+  )
 }

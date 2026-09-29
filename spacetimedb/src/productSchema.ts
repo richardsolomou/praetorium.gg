@@ -130,6 +130,7 @@ const rosters = table(
     createdAt: t.u64(),
     updatedAt: t.u64(),
     automaticName: t.option(t.bool()).default(undefined),
+    baseRosterId: t.option(t.string()).default(undefined),
   },
 )
 

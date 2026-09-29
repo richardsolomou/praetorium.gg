@@ -25,6 +25,7 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOpera
     waivedRules: waivedRulesFrom(row.waivedRules),
     optionalRules: optionalRulesFrom(row.optionalRules),
     borrowedDetachmentId: row.borrowedDetachmentId,
+    baseRosterId: row.baseRosterId,
     visibility: row.visibility,
     source: row.source,
   }

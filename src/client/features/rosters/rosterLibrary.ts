@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { posthog } from 'posthog-js'
 import { useState } from 'react'
-import { ROSTER_NAME_MAX_LENGTH } from '../../../core/battle'
 import type { RosterVisibility } from '../../../core/savedRoster'
-import { deleteRoster, exportRoster, saveRoster, setRosterVisibility, sharedRoster } from '../../../server/functions'
+import { copyRoster, deleteRoster, exportRoster, saveRoster, setRosterVisibility, sharedRoster } from '../../../server/functions'
 import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { shareLink } from '../../nativeBridge'
@@ -21,6 +21,7 @@ export type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof saved
  */
 export function useRosterActions(origin: string) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const refresh = () => invalidateSavedRosters(queryClient)
 
   const [shareFeedback, setShareFeedback] = useState<{ id: string; result: 'copied' | 'shared' } | null>(null)
@@ -32,30 +33,17 @@ export function useRosterActions(origin: string) {
     return complete
   }
 
-  const duplicate = useMutation({
-    mutationFn: async (summary: SavedRoster) => {
-      const roster = await load(summary)
-      return saveRoster({
-        data: {
-          // A copy with an automatic name gets its own name when saved.
-          name: roster.automaticName ? '' : roster.name ? `Copy of ${roster.name}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '',
-          catalogueId: roster.catalogueId,
-          detachmentIds: roster.detachmentIds,
-          disposition: roster.disposition,
-          limit: roster.limit,
-          picks: roster.picks,
-          prep: roster.prep,
-          waivedRules: roster.waivedRules,
-          visibility: roster.visibility,
-          source: roster.source,
-        },
-      })
-    },
-    onSuccess: (_result, roster) => {
-      posthog.capture('roster_duplicated', { unit_count: roster.unitCount })
-      return refresh()
+  // A variant exists to be changed, so it opens; a duplicate stays in the library.
+  const copying = (variant: boolean) => ({
+    mutationFn: (roster: SavedRoster) => copyRoster({ data: { id: roster.id, variant } }),
+    onSuccess: async ({ id }: { id: string }, roster: SavedRoster) => {
+      posthog.capture('roster_duplicated', { unit_count: roster.unitCount, variant })
+      await refresh()
+      if (variant) await navigate({ to: '/rosters/$id', params: { id } })
     },
   })
+  const duplicate = useMutation(copying(false))
+  const variant = useMutation(copying(true))
 
   const remove = useMutation({ mutationFn: (id: string) => deleteRoster({ data: { id } }), onSuccess: refresh })
 
@@ -133,6 +121,7 @@ export function useRosterActions(origin: string) {
 
   return {
     duplicate,
+    variant,
     remove,
     access,
     take,

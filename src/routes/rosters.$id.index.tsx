@@ -37,9 +37,9 @@ export const Route = createFileRoute('/rosters/$id/')({
     }
     const bootstrap = await rosterBootstrap({ data: { id: params.id, ...(deps.battle ? { battle: deps.battle } : {}) } })
     if (!bootstrap) throw notFound()
-    const { roster, editable, faction, price, changes } = bootstrap
+    const { roster, editable, variants, differences, faction, price, changes } = bootstrap
     if (editable) await context.queryClient.query(outdatedLeagueEntriesQuery(params.id))
-    const access = { roster, editable, faction }
+    const access = { roster, editable, variants, differences, faction }
     context.queryClient.setQueryData(rosterAccessQuery(params.id, deps.battle).queryKey, access)
     context.queryClient.setQueryData(rosterChangesQuery(params.id).queryKey, changes)
     const priced = savedRosterPriceQuery(

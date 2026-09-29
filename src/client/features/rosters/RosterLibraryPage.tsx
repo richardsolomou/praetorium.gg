@@ -39,6 +39,7 @@ import {
 import { useOrigin } from '../../useOrigin'
 import type { RosterVisibility } from '../../../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
+import { variantGroups } from '../../../core/rosterVariants'
 
 export type RosterLibrarySearch = { limit?: number; faction?: string; visibility?: RosterVisibility }
 /** An unsaved setup edit, kept per tab so a refresh does not lose it. */
@@ -79,10 +80,17 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
   )
   const libraryPending = savedResult.isPending || (Boolean(search.faction) && availableResult.isPending)
   const libraryError = savedResult.isError || (Boolean(search.faction) && availableResult.isError)
-  const visible = shown.slice(0, visibleCount)
+  const visible = variantGroups(shown).slice(0, visibleCount)
   const batches = Array.from({ length: Math.ceil(visible.length / ROSTER_LIBRARY_BATCH_SIZE) }, (_, index) =>
-    visible.slice(index * ROSTER_LIBRARY_BATCH_SIZE, (index + 1) * ROSTER_LIBRARY_BATCH_SIZE).map((roster) => roster.id),
+    visible.slice(index * ROSTER_LIBRARY_BATCH_SIZE, (index + 1) * ROSTER_LIBRARY_BATCH_SIZE).map(({ roster }) => roster.id),
   )
+  // Each base heads a card holding the variants that follow it.
+  const groups: { head: { roster: SavedRoster; index: number }; variants: { roster: SavedRoster; index: number }[] }[] = []
+  visible.forEach(({ roster, variant }, index) => {
+    const last = groups.at(-1)
+    if (variant && last) last.variants.push({ roster, index })
+    else groups.push({ head: { roster, index }, variants: [] })
+  })
   const pageResults = useQueries({
     queries: batches.map((ids) => ({ ...savedRosterPageQuery(ids), enabled: Boolean(me && savedResult.isSuccess) })),
   })
@@ -185,23 +193,36 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
               <RosterLibrarySkeleton />
             ) : shown.length ? (
               <>
-                {visible.map((roster, index) => (
-                  <RosterRow
-                    key={roster.id}
-                    roster={roster}
-                    faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
-                    points={pageById.get(roster.id)?.points}
-                    label={pageById.get(roster.id)?.label}
-                    dispositionName={references?.dispositions.find((entry) => entry.id === roster.disposition)?.name}
-                    factionLoading={availableResult.isPending}
-                    pointsLoading={pageResults[Math.floor(index / ROSTER_LIBRARY_BATCH_SIZE)]?.isPending}
-                    problem={pageById.get(roster.id)?.problem ?? null}
-                    actions={actions}
-                    origin={origin}
-                    onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
-                    onDelete={() => setDeleting(roster)}
-                  />
-                ))}
+                {groups.map(({ head, variants }) => {
+                  const row = ({ roster, index }: typeof head, layout: 'card' | 'base' | 'variant') => (
+                    <RosterRow
+                      key={roster.id}
+                      roster={roster}
+                      layout={layout}
+                      faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
+                      points={pageById.get(roster.id)?.points}
+                      label={pageById.get(roster.id)?.label}
+                      dispositionName={references?.dispositions.find((entry) => entry.id === roster.disposition)?.name}
+                      factionLoading={availableResult.isPending}
+                      pointsLoading={pageResults[Math.floor(index / ROSTER_LIBRARY_BATCH_SIZE)]?.isPending}
+                      problem={pageById.get(roster.id)?.problem ?? null}
+                      differences={pageById.get(roster.id)?.differences}
+                      showVisibility={roster.visibility !== head.roster.visibility}
+                      actions={actions}
+                      origin={origin}
+                      onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
+                      onDelete={() => setDeleting(roster)}
+                    />
+                  )
+                  return variants.length ? (
+                    <div key={head.roster.id} data-roster-group className="border border-edge bg-panel">
+                      {row(head, 'base')}
+                      {variants.map((variant) => row(variant, 'variant'))}
+                    </div>
+                  ) : (
+                    row(head, 'card')
+                  )
+                })}
                 {pageResults.some((result) => result.isError) ? (
                   <Button
                     variant="outline"

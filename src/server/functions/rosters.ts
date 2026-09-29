@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import type { z } from 'zod'
 import { attachedUnitCount } from '../../core/attachedUnits'
 import { changesTouching } from '../../core/catalogueChanges'
 import { historySince } from '../../core/catalogueHistory'
@@ -9,9 +10,11 @@ import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, c
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, importRosterFaction, importRosterFile, matchesImportFaction } from '../rosterFiles'
 import { rosterTelemetryProperties } from '../rosterTelemetry'
-import { saveOwnedRoster } from '../saveOwnedRoster'
+import { variantDifferences } from '../rosterDifferences'
+import { copyOwnedRoster, saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterChangeWithoutPricing, rosterStatus, rosterVerdict } from '../rosterStatus'
 import {
+  copyRosterSchema,
   exportRosterSchema,
   importRosterSchema,
   priceSchema,
@@ -107,8 +110,17 @@ export const sharedRoster = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
   .handler(({ data }) => rpc(async () => app().service.sharedRoster(data.id, await currentUserId(), data.battle ?? null)))
 
+/** A reader's access to a roster, with the variant group its owner can switch between. */
 async function accessToRoster(data: { id: string; battle?: string }) {
-  return app().service.rosterAccess(data.id, await currentUserId(), data.battle ?? null)
+  const userId = await currentUserId()
+  const access = await app().service.rosterAccess(data.id, userId, data.battle ?? null)
+  if (!access) return null
+  if (!access.editable || !userId) return { ...access, variants: [], differences: null }
+  const [variants, differences] = await Promise.all([
+    app().service.rosterGroup(userId, access.roster),
+    variantDifferences(userId, [access.roster]),
+  ])
+  return { ...access, variants, differences: differences.get(access.roster.id) ?? null }
 }
 
 async function accessibleRoster(data: { id: string; battle?: string }) {
@@ -139,7 +151,11 @@ export const savedRosterPage = createServerFn({ method: 'GET' })
       const instance = app()
       const saved = await instance.service.savedRostersByIds(userId, data.ids)
       if (!saved.length) return []
-      const [assessments, history] = await Promise.all([cachedRosterAssessmentsFor(saved), instance.catalogueHistoryFor()])
+      const [assessments, history, differences] = await Promise.all([
+        cachedRosterAssessmentsFor(saved),
+        instance.catalogueHistoryFor(),
+        variantDifferences(userId, saved),
+      ])
       const needingTotals = saved.filter((roster, index) => !roster.name || assessments[index]!.points === null)
       const fallbackTotals = await cachedRosterTotalsFor(needingTotals)
       const totalsById = new Map(needingTotals.map((roster, index) => [roster.id, fallbackTotals[index]]))
@@ -148,6 +164,7 @@ export const savedRosterPage = createServerFn({ method: 'GET' })
         ...rosterStatus(roster, assessments[index]!.verdict, sets),
         points: assessments[index]!.points ?? totalsById.get(roster.id)?.points ?? null,
         label: roster.name || totalsById.get(roster.id)?.label || '',
+        differences: differences.get(roster.id) ?? null,
       }))
     }),
   )
@@ -224,22 +241,38 @@ export const savedRosterPrice = createServerFn({ method: 'GET' })
     }),
   )
 
+async function captureRosterCreated(userId: string, data: z.infer<typeof saveRosterSchema>, extra: { variant?: boolean } = {}) {
+  const instance = app()
+  await instance.telemetry.capture(userId, 'roster_created', {
+    ...rosterTelemetryProperties(data, await instance.catalogueFor(data.catalogueId), await instance.rulesFor()),
+    unit_count: attachedUnitCount(data.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
+    source: data.source,
+    visibility: data.visibility,
+    ...extra,
+  })
+}
+
 export const saveRoster = createServerFn({ method: 'POST' })
   .validator(saveRosterSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const instance = app()
       const { id, created, updatedAt } = await saveOwnedRoster(player.id, data)
       // Counted when a row is made, which a visitor's list does while arriving with the id it was built under.
-      if (created)
-        await instance.telemetry.capture(player.id, 'roster_created', {
-          ...rosterTelemetryProperties(data, await instance.catalogueFor(data.catalogueId), await instance.rulesFor()),
-          unit_count: attachedUnitCount(data.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
-          source: data.source,
-          visibility: data.visibility,
-        })
+      if (created) await captureRosterCreated(player.id, data)
       return { id, updatedAt }
+    }),
+  )
+
+export const copyRoster = createServerFn({ method: 'POST' })
+  .validator(copyRosterSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const copied = await copyOwnedRoster(player.id, data.id, data.variant)
+      if (!copied) throw new Response('roster not found', { status: 404 })
+      await captureRosterCreated(player.id, copied.data, { variant: data.variant })
+      return { id: copied.id }
     }),
   )
 

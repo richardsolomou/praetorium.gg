@@ -77,6 +77,7 @@ import * as LeagueRostersProcedure from './league_rosters_procedure'
 import * as LeaguesVisibleToProcedure from './leagues_visible_to_procedure'
 import * as OnboardingByUserProcedure from './onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from './operator_health_procedure'
+import * as OutdatedLeagueEntriesForRosterProcedure from './outdated_league_entries_for_roster_procedure'
 import * as PlayerDefaultsProcedure from './player_defaults_procedure'
 import * as PracticeOpponentIdsProcedure from './practice_opponent_ids_procedure'
 import * as ProductStatsProcedure from './product_stats_procedure'
@@ -88,6 +89,7 @@ import * as RemoveBattleProcedure from './remove_battle_procedure'
 import * as RemoveFriendProcedure from './remove_friend_procedure'
 import * as RequestFriendProcedure from './request_friend_procedure'
 import * as RosterByIdProcedure from './roster_by_id_procedure'
+import * as RosterGroupByUserProcedure from './roster_group_by_user_procedure'
 import * as RosterSummariesByUserProcedure from './roster_summaries_by_user_procedure'
 import * as RostersByIdsProcedure from './rosters_by_ids_procedure'
 import * as RostersByUserProcedure from './rosters_by_user_procedure'
@@ -213,6 +215,11 @@ const proceduresSchema = __procedures(
   __procedureSchema('leagues_visible_to', LeaguesVisibleToProcedure.params, LeaguesVisibleToProcedure.returnType),
   __procedureSchema('onboarding_by_user', OnboardingByUserProcedure.params, OnboardingByUserProcedure.returnType),
   __procedureSchema('operator_health', OperatorHealthProcedure.params, OperatorHealthProcedure.returnType),
+  __procedureSchema(
+    'outdated_league_entries_for_roster',
+    OutdatedLeagueEntriesForRosterProcedure.params,
+    OutdatedLeagueEntriesForRosterProcedure.returnType,
+  ),
   __procedureSchema('player_defaults', PlayerDefaultsProcedure.params, PlayerDefaultsProcedure.returnType),
   __procedureSchema('practice_opponent_ids', PracticeOpponentIdsProcedure.params, PracticeOpponentIdsProcedure.returnType),
   __procedureSchema('product_stats', ProductStatsProcedure.params, ProductStatsProcedure.returnType),
@@ -224,6 +231,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('remove_friend', RemoveFriendProcedure.params, RemoveFriendProcedure.returnType),
   __procedureSchema('request_friend', RequestFriendProcedure.params, RequestFriendProcedure.returnType),
   __procedureSchema('roster_by_id', RosterByIdProcedure.params, RosterByIdProcedure.returnType),
+  __procedureSchema('roster_group_by_user', RosterGroupByUserProcedure.params, RosterGroupByUserProcedure.returnType),
   __procedureSchema('roster_summaries_by_user', RosterSummariesByUserProcedure.params, RosterSummariesByUserProcedure.returnType),
   __procedureSchema('rosters_by_ids', RostersByIdsProcedure.params, RostersByIdsProcedure.returnType),
   __procedureSchema('rosters_by_user', RostersByUserProcedure.params, RostersByUserProcedure.returnType),

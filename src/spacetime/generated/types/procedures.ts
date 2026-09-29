@@ -29,6 +29,7 @@ import * as LeagueRostersProcedure from '../league_rosters_procedure'
 import * as LeaguesVisibleToProcedure from '../leagues_visible_to_procedure'
 import * as OnboardingByUserProcedure from '../onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from '../operator_health_procedure'
+import * as OutdatedLeagueEntriesForRosterProcedure from '../outdated_league_entries_for_roster_procedure'
 import * as PlayerDefaultsProcedure from '../player_defaults_procedure'
 import * as PracticeOpponentIdsProcedure from '../practice_opponent_ids_procedure'
 import * as ProductStatsProcedure from '../product_stats_procedure'
@@ -40,6 +41,7 @@ import * as RemoveBattleProcedure from '../remove_battle_procedure'
 import * as RemoveFriendProcedure from '../remove_friend_procedure'
 import * as RequestFriendProcedure from '../request_friend_procedure'
 import * as RosterByIdProcedure from '../roster_by_id_procedure'
+import * as RosterGroupByUserProcedure from '../roster_group_by_user_procedure'
 import * as RosterSummariesByUserProcedure from '../roster_summaries_by_user_procedure'
 import * as RostersByIdsProcedure from '../rosters_by_ids_procedure'
 import * as RostersByUserProcedure from '../rosters_by_user_procedure'
@@ -98,6 +100,8 @@ export type OnboardingByUserArgs = __Infer<typeof OnboardingByUserProcedure.para
 export type OnboardingByUserResult = __Infer<typeof OnboardingByUserProcedure.returnType>
 export type OperatorHealthArgs = __Infer<typeof OperatorHealthProcedure.params>
 export type OperatorHealthResult = __Infer<typeof OperatorHealthProcedure.returnType>
+export type OutdatedLeagueEntriesForRosterArgs = __Infer<typeof OutdatedLeagueEntriesForRosterProcedure.params>
+export type OutdatedLeagueEntriesForRosterResult = __Infer<typeof OutdatedLeagueEntriesForRosterProcedure.returnType>
 export type PlayerDefaultsArgs = __Infer<typeof PlayerDefaultsProcedure.params>
 export type PlayerDefaultsResult = __Infer<typeof PlayerDefaultsProcedure.returnType>
 export type PracticeOpponentIdsArgs = __Infer<typeof PracticeOpponentIdsProcedure.params>
@@ -120,6 +124,8 @@ export type RequestFriendArgs = __Infer<typeof RequestFriendProcedure.params>
 export type RequestFriendResult = __Infer<typeof RequestFriendProcedure.returnType>
 export type RosterByIdArgs = __Infer<typeof RosterByIdProcedure.params>
 export type RosterByIdResult = __Infer<typeof RosterByIdProcedure.returnType>
+export type RosterGroupByUserArgs = __Infer<typeof RosterGroupByUserProcedure.params>
+export type RosterGroupByUserResult = __Infer<typeof RosterGroupByUserProcedure.returnType>
 export type RosterSummariesByUserArgs = __Infer<typeof RosterSummariesByUserProcedure.params>
 export type RosterSummariesByUserResult = __Infer<typeof RosterSummariesByUserProcedure.returnType>
 export type RostersByIdsArgs = __Infer<typeof RostersByIdsProcedure.params>
