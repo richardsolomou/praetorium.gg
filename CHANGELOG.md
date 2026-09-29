@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.82.3
+
+### Patch Changes
+
+- b8eac43: Mark rosters with too many copies of a unit as illegal and block adding more copies.
+
 ## 0.82.2
 
 ### Patch Changes
