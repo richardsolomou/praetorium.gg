@@ -9,6 +9,7 @@ import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
 import { unitsIn } from '../cataloguePicker'
 import { pickerUnitsFor } from '../pickerUnits'
+import { detachmentsOffering } from '../factionReferences'
 
 import { gameReferencesFor } from '../gameReferences'
 import { type GlobalSearchResult, searchEverything } from '../globalSearch'
@@ -25,6 +26,7 @@ import {
   datasheetSlugSchema,
   detachmentRulesSchema,
   detachmentDetailSchema,
+  dispositionSchema,
   factionSchema,
   globalSearchSchema,
   ruleSectionSchema,
@@ -316,6 +318,16 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
       const rules = await app().rulesFor()
       const catalogue = await app().catalogueFor(data.catalogueId)
       return rules && catalogue ? detachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
+    }),
+  )
+
+export const dispositionDetachments = createServerFn({ method: 'GET' })
+  .validator(dispositionSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      cacheUntilSnapshotChanges()
+      const result = await app().factionsFor()
+      return result ? detachmentsOffering(result.factions, data.dispositionId) : null
     }),
   )
 

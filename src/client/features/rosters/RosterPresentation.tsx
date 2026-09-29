@@ -107,12 +107,9 @@ export function RosterHeader({
   const meta = useScrollEdges<HTMLSpanElement>()
   const hasPoints = points !== null && points !== undefined
   const hasSummary = hasPoints || limit !== undefined
-  const shownDisposition = disposition
-    ? (faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === disposition) ?? {
-        id: disposition,
-        name: disposition,
-      })
-    : null
+  const knownDisposition = disposition
+    ? faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === disposition)
+    : undefined
 
   return (
     <header className="border-b border-edge px-3 py-2">
@@ -189,10 +186,20 @@ export function RosterHeader({
                 </span>
               )
             })}
-            {shownDisposition ? (
+            {disposition ? (
               <span className="contents">
                 <span aria-hidden>·</span>
-                <span className={`chip shrink-0 ${dispositionTone(shownDisposition.id)}`}>{shownDisposition.name}</span>
+                {knownDisposition ? (
+                  <Link
+                    to="/force-dispositions/$dispositionId"
+                    params={{ dispositionId: knownDisposition.id }}
+                    className={`chip shrink-0 hover:text-bone ${dispositionTone(knownDisposition.id)}`}
+                  >
+                    {knownDisposition.name}
+                  </Link>
+                ) : (
+                  <span className={`chip shrink-0 ${dispositionTone(disposition)}`}>{disposition}</span>
+                )}
               </span>
             ) : null}
             <WaiverChip rules={waivers} />

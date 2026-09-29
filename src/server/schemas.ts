@@ -313,6 +313,7 @@ export const terrainReferencesSchema = z.object({
 })
 /** One section of one rules document, which is as much as a rules page reads. */
 export const ruleSectionSchema = z.object({ documentId: slug, sectionId: slug })
+export const dispositionSchema = z.object({ dispositionId: slug })
 /** A faction page addresses its faction by route slug, older links by catalogue id. */
 export const factionSchema = z.object({ catalogueId: slug })
 

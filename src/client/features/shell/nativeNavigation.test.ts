@@ -62,6 +62,14 @@ describe('native application navigation', () => {
         title: 'Mission',
       },
     ],
+    [
+      '/force-dispositions/take-and-hold',
+      {
+        back: { href: '/mission-packs', label: 'Back to mission packs', preferHistory: true },
+        section: 'missions',
+        title: 'Force disposition',
+      },
+    ],
     ['/users/player-id', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }],
     ['/support', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Support' }],
     ['/privacy', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Privacy' }],

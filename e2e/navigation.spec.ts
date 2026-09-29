@@ -118,6 +118,18 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   page.on('console', (message) => {
     if (message.type() === 'error' && /hydrat/i.test(message.text())) hydrationErrors.push(message.text())
   })
+  await page.goto('/force-dispositions/take-and-hold')
+  await expect(page.getByRole('heading', { name: 'Take and Hold', exact: true })).toBeVisible()
+  await expect(page.locator('a[href="/mission-matchups/chapter-approved-2026-2027/take-and-hold/disruption"]')).toContainText(
+    'Determined Acquisition',
+  )
+  await expect(page.locator('a[href="/factions/necrons/detachments/awakened-dynasty"]')).toHaveCount(1)
+  await expect(page).toHaveTitle(/Take and Hold force disposition — Praetorium/)
+  await expectCanonical(page, '/force-dispositions/take-and-hold')
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await page.setViewportSize({ width: 1_440, height: 900 })
+
   await page.goto('/factions/necrons/datasheets/overlord')
 
   const webHeader = page.locator('[data-web-app-chrome]')

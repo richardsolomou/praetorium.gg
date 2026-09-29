@@ -214,6 +214,18 @@ function indexedMissions(rules: LoadedRules | null): IndexedResult[] {
   const references = gameReferencesFor(rules)
   const results: IndexedResult[] = []
 
+  for (const disposition of references.dispositions) {
+    results.push({
+      search: disposition.name.toLowerCase(),
+      result: {
+        id: `disposition:${disposition.id}`,
+        group: 'Missions',
+        label: disposition.name,
+        detail: 'Force disposition',
+        href: `/force-dispositions/${disposition.id}`,
+      },
+    })
+  }
   for (const pack of references.packs) {
     results.push({
       search: pack.name.toLowerCase(),

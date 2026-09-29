@@ -141,6 +141,36 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
   }
 }
 
+type DispositionFaction = {
+  slug: string
+  displayName: string
+  icon: string | null
+  referenceDetachmentIds: readonly string[]
+  detachments: readonly {
+    id: string
+    slug: string
+    name: string
+    dispositions: readonly { id: string }[]
+    reference: { points: number | null } | null
+  }[]
+}
+
+/** Each faction's own reference detachments that offer a force disposition, so a chapter's repeated options appear once. */
+export function detachmentsOffering(factions: readonly DispositionFaction[], dispositionId: string) {
+  return factions
+    .flatMap((faction) => {
+      const detachments = faction.detachments.flatMap((detachment) =>
+        detachment.reference &&
+        faction.referenceDetachmentIds.includes(detachment.id) &&
+        detachment.dispositions.some((disposition) => disposition.id === dispositionId)
+          ? [{ slug: detachment.slug, name: detachment.name, points: detachment.reference.points }]
+          : [],
+      )
+      return detachments.length ? [{ slug: faction.slug, displayName: faction.displayName, icon: faction.icon, detachments }] : []
+    })
+    .toSorted((a, b) => a.displayName.localeCompare(b.displayName))
+}
+
 export function detachmentNamed<T>(detachments: ReadonlyMap<string, T> | undefined, name: string): T | undefined {
   const slug = routeSlug(name)
   const exact = detachments?.get(slug)
