@@ -13,7 +13,17 @@ export type Notice = { actorId: string; recipientIds: readonly string[] } & (
   | { kind: 'battle-created'; battleToken: string; league: boolean }
   | { kind: 'friend-requested' }
   | { kind: 'friend-accepted' }
-  | { kind: 'league-entry-accepted' | 'league-revealed' | 'league-roster-unsealed'; leagueToken: string; eventToken?: string }
+  | {
+      kind:
+        | 'league-entry-requested'
+        | 'league-entry-accepted'
+        | 'league-entry-rejected'
+        | 'league-roster-reseal'
+        | 'league-revealed'
+        | 'league-roster-unsealed'
+      leagueToken: string
+      eventToken?: string
+    }
 )
 
 export type NoticeMessage = { title: string; body: string; path: string }
@@ -47,13 +57,19 @@ export function noticeMessage(notice: Notice, names: { actor?: string; league?: 
       return { title: 'Friend request', body: `${actor} wants to be friends.`, path: '/friends' }
     case 'friend-accepted':
       return { title: 'New friend', body: `${actor} is now your friend.`, path: '/friends' }
+    case 'league-entry-requested':
     case 'league-entry-accepted':
+    case 'league-entry-rejected':
+    case 'league-roster-reseal':
     case 'league-revealed':
     case 'league-roster-unsealed': {
       if (!names.league) return null
       const query = notice.eventToken ? `?event=${encodeURIComponent(notice.eventToken)}` : ''
       const body = {
+        'league-entry-requested': `${actor} requested to join. Review their entry.`,
         'league-entry-accepted': 'The organizer accepted your entry.',
+        'league-entry-rejected': 'The organizer declined your entry.',
+        'league-roster-reseal': 'Your event roster was cleared after a role or team change. Seal a replacement.',
         'league-revealed': 'Rosters are revealed. League battles can start.',
         'league-roster-unsealed': 'The organizer unsealed your roster. Seal a replacement.',
       }[notice.kind]

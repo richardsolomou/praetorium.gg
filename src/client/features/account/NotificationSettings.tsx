@@ -1,32 +1,22 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { setPushNotifications } from '../../../server/functions'
 import { type NativePushAnswer, requestNativePush, supportsNativePush } from '../../nativeBridge'
 import { registerThisDevice } from '../../pushNotifications'
 import { notificationSettingsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 
 const DEVICE_STATES: Record<NativePushAnswer['status'], string> = {
-  granted: 'This device receives notifications.',
+  granted: 'Notifications are allowed on this device.',
   undetermined: 'This device has not been asked yet.',
   denied: 'Notifications for Praetorium are off in this device’s settings.',
   unavailable: 'This device could not be set up for notifications.',
 }
 
-/**
- * Whether this player's phones are told about new battles, friends, and league news.
- *
- * Saved on the press like `BattleSharing`. The system prompt only appears from
- * the button here, because a player who has not seen what the notices are for
- * has no reason to allow them.
- */
+/** The system prompt appears only after the player presses a permission button here or on Home. */
 export function NotificationSettings() {
   const { data: settings } = useQuery(notificationSettingsQuery())
-  const queryClient = useQueryClient()
   const [device, setDevice] = useState<NativePushAnswer | null>(null)
   // Read after hydration: the server cannot know whether this page is inside the app.
   const [native, setNative] = useState(false)
@@ -35,10 +25,6 @@ export function NotificationSettings() {
     setNative(true)
     void requestNativePush(false).then((answer) => setDevice(answer ?? { status: 'unavailable' }))
   }, [])
-  const save = useMutation({
-    mutationFn: (enabled: boolean) => setPushNotifications({ data: { enabled } }),
-    onSuccess: (enabled) => queryClient.setQueryData(notificationSettingsQuery().queryKey, (current) => current && { ...current, enabled }),
-  })
   const allow = useMutation({
     mutationFn: () => registerThisDevice(true),
     onSuccess: (answer) => {
@@ -55,32 +41,22 @@ export function NotificationSettings() {
         <p className="rubric border-b border-edge pb-2">Notifications</p>
         <h2 className="mt-4 text-base">Notifications on your phone</h2>
         <p className="mt-1 text-sm text-dim">
-          The Praetorium app tells you when a player starts a battle with you, answers a friend request, or when a league you entered
-          accepts you, reveals its rosters, or unseals your roster.
+          The Praetorium app tells you about new battles, friend requests, and league entries or rosters that need your attention.
         </p>
-      </div>
-      <div className="flex items-center gap-3">
-        <Switch
-          id="push-notifications"
-          checked={settings.enabled}
-          disabled={save.isPending}
-          onCheckedChange={(enabled) => save.mutate(enabled)}
-        />
-        <Label htmlFor="push-notifications">Send notifications to my devices</Label>
       </div>
       {native ? (
         <div className="flex flex-wrap items-center gap-3 border-t border-edge pt-4">
           <p className="text-sm text-dim">{device ? DEVICE_STATES[device.status] : 'Checking this device…'}</p>
-          {device?.status === 'undetermined' ? (
+          {device?.status === 'undetermined' || device?.status === 'unavailable' ? (
             <Button variant="outline" disabled={allow.isPending} onClick={() => allow.mutate()}>
-              Allow on this device
+              {device.status === 'undetermined' ? 'Allow on this device' : 'Retry on this device'}
             </Button>
           ) : null}
         </div>
       ) : (
         <p className="text-sm text-dim">Notifications arrive in the Praetorium mobile app.</p>
       )}
-      {save.error || allow.error ? <p className="text-sm text-destructive">{errorMessage(save.error ?? allow.error)}</p> : null}
+      {allow.error ? <p className="text-sm text-destructive">{errorMessage(allow.error)}</p> : null}
     </section>
   )
 }

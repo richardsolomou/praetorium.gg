@@ -17,12 +17,13 @@ import { CreateBattle } from '../battles/CreateBattle'
 import { DeleteBattleDialog } from '../battles/DeleteBattle'
 import type { HomeRoster } from './HomeRosters'
 import { HomeView } from './HomeView'
+import { HomeNotifications } from './HomeNotifications'
 
 /**
  * The home page, reading everything the route loader already put in the cache.
  *
- * Only this half knows there is a server. `HomeView` is handed its data and the
- * one control that mutates anything, so the page can be drawn from fixtures at
+ * Only this half knows there is a server. `HomeView` is handed its data and
+ * controls, so the page can be drawn from fixtures at
  * every width and state without a database behind it.
  */
 export function Home() {
@@ -58,6 +59,7 @@ export function Home() {
         friendRequests={signedIn ? (friendships?.incoming.length ?? 0) : 0}
         leaders={standings ? { rows: standings.overall.rows, days: standings.days } : null}
         newBattle={<CreateBattle />}
+        notifications={me && !me.impersonatedBy ? <HomeNotifications /> : null}
         onDelete={setDeleting}
         more={hasNextPage ? { pending: isFetchingNextPage, onShow: () => void fetchNextPage() } : null}
       />

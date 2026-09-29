@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { createBattle, createRoster, PRACTICE_OPPONENT, setupBattle, signUp, uniqueName } from './account'
 import { productSql } from './storage'
+import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
 
 async function makePreviewBattleMostRecent() {
   const battles = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = 'preview-casual-doubles'`
@@ -68,6 +69,60 @@ test('the home page fits a phone at both signed-out and signed-in widths', async
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+})
+
+test('offers native notification permission on home and retries device setup', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript({
+    content: `window.ReactNativeWebView = {
+      postMessage(message) {
+        const request = JSON.parse(message);
+        if (request.type !== 'native-push') return;
+        const fail = request.prompt && localStorage.getItem('e2e-push-fail-once') === 'true';
+        if (request.prompt) localStorage.setItem('e2e-push-granted', 'true');
+        if (fail) localStorage.removeItem('e2e-push-fail-once');
+        const answer = fail
+          ? { status: 'unavailable' }
+          : localStorage.getItem('e2e-push-granted') === 'true'
+            ? { status: 'granted', token: 'ExponentPushToken[e2e-device]', platform: 'ios' }
+            : { status: 'undetermined' };
+        queueMicrotask(() => window.dispatchEvent(new CustomEvent('praetorium-native-push', {
+          detail: { id: request.id, ...answer }
+        })));
+      }
+    };
+    ${NATIVE_BRIDGE_SCRIPT}`,
+  })
+  await signUp(page, uniqueName('Notified'))
+  await page.goto('/profile')
+  await expect(page.getByRole('button', { name: 'Allow on this device' })).toBeVisible()
+  await expect(page.getByRole('switch', { name: 'Send notifications to my devices' })).toHaveCount(0)
+  await page.goto('/')
+
+  const offer = page.getByRole('region', { name: 'Notifications' })
+  await expect(offer.getByRole('button', { name: 'Allow notifications' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/home-notification-offer.png' })
+
+  await offer.getByRole('button', { name: 'Not now' }).click()
+  await page.reload()
+  await expect(offer).toHaveCount(0)
+
+  await page.evaluate(() => {
+    localStorage.removeItem('praetorium-notifications-dismissed')
+    localStorage.setItem('e2e-push-fail-once', 'true')
+  })
+  await page.reload()
+  await offer.getByRole('button', { name: 'Allow notifications' }).click()
+  await expect(offer.getByRole('button', { name: 'Retry notifications' })).toBeVisible()
+  await expect(offer.getByText('This device could not be set up for notifications.')).toBeVisible()
+  await page.screenshot({ path: 'test-results/home-notification-retry.png' })
+  await offer.getByRole('button', { name: 'Retry notifications' }).click()
+  await expect(offer).toHaveCount(0)
+  await page.goto('/profile')
+  await expect(page.getByText('Notifications are allowed on this device.')).toBeVisible()
+  await expect(page.getByRole('switch', { name: 'Send notifications to my devices' })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/profile-notifications.png', fullPage: true })
 })
 
 test('omits the games shelf when the player has no active game', async ({ page }) => {

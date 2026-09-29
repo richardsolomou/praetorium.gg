@@ -53,6 +53,17 @@ describe('notice messages', () => {
     })
   })
 
+  it.each([
+    ['league-entry-requested', 'Alice requested to join. Review their entry.'],
+    ['league-entry-rejected', 'The organizer declined your entry.'],
+    ['league-roster-reseal', 'Your event roster was cleared after a role or team change. Seal a replacement.'],
+  ] as const)('describes %s', (kind, body) => {
+    expect(
+      noticeMessage({ kind, actorId: 'alice', recipientIds: ['bob'], leagueToken: 'league' }, { actor: 'Alice', league: 'Autumn league' })
+        ?.body,
+    ).toBe(body)
+  })
+
   it('drops a league notice whose league no longer exists', () => {
     expect(noticeMessage({ kind: 'league-revealed', actorId: 'alice', recipientIds: ['bob'], leagueToken: 'league' }, {})).toBeNull()
   })

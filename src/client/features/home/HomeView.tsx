@@ -29,6 +29,7 @@ export type HomeData = {
   leaders: { rows: readonly Standing[]; days: number } | null
   /** The control that opens a battle, supplied rather than imported: see `Home`. */
   newBattle?: ReactNode
+  notifications?: ReactNode
   /** Asking to delete one of the reader's own games, answered by `Home` and not here. */
   onDelete?: (battle: Battle) => void
   more?: { pending: boolean; onShow: () => void } | null
@@ -49,6 +50,7 @@ export function HomeView({
   friendRequests,
   leaders,
   newBattle,
+  notifications,
   onDelete,
   more,
 }: HomeData) {
@@ -76,6 +78,7 @@ export function HomeView({
     return (
       <main className="w-full">
         <Welcome name={me.name} going={going.length} waiting={waiting} newBattle={newBattle} />
+        {notifications}
         <div className="mx-auto w-full max-w-6xl space-y-10 px-5 py-8 sm:px-6">
           <Columns
             lead={

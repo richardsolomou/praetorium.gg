@@ -5,12 +5,7 @@ import type { ReactNode } from 'react'
 /** A league event that has accepted the player and is still waiting for their list. */
 export type RosterDue = { token: string; name: string }
 
-/**
- * Everything outside a live game that cannot move until this player does.
- *
- * These are the same few things a phone is notified about, gathered where a
- * player who ignored the notification will still find them. The section is absent when nothing needs a response.
- */
+/** Friend requests and accepted event entries still awaiting this player's roster. */
 export function HomeWaiting({ rostersDue, friendRequests }: { rostersDue: readonly RosterDue[]; friendRequests: number }) {
   if (!rostersDue.length && !friendRequests) return null
   return (
