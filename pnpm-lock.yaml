@@ -138,6 +138,9 @@ importers:
       '@playwright/test':
         specifier: ^1.62.1
         version: 1.62.1
+      '@posthog/coherence':
+        specifier: 1.1.1
+        version: 1.1.1
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.2.2(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -2405,6 +2408,17 @@ packages:
     resolution: {integrity: sha512-gTzcKpl9TZLf0LrlLHEjChlPc9LIK1gdQG0alMnX6+b+W1mTD+6nTN0W/MeEzjT4DiKDeK8FPhc1n7dT1tWKFw==}
     engines: {node: '>=14.14', npm: '>=6'}
     hasBin: true
+
+  '@posthog/coherence@1.1.1':
+    resolution: {integrity: sha512-yOxGI+TwBmPKk+osN9SXhWwuWxZo016HynTAXanodrQRpv4BEPLgn2P4Jg6ZYX3EGn9PE33FX8Gd7xHok8Kmew==}
+    engines: {node: '>=22.18'}
+    os: [darwin, linux]
+    hasBin: true
+    peerDependencies:
+      node-llama-cpp: 3.21.1
+    peerDependenciesMeta:
+      node-llama-cpp:
+        optional: true
 
   '@posthog/core@1.48.8':
     resolution: {integrity: sha512-LAOBOjMQrQmgcbZxnubl74l2GQd5OWqxCJJ8mzcWdZRWbfO6Y/A6E3fqWjDtm68hY4LxC/bbopG60cxZW8cfWw==}
@@ -6030,6 +6044,11 @@ packages:
   pure-rand@7.0.1:
     resolution: {integrity: sha512-oTUZM/NAZS8p7ANR3SHh30kXB+zK2r2BPcEn/awJIbOvq82WoMN4p62AWWp3Hhw50G0xMsw1mhIBLqHw64EcNQ==}
 
+  pyright@1.1.414:
+    resolution: {integrity: sha512-FPZZb51jepDX4eP7TEYDeNFtmE3WgwkkEcJpvH3/QmUSsj0EAy3LXu+xB4T/FWDejtsXlCfFr/rbWFjwuwuXww==}
+    engines: {node: '>=14.0.0'}
+    hasBin: true
+
   qrcode@1.5.4:
     resolution: {integrity: sha512-1ca71Zgiu6ORjHqFBDpnSMTR2ReToX4l1Au1VFLyVeBTFavzQnv5JxMFr3ukHVKpSrSA2MCk0lNJSykjUfz7Zg==}
     engines: {node: '>=10.13.0'}
@@ -6658,6 +6677,16 @@ packages:
     resolution: {integrity: sha512-faYHw0anBbc/kWF3zFTEnxSFOAGUX9GFbOBthvDdLsIlEoWOFOtS0zgCiQYwIskL9iGXZL3kAXD8OoZ4GmMATA==}
     engines: {node: '>= 18'}
 
+  typescript-language-server@5.3.0:
+    resolution: {integrity: sha512-5puofxZHgFdAYtfNpmwCAvgtaYgg8wrUnH30m7Ze3QuguId5RNRadKASpOpyDxTyUdAF51FjhTdjntLw/EuWcQ==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   typescript@6.0.3:
     resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
     engines: {node: '>=14.17'}
@@ -6999,6 +7028,20 @@ packages:
 
   vlq@1.0.1:
     resolution: {integrity: sha512-gQpnTgkubC6hQgdIcRdYGDSDc+SaujOdyesZQMv6JlfQee/9Mp0Qhnys6WxDWvQnL5WZdT7o2Ul187aSt0Rq+w==}
+
+  vscode-jsonrpc@5.0.1:
+    resolution: {integrity: sha512-JvONPptw3GAQGXlVV2utDcHx0BiY34FupW/kI6mZ5x06ER5DdPG/tXWMVHjTNULF5uKPOUUD0SaXg5QaubJL0A==}
+    engines: {node: '>=8.0.0 || >=10.0.0'}
+
+  vscode-jsonrpc@9.0.2:
+    resolution: {integrity: sha512-SbQSV9yRemARxeXw6LU5sS6Zq0e9/DgCCX5yelH263ZQWukbTk8EF8fjTrr1dziasf4GwlJbvTwFnTrnQFWZXQ==}
+    engines: {node: '>=14.0.0'}
+
+  vscode-languageserver-protocol@3.18.3:
+    resolution: {integrity: sha512-DF49+WeV5py4zO5hhobp60jjsDSK0lAqA0OuKBLBvp423HPWQcCbhZz3JgyfIewsEz2f8U+X75xNIFHdiXZm2w==}
+
+  vscode-languageserver-types@3.18.3:
+    resolution: {integrity: sha512-XIlzJ7Qp/jzSI1ds7/FwPAWrPeTZA7pAtlW4hdJ1J6xXWJL6dR9QYnDhJOdLzdKhUQ5Mm6mvUMw+3DcOQQasPw==}
 
   walker@1.0.8:
     resolution: {integrity: sha512-ts/8E8l5b7kY0vlWLewOkDXMmPdLcVV4GmOQLyxuSswIJsweeFZtAsMF7k1Nszz+TYBQrlYRmzOnr398y1JemQ==}
@@ -9095,6 +9138,12 @@ snapshots:
   '@posthog/cli@0.14.1':
     dependencies:
       detect-libc: 2.1.2
+
+  '@posthog/coherence@1.1.1':
+    optionalDependencies:
+      pyright: 1.1.414
+      typescript: 5.9.3
+      typescript-language-server: 5.3.0
 
   '@posthog/core@1.48.8':
     dependencies:
@@ -12836,6 +12885,11 @@ snapshots:
 
   pure-rand@7.0.1: {}
 
+  pyright@1.1.414:
+    optionalDependencies:
+      fsevents: 2.3.3
+    optional: true
+
   qrcode@1.5.4:
     dependencies:
       dijkstrajs: 1.0.3
@@ -13538,6 +13592,15 @@ snapshots:
       media-typer: 1.1.1
       mime-types: 3.0.2
 
+  typescript-language-server@5.3.0:
+    dependencies:
+      vscode-jsonrpc: 5.0.1
+      vscode-languageserver-protocol: 3.18.3
+    optional: true
+
+  typescript@5.9.3:
+    optional: true
+
   typescript@6.0.3: {}
 
   typescript@7.0.2:
@@ -13747,6 +13810,21 @@ snapshots:
       - msw
 
   vlq@1.0.1: {}
+
+  vscode-jsonrpc@5.0.1:
+    optional: true
+
+  vscode-jsonrpc@9.0.2:
+    optional: true
+
+  vscode-languageserver-protocol@3.18.3:
+    dependencies:
+      vscode-jsonrpc: 9.0.2
+      vscode-languageserver-types: 3.18.3
+    optional: true
+
+  vscode-languageserver-types@3.18.3:
+    optional: true
 
   walker@1.0.8:
     dependencies:

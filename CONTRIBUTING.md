@@ -16,15 +16,9 @@ just dev
 
 ## Coherence
 
-Codex hooks read the project lexicon, specs, and verification journal at session start. Coherence is a linked checkout rather than a package dependency. After `just install`, clone it beside this project and link its executable:
+Coherence is a pinned development dependency installed by `just install`, so every worktree uses the locked release. Codex hooks read the project lexicon, specs, and verification journal at session start through this project's package binary, even when a source checkout exists nearby.
 
-```sh
-git clone git@github.com:PostHog/coherence.git ../coherence
-npm --prefix ../coherence ci
-ln -s ../../../coherence/src/cli.ts node_modules/.bin/coherence
-```
-
-If the sibling checkout already exists, use its path for the install and executable link. The direct link keeps npm from installing a second dependency tree over pnpm's locked packages. Run `node_modules/.bin/coherence spec --check`, `node_modules/.bin/coherence run --session <session-id> --agent <name>`, and `node_modules/.bin/coherence scope` to inspect the declared rules and their latest verification. The Codex Stop hook checks vocabulary in changed files. Run `node_modules/.bin/coherence lexicon --check <changed-files>` to check selected files earlier; it reports older uses in those files too.
+Run `pnpm exec coherence spec --check`, `pnpm exec coherence run --session <session-id> --agent <name>`, and `pnpm exec coherence scope` to inspect the declared rules and their latest verification. The Codex Stop hook checks vocabulary in changed files. Run `pnpm exec coherence lexicon --check <changed-files>` to check selected files earlier.
 
 ## Check a change
 
