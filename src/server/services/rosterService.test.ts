@@ -40,3 +40,24 @@ it('loads a bounded roster page without reading the full library', async () => {
   expect(rostersByIds).toHaveBeenCalledWith('user-1', ['roster-1'])
   expect(rostersByUser).not.toHaveBeenCalled()
 })
+
+it('reports the write time it stored on a saved roster', async () => {
+  const saveRoster = vi.fn().mockResolvedValue('updated')
+  const service = new RosterService({ saveRoster } as unknown as RepositoryPort, () => 1_234)
+  const roster = {
+    id: 'roster-1',
+    name: 'Army',
+    catalogueId: 'faction',
+    detachmentIds: [],
+    disposition: null,
+    limit: 2000,
+    picks: [],
+    prep: null,
+    visibility: 'private',
+    source: 'editable',
+  } as const
+
+  const { updatedAt } = await service.saveRoster('user-1', roster)
+
+  expect(updatedAt).toBe(saveRoster.mock.calls[0]![0].now)
+})

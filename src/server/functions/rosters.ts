@@ -237,7 +237,7 @@ export const saveRoster = createServerFn({ method: 'POST' })
             await instance.rosterLabelRulesFor(),
           )
         : null
-      const { id, created } = await instance.service.saveRoster(player.id, {
+      const { id, created, updatedAt } = await instance.service.saveRoster(player.id, {
         ...data,
         name: data.name || totals?.label || '',
         automaticName,
@@ -250,7 +250,7 @@ export const saveRoster = createServerFn({ method: 'POST' })
           source: data.source,
           visibility: data.visibility,
         })
-      return { id }
+      return { id, updatedAt }
     }),
   )
 

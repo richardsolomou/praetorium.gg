@@ -71,6 +71,7 @@ export class RosterService {
     },
   ) {
     const id = roster.id ?? randomId()
+    const now = this.clock()
     const saved = await this.repository.saveRoster({
       ...roster,
       automaticName: roster.automaticName ?? false,
@@ -89,10 +90,10 @@ export class RosterService {
       waivedRules: JSON.stringify(roster.waivedRules ?? []),
       optionalRules: JSON.stringify(roster.optionalRules ?? []),
       borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
-      now: this.clock(),
+      now,
     })
     if (!saved) throw new Response('you do not own this roster', { status: 403 })
-    return { id, created: saved === 'inserted' }
+    return { id, created: saved === 'inserted', updatedAt: now }
   }
 
   /** A user's own saved lists, newest first. Their picks come back parsed. */
