@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { FormatRuleId } from '../../../../core/battle'
-import { enforces, formatRules, isKotcLimit } from '../../../../core/battle'
+import { enforces, formatRules } from '../../../../core/battle'
 import type { UnitSummary } from '../../../../contracts/catalogue'
 import { SearchField } from '../../../components/SearchField'
 import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons'
@@ -211,8 +211,6 @@ export const Picker = memo(function Picker({
                         full={full}
                         inCollection={collection.has(unit.id)}
                         collectionPending={own.isPending && own.variables?.entryId === unit.id}
-                        battleSize={battleSize}
-                        waivedRules={waivedRules}
                         query={query}
                         onPreview={onPreview}
                         onOwned={signedIn ? setOwned : undefined}
@@ -259,8 +257,6 @@ type PickerRowProps = {
   full: boolean
   inCollection: boolean
   collectionPending: boolean
-  battleSize: number
-  waivedRules: readonly FormatRuleId[]
   query: string
   onPreview: (entryId: string, name: string) => void
   onOwned?: (entryId: string, owned: boolean) => void
@@ -273,8 +269,6 @@ const PickerRow = memo(function PickerRow({
   full,
   inCollection,
   collectionPending,
-  battleSize,
-  waivedRules,
   query,
   onPreview,
   onOwned,
@@ -323,7 +317,7 @@ const PickerRow = memo(function PickerRow({
           size="sm"
           className="shrink-0 px-2"
           aria-label={`Add ${unit.name}`}
-          disabled={isKotcLimit(battleSize) && enforces(waivedRules, 'kotc-datasheet-copies') && full}
+          disabled={full}
           onClick={() => onAdd(unit.id)}
         >
           <Plus className="size-3" />

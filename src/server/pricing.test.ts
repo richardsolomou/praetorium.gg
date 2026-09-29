@@ -110,6 +110,30 @@ describe('a datasheet capped by the battle size', () => {
     expect(priceCopies(loaded, 1_000, three)).toEqual(['allows at most 2, has 3'])
   })
 
+  it('reports a cap written on the datasheet category', () => {
+    const loaded = bookOf({
+      categoryEntries: [
+        {
+          id: 'lord-category',
+          name: 'Warlord',
+          constraints: [{ id: 'lord-category-max', type: 'max', value: 3, field: 'selections', scope: 'force' }],
+          modifiers: [
+            {
+              type: 'set',
+              field: 'lord-category-max',
+              value: 1,
+              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'force', childId: 'incursion' }],
+            },
+          ],
+        },
+      ],
+      selectionEntries: [{ id: 'lord', name: 'Warlord', type: 'unit', categoryLinks: [{ id: 'lord-link', targetId: 'lord-category' }] }],
+    })
+    const three = [{ entryId: 'lord' }, { entryId: 'lord' }, { entryId: 'lord' }]
+
+    expect(priceCopies(loaded, 1_000, three)).toEqual(['allows at most 1, has 3'])
+  })
+
   it('keeps cached unit builds scoped to their battle size', () => {
     const loaded = bookOf({ selectionEntries: [cappedLord('lord', 'Warlord')] })
     const units = [{ entryId: 'lord' }, { entryId: 'lord' }, { entryId: 'lord' }]

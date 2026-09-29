@@ -1197,6 +1197,14 @@ describe('a limit written on the datasheet’s own category', () => {
     expect(evaluateForces([[{ id: 'immortals' }], [{ id: 'immortals' }]], index).errors).toEqual([])
   })
 
+  it('marks excess copies as illegal', () => {
+    const index = indexOf(cappedBook(1))
+    expect(evaluateForces([[{ id: 'immortals' }, { id: 'immortals' }]], index).errors).toEqual([
+      { entryId: 'cat-immortals', entryName: 'Immortals', message: 'allows at most 1, has 2' },
+      { entryId: 'cat-immortals', entryName: 'Immortals', message: 'allows at most 1, has 2' },
+    ])
+  })
+
   it('is ignored when it says there is no cap', () => {
     const index = indexOf(cappedBook(-1))
     expect(rosterLimit(index.definitions.get('immortals')!, index)).toBeNull()

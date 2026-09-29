@@ -45,6 +45,7 @@ type Props = {
 type Editing = {
   onRemove: () => void
   onDuplicate: () => void
+  canDuplicate: boolean
   owned: boolean
   onOwned: () => void
   /** Units in the roster this one may join, when it may join any. */
@@ -63,6 +64,7 @@ export function UnitCard({
   onSelect,
   onRemove = noop,
   onDuplicate = noop,
+  canDuplicate = true,
   owned = false,
   onOwned,
   joined = NONE,
@@ -75,7 +77,7 @@ export function UnitCard({
   const cardClassName = `relative min-w-0 max-w-full overflow-hidden border bg-card transition-colors [contain:layout_style] ${
     selected ? 'border-parchment' : 'border-edge hover:border-info'
   }`
-  const actions = { owned, onOwned, onDuplicate, onRemove }
+  const actions = { owned, onOwned, onDuplicate, canDuplicate, onRemove }
 
   // One target over the whole card, under everything on it. An enhancement, an
   // upgrade and who a unit is standing with are all things a player reads on the
@@ -256,6 +258,7 @@ function UnitActions({
   owned,
   onOwned,
   onDuplicate,
+  canDuplicate,
   onRemove,
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
@@ -263,11 +266,12 @@ function UnitActions({
   owned: boolean
   onOwned?: () => void
   onDuplicate: () => void
+  canDuplicate: boolean
   onRemove: () => void
 }) {
   return (
     <>
-      <Item className={ITEM} onClick={onDuplicate}>
+      <Item className={ITEM} disabled={!canDuplicate} onClick={onDuplicate}>
         <Copy className="size-3.5" /> Duplicate unit
       </Item>
       {onOwned ? (

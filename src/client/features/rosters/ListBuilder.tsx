@@ -38,7 +38,7 @@ import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import type { Datasheet } from '../../../contracts/catalogue'
 import { exportRoster, saveRoster } from '../../../server/functions'
 import { shareLink } from '../../nativeBridge'
-import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery } from '../../queries'
+import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery, unitsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { picksAfterDetachmentChange } from './rosterPicks'
@@ -55,7 +55,7 @@ import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { survivingUnits } from './builder/pricePlaceholder'
-import { pickEditor, usePicks } from './builder/usePicks'
+import { canAddCopy, pickEditor, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
@@ -202,6 +202,11 @@ export function ListBuilder({
   const building = editable && !readOnly
   const pickerOpen = editable && (wideWorkspace || showing === 'picker')
   const pickerEnabled = workspaceMeasured && pickerOpen
+  const { data: availableUnits } = useQuery({
+    ...unitsQuery(catalogueId, limit, waivedRules),
+    enabled: editable && Boolean(catalogueId),
+  })
+  const unitLimits = useMemo(() => new Map(availableUnits?.map((unit) => [unit.id, unit.limit]) ?? []), [availableUnits])
 
   const setSetupDraft = (draft: RosterSetup | null) => {
     setSetupDraftState(draft)
@@ -435,7 +440,10 @@ export function ListBuilder({
   }
   const shareLabel = shareFeedback === 'shared' ? 'Link shared' : shareFeedback === 'copied' ? 'Link copied' : 'Share link'
   const rosterLoading = !frozen && priceLoading && picks.length > 0
-  const edit = useMemo(() => pickEditor(setPicks, { catalogueId, units }, allocateKey), [allocateKey, catalogueId, setPicks, units])
+  const edit = useMemo(
+    () => pickEditor(setPicks, { catalogueId, units, limits: unitLimits }, allocateKey),
+    [allocateKey, catalogueId, setPicks, unitLimits, units],
+  )
   const editor = useRef(edit)
   /**
    * What an edit reports is the list it leaves behind, read once the edit has landed.
@@ -551,6 +559,7 @@ export function ListBuilder({
 
   const points = frozen ? frozen.points : (priced?.points ?? 0)
   const over = frozen ? frozen.points > limit : Boolean(priced && priced.points > limit)
+  const illegal = Boolean(priced && (priced.errors.length || priced.detachmentError || priced.dispositionError))
   const cards = frozen
     ? frozen.units.map((unit, index) => ({
         index,
@@ -959,6 +968,7 @@ export function ListBuilder({
                         onSelect={selectUnit}
                         onRemove={drop}
                         onDuplicate={duplicate}
+                        canDuplicate={canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
                         onOwned={me ? setUnitOwned : undefined}
                         onJoin={join}
                         editable={building}
@@ -999,7 +1009,12 @@ export function ListBuilder({
             actions={
               <>
                 {preview && building ? (
-                  <Button size="sm" className="px-2" onClick={() => add(preview.entryId)}>
+                  <Button
+                    size="sm"
+                    className="px-2"
+                    disabled={!canAddCopy(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
+                    onClick={() => add(preview.entryId)}
+                  >
                     <Plus className="size-3" />
                     Add to list
                   </Button>
@@ -1110,6 +1125,7 @@ export function ListBuilder({
       <RosterBuilderFooter
         loading={rosterLoading}
         over={over}
+        illegal={illegal}
         points={points}
         limit={limit}
         hasUnits={Boolean(cards.length)}

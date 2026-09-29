@@ -8,6 +8,7 @@ import { advanceOnboarding } from '../onboarding/onboarding'
 type Props = {
   loading: boolean
   over: boolean
+  illegal: boolean
   points: number
   limit: number
   hasUnits: boolean
@@ -31,6 +32,7 @@ type Props = {
 export function RosterBuilderFooter({
   loading,
   over,
+  illegal,
   points,
   limit,
   hasUnits,
@@ -55,12 +57,14 @@ export function RosterBuilderFooter({
         <span data-onboarding="roster-points" className="flex items-center gap-2">
           {loading ? (
             <Skeleton className="size-5" aria-hidden />
-          ) : over ? (
+          ) : over || illegal ? (
             <TriangleAlert className="size-5 text-destructive" aria-hidden />
           ) : (
             <Check className={`size-5 ${hasUnits ? 'text-achieved' : 'text-faint'}`} aria-hidden />
           )}
-          {loading ? null : <span className="sr-only">{over ? 'Over the points limit' : 'Within the points limit'}</span>}
+          {loading ? null : (
+            <span className="sr-only">{over ? 'Over the points limit' : illegal ? 'Roster is not legal' : 'Within the points limit'}</span>
+          )}
           <span data-stat="points" className={`readout text-xl font-bold ${over ? 'text-destructive' : 'text-info'}`}>
             {loading ? <span aria-label="Loading roster points">…</span> : points}/{limit}
           </span>
