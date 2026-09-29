@@ -32,13 +32,17 @@ Responses are JSON by default. `Accept: text/markdown` selects a compact source-
 
 ## MCP
 
-`POST /mcp` is a stateless Streamable HTTP MCP endpoint. It exposes `list_reference`, `list_factions`, `list_units`, `search_reference`, `get_reference`, and `get_reference_record`. Every tool declares read-only, non-destructive, idempotent annotations. Server instructions and the `praetorium://guide` resource explain the product and steer roster-planning agents toward one `list_units` call instead of a datasheet-by-datasheet crawl. `praetorium://reference-status` reports the active reference catalogue, while the bundled prompts guide rules questions and mission-matchup explanations.
+`POST /mcp` is a stateless Streamable HTTP MCP endpoint. Without sign-in it exposes `list_reference`, `list_factions`, `list_units`, `search_reference`, `get_reference`, and `get_reference_record`. These reference tools are read-only. Server instructions and the `praetorium://guide` resource explain the product and steer roster-planning agents toward one `list_units` call instead of a datasheet-by-datasheet crawl. `praetorium://reference-status` reports the active reference catalogue, while the bundled prompts guide rules questions and mission-matchup explanations.
+
+Account tools are listed for discovery and require Better Auth OAuth sign-in when called. `mcp:read` grants `list_my_rosters`, `get_my_roster`, `list_my_battles`, and `get_my_battle`. `mcp:write` grants `save_roster`, `set_roster_visibility`, `create_battle`, and `submit_battle_action`. Write tools use the same owner checks, roster rules, command validation, and expected log sequence as the site. The consent page shows the requested access. OAuth clients discover the protected resource at `/.well-known/oauth-protected-resource/mcp` and the authorization server at `/.well-known/oauth-authorization-server/api/auth`; both client metadata documents and dynamic client registration are supported. A client can request `offline_access` for refresh tokens. Public reference calls remain available without sign-in.
 
 Production MCP requests report anonymous tool names, durations, and outcomes to PostHog MCP Analytics. The capture hook removes arguments, responses, intent, and client identifiers. Telemetry does not add tool arguments or response content to the protocol.
 
 `server.json` describes the endpoint to the official MCP registry as `io.github.richardsolomou/praetorium`; its `version` follows the one `src/server/referenceMcp.ts` declares. Publish a change with `mcp-publisher login github` and `mcp-publisher publish` from the repository root.
 
-The transport accepts one JSON-RPC message of at most 64 KiB per request and rejects batches. It is an adapter over the same services as the HTTP API; it has no account, saved-roster, private-battle, or mutation access.
+The transport accepts one JSON-RPC message of at most 64 KiB per request and rejects batches. Authenticated calls carry a resource-bound bearer token; the MCP route never treats a browser session cookie as authorization. SQLite keeps OAuth clients, grants, and refresh tokens. The startup migration adds these tables to an existing auth database before requests are served.
+
+The pinned Better Auth OAuth provider has a local patch because its concurrent resource seeding handles a uniqueness error only when the database driver puts that text in the top-level error. Drizzle wraps the SQLite error in `cause`, so a simultaneous startup would otherwise fail.
 
 ## Crawlers
 

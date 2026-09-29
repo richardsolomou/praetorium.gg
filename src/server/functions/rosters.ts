@@ -4,11 +4,12 @@ import { changesTouching } from '../../core/catalogueChanges'
 import { historySince } from '../../core/catalogueHistory'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
-import { calculateRosterPrice, calculateRosterTotals } from '../pricing'
+import { calculateRosterPrice } from '../pricing'
 import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, importRosterFaction, importRosterFile, matchesImportFaction } from '../rosterFiles'
 import { rosterTelemetryProperties } from '../rosterTelemetry'
+import { saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterChangeWithoutPricing, rosterStatus, rosterVerdict } from '../rosterStatus'
 import {
   exportRosterSchema,
@@ -229,19 +230,7 @@ export const saveRoster = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const instance = app()
-      const automaticName = !data.name
-      const totals = automaticName
-        ? calculateRosterTotals(
-            { ...data, units: data.picks },
-            await instance.catalogueFor(data.catalogueId),
-            await instance.rosterLabelRulesFor(),
-          )
-        : null
-      const { id, created, updatedAt } = await instance.service.saveRoster(player.id, {
-        ...data,
-        name: data.name || totals?.label || '',
-        automaticName,
-      })
+      const { id, created, updatedAt } = await saveOwnedRoster(player.id, data)
       // Counted when a row is made, which a visitor's list does while arriving with the id it was built under.
       if (created)
         await instance.telemetry.capture(player.id, 'roster_created', {

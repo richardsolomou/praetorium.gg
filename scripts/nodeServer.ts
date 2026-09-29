@@ -9,7 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import httpProxy from 'http-proxy'
-import { backupAuthSqlite, importAuthSqlite } from './nodeAuthSqlite.ts'
+import { backupAuthSqlite, importAuthSqlite, migrateAuthSqlite } from './nodeAuthSqlite.ts'
 import { localPublicObject } from '../src/server/localPublicObject.ts'
 import { localObjectStore } from '../src/server/localObjectStore.ts'
 import { publicAssetsR2Client } from '../src/server/r2Client.ts'
@@ -123,6 +123,7 @@ export async function startNodeServer() {
     }
   }
   if (!existsSync(authPath)) throw new Error('Auth SQLite file is missing')
+  migrateAuthSqlite(authPath)
   if (!publicAssetsR2Client() && process.env.PRAETORIUM_LOCAL_DEV !== 'true' && process.env.PRAETORIUM_SEED_PREVIEW !== 'true') {
     throw new Error('Object storage is required')
   }

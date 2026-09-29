@@ -10,7 +10,7 @@ export const PRAETORIUM_GUIDE = {
     'Praetorium does not provide matchmaking, chat, tournament pairings, locations, or rules written by this project.',
     'An account is required to play. Public reference pages, public battles, profiles, and leaderboards can be read without one.',
     'Battle visibility is the narrowest setting chosen by anyone seated at the table. Watching never grants a seat or controls.',
-    'The reference MCP is public and read-only. It has no account, saved-roster, private-battle, or mutation access.',
+    'The MCP reference tools are public. Optional account sign-in adds tools for saved rosters and battles, including edits and battle actions.',
   ],
   dataModel: [
     'Game data is fetched from verified community snapshots and does not live in the repository.',
@@ -29,7 +29,7 @@ export const PRAETORIUM_GUIDE = {
 
 export const PRAETORIUM_MCP_INSTRUCTIONS = [
   PRAETORIUM_GUIDE.product,
-  'This server exposes the current verified public game reference only.',
+  'Public reference tools work without signing in. Account tools require OAuth sign-in; read and write access have separate scopes.',
   ...PRAETORIUM_GUIDE.agentWorkflow,
   PRAETORIUM_GUIDE.dataModel[2],
 ].join(' ')

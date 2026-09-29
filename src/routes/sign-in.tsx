@@ -13,8 +13,9 @@ export const Route = createFileRoute('/sign-in')({
     if (search.join === true || search.join === 'true') result.join = true
     return result
   },
-  beforeLoad: async ({ context, preload, search }) => {
+  beforeLoad: async ({ context, location, preload, search }) => {
     if (preload) return
+    if (new URLSearchParams(location.searchStr).has('sig')) return
     const destination = await signedInDestination(context.queryClient, search.next)
     if (destination) throw redirect({ href: destination, replace: true })
   },

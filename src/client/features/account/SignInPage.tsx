@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PASSWORD_MIN_LENGTH } from '../../../authConfig'
-import { authClient } from '../../authClient'
+import { authClient, authRedirectUrl } from '../../authClient'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES } from './AuthMethodIcon'
 import { TwoFactorSignIn } from './TwoFactorSignIn'
 import { requestNativeAuth } from '../../nativeAuth'
@@ -66,6 +66,11 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
     if (!result.error) {
       posthog.capture(joining ? 'account_created' : 'account_signed_in', { method: 'email', redirected: Boolean(next) })
       await queryClient.invalidateQueries()
+      const redirectUrl = authRedirectUrl('data' in result ? result.data : null)
+      if (redirectUrl) {
+        window.location.replace(redirectUrl)
+        return
+      }
       // `next` is a pathname rather than a route, so this is a navigation by href
       // rather than by route id.
       if (next) window.location.replace(next)
@@ -106,9 +111,9 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
           {twoFactorPending ? (
             <TwoFactorSignIn
               onBack={() => setTwoFactorPending(false)}
-              onSuccess={() => {
+              onSuccess={(redirectUrl) => {
                 posthog.capture('account_signed_in', { method: 'two_factor', redirected: Boolean(next) })
-                if (next) window.location.replace(next)
+                if (redirectUrl || next) window.location.replace(redirectUrl || next!)
                 else void navigate({ to: '/', replace: true })
               }}
             />

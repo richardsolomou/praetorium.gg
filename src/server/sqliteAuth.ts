@@ -1,10 +1,13 @@
 import type { Account, GenericEndpointContext } from 'better-auth'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { APIError, createAuthEndpoint, createAuthMiddleware } from 'better-auth/api'
+import { APIError, createAuthMiddleware } from 'better-auth/api'
 import { applySetCookies } from 'better-auth/cookies'
 import { decryptOAuthToken } from 'better-auth/oauth2'
 import { admin, jwt, oneTimeToken, twoFactor } from 'better-auth/plugins'
+import { mcp } from '@better-auth/mcp'
+import { cimd } from '@better-auth/cimd'
+import { fetchClientMetadataResource } from '@better-auth/cimd/node'
 import { and, eq, notExists, sql } from 'drizzle-orm'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import pRetry from 'p-retry'
@@ -18,6 +21,8 @@ import {
 import { standardAuthEmails, type EmailDelivery } from 'ras-stack/email'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import { account, schema, user } from '../db/authSchema'
+import { oauthSchema } from '../db/oauthSchema'
+import { oauthAccessToken, oauthConsent, oauthRefreshToken } from '../db/oauthSchema'
 import { APPLE_AUTH_ORIGIN, appleCredentials, revokeAppleToken } from './appleAuth'
 import { configuredAuthProviderOptions, configuredAuthProviders } from './authProviders'
 import { nativeAuthToken } from './nativeAuthToken'
@@ -138,7 +143,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
   }
 
   const auth = betterAuth({
-    database: drizzleAdapter(database, { provider: 'sqlite', schema }),
+    database: drizzleAdapter(database, { provider: 'sqlite', schema: { ...schema, ...oauthSchema } }),
     secret,
     baseURL: environment.APP_URL?.trim() || undefined,
     emailAndPassword: standardEmailAndPasswordOptions({
@@ -240,20 +245,15 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
           },
         },
       }),
-      {
-        id: 'praetorium-spacetime-discovery',
-        endpoints: {
-          spacetimeOpenIdConfiguration: createAuthEndpoint('/.well-known/openid-configuration', { method: 'GET' }, (context) =>
-            context.json({
-              issuer,
-              jwks_uri: `${issuer}/jwks`,
-              id_token_signing_alg_values_supported: ['ES256'],
-              response_types_supported: ['token'],
-              subject_types_supported: ['public'],
-            }),
-          ),
-        },
-      },
+      mcp({
+        resource: new URL('/mcp', environment.APP_URL).toString(),
+        loginPage: '/sign-in',
+        consentPage: '/mcp-consent',
+        scopes: ['openid', 'profile', 'offline_access', 'mcp:read', 'mcp:write'],
+        allowDynamicClientRegistration: true,
+        allowUnauthenticatedClientRegistration: true,
+      }),
+      cimd({ fetchClientMetadataResource, metadataProfile: 'mcp-2026-07-28' }),
     ],
   })
 
@@ -294,5 +294,43 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     await context.internalAdapter.deleteUserSessions(linked.userId)
   }
 
-  return Object.assign(auth, { changeUserRole, deleteAppleAccount, revokeAppleTokens, revokeAppleUser })
+  // A signed access token can outlive a revoked grant, so MCP checks the current consent on every call.
+  const hasMcpConsent = async (userId: string, clientId: string, scope?: string) => {
+    const rows = await database
+      .select({ resources: oauthConsent.resources, scopes: oauthConsent.scopes })
+      .from(oauthConsent)
+      .where(and(eq(oauthConsent.userId, userId), eq(oauthConsent.clientId, clientId)))
+    const resource = new URL('/mcp', environment.APP_URL).toString()
+    return rows.some(({ resources, scopes }) => {
+      if (!resources) return false
+      const grantedResources: unknown = JSON.parse(resources)
+      const grantedScopes: unknown = JSON.parse(scopes)
+      return (
+        Array.isArray(grantedResources) &&
+        grantedResources.includes(resource) &&
+        (!scope || (Array.isArray(grantedScopes) && grantedScopes.includes(scope)))
+      )
+    })
+  }
+
+  // Better Auth's consent deletion does not remove previously issued tokens.
+  const revokeMcpConsent = async (userId: string, id: string) => {
+    await database.transaction(async (transaction) => {
+      const [consent] = await transaction
+        .select({ clientId: oauthConsent.clientId })
+        .from(oauthConsent)
+        .where(and(eq(oauthConsent.id, id), eq(oauthConsent.userId, userId)))
+        .limit(1)
+      if (!consent) throw new Response('Connection not found.', { status: 404 })
+      await transaction
+        .delete(oauthRefreshToken)
+        .where(and(eq(oauthRefreshToken.userId, userId), eq(oauthRefreshToken.clientId, consent.clientId)))
+      await transaction
+        .delete(oauthAccessToken)
+        .where(and(eq(oauthAccessToken.userId, userId), eq(oauthAccessToken.clientId, consent.clientId)))
+      await transaction.delete(oauthConsent).where(and(eq(oauthConsent.userId, userId), eq(oauthConsent.clientId, consent.clientId)))
+    })
+  }
+
+  return Object.assign(auth, { changeUserRole, deleteAppleAccount, revokeAppleTokens, revokeAppleUser, hasMcpConsent, revokeMcpConsent })
 }

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../../../authConfig'
 import { setOwnPassword, unlinkOwnAccount } from '../../../server/functions'
+import { mcpConnections, revokeMcpConnection } from '../../../server/functions/mcpConnections'
 import { authClient } from '../../authClient'
 import { hasNativeAuthBridge, requestNativeAuth } from '../../nativeAuth'
 import { accountMethodsQuery, meQuery } from '../../queries'
@@ -26,12 +27,15 @@ type DialogKind = 'create-password' | 'change-password' | 'delete-account' | 'tw
 
 export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy: ReactNode }) {
   const methodsResult = useQuery(accountMethodsQuery())
+  const connectionsResult = useQuery({ queryKey: ['mcp-connections'], queryFn: () => mcpConnections() })
   const { data: methods, isPending: methodsPending } = methodsResult
   const queryClient = useQueryClient()
   const [dialog, setDialog] = useState<DialogKind>()
   const [removing, setRemoving] = useState<'credential' | SocialAuthProvider>()
   const [verificationSent, setVerificationSent] = useState(false)
   const [linkError, setLinkError] = useState(false)
+  const [revokingConnection, setRevokingConnection] = useState<string | null>(null)
+  const [connectionError, setConnectionError] = useState(false)
   const verifyEmail = useAuthAction()
   const linked = new Set(methods?.linked ?? [])
   const hasPassword = linked.has('credential')
@@ -228,6 +232,59 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
               </p>
             ) : null}
           </div>
+        ) : null}
+      </section>
+
+      <section className="border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
+        <p className="rubric border-b border-edge pb-2">Connected apps</p>
+        <h2 className="mt-4 text-base">Praetorium MCP access</h2>
+        <p className="mt-1 text-sm text-dim">Apps you allowed to read or change your rosters and battles appear here.</p>
+        {connectionsResult.isPending ? <Skeleton className="mt-4 h-10 w-full" /> : null}
+        {connectionsResult.isError ? (
+          <Button className="mt-4" variant="outline" onClick={() => void connectionsResult.refetch()}>
+            Try again
+          </Button>
+        ) : null}
+        {connectionsResult.data?.length === 0 ? <p className="mt-4 text-sm text-dim">No apps connected.</p> : null}
+        {connectionsResult.data?.map((connection) => (
+          <div key={connection.id} className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-edge pt-4">
+            <div>
+              <p>{connection.name}</p>
+              <p className="text-sm text-dim">
+                {[
+                  connection.scopes.includes('mcp:read') ? 'Read rosters and battles' : null,
+                  connection.scopes.includes('mcp:write') ? 'Change rosters and record battles' : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={revokingConnection !== null}
+              onClick={async () => {
+                setRevokingConnection(connection.id)
+                setConnectionError(false)
+                try {
+                  await revokeMcpConnection({ data: { id: connection.id } })
+                  await queryClient.invalidateQueries({ queryKey: ['mcp-connections'] })
+                } catch {
+                  setConnectionError(true)
+                } finally {
+                  setRevokingConnection(null)
+                }
+              }}
+            >
+              Revoke access
+            </Button>
+          </div>
+        ))}
+        {connectionError ? (
+          <p role="alert" className="mt-3 text-sm text-destructive">
+            Could not revoke access. Try again.
+          </p>
         ) : null}
       </section>
 
