@@ -14,7 +14,7 @@ test('a fielded roster opens as the frozen read-only roster view', async ({ page
   const battleUrl = await createBattle(page, { practice: true })
   await attachRoster(page, rosterName)
   await attachRoster(page, rosterName, { forPlayer: PRACTICE_OPPONENT })
-  await expect(page.getByRole('navigation', { name: 'Setup sections' }).getByRole('button', { name: /Armies/ })).toHaveAttribute(
+  await expect(page.getByRole('navigation', { name: 'Setup sections' }).locator('[data-step="Setup"]')).toHaveAttribute(
     'data-complete',
     'true',
   )
