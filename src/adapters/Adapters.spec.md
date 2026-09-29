@@ -1,5 +1,5 @@
 # Adapters
 
-Connect external email, realtime, cache, push, and telemetry services.
+Connect external email, cache, push, and telemetry services.
 
 ## invariants

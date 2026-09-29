@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "project": "Praetorium",
+  "project": "t3code-87b18356",
   "concepts": [
     {
       "name": "battle",
@@ -8,59 +8,71 @@
     },
     {
       "name": "roster",
-      "definition": "A named selection of units and loadouts that is priced against a verified catalogue and may be saved or frozen for play."
+      "definition": "A named selection of units and loadouts priced against a verified catalogue and optionally saved or sealed for play."
     },
     {
       "name": "catalogue",
-      "definition": "The verified snapshot of fetched community game data used to present and evaluate selectable rules and units."
-    },
-    {
-      "name": "faction",
-      "definition": "A catalogue-defined army grouping from which a roster selects its units and detachment."
-    },
-    {
-      "name": "detachment",
-      "definition": "A catalogue-defined choice within a faction that governs roster options and enhancements."
+      "definition": "A verified snapshot of fetched community rules and unit data used to present and evaluate game choices."
     },
     {
       "name": "mission",
       "definition": "A source-defined objective and scoring rule used during a battle."
     },
     {
-      "name": "league",
-      "definition": "An organized play container whose events register entrants and reveal sealed rosters."
+      "name": "faction",
+      "definition": "A catalogue-defined army grouping from which a roster selects units and a detachment."
     },
     {
-      "name": "league event",
-      "definition": "A registration cycle within a league that collects entrants, seals rosters, and reveals them together."
+      "name": "detachment",
+      "definition": "A catalogue-defined choice within a faction that governs roster options and enhancements."
     },
     {
       "name": "account",
-      "definition": "A user identity required to save a roster, occupy a battle seat, or enter a league."
+      "definition": "An authenticated user identity required to save rosters, occupy battle seats, or enter leagues."
     },
     {
-      "name": "friend",
-      "definition": "A mutual relationship between accounts that permits shared battles to be opened."
+      "name": "league",
+      "definition": "An organized play container whose events register players and reveal sealed rosters."
     },
     {
       "name": "warlord",
-      "definition": "A selected catalogue-eligible Character or Epic Hero whose count is checked per roster or doubles team at league sealing."
+      "definition": "A selected eligible Character or Epic Hero whose count is checked when a league roster or doubles team is sealed."
     },
     {
       "name": "secret mission",
-      "definition": "A mission whose choice or progress is hidden from other sides until its reveal rule permits disclosure."
-    },
-    {
-      "name": "practice opponent",
-      "definition": "An account with no credentials that occupies a battle seat as an automated opponent."
+      "definition": "A mission choice whose identity stays hidden from other sides until its reveal rule permits disclosure."
     },
     {
       "name": "watchable",
-      "definition": "Permitted for a reader to observe under the narrowest audience setting of all battle seats."
+      "definition": "Permitted for a reader to observe under the narrowest sharing choice of every battle seat."
     },
     {
-      "name": "contract",
-      "definition": "A serializable TypeScript shape shared across browser and server boundaries."
+      "name": "unit",
+      "definition": "A selectable formation from a catalogue datasheet whose models and loadout are represented in a roster or battle."
+    },
+    {
+      "name": "player",
+      "definition": "An account occupying a seat in a battle or entry in a league event."
+    },
+    {
+      "name": "datasheet",
+      "definition": "A catalogue entry defining a unit’s printed profile, abilities, and available choices."
+    },
+    {
+      "name": "side",
+      "definition": "One of the two allied groups whose seats act and score together in a battle."
+    },
+    {
+      "name": "loadout",
+      "definition": "The selected models, weapons, and options for a unit within a roster."
+    },
+    {
+      "name": "stratagem",
+      "definition": "A source-defined timed rule a player can use during a battle when its conditions allow."
+    },
+    {
+      "name": "wargear",
+      "definition": "Source-defined equipment options that change a unit’s selected loadout."
     }
   ]
 }

@@ -4,12 +4,19 @@ Build and watch catalogue-backed battles, rosters, and league events with accoun
 
 ## trust levels
 
-- external-request (outside): URL, request body, and RPC arguments supplied by any browser or HTTP caller.
-- external-source (outside): Fetched community catalogue and rules bytes, plus provider events arriving over the network.
-- device-state (outside): Browser storage, cookies, native callbacks, and push payloads supplied by a device.
-- verified-session: Server-established user identity after authentication.
-- validated-data: Parsed, verified, and authorized application input.
-- persisted-record: SQLite account rows and SpacetimeDB product records, including battle command logs.
-- public-output: Responses and rendered data visible to an account or spectator.
+- external-request (outside): HTTP paths, request bodies, and server function arguments supplied by callers.
+- external-source (outside): Fetched community catalogue data and provider notifications received over the network.
+- device-state (outside): Browser storage, native callbacks, and push payloads controlled by a device.
+- operator-input (outside): Command arguments and files supplied by a maintainer or CI job.
+- verified-session: Server-established account identity after authentication.
+- validated-data: Parsed and authorized input accepted for application work.
+- persisted-record: SQLite account records and SpacetimeDB product records, including battle logs.
+- public-output: Responses and rendered state visible to players or spectators.
+
+## entrances
+
+- native auth ios: Runs the native iOS authentication proof from a developer command.
+  handler: e2e/nativeAuthIos.ts
+  trust: operator-input
 
 ## invariants

@@ -1,5 +1,5 @@
 # Db
 
-Persist accounts and sessions in SQLite. Product data and battle logs live in SpacetimeDB.
+Persist account and session state in SQLite.
 
 ## invariants
