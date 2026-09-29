@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { z } from 'zod'
 import { REFERENCE_KINDS } from '../contracts/reference'
+import { instrumentReferenceMcp } from '../adapters/mcpAnalytics'
 import { app } from './app'
 import { activeReferenceCorpus, referenceRateLimit } from './referenceApi'
 import { referenceDocumentMarkdown } from './referenceCorpus'
@@ -290,6 +291,7 @@ function referenceMcpServer() {
       ],
     }),
   )
+  instrumentReferenceMcp(server)
   return server
 }
 
