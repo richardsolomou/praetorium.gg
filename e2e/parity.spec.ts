@@ -66,8 +66,8 @@ test('practice battle controls survive completion, reopen and deletion', async (
   // runs the battle out rather than assuming how many phases that is.
   const result = page.getByRole('heading', { name: /Drawn at|win/ })
   for (let step = 0; step < 80 && !(await result.isVisible().catch(() => false)); step++) await advance(page)
-  await expect(page.getByText('Result', { exact: true })).toBeVisible()
   await expect(result).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Battle scoreboard' })).not.toContainText('Result')
 
   await endBattle(page, 'Delete battle')
   await expect(page).toHaveURL('/battles')
