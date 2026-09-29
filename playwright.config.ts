@@ -6,7 +6,9 @@ export default defineConfig({
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results',
   // Each CI shard owns its local SQLite and SpacetimeDB data; scripts/e2eShard.ts assigns its tests.
   workers: 1,
-  retries: 0,
+  // One CI retry turns a flake into a minute on one runner instead of a full rerun; the
+  // github reporter still reports the test as flaky, and a local run never retries.
+  retries: process.env.CI ? 1 : 0,
   /*
    * A journey test signs two players up, builds a list, sets a table and plays a turn.
    * None of that is asserting speed, and on a loaded CI runner the whole run can pass

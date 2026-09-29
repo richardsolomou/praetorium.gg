@@ -77,7 +77,8 @@ jobs:
           path: e2e-report-${{ matrix.runner }}.json
           retention-days: 30
           if-no-files-found: ignore
-      - if: failure()
+      # A test that passes on retry still leaves its failed attempt's trace here.
+      - if: failure() || (success() && hashFiles(format('test-results-{0}/**', matrix.runner)) != '')
         uses: actions/upload-artifact@v7
         with:
           name: playwright-results-${{ matrix.runner }}
