@@ -13,7 +13,15 @@ export const notificationSettings = createServerFn({ method: 'GET' }).handler(()
 
 export const setPushNotifications = createServerFn({ method: 'POST' })
   .validator(pushPreferenceSchema)
-  .handler(({ data }) => mutationRpc(async () => app().service.setPushEnabled(await requireUserId(), data.enabled)))
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      const instance = app()
+      const enabled = await instance.service.setPushEnabled(userId, data.enabled)
+      await instance.telemetry.capture(userId, 'push_notifications_updated', { enabled })
+      return enabled
+    }),
+  )
 
 export const registerPushDevice = createServerFn({ method: 'POST' })
   .validator(pushDeviceSchema)

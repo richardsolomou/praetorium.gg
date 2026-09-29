@@ -26,12 +26,14 @@ export function CombatSimulator() {
 }
 
 export function CombatSimulatorMatchup({
+  source = 'standalone',
   roster,
   opponentRoster,
   firstArmyControl,
   secondArmyControl,
   inDialog = false,
 }: {
+  source?: 'standalone' | 'roster' | 'battle'
   roster?: CombatRoster
   opponentRoster?: CombatRoster
   firstArmyControl?: ReactNode
@@ -45,6 +47,7 @@ export function CombatSimulatorMatchup({
   const failed = attacker.price.isError || attacker.sheets.isError || defender.price.isError || defender.sheets.isError
   return (
     <CombatMatchup
+      entryPoint={source}
       key={`${reversed}:${attacker.identity}:${defender.identity}`}
       attacker={attacker.snapshot}
       defender={defender.snapshot}

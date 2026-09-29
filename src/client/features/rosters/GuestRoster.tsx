@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
+import { posthog } from 'posthog-js'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { saveRoster } from '../../../server/functions'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -95,6 +96,7 @@ export function GuestRoster({
             onSave={(setup) => {
               const started = newGuestDraft(setup)
               setUnkept(!writeGuestDraft(started))
+              posthog.capture('guest_roster_started', { limit: setup.limit, detachment_count: setup.detachmentIds.length })
               onStart(started)
             }}
           />
@@ -151,7 +153,10 @@ export function GuestRoster({
         initialFaction={faction}
         guest={{
           onDraftChange: ({ id: _saved, ...draft }) => setUnkept(!writeGuestDraft({ ...guest, draft })),
-          onSave: () => void navigate({ to: '/sign-in', search: { next: GUEST_PATH, join: true } }),
+          onSave: () => {
+            posthog.capture('guest_roster_save_started')
+            void navigate({ to: '/sign-in', search: { next: GUEST_PATH, join: true } })
+          },
         }}
       />
     </main>

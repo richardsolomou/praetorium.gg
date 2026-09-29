@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Clipboard, EllipsisVertical, Eye, Pencil, Share2, Trash2 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
+import { posthog } from 'posthog-js'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -223,7 +224,9 @@ export function useInviteShare(league: { token: string; name: string }) {
     share: async () => {
       setFeedback(null)
       try {
-        setFeedback(await shareLink(leagueInviteUrl(league.token), league.name))
+        const result = await shareLink(leagueInviteUrl(league.token), league.name)
+        setFeedback(result)
+        posthog.capture('league_invite_shared', { method: result })
       } catch {
         setFeedback('error')
       }

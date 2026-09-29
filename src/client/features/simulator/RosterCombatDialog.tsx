@@ -6,7 +6,7 @@ import type { CombatRoster } from './useCombatant'
 export function RosterCombatDialog({ roster, onClose }: { roster: CombatRoster; onClose: () => void }) {
   return (
     <CombatDialog onClose={onClose}>
-      <CombatSimulatorMatchup roster={roster} inDialog />
+      <CombatSimulatorMatchup source="roster" roster={roster} inDialog />
     </CombatDialog>
   )
 }

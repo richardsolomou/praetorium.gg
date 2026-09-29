@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { Link } from '@tanstack/react-router'
 import { Check, Link2, RotateCw, UserPlus, X } from 'lucide-react'
 import { useState } from 'react'
+import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -161,7 +162,9 @@ function InviteFriend() {
   const share = async (token: string) => {
     setShareProblem(null)
     try {
-      setFeedback(await shareLink(`${origin}/invite/${token}`, 'Join me on Praetorium'))
+      const result = await shareLink(`${origin}/invite/${token}`, 'Join me on Praetorium')
+      setFeedback(result)
+      posthog.capture('friend_invite_shared', { method: result })
     } catch (error) {
       setShareProblem(errorMessage(error))
     }
