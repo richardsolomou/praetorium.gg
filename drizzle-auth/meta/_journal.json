@@ -8,6 +8,13 @@
       "when": 1790375962860,
       "tag": "0000_curly_gambit",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790671531158,
+      "tag": "0001_sad_absorbing_man",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,28 @@
 import { chmod, readFile, rename, rm, stat } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { DatabaseSync, backup } from 'node:sqlite'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const requiredTables = ['user', 'session', 'account', 'verification', 'twoFactor', 'rateLimit', 'jwks']
+const oauthMigration = new URL('../drizzle-auth/0001_sad_absorbing_man.sql', import.meta.url)
+
+export function migrateAuthSqlite(file: string) {
+  const database = new DatabaseSync(file, { timeout: 5_000 })
+  try {
+    database.exec('BEGIN IMMEDIATE')
+    try {
+      const exists = database.prepare("select 1 from sqlite_master where type = 'table' and name = 'oauthClient'").get()
+      if (!exists) database.exec(readFileSync(oauthMigration, 'utf8'))
+      database.exec('COMMIT')
+    } catch (error) {
+      database.exec('ROLLBACK')
+      throw error
+    }
+  } finally {
+    database.close()
+  }
+}
 
 export function verifyAuthSqlite(file: string) {
   const database = new DatabaseSync(file, { readOnly: true })
@@ -41,6 +60,7 @@ export async function importAuthSqlite(dump: string, target: string) {
   try {
     await chmod(temporary, 0o600)
     database.exec(await readFile(dump, 'utf8'))
+    database.exec(readFileSync(oauthMigration, 'utf8'))
     database.exec('pragma journal_mode = wal')
   } catch (error) {
     database.close()

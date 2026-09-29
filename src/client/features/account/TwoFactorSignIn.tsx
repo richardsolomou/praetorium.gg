@@ -3,9 +3,15 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { authClient } from '../../authClient'
+import { authClient, authRedirectUrl } from '../../authClient'
 
-export function TwoFactorSignIn({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => void | Promise<void> }) {
+export function TwoFactorSignIn({
+  onBack,
+  onSuccess,
+}: {
+  onBack: () => void
+  onSuccess: (redirectUrl: string | null) => void | Promise<void>
+}) {
   const queryClient = useQueryClient()
   const [code, setCode] = useState('')
   const [recovery, setRecovery] = useState(false)
@@ -27,7 +33,7 @@ export function TwoFactorSignIn({ onBack, onSuccess }: { onBack: () => void; onS
           setError(recovery ? 'That recovery code is invalid or has already been used.' : 'That authenticator code is invalid.')
         else {
           await queryClient.invalidateQueries()
-          await onSuccess()
+          await onSuccess(authRedirectUrl(result.data))
         }
         setBusy(false)
       }}

@@ -3,11 +3,12 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import { DatabaseSync } from 'node:sqlite'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { user } from '../src/db/authSchema'
 import { createSqliteAuth } from '../src/server/sqliteAuth'
 import { localAuthDatabase } from '../src/server/localAuthDatabase'
-import { backupAuthSqlite, importAuthSqlite, verifyAuthSqlite } from './nodeAuthSqlite'
+import { backupAuthSqlite, importAuthSqlite, migrateAuthSqlite, verifyAuthSqlite } from './nodeAuthSqlite'
 
 let directory: string
 const secret = 'node-sqlite-rehearsal-auth-secret'
@@ -32,6 +33,32 @@ function authFor(file: string) {
   })
   return { ...local, auth }
 }
+
+it('adds OAuth tables when two processes start against an existing auth database', async () => {
+  const file = path.join(directory, 'existing-auth.sqlite')
+  const database = new DatabaseSync(file)
+  database.exec(await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8'))
+  database.close()
+  const script = `import { migrateAuthSqlite } from './scripts/nodeAuthSqlite.ts'; migrateAuthSqlite(process.env.AUTH_REPLICA_FILE)`
+  await Promise.all(
+    Array.from({ length: 2 }, () =>
+      execFile(process.execPath, ['--import', 'tsx', '--input-type=module', '--eval', script], {
+        cwd: path.resolve('.'),
+        env: { ...process.env, AUTH_REPLICA_FILE: file },
+        timeout: 30_000,
+      }),
+    ),
+  )
+  migrateAuthSqlite(file)
+  const migrated = new DatabaseSync(file, { readOnly: true })
+  try {
+    expect(
+      migrated.prepare("select count(*) as count from sqlite_master where type = 'table' and name = 'oauthConsent'").get()?.count,
+    ).toBe(1)
+  } finally {
+    migrated.close()
+  }
+})
 
 it('imports the auth schema, handles concurrent sign-ups, and restores sessions and signing keys', async () => {
   const count = Number(process.env.AUTH_TEST_SIGNUPS ?? 6)

@@ -42,7 +42,13 @@ vi.mock('./referenceApi', () => ({
   activeReferenceCorpus: () => corpus,
   referenceRateLimit: rateLimit,
 }))
-vi.mock('./app', () => ({ app: () => ({ catalogueFor: async () => null, rulesFor: async () => null }) }))
+vi.mock('./app', () => ({
+  app: () => ({
+    catalogueFor: async () => null,
+    rulesFor: async () => null,
+    auth: { $context: Promise.resolve({ baseURL: 'https://praetorium.gg/api/auth', internalAdapter: {} }) },
+  }),
+}))
 
 import { handleReferenceMcp, referenceMcpOptions } from './referenceMcp'
 
@@ -75,6 +81,24 @@ it('serves the same reference document through MCP', async () => {
 
   expect(response.status).toBe(200)
   expect(await response.json()).toMatchObject({ result: { structuredContent: document } })
+})
+
+it('challenges account tools while keeping public reference tools available', async () => {
+  vi.stubEnv('APP_URL', 'https://praetorium.gg')
+  try {
+    const privateResponse = await handleReferenceMcp(toolRequest('get_my_roster', { id: 'roster-1' }))
+    const publicResponse = await handleReferenceMcp(toolRequest('get_reference', { id: document.id }))
+    expect(privateResponse.status).toBe(401)
+    expect(privateResponse.headers.get('www-authenticate')).toContain('/.well-known/oauth-protected-resource/mcp')
+    expect(publicResponse.status).toBe(200)
+  } finally {
+    vi.unstubAllEnvs()
+  }
+})
+
+it('treats an inherited object name as an unknown tool', async () => {
+  const response = await handleReferenceMcp(toolRequest('__proto__'))
+  expect(response.status).toBe(200)
 })
 
 it('captures only anonymous MCP usage in production without changing the result', async () => {

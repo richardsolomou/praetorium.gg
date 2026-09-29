@@ -1,0 +1,13 @@
+diff --git a/dist/introspect-njKASm3q.mjs b/dist/introspect-njKASm3q.mjs
+index c8d635e57ca4cd3fe8f7cbfd5c769d61b7e96874..a2410615366a3adc004bbdc80cbb8b01138f298a 100644
+--- a/dist/introspect-njKASm3q.mjs
++++ b/dist/introspect-njKASm3q.mjs
+@@ -845,7 +845,7 @@ async function seedResources(ctx, opts) {
+ 				});
+ 			} catch (err) {
+ 				const message = err instanceof Error ? err.message : String(err);
+-				if (/unique|duplicate|UNIQUE/i.test(message)) {
++				if (/unique|duplicate/i.test(message) || err instanceof Error && err.cause instanceof Error && /unique|duplicate/i.test(err.cause.message)) {
+ 					logger.debug(`oauth-provider: resource ${input.identifier} already inserted by a concurrent process — skipping.`);
+ 					continue;
+ 				}
