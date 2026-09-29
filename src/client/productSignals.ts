@@ -5,7 +5,6 @@ const queryFamilies = {
     'roster-access',
     'shared-roster',
     'saved-roster-summaries',
-    'saved-roster-totals',
     'home-rosters',
     'saved-roster-page',
     'saved-roster-changed-count',

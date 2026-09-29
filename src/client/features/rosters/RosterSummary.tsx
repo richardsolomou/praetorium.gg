@@ -7,7 +7,7 @@ import { rosterWaivers, WaiverChip } from '../../components/FormatWaivers'
 import { dispositionTone } from '../../components/rosterSetup'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { CornerDownRight } from 'lucide-react'
-import { RosterDifferenceChips } from './RosterDifferences'
+import { RosterDifferenceChips, type VariantSetup } from './RosterDifferences'
 import type { SavedRoster } from './rosterLibrary'
 import { VISIBILITY_NAME } from './visibility'
 
@@ -38,6 +38,12 @@ const detachmentNames = (roster: SavedRoster, faction?: RosterSummaryFaction) =>
     .map((id) => faction?.detachments.find((entry) => entry.id === id)?.name)
     .filter((name): name is string => Boolean(name))
 
+const variantSetup = (roster: SavedRoster, faction?: RosterSummaryFaction, dispositionName?: string): VariantSetup => ({
+  factionName: faction?.displayName,
+  detachmentName: (id) => faction?.detachments.find((entry) => entry.id === id)?.name,
+  disposition: roster.disposition && dispositionName ? { id: roster.disposition, name: dispositionName } : null,
+})
+
 export function RosterSummary({
   roster,
   faction,
@@ -47,12 +53,15 @@ export function RosterSummary({
   factionLoading = false,
   pointsLoading = false,
   problem = null,
+  differences = null,
 }: {
   roster: SavedRoster
   faction?: RosterSummaryFaction
   points?: number | null
   /** What an unnamed list is called, folded from its units. Absent until the totals land. */
   label?: string
+  /** A variant drawn without its base above it, such as when a filter leaves the base out, says what it varies. */
+  differences?: NamedRosterDifferences | null
   dispositionName?: string
   factionLoading?: boolean
   pointsLoading?: boolean
@@ -73,7 +82,7 @@ export function RosterSummary({
         pointsLoading={pointsLoading}
         problem={problem}
         visibilityInDetails
-        className="col-start-2 row-start-1 sm:row-span-3 sm:self-center"
+        className={`col-start-2 row-start-1 sm:self-center ${differences ? 'sm:row-span-4' : 'sm:row-span-3'}`}
       />
       <span data-slot="roster-chips" className="col-span-2 flex flex-wrap gap-1 *:whitespace-nowrap sm:col-span-1">
         {faction ? <FactionLabel faction={faction} chip /> : factionLoading ? <Skeleton className="h-5 w-24" /> : null}
@@ -91,6 +100,15 @@ export function RosterSummary({
         11th edition · {size?.name ?? `${roster.limit} points`} · {roster.unitCount} {roster.unitCount === 1 ? 'unit' : 'units'} ·{' '}
         <span className="sm:hidden">{VISIBILITY_NAME[roster.visibility]} · </span>updated {date(roster.updatedAt)}
       </span>
+      {differences ? (
+        <span className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dim sm:col-span-1">
+          <span className="flex shrink-0 items-center gap-1">
+            <CornerDownRight className="size-3.5 text-faint" aria-hidden />
+            Variant of {differences.baseName}
+          </span>
+          <RosterDifferenceChips differences={differences} setup={variantSetup(roster, faction, dispositionName)} />
+        </span>
+      ) : null}
     </span>
   )
 }
@@ -171,14 +189,7 @@ export function RosterVariantSummary({
       <span className="min-w-0 truncate text-sm font-bold uppercase sm:max-w-64">{rosterTitle(roster, faction, label)}</span>
       <span className="col-span-2 col-start-2 row-start-2 flex min-h-[1.125rem] min-w-0 items-center sm:col-span-1 sm:col-start-3 sm:row-start-1">
         {differences ? (
-          <RosterDifferenceChips
-            differences={differences}
-            setup={{
-              factionName: faction?.displayName,
-              detachmentName: (id) => faction?.detachments.find((entry) => entry.id === id)?.name,
-              disposition: roster.disposition && dispositionName ? { id: roster.disposition, name: dispositionName } : null,
-            }}
-          />
+          <RosterDifferenceChips differences={differences} setup={variantSetup(roster, faction, dispositionName)} />
         ) : pointsLoading ? (
           <Skeleton className="h-4 w-40" aria-label="Loading changes from base" />
         ) : null}

@@ -29,3 +29,14 @@ export function variantGroups<T extends { id: string; baseRosterId: string | nul
     return [{ roster: head, variant: false }, ...members.filter((roster) => roster !== head).map((roster) => ({ roster, variant: true }))]
   })
 }
+
+/** `variantGroups` entries gathered into cards: each head with the variants drawn beneath it, and each entry's position kept. */
+export function variantCards<T>(entries: readonly { roster: T; variant: boolean }[]) {
+  const cards: { head: { roster: T; index: number }; variants: { roster: T; index: number }[] }[] = []
+  entries.forEach(({ roster, variant }, index) => {
+    const last = cards.at(-1)
+    if (variant && last) last.variants.push({ roster, index })
+    else cards.push({ head: { roster, index }, variants: [] })
+  })
+  return cards
+}

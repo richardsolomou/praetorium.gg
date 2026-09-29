@@ -1,4 +1,4 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { ScrollText } from 'lucide-react'
@@ -28,18 +28,12 @@ import { type SavedRoster, useRosterActions } from './rosterLibrary'
 import { keepRosterSort, type RosterSort, sortRosters } from './rosterSort'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import {
-  factionIndexQuery,
-  gameReferencesQuery,
-  meQuery,
-  savedRosterChangedCountQuery,
-  savedRosterPageQuery,
-  savedRosterSummariesQuery,
-} from '../../queries'
+import { factionIndexQuery, gameReferencesQuery, meQuery, savedRosterChangedCountQuery, savedRosterSummariesQuery } from '../../queries'
 import { useOrigin } from '../../useOrigin'
 import type { RosterVisibility } from '../../../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
-import { variantGroups } from '../../../core/rosterVariants'
+import { variantCards, variantGroups } from '../../../core/rosterVariants'
+import { useRosterPages } from './rosterPages'
 
 export type RosterLibrarySearch = { limit?: number; faction?: string; visibility?: RosterVisibility }
 /** An unsaved setup edit, kept per tab so a refresh does not lose it. */
@@ -81,24 +75,17 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
   const libraryPending = savedResult.isPending || (Boolean(search.faction) && availableResult.isPending)
   const libraryError = savedResult.isError || (Boolean(search.faction) && availableResult.isError)
   const visible = variantGroups(shown).slice(0, visibleCount)
-  const batches = Array.from({ length: Math.ceil(visible.length / ROSTER_LIBRARY_BATCH_SIZE) }, (_, index) =>
-    visible.slice(index * ROSTER_LIBRARY_BATCH_SIZE, (index + 1) * ROSTER_LIBRARY_BATCH_SIZE).map(({ roster }) => roster.id),
+  const groups = variantCards(visible)
+  const pages = useRosterPages(
+    visible.map(({ roster }) => roster.id),
+    Boolean(me && savedResult.isSuccess),
   )
-  // Each base heads a card holding the variants that follow it.
-  const groups: { head: { roster: SavedRoster; index: number }; variants: { roster: SavedRoster; index: number }[] }[] = []
-  visible.forEach(({ roster, variant }, index) => {
-    const last = groups.at(-1)
-    if (variant && last) last.variants.push({ roster, index })
-    else groups.push({ head: { roster, index }, variants: [] })
-  })
-  const pageResults = useQueries({
-    queries: batches.map((ids) => ({ ...savedRosterPageQuery(ids), enabled: Boolean(me && savedResult.isSuccess) })),
-  })
+  const pageResults = pages.results
   const changedCountResult = useQuery({
     ...savedRosterChangedCountQuery(),
     enabled: Boolean(me && savedResult.isSuccess && pageResults.every((result) => result.isSuccess)),
   })
-  const pageById = new Map(pageResults.flatMap((result) => result.data ?? []).map((entry) => [entry.id, entry]))
+  const pageById = pages.byId
   const changedLists = changedCountResult.data ?? 0
 
   const origin = useOrigin()
@@ -204,7 +191,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
                       label={pageById.get(roster.id)?.label}
                       dispositionName={references?.dispositions.find((entry) => entry.id === roster.disposition)?.name}
                       factionLoading={availableResult.isPending}
-                      pointsLoading={pageResults[Math.floor(index / ROSTER_LIBRARY_BATCH_SIZE)]?.isPending}
+                      pointsLoading={pages.pending(index)}
                       problem={pageById.get(roster.id)?.problem ?? null}
                       differences={pageById.get(roster.id)?.differences}
                       showVisibility={roster.visibility !== head.roster.visibility}
