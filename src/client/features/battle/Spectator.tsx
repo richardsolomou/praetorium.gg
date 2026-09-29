@@ -19,14 +19,12 @@ import { ArmyRoster } from './ArmyRoster'
 import { PrimaryMission, type ReferenceCard, SecondaryMissions } from './MissionCards'
 import { Scoreboard } from './Scoreboard'
 import { tint } from './battleTints'
-import { Button } from '@/components/ui/button'
 import { replayAtQuery } from '../../queries'
 
 type Props = {
   view: BattleView
   missions: { side: number; mission: SideMission | null }[]
   report?: readonly ReportEntry[]
-  onExit?: () => void
   timeline?: readonly ReplayPoint[]
 }
 
@@ -34,13 +32,7 @@ const ignoreCommand = (_command: Command) => {}
 const noAwards = () => []
 const emptyTimeline: readonly ReplayPoint[] = []
 
-export function Spectator({
-  view: currentView,
-  missions: currentMissions,
-  report: currentReport,
-  onExit,
-  timeline = emptyTimeline,
-}: Props) {
+export function Spectator({ view: currentView, missions: currentMissions, report: currentReport, timeline = emptyTimeline }: Props) {
   const [selectedSeq, setSelectedSeq] = useState<number | null>(null)
   const seq = selectedSeq ?? timeline.at(-1)?.seq ?? currentView.seq
   const selectedIndex = Math.max(
@@ -48,14 +40,13 @@ export function Spectator({
     timeline.findIndex((point) => point.seq === seq),
   )
   const queryClient = useQueryClient()
-  const replay = useQuery(replayAtQuery(currentView.token, seq, currentView.status === 'finished' && seq < currentView.seq))
+  const replay = useQuery(replayAtQuery(currentView.token, seq, seq < currentView.seq))
   useEffect(() => {
-    if (currentView.status !== 'finished') return
     for (const neighbor of [timeline[selectedIndex - 1], timeline[selectedIndex + 1]]) {
       if (neighbor && neighbor.seq < currentView.seq)
         void queryClient.query(replayAtQuery(currentView.token, neighbor.seq, true)).catch(() => {})
     }
-  }, [currentView.seq, currentView.status, currentView.token, queryClient, selectedIndex, timeline])
+  }, [currentView.seq, currentView.token, queryClient, selectedIndex, timeline])
   const frame = seq < currentView.seq && replay.data?.kind === 'replay' ? replay.data : null
   const view = frame?.view ?? currentView
   const missions = frame?.missions ?? currentMissions
@@ -77,7 +68,7 @@ export function Spectator({
   }))
 
   useEffect(() => {
-    if (captured.current) return
+    if (captured.current || view.players.some((player) => player.isViewer)) return
     captured.current = true
     posthog.capture('battle_spectated', {
       status: view.status,
@@ -88,21 +79,17 @@ export function Spectator({
       player_count: view.players.length,
       league: Boolean(view.leagueToken),
     })
-  }, [table, view.leagueToken, view.players.length, view.status, view.token])
+  }, [table, view.leagueToken, view.players, view.status, view.token])
 
   return (
     <>
-      <main className="w-full space-y-2 px-3 pb-40">
+      <main className="w-full space-y-2 px-3 pb-28">
         <div className="mx-auto flex h-8 max-w-7xl items-center justify-between gap-3">
           <p className="eyebrow shrink-0">
             {currentView.status === 'finished' ? 'Battle replay' : view.status === 'playing' ? 'Watching live' : 'Battle setup'}
           </p>
           <div className="flex min-w-0 items-center gap-2 text-xs">
-            {onExit ? (
-              <Button variant="outline" size="sm" onClick={onExit}>
-                Back to battle
-              </Button>
-            ) : view.leagueToken ? (
+            {view.leagueToken ? (
               <Link
                 to="/leagues/$token"
                 params={{ token: view.leagueToken }}
@@ -149,15 +136,14 @@ export function Spectator({
           </section>
         </div>
       </main>
-      {currentView.status === 'finished' ? (
-        <ReplayTimeline
-          points={timeline}
-          index={selectedIndex}
-          onSelect={setSelectedSeq}
-          loading={replay.isFetching}
-          error={replay.isError || replay.data?.kind === 'unavailable'}
-        />
-      ) : null}
+      {/* The latest event is not pinned, so a live battle keeps following new events until someone scrubs back. */}
+      <ReplayTimeline
+        points={timeline}
+        index={selectedIndex}
+        onSelect={(next) => setSelectedSeq(next === timeline.at(-1)?.seq ? null : next)}
+        loading={replay.isFetching}
+        error={replay.isError || replay.data?.kind === 'unavailable'}
+      />
     </>
   )
 }
@@ -177,7 +163,11 @@ function ReplayTimeline({
 }) {
   if (!points.length) return null
   const selected = points[index]!
-  const rounds = [...new Set(points.map((point) => point.round).filter((round) => round > 0))]
+  const roundStarts = [...new Set(points.map((point) => point.round).filter((round) => round > 0))].map((round) => ({
+    round,
+    position: points.findIndex((point) => point.round === round),
+  }))
+  const roundName = selected.round > 0 ? `Round ${selected.round}` : 'Setup'
   const choose = (next: number) => onSelect(points[next]!.seq)
   const bucketSize = Math.max(1, Math.ceil(points.length / 100))
   const bars = Array.from({ length: Math.ceil(points.length / bucketSize) }, (_, bucket) =>
@@ -187,22 +177,22 @@ function ReplayTimeline({
     <nav
       data-replay-timeline
       aria-label="Battle replay timeline"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-panel/95 px-3 py-2 shadow-xl backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-panel/95 px-3 py-1.5 shadow-xl backdrop-blur"
     >
-      <div className="mx-auto max-w-3xl space-y-1.5">
-        <div className="flex items-center gap-2">
-          <p className="eyebrow shrink-0">Battle timeline</p>
-          {loading ? <span className="text-3xs text-dim">Loading…</span> : null}
-          {error ? <span className="text-3xs text-destructive">Could not load</span> : null}
-          <p className="min-w-0 flex-1 truncate text-center text-xs text-bone" aria-live="polite">
-            {selected.text}
-          </p>
-          <p className="readout shrink-0 text-xs text-dim">
+      <div className="mx-auto max-w-3xl space-y-1">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="eyebrow shrink-0">Battle timeline</p>
+            {loading ? <span className="truncate text-3xs text-dim">Loading…</span> : null}
+            {error ? <span className="truncate text-3xs text-destructive">Could not load</span> : null}
+          </div>
+          <p className="text-xs font-semibold text-parchment">{selected.round > 0 ? `Round ${selected.round}` : 'Setup'}</p>
+          <p className="readout justify-self-end text-xs text-dim">
             {index + 1}/{points.length}
           </p>
         </div>
-        <div className="relative h-10">
-          <div aria-hidden className="absolute inset-x-0 bottom-0 flex h-8 items-end gap-px border-b border-edge">
+        <div className="relative h-6">
+          <div aria-hidden className="absolute inset-x-0 bottom-0 flex h-5 items-end gap-px border-b border-edge">
             {bars.map((bar, bucket) => {
               const active = bar.some((point) => point.activity === 'action')
               const reached = bucket * bucketSize <= index
@@ -215,6 +205,16 @@ function ReplayTimeline({
               )
             })}
           </div>
+          {/* Taller than the bars, so a round start stands out from the gaps between events. */}
+          {roundStarts.map(({ round, position }) => (
+            <span
+              key={round}
+              aria-hidden
+              data-round-start={round}
+              className="pointer-events-none absolute top-0 bottom-0 w-px bg-dim"
+              style={{ left: `${(Math.floor(position / bucketSize) / bars.length) * 100}%` }}
+            />
+          ))}
           <div
             aria-hidden
             className="pointer-events-none absolute top-0 bottom-0 w-px bg-primary"
@@ -228,26 +228,9 @@ function ReplayTimeline({
             value={index}
             onChange={(event) => choose(Number(event.target.value))}
             aria-label="Replay event"
-            aria-valuetext={`Event ${index + 1} of ${points.length}: ${selected.text}`}
-            className="absolute inset-0 z-10 h-10 w-full cursor-ew-resize opacity-0"
+            aria-valuetext={`${roundName}, event ${index + 1} of ${points.length}: ${selected.text}`}
+            className="absolute inset-0 z-10 h-6 w-full cursor-ew-resize opacity-0"
           />
-        </div>
-        <div className="relative h-5 text-xs">
-          {rounds.map((round) => {
-            const position = points.findIndex((point) => point.round === round)
-            return (
-              <button
-                key={round}
-                type="button"
-                aria-label={`Round ${round}`}
-                className={`absolute top-0 -translate-x-1/2 whitespace-nowrap ${selected.round === round ? 'text-parchment' : 'text-dim hover:text-bone'}`}
-                style={{ left: `${Math.max(7, Math.min(93, (position / Math.max(1, points.length - 1)) * 100))}%` }}
-                onClick={() => choose(position)}
-              >
-                R{round}
-              </button>
-            )
-          })}
         </div>
       </div>
     </nav>

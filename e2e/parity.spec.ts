@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import {
   advance,
   attachRoster,
@@ -39,7 +39,7 @@ test('roster visibility controls search indexing and public URL variants', async
   await expect(page.locator('meta[name="robots"]')).toHaveCount(0)
 })
 
-test('practice battle controls survive completion, reopen and deletion', async ({ page }) => {
+test('a practice battle played out opens as its replay', async ({ page }) => {
   const player = uniqueName('Practice')
   await signUp(page, player)
   const firstRoster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First roster' })
@@ -55,23 +55,15 @@ test('practice battle controls survive completion, reopen and deletion', async (
   await page.getByRole('button', { name: 'Start battle' }).click()
   await takeTheTurn(page)
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
-  await endBattle(page, 'Finish early')
-  // Two sides, so the result reads as a scoreline rather than one side's total.
-  await expect(page.getByRole('heading', { name: /Drawn at|win/ })).toBeVisible()
-  await page.getByRole('button', { name: 'Battle options' }).click()
-  await page.getByRole('menuitem', { name: 'Reopen battle' }).click()
-  await expect(page.getByRole('button', { name: /End the .+ phase/ })).toBeVisible()
 
-  // Both sides take every round now, and the count follows the mission pack, so this
-  // runs the battle out rather than assuming how many phases that is.
+  // The round count follows the mission pack, so this runs the battle out rather than
+  // assuming how many phases that is.
   const result = page.getByRole('heading', { name: /Drawn at|win/ })
   for (let step = 0; step < 80 && !(await result.isVisible().catch(() => false)); step++) await advance(page)
   await expect(result).toBeVisible()
   await expect(page.getByRole('region', { name: 'Battle scoreboard' })).not.toContainText('Result')
-
-  await endBattle(page, 'Delete battle')
-  await expect(page).toHaveURL('/battles')
-  await expect(page.getByText('No battles yet.')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Battle replay timeline' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Battle options' })).toHaveCount(0)
 })
 
 test('a private roster can be shared and made private again', async ({ browser }) => {
@@ -172,10 +164,3 @@ test('editable detail waits for public access to save before sharing', async ({ 
   await anonymous.goto(sharedUrl)
   await expect(anonymous.getByLabel('List name')).toHaveValue('Detail share')
 })
-
-/** Ending and deleting live behind the battle menu, each behind its own confirmation. */
-async function endBattle(page: Page, label: string) {
-  await page.getByRole('button', { name: 'Battle options' }).click()
-  await page.getByRole('menuitem', { name: label }).click()
-  await page.getByRole('alertdialog').getByRole('button', { name: label }).click()
-}

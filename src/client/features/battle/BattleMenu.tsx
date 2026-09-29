@@ -19,18 +19,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-type Ending = { key: string; label: string; description: string; destructive: boolean; act: () => void }
+type Ending = { key: string; label: string; description: string; act: () => void }
 
 type Props = {
-  finished: boolean
   canDelete: boolean
   pending: boolean
   actionRemindersEnabled: boolean
   players: readonly { id: string; name: string; isViewer: boolean; automated: boolean }[]
   onActionRemindersChange: (enabled: boolean) => void
-  onFinishEarly: () => void
   onConcede: (playerId: string) => void
-  onReopen: () => void
   onDelete: () => void
 }
 
@@ -40,42 +37,18 @@ type Props = {
  * Each is rare, and none is undone by pressing the same button again, so they sit
  * behind a menu and a confirmation rather than in reach of a thumb all game.
  */
-export function BattleMenu({
-  finished,
-  canDelete,
-  pending,
-  actionRemindersEnabled,
-  players,
-  onActionRemindersChange,
-  onFinishEarly,
-  onConcede,
-  onReopen,
-  onDelete,
-}: Props) {
+export function BattleMenu({ canDelete, pending, actionRemindersEnabled, players, onActionRemindersChange, onConcede, onDelete }: Props) {
   const [confirming, setConfirming] = useState<Ending | null>(null)
-  // Reopening is undone by finishing again, so it asks for nothing. Ending and deleting cannot be.
-  const endings: Ending[] = finished
-    ? [{ key: 'reopen', label: 'Reopen battle', description: '', destructive: false, act: onReopen }]
-    : [
-        {
-          key: 'finish',
-          label: 'Finish early',
-          description: 'This records the current score as final. You can reopen the battle afterward.',
-          destructive: true,
-          act: onFinishEarly,
-        },
-        ...players
-          .filter((player) => !player.automated)
-          .map((player) => ({
-            key: `concede:${player.id}`,
-            label: player.isViewer ? 'Concede battle' : `Concede for ${player.name}`,
-            description: player.isViewer
-              ? 'This records that you conceded and ends the battle for every player.'
-              : `This records that ${player.name} conceded and ends the battle for every player.`,
-            destructive: true,
-            act: () => onConcede(player.id),
-          })),
-      ]
+  const endings: Ending[] = players
+    .filter((player) => !player.automated)
+    .map((player) => ({
+      key: `concede:${player.id}`,
+      label: player.isViewer ? 'Concede battle' : `Concede for ${player.name}`,
+      description: player.isViewer
+        ? 'This records that you conceded and ends the battle for every player.'
+        : `This records that ${player.name} conceded and ends the battle for every player.`,
+      act: () => onConcede(player.id),
+    }))
 
   return (
     <>
@@ -90,11 +63,7 @@ export function BattleMenu({
             Action reminders
           </DropdownMenuCheckboxItem>
           {endings.map((ending) => (
-            <DropdownMenuItem
-              key={ending.key}
-              variant={ending.destructive ? 'destructive' : undefined}
-              onClick={() => (ending.destructive ? setConfirming(ending) : ending.act())}
-            >
+            <DropdownMenuItem key={ending.key} variant="destructive" onClick={() => setConfirming(ending)}>
               {ending.label}
             </DropdownMenuItem>
           ))}
@@ -106,7 +75,6 @@ export function BattleMenu({
                   key: 'delete',
                   label: 'Delete battle',
                   description: 'This permanently deletes the battle, including its scores and history.',
-                  destructive: true,
                   act: onDelete,
                 })
               }
@@ -125,7 +93,7 @@ export function BattleMenu({
           <AlertDialogFooter>
             <AlertDialogCancel>Keep playing</AlertDialogCancel>
             <AlertDialogAction
-              variant={confirming?.destructive ? 'destructive' : 'default'}
+              variant="destructive"
               onClick={() => {
                 confirming?.act()
                 setConfirming(null)

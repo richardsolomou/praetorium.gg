@@ -10,7 +10,7 @@
 - Every command carries `expectedSeq`. A mismatch returns `stale`, and the client does not automatically resend the command under a new sequence number.
 - A successful submission returns the updated seated screen. `useCommand` writes that screen to the query cache before another command can use it.
 - Every `Command` kind has a case in both `validate` and `apply`; their exhaustive checks make an omitted case fail the build.
-- Finished battles can be replayed at every saved command, including commands later undone and the undo itself. The bottom timeline marks rounds, while the server folds the selected log prefix and filters its historical state and report for the viewer. A later reveal does not expose a mission in an earlier moment.
+- Battles can be replayed at every saved command, including commands later undone and the undo itself. Spectators always have the bottom timeline, so someone watching a live battle can scrub back and the timeline follows new events again from its last point; seated players get it once the battle is finished, which then opens as its replay. The timeline marks rounds, while the server folds the selected log prefix and filters its historical state and report for the viewer. A later reveal does not expose a mission in an earlier moment.
 
 Undo appends an `undo` command that names the latest active command. It does not delete history. Either player can undo the latest command, then continue rewinding active commands across turn boundaries.
 
