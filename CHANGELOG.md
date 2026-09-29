@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.83.0
+
+### Minor Changes
+
+- 3d25ea6: Choose the visibility and battle size new rosters and battles start with from your profile.
+
 ## 0.82.3
 
 ### Patch Changes
