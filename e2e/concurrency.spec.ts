@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
+import { migrateAuthSqlite } from '../scripts/nodeAuthSqlite'
 import { account, user } from '../src/db/authSchema'
 import { SqliteAccountRepository } from '../src/server/accountRepository'
 import { createSqliteAuth } from '../src/server/sqliteAuth'
@@ -21,6 +22,7 @@ async function isolatedDatabase(
   initialized.exec(migration)
   initialized.exec('pragma journal_mode = wal')
   initialized.close()
+  migrateAuthSqlite(file)
   const left = localAuthDatabase(file)
   const right = localAuthDatabase(file)
   try {
