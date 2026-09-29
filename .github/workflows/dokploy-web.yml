@@ -20,6 +20,11 @@ on:
         description: Full main-branch commit SHA to redeploy (for rollback)
         required: false
         type: string
+      skip-product-publish:
+        description: Reuse the installed product module during a web-only rollback
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: dokploy-web-${{ inputs.environment }}
@@ -114,6 +119,7 @@ jobs:
           docker logout ghcr.io
           docker buildx imagetools inspect --raw "$IMAGE" > /dev/null
       - name: Publish the matching product module
+        if: inputs['skip-product-publish'] != true
         env:
           IMAGE: ${{ steps.image.outputs.reference }}
         run: |
