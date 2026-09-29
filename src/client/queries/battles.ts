@@ -101,7 +101,6 @@ export const battleQuery = (token: string) =>
     queryKey: ['battle', token],
     queryFn: () => openBattle({ data: { token } }),
     staleTime: SSR_STALE_TIME,
-    refetchInterval: ({ state }) => (state.data?.kind === 'spectator' && state.data.view.status !== 'finished' ? 5_000 : false),
     structuralSharing: newestBattleScreen,
   })
 

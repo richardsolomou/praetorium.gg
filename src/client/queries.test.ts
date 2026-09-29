@@ -26,7 +26,7 @@ describe('battle query ordering', () => {
     expect(newestBattleScreen(current, next)).toEqual(next)
   })
 
-  it('keeps spectator polling monotonic too', () => {
+  it('keeps spectator refetches monotonic too', () => {
     const current = { kind: 'spectator', view: { seq: 13, cards: ['a', 'b'] } }
     const stale = { kind: 'spectator', view: { seq: 12, cards: ['a'] } }
 
