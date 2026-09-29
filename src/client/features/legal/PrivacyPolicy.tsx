@@ -33,7 +33,7 @@ export function PrivacyPolicy() {
         </p>
         <p>
           If you allow notifications in the mobile app, we store that device's push token, its platform, and when it was last seen. Signing
-          out or deleting your account removes it, and you can turn notifications off from your profile at any time.
+          out or deleting your account removes it. You can turn notifications off in your device settings at any time.
         </p>
         <h3 className="text-sm tracking-label text-bone">Usage data</h3>
         <p>

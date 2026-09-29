@@ -89,6 +89,20 @@ describe('Expo push sender', () => {
     expect(unregistered).toEqual([])
   })
 
+  it('logs a refused ticket without logging the device token', async () => {
+    const log = vi.fn()
+    const push = expoPushSender({
+      accessToken: 'access-token',
+      onUnregistered: () => undefined,
+      fetch: async () => json({ data: [{ status: 'error', details: { error: 'InvalidCredentials' } }] }),
+      log,
+    })
+
+    await push.send([message(0)])
+
+    expect(log.mock.calls).toEqual([['push ticket failed', { error: 'InvalidCredentials' }]])
+  })
+
   it('forgets a device whose later receipt reports it is no longer registered', async () => {
     const { push, deferred, unregistered } = sender((url, body) =>
       url.endsWith('/getReceipts')
@@ -99,6 +113,26 @@ describe('Expo push sender', () => {
 
     deferred.forEach((work) => work())
     await vi.waitFor(() => expect(unregistered).toEqual([[message(1).to]]))
+  })
+
+  it('logs a failed receipt after Expo accepts the ticket', async () => {
+    const deferred: (() => void)[] = []
+    const log = vi.fn()
+    const push = expoPushSender({
+      accessToken: 'access-token',
+      onUnregistered: () => undefined,
+      fetch: async (url) =>
+        (typeof url === 'string' ? url : url instanceof URL ? url.href : url.url).endsWith('/getReceipts')
+          ? json({ data: { one: { status: 'error', details: { error: 'InvalidCredentials' } } } })
+          : json({ data: [{ status: 'ok', id: 'one' }] }),
+      later: (work) => deferred.push(work),
+      log,
+    })
+    await push.send([message(0)])
+
+    deferred.forEach((work) => work())
+
+    await vi.waitFor(() => expect(log).toHaveBeenCalledWith('push receipt failed', { error: 'InvalidCredentials' }))
   })
 
   it('skips receipt timers when no durable scheduler is available', async () => {

@@ -33,6 +33,11 @@ const TTL_SECONDS = 24 * 60 * 60
 
 type Outcome = { status?: unknown; id?: unknown; details?: { error?: unknown } }
 
+function errorCode(outcome: Outcome) {
+  const code = outcome.details?.error
+  return typeof code === 'string' && /^[A-Za-z]{1,64}$/.test(code) ? code : 'unknown'
+}
+
 export function pushSenderFromEnvironment(
   onUnregistered: PushSenderOptions['onUnregistered'],
   environment: NodeJS.ProcessEnv = process.env,
@@ -90,6 +95,7 @@ export function expoPushSender(options: PushSenderOptions): PushSender {
       for (const [id, receipt] of Object.entries(answer?.data ?? {})) {
         const token = tickets.get(id)
         if (token && receipt.status === 'error' && receipt.details?.error === 'DeviceNotRegistered') gone.push(token)
+        else if (token && receipt.status === 'error') log('push receipt failed', { error: errorCode(receipt) })
       }
     }
     await forget(gone)
@@ -118,6 +124,7 @@ export function expoPushSender(options: PushSenderOptions): PushSender {
           if (!token) return
           if (ticket.status === 'ok' && typeof ticket.id === 'string') tickets.set(ticket.id, token)
           else if (ticket.details?.error === 'DeviceNotRegistered') gone.push(token)
+          else if (ticket.status === 'error') log('push ticket failed', { error: errorCode(ticket) })
         })
       }
       await forget(gone)

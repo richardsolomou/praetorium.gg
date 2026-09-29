@@ -1398,7 +1398,6 @@ export const pushTargets = spacetime.procedure({ userIds: t.array(t.string()) },
     const targets: { userId: string; token: string }[] = []
     for (const userId of new Set(userIds)) {
       if (tx.db.practiceOpponents.userId.find(userId)) continue
-      if (!(tx.db.pushPreferences.userId.find(userId)?.enabled ?? DEFAULT_PUSH_NOTIFICATIONS)) continue
       for (const device of tx.db.pushTokens.userId.filter(userId)) targets.push({ userId, token: device.token })
     }
     return productJson(targets)
@@ -1740,6 +1739,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
           userId: leagueIdInput,
           now: leagueTimeInput,
           memberLimit: z.number().int().min(2).max(128),
+          noticeResults: z.boolean().optional(),
         }),
         value,
       )
@@ -1778,7 +1778,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
           teamId: undefined,
         })
       touchLeague(tx, league.id, event.id)
-      return productJson(status)
+      return productJson(status === 'pending' && input.noticeResults ? { status, ownerId: league.ownerId } : status)
     }
     if (!league) return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'missing')
     const ownerId = leagueCommandInput(z.object({ ownerId: leagueIdInput }), value).ownerId
@@ -1879,6 +1879,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
           userId: leagueIdInput,
           status: z.enum(['accepted', 'rejected']),
           memberLimit: z.number().int().min(2).max(128),
+          noticeResults: z.boolean().optional(),
         }),
         value,
       )
@@ -1892,6 +1893,12 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         if (entry.status === 'rejected' && entries.filter((row) => row.status !== 'rejected').length >= input.memberLimit)
           return productJson('full')
       }
+      const resealIds =
+        input.status === 'rejected' && entry.teamId
+          ? entries
+              .filter((row) => row.userId !== entry.userId && row.teamId === entry.teamId && row.rosterSnapshot !== undefined)
+              .map((row) => row.userId)
+          : []
       if (input.status === 'rejected' && entry.teamId) {
         for (const teammate of entries.filter((row) => row.teamId === entry.teamId))
           tx.db.leagueEventEntries.key.update({
@@ -1917,7 +1924,9 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         })
       else tx.db.leagueEventEntries.key.update({ ...entry, status: input.status })
       touchLeague(tx, league.id, event.id)
-      return productJson(input.status === 'accepted' && entry.status !== 'accepted' ? 'admitted' : 'updated')
+      if (input.status === 'rejected')
+        return productJson(input.noticeResults ? { rejected: entry.status !== 'rejected', resealIds } : 'updated')
+      return productJson(entry.status !== 'accepted' ? 'admitted' : 'updated')
     }
     if (operation === 'assign-limit') {
       const input = leagueCommandInput(
@@ -1925,6 +1934,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
           op: z.literal('assign-limit'),
           userId: leagueIdInput,
           requiredLimit: z.number().int().positive().max(10_000),
+          noticeResults: z.boolean().optional(),
         }),
         value,
       )
@@ -1934,6 +1944,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         return productJson('wrong-limit')
       const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId]))
       if (!entry || entry.status !== 'accepted') return productJson('missing')
+      const resealIds = entry.requiredLimit !== input.requiredLimit && entry.rosterSnapshot !== undefined ? [entry.userId] : []
       if (entry.requiredLimit !== input.requiredLimit) {
         tx.db.leagueEventEntries.key.update({
           ...entry,
@@ -1945,7 +1956,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         })
         touchLeague(tx, league.id, event.id)
       }
-      return productJson('updated')
+      return productJson(input.noticeResults ? { resealIds } : 'updated')
     }
     if (operation === 'assign-team') {
       const input = leagueCommandInput(
@@ -1953,6 +1964,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
           op: z.literal('assign-team'),
           userIds: z.array(leagueIdInput).min(1).max(2),
           teamId: leagueIdInput,
+          noticeResults: z.boolean().optional(),
         }),
         value,
       )
@@ -1963,9 +1975,11 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
       const targets = entries.filter((entry) => userIds.includes(entry.userId) && entry.status === 'accepted')
       if (targets.length !== userIds.length) return productJson('missing')
       const previousTeamId = targets[0]?.teamId
-      if (userIds.length === 2 && previousTeamId && targets.every((entry) => entry.teamId === previousTeamId)) return productJson('updated')
+      if (userIds.length === 2 && previousTeamId && targets.every((entry) => entry.teamId === previousTeamId))
+        return productJson(input.noticeResults ? { resealIds: [] } : 'updated')
       const oldTeams = new Set(targets.map((entry) => entry.teamId).filter((id) => id !== undefined))
       const affected = entries.filter((entry) => userIds.includes(entry.userId) || (entry.teamId && oldTeams.has(entry.teamId)))
+      const resealIds = affected.filter((entry) => entry.rosterSnapshot !== undefined).map((entry) => entry.userId)
       for (const entry of affected)
         tx.db.leagueEventEntries.key.update({
           ...entry,
@@ -1988,7 +2002,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
             submittedAt: undefined,
           })
       touchLeague(tx, league.id, event.id)
-      return productJson('updated')
+      return productJson(input.noticeResults ? { resealIds } : 'updated')
     }
     if (operation === 'submit') {
       const input = leagueCommandInput(

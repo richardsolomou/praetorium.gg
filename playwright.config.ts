@@ -29,6 +29,7 @@ export default defineConfig({
       LOCAL_APP_PORT: String(port),
       LOCAL_DATA_DIR: root,
       LOCAL_TEST_MODE: 'true',
+      EXPO_PUSH_ACCESS_TOKEN: 'unused-e2e-token',
       CATALOGUE_HOST_DIR: catalogue,
     },
     url: `http://127.0.0.1:${port + 20_000}/ready`,

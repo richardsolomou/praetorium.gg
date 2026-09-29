@@ -5,6 +5,7 @@ import { request as httpRequest, type IncomingMessage, type ServerResponse } fro
 import { createServer as createHttpsServer, request as httpsRequest } from 'node:https'
 import path from 'node:path'
 import { withAuthSql } from './storage'
+import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 
 const root = path.join(import.meta.dirname, '..')
 const backendPort = Number(process.env.NATIVE_AUTH_BACKEND_PORT ?? 4274)
@@ -23,6 +24,7 @@ const tlsDirectory = path.join(root, 'mobile', '.simulator-derived', 'native-aut
 const tlsCertificate = path.join(tlsDirectory, 'localhost.crt')
 const tlsKey = path.join(tlsDirectory, 'localhost.key')
 let fixtureCookie = ''
+let fixtureUserId = ''
 let initialNativeRouteHandled = false
 let expectedAuthenticatedDestination: URL | undefined
 let stopStack: (() => void) | undefined
@@ -239,6 +241,7 @@ async function createFixture() {
     dataDirectory,
   )
   if (!player) throw new Error('The native authentication fixture account is missing.')
+  fixtureUserId = player.id
   await withAuthSql(
     (database) =>
       database
@@ -274,6 +277,19 @@ function assertFlow() {
   }
 }
 
+async function assertPushRegistered() {
+  const credentials = JSON.parse(readFileSync(path.join(dataDirectory, 'credentials.json'), 'utf8')) as {
+    operator: { token: string }
+  }
+  const operator = new SpacetimeOperator(
+    `http://127.0.0.1:${backendPort + 10_000}/`,
+    `praetorium-local-${backendPort}`,
+    credentials.operator.token,
+  )
+  const targets = await operator.pushTargets([fixtureUserId])
+  if (targets.length !== 1) throw new Error(`Expected one registered simulator push device, found ${targets.length}.`)
+}
+
 function skipLocalPostHogUpload(projectFile: string) {
   const project = readFileSync(projectFile, 'utf8')
   const wrapper =
@@ -296,6 +312,7 @@ async function main() {
       LOCAL_APP_PORT: String(backendPort),
       LOCAL_DATA_DIR: dataDirectory,
       LOCAL_TEST_MODE: 'true',
+      EXPO_PUSH_ACCESS_TOKEN: 'unused-native-e2e-token',
       NODE_EXTRA_CA_CERTS: tlsCertificate,
     },
     stdio: 'inherit',
@@ -360,7 +377,9 @@ async function main() {
   )
   await new Promise((resolve) => setTimeout(resolve, 1_000))
   assertFlow()
+  await assertPushRegistered()
   console.log(`Native authentication refreshed without an app restart: ${events.join(' -> ')}`)
+  console.log('Simulator notification permission and device registration succeeded.')
 }
 
 try {

@@ -152,6 +152,12 @@ export class LeagueService {
 
   async joinLeague(token: string, userId: string, eventToken?: string) {
     const result = await this.repository.joinLeague(token, userId, this.clock(), LEAGUE_MEMBER_MAX, eventToken)
+    if (typeof result === 'object') {
+      this.notifier.notify([
+        { kind: 'league-entry-requested', actorId: userId, recipientIds: [result.ownerId], leagueToken: token, eventToken },
+      ])
+      return result.status
+    }
     if (result === 'missing') throw new Response('no such league', { status: 404 })
     if (result === 'closed') throw new Response('this event has already revealed its rosters', { status: 409 })
     if (result === 'full') throw new Response('this event is full', { status: 409 })
@@ -168,6 +174,21 @@ export class LeagueService {
     const result = await this.repository.moderateLeagueEntry(token, ownerId, userId, status, LEAGUE_MEMBER_MAX, eventToken)
     if (result === 'admitted')
       this.notifier.notify([{ kind: 'league-entry-accepted', actorId: ownerId, recipientIds: [userId], leagueToken: token, eventToken }])
+    if (typeof result === 'object') {
+      const notices = []
+      if (result.rejected)
+        notices.push({ kind: 'league-entry-rejected' as const, actorId: ownerId, recipientIds: [userId], leagueToken: token, eventToken })
+      if (result.resealIds.length)
+        notices.push({
+          kind: 'league-roster-reseal' as const,
+          actorId: ownerId,
+          recipientIds: result.resealIds,
+          leagueToken: token,
+          eventToken,
+        })
+      if (notices.length) this.notifier.notify(notices)
+      return
+    }
     if (result === 'admitted' || result === 'updated') return
     if (result === 'forbidden') throw new Response('only the organizer can change entrants', { status: 403 })
     if (result === 'closed') throw new Response('this event has already revealed its rosters', { status: 409 })
@@ -192,7 +213,13 @@ export class LeagueService {
 
   async assignLeagueRosterRequirement(token: string, ownerId: string, userId: string, requiredLimit: number, eventToken?: string) {
     const result = await this.repository.assignLeagueRosterRequirement(token, ownerId, userId, requiredLimit, eventToken)
-    if (result === 'updated') return { requiredLimit }
+    if (result === 'updated' || typeof result === 'object') {
+      if (typeof result === 'object' && result.resealIds.length)
+        this.notifier.notify([
+          { kind: 'league-roster-reseal', actorId: ownerId, recipientIds: result.resealIds, leagueToken: token, eventToken },
+        ])
+      return { requiredLimit }
+    }
     if (result === 'forbidden') throw new Response('only the organizer can assign roster sizes', { status: 403 })
     if (result === 'closed') throw new Response('roster sizes cannot change after reveal', { status: 409 })
     if (result === 'wrong-format') throw new Response('1v1 roster sizes are assigned automatically', { status: 409 })
@@ -202,7 +229,13 @@ export class LeagueService {
 
   async assignLeagueTeam(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
     const result = await this.repository.assignLeagueTeam(token, ownerId, userIds, randomId(), eventToken)
-    if (result === 'updated') return { teamSize: userIds.length }
+    if (result === 'updated' || typeof result === 'object') {
+      if (typeof result === 'object' && result.resealIds.length)
+        this.notifier.notify([
+          { kind: 'league-roster-reseal', actorId: ownerId, recipientIds: result.resealIds, leagueToken: token, eventToken },
+        ])
+      return { teamSize: userIds.length }
+    }
     if (result === 'forbidden') throw new Response('only the organizer can assign teams', { status: 403 })
     if (result === 'closed') throw new Response('teams cannot change after reveal', { status: 409 })
     if (result === 'wrong-format') throw new Response('teams are assigned only for 2v2 events', { status: 409 })

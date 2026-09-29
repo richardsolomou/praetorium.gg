@@ -6,9 +6,12 @@ import { registerPushDeviceRequest, unregisterPushDeviceRequest } from '../pushD
 import { mutationRpc, rpc } from '../rpc'
 import { pushDeviceSchema, pushPreferenceSchema, pushTokenOnlySchema } from '../schemas'
 
-/** Whether this instance sends notifications, and whether this player wants them. */
+/** Whether this instance sends notifications. */
 export const notificationSettings = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => ({ available: app().push, enabled: await app().service.pushEnabled(await requireUserId()) })),
+  rpc(async () => {
+    await requireUserId()
+    return { available: app().push }
+  }),
 )
 
 export const setPushNotifications = createServerFn({ method: 'POST' })

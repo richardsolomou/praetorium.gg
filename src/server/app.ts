@@ -176,7 +176,7 @@ export function app(): App {
       process.env.SPACETIME_INTERNAL_HOST,
     )
     const repository = new SpacetimeRepository(new SqliteAccountRepository(authDatabase), operator)
-    const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens), process.env, false)
+    const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     let ready = Promise.resolve()
     const loaders = () => ({
       catalogue: memoize(loadCatalogue),

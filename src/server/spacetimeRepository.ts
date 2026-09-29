@@ -365,8 +365,11 @@ export class SpacetimeRepository {
 
   joinLeague(token: string, userId: string, now: number, memberLimit: number, eventToken?: string) {
     return this.product.leagueCommand(
-      { op: 'join', token, userId, now, memberLimit, eventToken: eventToken ?? '' },
-      z.enum(['pending', 'accepted', 'rejected', 'missing', 'closed', 'full']),
+      { op: 'join', token, userId, now, memberLimit, eventToken: eventToken ?? '', noticeResults: true },
+      z.union([
+        z.object({ status: z.literal('pending'), ownerId: z.string() }),
+        z.enum(['pending', 'accepted', 'rejected', 'missing', 'closed', 'full']),
+      ]),
     )
   }
 
@@ -379,8 +382,11 @@ export class SpacetimeRepository {
     eventToken?: string,
   ) {
     return this.product.leagueCommand(
-      { op: 'moderate', token, ownerId, userId, status, memberLimit, eventToken: eventToken ?? '' },
-      z.enum(['admitted', 'updated', 'missing', 'forbidden', 'closed', 'full']),
+      { op: 'moderate', token, ownerId, userId, status, memberLimit, eventToken: eventToken ?? '', noticeResults: true },
+      z.union([
+        z.object({ rejected: z.boolean(), resealIds: z.array(z.string()) }),
+        z.enum(['admitted', 'updated', 'missing', 'forbidden', 'closed', 'full']),
+      ]),
     )
   }
 
@@ -393,15 +399,18 @@ export class SpacetimeRepository {
 
   assignLeagueRosterRequirement(token: string, ownerId: string, userId: string, requiredLimit: number, eventToken?: string) {
     return this.product.leagueCommand(
-      { op: 'assign-limit', token, ownerId, userId, requiredLimit, eventToken: eventToken ?? '' },
-      z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format', 'wrong-limit']),
+      { op: 'assign-limit', token, ownerId, userId, requiredLimit, eventToken: eventToken ?? '', noticeResults: true },
+      z.union([
+        z.object({ resealIds: z.array(z.string()) }),
+        z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format', 'wrong-limit']),
+      ]),
     )
   }
 
   assignLeagueTeam(token: string, ownerId: string, userIds: readonly string[], teamId: string, eventToken?: string) {
     return this.product.leagueCommand(
-      { op: 'assign-team', token, ownerId, userIds, teamId, eventToken: eventToken ?? '' },
-      z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format']),
+      { op: 'assign-team', token, ownerId, userIds, teamId, eventToken: eventToken ?? '', noticeResults: true },
+      z.union([z.object({ resealIds: z.array(z.string()) }), z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format'])]),
     )
   }
 

@@ -536,7 +536,6 @@ export class PraetoriumService {
     return this.repository.setBattleAudience(userId, audience, this.clock())
   }
 
-  /** Whether this player's devices are sent notices. */
   pushEnabled(userId: string) {
     return this.repository.pushEnabled(userId)
   }

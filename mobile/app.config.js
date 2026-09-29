@@ -6,6 +6,7 @@ module.exports = () => {
 
   return {
     ...expo,
+    plugins: expo.plugins.map((plugin) => (plugin === 'expo-notifications' ? ['expo-notifications', { mode: 'production' }] : plugin)),
     updates: {
       ...expo.updates,
       requestHeaders: { 'expo-channel-name': channel },
