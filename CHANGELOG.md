@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.86.2
+
+### Patch Changes
+
+- 5864c5a: Keep the battle replay timeline above the tabs in the mobile app.
+
 ## 0.86.1
 
 ### Patch Changes
