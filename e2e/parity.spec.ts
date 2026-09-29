@@ -83,12 +83,13 @@ test('a private roster can be shared and made private again', async ({ browser }
   await page.goto('/rosters')
 
   // Scoped to the row, because 'Unlisted' and 'Private' also appear in the menu
-  // items that change them and would otherwise match before the change lands.
+  // items that change them and would otherwise match before the change lands, and
+  // to the visible label, because a phone reads it in the row's details line instead.
   const row = page.locator('[data-roster="Shareable roster"]')
 
   await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
   await page.getByRole('menuitem', { name: 'Share link' }).click()
-  await expect(row.getByText('Unlisted')).toBeVisible()
+  await expect(row.getByText('Unlisted').filter({ visible: true })).toBeVisible()
   // Polled, because the link is copied only once the visibility change comes back.
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/rosters\/[^/]+$/)
   const sharedUrl = await page.evaluate(() => navigator.clipboard.readText())
@@ -116,7 +117,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   await page.goto('/rosters')
   await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
   await page.getByRole('menuitem', { name: 'Make private' }).click()
-  await expect(row.getByText('Private')).toBeVisible()
+  await expect(row.getByText('Private').filter({ visible: true })).toBeVisible()
   await anonymous.reload()
   await expect(anonymous.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
 })
