@@ -42,16 +42,16 @@ describe('battle management', () => {
     expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded' })).toBe('choose who conceded')
   })
 
-  it('refuses a conceding player on another result', () => {
+  it('refuses to call a battle early', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
-    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'finished-early', concededBy: ALICE })).toBe(
-      'only a concession names a conceding player',
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'finished-early' })).toBe(
+      'a battle ends after its last turn or by concession',
     )
   })
 
   it('records natural completion only from the final turn', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
-    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'completed' })).toBe('completed battles finish after the last turn')
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'completed' })).toBe('a battle ends after its last turn or by concession')
   })
   it('records concessions and who conceded', () => {
     const state = reduceBattle(PLAYERS, log(...started(), [BOB, { kind: 'end-battle', reason: 'conceded', concededBy: BOB }]))

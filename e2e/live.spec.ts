@@ -59,8 +59,8 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await alice.setViewportSize({ width: 390, height: 844 })
   await alice.getByRole('tab', { name: 'Battle' }).click()
   await alice.getByRole('button', { name: 'Battle options' }).click()
-  await alice.getByRole('menuitem', { name: 'Finish early' }).click()
-  await expect(alice.getByRole('alertdialog', { name: 'Finish early?' })).toBeVisible()
+  await alice.getByRole('menuitem', { name: `Concede for ${bobName}` }).click()
+  await expect(alice.getByRole('alertdialog', { name: `Concede for ${bobName}?` })).toBeVisible()
   await alice.getByRole('button', { name: 'Keep playing' }).click()
   await expect(alice.getByRole('button', { name: /End the .+ phase/ })).toBeVisible()
 
