@@ -28,3 +28,19 @@ test('a spectator scrubs a finished five-round battle by event', async ({ page }
     expect((await scoreboard.boundingBox())?.height).toBe(finishedHeight)
   }
 })
+
+test('the native app keeps the replay timeline above the application tabs', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/battles/preview-league-battle-duel')
+  await page.evaluate(() => {
+    document.documentElement.dataset.nativeApp = 'true'
+  })
+
+  const timeline = page.getByRole('navigation', { name: 'Battle replay timeline' })
+  const applicationTabs = page.getByRole('navigation', { name: 'Application sections' })
+  await expect(timeline).toBeVisible()
+  await expect(applicationTabs).toBeVisible()
+  const timelineBox = await timeline.boundingBox()
+  const tabsBox = await applicationTabs.boundingBox()
+  expect(timelineBox!.y + timelineBox!.height).toBeLessThanOrEqual(tabsBox!.y)
+})
