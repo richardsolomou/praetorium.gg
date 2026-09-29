@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.84.0
+
+### Minor Changes
+
+- 1a6a7b9: Add a page for each force disposition, listing its primary missions against every opposing disposition and the detachments that offer it, linked from the roster header and the mission pack table.
+
 ## 0.83.0
 
 ### Minor Changes
