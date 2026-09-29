@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.82.2
+
+### Patch Changes
+
+- 7fc4db1: Record roster, simulator, invitation, league, and notification activity in product analytics.
+
 ## 0.82.1
 
 ### Patch Changes
