@@ -27,7 +27,7 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   const upgrades = detail.upgrades.map((upgrade) => ({
     name: upgrade.name,
     points: upgrade.points,
-    description: described.get(descriptionKey(option.name, upgrade.name)) ?? null,
+    description: upgradeDescription(described.get(descriptionKey(option.name, upgrade.name)) ?? null, upgrade.description),
   }))
   return {
     ...detail,
@@ -43,4 +43,11 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
     ]),
     attribution: rules.attribution,
   }
+}
+
+function upgradeDescription(catalogue: string | null, card: string | null) {
+  if (!catalogue) return card
+  const eligibility = card?.match(/^(.+?\b(?:unit|model) only)\.(?:\s|$)/i)?.[1]
+  if (!eligibility || /\b(?:unit|model) only\./i.test(catalogue)) return catalogue
+  return `${eligibility}. ${catalogue}`
 }
