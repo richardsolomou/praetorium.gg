@@ -304,10 +304,8 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
  * Optional single entries with roster meaning rather than loadout meaning.
  *
  * Read through the same visibility the loadout choices are read through. Who may be
- * the Warlord is in the data and it is conditional: a Land Raider carries the entry
- * only underneath the Tank Ace Character upgrade a couple of detachments unlock, and
- * a daemon borrowed into a Chaos Space Marine book carries one its own book hides.
- * Walking past those conditions offered a crown to every tank in the game.
+ * the Warlord is in the data and can depend on a selected upgrade or faction.
+ * Walking past those conditions can offer the choice to ineligible units.
  */
 export function unitToggles(entryId: string, selection: Selection, index: CatalogueIndex, options: ChoiceOptions = {}): UnitToggle[] {
   const root = index.definitions.get(entryId)

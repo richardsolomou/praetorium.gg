@@ -209,19 +209,21 @@ async function main() {
     ...(testMode ? { AUTH_RATE_LIMIT: 'off' } : {}),
   }
   const viteOrigin = `http://127.0.0.1:${appPort + 1}`
-  const hotEnvironment = { ...environment, LOCAL_VITE_ORIGIN: viteOrigin }
-  const viteEnvironment: NodeJS.ProcessEnv = { ...hotEnvironment }
-  delete viteEnvironment.PORT
-  delete viteEnvironment.NODE_INTERNAL_PORT
+  const hotEnvironment = testMode ? environment : { ...environment, LOCAL_VITE_ORIGIN: viteOrigin }
   const app = start(process.execPath, ['scripts/nodeServer.ts'], hotEnvironment)
-  await waitForFile(environment.AUTH_SQLITE_PATH, app)
-  const vite = start(
-    process.execPath,
-    ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(appPort + 1), '--strictPort'],
-    viteEnvironment,
-  )
-  await waitFor(`${viteOrigin}/api/health`, vite, (response) => response.ok)
-  vite.on('exit', () => stopChildren('SIGTERM'))
+  if (!testMode) {
+    await waitForFile(environment.AUTH_SQLITE_PATH, app)
+    const viteEnvironment: NodeJS.ProcessEnv = { ...hotEnvironment }
+    delete viteEnvironment.PORT
+    delete viteEnvironment.NODE_INTERNAL_PORT
+    const vite = start(
+      process.execPath,
+      ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(appPort + 1), '--strictPort'],
+      viteEnvironment,
+    )
+    await waitFor(`${viteOrigin}/api/health`, vite, (response) => response.ok)
+    vite.on('exit', () => stopChildren('SIGTERM'))
+  }
   await waitFor(`${appUrl}/api/health`, app, (response) => response.ok)
   if (testMode) {
     readyServer = createServer((_request, response) => {

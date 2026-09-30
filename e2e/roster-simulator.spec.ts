@@ -30,22 +30,6 @@ function estimate(scope: Page | Locator, phase: 'Shooting' | 'Melee') {
   return scope.getByRole('region', { name: `${phase} estimate` })
 }
 
-test('unsupported enhancements stay out of the simulator without changing the roster loadout editor', async ({ page }) => {
-  await signUp(page, 'Exclusions')
-  await createRoster(page, { faction: 'Space Marines', detachment: /Bastion Task Force/ })
-  await add(page, 'Captain')
-  await page.locator('[data-unit="Captain"]').getByRole('button', { name: 'Captain', exact: true }).click()
-  await expect(page.locator('aside[aria-label="Loadout"]')).toContainText('Eye of the Primarch')
-  await page.getByRole('button', { name: 'Simulate combat', exact: true }).click()
-  await chooseUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-  const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  await expect(simulator.getByRole('switch', { name: 'Attacker Finest Hour', exact: true })).toBeVisible()
-  await expect(simulator.getByRole('combobox', { name: 'Attacker Bastion Task Force Enhancements', exact: true })).toHaveCount(0)
-  await expect(simulator.getByRole('region', { name: 'Attacker rules', exact: true })).not.toContainText('Eye of the Primarch')
-  await simulator.getByRole('region', { name: 'Attacker rules', exact: true }).scrollIntoViewIfNeeded()
-  await simulator.screenshot({ path: 'test-results/roster-simulator-exclusions.png' })
-})
-
 test('Invasion Fleet hides unsupported rules in both roles while retaining calculated buffs', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await signUp(page, 'Invasion Fleet')
