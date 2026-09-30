@@ -27,16 +27,30 @@ export function LeagueSettingsDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const token = mode.kind === 'create' ? null : mode.token
-  // Settings always belong to the league's current event, whichever event the page happens to show.
-  const { data: league } = useQuery({ ...leagueQuery(token ?? ''), enabled: open && token !== null })
   const saving = useIsMutating({ mutationKey: SAVE }) > 0
+  const close = () => onOpenChange(false)
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      {open && (mode.kind === 'create' || league) ? (
-        <SettingsForm key={league?.eventToken ?? 'create'} mode={mode} league={league ?? null} onClose={() => onOpenChange(false)} />
-      ) : null}
+      {!open ? null : mode.kind === 'create' ? (
+        <SettingsForm mode={mode} league={null} onClose={close} />
+      ) : (
+        <CurrentSettings mode={mode} token={mode.token} onClose={close} />
+      )}
     </Dialog>
+  )
+}
+
+/** Reads the league on every open, because the form keeps its starting values and a cached copy can predate the save that just closed. */
+function CurrentSettings({ mode, token, onClose }: { mode: LeagueSettingsMode; token: string; onClose: () => void }) {
+  const { data: league, isFetchedAfterMount } = useQuery({ ...leagueQuery(token), refetchOnMount: 'always' })
+  if (league && isFetchedAfterMount) return <SettingsForm mode={mode} league={league} onClose={onClose} />
+  return (
+    <DialogContent aria-busy className="sm:max-w-xl">
+      <DialogHeader>
+        <DialogTitle className="text-2xl">{mode.kind === 'next' ? 'Set up the next event' : 'Edit league'}</DialogTitle>
+        <DialogDescription>Loading the league’s current settings…</DialogDescription>
+      </DialogHeader>
+    </DialogContent>
   )
 }
 
