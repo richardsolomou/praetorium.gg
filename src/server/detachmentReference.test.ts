@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { LoadedRules } from './rules'
-import { bookOf } from './catalogue.fixtures'
+import { bookOf, withCards } from './catalogue.fixtures'
 import { detachmentReference } from './detachmentReference'
 
 it('appends catalogue-only keyword definitions to detachment rule cards', () => {
@@ -138,4 +138,86 @@ it('shows unit upgrade eligibility when the catalogue only describes the effect'
       description: '**Tomb Blades** unit only. When this unit reanimates, +1 to the roll.',
     },
   ])
+})
+
+it('shows offered catalogue rules and points when the chapter has no detachment card', () => {
+  const loaded = bookOf({
+    sharedSelectionEntries: [
+      {
+        id: 'wrapper',
+        name: 'Detachment',
+        type: 'upgrade',
+        selectionEntryGroups: [
+          {
+            id: 'choices',
+            name: 'Detachment',
+            selectionEntries: [
+              {
+                id: 'anvil',
+                name: 'Anvil Siege Force',
+                type: 'upgrade',
+                costs: [{ name: 'Detachment Points', typeId: 'dp', value: 2 }],
+                rules: [{ id: 'shield', name: 'Shield of the Imperium', description: 'Hold the line.' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  loaded.index.costTypes.set('dp', { id: 'dp', name: 'Detachment Points' })
+  const rules = {
+    attribution: 'Community data',
+    factionKeys: new Map(),
+    detachmentReferences: new Map(),
+    detachmentDetails: new Map(),
+    dispositions: new Map(),
+  } as Partial<LoadedRules> as LoadedRules
+
+  expect(detachmentReference(loaded, rules, 'cat', 'anvil-siege-force')).toMatchObject({
+    name: 'Anvil Siege Force',
+    points: 2,
+    rules: [{ name: 'Shield of the Imperium', description: 'Hold the line.' }],
+    enhancements: [],
+    stratagems: [],
+  })
+})
+
+it('shows a faction-scoped shared card for an offered chapter copy', () => {
+  const loaded = bookOf({
+    sharedSelectionEntries: [
+      {
+        id: 'wrapper',
+        name: 'Detachment',
+        type: 'upgrade',
+        selectionEntryGroups: [
+          {
+            id: 'choices',
+            name: 'Detachment',
+            selectionEntries: [{ id: 'gladius', name: 'Gladius Task Force', type: 'upgrade' }],
+          },
+        ],
+      },
+    ],
+  })
+  loaded.factionContents.set('test-catalogue', withCards('Test catalogue', []))
+  const detail = {
+    id: 'gladius',
+    name: 'Gladius Task Force',
+    points: 1,
+    dispositions: [],
+    rules: [{ name: 'Combat Doctrines', description: 'Card rule.' }],
+    enhancements: [],
+    upgrades: [],
+    stratagems: [],
+  }
+  const rules = {
+    attribution: 'Community data',
+    factionKeys: new Map(),
+    detachmentReferences: new Map(),
+    detachmentDetails: new Map([['test-catalogue', new Map([['gladius-task-force', detail]])]]),
+    dispositions: new Map(),
+  } as Partial<LoadedRules> as LoadedRules
+
+  expect(detachmentReference(loaded, rules, 'cat', 'gladius-task-force')?.rules).toEqual(detail.rules)
 })

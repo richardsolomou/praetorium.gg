@@ -2,7 +2,7 @@ import { Check } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { type OptionalRule, plays } from '../../../core/battle'
 
-type BorrowableDetachment = { id: string; name: string; reference?: { points?: number | null } | null }
+type BorrowableDetachment = { id: string; name: string; points: number | null }
 
 type Props = {
   open: boolean
@@ -107,7 +107,7 @@ export function OptionalRulesDialog({
                         }`}
                       >
                         <span className="min-w-0 truncate">{detachment.name}</span>
-                        <span className="chip shrink-0">{detachment.reference?.points} DP</span>
+                        <span className="chip shrink-0">{detachment.points} DP</span>
                       </button>
                     )
                   })}

@@ -43,8 +43,8 @@ type Detachment = {
   id: string
   slug: string
   name: string
+  points: number | null
   dispositions: readonly { id: string; name: string }[]
-  reference?: { points: number | null } | null
 }
 
 export type RosterSetupFaction = {
@@ -165,9 +165,9 @@ export function RosterSetupDialog({
   // The King of the Colosseum optional rule. Nothing offers it unasked: a roster only sees it
   // at a size that plays it, and it borrows a disposition alone — never the detachment's
   // rules, enhancements or stratagems.
-  const ownPoints = selected.some((detachment) => detachment.reference?.points == null)
+  const ownPoints = selected.some((detachment) => detachment.points == null)
     ? null
-    : selected.reduce((sum, detachment) => sum + (detachment.reference?.points ?? 0), 0)
+    : selected.reduce((sum, detachment) => sum + (detachment.points ?? 0), 0)
   const offeredOptionalRules = optionalRules(draft.limit)
   const pickedRules = pickedOptionalRules(draft.limit, draft.optionalRules)
   const borrowing = plays(draft.optionalRules, 'kotc-borrowed-disposition')
@@ -175,9 +175,9 @@ export function RosterSetupDialog({
     ? (faction?.detachments ?? []).filter(
         (detachment) =>
           !draft.detachmentIds.includes(detachment.id) &&
-          detachment.reference?.points != null &&
+          detachment.points != null &&
           ownPoints !== null &&
-          ownPoints + detachment.reference.points <= BORROWED_DISPOSITION_BUDGET,
+          ownPoints + detachment.points <= BORROWED_DISPOSITION_BUDGET,
       )
     : []
   const borrowed = borrowable.find((detachment) => detachment.id === draft.borrowedDetachmentId) ?? null
@@ -185,14 +185,14 @@ export function RosterSetupDialog({
     draft.limit,
     draft.optionalRules,
     { points: ownPoints },
-    draft.borrowedDetachmentId ? { points: borrowed?.reference?.points ?? null } : null,
+    draft.borrowedDetachmentId ? { points: borrowed?.points ?? null } : null,
   )
   const dispositions = dispositionsFor(faction?.detachments ?? [], borrowed ? [...draft.detachmentIds, borrowed.id] : draft.detachmentIds)
   const selectedDisposition = dispositions.length === 1 ? (dispositions[0]?.id ?? null) : draft.disposition
-  const spent = selected.reduce((sum, detachment) => sum + (detachment.reference?.points ?? 0), 0)
+  const spent = selected.reduce((sum, detachment) => sum + (detachment.points ?? 0), 0)
   const allowance = detachmentPointBudget(draft.limit)
   const pointsError = detachmentPointsError(
-    selected.map((detachment) => ({ points: detachment.reference?.points ?? null })),
+    selected.map((detachment) => ({ points: detachment.points ?? null })),
     allowance,
     draft.waivedRules,
   )
@@ -200,8 +200,8 @@ export function RosterSetupDialog({
     faction?.detachments.filter((detachment) => {
       if (draft.detachmentIds.includes(detachment.id)) return true
       if (draft.detachmentIds.length >= detachmentLimit(draft.limit, draft.waivedRules) && !singleDetachment) return false
-      if (!budgeted || !selected.length || allowance === null || detachment.reference?.points == null) return true
-      return spent + detachment.reference.points <= allowance
+      if (!budgeted || !selected.length || allowance === null || detachment.points == null) return true
+      return spent + detachment.points <= allowance
     }) ?? [],
     faction?.id ?? '',
     favouriteDetachments,
@@ -395,7 +395,7 @@ export function RosterSetupDialog({
                   onClick={() => toggleDetachment(detachment.id)}
                   className={`grid w-20 shrink-0 place-items-center border-l border-edge text-sm font-bold uppercase ${chosen ? 'bg-parchment text-parchment-ink' : 'bg-raised text-azure hover:bg-azure/15'}`}
                 >
-                  {detachment.reference?.points ?? '—'} DP
+                  {detachment.points ?? '—'} DP
                 </button>
               </div>
             )

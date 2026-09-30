@@ -104,14 +104,14 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
                       <span className="text-xs text-dim">Reference details unavailable</span>
                     )}
                   </span>
-                  {detachment.reference && (detachment.reference.dispositions.length || detachment.reference.points !== null) ? (
+                  {detachment.reference?.dispositions.length || detachment.points !== null ? (
                     <span className="flex shrink-0 flex-wrap justify-end gap-1 max-sm:order-last max-sm:basis-full max-sm:justify-start">
-                      {detachment.reference.dispositions.map((disposition) => (
+                      {detachment.reference?.dispositions.map((disposition) => (
                         <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
                           {disposition}
                         </span>
                       ))}
-                      {detachment.reference.points == null ? null : <span className="chip">{detachment.reference.points} DP</span>}
+                      {detachment.points == null ? null : <span className="chip">{detachment.points} DP</span>}
                     </span>
                   ) : null}
                   {detachment.reference ? <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden /> : null}

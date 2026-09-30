@@ -3,7 +3,7 @@ import { uniqueNames } from './pricing'
 import { rosterUseProblem } from './rosterUsage'
 
 type PricedList = Parameters<typeof rosterUseProblem>[0] & {
-  units: readonly { enhancements: readonly string[]; upgrades: readonly string[] }[]
+  units: readonly { key: number; size: { models: number }; enhancements: readonly string[]; upgrades: readonly string[] }[]
 }
 
 export type RosterVerdict = { problem: 'over-limit' | 'not-legal' | null; contents: ListContents }
@@ -26,12 +26,13 @@ export function rosterVerdict(
   },
   priced: PricedList | null,
 ): RosterVerdict {
+  const modelsByPick = new Map(priced?.units.map((unit) => [unit.key, unit.size.models] as const) ?? [])
   return {
     problem: priced ? (rosterUseProblem(priced, roster.limit, roster.waivedRules)?.kind ?? null) : null,
     contents: {
       catalogueId: roster.catalogueId,
       detachmentIds: [...roster.detachmentIds],
-      datasheetIds: [...new Set(roster.picks.map((pick) => pick.entryId))],
+      datasheets: roster.picks.map((pick, key) => ({ id: pick.entryId, models: modelsByPick.get(key) ?? null })),
       enhancements: uniqueNames(priced?.units.flatMap((unit) => unit.enhancements) ?? []),
       upgrades: uniqueNames(priced?.units.flatMap((unit) => unit.upgrades) ?? []),
     },
@@ -52,7 +53,14 @@ export function rosterChangeWithoutPricing(
   roster: Parameters<typeof rosterVerdict>[0] & { updatedAt: number },
   sets: readonly RecordedChangeSet[],
 ): 'changed' | 'needs-price' | 'unchanged' {
-  if (changesTouching(rosterVerdict(roster, null).contents, roster.updatedAt, sets).length) return 'changed'
+  const potential = changesTouching(rosterVerdict(roster, null).contents, roster.updatedAt, sets, { includeUnknownModels: true })
+  if (
+    potential.some(
+      ({ change }) => change.kind !== 'datasheet-points' || change.rows.every((row) => row.models === null && row.condition === null),
+    )
+  )
+    return 'changed'
+  if (potential.length) return 'needs-price'
   const detachments = new Set(roster.detachmentIds)
   return sets.some(
     (set) =>

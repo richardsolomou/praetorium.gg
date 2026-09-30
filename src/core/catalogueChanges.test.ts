@@ -342,7 +342,7 @@ describe('the changes that reach a saved list', () => {
   const list = (over: Partial<ListContents> = {}): ListContents => ({
     catalogueId: 'marines',
     detachmentIds: ['gladius'],
-    datasheetIds: ['intercessors'],
+    datasheets: [{ id: 'intercessors', models: 5 }],
     enhancements: ['Artificer Armour'],
     upgrades: [],
     ...over,
@@ -370,7 +370,39 @@ describe('the changes that reach a saved list', () => {
   })
 
   it('ignores a datasheet the list does not field', () => {
-    expect(kinds(changesTouching(list({ datasheetIds: ['captain'] }), 100, [repriced]))).not.toContain('datasheet-points')
+    expect(kinds(changesTouching(list({ datasheets: [{ id: 'captain', models: 5 }] }), 100, [repriced]))).not.toContain('datasheet-points')
+  })
+
+  it('ignores a points row for a model count the list does not field', () => {
+    const six = recorded(300, source([sheet()]), source([sheet({ costs: [row('5', '80'), row('10', '160')] })]))
+
+    expect(changesTouching(list(), 100, [six])).toEqual([])
+  })
+
+  it('reports a points row for the model count the list fields', () => {
+    const six = recorded(300, source([sheet()]), source([sheet({ costs: [row('5', '80'), row('10', '160')] })]))
+
+    expect(kinds(changesTouching(list({ datasheets: [{ id: 'intercessors', models: 10 }] }), 100, [six]))).toEqual(['datasheet-points'])
+  })
+
+  it('keeps an unknown model count when another copy of the datasheet has a known count', () => {
+    const six = recorded(300, source([sheet()]), source([sheet({ costs: [row('5', '80'), row('10', '160')] })]))
+
+    expect(
+      kinds(
+        changesTouching(
+          list({
+            datasheets: [
+              { id: 'intercessors', models: null },
+              { id: 'intercessors', models: 5 },
+            ],
+          }),
+          100,
+          [six],
+          { includeUnknownModels: true },
+        ),
+      ),
+    ).toEqual(['datasheet-points'])
   })
 
   it('ignores an enhancement the list does not hold', () => {
@@ -431,10 +463,12 @@ describe('the changes that reach a saved list', () => {
       source([sheet({ costs: [row('5', '80'), row('10', '160')] })]),
     )
 
-    expect(changesTouching(list(), 100, [repriced, later]).find((entry) => entry.change.kind === 'datasheet-points')?.change).toMatchObject(
-      {
-        rows: [{ models: '10', from: '150', to: '160' }],
-      },
-    )
+    expect(
+      changesTouching(list({ datasheets: [{ id: 'intercessors', models: 10 }] }), 100, [repriced, later]).find(
+        (entry) => entry.change.kind === 'datasheet-points',
+      )?.change,
+    ).toMatchObject({
+      rows: [{ models: '10', from: '150', to: '160' }],
+    })
   })
 })
