@@ -63,16 +63,23 @@ function validateLeagueEventRule(value: { format: TableShape; rosterLimit: numbe
     context.addIssue({ code: 'custom', path: ['rosterLimit'], message: `choose a supported ${value.format} roster size` })
   }
 }
-export const createLeagueSchema = z.object({
+export const createLeagueSchema = z
+  .object({
+    ...leagueFields,
+    description: leagueFields.description.default(''),
+    playerLimit: leagueFields.playerLimit.default(null),
+    ...leagueEventRuleFields,
+    ownerPlays: z.boolean().default(false),
+  })
+  .superRefine(validateLeagueEventRule)
+export const updateLeagueSchema = z.object({
+  token,
   ...leagueFields,
-  description: leagueFields.description.default(''),
-  playerLimit: leagueFields.playerLimit.default(null),
+  rule: z.object(leagueEventRuleFields).superRefine(validateLeagueEventRule).optional(),
 })
-export const updateLeagueSchema = z.object({ token, ...leagueFields })
 export const leagueEventSchema = z.object({ token, eventToken: token.optional() })
-export const createLeagueEventSchema = z.object({ token, ...leagueEventRuleFields }).superRefine(validateLeagueEventRule)
-export const updateLeagueEventSchema = z
-  .object({ token, eventToken: token.optional(), ...leagueEventRuleFields })
+export const createLeagueEventSchema = z
+  .object({ token, ...leagueFields, ...leagueEventRuleFields, ownerPlays: z.boolean().default(false) })
   .superRefine(validateLeagueEventRule)
 export const openLeagueSchema = z.object({ token, eventToken: token.optional() })
 export const moderateLeagueEntrySchema = z.object({
@@ -80,6 +87,11 @@ export const moderateLeagueEntrySchema = z.object({
   eventToken: token.optional(),
   userId: id,
   status: z.enum(['accepted', 'rejected']),
+})
+export const addLeagueEntrantsSchema = z.object({
+  token,
+  eventToken: token.optional(),
+  userIds: z.array(id).min(1).max(LEAGUE_MEMBER_MAX),
 })
 export const admitLeagueEntriesSchema = z.object({
   token,

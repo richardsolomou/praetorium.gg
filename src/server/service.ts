@@ -161,16 +161,8 @@ export class PraetoriumService {
     return this.leagueService.createLeague(...args)
   }
 
-  updateLeagueEvent(...args: Parameters<LeagueService['updateLeagueEvent']>) {
-    return this.leagueService.updateLeagueEvent(...args)
-  }
-
   createLeagueEvent(...args: Parameters<LeagueService['createLeagueEvent']>) {
     return this.leagueService.createLeagueEvent(...args)
-  }
-
-  makeLeagueRecurring(...args: Parameters<LeagueService['makeLeagueRecurring']>) {
-    return this.leagueService.makeLeagueRecurring(...args)
   }
 
   updateLeague(...args: Parameters<LeagueService['updateLeague']>) {
@@ -231,6 +223,10 @@ export class PraetoriumService {
 
   leagueRoster(...args: Parameters<LeagueService['leagueRoster']>) {
     return this.leagueService.leagueRoster(...args)
+  }
+
+  addLeagueEntrants(...args: Parameters<LeagueService['addLeagueEntrants']>) {
+    return this.leagueService.addLeagueEntrants(...args)
   }
 
   createLeagueBattle(...args: Parameters<LeagueService['createLeagueBattle']>) {

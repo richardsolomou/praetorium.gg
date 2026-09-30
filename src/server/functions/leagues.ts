@@ -5,6 +5,7 @@ import { currentUserId, requireUser } from '../playerSession'
 import { rosterForUse } from '../rosterUsage'
 import { mutationRpc, rpc } from '../rpc'
 import {
+  addLeagueEntrantsSchema,
   admitLeagueEntriesSchema,
   assignLeagueRosterRequirementSchema,
   assignLeagueTeamSchema,
@@ -18,7 +19,6 @@ import {
   openLeagueSchema,
   submitLeagueRosterSchema,
   tokenSchema,
-  updateLeagueEventSchema,
   updateLeagueSchema,
 } from '../schemas'
 
@@ -57,7 +57,13 @@ export const createLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const result = await app().service.createLeague(player.id, data)
-      await app().telemetry.capture(player.id, 'league_created', { visibility: data.visibility, admission: data.admission })
+      await app().telemetry.capture(player.id, 'league_created', {
+        visibility: data.visibility,
+        admission: data.admission,
+        format: data.format,
+        roster_limit: data.rosterLimit,
+        owner_plays: data.ownerPlays,
+      })
       return result
     }),
   )
@@ -70,6 +76,17 @@ export const joinLeague = createServerFn({ method: 'POST' })
       const status = await app().service.joinLeague(data.token, player.id, data.eventToken)
       await app().telemetry.capture(player.id, 'league_joined', { status })
       return status
+    }),
+  )
+
+export const addLeagueEntrants = createServerFn({ method: 'POST' })
+  .validator(addLeagueEntrantsSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const result = await app().service.addLeagueEntrants(data.token, player.id, data.userIds, data.eventToken)
+      await app().telemetry.capture(player.id, 'league_entrants_added', { count: result.added })
+      return result
     }),
   )
 
@@ -141,20 +158,14 @@ export const createLeagueEvent = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = await app().service.createLeagueEvent(data.token, player.id, data)
-      await app().telemetry.capture(player.id, 'league_event_created', { format: data.format, roster_limit: data.rosterLimit })
+      const { token, ...input } = data
+      const result = await app().service.createLeagueEvent(token, player.id, input)
+      await app().telemetry.capture(player.id, 'league_event_created', {
+        format: data.format,
+        roster_limit: data.rosterLimit,
+        owner_plays: data.ownerPlays,
+      })
       return result
-    }),
-  )
-
-export const updateLeagueEvent = createServerFn({ method: 'POST' })
-  .validator(updateLeagueEventSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      const result = await app().service.updateLeagueEvent(data.token, player.id, data, data.eventToken)
-      await app().telemetry.capture(player.id, 'league_event_updated', { format: result.format, roster_limit: result.rosterLimit })
-      return null
     }),
   )
 
@@ -186,28 +197,23 @@ export const assignLeagueTeam = createServerFn({ method: 'POST' })
     }),
   )
 
-export const makeLeagueRecurring = createServerFn({ method: 'POST' })
-  .validator(tokenSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      await app().service.makeLeagueRecurring(data.token, player.id)
-      return null
-    }),
-  )
-
 export const updateLeague = createServerFn({ method: 'POST' })
   .validator(updateLeagueSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
       const { token, ...input } = data
-      await app().service.updateLeague(token, player.id, input)
+      const { ruleChanged } = await app().service.updateLeague(token, player.id, input)
       await app().telemetry.capture(player.id, 'league_updated', {
         visibility: input.visibility,
         admission: input.admission,
         player_limit_set: input.playerLimit !== null,
       })
+      if (ruleChanged && input.rule)
+        await app().telemetry.capture(player.id, 'league_event_updated', {
+          format: input.rule.format,
+          roster_limit: input.rule.rosterLimit,
+        })
       return null
     }),
   )

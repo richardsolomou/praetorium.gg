@@ -38,7 +38,7 @@ export const onboardingTargets = [
   'league-format',
   'league-rosters',
   'league-reveal',
-  'league-events',
+  'league-status',
   'faction-entry',
   'faction-army-rules',
   'faction-detachments',

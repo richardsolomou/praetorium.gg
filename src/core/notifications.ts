@@ -17,6 +17,7 @@ export type Notice = { actorId: string; recipientIds: readonly string[] } & (
       kind:
         | 'league-entry-requested'
         | 'league-entry-accepted'
+        | 'league-entry-added'
         | 'league-entry-rejected'
         | 'league-roster-reseal'
         | 'league-revealed'
@@ -59,6 +60,7 @@ export function noticeMessage(notice: Notice, names: { actor?: string; league?: 
       return { title: 'New friend', body: `${actor} is now your friend.`, path: '/friends' }
     case 'league-entry-requested':
     case 'league-entry-accepted':
+    case 'league-entry-added':
     case 'league-entry-rejected':
     case 'league-roster-reseal':
     case 'league-revealed':
@@ -68,6 +70,7 @@ export function noticeMessage(notice: Notice, names: { actor?: string; league?: 
       const body = {
         'league-entry-requested': `${actor} requested to join. Review their entry.`,
         'league-entry-accepted': 'The organizer accepted your entry.',
+        'league-entry-added': `${actor} added you as a player. Seal your list.`,
         'league-entry-rejected': 'The organizer declined your entry.',
         'league-roster-reseal': 'Your event roster was cleared after a role or team change. Seal a replacement.',
         'league-revealed': 'Rosters are revealed. League battles can start.',

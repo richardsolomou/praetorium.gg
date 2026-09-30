@@ -17,7 +17,7 @@ export function HomeWaiting({ rostersDue, friendRequests }: { rostersDue: readon
       <ul className="divide-y divide-edge border-b border-edge">
         {rostersDue.map((league) => (
           <li key={league.token}>
-            <Link to="/leagues/$token" params={{ token: league.token }} search={{ view: 'event' }} className={ROW}>
+            <Link to="/leagues/$token" params={{ token: league.token }} className={ROW}>
               <Row icon={<ScrollText className="size-4 text-parchment" aria-hidden />}>
                 <span className="font-bold uppercase">{league.name}</span> needs your roster
               </Row>
