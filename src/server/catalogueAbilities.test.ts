@@ -182,6 +182,8 @@ describe('the abilities and wargear a datasheet lists', () => {
       datasheetIds: new Map(),
       detachments: new Set(),
       enhancements: new Map(),
+      stratagems: new Map(),
+      stratagemIssues: [],
       detachmentRules: new Map(),
       armyRules: [{ name: 'Oath of Moment', description: 'Mark a target.' }],
       factionAbilityNames: new Set(['Oath of Moment']),

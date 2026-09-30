@@ -169,6 +169,8 @@ function loadedCatalogue() {
           factionAbilityNames: new Set(['Oath of Moment']),
           detachments: new Set(['Wrath of the Rock']),
           enhancements: new Map(),
+          stratagems: new Map(),
+          stratagemIssues: [],
           detachmentRules: new Map(),
         },
       ],

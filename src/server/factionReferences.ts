@@ -154,10 +154,12 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
         detachments: detachments.map((detachment) => {
           if (isProfiledDetachment(loaded, detachment.id)) {
             const cards = profiledDetachmentCards(loaded, detachment.id)
+            const points = profiledDetachmentPoints(loaded, detachment.id)
             return {
               id: detachment.id,
               slug: routeSlug(detachment.name),
               name: detachment.name,
+              points,
               disposition: detachment.disposition,
               dispositions: detachment.disposition
                 ? [{ id: detachment.disposition, name: rules?.dispositions?.get(detachment.disposition) ?? detachment.disposition }]
@@ -166,7 +168,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
                 enhancements: 0,
                 upgrades: 0,
                 stratagems: cards.stratagems.length,
-                points: profiledDetachmentPoints(loaded, detachment.id),
+                points,
                 dispositions: detachment.disposition ? [rules?.dispositions?.get(detachment.disposition) ?? detachment.disposition] : [],
               },
             }
