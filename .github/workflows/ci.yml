@@ -209,6 +209,8 @@ jobs:
           if-no-files-found: error
 
   coverage-snapshot:
+    # A skipped `release-proof` would otherwise skip this job too, since a skip passes down the needs chain.
+    if: ${{ !cancelled() && needs.coverage-data.result == 'success' }}
     needs: [coverage-data]
     runs-on: ubuntu-latest
     strategy:
@@ -288,7 +290,10 @@ jobs:
   # The proof `release-proof` reads: the tree of the merge this run tested, recorded only
   # when every job above passed on it.
   validated:
-    if: github.event_name == 'pull_request'
+    if: >-
+      ${{ !cancelled() && github.event_name == 'pull_request' && needs.check.result == 'success' &&
+      needs.reference-evaluation.result == 'success' && needs.e2e.result == 'success' &&
+      needs.points.result == 'success' && needs.coverage.result == 'success' }}
     needs: [check, reference-evaluation, e2e, points, coverage]
     runs-on: ubuntu-latest
     steps:
