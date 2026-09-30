@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   # A release pull request only bumps the version and changelog. When main is the exact
-  # tree a passing run already recorded, only `check` runs, on the release commit itself.
+  # tree a passing run already recorded, there is nothing left to prove and every job skips.
   release-proof:
     if: startsWith(github.head_ref, 'release-candidate/') && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
@@ -36,6 +36,8 @@ jobs:
         run: bash scripts/releaseProof.sh
 
   check:
+    needs: [release-proof]
+    if: ${{ !cancelled() && needs.release-proof.outputs.proven != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -216,11 +218,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Main's snapshot usually restores from the cache, so only the head is split.
+        # Main's snapshot usually restores from the cache that `coverage-baseline.yml` fills
+        # part by part, but a pull request pushed just after main moved computes it here.
         include:
           - revision: base
             sha: ${{ needs.coverage-data.outputs.base-sha }}
-            file: base.json
+            file: base-0.json
+            part: 0/2
+          - revision: base
+            sha: ${{ needs.coverage-data.outputs.base-sha }}
+            file: base-1.json
+            part: 1/2
           - revision: head
             sha: ${{ needs.coverage-data.outputs.head-sha }}
             file: head-0.json
@@ -246,8 +254,8 @@ jobs:
         id: base-cache
         uses: actions/cache@v6
         with:
-          path: base.json
-          key: catalogue-coverage-${{ matrix.sha }}-${{ hashFiles('catalogue-data/.snapshot.json') }}
+          path: ${{ matrix.file }}
+          key: catalogue-coverage-${{ matrix.sha }}-${{ matrix.file }}-${{ hashFiles('catalogue-data/.snapshot.json') }}
       - name: Snapshot the ${{ matrix.revision }}
         if: matrix.revision == 'head' || steps.base-cache.outputs.cache-hit != 'true'
         run: pnpm catalogue:coverage:parallel ${{ matrix.file }} ${{ matrix.part && format('--part {0}', matrix.part) || '' }}
@@ -278,6 +286,7 @@ jobs:
       - name: Compare snapshots
         run: |
           set -euo pipefail
+          jq -s 'add' base-*.json > base.json
           jq -s 'add' head-*.json > head.json
           pnpm catalogue:coverage:compare base.json head.json --accept catalogue/accepted-coverage-losses.json | tee coverage.txt
       - name: Require no lost coverage

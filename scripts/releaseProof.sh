@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Says whether a release pull request still needs CI's slow jobs. It does not when the
+# Says whether a release pull request still needs CI. It does not when the
 # release commit only bumps release metadata on top of a main whose exact tree a passing
 # CI run already recorded through `ci.yml`'s `validated` job. Any doubt runs everything.
 set -uo pipefail
