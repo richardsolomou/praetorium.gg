@@ -72,6 +72,15 @@ async function waitFor(url: string, child: ChildProcess, ready: (response: Respo
   throw new Error(`Timed out waiting for ${url}`)
 }
 
+async function waitForFile(file: string, child: ChildProcess) {
+  for (let attempt = 0; attempt < 400; attempt++) {
+    if (child.exitCode !== null) throw new Error(`Service exited before ${file} was ready`)
+    if (existsSync(file)) return
+    await new Promise((resolve) => setTimeout(resolve, 500))
+  }
+  throw new Error(`Timed out waiting for ${file}`)
+}
+
 async function identity(): Promise<Identity> {
   const response = await fetch(`${spacetimeUrl}/v1/identity`, { method: 'POST' })
   if (!response.ok) throw new Error(`Local SpacetimeDB identity failed with HTTP ${response.status}`)
@@ -204,13 +213,14 @@ async function main() {
   const viteEnvironment: NodeJS.ProcessEnv = { ...hotEnvironment }
   delete viteEnvironment.PORT
   delete viteEnvironment.NODE_INTERNAL_PORT
+  const app = start(process.execPath, ['scripts/nodeServer.ts'], hotEnvironment)
+  await waitForFile(environment.AUTH_SQLITE_PATH, app)
   const vite = start(
     process.execPath,
     ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(appPort + 1), '--strictPort'],
     viteEnvironment,
   )
   await waitFor(`${viteOrigin}/api/health`, vite, (response) => response.ok)
-  const app = start(process.execPath, ['scripts/nodeServer.ts'], hotEnvironment)
   vite.on('exit', () => stopChildren('SIGTERM'))
   await waitFor(`${appUrl}/api/health`, app, (response) => response.ok)
   if (testMode) {
