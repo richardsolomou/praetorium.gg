@@ -11,6 +11,7 @@ async function startGuestRoster(page: Page) {
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await setup.getByRole('button', { name: /^Select (?:Awakened Dynasty)$/ }).click()
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await setup.getByRole('button', { name: 'Start building' }).click()
   await expect(page.getByLabel('Add a unit')).toBeVisible()
 }
@@ -69,6 +70,7 @@ test('a guest builder stays in the mobile viewport when storage refuses the draf
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await page.evaluate(() => {
     Object.defineProperty(sessionStorage, 'setItem', {
       value: () => {

@@ -127,20 +127,22 @@ export function compareCatalogueCoverage(
     for (const item of earlier) if (!laterKeys.has(key(item))) lost.push(`${where}: ${item}`)
     for (const item of later) if (!earlierKeys.has(key(item))) gained.push(`${where}: ${item}`)
   }
-  const compareDescribed = (where: string, earlier: readonly Described[], later: readonly Described[]) => {
+  const compareDescribed = (where: string, earlier: readonly Described[], later: readonly Described[], key = (name: string) => name) => {
     compareLists(
       where,
       earlier.map((entry) => entry.name),
       later.map((entry) => entry.name),
+      key,
     )
     // One datasheet can carry a name twice, a described copy and a bare one, so the nth
     // is matched to the nth. Taking the first match compares the bare copy against the
     // described one and reports a loss the change did not cause.
     const nth = new Map<string, number>()
     for (const entry of earlier) {
-      const position = nth.get(entry.name) ?? 0
-      nth.set(entry.name, position + 1)
-      const now = later.filter((candidate) => candidate.name === entry.name)[position]
+      const name = key(entry.name)
+      const position = nth.get(name) ?? 0
+      nth.set(name, position + 1)
+      const now = later.filter((candidate) => key(candidate.name) === name)[position]
       if (now && entry.described && !now.described) lost.push(`${where}: description of ${entry.name}`)
       if (now && !entry.described && now.described) gained.push(`${where}: description of ${entry.name}`)
     }
@@ -193,7 +195,7 @@ export function compareCatalogueCoverage(
         [...detachment.enhancements, ...detachment.upgrades].filter((entry) => constructionNames.has(constructionCardKey(entry.name))),
         [...current.enhancements, ...current.upgrades],
       )
-      compareDescribed(`${where} stratagems`, detachment.stratagems, current.stratagems)
+      compareDescribed(`${where} stratagems`, detachment.stratagems, current.stratagems, joinKey)
     }
     compareLists(
       `${faction.slug} datasheets`,

@@ -18,5 +18,5 @@ export function baselineShortfall(message: string) {
     return
   }
   const summary = process.env.GITHUB_STEP_SUMMARY
-  if (summary) fs.appendFileSync(summary, `- Catalogue baseline shortfall, published anyway: ${message}\n`)
+  if (summary) fs.appendFileSync(summary, `- Catalogue baseline shortfall: ${message}\n`)
 }
