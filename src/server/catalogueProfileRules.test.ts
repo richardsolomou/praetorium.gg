@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
+import { buildUnit } from '../core/roster'
 import { detachmentsOf, factionsIn, isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
 import {
   catalogueProfileMetadata,
@@ -228,6 +229,56 @@ it('offers only the newer Space Marines book when the snapshot includes both edi
     'space-marines-11e',
     'ultramarines',
   ])
+})
+
+it('offers a Warlord choice on a profiled Marine character', () => {
+  const old = files[1]!.catalogue!
+  const legacy: CatalogueFile = {
+    catalogue: {
+      ...old,
+      sharedSelectionEntries: [...(old.sharedSelectionEntries ?? []), { id: 'legacy-warlord', name: 'Warlord', type: 'upgrade' }],
+    },
+  }
+  const current: CatalogueFile = {
+    catalogue: {
+      id: 'space-marines-11e',
+      name: `${old.name} (11e)`,
+      sharedSelectionEntries: [
+        { id: 'captain', name: 'Captain', type: 'model', categoryLinks: [{ id: 'character', name: 'Character', targetId: 'character' }] },
+        { id: 'new-intercessors', name: 'Intercessors', type: 'unit' },
+      ],
+      sharedSelectionEntryGroups: [
+        {
+          id: 'new-detachments',
+          name: 'Detachment',
+          selectionEntries: [
+            {
+              id: 'new-detachment',
+              name: 'Assault Brethren',
+              type: 'upgrade',
+              profiles: [{ id: 'new-rule', name: 'Assault Mastery', characteristics: [{ name: 'Description', $text: 'Charge.' }] }],
+            },
+          ],
+        },
+      ],
+    },
+  }
+  const { index } = loadedCatalogue([files[0]!, legacy, current])
+  const captain = buildUnit('profile-unit-space-marines-11e-captain', index, undefined, undefined, {
+    primaryCatalogueId: 'space-marines-11e',
+  })
+
+  const intercessors = buildUnit('profile-unit-space-marines-11e-new-intercessors', index, undefined, undefined, {
+    primaryCatalogueId: 'space-marines-11e',
+  })
+
+  expect({
+    captain: captain?.toggles.map((toggle) => toggle.name),
+    intercessors: intercessors?.toggles.map((toggle) => toggle.name),
+  }).toEqual({
+    captain: ['Warlord'],
+    intercessors: [],
+  })
 })
 
 it('offers a new chapter book instead of the chapter that imports the old parent', () => {

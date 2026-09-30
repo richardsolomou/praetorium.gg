@@ -124,6 +124,23 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
   } = catalogueProfileMetadata(files, rawIndex)
   const books = files.flatMap((file) => (file.catalogue ? [file.catalogue] : []))
   const byId = new Map(books.map((book) => [book.id, book]))
+  const warlordTargets = new Map(
+    [...replacements].flatMap(([legacyId, currentId]) => {
+      const legacy = byId.get(legacyId)
+      const sources = [
+        legacy,
+        ...(legacy?.catalogueLinks ?? []).filter((link) => replacements.has(link.targetId)).map((link) => byId.get(link.targetId)),
+      ]
+      const targets = new Set(
+        sources.flatMap((source) =>
+          (source?.sharedSelectionEntries ?? [])
+            .filter((entry) => entry.type === 'upgrade' && entry.name === 'Warlord')
+            .map((entry) => entry.id),
+        ),
+      )
+      return targets.size === 1 ? [[currentId, [...targets][0]!] as const] : []
+    }),
+  )
   const supersededOptions = new Map(
     [...replacements].map(([legacyId]) => [
       legacyId,
@@ -138,6 +155,31 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
   const prepared = files.map((file): CatalogueFile => {
     const book = file.catalogue
     if (!book) return file
+
+    const warlordTarget = warlordTargets.get(book.id)
+    const sharedSelectionEntries = warlordTarget
+      ? (book.sharedSelectionEntries ?? []).map((entry) => {
+          if (
+            (entry.type !== 'unit' && entry.type !== 'model') ||
+            !entry.categoryLinks?.some((category) => category.name === 'Character') ||
+            entry.entryLinks?.some((link) => link.name === 'Warlord')
+          )
+            return entry
+          return {
+            ...entry,
+            entryLinks: [
+              ...(entry.entryLinks ?? []),
+              {
+                id: `profile-warlord-${book.id}-${entry.id}`,
+                name: 'Warlord',
+                targetId: warlordTarget,
+                type: 'selectionEntry' as const,
+                import: true,
+              },
+            ],
+          }
+        })
+      : undefined
 
     const imports = (book.catalogueLinks ?? []).filter((link) => link.importRootEntries)
     const imported = imports.flatMap((link) => profiledOptions.get(replacements.get(link.targetId) ?? link.targetId) ?? [])
@@ -193,13 +235,14 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
         ]
       : []
 
-    if (!generatedUnits.length && !detachment.length) return file
+    if (!generatedUnits.length && !detachment.length && !sharedSelectionEntries) return file
     return {
       ...file,
       catalogue: {
         ...book,
         entryLinks: [...(book.entryLinks ?? []), ...generatedUnits],
         selectionEntries: [...detachment, ...(book.selectionEntries ?? [])],
+        ...(sharedSelectionEntries ? { sharedSelectionEntries } : {}),
       },
     }
   })
