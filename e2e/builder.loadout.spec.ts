@@ -22,11 +22,11 @@ test('a squad grows from its unit editor', async ({ page }) => {
   })
 
   const total = page.locator('[data-stat="points"]')
-  await expect(total).toHaveText('125/2000')
+  await expect(total).toHaveText('120/2000')
   // The stepper lives with the rest of the selected unit's configuration.
   await page.getByRole('button', { name: 'More models in Immortals' }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
-  await expect(total).not.toHaveText('125/2000')
+  await expect(total).not.toHaveText('120/2000')
   await expect(page.locator('html')).not.toHaveAttribute('data-datasheet-reloaded', 'true')
   // And the wargear lines follow the models carrying it.
   await expect(page.getByText('6x Gauss blaster')).toBeVisible()
@@ -126,6 +126,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
   await expect(page.getByRole('menuitemcheckbox', { name: 'Remove from collection' })).toBeVisible()
   await page.keyboard.press('Escape')
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Remove from collection' })).toBeHidden()
   await page.getByRole('button', { name: 'Unit limit' }).click()
   await expect(lychguard).toBeHidden()
 
@@ -136,6 +137,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Incursion/ }).click()
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await setup.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByText('3/2 in roster')).toBeVisible()
   await expect(page.getByText('Roster is not legal')).toBeAttached()
@@ -144,6 +146,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /King of the Colosseum/ }).click()
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await setup.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByText('3/1 in roster')).toBeVisible()
   await expect(page.getByText('Lychguard: allows at most 1 of this datasheet, has 3')).toBeVisible()
@@ -153,6 +156,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Incursion/ }).click()
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await setup.getByRole('button', { name: 'Save changes' }).click()
 
   // The battle size's own restrictions are switched off from the picker's own menu,

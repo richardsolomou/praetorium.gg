@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import type { Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
 import { joinKey, titleCase } from './rulesSource'
@@ -50,7 +51,7 @@ export type ConstructionDetachment = {
   faction: string
   points: number | null
   pointOverrides: ReadonlyMap<string, number | null>
-  disposition: string | null
+  dispositions: string[]
   globallyValid: boolean
 }
 
@@ -62,6 +63,16 @@ export type ConstructionEnhancement = {
   description: string | null
 }
 
+export type ConstructionStratagem = {
+  id: string
+  name: string
+  cp: number
+  phases: NonNullable<Stratagem['phases']>
+  turn: NonNullable<Stratagem['turn']>
+  type: string | null
+  description: string
+}
+
 export type FactionContent = {
   name: string
   datasheets: Set<string>
@@ -70,6 +81,8 @@ export type FactionContent = {
   detachments: Set<string>
   /** Unambiguous cards by their detachment's accent- and spacing-insensitive join key. */
   enhancements: ReadonlyMap<string, readonly ConstructionEnhancement[]>
+  stratagems: ReadonlyMap<string, readonly ConstructionStratagem[]>
+  stratagemIssues: readonly string[]
   detachmentRules: ReadonlyMap<string, readonly RuleCard[]>
   armyRules: RuleCard[]
   /** The army rules its datasheets print by name, whether or not the file carries the card. */
@@ -157,11 +170,25 @@ export function loadDatacards(directory: string, sections: SectionProse = NO_SEC
     for (const detachment of records(parsed, 'detachments')) {
       const name = localizedField(detachment, 'name')
       const points = integerField(detachment, 'detachmentPoints')
-      const disposition = localizedField(detachment.forceDisposition, 'name')
+      const legacyDisposition = localizedField(detachment.forceDisposition, 'name')
+      const offered = detachment.forceDispositions
+      const names =
+        offered === undefined
+          ? legacyDisposition
+            ? [legacyDisposition]
+            : []
+          : Array.isArray(offered)
+            ? offered.map((entry) => localizedField(entry, 'name'))
+            : []
+      const dispositions = names.every((entry): entry is string => Boolean(entry)) ? names.map(routeSlug) : []
+      const validDispositions =
+        dispositions.length > 0 &&
+        new Set(dispositions).size === dispositions.length &&
+        (!legacyDisposition || routeSlug(legacyDisposition) === dispositions[0])
       if (!name) continue
       const overrideCandidates = new Map<string, Set<number | null>>()
       const overrides = detachment.detachmentPointsOverrides
-      let globallyValid = points !== null && Boolean(disposition) && (overrides === undefined || Array.isArray(overrides))
+      let globallyValid = points !== null && validDispositions && (overrides === undefined || Array.isArray(overrides))
       for (const rawOverride of Array.isArray(overrides) ? overrides : []) {
         if (!rawOverride || typeof rawOverride !== 'object') {
           globallyValid = false
@@ -185,7 +212,7 @@ export function loadDatacards(directory: string, sections: SectionProse = NO_SEC
       const key = routeSlug(name)
       constructionDetachments.set(key, [
         ...(constructionDetachments.get(key) ?? []),
-        { name, faction: parsed.name, points, pointOverrides, disposition: disposition ? routeSlug(disposition) : null, globallyValid },
+        { name, faction: parsed.name, points, pointOverrides, dispositions, globallyValid },
       ])
     }
 
@@ -269,15 +296,30 @@ export function constructionDetachment(
       const answer = candidate.globallyValid
         ? {
             points: candidate.pointOverrides.has(factionKey) ? candidate.pointOverrides.get(factionKey)! : candidate.points,
-            disposition: candidate.disposition,
+            dispositions: candidate.dispositions,
           }
-        : { points: null, disposition: null }
+        : { points: null, dispositions: [] }
       return [JSON.stringify(answer), answer]
     }),
   )
   if (answers.size !== 1) return null
   const answer = answers.values().next().value!
-  return answer.points === null || answer.disposition === null ? null : { points: answer.points, disposition: answer.disposition }
+  return answer.points === null || !answer.dispositions.length ? null : { points: answer.points, dispositions: answer.dispositions }
+}
+
+function cardPhases(value: unknown): NonNullable<Stratagem['phases']> | null {
+  if (!Array.isArray(value) || !value.length) return null
+  const allowed = new Set(['command', 'movement', 'shooting', 'charge', 'fight', 'end', 'any'])
+  if (!value.every((phase) => typeof phase === 'string' && allowed.has(phase))) return null
+  if (value.includes('any')) return value.length === 1 ? [] : null
+  return [...new Set(value)] as NonNullable<Stratagem['phases']>
+}
+
+function cardTurn(value: unknown): NonNullable<Stratagem['turn']> | null {
+  if (value === 'your') return 'your-turn'
+  if (value === 'opponents') return 'opponent-turn'
+  if (value === 'either') return 'either'
+  return null
 }
 
 export const enhancementPoints = (datacards: LoadedDatacards, detachment: string, enhancement: string) =>
@@ -343,6 +385,49 @@ function factionContent(name: string, parsed: DatacardsFaction, sections: Sectio
     const key = joinKey(candidate.detachment)
     enhancements.set(key, [...(enhancements.get(key) ?? []), resolved])
   }
+  const stratagemCandidates = new Map<string, Map<string, ConstructionStratagem | null>>()
+  const stratagemIds = new Map<string, { cards: Map<string, ConstructionStratagem | null>; name: string }>()
+  const stratagemIssues: string[] = []
+  for (const entry of records(parsed, 'stratagems')) {
+    const detachment = stringField(entry, 'detachment')
+    if (!detachment) {
+      stratagemIssues.push(`${localizedField(entry, 'name') ?? 'unnamed card'}: missing detachment`)
+      continue
+    }
+    const key = joinKey(detachment)
+    const cards = stratagemCandidates.get(key) ?? new Map<string, ConstructionStratagem | null>()
+    stratagemCandidates.set(key, cards)
+    const id = stringField(entry, 'id')
+    const stratagemName = localizedField(entry, 'name')
+    const cp = integerField(entry, 'cost')
+    const description = stratagemText(entry)
+    const phases = cardPhases(entry.phase)
+    const turn = cardTurn(entry.turn)
+    if (!id || !stratagemName || cp === null || !description || phases === null || !turn) {
+      if (stratagemName) cards.set(routeSlug(stratagemName), null)
+      if (id) {
+        const previous = stratagemIds.get(id)
+        if (previous) previous.cards.set(previous.name, null)
+      }
+      stratagemIssues.push(`${detachment} | ${stratagemName ?? 'unnamed card'}: incomplete card`)
+      continue
+    }
+    const card = { id, name: stratagemName, cp, phases, turn, type: stringField(entry, 'type'), description }
+    const nameKey = routeSlug(stratagemName)
+    const previous = cards.get(nameKey)
+    const previousId = stratagemIds.get(id)
+    if (previousId && (previousId.cards !== cards || previousId.name !== nameKey)) {
+      previousId.cards.set(previousId.name, null)
+      cards.set(nameKey, null)
+      stratagemIssues.push(`${detachment} | ${stratagemName}: conflicting card id`)
+      continue
+    }
+    stratagemIds.set(id, { cards, name: nameKey })
+    if (previous && JSON.stringify(previous) !== JSON.stringify(card)) {
+      stratagemIssues.push(`${detachment} | ${stratagemName}: conflicting card name`)
+    }
+    cards.set(nameKey, previous === undefined ? card : previous && JSON.stringify(previous) === JSON.stringify(card) ? card : null)
+  }
   const detachmentRules = new Map<string, Map<string, Set<string>>>()
   for (const entry of detachmentRuleCards(parsed.rules, name, sections)) {
     const key = joinKey(entry.detachment)
@@ -361,6 +446,13 @@ function factionContent(name: string, parsed: DatacardsFaction, sections: Sectio
     ),
     detachments: new Set(records(parsed, 'detachments').flatMap((entry) => localizedField(entry, 'name') ?? [])),
     enhancements,
+    stratagems: new Map(
+      [...stratagemCandidates].map(([detachment, cards]) => [
+        detachment,
+        [...cards.values()].filter((card): card is ConstructionStratagem => card !== null),
+      ]),
+    ),
+    stratagemIssues,
     detachmentRules: new Map(
       [...detachmentRules].map(([detachment, rules]) => [
         detachment,
@@ -490,7 +582,7 @@ export function factionRestrictions(datacards: Pick<LoadedDatacards, 'factions'>
   for (const { faction, sentence } of restrictionSentences(datacards)) {
     const conditional = sentence.match(/^If your army includes one or more ([A-Z][A-Z ]+?) units, it cannot include/)
     const owner = conditional?.[1] ?? faction
-    for (const match of sentence.matchAll(/cannot include (?:any of )?the following (?:units|models|datasheets)([^:]*):\s*(.*)$/g)) {
+    for (const match of sentence.matchAll(/cannot include (?:any of )?the following [^:]*?(?:units|models|datasheets)([^:]*):\s*(.*)$/g)) {
       const qualifier = match[1] ?? ''
       const exemption =
         qualifier.match(/that do not have the ([A-Za-z' ]+) keyword/)?.[1]?.toLowerCase() ??
@@ -528,7 +620,7 @@ export function factionRestrictionCoverageIssues(datacards: Pick<LoadedDatacards
   const captured = new Set([...parsed.values()].flatMap((rule) => [...rule.excludedNames.keys()]))
   const issues: string[] = []
   for (const { faction, sentence } of restrictionSentences(datacards)) {
-    for (const match of sentence.matchAll(/cannot include[^.]*?following (?:units|models|datasheets)[^:]*:\s*(.*)$/g)) {
+    for (const match of sentence.matchAll(/cannot include[^.]*?following [^:]*?(?:units|models|datasheets)[^:]*:\s*(.*)$/g)) {
       const missing = listedNames(match[1]).filter((name) => !captured.has(name))
       if (missing.length) issues.push(`${faction}: ${missing.join(', ')}`)
     }
@@ -549,17 +641,28 @@ function restrictionSentences(datacards: Pick<LoadedDatacards, 'factions'>) {
     seen.add(content)
     for (const rule of content.armyRules) {
       let faction = content.name
+      let list: { faction: string; sentence: string } | null = null
       for (const line of rule.description.split('\n')) {
+        const bullet = /^\s*-\s+/.test(line)
         const plain = line
           .replaceAll('**', '')
           .replace(/^[■□\s-]+/, '')
           .trim()
         if (!plain) continue
+        if (bullet && list) {
+          list.sentence += `; ${plain.replace(/\s+(?:units|models|datasheets)\.?$/i, '').replace(/\.$/, '')}`
+          continue
+        }
+        list = null
         if (/^[A-Z][A-Z' ]+$/.test(plain)) {
           faction = plain
           continue
         }
-        for (const sentence of plain.split(/(?<=\.)\s+/)) found.push({ faction, sentence: sentence.trim() })
+        for (const sentence of plain.split(/(?<=\.)\s+/)) {
+          const entry = { faction, sentence: sentence.trim() }
+          found.push(entry)
+          if (/cannot include[^.]*?following [^:]*:\s*$/.test(entry.sentence)) list = entry
+        }
       }
     }
   }

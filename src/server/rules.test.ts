@@ -150,7 +150,19 @@ beforeEach(() => {
         id: 'gdc-grim-reapers',
         name: { en: 'Grim Reapers Card' },
         detachment: 'Flyblown Host',
+        cost: 1,
+        phase: ['fight'],
+        turn: 'either',
         effect: { en: 'Cut them down.' },
+      },
+      {
+        id: 'gdc-mortarions-teachings',
+        name: { en: "Mortarion's Teachings" },
+        detachment: 'Flyblown Host',
+        cost: 2,
+        phase: ['command'],
+        turn: 'your',
+        effect: { en: 'Share the plague.' },
       },
     ],
   })
@@ -397,6 +409,88 @@ describe('stratagems', () => {
       stratagems: [],
     })
     expect(rules.byDetachment.get('death-guard')?.get('virulent-vectorium')).toBeUndefined()
+  })
+
+  it('uses a current Game Datacards stratagem when the rules source has no detachment', () => {
+    const file = path.join(directory, 'datacards', '11th', 'gdc', 'deathguard.json')
+    const cards = JSON.parse(fs.readFileSync(file, 'utf8'))
+    cards.stratagems.push({
+      id: 'virulent-intervention',
+      name: { en: 'Virulent Intervention' },
+      detachment: 'Virulent Vectorium',
+      cost: 2,
+      phase: ['shooting'],
+      turn: 'opponents',
+      type: 'Strategic Ploy',
+      effect: { en: 'Protect your unit.' },
+    })
+    write(file, cards)
+
+    const rules = load()
+    expect(rules.byDetachment.get('death-guard')?.get('virulent-vectorium')).toEqual([
+      {
+        key: 'virulent-intervention',
+        name: 'Virulent Intervention',
+        cp: 2,
+        limit: 'unlimited',
+        phases: ['shooting'],
+        turn: 'opponent-turn',
+      },
+    ])
+    expect(rules.detachmentDetails.get('death-guard')?.get('virulent-vectorium')?.stratagems).toEqual([
+      {
+        id: 'virulent-intervention',
+        name: 'Virulent Intervention',
+        cp: 2,
+        type: 'Strategic Ploy',
+        phases: ['shooting'],
+        turn: 'opponent-turn',
+        description: '**Effect:** Protect your unit.',
+      },
+    ])
+  })
+
+  it('does not offer a stale rules-source stratagem after its Game Datacards detachment changes', () => {
+    const file = path.join(directory, 'datacards', '11th', 'gdc', 'deathguard.json')
+    const cards = JSON.parse(fs.readFileSync(file, 'utf8'))
+    cards.stratagems = [
+      {
+        id: 'new-grim-reapers',
+        name: { en: 'New Grim Reapers' },
+        detachment: 'Flyblown Host',
+        cost: 1,
+        phase: ['fight'],
+        turn: 'your',
+        effect: { en: 'Cut them down.' },
+      },
+    ]
+    write(file, cards)
+
+    expect(
+      load()
+        .byDetachment.get('death-guard')
+        ?.get('flyblown-host')
+        ?.map((stratagem) => stratagem.name),
+    ).toEqual(['New Grim Reapers'])
+  })
+
+  it('does not restore stale stratagems when a current card has unreadable timing', () => {
+    const file = path.join(directory, 'datacards', '11th', 'gdc', 'deathguard.json')
+    const cards = JSON.parse(fs.readFileSync(file, 'utf8'))
+    cards.stratagems = [
+      {
+        id: 'unknown-timing',
+        name: { en: 'Unknown Timing' },
+        detachment: 'Flyblown Host',
+        cost: 1,
+        phase: ['deployment'],
+        turn: 'either',
+        effect: { en: 'Unknown effect.' },
+      },
+    ]
+    write(file, cards)
+
+    expect(load().byDetachment.get('death-guard')?.get('flyblown-host')).toBeUndefined()
   })
 
   it('enumerates a Game Datacards faction before the semantic source adds a directory', () => {

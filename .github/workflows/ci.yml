@@ -138,11 +138,13 @@ jobs:
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
       - run: pnpm catalogue:sync
       # Definitions and the points reference can publish at different times. Run
-      # both revisions against one snapshot so upstream drift cannot make an
-      # unrelated pull request fail or hide a pricing regression.
+      # both revisions against one snapshot and report absolute source baselines;
+      # the base/head points ratio below remains the regression gate.
       - name: Pin the catalogue snapshot
         run: cp -a catalogue-data catalogue-data.pinned
       - name: Measure the base
+        env:
+          CATALOGUE_BASELINES: report
         run: |
           set -euo pipefail
           git checkout --quiet --force "$BASE_SHA"
@@ -151,6 +153,8 @@ jobs:
           pnpm catalogue:descriptions
           pnpm catalogue:points | tee base-points.txt
       - name: Measure the head
+        env:
+          CATALOGUE_BASELINES: report
         run: |
           set -euo pipefail
           git checkout --quiet --force "$HEAD_SHA"

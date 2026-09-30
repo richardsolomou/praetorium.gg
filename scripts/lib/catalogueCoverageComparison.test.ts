@@ -100,4 +100,39 @@ describe('catalogue coverage comparison', () => {
 
     expect(compared.lost).toEqual(['example-faction army rules: Example Rule'])
   })
+
+  it('keeps a stratagem when its source changes punctuation', () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-stratagem-coverage-'))
+    temporaryDirectories.push(root)
+    const catalogue = path.join(root, 'catalogue')
+    const rules = path.join(catalogue, 'rules')
+    const datacards = path.join(catalogue, 'datacards', '11th', 'gdc')
+    fs.mkdirSync(datacards, { recursive: true })
+    fs.mkdirSync(path.join(rules, 'data', 'core'), { recursive: true })
+    fs.writeFileSync(path.join(datacards, 'faction.json'), JSON.stringify({ name: 'Example Faction', detachments: [] }))
+    const snapshot = (name: string) => [
+      {
+        name: 'Example Faction',
+        slug: 'example-faction',
+        armyRules: [],
+        detachments: [
+          {
+            name: 'Example Detachment',
+            rules: [],
+            enhancements: [],
+            upgrades: [],
+            stratagems: [{ name, described: true }],
+          },
+        ],
+        datasheets: [],
+      },
+    ]
+    const base = path.join(root, 'base.json')
+    const head = path.join(root, 'head.json')
+    fs.writeFileSync(base, JSON.stringify(snapshot('Coordinated Strike')))
+    fs.writeFileSync(head, JSON.stringify(snapshot('Co-ordinated Strike')))
+
+    expect(compareCatalogueCoverage(base, head, [], catalogue, rules).lost).toEqual([])
+  })
 })

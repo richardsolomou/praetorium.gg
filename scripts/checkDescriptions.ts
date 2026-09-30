@@ -78,15 +78,7 @@ if (process.argv.includes('--details')) {
   print('Stratagems', missing.stratagems)
 }
 
-/*
- * A ratchet, so these only ever come down. The rules dataset picks up new detachments before
- * Game Datacards describes them, so the gap is measured against the pinned snapshot rather
- * than expected to be zero. Every detachment rule and enhancement is described at this
- * snapshot; the stratagems still short are the eight newest detachments. A name only one
- * source spells is left blank rather than resolved against its near match, because a near
- * match is a guess.
- */
-if (missing.detachmentRules.length || missing.enhancements.length || missing.stratagems.length > 35) {
+if (missing.detachmentRules.length || missing.enhancements.length || missing.stratagems.length) {
   baselineShortfall('description coverage fell below the pinned catalogue baseline')
 }
 

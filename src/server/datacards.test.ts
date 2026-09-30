@@ -168,6 +168,8 @@ it('indexes the faction-owned datasheets and detachments', () => {
     ]),
     detachments: new Set(['Inner Circle Task Force', 'Unforgiven Task Force']),
     enhancements: new Map(),
+    stratagems: new Map(),
+    stratagemIssues: [],
     detachmentRules: new Map(),
     factionAbilityNames: new Set(),
     armyRules: [],
@@ -343,14 +345,14 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
     factionScopedEnhancement: datacards.factions.get('one')?.enhancements.get('shareddetachment'),
     factionScopedRule: datacards.factions.get('one')?.detachmentRules.get('shareddetachment'),
   }).toEqual({
-    base: { points: 3, disposition: 'disruption' },
-    validOverride: { points: 2, disposition: 'disruption' },
+    base: { points: 3, dispositions: ['disruption'] },
+    validOverride: { points: 2, dispositions: ['disruption'] },
     malformedOverride: null,
     unrelatedDetachment: null,
     malformedDetachment: null,
     poisonedDetachment: null,
     unscopedOverride: null,
-    baseWithConflictingOverride: { points: 3, disposition: 'disruption' },
+    baseWithConflictingOverride: { points: 3, dispositions: ['disruption'] },
     conflictingOverride: null,
     validEnhancement: 25,
     poisonedEnhancement: null,
@@ -365,6 +367,125 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
     factionScopedEnhancement: [{ name: 'Shared Relic', detachment: 'Shared Detachment', points: 10, description: 'One relic.' }],
     factionScopedRule: [{ name: 'Shared Rule', description: 'One rule.' }],
   })
+})
+
+it('reads both dispositions offered by a three-point detachment and rejects malformed alternatives', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'necrons.json'),
+    JSON.stringify({
+      name: 'Necrons',
+      datasheets: [],
+      detachments: [
+        {
+          name: { en: 'Awakened Dynasty' },
+          detachmentPoints: 3,
+          forceDisposition: { name: { en: 'Take and Hold' } },
+          forceDispositions: [{ name: { en: 'Take and Hold' } }, { name: { en: 'Priority Assets' } }],
+        },
+        {
+          name: { en: 'Plural Only' },
+          detachmentPoints: 3,
+          forceDispositions: [{ name: { en: 'Disruption' } }, { name: { en: 'Reconnaissance' } }],
+        },
+        {
+          name: { en: 'Conflicting Choices' },
+          detachmentPoints: 3,
+          forceDisposition: { name: { en: 'Disruption' } },
+          forceDispositions: [{ name: { en: 'Reconnaissance' } }, { name: { en: 'Disruption' } }],
+        },
+        {
+          name: { en: 'Malformed Choices' },
+          detachmentPoints: 3,
+          forceDisposition: { name: { en: 'Disruption' } },
+          forceDispositions: [{ name: { en: 'Disruption' } }, { name: { fr: 'Unavailable' } }],
+        },
+      ],
+    }),
+  )
+
+  const data = loadDatacards(directory)
+  const construction = (name: string) => constructionDetachment(data, 'Necrons', name)
+  expect({
+    offered: construction('Awakened Dynasty'),
+    pluralOnly: construction('Plural Only'),
+    conflicting: construction('Conflicting Choices'),
+    malformed: construction('Malformed Choices'),
+  }).toEqual({
+    offered: { points: 3, dispositions: ['take-and-hold', 'priority-assets'] },
+    pluralOnly: { points: 3, dispositions: ['disruption', 'reconnaissance'] },
+    conflicting: null,
+    malformed: null,
+  })
+})
+
+it('reads faction stratagem mechanics and leaves malformed cards unavailable', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'orks.json'),
+    JSON.stringify({
+      name: 'Orks',
+      datasheets: [],
+      detachments: [{ name: { en: 'War Horde' } }],
+      stratagems: [
+        {
+          id: 'hit-em-harder',
+          name: { en: 'Hit ’Em Harder' },
+          detachment: 'War Horde',
+          cost: 1,
+          phase: ['any'],
+          turn: 'your',
+          type: 'Battle Tactic',
+          effect: { en: 'Your attacks have Lethal Hits.' },
+        },
+        {
+          id: 'unknown-phase',
+          name: { en: 'Unknown Phase' },
+          detachment: 'War Horde',
+          cost: 1,
+          phase: ['deployment'],
+          turn: 'either',
+          effect: { en: 'Do something.' },
+        },
+      ],
+    }),
+  )
+
+  expect(loadDatacards(directory).factions.get('orks')?.stratagems.get('warhorde')).toEqual([
+    {
+      id: 'hit-em-harder',
+      name: 'Hit ’Em Harder',
+      cp: 1,
+      phases: [],
+      turn: 'your-turn',
+      type: 'Battle Tactic',
+      description: '**Effect:** Your attacks have Lethal Hits.',
+    },
+  ])
+  expect(loadDatacards(directory).factions.get('orks')?.stratagemIssues).toEqual(['War Horde | Unknown Phase: incomplete card'])
+})
+
+it('leaves conflicting stratagem ids unavailable', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'orks.json'),
+    JSON.stringify({
+      name: 'Orks',
+      datasheets: [],
+      detachments: [{ name: { en: 'War Horde' } }],
+      stratagems: ['Charge', 'Retreat'].map((name) => ({
+        id: 'shared-id',
+        name: { en: name },
+        detachment: 'War Horde',
+        cost: 1,
+        phase: ['fight'],
+        turn: 'either',
+        effect: { en: 'Move.' },
+      })),
+    }),
+  )
+
+  expect(loadDatacards(directory).factions.get('orks')?.stratagems.get('warhorde')).toEqual([])
 })
 
 it('adds dimensions to named flying bases', () => {
@@ -478,6 +599,25 @@ describe('army-construction restrictions', () => {
     }
     return loadDatacards(directory)
   }
+
+  it('reads an exclusion list with a named faction and separate bullet lines', () => {
+    const datacards = factions({
+      'dw.json': {
+        name: 'Deathwatch',
+        text: 'Your army cannot include the following <k>Adeptus Astartes</k> units:<ul><li><k>Scout Squad</k> units.</li><li><k>Terminator Squad</k> units.</li></ul>',
+      },
+    })
+    expect({
+      excluded: [...(factionRestrictions(datacards).get('deathwatch')?.excludedNames ?? [])],
+      uncaptured: factionRestrictionCoverageIssues(datacards),
+    }).toEqual({
+      excluded: [
+        ['scout squad', null],
+        ['terminator squad', null],
+      ],
+      uncaptured: [],
+    })
+  })
 
   it('assigns a combined chapter rule to each faction it names', () => {
     const restrictions = factionRestrictions(
