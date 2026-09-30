@@ -357,6 +357,7 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
   await context.close()
 
   await page.goto('/factions/necrons/detachments/hand-of-the-dynasty')
+  await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: '[RAPID FIRE 1]' }).hover()
   await expect(page.getByRole('tooltip')).toContainText('Rapid Fire')
   await page.screenshot({ path: 'test-results/rule-tooltip-hover.png', fullPage: true })
@@ -890,6 +891,7 @@ test('a player can enter through the roster library and browse the product', asy
   for (const contents of descriptionPages) expect(contents).not.toContain('Description unavailable')
   await page.screenshot({ path: 'test-results/faction-reference.png', fullPage: true })
   await page.goto('/factions/necrons/detachments/hand-of-the-dynasty')
+  await page.waitForLoadState('networkidle')
   const rapidFire = page.getByRole('button', { name: '[RAPID FIRE 1]' })
   await rapidFire.hover()
   await expect(page.getByRole('tooltip')).toContainText('Rapid Fire')
