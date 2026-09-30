@@ -70,8 +70,8 @@ const PREVIEW_PLAYER_ROSTERS: readonly PreviewRoster[] = [
   {
     id: 'preview-space-marines-gladius',
     name: 'Gladius Spearhead 1K',
-    catalogueId: 'e0af-67df-9d63-8fb7',
-    detachmentIds: ['d2dc-693e-b491-b16d'],
+    catalogueId: 'e0af-67df-9d63-8fb8',
+    detachmentIds: ['profile-detachment-option-e0af-67df-9d63-8fb8-f367-3240-47c1-7e1a'],
     disposition: 'priority-assets',
     limit: 1000,
     warlord: true,
