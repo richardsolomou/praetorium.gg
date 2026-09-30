@@ -158,7 +158,7 @@ function loadedCatalogue(source = files) {
   const loaded = {
     index,
     detachments,
-    factions: factionsIn(index, detachments),
+    factions: factionsIn(index, detachments, prepared.replacements),
     factionContents: new Map([
       [
         'dark-angels',
@@ -167,8 +167,11 @@ function loadedCatalogue(source = files) {
           datasheets: new Set(),
           datasheetDetails: new Map(),
           datasheetIds: new Map(),
-          armyRules: [{ name: 'Oath of Moment', description: 'Choose a target.' }],
-          factionAbilityNames: new Set(['Oath of Moment']),
+          armyRules: [
+            { name: 'Combat Doctrines', description: 'Source doctrine.' },
+            { name: 'Transhuman Strategist', description: 'Chapter rule.' },
+          ],
+          factionAbilityNames: new Set(['Combat Doctrines', 'Transhuman Strategist']),
           detachments: new Set(['Wrath of the Rock']),
           enhancements: new Map(),
           stratagems: new Map(),
@@ -186,8 +189,8 @@ function loadedCatalogue(source = files) {
 }
 
 it('loads one released Space Marines catalogue under its ordinary name', () => {
-  const { index, detachments } = loadedCatalogue()
-  expect(factionsIn(index, detachments).map((faction) => faction.name)).toEqual([
+  const { index, detachments, replacements } = loadedCatalogue()
+  expect(factionsIn(index, detachments, replacements).map((faction) => faction.name)).toEqual([
     'Imperium - Adeptus Astartes - Dark Angels',
     'Imperium - Adeptus Astartes - Space Marines',
     'Imperium - Adeptus Astartes - Ultramarines',
@@ -202,11 +205,83 @@ it('offers only the newer Space Marines book when the snapshot includes both edi
       name: `${old.name} (11e)`,
       catalogueLinks: [{ targetId: old.id, importRootEntries: true }],
       sharedSelectionEntries: [{ id: 'new-intercessors', name: 'Intercessors', type: 'unit' }],
+      sharedSelectionEntryGroups: [
+        {
+          id: 'new-detachments',
+          name: 'Detachment',
+          selectionEntries: [
+            {
+              id: 'new-detachment',
+              name: 'New Detachment',
+              type: 'upgrade',
+              profiles: [{ id: 'new-rule', name: 'New Rule', characteristics: [{ name: 'Description', $text: 'Rule.' }] }],
+            },
+          ],
+        },
+      ],
     },
   }
-  const { index, detachments } = loadedCatalogue([...files, newer])
+  const { index, detachments, replacements } = loadedCatalogue([...files, newer])
 
-  expect(factionsIn(index, detachments).map((faction) => faction.id)).toEqual(['dark-angels', 'space-marines-11e', 'ultramarines'])
+  expect(factionsIn(index, detachments, replacements).map((faction) => faction.id)).toEqual([
+    'dark-angels',
+    'space-marines-11e',
+    'ultramarines',
+  ])
+})
+
+it('offers a new chapter book instead of the chapter that imports the old parent', () => {
+  const newerParent: CatalogueFile = {
+    catalogue: {
+      id: 'space-marines-11e',
+      name: `${files[1]!.catalogue!.name} (11e)`,
+      sharedSelectionEntries: [{ id: 'new-intercessors', name: 'Intercessors', type: 'unit' }],
+      sharedSelectionEntryGroups: [
+        {
+          id: 'new-parent-detachments',
+          name: 'Detachment',
+          selectionEntries: [
+            {
+              id: 'new-assault',
+              name: 'Assault Brethren',
+              type: 'upgrade',
+              profiles: [{ id: 'new-assault-rule', name: 'Assault Mastery', characteristics: [{ name: 'Description', $text: 'Charge.' }] }],
+            },
+          ],
+        },
+      ],
+    },
+  }
+  const newerChapter: CatalogueFile = {
+    catalogue: {
+      id: 'ultramarines-11e',
+      name: 'Imperium - Ultramarines (11e)',
+      catalogueLinks: [{ targetId: 'space-marines-11e', importRootEntries: true }],
+      sharedSelectionEntries: [{ id: 'new-guilliman', name: 'Roboute Guilliman', type: 'unit' }],
+      sharedSelectionEntryGroups: [
+        {
+          id: 'new-chapter-detachments',
+          name: 'Detachment',
+          selectionEntries: [
+            {
+              id: 'new-blade',
+              name: 'Blade of Ultramar',
+              type: 'upgrade',
+              profiles: [{ id: 'new-blade-rule', name: 'Blade of Ultramar', characteristics: [{ name: 'Description', $text: 'Rule.' }] }],
+            },
+          ],
+        },
+      ],
+    },
+  }
+  const { index, detachments, loaded, replacements } = loadedCatalogue([...files, newerParent, newerChapter])
+
+  expect(factionsIn(index, detachments, replacements).map((faction) => faction.id)).toEqual([
+    'dark-angels',
+    'space-marines-11e',
+    'ultramarines-11e',
+  ])
+  expect(loaded.detachments.get('ultramarines-11e')?.options.map((option) => option.name)).toContain('Assault Brethren')
 })
 
 it('replaces a chapter’s inherited legacy detachments with the new codex options', () => {
@@ -401,7 +476,10 @@ it('combines generic and chapter detachments through ordinary catalogue imports'
 it('uses the parent catalogue army rule for an importing chapter', () => {
   const { loaded } = loadedCatalogue()
   const darkAngels = factionsFor(loaded, null).factions.find((faction) => faction.id === 'dark-angels')!
-  expect(darkAngels.armyRules).toEqual([{ name: 'Combat Doctrines', description: 'Select a doctrine.' }])
+  expect(darkAngels.armyRules).toEqual([
+    { name: 'Combat Doctrines', description: 'Select a doctrine.' },
+    { name: 'Transhuman Strategist', description: 'Chapter rule.' },
+  ])
 })
 
 it('keeps chapter reference pages scoped to their own datasheets', () => {

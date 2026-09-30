@@ -143,7 +143,7 @@ describe('the abilities and wargear a datasheet lists', () => {
     expect(described?.contributions.datacards).toBe(true)
   })
 
-  it('uses a profiled parent army rule on a chapter datasheet', () => {
+  it('replaces the old parent rule while preserving a chapter ability on its datasheet', () => {
     const detachment = (id: string, name: string) => ({ id, name, type: 'upgrade' as const })
     const wrapper = (id: string, option: ReturnType<typeof detachment>) => ({
       id: `${id}-wrapper`,
@@ -154,13 +154,19 @@ describe('the abilities and wargear a datasheet lists', () => {
     const book = shelfOf(
       {
         name: 'Dark Angels',
-        sharedRules: [{ id: 'oath', name: 'Oath of Moment', description: 'Mark a target.' }],
+        sharedRules: [
+          { id: 'oath', name: 'Oath of Moment', description: 'Mark a target.' },
+          { id: 'chapter', name: 'Transhuman Strategist', description: 'Chapter tactics.' },
+        ],
         selectionEntries: [
           {
             id: 'apothecary',
             name: 'Apothecary',
             type: 'model',
-            infoLinks: [{ id: 'oath-link', targetId: 'oath', name: 'Oath of Moment', type: 'rule' }],
+            infoLinks: [
+              { id: 'oath-link', targetId: 'oath', name: 'Oath of Moment', type: 'rule' },
+              { id: 'chapter-link', targetId: 'chapter', name: 'Transhuman Strategist', type: 'rule' },
+            ],
           },
         ],
         sharedSelectionEntries: [wrapper('current', detachment('wrath', 'Wrath of the Rock'))],
@@ -185,11 +191,20 @@ describe('the abilities and wargear a datasheet lists', () => {
       stratagems: new Map(),
       stratagemIssues: [],
       detachmentRules: new Map(),
-      armyRules: [{ name: 'Oath of Moment', description: 'Mark a target.' }],
-      factionAbilityNames: new Set(['Oath of Moment']),
+      armyRules: [
+        { name: 'Combat Doctrines', description: 'Select a doctrine.' },
+        { name: 'Transhuman Strategist', description: 'Chapter tactics.' },
+      ],
+      factionAbilityNames: new Set(['Combat Doctrines', 'Transhuman Strategist']),
     })
 
     expect(describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'apothecary'), null)?.abilities).toEqual([
+      {
+        id: 'chapter-link',
+        name: 'Transhuman Strategist',
+        description: 'Chapter tactics.',
+        kind: 'faction',
+      },
       {
         id: 'profile-army-rule:combat-doctrines',
         name: 'Combat Doctrines',

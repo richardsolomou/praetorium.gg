@@ -15,7 +15,7 @@ import { routeSlug } from '../core/slug'
 import { compareText, sameText } from '../core/text'
 import { type FactionContent, type LoadedDatacards, type RuleCard, loadDatacards } from './datacards'
 import { catalogueSections } from './catalogueSections'
-import { catalogueFactionName, editionlessCatalogueName, factionDisplayName } from './factionNames'
+import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { type ExternalReferences, loadExternalReferences } from './externalReferences'
 import { catalogueProfileMetadata, prepareCatalogueProfileRules } from './catalogueProfileRules'
 
@@ -77,14 +77,14 @@ export function catalogueFromIndex(
   sourceReferences: ExternalReferences,
   profiled: Pick<
     ReturnType<typeof catalogueProfileMetadata>,
-    'profiledCatalogueIds' | 'profiledSupplementIds' | 'profiledDetachmentIds' | 'profiledArmyRules'
+    'profiledCatalogueIds' | 'profiledSupplementIds' | 'profiledDetachmentIds' | 'profiledArmyRules' | 'replacements'
   > = catalogueProfileMetadata(files),
 ): LoadedCatalogue {
   const detachments = detachmentsOf(files, index)
   return {
     index,
     characteristicNames: characteristicNamesOf(files),
-    factions: factionsIn(index, detachments),
+    factions: factionsIn(index, detachments, profiled.replacements),
     detachments,
     factionContents: datacards.factions,
     profiledCatalogueIds: profiled.profiledCatalogueIds,
@@ -112,15 +112,10 @@ export function characteristicNamesOf(files: readonly CatalogueFile[]) {
   return names
 }
 
-export function factionsIn(index: CatalogueIndex, detachments: Map<string, DetachmentOptions>) {
+export function factionsIn(index: CatalogueIndex, detachments: Map<string, DetachmentOptions>, replacements: ReadonlyMap<string, string>) {
   const catalogues = [...index.catalogues.values()].filter((catalogue) => unitCount(index, catalogue.id) > 0)
-  const replacements = new Set(
-    catalogues
-      .filter((catalogue) => editionlessCatalogueName(catalogue.name) !== catalogue.name)
-      .map((catalogue) => editionlessCatalogueName(catalogue.name)),
-  )
   return catalogues
-    .filter((catalogue) => !replacements.has(catalogue.name))
+    .filter((catalogue) => !replacements.has(catalogue.id))
     .map((catalogue) => ({
       id: catalogue.id,
       name: catalogue.name,

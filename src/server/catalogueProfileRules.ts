@@ -42,15 +42,32 @@ function directDetachmentOptions(book: Catalogue) {
     .flatMap((group) => group.selectionEntries ?? [])
 }
 
-function supplementIds(books: ReadonlyMap<string, Catalogue>, profiledIds: ReadonlySet<string>) {
+export function catalogueReplacements(books: ReadonlyMap<string, Catalogue>, profiledIds: ReadonlySet<string>) {
   const byName = new Map([...books.values()].map((book) => [book.name, book]))
-  const supersededIds = new Set(
+  const replacements = new Map(
     [...profiledIds].flatMap((id) => {
       const replacement = books.get(id)
       const legacy = replacement && byName.get(editionlessCatalogueName(replacement.name))
-      return legacy && legacy.id !== id ? [legacy.id] : []
+      return legacy && legacy.id !== id ? [[legacy.id, id] as const] : []
     }),
   )
+  for (const [legacyParentId, currentParentId] of Array.from(replacements)) {
+    const legacyChapters = [...books.values()].filter((book) =>
+      book.catalogueLinks?.some((link) => link.importRootEntries && link.targetId === legacyParentId),
+    )
+    for (const current of books.values()) {
+      if (!profiledIds.has(current.id) || editionlessCatalogueName(current.name) === current.name) continue
+      if (!current.catalogueLinks?.some((link) => link.importRootEntries && link.targetId === currentParentId)) continue
+      const leaf = editionlessCatalogueName(current.name).split(' - ').at(-1)
+      const matches = legacyChapters.filter((book) => book.name.split(' - ').at(-1) === leaf)
+      if (matches.length === 1) replacements.set(matches[0]!.id, current.id)
+    }
+  }
+  return replacements
+}
+
+function supplementIds(books: ReadonlyMap<string, Catalogue>, replacements: ReadonlyMap<string, string>) {
+  const supersededIds = new Set(replacements.keys())
   return new Set(
     [...books.values()]
       .filter((book) => book.catalogueLinks?.some((link) => link.importRootEntries && supersededIds.has(link.targetId)))
@@ -81,14 +98,8 @@ export function catalogueProfileMetadata(files: readonly CatalogueFile[], rawInd
     options.filter((option) => option.profiles?.length).forEach((option) => profiledDetachmentIds.add(option.id))
   }
 
-  const byName = new Map([...books.values()].map((book) => [book.name, book]))
-  const replacements = new Map(
-    [...profiledCatalogueIds].flatMap((id) => {
-      const legacy = byName.get(editionlessCatalogueName(books.get(id)!.name))
-      return legacy && legacy.id !== id ? [[legacy.id, id] as const] : []
-    }),
-  )
-  const profiledSupplementIds = supplementIds(books, profiledCatalogueIds)
+  const replacements = catalogueReplacements(books, profiledCatalogueIds)
+  const profiledSupplementIds = supplementIds(books, replacements)
 
   return {
     profiledCatalogueIds,
@@ -199,6 +210,7 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
     profiledSupplementIds,
     profiledDetachmentIds,
     profiledArmyRules: profiledRuleCards,
+    replacements,
   }
 }
 

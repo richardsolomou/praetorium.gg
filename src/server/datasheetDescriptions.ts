@@ -34,17 +34,16 @@ export function describeDatasheetAbilitiesWithContributions(
     ? new Set([...factionContent.armyRules.map((rule) => routeSlug(rule.name)), ...[...factionContent.factionAbilityNames].map(routeSlug)])
     : null
   const profileArmyRules = faction ? profiledArmyRulesFor(loaded, catalogueId) : []
-  const supersededFactionAbilities = new Set([...(factionContent?.factionAbilityNames ?? [])].map(routeSlug))
   if (profileArmyRules.length && factionAbilityNames) {
-    for (const name of supersededFactionAbilities) factionAbilityNames.delete(name)
     for (const rule of profileArmyRules) factionAbilityNames.add(routeSlug(rule.name))
   }
+  const profiledRuleNames = new Set(profileArmyRules.map((rule) => routeSlug(rule.name)))
   const upgradeNames = new Set(detachmentDetails.flatMap((detachment) => detachment.upgrades.map((upgrade) => routeSlug(upgrade.name))))
   const referenceAbilities = options.reference ? detachmentAbilitiesIn(loaded, catalogueId, sheet.id) : null
   const sourceAbilities = referenceAbilities?.abilities ?? sheet.abilities
   const candidateAbilities: typeof sourceAbilities = profileArmyRules.length
     ? [
-        ...sourceAbilities.filter((ability) => ability.kind !== 'faction' || !supersededFactionAbilities.has(routeSlug(ability.name))),
+        ...sourceAbilities.filter((ability) => ability.kind !== 'faction' || !profiledRuleNames.has(routeSlug(ability.name))),
         ...profileArmyRules.map((rule) => ({
           id: `profile-army-rule:${routeSlug(rule.name)}`,
           name: rule.name,

@@ -123,13 +123,9 @@ function withProfiledArmyRules<
   )
   if (!profiledRules.size) return faction
 
-  const superseded = new Set([...(factionContentOf(loaded, faction.name)?.factionAbilityNames ?? [])].map(routeSlug))
   return {
     ...faction,
-    armyRules: [
-      ...profiledRules.values(),
-      ...faction.armyRules.filter((rule) => !superseded.has(routeSlug(rule.name)) && !profiledRules.has(routeSlug(rule.name))),
-    ],
+    armyRules: [...profiledRules.values(), ...faction.armyRules.filter((rule) => !profiledRules.has(routeSlug(rule.name)))],
   }
 }
 
