@@ -1,4 +1,5 @@
 import { rosterSnapshot } from '../core/rosterSnapshot'
+import { enforces } from '../core/battle'
 import { app } from './app'
 import { unitBattleDetailsIn } from './catalogue'
 import { calculateRosterPrice, savedRosterPriceInput } from './pricing'
@@ -14,14 +15,17 @@ type PricedRosterLegality = {
 export function rosterUseProblem(
   priced: PricedRosterLegality,
   limit: number,
+  waivedRules: readonly string[] = [],
 ): { kind: 'over-limit' | 'not-legal'; message: string } | null {
-  if (priced.points > limit) return { kind: 'over-limit', message: `roster has ${priced.points} points, over its ${limit}-point limit` }
+  if (priced.points > limit && enforces(waivedRules, 'points-limit'))
+    return { kind: 'over-limit', message: `roster has ${priced.points} points, over its ${limit}-point limit` }
   const violation = priced.errors[0]
   const message = priced.detachmentError || priced.dispositionError || (violation ? `${violation.entryName}: ${violation.message}` : null)
   return message ? { kind: 'not-legal', message } : null
 }
 
-export const rosterUseError = (priced: PricedRosterLegality, limit: number) => rosterUseProblem(priced, limit)?.message ?? null
+export const rosterUseError = (priced: PricedRosterLegality, limit: number, waivedRules: readonly string[] = []) =>
+  rosterUseProblem(priced, limit, waivedRules)?.message ?? null
 
 export async function rosterForUse(userId: string, rosterId: string) {
   const saved = await app().service.ownRoster(userId, rosterId)
@@ -32,7 +36,7 @@ export async function rosterForUse(userId: string, rosterId: string) {
   if (!rules) throw new Response('army rules data is not available', { status: 409 })
   const priced = calculateRosterPrice(savedRosterPriceInput(saved), catalogue, rules)
   if (!priced) throw new Response('army data is not available', { status: 409 })
-  const error = rosterUseError(priced, saved.limit)
+  const error = rosterUseError(priced, saved.limit, saved.waivedRules)
   if (error) throw new Response(`fix roster errors before using it: ${error}`, { status: 409 })
   const details = unitBattleDetailsIn(
     catalogue,

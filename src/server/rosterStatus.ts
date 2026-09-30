@@ -17,11 +17,17 @@ export type RosterVerdict = { problem: 'over-limit' | 'not-legal' | null; conten
  * one. A list that could not be priced is judged nothing rather than legal.
  */
 export function rosterVerdict(
-  roster: { catalogueId: string; detachmentIds: readonly string[]; limit: number; picks: readonly { entryId: string }[] },
+  roster: {
+    catalogueId: string
+    detachmentIds: readonly string[]
+    limit: number
+    waivedRules?: readonly string[]
+    picks: readonly { entryId: string }[]
+  },
   priced: PricedList | null,
 ): RosterVerdict {
   return {
-    problem: priced ? (rosterUseProblem(priced, roster.limit)?.kind ?? null) : null,
+    problem: priced ? (rosterUseProblem(priced, roster.limit, roster.waivedRules)?.kind ?? null) : null,
     contents: {
       catalogueId: roster.catalogueId,
       detachmentIds: [...roster.detachmentIds],
