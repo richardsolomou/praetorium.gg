@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.88.0
+
+### Minor Changes
+
+- cd533c7: Add friends to an open league event directly, without waiting for them to ask to join.
+- cd533c7: Choose a new league's battle format and points when creating it, and enter yourself as a player straight away so you can seal your list.
+- cd533c7: Show a league event on one page for everyone, with the organizer's controls beside the entrants instead of on a separate Organize tab.
+- cd533c7: Edit a league's settings and its current event's format in one form, saved together.
+
+### Patch Changes
+
+- cd533c7: Pick a league's earlier events from a one-line menu in the header instead of a row of buttons.
+- cd533c7: Show a league's invite link as one card that copies or shares it.
+
 ## 0.87.0
 
 ### Minor Changes
