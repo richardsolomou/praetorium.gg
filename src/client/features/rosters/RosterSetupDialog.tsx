@@ -162,6 +162,9 @@ export function RosterSetupDialog({
   const singleDetachment = isKotcLimit(draft.limit) && enforces(draft.waivedRules, 'detachments')
   const budgeted = enforces(draft.waivedRules, 'detachment-points')
   const selected = faction?.detachments.filter((detachment) => draft.detachmentIds.includes(detachment.id)) ?? []
+  const unavailableDetachmentIds = faction
+    ? draft.detachmentIds.filter((id) => !faction.detachments.some((detachment) => detachment.id === id))
+    : []
   // The King of the Colosseum optional rule. Nothing offers it unasked: a roster only sees it
   // at a size that plays it, and it borrows a disposition alone — never the detachment's
   // rules, enhancements or stratagems.
@@ -319,6 +322,25 @@ export function RosterSetupDialog({
             {allowance === null ? '' : `/${allowance}`} DP used
           </span>
         </div>
+        {unavailableDetachmentIds.length ? (
+          <div role="alert" className="mt-2 border border-destructive/60 bg-destructive/10 p-3 text-sm text-destructive">
+            This roster has {unavailableDetachmentIds.length === 1 ? 'a detachment' : 'detachments'} that this faction no longer offers.
+            <Button
+              variant="ghost"
+              size="xs"
+              className="ml-2 h-auto p-0 text-destructive underline hover:text-destructive"
+              onClick={() =>
+                changeDraft({
+                  ...draft,
+                  detachmentIds: selected.map((detachment) => detachment.id),
+                  disposition: null,
+                })
+              }
+            >
+              Remove unavailable
+            </Button>
+          </div>
+        ) : null}
         {offeredDetachments.length ? (
           <SearchField
             className="mt-2"
@@ -525,6 +547,7 @@ export function RosterSetupDialog({
           loadingFaction ||
           !draft.catalogueId ||
           !draft.detachmentIds.length ||
+          unavailableDetachmentIds.length > 0 ||
           (dispositions.length > 1 && !selectedDisposition) ||
           Boolean(pointsError)
         }

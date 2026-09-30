@@ -21,6 +21,7 @@ import { UNIT_GROUPS } from './unitGroups'
 import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from './reminders'
 
 const id = z.string().min(1).max(64)
+export const detachmentIdSchema = z.string().min(1).max(128)
 export const rosterPickSchema = z.object({
   entryId: id,
   catalogueId: id.optional(),
@@ -116,7 +117,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
             .optional(),
           detachmentPointBudget: z.number().int().min(0).max(3).nullable().optional(),
           disposition: z.string().max(64).nullable(),
-          detachmentIds: z.array(id).max(3).optional(),
+          detachmentIds: z.array(detachmentIdSchema).max(3).optional(),
           waivedRules: z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional(),
           picks: z.array(rosterPickSchema).max(100).optional(),
           units: z

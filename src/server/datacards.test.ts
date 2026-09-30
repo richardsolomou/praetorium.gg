@@ -46,6 +46,49 @@ it('reads source instructions with their equipment names and skips incomplete gr
   ])
 })
 
+it('reads current datasheet characteristics and weapon profiles', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'darkangels.json'),
+    JSON.stringify({
+      name: 'Dark Angels',
+      detachments: [],
+      datasheets: [
+        {
+          name: { en: "Lion El'Jonson" },
+          source: '40k-11e',
+          stats: [{ name: { en: "Lion El'Jonson" }, m: '8"', t: '10', w: '16', sv: '2+', ld: '5+', oc: '4' }],
+          rangedWeapons: [
+            {
+              profiles: [
+                {
+                  name: { en: 'Arma Luminis – Bolt' },
+                  range: '18"',
+                  attacks: '4',
+                  skill: '2+',
+                  strength: '6',
+                  ap: '-2',
+                  damage: '2',
+                  keywords: ['CLOSE-QUARTERS'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+  )
+
+  expect(loadDatacards(directory).factions.get('dark-angels')?.datasheetDetails.get("Lion El'Jonson")?.profiles).toEqual([
+    { name: "Lion El'Jonson", type: 'Unit', values: { M: '8"', T: '10', Sv: '2+', W: '16', LD: '5+', OC: '4' } },
+    {
+      name: 'Arma Luminis – Bolt',
+      type: 'Ranged Weapons',
+      values: { Range: '18"', A: '4', BS: '2+', S: '6', AP: '-2', D: '2', Keywords: 'CLOSE-QUARTERS' },
+    },
+  ])
+})
+
 it('reads a composition written as the source\u2019s own list, keeping the equipment sentence as the loadout', () => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
   fs.writeFileSync(

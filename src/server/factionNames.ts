@@ -1,13 +1,16 @@
 import { routeSlug } from '../core/slug'
 import type { LoadedCatalogue } from './catalogueIndex'
 
+export const editionlessCatalogueName = (name: string) => name.replace(/ \(11e\)$/, '')
+
 /** The same rules-backed player-facing name used by the faction reference pages. */
 export function factionDisplayName(catalogueName: string, names?: ReadonlyMap<string, string>) {
   const parts = catalogueName.split(' - ')
   const last = parts.at(-1)
   const leaf = last?.toLowerCase() === 'library' ? parts.at(-2) : last
   if (!leaf) return catalogueName
-  return names?.get(routeSlug(leaf)) ?? leaf
+  const name = editionlessCatalogueName(leaf)
+  return names?.get(routeSlug(name)) ?? name
 }
 
 /**
@@ -36,7 +39,11 @@ export function factionContentsOf(loaded: LoadedCatalogue, catalogueName: string
   return catalogueName
     .split(' - ')
     .toReversed()
-    .flatMap((segment) => (segment.toLowerCase() === 'library' ? [] : (loaded.factionContents.get(routeSlug(segment)) ?? [])))
+    .flatMap((segment) => {
+      if (segment.toLowerCase() === 'library') return []
+      const slug = routeSlug(segment)
+      return loaded.factionContents.get(slug) ?? (slug.endsWith('-11e') ? loaded.factionContents.get(slug.slice(0, -4)) : undefined) ?? []
+    })
 }
 
 /** The file a book reads its army rules from: the nearest one that exists. */

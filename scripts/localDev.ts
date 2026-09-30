@@ -1,18 +1,24 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import { readLocalDevPreview, reuseLocalDevPreview } from './localDevPreview.ts'
 
-const root = path.resolve(process.env.LOCAL_DATA_DIR ?? 'data-dev/hosted')
-const catalogueDirectory = path.resolve(process.env.CATALOGUE_DIR ?? 'catalogue-data')
-const appPort = Number(process.env.LOCAL_APP_PORT ?? 3000)
-const spacetimePort = Number(process.env.LOCAL_SPACETIME_PORT ?? appPort + 10_000)
+const testMode = process.env.LOCAL_TEST_MODE === 'true'
+const previewFile = path.resolve('data-dev/active-preview.json')
+const savedPreview = testMode ? undefined : readLocalDevPreview(previewFile)
+const root = path.resolve(process.env.LOCAL_DATA_DIR ?? savedPreview?.dataDir ?? 'data-dev/hosted')
+const catalogueDirectory = path.resolve(process.env.CATALOGUE_DIR ?? savedPreview?.catalogueDir ?? 'catalogue-data')
+const appPort = Number(process.env.LOCAL_APP_PORT ?? savedPreview?.appPort ?? 3000)
+const spacetimePort = Number(
+  process.env.LOCAL_SPACETIME_PORT ?? (process.env.LOCAL_APP_PORT ? appPort + 10_000 : (savedPreview?.spacetimePort ?? appPort + 10_000)),
+)
 const appUrl = `http://127.0.0.1:${appPort}`
-const publicUrl = process.env.LOCAL_PUBLIC_URL ?? appUrl
+const publicUrl = process.env.LOCAL_PUBLIC_URL ?? (process.env.LOCAL_APP_PORT ? appUrl : (savedPreview?.publicUrl ?? appUrl))
 const spacetimeUrl = `http://127.0.0.1:${spacetimePort}`
 const database = `praetorium-local-${appPort}`
 const credentialsPath = path.join(root, 'credentials.json')
@@ -20,7 +26,6 @@ const installedCli = path.join(os.homedir(), '.local/share/spacetime/bin/2.7.0/s
 const cli = process.env.SPACETIME_BIN ?? (existsSync(installedCli) ? installedCli : 'spacetime')
 const children: ChildProcess[] = []
 const execute = promisify(execFile)
-const testMode = process.env.LOCAL_TEST_MODE === 'true'
 let readyServer: Server | undefined
 
 type Identity = { identity: string; token: string }
@@ -34,6 +39,13 @@ function start(command: string, args: string[], environment: NodeJS.ProcessEnv =
   const child = spawn(command, args, { env: environment, stdio: 'inherit' })
   children.push(child)
   return child
+}
+
+function stopChildren(signal: NodeJS.Signals) {
+  for (const child of children) child.kill(signal)
+  setTimeout(() => {
+    for (const child of children) if (child.exitCode === null) child.kill('SIGKILL')
+  }, 5_000).unref()
 }
 
 async function run(command: string, args: string[], environment: NodeJS.ProcessEnv = process.env) {
@@ -107,6 +119,10 @@ async function configure(value: Credentials) {
 }
 
 async function main() {
+  if (!testMode && savedPreview && (await reuseLocalDevPreview(savedPreview))) {
+    console.log(`Reusing local Praetorium at http://127.0.0.1:${savedPreview.appPort} (PID ${savedPreview.pid})`)
+    return
+  }
   if (
     !validPort(appPort) ||
     !validPort(appPort + 1) ||
@@ -127,6 +143,19 @@ async function main() {
     await rm(root, { recursive: true, force: true })
   }
   await mkdir(root, { recursive: true })
+  if (!testMode) {
+    await mkdir(path.dirname(previewFile), { recursive: true })
+    const temporary = `${previewFile}.${process.pid}.tmp`
+    try {
+      await writeFile(
+        temporary,
+        JSON.stringify({ pid: process.pid, appPort, spacetimePort, dataDir: root, catalogueDir: catalogueDirectory, publicUrl }),
+      )
+      await rename(temporary, previewFile)
+    } finally {
+      await rm(temporary, { force: true })
+    }
+  }
   const { stdout } = await execute(cli, ['--version'])
   if (!stdout.includes('spacetimedb tool version 2.7.0;')) throw new Error('Local development requires SpacetimeDB CLI 2.7.0')
   const server = start(cli, [
@@ -142,6 +171,13 @@ async function main() {
   await run(cli, ['build', '-p', 'spacetimedb'])
   await configure(value)
   await run('pnpm', ['build'], { ...process.env, NITRO_PRESET: 'node-server' })
+  if (!testMode && existsSync(path.join(catalogueDirectory, 'revision.json'))) {
+    await run('pnpm', ['catalogue:compile'], {
+      ...process.env,
+      CATALOGUE_DIR: catalogueDirectory,
+      CATALOGUE_CANONICAL_FILE: path.resolve('.output/canonical-catalogue.json'),
+    })
+  }
   const environment = {
     ...process.env,
     APP_URL: publicUrl,
@@ -163,7 +199,19 @@ async function main() {
     NODE_INTERNAL_PORT: String(appPort + 1),
     ...(testMode ? { AUTH_RATE_LIMIT: 'off' } : {}),
   }
-  const app = start(process.execPath, ['scripts/nodeServer.ts'], environment)
+  const viteOrigin = `http://127.0.0.1:${appPort + 1}`
+  const hotEnvironment = { ...environment, LOCAL_VITE_ORIGIN: viteOrigin }
+  const viteEnvironment: NodeJS.ProcessEnv = { ...hotEnvironment }
+  delete viteEnvironment.PORT
+  delete viteEnvironment.NODE_INTERNAL_PORT
+  const vite = start(
+    process.execPath,
+    ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(appPort + 1), '--strictPort'],
+    viteEnvironment,
+  )
+  await waitFor(`${viteOrigin}/api/health`, vite, (response) => response.ok)
+  const app = start(process.execPath, ['scripts/nodeServer.ts'], hotEnvironment)
+  vite.on('exit', () => stopChildren('SIGTERM'))
   await waitFor(`${appUrl}/api/health`, app, (response) => response.ok)
   if (testMode) {
     readyServer = createServer((_request, response) => {
@@ -180,10 +228,10 @@ async function main() {
   })
 }
 
-for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => children.forEach((child) => child.kill(signal)))
+for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => stopChildren(signal))
 try {
   await main()
 } finally {
   readyServer?.close()
-  for (const child of children) child.kill('SIGTERM')
+  stopChildren('SIGTERM')
 }

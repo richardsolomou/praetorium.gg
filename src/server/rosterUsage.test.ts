@@ -49,6 +49,38 @@ it('rejects rosters without a valid force disposition', () => {
   expect(rosterUseError({ ...priced, dispositionError: 'Pick a disposition.' }, 2_000)).toBe('Pick a disposition.')
 })
 
+it('rejects a saved roster with an obsolete detachment when it is used', async () => {
+  vi.mocked(app).mockReturnValue({
+    service: {
+      ownRoster: vi.fn().mockResolvedValue({
+        id: 'roster',
+        name: 'Old list',
+        catalogueId: 'cat',
+        detachmentIds: ['old-detachment'],
+        disposition: null,
+        limit: 2_000,
+        picks: [],
+        waivedRules: [],
+      }),
+    },
+    catalogueFor: async () => bookOf({ selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] }),
+    rulesFor: async () => ({
+      factionKeys: new Map(),
+      detachmentReferences: new Map(),
+      detachmentDetails: new Map(),
+      factionRestrictions: new Map(),
+    }),
+  } as never)
+
+  const message = await rosterForUse('player', 'roster').then(
+    () => '',
+    (response: Response) => response.text(),
+  )
+  expect(message).toBe(
+    'fix roster errors before using it: This roster has a detachment that is no longer available. Choose a current detachment.',
+  )
+})
+
 it('does not snapshot a roster when the rules source is unavailable', async () => {
   vi.mocked(app).mockReturnValue({
     service: {

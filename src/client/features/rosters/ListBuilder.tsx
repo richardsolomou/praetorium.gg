@@ -575,16 +575,69 @@ export function ListBuilder({
   )
   const reminderCountsByUnit = useMemo(() => reminderTimingCountsByUnit(reminders), [reminders])
   const cardRelationships = useCardRelationships(picks, units)
+  const openSetup = () =>
+    setSetupDraft({
+      name: listName,
+      catalogueId,
+      detachmentIds,
+      disposition,
+      limit,
+      waivedRules,
+      optionalRules,
+      borrowedDetachmentId,
+      visibility,
+    })
+  const applySetup = (setup: RosterSetup) => {
+    const changedFaction = setup.catalogueId !== catalogueId
+    if (!changedFaction) setPicks((current) => picksAfterDetachmentChange(current, units, detachmentIds, setup.detachmentIds))
+    setName(setup.name)
+    setCatalogueId(setup.catalogueId)
+    setDetachmentIds(setup.detachmentIds)
+    setDisposition(setup.disposition)
+    setLimit(setup.limit)
+    setWaivedRules(setup.waivedRules)
+    setOptionalRules(setup.optionalRules)
+    setBorrowedDetachmentId(setup.borrowedDetachmentId)
+    setVisibility(setup.visibility)
+    if (changedFaction) {
+      edit.clear()
+      setReminders([])
+      setSelected(null)
+    }
+    setSetupDraft(null)
+  }
+  const setupDialog =
+    editable && editingSetup ? (
+      <RosterSetupDialog
+        open={editingSetup}
+        onOpenChange={(open) => !open && setSetupDraft(null)}
+        factionOptions={factionIndex?.factions ?? []}
+        initialFaction={faction}
+        value={setupDraft}
+        onDraftChange={setSetupDraft}
+        guest={Boolean(guest)}
+        hasUnits={Boolean(picks.length)}
+        namePlaceholder={label}
+        onSave={applySetup}
+      />
+    ) : null
 
   // A frozen list carries everything its cards print, which is what lets an opponent
   // read it on an instance that has never loaded this catalogue.
   if (!faction && !frozen) {
+    const retired = Boolean(factionIndex && !factionIndex.factions.some((candidate) => candidate.id === catalogueId))
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center border border-edge bg-sunken p-8 text-center">
         <div>
-          <p className="eyebrow">Army data unavailable</p>
-          <p className="mt-2 text-sm text-dim">Army data is still loading. Try this page again shortly.</p>
+          <p className="eyebrow">{retired ? 'Army book replaced' : 'Army data unavailable'}</p>
+          <p className="mt-2 text-sm text-dim">
+            {retired
+              ? 'Choose a current faction and detachment to rebuild this roster.'
+              : 'Army data is still loading. Try this page again shortly.'}
+          </p>
+          {retired && editable ? <Button onClick={openSetup}>Choose current faction</Button> : null}
         </div>
+        {setupDialog}
       </div>
     )
   }
@@ -888,67 +941,26 @@ export function ListBuilder({
           </p>
         ) : null}
         {savedId && !frozen ? <RosterDataChanges rosterId={savedId} /> : null}
+        {editable && priced?.detachmentError ? (
+          <p role="alert" className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
+            <TriangleAlert className="size-3 shrink-0" aria-hidden />
+            {priced.detachmentError}
+            <Button variant="ghost" size="xs" className="h-auto p-0 text-destructive underline hover:text-destructive" onClick={openSetup}>
+              Review setup
+            </Button>
+          </p>
+        ) : null}
         {editable && priced?.dispositionError ? (
           <p role="alert" className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
             <TriangleAlert className="size-3 shrink-0" aria-hidden />
             {priced.dispositionError} Its detachments disagree, so a battle cannot pick a mission for it.
-            <Button
-              variant="ghost"
-              size="xs"
-              className="h-auto p-0 text-destructive underline hover:text-destructive"
-              onClick={() =>
-                setSetupDraft({
-                  name: listName,
-                  catalogueId,
-                  detachmentIds,
-                  disposition,
-                  limit,
-                  waivedRules,
-                  optionalRules,
-                  borrowedDetachmentId,
-                  visibility,
-                })
-              }
-            >
+            <Button variant="ghost" size="xs" className="h-auto p-0 text-destructive underline hover:text-destructive" onClick={openSetup}>
               Choose one
             </Button>
           </p>
         ) : null}
 
-        {editable && editingSetup ? (
-          <RosterSetupDialog
-            open={editingSetup}
-            onOpenChange={(open) => !open && setSetupDraft(null)}
-            factionOptions={factionIndex?.factions ?? []}
-            initialFaction={faction}
-            value={setupDraft}
-            onDraftChange={setSetupDraft}
-            guest={Boolean(guest)}
-            hasUnits={Boolean(picks.length)}
-            namePlaceholder={label}
-            onSave={(setup) => {
-              const changedFaction = setup.catalogueId !== catalogueId
-              if (!changedFaction) {
-                setPicks((current) => picksAfterDetachmentChange(current, units, detachmentIds, setup.detachmentIds))
-              }
-              setName(setup.name)
-              setCatalogueId(setup.catalogueId)
-              setDetachmentIds(setup.detachmentIds)
-              setDisposition(setup.disposition)
-              setLimit(setup.limit)
-              setWaivedRules(setup.waivedRules)
-              setOptionalRules(setup.optionalRules)
-              setBorrowedDetachmentId(setup.borrowedDetachmentId)
-              setVisibility(setup.visibility)
-              if (changedFaction) {
-                edit.clear()
-                setReminders([])
-                setSelected(null)
-              }
-              setSetupDraft(null)
-            }}
-          />
-        ) : null}
+        {setupDialog}
       </RosterHeader>
 
       <RosterBody threeColumn={editable}>

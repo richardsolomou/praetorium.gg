@@ -36,6 +36,7 @@ import { compiledGlobalSearchIndex } from './globalSearch'
 import { battleDetachmentData, type BattleDetachmentData } from './battleDetachmentData'
 
 type App = {
+  hotReloadToken?: object
   health: () => Promise<void>
   service: PraetoriumService
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
@@ -155,6 +156,34 @@ function canonicalCatalogue(instance: Pick<App, 'catalogue' | 'rules'>, director
   return referenceCatalogue(directory, instance.catalogue, instance.rules)
 }
 
+const hotReloadToken = {}
+
+function catalogueLoaders(getInstance: () => App, directory: string) {
+  return {
+    catalogue: memoize(() => loadCatalogue(directory)),
+    canonical: memoize(() => canonicalCatalogue(getInstance(), directory)),
+    rules: memoize(() => {
+      const catalogue = getInstance().catalogue()
+      return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
+    }),
+    history: memoize(() => loadCatalogueHistory(directory)),
+    combatUnits: memoize(() => {
+      const instance = getInstance()
+      const catalogue = instance.catalogue()
+      return catalogue ? combatUnitsFor(catalogue, instance.rules()) : []
+    }),
+  }
+}
+
+function useCatalogueLoaders(instance: App, directory: string) {
+  const next = catalogueLoaders(() => instance, directory)
+  instance.catalogue = next.catalogue
+  instance.canonicalCatalogue = next.canonical
+  instance.rules = next.rules
+  instance.catalogueHistory = next.history
+  instance.combatUnits = next.combatUnits
+}
+
 export function app(): App {
   const createApp = (): App => {
     const telemetry = serverTelemetry()
@@ -178,20 +207,7 @@ export function app(): App {
     const repository = new SpacetimeRepository(new SqliteAccountRepository(authDatabase), operator)
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     let ready = Promise.resolve()
-    const loaders = () => ({
-      catalogue: memoize(loadCatalogue),
-      canonical: memoize(() => canonicalCatalogue(instance, catalogueDataDirectory)),
-      rules: memoize(() => {
-        const catalogue = instance.catalogue()
-        return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
-      }),
-      history: memoize(() => loadCatalogueHistory(catalogueDataDirectory)),
-      combatUnits: memoize(() => {
-        const catalogue = instance.catalogue()
-        return catalogue ? combatUnitsFor(catalogue, instance.rules()) : []
-      }),
-    })
-    const loaded = loaders()
+    const loaded = catalogueLoaders(() => instance, catalogueDataDirectory)
     const authOptions = {
       environment: process.env,
       email,
@@ -202,6 +218,7 @@ export function app(): App {
     }
     const auth = createSqliteAuth(authDatabase, process.env.AUTH_SECRET ?? '', authOptions)
     const instance: App = {
+      hotReloadToken,
       health: async () => {
         try {
           await ready
@@ -267,12 +284,7 @@ export function app(): App {
     }
     // Everything read from the snapshot is read again from the one now on disk.
     const swap = () => {
-      const next = loaders()
-      instance.catalogue = next.catalogue
-      instance.canonicalCatalogue = next.canonical
-      instance.rules = next.rules
-      instance.catalogueHistory = next.history
-      instance.combatUnits = next.combatUnits
+      useCatalogueLoaders(instance, catalogueDataDirectory)
       ready = warm(instance)
     }
     sync.begin(catalogueDataDirectory, swap)
@@ -281,5 +293,12 @@ export function app(): App {
     if (sync.state.status === 'ready') ready = warm(instance)
     return instance
   }
-  return globalSingleton('praetorium.app', createApp)
+  const instance = globalSingleton('praetorium.app', createApp)
+  if (process.env.PRAETORIUM_LOCAL_DEV === 'true' && instance.hotReloadToken !== hotReloadToken) {
+    useCatalogueLoaders(instance, catalogueDirectory(path.resolve(process.env.DATA_DIR ?? '/data')))
+    instance.hotReloadToken = hotReloadToken
+    const ready = warm(instance)
+    instance.ready = () => ready
+  }
+  return instance
 }

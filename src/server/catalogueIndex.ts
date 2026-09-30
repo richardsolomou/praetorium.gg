@@ -15,7 +15,7 @@ import { routeSlug } from '../core/slug'
 import { compareText, sameText } from '../core/text'
 import { type FactionContent, type LoadedDatacards, type RuleCard, loadDatacards } from './datacards'
 import { catalogueSections } from './catalogueSections'
-import { catalogueFactionName, factionDisplayName } from './factionNames'
+import { catalogueFactionName, editionlessCatalogueName, factionDisplayName } from './factionNames'
 import { type ExternalReferences, loadExternalReferences } from './externalReferences'
 import { catalogueProfileMetadata, prepareCatalogueProfileRules } from './catalogueProfileRules'
 
@@ -30,6 +30,7 @@ export type LoadedCatalogue = {
   detachments: Map<string, DetachmentOptions>
   factionContents: Map<string, FactionContent>
   profiledCatalogueIds: Set<string>
+  profiledSupplementIds: Set<string>
   profiledDetachmentIds: Set<string>
   profiledArmyRules: Map<string, RuleCard[]>
   /** Game Datacards, read once here and handed to the rules loader. */
@@ -76,7 +77,7 @@ export function catalogueFromIndex(
   sourceReferences: ExternalReferences,
   profiled: Pick<
     ReturnType<typeof catalogueProfileMetadata>,
-    'profiledCatalogueIds' | 'profiledDetachmentIds' | 'profiledArmyRules'
+    'profiledCatalogueIds' | 'profiledSupplementIds' | 'profiledDetachmentIds' | 'profiledArmyRules'
   > = catalogueProfileMetadata(files),
 ): LoadedCatalogue {
   const detachments = detachmentsOf(files, index)
@@ -87,6 +88,7 @@ export function catalogueFromIndex(
     detachments,
     factionContents: datacards.factions,
     profiledCatalogueIds: profiled.profiledCatalogueIds,
+    profiledSupplementIds: profiled.profiledSupplementIds,
     profiledDetachmentIds: profiled.profiledDetachmentIds,
     profiledArmyRules: profiled.profiledArmyRules,
     datacards,
@@ -111,8 +113,14 @@ export function characteristicNamesOf(files: readonly CatalogueFile[]) {
 }
 
 export function factionsIn(index: CatalogueIndex, detachments: Map<string, DetachmentOptions>) {
-  return [...index.catalogues.values()]
-    .filter((catalogue) => unitCount(index, catalogue.id) > 0)
+  const catalogues = [...index.catalogues.values()].filter((catalogue) => unitCount(index, catalogue.id) > 0)
+  const replacements = new Set(
+    catalogues
+      .filter((catalogue) => editionlessCatalogueName(catalogue.name) !== catalogue.name)
+      .map((catalogue) => editionlessCatalogueName(catalogue.name)),
+  )
+  return catalogues
+    .filter((catalogue) => !replacements.has(catalogue.name))
     .map((catalogue) => ({
       id: catalogue.id,
       name: catalogue.name,

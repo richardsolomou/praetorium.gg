@@ -209,6 +209,28 @@ describe('a limit the catalogue breaks inside a unit', () => {
 })
 
 describe('force disposition', () => {
+  it('does not price a saved roster with a detachment no longer offered by its faction as legal', () => {
+    const loaded = bookOf({ selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] })
+
+    expect(
+      calculateRosterPrice(
+        { catalogueId: 'cat', detachmentIds: ['retired-detachment'], disposition: null, limit: 2_000, units: [] },
+        loaded,
+        rulesWithout,
+      )?.detachmentError,
+    ).toBe('This roster has a detachment that is no longer available. Choose a current detachment.')
+  })
+
+  it('does not price a saved roster from a replaced faction as legal', () => {
+    const loaded = bookOf({ selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] })
+    loaded.factions = []
+
+    expect(
+      calculateRosterPrice({ catalogueId: 'cat', detachmentIds: [], disposition: null, limit: 2_000, units: [] }, loaded, rulesWithout)
+        ?.detachmentError,
+    ).toBe('This roster uses a replaced faction catalogue. Choose a current faction and detachment.')
+  })
+
   it('prices profiled detachments from their catalogue DP costs', () => {
     const loaded = bookOf({
       name: 'Space Marines',

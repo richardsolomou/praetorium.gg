@@ -68,6 +68,10 @@ it('loads one faction catalogue for several saved roster verdicts', async () => 
 })
 
 it('reuses one full evaluation for library points and legality', async () => {
+  reads.catalogueFor.mockResolvedValueOnce({
+    ...bookOf({}),
+    factions: [{ id: 'cat', name: 'Test catalogue', references: [] }],
+  })
   const saved = priceable('page-assessment')
   const [assessment] = await cachedRosterAssessmentsFor([saved])
   expect(assessment).toMatchObject({ points: 0, verdict: { problem: null } })

@@ -213,6 +213,12 @@ jobs:
           compression-level: 1
           include-hidden-files: true
           if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: profile-projector
+          path: scripts/projectCatalogueProfiles.ts
+          retention-days: 1
+          if-no-files-found: error
 
   coverage-snapshot:
     # A skipped `release-proof` would otherwise skip this job too, since a skip passes down the needs chain.
@@ -253,6 +259,10 @@ jobs:
         with:
           name: coverage-catalogue
           path: catalogue-data
+      - uses: actions/download-artifact@v8
+        with:
+          name: profile-projector
+          path: scripts
       - name: Restore the base snapshot
         if: matrix.revision == 'base'
         id: base-cache
@@ -263,6 +273,16 @@ jobs:
       - name: Snapshot the ${{ matrix.revision }}
         if: matrix.revision == 'head' || steps.base-cache.outputs.cache-hit != 'true'
         run: pnpm catalogue:coverage:parallel ${{ matrix.file }} ${{ matrix.part && format('--part {0}', matrix.part) || '' }}
+      - name: Project every roster datasheet profile
+        if: matrix.part == '0/2'
+        run: pnpm exec tsx scripts/projectCatalogueProfiles.ts ${{ matrix.revision }}-profiles.json
+      - uses: actions/upload-artifact@v7
+        if: matrix.part == '0/2'
+        with:
+          name: profiles-${{ matrix.revision }}
+          path: ${{ matrix.revision }}-profiles.json
+          retention-days: 1
+          if-no-files-found: error
       - uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.file }}
@@ -287,12 +307,28 @@ jobs:
         with:
           pattern: coverage-*.json
           merge-multiple: true
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: profiles-*
+          merge-multiple: true
       - name: Compare snapshots
         run: |
           set -euo pipefail
           jq -s 'add' base-*.json > base.json
           jq -s 'add' head-*.json > head.json
           pnpm catalogue:coverage:compare base.json head.json --accept catalogue/accepted-coverage-losses.json | tee coverage.txt
+      - name: Compare projected profile values
+        run: |
+          set -euo pipefail
+          pnpm catalogue:profiles:compare base-profiles.json head-profiles.json --replacement 'Imperium - Adeptus Astartes - Space Marines (11e)' | tee profile-diff.txt
+          head -1 profile-diff.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: profile-diff
+          path: profile-diff.txt
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Require no lost coverage
         run: |
           set -euo pipefail

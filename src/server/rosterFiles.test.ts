@@ -194,6 +194,7 @@ const loaded: LoadedCatalogue = {
   },
   sourceReferences: emptyExternalReferences(),
   profiledCatalogueIds: new Set(),
+  profiledSupplementIds: new Set(),
   profiledDetachmentIds: new Set(),
   profiledArmyRules: new Map(),
   factions: [

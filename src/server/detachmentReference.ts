@@ -6,14 +6,21 @@ import { detachmentPoints } from './detachmentPoints'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { detachmentNamed } from './factionReferences'
-import { isProfiledDetachment, profiledDetachmentCards, profiledDetachmentPoints } from './catalogueProfileRules'
+import {
+  isProfiledDetachment,
+  profiledDetachmentCards,
+  profiledDetachmentMatchesCards,
+  profiledDetachmentPoints,
+} from './catalogueProfileRules'
 
 export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules, catalogueId: string, detachmentSlug: string) {
   const faction = loaded.index.catalogues.get(catalogueId)
   if (!faction) return null
   const option = loaded.detachments.get(catalogueId)?.options.find((candidate) => routeSlug(candidate.name) === detachmentSlug)
   if (!option) return null
-  if (isProfiledDetachment(loaded, option.id)) {
+  const rulesId = rulesFaction(rules, routeSlug(faction.name))
+  const detail = detachmentNamed(rules.detachmentDetails.get(rulesId), option.name)
+  if (isProfiledDetachment(loaded, option.id) && !profiledDetachmentMatchesCards(loaded, option.id, detail)) {
     const cards = profiledDetachmentCards(loaded, option.id)
     return {
       id: option.id,
@@ -36,8 +43,6 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
       attribution: 'BSData community catalogue',
     }
   }
-  const rulesId = rulesFaction(rules, routeSlug(faction.name))
-  const detail = detachmentNamed(rules.detachmentDetails.get(rulesId), option.name)
   const reference = detachmentNamed(rules.detachmentReferences.get(rulesId), option.name)
   const { catalogue: catalogueDetail, described } = describedEnhancements(loaded, catalogueId, option, detail)
   const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rules ?? [], detail?.rules ?? [])

@@ -2,8 +2,9 @@ import { routeSlug } from '../core/slug'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { rulesReferencedIn } from './catalogueRules'
 import { rulesFaction, type LoadedRules } from './rules'
+import { detachmentNamed } from './factionReferences'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
-import { isProfiledDetachment, profiledDetachmentCards } from './catalogueProfileRules'
+import { isProfiledDetachment, profiledDetachmentCards, profiledDetachmentMatchesCards } from './catalogueProfileRules'
 
 export type BattleDetachmentData = {
   index: Pick<LoadedCatalogue['index'], 'rules'>
@@ -34,7 +35,11 @@ export function battleDetachmentData(
     dataslate: rules.dataslate,
     profiledStratagems: new Map(
       (loaded.detachments.get(catalogueId)?.options ?? [])
-        .filter((option) => isProfiledDetachment(loaded, option.id))
+        .filter(
+          (option) =>
+            isProfiledDetachment(loaded, option.id) &&
+            !profiledDetachmentMatchesCards(loaded, option.id, detachmentNamed(rules.detachmentDetails.get(rulesId), option.name)),
+        )
         .map((option) => [option.name, profiledDetachmentCards(loaded, option.id).stratagems]),
     ),
   }

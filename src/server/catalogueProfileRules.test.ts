@@ -11,6 +11,8 @@ import {
 } from './catalogueProfileRules'
 import { factionsFor } from './factionReferences'
 import { battleDetachmentData, selectedBattleDetachmentData } from './battleDetachmentData'
+import { detachmentReference } from './detachmentReference'
+import { calculateRosterPrice } from './pricing'
 import type { LoadedRules } from './rules'
 
 const files: CatalogueFile[] = [
@@ -149,8 +151,8 @@ const files: CatalogueFile[] = [
   },
 ]
 
-function loadedCatalogue() {
-  const prepared = prepareCatalogueProfileRules(files)
+function loadedCatalogue(source = files) {
+  const prepared = prepareCatalogueProfileRules(source)
   const index = buildIndex(prepared.files, 'revision')
   const detachments = detachmentsOf(prepared.files, index)
   const loaded = {
@@ -176,6 +178,7 @@ function loadedCatalogue() {
       ],
     ]),
     profiledCatalogueIds: prepared.profiledCatalogueIds,
+    profiledSupplementIds: prepared.profiledSupplementIds,
     profiledDetachmentIds: prepared.profiledDetachmentIds,
     profiledArmyRules: prepared.profiledArmyRules,
   } as Partial<LoadedCatalogue> as LoadedCatalogue
@@ -189,6 +192,118 @@ it('loads one released Space Marines catalogue under its ordinary name', () => {
     'Imperium - Adeptus Astartes - Space Marines',
     'Imperium - Adeptus Astartes - Ultramarines',
   ])
+})
+
+it('offers only the newer Space Marines book when the snapshot includes both editions', () => {
+  const old = files[1]!.catalogue!
+  const newer: CatalogueFile = {
+    catalogue: {
+      id: 'space-marines-11e',
+      name: `${old.name} (11e)`,
+      catalogueLinks: [{ targetId: old.id, importRootEntries: true }],
+      sharedSelectionEntries: [{ id: 'new-intercessors', name: 'Intercessors', type: 'unit' }],
+    },
+  }
+  const { index, detachments } = loadedCatalogue([...files, newer])
+
+  expect(factionsIn(index, detachments).map((faction) => faction.id)).toEqual(['dark-angels', 'space-marines-11e', 'ultramarines'])
+})
+
+it('replaces a chapter’s inherited legacy detachments with the new codex options', () => {
+  const legacy: CatalogueFile = {
+    catalogue: {
+      id: 'legacy-marines',
+      name: 'Imperium - Adeptus Astartes - Space Marines',
+      selectionEntries: [
+        {
+          id: 'legacy-wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'legacy-choices',
+              name: 'Detachment',
+              selectionEntries: [
+                { id: 'legacy-gladius', name: 'Gladius Task Force', type: 'upgrade' },
+                {
+                  id: 'chapter-angelic',
+                  name: 'Angelic Inheritors',
+                  type: 'upgrade',
+                  modifiers: [
+                    {
+                      field: 'hidden',
+                      type: 'set',
+                      value: true,
+                      conditions: [
+                        { type: 'notInstanceOf', field: 'selections', scope: 'primary-catalogue', childId: 'blood-angels', value: 1 },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'legacy-unit', name: 'Intercessors', type: 'unit' },
+      ],
+    },
+  }
+  const newer: CatalogueFile = {
+    catalogue: {
+      id: 'new-marines',
+      name: 'Imperium - Adeptus Astartes - Space Marines (11e)',
+      sharedSelectionEntries: [{ id: 'new-unit', name: 'Intercessors', type: 'unit' }],
+      sharedSelectionEntryGroups: [
+        {
+          id: 'new-detachments',
+          name: 'Detachment',
+          selectionEntries: [
+            {
+              id: 'new-assault',
+              name: 'Assault Brethren',
+              type: 'upgrade',
+              costs: [{ name: 'Detachment Points', typeId: 'dp', value: 1 }],
+              profiles: [{ id: 'new-rule', name: 'Assault Mastery', characteristics: [{ name: 'Description', $text: 'Charge.' }] }],
+            },
+          ],
+        },
+      ],
+    },
+  }
+  const chapter: CatalogueFile = {
+    catalogue: {
+      id: 'blood-angels',
+      name: 'Imperium - Adeptus Astartes - Blood Angels',
+      catalogueLinks: [{ targetId: 'legacy-marines', importRootEntries: true }],
+      selectionEntries: [{ id: 'chapter-unit', name: 'Sanguinary Guard', type: 'unit' }],
+    },
+  }
+  const { loaded } = loadedCatalogue([files[0]!, legacy, newer, chapter])
+  expect(loaded.profiledSupplementIds.has('blood-angels')).toBe(true)
+  const options = loaded.detachments.get('blood-angels')!.options
+
+  expect(options.map(({ name }) => name)).toEqual(['Angelic Inheritors', 'Assault Brethren'])
+  expect(
+    calculateRosterPrice(
+      { catalogueId: 'blood-angels', detachmentIds: [options[1]!.id], disposition: null, limit: 2000, units: [] },
+      loaded,
+      null,
+    ),
+  ).toMatchObject({ detachments: [{ name: 'Assault Brethren', points: 1 }] })
+})
+
+it('indexes an imported profiled detachment under its owning faction once', () => {
+  const { loaded } = loadedCatalogue()
+  const factions = factionsFor(loaded, null).factions
+
+  expect(
+    factions
+      .filter((faction) =>
+        faction.referenceDetachmentIds.some((id) => faction.detachments.find((option) => option.id === id)?.name === 'Assault Brethren'),
+      )
+      .map((faction) => faction.id),
+  ).toEqual(['space-marines'])
+  expect(factions.find((faction) => faction.id === 'ultramarines')?.detachments.map((option) => option.name)).toContain('Assault Brethren')
 })
 
 it('leaves an already rooted catalogue untouched', () => {
@@ -325,6 +440,100 @@ it('serves profiled stratagems from compiled battle detachment data', () => {
   expect(selectedBattleDetachmentData(data, ['Tacticus Attack Force']).written).toEqual([
     { key: 'stratagem', type: null, description: 'Stratagem text' },
   ])
+})
+
+it('uses Game Datacards details for a profiled detachment when available', () => {
+  const source = files.map((file) =>
+    file.catalogue?.id === 'space-marines' ? { catalogue: { ...file.catalogue, name: `${file.catalogue.name} (11e)` } } : file,
+  )
+  const { loaded } = loadedCatalogue(source)
+  const tacticus = loaded.detachments.get('space-marines')!.options.find((option) => option.name === 'Tacticus Attack Force')!
+  const stratagem = { key: 'gdc-stratagem', name: 'Rapid Advance', cp: 1, limit: 'unlimited', phases: ['movement'], turn: 'own' }
+  const detail = {
+    id: 'tacticus-attack-force',
+    name: 'Tacticus Attack Force',
+    points: 2,
+    dispositions: ['take-and-hold'],
+    rules: [{ name: 'Tactical Mastery', description: 'Game Datacards rule.' }],
+    enhancements: [{ name: 'Chapter Champion', points: 15, description: 'Game Datacards enhancement.', keywordRestrictions: null }],
+    upgrades: [],
+    stratagems: [
+      {
+        id: 'gdc-stratagem',
+        name: 'Rapid Advance',
+        cp: 1,
+        type: 'Battle Tactic',
+        phases: ['movement'],
+        turn: 'own',
+        description: 'Game Datacards stratagem.',
+      },
+    ],
+  }
+  const rules = {
+    factionKeys: new Map([['space-marines', 'adeptus-astartes']]),
+    factionRestrictions: new Map(),
+    byDetachment: new Map([['adeptus-astartes', new Map([['tacticus-attack-force', [stratagem]]])]]),
+    detachmentDetails: new Map([['adeptus-astartes', new Map([['tacticus-attack-force', detail]])]]),
+    detachmentReferences: new Map([
+      [
+        'adeptus-astartes',
+        new Map([['tacticus-attack-force', { enhancements: 1, upgrades: 0, stratagems: 1, points: 2, dispositions: ['take-and-hold'] }]]),
+      ],
+    ]),
+    dispositions: new Map([['take-and-hold', 'Take and Hold']]),
+    core: [],
+    coreDetails: [],
+    attribution: 'Game Datacards',
+    dataslate: null,
+  } as Partial<LoadedRules> as LoadedRules
+
+  expect(detachmentReference(loaded, rules, 'space-marines', 'tacticus-attack-force')).toMatchObject({
+    points: 2,
+    rules: detail.rules,
+    enhancements: [{ name: 'Chapter Champion', points: 15 }],
+    stratagems: [{ id: 'gdc-stratagem', phases: ['movement'], turn: 'own' }],
+  })
+  expect(selectedBattleDetachmentData(battleDetachmentData(loaded, rules, 'space-marines')!, ['Tacticus Attack Force']).stratagems).toEqual(
+    [stratagem],
+  )
+  expect(
+    factionsFor(loaded, rules)
+      .factions.find((faction) => faction.id === 'space-marines')
+      ?.detachments.find((detachment) => detachment.name === 'Tacticus Attack Force')?.reference,
+  ).toMatchObject({ enhancements: 1, stratagems: 1 })
+  expect(
+    calculateRosterPrice(
+      { catalogueId: 'space-marines', detachmentIds: [tacticus.id], disposition: null, limit: 2_000, units: [] },
+      loaded,
+      rules,
+    ),
+  ).toMatchObject({ detachments: [{ name: 'Tacticus Attack Force', points: 2 }], dispositions: ['take-and-hold'] })
+
+  const conflicting = {
+    ...rules,
+    detachmentDetails: new Map([
+      [
+        'adeptus-astartes',
+        new Map([['tacticus-attack-force', { ...detail, stratagems: [{ ...detail.stratagems[0]!, name: 'Another stratagem' }] }]]),
+      ],
+    ]),
+  } as LoadedRules
+  expect(detachmentReference(loaded, conflicting, 'space-marines', 'tacticus-attack-force')?.stratagems).toEqual([
+    { id: 'stratagem', name: 'Rapid Advance', cp: 1, description: 'Stratagem text', type: null, phases: [], turn: null },
+  ])
+  expect(
+    calculateRosterPrice(
+      {
+        catalogueId: 'space-marines',
+        detachmentIds: [tacticus.id],
+        disposition: null,
+        limit: 2_000,
+        units: [],
+      },
+      loaded,
+      conflicting,
+    ),
+  ).toMatchObject({ detachments: [{ name: 'Tacticus Attack Force', points: 3 }], dispositions: [] })
 })
 
 it('recovers profile metadata from prepared catalogue files', () => {

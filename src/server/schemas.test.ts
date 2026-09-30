@@ -5,6 +5,9 @@ import {
   createLeagueEventSchema,
   createLeagueSchema,
   leagueBattleOptionsSchema,
+  priceSchema,
+  datasheetSchema,
+  favouriteDetachmentSchema,
   saveRosterSchema,
   savedRosterDatasheetSchema,
   submitSchema,
@@ -188,6 +191,20 @@ describe('saved roster input', () => {
     picks: [],
     prep: null,
   }
+
+  it('accepts projected detachment ids throughout roster requests', () => {
+    const detachmentId = 'profile-detachment-option-470a-6daa-9014-12df-f261-3980-2765-e3be'
+    expect([
+      saveRosterSchema.safeParse({ ...roster, name: '', detachmentIds: [detachmentId], borrowedDetachmentId: detachmentId }).success,
+      priceSchema.safeParse({ ...roster, units: [], detachmentIds: [detachmentId], borrowedDetachmentId: detachmentId }).success,
+      datasheetSchema.safeParse({ catalogueId: 'dark-angels', entryId: 'unit', detachmentIds: [detachmentId] }).success,
+      favouriteDetachmentSchema.safeParse({ catalogueId: 'dark-angels', detachmentId, favourite: true }).success,
+    ]).toEqual([true, true, true, true])
+  })
+
+  it('keeps detachment ids bounded', () => {
+    expect(priceSchema.safeParse({ ...roster, units: [], detachmentIds: ['a'.repeat(129)] }).success).toBe(false)
+  })
 
   it('saves a list nobody named, since a folded label is what it is called', () => {
     expect(saveRosterSchema.parse({ ...roster, name: '' }).name).toBe('')

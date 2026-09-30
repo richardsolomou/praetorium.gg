@@ -11,6 +11,10 @@ import {
 } from '../core/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import type { RuleCard } from './datacards'
+import type { DetachmentRulesDetail } from './rulesFactions'
+import { joinKey } from './rulesSource'
+import { editionlessCatalogueName } from './factionNames'
+import { hiddenByRules } from '../core/evaluate'
 
 const DETACHMENT_ENTRY = 'detachment'
 
@@ -38,6 +42,22 @@ function directDetachmentOptions(book: Catalogue) {
     .flatMap((group) => group.selectionEntries ?? [])
 }
 
+function supplementIds(books: ReadonlyMap<string, Catalogue>, profiledIds: ReadonlySet<string>) {
+  const byName = new Map([...books.values()].map((book) => [book.name, book]))
+  const supersededIds = new Set(
+    [...profiledIds].flatMap((id) => {
+      const replacement = books.get(id)
+      const legacy = replacement && byName.get(editionlessCatalogueName(replacement.name))
+      return legacy && legacy.id !== id ? [legacy.id] : []
+    }),
+  )
+  return new Set(
+    [...books.values()]
+      .filter((book) => book.catalogueLinks?.some((link) => link.importRootEntries && supersededIds.has(link.targetId)))
+      .map((book) => book.id),
+  )
+}
+
 export function catalogueProfileMetadata(files: readonly CatalogueFile[], rawIndex?: CatalogueIndex) {
   const books = new Map(files.flatMap((file) => (file.catalogue ? [[file.catalogue.id, file.catalogue] as const] : [])))
   const profiledCatalogueIds = new Set<string>()
@@ -61,11 +81,22 @@ export function catalogueProfileMetadata(files: readonly CatalogueFile[], rawInd
     options.filter((option) => option.profiles?.length).forEach((option) => profiledDetachmentIds.add(option.id))
   }
 
+  const byName = new Map([...books.values()].map((book) => [book.name, book]))
+  const replacements = new Map(
+    [...profiledCatalogueIds].flatMap((id) => {
+      const legacy = byName.get(editionlessCatalogueName(books.get(id)!.name))
+      return legacy && legacy.id !== id ? [[legacy.id, id] as const] : []
+    }),
+  )
+  const profiledSupplementIds = supplementIds(books, profiledCatalogueIds)
+
   return {
     profiledCatalogueIds,
+    profiledSupplementIds,
     profiledDetachmentIds,
     profiledArmyRules: profiledArmyRules(files, profiledCatalogueIds),
     profiledOptions,
+    replacements,
   }
 }
 
@@ -74,20 +105,42 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
   const rawIndex = buildIndex(files, 'source')
   const {
     profiledCatalogueIds,
+    profiledSupplementIds,
     profiledDetachmentIds,
     profiledArmyRules: profiledRuleCards,
     profiledOptions,
+    replacements,
   } = catalogueProfileMetadata(files, rawIndex)
+  const books = files.flatMap((file) => (file.catalogue ? [file.catalogue] : []))
+  const byId = new Map(books.map((book) => [book.id, book]))
+  const supersededOptions = new Map(
+    [...replacements].map(([legacyId]) => [
+      legacyId,
+      new Set(
+        rootDetachmentOptions(byId.get(legacyId)!, rawIndex)
+          .filter((option) => !hiddenByRules(option, rawIndex, { primaryCatalogueId: legacyId }))
+          .map((option) => targetOf(option, rawIndex.definitions).id),
+      ),
+    ]),
+  )
 
   const prepared = files.map((file): CatalogueFile => {
     const book = file.catalogue
     if (!book) return file
 
-    const imported = (book.catalogueLinks ?? [])
-      .filter((link) => link.importRootEntries)
-      .flatMap((link) => profiledOptions.get(link.targetId) ?? [])
-    const rootOptions = rootDetachmentOptions(book, rawIndex)
-    const options = [...rootOptions, ...(profiledOptions.get(book.id) ?? []), ...imported]
+    const imports = (book.catalogueLinks ?? []).filter((link) => link.importRootEntries)
+    const imported = imports.flatMap((link) => profiledOptions.get(replacements.get(link.targetId) ?? link.targetId) ?? [])
+    const superseded = new Set(imports.flatMap((link) => [...(supersededOptions.get(link.targetId) ?? [])]))
+    const rootOptions = rootDetachmentOptions(book, rawIndex).filter((option) => !superseded.has(targetOf(option, rawIndex.definitions).id))
+    const chapterOptions = imports.flatMap((link) => {
+      const legacy = byId.get(link.targetId)
+      if (!legacy || !replacements.has(legacy.id)) return []
+      return rootDetachmentOptions(legacy, rawIndex).filter(
+        (option) =>
+          !superseded.has(targetOf(option, rawIndex.definitions).id) && !hiddenByRules(option, rawIndex, { primaryCatalogueId: book.id }),
+      )
+    })
+    const options = [...rootOptions, ...chapterOptions, ...(profiledOptions.get(book.id) ?? []), ...imported]
     const uniqueOptions = [...new Map(options.map((option) => [targetOf(option, rawIndex.definitions).id, option])).values()]
     const needsWrapper =
       (imported.length > 0 || (profiledCatalogueIds.has(book.id) && rootOptions.length === 0)) && uniqueOptions.length > 0
@@ -143,6 +196,7 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
   return {
     files: prepared,
     profiledCatalogueIds,
+    profiledSupplementIds,
     profiledDetachmentIds,
     profiledArmyRules: profiledRuleCards,
   }
@@ -192,6 +246,21 @@ export function profiledDetachmentCards(loaded: Pick<LoadedCatalogue, 'index'>, 
       return cost ? [{ ...card, name: card.name.slice(0, -cost[0].length), cp: Number(cost[1]) }] : []
     }),
   }
+}
+
+export function profiledDetachmentMatchesCards(
+  loaded: Pick<LoadedCatalogue, 'index'>,
+  detachmentId: string,
+  detail: Pick<DetachmentRulesDetail, 'rules' | 'stratagems'> | undefined,
+) {
+  if (!detail) return false
+  const cards = profiledDetachmentCards(loaded, detachmentId)
+  const names = (entries: readonly { name: string }[]) =>
+    entries
+      .map((entry) => joinKey(entry.name))
+      .sort()
+      .join('|')
+  return names(cards.rules) === names(detail.rules) && names(cards.stratagems) === names(detail.stratagems)
 }
 
 function profiledArmyRules(files: readonly CatalogueFile[], profiledCatalogueIds: ReadonlySet<string>) {

@@ -2,4 +2,4 @@
 'praetorium.gg': minor
 ---
 
-Use the released eleventh-edition Space Marines codex data.
+Support eleventh-edition Space Marines catalogue data and detachment migration.

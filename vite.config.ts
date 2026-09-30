@@ -30,7 +30,11 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    server: { port: 3000, proxy: proxy?.vite },
+    server: {
+      port: 3000,
+      proxy: proxy?.vite,
+      ...(process.env.LOCAL_VITE_ORIGIN ? { ws: { clientPort: Number(process.env.LOCAL_APP_PORT ?? 3000) } } : {}),
+    },
     plugins: [
       tanstackStart({ serverFns: { disableCsrfMiddlewareWarning: true } }),
       nitro({
