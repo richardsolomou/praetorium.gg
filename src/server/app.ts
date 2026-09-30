@@ -175,6 +175,50 @@ function catalogueLoaders(getInstance: () => App, directory: string) {
   }
 }
 
+function catalogueReads(getInstance: () => App) {
+  return {
+    catalogueFor: async () => getInstance().catalogue(),
+    canonicalCatalogueFor: async () => getInstance().canonicalCatalogue(),
+    rulesFor: async () => getInstance().rules(),
+    battleMissionRulesFor: async () => getInstance().rules(),
+    battleReadRulesFor: async () => getInstance().rules(),
+    terrainReadRulesFor: async (matchupIds: readonly string[]) => {
+      const rules = getInstance().rules()
+      return rules
+        ? {
+            terrainTemplates: rules.terrainTemplates,
+            terrainLayouts: rules.terrainLayouts.filter((layout) => matchupIds.includes(layout.matchupId)),
+          }
+        : null
+    },
+    battleDetachmentDataFor: async (catalogueId: string) => {
+      const instance = getInstance()
+      const catalogue = instance.catalogue()
+      const rules = instance.rules()
+      return catalogue && rules ? battleDetachmentData(catalogue, rules, catalogueId) : null
+    },
+    rosterLabelRulesFor: async () => getInstance().rules(),
+    catalogueHistoryFor: async () => getInstance().catalogueHistory(),
+    combatUnitsFor: async () => getInstance().combatUnits(),
+    factionIndexFor: async () => {
+      const instance = getInstance()
+      const catalogue = instance.catalogue()
+      return catalogue ? factionIndexFor(catalogue, instance.rules()) : null
+    },
+    factionsFor: async () => {
+      const instance = getInstance()
+      const catalogue = instance.catalogue()
+      return catalogue ? factionsFor(catalogue, instance.rules()) : null
+    },
+    factionIconFor: async (id: string) => getInstance().rules()?.factionIcons.get(id) ?? null,
+    searchIndexFor: async () => {
+      const instance = getInstance()
+      const catalogue = instance.catalogue()
+      return catalogue ? compiledGlobalSearchIndex(catalogue, instance.rules()) : null
+    },
+  }
+}
+
 function useCatalogueLoaders(instance: App, directory: string) {
   const next = catalogueLoaders(() => instance, directory)
   instance.catalogue = next.catalogue
@@ -182,6 +226,10 @@ function useCatalogueLoaders(instance: App, directory: string) {
   instance.rules = next.rules
   instance.catalogueHistory = next.history
   instance.combatUnits = next.combatUnits
+  Object.assign(
+    instance,
+    catalogueReads(() => instance),
+  )
 }
 
 export function app(): App {
@@ -238,45 +286,11 @@ export function app(): App {
       spacetimeToken: async (headers) => (await auth.api.getToken({ headers })).token,
       email,
       catalogue: loaded.catalogue,
-      catalogueFor: async () => instance.catalogue(),
       canonicalCatalogue: loaded.canonical,
-      canonicalCatalogueFor: async () => instance.canonicalCatalogue(),
       rules: loaded.rules,
-      rulesFor: async () => instance.rules(),
-      battleMissionRulesFor: async () => instance.rules(),
-      battleReadRulesFor: async () => instance.rules(),
-      terrainReadRulesFor: async (matchupIds) => {
-        const rules = instance.rules()
-        return rules
-          ? {
-              terrainTemplates: rules.terrainTemplates,
-              terrainLayouts: rules.terrainLayouts.filter((layout) => matchupIds.includes(layout.matchupId)),
-            }
-          : null
-      },
-      battleDetachmentDataFor: async (catalogueId) => {
-        const catalogue = instance.catalogue()
-        const rules = instance.rules()
-        return catalogue && rules ? battleDetachmentData(catalogue, rules, catalogueId) : null
-      },
-      rosterLabelRulesFor: async () => instance.rules(),
       catalogueHistory: loaded.history,
-      catalogueHistoryFor: async () => instance.catalogueHistory(),
       combatUnits: loaded.combatUnits,
-      combatUnitsFor: async () => instance.combatUnits(),
-      factionIndexFor: async () => {
-        const catalogue = instance.catalogue()
-        return catalogue ? factionIndexFor(catalogue, instance.rules()) : null
-      },
-      factionsFor: async () => {
-        const catalogue = instance.catalogue()
-        return catalogue ? factionsFor(catalogue, instance.rules()) : null
-      },
-      factionIconFor: async (id) => instance.rules()?.factionIcons.get(id) ?? null,
-      searchIndexFor: async () => {
-        const catalogue = instance.catalogue()
-        return catalogue ? compiledGlobalSearchIndex(catalogue, instance.rules()) : null
-      },
+      ...catalogueReads(() => instance),
       push: Boolean(push),
       sync: () => sync.state,
       telemetry,
