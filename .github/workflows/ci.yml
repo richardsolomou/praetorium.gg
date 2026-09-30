@@ -316,7 +316,7 @@ jobs:
           set -euo pipefail
           jq -s 'add' base-0.json base-1.json > base.json
           jq -s 'add' head-0.json head-1.json > head.json
-          pnpm catalogue:coverage:compare base.json head.json --accept catalogue/accepted-coverage-losses.json | tee coverage.txt
+          pnpm catalogue:coverage:compare base.json head.json --accept catalogue/accepted-coverage-losses.json --replacement 'Imperium - Adeptus Astartes - Space Marines (11e)' | tee coverage.txt
       - name: Compare projected profile values
         run: |
           set -euo pipefail
