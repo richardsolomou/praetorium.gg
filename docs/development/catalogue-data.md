@@ -158,7 +158,7 @@ The September 30, 2026 BSData definitions are newer than the September 2 MFM exp
 
 The snapshot publisher and CI's base/head points comparison use `CATALOGUE_BASELINES=report`: upstream sources can disagree, so they report absolute baseline shortfalls without blocking publication or obscuring a relative pricing regression. Unresolvable or incomplete sources and failed archive verification still stop publication. Pull requests keep the points match-rate ratchet and the coverage comparison as gates.
 
-`just coverage out.json` records the app's readable catalogue fields. Compare revisions with `--compare before.json` using the same `revision.json`; the CI coverage job does this for each pull request and fails on lost fields. Put intentional withdrawals, with reasons, in `catalogue/accepted-coverage-losses.json` and pass `--accept`. An entry that is no longer lost fails the check, and `version-packages` clears accepted losses for the next release.
+`just coverage out.json` records the app's readable catalogue fields. Compare revisions with `--compare before.json` using the same `revision.json`; the CI coverage job does this for each pull request and fails on lost fields. A changed positive points value retains coverage; a missing or nonpositive value loses it. The points ratchet checks price accuracy separately. Put intentional withdrawals, with reasons, in `catalogue/accepted-coverage-losses.json` and pass `--accept`. An entry that is no longer lost fails the check, and `version-packages` clears accepted losses for the next release.
 
 ## 40kdc parity
 

@@ -13,6 +13,53 @@ afterEach(() => {
 
 describe('catalogue coverage comparison', () => {
   it.each([
+    { scenario: 'keeps a newly priced unit', price: 245, lost: [] },
+    {
+      scenario: 'reports a unit whose price disappears',
+      price: 0,
+      lost: ['example-faction / Example Unit: points unavailable', 'example-faction / Example Unit roster: points unavailable'],
+    },
+  ])('$scenario', ({ price, lost }) => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-points-coverage-'))
+    temporaryDirectories.push(root)
+    const catalogue = path.join(root, 'catalogue')
+    const rules = path.join(catalogue, 'rules')
+    fs.mkdirSync(path.join(catalogue, 'datacards', '11th', 'gdc'), { recursive: true })
+    fs.mkdirSync(path.join(rules, 'data', 'core'), { recursive: true })
+    const snapshot = (points: number) => [
+      {
+        name: 'Example Faction',
+        slug: 'example-faction',
+        armyRules: [],
+        detachments: [],
+        datasheets: [
+          {
+            name: 'Example Unit',
+            points,
+            profiles: [],
+            abilities: [],
+            keywordRules: [],
+            attachments: [],
+            leaders: [],
+            composition: 0,
+            wargearOptions: 0,
+            loadout: false,
+            baseSize: false,
+            roster: { points, models: [], wargear: [], choices: [], errors: [], deployment: [] },
+          },
+        ],
+      },
+    ]
+    const base = path.join(root, 'base.json')
+    const head = path.join(root, 'head.json')
+    fs.writeFileSync(base, JSON.stringify(snapshot(100)))
+    fs.writeFileSync(head, JSON.stringify(snapshot(price)))
+
+    expect(compareCatalogueCoverage(base, head, [], catalogue, rules).lost).toEqual(lost)
+  })
+
+  it.each([
     {
       scenario: 'keeps a weapon when differently capitalized copies are combined',
       before: ['Melee Weapons: Example Blade', 'Melee Weapons: Example blade'],
