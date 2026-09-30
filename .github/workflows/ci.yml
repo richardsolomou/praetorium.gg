@@ -12,6 +12,29 @@ permissions:
   contents: read
 
 jobs:
+  # A release pull request only bumps the version and changelog. When main is the exact
+  # tree a passing run already recorded, only `check` runs, on the release commit itself.
+  release-proof:
+    if: startsWith(github.head_ref, 'release-candidate/') && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    outputs:
+      proven: ${{ steps.proof.outputs.proven }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+      - id: proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: bash scripts/releaseProof.sh
+
   check:
     runs-on: ubuntu-latest
     steps:
@@ -26,6 +49,8 @@ jobs:
         run: just check
 
   reference-evaluation:
+    needs: [release-proof]
+    if: ${{ !cancelled() && needs.release-proof.outputs.proven != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -35,6 +60,8 @@ jobs:
 
   e2e-shard:
     name: E2E runner ${{ matrix.runner }} of 8
+    needs: [release-proof]
+    if: ${{ !cancelled() && needs.release-proof.outputs.proven != 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -68,7 +95,7 @@ jobs:
             PLAYWRIGHT_DATA_ROOT="/tmp/praetorium-e2e-$((4170 + E2E_SHARD))" \
             PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
             PLAYWRIGHT_JSON_OUTPUT_NAME="e2e-report-$E2E_SHARD.json" \
-            pnpm exec playwright test --workers=1 --test-list="$RUNNER_TEMP/e2e-shard.txt" --reporter=github,json
+            pnpm exec playwright test --workers=2 --test-list="$RUNNER_TEMP/e2e-shard.txt" --reporter=github,json
       # `just e2e-durations <run id>` rebalances the runners from these reports.
       - if: success() || failure()
         uses: actions/upload-artifact@v7
@@ -88,14 +115,16 @@ jobs:
           retention-days: 7
 
   e2e:
-    if: always()
-    needs: [e2e-shard]
+    if: ${{ always() && needs.release-proof.outputs.proven != 'true' }}
+    needs: [release-proof, e2e-shard]
     runs-on: ubuntu-latest
     steps:
       - name: Require every E2E runner
         run: test '${{ needs.e2e-shard.result }}' = success
 
   points:
+    needs: [release-proof]
+    if: ${{ !cancelled() && needs.release-proof.outputs.proven != 'true' }}
     runs-on: ubuntu-latest
     env:
       BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
@@ -147,6 +176,8 @@ jobs:
     # A dropped field still renders, so it throws no exception and moves no event
     # count. This job snapshots what the app can say about the data before and
     # after the change and fails when the change drops any of it.
+    needs: [release-proof]
+    if: ${{ !cancelled() && needs.release-proof.outputs.proven != 'true' }}
     runs-on: ubuntu-latest
     outputs:
       base-sha: ${{ steps.revisions.outputs.base-sha }}
@@ -226,8 +257,8 @@ jobs:
           if-no-files-found: error
 
   coverage:
-    if: always()
-    needs: [coverage-snapshot]
+    if: ${{ always() && needs.release-proof.outputs.proven != 'true' }}
+    needs: [release-proof, coverage-snapshot]
     runs-on: ubuntu-latest
     steps:
       - name: Require both snapshots
@@ -253,3 +284,21 @@ jobs:
           lost=$(sed -n 's/^## lost (\([0-9]*\)).*/\1/p' coverage.txt)
           echo "lost: ${lost:-unknown}"
           test "${lost:-1}" -eq 0
+
+  # The proof `release-proof` reads: the tree of the merge this run tested, recorded only
+  # when every job above passed on it.
+  validated:
+    if: github.event_name == 'pull_request'
+    needs: [check, reference-evaluation, e2e, points, coverage]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record the validated tree
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/$GITHUB_REPOSITORY/git/commits/$GITHUB_SHA" --jq .tree.sha > tree
+      - uses: actions/upload-artifact@v7
+        with:
+          name: validated-tree
+          path: tree
+          retention-days: 30
+          if-no-files-found: error
