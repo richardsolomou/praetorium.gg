@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.88.1
+
+### Patch Changes
+
+- 4eea507: Show which units can take each detachment unit upgrade.
+
 ## 0.88.0
 
 ### Minor Changes
