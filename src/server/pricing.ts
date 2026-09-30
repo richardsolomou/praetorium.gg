@@ -24,6 +24,8 @@ import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
+import { detachmentPoints } from './detachmentPoints'
+import { unitPointAdjustment } from './unitPoints'
 import { deploymentRules, grantsStrategicReserveExemption, strategicReserveExemptionSelectors } from './rosterDeployment'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
 import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from './formatRestrictions'
@@ -187,6 +189,22 @@ function labelUnitsOf(
   }))
 }
 
+function adjustUnitPoints(
+  loaded: LoadedCatalogue,
+  data: PriceInput,
+  picked: ReturnType<typeof rosterForces>['picked'],
+  pointsBySelection: Map<Selection, number>,
+) {
+  let adjustment = 0
+  for (const unit of picked) {
+    const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+    const difference = unitPointAdjustment(loaded, data.catalogueId, catalogueId, unit.entryId, unit.size.models)
+    pointsBySelection.set(unit.selection, (pointsBySelection.get(unit.selection) ?? 0) + difference)
+    adjustment += difference
+  }
+  return adjustment
+}
+
 const factionNameOf = (loaded: LoadedCatalogue, catalogueId: string, rules: Pick<LoadedRules, 'factionNames'> | null | undefined) =>
   factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? '', rules?.factionNames)
 
@@ -228,8 +246,9 @@ export function calculateRosterTotals(
   forces.forEach((force, forceAt) =>
     force.forEach((selection, at) => pointsBySelection.set(selection, evaluated.selectionPoints[forceAt]?.[at] ?? 0)),
   )
+  const adjustment = adjustUnitPoints(loaded, data, picked, pointsBySelection)
   return {
-    points: evaluated.points,
+    points: evaluated.points + adjustment,
     label:
       storedName ||
       rosterLabel({
@@ -329,7 +348,7 @@ function calculateRoster(
   ]
   const purchased = chosen.map((option) => ({
     name: option.name,
-    points: detachmentNamed(references, option.name)?.points ?? null,
+    points: detachmentPoints(loaded, data.catalogueId, option.id, detachmentNamed(references, option.name)),
   }))
   // The King of the Colosseum optional rule. The borrowed detachment is never added to the
   // roster, so it brings no rules, enhancements or stratagems: it sells its Force
@@ -340,6 +359,7 @@ function calculateRoster(
     ? (rosterDetachments(loaded, data.catalogueId, [data.borrowedDetachmentId]).chosen[0] ?? null)
     : null
   const borrowedReference = borrowedDetachment ? detachmentNamed(references, borrowedDetachment.name) : undefined
+  const borrowedPoints = borrowedDetachment ? detachmentPoints(loaded, data.catalogueId, borrowedDetachment.id, borrowedReference) : null
   const ownPoints = purchased.some((option) => option.points === null)
     ? null
     : purchased.reduce((total, option) => total + (option.points ?? 0), 0)
@@ -347,7 +367,7 @@ function calculateRoster(
     data.limit,
     data.optionalRules,
     { points: ownPoints },
-    data.borrowedDetachmentId ? { points: borrowedReference?.points ?? null } : null,
+    data.borrowedDetachmentId ? { points: borrowedPoints } : null,
   )
   const borrowedDispositions =
     borrowedError || !borrowedDetachment
@@ -416,6 +436,7 @@ function calculateRoster(
   forces.forEach((force, forceAt) =>
     force.forEach((selection, selectionAt) => selectionPoints.set(selection, whole.selectionPoints[forceAt]?.[selectionAt] ?? 0)),
   )
+  const points = whole.points + adjustUnitPoints(loaded, data, picked, selectionPoints)
   const restrictions = rules?.factionRestrictions.get(factionSlug)
   // Keywords and Toughness are only inputs to these two construction rule sets.
   // Projecting every contextual datasheet for an ordinary roster made pricing
@@ -510,14 +531,14 @@ function calculateRoster(
   if (mode === 'assessment')
     return {
       kind: 'assessment' as const,
-      points: whole.points,
+      points,
       detachmentError,
       dispositionError,
       errors,
       units: picked.map((unit) => {
         const catalogued = enhancementNames.size ? wargearOf(unit.selection, loaded.index) : []
         const { enhancements, upgrades } = selectedSpecials(unit.choices, catalogued, upgradeNames, enhancementNames)
-        return { enhancements, upgrades }
+        return { key: unit.key, size: { models: unit.size.models }, enhancements, upgrades }
       }),
     }
 
@@ -544,7 +565,7 @@ function calculateRoster(
     borrowedDetachment: borrowedDetachment?.name ?? null,
     borrowedError,
     strategicReserveFactsComplete,
-    points: whole.points,
+    points,
     errors,
     unhandled: [
       ...whole.unhandled,

@@ -22,14 +22,26 @@ export function DetachmentReference({
   faction?: FactionPresentation
   afterHero?: ReactNode
 }) {
-  const { data: detachment } = useQuery(detachmentDetailQuery(catalogueId, slug))
-  if (!detachment)
+  const { data: detachment, isPending, isError } = useQuery(detachmentDetailQuery(catalogueId, slug))
+  if (isPending)
     return (
       <PageState
         loading
         eyebrow={faction?.displayName ?? 'Detachment'}
         title="Loading detachment"
         explanation="Rules, enhancements, and stratagems will appear when the reference is ready."
+      />
+    )
+  if (!detachment)
+    return (
+      <PageState
+        eyebrow={faction?.displayName ?? 'Detachment'}
+        title="Detachment reference unavailable"
+        explanation={
+          isError
+            ? 'The reference could not be loaded. Try opening it again.'
+            : 'The current catalogue has no reference details for this detachment.'
+        }
       />
     )
 
@@ -77,6 +89,7 @@ export function DetachmentReference({
           <section data-onboarding="detachment-enhancements">
             <SectionTitle title="Enhancements" count={detachment.enhancements.length} />
             <div className="mt-2 grid gap-2 md:grid-cols-2">
+              {!detachment.enhancements.length ? <p className="text-sm text-dim">No enhancement details are available.</p> : null}
               {detachment.enhancements.map((enhancement) => (
                 <article
                   id={`enhancement-${routeSlug(enhancement.name)}`}
@@ -116,6 +129,7 @@ export function DetachmentReference({
               <p className="mt-2 text-sm text-dim">Some stratagem descriptions are not available.</p>
             ) : null}
             <div className="mt-2 grid gap-2 md:grid-cols-2">
+              {!detachment.stratagems.length ? <p className="text-sm text-dim">No stratagem details are available.</p> : null}
               {detachment.stratagems.map((stratagem) => (
                 <article id={`stratagem-${routeSlug(stratagem.name)}`} key={stratagem.id} className="border border-edge bg-panel p-4">
                   <div className="flex items-start justify-between gap-3">

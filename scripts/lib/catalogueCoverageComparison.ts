@@ -210,7 +210,7 @@ export function compareCatalogueCoverage(
       const current = now.datasheets.filter((candidate) => candidate.name === sheet.name)[position]
       if (!current) continue
       const where = `${faction.slug} / ${sheet.name}`
-      if (sheet.points !== current.points) lost.push(`${where}: points ${sheet.points} → ${current.points}`)
+      if (sheet.points > 0 && !(current.points > 0)) lost.push(`${where}: points unavailable`)
       compareLists(`${where} profiles`, sheet.profiles, current.profiles, (profile) => profile.toLowerCase())
       compareDescribed(`${where} abilities`, sheet.abilities, current.abilities)
       const detachmentAbilityNames = new Set([
@@ -235,7 +235,7 @@ export function compareCatalogueCoverage(
       }
       if (sheet.roster && current.roster) {
         const roster = `${where} roster`
-        if (sheet.roster.points !== current.roster.points) lost.push(`${roster}: points ${sheet.roster.points} → ${current.roster.points}`)
+        if (sheet.roster.points > 0 && !(current.roster.points > 0)) lost.push(`${roster}: points unavailable`)
         for (const field of ['models', 'wargear', 'choices', 'errors', 'deployment'] as const) {
           compareLists(`${roster} ${field}`, sheet.roster[field] ?? [], current.roster[field] ?? [])
         }

@@ -3,6 +3,7 @@ import { evaluate } from '../core/evaluate'
 import { isNonMatchedPlayName } from '../core/name'
 import { buildUnit } from '../core/roster'
 import type { LoadedCatalogue } from './catalogueIndex'
+import { unitPointAdjustment } from './unitPoints'
 
 export function isMatchedPlayDatasheet(index: CatalogueIndex, entry: Definition) {
   const target = targetOf(entry, index.definitions)
@@ -15,5 +16,8 @@ export function isMatchedPlayDatasheet(index: CatalogueIndex, entry: Definition)
 export function priceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
   const built = buildUnit(entryId, loaded.index, undefined, undefined, { primaryCatalogueId: catalogueId })
   if (!built) return null
-  return evaluate([built.selection], loaded.index, { primaryCatalogueId: catalogueId }).points
+  return (
+    evaluate([built.selection], loaded.index, { primaryCatalogueId: catalogueId }).points +
+    unitPointAdjustment(loaded, catalogueId, catalogueId, entryId, built.size.models)
+  )
 }

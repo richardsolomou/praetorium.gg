@@ -549,7 +549,9 @@ describe('catalogue-backed deployment rules', () => {
       ],
     })
     expect(priced?.units[1]).not.toHaveProperty('strategicReserveExempt')
-    expect(assessed?.units).toEqual(priced?.units.map(({ enhancements, upgrades }) => ({ enhancements, upgrades })))
+    expect(assessed?.units).toEqual(
+      priced?.units.map(({ key, size, enhancements, upgrades }) => ({ key, size: { models: size.models }, enhancements, upgrades })),
+    )
   })
 })
 

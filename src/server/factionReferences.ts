@@ -4,6 +4,7 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { factionContentOf, factionDisplayName } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from './rulesSource'
+import { detachmentPoints } from './detachmentPoints'
 
 export function isReferenceDetachment(
   loaded: LoadedCatalogue,
@@ -118,6 +119,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
             id: detachment.id,
             slug: routeSlug(detachment.name),
             name: detachment.name,
+            points: detachmentPoints(loaded, faction.id, detachment.id, reference),
             disposition: detachment.disposition,
             dispositions: reference
               ? reference.dispositions.map((id) => ({ id, name: rules?.dispositions?.get(id) ?? id }))

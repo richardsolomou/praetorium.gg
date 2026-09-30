@@ -331,7 +331,7 @@ export const isEmptyChangeSet = (changes: CatalogueChangeSet) => !changes.factio
 export type ListContents = {
   catalogueId: string
   detachmentIds: readonly string[]
-  datasheetIds: readonly string[]
+  datasheets: readonly { id: string; models: number | null }[]
   enhancements: readonly string[]
   upgrades: readonly string[]
 }
@@ -423,8 +423,28 @@ function netChange(group: readonly Fact[]): ListChange {
  * detachment, and the enhancements it offers, only in the list's own book. An enhancement's
  * name is compared the way pricing joins it to the rules source.
  */
-export function changesTouching(list: ListContents, savedAt: number, sets: readonly RecordedChangeSet[]): ListChange[] {
-  const datasheets = new Set(list.datasheetIds)
+export function changesTouching(
+  list: ListContents,
+  savedAt: number,
+  sets: readonly RecordedChangeSet[],
+  { includeUnknownModels = false }: { includeUnknownModels?: boolean } = {},
+): ListChange[] {
+  const datasheets = new Map<string, { models: Set<number>; unknown: boolean }>()
+  for (const sheet of list.datasheets) {
+    const held = datasheets.get(sheet.id) ?? { models: new Set<number>(), unknown: false }
+    if (sheet.models === null) held.unknown = true
+    else held.models.add(sheet.models)
+    datasheets.set(sheet.id, held)
+  }
+  const fieldsModels = (row: Fact['row'], id: string) => {
+    if (!row?.models) return true
+    const held = datasheets.get(id)
+    if (!held) return false
+    if (held.unknown && includeUnknownModels) return true
+    if (/^\d+$/.test(row.models)) return held.models.has(Number(row.models))
+    const range = /^(\d+)-(\d+)$/.exec(row.models)
+    return range ? [...held.models].some((count) => count >= Number(range[1]) && count <= Number(range[2])) : true
+  }
   const detachments = new Set(list.detachmentIds)
   const held = (names: readonly string[]) => new Set(names.map(routeSlug))
   const enhancements = held(list.enhancements)
@@ -447,6 +467,7 @@ export function changesTouching(list: ListContents, savedAt: number, sets: reado
         if (!touches(faction.catalogueId, change)) continue
         const entry = { recordedAt: set.recordedAt, catalogueId: faction.catalogueId, faction: faction.faction, change }
         for (const fact of factsOf(entry)) {
+          if (change.kind === 'datasheet-points' && !fieldsModels(fact.row, change.id)) continue
           const earlier = facts.get(fact.item)
           facts.set(fact.item, earlier ? { ...fact, from: earlier.from } : fact)
         }

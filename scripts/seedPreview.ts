@@ -80,13 +80,11 @@ const PREVIEW_PLAYER_ROSTERS: readonly PreviewRoster[] = [
       { entryId: '9770-3a56-619e-f390' },
       { entryId: 'cd69-af58-774-d387' },
       { entryId: '85b1-eb9a-17a6-e5be' },
-      { entryId: '85b1-eb9a-17a6-e5be' },
       { entryId: 'c432-5254-8a25-6c8a' },
       { entryId: '4c8-e877-566b-a1ee' },
       { entryId: 'fcb6-80ca-22a-4771' },
       { entryId: 'efc9-2aff-c5b-6790' },
       { entryId: '13d8-1933-472c-80ed' },
-      { entryId: '3c0a-10a9-8f84-26a3' },
     ],
   },
   {

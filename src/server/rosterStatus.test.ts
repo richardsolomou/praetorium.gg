@@ -94,7 +94,11 @@ describe('the verdict on a saved list', () => {
   })
 
   it('counts a datasheet the data no longer builds as held', () => {
-    expect(judged(saved(['retired'])).contents.datasheetIds).toEqual(['retired'])
+    expect(judged(saved(['retired'])).contents.datasheets).toEqual([{ id: 'retired', models: null }])
+  })
+
+  it('keeps the rebuilt model count for points changes', () => {
+    expect(judged(saved(['lord'])).contents.datasheets).toEqual([{ id: 'lord', models: 1 }])
   })
 
   it('reads the enhancements and upgrades a list holds from its price', () => {
@@ -103,7 +107,7 @@ describe('the verdict on a saved list', () => {
       detachmentError: null,
       dispositionError: null,
       errors: [],
-      units: [{ enhancements: ['Artificer Armour'], upgrades: ['Drill Squad'] }],
+      units: [{ key: 0, size: { models: 1 }, enhancements: ['Artificer Armour'], upgrades: ['Drill Squad'] }],
     })
 
     expect({ enhancements: verdict.contents.enhancements, upgrades: verdict.contents.upgrades }).toEqual({
@@ -156,6 +160,52 @@ describe('the library row for a saved list', () => {
 })
 
 describe('changes that do not need roster pricing', () => {
+  it('prices a list before claiming a changed row for a different model count', () => {
+    const roster = saved(['squad'])
+    const update = {
+      recordedAt: 200,
+      changes: catalogueChanges(
+        {
+          datasheets: [
+            {
+              catalogueId: 'cat',
+              faction: 'Test',
+              id: 'squad',
+              name: 'Squad',
+              points: null,
+              costs: [
+                { models: '1', cost: '40', keyword: null, faction: null, detachment: null },
+                { models: '6', cost: '175', keyword: null, faction: null, detachment: null },
+              ],
+            },
+          ],
+          detachments: [],
+        },
+        {
+          datasheets: [
+            {
+              catalogueId: 'cat',
+              faction: 'Test',
+              id: 'squad',
+              name: 'Squad',
+              points: null,
+              costs: [
+                { models: '1', cost: '40', keyword: null, faction: null, detachment: null },
+                { models: '6', cost: '190', keyword: null, faction: null, detachment: null },
+              ],
+            },
+          ],
+          detachments: [],
+        },
+      ),
+    }
+
+    expect({
+      fallback: rosterChangeWithoutPricing(roster, [update]),
+      changes: rosterStatus({ ...roster, id: 'list' }, judged(roster), [update]).changes,
+    }).toEqual({ fallback: 'needs-price', changes: 0 })
+  })
+
   const optionChange = (catalogueId: string, detachmentId: string) => ({
     recordedAt: 200,
     changes: {
@@ -226,7 +276,7 @@ describe('changes that do not need roster pricing', () => {
       detachmentError: null,
       dispositionError: null,
       errors: [],
-      units: [{ enhancements: ['Artificer Armour'], upgrades: [] }],
+      units: [{ key: 0, size: { models: 1 }, enhancements: ['Artificer Armour'], upgrades: [] }],
     })
 
     expect({
