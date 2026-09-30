@@ -34,11 +34,12 @@ import {
   type EntryStep,
   type League,
 } from './leagueEvent'
+import { InvitePanel, NextEventPanel, OrganizerEntrants, OrganizerRevealPanel } from './LeagueOrganizer'
 import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
 
 type Action =
   | { label: string; icon?: ReactNode; variant?: 'default' | 'outline'; pending?: boolean; onClick: () => void }
-  | { label: string; to: 'sign-in' | 'organize' }
+  | { label: string; to: 'sign-in' }
 
 type Status = { title: string; detail?: string; tone?: 'sealed' | 'waiting' | 'closed'; action?: Action; steps?: EntryStep[] }
 
@@ -49,7 +50,6 @@ export function LeagueEventView({
   isOwner,
   startBattle,
   chooseRoster,
-  onOrganize,
 }: {
   league: League
   token: string
@@ -57,7 +57,6 @@ export function LeagueEventView({
   isOwner: boolean
   startBattle?: boolean
   chooseRoster?: boolean
-  onOrganize: () => void
 }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -148,63 +147,71 @@ export function LeagueEventView({
   })
   const problem = join.error ?? (league.format === '2v1' || league.format === '2v2' ? null : battle.error)
   const sealWaivers = sealing ? rosterWaivers(sealing) : []
-  const row = (entry: LeagueEntryView, detail: ReactNode = sealStatus(entry, Boolean(league.revealedAt))) => (
+  const row = (entry: LeagueEntryView, detail: ReactNode = sealStatus(entry, Boolean(league.revealedAt)), controls?: ReactNode) => (
     <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={detail}>
       {readsRoster(entry) ? (
         <ViewRosterButton token={token} eventToken={league.eventToken} userId={entry.userId} label={label(entry)} />
       ) : null}
+      {controls}
     </EntrantRow>
   )
   const sides = sideGroups(league)
 
   return (
     <>
-      <EntryStatusCard status={status} problem={problem} token={token} onOrganize={onOrganize} />
+      <div className="space-y-4">
+        <EntryStatusCard status={status} problem={problem} token={token} />
+        {isOwner && !league.revealedAt ? <OrganizerRevealPanel league={league} token={token} /> : null}
+      </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="min-w-0 space-y-6">
-          <section>
-            <SectionHeading title="Entrants" count={accepted.length} />
-            {!accepted.length ? (
-              <div className="border border-edge bg-panel px-5 py-9 text-center">
-                <UserPlus className="mx-auto size-7 text-faint" />
-                <p className="mt-3 font-bold uppercase">No entrants yet</p>
-                <p className="mt-1 text-sm text-dim">Players show up here once they’re in.</p>
-              </div>
-            ) : league.format === '2v1' ? (
-              <div className="space-y-4">
-                {(['solo', 'allied', 'unsized'] as const).map((side) => {
-                  const members = accepted.filter((entry) => (soloOrAllied(league, entry) ?? 'unsized') === side)
-                  if (!members.length) return null
-                  return (
-                    <EntrantGroup key={side} group={side} title={sides[side].title} detail={sides[side].detail}>
-                      <EntrantList>{members.map((entry) => row(entry))}</EntrantList>
+          {isOwner ? (
+            <OrganizerEntrants league={league} token={token} row={row} />
+          ) : (
+            <section>
+              <SectionHeading title="Entrants" count={accepted.length} />
+              {!accepted.length ? (
+                <div className="border border-edge bg-panel px-5 py-9 text-center">
+                  <UserPlus className="mx-auto size-7 text-faint" />
+                  <p className="mt-3 font-bold uppercase">No entrants yet</p>
+                  <p className="mt-1 text-sm text-dim">Players show up here once they’re in.</p>
+                </div>
+              ) : league.format === '2v1' ? (
+                <div className="space-y-4">
+                  {(['solo', 'allied', 'unsized'] as const).map((side) => {
+                    const members = accepted.filter((entry) => (soloOrAllied(league, entry) ?? 'unsized') === side)
+                    if (!members.length) return null
+                    return (
+                      <EntrantGroup key={side} group={side} title={sides[side].title} detail={sides[side].detail}>
+                        <EntrantList>{members.map((entry) => row(entry))}</EntrantList>
+                      </EntrantGroup>
+                    )
+                  })}
+                </div>
+              ) : league.format === '2v2' ? (
+                <div className="space-y-4">
+                  {teams.map((team, index) => (
+                    <EntrantGroup
+                      key={team.id}
+                      group={`team-${index + 1}`}
+                      title={`Team ${index + 1}`}
+                      detail={formatNames(team.members.map(label))}
+                    >
+                      <EntrantList>{team.members.map((entry) => row(entry))}</EntrantList>
                     </EntrantGroup>
-                  )
-                })}
-              </div>
-            ) : league.format === '2v2' ? (
-              <div className="space-y-4">
-                {teams.map((team, index) => (
-                  <EntrantGroup
-                    key={team.id}
-                    group={`team-${index + 1}`}
-                    title={`Team ${index + 1}`}
-                    detail={formatNames(team.members.map(label))}
-                  >
-                    <EntrantList>{team.members.map((entry) => row(entry))}</EntrantList>
-                  </EntrantGroup>
-                ))}
-                {accepted.some((entry) => !entry.teamId) ? (
-                  <EntrantGroup group="unpaired" title="Waiting for a teammate">
-                    <EntrantList>{accepted.filter((entry) => !entry.teamId).map((entry) => row(entry))}</EntrantList>
-                  </EntrantGroup>
-                ) : null}
-              </div>
-            ) : (
-              <EntrantList>{accepted.map((entry) => row(entry))}</EntrantList>
-            )}
-          </section>
+                  ))}
+                  {accepted.some((entry) => !entry.teamId) ? (
+                    <EntrantGroup group="unpaired" title="Waiting for a teammate">
+                      <EntrantList>{accepted.filter((entry) => !entry.teamId).map((entry) => row(entry))}</EntrantList>
+                    </EntrantGroup>
+                  ) : null}
+                </div>
+              ) : (
+                <EntrantList>{accepted.map((entry) => row(entry))}</EntrantList>
+              )}
+            </section>
+          )}
 
           {league.revealedAt ? (
             <section>
@@ -239,31 +246,38 @@ export function LeagueEventView({
           ) : null}
         </div>
 
-        <aside className="h-fit border border-edge bg-panel p-4 text-sm">
-          <h2 className="rubric">How it works</h2>
-          <ol className="mt-3 space-y-2 text-dim">
-            <li>
-              <span className="font-semibold text-bone">Seal</span> a list. Later edits to it don’t change the sealed copy.
-            </li>
-            {league.format === '2v1' ? (
+        {isOwner ? (
+          <aside className="space-y-3">
+            {latest && !league.revealedAt ? <InvitePanel league={league} /> : null}
+            {latest && league.revealedAt ? <NextEventPanel league={league} /> : null}
+          </aside>
+        ) : (
+          <aside className="h-fit border border-edge bg-panel p-4 text-sm">
+            <h2 className="rubric">How it works</h2>
+            <ol className="mt-3 space-y-2 text-dim">
               <li>
-                <span className="font-semibold text-bone">Solo</span> plays alone; <span className="font-semibold text-bone">allied</span>{' '}
-                plays beside another ally, who can see your list.
+                <span className="font-semibold text-bone">Seal</span> a list. Later edits to it don’t change the sealed copy.
               </li>
-            ) : null}
-            {league.format === '2v2' ? (
+              {league.format === '2v1' ? (
+                <li>
+                  <span className="font-semibold text-bone">Solo</span> plays alone; <span className="font-semibold text-bone">allied</span>{' '}
+                  plays beside another ally, who can see your list.
+                </li>
+              ) : null}
+              {league.format === '2v2' ? (
+                <li>
+                  <span className="font-semibold text-bone">Teams</span> of two share one Warlord and can see each other’s lists.
+                </li>
+              ) : null}
               <li>
-                <span className="font-semibold text-bone">Teams</span> of two share one Warlord and can see each other’s lists.
+                <span className="font-semibold text-bone">Reveal</span> opens every list at once.
               </li>
-            ) : null}
-            <li>
-              <span className="font-semibold text-bone">Reveal</span> opens every list at once.
-            </li>
-            <li>
-              <span className="font-semibold text-bone">Play</span> from here once the lists are out.
-            </li>
-          </ol>
-        </aside>
+              <li>
+                <span className="font-semibold text-bone">Play</span> from here once the lists are out.
+              </li>
+            </ol>
+          </aside>
+        )}
       </div>
 
       <RosterChooser
@@ -417,8 +431,8 @@ function entryStatus({
     if (registrationFull) return { title: rejoin ? 'You are not in this event' : 'This event is full', tone: 'closed' }
     if (isOwner && !rejoin)
       return {
-        title: 'You are running this event',
-        detail: 'Playing too?',
+        title: 'You are not playing',
+        detail: 'You run this event without a list of your own.',
         action: { label: 'Join as a player', icon: <UserPlus />, variant: 'outline', pending: joining, onClick: join },
       }
     return {
@@ -438,13 +452,12 @@ function entryStatus({
       title: doubles ? 'Waiting for a teammate' : 'Waiting for your size',
       detail: isOwner
         ? doubles
-          ? 'Pair yourself under Organize.'
-          : 'Give yourself a size under Organize.'
+          ? 'Pair yourself with a teammate below.'
+          : 'Give yourself a solo or allied size below.'
         : doubles
           ? `${league.ownerName} pairs players into teams.`
           : `${league.ownerName} decides who plays solo or allied.`,
       tone: 'waiting',
-      action: isOwner ? { label: 'Go to Organize', to: 'organize' } : undefined,
       steps: steps('assign'),
     }
   }
@@ -473,20 +486,11 @@ function entryStatus({
   }
 }
 
-function EntryStatusCard({
-  status,
-  problem,
-  token,
-  onOrganize,
-}: {
-  status: Status
-  problem: Error | null
-  token: string
-  onOrganize: () => void
-}) {
+function EntryStatusCard({ status, problem, token }: { status: Status; problem: Error | null; token: string }) {
   const { action } = status
   return (
     <section
+      data-onboarding="league-status"
       data-entry-status
       aria-labelledby="league-entry-status"
       className={`border bg-panel p-4 sm:p-5 ${status.tone === 'sealed' ? 'border-achieved/50' : 'border-edge'}`}
@@ -505,20 +509,14 @@ function EntryStatusCard({
         </div>
         {action ? (
           'to' in action ? (
-            action.to === 'sign-in' ? (
-              <Button
-                size="lg"
-                className="max-sm:w-full pointer-coarse:h-11"
-                nativeButton={false}
-                render={<Link to="/sign-in" search={{ next: `/leagues/${token}` }} />}
-              >
-                {action.label}
-              </Button>
-            ) : (
-              <Button size="lg" variant="outline" className="max-sm:w-full pointer-coarse:h-11" onClick={onOrganize}>
-                {action.label}
-              </Button>
-            )
+            <Button
+              size="lg"
+              className="max-sm:w-full pointer-coarse:h-11"
+              nativeButton={false}
+              render={<Link to="/sign-in" search={{ next: `/leagues/${token}` }} />}
+            >
+              {action.label}
+            </Button>
           ) : (
             <Button
               size="lg"

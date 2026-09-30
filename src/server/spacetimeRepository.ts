@@ -198,9 +198,10 @@ export class SpacetimeRepository {
     recurring?: boolean
     format?: TableShape
     rosterLimit?: number
+    ownerPlays?: boolean
     now: number
   }) {
-    await this.product.leagueCommand(
+    return this.product.leagueCommand(
       {
         ...input,
         op: 'create',
@@ -211,7 +212,7 @@ export class SpacetimeRepository {
         rosterLimit: input.rosterLimit ?? null,
         playerLimit: input.playerLimit ?? null,
       },
-      z.null(),
+      z.literal('too-small').nullable(),
     )
   }
 
@@ -220,8 +221,14 @@ export class SpacetimeRepository {
     token: string
     leagueToken: string
     ownerId: string
+    name: string
+    description: string
+    visibility: LeagueVisibility
+    admission: LeagueAdmission
+    playerLimit: number | null
     format?: TableShape
     rosterLimit?: number
+    ownerPlays?: boolean
     now: number
   }) {
     return this.product.leagueCommand(
@@ -237,25 +244,24 @@ export class SpacetimeRepository {
     )
   }
 
-  updateLeagueEvent(token: string, ownerId: string, rule: { format: TableShape; rosterLimit: number }, eventToken?: string) {
-    return this.product.leagueCommand(
-      { op: 'update-event', token, ownerId, ...rule, eventToken: eventToken ?? '' },
-      z.enum(['updated', 'missing', 'forbidden', 'closed', 'sealed', 'too-small']),
-    )
-  }
-
-  makeLeagueRecurring(token: string, ownerId: string) {
-    return this.product.leagueCommand({ op: 'recurring', token, ownerId }, z.enum(['updated', 'missing', 'forbidden']))
-  }
-
   updateLeague(
     token: string,
     ownerId: string,
-    input: { name: string; description: string; visibility: LeagueVisibility; admission: LeagueAdmission; playerLimit: number | null },
+    input: {
+      name: string
+      description: string
+      visibility: LeagueVisibility
+      admission: LeagueAdmission
+      playerLimit: number | null
+      rule?: { format: TableShape; rosterLimit: number }
+    },
   ) {
     return this.product.leagueCommand(
       { op: 'update', token, ownerId, ...input },
-      z.union([z.object({ admitted: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'below-accepted', 'team-minimum'])]),
+      z.union([
+        z.object({ admitted: z.array(z.string()), ruleChanged: z.boolean() }),
+        z.enum(['missing', 'forbidden', 'below-accepted', 'team-minimum', 'closed', 'sealed']),
+      ]),
     )
   }
 
@@ -387,6 +393,13 @@ export class SpacetimeRepository {
         z.object({ rejected: z.boolean(), resealIds: z.array(z.string()) }),
         z.enum(['admitted', 'updated', 'missing', 'forbidden', 'closed', 'full']),
       ]),
+    )
+  }
+
+  addLeagueEntrants(token: string, ownerId: string, userIds: readonly string[], memberLimit: number, now: number, eventToken?: string) {
+    return this.product.leagueCommand(
+      { op: 'add', token, ownerId, userIds, memberLimit, now, eventToken: eventToken ?? '' },
+      z.union([z.object({ added: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'closed', 'not-friends', 'full'])]),
     )
   }
 

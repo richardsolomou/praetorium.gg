@@ -15,28 +15,14 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import type { LeagueAdmission, LeagueVisibility } from '../../../core/league'
-import type { TableShape } from '../../../core/tableShape'
-import { deleteLeague, updateLeague } from '../../../server/functions'
+import { deleteLeague } from '../../../server/functions'
 import { leaguesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { shareLink } from '../../nativeBridge'
-import { LeagueFormFields, type LeagueFormValue } from './LeagueForm'
+import { LeagueSettingsDialog } from './LeagueSettingsDialog'
 
-export type ManageableLeague = {
-  token: string
-  name: string
-  description: string
-  visibility: LeagueVisibility
-  admission: LeagueAdmission
-  playerLimit: number | null
-  format: TableShape | null
-  currentEventFormat: TableShape | null
-  currentEventRevealedAt: number | null
-  currentAcceptedCount: number
-}
+export type ManageableLeague = { token: string; name: string }
 
 export function LeagueCardActions({ league, children }: { league: ManageableLeague; children: (menu: ReactNode) => ReactNode }) {
   const actions = useLeagueActions(league)
@@ -58,11 +44,25 @@ export function LeagueCardActions({ league, children }: { league: ManageableLeag
   )
 }
 
-/** The league page's own menu: the console carries the invite, so the menu keeps only what changes the league itself. */
+/** The league page's own controls: its settings in the open, and the rarely wanted deletion behind the menu. */
 export function LeaguePageActions({ actions }: { actions: LeagueActionsController }) {
   return (
     <>
-      <LeagueMenu actions={actions} showShare={false} />
+      <Button variant="outline" className="pointer-coarse:h-11" onClick={actions.openEdit}>
+        <Pencil /> Edit league
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button variant="ghost" size="icon" className="pointer-coarse:size-11" aria-label={`More for ${actions.league.name}`} />}
+        >
+          <EllipsisVertical />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem variant="destructive" onClick={actions.openDeleting}>
+            <Trash2 /> Delete league
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <LeagueActionDialogs actions={actions} />
     </>
   )
@@ -126,46 +126,7 @@ function LeagueActionItems({
 function LeagueActionDialogs({ actions }: { actions: LeagueActionsController }) {
   return (
     <>
-      <Dialog open={actions.editing} onOpenChange={(open) => !actions.update.isPending && actions.setEditing(open)}>
-        <DialogContent showCloseButton={!actions.update.isPending} aria-busy={actions.update.isPending} className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Edit league</DialogTitle>
-            <DialogDescription>
-              Applies from now on. Nothing already entered, sealed, or played changes. Switching to automatic lets in anyone still waiting.
-            </DialogDescription>
-          </DialogHeader>
-          <form
-            className="space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault()
-              actions.update.mutate()
-            }}
-          >
-            <LeagueFormFields
-              idPrefix="edit-league"
-              value={actions.value}
-              acceptedCount={actions.league.currentEventRevealedAt === null ? actions.league.currentAcceptedCount : 0}
-              format={actions.league.currentEventRevealedAt === null ? actions.league.currentEventFormat : null}
-              disabled={actions.update.isPending}
-              onChange={actions.setValue}
-            />
-            {actions.update.isPending ? <output className="sr-only">Saving league changes…</output> : null}
-            {actions.update.error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {errorMessage(actions.update.error)}
-              </p>
-            ) : null}
-            <DialogFooter>
-              <Button type="button" variant="outline" disabled={actions.update.isPending} onClick={() => actions.setEditing(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={actions.update.isPending || !actions.value.name.trim()}>
-                {actions.update.isPending ? 'Saving…' : 'Save changes'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <LeagueSettingsDialog mode={{ kind: 'edit', token: actions.league.token }} open={actions.editing} onOpenChange={actions.setEditing} />
       <AlertDialog open={actions.deleting} onOpenChange={(open) => !actions.remove.isPending && actions.setDeleting(open)}>
         <AlertDialogContent aria-busy={actions.remove.isPending}>
           <AlertDialogHeader>
@@ -245,33 +206,14 @@ export function useLeagueActions(league: ManageableLeague, onDeleted?: () => voi
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const invite = useInviteShare(league)
-  const [value, setValue] = useState<LeagueFormValue>(formValue(league))
-  useEffect(() => {
-    setValue((current) =>
-      league.currentEventRevealedAt === null && current.playerLimit !== null && current.playerLimit < league.currentAcceptedCount
-        ? { ...current, playerLimit: league.playerLimit }
-        : current,
-    )
-  }, [league.currentAcceptedCount, league.currentEventRevealedAt, league.playerLimit])
-  const refresh = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['league', league.token] }),
-      queryClient.invalidateQueries({ queryKey: leaguesQuery().queryKey }),
-    ])
-  }
-  const update = useMutation({
-    mutationFn: () => updateLeague({ data: { token: league.token, ...value } }),
-    onError: refresh,
-    onSuccess: async () => {
-      await refresh()
-      setEditing(false)
-    },
-  })
   const remove = useMutation({
     mutationFn: () => deleteLeague({ data: { token: league.token } }),
-    onError: refresh,
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['league', league.token] }),
+        queryClient.invalidateQueries({ queryKey: leaguesQuery().queryKey }),
+      ]),
     onSuccess: async () => {
-      await refresh()
       await onDeleted?.()
       setDeleting(false)
     },
@@ -283,14 +225,9 @@ export function useLeagueActions(league: ManageableLeague, onDeleted?: () => voi
     deleting,
     setDeleting,
     copyFeedback: invite.feedback,
-    value,
-    setValue,
-    update,
     remove,
     openEdit: () => {
       invite.clear()
-      update.reset()
-      setValue(formValue(league))
       setEditing(true)
     },
     openDeleting: () => {
@@ -299,15 +236,5 @@ export function useLeagueActions(league: ManageableLeague, onDeleted?: () => voi
       setDeleting(true)
     },
     copyInvite: invite.share,
-  }
-}
-
-function formValue(league: ManageableLeague): LeagueFormValue {
-  return {
-    name: league.name,
-    description: league.description,
-    visibility: league.visibility,
-    admission: league.admission,
-    playerLimit: league.playerLimit,
   }
 }

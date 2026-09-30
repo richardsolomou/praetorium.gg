@@ -25,106 +25,62 @@ export class LeagueService {
     private readonly notifier: Notifier,
   ) {}
 
-  async createLeague(
-    ownerId: string,
-    input: {
-      name: string
-      description: string
-      visibility: LeagueVisibility
-      admission: LeagueAdmission
-      playerLimit: number | null
-    },
-  ) {
+  async createLeague(ownerId: string, input: LeagueDetails & { format?: TableShape; rosterLimit?: number; ownerPlays: boolean }) {
+    const { format, rosterLimit, ...details } = input
     const token = randomToken()
     const eventToken = randomToken()
-    await this.repository.createLeague({
+    const result = await this.repository.createLeague({
       id: randomId(),
       token,
       eventId: randomId(),
       eventToken,
       ownerId,
-      ...input,
+      ...details,
+      ...eventRule({ format, rosterLimit }),
       recurring: true,
-      format: '1v1',
-      rosterLimit: LEAGUE_DEFAULT_ROSTER_LIMIT,
       now: this.clock(),
     })
+    if (result === 'too-small') throw new Response(tooFewPlaces(leagueTableShape(format)), { status: 409 })
     return { token, eventToken }
   }
 
-  async updateLeagueEvent(token: string, ownerId: string, rule: { format?: TableShape; rosterLimit?: number }, eventToken?: string) {
-    const format = leagueTableShape(rule.format)
-    const rosterLimit = rule.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
-    if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
-      throw new Response(`choose a supported ${format} roster size`, { status: 400 })
-    }
-    const result = await this.repository.updateLeagueEvent(token, ownerId, { format, rosterLimit }, eventToken)
-    if (result === 'updated') return { format, rosterLimit }
-    if (result === 'missing') throw new Response('no such league event', { status: 404 })
-    if (result === 'forbidden') throw new Response('only the organizer can change the event rules', { status: 403 })
-    if (result === 'closed') throw new Response('the event rules cannot change after reveal', { status: 409 })
-    if (result === 'sealed') throw new Response('the event rules cannot change once a roster is sealed', { status: 409 })
-    throw new Response(
-      format === '2v2' ? 'a 2v2 event needs an even number of at least four places' : 'a 2v1 event needs at least three places',
-      { status: 409 },
-    )
-  }
-
-  async createLeagueEvent(token: string, ownerId: string, rule: { format?: TableShape; rosterLimit?: number } = {}) {
+  /** Opens the event after a revealed one with the league's details as they should now stand, together or not at all. */
+  async createLeagueEvent(
+    token: string,
+    ownerId: string,
+    input: LeagueDetails & { format?: TableShape; rosterLimit?: number; ownerPlays: boolean },
+  ) {
+    const { format, rosterLimit, ...details } = input
     const eventToken = randomToken()
-    const format = leagueTableShape(rule.format)
-    const rosterLimit = rule.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
-    if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
-      throw new Response(`choose a supported ${format} roster size`, { status: 400 })
-    }
+    const rule = eventRule({ format, rosterLimit })
     const result = await this.repository.createLeagueEvent({
       id: randomId(),
       token: eventToken,
       leagueToken: token,
       ownerId,
-      format,
-      rosterLimit,
+      ...details,
+      ...rule,
       now: this.clock(),
     })
     if (result === 'created') return { eventToken }
     if (result === 'missing') throw new Response('no such league', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can start an event', { status: 403 })
-    if (result === 'too-small')
-      throw new Response(
-        format === '2v2' ? 'a 2v2 event needs an even number of at least four places' : 'a 2v1 event needs at least three places',
-        {
-          status: 409,
-        },
-      )
+    if (result === 'too-small') throw new Response(tooFewPlaces(rule.format), { status: 409 })
     throw new Response('reveal the current event before starting another', { status: 409 })
   }
 
-  async makeLeagueRecurring(token: string, ownerId: string) {
-    const result = await this.repository.makeLeagueRecurring(token, ownerId)
-    if (result === 'updated') return
-    if (result === 'missing') throw new Response('no such league', { status: 404 })
-    throw new Response('only the organizer can make a league recurring', { status: 403 })
-  }
-
-  async updateLeague(
-    token: string,
-    ownerId: string,
-    input: {
-      name: string
-      description: string
-      visibility: LeagueVisibility
-      admission: LeagueAdmission
-      playerLimit: number | null
-    },
-  ) {
-    const result = await this.repository.updateLeague(token, ownerId, input)
+  /** Saves the league's details and, when given, the open event's format and points, together or not at all. */
+  async updateLeague(token: string, ownerId: string, input: LeagueDetails & { rule?: { format: TableShape; rosterLimit: number } }) {
+    const result = await this.repository.updateLeague(token, ownerId, { ...input, rule: input.rule && eventRule(input.rule) })
     if (typeof result === 'object') {
       if (result.admitted.length)
         this.notifier.notify([{ kind: 'league-entry-accepted', actorId: ownerId, recipientIds: result.admitted, leagueToken: token }])
-      return
+      return { ruleChanged: result.ruleChanged }
     }
     if (result === 'missing') throw new Response('no such league', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can edit this league', { status: 403 })
+    if (result === 'closed') throw new Response('the event rules cannot change after reveal', { status: 409 })
+    if (result === 'sealed') throw new Response('the event rules cannot change once a roster is sealed', { status: 409 })
     if (result === 'team-minimum') throw new Response('the open team event needs a supported number of places', { status: 409 })
     throw new Response('the player limit cannot be lower than the accepted entrant count', { status: 409 })
   }
@@ -162,6 +118,21 @@ export class LeagueService {
     if (result === 'closed') throw new Response('this event has already revealed its rosters', { status: 409 })
     if (result === 'full') throw new Response('this event is full', { status: 409 })
     return result
+  }
+
+  /** Enters the organizer's friends in the open event outright, as a battle seats friends without asking. */
+  async addLeagueEntrants(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
+    const result = await this.repository.addLeagueEntrants(token, ownerId, userIds, LEAGUE_MEMBER_MAX, this.clock(), eventToken)
+    if (typeof result === 'object') {
+      if (result.added.length)
+        this.notifier.notify([{ kind: 'league-entry-added', actorId: ownerId, recipientIds: result.added, leagueToken: token, eventToken }])
+      return { added: result.added.length }
+    }
+    if (result === 'missing') throw new Response('no such league event', { status: 404 })
+    if (result === 'forbidden') throw new Response('only the organizer can add players', { status: 403 })
+    if (result === 'closed') throw new Response('players cannot be added after reveal', { status: 409 })
+    if (result === 'not-friends') throw new Response('you can only add your friends', { status: 403 })
+    throw new Response('the event does not have enough places left', { status: 409 })
   }
 
   async moderateLeagueEntry(
@@ -467,4 +438,25 @@ export class LeagueService {
     ])
     return result
   }
+}
+
+type LeagueDetails = {
+  name: string
+  description: string
+  visibility: LeagueVisibility
+  admission: LeagueAdmission
+  playerLimit: number | null
+}
+
+function eventRule(rule: { format?: TableShape; rosterLimit?: number }) {
+  const format = leagueTableShape(rule.format)
+  const rosterLimit = rule.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
+  if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
+    throw new Response(`choose a supported ${format} roster size`, { status: 400 })
+  }
+  return { format, rosterLimit }
+}
+
+function tooFewPlaces(format: TableShape) {
+  return format === '2v2' ? 'a 2v2 event needs an even number of at least four places' : 'a 2v1 event needs at least three places'
 }

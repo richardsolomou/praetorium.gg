@@ -123,15 +123,7 @@ function LeagueShelf({
             )
           }
           return (
-            <LeagueCardActions
-              key={league.id}
-              league={{
-                ...league,
-                currentEventFormat: league.format,
-                currentEventRevealedAt: league.revealedAt,
-                currentAcceptedCount: league.entrantCount,
-              }}
-            >
+            <LeagueCardActions key={league.id} league={league}>
               {(menu) => (
                 <div className="flex min-w-0 items-start">
                   {card}

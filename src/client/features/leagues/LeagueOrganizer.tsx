@@ -1,6 +1,5 @@
-import { useMutation } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
-import { Check, Circle, Clipboard, EllipsisVertical, LockKeyholeOpen, Pencil, Share2, UserMinus, UserPlus, X } from 'lucide-react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Check, Circle, EllipsisVertical, Link2, LockKeyholeOpen, Share2, UserMinus, UserPlus, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import {
   AlertDialog,
@@ -13,61 +12,38 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { alliedLeagueRosterLimit, leagueRevealChecklist, type LeagueEntryView, type LeagueRevealCheck } from '../../../core/league'
 import {
-  alliedLeagueRosterLimit,
-  leagueMinimumPlaces,
-  leaguePlacesSeat,
-  leagueRevealChecklist,
-  leagueRosterSplit,
-  leagueTableShape,
-  LEAGUE_DEFAULT_ROSTER_LIMIT,
-  LEAGUE_MEMBER_MAX,
-  type LeagueEntryView,
-  type LeagueRevealCheck,
-} from '../../../core/league'
-import { TABLE_SHAPE_LABELS } from '../../../core/tableShape'
-import {
+  addLeagueEntrants,
   admitLeagueEntries,
   assignLeagueRosterRequirement,
   assignLeagueTeam,
-  createLeagueEvent,
-  makeLeagueRecurring,
   moderateLeagueEntry,
-  openLeague,
   revealLeague,
   unsealLeagueRoster,
-  updateLeague,
-  updateLeagueEvent,
 } from '../../../server/functions'
-import { useDateFormatting } from '../../dates'
+import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
+import { friendshipsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { useOrigin } from '../../useOrigin'
-import { inviteFeedbackText, useInviteShare, type LeagueActionsController } from './LeagueActions'
-import { EntrantGroup, EntrantList, EntrantRow, SectionHeading, sealStatus, sideGroups, ViewRosterButton } from './LeagueEntrants'
-import { LeagueEventRuleFields, ROSTER_RULE, type LeagueEventRuleValue } from './LeagueEventRuleFields'
+import { inviteFeedbackText, useInviteShare } from './LeagueActions'
+import { EntrantGroup, EntrantList, SectionHeading, sealStatus, sideGroups } from './LeagueEntrants'
+import { LeagueSettingsDialog } from './LeagueSettingsDialog'
 import { doublesTeams, formatNames, namesPhrase, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
 
-export function LeagueConsole({
-  league,
-  token,
-  actions,
-  onPlayerView,
-}: {
-  league: League
-  token: string
-  actions: LeagueActionsController
-  onPlayerView: () => void
-}) {
+/** Draws one entrant with whatever the reader may do about them; the organizer's controls ride in `controls`. */
+export type EntrantRowRenderer = (entry: LeagueEntryView, detail: ReactNode, controls?: ReactNode) => ReactNode
+
+/** The organizer's view of who is in the event: requests to answer, entrants to size, pair, remove or unseal, and who was turned away. */
+export function OrganizerEntrants({ league, token, row }: { league: League; token: string; row: EntrantRowRenderer }) {
   const refresh = useLeagueRefresh(token)
   const eventToken = league.eventToken
   const [removing, setRemoving] = useState<LeagueEntryView | null>(null)
   const [reassigning, setReassigning] = useState<{ entry: LeagueEntryView; requiredLimit: number } | null>(null)
   const [unsealing, setUnsealing] = useState<LeagueEntryView | null>(null)
-  const [revealing, setRevealing] = useState(false)
   const [clearing, setClearing] = useState<{ userIds: string[]; sealed: LeagueEntryView[] } | null>(null)
   const [picked, setPicked] = useState<string[]>([])
 
@@ -106,13 +82,6 @@ export function LeagueConsole({
       await refresh()
     },
   })
-  const reveal = useMutation({
-    mutationFn: () => revealLeague({ data: { token, eventToken } }),
-    onSuccess: async () => {
-      setRevealing(false)
-      await refresh()
-    },
-  })
 
   const labels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))
   const label = (entry: LeagueEntryView) => labels.get(entry.userId) ?? entry.name
@@ -122,7 +91,6 @@ export function LeagueConsole({
   const pending = byJoin.filter((entry) => entry.status === 'pending')
   const rejected = byJoin.filter((entry) => entry.status === 'rejected')
   const revealed = Boolean(league.revealedAt)
-  const latest = league.events[0]?.token === eventToken
   const teams = doublesTeams(accepted)
   // A picked player who was paired or removed since is dropped, so the picker never holds a place for a row it no longer shows.
   const unpairedIds = new Set(accepted.filter((entry) => !entry.teamId).map((entry) => entry.userId))
@@ -175,7 +143,6 @@ export function LeagueConsole({
   const revealedControls = (entry: LeagueEntryView) =>
     revealed && entry.submitted ? (
       <>
-        <ViewRosterButton token={token} eventToken={eventToken} userId={entry.userId} label={label(entry)} />
         <DropdownMenu>
           <DropdownMenuTrigger
             render={<Button variant="ghost" size="icon" className="pointer-coarse:size-11" aria-label={`More for ${label(entry)}`} />}
@@ -210,24 +177,28 @@ export function LeagueConsole({
         return (
           <EntrantGroup key={side} group={side} title={sides[side].title} detail={sides[side].detail}>
             <EntrantList>
-              {members.map((entry) => (
-                <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={sealStatus(entry, revealed)}>
-                  {!revealed && league.rosterLimit ? (
-                    <SizeToggle
-                      label={label(entry)}
-                      side={soloOrAllied(league, entry)}
-                      pending={assign.isPending}
-                      onAssign={(next) =>
-                        requestAssignment(entry, next === 'solo' ? league.rosterLimit! : alliedLeagueRosterLimit(league.rosterLimit!))
-                      }
-                    />
-                  ) : null}
-                  {removeButton(entry)}
-                  {revealedControls(entry)}
-                  {reassigning ? null : rowError(assign.error, assign.variables?.userId, entry)}
-                  {moderateError(entry)}
-                </EntrantRow>
-              ))}
+              {members.map((entry) =>
+                row(
+                  entry,
+                  sealStatus(entry, revealed),
+                  <>
+                    {!revealed && league.rosterLimit ? (
+                      <SizeToggle
+                        label={label(entry)}
+                        side={soloOrAllied(league, entry)}
+                        pending={assign.isPending}
+                        onAssign={(next) =>
+                          requestAssignment(entry, next === 'solo' ? league.rosterLimit! : alliedLeagueRosterLimit(league.rosterLimit!))
+                        }
+                      />
+                    ) : null}
+                    {removeButton(entry)}
+                    {revealedControls(entry)}
+                    {reassigning ? null : rowError(assign.error, assign.variables?.userId, entry)}
+                    {moderateError(entry)}
+                  </>,
+                ),
+              )}
             </EntrantList>
           </EntrantGroup>
         )
@@ -256,8 +227,10 @@ export function LeagueConsole({
               .filter((entry) => !entry.teamId)
               .map((entry) => {
                 const checked = pickedLive.includes(entry.userId)
-                return (
-                  <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={sealStatus(entry, revealed)}>
+                return row(
+                  entry,
+                  sealStatus(entry, revealed),
+                  <>
                     <label className="flex cursor-pointer items-center gap-2 px-1 text-xs font-semibold tracking-label text-dim uppercase pointer-coarse:min-h-11">
                       <input
                         type="checkbox"
@@ -271,7 +244,7 @@ export function LeagueConsole({
                     </label>
                     {removeButton(entry)}
                     {moderateError(entry)}
-                  </EntrantRow>
+                  </>,
                 )
               })}
           </EntrantList>
@@ -304,174 +277,134 @@ export function LeagueConsole({
           }
         >
           <EntrantList>
-            {team.members.map((entry) => (
-              <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={sealStatus(entry, revealed)}>
-                {removeButton(entry)}
-                {revealedControls(entry)}
-                {moderateError(entry)}
-              </EntrantRow>
-            ))}
+            {team.members.map((entry) =>
+              row(
+                entry,
+                sealStatus(entry, revealed),
+                <>
+                  {removeButton(entry)}
+                  {revealedControls(entry)}
+                  {moderateError(entry)}
+                </>,
+              ),
+            )}
           </EntrantList>
         </EntrantGroup>
       ))}
     </div>
   ) : (
     <EntrantList>
-      {accepted.map((entry) => (
-        <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={sealStatus(entry, revealed)}>
-          {removeButton(entry)}
-          {revealedControls(entry)}
-          {moderateError(entry)}
-        </EntrantRow>
-      ))}
+      {accepted.map((entry) =>
+        row(
+          entry,
+          sealStatus(entry, revealed),
+          <>
+            {removeButton(entry)}
+            {revealedControls(entry)}
+            {moderateError(entry)}
+          </>,
+        ),
+      )}
     </EntrantList>
   )
 
   return (
-    <div className="space-y-6">
-      {revealed ? (
-        <RevealedPanel league={league} onPlayerView={onPlayerView} />
-      ) : (
-        <RevealPanel
-          league={league}
-          checks={leagueRevealChecklist(league, league.entries)}
-          nameOf={nameOf}
-          onReveal={() => {
-            reveal.reset()
-            setRevealing(true)
-          }}
-        />
-      )}
+    <>
+      {!revealed && pending.length ? (
+        <section>
+          <SectionHeading
+            title="Requests"
+            count={pending.length}
+            action={
+              pending.length > 1 && openPlaces > 0 ? (
+                <Button
+                  size="sm"
+                  className="pointer-coarse:h-11"
+                  disabled={acceptAll.isPending || moderate.isPending}
+                  onClick={() => acceptAll.mutate(pending.map((entry) => entry.userId))}
+                >
+                  <Check /> {openPlaces >= pending.length ? 'Accept all' : `Accept the first ${openPlaces}`}
+                </Button>
+              ) : null
+            }
+          />
+          <EntrantList>
+            {pending.map((entry) =>
+              row(
+                entry,
+                'Asked to join',
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="pointer-coarse:h-11"
+                    aria-label={`Accept ${label(entry)}`}
+                    disabled={moderate.isPending || acceptAll.isPending}
+                    onClick={() => moderate.mutate({ userId: entry.userId, status: 'accepted' })}
+                  >
+                    <Check /> Accept
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-dim hover:text-destructive pointer-coarse:h-11"
+                    aria-label={`Turn away ${label(entry)}`}
+                    disabled={moderate.isPending || acceptAll.isPending}
+                    onClick={() => moderate.mutate({ userId: entry.userId, status: 'rejected' })}
+                  >
+                    <X /> Turn away
+                  </Button>
+                  {moderateError(entry)}
+                </>,
+              ),
+            )}
+          </EntrantList>
+          {acceptAll.error ? (
+            <p role="alert" className="mt-2 text-sm text-destructive">
+              {errorMessage(acceptAll.error)}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <div className="min-w-0 space-y-6">
-          {!revealed && pending.length ? (
-            <section>
-              <SectionHeading
-                title="Requests"
-                count={pending.length}
-                action={
-                  pending.length > 1 && openPlaces > 0 ? (
-                    <Button
-                      size="sm"
-                      className="pointer-coarse:h-11"
-                      disabled={acceptAll.isPending || moderate.isPending}
-                      onClick={() => acceptAll.mutate(pending.map((entry) => entry.userId))}
-                    >
-                      <Check /> {openPlaces >= pending.length ? 'Accept all' : `Accept the first ${openPlaces}`}
-                    </Button>
-                  ) : null
-                }
-              />
-              <EntrantList>
-                {pending.map((entry) => (
-                  <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail="Asked to join">
+      <section data-onboarding="league-entrants">
+        <SectionHeading title="Entrants" count={accepted.length} action={revealed ? null : <AddFriends league={league} token={token} />} />
+        {entrants}
+      </section>
+
+      {!revealed && rejected.length ? (
+        <details className="group">
+          <summary className="rubric flex cursor-pointer list-none items-baseline gap-2 border-b border-edge pb-2 hover:text-bone">
+            Turned away <span className="readout text-faint">{rejected.length}</span>
+            <span className="ml-auto text-xs font-normal tracking-normal normal-case group-open:hidden">Show</span>
+            <span className="ml-auto hidden text-xs font-normal tracking-normal normal-case group-open:inline">Hide</span>
+          </summary>
+          <div className="mt-2">
+            <EntrantList>
+              {rejected.map((entry) =>
+                row(
+                  entry,
+                  'Turned away',
+                  <>
                     <Button
                       size="sm"
                       variant="outline"
                       className="pointer-coarse:h-11"
-                      aria-label={`Accept ${label(entry)}`}
-                      disabled={moderate.isPending || acceptAll.isPending}
+                      aria-label={`Let ${label(entry)} in`}
+                      disabled={moderate.isPending}
                       onClick={() => moderate.mutate({ userId: entry.userId, status: 'accepted' })}
                     >
-                      <Check /> Accept
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-dim hover:text-destructive pointer-coarse:h-11"
-                      aria-label={`Turn away ${label(entry)}`}
-                      disabled={moderate.isPending || acceptAll.isPending}
-                      onClick={() => moderate.mutate({ userId: entry.userId, status: 'rejected' })}
-                    >
-                      <X /> Turn away
+                      <UserPlus /> Let in
                     </Button>
                     {moderateError(entry)}
-                  </EntrantRow>
-                ))}
-              </EntrantList>
-              {acceptAll.error ? (
-                <p role="alert" className="mt-2 text-sm text-destructive">
-                  {errorMessage(acceptAll.error)}
-                </p>
-              ) : null}
-            </section>
-          ) : null}
+                  </>,
+                ),
+              )}
+            </EntrantList>
+          </div>
+        </details>
+      ) : null}
 
-          <section data-onboarding="league-entrants">
-            <SectionHeading title="Entrants" count={accepted.length} />
-            {entrants}
-          </section>
-
-          {!revealed && rejected.length ? (
-            <details className="group">
-              <summary className="rubric flex cursor-pointer list-none items-baseline gap-2 border-b border-edge pb-2 hover:text-bone">
-                Turned away <span className="readout text-faint">{rejected.length}</span>
-                <span className="ml-auto text-xs font-normal tracking-normal normal-case group-open:hidden">Show</span>
-                <span className="ml-auto hidden text-xs font-normal tracking-normal normal-case group-open:inline">Hide</span>
-              </summary>
-              <div className="mt-2">
-                <EntrantList>
-                  {rejected.map((entry) => (
-                    <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail="Turned away">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="pointer-coarse:h-11"
-                        aria-label={`Let ${label(entry)} in`}
-                        disabled={moderate.isPending}
-                        onClick={() => moderate.mutate({ userId: entry.userId, status: 'accepted' })}
-                      >
-                        <UserPlus /> Let in
-                      </Button>
-                      {moderateError(entry)}
-                    </EntrantRow>
-                  ))}
-                </EntrantList>
-              </div>
-            </details>
-          ) : null}
-        </div>
-
-        <aside className="space-y-3">
-          {!revealed && latest ? <InvitePanel league={league} /> : null}
-          {latest ? <EventRulePanel league={league} token={token} /> : null}
-          <SettingsPanel league={league} onEdit={actions.openEdit} />
-        </aside>
-      </div>
-
-      <AlertDialog
-        open={revealing}
-        onOpenChange={(open) => {
-          if (reveal.isPending) return
-          if (!open) reveal.reset()
-          setRevealing(open)
-        }}
-      >
-        <AlertDialogContent aria-busy={reveal.isPending}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reveal every roster?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {accepted.length === 1 ? 'The sealed list becomes' : `All ${accepted.length} sealed lists become`} readable to everyone who
-              can open this league, entrants can start battles, and the event closes to new players.{' '}
-              {pending.length ? `${pending.length} request${pending.length === 1 ? '' : 's'} still waiting will be turned down. ` : ''}
-              You cannot undo this.
-            </AlertDialogDescription>
-            {reveal.error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {errorMessage(reveal.error)}
-              </p>
-            ) : null}
-            {reveal.isPending ? <output className="sr-only">Revealing rosters…</output> : null}
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={reveal.isPending}>Keep rosters sealed</AlertDialogCancel>
-            <AlertDialogAction disabled={reveal.isPending} onClick={() => reveal.mutate()}>
-              {reveal.isPending ? 'Revealing…' : 'Reveal all rosters'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       <AlertDialog
         open={removing !== null}
         onOpenChange={(open) => {
@@ -601,7 +534,7 @@ export function LeagueConsole({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   )
 }
 
@@ -668,19 +601,23 @@ function checkDetail(check: LeagueRevealCheck, accepted: number, nameOf: (userId
   }
 }
 
-function RevealPanel({
-  league,
-  checks,
-  nameOf,
-  onReveal,
-}: {
-  league: League
-  checks: LeagueRevealCheck[]
-  nameOf: (userId: string) => string
-  onReveal: () => void
-}) {
+/** What still stands before the organizer can reveal, and the reveal itself once nothing does. */
+export function OrganizerRevealPanel({ league, token }: { league: League; token: string }) {
+  const refresh = useLeagueRefresh(token)
+  const [revealing, setRevealing] = useState(false)
+  const reveal = useMutation({
+    mutationFn: () => revealLeague({ data: { token, eventToken: league.eventToken } }),
+    onSuccess: async () => {
+      setRevealing(false)
+      await refresh()
+    },
+  })
+  const labels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const nameOf = (userId: string) => labels.get(userId) ?? league.entries.find((entry) => entry.userId === userId)?.name ?? 'someone'
+  const checks = leagueRevealChecklist(league, league.entries)
   const remaining = checks.filter((check) => !check.done).length
   const accepted = league.entries.filter((entry) => entry.status === 'accepted').length
+  const pending = league.entries.filter((entry) => entry.status === 'pending').length
   return (
     <section
       data-onboarding="league-rosters"
@@ -689,6 +626,7 @@ function RevealPanel({
     >
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1 basis-72">
+          <p className="eyebrow">You organize this event</p>
           <h2 id="league-reveal-heading" className="text-xl font-bold uppercase">
             {remaining ? `${remaining} step${remaining === 1 ? '' : 's'} before the reveal` : 'Ready to reveal'}
           </h2>
@@ -700,7 +638,10 @@ function RevealPanel({
           variant={remaining ? 'outline' : 'default'}
           className="max-sm:w-full pointer-coarse:h-11"
           disabled={remaining > 0}
-          onClick={onReveal}
+          onClick={() => {
+            reveal.reset()
+            setRevealing(true)
+          }}
         >
           Reveal all rosters
         </Button>
@@ -720,276 +661,179 @@ function RevealPanel({
           </li>
         ))}
       </ul>
+      <AlertDialog
+        open={revealing}
+        onOpenChange={(open) => {
+          if (reveal.isPending) return
+          if (!open) reveal.reset()
+          setRevealing(open)
+        }}
+      >
+        <AlertDialogContent aria-busy={reveal.isPending}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reveal every roster?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {accepted === 1 ? 'The sealed list becomes' : `All ${accepted} sealed lists become`} readable to everyone who can open this
+              league, entrants can start battles, and the event closes to new players.{' '}
+              {pending ? `${pending} request${pending === 1 ? '' : 's'} still waiting will be turned down. ` : ''}
+              You cannot undo this.
+            </AlertDialogDescription>
+            {reveal.error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {errorMessage(reveal.error)}
+              </p>
+            ) : null}
+            {reveal.isPending ? <output className="sr-only">Revealing rosters…</output> : null}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reveal.isPending}>Keep rosters sealed</AlertDialogCancel>
+            <AlertDialogAction disabled={reveal.isPending} onClick={() => reveal.mutate()}>
+              {reveal.isPending ? 'Revealing…' : 'Reveal all rosters'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   )
 }
 
-function RevealedPanel({ league, onPlayerView }: { league: League; onPlayerView: () => void }) {
-  const dates = useDateFormatting()
-  const sealed = league.entries.filter((entry) => entry.status === 'accepted' && entry.submitted).length
+/** The organizer's way on once an event is revealed: the next one, set up in the same form as the first. */
+export function NextEventPanel({ league }: { league: League }) {
+  const [open, setOpen] = useState(false)
+  const next = league.eventCount + 1
   return (
-    <section className="border border-achieved/40 bg-panel p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <div className="min-w-0 flex-1 basis-72">
-          <h2 className="text-xl font-bold text-achieved uppercase">Rosters revealed</h2>
-          <p className="mt-1 max-w-2xl text-sm text-dim">
-            {league.revealedAt ? `${dates.date(league.revealedAt)} · ` : ''}
-            {sealed === 1 ? '1 list' : `${sealed} lists`} open. Players start battles from the Event tab.
-          </p>
-        </div>
-        <Button size="lg" variant="outline" className="max-sm:w-full pointer-coarse:h-11" onClick={onPlayerView}>
-          Open the Event tab
-        </Button>
-      </div>
+    <section className="border border-edge bg-panel p-4">
+      <h2 className="rubric">Next event</h2>
+      <p className="mt-1 text-xs text-dim">Starts empty. Everyone joins and seals again. This event stays readable.</p>
+      <Button className="mt-3 w-full pointer-coarse:h-11" onClick={() => setOpen(true)}>
+        Set up event {next}
+      </Button>
+      <LeagueSettingsDialog mode={{ kind: 'next', token: league.token }} open={open} onOpenChange={setOpen} />
     </section>
   )
 }
 
-function Panel({ title, onboarding, children }: { title: string; onboarding?: 'league-format'; children: ReactNode }) {
-  return (
-    <section data-onboarding={onboarding} className="border border-edge bg-panel p-4">
-      <h2 className="rubric">{title}</h2>
-      {children}
-    </section>
-  )
-}
-
-function InvitePanel({ league }: { league: League }) {
+export function InvitePanel({ league }: { league: League }) {
   const origin = useOrigin()
   const invite = useInviteShare(league)
   return (
-    <Panel title="Invite players">
+    <section className="border border-edge bg-panel p-4">
+      <h2 className="rubric">Invite players</h2>
       <p className="mt-1 text-xs text-dim">
         {league.visibility === 'private' ? 'Unlisted, so this link is the way in.' : 'Also listed on the leagues page.'}
       </p>
-      <p className="mt-3 h-5 truncate text-sm text-bone" title={origin ? `${origin}/leagues/${league.token}` : undefined}>
-        {origin ? `${origin.replace(/^https?:\/\//, '')}/leagues/${league.token}` : null}
-      </p>
-      <Button className="mt-2 w-full pointer-coarse:h-11" variant="outline" disabled={!origin} onClick={() => void invite.share()}>
-        {invite.feedback === 'shared' ? <Share2 /> : invite.feedback === 'copied' ? <Check /> : <Clipboard />}
-        {invite.feedback === 'shared' ? 'Invite shared' : invite.feedback === 'copied' ? 'Invite link copied' : 'Share invite'}
-      </Button>
+      <button
+        type="button"
+        aria-label={invite.feedback === 'copied' ? 'Invite link copied' : invite.feedback === 'shared' ? 'Invite shared' : 'Share invite'}
+        disabled={!origin}
+        className="group mt-3 block w-full border border-edge-strong bg-sunken text-left hover:border-info disabled:opacity-60"
+        onClick={() => void invite.share()}
+      >
+        <span className="flex items-center gap-2.5 px-3 py-2.5">
+          <Link2 className="size-4 shrink-0 text-info" aria-hidden />
+          <span className="min-w-0">
+            <span className="block truncate text-xs text-dim">{origin ? `${origin.replace(/^https?:\/\//, '')}/leagues/` : '\u00a0'}</span>
+            <span className="block truncate text-sm font-semibold text-bone">{league.token}</span>
+          </span>
+        </span>
+        <span
+          aria-hidden
+          className={`flex items-center justify-center gap-1.5 border-t border-edge-strong px-3 py-2 text-xs font-semibold tracking-label uppercase group-hover:bg-raised pointer-coarse:min-h-11 ${invite.feedback === 'copied' || invite.feedback === 'shared' ? 'text-achieved' : 'text-parchment'}`}
+        >
+          {invite.feedback === 'copied' || invite.feedback === 'shared' ? <Check className="size-3.5" /> : <Share2 className="size-3.5" />}
+          {invite.feedback === 'copied' ? 'Link copied' : invite.feedback === 'shared' ? 'Invite shared' : 'Share invite'}
+        </span>
+      </button>
       <p aria-live="polite" className={`mt-2 text-xs ${invite.feedback === 'error' ? 'text-destructive' : 'sr-only'}`}>
         {invite.feedback ? inviteFeedbackText(invite.feedback) : ''}
       </p>
-    </Panel>
+    </section>
   )
 }
 
-function SettingsPanel({ league, onEdit }: { league: League; onEdit: () => void }) {
-  return (
-    <Panel title="League settings">
-      <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
-        <dt className="text-dim">Visibility</dt>
-        <dd>{league.visibility === 'private' ? 'Private link' : 'Public'}</dd>
-        <dt className="text-dim">Joining</dt>
-        <dd>{league.admission === 'approval' ? 'You approve each player' : 'Automatic'}</dd>
-        <dt className="text-dim">Places</dt>
-        <dd>{league.playerLimit === null ? 'No limit' : league.playerLimit}</dd>
-      </dl>
-      <Button className="mt-3 w-full pointer-coarse:h-11" variant="outline" size="sm" onClick={onEdit}>
-        <Pencil /> Edit league
-      </Button>
-    </Panel>
-  )
-}
-
-/**
- * The current event's format while nobody has sealed against it, and the next event's once
- * this one is revealed. Either way the league's place count is raised here when the chosen
- * shape needs more seats than it allows, rather than sending the organizer off to settings.
- */
-function EventRulePanel({ league, token }: { league: League; token: string }) {
+/** Enters friends in the open event directly, the way a battle seats them, within whatever places are left. */
+function AddFriends({ league, token }: { league: League; token: string }) {
   const refresh = useLeagueRefresh(token)
-  const navigate = useNavigate()
-  const revealed = Boolean(league.revealedAt)
-  const format = leagueTableShape(league.format)
-  const sealed = league.entries.some((entry) => entry.submitted)
-  const accepted = league.entries.filter((entry) => entry.status === 'accepted').length
-  const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState<LeagueEventRuleValue>({ format, rosterLimit: league.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT })
-  const [places, setPlaces] = useState<number | null>(league.playerLimit)
-  // A next event starts with nobody in it, so only the open event's entrants hold places.
-  const seated = revealed ? 0 : accepted
-  const needed = leagueMinimumPlaces(value.format, seated)
-  const short = !leaguePlacesSeat(value.format, league.playerLimit, seated)
-  const save = useMutation({
-    mutationFn: async () => {
-      // Saving the league overwrites every setting, so a raised limit goes onto the league as it is now rather than this page's copy.
-      const current = short ? await openLeague({ data: { token, eventToken: league.eventToken } }) : null
-      if (short && !current) throw new Error('This league no longer exists.')
-      const details = current && {
-        token,
-        name: current.name,
-        description: current.description,
-        visibility: current.visibility,
-        admission: current.admission,
-      }
-      if (details) await updateLeague({ data: { ...details, playerLimit: places } })
-      try {
-        if (!revealed) {
-          await updateLeagueEvent({ data: { token, eventToken: league.eventToken, ...value } })
-          return null
-        }
-        await makeLeagueRecurring({ data: { token } })
-        return (await createLeagueEvent({ data: { token, ...value } })).eventToken
-      } catch (error) {
-        // Put the limit back so a refused format leaves the league as it was; a failed restore still surfaces the refusal, which is the error to act on.
-        if (details && current) await updateLeague({ data: { ...details, playerLimit: current.playerLimit } }).catch(() => undefined)
-        throw error
-      }
-    },
-    onSuccess: async (created) => {
-      setEditing(false)
+  const [open, setOpen] = useState(false)
+  const [picked, setPicked] = useState<string[]>([])
+  const { data: friendships } = useQuery({ ...friendshipsQuery(), enabled: open })
+  const accepted = new Set(league.entries.filter((entry) => entry.status === 'accepted').map((entry) => entry.userId))
+  const candidates = (friendships?.friends ?? []).filter((friend) => !accepted.has(friend.id))
+  const places = league.playerLimit === null ? null : Math.max(0, league.playerLimit - accepted.size)
+  const add = useMutation({
+    mutationFn: () => addLeagueEntrants({ data: { token, eventToken: league.eventToken, userIds: picked } }),
+    onSuccess: async () => {
+      setOpen(false)
+      setPicked([])
       await refresh()
-      if (created) await navigate({ to: '/leagues/$token', params: { token }, search: { event: created } })
     },
-    onError: refresh,
   })
-  const open = () => {
-    save.reset()
-    // Changing the open event starts from what it plays now; a fresh event starts from the default,
-    // because the league's places may no longer seat the last event's shape.
-    setValue(
-      revealed
-        ? { format: '1v1', rosterLimit: LEAGUE_DEFAULT_ROSTER_LIMIT }
-        : { format, rosterLimit: league.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT },
-    )
-    setPlaces(league.playerLimit)
-    setEditing(true)
-  }
-  // A shape the league's limit cannot seat starts its limit at the fewest places that do.
-  const chooseRule = (rule: LeagueEventRuleValue) => {
-    setValue(rule)
-    setPlaces((current) =>
-      leaguePlacesSeat(rule.format, current, seated) ? current : leagueMinimumPlaces(rule.format, Math.max(current ?? 0, seated)),
-    )
-  }
-  const next = league.eventCount + 1
-  const placesValid = !short || leaguePlacesSeat(value.format, places, seated)
-
-  if (revealed)
-    return (
-      <Panel title="Next event">
-        <p className="mt-1 text-sm text-dim">Starts empty. Everyone joins and seals again, including you.</p>
-        {editing ? (
-          <RuleForm
-            value={value}
-            places={short ? { value: places, needed, even: value.format === '2v2', onChange: setPlaces } : null}
-            pending={save.isPending}
-            error={save.error}
-            submit={save.isPending ? 'Opening…' : `Open event ${next}`}
-            disabled={!placesValid}
-            onChange={chooseRule}
-            onCancel={() => setEditing(false)}
-            onSubmit={() => save.mutate()}
-          />
-        ) : (
-          <Button className="mt-3 w-full pointer-coarse:h-11" onClick={open}>
-            Set up event {next}
-          </Button>
-        )}
-      </Panel>
-    )
-
   return (
-    <Panel title="Format and points" onboarding="league-format">
-      <p className="mt-2 font-semibold">
-        {TABLE_SHAPE_LABELS[format].name}
-        {league.rosterLimit ? ` · ${leagueRosterSplit(format, league.rosterLimit) ?? `${league.rosterLimit.toLocaleString()} points`}` : ''}
-      </p>
-      <p className="text-xs text-dim">{ROSTER_RULE[format]}</p>
-      {editing ? (
-        <RuleForm
-          value={value}
-          places={short ? { value: places, needed, even: value.format === '2v2', onChange: setPlaces } : null}
-          warning={accepted ? 'Clears every size and team you’ve handed out.' : undefined}
-          pending={save.isPending}
-          error={save.error}
-          submit={save.isPending ? 'Saving…' : 'Save format'}
-          disabled={!placesValid}
-          onChange={chooseRule}
-          onCancel={() => setEditing(false)}
-          onSubmit={() => save.mutate()}
-        />
-      ) : (
-        <>
-          <Button className="mt-3 w-full pointer-coarse:h-11" variant="outline" size="sm" disabled={sealed} onClick={open}>
-            <Pencil /> Change format and points
-          </Button>
-          <p className="mt-2 text-xs text-dim">{sealed ? 'Locked now that a list is sealed.' : 'Locks once the first list is sealed.'}</p>
-        </>
-      )}
-    </Panel>
-  )
-}
-
-function RuleForm({
-  value,
-  places,
-  warning,
-  pending,
-  error,
-  submit,
-  disabled,
-  onChange,
-  onCancel,
-  onSubmit,
-}: {
-  value: LeagueEventRuleValue
-  places: { value: number | null; needed: number; even: boolean; onChange: (places: number | null) => void } | null
-  warning?: string
-  pending: boolean
-  error: Error | null
-  submit: string
-  disabled: boolean
-  onChange: (value: LeagueEventRuleValue) => void
-  onCancel: () => void
-  onSubmit: () => void
-}) {
-  return (
-    <form
-      className="mt-3 space-y-4 border-t border-edge pt-3"
-      aria-busy={pending}
-      onSubmit={(event) => {
-        event.preventDefault()
-        onSubmit()
-      }}
-    >
-      <LeagueEventRuleFields value={value} disabled={pending} stacked onChange={onChange} />
-      {places ? (
-        <div className="space-y-1.5">
-          <Label htmlFor="league-event-places">Player limit</Label>
-          <Input
-            id="league-event-places"
-            type="number"
-            min={places.needed}
-            step={places.even ? 2 : 1}
-            max={LEAGUE_MEMBER_MAX}
-            value={places.value ?? ''}
-            disabled={pending}
-            onChange={(event) => places.onChange(event.target.value ? Number(event.target.value) : null)}
-          />
-          <p className="text-xs text-parchment">
-            Needs at least {places.needed}
-            {places.even ? ', in pairs' : ''}. Saving raises the league’s limit.
-          </p>
-        </div>
-      ) : null}
-      {warning ? <p className="text-xs text-parchment">{warning}</p> : null}
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {errorMessage(error)}
-        </p>
-      ) : null}
-      <div className="flex gap-2">
-        <Button type="button" variant="outline" className="flex-1 pointer-coarse:h-11" disabled={pending} onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" className="flex-1 pointer-coarse:h-11" disabled={pending || disabled}>
-          {submit}
-        </Button>
-      </div>
-    </form>
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        className="pointer-coarse:h-11"
+        onClick={() => {
+          add.reset()
+          setPicked([])
+          setOpen(true)
+        }}
+      >
+        <UserPlus /> Add friends
+      </Button>
+      <Dialog open={open} onOpenChange={(next) => !add.isPending && setOpen(next)}>
+        <DialogContent showCloseButton={!add.isPending} aria-busy={add.isPending} className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Add friends</DialogTitle>
+            <DialogDescription>
+              They are entered straight away, without asking to join.
+              {places === null ? '' : ` ${places === 1 ? '1 place' : `${places} places`} left.`}
+            </DialogDescription>
+          </DialogHeader>
+          {!friendships ? (
+            <p className="text-sm text-dim">Loading friends…</p>
+          ) : !candidates.length ? (
+            <p className="text-sm text-dim">
+              {friendships.friends.length ? 'Every friend is already in this event.' : 'Add friends first, then enter them here.'}
+            </p>
+          ) : (
+            <ul className="divide-y divide-edge border border-edge bg-panel">
+              {candidates.map((friend) => {
+                const checked = picked.includes(friend.id)
+                return (
+                  <li key={friend.id}>
+                    <label className="flex cursor-pointer items-center gap-3 p-3 pointer-coarse:min-h-11">
+                      <input
+                        type="checkbox"
+                        className="size-5 accent-parchment"
+                        checked={checked}
+                        disabled={add.isPending || (!checked && places !== null && picked.length >= places)}
+                        onChange={() => setPicked(checked ? picked.filter((id) => id !== friend.id) : [...picked, friend.id])}
+                      />
+                      <PlayerAvatar name={friend.name} image={friend.image} className="size-8 text-3xs" />
+                      <span className="min-w-0 truncate font-bold uppercase">{friend.name}</span>
+                    </label>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+          {add.error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {errorMessage(add.error)}
+            </p>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={add.isPending} onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled={add.isPending || !picked.length} onClick={() => add.mutate()}>
+              {add.isPending ? 'Adding…' : picked.length ? `Add ${picked.length} player${picked.length === 1 ? '' : 's'}` : 'Add players'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

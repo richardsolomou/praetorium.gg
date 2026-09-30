@@ -1673,6 +1673,22 @@ function resetLeagueEntry(ctx: Context, entry: LeagueEntryRow) {
   })
 }
 
+function insertLeagueEntry(ctx: Context, eventId: string, userId: string, status: 'accepted' | 'pending', now: number) {
+  ctx.db.leagueEventEntries.insert({
+    key: JSON.stringify([eventId, userId]),
+    eventId,
+    userId,
+    status,
+    joinedAt: BigInt(now),
+    rosterId: undefined,
+    rosterName: undefined,
+    rosterSnapshot: undefined,
+    submittedAt: undefined,
+    requiredLimit: undefined,
+    teamId: undefined,
+  })
+}
+
 function leagueCommandInput<S extends z.ZodType>(inputSchema: S, value: unknown): z.output<S> {
   const parsed = inputSchema.safeParse(value)
   if (!parsed.success)
@@ -1726,10 +1742,12 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
           recurring: z.boolean(),
           format: leagueFormatInput.nullable(),
           rosterLimit: z.number().int().positive().max(10_000).nullable(),
+          ownerPlays: z.boolean().default(false),
           now: leagueTimeInput,
         }),
         value,
       )
+      if (!leaguePlacesSeat(input.format, input.playerLimit)) return productJson('too-small')
       tx.db.leagues.insert({
         id: input.id,
         token: input.token,
@@ -1752,6 +1770,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         createdAt: BigInt(input.now),
         revealedAt: undefined,
       })
+      if (input.ownerPlays) insertLeagueEntry(tx, input.eventId, input.ownerId, 'accepted', input.now)
       touchProduct(tx, input.ownerId, 'leagues', 'onboarding')
       touchPublic(tx, 'leagues')
       return 'null'
@@ -1791,20 +1810,7 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         return productJson('full')
       const status = league.admission === 'automatic' || league.ownerId === input.userId ? 'accepted' : 'pending'
       if (existing) tx.db.leagueEventEntries.key.update({ ...existing, status, joinedAt: BigInt(input.now) })
-      else
-        tx.db.leagueEventEntries.insert({
-          key,
-          eventId: event.id,
-          userId: input.userId,
-          status,
-          joinedAt: BigInt(input.now),
-          rosterId: undefined,
-          rosterName: undefined,
-          rosterSnapshot: undefined,
-          submittedAt: undefined,
-          requiredLimit: undefined,
-          teamId: undefined,
-        })
+      else insertLeagueEntry(tx, event.id, input.userId, status, input.now)
       touchLeague(tx, league.id, event.id)
       return productJson(status === 'pending' && input.noticeResults ? { status, ownerId: league.ownerId } : status)
     }
@@ -1815,19 +1821,29 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
 
     if (operation === 'create-event') {
       const input = leagueCommandInput(
-        z.object({
+        leagueDetailsInput.extend({
           op: z.literal('create-event'),
           id: leagueIdInput,
           eventToken: leagueTokenInput,
           format: leagueFormatInput.nullable(),
           rosterLimit: z.number().int().positive().max(10_000).nullable(),
+          ownerPlays: z.boolean().default(false),
           now: leagueTimeInput,
         }),
         value,
       )
-      if (!leaguePlacesSeat(input.format ?? null, league.playerLimit ?? null)) return productJson('too-small')
+      if (!leaguePlacesSeat(input.format ?? null, input.playerLimit)) return productJson('too-small')
       const latest = leagueEventFor(tx, league.id, null)
       if (!latest || latest.revealedAt === undefined) return productJson('open')
+      tx.db.leagues.id.update({
+        ...league,
+        name: input.name,
+        description: input.description,
+        visibility: input.visibility,
+        admission: input.admission,
+        playerLimit: input.playerLimit ?? undefined,
+        recurring: true,
+      })
       tx.db.leagueEvents.insert({
         id: input.id,
         token: input.eventToken,
@@ -1838,19 +1854,33 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
         createdAt: BigInt(input.now),
         revealedAt: undefined,
       })
+      if (input.ownerPlays) insertLeagueEntry(tx, input.id, league.ownerId, 'accepted', input.now)
       touchLeague(tx, league.id, latest.id)
       return productJson('created')
     }
     if (operation === 'update') {
-      const input = leagueCommandInput(leagueDetailsInput.extend({ op: z.literal('update') }), value)
+      const input = leagueCommandInput(
+        leagueDetailsInput.extend({ op: z.literal('update'), rule: leagueRuleInput.nullable().default(null) }),
+        value,
+      )
       const current = leagueEventFor(tx, league.id, null)
       if (!current) return productJson('missing')
       const entries = leagueEntriesFor(tx, current.id)
       const accepted = entries.filter((entry) => entry.status === 'accepted').length
-      if (input.playerLimit !== (league.playerLimit ?? null) && current.revealedAt === undefined) {
-        if (!leaguePlacesSeat((current.format ?? null) as '1v1' | '2v1' | '2v2' | null, input.playerLimit))
-          return productJson('team-minimum')
+      const rule =
+        input.rule && (input.rule.format !== current.format || input.rule.rosterLimit !== current.rosterLimit) ? input.rule : null
+      if (rule) {
+        if (current.revealedAt !== undefined) return productJson('closed')
+        if (entries.some((entry) => entry.rosterSnapshot !== undefined)) return productJson('sealed')
+      }
+      const format = (rule?.format ?? current.format ?? null) as '1v1' | '2v1' | '2v2' | null
+      if ((rule || input.playerLimit !== (league.playerLimit ?? null)) && current.revealedAt === undefined) {
+        if (!leaguePlacesSeat(format, input.playerLimit)) return productJson('team-minimum')
         if (input.playerLimit !== null && input.playerLimit < accepted) return productJson('below-accepted')
+      }
+      if (rule) {
+        tx.db.leagueEvents.id.update({ ...current, format: rule.format, rosterLimit: rule.rosterLimit })
+        for (const entry of entries) tx.db.leagueEventEntries.key.update({ ...entry, requiredLimit: undefined, teamId: undefined })
       }
       tx.db.leagues.id.update({
         ...league,
@@ -1865,33 +1895,15 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
           ? admitWaiting(tx, entries, input.playerLimit, () => true)
           : []
       touchLeague(tx, league.id)
-      return productJson({ admitted })
+      return productJson({ admitted, ruleChanged: rule !== null })
     }
     if (operation === 'delete') {
       deleteLeague(tx, league.id)
       return productJson('deleted')
     }
-    if (operation === 'recurring') {
-      if (!league.recurring) {
-        tx.db.leagues.id.update({ ...league, recurring: true })
-        touchLeague(tx, league.id)
-      }
-      return productJson('updated')
-    }
     const eventToken = leagueCommandInput(z.object({ eventToken: z.string().max(128) }), value).eventToken
     const event = leagueEventFor(tx, league.id, eventToken || null)
     if (!event) return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'missing')
-    if (operation === 'update-event') {
-      const input = leagueCommandInput(leagueRuleInput.extend({ op: z.literal('update-event') }), value)
-      if (!leaguePlacesSeat(input.format ?? null, league.playerLimit ?? null)) return productJson('too-small')
-      if (event.revealedAt !== undefined) return productJson('closed')
-      const entries = leagueEntriesFor(tx, event.id)
-      if (entries.some((entry) => entry.rosterSnapshot !== undefined)) return productJson('sealed')
-      tx.db.leagueEvents.id.update({ ...event, format: input.format, rosterLimit: input.rosterLimit })
-      for (const entry of entries) tx.db.leagueEventEntries.key.update({ ...entry, requiredLimit: undefined, teamId: undefined })
-      touchLeague(tx, league.id, event.id)
-      return productJson('updated')
-    }
     if (operation === 'admit') {
       const input = leagueCommandInput(z.object({ op: z.literal('admit'), userIds: z.array(leagueIdInput).max(128) }), value)
       if (event.revealedAt !== undefined) return productJson('closed')
@@ -1899,6 +1911,35 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
       const admitted = admitWaiting(tx, leagueEntriesFor(tx, event.id), league.playerLimit ?? null, (entry) => chosen.has(entry.userId))
       if (admitted.length) touchLeague(tx, league.id, event.id)
       return productJson({ admitted })
+    }
+    if (operation === 'add') {
+      const input = leagueCommandInput(
+        z.object({
+          op: z.literal('add'),
+          userIds: z.array(leagueIdInput).min(1).max(128),
+          memberLimit: z.number().int().min(2).max(128),
+          now: leagueTimeInput,
+        }),
+        value,
+      )
+      if (event.revealedAt !== undefined) return productJson('closed')
+      const userIds = [...new Set(input.userIds)]
+      if (userIds.some((userId) => userId === league.ownerId || friendshipBetween(tx, league.ownerId, userId)?.acceptedAt === undefined))
+        return productJson('not-friends')
+      const entries = leagueEntriesFor(tx, event.id)
+      const current = new Map(entries.map((entry) => [entry.userId, entry]))
+      const added = userIds.filter((userId) => current.get(userId)?.status !== 'accepted')
+      const accepted = entries.filter((entry) => entry.status === 'accepted').length + added.length
+      const returning = added.filter((userId) => current.get(userId)?.status === 'pending').length
+      const active = entries.filter((entry) => entry.status !== 'rejected').length + added.length - returning
+      if ((league.playerLimit !== undefined && accepted > league.playerLimit) || active > input.memberLimit) return productJson('full')
+      for (const userId of added) {
+        const existing = current.get(userId)
+        if (existing) tx.db.leagueEventEntries.key.update({ ...existing, status: 'accepted', joinedAt: BigInt(input.now) })
+        else insertLeagueEntry(tx, event.id, userId, 'accepted', input.now)
+      }
+      if (added.length) touchLeague(tx, league.id, event.id)
+      return productJson({ added })
     }
     if (operation === 'moderate') {
       const input = leagueCommandInput(

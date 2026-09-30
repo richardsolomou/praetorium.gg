@@ -34,6 +34,15 @@ describe('notice messages', () => {
     ).toBe('Alice started a league battle with you.')
   })
 
+  it('tells a player an organizer added them to seal a list in that event', () => {
+    expect(
+      noticeMessage(
+        { kind: 'league-entry-added', actorId: 'alice', recipientIds: ['bob'], leagueToken: 'league', eventToken: 'event' },
+        { actor: 'Alice', league: 'Club night' },
+      ),
+    ).toEqual({ title: 'Club night', body: 'Alice added you as a player. Seal your list.', path: '/leagues/league?event=event' })
+  })
+
   it('names a deleted player generically rather than dropping the notice', () => {
     expect(noticeMessage({ kind: 'friend-requested', actorId: 'gone', recipientIds: ['bob'] }, {})?.body).toBe(
       'A player wants to be friends.',
