@@ -16,6 +16,14 @@ permissions:
 jobs:
   snapshot:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Matches the base parts in the CI coverage job.
+        include:
+          - file: base-0.json
+            part: 0/2
+          - file: base-1.json
+            part: 1/2
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
@@ -24,9 +32,9 @@ jobs:
         id: cache
         uses: actions/cache@v6
         with:
-          path: base.json
+          path: ${{ matrix.file }}
           # Matches the base key in the CI coverage job.
-          key: catalogue-coverage-${{ github.sha }}-${{ hashFiles('catalogue-data/.snapshot.json') }}
+          key: catalogue-coverage-${{ github.sha }}-${{ matrix.file }}-${{ hashFiles('catalogue-data/.snapshot.json') }}
       - name: Snapshot main
         if: steps.cache.outputs.cache-hit != 'true'
-        run: pnpm catalogue:coverage:parallel base.json
+        run: pnpm catalogue:coverage:parallel ${{ matrix.file }} --part ${{ matrix.part }}
