@@ -5,9 +5,10 @@ export default defineConfig({
   testDir: './e2e',
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results',
   // Each CI shard owns its local SQLite and SpacetimeDB data; scripts/e2eShard.ts assigns its tests.
-  // Every test signs up its own players, so tests in one file can share a stack; CI runs two workers.
+  // Every test signs up its own players, so tests in one file can share a stack. Two workers is
+  // what one stack sustains: at three, live-update tests start timing out locally.
   fullyParallel: true,
-  workers: 1,
+  workers: 2,
   // One CI retry turns a flake into a minute on one runner instead of a full rerun; the
   // github reporter still reports the test as flaky, and a local run never retries.
   retries: process.env.CI ? 1 : 0,

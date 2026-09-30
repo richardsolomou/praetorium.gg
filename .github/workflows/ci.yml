@@ -97,7 +97,7 @@ jobs:
             PLAYWRIGHT_DATA_ROOT="/tmp/praetorium-e2e-$((4170 + E2E_SHARD))" \
             PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
             PLAYWRIGHT_JSON_OUTPUT_NAME="e2e-report-$E2E_SHARD.json" \
-            pnpm exec playwright test --workers=2 --test-list="$RUNNER_TEMP/e2e-shard.txt" --reporter=github,json
+            pnpm exec playwright test --test-list="$RUNNER_TEMP/e2e-shard.txt" --reporter=github,json
       # `just e2e-durations <run id>` rebalances the runners from these reports.
       - if: success() || failure()
         uses: actions/upload-artifact@v7

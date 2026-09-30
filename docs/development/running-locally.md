@@ -20,7 +20,7 @@ Restart `just dev` after source changes to rebuild the app or product module. Th
 
 `just e2e` starts isolated local SQLite, object storage, and SpacetimeDB services and runs Playwright. `just e2e-trace` records a trace, and `just e2e-install` installs Chromium.
 
-CI splits the suite across eight runners by the durations in `e2e/durations.json`, and a test missing from it counts as the median. Each runner runs its tests on two workers against one stack, so a test must create its own players and data rather than depend on what another test left behind; `--workers=2` reproduces that locally. When runner times drift apart, `just e2e-durations <run id>` records the durations of a CI run's passing tests. CI retries a failed test once; a test that passes on retry is reported as flaky and still needs a fix.
+CI splits the suite across eight runners by the durations in `e2e/durations.json`, and a test missing from it counts as the median. Locally and on each CI runner, tests run on two workers against one stack, so a test must create its own players and data rather than depend on what another test left behind. When runner times drift apart, `just e2e-durations <run id>` records the durations of a CI run's passing tests. CI retries a failed test once; a test that passes on retry is reported as flaky and still needs a fix.
 
 ## Repository backup
 
