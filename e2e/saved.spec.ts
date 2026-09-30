@@ -136,6 +136,7 @@ test('automatic roster names are saved with edits and a player can override or r
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await dialog.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
+  await dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   const name = page.getByLabel('List name')
@@ -318,8 +319,8 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
   const variant = group.locator('[data-roster="Dynasty 2k · 2"]')
   await expect(variant).toHaveAttribute('data-variant', 'true')
   await expect(variant.locator('[data-slot="roster-differences"]')).toHaveText(/^\+\s*1 unit: Lychguard$/)
-  await expect(variant).toContainText('150/2000')
-  await expect(group.locator('[data-roster="Dynasty 2k"]')).toContainText('70/2000')
+  await expect(variant).toContainText('145/2000')
+  await expect(group.locator('[data-roster="Dynasty 2k"]')).toContainText('65/2000')
   await page.screenshot({ path: 'test-results/roster-chooser-variants.png' })
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
@@ -446,9 +447,9 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await page.getByRole('button', { name: /More models in Immortals/ }).click()
 
   const total = page.locator('[data-stat="points"]')
-  // Wait for the resize to be priced; the preceding 160-point result can still be
+  // Wait for the resize to be priced; the preceding 155-point result can still be
   // visible while that request is in flight.
-  await expect(total).toHaveText('230/2000')
+  await expect(total).toHaveText('220/2000')
   const priced = await total.innerText()
 
   // The name is offered, not demanded; this one is overridden on purpose.
@@ -456,7 +457,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   await page.getByRole('link', { name: 'Rosters' }).click()
   // The library prices every list in one answer, so each row asks for nothing of its own.
-  await expect(page.locator('[data-roster="Nurgle 2k"]')).toContainText('230/2000')
+  await expect(page.locator('[data-roster="Nurgle 2k"]')).toContainText('220/2000')
   await page.getByRole('link', { name: /Nurgle 2k/ }).click()
   await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
   const editor = page.getByLabel('Add units').locator('xpath=ancestor::div[contains(@class,"bg-sunken")][1]')

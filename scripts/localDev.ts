@@ -8,6 +8,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 
 const root = path.resolve(process.env.LOCAL_DATA_DIR ?? 'data-dev/hosted')
+const catalogueDirectory = path.resolve(process.env.CATALOGUE_DIR ?? 'catalogue-data')
 const appPort = Number(process.env.LOCAL_APP_PORT ?? 3000)
 const spacetimePort = Number(process.env.LOCAL_SPACETIME_PORT ?? appPort + 10_000)
 const appUrl = `http://127.0.0.1:${appPort}`
@@ -156,8 +157,8 @@ async function main() {
     SPACETIME_DATABASE: database,
     SPACETIME_AUDIENCE: database,
     SPACETIME_OPERATOR_TOKEN: value.operator.token,
-    CATALOGUE_DIR: path.resolve('catalogue-data'),
-    RULES_DIR: path.resolve('catalogue-data/rules'),
+    CATALOGUE_DIR: catalogueDirectory,
+    RULES_DIR: path.join(catalogueDirectory, 'rules'),
     PORT: String(appPort),
     NODE_INTERNAL_PORT: String(appPort + 1),
     ...(testMode ? { AUTH_RATE_LIMIT: 'off' } : {}),

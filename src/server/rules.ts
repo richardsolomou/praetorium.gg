@@ -35,7 +35,7 @@ import {
 
 /** Assemble rules from the available sources without guessing missing parts; preserve the source attribution required by CC BY 4.0. */
 export const RULES_DATA_ATTRIBUTION = `${catalogueSources.rules.attribution}, CC BY 4.0`
-const RULES_ATTRIBUTION = 'Stratagems and mission cards by the Tabletop Developer Consortium, CC BY 4.0'
+const RULES_ATTRIBUTION = 'Stratagem usage limits and mission cards by the Tabletop Developer Consortium, CC BY 4.0'
 const BATTLEMASTER_ATTRIBUTION = 'Terrain geometry provided by Battlemaster'
 
 export type { Mission } from './rulesCards'

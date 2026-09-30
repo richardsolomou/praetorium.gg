@@ -110,6 +110,8 @@ export async function createRoster(
     await page.getByRole('option', { name: size }).click()
   }
   await dialog.getByRole('button', { name: new RegExp(`^Select (?:${detachment.source})$`, detachment.flags) }).click()
+  const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
+  if ((await dispositions.count()) > 1) await dispositions.first().click()
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   const rosterName = name ?? `${faction} roster`

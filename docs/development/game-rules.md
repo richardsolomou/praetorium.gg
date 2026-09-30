@@ -1,12 +1,12 @@
 # Stratagems, missions, and scoring
 
-Praetorium reads stratagem and mission data from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) under CC BY 4.0. Descriptions come from Game Datacards, joined by an exact namespaced reference when the paired snapshot contains it and otherwise by detachment and card name. Related screens display the attribution from `src/server/rules.ts`.
+Praetorium reads current faction stratagem cards from Game Datacards and mission data from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) under CC BY 4.0. The rules source adds a stratagem usage limit only when an exact reference or detachment-scoped name identifies the same current card. Related screens display the attribution from `src/server/rules.ts`.
 
 ## Rules data
 
 - Players choose stratagems, missions, secondaries, and loadouts from fetched data. A missing data field remains unavailable rather than becoming free text.
 - Terrain objective flags, positions, grouping, and placement references come from the rules source. A placement reference indexes a template vertex and is applied to exact Battlemaster geometry only when the paired outlines have matching vertex order. Where that vertex begins a long straight side, the ruler uses whichever end of the side is nearer the named board edge. Placement labels use the whole inches printed on the setup diagrams rather than the sub-inch noise of the supplied outlines. When Battlemaster reuses one component name across the home and expansion reference groups, their objective roles restore the official mirrored AB, CD, EF and GH label pairs.
-- Stratagem timing comes from the rules source; every rules description comes from Game Datacards (core cards from `11th/gdc/core.json`, faction cards from their faction file), with the card's narrative `fluff` omitted. Exact references take priority, every name fallback is reported, and an unmatched or conflicting card remains undescribed.
+- Faction stratagem names, text, CP costs, phases, and turns come from their Game Datacards file. A matched rules-source card supplies its usage limit; an unmatched limit is `unlimited`. A faction card with unreadable mechanics is unavailable. Core stratagem timing comes from the rules source and core descriptions from `11th/gdc/core.json`; narrative `fluff` is omitted.
 - Faction army rules come from Game Datacards. A datasheet's faction ability is described by its own faction's card first, then by the one card of that name the files agree on.
 - An unknown stratagem timing maps to `unlimited`, so an absent source limit never becomes an invented product limit.
 - Phase and player-turn restrictions are enforced only when the synced source supplies them. Missing timing remains unrestricted.

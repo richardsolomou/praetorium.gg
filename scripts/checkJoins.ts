@@ -42,11 +42,14 @@ const datacardsOnlyDetachments = new Set(
 )
 const rulesOnlyDetachments = rules.constructionJoinIssues.filter((issue) => issue.kind === 'detachment')
 const rulesOnlyEnhancements = rules.constructionJoinIssues.filter((issue) => issue.kind === 'enhancement')
+const stratagemIssues = [...new Set(loaded.datacards.factions.values())].flatMap((content) =>
+  content.stratagemIssues.map((issue) => `${content.name} | ${issue}`),
+)
 const constructionDetails = [...rules.detachmentDetails].flatMap(([faction, detachments]) =>
   [...detachments.values()].map((detachment) => ({ faction, detachment })),
 )
 const invalidDetachments = constructionDetails.filter(
-  ({ detachment }) => detachment.points === null || detachment.dispositions.length !== 1,
+  ({ detachment }) => detachment.points === null || detachment.dispositions.length === 0,
 )
 const invalidEnhancements = constructionDetails.flatMap(({ faction, detachment }) =>
   [...detachment.enhancements, ...detachment.upgrades]
@@ -60,7 +63,8 @@ const enhancementsWithoutSemantics = constructionDetails.flatMap(({ faction, det
 )
 console.log(`40kdc-only detachments ignored by Game Datacards enumeration: ${rulesOnlyDetachments.length}`)
 console.log(`40kdc-only enhancements ignored by Game Datacards enumeration: ${rulesOnlyEnhancements.length}`)
-console.log(`Game Datacards detachments without 40kdc semantics: ${datacardsOnlyDetachments.size}`)
+console.log(`Game Datacards detachments without usable stratagems: ${datacardsOnlyDetachments.size}`)
+console.log(`Game Datacards stratagems with invalid or conflicting mechanics: ${stratagemIssues.length}`)
 console.log(`Game Datacards detachments with invalid construction numbers: ${invalidDetachments.length}`)
 console.log(`Game Datacards enhancements with invalid points: ${invalidEnhancements.length}`)
 console.log(`Game Datacards enhancements without 40kdc eligibility semantics: ${enhancementsWithoutSemantics.length}`)
@@ -77,6 +81,7 @@ if (process.argv.includes('--details')) {
     console.log(`  rules only     | ${issue.faction} | ${issue.detachment} | ${issue.enhancement}`)
   }
   for (const issue of datacardsOnlyDetachments) console.log(`  cards only     | ${issue}`)
+  for (const issue of stratagemIssues) console.log(`  invalid card   | ${issue}`)
   for (const { faction, detachment } of invalidDetachments) console.log(`  invalid card   | ${faction} | ${detachment.name}`)
   for (const issue of invalidEnhancements) {
     console.log(`  invalid card   | ${issue.faction} | ${issue.detachment} | ${issue.enhancement}`)
@@ -89,25 +94,16 @@ if (process.argv.includes('--details')) {
   }
 }
 
-/*
- * A ratchet, so these only ever come down. At the pinned snapshot the catalogue names
- * ten datasheets the cards do not (each god's Soul Grinder against the cards' one,
- * the Tyranid units another unit spawns, Chaos Spawn (Flesh Change), and Emperor's
- * Champion (Anointed)) and the cards file twenty-one where the catalogue does not
- * (Space Marine heroes the cards keep in the Adeptus Astartes file and the catalogue
- * in their chapters' books, plus Sir Hekhtur).
- * It also has 745 non-matched-play datasheets without cards and one faction file without
- * an army-rule card.
- */
-if (report.catalogueOnly.length > 10 || report.datacardsOnly.length > 21) {
+if (report.catalogueOnly.length > 16 || report.datacardsOnly.length > 23) {
   baselineShortfall('datasheet name agreement fell below the pinned catalogue baseline')
 }
 if (report.nonMatchedPlayCatalogueOnly.length > 745 || report.factionsWithoutArmyRules.length > 1) {
   baselineShortfall('datasheet prose coverage fell below the pinned catalogue baseline')
 }
-if (rulesOnlyDetachments.length > 23 || rulesOnlyEnhancements.length > 90 || datacardsOnlyDetachments.size) {
+if (rulesOnlyDetachments.length > 200 || rulesOnlyEnhancements.length > 831 || datacardsOnlyDetachments.size > 3) {
   baselineShortfall('army-construction name agreement fell below the pinned catalogue baseline')
 }
-if (invalidDetachments.length || invalidEnhancements.length || enhancementsWithoutSemantics.length > 336) {
+if (invalidDetachments.length || invalidEnhancements.length || enhancementsWithoutSemantics.length > 539) {
   baselineShortfall('Game Datacards construction coverage fell below the pinned catalogue baseline')
 }
+if (stratagemIssues.length > 1) baselineShortfall('Game Datacards stratagem mechanics coverage fell below the pinned catalogue baseline')

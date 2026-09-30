@@ -306,7 +306,7 @@ export function loadFactions(
       semanticEnhancementNamed(semanticSources, detachment, enhancement, sourceReferences)
     const constructionFields = (name: string) => {
       const construction = constructionDetachment(datacards, factionName, name, parentId)
-      return { points: construction?.points ?? null, dispositions: construction ? [construction.disposition] : [] }
+      return { points: construction?.points ?? null, dispositions: construction?.dispositions ?? [] }
     }
     for (const detachment of rawDetachments) {
       if (!authoritative.has(joinKey(detachment.name))) {
@@ -356,25 +356,70 @@ export function loadFactions(
           sourceJoinExacts.push({ kind: 'enhancement', faction: factionName, detachment: name, name: enhancement.name })
         }
       }
-      const stratagems = semantic ? detachmentStratagems(semantic.detachment, semantic.source.stratagems) : []
-      const stratagemCards = stratagems.map((raw) => ({ raw, match: semantic ? cardOf(semantic.detachment, raw) : null }))
-      for (const { raw, match } of stratagemCards) {
-        if (match?.method === 'name') {
-          sourceJoinFallbacks.push({ kind: 'stratagem', faction: factionName, detachment: name, name: raw.name })
-        } else if (match?.method === 'external-ref' && match.card) {
-          sourceJoinExacts.push({ kind: 'stratagem', faction: factionName, detachment: name, name: raw.name })
+      const semanticStratagems = semantic ? detachmentStratagems(semantic.detachment, semantic.source.stratagems) : []
+      const currentCards = authoritativeDetachment.source.stratagems.get(joinKey(name))
+      const stratagemCards = currentCards
+        ? currentCards.map((card) => {
+            const exact = semanticStratagems.filter((raw) =>
+              externalIdsFor(sourceReferences.stratagems, raw.id, 'game-datacards').includes(card.id),
+            )
+            const named = semanticStratagems.filter((raw) => descriptionKey(name, raw.name) === descriptionKey(name, card.name))
+            const matches = exact.length ? exact : named
+            const raw = matches.length === 1 ? matches[0]! : null
+            const key = raw?.id ?? card.id
+            return {
+              live: {
+                key,
+                name: card.name,
+                cp: card.cp,
+                limit: raw ? toStratagem(raw).limit : ('unlimited' as const),
+                ...(card.phases.length ? { phases: card.phases } : {}),
+                turn: card.turn,
+              },
+              detail: {
+                id: key,
+                name: card.name,
+                cp: card.cp,
+                type: card.type,
+                phases: card.phases,
+                turn: card.turn,
+                description: card.description,
+              },
+              method: raw ? (exact.length ? ('external-ref' as const) : ('name' as const)) : null,
+            }
+          })
+        : semanticStratagems.map((raw) => {
+            const match = semantic ? cardOf(semantic.detachment, raw) : null
+            return {
+              live: toStratagem(raw, match?.card?.name),
+              detail: {
+                id: raw.id,
+                name: match?.card?.name ?? titleCase(raw.name),
+                cp: raw.cp_cost ?? 0,
+                type: raw.type ? titleCase(raw.type.replaceAll('-', ' ')) : null,
+                phases: raw.phases ?? [],
+                turn: raw.player_turn ?? null,
+                description: match?.card?.description ?? null,
+              },
+              method: match?.card ? match.method : null,
+            }
+          })
+      for (const { detail, method } of stratagemCards) {
+        if (method === 'name') {
+          sourceJoinFallbacks.push({ kind: 'stratagem', faction: factionName, detachment: name, name: detail.name })
+        } else if (method === 'external-ref') {
+          sourceJoinExacts.push({ kind: 'stratagem', faction: factionName, detachment: name, name: detail.name })
         }
       }
-      if (semantic) {
+      if (stratagemCards.length)
         detachments.set(
           id,
-          stratagemCards.map(({ raw, match }) => toStratagem(raw, match?.card?.name)),
+          stratagemCards.map(({ live }) => live),
         )
-      }
       references.set(id, {
         enhancements: enhancements.length,
         upgrades: upgrades.length,
-        stratagems: stratagems.length,
+        stratagems: stratagemCards.length,
         ...constructionFields(name),
       })
       details.set(id, {
@@ -393,17 +438,7 @@ export function loadFactions(
           points: enhancement.points,
           description: enhancement.description,
         })),
-        stratagems: stratagemCards
-          .map(({ raw, match }) => ({
-            id: raw.id,
-            name: match?.card?.name ?? titleCase(raw.name),
-            cp: raw.cp_cost ?? 0,
-            type: raw.type ? titleCase(raw.type.replaceAll('-', ' ')) : null,
-            phases: raw.phases ?? [],
-            turn: raw.player_turn ?? null,
-            description: match?.card?.description ?? null,
-          }))
-          .toSorted(byName),
+        stratagems: stratagemCards.map(({ detail }) => detail).toSorted(byName),
       })
     }
     detachmentReferences.set(faction, references)

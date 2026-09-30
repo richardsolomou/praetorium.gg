@@ -287,12 +287,8 @@ export function unitWoundsLeft(unit: UnitState): number | null {
 }
 
 /**
- * A stratagem as the player transcribes it from their own book.
- *
- * None of this is in the community catalogue data — a detachment there carries its
- * rule and its objective, and nothing about stratagems — so the content comes from
- * the player and is saved with their list. What this file owns is the part worth
- * automating: what it costs, and how often it may be used.
+ * A stratagem from the verified rules sources, with the cost, timing and usage limit
+ * needed to validate its use during a battle.
  */
 export type Stratagem = {
   key: string

@@ -130,6 +130,35 @@ test('the roster header opens its force disposition', async ({ page }) => {
   )
 })
 
+test('a three-point detachment lets the player choose either disposition', async ({ page }) => {
+  await signUp(page, 'Disposition chooser')
+  await page.goto('/rosters')
+  const dialog = page.getByRole('dialog', { name: 'Create roster' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create editable roster' }).click())
+  await dialog.getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByPlaceholder('Search factions…').fill('Necrons')
+  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
+
+  const dispositions = dialog.getByRole('group', { name: 'Force disposition' })
+  await expect(dispositions.getByRole('button')).toHaveText(['Take and Hold', 'Priority Assets'])
+  await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeDisabled()
+  await dispositions.getByRole('button', { name: 'Priority Assets' }).click()
+  await dialog.getByRole('button', { name: 'Create roster' }).click()
+  await page.waitForURL(/\/rosters\/[^/]+$/)
+  await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Priority Assets' })).toBeVisible()
+  await page.reload()
+  await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Priority Assets' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
+  await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+  await page.reload()
+  await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Take and Hold' })).toBeVisible()
+})
+
 test('a native unit screen keeps the tab bar beside it', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
   await context.addInitScript({
@@ -523,15 +552,13 @@ test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Add Scout/ })).toHaveCount(0)
 })
 
-test('Black Templars exclude Codex datasheets and Psykers from their unit picker', async ({ page }) => {
+test('Black Templars can take generic Codex units under their current faction rule', async ({ page }) => {
   await openBuilder(page, 'Black Templars', /Companions of Vehemence/)
   await page.getByLabel('Add a unit').fill('Librarian')
-  await expect(page.getByText('No matching units.')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Add Librarian', exact: true })).toHaveCount(0)
-  // Their own Gladiator Lancer carries the Black Templars keyword and is legal; the
-  // Codex one the book imports is not, so exactly one is offered.
+  await expect(page.getByRole('button', { name: 'Add Librarian', exact: true })).toHaveCount(1)
   await page.getByLabel('Add a unit').fill('Gladiator Lancer')
-  await expect(page.getByRole('button', { name: 'Add Gladiator Lancer', exact: true })).toHaveCount(1)
+  // The chapter and Codex entries have separate ids and both meet this rule.
+  await expect(page.getByRole('button', { name: 'Add Gladiator Lancer', exact: true })).toHaveCount(2)
   await page.screenshot({ path: 'test-results/black-templars-restrictions.png', fullPage: true })
 })
 
