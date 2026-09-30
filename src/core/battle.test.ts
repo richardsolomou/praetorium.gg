@@ -514,6 +514,7 @@ describe('setup', () => {
 
   it('names the restrictions each battle size adds', () => {
     expect(formatRules(600).map((rule) => rule.id)).toEqual([
+      'points-limit',
       'detachments',
       'kotc-infantry',
       'kotc-warlord',
@@ -521,12 +522,13 @@ describe('setup', () => {
       'kotc-toughness',
       'kotc-datasheet-copies',
     ])
-    expect(formatRules(2000).map((rule) => rule.id)).toEqual(['detachment-points'])
-    expect(formatRules(3000)).toEqual([])
+    expect(formatRules(2000).map((rule) => rule.id)).toEqual(['points-limit', 'detachment-points'])
+    expect(formatRules(3000).map((rule) => rule.id)).toEqual(['points-limit'])
     expect(formatRules(null)).toEqual([])
   })
 
   it('counts only the waivers its own battle size imposes', () => {
+    expect(waivedFormatRules(3000, ['points-limit']).map((rule) => rule.label)).toEqual(['Points limit'])
     expect(waivedFormatRules(600, ['kotc-epic-heroes']).map((rule) => rule.label)).toEqual(['No Epic Heroes'])
     // The id is kept when a list moves to a size that does not impose it, so moving
     // back restores the choice — but nothing here is being played without.

@@ -451,6 +451,7 @@ export const battleRoundLimit = (_limit: number | null) => BATTLE_ROUNDS
 
 /** Name every waivable format restriction here so legality and picker filtering read the same roster waiver. */
 export const FORMAT_RULE_IDS = [
+  'points-limit',
   'detachments',
   'detachment-points',
   'kotc-infantry',
@@ -485,8 +486,14 @@ export const kotcDatasheetRepeatable = (keywords: readonly string[]) =>
 /** What this battle size restricts, in the order a player reads it. */
 export function formatRules(limit: number | null): FormatRule[] {
   if (limit === null) return []
+  const pointsLimit: FormatRule = {
+    id: 'points-limit',
+    label: 'Points limit',
+    hint: `The roster costs at most ${limit} points`,
+  }
   if (isKotcLimit(limit)) {
     return [
+      pointsLimit,
       { id: 'detachments', label: 'One detachment', hint: 'The roster is built from exactly one detachment' },
       { id: 'kotc-infantry', label: 'Two Infantry units', hint: 'The roster holds at least two Infantry units' },
       { id: 'kotc-warlord', label: 'A Warlord', hint: 'One unit is named as the Warlord' },
@@ -501,8 +508,8 @@ export function formatRules(limit: number | null): FormatRule[] {
   }
   const budget = detachmentPointBudget(limit)
   return budget === null
-    ? []
-    : [{ id: 'detachment-points', label: 'Detachment points', hint: `Detachments cost at most ${budget} DP together` }]
+    ? [pointsLimit]
+    : [pointsLimit, { id: 'detachment-points', label: 'Detachment points', hint: `Detachments cost at most ${budget} DP together` }]
 }
 
 /**

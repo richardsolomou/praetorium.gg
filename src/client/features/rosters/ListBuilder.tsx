@@ -24,7 +24,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { attachedUnitCount } from '../../../core/attachedUnits'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
-import { type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
+import { enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
 import {
   reminderKey,
@@ -590,7 +590,7 @@ export function ListBuilder({
   }
 
   const points = frozen ? frozen.points : (priced?.points ?? 0)
-  const over = frozen ? frozen.points > limit : Boolean(priced && priced.points > limit)
+  const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > limit : Boolean(priced && priced.points > limit))
   const illegal = Boolean(priced && (priced.errors.length || priced.detachmentError || priced.dispositionError))
   const cards = frozen
     ? frozen.units.map((unit, index) => ({
@@ -664,7 +664,7 @@ export function ListBuilder({
             onAdd={add}
             onPreview={previewUnit}
             inRoster={held}
-            room={priced ? limit - priced.points : null}
+            room={priced && enforces(waivedRules, 'points-limit') ? limit - priced.points : null}
             battleSize={limit}
             waivedRules={waivedRules}
             onWaiveToggle={toggleWaivedRule}

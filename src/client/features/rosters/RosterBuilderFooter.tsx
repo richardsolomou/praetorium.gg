@@ -63,7 +63,15 @@ export function RosterBuilderFooter({
             <Check className={`size-5 ${hasUnits ? 'text-achieved' : 'text-faint'}`} aria-hidden />
           )}
           {loading ? null : (
-            <span className="sr-only">{over ? 'Over the points limit' : illegal ? 'Roster is not legal' : 'Within the points limit'}</span>
+            <span className="sr-only">
+              {over
+                ? 'Over the points limit'
+                : illegal
+                  ? 'Roster is not legal'
+                  : points > limit
+                    ? 'Points limit switched off'
+                    : 'Within the points limit'}
+            </span>
           )}
           <span data-stat="points" className={`readout text-xl font-bold ${over ? 'text-destructive' : 'text-info'}`}>
             {loading ? <span aria-label="Loading roster points">…</span> : points}/{limit}

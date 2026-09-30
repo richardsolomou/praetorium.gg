@@ -1,5 +1,6 @@
 import { expect, it, vi } from 'vitest'
 import { app } from './app'
+import { bookOf, points } from './catalogue.fixtures'
 import { rosterForUse, rosterUseError, rosterUseProblem } from './rosterUsage'
 
 vi.mock('./app', () => ({ app: vi.fn() }))
@@ -26,6 +27,16 @@ it('rejects rosters over their points limit', () => {
   expect(rosterUseError({ ...priced, points: 2_005 }, 2_000)).toBe('roster has 2005 points, over its 2000-point limit')
 })
 
+it('allows an over-points roster that waived the points limit', () => {
+  expect(rosterUseError({ ...priced, points: 2_005 }, 2_000, ['points-limit'])).toBeNull()
+})
+
+it('still rejects other legality errors when the points limit is waived', () => {
+  expect(rosterUseError({ ...priced, points: 2_005, detachmentError: 'Too many detachment points.' }, 2_000, ['points-limit'])).toBe(
+    'Too many detachment points.',
+  )
+})
+
 it('names a list over its points limit as over the limit, before any other problem', () => {
   expect(rosterUseProblem({ ...priced, points: 2_005, detachmentError: 'Too many detachment points.' }, 2_000)?.kind).toBe('over-limit')
 })
@@ -48,4 +59,33 @@ it('does not snapshot a roster when the rules source is unavailable', async () =
   } as never)
 
   await expect(rosterForUse('player', 'roster')).rejects.toMatchObject({ status: 409 })
+})
+
+it('snapshots an over-points saved roster when its points limit is waived', async () => {
+  const saved = {
+    id: 'roster',
+    name: 'Test roster',
+    catalogueId: 'cat',
+    detachmentIds: [],
+    disposition: null,
+    limit: 1_000,
+    picks: [{ entryId: 'squad' }],
+    waivedRules: ['points-limit'],
+  }
+  vi.mocked(app).mockReturnValue({
+    service: { ownRoster: vi.fn().mockResolvedValue(saved) },
+    catalogueFor: async () => bookOf({ selectionEntries: [{ id: 'squad', name: 'Squad', type: 'model', costs: points(1_080) }] }),
+    rulesFor: async () => ({
+      factionKeys: new Map(),
+      detachmentReferences: new Map(),
+      detachmentDetails: new Map(),
+      factionRestrictions: new Map(),
+    }),
+  } as never)
+
+  const { snapshot } = await rosterForUse('player', 'roster')
+  expect({ points: snapshot.text.split('\n')[0], waivedRules: snapshot.built?.waivedRules }).toEqual({
+    points: '1080 / 1000 pts',
+    waivedRules: ['points-limit'],
+  })
 })

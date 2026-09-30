@@ -80,6 +80,11 @@ describe('the verdict on a saved list', () => {
     expect(judged(saved(['lord', 'squad'], 150)).problem).toBe('over-limit')
   })
 
+  it('does not mark a list over points when it waived the points limit', () => {
+    const roster = { ...saved(['lord', 'squad'], 150), waivedRules: ['points-limit'] }
+    expect(judged(roster).problem).toBeNull()
+  })
+
   it('names a list within its limit that breaks a datasheet limit as not legal', () => {
     expect(judged(saved(['lord', 'lord'])).problem).toBe('not-legal')
   })
