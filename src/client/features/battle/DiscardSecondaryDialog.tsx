@@ -1,12 +1,12 @@
 import { Check } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Command } from '../../../core/battle'
 import type { Side } from '../../sides'
 import { sideName } from '../../sides'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
-import { BattlePromptDialog } from './BattlePromptDialog'
+import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 
 export function DiscardSecondaryDialog({
   side,
@@ -16,6 +16,8 @@ export function DiscardSecondaryDialog({
   onDone,
   undoable,
   undoableDraw,
+  initialSelection,
+  onSelectionChange,
 }: {
   side: Side
   keys: string[]
@@ -24,21 +26,27 @@ export function DiscardSecondaryDialog({
   onDone: () => void
   undoable: number | null
   undoableDraw: boolean
+  initialSelection?: string[]
+  onSelectionChange: (selected: string[]) => void
 }) {
   const cards = side.secondaries.filter((card) => keys.includes(card.key) && card.status === 'active')
-  const [selected, setSelected] = useState<string[]>([])
+  const [chosenKeys, setChosenKeys] = useState<string[]>(() => initialSelection ?? [])
+  const selected = chosenKeys.filter((key) => cards.some((card) => card.key === key))
   const undo = useUndoLatest({ undoable, undoableDraw, send })
 
-  const toggle = (key: string) =>
-    setSelected((current) => (current.includes(key) ? current.filter((candidate) => candidate !== key) : [...current, key]))
+  const toggle = (key: string) => {
+    const next = selected.includes(key) ? selected.filter((candidate) => candidate !== key) : [...selected, key]
+    setChosenKeys(next)
+    onSelectionChange(next)
+  }
 
   const gainCp = selected.length > 0 && side.canGainCp
   const confirmLabel = selected.length === 0 ? 'Keep hand' : `Discard ${selected.length}${gainCp ? ' and gain 1 CP' : ''}`
 
   return (
     <>
-      <BattlePromptDialog open>
-        <DialogContent className="border-discarded/60 sm:max-w-lg">
+      <BattlePromptDialog open minimizedLabel={`Discard missions · ${sideName(side)}`}>
+        <BattleDialogContent minimizeDisabled={pending} className="border-discarded/60 sm:max-w-lg">
           <DialogHeader className="text-center">
             <p className="eyebrow text-discarded">End of turn</p>
             <DialogTitle>Discard tactical secondaries?</DialogTitle>
@@ -84,7 +92,7 @@ export function DiscardSecondaryDialog({
               {confirmLabel}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </BattleDialogContent>
       </BattlePromptDialog>
       <UndoLatestConfirmation pending={pending} control={undo} />
     </>

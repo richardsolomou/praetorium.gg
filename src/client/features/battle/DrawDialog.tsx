@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Command } from '../../../core/battle'
 import { nextDraw } from '../../scoring'
 import { type Side, sideName } from '../../sides'
@@ -9,7 +9,7 @@ import { redrawOffer, type WhenDrawn } from './drawOffer'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
 import { CARD } from './battleTints'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
-import { BattlePromptDialog } from './BattlePromptDialog'
+import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 
 export type { WhenDrawn } from './drawOffer'
 
@@ -23,7 +23,11 @@ type Props = {
   referenceFor: (key: string) => ReferenceCard | undefined
   whenDrawnFor: (key: string) => WhenDrawn | undefined
   onDone: () => void
+  initialSelection?: DrawSelection
+  onSelectionChange: (selection: DrawSelection) => void
 }
+
+export type DrawSelection = { selecting: boolean; selected: string[] }
 
 /**
  * The tactical hand, drawn at the top of a turn.
@@ -32,7 +36,19 @@ type Props = {
  * aligned with a physical hand. The named side owns either draw, including a
  * practice opponent's hand.
  */
-export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, referenceFor, whenDrawnFor, onDone }: Props) {
+export function DrawDialog({
+  side,
+  round,
+  undoable,
+  confirmUndo,
+  pending,
+  send,
+  referenceFor,
+  whenDrawnFor,
+  onDone,
+  initialSelection,
+  onSelectionChange,
+}: Props) {
   const held = side.secondaries.filter((card) => card.status === 'active')
   /**
    * What this turn dealt, apart from what the hand was already carrying.
@@ -45,11 +61,13 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
   const dealtNow = new Set(side.secondariesToReview)
   const drawn = held.filter((card) => dealtNow.has(card.key))
   const carried = held.filter((card) => !dealtNow.has(card.key))
-  const [paused, setPaused] = useState(true)
-  const [selecting, setSelecting] = useState(false)
-  const [selected, setSelected] = useState<string[]>([])
-  const [inspected, setInspected] = useState<MissionDetails | null>(null)
   const owed = Math.min(side.secondaryDrawTarget - side.secondariesDrawnThisTurn.length, side.remainingSecondaries.length)
+  const [paused, setPaused] = useState(true)
+  const [selecting, setSelecting] = useState(initialSelection?.selecting ?? false)
+  const [selected, setSelected] = useState<string[]>(() =>
+    (initialSelection?.selected ?? []).filter((key) => side.remainingSecondaries.some((card) => card.key === key)).slice(0, owed),
+  )
+  const [inspected, setInspected] = useState<MissionDetails | null>(null)
   const needsDraw = owed > 0
   const canUndo = undoable !== null
   const requiredReturn = drawn.some((card) => redrawOffer(whenDrawnFor(card.key), round, held)?.required)
@@ -61,10 +79,15 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
    * request flag is what stops a hand of one being dealt back up to three.
    */
   const asked = useRef(new Set<string>())
+  const recordSelection = (next: DrawSelection) => {
+    setSelecting(next.selecting)
+    setSelected(next.selected)
+    onSelectionChange(next)
+  }
   const resetForUndo = () => {
+    if (!confirmUndo) return
     setPaused(true)
-    setSelecting(false)
-    setSelected([])
+    recordSelection({ selecting: false, selected: [] })
   }
   const undo = useUndoLatest({ undoable, undoableDraw: confirmUndo, send, beforeUndo: resetForUndo })
 
@@ -112,23 +135,30 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
   }, [side.remainingSecondaries])
 
   const toggleSelected = (key: string) =>
-    setSelected((current) => {
-      if (current.includes(key)) return current.filter((candidate) => candidate !== key)
-      return current.length < owed ? [...current, key] : current
+    recordSelection({
+      selecting: true,
+      selected: selected.includes(key)
+        ? selected.filter((candidate) => candidate !== key)
+        : selected.length < owed
+          ? [...selected, key]
+          : selected,
     })
 
   const chooseSelected = () => {
     const secondaries = side.remainingSecondaries.filter((card) => selected.includes(card.key))
     if (secondaries.length !== owed) return
-    setSelected([])
-    setSelecting(false)
+    recordSelection({ selecting: false, selected: [] })
     send({ kind: 'draw-secondaries', secondaries, selected: true, playerId: side.captain.id })
   }
 
   return (
     <>
-      <BattlePromptDialog open>
-        <DialogContent showCloseButton={false} className="max-h-[85dvh] overflow-y-auto border-discarded/60 sm:max-w-lg">
+      <BattlePromptDialog open minimizedLabel={`Secondary missions · ${sideName(side)}`}>
+        <BattleDialogContent
+          showCloseButton={false}
+          minimizeDisabled={pending || (!paused && needsDraw)}
+          className="max-h-[85dvh] overflow-y-auto border-discarded/60 sm:max-w-lg"
+        >
           <DialogHeader>
             <DialogTitle className="text-discarded">
               {side.isViewer ? 'Your secondary missions' : `${sideName(side)}’s secondary missions`}
@@ -245,8 +275,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
                   variant="outline"
                   disabled={pending}
                   onClick={() => {
-                    setSelected([])
-                    setSelecting(false)
+                    recordSelection({ selecting: false, selected: [] })
                   }}
                 >
                   Cancel selection
@@ -257,7 +286,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
               </>
             ) : paused && needsDraw ? (
               <>
-                <Button variant="outline" disabled={pending} onClick={() => setSelecting(true)}>
+                <Button variant="outline" disabled={pending} onClick={() => recordSelection({ selecting: true, selected: [] })}>
                   Select missions
                 </Button>
                 <Button disabled={pending} onClick={() => setPaused(false)}>
@@ -270,7 +299,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
               </Button>
             )}
           </DialogFooter>
-        </DialogContent>
+        </BattleDialogContent>
       </BattlePromptDialog>
       {/* Base UI treats nested dialogs as one dismissible region, so details must be a sibling. */}
       {inspected ? <MissionDetailsDialog details={inspected} onOpenChange={(open) => !open && setInspected(null)} /> : null}

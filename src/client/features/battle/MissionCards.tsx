@@ -1,6 +1,7 @@
 import { type ComponentProps, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import type { Side } from '../../sides'
@@ -82,6 +83,7 @@ export function SecondaryMissions({ side, actionable, pending, send, referenceFo
               variant="ghost"
               size="xs"
               className="text-azure"
+              disabled={pending}
               onClick={() => send({ kind: 'reveal-secret', playerId: side.captain.id })}
             >
               Reveal
@@ -117,9 +119,9 @@ function SecretMissionDialog({
 }) {
   const [open, setOpen] = useState(false)
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <BattlePromptDialog open={open} onOpenChange={setOpen} minimizedLabel="Select secret mission">
       <DialogTrigger render={<Button variant="outline" size="xs" disabled={pending} />}>Select secret mission</DialogTrigger>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+      <BattleDialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-discarded">Select a secret mission</DialogTitle>
           <DialogDescription>Held face down until you reveal it. Your opponent sees only that you hold one.</DialogDescription>
@@ -141,8 +143,8 @@ function SecretMissionDialog({
             </Button>
           ))}
         </div>
-      </DialogContent>
-    </Dialog>
+      </BattleDialogContent>
+    </BattlePromptDialog>
   )
 }
 
@@ -190,30 +192,30 @@ export function MissionName({
   )
   if (onRead) return trigger
   return (
-    <Dialog>
+    <BattlePromptDialog minimizedLabel={name} resumeLabel="Return to mission">
       <DialogTrigger render={trigger} />
       <MissionDetailsContent details={{ name, card, type, mode }} />
-    </Dialog>
+    </BattlePromptDialog>
   )
 }
 
 export function MissionDetailsDialog({ details, onOpenChange }: { details: MissionDetails; onOpenChange: (open: boolean) => void }) {
   return (
-    <Dialog open onOpenChange={onOpenChange}>
+    <BattlePromptDialog open onOpenChange={onOpenChange} minimizedLabel={details.name} resumeLabel="Return to mission">
       <MissionDetailsContent details={details} />
-    </Dialog>
+    </BattlePromptDialog>
   )
 }
 
 function MissionDetailsContent({ details }: { details: MissionDetails }) {
   return (
-    <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+    <BattleDialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader>
         <DialogTitle>{details.name}</DialogTitle>
         <DialogDescription>What this mission asks you to do and when it scores.</DialogDescription>
       </DialogHeader>
       <MissionCardReference card={details.card} type={details.type} mode={details.mode} />
       <MissionActions actions={details.card.actions} />
-    </DialogContent>
+    </BattleDialogContent>
   )
 }

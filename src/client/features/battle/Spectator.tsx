@@ -328,7 +328,15 @@ function SpectatorSide({
               <PlayerName army={army} />
             </h2>
             <ArmyIdentity army={army} token={view.token} className="mt-0.5" />
-            <ArmyRoster onSimulate={onSimulate} army={army} side={side} token={view.token} actionable={false} send={ignoreCommand} />
+            <ArmyRoster
+              onSimulate={onSimulate}
+              army={army}
+              side={side}
+              token={view.token}
+              actionable={false}
+              pending={false}
+              send={ignoreCommand}
+            />
           </div>
         ))}
       </div>

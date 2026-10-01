@@ -1,11 +1,11 @@
 import { BellRing } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { RosterReminder } from '../../../core/reminders'
 import type { ReminderDismissalScope } from './reminderDismissals'
 import { RuleText } from '../../components/RuleText'
-import { BattlePromptDialog } from './BattlePromptDialog'
+import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 
 export function ReminderDialog({
   reminders,
@@ -21,8 +21,8 @@ export function ReminderDialog({
   onDone: () => void
 }) {
   return (
-    <BattlePromptDialog open>
-      <DialogContent className="sm:max-w-lg" showCloseButton={false}>
+    <BattlePromptDialog open minimizedLabel="Battle reminders">
+      <BattleDialogContent className="sm:max-w-lg" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BellRing className="size-4 text-parchment" /> Battle {reminders.length === 1 ? 'reminder' : 'reminders'}
@@ -70,7 +70,7 @@ export function ReminderDialog({
         <DialogFooter>
           <Button onClick={onDone}>{confirmLabel}</Button>
         </DialogFooter>
-      </DialogContent>
+      </BattleDialogContent>
     </BattlePromptDialog>
   )
 }

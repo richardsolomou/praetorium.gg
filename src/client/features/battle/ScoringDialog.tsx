@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import {
@@ -19,7 +19,7 @@ import { capRoom, cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore
 import { type Side, sideName } from '../../sides'
 import { RuleText } from '../../components/RuleText'
 import { MissionName, type ReferenceCard } from './MissionCards'
-import { BattlePromptDialog } from './BattlePromptDialog'
+import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { tint } from './battleTints'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
 
@@ -45,10 +45,12 @@ type Props = {
   round: number
   undoable: number | null
   undoableDraw: boolean
+  initialAnswers?: ScoringAnswers
+  onAnswersChange: (answers: ScoringAnswers) => void
 }
 
 /** How many times each payout on a card was taken. Zero throughout is "did not score". */
-type Answers = Record<string, number[]>
+export type ScoringAnswers = Record<string, number[]>
 
 const CATEGORIES = ['primary', 'secondary'] as const
 
@@ -73,8 +75,10 @@ export function ScoringDialog({
   round,
   undoable,
   undoableDraw,
+  initialAnswers,
+  onAnswersChange,
 }: Props) {
-  const [answers, setAnswers] = useState<Answers>({})
+  const [answers, setAnswers] = useState<ScoringAnswers>(() => initialAnswers ?? {})
   const undo = useUndoLatest({ undoable, undoableDraw, send })
   const answerFor = (card: DueCard) => answers[card.key] ?? card.awards.map(() => 0)
   const claimedFor = (card: DueCard) => card.awards.reduce((total, award, at) => total + awardTotal(award, answerFor(card)[at] ?? 0), 0)
@@ -145,16 +149,19 @@ export function ScoringDialog({
     return [`${whose} ${label} cap is ${limit.cap} VP, and ${limit.room} VP of it is left — the other ${over} VP does not score.`]
   })
 
-  const answer = (card: DueCard, at: number, times: number) =>
-    setAnswers((current) => {
-      const taken = current[card.key] ?? card.awards.map(() => 0)
-      const chosen = card.awards[at]
-      if (!chosen) return current
-      return {
-        ...current,
-        [card.key]: card.awards.map((award, index) => (index === at ? times : alternatives(chosen, award) ? 0 : (taken[index] ?? 0))),
-      }
+  const recordAnswers = (next: ScoringAnswers) => {
+    setAnswers(next)
+    onAnswersChange(next)
+  }
+  const answer = (card: DueCard, at: number, times: number) => {
+    const taken = answerFor(card)
+    const chosen = card.awards[at]
+    if (!chosen) return
+    recordAnswers({
+      ...answers,
+      [card.key]: card.awards.map((award, index) => (index === at ? times : alternatives(chosen, award) ? 0 : (taken[index] ?? 0))),
     })
+  }
 
   const confirm = () => {
     const finished: string[] = []
@@ -177,10 +184,10 @@ export function ScoringDialog({
 
   return (
     <>
-      <BattlePromptDialog open onOpenChange={(open) => !open && onCancel?.()}>
+      <BattlePromptDialog open minimizedLabel={`Scoring · ${sideName(side)}`} onOpenChange={(open) => !open && onCancel?.()}>
         {/* Edged and titled in the side's own tint: points cannot be taken back without an
           undo, so which side is being paid is readable before the sentence naming them. */}
-        <DialogContent className={`max-h-[85dvh] overflow-y-auto sm:max-w-2xl ${colours.border}`}>
+        <BattleDialogContent minimizeDisabled={pending} className={`max-h-[85dvh] overflow-y-auto sm:max-w-2xl ${colours.border}`}>
           <DialogHeader className="text-center">
             <p className="eyebrow text-discarded">Now</p>
             <DialogTitle className={colours.text}>
@@ -246,7 +253,7 @@ export function ScoringDialog({
                         pending={pending}
                         tone={colours}
                         ariaLabel={`${card.name} scored nothing`}
-                        onPress={() => setAnswers((current) => ({ ...current, [card.key]: card.awards.map(() => 0) }))}
+                        onPress={() => recordAnswers({ ...answers, [card.key]: card.awards.map(() => 0) })}
                       />
                     </div>
                   </div>
@@ -278,7 +285,7 @@ export function ScoringDialog({
               {confirmLabel}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </BattleDialogContent>
       </BattlePromptDialog>
       <UndoLatestConfirmation pending={pending} control={undo} />
     </>

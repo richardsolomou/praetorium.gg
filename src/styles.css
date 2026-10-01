@@ -91,6 +91,20 @@ html:has([data-battle-prompt]) [data-native-app-tabs] {
   z-index: 60;
 }
 
+@media (max-width: 1023px) {
+  [data-battle-sticky-header] [data-scoreboard] {
+    position: static;
+  }
+
+  [data-minimized-battle-prompt] {
+    bottom: calc(10rem + env(safe-area-inset-bottom));
+  }
+
+  html[data-native-shell='true'] [data-minimized-battle-prompt] {
+    bottom: 6rem;
+  }
+}
+
 html[data-native-app='true'] [data-mobile-app-header],
 html[data-native-app='true'] [data-mobile-app-header-spacer] {
   display: flex;
@@ -197,6 +211,11 @@ html[data-native-shell='true'] [data-native-app-content][data-immersive='true'] 
 }
 
 html[data-native-shell='true'] [data-scoreboard] {
+  top: 0;
+}
+
+html[data-native-shell='true'] [data-battle-sticky-header],
+html[data-native-app='true'] [data-battle-sticky-header] {
   top: 0;
 }
 

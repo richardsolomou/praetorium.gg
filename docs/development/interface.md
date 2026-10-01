@@ -80,6 +80,12 @@ Only one live prompt is open at a time. Anything owed by the opponent's turn is 
 
 Every live action prompt includes Undo latest action. If undo reopens an earlier prompt, that prompt keeps the same control so the table can continue rewinding without first completing the action again.
 
+Scoring, tactical draw and discard, and Secret Mission prompts offer Minimize dialog. It minimizes the prompt locally into a persistent return bar so a player can inspect CP, VP, stratagems, mission cards, and the rest of the tracker without changing the command log. Battle action buttons stay in place but are disabled until Return to prompt restores the answers and selections already made in that prompt. The phase control explains why it cannot advance.
+
+Other battle dialogs, including mission and stratagem details, rosters, reminders, New Orders, and the battle combat simulator, have a Minimize dialog control. Each minimized dialog keeps a return bar and its current state. Multiple dialogs can be parked while inspecting the tracker; battle-changing controls stay unavailable until every parked dialog is resumed or closed. On phones, the scoreboard and Your side / Battle / Opponent tabs remain together at the top while scrolling.
+
+Scoring answers and tactical mission selections also survive Undo when the same battle moment opens again. They belong to that battle, side, round, and prompt; a different set of cards does not inherit them. Undoing a completed card draw returns those cards to the deck and offers a fresh draw.
+
 The tactical draw prompt appears at the start of a player's turn and supports either a random draw or an exact choice from the remaining deck. A manual choice contains every card currently owed, cannot replace an earlier choice once its limit is reached, and requires a known `whenDrawn` return before play continues. The battle-ready bonus is recorded during setup and added to the score only after the battle finishes.
 
 A player's name and picture link to `/users/$userId`. Profiles are public and need no access token. A fielded list links to `/rosters/$id` with the battle token, which gives seated players and revealed-event spectators access to its frozen roster. Catalogue-backed faction marks, faction names, and detachments link to their reference pages.
