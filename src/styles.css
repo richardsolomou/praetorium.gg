@@ -61,6 +61,28 @@
   --text-3xs: 0.625rem;
   --tracking-label: 0.06em;
   --tracking-eyebrow: 0.14em;
+
+  /* Light crossing a supporter's seal once as the profile opens, and again on hover; two names so hovering restarts it. */
+  --animate-supporter-glint: supporter-glint 1100ms cubic-bezier(0.45, 0, 0.2, 1) 300ms both;
+  --animate-supporter-glint-again: supporter-glint-again 800ms cubic-bezier(0.45, 0, 0.2, 1) both;
+
+  @keyframes supporter-glint {
+    from {
+      background-position: 105% 0;
+    }
+    to {
+      background-position: -5% 0;
+    }
+  }
+
+  @keyframes supporter-glint-again {
+    from {
+      background-position: 105% 0;
+    }
+    to {
+      background-position: -5% 0;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

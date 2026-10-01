@@ -13,7 +13,6 @@ const hasColumn = (database: DatabaseSync, table: string, column: string) =>
     .all()
     .some((row) => row.name === column)
 
-/** Each migration after the first, recognised as applied by what it adds. */
 const migrations = [
   {
     file: new URL('../drizzle-auth/0001_sad_absorbing_man.sql', import.meta.url),
@@ -22,6 +21,10 @@ const migrations = [
   {
     file: new URL('../drizzle-auth/0002_organic_ikaris.sql', import.meta.url),
     applied: (database: DatabaseSync) => hasColumn(database, 'user', 'lastSeenAt'),
+  },
+  {
+    file: new URL('../drizzle-auth/0003_burly_karnak.sql', import.meta.url),
+    applied: (database: DatabaseSync) => hasTable(database, 'githubSponsor'),
   },
 ]
 

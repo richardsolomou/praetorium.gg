@@ -64,6 +64,10 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
     entries.APPLE_KEY_ID = required(environment, 'APPLE_KEY_ID')
     entries.APPLE_PRIVATE_KEY_BASE64 = Buffer.from(environment.APPLE_PRIVATE_KEY ?? '', 'utf8').toString('base64')
     if (!entries.APPLE_PRIVATE_KEY_BASE64) throw new Error('APPLE_PRIVATE_KEY is required')
+    // A GitHub OAuth app answers one callback URL, which is production's.
+    for (const name of ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_SPONSORS_TOKEN']) {
+      if (environment[name]) entries[name] = required(environment, name)
+    }
   }
   return Object.entries(entries)
     .map(([name, value]) => `${name}=${value}`)

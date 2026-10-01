@@ -46,6 +46,8 @@ type AuthOptions = {
   revokeSessionAccess: (sessionId: string) => Promise<void>
   storeSocialAvatar: (url: string) => Promise<string | null>
   updateProfile: (data: Record<string, unknown>) => Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; error: string }>
+  /** Called after a player links GitHub, so their sponsorship shows before they leave the callback. */
+  githubLinked?: () => Promise<void>
 }
 
 export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret: string, options: AuthOptions) {
@@ -162,7 +164,10 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     }),
     emailVerification: authEmails ? { sendOnSignUp: true, sendVerificationEmail: authEmails.sendVerificationEmail } : undefined,
     socialProviders: configuredAuthProviderOptions(environment),
-    account: standardAccountOptions({ accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS] } }),
+    // Linking starts from a signed-in session, so a provider account under another address still belongs to its player.
+    account: standardAccountOptions({
+      accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS, 'github'], allowDifferentEmails: true },
+    }),
     user: {
       deleteUser: {
         enabled: true,
@@ -208,6 +213,10 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
           after: async (created, context) => {
             await claimInitialAdmin(created.userId)
             await applySocialAvatarIfMissing(created, context)
+            if (created.providerId === 'github')
+              await options
+                .githubLinked?.()
+                .catch(async () => (await auth.$context).logger.error('GitHub sponsor refresh failed after linking'))
           },
         },
       },
@@ -219,6 +228,8 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     },
     hooks: {
       before: createAuthMiddleware(async (context) => {
+        if (context.path === '/sign-in/social' && context.body?.provider === 'github')
+          throw new APIError('FORBIDDEN', { message: 'GitHub can be linked to an account but cannot sign in' })
         if (!context.path.startsWith('/callback/')) return
         const provider = context.params?.id ?? context.path.split('/').pop()
         const state = context.query?.state

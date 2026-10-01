@@ -8,6 +8,7 @@ import {
   adminUserSessions,
   adminUsers,
   friendInvite,
+  githubSponsorship,
   me,
   notificationSettings,
   onboardingProgress,
@@ -34,6 +35,8 @@ export const friendInviteQuery = (token: string) =>
   })
 export const accountMethodsQuery = () =>
   queryOptions({ queryKey: ['account-methods'], queryFn: () => accountMethods(), staleTime: SSR_STALE_TIME })
+export const githubSponsorshipQuery = () =>
+  queryOptions({ queryKey: ['github-sponsorship'], queryFn: () => githubSponsorship(), staleTime: SSR_STALE_TIME })
 /** Every administration read sits under one key, so an administrator's change refreshes all of them. */
 export const ADMIN_QUERY_KEY = ['admin'] as const
 

@@ -117,4 +117,10 @@ export const jwks = sqliteTable('jwks', {
   crv: text('crv'),
 })
 
+/** GitHub's active sponsors, replaced whole on each refresh; a player supports the project when their linked GitHub account is here. */
+export const githubSponsor = sqliteTable('githubSponsor', {
+  githubId: text('githubId').primaryKey().notNull(),
+  public: flag('public').notNull(),
+})
+
 export const schema = { user, session, account, verification, twoFactor, rateLimit, jwks }

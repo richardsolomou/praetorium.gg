@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeaders } from '@tanstack/react-start/server'
 import { app } from '../app'
-import { configuredAuthProviders } from '../authProviders'
+import { configuredAuthProviders, githubLinkConfigured } from '../authProviders'
 import { currentUser, currentUserId, requireUser, requireUserId } from '../playerSession'
 import { mutationRpc, rpc } from '../rpc'
 import { unlinkSignInMethod } from '../signInMethods'
@@ -95,6 +95,38 @@ export const accountMethods = createServerFn({ method: 'GET' }).handler(() =>
   }),
 )
 
+/** Whether this player's linked GitHub account sponsors the project, for their own settings. */
+export const githubSponsorship = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const current = await requireUser()
+    const instance = app()
+    const [linked, sponsorship] = await Promise.all([
+      instance.auth.api.listUserAccounts({ headers: getRequestHeaders() }),
+      instance.service.githubSponsorship(current.id),
+    ])
+    return {
+      available: githubLinkConfigured() && instance.githubSponsors.configured,
+      linked: linked.some((entry) => entry.providerId === 'github'),
+      sponsorship,
+    }
+  }),
+)
+
+export const checkGithubSponsorship = createServerFn({ method: 'POST' }).handler(() =>
+  mutationRpc(async () => {
+    const current = await requireUser()
+    const instance = app()
+    try {
+      await instance.githubSponsors.refresh()
+    } catch {
+      throw new Response('GitHub could not be reached', { status: 502 })
+    }
+    const sponsorship = await instance.service.githubSponsorship(current.id)
+    await instance.telemetry.capture(current.id, 'github_sponsorship_checked', { sponsorship: sponsorship ?? 'none' })
+    return sponsorship
+  }),
+)
+
 export const setOwnPassword = createServerFn({ method: 'POST' })
   .validator(setOwnPasswordSchema)
   .handler(({ data }) =>
@@ -114,7 +146,10 @@ export const unlinkOwnAccount = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const current = await requireUser()
-      const status = await unlinkSignInMethod(current.id, data.provider)
+      const status =
+        data.provider === 'github'
+          ? (await app().service.unlinkAccount(current.id, 'github', ['credential', ...configuredAuthProviders()])).status
+          : await unlinkSignInMethod(current.id, data.provider)
       if (status === 'missing') {
         throw new Response('this sign-in method is not linked', { status: 404 })
       } else if (status === 'two-factor') {
@@ -122,7 +157,8 @@ export const unlinkOwnAccount = createServerFn({ method: 'POST' })
       } else if (status === 'last-method') {
         throw new Response('another available sign-in method must stay linked', { status: 409 })
       }
-      await app().telemetry.capture(current.id, 'sign_in_method_removed', { provider: data.provider })
+      if (data.provider === 'github') await app().telemetry.capture(current.id, 'github_account_unlinked')
+      else await app().telemetry.capture(current.id, 'sign_in_method_removed', { provider: data.provider })
       return null
     }),
   )

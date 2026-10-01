@@ -1,11 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Check, ClipboardPaste, Code, Heart } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
-
-/** The repository, which is the product's other front door. */
-export const SOURCE = 'https://github.com/richardsolomou/praetorium.gg'
-
-const SPONSOR = 'https://github.com/sponsors/richardsolomou'
+import { SOURCE, SPONSOR } from '../../projectLinks'
 
 const INCLUDED = [
   { title: 'Unlimited lists', text: 'Save as many lists and variants as you like.' },

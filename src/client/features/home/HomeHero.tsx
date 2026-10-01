@@ -6,7 +6,7 @@ import { summarySides, type SummarySide } from '../../battleSummary'
 import type { Battle } from '../battles/battle'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import { SOURCE } from './HomePitch'
+import { SOURCE } from '../../projectLinks'
 
 /**
  * The one full-bleed moment on the page, for somebody who has never been here.

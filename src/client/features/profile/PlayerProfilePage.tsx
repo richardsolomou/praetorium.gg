@@ -6,6 +6,7 @@ import { BattleShelf } from '../battles/BattleShelf'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { SupporterBadge } from '../../components/SupporterBadge'
 import { PlayerRankings } from './PlayerRankings'
 import { PlayerRosters } from './PlayerRosters'
 import { recordSummary } from './recordSummary'
@@ -90,10 +91,21 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow={yourself ? 'You' : 'Player'}
+        eyebrow={
+          <span className="inline-flex items-center gap-2">
+            {yourself ? 'You' : 'Player'}
+            {profile.supporter ? <SupporterBadge /> : null}
+          </span>
+        }
         title={profile.name}
         description={record ? recordSummary(record) : undefined}
-        media={<PlayerAvatar name={profile.name} image={profile.image} className="size-20 text-2xl" />}
+        media={
+          <PlayerAvatar
+            name={profile.name}
+            image={profile.image}
+            className={`size-20 text-2xl ${profile.supporter ? 'ring-2 ring-parchment/60 ring-offset-3 ring-offset-panel' : ''}`}
+          />
+        }
       />
       <PageContent>
         {/* The primitive's root is a flex row by default, which would sit the panel beside the tab bar. */}
