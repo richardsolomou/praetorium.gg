@@ -666,6 +666,15 @@ export const removeBattle = spacetime.procedure({ battleId: t.string(), userId: 
   }),
 )
 
+export const deleteBattleForOperator = spacetime.procedure({ battleId: t.string() }, t.bool(), (ctx, { battleId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (!tx.db.battles.id.find(battleId)) return false
+    deleteBattle(tx, battleId)
+    return true
+  }),
+)
+
 export const submitBattle = spacetime.procedure(
   { battleId: t.string(), userId: t.string(), expectedSeq: t.u32(), body: t.string(), now: t.u64(), externalRefusal: t.string() },
   t.string(),
@@ -740,6 +749,10 @@ export const productStats = spacetime.procedure({ userIds: t.array(t.string()) }
         userId,
         rosterCount: Array.from(tx.db.rosters.userId.filter(userId)).length,
         battleCount: Array.from(tx.db.battleUsers.userId.filter(userId)).length,
+        leagueCount: Array.from(tx.db.leagues.ownerId.filter(userId)).length,
+        friendCount: [...tx.db.friendships.requesterId.filter(userId), ...tx.db.friendships.addresseeId.filter(userId)].filter(
+          (row) => row.acceptedAt !== undefined,
+        ).length,
         practiceOpponent: Boolean(tx.db.practiceOpponents.userId.find(userId)),
       })),
     )

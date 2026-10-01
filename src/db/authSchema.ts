@@ -20,8 +20,14 @@ export const user = sqliteTable(
     banReason: text('banReason'),
     banExpires: date('banExpires'),
     twoFactorEnabled: flag('twoFactorEnabled').notNull().default(false),
+    /** When the player last signed in or refreshed a session of their own; signing out does not erase it. */
+    lastSeenAt: date('lastSeenAt'),
   },
-  (table) => [index('user_role_idx').on(table.role), index('user_createdAt_id_idx').on(table.createdAt, table.id)],
+  (table) => [
+    index('user_role_idx').on(table.role),
+    index('user_createdAt_id_idx').on(table.createdAt, table.id),
+    index('user_lastSeenAt_id_idx').on(table.lastSeenAt, table.id),
+  ],
 )
 
 export const session = sqliteTable(

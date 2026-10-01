@@ -1,8 +1,11 @@
-import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
-import type { AdminUsersCursor } from '../../admin'
+import { infiniteQueryOptions, keepPreviousData, queryOptions, type QueryClient } from '@tanstack/react-query'
+import type { AdminUserFilter, AdminUserSort, AdminUsersCursor } from '../../admin'
 import {
   accountMethods,
   activeFriendInvite,
+  adminPlayerBattles,
+  adminUserConnections,
+  adminUserSessions,
   adminUsers,
   friendInvite,
   me,
@@ -31,15 +34,32 @@ export const friendInviteQuery = (token: string) =>
   })
 export const accountMethodsQuery = () =>
   queryOptions({ queryKey: ['account-methods'], queryFn: () => accountMethods(), staleTime: SSR_STALE_TIME })
-export const ADMIN_USERS_QUERY_KEY = ['admin-users'] as const
-export const adminUsersQuery = (query: string) =>
+/** Every administration read sits under one key, so an administrator's change refreshes all of them. */
+export const ADMIN_QUERY_KEY = ['admin'] as const
+
+/**
+ * Re-reads administration after a change. A fetch already in flight for a query with no data yet would
+ * otherwise be reused, and it started before the change it is meant to show.
+ */
+export async function refreshAdminQueries(queryClient: QueryClient) {
+  await queryClient.cancelQueries({ queryKey: ADMIN_QUERY_KEY })
+  await queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEY })
+}
+export const adminUsersQuery = (query: string, sort: AdminUserSort, filter: AdminUserFilter) =>
   infiniteQueryOptions({
-    queryKey: [...ADMIN_USERS_QUERY_KEY, query],
-    queryFn: ({ pageParam }) => adminUsers({ data: { query, cursor: pageParam } }),
+    queryKey: [...ADMIN_QUERY_KEY, 'users', query, sort, filter],
+    queryFn: ({ pageParam }) => adminUsers({ data: { query, sort, filter, cursor: pageParam } }),
     initialPageParam: null as AdminUsersCursor | null,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
+    placeholderData: keepPreviousData,
     staleTime: SSR_STALE_TIME,
   })
+export const adminUserSessionsQuery = (userId: string) =>
+  queryOptions({ queryKey: [...ADMIN_QUERY_KEY, 'sessions', userId], queryFn: () => adminUserSessions({ data: { userId } }) })
+export const adminUserConnectionsQuery = (userId: string) =>
+  queryOptions({ queryKey: [...ADMIN_QUERY_KEY, 'connections', userId], queryFn: () => adminUserConnections({ data: { userId } }) })
+export const adminPlayerBattlesQuery = (userId: string) =>
+  queryOptions({ queryKey: [...ADMIN_QUERY_KEY, 'player-battles', userId], queryFn: () => adminPlayerBattles({ data: { userId } }) })
 
 export const userProfileQuery = (userId: string) =>
   queryOptions({

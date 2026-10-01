@@ -126,7 +126,7 @@ The fold reads whole logs, so it is bounded by a window and a count, and the ser
 - Battle signals use the internal battle ID, not the shared token.
 - Deployments use one authenticated, user-scoped SpacetimeDB product signal subscription across pages. A battle create, command, or deletion advances that player's `battles` revision and refetches their cached lists. The open battle also subscribes to its own sequence view.
 - A second view carries only global revision counters for shared reads: battle feeds, spectator screens, standings, public and unlisted rosters, league pages, invite links, and practice opponent choices. Both guests and signed-in readers can subscribe to those counters. Server functions still enforce every viewer's permissions; the counters contain no IDs or product rows. The browser coalesces overlapping refetches through React Query, and a disconnected subscription falls back to periodic active-query refetches.
-- The admin user list receives a separate revision for SpacetimeDB roster counts, battle counts, and practice opponent flags. Only a session whose signed access token carries the admin role can read it; the list still loads through its account and product read paths.
+- Administration reads receive a separate revision for SpacetimeDB roster counts, battle counts, and practice opponent flags. Only a session whose signed access token carries the admin role can read it; the reads still go through their account and product paths.
 
 ## Server boundaries
 

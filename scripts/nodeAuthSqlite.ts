@@ -5,15 +5,36 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const requiredTables = ['user', 'session', 'account', 'verification', 'twoFactor', 'rateLimit', 'jwks']
-const oauthMigration = new URL('../drizzle-auth/0001_sad_absorbing_man.sql', import.meta.url)
+const hasTable = (database: DatabaseSync, table: string) =>
+  Boolean(database.prepare("select 1 from sqlite_master where type = 'table' and name = ?").get(table))
+const hasColumn = (database: DatabaseSync, table: string, column: string) =>
+  database
+    .prepare(`select name from pragma_table_info('${table}')`)
+    .all()
+    .some((row) => row.name === column)
+
+/** Each migration after the first, recognised as applied by what it adds. */
+const migrations = [
+  {
+    file: new URL('../drizzle-auth/0001_sad_absorbing_man.sql', import.meta.url),
+    applied: (database: DatabaseSync) => hasTable(database, 'oauthClient'),
+  },
+  {
+    file: new URL('../drizzle-auth/0002_organic_ikaris.sql', import.meta.url),
+    applied: (database: DatabaseSync) => hasColumn(database, 'user', 'lastSeenAt'),
+  },
+]
+
+function applyMigrations(database: DatabaseSync) {
+  for (const migration of migrations) if (!migration.applied(database)) database.exec(readFileSync(migration.file, 'utf8'))
+}
 
 export function migrateAuthSqlite(file: string) {
   const database = new DatabaseSync(file, { timeout: 5_000 })
   try {
     database.exec('BEGIN IMMEDIATE')
     try {
-      const exists = database.prepare("select 1 from sqlite_master where type = 'table' and name = 'oauthClient'").get()
-      if (!exists) database.exec(readFileSync(oauthMigration, 'utf8'))
+      applyMigrations(database)
       database.exec('COMMIT')
     } catch (error) {
       database.exec('ROLLBACK')
@@ -60,7 +81,6 @@ export async function importAuthSqlite(dump: string, target: string) {
   try {
     await chmod(temporary, 0o600)
     database.exec(await readFile(dump, 'utf8'))
-    database.exec(readFileSync(oauthMigration, 'utf8'))
     database.exec('pragma journal_mode = wal')
   } catch (error) {
     database.close()
@@ -69,6 +89,9 @@ export async function importAuthSqlite(dump: string, target: string) {
   }
   database.close()
   try {
+    // Checked before migrating, so a dump missing a table is named rather than failing inside a migration.
+    verifyAuthSqlite(temporary)
+    migrateAuthSqlite(temporary)
     const counts = verifyAuthSqlite(temporary)
     await rename(temporary, target)
     return counts

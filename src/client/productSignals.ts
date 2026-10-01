@@ -61,5 +61,5 @@ export function invalidatePublicProductQueries(queryClient: QueryClient, scope?:
 
 export function invalidateAdminProductQueries(queryClient: QueryClient, scope?: string) {
   if (scope !== undefined && scope !== 'admin-users') return Promise.resolve()
-  return queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+  return queryClient.invalidateQueries({ queryKey: ['admin'] })
 }

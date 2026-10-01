@@ -64,6 +64,8 @@ const productStat = z.strictObject({
   userId: z.string(),
   rosterCount: z.number().int().nonnegative(),
   battleCount: z.number().int().nonnegative(),
+  leagueCount: z.number().int().nonnegative(),
+  friendCount: z.number().int().nonnegative(),
   practiceOpponent: z.boolean(),
 })
 const invite = z.strictObject({ token: z.string(), inviterId: z.string() })
@@ -275,6 +277,12 @@ export class SpacetimeOperator {
 
   async deleteBattle(battleId: string, userId: string) {
     const response = await this.call('remove_battle', [battleId, userId])
+    return z.boolean().parse(await response.json())
+  }
+
+  /** Any battle, whoever opened it; the creator check in `deleteBattle` is the player's rule, not an administrator's. */
+  async deleteBattleForOperator(battleId: string) {
+    const response = await this.call('delete_battle_for_operator', [battleId])
     return z.boolean().parse(await response.json())
   }
 

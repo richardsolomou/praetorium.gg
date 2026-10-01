@@ -24,6 +24,7 @@ import { PrimaryMission, type ReferenceCard, SecondaryMissions } from './Mission
 import { Scoreboard } from './Scoreboard'
 import { TurnTimes } from './TurnTimes'
 import { tint } from './battleTints'
+import { Fact } from '../../components/Fact'
 
 type Props = {
   view: BattleView
@@ -362,14 +363,5 @@ function SpectatorSide({
         </div>
       ) : null}
     </section>
-  )
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="eyebrow">{label}</dt>
-      <dd className="truncate text-bone">{value}</dd>
-    </div>
   )
 }

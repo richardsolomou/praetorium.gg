@@ -1,4 +1,5 @@
 import { randomId, randomToken } from 'ras-stack/auth'
+import type { AdminBattle } from '../admin'
 import {
   battleCapacity,
   type BattleState,
@@ -813,6 +814,18 @@ export class PraetoriumService {
       }))
   }
 
+  /** Who sat at each of a player's latest battles and how far it got. The battles themselves still open through `maySpectate`. */
+  async adminPlayerBattles(userId: string): Promise<AdminBattle[]> {
+    const { battles } = await this.repository.battlesByUser(userId, { limit: 5 })
+    return battles.map(adminBattleSummary)
+  }
+
+  /** False when there was no such battle to delete. */
+  async deleteBattleAsAdmin(token: string) {
+    const history = await this.repository.battleHistoryByToken(token)
+    return Boolean(history && (await this.repository.deleteBattleForOperator(history.battle.id)))
+  }
+
   async deleteBattle(token: string, userId: string) {
     const seats = await this.mustSeat(token, userId)
     if (!(await this.repository.deleteBattle(seats.battle.id, userId)))
@@ -1014,6 +1027,18 @@ export class PraetoriumService {
     const history = await this.repository.battleHistoryByToken(token)
     if (!history) throw new Response('no such battle', { status: 404 })
     return history
+  }
+}
+
+function adminBattleSummary(history: BattleHistory): AdminBattle {
+  const state = foldHistory(history)
+  return {
+    token: history.battle.token,
+    createdAt: history.battle.createdAt,
+    lastActivity: history.log.at(-1)?.at ?? history.battle.createdAt,
+    status: state.status,
+    round: state.round,
+    players: history.players.map(({ id, name, side }) => ({ id, name, side })),
   }
 }
 
