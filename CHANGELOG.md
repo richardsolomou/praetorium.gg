@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.93.0
+
+### Minor Changes
+
+- 190844f: Show a supporter badge on the profile of a player whose linked GitHub account publicly sponsors the project.
+- 60b99eb: Lead visitors from the home page to the builder without an account, list everything that is free, and offer importing from New Recruit or BattleBase.
+
+### Patch Changes
+
+- 60b99eb: Link GitHub Sponsors from the home page, and open the sign-up form from its account buttons.
+
 ## 0.92.0
 
 ### Minor Changes
