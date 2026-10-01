@@ -12,7 +12,14 @@ export function parseAbilityGrants(
   counterpartReferences: readonly string[] = [],
 ): { matched: boolean; grants: AbilityGrant[] } {
   if (!description) return { matched: false, grants: [] }
-  const prose = normalizeAbilityText(description.replaceAll(/\^\^|\*/g, ''))
+  const paragraphs = description.split(/\n\s*\n/u)
+  const rule = paragraphs[1]?.trim()
+  const staticDeploymentRule =
+    paragraphs.length === 2 &&
+    !/\b(?:if|when|while|during|until|unless|unit|model|bearer|phase|weapon|wound|roll|battle)\b/iu.test(paragraphs[0]!) &&
+    STATIC_DEPLOYMENT_RULE.test(rule ?? '')
+  const prose = normalizeAbilityText((staticDeploymentRule ? rule! : description).replaceAll(/\^\^|\*/g, ''))
+    .replaceAll(/\s+/g, ' ')
     .replaceAll(/\babilty\b/giu, 'ability')
     .replaceAll(/\bModel's in\b/gu, 'Models in')
   const grant = (written: string, recipient: 'bearer' | 'leader' | 'unit', explicitDeployment = false) => {
@@ -210,6 +217,10 @@ function attachmentTargetMatches(written: string, references: readonly string[])
 }
 
 const DEPLOYMENT_ABILITY = String.raw`(?:Stealth|Infiltrators|Deep Strike|Scouts \d+["″])`
+const STATIC_DEPLOYMENT_RULE = new RegExp(
+  String.raw`^(?:[^.\n]{1,160} (?:model|unit) only\.\s*)?This unit has (?:the )?${DEPLOYMENT_ABILITY}(?: ability)?\.$`,
+  'iu',
+)
 const DEPLOYMENT_ABILITY_LIST = new RegExp(
   String.raw`^${DEPLOYMENT_ABILITY}(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+)${DEPLOYMENT_ABILITY})*$`,
   'iu',

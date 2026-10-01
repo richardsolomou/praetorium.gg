@@ -916,7 +916,7 @@ function grantedAbilitiesInAttachedUnit(
               Boolean(modifier.conditions?.length || modifier.conditionGroups?.length || modifier.repeats?.length),
           )
           const grants = parsedAbilityGrants(
-            normalizedAbilityDescription(profile),
+            abilityDescription(profile),
             companionIndexes.length > 0,
             linkedAbilities,
             !hasConditionalAbilityLink,
