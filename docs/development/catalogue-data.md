@@ -44,6 +44,8 @@ The compiler follows field-specific policies instead of treating a whole source 
 
 Marine detachment enhancements are for non-Epic Characters, and unit upgrades are for non-Character units. When an enhancement's description ends by introducing a weapon and BSData links exactly one complete weapon profile, selecting it equips the weapon and shows its profile in the detachment reference and roster. Selected unit upgrades that grant a weapon ability to the unit's attacks add that ability to the matching weapon profiles with its printed target restriction.
 
+A selected enhancement's standalone, unconditional deployment ability also appears on the unit and in its prebattle options when the source separates flavour from the rule with a paragraph break. Conditional text before the rule is not treated as an unconditional grant.
+
 The compiler never repairs an unknown or conflicting game fact by guessing. It records missing joins, normalized-name fallbacks, safe field fallbacks, source conflicts, unclassified profile types, and unclassified characteristics in the artifact's `issues` list. Every field also carries a resolution strategy such as `sources-agree`, `source-priority`, `merged`, `fallback`, or `unresolved`. `pnpm catalogue:audit` reports the counts and `pnpm catalogue:audit -- --details` prints every deterministic finding, making upstream drift a catalogue problem rather than a collection of UI edge cases.
 
 Unknown semantic labels remain unresolved until their mapping is reviewed, encoded in `datasheetStructure.ts`, and covered by a test.

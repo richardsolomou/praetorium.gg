@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { contextualAbilityNamesIn, datasheetIn, datasheetViewsIn } from './catalogue'
 import { bookOf, card, profileOperationCases, withCards } from './catalogue.fixtures'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
+import { deploymentRules } from './rosterDeployment'
 
 describe('the profile modifiers on a datasheet', () => {
   it('uses current card stats and weapons for an older catalogue entry', () => {
@@ -1702,6 +1703,67 @@ describe('the profile modifiers on a datasheet', () => {
     expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections: selected, unitSelectionIndex: 0 })).toEqual(
       expect.arrayContaining(['Lone Operative', 'Stealth']),
     )
+  })
+
+  it.each([
+    {
+      case: 'unqualified',
+      description:
+        'Once the enemy are sighted, this warrior leads the attack from the very front, striving to be first in amongst the foe\'s ranks.\n\nTACTICUS model only. This unit has Scouts 6".',
+      granted: true,
+    },
+    {
+      case: 'conditional',
+      description:
+        'While this model is leading an Intercessor Squad, its unit can make a Scout move.\n\nTACTICUS model only. This unit has Scouts 6".',
+      granted: false,
+    },
+  ])('$case Scout enhancement after a separate paragraph', ({ description, granted }) => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'leader',
+          name: 'Execrator',
+          type: 'model',
+          selectionEntries: [
+            {
+              id: 'spearpoint',
+              name: 'Spearpoint War Leader',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'spearpoint-rule',
+                  name: 'Spearpoint War Leader',
+                  typeName: 'Abilities',
+                  characteristics: [
+                    {
+                      name: 'Description',
+                      $text: description,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'bodyguard', name: 'Intercessor Squad', type: 'unit' },
+      ],
+    })
+    const selected = [{ id: 'leader', selections: [{ id: 'spearpoint' }] }, { id: 'bodyguard' }]
+    const unselected = [{ id: 'leader' }, { id: 'bodyguard' }]
+    const names = (selections: typeof selected, unitSelectionIndex: number) =>
+      contextualAbilityNamesIn(book, 'cat', unitSelectionIndex ? 'bodyguard' : 'leader', {
+        selections,
+        unitSelectionIndex,
+        companions: [1 - unitSelectionIndex],
+      })
+
+    expect({
+      leader: names(selected, 0).includes('Scouts 6"'),
+      bodyguard: names(selected, 1).includes('Scouts 6"'),
+      deployment: deploymentRules(names(selected, 1)).prebattleRules,
+      withoutEnhancement: names(unselected, 1).includes('Scouts 6"'),
+    }).toEqual({ leader: granted, bodyguard: granted, deployment: granted ? ['scouts'] : [], withoutEnhancement: false })
   })
 
   it.each(['This unit has Scouts 6".', 'Models in the bearer\'s unit have the Scouts 6" ability.'])(
