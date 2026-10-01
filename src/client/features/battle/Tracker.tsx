@@ -28,6 +28,7 @@ import {
 import { armyRulesRequest } from './sideRules'
 import { type Side, type SideMission, sides } from '../../sides'
 import type { Command } from '../../../core/battle'
+import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView } from '../../../core/battleView'
 import { remindersDueAt, reminderTimingLabel, type ReminderTiming, type RosterReminder } from '../../../core/reminders'
 import { BattleMenu } from './BattleMenu'
@@ -47,6 +48,7 @@ import { Report, type ReportPlayer } from './Report'
 
 type Props = {
   view: BattleView
+  clock: BattleClock
   /** Each side's own mission, derived from both armies' dispositions, so it is the same on both devices. */
   missions: { side: number; mission: SideMission | null }[]
   send: (command: Command) => void
@@ -76,7 +78,7 @@ type Focus = (typeof VIEWS)[number]
  * allied pair is one side, because the rules make it one: they share the turn, the
  * command points, the cards and the score, and only the armies are separate.
  */
-export function Tracker({ view, missions, send, pending, problem }: Props) {
+export function Tracker({ view, clock, missions, send, pending, problem }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
   const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
   const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
@@ -475,7 +477,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   return (
     <main data-battle-tracker className="w-full space-y-3 px-3 pb-32 lg:pb-8">
       {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
-      <Scoreboard view={view} sides={table} outcome={null} />
+      <Scoreboard view={view} clock={clock} sides={table} outcome={null} />
 
       {/* Nobody across the table yet means neither a tab nor a column for them. */}
       <Tabs value={focus} onValueChange={(value) => setFocus(value as Focus)} className="lg:hidden">
@@ -518,6 +520,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
            */}
           <TurnControl
             view={view}
+            clock={clock}
             send={send}
             pending={pending}
             onAdvance={advance}
@@ -565,6 +568,8 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
                   canDelete={view.creatorId === view.viewerId}
                   pending={pending || remove.isPending}
                   actionRemindersEnabled={actionRemindersEnabled}
+                  timerPaused={clock.paused}
+                  onTimerPausedChange={(paused) => send({ kind: paused ? 'pause-clock' : 'resume-clock' })}
                   players={view.players}
                   onActionRemindersChange={updateActionReminders}
                   onConcede={(playerId) => send({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}

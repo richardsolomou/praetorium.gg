@@ -1,19 +1,22 @@
 import { Link } from '@tanstack/react-router'
+import { Pause, Timer } from 'lucide-react'
+import { type BattleClock, latestTurnRound } from '../../../core/battleClock'
 import type { BattleView } from '../../../core/battleView'
 import { battleResult } from '../../battleOutcome'
 import { completedSideRound } from './battleProgress'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { sideName, type Side } from '../../sides'
 import { tint } from './battleTints'
+import { Elapsed } from './Elapsed'
 
-type Props = { view: BattleView; sides: Side[]; outcome: string | null }
+type Props = { view: BattleView; clock: BattleClock; sides: Side[]; outcome: string | null }
 
 /**
  * The one line worth glancing at mid-turn: who is ahead, whose turn it is, and how
  * far through the battle everyone is. The same component at every width, so a phone
  * and a laptop never disagree about the score.
  */
-export function Scoreboard({ view, sides, outcome }: Props) {
+export function Scoreboard({ view, clock, sides, outcome }: Props) {
   const active = view.players.find((player) => player.isActive)
   const finished = view.status === 'finished'
 
@@ -27,9 +30,11 @@ export function Scoreboard({ view, sides, outcome }: Props) {
        * A finished battle gives the whole strip to its result on a phone. Each side's
        * score is already at the top of its own panel a thumb away, and three columns
        * left the winner's name fighting the numbers either side of it for the width.
+       * The height the sides' scores and turn times take is held, so scrubbing from a
+       * round to the result does not move the strip.
        */}
       <div
-        className={`mx-auto grid min-h-14 w-full items-center gap-3 sm:gap-6 ${finished ? 'max-sm:grid-cols-1' : ''} ${
+        className={`mx-auto grid min-h-14 w-full max-sm:min-h-22 items-center gap-3 sm:gap-6 ${finished ? 'max-sm:grid-cols-1' : ''} ${
           sides.length > 1 ? 'max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'max-w-3xl grid-cols-[minmax(0,1fr)_auto]'
         }`}
       >
@@ -41,6 +46,7 @@ export function Scoreboard({ view, sides, outcome }: Props) {
               view,
               side.armies.map((army) => army.playerId),
             )}
+            clock={view.status === 'setup' ? null : clock}
             align={position === 0 ? 'start' : 'end'}
             className={finished ? 'max-sm:hidden' : ''}
           />
@@ -73,7 +79,7 @@ export function Scoreboard({ view, sides, outcome }: Props) {
  * The winner is named in their own tint, and the score sits under the name rather
  * than inside the sentence. The heading still reads as one line for a screen reader.
  */
-function Result({ view, sides, outcome }: Props) {
+function Result({ view, sides, outcome }: Omit<Props, 'clock'>) {
   const result = battleResult(sides, view)
   const winner = result.kind === 'win' ? sides.find((side) => side.index === result.side.index) : undefined
   if (!winner || result.kind !== 'win') {
@@ -101,16 +107,20 @@ function Result({ view, sides, outcome }: Props) {
 function SideScore({
   side,
   completedRound,
+  clock,
   align,
   className = '',
 }: {
   side: Side
   completedRound: number
+  clock: BattleClock | null
   align: 'start' | 'end'
   className?: string
 }) {
   const colours = tint(side.index)
   const end = align === 'end'
+  const turnRound = clock && latestTurnRound(clock, side.index)
+  const paused = clock?.paused && side.isActive
   return (
     <div data-side-score={side.index} className={`min-w-0 ${end ? 'order-3' : 'order-1'} ${className}`}>
       {/* Capped, or the round strip stretches across a wide column and stops reading as five rounds. */}
@@ -150,6 +160,17 @@ function SideScore({
             <span key={entry.round} className={`h-1 flex-1 ${entry.round <= completedRound ? colours.rail : 'bg-edge-strong'}`} />
           ))}
         </div>
+        {/* The side's latest turn, so the one being played reads against the one it answers. */}
+        {clock ? (
+          <p
+            data-turn-time
+            className={`mt-1 flex items-center gap-1 text-2xs ${end ? 'justify-end' : ''} ${side.isActive ? 'text-bone' : 'text-dim'}`}
+          >
+            {paused ? <Pause aria-hidden className="size-3" /> : <Timer aria-hidden className="size-3" />}
+            <span className="sr-only">{side.isActive ? (paused ? 'This turn, paused:' : 'This turn:') : 'Last turn:'}</span>
+            <Elapsed clock={clock} match={turnRound === null ? { side: side.index } : { side: side.index, round: turnRound }} />
+          </p>
+        ) : null}
       </div>
     </div>
   )

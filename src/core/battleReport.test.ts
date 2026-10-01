@@ -4,7 +4,7 @@ import { battleReport } from './battleReport'
 import { ALICE, BOB, CAROL, NAMES, builtRoster, log, roster, started, turns, text } from './battle.fixtures'
 
 describe('the account of the battle', () => {
-  it('reports prompt and clock actions from the command log', () => {
+  it('reports prompt and timer actions from the command log', () => {
     const history = log(
       ...started(),
       [ALICE, { kind: 'request-advance' }],
@@ -16,10 +16,15 @@ describe('the account of the battle', () => {
       expect.arrayContaining([
         'Alice requests the next phase',
         'Alice cancels the phase advance',
-        'Alice pauses the clock',
-        'Alice resumes the clock',
+        'Alice pauses the timer',
+        'Alice resumes the timer',
       ]),
     )
+  })
+
+  it('says how long a phase took beside the line that ends it', () => {
+    const history = log(...started(), [ALICE, { kind: 'advance' }]).map((entry) => ({ ...entry, at: entry.at * 60_000 }))
+    expect(battleReport(NAMES, history).at(-1)?.elapsed).toEqual({ phase: 60_000, turn: null })
   })
 
   it('says who brought what', () => {
