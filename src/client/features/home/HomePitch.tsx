@@ -8,13 +8,13 @@ export const SOURCE = 'https://github.com/richardsolomou/praetorium.gg'
 const SPONSOR = 'https://github.com/sponsors/richardsolomou'
 
 const INCLUDED = [
-  { title: 'Unlimited lists', text: 'Save, copy and vary as many rosters as you like.' },
-  { title: 'Every battle shape', text: '1v1, 2v1 and 2v2, or a practice game alone.' },
-  { title: 'King of the Colosseum', text: 'Its own size, caps and borrowed dispositions.' },
-  { title: 'Leagues', text: 'Entry approval and rosters sealed until the reveal.' },
-  { title: 'Live tracking', text: 'Phases, command points, stratagems and scoring on every device.' },
+  { title: 'Unlimited lists', text: 'Save as many lists and variants as you like.' },
+  { title: '1v1, 2v1 and 2v2', text: 'Or a practice game on your own.' },
+  { title: 'King of the Colosseum', text: "Built at 600 points, with the format's own limits." },
+  { title: 'Leagues', text: 'Approve entries and keep rosters sealed until the reveal.' },
+  { title: 'Live tracking', text: "Phases, command points, stratagems and scoring on every player's device." },
   { title: 'Combat simulator', text: 'Shooting and melee odds for any two units.' },
-  { title: 'Watchable games', text: 'A link anyone can follow, and a public leaderboard.' },
+  { title: 'Spectating', text: 'Anyone can watch a public game or read the leaderboard.' },
   { title: 'Print and export', text: 'Print a list or copy it as Games Workshop text.' },
 ]
 
@@ -71,7 +71,7 @@ export function HomeSteps() {
 }
 
 /**
- * What a player would otherwise pay for elsewhere, and the way their lists come with them.
+ * What is free, and how a player's existing lists come with them.
  *
  * The included list is what is free, said without naming who charges for it,
  * because another app's tiers change and a stale comparison reads worse than none.
@@ -81,18 +81,18 @@ export function HomeIncluded() {
   return (
     <section data-home-included className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-16">
       <div className="min-w-0">
-        <h2 className="text-2xl leading-none sm:text-3xl">Nothing is locked</h2>
+        <h2 className="text-2xl leading-none sm:text-3xl">No paywall</h2>
         <p className="mt-4 max-w-2xl font-rules text-dim">
-          Every format and every tool is free.{' '}
+          Everything here is free. If you want to help keep the project going, you can{' '}
           <a
             href={SPONSOR}
             className="text-info underline-offset-4 hover:text-parchment hover:underline"
             rel="noreferrer noopener"
             target="_blank"
           >
-            Sponsoring the project
-          </a>{' '}
-          helps keep it running and unlocks nothing, because there is nothing to unlock.
+            sponsor it on GitHub
+          </a>
+          . Sponsoring doesn't unlock anything.
         </p>
         <ul className="mt-6 grid border-t border-edge sm:grid-cols-2 sm:gap-x-10">
           {INCLUDED.map(({ title, text }) => (
@@ -108,10 +108,9 @@ export function HomeIncluded() {
       </div>
       <aside data-home-import className="border border-edge-strong bg-sunken p-5 shadow-[0_1.5rem_3rem_-1rem_rgba(0,0,0,0.6)]">
         <ClipboardPaste className="size-6 text-parchment" aria-hidden />
-        <h2 className="mt-4 text-xl leading-tight">Bring your lists</h2>
+        <h2 className="mt-4 text-xl leading-tight text-balance">Coming from New Recruit or BattleBase?</h2>
         <p className="mt-2 font-rules text-sm leading-relaxed text-dim">
-          Copy a list as Games Workshop text from New Recruit or BattleBase and paste it in. Every unit is matched to its datasheet, and
-          anything that could not be placed is named back to you.
+          Export your list as Games Workshop text and paste it in. If a unit or option can't be matched, the import tells you which.
         </p>
         <Link to="/sign-in" search={{ next: '/rosters', join: true }} className={buttonVariants({ className: 'mt-5 w-full' })}>
           Create an account to import

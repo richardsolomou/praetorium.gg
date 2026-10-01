@@ -28,7 +28,7 @@ export function HomeHero({ battle }: { battle?: Battle }) {
             <span className="block text-parchment">Run the battle.</span>
           </h1>
           <p className="mt-5 max-w-lg font-rules text-base text-dim sm:text-lg">
-            Build your list, play it with friends on any device, and let the app keep the score. Every feature is free.
+            Build your list, play it with friends on any device, and let the app keep the score.
           </p>
           {/*
             The builder leads because it needs no account. Sign in stays here because a
@@ -47,7 +47,7 @@ export function HomeHero({ battle }: { battle?: Battle }) {
             </Link>
           </div>
           <p className="mt-4 text-sm text-faint">
-            No account needed to try it. Free, and{' '}
+            Free and{' '}
             <a
               href={SOURCE}
               className="text-info underline-offset-4 hover:text-parchment hover:underline"
@@ -56,7 +56,7 @@ export function HomeHero({ battle }: { battle?: Battle }) {
             >
               open source
             </a>
-            .
+            . The builder works without an account.
           </p>
         </div>
         {battle ? <HeroBattle battle={battle} /> : <HeroMark />}
