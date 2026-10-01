@@ -28,13 +28,16 @@ export function joinableUnits(
   const unit = units[index]
   if (!pick || !unit?.attachment || pick.attachedTo !== undefined) return []
 
-  const kind = unit.attachment.kind
-  const wanted = new Set(unit.attachment.targets.map(normalizedName))
+  const attachment = unit.attachment
+  const kind = attachment.kind
+  const wanted = new Set(attachment.targets.map(normalizedName))
   const occupied = new Map<number, number>()
+  const led = new Set<number>()
   const occupiedCategories = new Map<number, Map<string, number>>()
   picks.forEach((candidate, at) => {
     if (candidate.attachedTo === undefined) return
     const attached = units[at]
+    if (attached?.attachment?.kind === 'leader') led.add(candidate.attachedTo)
     if (attached?.attachment?.kind === kind) occupied.set(candidate.attachedTo, (occupied.get(candidate.attachedTo) ?? 0) + 1)
     const categories = occupiedCategories.get(candidate.attachedTo) ?? new Map<string, number>()
     for (const category of attached?.attachmentCategories ?? []) {
@@ -45,6 +48,7 @@ export function joinableUnits(
   return picks.flatMap((candidate, at) => {
     const host = units[at]
     if (at === index || !host || !wanted.has(normalizedName(host.name))) return []
+    if (attachment.requiresLeader && !led.has(candidate.key)) return []
     const limits = host.attachmentLimits
     if ((occupied.get(candidate.key) ?? 0) >= (limits?.[kind] ?? 1)) return []
     const categoryCounts = occupiedCategories.get(candidate.key)

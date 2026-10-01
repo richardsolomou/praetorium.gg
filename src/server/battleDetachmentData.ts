@@ -2,7 +2,9 @@ import { routeSlug } from '../core/slug'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { rulesReferencedIn } from './catalogueRules'
 import { rulesFaction, type LoadedRules } from './rules'
+import { detachmentNamed } from './factionReferences'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
+import { isProfiledDetachment, profiledDetachmentCards, profiledDetachmentMatchesCards } from './catalogueProfileRules'
 
 export type BattleDetachmentData = {
   index: Pick<LoadedCatalogue['index'], 'rules'>
@@ -12,10 +14,11 @@ export type BattleDetachmentData = {
   coreDetails: LoadedRules['coreDetails']
   attribution: string
   dataslate: string | null
+  profiledStratagems: Map<string, ReturnType<typeof profiledDetachmentCards>['stratagems']>
 }
 
 export function battleDetachmentData(
-  loaded: Pick<LoadedCatalogue, 'index'>,
+  loaded: Pick<LoadedCatalogue, 'index' | 'detachments' | 'profiledDetachmentIds'>,
   rules: LoadedRules,
   catalogueId: string,
 ): BattleDetachmentData | null {
@@ -30,12 +33,26 @@ export function battleDetachmentData(
     coreDetails: rules.coreDetails,
     attribution: rules.attribution,
     dataslate: rules.dataslate,
+    profiledStratagems: new Map(
+      (loaded.detachments.get(catalogueId)?.options ?? [])
+        .filter(
+          (option) =>
+            isProfiledDetachment(loaded, option.id) &&
+            !profiledDetachmentMatchesCards(loaded, option.id, detachmentNamed(rules.detachmentDetails.get(rulesId), option.name)),
+        )
+        .map((option) => [option.name, profiledDetachmentCards(loaded, option.id).stratagems]),
+    ),
   }
 }
 
 export function selectedBattleDetachmentData(data: BattleDetachmentData, names: readonly string[]) {
-  const selected = selectedDetachmentRules(names, data.live, data.details)
-  const written = [...selected.written, ...data.coreDetails]
+  const selected = selectedDetachmentRules(
+    names.filter((name) => !data.profiledStratagems.has(name)),
+    data.live,
+    data.details,
+  )
+  const profiledWritten = names.flatMap((name) => (data.profiledStratagems.get(name) ?? []).map((card) => ({ ...card, type: null })))
+  const written = [...selected.written, ...profiledWritten, ...data.coreDetails]
   return {
     attribution: data.attribution,
     dataslate: data.dataslate,

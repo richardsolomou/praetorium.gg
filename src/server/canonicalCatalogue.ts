@@ -25,7 +25,7 @@ import {
   type SourceUnit,
   type SourceUnitJoin,
 } from './catalogueSourceUnits'
-import { DATACARDS_ATTRIBUTION } from './datacards'
+import { currentProfileValue, DATACARDS_ATTRIBUTION } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { describeDatasheetAbilitiesWithContributions } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
@@ -386,6 +386,7 @@ function issuesFor(
   joined: ReturnType<typeof datacardOf>,
   sourceJoin: SourceUnitJoin | null,
   evidence: SourceEvidence,
+  usesCardProfiles: boolean,
 ): CanonicalCatalogueIssue[] {
   const issues: CanonicalCatalogueIssue[] = []
   const {
@@ -524,13 +525,14 @@ function issuesFor(
       if (raw === undefined) continue
       const candidate = sourceStat(kind, raw)
       if (comparableStat(candidate) === comparableStat(value.value)) continue
+      const fromCards = usesCardProfiles && currentProfileValue(joined?.details, profile.type, profile.name, value.name) !== undefined
       issues.push({
         kind: 'source-field-conflict',
         severity: 'warning',
         catalogueId: sheet.catalogueId,
         entryId: sheet.id,
         path: `/profiles/${profileIndex}/values/${valueIndex}`,
-        message: `${sheet.name} keeps BSData ${value.name} ${JSON.stringify(value.value)} over 40kdc ${JSON.stringify(candidate)}`,
+        message: `${sheet.name} keeps ${fromCards ? 'Game Datacards' : 'BSData'} ${value.name} ${JSON.stringify(value.value)} over 40kdc ${JSON.stringify(candidate)}`,
       })
     }
   }
@@ -599,7 +601,13 @@ export function compileCanonicalCatalogue(
         (!cardsBaseSize && Boolean(rulesBaseSize)) ||
         (!cardsComposition.length && Boolean(rulesComposition.length)) ||
         (!cardsCosts.length && Boolean(rulesCosts.length))
+      const usesCardProfiles =
+        loaded.profiledSupplementIds.has(faction.id) &&
+        described.profiles.some((profile) =>
+          profile.values.some((value) => currentProfileValue(joined?.details, profile.type, profile.name, value.name) !== undefined),
+        )
       const usesDatacards = Boolean(
+        usesCardProfiles ||
         cardsBaseSize ||
         cardsComposition.length ||
         cardsCosts.length ||
@@ -665,9 +673,14 @@ export function compileCanonicalCatalogue(
               : sourceOrUnresolved('definitions'),
             points: pointsResolution,
             keywords: sourceOrUnresolved('definitions'),
-            profiles: sourceJoin?.unit.profiles.length
-              ? resolution(['definitions', 'rules'], 'source-priority')
-              : sourceOrUnresolved('definitions'),
+            profiles: usesCardProfiles
+              ? resolution(
+                  sourceJoin?.unit.profiles.length ? ['definitions', 'datacards', 'rules'] : ['definitions', 'datacards'],
+                  'source-priority',
+                )
+              : sourceJoin?.unit.profiles.length
+                ? resolution(['definitions', 'rules'], 'source-priority')
+                : sourceOrUnresolved('definitions'),
             abilities: resolution(abilitySources, abilitySources.length > 1 ? 'merged' : 'single-source'),
             composition: cardsComposition.length
               ? sourceOrUnresolved('datacards')
@@ -692,17 +705,23 @@ export function compileCanonicalCatalogue(
       }
       datasheets.push(sheet)
       issues.push(
-        ...issuesFor(sheet, joined, sourceJoin, {
-          definitionsPoints: described.points,
-          cardsBaseSize,
-          rulesBaseSize,
-          cardsComposition,
-          rulesComposition,
-          cardsModelCount,
-          rulesModelCount,
-          cardsCosts,
-          rulesCosts,
-        }),
+        ...issuesFor(
+          sheet,
+          joined,
+          sourceJoin,
+          {
+            definitionsPoints: described.points,
+            cardsBaseSize,
+            rulesBaseSize,
+            cardsComposition,
+            rulesComposition,
+            cardsModelCount,
+            rulesModelCount,
+            cardsCosts,
+            rulesCosts,
+          },
+          usesCardProfiles,
+        ),
       )
     }
   }
@@ -763,6 +782,14 @@ export const snapshotRules = (directory: string, loaded: LoadedCatalogue) =>
  * sources, which is how a running instance reads the snapshot it serves.
  */
 export function referenceCatalogue(directory: string, catalogue: () => LoadedCatalogue | null, rules: () => LoadedRules | null) {
+  if (process.env.PRAETORIUM_LOCAL_DEV === 'true' && process.env.LOCAL_TEST_MODE !== 'true') {
+    const local = process.env.LOCAL_CANONICAL_FILE ?? path.resolve('.output/canonical-catalogue.json')
+    if (fs.existsSync(local)) {
+      const candidate = readCanonicalCatalogue(local)
+      const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')) as Record<string, string>
+      if (Object.entries(revisions).every(([source, revision]) => candidate.revisions[source] === revision)) return candidate
+    }
+  }
   const packaged = loadCanonicalCatalogue(directory)
   if (packaged) return packaged
   const loaded = catalogue()

@@ -1,10 +1,18 @@
 import { routeSlug } from '../core/slug'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
-import type { LoadedCatalogue } from './catalogueIndex'
+import { datasheetsOf, isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
 import { factionContentOf, factionDisplayName } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from './rulesSource'
 import { detachmentPoints } from './detachmentPoints'
+import {
+  isProfiledDetachment,
+  profiledArmyRulesFor,
+  profiledDetachmentCatalogueId,
+  profiledDetachmentCards,
+  profiledDetachmentMatchesCards,
+  profiledDetachmentPoints,
+} from './catalogueProfileRules'
 
 export function isReferenceDetachment(
   loaded: LoadedCatalogue,
@@ -12,6 +20,12 @@ export function isReferenceDetachment(
   faction: { id: string; name: string },
   detachment: { id: string; name: string },
 ) {
+  if (isProfiledDetachment(loaded, detachment.id)) return profiledDetachmentCatalogueId(loaded, detachment.id) === faction.id
+  if (loaded.profiledCatalogueIds.has(faction.id)) {
+    const entry = loaded.index.definitions.get(detachment.id)
+    const owner = entry ? loaded.index.catalogueOf.get('targetId' in entry ? entry.targetId : entry.id) : undefined
+    return owner === faction.id
+  }
   const displayName = factionDisplayName(faction.name, rules?.factionNames)
   const slugId = routeSlug(displayName)
   const content = loaded.factionContents.get(slugId)
@@ -38,6 +52,9 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
   const content = loaded.factionContents.get(slugId)
   const detachments = loaded.detachments.get(faction.id)?.options ?? []
   const referenceDetachments = detachments.filter((detachment) => isReferenceDetachment(loaded, rules, faction, detachment))
+  const profiledDatasheets = loaded.profiledCatalogueIds.has(faction.id)
+    ? [...datasheetsOf(loaded.index, faction.id)].filter((id) => isReferenceDatasheet(loaded, faction.id, id)).length
+    : null
   return {
     summary: {
       id: faction.id,
@@ -51,7 +68,7 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
         : null,
       references: faction.references.map((reference) => ({
         ...reference,
-        datasheets: content?.datasheets.size ?? reference.datasheets,
+        datasheets: profiledDatasheets ?? content?.datasheets.size ?? reference.datasheets,
         detachments: referenceDetachments.length,
       })),
       detachments: detachments.map(({ id, name }) => ({ id, name })),
@@ -89,6 +106,29 @@ export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null |
   return cache.full
 }
 
+function withProfiledArmyRules<
+  T extends {
+    id: string
+    name: string
+    detachments: { id: string }[]
+    armyRules: { name: string; description: string }[]
+  },
+>(loaded: LoadedCatalogue, faction: T): T {
+  const profiledRules = new Map(
+    profiledArmyRulesFor(
+      loaded,
+      faction.id,
+      faction.detachments.map(({ id }) => id),
+    ).map((rule) => [routeSlug(rule.name), rule]),
+  )
+  if (!profiledRules.size) return faction
+
+  return {
+    ...faction,
+    armyRules: [...profiledRules.values(), ...faction.armyRules.filter((rule) => !profiledRules.has(routeSlug(rule.name)))],
+  }
+}
+
 function buildFactionIndex(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
   return {
     revision: loaded.index.revision,
@@ -103,17 +143,40 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
       const { summary, detachments, referenceDetachments } = factionSummary(loaded, rules, faction)
       const content = factionContentOf(loaded, faction.name)
       const rulesId = rulesFaction(rules, routeSlug(faction.name))
-      return {
+      return withProfiledArmyRules(loaded, {
         ...summary,
-        armyRules: content?.armyRules.length
-          ? content.armyRules
-          : rules?.factionRules?.get(summary.slug)
-            ? [rules.factionRules.get(summary.slug)!]
-            : [],
+        armyRules:
+          loaded.profiledArmyRules.get(faction.id) ??
+          (content?.armyRules.length
+            ? content.armyRules
+            : rules?.factionRules?.get(summary.slug)
+              ? [rules.factionRules.get(summary.slug)!]
+              : []),
         referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
         detachments: detachments.map((detachment) => {
           const reference = detachmentNamed(rules?.detachmentReferences?.get(rulesId), detachment.name)
           const detail = detachmentNamed(rules?.detachmentDetails?.get(rulesId), detachment.name)
+          if (isProfiledDetachment(loaded, detachment.id) && !profiledDetachmentMatchesCards(loaded, detachment.id, detail)) {
+            const cards = profiledDetachmentCards(loaded, detachment.id)
+            const points = profiledDetachmentPoints(loaded, detachment.id)
+            return {
+              id: detachment.id,
+              slug: routeSlug(detachment.name),
+              name: detachment.name,
+              points,
+              disposition: detachment.disposition,
+              dispositions: detachment.disposition
+                ? [{ id: detachment.disposition, name: rules?.dispositions?.get(detachment.disposition) ?? detachment.disposition }]
+                : [],
+              reference: {
+                enhancements: 0,
+                upgrades: 0,
+                stratagems: cards.stratagems.length,
+                points,
+                dispositions: detachment.disposition ? [rules?.dispositions?.get(detachment.disposition) ?? detachment.disposition] : [],
+              },
+            }
+          }
           const forced = detachmentCatalogueDetail(loaded, faction.id, detachment.id, [])?.forcedEnhancements ?? []
           return {
             id: detachment.id,
@@ -138,7 +201,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
               : null,
           }
         }),
-      }
+      })
     }),
   }
 }

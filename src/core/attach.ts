@@ -14,12 +14,13 @@ import { normalizedName } from './name'
 import { sameText } from './text'
 
 /** Only an ability titled "Leader" establishes that role; other attachments default to support. */
-export type Attachment = { kind: 'leader' | 'support'; targets: string[] }
+export type Attachment = { kind: 'leader' | 'support'; targets: string[]; requiresLeader?: true }
 export type AttachmentLimits = Record<Attachment['kind'], number> & {
   categories: Record<string, { name: string; maximum: number }>
 }
 
 const CLAIM = /can be attached to the following units?/i
+const REQUIRES_LEADER = /^\s*\(which already have a Leader\)\s*:/i
 
 const BULLETED = /(?:^|\n)\s*(?:■|-)\s*([^\n]+)/g
 
@@ -101,6 +102,7 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
   return {
     kind: attachment?.kind ?? associated.kind,
     targets: uniqueNames([...(attachment?.targets ?? []), ...associated.targets]),
+    ...(attachment?.requiresLeader ? { requiresLeader: true as const } : {}),
   }
 }
 
@@ -198,13 +200,19 @@ function definitionHas(definition: Definition, childId: string | undefined, inde
 
 function findAttachment(definition: Definition, index: CatalogueIndex): Attachment | null {
   for (const [title, text] of statements(definition, index)) {
-    if (!CLAIM.test(text)) continue
+    const claim = CLAIM.exec(text)
+    if (!claim) continue
     const named = names(text)
     if (!named.length) continue
     const categorized = named.flatMap((name) => [name, ...categoryTargets(name, index)])
     const substitutions = attachmentSubstitutions(index)
     const targets = categorized.flatMap((name) => [name, ...(substitutions.get(normalizedName(name)) ?? [])])
-    return { kind: title.trim().toLowerCase() === 'leader' ? 'leader' : 'support', targets: uniqueNames(targets) }
+    const afterClaim = text.slice(claim.index + claim[0].length)
+    return {
+      kind: title.trim().toLowerCase() === 'leader' ? 'leader' : 'support',
+      targets: uniqueNames(targets),
+      ...(REQUIRES_LEADER.test(afterClaim) ? { requiresLeader: true as const } : {}),
+    }
   }
   return null
 }
@@ -339,6 +347,17 @@ export function attachmentErrors(
     if (!attachment.targets.some((target) => sameText(target, hostName))) {
       error(`cannot be attached to ${hostName}`)
     }
+    if (
+      attachment.requiresLeader &&
+      !units.some((candidate, at) => {
+        if (at === position || candidate.attachedTo !== unit.attachedTo) return false
+        const leader = index.definitions.get(candidate.entryId)
+        const rule = leader && attachmentOf(leader, index, selections[at])
+        return rule?.kind === 'leader' && rule.targets.some((target) => sameText(target, hostName))
+      })
+    ) {
+      error(`cannot support ${hostName} without an attached Leader`)
+    }
     const associationMax = definition?.constraints
       ?.filter((constraint) => constraint.type === 'max' && constraint.field === 'associations')
       .map((constraint) => constraint.value)
@@ -421,7 +440,7 @@ function statements(definition: Definition, index: CatalogueIndex): [string, str
 function names(text: string): string[] {
   const claim = CLAIM.exec(text)
   if (!claim || claim.index === undefined) return []
-  const afterClaim = text.slice(claim.index + claim[0].length)
+  const afterClaim = text.slice(claim.index + claim[0].length).replace(REQUIRES_LEADER, '')
   const bulleted = [...afterClaim.matchAll(BULLETED)].flatMap((match) => (match[1] ? [match[1]] : []))
   if (bulleted.length) return bulleted.map(clean).filter(Boolean)
   const emphasised = EMPHASISED.exec(afterClaim)

@@ -143,6 +143,77 @@ describe('the abilities and wargear a datasheet lists', () => {
     expect(described?.contributions.datacards).toBe(true)
   })
 
+  it('replaces the old parent rule while preserving a chapter ability on its datasheet', () => {
+    const detachment = (id: string, name: string) => ({ id, name, type: 'upgrade' as const })
+    const wrapper = (id: string, option: ReturnType<typeof detachment>) => ({
+      id: `${id}-wrapper`,
+      name: 'Detachment',
+      type: 'upgrade' as const,
+      selectionEntryGroups: [{ id: `${id}-choices`, name: 'Detachment', selectionEntries: [option] }],
+    })
+    const book = shelfOf(
+      {
+        name: 'Dark Angels',
+        sharedRules: [
+          { id: 'oath', name: 'Oath of Moment', description: 'Mark a target.' },
+          { id: 'chapter', name: 'Transhuman Strategist', description: 'Chapter tactics.' },
+        ],
+        selectionEntries: [
+          {
+            id: 'apothecary',
+            name: 'Apothecary',
+            type: 'model',
+            infoLinks: [
+              { id: 'oath-link', targetId: 'oath', name: 'Oath of Moment', type: 'rule' },
+              { id: 'chapter-link', targetId: 'chapter', name: 'Transhuman Strategist', type: 'rule' },
+            ],
+          },
+        ],
+        sharedSelectionEntries: [wrapper('current', detachment('wrath', 'Wrath of the Rock'))],
+      },
+      {
+        name: 'Space Marines',
+        selectionEntries: [{ id: 'intercessors', name: 'Intercessors', type: 'unit' }],
+        sharedSelectionEntries: [wrapper('parent', detachment('assault', 'Assault Brethren'))],
+      },
+    )
+    const inherited = book.detachments.get('cat-1')!.options[0]!
+    book.detachments.get('cat')!.options.push(inherited)
+    book.profiledDetachmentIds.add('assault')
+    book.profiledArmyRules.set('cat-1', [{ name: 'Combat Doctrines', description: 'Select a doctrine.' }])
+    book.factionContents.set('dark-angels', {
+      name: 'Dark Angels',
+      datasheets: new Set(),
+      datasheetDetails: new Map(),
+      datasheetIds: new Map(),
+      detachments: new Set(),
+      enhancements: new Map(),
+      stratagems: new Map(),
+      stratagemIssues: [],
+      detachmentRules: new Map(),
+      armyRules: [
+        { name: 'Combat Doctrines', description: 'Select a doctrine.' },
+        { name: 'Transhuman Strategist', description: 'Chapter tactics.' },
+      ],
+      factionAbilityNames: new Set(['Combat Doctrines', 'Transhuman Strategist']),
+    })
+
+    expect(describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'apothecary'), null)?.abilities).toEqual([
+      {
+        id: 'chapter-link',
+        name: 'Transhuman Strategist',
+        description: 'Chapter tactics.',
+        kind: 'faction',
+      },
+      {
+        id: 'profile-army-rule:combat-doctrines',
+        name: 'Combat Doctrines',
+        description: 'Select a doctrine.',
+        kind: 'faction',
+      },
+    ])
+  })
+
   it('shows a unit enhancement ability only when the enhancement is selected', () => {
     const book = bookOf({
       selectionEntries: [

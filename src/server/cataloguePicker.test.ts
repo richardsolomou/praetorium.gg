@@ -32,6 +32,24 @@ describe('the shelf a datasheet is filed under', () => {
       ]),
     ).toBe('other')
   })
+
+  it('uses the strongest secondary category for a generated root link', () => {
+    const index = bookOf({
+      selectionEntries: [
+        {
+          id: 'profile-unit-character',
+          name: 'Captain',
+          type: 'model',
+          categoryLinks: [
+            { id: 'faction', targetId: 'faction', name: 'Faction: Adeptus Astartes', primary: true },
+            { id: 'infantry', targetId: 'infantry', name: 'Infantry' },
+            { id: 'character', targetId: 'character', name: 'Character' },
+          ],
+        },
+      ],
+    }).index
+    expect(groupOfEntry(index, 'profile-unit-character')).toBe('character')
+  })
 })
 
 describe('the picker', () => {
@@ -456,6 +474,14 @@ describe('the picker', () => {
     const book = bookOf({ selectionEntries: [{ id: 'ctan', name: "Transcendent C'tan", type: 'model', costs: points(295) }] })
 
     expect(unitsIn(book, 'cat', '', { factionCards: true }).map((unit) => unit.name)).toEqual(["Transcendent C'tan"])
+  })
+
+  it('lists profiled datasheets even when older faction cards exist', () => {
+    const book = bookOf({ selectionEntries: [{ id: 'intercessors', name: 'Intercessor Squad', type: 'unit', costs: points(85) }] })
+    book.factionContents.set('test-catalogue', withCards('Test catalogue', ['Intercessor Squad']))
+    book.profiledCatalogueIds.add('cat')
+
+    expect(unitsIn(book, 'cat', '', { factionCards: true }).map((unit) => unit.name)).toEqual(['Intercessor Squad'])
   })
 
   it('shelves every datasheet by its primary category', () => {

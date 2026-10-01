@@ -848,6 +848,11 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('option', { name: 'Dark Angels', exact: true }).click()
   await expect(darkAngelsSetup.getByRole('button', { name: 'Select Inner Circle Task Force' })).toBeVisible()
   await expect(darkAngelsSetup.getByRole('button', { name: 'Select Gladius Task Force' })).toBeVisible()
+  await expect(darkAngelsSetup.getByRole('button', { name: 'Select Assault Brethren' })).toBeVisible()
+  await darkAngelsSetup.getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByPlaceholder('Search factions…').fill('Blood Angels')
+  await page.getByRole('option', { name: 'Blood Angels', exact: true }).click()
+  await expect(darkAngelsSetup.getByRole('button', { name: 'Select Assault Brethren' })).toBeVisible()
   await page.keyboard.press('Escape')
   await page.goto('/factions')
   const necrons = page.locator('[data-shelf="Xenos"] [data-faction="Necrons"]')
@@ -1088,8 +1093,14 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   await page.goto('/factions/dark-angels/datasheets/deathwing-terminator-squad')
   const viewportHeight = await page.evaluate(() => window.innerHeight)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeGreaterThan(viewportHeight)
-  await page.evaluate(() => window.scrollTo(0, 600))
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        window.scrollTo(0, 600)
+        return window.scrollY
+      }),
+    )
+    .toBeGreaterThan(0)
   const factionScroll = await page.evaluate(() => window.scrollY)
   // The missions tab lands on the current pack, so its memory is that redirect.
   await sections.getByRole('link', { name: 'Missions' }).click()

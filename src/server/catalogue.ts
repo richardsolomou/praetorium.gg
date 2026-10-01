@@ -27,6 +27,7 @@ import {
 import { type DatasheetSearchFields, dedupeWeapons } from '../core/datasheetSearch'
 import { priceOf } from './catalogueUnit'
 import { datacardOf } from './datasheetJoin'
+import { currentProfileValue } from './datacards'
 import { mergeDetachmentRules } from './catalogueDescriptions'
 import { definitionTokens, displayRuleName, modifiedProfileField } from './catalogueDisplay'
 import { relationshipFor, relationshipsFor } from './catalogueRelationships'
@@ -275,6 +276,8 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return null
   const root = loaded.index.definitions.get(entryId)
   if (!root) return null
+  const currentDetails =
+    !abilitiesOnly && loaded.profiledSupplementIds.has(catalogueId) ? datacardOf(loaded, catalogueId, entryId)?.details : null
 
   const modifiers =
     context?.modifiers ??
@@ -507,7 +510,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     const values = (profile.characteristics ?? []).flatMap((value) => {
       if (!value.name) return []
       const changed = modifiedProfileField(
-        value.$text ?? '',
+        currentProfileValue(currentDetails, profileType, profile.name ?? '', value.name) ?? value.$text ?? '',
         value.typeId,
         profileType,
         profileLineage,

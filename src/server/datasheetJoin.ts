@@ -50,12 +50,14 @@ function join(loaded: LoadedCatalogue, catalogueId: string, entryId: string): Da
   const entry = loaded.index.definitions.get(entryId)
   const book = loaded.index.catalogues.get(catalogueId)
   if (!entry || !book) return null
+  const definition = targetOf(entry, loaded.index.definitions)
+  if (loaded.profiledCatalogueIds.has(loaded.index.catalogueOf.get(definition.id) ?? '')) return null
   const name = nameOf(entry, loaded.index.definitions)
   // An allied datasheet's card is in the file of the book it is borrowed from; the
   // book's own file, and the files of the books it is a supplement to, come after.
   const source = loaded.index.alliedDatasheets.get(catalogueId)?.get(entryId)?.name
   const nearby = [...new Set([...(source ? factionContentsOf(loaded, source) : []), ...factionContentsOf(loaded, book.name)])]
-  const definitionId = targetOf(entry, loaded.index.definitions).id
+  const definitionId = definition.id
   const externalIds = relatedExternalIds(loaded.sourceReferences.units, 'bsdata', definitionId, 'game-datacards')
   if (externalIds.length) {
     const cardsIn = (content: FactionContent) => externalIds.flatMap((id) => content.datasheetIds.get(id) ?? [])

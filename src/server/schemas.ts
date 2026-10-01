@@ -17,7 +17,7 @@ import {
   STRATAGEMS_MAX,
 } from '../core/battle'
 import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
-import { commandSchema, rosterPickSchema } from '../core/commands'
+import { commandSchema, detachmentIdSchema, rosterPickSchema } from '../core/commands'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { isPlayerDefaults } from '../core/playerDefaults'
@@ -249,7 +249,7 @@ const pickSchema = rosterPickSchema
 export const datasheetSchema = z.object({
   catalogueId,
   entryId: id,
-  detachmentIds: z.array(id).max(3).default([]),
+  detachmentIds: z.array(detachmentIdSchema).max(3).default([]),
   picks: z.array(pickSchema).max(100).default([]),
   pickIndex: z.number().int().min(0).max(99).nullable().default(null),
   /** Keep weapons the unit is not carrying, so options read as this list would make them. */
@@ -284,9 +284,9 @@ export const saveRosterSchema = z.object({
   /** Empty when the player wants a name generated from the saved roster. */
   name: z.string().trim().max(ROSTER_NAME_MAX_LENGTH),
   catalogueId,
-  detachmentIds: z.array(id).max(MAX_DETACHMENTS),
+  detachmentIds: z.array(detachmentIdSchema).max(MAX_DETACHMENTS),
   disposition: id.nullable(),
-  borrowedDetachmentId: id.nullable().default(null),
+  borrowedDetachmentId: detachmentIdSchema.nullable().default(null),
   limit: rosterLimit,
   picks: z.array(pickSchema).max(100),
   waivedRules,
@@ -319,7 +319,7 @@ export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_V
 
 export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })
 export const favouriteFactionSchema = z.object({ catalogueId: id, favourite: z.boolean() })
-export const favouriteDetachmentSchema = z.object({ catalogueId: id, detachmentId: id, favourite: z.boolean() })
+export const favouriteDetachmentSchema = z.object({ catalogueId: id, detachmentId: detachmentIdSchema, favourite: z.boolean() })
 export const terrainReferencesSchema = z.object({
   matchupIds: z.array(slug).min(1).max(2),
   geometryVersion: z.union([z.literal(2), z.literal(3)]).optional(),
@@ -336,9 +336,9 @@ export const savedPrepSchema = prepSchema
 
 export const priceSchema = z.object({
   catalogueId,
-  detachmentIds: z.array(id).max(MAX_DETACHMENTS),
+  detachmentIds: z.array(detachmentIdSchema).max(MAX_DETACHMENTS),
   disposition: id.nullable(),
-  borrowedDetachmentId: id.nullable().optional(),
+  borrowedDetachmentId: detachmentIdSchema.nullable().optional(),
   limit: rosterLimit,
   units: z.array(pickSchema).max(100),
   waivedRules,

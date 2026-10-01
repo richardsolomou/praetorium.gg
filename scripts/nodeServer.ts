@@ -142,10 +142,13 @@ export async function startNodeServer() {
   const database = process.env.SPACETIME_DATABASE ?? ''
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(database)) throw new Error('Invalid SpacetimeDB database')
   const upstream = spacetimeOrigin(process.env)
-  process.env.NITRO_PORT = String(internalPort)
-  process.env.NITRO_HOST = '127.0.0.1'
-  await import(new URL('../.output/server/index.mjs', import.meta.url).href)
-  const appOrigin = `http://127.0.0.1:${internalPort}`
+  const viteOrigin = process.env.PRAETORIUM_LOCAL_DEV === 'true' ? process.env.LOCAL_VITE_ORIGIN : undefined
+  if (!viteOrigin) {
+    process.env.NITRO_PORT = String(internalPort)
+    process.env.NITRO_HOST = '127.0.0.1'
+    await import(new URL('../.output/server/index.mjs', import.meta.url).href)
+  }
+  const appOrigin = viteOrigin ?? `http://127.0.0.1:${internalPort}`
   let ready = false
   for (let attempt = 0; attempt < 120; attempt++) {
     try {
@@ -194,15 +197,20 @@ export async function startNodeServer() {
     proxy.web(request, response, { target: appOrigin }, appError)
   })
   server.on('upgrade', (request, socket, head) => {
-    if (spacetimeRoute(request, database) !== 'subscribe') {
+    if (spacetimeRoute(request, database) === 'subscribe') {
+      delete request.headers.cookie
+      delete request.headers['cf-access-client-id']
+      delete request.headers['cf-access-client-secret']
+      request.url = request.url!.slice('/spacetime'.length)
+      proxy.ws(request, socket, head, { target: upstream.origin.replace(/^http/, 'ws'), changeOrigin: true }, appError)
+    } else if (
+      viteOrigin &&
+      ['vite-hmr', 'vite-ping'].some((protocol) => request.headers['sec-websocket-protocol']?.split(',').includes(protocol))
+    ) {
+      proxy.ws(request, socket, head, { target: viteOrigin, changeOrigin: true }, appError)
+    } else {
       socket.destroy()
-      return
     }
-    delete request.headers.cookie
-    delete request.headers['cf-access-client-id']
-    delete request.headers['cf-access-client-secret']
-    request.url = request.url!.slice('/spacetime'.length)
-    proxy.ws(request, socket, head, { target: upstream.origin.replace(/^http/, 'ws'), changeOrigin: true }, appError)
   })
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject)

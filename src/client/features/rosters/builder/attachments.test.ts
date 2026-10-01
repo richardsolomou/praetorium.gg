@@ -97,6 +97,18 @@ describe('joinableUnits', () => {
     expect(joinableUnits(picks, units, 1)).toEqual([{ key: 2, name: 'Intercessor Squad' }])
   })
 
+  it('requires a leader only for support whose rule says so', () => {
+    const picks = [pick(0, 'captain', 3), pick(1, 'ancient'), pick(2, 'hellblasters'), pick(3, 'intercessors')]
+    const units = [
+      unit('Captain', leader(['Intercessor Squad'])),
+      unit('Ancient', { ...support(['Hellblaster Squad', 'Intercessor Squad']), requiresLeader: true }),
+      unit('Hellblaster Squad'),
+      unit('Intercessor Squad'),
+    ]
+
+    expect(joinableUnits(picks, units, 1)).toEqual([{ key: 3, name: 'Intercessor Squad' }])
+  })
+
   it('keeps a second support away from a unit that is already supported', () => {
     const picks = [pick(0, 'servitors', 2), pick(1, 'apothecary'), pick(2, 'intercessors')]
     const units = [

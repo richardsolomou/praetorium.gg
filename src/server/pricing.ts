@@ -22,6 +22,7 @@ import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
+import { isProfiledDetachment, profiledDetachmentMatchesCards, profiledDetachmentPoints } from './catalogueProfileRules'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
 import { detachmentPoints } from './detachmentPoints'
@@ -338,17 +339,28 @@ function calculateRoster(
   const rulesId = rulesFaction(rules, factionSlug)
   const references = rules?.detachmentReferences.get(rulesId)
   const details = rules?.detachmentDetails.get(rulesId)
+  const detailFor = (option: (typeof chosen)[number]) => {
+    const detail = detachmentNamed(details, option.name)
+    return !isProfiledDetachment(loaded, option.id) || profiledDetachmentMatchesCards(loaded, option.id, detail) ? detail : undefined
+  }
+  const referenceFor = (option: (typeof chosen)[number]) =>
+    isProfiledDetachment(loaded, option.id) && !detailFor(option)
+      ? {
+          points: profiledDetachmentPoints(loaded, option.id),
+          dispositions: option.disposition ? [option.disposition] : [],
+        }
+      : detachmentNamed(references, option.name)
   const allowedDispositions = [
     ...new Set(
       chosen.flatMap((option) => {
-        const reference = detachmentNamed(references, option.name)
+        const reference = referenceFor(option)
         return reference ? reference.dispositions : option.disposition ? [option.disposition] : []
       }),
     ),
   ]
   const purchased = chosen.map((option) => ({
     name: option.name,
-    points: detachmentPoints(loaded, data.catalogueId, option.id, detachmentNamed(references, option.name)),
+    points: detachmentPoints(loaded, data.catalogueId, option.id, referenceFor(option)),
   }))
   // The King of the Colosseum optional rule. The borrowed detachment is never added to the
   // roster, so it brings no rules, enhancements or stratagems: it sells its Force
@@ -358,7 +370,7 @@ function calculateRoster(
   const borrowedDetachment = data.borrowedDetachmentId
     ? (rosterDetachments(loaded, data.catalogueId, [data.borrowedDetachmentId]).chosen[0] ?? null)
     : null
-  const borrowedReference = borrowedDetachment ? detachmentNamed(references, borrowedDetachment.name) : undefined
+  const borrowedReference = borrowedDetachment ? referenceFor(borrowedDetachment) : undefined
   const borrowedPoints = borrowedDetachment ? detachmentPoints(loaded, data.catalogueId, borrowedDetachment.id, borrowedReference) : null
   const ownPoints = purchased.some((option) => option.points === null)
     ? null
@@ -375,7 +387,7 @@ function calculateRoster(
       : (borrowedReference?.dispositions ?? (borrowedDetachment.disposition ? [borrowedDetachment.disposition] : []))
   const { disposition, error: dispositionError } = resolveDisposition([...allowedDispositions, ...borrowedDispositions], data.disposition)
   const detachmentSpecials = chosen.map((option) => {
-    const detail = detachmentNamed(details, option.name)
+    const detail = detailFor(option)
     return { option, detail, ...describedEnhancements(loaded, data.catalogueId, option, detail) }
   })
   const strategicReserveFactsComplete =
@@ -401,7 +413,11 @@ function calculateRoster(
       ...(catalogue?.forcedEnhancements.map((enhancement) => routeSlug(enhancement.name)) ?? []),
     ]),
   )
-  const detachmentError = detachmentPointsError(purchased, budget, data.waivedRules)
+  const detachmentError = !loaded.factions.some((faction) => faction.id === data.catalogueId)
+    ? 'This roster uses a replaced faction catalogue. Choose a current faction and detachment.'
+    : chosen.length !== data.detachmentIds.length
+      ? 'This roster has a detachment that is no longer available. Choose a current detachment.'
+      : detachmentPointsError(purchased, budget, data.waivedRules)
 
   const { picked, forceSelections, roster } = rosterForces(loaded, data, detachmentSelection, unitCache)
   // Pricing is a roster being mustered, which is what a datasheet's force-scoped rules ask about.
@@ -501,8 +517,8 @@ function calculateRoster(
    */
   const enhancementsAllowed = enhancementLimit(loaded.index, forces, options)
   const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
-  // The 10e catalogue wrapper caps detachments at one; the 11e rules source
-  // replaces that constraint with the DP budget checked above.
+  // Profile-backed detachments use the DP budget above rather than a wrapper's
+  // single-selection constraint.
   const reported = [
     ...whole.errors.filter(
       (error) =>

@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ability, bookOf, card, categories, points, withCards } from './catalogue.fixtures'
 import {
   CANONICAL_CATALOGUE_FORMAT,
@@ -10,6 +10,7 @@ import {
   compileCanonicalCatalogueFromSnapshot,
   compileCanonicalRuleDocuments,
   loadCanonicalCatalogue,
+  referenceCatalogue,
 } from './canonicalCatalogue'
 import type { SourceUnit } from './catalogueSourceUnits'
 import { DATACARDS_ATTRIBUTION, type DatasheetDetails } from './datacards'
@@ -76,6 +77,22 @@ function compileWithSourceUnit(
 }
 
 describe('canonical catalogue', () => {
+  it('attributes a newer card profile when older sources disagree', () => {
+    const loaded = catalogue()
+    loaded.profiledSupplementIds.add('cat')
+    loaded.factionContents
+      .get('test-catalogue')!
+      .datasheetDetails.set('Squad', card({ profiles: [{ name: 'Squad', type: 'Unit', values: { T: '10' } }] }))
+    const compiled = compileWithSourceUnit(loaded, { profiles: [{ name: 'Squad', values: { T: 9 } }] })
+
+    expect(compiled.datasheets[0]?.profiles[0]?.values[0]?.value).toBe('10')
+    expect(compiled.datasheets[0]?.provenance.fields.profiles).toEqual({
+      sources: ['definitions', 'datacards', 'rules'],
+      strategy: 'source-priority',
+    })
+    expect(compiled.issues).toContainEqual(expect.objectContaining({ message: 'Squad keeps Game Datacards T "10" over 40kdc "9"' }))
+  })
+
   it('compiles upstream labels into one typed datasheet with provenance', () => {
     const compiled = compileCanonicalCatalogue(catalogue(), revisions)
 
@@ -479,6 +496,40 @@ describe('canonical catalogue', () => {
         datasheets: [expect.objectContaining({ name: 'Squad' })],
       })
     } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    { scenario: 'uses a current local projection', localRevision: 'definitions-revision', expected: 101 },
+    { scenario: 'ignores a local projection from another snapshot', localRevision: 'older-revision', expected: 100 },
+  ])('$scenario', ({ localRevision, expected }) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-local-'))
+    const localFile = path.join(root, 'working.json')
+    try {
+      const packaged = compileCanonicalCatalogue(catalogue(), revisions)
+      const working = {
+        ...packaged,
+        revisions: { ...packaged.revisions, definitions: localRevision },
+        datasheets: packaged.datasheets.map((sheet) => ({ ...sheet, points: 101 })),
+      }
+      fs.mkdirSync(path.join(root, 'canonical'))
+      fs.writeFileSync(path.join(root, 'revision.json'), JSON.stringify(revisions))
+      fs.writeFileSync(path.join(root, 'canonical', 'catalogue.json'), JSON.stringify(packaged))
+      fs.writeFileSync(localFile, JSON.stringify(working))
+      vi.stubEnv('PRAETORIUM_LOCAL_DEV', 'true')
+      vi.stubEnv('LOCAL_TEST_MODE', 'false')
+      vi.stubEnv('LOCAL_CANONICAL_FILE', localFile)
+
+      expect(
+        referenceCatalogue(
+          root,
+          () => null,
+          () => null,
+        )?.datasheets[0]?.points,
+      ).toBe(expected)
+    } finally {
+      vi.unstubAllEnvs()
       fs.rmSync(root, { recursive: true, force: true })
     }
   })

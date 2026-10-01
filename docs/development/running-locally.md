@@ -10,9 +10,9 @@ The app can run without a snapshot, but list building, mission matchups, and bat
 
 ## Services and database
 
-Install SpacetimeDB CLI 2.7.0, then run `just dev`. It builds the Node app and product module, starts SpacetimeDB locally, and serves the app with a SQLite auth file and local object directory. The first run seeds four preview accounts, two credentialless practice opponents, and example rosters, battles, and leagues. Local data and credentials stay in the gitignored `data-dev/hosted/` directory. Set `SPACETIME_BIN` if the 2.7.0 CLI is outside its standard installation path; `LOCAL_APP_PORT`, `LOCAL_SPACETIME_PORT`, and `LOCAL_DATA_DIR` override the local defaults.
+Install SpacetimeDB CLI 2.7.0, then run `just dev`. It builds the Node app and product module, starts SpacetimeDB locally, and serves the app through Vite with live reload, a SQLite auth file, and a local object directory. The first run seeds four preview accounts, two credentialless practice opponents, and example rosters, battles, and leagues. Local data and credentials stay in the gitignored `data-dev/hosted/` directory. Set `SPACETIME_BIN` if the 2.7.0 CLI is outside its standard installation path; `LOCAL_APP_PORT`, `LOCAL_SPACETIME_PORT`, and `LOCAL_DATA_DIR` override the local defaults.
 
-Restart `just dev` after source changes to rebuild the app or product module. The local databases and seed data survive restarts.
+`just dev` records its port, data directory, and catalogue snapshot in the gitignored `data-dev/active-preview.json`. Running it again from the same worktree reuses a healthy preview and prints its URL without starting another stack. After that process exits, the next run keeps those settings unless you set overrides. Source edits reload in the running browser. Stop the running process and start it again when the product module or derived build output needs rebuilding; the local databases and seed data survive restarts.
 
 `pnpm auth:db:generate` creates auth migrations. The local runner applies the checked-in migration before serving.
 

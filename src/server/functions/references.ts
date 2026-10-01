@@ -7,6 +7,7 @@ import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
 import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
+import { profiledArmyRulesFor } from '../catalogueProfileRules'
 import { unitsIn } from '../cataloguePicker'
 import { pickerUnitsFor } from '../pickerUnits'
 import { detachmentsOffering } from '../factionReferences'
@@ -244,7 +245,7 @@ function rosterLoadoutDatasheets(
 
 function rosterDatasheet(
   loaded: NonNullable<ReturnType<ReturnType<typeof app>['catalogue']>>,
-  data: { catalogueId: string; entryId: string },
+  data: { catalogueId: string; entryId: string; detachmentIds?: string[] },
   context: ReturnType<typeof rosterDatasheetContext>,
   everyWeapon: boolean,
   rules: Awaited<ReturnType<ReturnType<typeof app>['rulesFor']>>,
@@ -286,7 +287,13 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
       const catalogue = await app().catalogueFor(data.catalogueId)
       const rules = await app().rulesFor()
       const canonical = await app().canonicalCatalogueFor()
-      return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data)
+      const book = catalogue?.index.catalogues.get(data.catalogueId)
+      const live = Boolean(
+        catalogue && book && (catalogue.profiledCatalogueIds.has(book.id) || profiledArmyRulesFor(catalogue, book.id).length),
+      )
+      return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data, {
+        live,
+      })
     }),
   )
 

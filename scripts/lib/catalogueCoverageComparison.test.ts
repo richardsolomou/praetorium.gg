@@ -12,6 +12,50 @@ afterEach(() => {
 })
 
 describe('catalogue coverage comparison', () => {
+  it('keeps unrelated losses visible while a new book replaces its parent and importing chapters', () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-replacement-coverage-'))
+    temporaryDirectories.push(root)
+    const catalogue = path.join(root, 'catalogue')
+    const definitions = path.join(catalogue, 'definitions')
+    const rules = path.join(catalogue, 'rules')
+    fs.mkdirSync(definitions, { recursive: true })
+    fs.mkdirSync(path.join(catalogue, 'datacards', '11th', 'gdc'), { recursive: true })
+    fs.mkdirSync(path.join(rules, 'data', 'core'), { recursive: true })
+    for (const book of [
+      { id: 'legacy', name: 'Example Army' },
+      { id: 'current', name: 'Example Army (11e)' },
+      { id: 'chapter', name: 'Example Chapter', catalogueLinks: [{ targetId: 'legacy', importRootEntries: true }] },
+      { id: 'unrelated', name: 'Unrelated Army' },
+    ])
+      fs.writeFileSync(path.join(definitions, `${book.id}.json`), JSON.stringify({ catalogue: book }))
+    const faction = (name: string, rule: string) => ({
+      name,
+      slug: name.toLowerCase().replaceAll(' ', '-'),
+      armyRules: rule ? [rule] : [],
+      detachments: [],
+      datasheets: [],
+    })
+    const base = path.join(root, 'base.json')
+    const head = path.join(root, 'head.json')
+    fs.writeFileSync(
+      base,
+      JSON.stringify([
+        faction('Example Army', 'Old Parent Rule'),
+        faction('Example Chapter', 'Chapter Rule'),
+        faction('Unrelated Army', 'Other Rule'),
+      ]),
+    )
+    fs.writeFileSync(
+      head,
+      JSON.stringify([faction('Example Army (11e)', 'New Parent Rule'), faction('Example Chapter', ''), faction('Unrelated Army', '')]),
+    )
+
+    expect(compareCatalogueCoverage(base, head, [], catalogue, rules, 'Example Army (11e)').lost).toEqual([
+      'unrelated-army army rules: Other Rule',
+    ])
+  })
+
   it.each([
     { scenario: 'keeps a newly priced unit', price: 245, lost: [] },
     {
