@@ -29,3 +29,25 @@ it('shows the dates of events on different days in the battle report', () => {
   expect(markup).toContain(formatDate(first))
   expect(markup).toContain(formatDate(second))
 })
+
+it('shows how long a phase and its turn took beside the line that ends them', () => {
+  const entry: ReportEntry = {
+    seq: 1,
+    at: 0,
+    round: 1,
+    phase: 'end',
+    by: 'alice',
+    commandKind: 'advance',
+    text: 'The turn passes to Bob',
+    elapsed: { phase: 17_000, turn: 192_000 },
+  }
+  const markup = renderToStaticMarkup(
+    createElement(
+      QueryClientProvider,
+      { client: new QueryClient() },
+      createElement(Report, { token: 'battle', open: true, entries: [entry] }),
+    ),
+  )
+
+  expect(markup.replaceAll(/<[^>]+>/g, '')).toMatch(/0:17.*turn 3:12/)
+})

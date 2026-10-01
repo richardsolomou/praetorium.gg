@@ -20,7 +20,9 @@ export function BattlePage({ token }: { token: string }) {
   if (!screen) return <Navigate to="/battles" replace />
   if (screen.kind === 'unavailable') return <BattleUnavailable token={token} />
   if (screen.kind === 'spectator')
-    return <Spectator view={screen.view} missions={screen.missions} report={screen.report} timeline={screen.timeline} />
+    return (
+      <Spectator view={screen.view} clock={screen.clock} missions={screen.missions} report={screen.report} timeline={screen.timeline} />
+    )
   return <SeatedBattle token={token} screen={screen} />
 }
 
@@ -46,11 +48,11 @@ function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaite
         problem={problem}
       />
     )
-  return <Tracker view={screen.view} missions={screen.missions} send={send} pending={pending} problem={problem} />
+  return <Tracker view={screen.view} clock={screen.clock} missions={screen.missions} send={send} pending={pending} problem={problem} />
 }
 
 function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
-  const { view, missions } = screen
+  const { view, clock, missions } = screen
   const won = useMemo(() => {
     const table = sides(view, missions)
     const result = battleResult(table, view)
@@ -60,5 +62,5 @@ function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof 
   useEffect(() => {
     if (won !== null) void celebrateVictory(view.token, won)
   }, [view.token, won])
-  return <Spectator view={view} missions={missions} timeline={screen.timeline} />
+  return <Spectator view={view} clock={clock} missions={missions} timeline={screen.timeline} />
 }

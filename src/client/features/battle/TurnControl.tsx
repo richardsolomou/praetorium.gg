@@ -1,11 +1,14 @@
 import { Button } from '@/components/ui/button'
 import { PHASES, type Command } from '../../../core/battle'
+import type { BattleClock } from '../../../core/battleClock'
 import { type BattleView } from '../../../core/battleView'
 import { tint } from './battleTints'
+import { Elapsed } from './Elapsed'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
 
 type Props = {
   view: BattleView
+  clock: BattleClock
   send: (command: Command) => void
   pending: boolean
   /** Why the turn cannot move at all. Disables the control. */
@@ -24,7 +27,7 @@ type Props = {
  * panels stay the same shape and their numbers line up across the table whichever
  * side is taking the turn.
  */
-export function TurnControl({ view, send, pending, blockReason, note, onAdvance, className = '' }: Props) {
+export function TurnControl({ view, clock, send, pending, blockReason, note, onAdvance, className = '' }: Props) {
   const undo = useUndoLatest({ undoable: view.undoable, undoableDraw: view.undoableDraw, send })
   const active = view.players.find((player) => player.isActive)
   const activeSide = active?.side ?? 0
@@ -44,6 +47,13 @@ export function TurnControl({ view, send, pending, blockReason, note, onAdvance,
             >
               {phase}
             </span>
+            {phase === view.phase && active ? (
+              <Elapsed
+                clock={clock}
+                match={{ side: activeSide, round: view.round, phase }}
+                className="block text-center text-3xs text-dim"
+              />
+            ) : null}
           </li>
         ))}
       </ol>

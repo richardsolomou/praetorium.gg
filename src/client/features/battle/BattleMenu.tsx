@@ -25,8 +25,11 @@ type Props = {
   canDelete: boolean
   pending: boolean
   actionRemindersEnabled: boolean
+  timerPaused: boolean
   players: readonly { id: string; name: string; isViewer: boolean; automated: boolean }[]
   onActionRemindersChange: (enabled: boolean) => void
+  /** Shared by the table, unlike the reminders, so it is a command rather than a preference. */
+  onTimerPausedChange: (paused: boolean) => void
   onConcede: (playerId: string) => void
   onDelete: () => void
 }
@@ -37,7 +40,17 @@ type Props = {
  * Each is rare, and none is undone by pressing the same button again, so they sit
  * behind a menu and a confirmation rather than in reach of a thumb all game.
  */
-export function BattleMenu({ canDelete, pending, actionRemindersEnabled, players, onActionRemindersChange, onConcede, onDelete }: Props) {
+export function BattleMenu({
+  canDelete,
+  pending,
+  actionRemindersEnabled,
+  timerPaused,
+  players,
+  onActionRemindersChange,
+  onTimerPausedChange,
+  onConcede,
+  onDelete,
+}: Props) {
   const [confirming, setConfirming] = useState<Ending | null>(null)
   const endings: Ending[] = players
     .filter((player) => !player.automated)
@@ -62,6 +75,9 @@ export function BattleMenu({ canDelete, pending, actionRemindersEnabled, players
           <DropdownMenuCheckboxItem checked={actionRemindersEnabled} onCheckedChange={onActionRemindersChange}>
             Action reminders
           </DropdownMenuCheckboxItem>
+          <DropdownMenuItem onClick={() => onTimerPausedChange(!timerPaused)}>
+            {timerPaused ? 'Resume timer' : 'Pause timer'}
+          </DropdownMenuItem>
           {endings.map((ending) => (
             <DropdownMenuItem key={ending.key} variant="destructive" onClick={() => setConfirming(ending)}>
               {ending.label}

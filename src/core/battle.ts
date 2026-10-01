@@ -775,7 +775,8 @@ export type BattleState = {
   settings: BattleSettings
   result: { reason: BattleEndReason; concededBy: PlayerId | null } | null
   players: PlayerState[]
-  turns: { playerId: PlayerId; round: number; startedAt: number; endedAt: number | null }[]
+  /** Shared by the table, so a break counts against nobody's turn. */
+  clockPaused: boolean
   /**
    * The newest command still standing. Undo reaches only this one, which keeps
    * the log linear: there is never a hole in the middle to reason about.
@@ -839,8 +840,7 @@ export function* replay(state: BattleState, log: readonly LoggedCommand[]): Gene
   for (const entry of log) {
     if (entry.command.kind === 'undo' || undone.has(entry.seq)) continue
     const before = { round: state.round, phase: state.phase, active: state.activePlayerId }
-    apply(state, entry.by, entry.command)
-    recordProgress(state, entry, before)
+    applyEntry(state, entry)
     const actor = state.players.find((candidate) => candidate.id === entry.by)
     const targetId = 'playerId' in entry.command && entry.command.playerId ? entry.command.playerId : entry.by
     yield {
@@ -851,27 +851,20 @@ export function* replay(state: BattleState, log: readonly LoggedCommand[]): Gene
   }
 }
 
-/** The clock and the undo target, both of which follow from the command rather than from the rules. */
-function recordProgress(state: BattleState, entry: LoggedCommand, before: BattleStep['before']) {
-  const openTurn = (at: number) => {
-    if (state.activePlayerId) state.turns.push({ playerId: state.activePlayerId, round: state.round, startedAt: at, endedAt: null })
-  }
-  const closeTurn = (at: number) => {
-    const current = state.turns.at(-1)
-    if (current) current.endedAt = at
-  }
-
-  if (entry.command.kind === 'begin-battle') openTurn(entry.at)
-  else if (entry.command.kind === 'advance' && (state.activePlayerId !== before.active || state.round !== before.round)) {
-    closeTurn(entry.at)
-    openTurn(entry.at)
-  } else if (entry.command.kind === 'advance' && state.completionPending) closeTurn(entry.at)
-  else if (entry.command.kind === 'end-battle') closeTurn(entry.at)
-  else if (entry.command.kind === 'reopen-battle') openTurn(entry.at)
-
+/** Applies one command that is standing when it is folded, and records whether undo may name it. */
+export function applyEntry(state: BattleState, entry: LoggedCommand) {
+  apply(state, entry.by, entry.command)
   if (entry.command.kind === 'begin-battle' || entry.command.kind === 'lock-league-rosters') state.undoable = null
   else if (
-    !['settle-opponent-turn', 'request-advance', 'cancel-advance', 'acknowledge-draw', 'acknowledge-scoring'].includes(entry.command.kind)
+    ![
+      'settle-opponent-turn',
+      'request-advance',
+      'cancel-advance',
+      'acknowledge-draw',
+      'acknowledge-scoring',
+      'pause-clock',
+      'resume-clock',
+    ].includes(entry.command.kind)
   ) {
     state.undoable = { seq: entry.seq, by: entry.by, kind: entry.command.kind }
   }
@@ -938,7 +931,7 @@ export function emptyBattle(
     })),
     undoable: null,
     seq: 0,
-    turns: [],
+    clockPaused: false,
   }
 }
 
@@ -1405,10 +1398,14 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       return null
     }
     case 'pause-clock': {
-      return 'battle clocks are no longer supported'
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (state.clockPaused) return 'the timer is already paused'
+      return null
     }
     case 'resume-clock': {
-      return 'battle clocks are no longer supported'
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (!state.clockPaused) return 'the timer is already running'
+      return null
     }
     case 'undo': {
       if (!state.undoable) return 'there is nothing to undo'
@@ -1825,12 +1822,15 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       state.status = 'playing'
       state.result = null
       state.activePlayerId = state.resumePlayerId ?? state.firstPlayerId
+      state.clockPaused = false
       return
     }
     case 'pause-clock': {
+      state.clockPaused = true
       return
     }
     case 'resume-clock': {
+      state.clockPaused = false
       return
     }
     case 'undo': {

@@ -9,6 +9,7 @@
  * here is English about a command the domain has already accepted and applied.
  */
 
+import { type AdvanceTime, advanceTimes } from './battleClock'
 import {
   type BattleState,
   type Command,
@@ -23,7 +24,17 @@ import {
 } from './battle'
 
 /** One thing that happened, in the words a player would use about it. */
-export type ReportEntry = { seq: number; at: number; round: number; phase: Phase; by: string; commandKind: Command['kind']; text: string }
+export type ReportEntry = {
+  seq: number
+  at: number
+  round: number
+  phase: Phase
+  by: string
+  commandKind: Command['kind']
+  text: string
+  /** How long the phase this entry ends took, and the turn when it ends that too. */
+  elapsed?: AdvanceTime
+}
 
 type BattleReportReferences = {
   deployments: readonly { id: string; name: string }[]
@@ -41,6 +52,7 @@ export function battleReport(
   const deployments = new Map(references?.deployments.map((deployment) => [deployment.id, deployment.name]))
   const state = emptyBattle(playerIds, playerSides)
   const entries: ReportEntry[] = []
+  const elapsed = advanceTimes(playerIds, log, playerSides)
   let returned: { entry: ReportEntry; targetId: PlayerId; by: PlayerId } | null = null
 
   for (const { entry, before, army } of replay(state, log)) {
@@ -66,6 +78,7 @@ export function battleReport(
       by: entry.by,
       commandKind: entry.command.kind,
       text,
+      ...(elapsed.has(entry.seq) ? { elapsed: elapsed.get(entry.seq) } : {}),
     }
     entries.push(reportEntry)
     returned =
@@ -273,9 +286,9 @@ function describe(
       return targetId === by ? `${who} takes ${count} ${wounds} on ${name}` : `${who} puts ${count} ${wounds} on ${whose} ${name}`
     }
     case 'pause-clock':
-      return `${who} pauses the clock`
+      return `${who} pauses the timer`
     case 'resume-clock':
-      return `${who} resumes the clock`
+      return `${who} resumes the timer`
     case 'end-battle': {
       if (command.reason !== 'conceded') return `${who} calls the battle early`
       const concedingPlayer = command.concededBy ? (named.get(command.concededBy) ?? 'another player') : who

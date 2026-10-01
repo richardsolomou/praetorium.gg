@@ -14,7 +14,7 @@ Warhammer 40,000 army building and game tracking, from setup to final score.
 
 ## Product
 
-Praetorium is a free, open source Warhammer 40,000 army builder and battle tracker. Build and share lists, browse the community catalogue, and compare units in the combat simulator. Play 1v1, 2v1, or 2v2 games with friends, or run a practice game. Track setup, turns, scoring, and casualties.
+Praetorium is a free, open source Warhammer 40,000 army builder and battle tracker. Build and share lists, browse the community catalogue, and compare units in the combat simulator. Play 1v1, 2v1, or 2v2 games with friends, or run a practice game. Track setup, turns, turn times, scoring, and casualties.
 
 Anyone can watch public battles and see the leaderboard. Players can control who sees their battles and run league events with sealed rosters.
 

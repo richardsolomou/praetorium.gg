@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Command } from '../../../core/battle'
+import type { BattleClock } from '../../../core/battleClock'
 import type { ReportEntry } from '../../../core/battleReport'
 import type { ReplayPoint } from '../../../core/battleReplay'
 import type { BattleView } from '../../../core/battleView'
@@ -18,11 +19,13 @@ import { BattleCombatDialog, type BattleCombatSelection } from '../simulator/Bat
 import { ArmyRoster } from './ArmyRoster'
 import { PrimaryMission, type ReferenceCard, SecondaryMissions } from './MissionCards'
 import { Scoreboard } from './Scoreboard'
+import { TurnTimes } from './TurnTimes'
 import { tint } from './battleTints'
 import { replayAtQuery } from '../../queries'
 
 type Props = {
   view: BattleView
+  clock: BattleClock
   missions: { side: number; mission: SideMission | null }[]
   report?: readonly ReportEntry[]
   timeline?: readonly ReplayPoint[]
@@ -32,7 +35,13 @@ const ignoreCommand = (_command: Command) => {}
 const noAwards = () => []
 const emptyTimeline: readonly ReplayPoint[] = []
 
-export function Spectator({ view: currentView, missions: currentMissions, report: currentReport, timeline = emptyTimeline }: Props) {
+export function Spectator({
+  view: currentView,
+  clock: currentClock,
+  missions: currentMissions,
+  report: currentReport,
+  timeline = emptyTimeline,
+}: Props) {
   const [selectedSeq, setSelectedSeq] = useState<number | null>(null)
   const seq = selectedSeq ?? timeline.at(-1)?.seq ?? currentView.seq
   const selectedIndex = Math.max(
@@ -49,6 +58,7 @@ export function Spectator({ view: currentView, missions: currentMissions, report
   }, [currentView.seq, currentView.token, queryClient, selectedIndex, timeline])
   const frame = seq < currentView.seq && replay.data?.kind === 'replay' ? replay.data : null
   const view = frame?.view ?? currentView
+  const clock = frame?.clock ?? currentClock
   const missions = frame?.missions ?? currentMissions
   const report = frame?.report ?? currentReport
   const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
@@ -108,7 +118,7 @@ export function Spectator({ view: currentView, missions: currentMissions, report
         </div>
 
         {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
-        <Scoreboard view={view} sides={table} outcome={view.status === 'finished' ? battleOutcome(table, view) : null} />
+        <Scoreboard view={view} clock={clock} sides={table} outcome={view.status === 'finished' ? battleOutcome(table, view) : null} />
 
         <div className="mx-auto grid max-w-7xl items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]">
           {table.map((side) => (
@@ -129,6 +139,12 @@ export function Spectator({ view: currentView, missions: currentMissions, report
               <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
               <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
             </dl>
+            {/* A review of the whole game, so it waits for the game to end rather than crowding a live one. */}
+            {currentView.status === 'finished' ? (
+              <div className="border-t border-edge pt-3">
+                <TurnTimes clock={clock} sides={table} />
+              </div>
+            ) : null}
             <div className="border-t border-edge pt-3">
               <p className="eyebrow">Battle events</p>
               <Report token={view.token} open players={reportPlayers} entries={report} />

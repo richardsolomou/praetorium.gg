@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Timer } from 'lucide-react'
 import { Fragment, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -6,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import type { ReportEntry } from '../../../core/battleReport'
 import { useDateFormatting } from '../../dates'
 import { reportQuery } from '../../queries'
+import { formatDuration } from './turnTime'
 
 export type ReportPlayer = { id: string; name: string; className: string }
 
@@ -94,7 +96,10 @@ export function Report({
                       {entry.round ? `R${entry.round}` : '—'} {PHASE_LABELS[entry.phase] ?? entry.phase}
                     </span>
                   </span>
-                  <span className="min-w-0 break-words text-bone">{colourNames(entry.text, players)}</span>
+                  <span className="min-w-0 break-words text-bone">
+                    {colourNames(entry.text, players)}
+                    {entry.elapsed ? <TimeTaken elapsed={entry.elapsed} /> : null}
+                  </span>
                 </li>
               </Fragment>
             ))}
@@ -111,6 +116,24 @@ export function Report({
         )}
       </div>
     </>
+  )
+}
+
+/** The time a phase took, beside the line that ends it, and the turn's when the line ends that too. */
+function TimeTaken({ elapsed }: { elapsed: NonNullable<ReportEntry['elapsed']> }) {
+  return (
+    <span className="readout ml-1.5 inline-flex items-center gap-1 align-baseline text-xs whitespace-nowrap text-dim">
+      <Timer aria-hidden className="size-3 self-center" />
+      <span className="sr-only">Phase took</span>
+      {formatDuration(elapsed.phase)}
+      {elapsed.turn === null ? null : (
+        <>
+          <span aria-hidden>·</span>
+          <span className="sr-only">, turn took</span>
+          <span aria-hidden>turn</span> {formatDuration(elapsed.turn)}
+        </>
+      )}
+    </span>
   )
 }
 

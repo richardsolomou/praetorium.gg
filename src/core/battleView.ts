@@ -155,7 +155,6 @@ export type BattleView = {
   deploymentId: string | null
   leagueToken: string | null
   leagueEventToken: string | null
-  turns: { playerId: PlayerId; playerName: string; round: number; minutes: number | null }[]
   advancePrompt: string | null
   secretMissionActionPlayerId: PlayerId | null
   /** The latest active command any seated player may take back. */
@@ -305,12 +304,6 @@ export function battleView(
     deploymentId: state.deploymentId,
     leagueToken: state.leagueToken,
     leagueEventToken: state.leagueEventToken,
-    turns: state.turns.map((turn) => ({
-      playerId: turn.playerId,
-      playerName: named.get(turn.playerId) ?? 'Unknown',
-      round: turn.round,
-      minutes: turn.endedAt === null ? null : Math.max(0, Math.round((turn.endedAt - turn.startedAt) / 60_000)),
-    })),
     advancePrompt: advancePrompt(state, viewerId),
     secretMissionActionPlayerId: secretMissionActionPlayerId(state),
     undoable: state.undoable?.seq ?? null,

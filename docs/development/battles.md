@@ -143,6 +143,14 @@ Names and pictures are public; battles are visible only through `battleAudience`
 
 Profile filters come from that player's visible battles and live in the URL. Names link only to reference pages that resolve. Seats, commands, lists, collections, and friendships reference `user.id` directly; Better Auth owns its account and session tables. Shared battles require mutual friendship, while practice opponents do not.
 
+## Turn times
+
+The timer shows each side its pace. It does not limit a turn. `battleClock` in `src/core/battleClock.ts` derives it from command timestamps, and nothing stores it. The fold skips undone commands, so it would give a turn that was rewound into the time spent in the turn rewound from. The clock therefore walks every logged command, undone ones and undos included, and gives each gap between commands to the side, round, and phase the battle was in at that moment. Time spent back in a rewound phase adds to that phase. Each undo refolds the log up to that point, so the work is bounded by undos times log length.
+
+Time runs only while the battle is playing, and stops while the final settlement is pending. `pause-clock` and `resume-clock` are a shared pause that any seated device may set from the battle options menu. Undo does not name either command, and reopening a battle clears the pause. Every screen carries the clock beside its view, because the clock hides nothing. A replay frame carries the clock as it stood at that event, and that clock does not keep counting.
+
+During play, the scoreboard shows each side's latest turn and the phase rail shows the current phase. A finished battle's replay also shows every round and phase for each side; a live battle leaves that review out to keep the Battle tab short. The battle report shows how long a phase took beside the line that ends it. When the line also passes the turn, it shows the turn's total too. `advanceTimes` takes both values from the same walk, so a phase entered again after an undo shows its total time. A running time is counted on the reader's device after hydration. The first frame shows a placeholder of the same width.
+
 ## Concurrency limit
 
 Starting the battle is not undoable: `begin-battle` leaves nothing for `undo` to name. Player-scoped commands may carry a `playerId`; omitting it retains the submitting player's meaning for existing log entries. Roster selection remains the owner's choice. A seated player can record a concession for any non-automated player at the table.

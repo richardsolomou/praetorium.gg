@@ -23,17 +23,6 @@ describe('the turn sequence', () => {
     expect(state.phase).toBe('shooting')
   })
 
-  it('derives completed turn duration from command timestamps', () => {
-    const history = log(...started(), ...turns(6, ALICE))
-    history.forEach((entry) => (entry.at *= 60_000))
-
-    expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE).turns[0]).toMatchObject({
-      playerName: 'Alice',
-      round: 1,
-      minutes: 6,
-    })
-  })
-
   it('passes the turn to the opponent after the end phase', () => {
     const state = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE)))
     expect(state.activePlayerId).toBe(BOB)
@@ -79,7 +68,6 @@ describe('the turn sequence', () => {
     })
     expect(state).toMatchObject({ status: 'finished', completionPending: false, result: { reason: 'completed' } })
     expect(state.players[0]?.primaryByRound[BATTLE_ROUNDS - 1]).toBe(5)
-    expect(state.turns.at(-1)?.endedAt).not.toBeNull()
   })
 
   it.each([500, 600])('finishes %i-point King of the Colosseum after five rounds', (limit) => {
@@ -132,7 +120,7 @@ describe('the turn sequence', () => {
       ),
     )
 
-    expect(state.turns.map((turn) => turn.round)).toEqual([1, 2])
+    expect(state).toMatchObject({ round: 2, activePlayerId: ALICE })
   })
 
   it('completes all five rounds of a one-seat log', () => {
@@ -157,7 +145,6 @@ describe('the turn sequence', () => {
     )
 
     expect(state).toMatchObject({ status: 'finished', result: { reason: 'completed', concededBy: null } })
-    expect(state.turns.map((turn) => turn.round)).toEqual([1, 2, 3, 4, 5])
   })
 
   it('requires an opponent to name the active player when ending their phase', () => {

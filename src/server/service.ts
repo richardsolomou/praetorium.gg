@@ -19,6 +19,7 @@ import { type BattleAudience, battleAudience, maySpectate } from '../core/battle
 import type { PlayerDefaults } from '../core/playerDefaults'
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport, type ReportEntry } from '../core/battleReport'
+import { battleClock, type BattleClock } from '../core/battleClock'
 import { battleLogThroughSeq, battleTimeline, type ReplayPoint } from '../core/battleReplay'
 import type { MissionAward } from '../core/scoring'
 import type { OnboardingProgressOperation } from '../core/onboarding'
@@ -61,6 +62,7 @@ type BattleFaction = {
 type SeatedScreen = {
   kind: 'battle'
   view: BattleView
+  clock: BattleClock
   mission: Mission | null
   missions: { side: number; mission: Mission | null }[]
   timeline?: ReplayPoint[]
@@ -68,6 +70,7 @@ type SeatedScreen = {
 type SpectatorScreen = {
   kind: 'spectator'
   view: BattleView
+  clock: BattleClock
   missions: { side: number; mission: Mission | null }[]
   report: ReturnType<typeof battleReport>
   timeline: ReplayPoint[]
@@ -836,7 +839,14 @@ export class PraetoriumService {
     // the seats were filled when the battle was created.
     if (!screen.view.leagueToken && !(await this.mayWatch(history, userId))) return { kind: 'unavailable' }
     const report = this.viewerReport(history, SPECTATOR_ID, rules)
-    return { kind: 'spectator', view: screen.view, missions: screen.missions, report, timeline: this.replayTimeline(history, report) }
+    return {
+      kind: 'spectator',
+      view: screen.view,
+      clock: screen.clock,
+      missions: screen.missions,
+      report,
+      timeline: this.replayTimeline(history, report),
+    }
   }
 
   private viewerReport(history: BattleHistory, viewerId: string, rules?: BattleReadRules | null) {
@@ -881,6 +891,8 @@ export class PraetoriumService {
     return {
       kind: 'replay' as const,
       view: frame.view,
+      // A past moment is read back, so nothing in it keeps counting.
+      clock: { ...frame.clock, running: null },
       missions: frame.missions,
       report: battleReport(history.players, log, playerIds, viewerId, sides, rules),
     }
@@ -952,12 +964,13 @@ export class PraetoriumService {
 
   /** The only place a visibility-filtered battle view is built. */
   private battleScreen(history: BattleHistory, userId: string, rules?: BattleReadRules | null): SeatedScreen {
-    const state = reduceBattle(
+    const fold = [
       history.players.map((player) => player.id),
       history.log,
       history.players.map((player) => player.side),
       history.players.filter((player) => player.automated).map((player) => player.id),
-    )
+    ] as const
+    const state = reduceBattle(...fold)
     if (rules) hydrateAuthoritativeAwards(state, rules)
     const view = battleView(history.battle, history.players, state, userId, this.clock())
     const missionForSide = (side: number) => (rules ? resolvedMissionForSide(state, rules, side) : null)
@@ -965,6 +978,7 @@ export class PraetoriumService {
     return {
       kind: 'battle',
       view,
+      clock: battleClock(...fold),
       mission: viewerSide === undefined ? null : missionForSide(viewerSide),
       missions: [...new Set(view.players.map((player) => player.side))].map((side) => ({ side, mission: missionForSide(side) })),
     }
