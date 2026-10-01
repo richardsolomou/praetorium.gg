@@ -797,6 +797,13 @@ it('indexes an imported profiled detachment under its owning faction once', () =
       .map((faction) => faction.id),
   ).toEqual(['space-marines'])
   expect(factions.find((faction) => faction.id === 'ultramarines')?.detachments.map((option) => option.name)).toContain('Assault Brethren')
+  expect(
+    factions.find((faction) => faction.id === 'ultramarines')?.detachments.find((option) => option.name === 'Assault Brethren')
+      ?.referenceRoute,
+  ).toEqual({
+    catalogueId: 'space-marines',
+    slug: 'assault-brethren',
+  })
 })
 
 it('leaves an already rooted catalogue untouched', () => {

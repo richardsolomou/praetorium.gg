@@ -23,7 +23,7 @@ const POINTER_FORMAT = 'praetorium.catalogue-pointer.v1'
 const LOCK_FORMAT = 'praetorium.catalogue-lock.v1'
 const REVOCATIONS_FORMAT = 'praetorium.catalogue-revocations.v1'
 const PROVENANCE_FORMAT = 'praetorium.catalogue-provenance.v1'
-const MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
+export const MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
 const MAX_EXTRACTED_BYTES = 1024 * 1024 * 1024
 
 type SnapshotManifest = {

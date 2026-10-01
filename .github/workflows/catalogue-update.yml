@@ -2,6 +2,12 @@ name: Catalogue update
 
 on:
   workflow_dispatch:
+    inputs:
+      repair-last-history:
+        description: Recompute the last published update from its verified baseline
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: catalogue-update
@@ -41,12 +47,12 @@ jobs:
           pnpm catalogue:descriptions
           pnpm catalogue:points
       # The history the published snapshot carries, plus whatever changed since it, travels
-      # in the new one so every instance can say what an update changed. It never fails the
-      # publish: what it cannot read it logs, and it carries forward only what it measured.
+      # in the new one so every instance can say what an update changed. A requested repair
+      # fails closed if either published snapshot cannot be verified.
       - name: Carry the data-update history forward
         env:
           CATALOGUE_BASE_URL: https://s3.praetorium.gg/catalogue
-        run: pnpm catalogue:history
+        run: pnpm catalogue:history ${{ inputs['repair-last-history'] && '--repair-last' || '' }}
       - name: Build and publish the immutable snapshot
         run: |
           test -n "$SNAPSHOT_BUCKET"

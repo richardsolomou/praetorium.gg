@@ -64,7 +64,9 @@ export function RosterIdentity({
   return <IdentityLine faction={faction} detachmentNames={detachmentNames} trailing={null} linked={linked} className={className} />
 }
 
-type Faction = FactionPresentation & { detachments: { id: string; name: string; slug?: string }[] }
+type Faction = FactionPresentation & {
+  detachments: { id: string; name: string; slug?: string; referenceRoute?: { catalogueId: string; slug: string } | null }[]
+}
 
 function IdentityLine({
   faction,
@@ -104,11 +106,14 @@ function IdentityLine({
     ) : null,
     ...detachmentNames.map((name) => {
       const detachment = linked ? faction?.detachments.find((candidate) => candidate.name === name) : undefined
-      return detachment ? (
+      return detachment && detachment.referenceRoute !== null ? (
         <Link
           key={name}
           to="/factions/$catalogueId/detachments/$detachmentId"
-          params={{ catalogueId: faction!.slug, detachmentId: detachment.slug ?? routeSlug(detachment.name) }}
+          params={{
+            catalogueId: detachment.referenceRoute?.catalogueId ?? faction!.slug,
+            detachmentId: detachment.referenceRoute?.slug ?? detachment.slug ?? routeSlug(detachment.name),
+          }}
           title={name}
           className="truncate text-bone hover:text-azure"
         >

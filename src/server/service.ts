@@ -44,7 +44,13 @@ import { SocialService, sortedFriends } from './services/socialService'
 import type { BattleHistory, BattleSeats, RepositoryPort, SpacetimeRepository } from './spacetimeRepository'
 
 /** A catalogue faction as the battle lists name it, with the detachments its reference pages answer for. */
-type BattleFaction = { id: string; slug: string; displayName: string; icon: string | null; detachments?: readonly { name: string }[] }
+type BattleFaction = {
+  id: string
+  slug: string
+  displayName: string
+  icon: string | null
+  detachments?: readonly { name: string; referenceRoute?: { catalogueId: string; slug: string } | null }[]
+}
 
 /**
  * `mission` is the viewer's, for the screens that are about them. `missions` is every
@@ -1019,7 +1025,8 @@ function referencedPlays(
       const faction = allies
         .map((ally) => factionsById.get(ally.roster?.built?.catalogueId ?? ''))
         .find((candidate) => candidate?.detachments?.some((listed) => listed.name === detachment))
-      return faction ? { catalogueId: faction.slug, detachmentId: routeSlug(detachment) } : undefined
+      const route = faction?.detachments?.find((listed) => listed.name === detachment)?.referenceRoute
+      return faction ? { catalogueId: route?.catalogueId ?? faction.slug, detachmentId: route?.slug ?? routeSlug(detachment) } : undefined
     }
     const opposingSide = state.players.find((candidate) => candidate.side !== player.side)?.side
     const you = sideDisposition(state, player.side)

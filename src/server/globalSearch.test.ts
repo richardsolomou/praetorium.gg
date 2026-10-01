@@ -253,7 +253,7 @@ describe('global datasheet search', () => {
       expect.objectContaining({
         label: 'Black Spear Task Force',
         detail: 'Deathwatch',
-        href: '/factions/deathwatch/reference/detachments/black-spear-task-force',
+        href: '/factions/deathwatch/detachments/black-spear-task-force',
       }),
     ])
 

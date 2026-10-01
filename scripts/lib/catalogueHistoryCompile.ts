@@ -1,13 +1,13 @@
 import type { ChangeSource } from '../../src/core/catalogueChanges'
 import { compileCanonicalCatalogueFromSnapshot, snapshotRules } from '../../src/server/canonicalCatalogue'
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from '../../src/server/canonicalCatalogueSources'
-import { loadCatalogue } from '../../src/server/catalogueIndex'
+import { datasheetsOf, loadCatalogue } from '../../src/server/catalogueIndex'
 import type { SnapshotSourceName } from '../../src/server/catalogueSources'
 
 const priced = ({ name, points }: { name: string; points: number | null }) => ({ name, points })
 
 /** Only what the diff reads, so a compiled catalogue costs little to hold or to pass between processes. */
-const changeSource = (catalogue: ChangeSource): ChangeSource => ({
+const changeSource = (catalogue: ChangeSource, datasheetOffers: NonNullable<ChangeSource['datasheetOffers']>): ChangeSource => ({
   datasheets: catalogue.datasheets.map(({ catalogueId, faction, id, name, points, costs }) => ({
     catalogueId,
     faction,
@@ -16,6 +16,7 @@ const changeSource = (catalogue: ChangeSource): ChangeSource => ({
     points,
     costs,
   })),
+  datasheetOffers,
   detachments: catalogue.detachments.map(({ catalogueId, faction, id, name, points, enhancements, upgrades }) => ({
     catalogueId,
     faction,
@@ -38,5 +39,11 @@ export function compiledChangeSource(directory: string, sources: readonly Snapsh
   const missing = CANONICAL_CATALOGUE_SOURCE_NAMES.filter((name) => !sources.includes(name))
   if (missing.length) throw new Error(`it carries no ${missing.join(', ')}`)
   const catalogue = loadCatalogue(directory)
-  return catalogue ? changeSource(compileCanonicalCatalogueFromSnapshot(catalogue, snapshotRules(directory, catalogue), directory)) : null
+  if (!catalogue) return null
+  const canonical = compileCanonicalCatalogueFromSnapshot(catalogue, snapshotRules(directory, catalogue), directory)
+  const publishedIds = new Set(canonical.datasheets.map((sheet) => sheet.id))
+  const offers = catalogue.factions.flatMap((faction) =>
+    [...datasheetsOf(catalogue.index, faction.id)].filter((id) => publishedIds.has(id)).map((id) => ({ catalogueId: faction.id, id })),
+  )
+  return changeSource(canonical, offers)
 }

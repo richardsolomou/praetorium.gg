@@ -1,3 +1,4 @@
+import { targetOf } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import { datasheetsOf, isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
@@ -46,6 +47,30 @@ export function isReferenceDetachment(
   return !detachmentNamed(rules?.detachmentReferences.get(ownerRulesId), detachment.name)
 }
 
+function referenceDetachmentRoute(
+  loaded: LoadedCatalogue,
+  rules: LoadedRules | null | undefined,
+  faction: LoadedCatalogue['factions'][number],
+  detachment: { id: string; name: string },
+) {
+  if (isReferenceDetachment(loaded, rules, faction, detachment)) {
+    return { catalogueId: routeSlug(factionDisplayName(faction.name, rules?.factionNames)), slug: routeSlug(detachment.name) }
+  }
+  const ownerId = profiledDetachmentCatalogueId(loaded, detachment.id) ?? loaded.index.catalogueOf.get(detachment.id)
+  const owner = loaded.factions.find((candidate) => candidate.id === ownerId)
+  if (!owner) return null
+  const definition = loaded.index.definitions.get(detachment.id)
+  const targetId = definition ? targetOf(definition, loaded.index.definitions).id : detachment.id
+  const ownerOptions = loaded.detachments.get(owner.id)?.options.filter((option) => {
+    const entry = loaded.index.definitions.get(option.id)
+    return (
+      (entry ? targetOf(entry, loaded.index.definitions).id : option.id) === targetId && isReferenceDetachment(loaded, rules, owner, option)
+    )
+  })
+  if (ownerOptions?.length !== 1) return null
+  return { catalogueId: routeSlug(factionDisplayName(owner.name, rules?.factionNames)), slug: routeSlug(ownerOptions[0]!.name) }
+}
+
 function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, faction: LoadedCatalogue['factions'][number]) {
   const displayName = factionDisplayName(faction.name, rules?.factionNames)
   const slugId = routeSlug(displayName)
@@ -71,7 +96,11 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
         datasheets: profiledDatasheets ?? content?.datasheets.size ?? reference.datasheets,
         detachments: referenceDetachments.length,
       })),
-      detachments: detachments.map(({ id, name }) => ({ id, name })),
+      detachments: detachments.map((detachment) => ({
+        id: detachment.id,
+        name: detachment.name,
+        referenceRoute: referenceDetachmentRoute(loaded, rules, faction, detachment),
+      })),
     },
     detachments,
     referenceDetachments,
@@ -163,6 +192,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
               id: detachment.id,
               slug: routeSlug(detachment.name),
               name: detachment.name,
+              referenceRoute: referenceDetachmentRoute(loaded, rules, faction, detachment),
               points,
               disposition: detachment.disposition,
               dispositions: detachment.disposition
@@ -182,6 +212,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
             id: detachment.id,
             slug: routeSlug(detachment.name),
             name: detachment.name,
+            referenceRoute: referenceDetachmentRoute(loaded, rules, faction, detachment),
             points: detachmentPoints(loaded, faction.id, detachment.id, reference),
             disposition: detachment.disposition,
             dispositions: reference

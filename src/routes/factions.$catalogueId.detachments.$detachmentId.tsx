@@ -10,6 +10,8 @@ export const Route = createFileRoute('/factions/$catalogueId/detachments/$detach
       context.queryClient.query({ ...favouriteDetachmentsQuery(), staleTime: 'static' }),
     ])
     if (!faction) throw notFound()
+    const route = faction.detachments.find((detachment) => detachment.slug === params.detachmentId)?.referenceRoute
+    if (route && (route.catalogueId !== faction.slug || route.slug !== params.detachmentId)) throw notFound()
     const detachment = await context.queryClient.query({ ...detachmentDetailQuery(faction.id, params.detachmentId), staleTime: 'static' })
     if (!detachment) throw notFound()
     return { detachment, faction }
