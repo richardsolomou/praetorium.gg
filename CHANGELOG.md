@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.92.0
+
+### Minor Changes
+
+- 4c6702c: Sign a player out on every device, or send them a password reset email, from administration. Administrators can no longer create accounts or choose a player's password.
+- 4c6702c: See a player's recent battles in their administration panel and delete a broken one.
+- 4c6702c: See which apps have MCP access to a player's account from administration, and revoke one.
+- 4c6702c: Delete a player's account from administration, using the same clean-up as deleting your own.
+- 4c6702c: Rename a player or remove their profile picture from administration.
+- 4c6702c: Help a player back into their account from administration: send a verification email, mark their email verified, or unlink a sign-in method they can no longer use.
+- 4c6702c: Filter the administration player list to administrators, players without two-factor, or unverified emails, and sort it by when players joined or were last seen.
+- 4c6702c: Open a player from anywhere on their administration row to see their activity, sign-in methods, and signed-in devices, change their role, or sign out a single device.
+
 ## 0.91.0
 
 ### Minor Changes
