@@ -447,6 +447,79 @@ describe('force disposition', () => {
 })
 
 describe('enhancement descriptions', () => {
+  it('lists a selected detachment upgrade on its unit', () => {
+    const loaded = bookOf({
+      selectionEntries: [
+        {
+          id: 'detachment',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'detachments',
+              name: 'Detachment',
+              selectionEntries: [{ id: 'assault', name: 'Assault Brethren', type: 'upgrade' }],
+            },
+          ],
+        },
+        {
+          id: 'jump-packs',
+          name: 'Assault Intercessors with Jump Packs',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'upgrades',
+              name: 'Assault Brethren Upgrades',
+              constraints: [{ id: 'upgrade-max', field: 'selections', scope: 'self', type: 'max', value: 1 }],
+              selectionEntries: [{ id: 'furious', name: 'Furious Assault', type: 'upgrade', costs: pointsCost(10) }],
+            },
+          ],
+        },
+      ],
+    })
+    const rules = {
+      factionKeys: new Map([['test-catalogue', 'test-catalogue']]),
+      factionRestrictions: new Map(),
+      detachmentReferences: new Map(),
+      detachmentDetails: new Map([
+        [
+          'test-catalogue',
+          new Map([
+            [
+              'assault-brethren',
+              {
+                id: 'assault-brethren',
+                name: 'Assault Brethren',
+                points: 1,
+                dispositions: [],
+                rules: [],
+                enhancements: [],
+                upgrades: [{ name: 'Furious Assault', points: 10, description: 'Charge harder.', keywordRestrictions: [] }],
+                stratagems: [],
+              },
+            ],
+          ]),
+        ],
+      ]),
+    } as Partial<LoadedRules> as LoadedRules
+
+    const unit = calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: ['assault'],
+        disposition: null,
+        limit: 2000,
+        units: [{ entryId: 'jump-packs', choices: { upgrades: 'furious' } }],
+      },
+      loaded,
+      rules,
+    )?.units[0]
+    expect({ upgrades: unit?.upgrades, kind: unit?.choices.find((choice) => choice.key === 'upgrades')?.kind }).toEqual({
+      upgrades: ['Furious Assault'],
+      kind: 'upgrade',
+    })
+  })
+
   it('treats a malformed choice without options as empty', () => {
     expect(choiceOptionsForPricing({})).toEqual([])
   })

@@ -1022,6 +1022,70 @@ describe('the profile modifiers on a datasheet', () => {
     expect(cloak.abilities).not.toContainEqual(expect.objectContaining({ name: 'Targeting scope' }))
   })
 
+  it('grants Furious Assault to selected melee attacks with its target restriction', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Assault Intercessors with Jump Packs',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'pistol',
+              name: 'Heavy bolt pistol',
+              typeName: 'Ranged Weapons',
+              characteristics: [{ name: 'Keywords', $text: 'Pistol' }],
+            },
+            {
+              id: 'chainsword',
+              name: 'Astartes chainsword',
+              typeName: 'Melee Weapons',
+              characteristics: [{ name: 'Keywords', $text: '-' }],
+            },
+          ],
+          selectionEntries: [
+            {
+              id: 'furious',
+              name: 'Furious Assault',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'furious-ability',
+                  name: 'Furious Assault',
+                  typeName: 'Abilities',
+                  characteristics: [
+                    {
+                      name: 'Description',
+                      $text:
+                        "Bellicose temperament.\n\nADEPTUS ASTARTES INFANTRY unit only. This unit's melee attacks have [SUSTAINED HITS 1: non-MONSTER/VEHICLE].",
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const sheet = (selected: boolean) =>
+      datasheetIn(book, 'cat', 'unit', {
+        selections: [{ id: 'unit', ...(selected ? { selections: [{ id: 'furious' }] } : {}) }],
+        unitSelectionIndex: 0,
+      })!
+    const keywords = (selected: boolean, weapon: string) =>
+      sheet(selected)
+        .profiles.find((profile) => profile.name === weapon)
+        ?.values.find((value) => value.name === 'Keywords')?.value
+
+    expect(keywords(false, 'Astartes chainsword')).toBe('-')
+    expect(keywords(true, 'Astartes chainsword')).toBe('Sustained Hits 1: non-MONSTER/VEHICLE')
+    expect(keywords(true, 'Heavy bolt pistol')).toBe('Pistol')
+
+    book.index.definitions.get('furious')!.profiles![0]!.characteristics![0]!.$text =
+      "If this unit charged.\n\nThis unit's melee attacks have [SUSTAINED HITS 1]."
+    expect(keywords(true, 'Astartes chainsword')).toBe('-')
+  })
+
   it.each([
     ['Deep Strike', 'This unit can be set up in Reserves.', 'Deep Strike'],
     ['Deep Strike', 'Models in this unit have the Deep Strike ability.', 'Deep Strike'],

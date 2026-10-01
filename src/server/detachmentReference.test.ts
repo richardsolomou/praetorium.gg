@@ -140,6 +140,86 @@ it('shows unit upgrade eligibility when the catalogue only describes the effect'
   ])
 })
 
+it('shows the linked weapon profile when an enhancement ends by naming its weapon', () => {
+  const loaded = bookOf({
+    sharedSelectionEntries: [
+      {
+        id: 'wrapper',
+        name: 'Detachment',
+        type: 'upgrade',
+        selectionEntryGroups: [
+          { id: 'choices', name: 'Detachment', selectionEntries: [{ id: 'assault', name: 'Assault Brethren', type: 'upgrade' }] },
+        ],
+      },
+      {
+        id: 'imperiums-sword',
+        name: "Imperium's Sword",
+        type: 'upgrade',
+        profiles: [
+          {
+            id: 'sword-ability',
+            name: "Imperium's Sword",
+            characteristics: [{ name: 'Description', $text: 'This model has the following weapon:' }],
+          },
+        ],
+        entryLinks: [{ id: 'sword-weapon-link', name: "Imperium's Sword", type: 'selectionEntry', targetId: 'sword-weapon' }],
+      },
+      {
+        id: 'sword-weapon',
+        name: "Imperium's Sword",
+        type: 'upgrade',
+        profiles: [
+          {
+            id: 'sword-profile',
+            name: "Imperium's Sword",
+            typeName: 'Melee Weapons',
+            characteristics: [
+              { name: 'Range', $text: 'Melee' },
+              { name: 'A', $text: '6' },
+              { name: 'WS', $text: '2+' },
+              { name: 'S', $text: '7' },
+              { name: 'AP', $text: '-3' },
+              { name: 'D', $text: '3' },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const rules = {
+    attribution: 'Community data',
+    factionKeys: new Map(),
+    detachmentReferences: new Map(),
+    detachmentDetails: new Map([
+      [
+        'test-catalogue',
+        new Map([
+          [
+            'assault-brethren',
+            {
+              id: 'assault',
+              name: 'Assault Brethren',
+              points: 1,
+              dispositions: [],
+              rules: [],
+              enhancements: [
+                { name: "Imperium's Sword", points: 20, description: 'This model has the following weapon:', keywordRestrictions: [] },
+              ],
+              upgrades: [],
+              stratagems: [],
+            },
+          ],
+        ]),
+      ],
+    ]),
+    dispositions: new Map(),
+  } as Partial<LoadedRules> as LoadedRules
+
+  expect(detachmentReference(loaded, rules, 'cat', 'assault-brethren')?.enhancements[0]?.description).toBe(
+    "This model has the following weapon:\n\n**Imperium's Sword** — Range Melee · A 6 · WS 2+ · S 7 · AP -3 · D 3",
+  )
+})
+
 it('shows offered catalogue rules and points when the chapter has no detachment card', () => {
   const loaded = bookOf({
     sharedSelectionEntries: [

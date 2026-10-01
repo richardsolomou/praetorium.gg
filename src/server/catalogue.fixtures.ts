@@ -104,6 +104,7 @@ export function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
     profiledSupplementIds: new Set(),
     profiledDetachmentIds: new Set(),
     profiledArmyRules: new Map(),
+    replacements: new Map(),
     datacards,
     sourceReferences: emptyExternalReferences(),
   }

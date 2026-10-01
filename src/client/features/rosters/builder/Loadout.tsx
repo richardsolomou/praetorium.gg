@@ -13,6 +13,7 @@ import {
   type LoadoutModel,
   type LoadoutUnit,
   orderedChoices,
+  unmodeledGrantedWeapons,
   type SpreadUpdate,
   wholeSquadTakes,
 } from './loadoutModel'
@@ -130,6 +131,18 @@ export function Loadout({
     )
   const equippedRanged = equipped('Ranged Weapons')
   const equippedMelee = equipped('Melee Weapons')
+  const extraRanged = unmodeledGrantedWeapons(
+    sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons'),
+    unit.models,
+    unit.choices,
+  )
+  const extraMelee = unmodeledGrantedWeapons(
+    sheet.profiles.filter((profile) => profile.type === 'Melee Weapons'),
+    unit.models,
+    unit.choices,
+  )
+  const shownRanged = [...equippedRanged, ...extraRanged.filter((profile) => !equippedRanged.includes(profile))]
+  const shownMelee = [...equippedMelee, ...extraMelee.filter((profile) => !equippedMelee.includes(profile))]
   const profile = primaryUnitProfile(sheet)
 
   const { models, loose } = divide(unit)
@@ -163,11 +176,13 @@ export function Loadout({
                   {...described}
                 />
               ))}
+              {extraRanged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={extraRanged} rules={rules} /> : null}
+              {extraMelee.length ? <WeaponSummary title="Equipped melee weapons" weapons={extraMelee} rules={rules} /> : null}
             </div>
           ) : (
             <>
-              {equippedRanged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={equippedRanged} rules={rules} /> : null}
-              {equippedMelee.length ? <WeaponSummary title="Equipped melee weapons" weapons={equippedMelee} rules={rules} /> : null}
+              {shownRanged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={shownRanged} rules={rules} /> : null}
+              {shownMelee.length ? <WeaponSummary title="Equipped melee weapons" weapons={shownMelee} rules={rules} /> : null}
             </>
           )}
           {visibleLoose.length ? (

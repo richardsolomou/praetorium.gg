@@ -20,6 +20,7 @@ import {
   showLoadoutEntry,
   spreadHandlers,
   uniqueWeaponProfiles,
+  unmodeledGrantedWeapons,
   weaponMatches,
   weaponProfilesFor,
   wargearMatches,
@@ -42,6 +43,29 @@ const choice = (options: LoadoutChoice['options'], room: number, optional = fals
 })
 
 const weapon = (name: string, type: string) => ({ id: name, name, type, values: [] })
+
+it('shows an equipped enhancement weapon outside the model loadout without repeating its other weapons', () => {
+  const model: LoadoutModel = {
+    name: 'Captain',
+    fixed: [{ name: 'Heavy Bolt Pistol' }],
+    members: [{ id: 'captain', choiceKey: null, baseCount: 1 }],
+    rows: [{ name: 'Master-crafted Power Weapon', choiceKey: 'melee', optionId: 'power-weapon' }],
+  }
+  expect(
+    unmodeledGrantedWeapons(
+      [
+        weapon('Heavy Bolt Pistol', 'Ranged Weapons'),
+        weapon('Master-crafted Power Weapon', 'Melee Weapons'),
+        weapon("Imperium's Sword", 'Melee Weapons'),
+        weapon('Particle beamer', 'Ranged Weapons'),
+      ],
+      [model],
+      [
+        choice([{ ...option('sword', 1, 1), name: "Imperium's Sword", pieceCounts: [{ name: "Imperium's Sword", count: 1 }] }], 1, true),
+      ].map((entry) => ({ ...entry, kind: 'enhancement' as const })),
+    ).map((profile) => profile.name),
+  ).toEqual(["Imperium's Sword"])
+})
 
 describe('loadout instructions', () => {
   const trooper: LoadoutModel = { name: 'Trooper', fixed: [], members: [], rows: [] }

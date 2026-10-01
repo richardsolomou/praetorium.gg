@@ -33,6 +33,7 @@ export type LoadedCatalogue = {
   profiledSupplementIds: Set<string>
   profiledDetachmentIds: Set<string>
   profiledArmyRules: Map<string, RuleCard[]>
+  replacements: ReadonlyMap<string, string>
   /** Game Datacards, read once here and handed to the rules loader. */
   datacards: LoadedDatacards
   sourceReferences: ExternalReferences
@@ -91,6 +92,7 @@ export function catalogueFromIndex(
     profiledSupplementIds: profiled.profiledSupplementIds,
     profiledDetachmentIds: profiled.profiledDetachmentIds,
     profiledArmyRules: profiled.profiledArmyRules,
+    replacements: profiled.replacements,
     datacards,
     sourceReferences,
   }

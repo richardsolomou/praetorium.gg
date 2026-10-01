@@ -28,7 +28,7 @@ export function ruleMarkdown(text: string) {
     .replaceAll('^^', '')
     .replaceAll(/<\/?ins>/g, '')
     .replaceAll(/^[ \t\u00a0]+/gm, (indent) => indent.replaceAll('\u00a0', ' '))
-    .replaceAll(/(?<!\*)\[([\p{L}\p{N} +'"’\p{Pd}]+)\](?!\*)/gu, '**[$1]**')
+    .replaceAll(/(?<!\*)\[([\p{L}\p{N} +'"’:/\p{Pd}]+)\](?!\*)/gu, '**[$1]**')
 }
 
 /** A table, and the prose either side of it. Markdown has no table this source's rows fit. */

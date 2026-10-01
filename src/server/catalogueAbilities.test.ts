@@ -87,6 +87,174 @@ describe('the abilities and wargear a datasheet lists', () => {
     ).toContainEqual(expect.objectContaining({ name: 'Resurrection Orb', kind: 'wargear' }))
   })
 
+  it('uses current card abilities for a chapter importing the replaced Marine book', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'jump-packs',
+          name: 'Assault Intercessors with Jump Packs',
+          type: 'unit',
+          profiles: [ability('old-hammer', 'Old Hammer of Wrath')],
+        },
+      ],
+    })
+    book.profiledSupplementIds.add('cat')
+    book.factionContents.set('test-catalogue', {
+      name: 'Test catalogue',
+      datasheets: new Set(['Assault Intercessors with Jump Packs']),
+      datasheetDetails: new Map([
+        [
+          'Assault Intercessors with Jump Packs',
+          {
+            abilities: [{ name: 'Hammer of Wrath', description: 'Current charge rule.' }],
+            composition: [],
+            loadout: null,
+            wargear: [],
+            baseSize: null,
+            transport: null,
+            points: [],
+            attachesTo: [],
+            leaders: [],
+            supporters: [],
+          },
+        ],
+      ]),
+      datasheetIds: new Map(),
+      detachments: new Set(),
+      enhancements: new Map(),
+      stratagems: new Map(),
+      stratagemIssues: [],
+      detachmentRules: new Map(),
+      armyRules: [],
+      factionAbilityNames: new Set(),
+    })
+
+    const sheet = datasheetIn(book, 'cat', 'jump-packs')
+    expect(sheet?.abilities.map(({ name, description }) => [name, description])).toEqual([['Hammer of Wrath', 'Current charge rule.']])
+    expect(describeDatasheetAbilitiesWithContributions(book, 'cat', sheet, null)?.contributions.datacards).toBe(true)
+  })
+
+  it('prefers matching new Marine BSData profiles and abilities in chapter rosters', () => {
+    const unit = (id: string, toughness: string, healing: string) => ({
+      id,
+      name: 'Apothecary',
+      type: 'model' as const,
+      profiles: [
+        {
+          id: `${id}-stats`,
+          name: id === 'old-apothecary' ? 'Primaris Apothecary' : 'Apothecary',
+          typeName: 'Unit',
+          characteristics: [{ name: 'T', $text: toughness }],
+        },
+        {
+          id: `${id}-healing`,
+          name: 'Narthecium',
+          typeName: 'Abilities',
+          characteristics: [{ name: 'Description', $text: healing }],
+        },
+        ...(id === 'new-apothecary'
+          ? [
+              {
+                id: 'new-notes',
+                name: 'Datasheet Notes',
+                typeName: 'Abilities',
+                characteristics: [{ name: 'Description', $text: 'This model is equipped with a weapon.' }],
+              },
+              {
+                id: 'new-last-stand',
+                name: 'Last Stand',
+                typeName: 'Abilities',
+                characteristics: [{ name: 'Description', $text: 'This unit fights again.' }],
+              },
+            ]
+          : []),
+      ],
+    })
+    const book = shelfOf(
+      { name: 'Space Marines', selectionEntries: [unit('old-apothecary', '5', 'Return a destroyed model.')] },
+      { name: 'Space Marines (11e)', selectionEntries: [unit('new-apothecary', '4', 'This unit heals D3+1 wounds.')] },
+      { name: 'Dark Angels', catalogueLinks: [{ targetId: 'cat', importRootEntries: true }] },
+    )
+    book.profiledSupplementIds.add('cat-2')
+    book.replacements = new Map([['cat', 'cat-1']])
+    book.factionContents.set('dark-angels', {
+      name: 'Dark Angels',
+      datasheets: new Set(['Apothecary']),
+      datasheetDetails: new Map([
+        [
+          'Apothecary',
+          {
+            profiles: [{ name: 'Apothecary', type: 'Unit', values: { T: '6' } }],
+            abilities: [
+              { name: 'Narthecium', description: 'This unit heals D3 wounds.' },
+              { name: 'Last Stand (Once per battle, per unit)', description: 'This unit shoots again.' },
+              { name: 'Combat Revival', description: 'Return a model.' },
+            ],
+            composition: [],
+            loadout: null,
+            wargear: [],
+            baseSize: null,
+            transport: null,
+            points: [],
+            attachesTo: [],
+            leaders: [],
+            supporters: [],
+          },
+        ],
+      ]),
+      datasheetIds: new Map(),
+      detachments: new Set(),
+      enhancements: new Map(),
+      stratagems: new Map(),
+      stratagemIssues: [],
+      detachmentRules: new Map(),
+      armyRules: [],
+      factionAbilityNames: new Set(),
+    })
+
+    const sheet = datasheetIn(book, 'cat-2', 'old-apothecary')
+    expect(sheet?.profiles.find((profile) => profile.type === 'Unit')?.values).toContainEqual({ name: 'T', value: '4' })
+    expect(sheet?.abilities.map(({ name, description }) => [name, description])).toEqual([
+      ['Narthecium', 'This unit heals D3+1 wounds.'],
+      ['Last Stand (Once per battle, per unit)', 'This unit fights again.'],
+      ['Combat Revival', 'Return a model.'],
+    ])
+  })
+
+  it('uses the one renamed model profile when the other model name still matches', () => {
+    const squad = (id: string, marine: string, toughness: string) => ({
+      id,
+      name: 'Jump Squad',
+      type: 'unit' as const,
+      profiles: [
+        {
+          id: `${id}-sergeant`,
+          name: 'Jump Sergeant',
+          typeName: 'Unit',
+          characteristics: [{ name: 'T', $text: '5' }],
+        },
+        {
+          id: `${id}-marine`,
+          name: marine,
+          typeName: 'Unit',
+          characteristics: [{ name: 'T', $text: toughness }],
+        },
+      ],
+    })
+    const book = shelfOf(
+      { selectionEntries: [squad('old-squad', 'Jump Marines', '4')] },
+      { selectionEntries: [squad('new-squad', 'Jump Marine', '5')] },
+      { catalogueLinks: [{ targetId: 'cat', importRootEntries: true }] },
+    )
+    book.profiledSupplementIds.add('cat-2')
+    book.replacements = new Map([['cat', 'cat-1']])
+
+    expect(datasheetIn(book, 'cat-2', 'old-squad')?.profiles.find((profile) => profile.name === 'Jump Marines')?.values).toContainEqual({
+      name: 'T',
+      value: '5',
+    })
+  })
+
   it.each([
     {
       catalogueName: 'Imperium - Adeptus Astartes - Black Templars',
