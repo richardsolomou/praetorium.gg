@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.90.1
+
+### Patch Changes
+
+- fdfa5af: Preload complete battle replays and enable phone timeline dragging.
+
 ## 0.90.0
 
 ### Minor Changes
