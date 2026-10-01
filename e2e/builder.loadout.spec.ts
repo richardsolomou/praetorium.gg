@@ -263,7 +263,7 @@ test('a tank is armed but not crowned', async ({ page }) => {
     .getByRole('button', { name: /^Land Raider Redeemer/ })
     .click()
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  for (const weapon of ['Hunter-killer missile', 'Multi-melta', 'Storm bolter']) {
+  for (const weapon of ['Hunter-killer Missile', 'Multi-melta', 'Storm Bolter']) {
     await expect(loadout.getByRole('button', { name: `More ${weapon}` })).toBeVisible()
   }
   await expect(page.getByRole('button', { name: /Land Raider Redeemer Warlord/ })).toHaveCount(0)
@@ -461,7 +461,10 @@ test('attachment relationships stay inside the two-column unit pane', async ({ p
 test('the attachment menu stays inside the unopened three-column roster', async ({ page }) => {
   await page.setViewportSize({ width: 1512, height: 774 })
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
-  for (const name of ['Ancient', 'Intercessor Squad', 'Assault Intercessor Squad', 'Hellblaster Squad']) await add(page, name)
+  for (const name of ['Captain', 'Ancient', 'Intercessor Squad', 'Assault Intercessor Squad', 'Hellblaster Squad']) await add(page, name)
+
+  await page.locator('[data-unit="Captain"]').getByRole('button', { name: 'Attach Captain to unit' }).click()
+  await page.getByRole('menuitem', { name: 'Intercessor Squad', exact: true }).click()
 
   const ancient = page.locator('[data-unit="Ancient"]')
   const attachButton = ancient.getByRole('button', { name: 'Attach Ancient to unit' })
@@ -480,8 +483,8 @@ test('the attachment menu stays inside the unopened three-column roster', async 
   await attachButton.click()
   const targets = page.getByRole('menu')
   await expect(targets.getByRole('menuitem', { name: 'Intercessor Squad', exact: true })).toBeVisible()
-  await expect(targets.getByRole('menuitem', { name: 'Assault Intercessor Squad', exact: true })).toBeVisible()
-  await expect(targets.getByRole('menuitem', { name: 'Hellblaster Squad', exact: true })).toBeVisible()
+  await expect(targets.getByRole('menuitem', { name: 'Assault Intercessor Squad', exact: true })).toHaveCount(0)
+  await expect(targets.getByRole('menuitem', { name: 'Hellblaster Squad', exact: true })).toHaveCount(0)
   await targets.getByRole('menuitem', { name: 'Intercessor Squad', exact: true }).click()
   await expect(ancient).toContainText('Supporting')
   await expect(ancient).toContainText('Intercessor Squad')
@@ -728,7 +731,7 @@ test('a composite heavy weapon keeps the model armed and can be put back', async
   await page.screenshot({ path: 'test-results/deathwing-restored-loadout.png', fullPage: true })
 })
 
-test('a composite character loadout shows its selected melee weapon', async ({ page }) => {
+test('a profiled character loadout shows its printed melee weapon', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
   await add(page, 'Captain')
@@ -738,12 +741,15 @@ test('a composite character loadout shows its selected melee weapon', async ({ p
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  const starting = loadout.locator('article').filter({ has: page.getByRole('button', { name: /^Select Bolt Pistol,/ }) })
-  await expect(starting.getByRole('heading', { name: 'Close combat weapon', exact: true })).toBeVisible()
-
-  await loadout.getByRole('button', { name: 'Select Power fist' }).click()
-  await expect(starting.getByRole('heading', { name: 'Power fist', exact: true })).toBeVisible()
-  await expect(starting.getByRole('heading', { name: 'Close combat weapon', exact: true })).toHaveCount(0)
+  await expect(loadout.getByRole('group', { name: 'Captain Master-crafted Power Weapon' })).toBeVisible()
+  await expect(loadout.getByRole('button', { name: 'Select Master-crafted Power Weapon', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(
+    loadout.getByText("This model's Master-crafted Bolter and Heavy Bolt Pistol can be replaced", { exact: false }),
+  ).toBeVisible()
+  await expect(loadout.getByRole('button', { name: /Select This model's Master-crafted Bolter/ })).toHaveCount(0)
 })
 
 test('independent weapon choices are edited separately when the catalogue stores their combinations', async ({ page }) => {
@@ -907,9 +913,26 @@ test('a selected multi-weapon option is not repeated in the equipped summary', a
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByText('2 Storm Bolters', { exact: true })).toBeVisible()
+  await expect(loadout.getByRole('group', { name: 'Impulsor Storm Bolters' })).toBeVisible()
   const equipped = loadout.locator('section').filter({ hasText: 'Equipped ranged weapons' })
   await expect(equipped.getByText('2× Storm bolter', { exact: true })).toHaveCount(0)
+})
+
+test('a printed Marine default appears once across the full loadout', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await add(page, 'Sternguard Veteran Squad')
+  await page
+    .locator('[data-unit="Sternguard Veteran Squad"]')
+    .getByRole('button', { name: 'Sternguard Veteran Squad', exact: true })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByText('Ceramite Fists', { exact: true })).toHaveCount(1)
+  await expect(loadout.getByText('Artificer Firearm - Purgatus', { exact: true })).toHaveCount(2)
+  await expect(loadout.getByText('Weapon Options', { exact: true })).toHaveCount(0)
+  await expect(loadout.getByText('The Sternguard Veteran Sergeant can have their Chainsword replaced', { exact: false })).toBeVisible()
+  await page.screenshot({ path: 'test-results/sternguard-default-loadout.png', fullPage: true })
 })
 
 /**

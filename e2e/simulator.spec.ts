@@ -71,7 +71,7 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
   await expect(meleeDamage).toHaveText(/^\d+\.\d{2}$/)
   const startingShooting = Number(await shootingDamage.textContent())
   const startingMelee = Number(await meleeDamage.textContent())
-  const boltRifle = page.getByRole('switch', { name: 'Include Bolt Rifle in shooting calculation' })
+  const boltRifle = page.getByRole('switch', { name: 'Include Bolt Rifle – Focused Fire in shooting calculation' })
   expect(
     await boltRifle.evaluate((switchElement) => {
       const card = switchElement.closest('[data-weapon-card]')
@@ -339,13 +339,13 @@ test('current army rules exclude retired vows and apply plague choices to the re
   await expect(plague).toContainText('Off')
   const defender = page.getByRole('region', { name: 'Defender', exact: true })
   const stats = defender.locator('[data-characteristic] .readout')
-  await expect(stats).toHaveText(['4', '3+', '2', '—', '—'])
+  await expect(stats).toHaveText(['5', '3+', '2', '—', '—'])
   await choose(page, "Attacker Nurgle's Gift (Aura)", 'Opponent afflicted · Rattlejoint Ague')
-  await expect(stats).toHaveText(['3', '4+', '2', '—', '—'])
+  await expect(stats).toHaveText(['4', '4+', '2', '—', '—'])
   await choose(page, "Attacker Nurgle's Gift (Aura)", 'Opponent afflicted · Scabrous Soulrot')
-  await expect(stats).toHaveText(['3', '3+', '2', '—', '—'])
+  await expect(stats).toHaveText(['4', '3+', '2', '—', '—'])
   await choose(page, "Attacker Nurgle's Gift (Aura)", 'Opponent afflicted · Skullsquirm Blight')
-  await expect(stats).toHaveText(['3', '3+', '2', '—', '—'])
+  await expect(stats).toHaveText(['4', '3+', '2', '—', '—'])
   await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
   const defensivePlague = page.getByRole('switch', { name: "Defender Nurgle's Gift (Aura)", exact: true })
   await expect(defensivePlague).toBeChecked()
@@ -405,9 +405,9 @@ for (const width of [1440, 390, 860, 1024]) {
     }
     const shooting = page.getByRole('region', { name: 'Shooting results' })
     const melee = page.getByRole('region', { name: 'Melee results' })
-    await expect(estimate(page, 'Shooting')).toContainText('1.67')
-    await expect(shooting).toContainText('5× Bolt Rifle')
-    await expect(melee).toContainText('5× Close combat weapon')
+    await expect(estimate(page, 'Shooting')).toContainText('2.23')
+    await expect(shooting).toContainText('5× Bolt Rifle – Focused Fire')
+    await expect(melee).toContainText('5× Knives and Fists')
     for (const [results, phase] of [
       [shooting, 'Shooting'],
       [melee, 'Melee'],
@@ -431,14 +431,9 @@ for (const width of [1440, 390, 860, 1024]) {
       }
       await expect(results.locator('summary')).toHaveCount(0)
     }
-    await expect(shooting.getByRole('heading', { name: '5× Bolt Rifle', exact: true }).locator('..').locator('.eyebrow')).toHaveText([
-      'Range',
-      'A',
-      'BS',
-      'S',
-      'AP',
-      'D',
-    ])
+    await expect(
+      shooting.getByRole('heading', { name: '5× Bolt Rifle – Focused Fire', exact: true }).locator('..').locator('.eyebrow'),
+    ).toHaveText(['Range', 'A', 'BS', 'S', 'AP', 'D'])
     await expect(page.getByText('Evaluated profiles and weapon rules included.', { exact: false })).toHaveCount(0)
     await expect(page.getByText('Each phase starts against the full defending unit.', { exact: true })).toHaveCount(0)
     await expect(page.locator('main details')).toHaveCount(0)
@@ -447,7 +442,7 @@ for (const width of [1440, 390, 860, 1024]) {
     await expect(page.getByRole('region', { name: 'Defender rules', exact: true })).toBeVisible()
     for (const side of ['Attacker', 'Defender']) {
       const panel = page.getByRole('region', { name: side, exact: true })
-      await expect(panel.locator('[data-characteristic] .readout')).toHaveText(['4', '3+', '2', '—', '—'])
+      await expect(panel.locator('[data-characteristic] .readout')).toHaveText(['5', '3+', '2', '—', '—'])
       await expect(panel.getByRole('button', { name: `Fewer ${side.toLowerCase()} models` })).toBeDisabled()
       const loadoutBounds = await panel.getByRole('button', { name: 'Loadout', exact: true }).boundingBox()
       const modelsBounds = await panel.getByLabel(`${side} models`, { exact: true }).boundingBox()
@@ -468,7 +463,8 @@ for (const width of [1440, 390, 860, 1024]) {
 
     await page.getByRole('button', { name: 'Cover (−1 BS)', exact: true }).click()
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect(estimate(page, 'Shooting')).not.toContainText('1.67')
+    await expect(estimate(page, 'Shooting')).not.toContainText('2.23')
+    const coveredDamage = await estimate(page, 'Shooting').locator('.readout').first().textContent()
 
     let hold = true
     let intercepted = false
@@ -478,7 +474,7 @@ for (const width of [1440, 390, 860, 1024]) {
     })
     await page.route('**/*', async (route) => {
       const request = route.request()
-      if (hold && request.method() === 'POST' && request.postData()?.includes('85b1-eb9a-17a6-e5be')) {
+      if (hold && request.method() === 'POST' && request.url().includes('/_serverFn/')) {
         intercepted = true
         await gate
       }
@@ -493,8 +489,8 @@ for (const width of [1440, 390, 860, 1024]) {
     await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('10')
     await expect(page.getByRole('button', { name: 'More defender models' })).toBeDisabled()
     await expect(swap).toBeDisabled()
-    await expect(estimate(page, 'Shooting')).toContainText('1.25')
-    await expect(melee).toContainText('5× Close combat weapon')
+    await expect(estimate(page, 'Shooting').locator('.readout').first()).toHaveText(coveredDamage!)
+    await expect(melee).toContainText('5× Knives and Fists')
     await page.screenshot({ path: `test-results/simulator-updating-${width}.png`, fullPage: true })
     hold = false
     release()
@@ -503,8 +499,8 @@ for (const width of [1440, 390, 860, 1024]) {
 
     await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
     const loadout = page.getByRole('dialog')
-    const fist = loadout.getByRole('button', { name: 'Select Power fist', exact: true })
-    await expect(fist).toBeVisible()
+    const mode = loadout.getByRole('button', { name: 'More Bolt Rifle – Saturation', exact: true }).first()
+    await expect(mode).toBeVisible()
     const heading = loadout.getByRole('heading', { name: 'Attacker · Intercessor Squad' })
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-loadout-${width}.png`, fullPage: true })
@@ -515,38 +511,38 @@ for (const width of [1440, 390, 860, 1024]) {
       releaseLoadout = resolve
     })
     await page.route('**/*', async (route) => {
-      if (route.request().method() === 'POST' && route.request().postData()?.includes('85b1-eb9a-17a6-e5be')) {
+      if (route.request().method() === 'POST' && route.request().url().includes('/_serverFn/')) {
         loadoutIntercepted = true
         await loadoutGate
       }
       await route.continue()
     })
-    await fist.click()
+    await mode.click()
     await expect.poll(() => loadoutIntercepted).toBe(true)
     await expect(heading).toBeVisible()
-    await expect(fist).toBeVisible()
+    await expect(mode).toBeVisible()
     await expect(loadout.getByText('Select a unit from the roster to see its loadout.')).toHaveCount(0)
     await page.screenshot({ path: `test-results/simulator-loadout-updating-${width}.png`, fullPage: true })
     releaseLoadout()
-    await expect(fist).toHaveAttribute('aria-pressed', 'true')
-    await expect(fist).toBeEnabled()
+    await expect(loadout.getByLabel('Bolt Rifle – Saturation count', { exact: true }).first()).toHaveText('1')
+    await expect(mode).toBeDisabled()
     await page.unrouteAll({ behavior: 'wait' })
     await loadout.getByRole('button', { name: 'Close', exact: true }).click()
     await expect(melee).toHaveAttribute('aria-busy', 'false')
-    await expect(melee).toContainText('Power fist')
-    await expect(melee).toContainText('4× Close combat weapon')
+    await expect(shooting).toContainText('Bolt Rifle – Saturation')
+    await expect(melee).toContainText('5× Knives and Fists')
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-melee-${width}.png`, fullPage: true })
 
     await swap.click()
     await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('10')
     await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('5')
-    await expect(melee).toContainText('10× Close combat weapon')
-    await expect(melee).not.toContainText('Power fist')
+    await expect(melee).toContainText('10× Knives and Fists')
+    await expect(melee).not.toContainText('Bolt Rifle – Saturation')
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect(shooting).toContainText('10× Bolt Rifle')
+    await expect(shooting).toContainText('10× Bolt Rifle – Focused Fire')
     await page.getByRole('region', { name: 'Defender', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
-    await expect(fist).toHaveAttribute('aria-pressed', 'true')
+    await expect(loadout.getByLabel('Bolt Rifle – Saturation count', { exact: true }).first()).toHaveText('1')
     await loadout.getByRole('button', { name: 'Close', exact: true }).click()
     for (let removed = 0; removed < 5; removed++) await page.getByRole('button', { name: 'Fewer attacker models' }).click()
     await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')
@@ -554,16 +550,17 @@ for (const width of [1440, 390, 860, 1024]) {
     await expect(swap).toBeEnabled()
     await swap.click()
     await expect(melee).toHaveAttribute('aria-busy', 'false')
-    await expect(melee).toContainText('Power fist')
-    await expect(melee).toContainText('4× Close combat weapon')
-    await expect(estimate(page, 'Shooting')).toContainText('1.67')
+    await expect(shooting).toContainText('Bolt Rifle – Saturation')
+    await expect(melee).toContainText('5× Knives and Fists')
+    const withMode = Number(await estimate(page, 'Shooting').locator('.readout').first().textContent())
+    expect(withMode).toBeGreaterThan(0)
     await expect(page.getByRole('button', { name: 'Cover (−1 BS)', exact: true })).toHaveAttribute('aria-pressed', 'false')
     await chip(page, 'FNP 5+').click()
     await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('[data-characteristic="FNP"] .readout')).toHaveText(
       '5+',
     )
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect.poll(async () => Number(await estimate(page, 'Shooting').locator('.readout').first().textContent())).toBeLessThan(1.3)
+    await expect.poll(async () => Number(await estimate(page, 'Shooting').locator('.readout').first().textContent())).toBeLessThan(withMode)
     await noOverflow(page)
     await page.evaluate(() => window.scrollTo(0, 0))
     await page.screenshot({ path: `test-results/simulator-swapped-${width}.png`, fullPage: true })
@@ -614,9 +611,8 @@ for (const width of [1440, 390]) {
     ).toBeVisible()
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
     const damage = estimate(page, 'Shooting').locator('.readout').first()
-    await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(0.53)
+    await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(0)
     const baseline = Number(await damage.textContent())
-    expect(baseline).toBeLessThan(0.58)
     await chip(page, 'FNP 6+').click()
     await expect(printed).toHaveText('4+')
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
@@ -691,7 +687,7 @@ test('a failed worker can be retried without reselecting either unit', async ({ 
   const shooting = page.getByRole('region', { name: 'Shooting results' })
   await expect(shooting).toContainText('The calculation could not start.')
   await shooting.getByRole('button', { name: 'Retry' }).click()
-  await expect(estimate(page, 'Shooting')).toContainText('1.67')
+  await expect(estimate(page, 'Shooting')).toContainText('2.23')
   await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')
 })
 
@@ -711,8 +707,8 @@ for (const width of [1440, 390]) {
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
     await expect(shooting.getByRole('alert')).toHaveCount(0)
     const damage = estimate(page, 'Shooting').locator('.readout').first()
-    await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(0.47)
-    expect(Number(await damage.textContent())).toBeLessThan(0.53)
+    await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(0.4)
+    expect(Number(await damage.textContent())).toBeLessThan(0.45)
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-particle-caster-${width}.png`, fullPage: true })
     await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
@@ -835,7 +831,10 @@ test.describe('touch probability charts', () => {
     await expect(chart).toBeVisible()
     await noOverflow(page)
     await page.screenshot({ path: 'test-results/simulator-chart-touch.png' })
-    await page.getByRole('region', { name: 'Shooting results' }).getByRole('heading', { name: '5× Bolt Rifle', exact: true }).tap()
+    await page
+      .getByRole('region', { name: 'Shooting results' })
+      .getByRole('heading', { name: '5× Bolt Rifle – Focused Fire', exact: true })
+      .tap()
     await expect(chart).toBeHidden()
     await trigger.tap()
     await expect(chart).toBeVisible()

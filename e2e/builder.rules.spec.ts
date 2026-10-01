@@ -616,7 +616,7 @@ test('a supplement imports shared Space Marine units and its detachment group', 
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByRole('option', { name: 'Imperial Fists', exact: true }).click()
-  await expect(setup.getByRole('button', { name: "Select Emperor's Shield" })).toBeVisible()
+  await expect(setup.getByRole('button', { name: 'Select Ceramite Sentinels' })).toBeVisible()
   await expect(setup.getByRole('button', { name: /Select Imperialis Fleet/ })).toHaveCount(0)
 })
 

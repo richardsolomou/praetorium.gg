@@ -100,7 +100,7 @@ export function unitsIn(
   const wanted = query.trim().toLowerCase()
   // A faction page lists what its cards list, where it has cards at all.
   const book = loaded.index.catalogues.get(catalogueId)
-  const included = Boolean(factionCards && book && factionContentOf(loaded, book.name))
+  const included = Boolean(factionCards && book && !loaded.profiledCatalogueIds.has(catalogueId) && factionContentOf(loaded, book.name))
   // Faction reference pages use one canonical name set, and a restriction set is
   // one stable value per rules snapshot. Cache the complete, priced list so each
   // search filters in memory instead of rebuilding every datasheet in the faction.

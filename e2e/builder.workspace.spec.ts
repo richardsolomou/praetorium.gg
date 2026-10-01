@@ -410,12 +410,9 @@ test('mid-width picker hands off to the inline loadout', async ({ page }) => {
 })
 
 test('the whole book is on the shelves, not the first page of it', async ({ page }) => {
-  // A Space Marine book runs to well over a hundred datasheets and the picker sorts
-  // them by name, so a cut-off page ended mid-alphabet: the infantry shelf stopped at
-  // Inner Circle Companions and Sternguard Veterans could only be found by searching.
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
   await expect(page.getByRole('button', { name: 'Add Sternguard Veteran Squad', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Add Whirlwind', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add Vanguard Veteran Squad with Jump Packs', exact: true })).toBeVisible()
 })
 
 test('a mixed-model squad shows its own profile instead of an optional model', async ({ page }) => {
@@ -424,14 +421,14 @@ test('a mixed-model squad shows its own profile instead of an optional model', a
   await page.getByRole('button', { name: 'View Outrider Squad datasheet' }).click()
 
   const datasheet = page.locator('aside[aria-label="Datasheet"]')
-  await expect(datasheet.locator('[data-slot="unit-profile"]')).toContainText(/M\s*12"\s*T\s*5\s*Sv\s*3\+\s*W\s*4\s*LD\s*6\+\s*OC\s*2/)
+  await expect(datasheet.locator('[data-slot="unit-profile"]')).toContainText(/M\s*12"\s*T\s*6\s*Sv\s*3\+\s*W\s*4\s*LD\s*6\+\s*OC\s*2/)
 
   await add(page, 'Outrider Squad')
   await page.locator('[data-unit="Outrider Squad"]').getByRole('button', { name: 'Outrider Squad', exact: true }).click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
   const profile = loadout.locator('[data-slot="unit-profile"]')
-  await expect(profile).toContainText(/M\s*12"\s*T\s*5\s*Sv\s*3\+\s*W\s*4\s*LD\s*6\+\s*OC\s*2/)
+  await expect(profile).toContainText(/M\s*12"\s*T\s*6\s*Sv\s*3\+\s*W\s*4\s*LD\s*6\+\s*OC\s*2/)
 
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(profile).toBeVisible()

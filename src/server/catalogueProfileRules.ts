@@ -15,6 +15,8 @@ import type { DetachmentRulesDetail } from './rulesFactions'
 import { joinKey } from './rulesSource'
 import { editionlessCatalogueName } from './factionNames'
 import { hiddenByRules } from '../core/evaluate'
+import { defaultSelection } from '../core/expand'
+import { wargearOf } from '../core/wargear'
 
 const DETACHMENT_ENTRY = 'detachment'
 
@@ -40,6 +42,258 @@ function directDetachmentOptions(book: Catalogue) {
   return (book.sharedSelectionEntryGroups ?? [])
     .filter((group) => group.name?.toLowerCase().includes(DETACHMENT_ENTRY))
     .flatMap((group) => group.selectionEntries ?? [])
+}
+
+function datasheetNotes(entry: SelectionEntry) {
+  return entry.profiles
+    ?.find((profile) => profile.name === 'Datasheet Notes')
+    ?.characteristics?.find((characteristic) => characteristic.name === 'Description')?.$text
+}
+
+function defaultWargear(entry: SelectionEntry, modelName?: string) {
+  const notes = datasheetNotes(entry)
+  const common = notes?.match(/\b(?:Every model|This model) is equipped with:\s*([^.|]+)/i)?.[1]
+  const specific = modelName
+    ? notes
+        ?.split(/\s*\|\s*/)
+        .map((part) =>
+          part
+            .trim()
+            .replace(/^(?:The|Every) /, '')
+            .match(/^(.+?) is equipped with:\s*(.+?)\.?$/),
+        )
+        .find((match) => match?.[1]?.toLowerCase() === modelName.toLowerCase())?.[2]
+    : null
+  const printed = common ?? specific
+  if (!printed) return null
+  const pieces = printed.trim().split(/;\s*/)
+  const weapons = pieces.map((piece) => piece.trim().match(/^(\d+)\s+(.+?)\.?$/))
+  if (weapons.some((weapon) => !weapon || Number(weapon[1]) < 1)) return null
+  return weapons.map((weapon) => ({ count: Number(weapon![1]), name: weapon![2]!.toLowerCase() }))
+}
+
+function printedModelComposition(entry: SelectionEntry) {
+  const parts =
+    datasheetNotes(entry)
+      ?.split('UNIT COMPOSITION: ')[1]
+      ?.split(/\s*\|\s*/) ?? []
+  const models: { name: string; min: number; max: number }[] = []
+  for (const part of parts) {
+    const match = part
+      .trim()
+      .replace(/\.$/, '')
+      .match(/^(\d+)(?:-(\d+))?\s+(.+?)\s+models?$/)
+    if (!match) break
+    models.push({ name: match[3]!, min: Number(match[1]), max: Number(match[2] ?? match[1]) })
+  }
+  return models.reduce((total, model) => total + model.min, 0) > 1 ? models : null
+}
+
+function unitWeaponOptions(entry: SelectionEntry) {
+  return (entry.selectionEntryGroups ?? [])
+    .filter((group) => group.name === 'Weapon Options')
+    .flatMap((group) => group.selectionEntries ?? [])
+    .flatMap((option) => option.entryLinks ?? [])
+}
+
+function withoutMovedWeaponOptions(entry: SelectionEntry): SelectionEntry {
+  const moved = new Set<string>()
+  const visit = (node: Pick<SelectionEntry, 'entryLinks' | 'selectionEntries' | 'selectionEntryGroups'>) => {
+    for (const link of node.entryLinks ?? []) if (link.id.startsWith('profile-weapon-')) moved.add(link.targetId)
+    for (const child of node.selectionEntries ?? []) visit(child)
+    for (const group of node.selectionEntryGroups ?? []) visit(group)
+  }
+  visit(entry)
+  if (!moved.size) return entry
+  return {
+    ...entry,
+    selectionEntryGroups: entry.selectionEntryGroups?.flatMap((group) => {
+      if (group.name !== 'Weapon Options') return [group]
+      const selectionEntries = group.selectionEntries?.filter(
+        (option) => option.entryLinks?.length !== 1 || !moved.has(option.entryLinks[0]!.targetId),
+      )
+      return selectionEntries?.length || group.entryLinks?.length ? [{ ...group, selectionEntries }] : []
+    }),
+  }
+}
+
+function withReadableWargearOptions(entry: SelectionEntry): SelectionEntry {
+  const instructions: NonNullable<SelectionEntry['profiles']> = []
+  const selectionEntryGroups = entry.selectionEntryGroups?.flatMap((group) => {
+    if (group.name !== 'Wargear Options') return [group]
+    const selectionEntries = group.selectionEntries?.filter((option) => {
+      const profile = option.profiles?.find((item) => item.name === 'Option')
+      const description = profile?.characteristics?.find((item) => item.name === 'Description')?.$text
+      if (!description || option.entryLinks?.length || option.selectionEntries?.length || option.selectionEntryGroups?.length) return true
+      instructions.push({
+        ...profile,
+        id: `profile-wargear-instruction-${entry.id}-${option.id}`,
+        name: 'Wargear option',
+        typeName: 'Abilities',
+      })
+      return false
+    })
+    return selectionEntries?.length || group.entryLinks?.length ? [{ ...group, selectionEntries }] : []
+  })
+  return instructions.length ? { ...entry, profiles: [...(entry.profiles ?? []), ...instructions], selectionEntryGroups } : entry
+}
+
+function defaultWeaponLinks(
+  entry: SelectionEntry,
+  weapons: NonNullable<ReturnType<typeof defaultWargear>>,
+  index: CatalogueIndex,
+  catalogueId: string,
+  extraLinks: readonly EntryLink[] = [],
+) {
+  const nameOfLink = (link: EntryLink) => link.name?.replace(/\s+[–-]\s+.+$/, '').toLowerCase()
+  const existing = entry.entryLinks ?? []
+  const links = [
+    ...existing,
+    ...extraLinks
+      .filter(
+        (link) =>
+          weapons.some((weapon) => weapon.name === nameOfLink(link)) && !existing.some((other) => nameOfLink(other) === nameOfLink(link)),
+      )
+      .map((link) => ({ ...link, id: `profile-weapon-${entry.id}-${link.id}`, constraints: undefined })),
+  ]
+  const selected = defaultSelection(entry.id, index, { primaryCatalogueId: catalogueId })
+  const already = new Set((selected ? wargearOf(selected, index) : []).map((item) => item.name.replace(/\s+[–-]\s+.+$/, '').toLowerCase()))
+  if (
+    weapons.some(
+      (weapon) =>
+        !already.has(weapon.name) && !links.some((link) => index.definitions.has(link.targetId) && nameOfLink(link) === weapon.name),
+    )
+  )
+    return entry
+  const modeGroups = weapons.flatMap((weapon) => {
+    if (already.has(weapon.name)) return []
+    const modes = links.filter((link) => index.definitions.has(link.targetId) && nameOfLink(link) === weapon.name)
+    if (modes.length < 2 || modes.some((link) => !/\s+[–-]\s+/.test(link.name ?? '') || link.constraints?.length)) return []
+    const id = `profile-modes-${modes[0]!.id}`
+    return [
+      {
+        id,
+        name: weapon.name,
+        defaultSelectionEntryId: modes[0]!.id,
+        constraints: [
+          {
+            id: `${id}-min`,
+            field: 'selections' as const,
+            scope: 'parent' as const,
+            shared: true,
+            type: 'min' as const,
+            value: weapon.count,
+          },
+          {
+            id: `${id}-max`,
+            field: 'selections' as const,
+            scope: 'parent' as const,
+            shared: true,
+            type: 'max' as const,
+            value: weapon.count,
+          },
+        ],
+        entryLinks: modes,
+      },
+    ]
+  })
+  const grouped = new Set(modeGroups.flatMap((group) => group.entryLinks.map((link) => link.id)))
+  return {
+    ...entry,
+    selectionEntryGroups: [...(entry.selectionEntryGroups ?? []), ...modeGroups],
+    entryLinks: links
+      .filter((link) => !grouped.has(link.id))
+      .map((link) => {
+        const weapon = weapons.find((item) => nameOfLink(link) === item.name)
+        if (!weapon || already.has(weapon.name)) return link
+        if (link.constraints?.length) return link
+        return {
+          ...link,
+          constraints: [
+            {
+              id: `profile-default-min-${link.id}`,
+              field: 'selections',
+              scope: 'parent',
+              shared: true,
+              type: 'min' as const,
+              value: weapon.count,
+            },
+            {
+              id: `profile-default-max-${link.id}`,
+              field: 'selections',
+              scope: 'parent',
+              shared: true,
+              type: 'max' as const,
+              value: weapon.count,
+            },
+          ],
+        }
+      }),
+  }
+}
+
+function withPrintedDefaultWargear(entry: SelectionEntry, index: CatalogueIndex, catalogueId: string): SelectionEntry {
+  const weapons = defaultWargear(entry)
+  const extraLinks = unitWeaponOptions(entry)
+  const modelGroups = entry.selectionEntryGroups?.filter((group) => group.selectionEntries?.some((model) => model.type === 'model')) ?? []
+  const composition = !modelGroups.length && entry.type === 'unit' ? printedModelComposition(entry) : null
+  if (composition) {
+    return withoutMovedWeaponOptions({
+      ...entry,
+      selectionEntryGroups: [
+        {
+          id: `profile-models-${entry.id}`,
+          name: 'Unit',
+          selectionEntries: composition.map((model, at) => {
+            const generated: SelectionEntry = {
+              id: `profile-model-${entry.id}-${at}`,
+              name: model.name,
+              type: 'model',
+              constraints: [
+                {
+                  id: `profile-model-min-${entry.id}-${at}`,
+                  field: 'selections',
+                  scope: 'parent',
+                  shared: true,
+                  type: 'min',
+                  value: model.min,
+                },
+                {
+                  id: `profile-model-max-${entry.id}-${at}`,
+                  field: 'selections',
+                  scope: 'parent',
+                  shared: true,
+                  type: 'max',
+                  value: model.max,
+                },
+              ],
+              entryLinks: (entry.entryLinks ?? []).map((link) => ({ ...link, id: `profile-model-weapon-${entry.id}-${at}-${link.id}` })),
+            }
+            const modelWeapons = defaultWargear(entry, model.name) ?? weapons
+            return modelWeapons ? defaultWeaponLinks(generated, modelWeapons, index, catalogueId, extraLinks) : generated
+          }),
+        },
+        ...(entry.selectionEntryGroups ?? []),
+      ],
+    })
+  }
+  if (!modelGroups.length)
+    return weapons ? withoutMovedWeaponOptions(defaultWeaponLinks(entry, weapons, index, catalogueId, extraLinks)) : entry
+  return withoutMovedWeaponOptions({
+    ...entry,
+    selectionEntryGroups: entry.selectionEntryGroups?.map((group) =>
+      modelGroups.includes(group)
+        ? {
+            ...group,
+            selectionEntries: group.selectionEntries?.map((model) => {
+              if (model.type !== 'model') return model
+              const modelWeapons = defaultWargear(entry, model.name ?? '') ?? weapons
+              return modelWeapons ? defaultWeaponLinks(model, modelWeapons, index, catalogueId, extraLinks) : model
+            }),
+          }
+        : group,
+    ),
+  })
 }
 
 export function catalogueReplacements(books: ReadonlyMap<string, Catalogue>, profiledIds: ReadonlySet<string>) {
@@ -157,18 +411,25 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
     if (!book) return file
 
     const warlordTarget = warlordTargets.get(book.id)
-    const sharedSelectionEntries = warlordTarget
+    const sharedSelectionEntries = profiledCatalogueIds.has(book.id)
       ? (book.sharedSelectionEntries ?? []).map((entry) => {
+          const readable = entry.type === 'unit' || entry.type === 'model' ? withReadableWargearOptions(entry) : entry
+          const projected = entry.type === 'unit' || entry.type === 'model' ? withPrintedDefaultWargear(readable, rawIndex, book.id) : entry
+          const equipped =
+            readable === entry
+              ? projected
+              : { ...projected, selectionEntryGroups: projected.selectionEntryGroups?.filter((group) => group.name !== 'Weapon Options') }
           if (
             (entry.type !== 'unit' && entry.type !== 'model') ||
+            !warlordTarget ||
             !entry.categoryLinks?.some((category) => category.name === 'Character') ||
             entry.entryLinks?.some((link) => link.name === 'Warlord')
           )
-            return entry
+            return equipped
           return {
-            ...entry,
+            ...equipped,
             entryLinks: [
-              ...(entry.entryLinks ?? []),
+              ...(equipped.entryLinks ?? []),
               {
                 id: `profile-warlord-${book.id}-${entry.id}`,
                 name: 'Warlord',

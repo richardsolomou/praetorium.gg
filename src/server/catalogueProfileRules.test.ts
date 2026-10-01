@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
+import { wargearOf } from '../core/wargear'
 import { detachmentsOf, factionsIn, isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
 import {
   catalogueProfileMetadata,
@@ -279,6 +280,372 @@ it('offers a Warlord choice on a profiled Marine character', () => {
     captain: ['Warlord'],
     intercessors: [],
   })
+})
+
+it('equips weapons explicitly printed as the profiled Marine defaults', () => {
+  const current: CatalogueFile = {
+    catalogue: {
+      id: 'space-marines-11e',
+      name: 'Imperium - Adeptus Astartes - Space Marines (11e)',
+      sharedSelectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          profiles: [
+            {
+              id: 'captain-notes',
+              name: 'Datasheet Notes',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text: 'UNIT COMPOSITION: 1 Captain model | This model is equipped with: 1 Bolt Rifle; 1 Power Fist.',
+                },
+              ],
+            },
+          ],
+          entryLinks: [
+            { id: 'captain-rifle-focused', name: 'Bolt Rifle – Focused Fire', targetId: 'rifle-focused', type: 'selectionEntry' },
+            { id: 'captain-rifle-saturation', name: 'Bolt Rifle – Saturation', targetId: 'rifle-saturation', type: 'selectionEntry' },
+            { id: 'captain-pistol', name: 'Bolt Pistol', targetId: 'pistol', type: 'selectionEntry' },
+          ],
+          selectionEntryGroups: [
+            {
+              id: 'captain-melee',
+              name: 'Power Fist',
+              entryLinks: [
+                {
+                  id: 'captain-fist',
+                  name: 'Power Fist',
+                  targetId: 'fist',
+                  type: 'selectionEntry',
+                  constraints: [{ id: 'required-fist', field: 'selections', scope: 'parent', type: 'min', value: 1 }],
+                },
+              ],
+            },
+          ],
+        },
+        ...[
+          ['rifle-focused', 'Bolt Rifle – Focused Fire'],
+          ['rifle-saturation', 'Bolt Rifle – Saturation'],
+          ['fist', 'Power Fist'],
+          ['pistol', 'Bolt Pistol'],
+        ].map(([id, name]) => ({ id: id!, name: name!, type: 'upgrade' as const })),
+      ],
+      sharedSelectionEntryGroups: [
+        {
+          id: 'detachments',
+          name: 'Detachment',
+          selectionEntries: [
+            {
+              id: 'assault',
+              name: 'Assault Brethren',
+              type: 'upgrade',
+              profiles: [{ id: 'assault-rule', name: 'Assault Mastery', characteristics: [{ name: 'Description', $text: 'Charge.' }] }],
+            },
+          ],
+        },
+      ],
+    },
+  }
+  const { index } = loadedCatalogue([files[0]!, current])
+  const captain = buildUnit('profile-unit-space-marines-11e-captain', index, undefined, undefined, {
+    primaryCatalogueId: 'space-marines-11e',
+  })
+
+  expect(
+    captain &&
+      wargearOf(captain.selection, index)
+        .map(({ name }) => name)
+        .toSorted(),
+  ).toEqual(['Bolt Rifle – Focused Fire', 'Power Fist'])
+  const modes = [...index.definitions.values()].find((entry) => entry.name === 'bolt rifle' && entry.entryLinks?.length === 2)
+  expect(modes?.entryLinks?.map((link) => link.name)).toEqual(['Bolt Rifle – Focused Fire', 'Bolt Rifle – Saturation'])
+})
+
+it('counts every model in a profiled squad without a model group', () => {
+  const current: CatalogueFile = {
+    catalogue: {
+      id: 'space-marines-11e',
+      name: 'Imperium - Adeptus Astartes - Space Marines (11e)',
+      sharedSelectionEntries: [
+        {
+          id: 'aggressors',
+          name: 'Aggressor Squad',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'aggressor-notes',
+              name: 'Datasheet Notes',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text:
+                    'UNIT COMPOSITION: 1 Aggressor Sergeant model | 2-5 Aggressor models | Every model is equipped with: 1 Flamestorm Gauntlets; 1 Twin Power Fists.',
+                },
+              ],
+            },
+          ],
+          entryLinks: [
+            { id: 'flame-link', name: 'Flamestorm Gauntlets', targetId: 'flame', type: 'selectionEntry' },
+            { id: 'fist-link', name: 'Twin Power Fists', targetId: 'fist', type: 'selectionEntry' },
+            { id: 'optional-link', name: 'Fragstorm Grenade Launcher', targetId: 'grenade', type: 'selectionEntry' },
+          ],
+        },
+        ...[
+          ['flame', 'Flamestorm Gauntlets'],
+          ['fist', 'Twin Power Fists'],
+          ['grenade', 'Fragstorm Grenade Launcher'],
+        ].map(([id, name]) => ({ id: id!, name: name!, type: 'upgrade' as const })),
+      ],
+      sharedSelectionEntryGroups: [
+        {
+          id: 'detachments',
+          name: 'Detachment',
+          selectionEntries: [
+            {
+              id: 'assault',
+              name: 'Assault Brethren',
+              type: 'upgrade',
+              profiles: [{ id: 'assault-rule', name: 'Assault Mastery', characteristics: [{ name: 'Description', $text: 'Charge.' }] }],
+            },
+          ],
+        },
+      ],
+    },
+  }
+  const { index } = loadedCatalogue([files[0]!, current])
+  const squad = buildUnit('profile-unit-space-marines-11e-aggressors', index, undefined, undefined, {
+    primaryCatalogueId: 'space-marines-11e',
+  })
+
+  expect(squad && { models: squad.size.models, wargear: wargearOf(squad.selection, index) }).toEqual({
+    models: 3,
+    wargear: [
+      { name: 'Flamestorm Gauntlets', count: 3 },
+      { name: 'Twin Power Fists', count: 3 },
+    ],
+  })
+})
+
+it('equips distinct models from their printed composition', () => {
+  const current: CatalogueFile = {
+    catalogue: {
+      id: 'space-marines-11e',
+      name: 'Imperium - Adeptus Astartes - Space Marines (11e)',
+      sharedSelectionEntries: [
+        {
+          id: 'heroes',
+          name: 'Company Heroes',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'hero-notes',
+              name: 'Datasheet Notes',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text:
+                    'UNIT COMPOSITION: 1 Ancient model | 1 Champion model | The Ancient is equipped with: 1 Bolt Pistol. | Every Champion is equipped with: 1 Power Fist.',
+                },
+              ],
+            },
+          ],
+          entryLinks: [
+            { id: 'pistol-link', name: 'Bolt Pistol', targetId: 'pistol', type: 'selectionEntry' },
+            { id: 'fist-link', name: 'Power Fist', targetId: 'fist', type: 'selectionEntry' },
+          ],
+        },
+        { id: 'pistol', name: 'Bolt Pistol', type: 'upgrade' },
+        { id: 'fist', name: 'Power Fist', type: 'upgrade' },
+      ],
+      sharedSelectionEntryGroups: [
+        {
+          id: 'detachments',
+          name: 'Detachment',
+          selectionEntries: [
+            {
+              id: 'assault',
+              name: 'Assault Brethren',
+              type: 'upgrade',
+              profiles: [{ id: 'assault-rule', name: 'Assault Mastery', characteristics: [{ name: 'Description', $text: 'Charge.' }] }],
+            },
+          ],
+        },
+      ],
+    },
+  }
+  const { index } = loadedCatalogue([files[0]!, current])
+  const heroes = buildUnit('profile-unit-space-marines-11e-heroes', index, undefined, undefined, {
+    primaryCatalogueId: 'space-marines-11e',
+  })
+
+  expect(heroes && { models: heroes.size.models, wargear: wargearOf(heroes.selection, index) }).toEqual({
+    models: 2,
+    wargear: [
+      { name: 'Bolt Pistol', count: 1 },
+      { name: 'Power Fist', count: 1 },
+    ],
+  })
+})
+
+it('equips a printed model weapon stored under unit weapon options', () => {
+  const current: CatalogueFile = {
+    catalogue: {
+      id: 'space-marines-11e',
+      name: 'Imperium - Adeptus Astartes - Space Marines (11e)',
+      sharedSelectionEntries: [
+        {
+          id: 'veterans',
+          name: 'Veterans',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'notes',
+              name: 'Datasheet Notes',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text:
+                    'UNIT COMPOSITION: 1 Sergeant model | 4 Veteran models | Every Veteran is equipped with: 1 Bolt Pistol; 1 Power Weapon.',
+                },
+              ],
+            },
+          ],
+          selectionEntryGroups: [
+            {
+              id: 'models',
+              name: 'Unit',
+              selectionEntries: [
+                {
+                  id: 'veteran',
+                  name: 'Veteran',
+                  type: 'model',
+                  constraints: [{ id: 'count', field: 'selections', scope: 'parent', type: 'min', value: 4 }],
+                  entryLinks: [{ id: 'pistol-link', name: 'Bolt Pistol', targetId: 'pistol', type: 'selectionEntry' }],
+                },
+              ],
+            },
+            {
+              id: 'weapons',
+              name: 'Weapon Options',
+              selectionEntries: [
+                {
+                  id: 'power-option',
+                  name: 'Power Weapon',
+                  type: 'upgrade',
+                  entryLinks: [{ id: 'power-link', name: 'Power Weapon', targetId: 'power', type: 'selectionEntry' }],
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'pistol', name: 'Bolt Pistol', type: 'upgrade' },
+        { id: 'power', name: 'Power Weapon', type: 'upgrade' },
+      ],
+      sharedSelectionEntryGroups: [
+        {
+          id: 'detachments',
+          name: 'Detachment',
+          selectionEntries: [
+            {
+              id: 'assault',
+              name: 'Assault Brethren',
+              type: 'upgrade',
+              profiles: [{ id: 'assault-rule', name: 'Assault Mastery', characteristics: [{ name: 'Description', $text: 'Charge.' }] }],
+            },
+          ],
+        },
+      ],
+    },
+  }
+  const { index } = loadedCatalogue([files[0]!, current])
+  const veterans = buildUnit('profile-unit-space-marines-11e-veterans', index, undefined, undefined, {
+    primaryCatalogueId: 'space-marines-11e',
+  })
+
+  expect(veterans && wargearOf(veterans.selection, index)).toEqual([
+    { name: 'Bolt Pistol', count: 4 },
+    { name: 'Power Weapon', count: 4 },
+  ])
+})
+
+it('keeps text-only Marine wargear instructions without offering a fake swap', () => {
+  const instruction = "This model's Bolt Pistol can be replaced with 1 Plasma Pistol."
+  const current: CatalogueFile = {
+    catalogue: {
+      id: 'space-marines-11e',
+      name: 'Imperium - Adeptus Astartes - Space Marines (11e)',
+      sharedSelectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          profiles: [
+            {
+              id: 'notes',
+              name: 'Datasheet Notes',
+              characteristics: [
+                { name: 'Description', $text: 'UNIT COMPOSITION: 1 Captain model | This model is equipped with: 1 Bolt Pistol.' },
+              ],
+            },
+          ],
+          entryLinks: [{ id: 'pistol-link', name: 'Bolt Pistol', targetId: 'pistol', type: 'selectionEntry' }],
+          selectionEntryGroups: [
+            {
+              id: 'wargear',
+              name: 'Wargear Options',
+              selectionEntries: [
+                {
+                  id: 'fake-swap',
+                  name: instruction,
+                  type: 'upgrade',
+                  profiles: [{ id: 'option', name: 'Option', characteristics: [{ name: 'Description', $text: instruction }] }],
+                },
+              ],
+            },
+            {
+              id: 'loose-weapons',
+              name: 'Weapon Options',
+              selectionEntries: [
+                {
+                  id: 'plasma-option',
+                  name: 'Plasma Pistol',
+                  type: 'upgrade',
+                  entryLinks: [{ id: 'plasma-link', name: 'Plasma Pistol', targetId: 'plasma', type: 'selectionEntry' }],
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'pistol', name: 'Bolt Pistol', type: 'upgrade' },
+        { id: 'plasma', name: 'Plasma Pistol', type: 'upgrade' },
+      ],
+      sharedSelectionEntryGroups: [
+        {
+          id: 'detachments',
+          name: 'Detachment',
+          selectionEntries: [
+            {
+              id: 'assault',
+              name: 'Assault Brethren',
+              type: 'upgrade',
+              profiles: [{ id: 'assault-rule', name: 'Assault Mastery', characteristics: [{ name: 'Description', $text: 'Charge.' }] }],
+            },
+          ],
+        },
+      ],
+    },
+  }
+  const prepared = prepareCatalogueProfileRules([files[0]!, current])
+  const entry = prepared.files[1]!.catalogue!.sharedSelectionEntries!.find((item) => item.id === 'captain')!
+
+  expect({
+    choices: entry.selectionEntryGroups?.flatMap((group) => group.selectionEntries?.map((option) => option.name) ?? []),
+    instructions: entry.profiles
+      ?.filter((profile) => profile.name === 'Wargear option')
+      .map((profile) => profile.characteristics?.[0]?.$text),
+  }).toEqual({ choices: [], instructions: [instruction] })
 })
 
 it('offers a new chapter book instead of the chapter that imports the old parent', () => {
