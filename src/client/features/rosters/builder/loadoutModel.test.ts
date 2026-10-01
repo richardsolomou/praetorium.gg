@@ -20,7 +20,7 @@ import {
   showLoadoutEntry,
   spreadHandlers,
   uniqueWeaponProfiles,
-  unmodeledEquippedWeapons,
+  unmodeledGrantedWeapons,
   weaponMatches,
   weaponProfilesFor,
   wargearMatches,
@@ -52,11 +52,12 @@ it('shows an equipped enhancement weapon outside the model loadout without repea
     rows: [{ name: 'Master-crafted Power Weapon', choiceKey: 'melee', optionId: 'power-weapon' }],
   }
   expect(
-    unmodeledEquippedWeapons(
+    unmodeledGrantedWeapons(
       [
         weapon('Heavy Bolt Pistol', 'Ranged Weapons'),
         weapon('Master-crafted Power Weapon', 'Melee Weapons'),
         weapon("Imperium's Sword", 'Melee Weapons'),
+        weapon('Particle beamer', 'Ranged Weapons'),
       ],
       [model],
       [

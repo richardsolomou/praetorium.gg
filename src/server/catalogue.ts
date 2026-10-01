@@ -29,6 +29,7 @@ import { priceOf } from './catalogueUnit'
 import { datacardOf } from './datasheetJoin'
 import { currentProfileValue } from './datacards'
 import { mergeDetachmentRules } from './catalogueDescriptions'
+import { joinKey } from './rulesSource'
 import { definitionTokens, displayRuleName, modifiedProfileField } from './catalogueDisplay'
 import { relationshipFor, relationshipsFor } from './catalogueRelationships'
 import { deploymentAbilities, parseAbilityGrants, parsedAbilityGrants, titleCaseAbility } from './catalogueAbilityGrants'
@@ -136,6 +137,47 @@ function cachedIn<T>(store: WeakMap<LoadedCatalogue, Map<string, T>>, loaded: Lo
  */
 const walkRecord = (loaded: LoadedCatalogue, catalogueId: string, entryId: string) =>
   cachedIn(walkCache, loaded, `${catalogueId}:${entryId}`, () => walk(loaded, catalogueId, entryId))
+
+function replacementDatasheetIn(loaded: LoadedCatalogue, catalogueId: string, root: Definition): Datasheet | null {
+  if (!loaded.profiledSupplementIds.has(catalogueId)) return null
+  const owner = loaded.index.catalogueOf.get(targetOf(root, loaded.index.definitions).id)
+  const replacementId = owner ? loaded.replacements?.get(owner) : null
+  if (!replacementId) return null
+  const name = nameOf(root, loaded.index.definitions)
+  const matches = [...datasheetsOf(loaded.index, replacementId)].filter((id) => {
+    const entry = loaded.index.definitions.get(id)
+    return entry && nameOf(entry, loaded.index.definitions) === name
+  })
+  return matches.length === 1 ? datasheetIn(loaded, replacementId, matches[0]!) : null
+}
+
+function replacementProfileValue(
+  sheet: Datasheet | null,
+  type: string,
+  name: string,
+  field: string,
+  previousUnitNames: readonly string[],
+): string | null {
+  let matchingName = name
+  if (type === 'Unit' && !sheet?.profiles.some((profile) => profile.type === type && profile.name === name)) {
+    const currentNames = sheet?.profiles.filter((profile) => profile.type === type).map((profile) => profile.name) ?? []
+    const previousUnmatched = previousUnitNames.filter((previous) => !currentNames.includes(previous))
+    const currentUnmatched = currentNames.filter((current) => !previousUnitNames.includes(current))
+    if (
+      currentNames.length === previousUnitNames.length &&
+      previousUnmatched.length === 1 &&
+      currentUnmatched.length === 1 &&
+      previousUnmatched[0] === name
+    )
+      matchingName = currentUnmatched[0]!
+  }
+  const values = new Set(
+    sheet?.profiles
+      .filter((profile) => profile.type === type && profile.name === matchingName)
+      .flatMap((profile) => profile.values.filter((value) => value.name === field).map((value) => value.value)) ?? [],
+  )
+  return values.size === 1 ? [...values][0]! : null
+}
 
 export function contextualAbilityNamesIn(
   loaded: LoadedCatalogue,
@@ -276,6 +318,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return null
   const root = loaded.index.definitions.get(entryId)
   if (!root) return null
+  const replacement = replacementDatasheetIn(loaded, catalogueId, root)
   const currentDetails = loaded.profiledSupplementIds.has(catalogueId) ? datacardOf(loaded, catalogueId, entryId)?.details : null
 
   const modifiers =
@@ -495,6 +538,10 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     options: choice.options.map((option) => option.name).join('; '),
   }))
 
+  const previousUnitNames = [
+    ...new Set([...profiles.values()].flatMap(({ profile }) => (profile.typeName === 'Unit' && profile.name ? [profile.name] : []))),
+  ]
+
   const displayProfiles = [...profiles.values()].flatMap(({ profile, lineage, owner }) => {
     if (!profile.name || !profile.typeName) return []
     const profileType = profile.typeName
@@ -509,7 +556,10 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     const values = (profile.characteristics ?? []).flatMap((value) => {
       if (!value.name) return []
       const changed = modifiedProfileField(
-        currentProfileValue(currentDetails, profileType, profile.name ?? '', value.name) ?? value.$text ?? '',
+        replacementProfileValue(replacement, profileType, profile.name ?? '', value.name, previousUnitNames) ??
+          currentProfileValue(currentDetails, profileType, profile.name ?? '', value.name) ??
+          value.$text ??
+          '',
         value.typeId,
         profileType,
         profileLineage,
@@ -558,15 +608,22 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     ]
   })
   const printedAbilities = currentDetails?.abilities
+  const replacementAbilities = replacement?.abilities.filter((ability) => ability.kind === 'datasheet') ?? []
   const displayedAbilities = printedAbilities
     ? [
         ...[...abilities.values()].filter((ability) => ability.kind !== 'datasheet'),
-        ...printedAbilities.map((ability) => ({
-          id: `datacard:${routeSlug(ability.name)}`,
-          name: ability.name,
-          description: ability.description,
-          kind: 'datasheet' as const,
-        })),
+        ...printedAbilities.map((ability) => {
+          const abilityKey = joinKey(ability.name.replace(/\s+\(Once per [^)]+\)$/i, ''))
+          const matching = replacementAbilities.filter((candidate) => joinKey(candidate.name) === abilityKey)
+          return matching.length === 1 && matching[0]!.description
+            ? { ...matching[0]!, name: ability.name }
+            : {
+                id: `datacard:${routeSlug(ability.name)}`,
+                name: ability.name,
+                description: ability.description,
+                kind: 'datasheet' as const,
+              }
+        }),
       ]
     : [...abilities.values()]
   return {
