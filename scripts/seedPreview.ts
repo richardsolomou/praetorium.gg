@@ -485,6 +485,38 @@ async function seedInto(
     tail: [{ kind: 'set-setup-step', step: 2 }],
   })
 
+  if (process.env.PRAETORIUM_SEED_STRESS_REPLAY === 'true') {
+    const tail: Command[] = [{ kind: 'begin-battle', firstPlayerId: previewUserId }]
+    for (let round = 0; round < 5; round++) {
+      if (round) tail.push({ kind: 'settle-opponent-turn' })
+      for (const playerId of [previewUserId, opponentUserId]) {
+        for (let phase = 0; phase < 6; phase++) {
+          tail.push(
+            { kind: 'score', category: 'primary', delta: 1, playerId },
+            { kind: 'score', category: 'secondary', delta: 1, playerId },
+            { kind: 'correct-player', playerId, resource: 'cp', delta: 1 },
+            { kind: 'correct-player', playerId, resource: 'cp', delta: -1 },
+            { kind: 'advance', playerId },
+          )
+        }
+        if (playerId === previewUserId) tail.push({ kind: 'settle-opponent-turn' })
+      }
+    }
+    tail.push({ kind: 'score-settlement', round: 5, scores: [{ category: 'primary', delta: 5 }] }, { kind: 'settle-opponent-turn' })
+    await createCasualBattle({
+      id: 'preview-stress-replay',
+      token: 'preview-stress-replay',
+      creatorId: previewUserId,
+      opponentIds: [opponentUserId],
+      limit: 2_000,
+      rosters: [
+        [previewUserId, 'preview-necrons-cursed-skyshroud'],
+        [opponentUserId, 'preview-opponent-orks'],
+      ],
+      tail,
+    })
+  }
+
   await createRevealedLeague({
     id: 'preview-league-duel',
     token: 'preview-league-duel',

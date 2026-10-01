@@ -1,5 +1,74 @@
 import { expect, test, type Locator } from '@playwright/test'
 
+test('the full replay preloads before scrubbing', async ({ page }) => {
+  let replayRequests = 0
+  let singleRequests = 0
+  page.on('requestfinished', (request) => {
+    const payload = new URL(request.url()).searchParams.get('payload')
+    if (payload?.includes('"preview-league-battle-duel"')) {
+      if (payload.includes('"seqs"')) replayRequests++
+      if (payload.includes('"seq"')) singleRequests++
+    }
+  })
+  await page.goto('/battles/preview-league-battle-duel')
+
+  await expect.poll(() => replayRequests).toBe(4)
+  const timeline = page.getByRole('navigation', { name: 'Battle replay timeline' })
+  const slider = timeline.getByRole('slider', { name: 'Replay event' })
+  await slider.press('Home')
+  await expect(page.getByRole('region', { name: 'Battle scoreboard' })).toContainText('Round 0 of 5')
+  await expect(timeline).not.toContainText('Loading…')
+  expect(singleRequests).toBe(0)
+})
+
+test('dragging the replay timeline on a phone changes the event without scrolling the page', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  try {
+    const page = await context.newPage()
+    await page.goto('/battles/preview-league-battle-duel')
+    const slider = page.getByRole('slider', { name: 'Replay event' })
+    await expect(slider).toBeVisible()
+    await page.evaluate(() => {
+      document.querySelector('main')!.style.minHeight = '200vh'
+    })
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeGreaterThan(300)
+    const session = await context.newCDPSession(page)
+    for (const native of [false, true]) {
+      if (native) {
+        await page.evaluate(() => {
+          document.documentElement.dataset.nativeApp = 'true'
+          document.documentElement.dataset.nativeShell = 'true'
+        })
+        await slider.press('End')
+      }
+      await page.evaluate(() => window.scrollTo(0, 300))
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+      const scrollY = await page.evaluate(() => window.scrollY)
+      const bounds = (await slider.boundingBox())!
+      const y = bounds.y + bounds.height / 2
+      await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: bounds.x + bounds.width * 0.9, y }] })
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: bounds.x + bounds.width * 0.9, y: y + 30 }],
+      })
+      for (let step = 8; step >= 1; step--) {
+        await session.send('Input.dispatchTouchEvent', {
+          type: 'touchMove',
+          touchPoints: [{ x: bounds.x + (bounds.width * step) / 10, y: y + 30 }],
+        })
+      }
+      await expect.poll(async () => Number(await slider.inputValue())).toBeLessThan(20)
+      expect(await page.evaluate(() => window.scrollY)).toBe(scrollY)
+      await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      expect(await page.evaluate(() => window.scrollY)).toBe(scrollY)
+      await expect(page.getByRole('region', { name: 'Battle scoreboard' })).toContainText('Round 1 of 5')
+      await page.screenshot({ path: native ? '/tmp/praetorium-replay-native-phone.png' : '/tmp/praetorium-replay-phone.png' })
+    }
+  } finally {
+    await context.close()
+  }
+})
+
 test('a spectator scrubs a finished five-round battle by event', async ({ page }) => {
   await page.goto('/battles/preview-league-battle-duel')
 

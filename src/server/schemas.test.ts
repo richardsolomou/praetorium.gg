@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { REPLAY_BATCH_SIZE } from '../contracts/battles'
 import {
+  battleReplayBatchSchema,
   createBattleSchema,
   createLeagueBattleSchema,
   createLeagueEventSchema,
@@ -15,6 +17,23 @@ import {
   unitsSchema,
   updateLeagueSchema,
 } from './schemas'
+
+describe('replay batch input', () => {
+  it('accepts a full batch', () => {
+    expect(
+      battleReplayBatchSchema.safeParse({ token: 'battle', seqs: Array.from({ length: REPLAY_BATCH_SIZE }, (_, index) => index + 1) })
+        .success,
+    ).toBe(true)
+  })
+
+  it('rejects an empty batch', () => {
+    expect(battleReplayBatchSchema.safeParse({ token: 'battle', seqs: [] }).success).toBe(false)
+  })
+
+  it('rejects an oversized batch', () => {
+    expect(battleReplayBatchSchema.safeParse({ token: 'battle', seqs: Array(REPLAY_BATCH_SIZE + 1).fill(1) }).success).toBe(false)
+  })
+})
 
 describe('terrain reference input', () => {
   it('accepts the geometry cache version and keeps older clients valid', () => {

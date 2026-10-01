@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { REPLAY_BATCH_SIZE } from '../contracts/battles'
 import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
 import { BATTLE_AUDIENCES } from '../core/battleAudience'
@@ -43,6 +44,7 @@ const battlesCursor = z.object({ at: z.number().int().min(0), id })
 
 export const tokenSchema = z.object({ token })
 export const battleReplaySchema = z.object({ token, seq: z.number().int().min(1) })
+export const battleReplayBatchSchema = z.object({ token, seqs: z.array(z.number().int().min(1)).min(1).max(REPLAY_BATCH_SIZE) })
 const leagueFields = {
   name: z.string().trim().min(1, 'name the league').max(LEAGUE_NAME_MAX_LENGTH),
   description: z.string().trim().max(LEAGUE_DESCRIPTION_MAX_LENGTH),

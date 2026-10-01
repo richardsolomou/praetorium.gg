@@ -21,6 +21,7 @@ import { type BattleView, battleView } from '../core/battleView'
 import { battleReport, type ReportEntry } from '../core/battleReport'
 import { battleClock, type BattleClock } from '../core/battleClock'
 import { battleLogThroughSeq, battleTimeline, type ReplayPoint } from '../core/battleReplay'
+import { compactReplayFrames } from '../core/replayFrames'
 import type { MissionAward } from '../core/scoring'
 import type { OnboardingProgressOperation } from '../core/onboarding'
 import {
@@ -35,7 +36,7 @@ import {
 import { routeSlug } from '../core/slug'
 import { type Standing, type StandingFaction, standings } from '../core/standings'
 import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
-import type { BattlesCursor } from '../contracts/battles'
+import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
 import { gameReferencesFor } from './gameReferences'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type Mission, missionFor } from './rules'
 import { type Notifier, silentNotifier } from './pushNotifier'
@@ -877,24 +878,37 @@ export class PraetoriumService {
   }
 
   async replayAt(token: string, userId: string | null, seq: number, rules?: BattleReadRules | null) {
+    const result = await this.replayBatch(token, userId, [seq], rules)
+    return result.kind === 'unavailable' ? result : result.first
+  }
+
+  async replayBatch(token: string, userId: string | null, seqs: readonly number[], rules?: BattleReadRules | null) {
     const history = await this.mustFind(token)
     const current = await this.visibleScreen(history, userId, rules)
     if (current.kind === 'unavailable') return current
-    if (!Number.isInteger(seq) || !history.log.some((entry) => entry.seq === seq)) {
+    const available = new Set(history.log.map((entry) => entry.seq))
+    if (seqs.length < 1 || seqs.length > REPLAY_BATCH_SIZE || seqs.some((seq) => !Number.isInteger(seq) || !available.has(seq))) {
       throw new Response('no such battle event', { status: 404 })
     }
     const playerIds = history.players.map((player) => player.id)
     const sides = history.players.map((player) => player.side)
-    const log = battleLogThroughSeq(history.log, seq)
     const viewerId = current.kind === 'battle' ? userId! : SPECTATOR_ID
-    const frame = this.battleScreen({ ...history, log }, viewerId, rules)
     return {
-      kind: 'replay' as const,
-      view: frame.view,
-      // A past moment is read back, so nothing in it keeps counting.
-      clock: { ...frame.clock, running: null },
-      missions: frame.missions,
-      report: battleReport(history.players, log, playerIds, viewerId, sides, rules),
+      kind: 'replay-batch' as const,
+      ...compactReplayFrames(
+        seqs.map((seq) => {
+          const log = battleLogThroughSeq(history.log, seq)
+          const frame = this.battleScreen({ ...history, log }, viewerId, rules)
+          return {
+            kind: 'replay' as const,
+            view: frame.view,
+            // A past moment is read back, so nothing in it keeps counting.
+            clock: { ...frame.clock, running: null },
+            missions: frame.missions,
+            report: battleReport(history.players, log, playerIds, viewerId, sides, rules),
+          }
+        }),
+      ),
     }
   }
 

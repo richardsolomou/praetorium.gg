@@ -110,7 +110,8 @@ export const replayAtQuery = (token: string, seq: number, enabled: boolean) =>
     queryFn: () => replayBattleAt({ data: { token, seq } }),
     enabled,
     placeholderData: keepPreviousData,
-    staleTime: SSR_STALE_TIME,
+    staleTime: Infinity,
+    gcTime: Infinity,
   })
 
 export function newestBattleScreen<T>(oldData: T | undefined, newData: T): T {

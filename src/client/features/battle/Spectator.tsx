@@ -7,10 +7,13 @@ import type { Command } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import type { ReportEntry } from '../../../core/battleReport'
 import type { ReplayPoint } from '../../../core/battleReplay'
+import { expandReplayFrames } from '../../../core/replayFrames'
 import type { BattleView } from '../../../core/battleView'
+import { replayBattleBatch } from '../../../server/functions'
 import { battleOutcome } from '../../battleOutcome'
+import { replayPreloadBatches } from '../../replayPrefetch'
 import { missionCardsByKey } from './missionDeck'
-import { deploymentsQuery, gameReferencesQuery, meQuery } from '../../queries'
+import { deploymentsQuery, gameReferencesQuery, meQuery, replayAtQuery } from '../../queries'
 import { sides, type Side, type SideMission } from '../../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { PlayerName } from './PlayerName'
@@ -21,7 +24,6 @@ import { PrimaryMission, type ReferenceCard, SecondaryMissions } from './Mission
 import { Scoreboard } from './Scoreboard'
 import { TurnTimes } from './TurnTimes'
 import { tint } from './battleTints'
-import { replayAtQuery } from '../../queries'
 
 type Props = {
   view: BattleView
@@ -50,12 +52,33 @@ export function Spectator({
   )
   const queryClient = useQueryClient()
   const replay = useQuery(replayAtQuery(currentView.token, seq, seq < currentView.seq))
+  useEffect(() => () => queryClient.removeQueries({ queryKey: ['battle-replay', currentView.token] }), [currentView.token, queryClient])
   useEffect(() => {
-    for (const neighbor of [timeline[selectedIndex - 1], timeline[selectedIndex + 1]]) {
-      if (neighbor && neighbor.seq < currentView.seq)
-        void queryClient.query(replayAtQuery(currentView.token, neighbor.seq, true)).catch(() => {})
+    let active = true
+    void (async () => {
+      for (const batch of replayPreloadBatches(timeline, currentView.seq)) {
+        if (!active) return
+        const missing = batch.filter(
+          (nextSeq) => queryClient.getQueryData(replayAtQuery(currentView.token, nextSeq, true).queryKey) === undefined,
+        )
+        if (!missing.length) continue
+        try {
+          const result = await replayBattleBatch({ data: { token: currentView.token, seqs: missing } })
+          if (!active || result.kind === 'unavailable') return
+          const frames = expandReplayFrames(result.first, result.deltas)
+          if (frames.length !== missing.length) return
+          for (const [index, frame] of frames.entries()) {
+            queryClient.setQueryData(replayAtQuery(currentView.token, missing[index]!, true).queryKey, frame)
+          }
+        } catch {
+          return
+        }
+      }
+    })()
+    return () => {
+      active = false
     }
-  }, [currentView.seq, currentView.token, queryClient, selectedIndex, timeline])
+  }, [currentView.seq, currentView.token, queryClient, timeline])
   const frame = seq < currentView.seq && replay.data?.kind === 'replay' ? replay.data : null
   const view = frame?.view ?? currentView
   const clock = frame?.clock ?? currentClock
@@ -185,6 +208,11 @@ function ReplayTimeline({
   }))
   const roundName = selected.round > 0 ? `Round ${selected.round}` : 'Setup'
   const choose = (next: number) => onSelect(points[next]!.seq)
+  const chooseAt = (clientX: number, input: HTMLInputElement) => {
+    const bounds = input.getBoundingClientRect()
+    const next = Math.round(((clientX - bounds.left) / bounds.width) * (points.length - 1))
+    choose(Math.max(0, Math.min(points.length - 1, next)))
+  }
   const bucketSize = Math.max(1, Math.ceil(points.length / 100))
   const bars = Array.from({ length: Math.ceil(points.length / bucketSize) }, (_, bucket) =>
     points.slice(bucket * bucketSize, (bucket + 1) * bucketSize),
@@ -207,7 +235,7 @@ function ReplayTimeline({
             {index + 1}/{points.length}
           </p>
         </div>
-        <div className="relative h-6">
+        <div className="relative h-8">
           <div aria-hidden className="absolute inset-x-0 bottom-0 flex h-5 items-end gap-px border-b border-edge">
             {bars.map((bar, bucket) => {
               const active = bar.some((point) => point.activity === 'action')
@@ -227,13 +255,13 @@ function ReplayTimeline({
               key={round}
               aria-hidden
               data-round-start={round}
-              className="pointer-events-none absolute top-0 bottom-0 w-px bg-dim"
+              className="pointer-events-none absolute bottom-0 h-6 w-px bg-dim"
               style={{ left: `${(Math.floor(position / bucketSize) / bars.length) * 100}%` }}
             />
           ))}
           <div
             aria-hidden
-            className="pointer-events-none absolute top-0 bottom-0 w-px bg-primary"
+            className="pointer-events-none absolute bottom-0 h-6 w-px bg-primary"
             style={{ left: `${(index / Math.max(1, points.length - 1)) * 100}%` }}
           />
           <input
@@ -243,9 +271,18 @@ function ReplayTimeline({
             step={1}
             value={index}
             onChange={(event) => choose(Number(event.target.value))}
+            onPointerDown={(event) => {
+              event.preventDefault()
+              event.currentTarget.focus()
+              event.currentTarget.setPointerCapture(event.pointerId)
+              chooseAt(event.clientX, event.currentTarget)
+            }}
+            onPointerMove={(event) => {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) chooseAt(event.clientX, event.currentTarget)
+            }}
             aria-label="Replay event"
             aria-valuetext={`${roundName}, event ${index + 1} of ${points.length}: ${selected.text}`}
-            className="absolute inset-0 z-10 h-6 w-full cursor-ew-resize opacity-0"
+            className="absolute inset-x-0 -top-1.5 z-10 h-11 w-full cursor-ew-resize touch-none opacity-0"
           />
         </div>
       </div>
