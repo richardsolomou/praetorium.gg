@@ -949,14 +949,22 @@ function weaponAbilitiesInSelectedUnit(
     for (const source of new Set([definition, targetOf(definition, index.definitions)])) {
       for (const profile of source.profiles ?? []) {
         if (profile.typeName !== 'Abilities' || !profile.name) continue
-        const match = normalizedAbilityDescription(profile)?.match(
+        const description = normalizedAbilityDescription(profile)
+        const match = description?.match(
           /^(Ranged|Melee) weapons equipped by (?:the bearer|models in this unit) have (?:the )?\[([^\]]+)\] ability\.$/iu,
         )
-        if (!match) continue
+        const unitAttacks = !match
+          ? abilityDescription(profile)
+              ?.normalize('NFKC')
+              .trim()
+              .match(/(?:^This unit['’]s|(?:^|\n\n)[A-Z][A-Z -]+ unit only\. This unit['’]s) (melee|ranged) attacks have \[([^\]]+)\]\.$/u)
+          : null
+        const grant = match ?? unitAttacks
+        if (!grant) continue
         const granted = {
-          keyword: titleCaseAbility(match[2]!),
+          keyword: grant[2]!.replace(/^[^:]+/, (name) => titleCaseAbility(name)),
           source: profile.name,
-          profileTypes: [`${titleCaseAbility(match[1]!)} Weapons`],
+          profileTypes: [`${titleCaseAbility(grant[1]!)} Weapons`],
         }
         found.set(`${granted.keyword.toLowerCase()}:${granted.profileTypes.join(',')}:${granted.source}`, granted)
       }
@@ -1063,18 +1071,12 @@ function addGrantedWeaponAbilities(
       },
     ]
   }
-  const printed = new Set(keywords.value.split(',').map((keyword) => keyword.trim().toLowerCase()))
+  const printed = new Set(weaponKeywordsOf(keywords.value).map((keyword) => keyword.toLowerCase()))
   const additions = granted.filter((ability) => !printed.has(ability.keyword.toLowerCase()))
   if (!additions.length) return values
   const changed = {
     ...keywords,
-    value: [
-      ...keywords.value
-        .split(',')
-        .map((keyword) => keyword.trim())
-        .filter(Boolean),
-      ...additions.map((ability) => ability.keyword),
-    ].join(', '),
+    value: [...weaponKeywordsOf(keywords.value), ...additions.map((ability) => ability.keyword)].join(', '),
     baseValue: keywords.baseValue ?? keywords.value,
     modifiers: [...new Set([...(keywords.modifiers ?? []), ...additions.map((ability) => ability.source)])],
   }

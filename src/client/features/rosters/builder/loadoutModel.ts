@@ -1,6 +1,6 @@
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { modelRowCount, modelRowPieces, modelRowSources, type ModelKind, type ModelRow } from '../../../../core/modelKinds'
-import { sameWargear, wargearBaseName } from '../../../../core/wargear'
+import { sameWargear, wargearBaseName, wargearKey } from '../../../../core/wargear'
 
 export { sameWargear as sameWeapon } from '../../../../core/wargear'
 
@@ -55,6 +55,26 @@ export type LoadoutUnit = {
 }
 
 export type WeaponProfileData = Datasheet['profiles'][number]
+
+export function unmodeledEquippedWeapons(
+  profiles: readonly WeaponProfileData[],
+  models: readonly LoadoutModel[],
+  choices: readonly LoadoutChoice[],
+) {
+  const modeled = new Set(
+    [
+      ...models.flatMap((model) => [...model.fixed.map((piece) => piece.name), ...model.rows.flatMap((row) => row.pieces ?? [row.name])]),
+      ...choices
+        .filter((choice) => !choice.kind)
+        .flatMap((choice) =>
+          choice.options
+            .filter((option) => option.count > 0)
+            .flatMap((option) => option.pieceCounts?.map((piece) => piece.name) ?? [option.name]),
+        ),
+    ].map(wargearKey),
+  )
+  return profiles.filter((profile) => !modeled.has(wargearKey(profile.name)))
+}
 
 export function loadoutInstructions(
   row: Pick<ModelRow, 'name' | 'pieces'>,

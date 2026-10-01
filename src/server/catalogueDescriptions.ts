@@ -1,4 +1,4 @@
-import type { Condition, ModifierGroup, SelectionEntry } from '../core/catalogue'
+import type { Condition, Definition, ModifierGroup, SelectionEntry } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
 import { compareText } from '../core/text'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -57,7 +57,7 @@ export function detachmentCatalogueDetail(
       return {
         name,
         points: entry?.costs?.find((cost) => cost.typeId === loaded.index.pointsTypeId)?.value ?? null,
-        description: entry ? descriptionOf(entry) : null,
+        description: entry ? enhancementDescription(entry, loaded) : null,
       }
     })
     .toSorted((left, right) => compareText(left.name, right.name))
@@ -65,7 +65,7 @@ export function detachmentCatalogueDetail(
     .map((entry) => ({
       name: entry.name ?? entry.id,
       points: entry.costs?.find((cost) => cost.typeId === loaded.index.pointsTypeId)?.value ?? null,
-      description: descriptionOf(entry),
+      description: enhancementDescription(entry, loaded),
     }))
     .toSorted((left, right) => compareText(left.name, right.name))
 
@@ -135,6 +135,34 @@ function forcedFor(entry: SelectionEntry): Set<string> {
 const descriptionOf = (entry: SelectionEntry) =>
   entry.profiles?.flatMap((profile) => profile.characteristics ?? []).find((characteristic) => characteristic.name === 'Description')
     ?.$text ?? null
+
+function enhancementDescription(entry: SelectionEntry, loaded: LoadedCatalogue) {
+  const description = descriptionOf(entry)
+  const linked = linkedEnhancementWeapon(entry, loaded.index.definitions)
+  if (!description || !linked) return description
+  const { weapon } = linked
+  const values = weapon
+    .characteristics!.filter(
+      (characteristic) => characteristic.$text && (characteristic.name !== 'Keywords' || characteristic.$text !== '-'),
+    )
+    .map((characteristic) => `${characteristic.name} ${characteristic.$text}`)
+  return `${description}\n\n**${weapon.name}** — ${values.join(' · ')}`
+}
+
+export function linkedEnhancementWeapon(entry: SelectionEntry, definitions: ReadonlyMap<string, Definition>) {
+  if (!/following weapon:\s*$/i.test(descriptionOf(entry) ?? '')) return null
+  const linked = (entry.entryLinks ?? []).flatMap((link) =>
+    (definitions.get(link.targetId)?.profiles ?? [])
+      .filter((profile) => profile.typeName === 'Melee Weapons' || profile.typeName === 'Ranged Weapons')
+      .map((weapon) => ({ link, weapon })),
+  )
+  if (linked.length !== 1) return null
+  const { weapon } = linked[0]!
+  const required = weapon.typeName === 'Melee Weapons' ? ['Range', 'A', 'WS', 'S', 'AP', 'D'] : ['Range', 'A', 'BS', 'S', 'AP', 'D']
+  const characteristics = weapon.characteristics ?? []
+  if (!required.every((name) => characteristics.some((characteristic) => characteristic.name === name && characteristic.$text))) return null
+  return linked[0]!
+}
 
 function unambiguous(entries: readonly SelectionEntry[]): SelectionEntry | null {
   const described = entries.filter((entry) => descriptionOf(entry))

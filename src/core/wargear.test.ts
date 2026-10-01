@@ -87,6 +87,45 @@ describe('the wargear a unit is carrying', () => {
     ])
   })
 
+  it('counts an enhancement weapon once without treating its ability as wargear', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          selectionEntryGroups: [
+            {
+              id: 'enhancements',
+              name: 'Assault Brethren Enhancements',
+              selectionEntries: [
+                {
+                  id: 'sword-enhancement',
+                  name: "Imperium's Sword",
+                  type: 'upgrade',
+                  profiles: [{ id: 'sword-ability', name: "Imperium's Sword", typeName: 'Abilities' }],
+                  selectionEntries: [
+                    {
+                      id: 'sword-weapon',
+                      name: "Imperium's Sword",
+                      type: 'upgrade',
+                      profiles: [{ id: 'sword-profile', typeName: 'Melee Weapons' }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const selection = {
+      id: 'captain',
+      selections: [{ id: 'enhancements', selections: [{ id: 'sword-enhancement', selections: [{ id: 'sword-weapon' }] }] }],
+    }
+    expect(wargearOf(selection, index)).toEqual([{ name: "Imperium's Sword", count: 1 }])
+  })
+
   it('multiplies a weapon by the models carrying it', () => {
     const index = indexOf({
       sharedSelectionEntries: [

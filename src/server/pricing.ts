@@ -654,6 +654,17 @@ function calculateRoster(
           grantsStrategicReserveExemption(findEnhancementDescription(enhancementDescriptions, chosen, enhancement)),
         )
       const wargear = heldWargear(models, choices, catalogued)
+      const specialWargear = new Set(
+        unit.choices.flatMap((choice) =>
+          specialKind(choice, upgradeNames)
+            ? choiceOptionsForPricing(choice)
+                .filter((option) => option.count > 0)
+                .flatMap((option) =>
+                  choiceOptionWargear(choice.key, option.id, unit.selection, loaded.index, options).map((piece) => routeSlug(piece.name)),
+                )
+            : [],
+        ),
+      )
       const attachment = attachmentOf(definition, loaded.index, unit.selection)
       return {
         key: unit.key,
@@ -675,7 +686,7 @@ function calculateRoster(
         toggles: unit.toggles,
         enhancements: selectedEnhancements,
         upgrades,
-        wargear: wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name))),
+        wargear: wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name)) || specialWargear.has(routeSlug(piece.name))),
         group: groupOfEntry(loaded.index, unit.entryId),
         attachment,
         attachmentLimits: attachmentLimitsOf(definition, loaded.index),

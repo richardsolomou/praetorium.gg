@@ -51,8 +51,20 @@ export function wargearOf(selection: Selection, index: CatalogueIndex, carriers 
       // also hold another choice. The Overlord's weapon holds its resurrection-orb
       // option, for example; taking the orb must not turn the weapon into a heading.
       const described = Boolean(target?.profiles?.length || target?.infoLinks?.some((link) => link.type === 'profile'))
-      if (kind === 'upgrade' && (described || (target && childrenOf(target, index).length === 0)) && count > 0) {
-        const name = target?.name ?? definition?.name
+      const name = target?.name ?? definition?.name
+      const weaponChild =
+        target?.profiles?.every((profile) => profile.typeName === 'Abilities') &&
+        child.selections?.some((held) => {
+          const nested = index.definitions.get(held.id)
+          const weapon = nested && resolve(nested, index)
+          return weapon?.profiles?.some(
+            (profile) =>
+              (profile.typeName === 'Melee Weapons' || profile.typeName === 'Ranged Weapons') &&
+              name &&
+              sameWargear(name, weapon.name ?? ''),
+          )
+        })
+      if (!weaponChild && kind === 'upgrade' && (described || (target && childrenOf(target, index).length === 0)) && count > 0) {
         if (name && !isRosterToggle(name)) found.set(name, (found.get(name) ?? 0) + count)
       }
       walk(child, count)

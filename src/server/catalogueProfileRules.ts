@@ -17,6 +17,7 @@ import { editionlessCatalogueName } from './factionNames'
 import { hiddenByRules } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { wargearOf } from '../core/wargear'
+import { linkedEnhancementWeapon } from './catalogueDescriptions'
 
 const DETACHMENT_ENTRY = 'detachment'
 
@@ -405,24 +406,37 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
       ),
     ]),
   )
-  const inheritedGroups = new Map(
+  const marineGroups = new Map(
     [...replacements].flatMap(([legacyId, currentId]) => {
       const current = byId.get(currentId)
       const groups = current?.sharedSelectionEntryGroups ?? []
       const enhancements = groups.find((group) => group.name === 'Enhancements')
       const upgrades = groups.find((group) => group.name === 'Detachment Upgrades')
-      return enhancements && upgrades ? [[legacyId, { enhancements: enhancements.id, upgrades: upgrades.id }] as const] : []
+      if (!enhancements || !upgrades) return []
+      const targets = { enhancements: enhancements.id, upgrades: upgrades.id }
+      return [[legacyId, targets] as const, [currentId, targets] as const]
     }),
   )
-  const inheritedGroupsFor = (book: Catalogue) =>
-    inheritedGroups.get(book.id) ??
+  const marineGroupsFor = (book: Catalogue) =>
+    marineGroups.get(book.id) ??
     (profiledSupplementIds.has(book.id)
-      ? (book.catalogueLinks ?? []).flatMap((link) => inheritedGroups.get(link.targetId) ?? []).at(0)
+      ? (book.catalogueLinks ?? []).flatMap((link) => marineGroups.get(link.targetId) ?? []).at(0)
       : undefined)
+  const withoutIneligibleGroups = (entry: SelectionEntry, groups: { enhancements: string; upgrades: string }): SelectionEntry => {
+    if (entry.type !== 'unit' && entry.type !== 'model') return entry
+    const categories = new Set(entry.categoryLinks?.map((link) => link.name))
+    const links = entry.entryLinks?.filter(
+      (link) =>
+        !((categories.has('Character') || categories.has('Epic Hero')) && link.targetId === groups.upgrades) &&
+        !(categories.has('Epic Hero') && link.targetId === groups.enhancements),
+    )
+    return links && links.length !== entry.entryLinks?.length ? { ...entry, entryLinks: links } : entry
+  }
   const withInheritedGroups = (entry: SelectionEntry, groups: { enhancements: string; upgrades: string }): SelectionEntry => {
     if (entry.type !== 'unit' && entry.type !== 'model') return entry
     const categories = new Set(entry.categoryLinks?.map((link) => link.name))
-    const targets = new Set(entry.entryLinks?.map((link) => link.targetId))
+    const eligible = withoutIneligibleGroups(entry, groups)
+    const targets = new Set(eligible.entryLinks?.map((link) => link.targetId))
     const links: EntryLink[] = []
     if (categories.has('Character') && !categories.has('Epic Hero') && !targets.has(groups.enhancements))
       links.push({
@@ -432,7 +446,7 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
         targetId: groups.enhancements,
         import: true,
       })
-    if (!targets.has(groups.upgrades))
+    if (!categories.has('Character') && !categories.has('Epic Hero') && !targets.has(groups.upgrades))
       links.push({
         id: `profile-upgrades-${entry.id}`,
         name: 'Detachment Upgrades',
@@ -440,42 +454,66 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
         targetId: groups.upgrades,
         import: true,
       })
-    return links.length ? { ...entry, entryLinks: [...(entry.entryLinks ?? []), ...links] } : entry
+    return links.length ? { ...eligible, entryLinks: [...(eligible.entryLinks ?? []), ...links] } : eligible
+  }
+  const withRequiredEnhancementWeapon = (entry: SelectionEntry): SelectionEntry => {
+    const linked = linkedEnhancementWeapon(entry, rawIndex.definitions)
+    if (!linked) return entry
+    return {
+      ...entry,
+      entryLinks: entry.entryLinks?.map((link) =>
+        link !== linked.link ||
+        link.constraints?.some((constraint) => constraint.field === 'selections' && constraint.type === 'min' && constraint.value >= 1)
+          ? link
+          : {
+              ...link,
+              constraints: [
+                ...(link.constraints ?? []),
+                {
+                  id: `profile-enhancement-weapon-${link.id}`,
+                  field: 'selections',
+                  scope: 'parent',
+                  type: 'min',
+                  value: 1,
+                },
+              ],
+            },
+      ),
+    }
   }
 
   const prepared = files.map((file): CatalogueFile => {
     const book = file.catalogue
     if (!book) return file
-    const groups = inheritedGroupsFor(book)
+    const groups = marineGroupsFor(book)
 
     const sharedSelectionEntryGroups = profiledCatalogueIds.has(book.id)
-      ? book.sharedSelectionEntryGroups?.map((group) =>
-          group.name === 'Enhancements' &&
-          group.constraints?.some(
+      ? book.sharedSelectionEntryGroups?.map((group) => {
+          if (group.name !== 'Enhancements') return group
+          const limitChildren = group.constraints?.some(
             (constraint) => constraint.field === 'selections' && constraint.type === 'max' && constraint.includeChildSelections,
           )
-            ? {
-                ...group,
-                selectionEntryGroups: group.selectionEntryGroups?.map((child) => ({
-                  ...child,
-                  constraints: [
-                    ...(child.constraints ?? []),
-                    ...((child.constraints ?? []).some((constraint) => constraint.field === 'selections' && constraint.type === 'max')
-                      ? []
-                      : [
-                          {
-                            id: `profile-enhancement-max-${child.id}`,
-                            field: 'selections' as const,
-                            scope: 'self' as const,
-                            type: 'max' as const,
-                            value: 1,
-                          },
-                        ]),
-                  ],
-                })),
-              }
-            : group,
-        )
+          return {
+            ...group,
+            selectionEntryGroups: group.selectionEntryGroups?.map((child) => ({
+              ...child,
+              selectionEntries: child.selectionEntries?.map(withRequiredEnhancementWeapon),
+              constraints:
+                !limitChildren || child.constraints?.some((constraint) => constraint.field === 'selections' && constraint.type === 'max')
+                  ? child.constraints
+                  : [
+                      ...(child.constraints ?? []),
+                      {
+                        id: `profile-enhancement-max-${child.id}`,
+                        field: 'selections' as const,
+                        scope: 'self' as const,
+                        type: 'max' as const,
+                        value: 1,
+                      },
+                    ],
+            })),
+          }
+        })
       : undefined
 
     const warlordTarget = warlordTargets.get(book.id)
@@ -487,17 +525,18 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
             readable === entry
               ? projected
               : { ...projected, selectionEntryGroups: projected.selectionEntryGroups?.filter((group) => group.name !== 'Weapon Options') }
+          const eligible = groups ? withoutIneligibleGroups(equipped, groups) : equipped
           if (
             (entry.type !== 'unit' && entry.type !== 'model') ||
             !warlordTarget ||
             !entry.categoryLinks?.some((category) => category.name === 'Character') ||
             entry.entryLinks?.some((link) => link.name === 'Warlord')
           )
-            return equipped
+            return eligible
           return {
-            ...equipped,
+            ...eligible,
             entryLinks: [
-              ...(equipped.entryLinks ?? []),
+              ...(eligible.entryLinks ?? []),
               {
                 id: `profile-warlord-${book.id}-${entry.id}`,
                 name: 'Warlord',
@@ -511,7 +550,11 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
       : groups
         ? book.sharedSelectionEntries?.map((entry) => withInheritedGroups(entry, groups))
         : undefined
-    const selectionEntries = groups ? book.selectionEntries?.map((entry) => withInheritedGroups(entry, groups)) : undefined
+    const selectionEntries = groups
+      ? book.selectionEntries?.map((entry) =>
+          profiledCatalogueIds.has(book.id) ? withoutIneligibleGroups(entry, groups) : withInheritedGroups(entry, groups),
+        )
+      : undefined
 
     const imports = (book.catalogueLinks ?? []).filter((link) => link.importRootEntries)
     const imported = imports.flatMap((link) => profiledOptions.get(replacements.get(link.targetId) ?? link.targetId) ?? [])
