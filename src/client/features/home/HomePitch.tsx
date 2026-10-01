@@ -88,7 +88,7 @@ export function HomeIncluded() {
           >
             sponsor it on GitHub
           </a>
-          . Sponsoring doesn't unlock anything.
+          . Sponsoring gets you a fancy badge on your profile, and nothing else.
         </p>
         <ul className="mt-6 grid border-t border-edge sm:grid-cols-2 sm:gap-x-10">
           {INCLUDED.map(({ title, text }) => (
