@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.90.0
+
+### Minor Changes
+
+- 3b1abc3: Show how long each phase and turn took beside the battle events that end them.
+- 3b1abc3: Show how long each side has taken on its latest turn and the current phase, with a shared pause for breaks and a round-by-round and phase-by-phase review once the battle is finished.
+
 ## 0.89.1
 
 ### Patch Changes
