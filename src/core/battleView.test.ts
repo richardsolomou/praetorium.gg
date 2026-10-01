@@ -23,6 +23,55 @@ describe('the view', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.roster).not.toHaveProperty('reminders')
   })
 
+  it('only shows alerts for units still standing and restores them when a loss is undone', () => {
+    const command = builtRoster('Ultramarines', ['Intercessors', 'Captain'])
+    if (command.kind !== 'attach-roster') throw new Error('expected a roster command')
+    const timing = { moment: 'phase-start' as const, phase: 'command' as const, turn: 'your-turn' as const }
+    command.roster.reminders = [
+      { key: 'army', ability: 'Army', description: '', timings: [timing] },
+      { key: 'intercessors', ability: 'Intercessors', description: '', unit: { index: 0, name: 'Intercessors' }, timings: [timing] },
+      { key: 'captain', ability: 'Captain', description: '', unit: { index: 1, name: 'Captain' }, timings: [timing] },
+    ]
+    const history = log(
+      [ALICE, command],
+      [BOB, roster('Death Guard')],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
+    )
+    const keys = (entries: typeof history) =>
+      battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, entries), ALICE).players[0]?.roster?.reminders?.map(
+        (reminder) => reminder.key,
+      )
+
+    expect(keys(history)).toEqual(['army', 'captain'])
+    expect(
+      keys(
+        log(
+          [ALICE, command],
+          [BOB, roster('Death Guard')],
+          [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+          [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -5 }],
+        ),
+      ),
+    ).toEqual(['army', 'captain'])
+    expect(keys(log([ALICE, command], [BOB, roster('Death Guard')], [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }]))).toEqual([
+      'army',
+      'intercessors',
+      'captain',
+    ])
+    expect(
+      keys(
+        log(
+          [ALICE, command],
+          [BOB, roster('Death Guard')],
+          [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+          [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
+          [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: false }],
+        ),
+      ),
+    ).toEqual(['army', 'intercessors', 'captain'])
+  })
+
   it('shows every tactical deck to the table', () => {
     const cards = [
       { key: 'a', name: 'Area Denial' },

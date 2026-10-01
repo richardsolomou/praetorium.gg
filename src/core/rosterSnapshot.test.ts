@@ -94,6 +94,55 @@ it('freezes enabled reminders into a roster snapshot', () => {
   expect(roster).toMatchObject({ reminders: [reminder], remindersEnabled: true })
 })
 
+it('maps unit alerts from roster picks to the battle units they produced', () => {
+  const timing = { moment: 'phase-start' as const, phase: 'command' as const, turn: 'your-turn' as const }
+  const roster = rosterSnapshot(
+    {
+      id: 'roster',
+      name: 'Army',
+      catalogueId: 'catalogue',
+      detachmentIds: [],
+      disposition: null,
+      limit: 2_000,
+      waivedRules: [],
+      picks: [{ entryId: 'missing' }, { entryId: 'unit' }],
+      reminders: [
+        { key: 'missing', ability: 'Missing', description: '', unit: { index: 0, name: 'Missing' }, timings: [timing] },
+        { key: 'unit', ability: 'Unit', description: '', unit: { index: 1, name: 'Unit' }, timings: [timing] },
+      ],
+    },
+    {
+      points: 80,
+      revision: 'revision',
+      label: 'Army',
+      detachment: null,
+      detachments: [],
+      detachmentPointBudget: null,
+      disposition: null,
+      units: [
+        {
+          key: 1,
+          entryId: 'unit',
+          name: 'Unit',
+          points: 80,
+          group: 'infantry',
+          toggles: [],
+          size: { models: 5, resizable: false },
+          attachment: null,
+          wargear: [],
+          enhancements: [],
+          upgrades: [],
+          formationOptions: ['battlefield'],
+          prebattleRules: [],
+        },
+      ],
+    },
+    [],
+  )
+
+  expect(roster.reminders).toMatchObject([{ key: 'unit', unit: { index: 0, name: 'Unit' } }])
+})
+
 it('freezes catalogue-derived Warlord eligibility into a roster snapshot', () => {
   const roster = rosterSnapshot(
     {
