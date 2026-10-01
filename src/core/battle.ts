@@ -220,20 +220,28 @@ function embarkedCapacityError(units: readonly UnitState[], unit: UnitState, nex
 
 export const canTransport = (unit: Pick<UnitState, 'transport' | 'group'>): boolean => unit.transport === true || unit.group === 'transport'
 
-export function strategicReserveError(units: readonly ReserveUnit[], reserveLimit: number): string | null {
-  return strategicReservePoints(units) > reserveLimit
-    ? `no more than ${reserveLimit} points of this army can start in strategic reserves`
-    : null
+export function strategicReserveSideTotals(
+  armies: readonly { units: readonly ReserveUnit[]; roster: { built?: { strategicReserveLimit?: number } | null } | null }[],
+): { points: number; limit: number } | null {
+  const limits = armies.map((army) => army.roster?.built?.strategicReserveLimit)
+  if (limits.some((limit) => limit === undefined)) return null
+  return {
+    points: armies.reduce((total, army) => total + strategicReservePoints(army.units), 0),
+    limit: limits.reduce<number>((total, limit) => total + (limit ?? 0), 0),
+  }
 }
 
-function strategicReserveChangeError(
-  current: readonly ReserveUnit[],
-  changed: readonly ReserveUnit[],
-  reserveLimit: number,
-): string | null {
+function strategicReserveSideError(state: BattleState, player: PlayerState, changed?: readonly ReserveUnit[]): string | null {
+  const armies = state.players.filter((candidate) => candidate.side === player.side)
+  const totals = strategicReserveSideTotals(armies)
+  if (!totals) return null
+  const points = changed ? totals.points - strategicReservePoints(player.units) + strategicReservePoints(changed) : totals.points
   // Old logs may already be over the limit. A change that reduces their total must
   // stay legal so the table can repair the setup one unit at a time.
-  return strategicReservePoints(changed) <= strategicReservePoints(current) ? null : strategicReserveError(changed, reserveLimit)
+  if (changed && points <= totals.points) return null
+  return points > totals.limit
+    ? `no more than ${totals.limit} points of this ${armies.length > 1 ? 'side' : 'army'} can start in strategic reserves`
+    : null
 }
 
 function changedFormation(unit: UnitState, formation: UnitFormation, redeployed = false, transportKey?: string): UnitState {
@@ -1053,11 +1061,8 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
         return 'every roster must match the battle size'
       }
       for (const candidate of state.players) {
-        const reserveLimit = candidate.roster?.built?.strategicReserveLimit
-        if (reserveLimit !== undefined) {
-          const reserveError = strategicReserveError(candidate.units, reserveLimit)
-          if (reserveError) return reserveError
-        }
+        const reserveError = strategicReserveSideError(state, candidate)
+        if (reserveError) return reserveError
       }
       return null
     }
@@ -1182,11 +1187,10 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (state.status === 'finished') return 'the battle is over'
       const attached = attachedUnits(player.units, command.unitKey)
       if (!attached.length) return 'that is not one of your units'
-      const reserveLimit = player.roster?.built?.strategicReserveLimit
-      if (state.status === 'setup' && !command.deployed && reserveLimit !== undefined) {
+      if (state.status === 'setup' && !command.deployed) {
         const keys = new Set(attached.map((unit) => unit.key))
         const changed = player.units.map((unit) => (keys.has(unit.key) ? changedFormation(unit, 'strategic-reserves') : unit))
-        const reserveError = strategicReserveChangeError(player.units, changed, reserveLimit)
+        const reserveError = strategicReserveSideError(state, player, changed)
         if (reserveError) return reserveError
       }
       return null
@@ -1220,8 +1224,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       ) {
         return 'the roster data does not support that formation'
       }
-      const reserveLimit = player.roster?.built?.strategicReserveLimit
-      if (state.status === 'setup' && reserveLimit !== undefined) {
+      if (state.status === 'setup') {
         const keys = new Set(attached.map((unit) => unit.key))
         const redeployed =
           Boolean(state.firstPlayerId) &&
@@ -1230,7 +1233,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
         const changed = player.units.map((unit) =>
           keys.has(unit.key) ? changedFormation(unit, command.formation, redeployed, command.transportKey) : unit,
         )
-        const reserveError = strategicReserveChangeError(player.units, changed, reserveLimit)
+        const reserveError = strategicReserveSideError(state, player, changed)
         if (reserveError) return reserveError
       }
       return null

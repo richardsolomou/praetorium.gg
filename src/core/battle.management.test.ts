@@ -463,6 +463,63 @@ describe('battle management', () => {
     )
   })
 
+  it('shares the 2v1 reserve allowance across allied armies', () => {
+    const ally = builtRoster('Necrons', ['Immortals', 'Lychguard'])
+    const partner = builtRoster('Necrons', ['Warriors', 'Skorpekh Destroyers'])
+    if (ally.kind !== 'attach-roster' || !ally.roster.built || partner.kind !== 'attach-roster' || !partner.roster.built)
+      throw new Error('expected built rosters')
+    ally.roster.built.limit = partner.roster.built.limit = 1_000
+    ally.roster.built.strategicReserveLimit = partner.roster.built.strategicReserveLimit = 500
+    ally.roster.built.units[0]!.points = 600
+    partner.roster.built.units[0]!.points = 400
+    partner.roster.built.units[1]!.points = 1
+    const entries: [string, Command][] = [
+      [ALICE, roster('Solo')],
+      [BOB, ally],
+      [CAROL, partner],
+    ]
+    const settingUp = reduceBattle([ALICE, BOB, CAROL], log(...entries), [0, 1, 1])
+    settingUp.settings = { ...settingUp.settings, limit: 2_000, teamBattle: true, playerCount: 3 }
+    expect(
+      validate(settingUp, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves', playerId: BOB }),
+    ).toBeNull()
+
+    const history = log(
+      ...entries,
+      [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves', playerId: BOB }],
+      [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves', playerId: CAROL }],
+    )
+    const state = reduceBattle([ALICE, BOB, CAROL], history, [0, 1, 1])
+    state.settings = { ...state.settings, limit: 2_000, teamBattle: true, playerCount: 3 }
+
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBeNull()
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'strategic-reserves', playerId: CAROL })).toBe(
+      'no more than 1000 points of this side can start in strategic reserves',
+    )
+    expect(validate(state, ALICE, { kind: 'deploy-unit', unitKey: 'u1', deployed: false, playerId: CAROL })).toBe(
+      'no more than 1000 points of this side can start in strategic reserves',
+    )
+
+    const over = reduceBattle(
+      [ALICE, BOB, CAROL],
+      [
+        ...history,
+        {
+          seq: history.length + 1,
+          by: ALICE,
+          at: history.length,
+          command: { kind: 'set-unit-formation', unitKey: 'u1', formation: 'strategic-reserves', playerId: CAROL },
+        },
+      ],
+      [0, 1, 1],
+    )
+    over.settings = state.settings
+    expect(validate(over, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe(
+      'no more than 1000 points of this side can start in strategic reserves',
+    )
+    expect(validate(over, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'battlefield', playerId: BOB })).toBeNull()
+  })
+
   it('does not count source-declared or post-deployment reserve exemptions', () => {
     const command = builtRoster('Orks', ['Boyz', 'Dakkajet', 'Kommandos'])
     if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
