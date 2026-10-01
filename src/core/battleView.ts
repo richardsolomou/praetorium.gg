@@ -250,7 +250,7 @@ export function battleView(
           secondary: resources.secondaryByRound[round] ?? 0,
           total: (resources.primaryByRound[round] ?? 0) + (resources.secondaryByRound[round] ?? 0),
         })),
-        roster: viewRoster(player.roster, player.id === viewerId),
+        roster: viewRoster(player.roster, player.units, player.id === viewerId),
         units: player.units,
         unitCount: units.total,
         standing: units.standing,
@@ -322,10 +322,15 @@ export function battleView(
  * mission to the other.
  */
 /** The roster without its frozen units, which travel once as the player's `units`. */
-function viewRoster(roster: Roster | null, own: boolean): RosterView | null {
+function viewRoster(roster: Roster | null, units: readonly UnitState[], own: boolean): RosterView | null {
   if (!roster) return null
   const { reminders, remindersEnabled, ...visible } = roster
-  const privateFields = own ? { reminders, remindersEnabled } : {}
+  const privateFields = own
+    ? {
+        reminders: reminders?.filter((reminder) => !reminder.unit || units[reminder.unit.index]?.destroyed === false),
+        remindersEnabled,
+      }
+    : {}
   if (!roster.built) return { ...visible, ...privateFields }
   const { units: _frozen, ...built } = roster.built
   return { ...visible, ...privateFields, built }

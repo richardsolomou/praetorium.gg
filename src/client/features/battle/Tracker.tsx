@@ -93,6 +93,17 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const active = table.find((side) => side.isActive)
   const viewer = view.players.find((player) => player.isViewer)
   const viewerReminders = viewer?.roster?.remindersEnabled === false ? EMPTY_REMINDERS : (viewer?.roster?.reminders ?? EMPTY_REMINDERS)
+  useEffect(() => {
+    const available = new Set(viewerReminders.map((reminder) => reminder.key))
+    setReminderPrompts((current) =>
+      current.flatMap((prompt) => {
+        const reminders = prompt.reminders.filter(
+          (reminder) => reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX) || available.has(reminder.key),
+        )
+        return reminders.length ? [{ ...prompt, reminders }] : []
+      }),
+    )
+  }, [viewerReminders])
   const reminderTurn: ReminderTiming['turn'] | null =
     viewer && active ? (viewer.side === active.index ? 'your-turn' : 'opponent-turn') : null
   const reminderContext = useMemo(

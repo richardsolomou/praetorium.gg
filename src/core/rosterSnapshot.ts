@@ -71,11 +71,18 @@ export function rosterSnapshot(
     // log and the seat then keep saying that, whatever the library later folds.
     name: saved.name || priced.label,
     id: saved.id,
-    reminders: saved.reminders?.map((reminder) => ({
-      ...reminder,
-      ...(reminder.unit ? { unit: { ...reminder.unit } } : {}),
-      timings: reminder.timings.map((timing) => ({ ...timing })),
-    })),
+    reminders: saved.reminders?.flatMap((reminder) => {
+      const unitIndex = reminder.unit?.index
+      const index = unitIndex === undefined ? 0 : priced.units.findIndex((unit) => unit.key === unitIndex)
+      if (index === -1) return []
+      return [
+        {
+          ...reminder,
+          ...(reminder.unit ? { unit: { ...reminder.unit, index } } : {}),
+          timings: reminder.timings.map((timing) => ({ ...timing })),
+        },
+      ]
+    }),
     remindersEnabled: saved.remindersEnabled ?? true,
     text: [
       `${priced.points} / ${saved.limit} pts`,

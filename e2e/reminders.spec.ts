@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import { advance, createRoster, desktopContext, setupBattle, signUp, uniqueName, waitForRosterSave } from './account'
 
 test('roster reminders cover selected rules and advances from another device', async ({ browser }) => {
+  test.setTimeout(180_000)
   const page = await (await browser.newContext(desktopContext)).newPage()
   const opponent = await (await browser.newContext(desktopContext)).newPage()
   const opponentName = uniqueName('Reminder opponent')
@@ -158,4 +159,16 @@ test('roster reminders cover selected rules and advances from another device', a
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   expect(await reminder.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/reminder-battle-phone.png', fullPage: true })
+
+  const opponentReminder = opponent.getByRole('dialog', { name: 'Battle reminder' })
+  while (await opponentReminder.isVisible()) {
+    await opponentReminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
+  }
+  await opponent
+    .locator('[data-panel="player"][data-side="0"]')
+    .getByRole('button', { name: `Open ${roster}` })
+    .click()
+  await opponent.locator('[data-army-roster] [data-unit="Plasmancer"]').getByRole('button', { name: 'Mark Plasmancer lost' }).click()
+  await expect(reminder).toBeHidden()
+  await page.screenshot({ path: 'test-results/reminder-after-unit-lost.png', fullPage: true })
 })

@@ -58,8 +58,8 @@ async function run(command: string, args: string[], environment: NodeJS.ProcessE
   if (code !== 0) throw new Error(`${command} exited with status ${code}`)
 }
 
-async function waitFor(url: string, child: ChildProcess, ready: (response: Response) => boolean) {
-  for (let attempt = 0; attempt < 120; attempt++) {
+async function waitFor(url: string, child: ChildProcess, ready: (response: Response) => boolean, attempts = 120) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
     if (child.exitCode !== null) throw new Error(`Service exited before ${url} was ready`)
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(1_000) })
@@ -224,7 +224,7 @@ async function main() {
     await waitFor(`${viteOrigin}/api/health`, vite, (response) => response.ok)
     vite.on('exit', () => stopChildren('SIGTERM'))
   }
-  await waitFor(`${appUrl}/api/health`, app, (response) => response.ok)
+  await waitFor(`${appUrl}/api/health`, app, (response) => response.ok, testMode ? 360 : 120)
   if (testMode) {
     readyServer = createServer((_request, response) => {
       response.writeHead(200).end('ready')
