@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.91.0
+
+### Minor Changes
+
+- 86317ad: Let players minimize battle dialogs to inspect the tracker without losing their choices.
+
 ## 0.90.1
 
 ### Patch Changes
