@@ -61,6 +61,30 @@ describe('a character that can join a unit', () => {
     })
   })
 
+  it('reads a leader requirement before an inline target list', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'ancient',
+          name: 'Ancient',
+          type: 'model',
+          profiles: [
+            ability(
+              'Support',
+              'This SUPPORT model can be attached to the following units (which already have a Leader): Assault Intercessor Squad, Hellblaster Squad.',
+            ),
+          ],
+        },
+      ],
+    })
+
+    expect(attachmentOf(index.definitions.get('ancient')!, index)).toEqual({
+      kind: 'support',
+      targets: ['Assault Intercessor Squad', 'Hellblaster Squad'],
+      requiresLeader: true,
+    })
+  })
+
   it('reads the comma-separated form the data also uses', () => {
     const index = indexOf({
       sharedSelectionEntries: [
@@ -315,6 +339,37 @@ describe('a character that can join a unit', () => {
 })
 
 describe('attachment legality', () => {
+  it('requires a valid attached leader even when support precedes it', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          profiles: [ability('Leader', 'This model can be attached to the following units: SQUAD')],
+        },
+        {
+          id: 'ancient',
+          name: 'Ancient',
+          type: 'model',
+          profiles: [ability('Support', 'This model can be attached to the following units (which already have a Leader): SQUAD')],
+        },
+        { id: 'squad', name: 'SQUAD', type: 'unit' },
+        { id: 'tank', name: 'Tank', type: 'unit' },
+      ],
+    })
+    const support = { entryId: 'ancient', attachedTo: 3 }
+    const host = { entryId: 'squad' }
+
+    expect(attachmentErrors([support, { entryId: 'captain', attachedTo: 3 }, { entryId: 'tank' }, host], index)).toEqual([])
+    expect(attachmentErrors([support, { entryId: 'captain' }, { entryId: 'tank' }, host], index)[0]?.message).toBe(
+      'cannot support SQUAD without an attached Leader',
+    )
+    expect(attachmentErrors([support, { entryId: 'captain', attachedTo: 2 }, { entryId: 'tank' }, host], index)[0]?.message).toBe(
+      'cannot support SQUAD without an attached Leader',
+    )
+  })
+
   it('rejects an incompatible host', () => {
     const index = indexOf({
       sharedSelectionEntries: [

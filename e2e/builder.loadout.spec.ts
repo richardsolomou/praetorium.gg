@@ -264,7 +264,8 @@ test('a tank is armed but not crowned', async ({ page }) => {
     .click()
   const loadout = page.locator('aside[aria-label="Loadout"]')
   for (const weapon of ['Hunter-killer Missile', 'Multi-melta', 'Storm Bolter']) {
-    await expect(loadout.getByRole('button', { name: `More ${weapon}` })).toBeVisible()
+    await expect(loadout.getByRole('button', { name: `More ${weapon}` })).toHaveCount(0)
+    await expect(loadout).toContainText(`This model can be equipped with 1 ${weapon}.`)
   }
   await expect(page.getByRole('button', { name: /Land Raider Redeemer Warlord/ })).toHaveCount(0)
 
@@ -881,7 +882,7 @@ test('a chapter reaches the whole Codex range, not just its own datasheets', asy
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
 })
 
-test('a grenade launcher leaves every Intercessor carrying a bolt rifle', async ({ page }) => {
+test('the Intercessor grenade launcher remains an instruction until it has a selectable choice', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
   await add(page, 'Intercessor Squad')
@@ -891,15 +892,9 @@ test('a grenade launcher leaves every Intercessor carrying a bolt rifle', async 
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await loadout.getByRole('button', { name: 'Select Bolt Rifle w/ Grenade Launcher' }).click()
-  const equipped = loadout.locator('section').filter({ hasText: 'Equipped ranged weapons' })
-  await expect(equipped.getByText('5× Bolt Rifle', { exact: true })).toBeVisible()
-  await expect(equipped.getByText('5× Bolt pistol', { exact: true })).toBeVisible()
-  await expect(
-    loadout
-      .getByRole('region', { name: 'astartes grenade launcher profiles', exact: true })
-      .getByRole('heading', { name: 'Krak', exact: true }),
-  ).toHaveCount(1)
+  await expect(loadout.getByRole('button', { name: 'Select Bolt Rifle w/ Grenade Launcher' })).toHaveCount(0)
+  await expect(loadout).toContainText('For every 5 models in this unit, 1 Intercessor model can be equipped with 1 Grenade Launcher.')
+  await expect(loadout.getByRole('button', { name: 'More Bolt Rifle – Saturation' })).toHaveCount(2)
   await shot(loadout, 'test-results/intercessor-grenade-launcher.png')
 })
 

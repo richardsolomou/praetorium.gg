@@ -1014,6 +1014,14 @@ describe('optional wargear on repeated models', () => {
     ])
   })
 
+  it('keeps a repeated weapon split when the squad grows', () => {
+    const built = buildUnit('unit', index, 5, undefined, {
+      spreads: { 'model/weapon': { blaster: 3, beamer: 1, carbine: 1 } },
+    })!
+
+    expect(built.choices.find((choice) => choice.key === 'model/weapon')?.options.map((option) => option.count)).toEqual([3, 1, 1])
+  })
+
   it('keeps one repeated choice while applying another', () => {
     const built = buildUnit('unit', index, 3, undefined, {
       spreads: {

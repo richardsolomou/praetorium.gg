@@ -183,6 +183,7 @@ The rules source carries units, points and compositions of its own, so `just par
 - A missing attachment rule means the unit cannot attach.
 - An ability titled `Leader` marks a leader. Other supported attachment abilities default to support.
 - Unless a datasheet says otherwise, a bodyguard unit can have one Leader and one Support unit attached.
+- A Support attachment that names units "which already have a Leader" is offered and legal only when the bodyguard has an attached Leader.
 
 ## Saved lists and interchange
 

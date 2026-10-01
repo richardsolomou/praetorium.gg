@@ -113,14 +113,15 @@ function assemble(
   })
   const governed = (key: string, optionId: string) =>
     modelOption(optionId) && requests.some(([other]) => other.startsWith(`${key}/${optionId}/`))
-  const spread = requests.reduce((tree, [key, counts]) => {
+  const applySpread = (tree: Selection, [key, counts]: [string, Record<string, number>]) => {
     const removedParent = requests.some(([parent, held]) =>
       Object.entries(held).some(([optionId, count]) => count === 0 && !modelOption(optionId) && key.startsWith(`${parent}/${optionId}/`)),
     )
     if (removedParent) return tree
     const own = Object.entries(counts).filter(([optionId]) => !governed(key, optionId))
     return own.length ? withUnitSpread(tree, key, Object.fromEntries(own), index, context) : tree
-  }, composed)
+  }
+  const spread = requests.reduce(applySpread, composed)
   const toggled = withCounts(
     spread,
     Object.entries(context?.toggles ?? {}).map(([key, count]) => ({ path: key.split('/'), count })),
@@ -135,7 +136,9 @@ function assemble(
   const wanted = Math.min(Math.max(requestedModels, size.min), size.max)
   const current = countAt(toggled, size.path)
   const resized = withCounts(toggled, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
-  const selection = refit(resized, index, 1, context)
+  const resizedModel = `${size.path.join('/')}/`
+  const restored = requests.filter(([key]) => key.startsWith(resizedModel) && !modelGroup(key)).reduce(applySpread, resized)
+  const selection = refit(restored, index, 1, context)
   return finishUnit(entryId, selection, { ...size, models: wanted }, index, context)
 }
 

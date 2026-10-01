@@ -38,7 +38,7 @@ test('Invasion Fleet hides unsupported rules in both roles while retaining calcu
   await page.locator('[data-unit="Hormagaunts"]').getByRole('button', { name: 'Hormagaunts', exact: true }).click()
   await page.getByRole('button', { name: 'Simulate combat', exact: true }).click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  await chooseUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+  await chooseUnit(page, 'Defender', 'Necrons', 'Necron Warriors')
   const buffs = simulator.getByRole('region', { name: 'Buffs', exact: true })
   const synapse = simulator.getByRole('switch', { name: 'Attacker Synapse', exact: true })
   await expect(synapse).toBeVisible()
