@@ -705,7 +705,13 @@ export class PraetoriumService {
    * the product was ever keeping.
    */
   async userProfile(userId: string) {
-    return (await this.repository.profileByUserId(userId)) ?? null
+    const [profile, sponsorship] = await Promise.all([this.repository.profileByUserId(userId), this.repository.githubSponsorship(userId)])
+    // A private sponsorship stays private: only its owner's settings say it.
+    return profile ? { ...profile, supporter: sponsorship === 'public' } : null
+  }
+
+  githubSponsorship(userId: string) {
+    return this.repository.githubSponsorship(userId)
   }
 
   async createBattle(userId: string, input?: string | CreateBattleInput) {

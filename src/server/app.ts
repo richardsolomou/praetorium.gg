@@ -34,6 +34,7 @@ import { combatUnitsFor } from './combatUnits'
 import { factionIndexFor, factionsFor } from './factionReferences'
 import { compiledGlobalSearchIndex } from './globalSearch'
 import { battleDetachmentData, type BattleDetachmentData } from './battleDetachmentData'
+import { githubSponsorRefresh, type GithubSponsorRefresh } from './githubSponsors'
 
 type App = {
   hotReloadToken?: object
@@ -71,6 +72,8 @@ type App = {
   /** Whether this instance sends push notifications; nothing else depends on it. */
   push: boolean
   telemetry: ReturnType<typeof serverTelemetry>
+  /** Mirrors GitHub's sponsor list into auth storage; a no-op without `GITHUB_SPONSORS_TOKEN`. */
+  githubSponsors: GithubSponsorRefresh
   /** Resolves after installed catalogue data has paid its one-time preparation cost. */
   ready: () => Promise<void>
 }
@@ -252,7 +255,11 @@ export function app(): App {
       spacetimeAccess,
       process.env.SPACETIME_INTERNAL_HOST,
     )
-    const repository = new SpacetimeRepository(new SqliteAccountRepository(authDatabase), operator)
+    const accounts = new SqliteAccountRepository(authDatabase)
+    const repository = new SpacetimeRepository(accounts, operator)
+    const githubSponsors = githubSponsorRefresh(process.env.GITHUB_SPONSORS_TOKEN?.trim() || undefined, (sponsors) =>
+      accounts.replaceGithubSponsors(sponsors),
+    )
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     let ready = Promise.resolve()
     const loaded = catalogueLoaders(() => instance, catalogueDataDirectory)
@@ -263,6 +270,7 @@ export function app(): App {
       revokeSessionAccess: (sessionId: string) => operator.revokeSession(sessionId),
       storeSocialAvatar: storeProfileImageFromUrl,
       updateProfile: profileUpdate,
+      githubLinked: () => githubSponsors.refresh(),
     }
     const auth = createSqliteAuth(authDatabase, process.env.AUTH_SECRET ?? '', authOptions)
     const instance: App = {
@@ -294,6 +302,7 @@ export function app(): App {
       push: Boolean(push),
       sync: () => sync.state,
       telemetry,
+      githubSponsors,
       ready: () => ready,
     }
     // Everything read from the snapshot is read again from the one now on disk.
@@ -304,6 +313,15 @@ export function app(): App {
     sync.begin(catalogueDataDirectory, swap)
     const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap), 60 * 60 * 1000)
     catalogueRefresh.unref()
+    // Hourly, because a one-time sponsorship ends without GitHub announcing it.
+    const refreshSponsors = () =>
+      void githubSponsors.refresh().catch((error: unknown) => {
+        console.error('GitHub sponsor refresh failed:', error instanceof Error ? error.message : String(error))
+      })
+    if (githubSponsors.configured) {
+      refreshSponsors()
+      setInterval(refreshSponsors, 60 * 60 * 1000).unref()
+    }
     if (sync.state.status === 'ready') ready = warm(instance)
     return instance
   }

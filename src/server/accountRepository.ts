@@ -1,7 +1,8 @@
 import { and, asc, desc, eq, exists, inArray, isNull, lt, ne, not, notInArray, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/sqlite-core'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
-import { account, schema, user } from '../db/authSchema'
+import { account, githubSponsor, schema, user } from '../db/authSchema'
+import type { GithubSponsor } from './githubSponsors'
 import type { AdminUserFilter, AdminUserSort, AdminUsersCursor } from '../admin'
 
 type UnlinkAccountResult =
@@ -36,6 +37,25 @@ export class SqliteAccountRepository {
       .from(user)
       .where(inArray(user.id, [...new Set(ids)]))
     return new Map(rows.map((row) => [row.id, row]))
+  }
+
+  /** How the player's linked GitHub account sponsors the project, or null when it does not or none is linked. */
+  async githubSponsorship(userId: string): Promise<'public' | 'private' | null> {
+    const [row] = await this.database
+      .select({ public: githubSponsor.public })
+      .from(account)
+      .innerJoin(githubSponsor, eq(githubSponsor.githubId, account.accountId))
+      .where(and(eq(account.userId, userId), eq(account.providerId, 'github')))
+      .limit(1)
+    if (!row) return null
+    return row.public ? 'public' : 'private'
+  }
+
+  async replaceGithubSponsors(sponsors: readonly GithubSponsor[]) {
+    await this.database.transaction(async (transaction) => {
+      await transaction.delete(githubSponsor)
+      if (sponsors.length) await transaction.insert(githubSponsor).values([...sponsors])
+    })
   }
 
   async profilesByIds(ids: readonly string[]) {
@@ -98,7 +118,8 @@ export class SqliteAccountRepository {
       ? await this.database
           .select({ userId: account.userId, providerId: account.providerId, linkedAt: account.createdAt })
           .from(account)
-          .where(inArray(account.userId, ids))
+          // A linked GitHub account only proves a sponsorship; it cannot sign in.
+          .where(and(inArray(account.userId, ids), ne(account.providerId, 'github')))
           .orderBy(asc(account.createdAt))
       : []
     const methodsByUser = new Map<string, Map<string, Date>>()

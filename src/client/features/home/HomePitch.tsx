@@ -1,14 +1,23 @@
 import { Link } from '@tanstack/react-router'
-import { Code } from 'lucide-react'
+import { Check, ClipboardPaste, Code, Heart } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
+import { SOURCE, SPONSOR } from '../../projectLinks'
 
-/** The repository, which is the product's other front door. */
-export const SOURCE = 'https://github.com/richardsolomou/praetorium.gg'
+const INCLUDED = [
+  { title: 'Unlimited lists', text: 'Save as many lists and variants as you like.' },
+  { title: '1v1, 2v1 and 2v2', text: 'Or a practice game on your own.' },
+  { title: 'King of the Colosseum', text: "Built at 600 points, with the format's own limits." },
+  { title: 'Leagues', text: 'Approve entries and keep rosters sealed until the reveal.' },
+  { title: 'Live tracking', text: "Phases, command points, stratagems and scoring on every player's device." },
+  { title: 'Combat simulator', text: 'Shooting and melee odds for any two units.' },
+  { title: 'Spectating', text: 'Anyone can watch a public game or read the leaderboard.' },
+  { title: 'Print and export', text: 'Print a list or copy it as Games Workshop text.' },
+]
 
 const STEPS = [
   {
     title: 'Build the list',
-    text: 'Points and legality checked as you build. Import from New Recruit or BattleBase.',
+    text: 'Points and legality checked as you build.',
   },
   {
     title: 'Set the table',
@@ -58,6 +67,56 @@ export function HomeSteps() {
 }
 
 /**
+ * What is free, and how a player's existing lists come with them.
+ *
+ * The included list is what is free, said without naming who charges for it,
+ * because another app's tiers change and a stale comparison reads worse than none.
+ * Importing needs an account, so its door is the sign-up that leads to the library.
+ */
+export function HomeIncluded() {
+  return (
+    <section data-home-included className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-16">
+      <div className="min-w-0">
+        <h2 className="text-2xl leading-none sm:text-3xl">No paywall</h2>
+        <p className="mt-4 max-w-2xl font-rules text-dim">
+          Everything here is free. If you want to help keep the project going, you can{' '}
+          <a
+            href={SPONSOR}
+            className="text-info underline-offset-4 hover:text-parchment hover:underline"
+            rel="noreferrer noopener"
+            target="_blank"
+          >
+            sponsor it on GitHub
+          </a>
+          . Sponsoring gets you a fancy badge on your profile, and nothing else.
+        </p>
+        <ul className="mt-6 grid border-t border-edge sm:grid-cols-2 sm:gap-x-10">
+          {INCLUDED.map(({ title, text }) => (
+            <li key={title} className="flex min-w-0 items-start gap-3 border-b border-edge py-3.5">
+              <Check className="mt-0.5 size-4 shrink-0 text-parchment" aria-hidden />
+              <span className="min-w-0">
+                <span className="block leading-tight font-bold uppercase">{title}</span>
+                <span className="mt-1 block font-rules text-sm text-dim">{text}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <aside data-home-import className="border border-edge-strong bg-sunken p-5 shadow-[0_1.5rem_3rem_-1rem_rgba(0,0,0,0.6)]">
+        <ClipboardPaste className="size-6 text-parchment" aria-hidden />
+        <h2 className="mt-4 text-xl leading-tight text-balance">Coming from New Recruit or BattleBase?</h2>
+        <p className="mt-2 font-rules text-sm leading-relaxed text-dim">
+          Export your list as Games Workshop text and paste it in. If a unit or option can't be matched, the import tells you which.
+        </p>
+        <Link to="/sign-in" search={{ next: '/rosters', join: true }} className={buttonVariants({ className: 'mt-5 w-full' })}>
+          Create an account to import
+        </Link>
+      </aside>
+    </section>
+  )
+}
+
+/**
  * The last thing a visitor reads: the hero's invitation again, and the promise behind it.
  *
  * A band the width of the page, like the hero it answers, so the page closes on the
@@ -77,11 +136,14 @@ export function HomeClosing() {
           <p className="mt-5 max-w-md font-rules text-dim">Free to use, and open source.</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Link to="/sign-in" search={{ next: undefined }} className={buttonVariants({ size: 'lg' })}>
+          <Link to="/sign-in" search={{ next: undefined, join: true }} className={buttonVariants({ size: 'lg' })}>
             Create an account
           </Link>
           <a href={SOURCE} className={buttonVariants({ variant: 'outline', size: 'lg' })} rel="noreferrer noopener" target="_blank">
             <Code /> View the source
+          </a>
+          <a href={SPONSOR} className={buttonVariants({ variant: 'outline', size: 'lg' })} rel="noreferrer noopener" target="_blank">
+            <Heart /> Sponsor
           </a>
         </div>
       </div>

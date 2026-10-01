@@ -94,6 +94,23 @@ it('backfills when each player was last seen from their own sessions, not suppor
   }
 })
 
+it('adds the sponsor table to an auth database that already has OAuth tables', async () => {
+  const file = path.join(directory, 'oauth-auth.sqlite')
+  const database = new DatabaseSync(file)
+  database.exec(await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8'))
+  database.exec(await readFile(path.resolve('drizzle-auth/0001_sad_absorbing_man.sql'), 'utf8'))
+  database.close()
+  migrateAuthSqlite(file)
+  const migrated = new DatabaseSync(file, { readOnly: true })
+  try {
+    expect(
+      migrated.prepare("select count(*) as count from sqlite_master where type = 'table' and name = 'githubSponsor'").get()?.count,
+    ).toBe(1)
+  } finally {
+    migrated.close()
+  }
+})
+
 it('imports the auth schema, handles concurrent sign-ups, and restores sessions and signing keys', async () => {
   const count = Number(process.env.AUTH_TEST_SIGNUPS ?? 6)
   const dump = path.join(directory, 'auth-schema.sql')

@@ -32,6 +32,19 @@ it('keeps private backup credentials only in production', () => {
   expect(config).toContain('R2_ACCESS_KEY_ID=r2-id')
 })
 
+const github = { GITHUB_CLIENT_ID: 'github-id', GITHUB_CLIENT_SECRET: 'github-secret', GITHUB_SPONSORS_TOKEN: 'sponsors-token' }
+const apple = { APPLE_CLIENT_ID: 'apple', APPLE_TEAM_ID: 'team', APPLE_KEY_ID: 'key', APPLE_PRIVATE_KEY: 'private' }
+
+it('passes GitHub sponsor linking to production', () => {
+  expect(nodeEnvironment({ ...environment, ...apple, ...github }, 'production')).toContain(
+    'GITHUB_CLIENT_ID=github-id\nGITHUB_CLIENT_SECRET=github-secret\nGITHUB_SPONSORS_TOKEN=sponsors-token',
+  )
+})
+
+it('leaves GitHub sponsor linking out of staging, whose address the OAuth app does not answer', () => {
+  expect(nodeEnvironment({ ...environment, ...github }, 'staging')).not.toContain('GITHUB_')
+})
+
 it('rejects an external SpacetimeDB host for the VM runtime', () => {
   expect(() => nodeEnvironment({ ...environment, SPACETIME_INTERNAL_HOST: 'stdb-staging.praetorium.gg' }, 'staging')).toThrow(
     'Invalid SpacetimeDB internal host',

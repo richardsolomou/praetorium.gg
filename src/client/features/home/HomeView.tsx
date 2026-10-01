@@ -9,7 +9,7 @@ import { HomeFeed } from './HomeFeed'
 import { HomeHero } from './HomeHero'
 import { HomeIntro } from './HomeIntro'
 import { HomeLeaders } from './HomeLeaders'
-import { HomeClosing, HomeSteps } from './HomePitch'
+import { HomeClosing, HomeIncluded, HomeSteps } from './HomePitch'
 import { HomePlayed } from './HomePlayed'
 import { type HomeRoster, HomeRosters } from './HomeRosters'
 import { HomeWaiting, type RosterDue } from './HomeWaiting'
@@ -116,6 +116,7 @@ export function HomeView({
           lead={rest.length || !hero ? <PublicTables battles={rest.slice(0, RECENT)} signedIn={false} /> : null}
           aside={leaders ? <HomeLeaders rows={leaders.rows} days={leaders.days} /> : null}
         />
+        <HomeIncluded />
         <HomeIntro title="Explore" />
       </div>
       <HomeClosing />

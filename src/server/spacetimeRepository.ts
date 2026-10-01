@@ -56,6 +56,10 @@ export class SpacetimeRepository {
     return this.accounts.profileByUserId(id)
   }
 
+  githubSponsorship(userId: string) {
+    return this.accounts.githubSponsorship(userId)
+  }
+
   namesByIds(ids: readonly string[]) {
     return this.accounts.namesByIds(ids)
   }

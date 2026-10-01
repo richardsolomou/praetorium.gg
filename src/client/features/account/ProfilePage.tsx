@@ -12,6 +12,7 @@ import { authClient } from '../../authClient'
 import { AccountSecurity } from './AccountSecurity'
 import { BattleSharing } from './BattleSharing'
 import { NotificationSettings } from './NotificationSettings'
+import { GithubSupporter } from './GithubSupporter'
 import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -209,6 +210,7 @@ function ProfileForm({
               <BattleSharing />
               <PlayerDefaultsSettings />
               <NotificationSettings />
+              <GithubSupporter />
             </>
           }
         />

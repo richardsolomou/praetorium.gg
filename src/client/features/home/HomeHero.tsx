@@ -6,7 +6,7 @@ import { summarySides, type SummarySide } from '../../battleSummary'
 import type { Battle } from '../battles/battle'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import { SOURCE } from './HomePitch'
+import { SOURCE } from '../../projectLinks'
 
 /**
  * The one full-bleed moment on the page, for somebody who has never been here.
@@ -31,29 +31,33 @@ export function HomeHero({ battle }: { battle?: Battle }) {
             Build your list, play it with friends on any device, and let the app keep the score.
           </p>
           {/*
-            Both doors, because this page is the way back in as well as the way in.
-            A returning player who has been signed out lands here, and leaving them
-            only an invitation to make a second account is how they end up with one.
+            The builder leads because it needs no account. Sign in stays here because a
+            signed-out player lands on this page, and offering them only sign-up is how
+            they end up with a second account.
           */}
           <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-3 sm:mt-8">
-            <Link to="/sign-in" search={{ next: undefined }} className={buttonVariants({ size: 'lg' })}>
+            <Link to="/rosters" className={buttonVariants({ size: 'lg' })}>
+              Try the builder
+            </Link>
+            <Link to="/sign-in" search={{ next: undefined, join: true }} className={buttonVariants({ variant: 'outline', size: 'lg' })}>
               Create an account
             </Link>
-            <Link to="/sign-in" search={{ next: undefined }} className={buttonVariants({ variant: 'outline', size: 'lg' })}>
+            <Link to="/sign-in" search={{ next: undefined }} className={buttonVariants({ variant: 'ghost', size: 'lg' })}>
               Sign in
             </Link>
-            <span className="basis-full text-sm text-faint sm:basis-auto">
-              Free to use and{' '}
-              <a
-                href={SOURCE}
-                className="text-info underline-offset-4 hover:text-parchment hover:underline"
-                rel="noreferrer noopener"
-                target="_blank"
-              >
-                open source
-              </a>
-            </span>
           </div>
+          <p className="mt-4 text-sm text-faint">
+            Free and{' '}
+            <a
+              href={SOURCE}
+              className="text-info underline-offset-4 hover:text-parchment hover:underline"
+              rel="noreferrer noopener"
+              target="_blank"
+            >
+              open source
+            </a>
+            . The builder works without an account.
+          </p>
         </div>
         {battle ? <HeroBattle battle={battle} /> : <HeroMark />}
       </div>

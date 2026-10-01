@@ -201,7 +201,7 @@ export const playerProfileSchema = z.object({
   limit: z.number().int().positive().max(100_000).optional(),
 })
 export const setOwnPasswordSchema = z.object({ password: z.string().min(PASSWORD_MIN_LENGTH).max(128) })
-export const unlinkOwnAccountSchema = z.object({ provider: z.enum(['credential', ...SOCIAL_PROVIDERS]) })
+export const unlinkOwnAccountSchema = z.object({ provider: z.enum(['credential', 'github', ...SOCIAL_PROVIDERS]) })
 export const setAdminRoleSchema = z.object({ userId: id, role: z.enum(['admin', 'user']) })
 export const adminSessionSchema = z.object({ userId: id, sessionId: z.string().min(1).max(128) })
 export const adminRenameSchema = z.object({ userId: id, name: z.string().trim().min(1).max(PROFILE_NAME_MAX_LENGTH) })
