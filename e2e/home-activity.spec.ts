@@ -47,6 +47,36 @@ test('links each tool a visitor can use without an account as one action', async
   await expect(page.getByRole('link', { name: /Look up a rule/ })).toHaveAttribute('href', '/rules')
 })
 
+test("a visitor's first action opens the builder without an account", async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('link', { name: 'Try the builder', exact: true }).click()
+
+  await expect(page).toHaveURL('/rosters')
+})
+
+test('creating an account from the home page opens the sign-up form', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('link', { name: 'Create an account', exact: true }).first().click()
+
+  await expect(page.getByRole('heading', { name: 'Make an account' })).toBeVisible()
+})
+
+test('importing from the home page signs up into the roster library', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('link', { name: 'Create an account to import' }).click()
+
+  await expect(page).toHaveURL('/sign-in?next=%2Frosters&join=true')
+})
+
+test('the home page links to GitHub Sponsors', async ({ page }) => {
+  await page.goto('/')
+
+  await expect(page.getByRole('link', { name: 'Sponsor', exact: true })).toHaveAttribute(
+    'href',
+    'https://github.com/sponsors/richardsolomou',
+  )
+})
+
 test('the home page fits a phone at both signed-out and signed-in widths', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await makePreviewBattleMostRecent()
