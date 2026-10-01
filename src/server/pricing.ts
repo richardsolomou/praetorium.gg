@@ -293,10 +293,12 @@ export function savedRosterPriceInput(saved: {
 }
 
 function specialKind(choice: UnitChoice, upgradeNames: ReadonlySet<string>) {
-  if (!choice.name.toLowerCase().includes('enhancement')) return null
+  if (!/enhancement|upgrade/i.test(choice.name)) return null
   return choiceOptionsForPricing(choice).every((option) => upgradeNames.has(routeSlug(option.name)))
     ? ('upgrade' as const)
-    : ('enhancement' as const)
+    : /enhancement/i.test(choice.name)
+      ? ('enhancement' as const)
+      : null
 }
 
 function selectedSpecials(

@@ -19,6 +19,7 @@ export const DATACARDS_ATTRIBUTION = 'Data provided by game-datacards'
 
 export type DatasheetDetails = {
   profiles?: { name: string; type: 'Unit' | 'Ranged Weapons' | 'Melee Weapons'; values: Record<string, string> }[]
+  abilities?: RuleCard[]
   composition: string[]
   loadout: string | null
   wargear: string[]
@@ -735,7 +736,18 @@ function composition(value: unknown): { lines: string[]; loadout: string | null 
 
 function datasheetDetails(value: unknown): DatasheetDetails {
   const profiles: NonNullable<DatasheetDetails['profiles']> = []
+  let abilities: RuleCard[] | undefined
   if (value && typeof value === 'object' && (value as Record<string, unknown>).source === '40k-11e') {
+    const printed = (value as Record<string, unknown>).abilities
+    const other = printed && typeof printed === 'object' ? (printed as Record<string, unknown>).other : null
+    if (Array.isArray(other)) {
+      const parsed = records(printed, 'other').flatMap((entry) => {
+        const name = localizedField(entry, 'name')
+        const description = localizedField(entry, 'description')
+        return name && description ? [{ name, description: prose(description) }] : []
+      })
+      if (parsed.length === other.length) abilities = parsed
+    }
     const fields = (entry: Record<string, unknown>, names: readonly (readonly [string, string])[]) =>
       Object.fromEntries(
         names.flatMap(([name, field]) => {
@@ -793,6 +805,7 @@ function datasheetDetails(value: unknown): DatasheetDetails {
   const { lines, loadout } = composition(value)
   return {
     ...(profiles.length ? { profiles } : {}),
+    ...(abilities ? { abilities } : {}),
     composition: lines,
     loadout: localizedField(value, 'loadout') || loadout,
     wargear: localizedList(value, 'wargear'),

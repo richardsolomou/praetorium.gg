@@ -87,6 +87,53 @@ describe('the abilities and wargear a datasheet lists', () => {
     ).toContainEqual(expect.objectContaining({ name: 'Resurrection Orb', kind: 'wargear' }))
   })
 
+  it('uses current card abilities for a chapter importing the replaced Marine book', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'jump-packs',
+          name: 'Assault Intercessors with Jump Packs',
+          type: 'unit',
+          profiles: [ability('old-hammer', 'Old Hammer of Wrath')],
+        },
+      ],
+    })
+    book.profiledSupplementIds.add('cat')
+    book.factionContents.set('test-catalogue', {
+      name: 'Test catalogue',
+      datasheets: new Set(['Assault Intercessors with Jump Packs']),
+      datasheetDetails: new Map([
+        [
+          'Assault Intercessors with Jump Packs',
+          {
+            abilities: [{ name: 'Hammer of Wrath', description: 'Current charge rule.' }],
+            composition: [],
+            loadout: null,
+            wargear: [],
+            baseSize: null,
+            transport: null,
+            points: [],
+            attachesTo: [],
+            leaders: [],
+            supporters: [],
+          },
+        ],
+      ]),
+      datasheetIds: new Map(),
+      detachments: new Set(),
+      enhancements: new Map(),
+      stratagems: new Map(),
+      stratagemIssues: [],
+      detachmentRules: new Map(),
+      armyRules: [],
+      factionAbilityNames: new Set(),
+    })
+
+    const sheet = datasheetIn(book, 'cat', 'jump-packs')
+    expect(sheet?.abilities.map(({ name, description }) => [name, description])).toEqual([['Hammer of Wrath', 'Current charge rule.']])
+    expect(describeDatasheetAbilitiesWithContributions(book, 'cat', sheet, null)?.contributions.datacards).toBe(true)
+  })
+
   it.each([
     {
       catalogueName: 'Imperium - Adeptus Astartes - Black Templars',

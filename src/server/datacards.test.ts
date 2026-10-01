@@ -58,6 +58,9 @@ it('reads current datasheet characteristics and weapon profiles', () => {
           name: { en: "Lion El'Jonson" },
           source: '40k-11e',
           stats: [{ name: { en: "Lion El'Jonson" }, m: '8"', t: '10', w: '16', sv: '2+', ld: '5+', oc: '4' }],
+          abilities: {
+            other: [{ name: { en: "The Emperor's Shield" }, description: { en: 'Attacks have <b>-1 to wound rolls</b>.' } }],
+          },
           rangedWeapons: [
             {
               profiles: [
@@ -86,6 +89,9 @@ it('reads current datasheet characteristics and weapon profiles', () => {
       type: 'Ranged Weapons',
       values: { Range: '18"', A: '4', BS: '2+', S: '6', AP: '-2', D: '2', Keywords: 'CLOSE-QUARTERS' },
     },
+  ])
+  expect(loadDatacards(directory).factions.get('dark-angels')?.datasheetDetails.get("Lion El'Jonson")?.abilities).toEqual([
+    { name: "The Emperor's Shield", description: 'Attacks have **-1 to wound rolls**.' },
   ])
 })
 

@@ -276,8 +276,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return null
   const root = loaded.index.definitions.get(entryId)
   if (!root) return null
-  const currentDetails =
-    !abilitiesOnly && loaded.profiledSupplementIds.has(catalogueId) ? datacardOf(loaded, catalogueId, entryId)?.details : null
+  const currentDetails = loaded.profiledSupplementIds.has(catalogueId) ? datacardOf(loaded, catalogueId, entryId)?.details : null
 
   const modifiers =
     context?.modifiers ??
@@ -558,6 +557,18 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       },
     ]
   })
+  const printedAbilities = currentDetails?.abilities
+  const displayedAbilities = printedAbilities
+    ? [
+        ...[...abilities.values()].filter((ability) => ability.kind !== 'datasheet'),
+        ...printedAbilities.map((ability) => ({
+          id: `datacard:${routeSlug(ability.name)}`,
+          name: ability.name,
+          description: ability.description,
+          kind: 'datasheet' as const,
+        })),
+      ]
+    : [...abilities.values()]
   return {
     root,
     name,
@@ -566,7 +577,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     keywords,
     catalogueOptions,
     profiles: uniqueProfiles(displayProfiles),
-    abilities: uniqueAbilities([...abilities.values(), ...grantedAbilities]),
+    abilities: uniqueAbilities([...displayedAbilities, ...grantedAbilities]),
     keywordRules: [...keywordRules.values()],
   }
 }

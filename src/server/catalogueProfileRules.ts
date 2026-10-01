@@ -405,10 +405,78 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
       ),
     ]),
   )
+  const inheritedGroups = new Map(
+    [...replacements].flatMap(([legacyId, currentId]) => {
+      const current = byId.get(currentId)
+      const groups = current?.sharedSelectionEntryGroups ?? []
+      const enhancements = groups.find((group) => group.name === 'Enhancements')
+      const upgrades = groups.find((group) => group.name === 'Detachment Upgrades')
+      return enhancements && upgrades ? [[legacyId, { enhancements: enhancements.id, upgrades: upgrades.id }] as const] : []
+    }),
+  )
+  const inheritedGroupsFor = (book: Catalogue) =>
+    inheritedGroups.get(book.id) ??
+    (profiledSupplementIds.has(book.id)
+      ? (book.catalogueLinks ?? []).flatMap((link) => inheritedGroups.get(link.targetId) ?? []).at(0)
+      : undefined)
+  const withInheritedGroups = (entry: SelectionEntry, groups: { enhancements: string; upgrades: string }): SelectionEntry => {
+    if (entry.type !== 'unit' && entry.type !== 'model') return entry
+    const categories = new Set(entry.categoryLinks?.map((link) => link.name))
+    const targets = new Set(entry.entryLinks?.map((link) => link.targetId))
+    const links: EntryLink[] = []
+    if (categories.has('Character') && !categories.has('Epic Hero') && !targets.has(groups.enhancements))
+      links.push({
+        id: `profile-enhancements-${entry.id}`,
+        name: 'Enhancements',
+        type: 'selectionEntryGroup',
+        targetId: groups.enhancements,
+        import: true,
+      })
+    if (!targets.has(groups.upgrades))
+      links.push({
+        id: `profile-upgrades-${entry.id}`,
+        name: 'Detachment Upgrades',
+        type: 'selectionEntryGroup',
+        targetId: groups.upgrades,
+        import: true,
+      })
+    return links.length ? { ...entry, entryLinks: [...(entry.entryLinks ?? []), ...links] } : entry
+  }
 
   const prepared = files.map((file): CatalogueFile => {
     const book = file.catalogue
     if (!book) return file
+    const groups = inheritedGroupsFor(book)
+
+    const sharedSelectionEntryGroups = profiledCatalogueIds.has(book.id)
+      ? book.sharedSelectionEntryGroups?.map((group) =>
+          group.name === 'Enhancements' &&
+          group.constraints?.some(
+            (constraint) => constraint.field === 'selections' && constraint.type === 'max' && constraint.includeChildSelections,
+          )
+            ? {
+                ...group,
+                selectionEntryGroups: group.selectionEntryGroups?.map((child) => ({
+                  ...child,
+                  constraints: [
+                    ...(child.constraints ?? []),
+                    ...((child.constraints ?? []).some((constraint) => constraint.field === 'selections' && constraint.type === 'max')
+                      ? []
+                      : [
+                          {
+                            id: `profile-enhancement-max-${child.id}`,
+                            field: 'selections' as const,
+                            scope: 'self' as const,
+                            type: 'max' as const,
+                            value: 1,
+                          },
+                        ]),
+                  ],
+                })),
+              }
+            : group,
+        )
+      : undefined
 
     const warlordTarget = warlordTargets.get(book.id)
     const sharedSelectionEntries = profiledCatalogueIds.has(book.id)
@@ -440,7 +508,10 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
             ],
           }
         })
-      : undefined
+      : groups
+        ? book.sharedSelectionEntries?.map((entry) => withInheritedGroups(entry, groups))
+        : undefined
+    const selectionEntries = groups ? book.selectionEntries?.map((entry) => withInheritedGroups(entry, groups)) : undefined
 
     const imports = (book.catalogueLinks ?? []).filter((link) => link.importRootEntries)
     const imported = imports.flatMap((link) => profiledOptions.get(replacements.get(link.targetId) ?? link.targetId) ?? [])
@@ -496,14 +567,16 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
         ]
       : []
 
-    if (!generatedUnits.length && !detachment.length && !sharedSelectionEntries) return file
+    if (!generatedUnits.length && !detachment.length && !sharedSelectionEntries && !sharedSelectionEntryGroups && !selectionEntries)
+      return file
     return {
       ...file,
       catalogue: {
         ...book,
         entryLinks: [...(book.entryLinks ?? []), ...generatedUnits],
-        selectionEntries: [...detachment, ...(book.selectionEntries ?? [])],
+        selectionEntries: [...detachment, ...(selectionEntries ?? book.selectionEntries ?? [])],
         ...(sharedSelectionEntries ? { sharedSelectionEntries } : {}),
+        ...(sharedSelectionEntryGroups ? { sharedSelectionEntryGroups } : {}),
       },
     }
   })

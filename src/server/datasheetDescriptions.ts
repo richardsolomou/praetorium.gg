@@ -6,6 +6,7 @@ import { joinKey } from './rulesSource'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { factionContentOf } from './factionNames'
 import { profiledArmyRulesFor } from './catalogueProfileRules'
+import { datacardOf } from './datasheetJoin'
 
 export function describeDatasheetAbilities(
   loaded: LoadedCatalogue,
@@ -108,6 +109,8 @@ export function describeDatasheetAbilitiesWithContributions(
   const suppliedDetachmentDescriptions = detachments.some((detachment) =>
     [...detachment.rules, ...detachment.enhancements].some((entry) => entry.description),
   )
+  const printedAbilities =
+    loaded.profiledSupplementIds.has(catalogueId) && datacardOf(loaded, catalogueId, sheet.id)?.details.abilities !== undefined
   return {
     datasheet: {
       ...sheet,
@@ -130,7 +133,7 @@ export function describeDatasheetAbilitiesWithContributions(
       attribution: supplied || suppliedDetachmentDescriptions ? DATACARDS_ATTRIBUTION : null,
     },
     contributions: {
-      datacards: filteredFactionAbility || supplied,
+      datacards: filteredFactionAbility || supplied || printedAbilities,
       rules: rulesContributeAbilities,
     },
   }

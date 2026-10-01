@@ -785,6 +785,159 @@ it('replaces a chapter’s inherited legacy detachments with the new codex optio
   ).toMatchObject({ detachments: [{ name: 'Assault Brethren', points: 1 }] })
 })
 
+it('offers current detachment choices on new Marines and a chapter importing their old book', () => {
+  const legacy: CatalogueFile = {
+    catalogue: {
+      id: 'old-marines',
+      name: 'Imperium - Adeptus Astartes - Space Marines',
+      selectionEntries: [
+        { id: 'old-jump-packs', name: 'Assault Intercessors with Jump Packs', type: 'unit' },
+        {
+          id: 'old-captain',
+          name: 'Captain',
+          type: 'model',
+          categoryLinks: [{ id: 'character', name: 'Character', targetId: 'character' }],
+        },
+      ],
+    },
+  }
+  const current: CatalogueFile = {
+    catalogue: {
+      id: 'new-marines',
+      name: 'Imperium - Adeptus Astartes - Space Marines (11e)',
+      sharedSelectionEntries: [
+        {
+          id: 'new-jump-packs',
+          name: 'Assault Intercessors with Jump Packs',
+          type: 'unit',
+          entryLinks: [{ id: 'new-upgrades', name: 'Detachment Upgrades', type: 'selectionEntryGroup', targetId: 'upgrades' }],
+        },
+        {
+          id: 'new-captain',
+          name: 'Captain',
+          type: 'model',
+          categoryLinks: [{ id: 'new-character', name: 'Character', targetId: 'character' }],
+          entryLinks: [{ id: 'new-enhancements', name: 'Enhancements', type: 'selectionEntryGroup', targetId: 'enhancements' }],
+        },
+      ],
+      sharedSelectionEntryGroups: [
+        {
+          id: 'new-detachments',
+          name: 'Detachment',
+          selectionEntries: [
+            {
+              id: 'assault',
+              name: 'Assault Brethren',
+              type: 'upgrade',
+              profiles: [{ id: 'assault-rule', name: 'Assault Mastery', typeName: 'Abilities' }],
+            },
+          ],
+        },
+        {
+          id: 'enhancements',
+          name: 'Enhancements',
+          constraints: [{ id: 'enhancement-max', field: 'selections', scope: 'self', type: 'max', value: 1, includeChildSelections: true }],
+          selectionEntryGroups: [
+            {
+              id: 'assault-enhancements',
+              name: 'Assault Brethren Enhancements',
+              selectionEntries: [{ id: 'sword', name: "Imperium's Sword", type: 'upgrade' }],
+              modifiers: [
+                {
+                  field: 'hidden',
+                  type: 'set',
+                  value: true,
+                  conditions: [
+                    { childId: 'assault', field: 'selections', scope: 'roster', type: 'lessThan', value: 1, includeChildSelections: true },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'upgrades',
+          name: 'Detachment Upgrades',
+          selectionEntryGroups: [
+            {
+              id: 'assault-upgrades',
+              name: 'Assault Brethren Upgrades',
+              selectionEntries: [{ id: 'furious', name: 'Furious Assault', type: 'upgrade' }],
+              constraints: [{ id: 'upgrade-max', field: 'selections', scope: 'self', type: 'max', value: 1 }],
+              modifiers: [
+                {
+                  field: 'hidden',
+                  type: 'set',
+                  value: true,
+                  conditions: [
+                    { childId: 'assault', field: 'selections', scope: 'roster', type: 'lessThan', value: 1, includeChildSelections: true },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  }
+  const chapter: CatalogueFile = {
+    catalogue: {
+      id: 'dark-angels',
+      name: 'Imperium - Adeptus Astartes - Dark Angels',
+      catalogueLinks: [{ targetId: 'old-marines', importRootEntries: true }],
+      selectionEntries: [
+        { id: 'deathwing', name: 'Deathwing Knights', type: 'unit' },
+        {
+          id: 'lion',
+          name: "Lion El'Jonson",
+          type: 'model',
+          categoryLinks: [
+            { id: 'lion-character', name: 'Character', targetId: 'character' },
+            { id: 'lion-epic', name: 'Epic Hero', targetId: 'epic-hero' },
+          ],
+        },
+      ],
+    },
+  }
+  const unrelated: CatalogueFile = {
+    catalogue: {
+      id: 'mechanicus',
+      name: 'Imperium - Adeptus Mechanicus',
+      selectionEntries: [{ id: 'skitarii', name: 'Skitarii Rangers', type: 'unit' }],
+    },
+  }
+  const { loaded } = loadedCatalogue([files[0]!, legacy, current, chapter, unrelated])
+  const choicesFor = (catalogueId: string, unitId: string) => {
+    const detachment = loaded.detachments.get(catalogueId)!
+    const assault = detachment.options.find((option) => option.name === 'Assault Brethren')!
+    const roster = [{ id: detachment.wrapperId, selections: [{ id: detachment.groupId, selections: [{ id: assault.id }] }] }]
+    return buildUnit(unitId, loaded.index, undefined, undefined, { primaryCatalogueId: catalogueId, roster })?.choices ?? []
+  }
+
+  expect(
+    choicesFor('new-marines', 'profile-unit-new-marines-new-captain')
+      .find((choice) => choice.name === 'Assault Brethren Enhancements')
+      ?.options.map((option) => option.name),
+  ).toEqual(["Imperium's Sword"])
+  expect(
+    choicesFor('dark-angels', 'old-captain')
+      .find((choice) => choice.name === 'Assault Brethren Enhancements')
+      ?.options.map((option) => option.name),
+  ).toEqual(["Imperium's Sword"])
+  expect(
+    choicesFor('dark-angels', 'old-jump-packs')
+      .find((choice) => choice.name === 'Assault Brethren Upgrades')
+      ?.options.map((option) => option.name),
+  ).toEqual(['Furious Assault'])
+  expect(
+    choicesFor('dark-angels', 'deathwing')
+      .find((choice) => choice.name === 'Assault Brethren Upgrades')
+      ?.options.map((option) => option.name),
+  ).toEqual(['Furious Assault'])
+  expect(choicesFor('dark-angels', 'lion').some((choice) => choice.name.includes('Enhancements'))).toBe(false)
+  expect(buildUnit('skitarii', loaded.index, undefined, undefined, { primaryCatalogueId: 'mechanicus' })?.choices).toEqual([])
+})
+
 it('indexes an imported profiled detachment under its owning faction once', () => {
   const { loaded } = loadedCatalogue()
   const factions = factionsFor(loaded, null).factions
