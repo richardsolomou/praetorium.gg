@@ -8,6 +8,7 @@ import {
   type Command,
   embarkedModelCount,
   strategicReservePoints,
+  strategicReserveSideTotals,
   transportCapacity,
   transportLabel,
   UNIT_FORMATIONS,
@@ -33,14 +34,26 @@ export function ReservesStep({ sides, redeploy, send }: Props) {
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         {sides.map((side) => (
-          <SetupSidePanel key={side.index} side={side} className="space-y-3">
-            {side.armies.map((army) => (
-              <ArmySetup key={army.playerId} army={army} multiple={side.armies.length > 1} redeploy={redeploy} send={send} />
-            ))}
-          </SetupSidePanel>
+          <ReserveSide key={side.index} side={side} redeploy={redeploy} send={send} />
         ))}
       </div>
     </div>
+  )
+}
+
+function ReserveSide({ side, redeploy, send }: { side: Side; redeploy: boolean; send: (command: Command) => void }) {
+  const totals = side.armies.length > 1 ? strategicReserveSideTotals(side.armies) : null
+  return (
+    <SetupSidePanel side={side} className="space-y-3">
+      {totals ? (
+        <span className="chip w-fit">
+          {totals.points}/{totals.limit} reserve points shared
+        </span>
+      ) : null}
+      {side.armies.map((army) => (
+        <ArmySetup key={army.playerId} army={army} multiple={side.armies.length > 1} redeploy={redeploy} send={send} />
+      ))}
+    </SetupSidePanel>
   )
 }
 
@@ -71,7 +84,7 @@ function ArmySetup({
         </span>
         <span className="flex shrink-0 flex-wrap justify-end gap-1">
           <span className="chip">{listed} units</span>
-          {reserveLimit === undefined ? null : (
+          {multiple || reserveLimit === undefined ? null : (
             <span className="chip">
               {reservePoints}/{reserveLimit} reserve points
             </span>
