@@ -26,12 +26,12 @@ test('dragging the replay timeline on a phone changes the event without scrollin
   try {
     const page = await context.newPage()
     await page.goto('/battles/preview-league-battle-duel')
-    await page.evaluate(() => {
-      const spacer = document.createElement('div')
-      spacer.style.height = '1000px'
-      document.querySelector('main')?.append(spacer)
-    })
     const slider = page.getByRole('slider', { name: 'Replay event' })
+    await expect(slider).toBeVisible()
+    await page.evaluate(() => {
+      document.querySelector('main')!.style.minHeight = '200vh'
+    })
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeGreaterThan(300)
     const session = await context.newCDPSession(page)
     for (const native of [false, true]) {
       if (native) {
