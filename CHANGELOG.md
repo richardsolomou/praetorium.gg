@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.89.0
+
+### Minor Changes
+
+- 065036b: Support eleventh-edition Space Marines catalogue data and detachment migration.
+
 ## 0.88.1
 
 ### Patch Changes
