@@ -6,6 +6,7 @@ import { mutationRpc, rpc } from '../rpc'
 import {
   battlesPageSchema,
   battleReplaySchema,
+  battleReplayBatchSchema,
   createBattleSchema,
   deleteBattleSchema,
   leagueBattleOptionsSchema,
@@ -140,6 +141,12 @@ export const replayBattleAt = createServerFn({ method: 'GET' })
   .validator(battleReplaySchema)
   .handler(({ data }) =>
     rpc(async () => app().service.replayAt(data.token, await currentUserId(), data.seq, await app().battleReadRulesFor())),
+  )
+
+export const replayBattleBatch = createServerFn({ method: 'GET' })
+  .validator(battleReplayBatchSchema)
+  .handler(({ data }) =>
+    rpc(async () => app().service.replayBatch(data.token, await currentUserId(), data.seqs, await app().battleReadRulesFor())),
   )
 
 export const leagueBattleOptions = createServerFn({ method: 'GET' })
