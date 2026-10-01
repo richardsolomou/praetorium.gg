@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.89.1
+
+### Patch Changes
+
+- e084a67: Share the Strategic Reserves points allowance across allied armies.
+
 ## 0.89.0
 
 ### Minor Changes
