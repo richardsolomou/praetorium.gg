@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { EllipsisVertical, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { type Command, isNewOrders, STRATAGEM_CP_MAX } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
@@ -138,7 +139,7 @@ function StratagemCard({
     .join(' · ')
   return (
     <div className={`${CARD} flex items-center gap-1.5`}>
-      <Dialog>
+      <BattlePromptDialog minimizedLabel={stratagem.name} resumeLabel="Return to stratagem">
         <DialogTrigger
           render={
             <button
@@ -150,7 +151,7 @@ function StratagemCard({
         >
           {stratagem.name}
         </DialogTrigger>
-        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+        <BattleDialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{stratagem.name}</DialogTitle>
             <DialogDescription className="eyebrow">{timing}</DialogDescription>
@@ -165,14 +166,16 @@ function StratagemCard({
             <p className="mt-2 text-sm text-dim">No description is available for this stratagem.</p>
           )}
           {refusal ? <p className="mt-2 text-sm text-discarded">{refusal}</p> : null}
-        </DialogContent>
-      </Dialog>
+        </BattleDialogContent>
+      </BattlePromptDialog>
       {actionable ? (
         <>
           {/* Some stratagems cost more or less depending on what is on the board, so the price is a choice. */}
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon-xs" aria-label={`Spend a different amount on ${stratagem.name}`} />}
+              render={
+                <Button variant="ghost" size="icon-xs" disabled={pending} aria-label={`Spend a different amount on ${stratagem.name}`} />
+              }
             >
               <EllipsisVertical />
             </DropdownMenuTrigger>
@@ -203,8 +206,13 @@ function StratagemCard({
           {stratagem.cp} CP
         </span>
       )}
-      <Dialog open={newOrdersCost !== null} onOpenChange={(open) => !open && setNewOrdersCost(null)}>
-        <DialogContent className="border-parchment/60 sm:max-w-md">
+      <BattlePromptDialog
+        open={newOrdersCost !== null}
+        onOpenChange={(open) => !open && setNewOrdersCost(null)}
+        minimizedLabel="New Orders"
+        resumeLabel="Return to New Orders"
+      >
+        <BattleDialogContent className="border-parchment/60 sm:max-w-md">
           <DialogHeader className="pr-7">
             <div className="flex items-center justify-between gap-3">
               <DialogTitle className="text-parchment">New Orders</DialogTitle>
@@ -238,8 +246,8 @@ function StratagemCard({
               </Button>
             ))}
           </div>
-        </DialogContent>
-      </Dialog>
+        </BattleDialogContent>
+      </BattlePromptDialog>
     </div>
   )
 }

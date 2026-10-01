@@ -1,7 +1,8 @@
 import { Minus, Plus, Scroll, Swords } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { type Command, transportLabel, type UnitState } from '../../../core/battle'
 import { armyModels, armyShelves } from './armyUnits'
 import type { Army, Side } from '../../sides'
@@ -19,11 +20,12 @@ type Props = {
   onSimulate: (selection: BattleCombatSelection) => void
   /** Casualties are recorded only while the battle is running. */
   actionable: boolean
+  pending: boolean
   send: (command: Command) => void
 }
 
 /** Show the frozen roster from the battle log in place, with current losses; either seated side can record either army’s losses. */
-export function ArmyRoster({ army, side, token, actionable, send, onSimulate }: Props) {
+export function ArmyRoster({ army, side, token, actionable, pending, send, onSimulate }: Props) {
   const [open, setOpen] = useState(false)
   const roster = army.roster
   if (!roster) return null
@@ -42,6 +44,7 @@ export function ArmyRoster({ army, side, token, actionable, send, onSimulate }: 
       unit={unit}
       army={army}
       actionable={actionable}
+      pending={pending}
       send={send}
       onSimulate={canSimulate(unit) ? () => simulate(unit.key) : undefined}
     />
@@ -73,8 +76,13 @@ export function ArmyRoster({ army, side, token, actionable, send, onSimulate }: 
         ) : null}
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent data-army-roster className={`max-h-[85dvh] overflow-y-auto sm:max-w-xl ${tint(side.index).border}`}>
+      <BattlePromptDialog
+        open={open}
+        onOpenChange={setOpen}
+        minimizedLabel={`${army.playerName} · ${roster.name}`}
+        resumeLabel="Return to army"
+      >
+        <BattleDialogContent data-army-roster className={`max-h-[85dvh] overflow-y-auto sm:max-w-xl ${tint(side.index).border}`}>
           <DialogHeader className="text-center">
             <p className="eyebrow">{army.playerName}</p>
             <DialogTitle>{roster.name}</DialogTitle>
@@ -107,8 +115,8 @@ export function ArmyRoster({ army, side, token, actionable, send, onSimulate }: 
               {roster.text}
             </pre>
           )}
-        </DialogContent>
-      </Dialog>
+        </BattleDialogContent>
+      </BattlePromptDialog>
     </>
   )
 }
@@ -117,6 +125,7 @@ function BattleUnit({
   unit,
   army,
   actionable,
+  pending,
   send,
   onSimulate,
 }: {
@@ -124,6 +133,7 @@ function BattleUnit({
   unit: UnitState
   army: Army
   actionable: boolean
+  pending: boolean
   send: (command: Command) => void
 }) {
   // A whole unit on the table with nothing to press has nothing to report, so it says nothing.
@@ -152,7 +162,7 @@ function BattleUnit({
               </Button>
             ) : null}
             {worthSaying ? (
-              <UnitStatus unit={unit} units={army.units} playerId={army.playerId} actionable={actionable} send={send} />
+              <UnitStatus unit={unit} units={army.units} playerId={army.playerId} actionable={actionable} pending={pending} send={send} />
             ) : null}
           </>
         ) : undefined
@@ -167,12 +177,14 @@ function UnitStatus({
   units,
   playerId,
   actionable,
+  pending,
   send,
 }: {
   unit: UnitState
   units: UnitState[]
   playerId: string
   actionable: boolean
+  pending: boolean
   send: (command: Command) => void
 }) {
   const mark = (destroyed: boolean) => send({ kind: 'set-unit', unitKey: unit.key, destroyed, playerId })
@@ -189,6 +201,7 @@ function UnitStatus({
             size="xs"
             className="ml-auto shrink-0"
             aria-label={`Bring ${unit.name} back`}
+            disabled={pending}
             onClick={() => mark(false)}
           >
             Bring back
@@ -214,6 +227,7 @@ function UnitStatus({
           of={unit.models}
           whole={unit.alive === unit.models}
           actionable={actionable}
+          pending={pending}
           removeLabel={`Remove a model from ${unit.name}`}
           returnLabel={`Return a model to ${unit.name}`}
           onStep={(delta) => send({ kind: 'wound-unit', unitKey: unit.key, delta, playerId })}
@@ -226,6 +240,7 @@ function UnitStatus({
           of={unit.wounds}
           whole={unit.alive === unit.models && unit.damage === 0}
           actionable={actionable}
+          pending={pending}
           removeLabel={`Take a wound off ${unit.name}`}
           returnLabel={`Heal a wound on ${unit.name}`}
           onStep={(delta) => send({ kind: 'damage-unit', unitKey: unit.key, delta, playerId })}
@@ -237,6 +252,7 @@ function UnitStatus({
           size="xs"
           className="ml-auto shrink-0"
           aria-label={`Mark ${unit.name} lost`}
+          disabled={pending}
           onClick={() => mark(true)}
         >
           Lost
@@ -259,6 +275,7 @@ function Counter({
   of,
   whole,
   actionable,
+  pending,
   removeLabel,
   returnLabel,
   onStep,
@@ -268,6 +285,7 @@ function Counter({
   of: number
   whole: boolean
   actionable: boolean
+  pending: boolean
   removeLabel: string
   returnLabel: string
   onStep: (delta: number) => void
@@ -275,7 +293,7 @@ function Counter({
   return (
     <span className="flex shrink-0 items-center gap-1.5">
       {actionable ? (
-        <Button variant="outline" size="icon-xs" aria-label={removeLabel} onClick={() => onStep(-1)}>
+        <Button variant="outline" size="icon-xs" aria-label={removeLabel} disabled={pending} onClick={() => onStep(-1)}>
           <Minus aria-hidden />
         </Button>
       ) : null}
@@ -284,7 +302,7 @@ function Counter({
       </span>
       <span className="eyebrow">{noun}</span>
       {actionable ? (
-        <Button variant="outline" size="icon-xs" disabled={whole} aria-label={returnLabel} onClick={() => onStep(1)}>
+        <Button variant="outline" size="icon-xs" disabled={pending || whole} aria-label={returnLabel} onClick={() => onStep(1)}>
           <Plus aria-hidden />
         </Button>
       ) : null}

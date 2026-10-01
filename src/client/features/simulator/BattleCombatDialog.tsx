@@ -31,7 +31,7 @@ export function BattleCombatDialog({
   const selectedIndex = first?.roster.battle?.units.findIndex((unit) => unit.available && unit.key === selection.unitKey) ?? -1
   const roster = first ? { ...first.roster, pickIndex: selectedIndex < 0 ? first.roster.pickIndex : selectedIndex } : undefined
   return (
-    <CombatDialog onClose={onClose}>
+    <CombatDialog battle onClose={onClose}>
       {first && second ? (
         <CombatSimulatorMatchup
           source="battle"

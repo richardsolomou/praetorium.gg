@@ -33,18 +33,19 @@ import type { BattleView } from '../../../core/battleView'
 import { remindersDueAt, reminderTimingLabel, type ReminderTiming, type RosterReminder } from '../../../core/reminders'
 import { BattleMenu } from './BattleMenu'
 import { ReminderDialog } from './ReminderDialog'
-import { DrawDialog, type WhenDrawn } from './DrawDialog'
+import { DrawDialog, type DrawSelection, type WhenDrawn } from './DrawDialog'
 import { DiscardSecondaryDialog } from './DiscardSecondaryDialog'
 import type { Award, ReferenceCard, StratagemText } from './MissionCards'
 import { Scoreboard } from './Scoreboard'
 import { SecretMissionHandoff } from './SecretMissionHandoff'
-import { turnPrompt } from '../../scoring'
-import { dueForAdvance, dueFromTheirTurn, ScoringDialog } from './ScoringDialog'
+import { turnPrompt, type DueCard } from '../../scoring'
+import { dueForAdvance, dueFromTheirTurn, ScoringDialog, type ScoringAnswers } from './ScoringDialog'
 import { BattleCombatDialog, type BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { SidePanel } from './SidePanel'
 import { TurnControl } from './TurnControl'
 import { TwistName } from './MissionTwist'
 import { Report, type ReportPlayer } from './Report'
+import { BattleMinimizeContext } from './BattlePromptDialog'
 
 type Props = {
   view: BattleView
@@ -84,6 +85,24 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
   const [dismissalsReady, setDismissalsReady] = useState(false)
   const [actionRemindersEnabled, setActionRemindersEnabled] = useState(true)
+  const [promptMinimized, setPromptMinimized] = useState(false)
+  const minimizedDialogs = useRef<string[]>([])
+  const registerMinimized = useCallback((id: string, minimized: boolean) => {
+    const current = minimizedDialogs.current
+    if (minimized && !current.includes(id)) current.push(id)
+    if (!minimized) minimizedDialogs.current = current.filter((candidate) => candidate !== id)
+    setPromptMinimized(minimizedDialogs.current.length > 0)
+    return minimizedDialogs.current.indexOf(id)
+  }, [])
+  const sendAction = useCallback(
+    (command: Command) => {
+      if (!promptMinimized) send(command)
+    },
+    [promptMinimized, send],
+  )
+  const scoringDrafts = useRef(new Map<string, { signature: string; answers: ScoringAnswers }>())
+  const drawDrafts = useRef(new Map<string, DrawSelection>())
+  const discardDrafts = useRef(new Map<string, string[]>())
   const reminderPrompt = reminderPrompts[0] ?? null
   const dismissedReminders = useRef(new Set<string>())
   // Refetches that change nothing keep their object identity through the query
@@ -275,7 +294,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   )
   const repairPrimary = repairSide?.primaryCard ?? primaryDeck.find((card) => card.key === repairSide?.mission?.id) ?? null
   useEffect(() => {
-    if (pending || !references || !secondaryDeck.length || !repairSide || !repairPrimary) return
+    if (pending || promptMinimized || !references || !secondaryDeck.length || !repairSide || !repairPrimary) return
     const key = `${view.seq}:${repairSide.captain.id}`
     if (!claimAutomaticAttempt(attemptedPrepRepairs.current, key)) return
     send({
@@ -290,7 +309,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       primary: repairPrimary,
       secondaryMode: repairSide.secondaryMode,
     })
-  }, [pending, references, repairPrimary, repairSide, secondaryDeck, send, view.seq])
+  }, [pending, promptMinimized, references, repairPrimary, repairSide, secondaryDeck, send, view.seq])
   // A battle whose second seat is still empty draws one side, not a gap where the other goes.
   const oneSided = table.length < 2
   // A side's own mission can state a lower ceiling than the conventional one, and the
@@ -313,6 +332,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
   const settlementRound = view.settlementRound
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
+  const turnDraftKey = JSON.stringify([view.token, turnKey])
   const needsDraw =
     active?.secondaryMode === 'tactical' &&
     view.phase === 'command' &&
@@ -323,6 +343,17 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
 
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
   const due = active ? dueForAdvance(view, active, awardsFor) : []
+  const activeScoringMoment = view.phase === 'end' ? 'end of turn' : `end of ${view.phase} phase`
+  const scoringDraft = (side: Side, round: number, moment: string, cards: readonly DueCard[]) => {
+    const id = JSON.stringify([view.token, side.captain.id, round, moment])
+    const signature = JSON.stringify(cards.map((card) => [card.key, card.awards]))
+    const saved = scoringDrafts.current.get(id)
+    return {
+      key: `${id}:${signature}`,
+      initialAnswers: saved?.signature === signature ? saved.answers : undefined,
+      onAnswersChange: (answers: ScoringAnswers) => scoringDrafts.current.set(id, { signature, answers }),
+    }
+  }
   const activeNeedsReferences = Boolean(
     (active?.primaryCard && active.primaryCard.awards === undefined) ||
     active?.secondaries.some((card) => card.status === 'active' && card.awards === undefined),
@@ -339,7 +370,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             : null
   const advanceBlocked = Boolean(blockReason)
   const advanceNow = () => {
-    if (advanceBlocked || !active) return
+    if (promptMinimized || advanceBlocked || !active) return
     const discardable = discardableSecondaries(active)
     const activeSecretMissionAction = view.settlementRound === null && view.secretMissionActionPlayerId === active.captain.id
     if (due.length || activeSecretMissionAction || (view.phase === 'end' && discardable.length)) {
@@ -349,6 +380,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     send({ kind: 'advance', playerId: active.captain.id })
   }
   const advance = () => {
+    if (promptMinimized) return
     if (advanceBlocked || !active || !reminderTurn || view.phase === 'end') {
       advanceNow()
       return
@@ -386,6 +418,10 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     settlementRound !== null && settlementSide
       ? dueFromTheirTurn(settlementRound, view.rounds, settlementSide, awardsFor, heldKeys(settlementSide))
       : []
+  const activeScoringDraft = active ? scoringDraft(active, view.round, activeScoringMoment, due) : null
+  const owedScoringDraft = settlementSide
+    ? scoringDraft(settlementSide, settlementRound ?? view.round, 'end of their turn', owedCards)
+    : null
   const attemptedEmptySettlements = useRef(new Map<string, number>())
   const emptySettlementKey = `${view.seq}:${settlementRound ?? ''}:${view.settlementPlayerId ?? ''}`
   const emptySettlementReady =
@@ -393,9 +429,15 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const emptySettlementRetryNeeded =
     emptySettlementReady && automaticAttemptsExhausted(attemptedEmptySettlements.current, emptySettlementKey)
   useEffect(() => {
-    if (!emptySettlementReady || pending || !claimAutomaticAttempt(attemptedEmptySettlements.current, emptySettlementKey)) return
+    if (
+      !emptySettlementReady ||
+      pending ||
+      promptMinimized ||
+      !claimAutomaticAttempt(attemptedEmptySettlements.current, emptySettlementKey)
+    )
+      return
     send({ kind: 'settle-opponent-turn' })
-  }, [emptySettlementKey, emptySettlementReady, pending, send])
+  }, [emptySettlementKey, emptySettlementReady, pending, promptMinimized, send])
   // The win is this device's to celebrate only when the side it is seated on took it.
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
   const discardable = active ? discardableSecondaries(active) : []
@@ -486,253 +528,276 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   ])
 
   return (
-    <main data-battle-tracker className="w-full space-y-3 px-3 pb-32 lg:pb-8">
-      {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
-      <Scoreboard view={view} clock={clock} sides={table} outcome={null} />
+    <BattleMinimizeContext.Provider value={registerMinimized}>
+      <main data-battle-tracker className="w-full space-y-3 px-3 pb-32 lg:pb-8">
+        {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
+        <div data-battle-sticky-header className="sticky top-12 z-20 space-y-2 bg-void/95 pb-2 backdrop-blur lg:contents">
+          <Scoreboard view={view} clock={clock} sides={table} outcome={null} />
 
-      {/* Nobody across the table yet means neither a tab nor a column for them. */}
-      <Tabs value={focus} onValueChange={(value) => setFocus(value as Focus)} className="lg:hidden">
-        <TabsList className={`grid w-full ${oneSided ? 'grid-cols-2' : 'grid-cols-3'}`}>
-          <TabsTrigger value="yours">Your side</TabsTrigger>
-          <TabsTrigger value="battle">Battle</TabsTrigger>
-          {oneSided ? null : <TabsTrigger value="theirs">Opponent</TabsTrigger>}
-        </TabsList>
-      </Tabs>
-
-      <div
-        className={`mx-auto grid items-start gap-3 ${
-          oneSided
-            ? 'max-w-5xl lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)]'
-            : 'max-w-7xl lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]'
-        }`}
-      >
-        {table.map((side) => (
-          <SidePanel
-            key={side.index}
-            view={view}
-            side={side}
-            onSimulate={setCombatSelection}
-            coreKeys={coreKeysBySide.get(side.index) ?? EMPTY_KEYS}
-            pending={pending}
-            send={send}
-            awardsFor={awardsFor}
-            referenceFor={referenceFor}
-            writtenFor={writtenFor}
-            guides={guidesFor(side)}
-            className={`${focus === shown(side) ? '' : 'hidden lg:block'} ${side.index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} lg:row-start-1`}
-          />
-        ))}
-
-        <div className="min-w-0 space-y-3 lg:col-start-2 lg:row-start-1">
-          {/*
-           * One instance, moved by CSS rather than rendered twice: ending a phase is the
-           * most-pressed control in the game, so on a phone it sits under the thumb all
-           * game instead of behind the tab that holds the rest of the battle.
-           */}
-          <TurnControl
-            view={view}
-            clock={clock}
-            send={send}
-            pending={pending}
-            onAdvance={advance}
-            blockReason={blockReason}
-            note={view.advancePrompt}
-            /*
-             * `mb-0` because the column spaces its children with a bottom margin, and
-             * a margin on a fixed box sits between it and the edge it is pinned to —
-             * which held the bar that far off the bottom of every phone and tablet.
-             * At `lg` it is an ordinary box in the column again and takes the gap back.
-             */
-            className="fixed inset-x-0 bottom-0 z-40 mb-0 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:mb-3 lg:rounded-lg lg:border lg:bg-panel lg:p-3 lg:backdrop-filter-none"
-          />
-
-          <section className={`space-y-3 rounded-lg border border-edge bg-panel p-3 ${focus === 'battle' ? '' : 'hidden lg:block'}`}>
-            <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-              <Fact label="Mission" value={yours?.mission?.name ?? 'Matched play'} />
-              <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
-              <Fact
-                label="Battlefield"
-                value={deployment ? `${deployment.name} · ${deployment.objectives.length} objectives` : 'Not chosen'}
-              />
-              <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
-              <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
-              <Fact label="Format" value={formatName(table)} />
-              {/*
-               * A twist changes one rule for the whole battle, so it is not enough to
-               * name it: the sentence it changes has to be readable from the table
-               * without leaving the game to go and find the pack.
-               */}
-              {twist ? (
-                <div className="min-w-0">
-                  <dt className="eyebrow">Twist</dt>
-                  <dd>
-                    <TwistName twist={twist} />
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-
-            <div className="border-t border-edge pt-3">
-              <div className="flex items-center justify-between gap-3">
-                <p className="eyebrow">Battle events</p>
-                <BattleMenu
-                  canDelete={view.creatorId === view.viewerId}
-                  pending={pending || remove.isPending}
-                  actionRemindersEnabled={actionRemindersEnabled}
-                  timerPaused={clock.paused}
-                  onTimerPausedChange={(paused) => send({ kind: paused ? 'pause-clock' : 'resume-clock' })}
-                  players={view.players}
-                  onActionRemindersChange={updateActionReminders}
-                  onConcede={(playerId) => send({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
-                  onDelete={() => remove.mutate()}
-                />
-              </div>
-              <Report token={view.token} open players={reportPlayers} />
-            </div>
-
-            {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
-            {emptySettlementRetryNeeded ? (
-              <Button variant="outline" size="sm" disabled={pending} onClick={() => send({ kind: 'settle-opponent-turn' })}>
-                Retry finishing the previous turn
-              </Button>
-            ) : null}
-            {remove.error ? <p className="text-sm text-destructive">{errorMessage(remove.error)}</p> : null}
-          </section>
+          {/* Nobody across the table yet means neither a tab nor a column for them. */}
+          <Tabs value={focus} onValueChange={(value) => setFocus(value as Focus)} className="battle-focus-tabs lg:hidden">
+            <TabsList className={`grid w-full ${oneSided ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              <TabsTrigger value="yours">Your side</TabsTrigger>
+              <TabsTrigger value="battle">Battle</TabsTrigger>
+              {oneSided ? null : <TabsTrigger value="theirs">Opponent</TabsTrigger>}
+            </TabsList>
+          </Tabs>
         </div>
-      </div>
 
-      {settlementRound === null &&
-      !reminderPrompt &&
-      !needsDraw &&
-      !needsDrawAcknowledgement &&
-      view.advanceRequested &&
-      !view.scoringAcknowledged &&
-      !activeSecretMissionAction &&
-      due.length &&
-      active ? (
-        <ScoringDialog
-          side={active}
-          due={due}
-          moment={view.phase === 'end' ? 'end of turn' : `end of ${view.phase} phase`}
-          confirmLabel={view.phase === 'end' ? 'Pass the turn' : 'End the phase'}
-          pending={pending}
-          send={send}
-          referenceFor={referenceFor}
-          round={view.round}
-          undoable={view.undoable}
-          undoableDraw={view.undoableDraw}
-          onCancel={() => send({ kind: 'cancel-advance', playerId: active.captain.id })}
-          onDone={(completedSecondaryKeys, scored) => {
-            const unresolved = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
-            if (view.phase !== 'end' || !unresolved.length) {
-              if (!scored) send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
+        <div
+          className={`mx-auto grid items-start gap-3 ${
+            oneSided
+              ? 'max-w-5xl lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)]'
+              : 'max-w-7xl lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]'
+          }`}
+        >
+          {table.map((side) => (
+            <SidePanel
+              key={side.index}
+              view={view}
+              side={side}
+              onSimulate={setCombatSelection}
+              coreKeys={coreKeysBySide.get(side.index) ?? EMPTY_KEYS}
+              pending={pending || promptMinimized}
+              send={sendAction}
+              awardsFor={awardsFor}
+              referenceFor={referenceFor}
+              writtenFor={writtenFor}
+              guides={guidesFor(side)}
+              className={`${focus === shown(side) ? '' : 'hidden lg:block'} ${side.index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} lg:row-start-1`}
+            />
+          ))}
+
+          <div className="min-w-0 space-y-3 lg:col-start-2 lg:row-start-1">
+            {/*
+             * One instance, moved by CSS rather than rendered twice: ending a phase is the
+             * most-pressed control in the game, so on a phone it sits under the thumb all
+             * game instead of behind the tab that holds the rest of the battle.
+             */}
+            <TurnControl
+              view={view}
+              clock={clock}
+              send={sendAction}
+              pending={pending || promptMinimized}
+              onAdvance={advance}
+              blockReason={promptMinimized ? 'Finish the open prompt to continue.' : blockReason}
+              note={view.advancePrompt}
+              /*
+               * `mb-0` because the column spaces its children with a bottom margin, and
+               * a margin on a fixed box sits between it and the edge it is pinned to —
+               * which held the bar that far off the bottom of every phone and tablet.
+               * At `lg` it is an ordinary box in the column again and takes the gap back.
+               */
+              className="fixed inset-x-0 bottom-0 z-40 mb-0 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:mb-3 lg:rounded-lg lg:border lg:bg-panel lg:p-3 lg:backdrop-filter-none"
+            />
+
+            <section className={`space-y-3 rounded-lg border border-edge bg-panel p-3 ${focus === 'battle' ? '' : 'hidden lg:block'}`}>
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                <Fact label="Mission" value={yours?.mission?.name ?? 'Matched play'} />
+                <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
+                <Fact
+                  label="Battlefield"
+                  value={deployment ? `${deployment.name} · ${deployment.objectives.length} objectives` : 'Not chosen'}
+                />
+                <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
+                <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
+                <Fact label="Format" value={formatName(table)} />
+                {/*
+                 * A twist changes one rule for the whole battle, so it is not enough to
+                 * name it: the sentence it changes has to be readable from the table
+                 * without leaving the game to go and find the pack.
+                 */}
+                {twist ? (
+                  <div className="min-w-0">
+                    <dt className="eyebrow">Twist</dt>
+                    <dd>
+                      <TwistName twist={twist} />
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+
+              <div className="border-t border-edge pt-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="eyebrow">Battle events</p>
+                  <BattleMenu
+                    canDelete={view.creatorId === view.viewerId}
+                    pending={pending || promptMinimized || remove.isPending}
+                    actionRemindersEnabled={actionRemindersEnabled}
+                    timerPaused={clock.paused}
+                    onTimerPausedChange={(paused) => sendAction({ kind: paused ? 'pause-clock' : 'resume-clock' })}
+                    players={view.players}
+                    onActionRemindersChange={updateActionReminders}
+                    onConcede={(playerId) => sendAction({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
+                    onDelete={() => {
+                      if (!promptMinimized) remove.mutate()
+                    }}
+                  />
+                </div>
+                <Report token={view.token} open players={reportPlayers} />
+              </div>
+
+              {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
+              {emptySettlementRetryNeeded ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pending || promptMinimized}
+                  onClick={() => sendAction({ kind: 'settle-opponent-turn' })}
+                >
+                  Retry finishing the previous turn
+                </Button>
+              ) : null}
+              {remove.error ? <p className="text-sm text-destructive">{errorMessage(remove.error)}</p> : null}
+            </section>
+          </div>
+        </div>
+
+        {settlementRound === null &&
+        !reminderPrompt &&
+        !needsDraw &&
+        !needsDrawAcknowledgement &&
+        view.advanceRequested &&
+        !view.scoringAcknowledged &&
+        !activeSecretMissionAction &&
+        due.length &&
+        active &&
+        activeScoringDraft ? (
+          <ScoringDialog
+            key={activeScoringDraft.key}
+            initialAnswers={activeScoringDraft.initialAnswers}
+            onAnswersChange={activeScoringDraft.onAnswersChange}
+            side={active}
+            due={due}
+            moment={activeScoringMoment}
+            confirmLabel={view.phase === 'end' ? 'Pass the turn' : 'End the phase'}
+            pending={pending}
+            send={send}
+            referenceFor={referenceFor}
+            round={view.round}
+            undoable={view.undoable}
+            undoableDraw={view.undoableDraw}
+            onCancel={() => send({ kind: 'cancel-advance', playerId: active.captain.id })}
+            onDone={(completedSecondaryKeys, scored) => {
+              const unresolved = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
+              if (view.phase !== 'end' || !unresolved.length) {
+                if (!scored) send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
+                send({ kind: 'advance', playerId: active.captain.id })
+              } else if (!scored) {
+                send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
+              }
+            }}
+          />
+        ) : null}
+
+        {secretMissionActionSide &&
+        !reminderPrompt &&
+        ((view.advanceRequested && activeSecretMissionAction && !needsDraw && !needsDrawAcknowledgement) ||
+          settlementSecretMissionAction) ? (
+          <SecretMissionHandoff
+            side={secretMissionActionSide}
+            pending={pending}
+            onCancel={
+              activeSecretMissionAction ? () => send({ kind: 'cancel-advance', playerId: secretMissionActionSide.captain.id }) : undefined
+            }
+            onReveal={() => send({ kind: 'reveal-secret', playerId: secretMissionActionSide.captain.id })}
+            undoable={view.undoable}
+            undoableDraw={view.undoableDraw}
+            send={send}
+          />
+        ) : null}
+
+        {!reminderPrompt && prompt === 'owed' && settlementSide && owedScoringDraft && !settlementSecretMissionAction ? (
+          <ScoringDialog
+            key={owedScoringDraft.key}
+            initialAnswers={owedScoringDraft.initialAnswers}
+            onAnswersChange={owedScoringDraft.onAnswersChange}
+            side={settlementSide}
+            due={owedCards}
+            moment="end of their turn"
+            confirmLabel="Take the turn"
+            pending={pending}
+            send={send}
+            referenceFor={referenceFor}
+            round={settlementRound ?? view.round}
+            undoable={view.undoable}
+            undoableDraw={view.undoableDraw}
+            onDone={() => send({ kind: 'settle-opponent-turn' })}
+          />
+        ) : null}
+
+        {settlementRound === null &&
+        !reminderPrompt &&
+        view.advanceRequested &&
+        (view.scoringAcknowledged || !due.length) &&
+        view.phase === 'end' &&
+        discardable.length &&
+        active ? (
+          <DiscardSecondaryDialog
+            side={active}
+            keys={discardable}
+            initialSelection={discardDrafts.current.get(turnDraftKey)}
+            onSelectionChange={(selected) => discardDrafts.current.set(turnDraftKey, selected)}
+            pending={pending}
+            send={send}
+            undoable={view.undoable}
+            undoableDraw={view.undoableDraw}
+            onDone={() => {
               send({ kind: 'advance', playerId: active.captain.id })
-            } else if (!scored) {
-              send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
-            }
-          }}
-        />
-      ) : null}
+            }}
+          />
+        ) : null}
 
-      {secretMissionActionSide &&
-      !reminderPrompt &&
-      ((view.advanceRequested && activeSecretMissionAction && !needsDraw && !needsDrawAcknowledgement) || settlementSecretMissionAction) ? (
-        <SecretMissionHandoff
-          side={secretMissionActionSide}
-          pending={pending}
-          onCancel={
-            activeSecretMissionAction ? () => send({ kind: 'cancel-advance', playerId: secretMissionActionSide.captain.id }) : undefined
-          }
-          onReveal={() => send({ kind: 'reveal-secret', playerId: secretMissionActionSide.captain.id })}
-          undoable={view.undoable}
-          undoableDraw={view.undoableDraw}
-          send={send}
-        />
-      ) : null}
+        {!reminderPrompt && prompt === 'draw' && active ? (
+          <DrawDialog
+            key={turnKey}
+            side={active}
+            initialSelection={drawDrafts.current.get(turnDraftKey)}
+            onSelectionChange={(selection) => drawDrafts.current.set(turnDraftKey, selection)}
+            round={view.round}
+            undoable={view.undoable}
+            confirmUndo={view.undoableDraw}
+            pending={pending}
+            send={send}
+            referenceFor={referenceFor}
+            whenDrawnFor={whenDrawnFor}
+            onDone={() => send({ kind: 'acknowledge-draw', playerId: active.captain.id })}
+          />
+        ) : null}
 
-      {!reminderPrompt && prompt === 'owed' && settlementSide && !settlementSecretMissionAction ? (
-        <ScoringDialog
-          side={settlementSide}
-          due={owedCards}
-          moment="end of their turn"
-          confirmLabel="Take the turn"
-          pending={pending}
-          send={send}
-          referenceFor={referenceFor}
-          round={settlementRound ?? view.round}
-          undoable={view.undoable}
-          undoableDraw={view.undoableDraw}
-          onDone={() => send({ kind: 'settle-opponent-turn' })}
-        />
-      ) : null}
-
-      {settlementRound === null &&
-      !reminderPrompt &&
-      view.advanceRequested &&
-      (view.scoringAcknowledged || !due.length) &&
-      view.phase === 'end' &&
-      discardable.length &&
-      active ? (
-        <DiscardSecondaryDialog
-          side={active}
-          keys={discardable}
-          pending={pending}
-          send={send}
-          undoable={view.undoable}
-          undoableDraw={view.undoableDraw}
-          onDone={() => {
-            send({ kind: 'advance', playerId: active.captain.id })
-          }}
-        />
-      ) : null}
-
-      {!reminderPrompt && prompt === 'draw' && active ? (
-        <DrawDialog
-          key={turnKey}
-          side={active}
-          round={view.round}
-          undoable={view.undoable}
-          confirmUndo={view.undoableDraw}
-          pending={pending}
-          send={send}
-          referenceFor={referenceFor}
-          whenDrawnFor={whenDrawnFor}
-          onDone={() => send({ kind: 'acknowledge-draw', playerId: active.captain.id })}
-        />
-      ) : null}
-
-      {reminderPrompt ? (
-        <ReminderDialog
-          reminders={reminderPrompt.reminders}
-          moment={reminderPrompt.moment}
-          confirmLabel={reminderPrompt.confirmLabel}
-          onDismiss={(reminder, scope) => {
-            const last = reminderPrompt.reminders.length === 1
-            rememberReminder(reminder.key, scope, reminderPrompt.context)
-            if (
-              last &&
-              reminderPrompt.advanceAfterDismissal &&
-              reminderPrompt.context.round === view.round &&
-              reminderPrompt.context.activePlayerId === view.activePlayerId &&
-              reminderPrompt.context.phase === view.phase
-            ) {
-              advanceNow()
-            }
-          }}
-          onDone={() => {
-            for (const reminder of reminderPrompt.reminders) rememberReminder(reminder.key, 'phase', reminderPrompt.context)
-            if (
-              reminderPrompt.advanceAfterDismissal &&
-              reminderPrompt.context.round === view.round &&
-              reminderPrompt.context.activePlayerId === view.activePlayerId &&
-              reminderPrompt.context.phase === view.phase
-            ) {
-              advanceNow()
-            }
-          }}
-        />
-      ) : null}
-    </main>
+        {reminderPrompt ? (
+          <ReminderDialog
+            reminders={reminderPrompt.reminders}
+            moment={reminderPrompt.moment}
+            confirmLabel={reminderPrompt.confirmLabel}
+            onDismiss={(reminder, scope) => {
+              const last = reminderPrompt.reminders.length === 1
+              rememberReminder(reminder.key, scope, reminderPrompt.context)
+              if (
+                last &&
+                reminderPrompt.advanceAfterDismissal &&
+                reminderPrompt.context.round === view.round &&
+                reminderPrompt.context.activePlayerId === view.activePlayerId &&
+                reminderPrompt.context.phase === view.phase
+              ) {
+                advanceNow()
+              }
+            }}
+            onDone={() => {
+              for (const reminder of reminderPrompt.reminders) rememberReminder(reminder.key, 'phase', reminderPrompt.context)
+              if (
+                reminderPrompt.advanceAfterDismissal &&
+                reminderPrompt.context.round === view.round &&
+                reminderPrompt.context.activePlayerId === view.activePlayerId &&
+                reminderPrompt.context.phase === view.phase
+              ) {
+                advanceNow()
+              }
+            }}
+          />
+        ) : null}
+      </main>
+    </BattleMinimizeContext.Provider>
   )
 }
 
