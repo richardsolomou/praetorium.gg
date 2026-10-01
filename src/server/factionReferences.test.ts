@@ -136,6 +136,54 @@ describe('joining catalogue detachments to their rules reference', () => {
     } as Partial<LoadedRules> as LoadedRules
 
     expect(isReferenceDetachment(loaded, rules, faction, detachment)).toBe(true)
+    expect(factionsFor(loaded, rules).factions[0]?.detachments[0]?.referenceRoute).toEqual({
+      catalogueId: 'child',
+      slug: 'emperors-shield',
+    })
+  })
+
+  it('routes a chapter offer to the parent that publishes its reference', () => {
+    const loaded = bookOf({
+      name: 'Dark Angels',
+      selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }],
+      sharedSelectionEntries: [
+        {
+          id: 'wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'choices',
+              name: 'Detachment',
+              selectionEntries: [{ id: 'assault', name: 'Assault Brethren', type: 'upgrade' }],
+            },
+          ],
+        },
+      ],
+    })
+    const chapter = loaded.factions[0]!
+    const detachment = loaded.detachments.get(chapter.id)!.options[0]!
+    const parent = { id: 'parent', name: 'Space Marines', references: [] }
+    loaded.factions.push(parent)
+    loaded.index.catalogueOf.set(detachment.id, parent.id)
+    loaded.detachments.set(parent.id, { ...loaded.detachments.get(chapter.id)!, options: [detachment] })
+    const reference = { enhancements: 0, upgrades: 0, stratagems: 0, points: 1, dispositions: [] }
+    const rules = {
+      factionKeys: new Map([
+        ['dark-angels', 'dark-angels'],
+        ['space-marines', 'space-marines'],
+      ]),
+      detachmentReferences: new Map([
+        ['dark-angels', new Map([[detachment.name, reference]])],
+        ['space-marines', new Map([[detachment.name, reference]])],
+      ]),
+    } as Partial<LoadedRules> as LoadedRules
+
+    const factions = factionsFor(loaded, rules).factions
+    expect(factions.find((faction) => faction.id === chapter.id)?.detachments[0]?.referenceRoute).toEqual({
+      catalogueId: 'space-marines',
+      slug: 'assault-brethren',
+    })
   })
 })
 

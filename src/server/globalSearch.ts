@@ -100,7 +100,7 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
           group: 'Detachments',
           label: detachment.name,
           detail: faction.displayName,
-          href: `/factions/${faction.slug}/reference/detachments/${detachment.slug}`,
+          href: `/factions/${faction.slug}/detachments/${detachment.slug}`,
         },
       })
     }

@@ -13,6 +13,7 @@ type PresentedFaction = FactionPresentation & {
   detachments: readonly {
     id: string
     slug: string
+    referenceRoute?: { catalogueId: string; slug: string } | null
     dispositions: readonly { id: string; name: string }[]
   }[]
 }
@@ -172,10 +173,13 @@ export function RosterHeader({
               return (
                 <span key={detachment.id ?? detachment.name} className="contents">
                   <span aria-hidden>·</span>
-                  {faction && reference ? (
+                  {faction && reference && reference.referenceRoute !== null ? (
                     <Link
                       to="/factions/$catalogueId/detachments/$detachmentId"
-                      params={{ catalogueId: faction.slug, detachmentId: reference.slug }}
+                      params={{
+                        catalogueId: reference.referenceRoute?.catalogueId ?? faction.slug,
+                        detachmentId: reference.referenceRoute?.slug ?? reference.slug,
+                      }}
                       className="shrink-0 text-info hover:text-bone"
                     >
                       {label}

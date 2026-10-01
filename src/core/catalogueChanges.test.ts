@@ -82,6 +82,13 @@ describe('the change set between two snapshots', () => {
     expect(changesOf(changes)).toMatchObject([{ kind: 'datasheet-points', rows: [{ models: null, from: '60', to: '65' }] }])
   })
 
+  it('treats a one-model table and the same single summary price as unchanged', () => {
+    const before = sheet({ id: 'old-drop-pod', name: 'Drop Pod', points: 60, costs: [row('1', '60')] })
+    const after = sheet({ id: 'new-drop-pod', name: 'Drop Pod', points: 60, costs: [] })
+
+    expect(changesOf(catalogueChanges(source([before]), source([after])))).toEqual([])
+  })
+
   it('keeps a row printed under a condition apart from the plain row of the same size', () => {
     const before = sheet({ costs: [row('5', '80'), row('5', '70', { detachment: 'Gladius Task Force' })] })
     const after = sheet({ costs: [row('5', '80'), row('5', '75', { detachment: 'Gladius Task Force' })] })
@@ -135,13 +142,51 @@ describe('the change set between two snapshots', () => {
     ])
   })
 
-  it('reads no points change between two ids that share a name', () => {
+  it('tracks points across a unique same-name replacement', () => {
     const changes = catalogueChanges(
       source([sheet()]),
       source([sheet({ id: 'intercessors-v2', costs: [row('5', '95'), row('10', '150')] })]),
     )
 
-    expect(changesOf(changes)).toEqual([])
+    expect(changesOf(changes)).toEqual([
+      {
+        kind: 'datasheet-points',
+        id: 'intercessors-v2',
+        previousId: 'intercessors',
+        name: 'Intercessor Squad',
+        rows: [{ models: '5', condition: null, from: '80', to: '95' }],
+      },
+    ])
+  })
+
+  it('does not report a unit newly indexed under a chapter that already offered it', () => {
+    const old = sheet({ catalogueId: 'old-marines', id: 'drop-pod', name: 'Drop Pod', costs: [row('1', '60')] })
+    const newBook = sheet({ catalogueId: 'new-marines', id: 'new-drop-pod', name: 'Drop Pod', costs: [row('1', '60')] })
+    const chapter = sheet({ catalogueId: 'dark-angels', faction: 'Dark Angels', id: 'drop-pod', name: 'Drop Pod', costs: [row('1', '60')] })
+    const before = {
+      ...source([old]),
+      datasheetOffers: [
+        { catalogueId: 'old-marines', id: 'drop-pod' },
+        { catalogueId: 'dark-angels', id: 'drop-pod' },
+      ],
+    }
+    const after = {
+      ...source([newBook, chapter]),
+      datasheetOffers: [
+        { catalogueId: 'new-marines', id: 'new-drop-pod' },
+        { catalogueId: 'dark-angels', id: 'drop-pod' },
+      ],
+    }
+
+    expect(changesOf(catalogueChanges(before, after))).toEqual([])
+  })
+
+  it('does not pair same-name replacements when either side has more than one candidate', () => {
+    const first = sheet({ id: 'first', name: 'Captain' })
+    const second = sheet({ id: 'second', name: 'Captain' })
+    const replacement = sheet({ id: 'replacement', name: 'Captain', costs: [row('1', '95')] })
+
+    expect(changesOf(catalogueChanges(source([first, second]), source([replacement])))).toEqual([])
   })
 
   it('reports nothing when one of two datasheets sharing a name leaves', () => {
@@ -363,6 +408,16 @@ describe('the changes that reach a saved list', () => {
 
   it('names the datasheet, detachment and enhancement changes the list holds', () => {
     expect(kinds(changesTouching(list(), 100, [repriced]))).toEqual(['datasheet-points', 'detachment-points', 'enhancement-points'])
+  })
+
+  it('reports a points change to a saved list using a unit id from the previous book', () => {
+    const replacement = recorded(
+      300,
+      source([sheet()]),
+      source([sheet({ id: 'new-intercessors', costs: [row('5', '95'), row('10', '150')] })]),
+    )
+
+    expect(kinds(changesTouching(list(), 100, [replacement]))).toEqual(['datasheet-points'])
   })
 
   it('ignores changes recorded before the list was last saved', () => {

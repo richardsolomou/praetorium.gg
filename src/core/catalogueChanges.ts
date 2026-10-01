@@ -5,11 +5,10 @@ import { compareText } from './text'
 /**
  * What one army-data update changed, between the reference data two snapshots state.
  *
- * Everything is matched by the identity the data gives it: a datasheet or a detachment
- * by its catalogue and entry id, a points row by its model count and the conditions
- * printed beside it, and an enhancement by its exact name inside the detachment that
- * offers it. Whatever cannot be matched that way is reported as removed and added
- * rather than paired up as a change, and names alone are never joined.
+ * Detachments use their catalogue and entry ids. Datasheets can also keep identity
+ * across a book replacement when their faction and name match unambiguously. Points
+ * rows use their model count and printed conditions; enhancements use their exact
+ * name inside the detachment that offers them.
  */
 
 type PointsRow = { models: string; cost: string; keyword: string | null; faction: string | null; detachment: string | null }
@@ -25,6 +24,7 @@ export type ChangeSource = {
     points: number | null
     costs: readonly PointsRow[]
   }[]
+  datasheetOffers?: readonly { catalogueId: string; id: string }[]
   detachments: readonly {
     catalogueId: string
     faction: string
@@ -49,7 +49,7 @@ export type PointsRowChange = {
 }
 
 export type CatalogueChange =
-  | { kind: 'datasheet-points'; id: string; name: string; rows: PointsRowChange[] }
+  | { kind: 'datasheet-points'; id: string; previousId?: string; name: string; rows: PointsRowChange[] }
   | { kind: 'datasheet-added' | 'datasheet-removed'; id: string; name: string }
   | { kind: 'detachment-points'; id: string; name: string; from: Points; to: Points }
   | { kind: 'detachment-added' | 'detachment-removed'; id: string; name: string }
@@ -75,6 +75,7 @@ const changeSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('datasheet-points'),
     ...datasheetIdentity,
+    previousId: z.string().optional(),
     rows: z
       .array(z.object({ models: z.string().nullable(), condition: z.string().nullable(), from: pointsSchema, to: pointsSchema }))
       .min(1),
@@ -178,11 +179,19 @@ const rowCondition = (row: PointsRow) => [row.keyword, row.faction, row.detachme
 function datasheetChanges(before: Datasheet, after: Datasheet): CatalogueChange[] {
   const old = rowsOf(before)
   const next = rowsOf(after)
+  const singleUnconditional = (rows: readonly PointsRow[]) =>
+    rows.length === 1 && !rows[0]!.keyword && !rows[0]!.faction && !rows[0]!.detachment
+  if (singleUnconditional(old) && singleUnconditional(next)) {
+    old[0] = { ...old[0]!, models: '' }
+    next[0] = { ...next[0]!, models: '' }
+  }
   const named = old.length > 1 || next.length > 1
   const rows = pricedChanges(old, next, rowIdentity, (row) => row.cost)
     .map(({ record, from, to }) => ({ models: named && record.models ? record.models : null, condition: rowCondition(record), from, to }))
     .toSorted((left, right) => compareModels(left.models, right.models) || compareText(left.condition ?? '', right.condition ?? ''))
-  return rows.length ? [{ kind: 'datasheet-points', id: after.id, name: after.name, rows }] : []
+  return rows.length
+    ? [{ kind: 'datasheet-points', id: after.id, ...(before.id !== after.id ? { previousId: before.id } : {}), name: after.name, rows }]
+    : []
 }
 
 const compareModels = (left: string | null, right: string | null) =>
@@ -218,18 +227,50 @@ function compared<T extends { catalogueId: string; faction: string; id: string; 
   same: (record: T) => string,
   changed: (before: T, after: T) => CatalogueChange[],
   kinds: { added: 'datasheet-added' | 'detachment-added'; removed: 'datasheet-removed' | 'detachment-removed' },
+  {
+    oldOffers = [],
+    newOffers = [],
+    matchNames = false,
+  }: {
+    oldOffers?: readonly { catalogueId: string; id: string }[]
+    newOffers?: readonly { catalogueId: string; id: string }[]
+    matchNames?: boolean
+  } = {},
 ) {
   const identity = (record: T) => key(record.catalogueId, record.id)
   const old = byIdentity(before, identity, same)
   const next = byIdentity(after, identity, same)
+  const oldUnmatched = [...old.unique].filter(([id]) => !next.unique.has(id))
+  const newUnmatched = [...next.unique].filter(([id]) => !old.unique.has(id))
+  const byName = (records: readonly [string, T][]) => {
+    const grouped = new Map<string, [string, T][]>()
+    for (const entry of records) {
+      const name = key(entry[1].faction, entry[1].name)
+      grouped.set(name, [...(grouped.get(name) ?? []), entry])
+    }
+    return grouped
+  }
+  const newNames = matchNames ? byName(newUnmatched) : new Map<string, [string, T][]>()
+  const oldNames = matchNames ? byName(oldUnmatched) : new Map<string, [string, T][]>()
+  const replacements = new Map<string, T>()
+  const replaced = new Set<string>()
+  for (const [name, was] of oldNames) {
+    const now = newNames.get(name)
+    if (was.length !== 1 || now?.length !== 1) continue
+    replacements.set(was[0]![0], now[0]![1])
+    replaced.add(now[0]![0])
+  }
+  const offeredBefore = new Set(oldOffers.map((offer) => key(offer.catalogueId, offer.id)))
+  const offeredAfter = new Set(newOffers.map((offer) => key(offer.catalogueId, offer.id)))
   const found: { record: T; change: CatalogueChange }[] = []
   for (const [id, record] of old.unique) {
-    const now = next.unique.get(id)
+    const now = next.unique.get(id) ?? replacements.get(id)
     if (now) found.push(...changed(record, now).map((change) => ({ record: now, change })))
-    else found.push({ record, change: { kind: kinds.removed, id: record.id, name: record.name } })
+    else if (!offeredAfter.has(id)) found.push({ record, change: { kind: kinds.removed, id: record.id, name: record.name } })
   }
   for (const [id, record] of next.unique)
-    if (!old.unique.has(id)) found.push({ record, change: { kind: kinds.added, id: record.id, name: record.name } })
+    if (!old.unique.has(id) && !replaced.has(id) && !offeredBefore.has(id))
+      found.push({ record, change: { kind: kinds.added, id: record.id, name: record.name } })
   for (const record of old.ambiguous) found.push({ record, change: { kind: kinds.removed, id: record.id, name: record.name } })
   for (const record of next.ambiguous) found.push({ record, change: { kind: kinds.added, id: record.id, name: record.name } })
   return found
@@ -264,7 +305,7 @@ function stillNamed(catalogueId: string, change: CatalogueChange, before: Readon
 const changeName = (change: CatalogueChange) => ('detachment' in change ? `${change.detachment}\0${change.name}` : change.name)
 const changeId = (change: CatalogueChange) => ('detachmentId' in change ? change.detachmentId : change.id)
 
-/** Compare only sections present in both snapshots. Suppress additions or removals when the exact display name still exists in that faction and section, but pair records only by id; emit changes in deterministic order. */
+/** Compare only sections present in both snapshots, suppress names that remain, and emit changes in deterministic order. */
 export function catalogueChanges(before: ChangeSource, after: ChangeSource, limit = CATALOGUE_CHANGE_LIMIT): CatalogueChangeSet {
   const stated = <T>(left: readonly T[], right: readonly T[]) => left.length > 0 && right.length > 0
   const beforeNames = namesIn(before)
@@ -280,6 +321,7 @@ export function catalogueChanges(before: ChangeSource, after: ChangeSource, limi
             added: 'datasheet-added',
             removed: 'datasheet-removed',
           },
+          { oldOffers: before.datasheetOffers, newOffers: after.datasheetOffers, matchNames: true },
         )
       : []),
     ...(stated(before.detachments, after.detachments)
@@ -457,7 +499,8 @@ export function changesTouching(
         (change.upgrade ? upgrades : enhancements).has(routeSlug(change.name))
       )
     }
-    if (change.kind.startsWith('datasheet')) return datasheets.has(change.id)
+    if (change.kind.startsWith('datasheet'))
+      return datasheets.has(change.id) || (change.kind === 'datasheet-points' && datasheets.has(change.previousId ?? ''))
     return catalogueId === list.catalogueId && detachments.has(change.id)
   }
   const facts = new Map<string, Fact>()
@@ -467,7 +510,11 @@ export function changesTouching(
         if (!touches(faction.catalogueId, change)) continue
         const entry = { recordedAt: set.recordedAt, catalogueId: faction.catalogueId, faction: faction.faction, change }
         for (const fact of factsOf(entry)) {
-          if (change.kind === 'datasheet-points' && !fieldsModels(fact.row, change.id)) continue
+          if (
+            change.kind === 'datasheet-points' &&
+            !fieldsModels(fact.row, datasheets.has(change.id) ? change.id : (change.previousId ?? change.id))
+          )
+            continue
           const earlier = facts.get(fact.item)
           facts.set(fact.item, earlier ? { ...fact, from: earlier.from } : fact)
         }
