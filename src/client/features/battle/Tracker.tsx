@@ -46,6 +46,7 @@ import { TurnControl } from './TurnControl'
 import { TwistName } from './MissionTwist'
 import { Report, type ReportPlayer } from './Report'
 import { BattleMinimizeContext } from './BattlePromptDialog'
+import { Fact } from '../../components/Fact'
 
 type Props = {
   view: BattleView
@@ -805,17 +806,6 @@ const discardableSecondaries = (side: Side) =>
   side.secondaryMode === 'tactical'
     ? side.secondaries.filter((card) => !card.secret && card.status === 'active').map((card) => card.key)
     : []
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="eyebrow">{label}</dt>
-      <dd className="truncate text-bone" title={value}>
-        {value}
-      </dd>
-    </div>
-  )
-}
 
 /**
  * The shape of the table, and only that.

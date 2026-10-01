@@ -77,12 +77,13 @@ it('refreshes opponent choices when a practice account is removed', async () => 
 
 it('refreshes admin counts after a private product change', async () => {
   const client = new QueryClient()
-  client.setQueryData(['admin-users', 'richard'], [])
+  client.setQueryData(['admin', 'users', 'richard'], [])
   client.setQueryData(['faction-index'], {})
 
   await invalidateAdminProductQueries(client, 'admin-users')
 
-  expect([client.getQueryState(['admin-users', 'richard'])?.isInvalidated, client.getQueryState(['faction-index'])?.isInvalidated]).toEqual(
-    [true, false],
-  )
+  expect([
+    client.getQueryState(['admin', 'users', 'richard'])?.isInvalidated,
+    client.getQueryState(['faction-index'])?.isInvalidated,
+  ]).toEqual([true, false])
 })

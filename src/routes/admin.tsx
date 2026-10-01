@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { AdminPanel } from '../client/features/admin/AdminPanel'
+import { AdminUsers } from '../client/features/admin/AdminUsers'
 import { meQuery } from '../client/queries'
 
 export const Route = createFileRoute('/admin')({
@@ -13,5 +13,5 @@ export const Route = createFileRoute('/admin')({
 
 function Admin() {
   const me = Route.useLoaderData()
-  return <AdminPanel currentUserId={me.id} />
+  return <AdminUsers currentUserId={me.id} />
 }

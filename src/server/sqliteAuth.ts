@@ -8,7 +8,7 @@ import { admin, jwt, oneTimeToken, twoFactor } from 'better-auth/plugins'
 import { mcp } from '@better-auth/mcp'
 import { cimd } from '@better-auth/cimd'
 import { fetchClientMetadataResource } from '@better-auth/cimd/node'
-import { and, eq, notExists, sql } from 'drizzle-orm'
+import { and, desc, eq, gt, notExists, sql } from 'drizzle-orm'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import pRetry from 'p-retry'
 import {
@@ -20,9 +20,10 @@ import {
 } from 'ras-stack/auth'
 import { standardAuthEmails, type EmailDelivery } from 'ras-stack/email'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
-import { account, schema, user } from '../db/authSchema'
+import { account, schema, session as sessionTable, user } from '../db/authSchema'
 import { oauthSchema } from '../db/oauthSchema'
-import { oauthAccessToken, oauthConsent, oauthRefreshToken } from '../db/oauthSchema'
+import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken } from '../db/oauthSchema'
+import type { AdminConnection, AdminSession } from '../admin'
 import { APPLE_AUTH_ORIGIN, appleCredentials, revokeAppleToken } from './appleAuth'
 import { configuredAuthProviderOptions, configuredAuthProviders } from './authProviders'
 import { nativeAuthToken } from './nativeAuthToken'
@@ -88,6 +89,12 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       },
     )
     if (promoted) await (await auth.$context).internalAdapter.refreshUserSessions(promoted)
+  }
+
+  // An administrator viewing as the player is not the player being active.
+  const recordSeen = async (row: { userId?: string; updatedAt?: Date; impersonatedBy?: unknown }) => {
+    if (!row.userId || !row.updatedAt || row.impersonatedBy) return
+    await database.update(user).set({ lastSeenAt: row.updatedAt }).where(eq(user.id, row.userId))
   }
 
   const revokeAppleTokens = async (linked: { accessToken: string | null; refreshToken: string | null }) => {
@@ -167,6 +174,11 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     },
     disabledPaths: [
       '/unlink-account',
+      '/admin/create-user',
+      '/admin/set-user-password',
+      '/admin/list-user-sessions',
+      '/admin/revoke-user-session',
+      '/admin/revoke-user-sessions',
       '/admin/set-role',
       '/admin/update-user',
       '/admin/remove-user',
@@ -199,7 +211,11 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
           },
         },
       },
-      session: { delete: { before: async (session) => options.revokeSessionAccess(session.id) } },
+      session: {
+        create: { after: async (created) => recordSeen(created) },
+        update: { after: async (updated) => recordSeen(updated) },
+        delete: { before: async (deleted) => options.revokeSessionAccess(deleted.id) },
+      },
     },
     hooks: {
       before: createAuthMiddleware(async (context) => {
@@ -288,6 +304,113 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     return 'last-admin' as const
   }
 
+  // Better Auth's own removal skips `beforeDelete`, which would leave the player's product data behind.
+  const deleteUserAsAdmin = async (actorId: string, targetId: string) => {
+    if (actorId === targetId) return 'self' as const
+    const [actor] = await database.select({ role: user.role }).from(user).where(eq(user.id, actorId)).limit(1)
+    if (actor?.role !== 'admin') return 'forbidden' as const
+    const [target] = await database.select({ role: user.role }).from(user).where(eq(user.id, targetId)).limit(1)
+    if (!target) return 'missing' as const
+    if (target.role === 'admin') return 'admin' as const
+    await revokeAppleUser(targetId)
+    await options.deleteUserData(targetId)
+    await (await auth.$context).internalAdapter.deleteUser(targetId)
+    return 'deleted' as const
+  }
+
+  // Tokens stay on the server: the admin page names a session by its id.
+  const userSessions = async (userId: string): Promise<AdminSession[]> =>
+    database
+      .select({
+        id: sessionTable.id,
+        userAgent: sessionTable.userAgent,
+        ipAddress: sessionTable.ipAddress,
+        createdAt: sessionTable.createdAt,
+        updatedAt: sessionTable.updatedAt,
+        impersonatedBy: sessionTable.impersonatedBy,
+      })
+      .from(sessionTable)
+      .where(and(eq(sessionTable.userId, userId), gt(sessionTable.expiresAt, new Date())))
+      .orderBy(desc(sessionTable.updatedAt))
+      .limit(50)
+
+  const revokeUserSession = async (userId: string, sessionId: string) => {
+    const [found] = await database
+      .select({ token: sessionTable.token })
+      .from(sessionTable)
+      .where(and(eq(sessionTable.id, sessionId), eq(sessionTable.userId, userId)))
+      .limit(1)
+    if (!found) return false
+    await (await auth.$context).internalAdapter.deleteSession(found.token)
+    return true
+  }
+
+  const revokeAllUserSessions = async (userId: string) => (await auth.$context).internalAdapter.deleteUserSessions(userId)
+
+  /** A rename goes through the same checks as a player's own; a picture can only be taken away. */
+  const moderateProfile = async (userId: string, change: { name: string } | { image: null }) => {
+    const checked = await options.updateProfile(change)
+    if (!checked.ok) return checked
+    const updated = await (await auth.$context).internalAdapter.updateUser(userId, checked.data)
+    if (!updated) return { ok: false as const, error: 'The user does not exist.' }
+    return { ok: true as const }
+  }
+
+  const markEmailVerified = async (userId: string) => {
+    const [updated] = await database.update(user).set({ emailVerified: true }).where(eq(user.id, userId)).returning({ id: user.id })
+    return Boolean(updated)
+  }
+
+  const emailOf = async (userId: string) =>
+    (await database.select({ email: user.email }).from(user).where(eq(user.id, userId)).limit(1))[0]?.email
+
+  const sendVerificationEmailTo = async (userId: string) => {
+    const email = await emailOf(userId)
+    if (!email) return false
+    await auth.api.sendVerificationEmail({ body: { email, callbackURL: '/profile?verified=true' } })
+    return true
+  }
+
+  const sendPasswordResetTo = async (userId: string) => {
+    const email = await emailOf(userId)
+    if (!email) return false
+    await auth.api.requestPasswordReset({ body: { email, redirectTo: '/reset-password' } })
+    return true
+  }
+
+  const mcpResource = new URL('/mcp', environment.APP_URL).toString()
+  const grantedMcpResource = (resources: string | null) => {
+    if (!resources) return false
+    const parsed: unknown = JSON.parse(resources)
+    return Array.isArray(parsed) && parsed.includes(mcpResource)
+  }
+
+  const mcpConnectionsFor = async (userId: string): Promise<AdminConnection[]> => {
+    const rows = await database
+      .select({
+        id: oauthConsent.id,
+        clientId: oauthConsent.clientId,
+        name: oauthClient.name,
+        scopes: oauthConsent.scopes,
+        resources: oauthConsent.resources,
+        createdAt: oauthConsent.createdAt,
+      })
+      .from(oauthConsent)
+      .innerJoin(oauthClient, eq(oauthClient.clientId, oauthConsent.clientId))
+      .where(eq(oauthConsent.userId, userId))
+      .orderBy(desc(oauthConsent.createdAt))
+      .limit(100)
+    return rows
+      .filter((row) => grantedMcpResource(row.resources))
+      .map(({ id, clientId, name, scopes, createdAt }) => ({
+        id,
+        clientId,
+        name: name || clientId,
+        scopes: (JSON.parse(scopes) as unknown[]).filter((scope): scope is string => typeof scope === 'string'),
+        createdAt,
+      }))
+  }
+
   const deleteAppleAccount = async (subject: string) => {
     const [linked] = await database
       .select({ userId: account.userId })
@@ -339,5 +462,21 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     })
   }
 
-  return Object.assign(auth, { changeUserRole, deleteAppleAccount, revokeAppleTokens, revokeAppleUser, hasMcpConsent, revokeMcpConsent })
+  return Object.assign(auth, {
+    changeUserRole,
+    deleteUserAsAdmin,
+    userSessions,
+    revokeUserSession,
+    revokeAllUserSessions,
+    moderateProfile,
+    markEmailVerified,
+    sendVerificationEmailTo,
+    sendPasswordResetTo,
+    mcpConnectionsFor,
+    deleteAppleAccount,
+    revokeAppleTokens,
+    revokeAppleUser,
+    hasMcpConsent,
+    revokeMcpConsent,
+  })
 }

@@ -1,8 +1,8 @@
-import { and, asc, desc, eq, exists, inArray, lt, ne, not, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, exists, inArray, isNull, lt, ne, not, notInArray, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/sqlite-core'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import { account, schema, user } from '../db/authSchema'
-import type { AdminUsersCursor } from '../admin'
+import type { AdminUserFilter, AdminUserSort, AdminUsersCursor } from '../admin'
 
 type UnlinkAccountResult =
   | { status: 'removed'; account: { accessToken: string | null; refreshToken: string | null } }
@@ -47,10 +47,21 @@ export class SqliteAccountRepository {
     return new Map(rows.map((row) => [row.id, row]))
   }
 
-  async adminUserRows(input: { query?: string; cursor?: AdminUsersCursor | null; limit?: number }, practiceIds: readonly string[]) {
+  async adminUserRows(
+    input: { query?: string; sort?: AdminUserSort; filter?: AdminUserFilter; cursor?: AdminUsersCursor | null; limit?: number },
+    practiceIds: readonly string[],
+  ) {
     if (practiceIds.length > 100) throw new Error('Too many practice opponents')
     const limit = Math.min(Math.max(input.limit ?? 50, 1), 100)
     const query = input.query?.trim()
+    const ordered = input.sort === 'seen' ? user.lastSeenAt : user.createdAt
+    const cursor = input.cursor
+    // Newest first with never-seen players last, which is where SQLite sorts a null in descending order.
+    const after = cursor
+      ? cursor.at
+        ? or(lt(ordered, cursor.at), and(eq(ordered, cursor.at), lt(user.id, cursor.id)), isNull(ordered))
+        : and(isNull(ordered), lt(user.id, cursor.id))
+      : undefined
     const rows = await this.database
       .select({
         id: user.id,
@@ -58,50 +69,51 @@ export class SqliteAccountRepository {
         email: user.email,
         image: user.image,
         role: user.role,
-        banned: user.banned,
+        emailVerified: user.emailVerified,
         twoFactorEnabled: user.twoFactorEnabled,
         createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
+        lastSeenAt: user.lastSeenAt,
       })
       .from(user)
       .where(
         and(
+          practiceIds.length ? notInArray(user.id, [...practiceIds]) : undefined,
           query
             ? or(
                 sql`lower(${user.name}) like ${contains(query.toLowerCase())} escape '\\'`,
                 sql`lower(${user.email}) like ${contains(query.toLowerCase())} escape '\\'`,
               )
             : undefined,
-          input.cursor
-            ? or(lt(user.createdAt, input.cursor.createdAt), and(eq(user.createdAt, input.cursor.createdAt), lt(user.id, input.cursor.id)))
-            : undefined,
+          input.filter === 'admins' ? eq(user.role, 'admin') : undefined,
+          input.filter === 'no-two-factor' ? eq(user.twoFactorEnabled, false) : undefined,
+          input.filter === 'unverified' ? eq(user.emailVerified, false) : undefined,
+          after,
         ),
       )
-      .orderBy(desc(user.createdAt), desc(user.id))
-      .limit(limit + practiceIds.length + 1)
-    const practice = new Set(practiceIds)
-    const real = rows.filter((row) => !practice.has(row.id))
-    const shown = real.slice(0, limit)
+      .orderBy(desc(ordered), desc(user.id))
+      .limit(limit + 1)
+    const shown = rows.slice(0, limit)
     const ids = shown.map((row) => row.id)
     const methods = ids.length
       ? await this.database
-          .select({ userId: account.userId, providerId: account.providerId })
+          .select({ userId: account.userId, providerId: account.providerId, linkedAt: account.createdAt })
           .from(account)
           .where(inArray(account.userId, ids))
+          .orderBy(asc(account.createdAt))
       : []
-    const methodsByUser = new Map<string, Set<string>>()
+    const methodsByUser = new Map<string, Map<string, Date>>()
     for (const method of methods) {
-      const providers = methodsByUser.get(method.userId) ?? new Set<string>()
-      providers.add(method.providerId)
+      const providers = methodsByUser.get(method.userId) ?? new Map<string, Date>()
+      if (!providers.has(method.providerId)) providers.set(method.providerId, method.linkedAt)
       methodsByUser.set(method.userId, providers)
     }
     const last = shown.at(-1)
     return {
       users: shown.map((entry) => ({
         ...entry,
-        signInMethods: [...(methodsByUser.get(entry.id) ?? [])].sort((left, right) => left.localeCompare(right)),
+        signInMethods: [...(methodsByUser.get(entry.id) ?? [])].map(([providerId, linkedAt]) => ({ providerId, linkedAt })),
       })),
-      nextCursor: real.length > limit && last ? { createdAt: last.createdAt, id: last.id } : null,
+      nextCursor: rows.length > limit && last ? { at: input.sort === 'seen' ? last.lastSeenAt : last.createdAt, id: last.id } : null,
     }
   }
 

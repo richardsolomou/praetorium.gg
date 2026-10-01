@@ -2,8 +2,9 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeaders } from '@tanstack/react-start/server'
 import { app } from '../app'
 import { configuredAuthProviders } from '../authProviders'
-import { currentUser, currentUserId, requireAdmin, requireUser, requireUserId } from '../playerSession'
+import { currentUser, currentUserId, requireUser, requireUserId } from '../playerSession'
 import { mutationRpc, rpc } from '../rpc'
+import { unlinkSignInMethod } from '../signInMethods'
 import {
   battleAudienceSchema,
   playerDefaultsSchema,
@@ -12,10 +13,8 @@ import {
   friendSchema,
   onboardingUpdateSchema,
   friendInviteSchema,
-  adminUsersSchema,
   playerSearchSchema,
   ownedSchema,
-  setAdminRoleSchema,
   userSchema,
   setOwnPasswordSchema,
   unlinkOwnAccountSchema,
@@ -80,15 +79,6 @@ export const setBattleAudience = createServerFn({ method: 'POST' })
     }),
   )
 
-export const adminUsers = createServerFn({ method: 'GET' })
-  .validator(adminUsersSchema)
-  .handler(({ data }) =>
-    rpc(async () => {
-      await requireAdmin()
-      return app().service.adminUsers(data)
-    }),
-  )
-
 export const accountMethods = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const current = await requireUser()
@@ -124,33 +114,15 @@ export const unlinkOwnAccount = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const current = await requireUser()
-      const instance = app()
-      const result = await instance.service.unlinkAccount(current.id, data.provider, ['credential', ...configuredAuthProviders()])
-      if (result.status === 'removed') {
-        if (data.provider === 'apple') await instance.auth.revokeAppleTokens(result.account)
-      } else if (result.status === 'missing') {
+      const status = await unlinkSignInMethod(current.id, data.provider)
+      if (status === 'missing') {
         throw new Response('this sign-in method is not linked', { status: 404 })
-      } else if (result.status === 'two-factor') {
+      } else if (status === 'two-factor') {
         throw new Response('disable two-factor authentication before removing your password', { status: 409 })
-      } else {
+      } else if (status === 'last-method') {
         throw new Response('another available sign-in method must stay linked', { status: 409 })
       }
       await app().telemetry.capture(current.id, 'sign_in_method_removed', { provider: data.provider })
-      return null
-    }),
-  )
-
-export const setAdminRole = createServerFn({ method: 'POST' })
-  .validator(setAdminRoleSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const current = await requireAdmin()
-      const result = await app().auth.changeUserRole(current.id, data.userId, data.role)
-      if (result === 'forbidden') throw new Response('admin access required', { status: 403 })
-      if (result === 'self') throw new Response('you cannot change your own administrator role', { status: 409 })
-      if (result === 'last-admin') throw new Response('at least one administrator must remain', { status: 409 })
-      if (result === 'missing') throw new Response('the user does not exist', { status: 404 })
-      await app().telemetry.capture(current.id, 'admin_user_role_changed', { role: data.role })
       return null
     }),
   )

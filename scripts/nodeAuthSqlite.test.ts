@@ -34,7 +34,7 @@ function authFor(file: string) {
   return { ...local, auth }
 }
 
-it('adds OAuth tables when two processes start against an existing auth database', async () => {
+it('adds later migrations once when two processes start against an existing auth database', async () => {
   const file = path.join(directory, 'existing-auth.sqlite')
   const database = new DatabaseSync(file)
   database.exec(await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8'))
@@ -52,9 +52,43 @@ it('adds OAuth tables when two processes start against an existing auth database
   migrateAuthSqlite(file)
   const migrated = new DatabaseSync(file, { readOnly: true })
   try {
+    expect({
+      oauth: migrated.prepare("select count(*) as count from sqlite_master where type = 'table' and name = 'oauthConsent'").get()?.count,
+      lastSeen: migrated
+        .prepare("select name from pragma_table_info('user')")
+        .all()
+        .some((row) => row.name === 'lastSeenAt'),
+    }).toEqual({ oauth: 1, lastSeen: true })
+  } finally {
+    migrated.close()
+  }
+})
+
+it('backfills when each player was last seen from their own sessions, not support sessions', async () => {
+  const file = path.join(directory, 'last-seen-auth.sqlite')
+  const database = new DatabaseSync(file)
+  database.exec(await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8'))
+  database.exec(await readFile(path.resolve('drizzle-auth/0001_sad_absorbing_man.sql'), 'utf8'))
+  database.exec(
+    `insert into user (id, name, email, emailVerified, createdAt, updatedAt) values ('seen', 'Seen', 'seen@example.com', 0, 1, 1), ('unseen', 'Unseen', 'unseen@example.com', 0, 1, 1)`,
+  )
+  database.exec(`insert into session (id, expiresAt, token, createdAt, updatedAt, userId, impersonatedBy) values
+    ('own', 9999999999999, 'own-token', 1000, 2000, 'seen', null),
+    ('support', 9999999999999, 'support-token', 3000, 4000, 'seen', 'some-admin'),
+    ('supported', 9999999999999, 'supported-token', 3000, 4000, 'unseen', 'some-admin')`)
+  database.close()
+  migrateAuthSqlite(file)
+  const migrated = new DatabaseSync(file, { readOnly: true })
+  try {
     expect(
-      migrated.prepare("select count(*) as count from sqlite_master where type = 'table' and name = 'oauthConsent'").get()?.count,
-    ).toBe(1)
+      migrated
+        .prepare('select id, lastSeenAt from user order by id')
+        .all()
+        .map((row) => ({ ...row })),
+    ).toEqual([
+      { id: 'seen', lastSeenAt: 2000 },
+      { id: 'unseen', lastSeenAt: null },
+    ])
   } finally {
     migrated.close()
   }

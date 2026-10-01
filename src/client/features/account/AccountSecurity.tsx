@@ -16,6 +16,7 @@ import { authClient } from '../../authClient'
 import { hasNativeAuthBridge, requestNativeAuth } from '../../nativeAuth'
 import { accountMethodsQuery, meQuery } from '../../queries'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from './AuthMethodIcon'
+import { SettingRow } from '../../components/SettingRow'
 import { PageState } from '../../components/PageState'
 
 type AccountIdentity = {
@@ -459,16 +460,12 @@ function MethodRow({
   action: ReactNode
 }) {
   return (
-    <div className="flex items-center gap-3 border border-edge bg-sunken p-3">
-      <span className="grid size-8 shrink-0 place-items-center bg-raised">
-        <AuthMethodIcon method={method} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold text-bone">{name}</p>
-        <p className="text-xs text-dim">{linked ? 'Linked' : available ? 'Available to link' : 'Unavailable'}</p>
-      </div>
-      {action}
-    </div>
+    <SettingRow
+      icon={<AuthMethodIcon method={method} />}
+      title={name}
+      detail={linked ? 'Linked' : available ? 'Available to link' : 'Unavailable'}
+      action={action}
+    />
   )
 }
 

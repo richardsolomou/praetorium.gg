@@ -15,6 +15,7 @@ import * as BattleForOperatorProcedure from '../battle_for_operator_procedure'
 import * as CancelFriendInviteProcedure from '../cancel_friend_invite_procedure'
 import * as CollectionByUserProcedure from '../collection_by_user_procedure'
 import * as CreateBattleProcedure from '../create_battle_procedure'
+import * as DeleteBattleForOperatorProcedure from '../delete_battle_for_operator_procedure'
 import * as FavouriteDetachmentsByUserProcedure from '../favourite_detachments_by_user_procedure'
 import * as FavouriteFactionsByUserProcedure from '../favourite_factions_by_user_procedure'
 import * as FriendInviteByInviterProcedure from '../friend_invite_by_inviter_procedure'
@@ -72,6 +73,8 @@ export type CollectionByUserArgs = __Infer<typeof CollectionByUserProcedure.para
 export type CollectionByUserResult = __Infer<typeof CollectionByUserProcedure.returnType>
 export type CreateBattleArgs = __Infer<typeof CreateBattleProcedure.params>
 export type CreateBattleResult = __Infer<typeof CreateBattleProcedure.returnType>
+export type DeleteBattleForOperatorArgs = __Infer<typeof DeleteBattleForOperatorProcedure.params>
+export type DeleteBattleForOperatorResult = __Infer<typeof DeleteBattleForOperatorProcedure.returnType>
 export type FavouriteDetachmentsByUserArgs = __Infer<typeof FavouriteDetachmentsByUserProcedure.params>
 export type FavouriteDetachmentsByUserResult = __Infer<typeof FavouriteDetachmentsByUserProcedure.returnType>
 export type FavouriteFactionsByUserArgs = __Infer<typeof FavouriteFactionsByUserProcedure.params>

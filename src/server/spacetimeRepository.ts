@@ -41,6 +41,8 @@ export class SpacetimeRepository {
         ...row,
         rosterCount: stats.get(row.id)?.rosterCount ?? 0,
         battleCount: stats.get(row.id)?.battleCount ?? 0,
+        leagueCount: stats.get(row.id)?.leagueCount ?? 0,
+        friendCount: stats.get(row.id)?.friendCount ?? 0,
       })),
       nextCursor: page.nextCursor,
     }
@@ -616,6 +618,10 @@ export class SpacetimeRepository {
 
   async createBattle(...args: Parameters<SpacetimeOperator['createBattle']>) {
     await this.product.createBattle(...args)
+  }
+
+  deleteBattleForOperator(battleId: string) {
+    return this.product.deleteBattleForOperator(battleId)
   }
 
   deleteBattle(...args: Parameters<SpacetimeOperator['deleteBattle']>) {

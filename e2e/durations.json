@@ -24,7 +24,7 @@
   "account.spec.ts › social account linking errors explain how to recover": 2.3,
   "account.spec.ts › social sign-in callback errors explain how to recover": 1.5,
   "admin.spec.ts › a player secures an account with an authenticator app": 15.5,
-  "admin.spec.ts › an administrator adds, impersonates and promotes a player": 12.9,
+  "admin.spec.ts › an administrator finds and manages a player": 12.9,
   "admin.spec.ts › an administrator can secure an account and impersonate a player": 18.6,
   "army-roster.spec.ts › a multi-wound model is tracked in wounds, and losing them all takes the model": 11.1,
   "army-roster.spec.ts › an army is read and its losses recorded without leaving the battle": 11.3,

@@ -141,6 +141,12 @@ Sealing takes two presses: a list is picked from the chooser, then sealed by nam
 
 The rules pages are a reading surface rather than a control surface. `/rules` lists each document with its sections and filters every rule by name or number, a document's own page lists its rules by the number the source prints against them, and a section page holds those rules with their clarifications collapsed. A number one rule quotes in another is a link, and following one opens the clarification it names. Global search finds a rule the same two ways.
 
+## Administration
+
+Administration is one page: a player list that searches by name or email, filters to administrators, players without two-factor, or unverified emails, and sorts by join date or last seen. Last seen is stored on the account when the player signs in or a session refreshes, so signing out does not erase it, and an administrator viewing as the player does not count. Clicking anywhere on a row opens that player in a side panel that holds their activity totals, profile, role, sign-in methods, signed-in devices, connected apps, and recent battles, with every action beside the section it affects. The panel is built from the shared account pieces, `SettingRow`, `Choice`, and `Fact`, rather than its own.
+
+Players create their own accounts and choose their own passwords. An administrator can rename a player or remove their picture through the same profile checks a player's own edit passes, send a reset or verification email, mark an email verified, unlink a sign-in method under the player's own rules, sign out one device or all of them, revoke a connected app, and delete one of the player's battles. Session tokens never reach the browser: the panel names sessions by id. Recent battles show seats and stage only; a battle itself still opens through `maySpectate`. Role changes, removals, and deletion ask in an alert dialog first. Deleting an account runs the same product-data and Apple-token cleanup as a player deleting their own, and the server refuses to delete the acting administrator or any other administrator, so at least one administrator always remains.
+
 ## Components and styles
 
 Muted green represents primary actions, rules references, success, and selection. Amber represents attention, muted steel blue represents navigation and inspectable information, and player-side tints remain separate ownership signals.

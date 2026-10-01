@@ -15,6 +15,13 @@
       "when": 1790671531158,
       "tag": "0001_sad_absorbing_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790892377751,
+      "tag": "0002_organic_ikaris",
+      "breakpoints": true
     }
   ]
 }

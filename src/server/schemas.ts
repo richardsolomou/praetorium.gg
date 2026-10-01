@@ -1,3 +1,4 @@
+import { ADMIN_USER_FILTERS, ADMIN_USER_SORTS } from '../admin'
 import { z } from 'zod'
 import { REPLAY_BATCH_SIZE } from '../contracts/battles'
 import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
@@ -33,7 +34,7 @@ import {
   LEAGUE_VISIBILITIES,
 } from '../core/league'
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
-import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
+import { PASSWORD_MIN_LENGTH, PROFILE_NAME_MAX_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 
 const id = z.string().min(1).max(64)
 const token = id
@@ -202,9 +203,16 @@ export const playerProfileSchema = z.object({
 export const setOwnPasswordSchema = z.object({ password: z.string().min(PASSWORD_MIN_LENGTH).max(128) })
 export const unlinkOwnAccountSchema = z.object({ provider: z.enum(['credential', ...SOCIAL_PROVIDERS]) })
 export const setAdminRoleSchema = z.object({ userId: id, role: z.enum(['admin', 'user']) })
+export const adminSessionSchema = z.object({ userId: id, sessionId: z.string().min(1).max(128) })
+export const adminRenameSchema = z.object({ userId: id, name: z.string().trim().min(1).max(PROFILE_NAME_MAX_LENGTH) })
+export const adminUnlinkSchema = z.object({ userId: id, provider: z.enum(['credential', ...SOCIAL_PROVIDERS]) })
+export const adminConnectionSchema = z.object({ userId: id, connectionId: z.string().min(1).max(200) })
+export const adminBattleSchema = z.object({ battle: token })
 export const adminUsersSchema = z.object({
   query: z.string().trim().max(100).default(''),
-  cursor: z.object({ createdAt: z.coerce.date(), id }).nullable().default(null),
+  sort: z.enum(ADMIN_USER_SORTS).default('joined'),
+  filter: z.enum(ADMIN_USER_FILTERS).default('all'),
+  cursor: z.object({ at: z.coerce.date().nullable(), id }).nullable().default(null),
 })
 
 /**

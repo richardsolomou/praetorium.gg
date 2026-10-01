@@ -6,8 +6,8 @@ import { createLocalJWKSet, jwtVerify } from 'jose'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { importAuthSqlite } from '../../scripts/nodeAuthSqlite'
-import { account } from '../db/authSchema'
-import { oauthAccessToken, oauthConsent, oauthRefreshToken } from '../db/oauthSchema'
+import { account, user } from '../db/authSchema'
+import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken } from '../db/oauthSchema'
 import { SqliteAccountRepository } from './accountRepository'
 import { createSqliteAuth } from './sqliteAuth'
 import { localAuthDatabase } from './localAuthDatabase'
@@ -29,10 +29,12 @@ afterAll(async () => {
   if (directory) await rm(directory, { recursive: true, force: true })
 })
 
-function authFor(environment: NodeJS.ProcessEnv, revoked: string[] = []) {
+function authFor(environment: NodeJS.ProcessEnv, revoked: string[] = [], deleted: string[] = []) {
   return createSqliteAuth(local.database, secret, {
     environment,
-    deleteUserData: async () => {},
+    deleteUserData: async (userId) => {
+      deleted.push(userId)
+    },
     revokeSessionAccess: async (id) => {
       revoked.push(id)
     },
@@ -254,4 +256,200 @@ it('reads profiles and preserves the last sign-in method', async () => {
   expect(await accounts.unlinkAccount(current.user.id, 'credential', ['credential', 'discord'])).toMatchObject({ status: 'removed' })
   expect(await accounts.unlinkAccount(current.user.id, 'discord', ['credential', 'discord'])).toEqual({ status: 'last-method' })
   expect(await local.database.select({ id: account.id }).from(account).where(eq(account.userId, current.user.id))).toHaveLength(1)
+})
+
+const testEnvironment = { APP_URL: 'https://praetorium.gg', AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' }
+
+async function signUpAs(auth: ReturnType<typeof authFor>, name: string, role: 'admin' | 'user') {
+  const created = await auth.api.signUpEmail({
+    body: { email: `${randomUUID()}@example.com`, password: 'password1234', name },
+    returnHeaders: true,
+  })
+  const cookie = created.headers.get('set-cookie')?.split(';')[0]
+  if (!cookie) throw new Error('Sign-up did not set a session cookie')
+  const current = await auth.api.getSession({ headers: new Headers({ cookie }) })
+  if (!current) throw new Error('Sign-up did not create a session')
+  await local.database.update(user).set({ role }).where(eq(user.id, current.user.id))
+  return current
+}
+
+it('deletes a player for an administrator after clearing their product data and sessions', async () => {
+  const revoked: string[] = []
+  const deleted: string[] = []
+  const auth = authFor(testEnvironment, revoked, deleted)
+  const actor = await signUpAs(auth, 'Deleting admin', 'admin')
+  const target = await signUpAs(auth, 'Deleted player', 'user')
+  expect(await auth.deleteUserAsAdmin(actor.user.id, target.user.id)).toBe('deleted')
+  expect({
+    deleted,
+    revoked,
+    remaining: await local.database.select({ id: user.id }).from(user).where(eq(user.id, target.user.id)),
+  }).toEqual({ deleted: [target.user.id], revoked: [target.session.id], remaining: [] })
+})
+
+it('refuses an administrator deletion of themselves, another administrator, or by a player', async () => {
+  const deleted: string[] = []
+  const auth = authFor(testEnvironment, [], deleted)
+  const actor = await signUpAs(auth, 'Refusing admin', 'admin')
+  const otherAdmin = await signUpAs(auth, 'Other admin', 'admin')
+  const player = await signUpAs(auth, 'Refused player', 'user')
+  expect({
+    results: [
+      await auth.deleteUserAsAdmin(actor.user.id, actor.user.id),
+      await auth.deleteUserAsAdmin(actor.user.id, otherAdmin.user.id),
+      await auth.deleteUserAsAdmin(player.user.id, otherAdmin.user.id),
+      await auth.deleteUserAsAdmin(actor.user.id, 'missing-user'),
+    ],
+    deleted,
+  }).toEqual({ results: ['self', 'admin', 'forbidden', 'missing'], deleted: [] })
+})
+
+it('records when a player was last seen without counting an administrator viewing as them', async () => {
+  const auth = authFor(testEnvironment)
+  const admin = await signUpAs(auth, 'Viewing admin', 'admin')
+  const player = await signUpAs(auth, 'Viewed player', 'user')
+  const seen = async () => (await local.database.select({ at: user.lastSeenAt }).from(user).where(eq(user.id, player.user.id)))[0]?.at
+  const signedUp = await seen()
+  const adminSignIn = await auth.api.signInEmail({ body: { email: admin.user.email, password: 'password1234' }, returnHeaders: true })
+  const adminCookie = adminSignIn.headers.get('set-cookie')?.split(';')[0]
+  if (!adminCookie) throw new Error('Sign-in did not set a session cookie')
+  await auth.api.impersonateUser({ body: { userId: player.user.id }, headers: new Headers({ cookie: adminCookie }) })
+  expect({ signedUp, afterViewing: await seen() }).toEqual({ signedUp: player.session.updatedAt, afterViewing: player.session.updatedAt })
+})
+
+async function insertPlayers(
+  rows: { name: string; lastSeenAt?: Date | null; role?: 'admin' | 'user'; twoFactorEnabled?: boolean; emailVerified?: boolean }[],
+) {
+  const now = new Date()
+  const ids = rows.map(() => randomUUID())
+  await local.database.insert(user).values(
+    rows.map((row, index) => ({
+      id: ids[index]!,
+      name: row.name,
+      email: `${ids[index]}@example.com`,
+      emailVerified: row.emailVerified ?? true,
+      createdAt: new Date(now.getTime() - index),
+      updatedAt: now,
+      role: row.role ?? 'user',
+      twoFactorEnabled: row.twoFactorEnabled ?? false,
+      lastSeenAt: row.lastSeenAt ?? null,
+    })),
+  )
+  return ids
+}
+
+it('pages through players by last seen with never-seen players last', async () => {
+  const tag = randomUUID()
+  const [never, older, newer] = await insertPlayers([
+    { name: `Sorted ${tag} never` },
+    { name: `Sorted ${tag} older`, lastSeenAt: new Date(1_000) },
+    { name: `Sorted ${tag} newer`, lastSeenAt: new Date(2_000) },
+  ])
+  const accounts = new SqliteAccountRepository(local.database)
+  const seen: string[] = []
+  let cursor: Awaited<ReturnType<typeof accounts.adminUserRows>>['nextCursor'] = null
+  do {
+    const page = await accounts.adminUserRows({ query: `Sorted ${tag}`, sort: 'seen', cursor, limit: 1 }, [])
+    seen.push(...page.users.map((row) => row.id))
+    cursor = page.nextCursor
+  } while (cursor)
+  expect(seen).toEqual([newer, older, never])
+})
+
+it('narrows players to administrators, players without two-factor, or unverified emails', async () => {
+  const tag = randomUUID()
+  await insertPlayers([
+    { name: `Filtered ${tag} admin`, role: 'admin', twoFactorEnabled: true },
+    { name: `Filtered ${tag} secured`, twoFactorEnabled: true },
+    { name: `Filtered ${tag} unverified`, twoFactorEnabled: true, emailVerified: false },
+    { name: `Filtered ${tag} open` },
+  ])
+  const accounts = new SqliteAccountRepository(local.database)
+  const ids = async (filter: 'admins' | 'no-two-factor' | 'unverified') =>
+    (await accounts.adminUserRows({ query: `Filtered ${tag}`, filter }, [])).users.map((row) => row.name.split(' ').at(-1))
+  expect({ admins: await ids('admins'), noTwoFactor: await ids('no-two-factor'), unverified: await ids('unverified') }).toEqual({
+    admins: ['admin'],
+    noTwoFactor: ['open'],
+    unverified: ['unverified'],
+  })
+})
+
+it('lists a player’s live sessions without their tokens and ends only that player’s session', async () => {
+  const auth = authFor(testEnvironment)
+  const player = await signUpAs(auth, 'Session player', 'user')
+  const other = await signUpAs(auth, 'Other session player', 'user')
+  const listed = await auth.userSessions(player.user.id)
+  expect({
+    ids: listed.map((row) => row.id),
+    tokens: listed.some((row) => 'token' in row),
+    foreign: await auth.revokeUserSession(other.user.id, player.session.id),
+    own: await auth.revokeUserSession(player.user.id, player.session.id),
+    after: (await auth.userSessions(player.user.id)).length,
+  }).toEqual({ ids: [player.session.id], tokens: false, foreign: false, own: true, after: 0 })
+})
+
+it('renames a player and removes their picture through the profile checks', async () => {
+  const checked: Record<string, unknown>[] = []
+  const auth = createSqliteAuth(local.database, secret, {
+    environment: testEnvironment,
+    deleteUserData: async () => {},
+    revokeSessionAccess: async () => {},
+    storeSocialAvatar: async () => null,
+    updateProfile: async (data) => {
+      checked.push(data)
+      return data.name === '' ? { ok: false, error: 'Enter a display name.' } : { ok: true, data }
+    },
+  })
+  const player = await signUpAs(auth, 'Unmoderated name', 'user')
+  await local.database.update(user).set({ image: 'https://example.com/picture.png' }).where(eq(user.id, player.user.id))
+  const refused = await auth.moderateProfile(player.user.id, { name: '' })
+  await auth.moderateProfile(player.user.id, { name: 'Moderated name' })
+  await auth.moderateProfile(player.user.id, { image: null })
+  const [row] = await local.database.select({ name: user.name, image: user.image }).from(user).where(eq(user.id, player.user.id))
+  expect({ refused, checked, row }).toEqual({
+    refused: { ok: false, error: 'Enter a display name.' },
+    checked: [{ name: '' }, { name: 'Moderated name' }, { image: null }],
+    row: { name: 'Moderated name', image: null },
+  })
+})
+
+it('lists a player’s MCP connections and revokes one with every token it issued', async () => {
+  const auth = authFor(testEnvironment)
+  const player = await signUpAs(auth, 'Granting player', 'user')
+  const now = new Date()
+  const consents: string[] = []
+  for (const [name, resource] of [
+    ['Granted client', 'https://praetorium.gg/mcp'],
+    ['Other resource client', 'https://elsewhere.example/mcp'],
+  ]) {
+    const clientId = `https://client.example/${randomUUID()}`
+    const consentId = randomUUID()
+    consents.push(consentId)
+    await local.database.insert(oauthClient).values({ id: randomUUID(), clientId, name, redirectUris: '[]', createdAt: now })
+    await local.database.insert(oauthConsent).values({
+      id: consentId,
+      clientId,
+      userId: player.user.id,
+      resources: JSON.stringify([resource]),
+      scopes: JSON.stringify(['mcp:read']),
+      createdAt: now,
+      updatedAt: now,
+    })
+    await local.database.insert(oauthAccessToken).values({
+      id: randomUUID(),
+      token: randomUUID(),
+      clientId,
+      userId: player.user.id,
+      scopes: JSON.stringify(['mcp:read']),
+      expiresAt: new Date(now.getTime() + 60_000),
+      createdAt: now,
+    })
+  }
+  const listed = (await auth.mcpConnectionsFor(player.user.id)).map((connection) => connection.name)
+  await auth.revokeMcpConsent(player.user.id, consents[0]!)
+  expect({
+    listed,
+    after: await auth.mcpConnectionsFor(player.user.id),
+    tokens: (await local.database.select().from(oauthAccessToken).where(eq(oauthAccessToken.userId, player.user.id))).length,
+  }).toEqual({ listed: ['Granted client'], after: [], tokens: 1 })
 })
