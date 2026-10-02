@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.93.1
+
+### Patch Changes
+
+- 43b2470: Show two equally tall battle cards per row on desktop.
+
 ## 0.93.0
 
 ### Minor Changes
