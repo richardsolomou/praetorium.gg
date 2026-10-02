@@ -249,11 +249,7 @@ export function materiallyBetter(candidate: CombatResult, current: CombatResult)
 type Phase = 'ranged' | 'melee'
 export type LoadoutScore = Record<Phase, CombatResult | null>
 export type RankedLoadout = { assignment: LoadoutAssignment; result: CombatResult }
-/** One option of one choice with every other choice held at a base loadout. */
-export type LoadoutRow = { axis: number; assignment: LoadoutAssignment; result: CombatResult }
 export type LoadoutSearch = Record<Phase, { current: CombatResult | null; ranked: RankedLoadout[]; complete: boolean }>
-
-const SPREAD_ROWS = 6
 
 /** How many choices differ, which breaks ties in favour of the smaller change. */
 export const changedChoices = (from: LoadoutAssignment, to: LoadoutAssignment) =>
@@ -371,20 +367,6 @@ export function loadoutExplorer(
         ranged: { current: evaluate(current)?.ranged ?? null, ranked: ranked('ranged'), complete },
         melee: { current: evaluate(current)?.melee ?? null, ranked: ranked('melee'), complete },
       }
-    },
-    /** Each option of each choice with the others held at `base`; large squad splits keep their strongest few. */
-    rows(phase: Phase, base: LoadoutAssignment): LoadoutRow[] {
-      return values.flatMap((_, at) => {
-        const options = space.axes[at]!.kind === 'single' ? values[at]! : [base[at]!, ...steps(at, base[at]!, 2)]
-        const row = options.flatMap((value) => {
-          const assignment = base.map((held, index) => (index === at ? value : held))
-          const result = evaluate(assignment)?.[phase]
-          return result ? [{ axis: at, assignment, result }] : []
-        })
-        return space.axes[at]!.kind === 'single'
-          ? row
-          : row.toSorted((left, right) => compareOutcomes(right.result, left.result)).slice(0, SPREAD_ROWS)
-      })
     },
   }
 }

@@ -8,7 +8,6 @@ import {
   loadoutPick,
   materiallyBetter,
   type LoadoutAssignment,
-  type LoadoutRow,
   type LoadoutScore,
   type LoadoutScoring,
   type LoadoutSearch,
@@ -21,11 +20,9 @@ type Phase = 'ranged' | 'melee'
 const PHASES = ['ranged', 'melee'] as const
 export type LoadoutMessage =
   | { kind: 'search'; space: LoadoutSpace; scoring: LoadoutScoring; expected: CombatRequest; keep: number }
-  | { kind: 'rows'; bases: Record<Phase, LoadoutAssignment | null> }
   | { kind: 'score'; carriers: CombatCarrier[][] }
 export type LoadoutAnswer =
   | { kind: 'searched'; search: LoadoutSearch; current: LoadoutAssignment; comparable: Record<Phase, boolean> }
-  | { kind: 'rows'; rows: Record<Phase, LoadoutRow[]> }
   | { kind: 'scored'; scores: LoadoutScore[] }
 export type LoadoutContext = { catalogueId: string; detachmentIds: readonly string[]; picks: readonly RosterPick[]; pickIndex: number }
 /** Builds candidate picks the way the roster will; null when the unit data is unavailable. */
@@ -34,11 +31,12 @@ export type CheckLoadouts = (
   candidates: readonly RosterPick[],
 ) => Promise<{ legal: boolean; points: number; carriers: CombatCarrier[] }[] | null>
 
-/** The strongest legal loadout for one phase, and the alternatives a player can compare it with. */
+/** The strongest legal loadout for one phase, and the ranked loadouts a player can compare it with. */
 export type PhaseLoadouts = {
   current: CombatResult
   best: { pick: RosterPick; changes: string[]; result: CombatResult; points: number } | null
-  rows: { axis: string; label: string; result: CombatResult; best: boolean; current: boolean }[]
+  /** The strongest legal loadouts, current included, best first. */
+  ranked: { label: string; pick: RosterPick; result: CombatResult; points: number; best: boolean; current: boolean }[]
   complete: boolean
 }
 export type Loadouts =
@@ -46,19 +44,41 @@ export type Loadouts =
   | { status: 'failed'; retry: () => void }
   | { status: 'ready'; phases: Record<Phase, PhaseLoadouts | null> }
 
-/** Each server check builds at most this many loadouts; rankings are checked in batches until a legal one appears. */
+/** Each server check builds at most this many loadouts; rankings are checked in batches until enough are legal. */
 const CHECKED = 32
 const RANKED = 40
-const BATCH = 8
+const LISTED = 10
+const BATCH = 12
 const ROUNDS = 4
 
 const keyOf = (assignment: LoadoutAssignment) => JSON.stringify(assignment)
+
+/**
+ * The strongest loadouts best first, with the current one always listed so a player sees where it
+ * stands. The suggested loadout may differ only in the other phase, so the first row with its
+ * result is marked as best.
+ */
+export function listedLoadouts<T extends { assignment: LoadoutAssignment; result: CombatResult }>(
+  entries: readonly T[],
+  current: LoadoutAssignment,
+  best: CombatResult,
+) {
+  const ranked = entries.toSorted(
+    (left, right) =>
+      compareOutcomes(right.result, left.result) || changedChoices(current, left.assignment) - changedChoices(current, right.assignment),
+  )
+  const top = ranked.slice(0, LISTED)
+  const now = ranked.find((entry) => keyOf(entry.assignment) === keyOf(current))
+  const listed = now && !top.includes(now) ? [...top, now] : top
+  const marked = listed.find((entry) => compareOutcomes(entry.result, best) === 0)
+  return listed.map((entry) => ({ ...entry, best: entry === marked }))
+}
 type Verified = { assignment: LoadoutAssignment; pick: RosterPick; points: number; score: LoadoutScore }
 
 /**
  * Searches the attacker's weapon choices against the current target in a worker. The server
- * builds the strongest candidates, so only legal loadouts with their real carriers are suggested,
- * and the comparison rows are built and checked around that legal best.
+ * builds the strongest candidates, so only legal loadouts with their real carriers are suggested
+ * or ranked.
  */
 export function useLoadoutSearch({
   context,
@@ -121,10 +141,10 @@ export function useLoadoutSearch({
         expected: parsed.expected,
         keep: RANKED,
       })
-      // The first legal loadout down each ranking is that phase's best, so check in batches until one appears.
+      // Rankings are checked in batches, best first, until each phase has enough legal loadouts to list.
+      const listed = (phase: Phase) => search[phase].ranked.filter((entry) => verified.get(keyOf(entry.assignment))).length
       for (let round = 0; round < ROUNDS; round++) {
-        const open = PHASES.filter((phase) => !search[phase].ranked.some((entry) => verified.get(keyOf(entry.assignment))))
-        const next = open.flatMap((phase) =>
+        const next = PHASES.filter((phase) => listed(phase) < LISTED).flatMap((phase) =>
           search[phase].ranked
             .filter((entry) => !verified.has(keyOf(entry.assignment)))
             .slice(0, BATCH)
@@ -160,26 +180,19 @@ export function useLoadoutSearch({
         }
       }
       const chosen = (phase: Phase) => shared ?? separate[phase]
-      const bases = {
-        ranged: comparable.ranged && search.ranged.current ? (chosen('ranged')?.assignment ?? current) : null,
-        melee: comparable.melee && search.melee.current ? (chosen('melee')?.assignment ?? current) : null,
-      }
-      const { rows } = await ask<'rows'>({ kind: 'rows', bases })
-      // Either-or choices are what a player compares; squad splits are many and often over a limit.
-      await verify(
-        [true, false].flatMap((single) =>
-          PHASES.flatMap((phase) =>
-            rows[phase].flatMap((row) => ((parsed.space.axes[row.axis]!.kind === 'single') === single ? [row.assignment] : [])),
-          ),
-        ),
-      )
       const phase = (name: Phase): PhaseLoadouts | null => {
         const now = search[name].current
-        const base = bases[name]
-        if (!now || !base) return null
+        if (!comparable[name] || !now) return null
         const best = chosen(name)
-        const baseKey = keyOf(base)
         const currentKey = keyOf(current)
+        const entries = [
+          { assignment: current, pick, points: 0, result: now },
+          ...search[name].ranked.flatMap(({ assignment }) => {
+            const entry = verified.get(keyOf(assignment))
+            const result = entry?.score[name]
+            return entry && result && keyOf(assignment) !== currentKey ? [{ ...entry, result }] : []
+          }),
+        ]
         return {
           current: now,
           best: best
@@ -190,28 +203,14 @@ export function useLoadoutSearch({
                 points: best.points,
               }
             : null,
-          rows: rows[name]
-            // A choice whose options all resolve alike, such as a melee weapon when shooting, has nothing to compare.
-            .filter((row) => rows[name].some((other) => other.axis === row.axis && compareOutcomes(other.result, row.result) !== 0))
-            .flatMap((row) => {
-              const rowKey = keyOf(row.assignment)
-              const result = rowKey === currentKey ? now : verified.get(rowKey)?.score[name]
-              if (!result) return []
-              const axis = parsed.space.axes[row.axis]!
-              const value = row.assignment[row.axis]!
-              return [
-                {
-                  axis: axis.name,
-                  label:
-                    axis.kind === 'single'
-                      ? (axis.options.find((option) => option.id === value)?.name ?? 'Nothing')
-                      : loadoutChanges([axis], [value]).join(', ') || 'As chosen',
-                  result,
-                  best: rowKey === baseKey,
-                  current: rowKey === currentKey,
-                },
-              ]
-            }),
+          ranked: listedLoadouts(entries, current, best?.score[name] ?? now).map((entry) => ({
+            label: loadoutChanges(parsed.space.axes, entry.assignment).join(', ') || 'Current loadout',
+            pick: entry.pick,
+            result: entry.result,
+            points: entry.points,
+            best: entry.best,
+            current: keyOf(entry.assignment) === currentKey,
+          })),
           complete: search[name].complete,
         }
       }

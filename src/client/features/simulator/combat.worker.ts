@@ -32,14 +32,6 @@ function loadouts(message: LoadoutMessage): LoadoutAnswer {
     return { kind: 'searched', search: explorer.search(message.keep), current: explorer.current, comparable }
   }
   if (!session) throw new Error('No loadout search is open.')
-  if (message.kind === 'rows')
-    return {
-      kind: 'rows',
-      rows: {
-        ranged: message.bases.ranged ? session.explorer.rows('ranged', message.bases.ranged) : [],
-        melee: message.bases.melee ? session.explorer.rows('melee', message.bases.melee) : [],
-      },
-    }
   return { kind: 'scored', scores: message.carriers.map((carriers) => session!.scorer.score(carriers)) }
 }
 

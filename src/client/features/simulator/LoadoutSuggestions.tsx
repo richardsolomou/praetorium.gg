@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { ChevronDown, Crosshair, Swords } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -112,14 +113,16 @@ export function LoadoutSuggestions({
           </div>
         ))}
       </div>
-      {shown.some(([, found]) => found.rows.length) ? (
-        <Collapsible className="mt-3 border-t border-edge pt-2">
+      {shown.some(([, found]) => found.ranked.length > 1) ? (
+        <Collapsible defaultOpen className="mt-3 border-t border-edge pt-2">
           <CollapsibleTrigger className="group flex items-center gap-1 text-xs font-semibold text-dim hover:text-bone">
-            Compare options
+            Ranked loadouts
             <ChevronDown className="size-3.5 transition-transform group-data-panel-open:rotate-180" aria-hidden />
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-2 grid gap-4 @xl:grid-cols-2">
-            {shown.map(([phase, found]) => (found.rows.length ? <OptionTable key={phase} phase={phase} rows={found.rows} /> : null))}
+            {shown.map(([phase, found]) => (
+              <RankedLoadouts key={phase} phase={phase} ranked={found.ranked} disabled={disabled} onUse={onUse} />
+            ))}
           </CollapsibleContent>
         </Collapsible>
       ) : null}
@@ -127,45 +130,83 @@ export function LoadoutSuggestions({
   )
 }
 
-function OptionTable({ phase, rows }: { phase: Phase; rows: PhaseLoadouts['rows'] }) {
-  const axes = [...new Set(rows.map((row) => row.axis))]
+const columns = [
+  ['wipe', 'Destroyed', (result: CombatResult) => percent(result.wipe)],
+  ['meanKills', 'Models', (result: CombatResult) => result.meanKills.toFixed(2)],
+  ['meanDamage', 'Wounds', (result: CombatResult) => result.meanDamage.toFixed(2)],
+] as const
+type Column = (typeof columns)[number][0]
+/** Phones stack each loadout's name above its averages; wider matchups keep one aligned line. */
+const grid = '@md:grid @md:grid-cols-[minmax(0,1fr)_4.5rem_3.5rem_3.5rem_2.75rem] @md:items-center @md:gap-x-2'
+
+/** Ranked best first by destruction, models, then wounds; any column re-ranks by that average alone. */
+function RankedLoadouts({
+  phase,
+  ranked,
+  disabled,
+  onUse,
+}: {
+  phase: Phase
+  ranked: PhaseLoadouts['ranked']
+  disabled: boolean
+  onUse: (pick: RosterPick) => void
+}) {
+  const [column, setColumn] = useState<Column>('wipe')
+  const rows = column === 'wipe' ? ranked : ranked.toSorted((left, right) => right.result[column] - left.result[column])
   return (
-    <section aria-label={`${titles[phase]} options`} className="min-w-0">
+    <section aria-label={`${titles[phase]} loadouts`} className="min-w-0">
       <h3 className="flex items-center gap-1.5 text-xs font-semibold text-bone">
         <PhaseIcon phase={phase} />
         {titles[phase]}
       </h3>
-      <table className="mt-1 w-full table-fixed text-xs">
-        <thead>
-          <tr className="eyebrow text-faint">
-            <th className="py-1 text-left font-normal">Option</th>
-            <th className="w-20 py-1 text-right font-normal">Destroyed</th>
-            <th className="w-16 py-1 text-right font-normal">Wounds</th>
-          </tr>
-        </thead>
-        {axes.map((axis) => (
-          <tbody key={axis} className="border-t border-edge">
-            <tr>
-              <th colSpan={3} className="pt-1.5 text-left font-normal text-faint">
-                {axis}
-              </th>
-            </tr>
-            {rows
-              .filter((row) => row.axis === axis)
-              .map((row) => (
-                <tr key={row.label} className={row.best ? 'text-primary' : 'text-dim'}>
-                  <td className="py-0.5 pr-2 break-words">
-                    {row.label}
-                    {row.best ? <span className="ml-1.5 text-[0.65rem] uppercase">Best</span> : null}
-                    {row.current && !row.best ? <span className="ml-1.5 text-[0.65rem] uppercase text-faint">Current</span> : null}
-                  </td>
-                  <td className="readout py-0.5 text-right">{percent(row.result.wipe)}</td>
-                  <td className="readout py-0.5 text-right">{row.result.meanDamage.toFixed(2)}</td>
-                </tr>
-              ))}
-          </tbody>
-        ))}
-      </table>
+      <div className="mt-1 text-xs">
+        <div className={`eyebrow flex flex-wrap items-center gap-x-3 py-1 text-faint ${grid}`}>
+          <span className="mr-auto @md:mr-0">Loadout</span>
+          {columns.map(([key, title]) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={column === key}
+              className={`@md:text-right ${column === key ? 'text-bone' : 'hover:text-bone'}`}
+              onClick={() => setColumn(key)}
+            >
+              {title}
+            </button>
+          ))}
+          <span className="hidden @md:block" />
+        </div>
+        <ol>
+          {rows.map((row) => (
+            <li key={row.label} className={`border-t border-edge py-1 ${grid} ${row.best ? 'text-primary' : 'text-dim'}`}>
+              <p className="break-words">
+                {row.label}
+                {row.best ? <span className="ml-1.5 text-[0.65rem] uppercase">Best</span> : null}
+                {row.points ? (
+                  <span className="readout ml-1.5 text-faint">
+                    {row.points > 0 ? '+' : '−'}
+                    {Math.abs(row.points)} pts
+                  </span>
+                ) : null}
+              </p>
+              <div className="flex flex-wrap items-center gap-x-3 @md:contents">
+                {columns.map(([key, title, shown]) => (
+                  <span key={key} className="readout @md:text-right">
+                    <span className="text-faint @md:hidden">{title} </span>
+                    {shown(row.result)}
+                  </span>
+                ))}
+                <span className="ml-auto min-h-6 text-right @md:ml-0">
+                  {row.current ? null : (
+                    <Button size="xs" variant="ghost" disabled={disabled} aria-label={`Use ${row.label}`} onClick={() => onUse(row.pick)}>
+                      Use
+                    </Button>
+                  )}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
     </section>
   )
 }

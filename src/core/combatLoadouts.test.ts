@@ -301,15 +301,4 @@ describe('loadout search', () => {
     const ranked = loadoutExplorer(space([parent, nested]), score).search(10).ranged.ranked
     expect(ranked.some((entry) => entry.assignment[0] === 'axe' && entry.assignment[1] === 'keen')).toBe(false)
   })
-  it('compares every option of a choice with the others held at a base loadout', () => {
-    const pistol = single('pistol', 'bolt', [
-      ['bolt', []],
-      ['plasma', swap('Boltgun', 'Plasma gun')],
-    ])
-    const rows = loadoutExplorer(space([pistol]), byPlasma).rows('ranged', ['bolt'])
-    expect(rows.map((row) => [row.assignment, row.result.wipe])).toEqual([
-      [['bolt'], 0],
-      [['plasma'], 0.1],
-    ])
-  })
 })
