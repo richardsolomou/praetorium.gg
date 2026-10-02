@@ -53,6 +53,10 @@ type AuthOptions = {
 export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret: string, options: AuthOptions) {
   const environment = options.environment
   const authUrl = new URL('/api/auth', environment.APP_URL)
+  const alternateLoopbackOrigin =
+    authUrl.hostname === '127.0.0.1' || authUrl.hostname === 'localhost'
+      ? `${authUrl.protocol}//${authUrl.hostname === 'localhost' ? '127.0.0.1' : 'localhost'}${authUrl.port ? `:${authUrl.port}` : ''}`
+      : undefined
   const issuer = environment.SPACETIME_ISSUER ?? authUrl.toString()
   if (environment.SPACETIME_ISSUER) {
     const previewUrl = new URL(issuer)
@@ -72,6 +76,10 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
   if (!/^[a-z0-9][a-z0-9-]{0,127}$/.test(audience ?? '')) throw new Error('SPACETIME_AUDIENCE is required')
   const configuredApple = appleCredentials(environment)
   const authEmails = options.email ? standardAuthEmails(options.email, { productName: 'Praetorium' }) : undefined
+  const deploymentOrigins = trustedOrigins({
+    trustForwardedHeaders: true,
+    configured: [environment.APP_URL, ...(configuredAuthProviders(environment).includes('apple') ? [APPLE_AUTH_ORIGIN] : [])],
+  })
 
   const claimInitialAdmin = async (userId: string) => {
     const [promoted] = await pRetry(
@@ -248,10 +256,8 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       cookies: { state: { attributes: { sameSite: 'none' } } },
       ipAddress: { ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'] },
     },
-    trustedOrigins: trustedOrigins({
-      trustForwardedHeaders: true,
-      configured: configuredAuthProviders(environment).includes('apple') ? [APPLE_AUTH_ORIGIN] : [],
-    }),
+    // The shared helper omits the request origin, which a fixed Better Auth base URL does not add back.
+    trustedOrigins: (request) => [...deploymentOrigins(request), ...(alternateLoopbackOrigin ? [alternateLoopbackOrigin] : [])],
     plugins: [
       admin({ adminRoles: ['admin'], defaultRole: 'user', allowImpersonatingAdmins: false, impersonationSessionDuration: 60 * 60 }),
       oneTimeToken({ expiresIn: 3, storeToken: 'hashed' }),
