@@ -1,109 +1,25 @@
 import type { Datasheet } from '../contracts/catalogue'
 import { calculateCombat, type CombatInput, type CombatOptions, type CombatResult } from './combat'
 import type { WeaponAdjustment } from './combatAdjustments'
-import { combatEquipmentMatches, type CombatCarrier, type CombatEquipment } from './combatLoadout'
+import { combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
 import { combatAttackInput, combatAttacks, combatWeaponInputs, type CombatAttacker, type CombatOpponent } from './combatScenario'
 import { datasheetProfileKind } from './datasheetStructure'
-import type { RosterPick } from './roster'
 import { wargearKey } from './wargear'
 
+type Phase = 'ranged' | 'melee'
+const PHASES = ['ranged', 'melee'] as const
+
 /**
- * The weapon choices a unit can make, each measured as the change one step makes to the models
- * and weapons it carries.
- *
- * The server measures every step with a real build; combining them is only a screen. The best
- * screened loadouts are built again before anything is suggested.
+ * One option of a weapon choice, built the way the roster would build it from the current loadout:
+ * taken outright (0), or given to one more (1) or one fewer (−1) model.
  */
-export type LoadoutAxis = {
-  key: string
-  name: string
-  owner: string | null
-  /** A nested choice only varies while the choice that offers it keeps its current value. */
-  host: string | null
-  options: LoadoutAxisOption[]
-} & (
-  | { kind: 'single'; current: string }
-  | {
-      kind: 'spread'
-      room: number
-      /** The whole unit takes one option, as "all models can each replace" choices require. */
-      uniform: boolean
-      /** Whether the counts must fill the room; the donor gives up a model for each other option. */
-      exact: boolean
-      donor: string | null
-      /** Specialists counted against one model entry's maximum. */
-      limits: { options: string[]; max: number }[]
-    }
-)
-export type LoadoutAxisOption = {
-  /** Unique within its axis; `entry` is the option's id inside `group`. */
-  id: string
-  entry: string
-  name: string
-  /** The group the value is written to; nested specialists write to their own group. */
-  group: string
-  count: number
-  min: number
-  max: number
-  change: CombatCarrier[]
-}
-export type LoadoutSpace = { carriers: CombatCarrier[]; axes: LoadoutAxis[]; weapons: Datasheet['profiles'] }
-/** One value per axis: an option id for single choices, counts for spreads. */
-export type LoadoutAssignment = (string | Record<string, number>)[]
-
-type Carried = Map<string, { models: number; unitWide?: boolean; weapons: Map<string, CombatEquipment> }>
-
-/** A weapon keeps the catalogue profiles it was equipped with, so two weapons of one name stay apart. */
-const equipmentKey = (weapon: CombatEquipment) => JSON.stringify([weapon.name, weapon.profileIds ?? null])
-
-function carried(carriers: readonly CombatCarrier[]): Carried {
-  const found: Carried = new Map()
-  for (const carrier of carriers) add(found, carrier, 1)
-  return found
-}
-
-function add(found: Carried, carrier: CombatCarrier, times: number) {
-  const entry = found.get(carrier.name) ?? { models: 0, ...(carrier.unitWide ? { unitWide: true } : {}), weapons: new Map() }
-  entry.models += carrier.models * times
-  for (const weapon of carrier.weapons) {
-    const key = equipmentKey(weapon)
-    entry.weapons.set(key, { ...weapon, count: (entry.weapons.get(key)?.count ?? 0) + weapon.count * times })
-  }
-  found.set(carrier.name, entry)
-}
-
-/** What a build changed, per model name, as signed model and weapon counts. */
-export function carrierChange(before: readonly CombatCarrier[], after: readonly CombatCarrier[]): CombatCarrier[] {
-  const difference = carried(after)
-  for (const carrier of before) add(difference, carrier, -1)
-  return [...difference].flatMap(([name, { models, unitWide, weapons }]) => {
-    const changed = [...weapons.values()].filter((weapon) => weapon.count)
-    return models || changed.length ? [{ name, models, ...(unitWide ? { unitWide } : {}), weapons: changed }] : []
-  })
-}
-
-/** The carriers a combination of steps leaves, or null when the steps cannot all apply. */
-export function composeCarriers(base: readonly CombatCarrier[], changes: readonly (readonly [CombatCarrier[], number])[]) {
-  const result = carried(base)
-  for (const [change, times] of changes) for (const step of change) add(result, step, times)
-  const carriers: CombatCarrier[] = []
-  for (const [name, { models, unitWide, weapons }] of result) {
-    const held = [...weapons.values()]
-    if (models < 0 || held.some((weapon) => weapon.count < 0)) return null
-    const kept = held.filter((weapon) => weapon.count)
-    // Equipment the unit holds as a whole sits on a carrier with no models of its own.
-    if (models > 0 || unitWide) carriers.push({ name, models, ...(unitWide ? { unitWide } : {}), weapons: kept })
-    else if (kept.length) return null
-  }
-  return carriers
-}
+export type LoadoutOption = { group: string; entry: string; step: -1 | 0 | 1; carriers: CombatCarrier[] }
+/** A unit's current carriers, every weapon profile it could carry, and the legal options of each weapon choice. */
+export type LoadoutSpace = { carriers: CombatCarrier[]; weapons: Datasheet['profiles']; choices: LoadoutOption[][] }
+export type LoadoutScore = Record<Phase, CombatResult | null>
 
 export const isWeaponProfile = (profile: Datasheet['profiles'][number]) =>
   ['ranged-weapon', 'melee-weapon'].includes(datasheetProfileKind(profile.type))
-
-/** A change matters to an attack only if it moves a weapon the unit has a profile for. */
-export const changesWeapons = (change: readonly CombatCarrier[], weapons: Datasheet['profiles']) =>
-  change.some((step) => step.weapons.some((piece) => weapons.some((profile) => combatEquipmentMatches(piece, profile))))
 
 /** The datasheet with each weapon profile it could carry counted from the carriers that hold it. */
 export function loadoutSheet(sheet: Datasheet, weapons: Datasheet['profiles'], carriers: readonly CombatCarrier[]): Datasheet {
@@ -139,104 +55,8 @@ export function loadoutSheet(sheet: Datasheet, weapons: Datasheet['profiles'], c
   }
 }
 
-const countsOf = (axis: LoadoutAxis) => Object.fromEntries(axis.options.map((option) => [option.id, option.count]))
-
-/** Every value an axis can take, starting with its current one. */
-export function axisValues(axis: LoadoutAxis, limit: number): LoadoutAssignment[number][] {
-  if (axis.kind === 'single') return [axis.current, ...axis.options.map((option) => option.id).filter((id) => id !== axis.current)]
-  const current = countsOf(axis)
-  if (axis.uniform)
-    return [
-      current,
-      ...axis.options
-        .filter((option) => current[option.id] !== axis.room)
-        .map((option) => Object.fromEntries(axis.options.map((other) => [other.id, other === option ? axis.room : 0]))),
-    ]
-  const free = axis.options.filter((option) => option.id !== axis.donor)
-  const donor = axis.options.find((option) => option.id === axis.donor)
-  const values: Record<string, number>[] = [current]
-  const same = (counts: Record<string, number>) => axis.options.every((option) => (counts[option.id] ?? 0) === current[option.id])
-  const visit = (at: number, used: number, counts: Record<string, number>) => {
-    if (values.length >= limit) return
-    if (at === free.length) {
-      if (axis.limits.some(({ options, max }) => options.reduce((total, id) => total + (counts[id] ?? 0), 0) > max)) return
-      const filled = donor ? { ...counts, [donor.id]: axis.room - used } : counts
-      if (donor && (filled[donor.id]! < donor.min || filled[donor.id]! > donor.max)) return
-      if (axis.exact && !donor && used !== axis.room) return
-      if (!same(filled)) values.push(filled)
-      return
-    }
-    const option = free[at]!
-    for (let count = option.min; count <= Math.min(option.max, axis.room - used); count++)
-      visit(at + 1, used + count, { ...counts, [option.id]: count })
-  }
-  visit(0, 0, {})
-  return values
-}
-
-/** The steps a value takes from the current loadout, each with how many times it applies. */
-export function axisChanges(axis: LoadoutAxis, value: LoadoutAssignment[number]): [CombatCarrier[], number][] {
-  if (axis.kind === 'single') {
-    const option = axis.options.find((candidate) => candidate.id === value)
-    return option && value !== axis.current ? [[option.change, 1]] : []
-  }
-  const counts = value as Record<string, number>
-  // A whole-squad option was measured as the whole squad taking it.
-  if (axis.uniform) {
-    const taken = axis.options.find((option) => counts[option.id] === axis.room && option.count !== axis.room)
-    return taken ? [[taken.change, 1]] : []
-  }
-  return axis.options.flatMap((option) => {
-    const times = (counts[option.id] ?? 0) - option.count
-    return option.id !== axis.donor && times ? [[option.change, times] as [CombatCarrier[], number]] : []
-  })
-}
-
-/** The roster pick a value-per-axis assignment describes. */
-export function loadoutPick(pick: RosterPick, axes: readonly LoadoutAxis[], assignment: LoadoutAssignment): RosterPick {
-  const choices = { ...pick.choices }
-  const spreads = { ...pick.spreads }
-  axes.forEach((axis, at) => {
-    const value = assignment[at]!
-    if (axis.kind === 'single') {
-      if (value === axis.current) return
-      const option = axis.options.find((candidate) => candidate.id === value)
-      if (option) choices[axis.key] = option.entry
-      else delete choices[axis.key]
-      return
-    }
-    const counts = value as Record<string, number>
-    if (axis.options.every((option) => (counts[option.id] ?? 0) === option.count)) return
-    for (const option of axis.options) spreads[option.group] = { ...spreads[option.group], [option.entry]: counts[option.id] ?? 0 }
-  })
-  return { ...pick, choices, spreads }
-}
-
-/** How the attacker's loadout changes, in words a player reads beside the weapon cards. */
-export function loadoutChanges(axes: readonly LoadoutAxis[], assignment: LoadoutAssignment) {
-  return axes.flatMap((axis, at) => {
-    const value = assignment[at]!
-    if (axis.kind === 'single') {
-      if (value === axis.current) return []
-      const from = axis.options.find((option) => option.id === axis.current)?.name ?? 'Nothing'
-      const to = axis.options.find((option) => option.id === value)?.name ?? 'Nothing'
-      return [`${from} → ${to}`]
-    }
-    const counts = value as Record<string, number>
-    if (axis.uniform) {
-      const from = axis.options.find((option) => option.count === axis.room)?.name ?? 'Nothing'
-      const to = axis.options.find((option) => counts[option.id] === axis.room)?.name ?? 'Nothing'
-      return from === to ? [] : [`${from} → ${to}`]
-    }
-    return axis.options.flatMap((option) => {
-      const difference = (counts[option.id] ?? 0) - option.count
-      return difference ? [`${difference > 0 ? '+' : '−'}${Math.abs(difference)} ${option.name}`] : []
-    })
-  })
-}
-
 const SAME = 1e-9
-/** Smaller gains than these read as the same result, so a suggestion keeps the current loadout. */
+/** Smaller gains than these read as the same result, so no option is marked best. */
 const MATERIAL = { wipe: 0.005, meanKills: 0.05, meanDamage: 0.05 } as const
 
 /** Positive when `left` is the better attack: likelier to destroy the unit, then more models, then more wounds. */
@@ -248,175 +68,13 @@ export function compareOutcomes(left: CombatResult, right: CombatResult) {
   return 0
 }
 
-/** Whether `candidate` beats `current` by enough, in the same order of importance, to suggest it. */
+/** Whether `candidate` beats `current` by enough, in the same order of importance, to mark it best. */
 export function materiallyBetter(candidate: CombatResult, current: CombatResult) {
   for (const field of ['wipe', 'meanKills', 'meanDamage'] as const) {
     const difference = candidate[field] - current[field]
     if (Math.abs(difference) >= MATERIAL[field]) return difference > 0
   }
   return false
-}
-
-type Phase = 'ranged' | 'melee'
-export type LoadoutScore = Record<Phase, CombatResult | null>
-export type RankedLoadout = { assignment: LoadoutAssignment; result: CombatResult }
-export type LoadoutSearch = Record<Phase, { current: CombatResult | null; ranked: RankedLoadout[]; complete: boolean }>
-/** One option from a base loadout on its own: taken outright (0), or given to one more (1) or one fewer (−1) model. */
-export type LoadoutRow = { axis: number; option: string; step: -1 | 0 | 1; assignment: LoadoutAssignment }
-
-/** How many choices differ, which breaks ties in favour of the smaller change. */
-export const changedChoices = (from: LoadoutAssignment, to: LoadoutAssignment) =>
-  from.reduce<number>((total, value, at) => total + Number(JSON.stringify(value) !== JSON.stringify(to[at])), 0)
-
-/**
- * Searches one unit's weapon choices against one target, remembering every loadout it scores.
- *
- * Small spaces are searched completely. Larger ones sweep every value of each choice from the
- * current loadout, then improve one choice at a time until no change helps, so `complete` says
- * whether the best is proven.
- */
-export function loadoutExplorer(
-  space: LoadoutSpace,
-  score: (carriers: CombatCarrier[]) => LoadoutScore,
-  { exhaustive = 400 }: { exhaustive?: number } = {},
-) {
-  const values = space.axes.map((axis) => axisValues(axis, exhaustive * 4))
-  const current = values.map((options) => options[0]!)
-  const allowed = (assignment: LoadoutAssignment) =>
-    space.axes.every((axis, at) => {
-      if (!axis.host || assignment[at] === current[at]) return true
-      const host = space.axes.findIndex((other) => other.key === axis.host)
-      return host < 0 || assignment[host] === current[host]
-    })
-  const scores = new Map<string, LoadoutScore | null>()
-  const evaluate = (assignment: LoadoutAssignment) => {
-    const key = JSON.stringify(assignment)
-    if (!scores.has(key)) {
-      const carriers = allowed(assignment)
-        ? composeCarriers(
-            space.carriers,
-            space.axes.flatMap((axis, at) => axisChanges(axis, assignment[at]!)),
-          )
-        : null
-      scores.set(key, carriers ? score(carriers) : null)
-    }
-    return scores.get(key) ?? null
-  }
-  // Spreads also move one model at a time, which is how a large squad refines after its first sweep.
-  const steps = (at: number, held: LoadoutAssignment[number], reach: number) => {
-    const axis = space.axes[at]!
-    if (axis.kind === 'single' || axis.uniform || reach === Infinity) return values[at]!
-    const counts = held as Record<string, number>
-    return values[at]!.filter((value) => {
-      const moved = axis.options.reduce(
-        (total, option) => total + Math.abs(((value as Record<string, number>)[option.id] ?? 0) - (counts[option.id] ?? 0)),
-        0,
-      )
-      return moved > 0 && moved <= reach
-    })
-  }
-  const complete = values.reduce((product, options) => product * options.length, 1) <= exhaustive
-  const visited: LoadoutAssignment[] = []
-  const better = (phase: Phase, left: LoadoutAssignment, right: LoadoutAssignment) => {
-    const a = evaluate(left)?.[phase]
-    const b = evaluate(right)?.[phase]
-    return Boolean(a && (!b || compareOutcomes(a, b) > 0))
-  }
-  // The largest choice goes first, from the current loadout, so both phases share that sweep.
-  const order = values.map((_, at) => at).toSorted((left, right) => values[right]!.length - values[left]!.length)
-  const climb = (phase: Phase) => {
-    let best = current
-    visited.push(best)
-    for (let pass = 0, improved = true; improved && pass < 16; pass++) {
-      improved = false
-      order.forEach((at) => {
-        for (let moving = true; moving;) {
-          moving = false
-          for (const value of steps(at, best[at]!, pass ? 2 : Infinity)) {
-            const candidate = best.map((held, index) => (index === at ? value : held))
-            visited.push(candidate)
-            if (better(phase, candidate, best)) {
-              best = candidate
-              improved = true
-              moving = pass > 0 && steps(at, value, 2) !== values[at]
-            }
-          }
-        }
-      })
-    }
-  }
-  return {
-    current,
-    /**
-     * Each option of each choice from `base` on its own, as the loadout editor offers it: an either-or
-     * option taken, and a squad option given to one more model, or one fewer when no more can take it.
-     */
-    rows(base: LoadoutAssignment): LoadoutRow[] {
-      return space.axes.flatMap((axis, at) => {
-        const held = base[at]!
-        const counted = (wanted: Record<string, number>) =>
-          values[at]!.find((candidate) =>
-            axis.options.every((entry) => (candidate as Record<string, number>)[entry.id] === (wanted[entry.id] ?? 0)),
-          )
-        return axis.options.flatMap((option): LoadoutRow[] => {
-          const row = (value: LoadoutAssignment[number] | undefined, step: LoadoutRow['step']) => {
-            const assignment = value === undefined ? null : base.map((entry, index) => (index === at ? value : entry))
-            return assignment && evaluate(assignment) ? [{ axis: at, option: option.id, step, assignment }] : []
-          }
-          if (axis.kind === 'single') return row(option.id, 0)
-          if (axis.uniform)
-            return row(
-              values[at]!.find((candidate) => (candidate as Record<string, number>)[option.id] === axis.room),
-              0,
-            )
-          if (option.id === axis.donor) return row(held, 0)
-          const counts = held as Record<string, number>
-          const moved = (by: number) =>
-            counted({
-              ...counts,
-              [option.id]: (counts[option.id] ?? 0) + by,
-              ...(axis.donor ? { [axis.donor]: (counts[axis.donor] ?? 0) - by } : {}),
-            })
-          const more = moved(1)
-          return more ? row(more, 1) : (counts[option.id] ?? 0) > 0 ? row(moved(-1), -1) : []
-        })
-      })
-    },
-    /** The strongest loadouts per phase, best first. */
-    search(keep: number): LoadoutSearch {
-      if (complete) {
-        const visit = (at: number, assignment: LoadoutAssignment) => {
-          if (at === values.length) {
-            visited.push(assignment)
-            evaluate(assignment)
-            return
-          }
-          for (const value of values[at]!) visit(at + 1, [...assignment, value])
-        }
-        visit(0, [])
-      } else {
-        climb('ranged')
-        climb('melee')
-      }
-      // Loadouts that differ only in the other phase's weapons share one result. Current values are visited
-      // first and the sort is stable, so the smallest change stands for them.
-      const ranked = (phase: Phase) => {
-        const seen = new Set<CombatResult>()
-        return visited
-          .flatMap((assignment) => {
-            const result = evaluate(assignment)?.[phase]
-            return result ? [{ assignment, result }] : []
-          })
-          .toSorted((left, right) => compareOutcomes(right.result, left.result))
-          .filter(({ result }) => !seen.has(result) && Boolean(seen.add(result)))
-          .slice(0, keep)
-      }
-      return {
-        ranged: { current: evaluate(current)?.ranged ?? null, ranked: ranked('ranged'), complete },
-        melee: { current: evaluate(current)?.melee ?? null, ranked: ranked('melee'), complete },
-      }
-    },
-  }
 }
 
 /**
@@ -439,7 +97,7 @@ export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring)
     ],
   }
   const odds = new Map<string, ProfileOdds>()
-  for (const phase of ['ranged', 'melee'] as const) {
+  for (const phase of PHASES) {
     const setup = scoring.phases[phase]
     if (!setup) continue
     const inputs = combatWeaponInputs(
@@ -479,7 +137,7 @@ export type LoadoutScoring = {
 }
 
 /** Scores carriers through the same attack plan and calculation as the matchup itself. */
-export function loadoutScorer(space: LoadoutSpace, scoring: LoadoutScoring) {
+function loadoutScorer(space: LoadoutSpace, scoring: LoadoutScoring) {
   const results = new Map<string, CombatResult | null>()
   const calculate = (input: CombatInput | null) => {
     if (!input) return null
@@ -513,4 +171,51 @@ export function loadoutScorer(space: LoadoutSpace, scoring: LoadoutScoring) {
       return { ranged: calculate(ranged), melee: calculate(melee) }
     },
   }
+}
+
+/** What one option does to the attack, for the phases its choice affects. */
+export type OptionEstimate = { step: LoadoutOption['step']; phases: Partial<Record<Phase, { result: CombatResult; best: boolean }>> }
+
+/** The editor names an option by its group and catalogue entry. */
+export const estimateKey = (group: string, entry: string) => `${group}|${entry}`
+
+/**
+ * Each option's result for the phases its choice affects. A choice whose options all resolve alike
+ * in a phase, such as a melee weapon when shooting, says nothing about that phase.
+ */
+export function optionEstimates(
+  choices: readonly (readonly (Omit<LoadoutOption, 'carriers'> & { score: LoadoutScore })[])[],
+  now: LoadoutScore,
+) {
+  const found = new Map<string, OptionEstimate>()
+  for (const options of choices)
+    for (const { group, entry, step, score } of options) {
+      const phases: OptionEstimate['phases'] = {}
+      for (const phase of PHASES) {
+        const result = score[phase]
+        const before = now[phase]
+        const results = options.flatMap((other) => (other.score[phase] ? [other.score[phase]] : []))
+        if (!result || !before || !results.some((other) => compareOutcomes(other, before) !== 0)) continue
+        const top = results.reduce((best, candidate) => (compareOutcomes(candidate, best) > 0 ? candidate : best))
+        phases[phase] = { result, best: compareOutcomes(result, top) === 0 && materiallyBetter(top, before) }
+      }
+      if (Object.keys(phases).length) found.set(estimateKey(group, entry), { step, phases })
+    }
+  return found
+}
+
+/**
+ * Every option of every weapon choice, and every weapon profile alone, against the target. A phase whose
+ * current carriers do not reproduce the matchup's own attack, `expected`, would compare a different unit,
+ * so its options get no estimate.
+ */
+export function loadoutOdds(space: LoadoutSpace, scoring: LoadoutScoring, expected: Record<Phase, CombatInput | null>) {
+  const scorer = loadoutScorer(space, scoring)
+  const inputs = scorer.inputs(space.carriers)
+  const score = scorer.score(space.carriers)
+  const now = Object.fromEntries(
+    PHASES.map((phase) => [phase, JSON.stringify(inputs[phase]) === JSON.stringify(expected[phase]) ? score[phase] : null]),
+  ) as LoadoutScore
+  const choices = space.choices.map((options) => options.map(({ carriers, ...option }) => ({ ...option, score: scorer.score(carriers) })))
+  return { estimates: optionEstimates(choices, now), profiles: loadoutProfileOdds(space, scoring) }
 }

@@ -90,7 +90,7 @@ export function CombatSimulatorMatchup({
       pending={!attacker.ready || !defender.ready}
       failed={failed}
       inDialog={inDialog}
-      loadouts={attacker.loadouts}
+      loadoutSpace={attacker.loadoutSpace}
       attackerControl={
         <CombatantCard
           side="Attacker"

@@ -9,7 +9,7 @@ import { combatUnitsQuery, factionIndexQuery } from '../../queries'
 import { Loadout } from '../rosters/builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { CombatSurvivorControls } from './CombatSurvivorControls'
-import { LoadoutAdvice, useOptionNote, useProfileNote } from './LoadoutSuggestions'
+import { useOptionNote, useProfileNote } from './LoadoutOdds'
 import { WeaponProfileNote } from '../../components/DatasheetProfiles'
 import type { Combatant } from './useCombatant'
 
@@ -26,6 +26,7 @@ export function CombatantCard({
   armyControl?: ReactNode
   headingAction?: ReactNode
 }) {
+  const [open, setOpen] = useState(false)
   const [survivorsOpen, setSurvivorsOpen] = useState(false)
   const optionNote = useOptionNote()
   const profileNote = useProfileNote()
@@ -117,7 +118,7 @@ export function CombatantCard({
       <div className="mt-3 flex min-h-8 flex-wrap items-center justify-between gap-3">
         {unit ? (
           <>
-            <Button variant="outline" size="sm" onClick={() => combatant.setLoadoutOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
               Loadout
             </Button>
             {battleUnit && models < battleUnit.startingModels ? (
@@ -220,14 +221,13 @@ export function CombatantCard({
           ) : null}
         </DialogContent>
       </Dialog>
-      <Dialog open={combatant.loadoutOpen} onOpenChange={combatant.setLoadoutOpen}>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex h-[85dvh] sm:max-w-2xl min-w-0 flex-col overflow-hidden p-0">
           <DialogHeader className="shrink-0 border-b border-edge p-4">
             <DialogTitle>
               {side} · {unit?.name ?? 'Loadout'}
             </DialogTitle>
           </DialogHeader>
-          <LoadoutAdvice disabled={!ready} />
           <div className="min-h-0 min-w-0 flex-1">
             <WeaponProfileNote.Provider value={profileNote}>
               <Loadout

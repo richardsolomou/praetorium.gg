@@ -1,12 +1,11 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
 import { combatSurvivors, combatSurvivorSheet } from '../../../core/combatSurvivors'
 import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatRuleChoices, combatRuleDefault } from '../../../core/combatRules'
-import { combatLoadoutCheckQuery, combatLoadoutsQuery, combatantDatasheetQuery, priceQuery } from '../../queries'
-import type { CheckLoadouts } from './loadoutSearch'
+import { combatLoadoutsQuery, combatantDatasheetQuery, priceQuery } from '../../queries'
 import type { SimulatorSide } from './simulatorUrl'
 import { useSettled } from '../../useSettled'
 import { survivingUnits } from '../rosters/builder/pricePlaceholder'
@@ -36,7 +35,6 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   const [selectedRules, setSelectedRules] = useState<Record<string, Record<string, number>>>(() =>
     initial ? { [`${initial.pick.catalogueId ?? initial.catalogueId}:0:${initial.pick.entryId}`]: initial.rules } : {},
   )
-  const [loadoutOpen, setLoadoutOpen] = useState(false)
   const [health, setHealth] = useState<Record<string, { models: number; damage: number }>>({})
   const [allocations, setAllocations] = useState<Record<string, CombatCarrier[]>>({})
   const picks = usePicks(roster?.picks ?? (initial ? [initial.pick] : []))
@@ -80,11 +78,6 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   // A battle fields frozen loadouts, so there is nothing to choose between.
   const loadoutContext =
     !roster?.battle && entryId && entryId === settled[pickIndex]?.entryId ? { catalogueId, detachmentIds, picks: settled, pickIndex } : null
-  const queryClient = useQueryClient()
-  const checkLoadouts = useCallback<CheckLoadouts>(
-    (context, candidates) => queryClient.query(combatLoadoutCheckQuery(context, candidates)),
-    [queryClient],
-  )
   const loadouts = useQuery({
     ...combatLoadoutsQuery(loadoutContext ?? { catalogueId: '', detachmentIds: [], picks: [], pickIndex: 0 }),
     enabled: Boolean(loadoutContext),
@@ -157,28 +150,12 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
             rules: activeRules,
           }
         : null,
-    loadouts: loadoutContext
-      ? {
-          context: loadoutContext,
-          space: loadouts.isPlaceholderData ? undefined : loadouts.data,
-          check: checkLoadouts,
-          onOpen: () => setLoadoutOpen(true),
-          onUse: (chosen: RosterPick) =>
-            picks.setPicks((current) =>
-              current.map((entry, at) =>
-                at === pickIndex
-                  ? { ...entry, models: chosen.models ?? entry.models, choices: chosen.choices, spreads: chosen.spreads }
-                  : entry,
-              ),
-            ),
-        }
-      : undefined,
+    /** Undefined while another loadout's options are still being built. */
+    loadoutSpace: loadoutContext && !loadouts.isPlaceholderData ? loadouts.data : undefined,
     edit: pickEditor(picks.setPicks, { catalogueId, units: price.data?.units ?? [] }, picks.allocateKey),
     selectRosterUnit,
     /** What a shared link needs to restore this standalone side. */
     shared: shareable(roster, catalogueId, picks.picks[pickIndex], ruleSelections),
-    loadoutOpen,
-    setLoadoutOpen,
     selectUnit: (catalogue: string, id: string) => {
       setCatalogueId(catalogue)
       setSelectedRules({})

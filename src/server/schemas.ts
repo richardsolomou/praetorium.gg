@@ -265,14 +265,13 @@ export const datasheetSchema = z.object({
   /** Keep weapons the unit is not carrying, so options read as this list would make them. */
   everyWeapon: z.boolean().default(false),
 })
-/** A roster pick whose weapon choices the simulator compares; `candidates` are loadouts of that pick. */
+/** A roster pick whose weapon options the simulator compares. */
 export const combatLoadoutSchema = z.object({
   catalogueId,
   detachmentIds: z.array(detachmentIdSchema).max(3).default([]),
   picks: z.array(pickSchema).min(1).max(100),
   pickIndex: z.number().int().min(0).max(99),
 })
-export const combatLoadoutCheckSchema = combatLoadoutSchema.extend({ candidates: z.array(pickSchema).min(1).max(32) })
 export const savedRosterDatasheetSchema = rosterInBattleSchema.extend({ pickIndex: z.number().int().min(0).max(99) })
 export const datasheetSlugSchema = z.object({ catalogueId, slug })
 

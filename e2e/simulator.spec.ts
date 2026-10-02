@@ -912,28 +912,17 @@ test.describe('touch probability charts', () => {
   })
 })
 
-test('the loadout editor estimates each option and uses the strongest legal loadout in the matchup', async ({ page }) => {
+test("the loadout editor shows each option's odds against the defender", async ({ page }) => {
   await page.goto('/simulator')
   await chooseUnit(page, 'Attacker', 'Orks', 'Boyz')
   await chooseUnit(page, 'Defender', 'Necrons', 'Tomb Blades')
   await expect(estimate(page, 'Shooting')).toHaveAttribute('aria-busy', 'false')
-  const destroyed = estimate(page, 'Shooting').locator('.readout').nth(2)
-  await expect(destroyed).toHaveText(/%$/)
-  const before = Number.parseFloat((await destroyed.textContent()) ?? '')
-  const hint = page.getByLabel('Stronger loadout')
-  await expect(page.getByLabel('Weapon odds').first()).toContainText('destroyed')
-  await hint.getByRole('button', { name: 'Open loadout' }).click()
+  await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
   const loadout = page.getByRole('dialog', { name: 'Attacker · Boyz' })
-  const advice = loadout.getByRole('region', { name: 'Best loadout' })
-  await expect(advice).toHaveAttribute('aria-busy', 'false')
-  await expect(advice).toContainText('Against Tomb Blades')
   await expect(loadout.getByLabel(/^Shooting, unit with one more: \d+\.\d% destroyed/).first()).toBeVisible()
+  await expect(loadout.getByLabel(/^Shooting, unit with one more: .*, best$/)).toHaveCount(1)
+  await expect(loadout.getByLabel(/^Shooting, alone: \d+\.\d% destroyed/).first()).toBeVisible()
   await page.screenshot({ path: 'test-results/simulator-loadout-estimates.png' })
-  await advice.getByRole('button', { name: 'Use best loadout' }).click()
-  await expect(advice).toContainText('No loadout is meaningfully stronger.')
-  await loadout.getByRole('button', { name: 'Close', exact: true }).click()
-  await expect.poll(async () => Number.parseFloat((await destroyed.textContent()) ?? '')).toBeGreaterThan(before)
-  await expect(hint).toHaveCount(0)
 })
 
 test('a simulator link reopens the same units, swap, and modifiers', async ({ page }) => {
@@ -954,5 +943,5 @@ test('a simulator link reopens the same units, swap, and modifiers', async ({ pa
 test('a link that does not decode opens an empty simulator', async ({ page }) => {
   await page.goto('/simulator?s=broken')
   await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toBeVisible()
-  await expect(estimate(page, 'Shooting')).toHaveCount(0)
+  await expect(page.getByText('Choose a unit to see its buffs.')).toHaveCount(2)
 })

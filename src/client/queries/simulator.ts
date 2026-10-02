@@ -1,6 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 import type { RosterPick } from '../../core/roster'
-import { checkCombatLoadouts, combatantDatasheet, combatLoadouts, combatUnits } from '../../server/functions'
+import { combatantDatasheet, combatLoadouts, combatUnits } from '../../server/functions'
 
 export const combatUnitsQuery = () => queryOptions({ queryKey: ['combat-units'], queryFn: () => combatUnits(), staleTime: Infinity })
 
@@ -35,13 +35,5 @@ export const combatLoadoutsQuery = (context: LoadoutContext) =>
     queryKey: ['combat-loadouts', context.catalogueId, context.detachmentIds, context.picks, context.pickIndex],
     queryFn: () => combatLoadouts({ data: loadoutData(context) }),
     enabled: Boolean(context.catalogueId && context.picks[context.pickIndex]),
-    staleTime: Infinity,
-  })
-
-export const combatLoadoutCheckQuery = (context: LoadoutContext, candidates: readonly RosterPick[]) =>
-  queryOptions({
-    queryKey: ['combat-loadout-check', context.catalogueId, context.detachmentIds, context.picks, context.pickIndex, candidates],
-    queryFn: () => checkCombatLoadouts({ data: { ...loadoutData(context), candidates: [...candidates] } }),
-    enabled: Boolean(context.catalogueId && candidates.length),
     staleTime: Infinity,
   })

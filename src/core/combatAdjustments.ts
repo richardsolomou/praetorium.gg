@@ -67,7 +67,8 @@ export function combineWeaponAdjustments(all: WeaponAdjustment, phase: WeaponAdj
   }
 }
 
-const average = (amount: CombatWeapon['sustained']) => (typeof amount === 'number' ? amount : (amount.dice * (amount.sides + 1)) / 2 + amount.bonus)
+const average = (amount: CombatWeapon['sustained']) =>
+  typeof amount === 'number' ? amount : (amount.dice * (amount.sides + 1)) / 2 + amount.bonus
 /** A changed flat value stays at least 1; a dice value keeps its dice and never subtracts below them. */
 const plus = (dice: DiceExpression, bonus: number) => (bonus ? { ...dice, bonus: Math.max(dice.dice ? 0 : 1, dice.bonus + bonus) } : dice)
 const between = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value))

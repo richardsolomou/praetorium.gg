@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -20,7 +20,7 @@ import {
 } from '../../../core/combat'
 import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatTarget } from '../../../core/combatProfiles'
-import { combatAttackInput, combatAttacks, combatWeaponInputs } from '../../../core/combatScenario'
+import { combatAttackInput, combatAttacks } from '../../../core/combatScenario'
 import {
   adjustCombatTarget,
   combineAttackAdjustments,
@@ -35,12 +35,10 @@ import { CombatRuleLabel } from './CombatRuleLabel'
 import { Chip, Choice } from './CombatControls'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CombatEstimate } from './CombatEstimate'
-import { LoadoutHint, LoadoutsContext } from './LoadoutSuggestions'
-import { WeaponOdds } from './WeaponOdds'
-import { useLoadoutSearch, type CheckLoadouts, type LoadoutContext } from './loadoutSearch'
+import { LoadoutOddsContext } from './LoadoutOdds'
+import { useLoadoutOdds } from './useLoadoutOdds'
 import type { MatchupSettings } from './simulatorUrl'
 import type { LoadoutSpace } from '../../../core/combatLoadouts'
-import type { RosterPick } from '../../../core/roster'
 
 function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][number]; count: number }[]) {
   const groups = new Map<string, Datasheet['profiles']>()
@@ -63,11 +61,7 @@ export type CombatantSnapshot = {
 type Phase = CombatOptions['phase']
 type Scope = Phase | 'all'
 export type CombatRequest = Record<Phase, CombatInput | null>
-/** Each weapon profile alone, so a card can show what it contributes and what its other modes would. */
-export type CombatWeaponRequest = Record<Phase, { id: string; input: CombatInput }[]>
-export type CombatAnswer = Record<Phase, { result?: CombatResult; error?: string } | null> & {
-  weapons?: Record<Phase, Record<string, CombatResult>>
-}
+export type CombatAnswer = Record<Phase, { result?: CombatResult; error?: string } | null>
 type CombatEntryPoint = 'standalone' | 'roster' | 'battle'
 
 export function combatOutcomeEvent(answer: CombatAnswer, source: CombatEntryPoint) {
@@ -127,7 +121,7 @@ export function CombatMatchup({
   defenderControl,
   buffs,
   inDialog = false,
-  loadouts,
+  loadoutSpace,
   initialSettings,
   onSettingsChange,
 }: {
@@ -143,14 +137,8 @@ export function CombatMatchup({
   /** Choices restored from a shared link, and where to report them as they change. */
   initialSettings?: MatchupSettings
   onSettingsChange?: (settings: MatchupSettings) => void
-  /** The attacker's weapon choices, offered when its loadout can change in this matchup. */
-  loadouts?: {
-    context: LoadoutContext
-    space: LoadoutSpace | null | undefined
-    check: CheckLoadouts
-    onUse: (pick: RosterPick) => void
-    onOpen: () => void
-  }
+  /** The attacker's weapon choices, when its loadout can change in this matchup. */
+  loadoutSpace?: LoadoutSpace | null
 }) {
   const [adjustments, setAdjustments] = useState<CombatAdjustments>(initialSettings?.adjustments ?? {})
   const [preferences, setPreferences] = useState<Record<string, string>>(initialSettings?.preferences ?? {})
@@ -384,35 +372,12 @@ export function CombatMatchup({
     if (field === 'lethal' || field === 'devastating' || field === 'damageReroll') return 'The included weapons already have this ability.'
     return 'The current weapon rules, target, and other modifiers give the same result with or without this choice.'
   }
-  const weaponInputs = Object.fromEntries(
-    phases.map(([phase]) => {
-      const setup = phaseSetup(phase)
-      return [
-        phase,
-        attacker && defender && setup && !attacker.allocationRequired
-          ? combatWeaponInputs(
-              { sheet: attacker.sheet, carriers: attacker.carriers, models: attacker.models, rules: attackRules },
-              { keywords: defender.sheet.keywords, rules: defenceRules },
-              phase,
-              setup.target,
-              setup.options,
-              setup.adjustment,
-            )
-          : [],
-      ]
-    }),
-  ) as Record<Phase, ReturnType<typeof combatWeaponInputs>>
-  const weaponRequest: CombatWeaponRequest = {
-    ranged: weaponInputs.ranged.map(({ profile, input }) => ({ id: profile.id, input })),
-    melee: weaponInputs.melee.map(({ profile, input }) => ({ id: profile.id, input })),
-  }
-  const weaponResult = (phase: Phase, id: string) => (outcome?.key === requestKey ? outcome.answer.weapons?.[phase][id] : undefined)
-  const requestKey = JSON.stringify({ ...scenarios, weapons: weaponRequest })
+  const requestKey = JSON.stringify(scenarios)
   const canSimulate = Boolean(scenarios.ranged || scenarios.melee)
   const updating = pending || (canSimulate && (outcome?.key !== requestKey || outcome?.attempt !== retry))
   useEffect(() => {
     if (pending || failed) return
-    const request = JSON.parse(requestKey) as CombatRequest & { weapons: CombatWeaponRequest }
+    const request = JSON.parse(requestKey) as CombatRequest
     if (!request.ranged && !request.melee) return
     let active = true
     let worker: Worker | undefined
@@ -460,10 +425,8 @@ export function CombatMatchup({
     return stop
   }, [requestKey, pending, failed, retry, entryPoint])
   // After the estimate's effect, so the matchup's own calculation starts first.
-  const found = useLoadoutSearch({
-    context: loadouts?.context ?? null,
-    space: loadouts?.space,
-    check: loadouts?.check ?? null,
+  const loadoutOdds = useLoadoutOdds({
+    space: loadoutSpace,
     scoring:
       attacker && defender && !attacker.allocationRequired && !pending && !failed
         ? {
@@ -478,12 +441,6 @@ export function CombatMatchup({
         : null,
     expected: scenarios,
   })
-  const defenderName = defender?.sheet.name
-  const onUse = loadouts?.onUse
-  const advice = useMemo(
-    () => (found && defenderName && onUse ? { loadouts: found, defender: defenderName, onUse } : null),
-    [found, defenderName, onUse],
-  )
   const change = <K extends keyof CombatOptions>(scope: Scope, name: K, value: CombatOptions[K] | undefined) =>
     setAdjustments((current) => ({ ...current, [scope]: { ...current[scope], [name]: value } }))
   const changeWeapon = <K extends keyof WeaponAdjustment>(scope: Scope, name: K, value: WeaponAdjustment[K]) =>
@@ -612,9 +569,9 @@ export function CombatMatchup({
     <div className="@container min-w-0 border border-edge bg-panel" aria-label="Combat matchup">
       <div className="grid divide-y divide-edge @xl:grid-cols-2 @xl:divide-x @xl:divide-y-0">
         <section aria-label="Attacker" className="min-w-0">
-          <LoadoutsContext.Provider value={advice}>
+          <LoadoutOddsContext.Provider value={loadoutOdds}>
             {attackerControl ?? <CombatantHeading side="Attacker" unit={attacker} />}
-          </LoadoutsContext.Provider>
+          </LoadoutOddsContext.Provider>
           <CombatDefences unit={attacker} />
         </section>
         <section aria-label="Defender" className="min-w-0">
@@ -687,15 +644,7 @@ export function CombatMatchup({
                       key={choice.key}
                       label={choice.label}
                       value={choice.value}
-                      choices={choice.options.map((option) => {
-                        const result = weaponResult(phase, option.value)
-                        return [
-                          option.value,
-                          result
-                            ? `${option.label} · ${(result.wipe * 100).toFixed(1)}% · ${result.meanDamage.toFixed(2)} wounds`
-                            : option.label,
-                        ] as const
-                      })}
+                      choices={choice.options.map((option) => [option.value, option.label] as const)}
                       onChange={(value) => setPreferences((current) => ({ ...current, [choice.key]: value }))}
                     />
                   ))}
@@ -717,16 +666,6 @@ export function CombatMatchup({
                           />
                           <div className={`min-w-0 ${included ? '' : 'opacity-50'}`}>
                             <WeaponProfiles weapons={group} rules={attacker?.sheet.keywordRules ?? []} />
-                            <WeaponOdds
-                              muted={updating}
-                              rows={weaponInputs[phase]
-                                .filter(({ profile }) => wargearKey(profile.name) === key)
-                                .map(({ profile }) => ({
-                                  name: profile.name,
-                                  result: weaponResult(phase, profile.id),
-                                  inUse: group.some((used) => used.id === profile.id),
-                                }))}
-                            />
                           </div>
                         </div>
                       )
@@ -737,7 +676,6 @@ export function CombatMatchup({
             )
           })}
         </div>
-        {loadouts ? <LoadoutHint loadouts={found} onOpen={loadouts.onOpen} /> : null}
         {buffs ?? (
           <div className="mt-4 grid gap-4 @xl:grid-cols-2">
             {[

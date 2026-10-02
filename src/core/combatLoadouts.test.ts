@@ -3,222 +3,22 @@ import type { Datasheet } from '../contracts/catalogue'
 import type { CombatResult } from './combat'
 import type { CombatCarrier } from './combatLoadout'
 import { DEFAULT_COMBAT_OPTIONS } from './combat'
+import { combatAttackInput, combatAttacks } from './combatScenario'
 import {
-  axisChanges,
-  axisValues,
-  carrierChange,
   compareOutcomes,
-  composeCarriers,
-  loadoutExplorer,
+  estimateKey,
+  loadoutOdds,
   loadoutProfileOdds,
-  loadoutPick,
   loadoutSheet,
   materiallyBetter,
-  type LoadoutAxis,
-  type LoadoutSpace,
+  optionEstimates,
+  type LoadoutScore,
 } from './combatLoadouts'
 
 const result = (wipe: number, meanKills = 0, meanDamage = 0): CombatResult => ({ kills: [], damage: [], wipe, meanKills, meanDamage })
 const squad = (weapons: Record<string, number>, models = 5): CombatCarrier[] => [
   { name: 'Trooper', models, weapons: Object.entries(weapons).map(([name, count]) => ({ name, count })) },
 ]
-const swap = (from: string, to: string): CombatCarrier[] => [
-  {
-    name: 'Trooper',
-    models: 0,
-    weapons: [
-      { name: from, count: -1 },
-      { name: to, count: 1 },
-    ],
-  },
-]
-const single = (key: string, current: string, options: [string, CombatCarrier[]][], host: string | null = null): LoadoutAxis => ({
-  kind: 'single',
-  key,
-  name: key,
-  owner: null,
-  host,
-  current,
-  options: options.map(([id, change]) => ({ id, entry: id, name: id, group: key, count: 0, min: 0, max: 1, change })),
-})
-const spread = (
-  options: { id: string; count: number; max: number; change?: CombatCarrier[] }[],
-  room: number,
-): Extract<LoadoutAxis, { kind: 'spread' }> => ({
-  kind: 'spread',
-  key: 'weapons',
-  name: 'Weapons',
-  owner: null,
-  host: null,
-  room,
-  uniform: false,
-  exact: true,
-  donor: options[0]!.id,
-  limits: [],
-  options: options.map(({ id, count, max, change }) => ({
-    id,
-    entry: id,
-    name: id,
-    group: 'weapons',
-    count,
-    min: 0,
-    max,
-    change: change ?? [],
-  })),
-})
-const count = (carriers: readonly CombatCarrier[], weapon: string) =>
-  carriers.reduce((total, carrier) => total + (carrier.weapons.find((piece) => piece.name === weapon)?.count ?? 0), 0)
-
-describe('loadout changes', () => {
-  it('composes a measured change back into the loadout it was measured from', () => {
-    const before = squad({ Boltgun: 5 })
-    const after = squad({ Boltgun: 4, 'Plasma gun': 1 })
-    expect(composeCarriers(before, [[carrierChange(before, after), 1]])).toEqual(after)
-  })
-  it('repeats a one-model change for each model that takes it', () => {
-    expect(count(composeCarriers(squad({ Boltgun: 5 }), [[swap('Boltgun', 'Plasma gun'), 3]])!, 'Plasma gun')).toBe(3)
-  })
-  it('keeps equipment the unit holds as a whole', () => {
-    const unitWide: CombatCarrier = { name: 'Squad equipment', models: 0, unitWide: true, weapons: [{ name: 'Mortar', count: 1 }] }
-    expect(composeCarriers([...squad({ Boltgun: 5 }), unitWide], [[swap('Boltgun', 'Plasma gun'), 1]])).toContainEqual(unitWide)
-  })
-  it('keeps weapons of one name apart when they come from different profiles', () => {
-    const carriers: CombatCarrier[] = [
-      {
-        name: 'Trooper',
-        models: 2,
-        weapons: [
-          { name: 'Combi-weapon', count: 1, profileIds: ['bolter'] },
-          { name: 'Combi-weapon', count: 1, profileIds: ['flamer'] },
-        ],
-      },
-    ]
-    expect(composeCarriers(carriers, [])![0]!.weapons).toEqual(carriers[0]!.weapons)
-  })
-  it('refuses a combination that would remove weapons the unit does not carry', () => {
-    expect(composeCarriers(squad({ Boltgun: 1 }), [[swap('Boltgun', 'Plasma gun'), 2]])).toBeNull()
-  })
-})
-
-describe('loadout values', () => {
-  it('starts every choice from its current value', () => {
-    expect(
-      axisValues(
-        single('pistol', 'bolt', [
-          ['bolt', []],
-          ['plasma', []],
-        ]),
-        10,
-      )[0],
-    ).toBe('bolt')
-  })
-  it('keeps every split of a squad within the room the donor gives up', () => {
-    const values = axisValues(
-      spread(
-        [
-          { id: 'boltgun', count: 4, max: 4 },
-          { id: 'plasma', count: 0, max: 2 },
-          { id: 'melta', count: 0, max: 2 },
-        ],
-        4,
-      ),
-      100,
-    ) as Record<string, number>[]
-    expect(values.every((value) => (value.boltgun ?? 0) + (value.plasma ?? 0) + (value.melta ?? 0) === 4)).toBe(true)
-  })
-  it('counts specialists against the model entry that limits them', () => {
-    const axis = {
-      ...spread(
-        [
-          { id: 'boltgun', count: 4, max: 4 },
-          { id: 'plasma', count: 0, max: 2 },
-          { id: 'melta', count: 0, max: 2 },
-        ],
-        4,
-      ),
-      limits: [{ options: ['plasma', 'melta'], max: 1 }],
-    }
-    expect((axisValues(axis, 100) as Record<string, number>[]).every((value) => value.plasma! + value.melta! <= 1)).toBe(true)
-  })
-  it('offers a whole-squad choice only as one option for every model', () => {
-    const axis = {
-      ...spread(
-        [
-          { id: 'gauss', count: 3, max: 3 },
-          { id: 'tesla', count: 0, max: 3 },
-        ],
-        3,
-      ),
-      uniform: true,
-    }
-    expect(axisValues(axis, 100)).toEqual([
-      { gauss: 3, tesla: 0 },
-      { gauss: 0, tesla: 3 },
-    ])
-  })
-})
-
-describe('whole-squad choices', () => {
-  const uniform: LoadoutAxis = {
-    ...spread(
-      [
-        { id: 'gauss', count: 5, max: 5 },
-        {
-          id: 'tesla',
-          count: 0,
-          max: 5,
-          change: [
-            {
-              name: 'Trooper',
-              models: 0,
-              weapons: [
-                { name: 'Gauss', count: -5 },
-                { name: 'Tesla', count: 5 },
-              ],
-            },
-          ],
-        },
-      ],
-      5,
-    ),
-    uniform: true,
-  }
-  it('applies a whole-squad option once', () => {
-    const changed = composeCarriers(squad({ Gauss: 5 }), axisChanges(uniform, { gauss: 0, tesla: 5 }))
-    expect(changed && count(changed, 'Tesla')).toBe(5)
-  })
-})
-
-describe('loadout picks', () => {
-  const axes = [
-    single('pistol', 'bolt', [
-      ['bolt', []],
-      ['plasma', []],
-    ]),
-    spread(
-      [
-        { id: 'boltgun', count: 4, max: 4 },
-        { id: 'plasma', count: 0, max: 2 },
-      ],
-      4,
-    ),
-  ]
-  it('writes a changed either-or choice by its catalogue option', () => {
-    expect(loadoutPick({ entryId: 'unit' }, axes, ['plasma', { boltgun: 4, plasma: 0 }]).choices).toEqual({ pistol: 'plasma' })
-  })
-  it('writes every count of a changed squad split', () => {
-    expect(loadoutPick({ entryId: 'unit' }, axes, ['bolt', { boltgun: 3, plasma: 1 }]).spreads).toEqual({
-      weapons: { boltgun: 3, plasma: 1 },
-    })
-  })
-  it('leaves the pick unchanged for the current values', () => {
-    expect(loadoutPick({ entryId: 'unit', choices: { other: 'x' } }, axes, ['bolt', { boltgun: 4, plasma: 0 }])).toEqual({
-      entryId: 'unit',
-      choices: { other: 'x' },
-      spreads: {},
-    })
-  })
-})
 
 describe('loadout datasheets', () => {
   const profile = (name: string): Datasheet['profiles'][number] => ({ id: name, name, type: 'Ranged Weapons', values: [] })
@@ -265,104 +65,50 @@ describe('outcome order', () => {
   it('falls back to wounds when wipes and models are equal', () => {
     expect(compareOutcomes(result(0, 1, 3), result(0, 1, 2))).toBeGreaterThan(0)
   })
-  it('does not suggest a gain too small to matter', () => {
+  it('does not count a gain too small to matter', () => {
     expect(materiallyBetter(result(1), result(0.999))).toBe(false)
   })
-  it('suggests a gain in models when the wipe chance barely moves', () => {
+  it('counts a gain in models when the wipe chance barely moves', () => {
     expect(materiallyBetter(result(0.001, 1.2), result(0, 1))).toBe(true)
   })
-  it('does not suggest a loadout that destroys the unit less often for more wounds', () => {
+  it('does not count more wounds as better when the unit is destroyed less often', () => {
     expect(materiallyBetter(result(0.2, 1, 9), result(0.3, 1, 2))).toBe(false)
   })
 })
 
-describe('loadout search', () => {
-  const space = (axes: LoadoutAxis[], carriers = squad({ Boltgun: 5 })): LoadoutSpace => ({ carriers, axes, weapons: [] })
-  const plasma = spread(
-    [
-      { id: 'boltgun', count: 5, max: 5 },
-      { id: 'plasma', count: 0, max: 2, change: swap('Boltgun', 'Plasma gun') },
-    ],
-    5,
-  )
-  const byPlasma = (carriers: CombatCarrier[]) => {
-    const score = result(count(carriers, 'Plasma gun') / 10)
-    return { ranged: score, melee: null }
-  }
-  it('finds the strongest split of a squad', () => {
-    expect(loadoutExplorer(space([plasma]), byPlasma).search(5).ranged.ranked[0]!.assignment).toEqual([{ boltgun: 3, plasma: 2 }])
+describe('option estimates', () => {
+  const now = { ranged: result(0.2), melee: result(0.5) }
+  const option = (entry: string, score: LoadoutScore, step: -1 | 0 | 1 = 0) => ({ group: 'pistol', entry, step, score })
+  const pistol = [
+    option('bolt', now),
+    option('plasma', { ranged: result(0.4), melee: result(0.5) }),
+    option('grip', { ranged: result(0.2), melee: result(0.5) }),
+  ]
+  const found = optionEstimates([pistol], now)
+  it('estimates the option the unit already carries', () => {
+    expect(found.get(estimateKey('pistol', 'bolt'))?.phases.ranged?.result.wipe).toBe(0.2)
   })
-  it('offers every either-or option, the one taken included', () => {
-    const pistol = single('pistol', 'bolt', [
-      ['bolt', []],
-      ['plasma', swap('Boltgun', 'Plasma gun')],
-    ])
-    expect(
-      loadoutExplorer(space([pistol]), byPlasma)
-        .rows(['bolt'])
-        .map((row) => [row.option, row.step]),
-    ).toEqual([
-      ['bolt', 0],
-      ['plasma', 0],
-    ])
+  it('marks the strongest option of a choice', () => {
+    expect(found.get(estimateKey('pistol', 'plasma'))?.phases.ranged?.best).toBe(true)
   })
-  it('offers one more model for each squad option the donor can spare', () => {
-    const rows = loadoutExplorer(space([plasma]), byPlasma).rows([{ boltgun: 5, plasma: 0 }])
-    expect(rows.find((row) => row.option === 'plasma')).toMatchObject({ step: 1, assignment: [{ boltgun: 4, plasma: 1 }] })
+  it('leaves weaker options unmarked', () => {
+    expect(found.get(estimateKey('pistol', 'grip'))?.phases.ranged?.best).toBe(false)
   })
-  it('offers one fewer model once an option is at its limit', () => {
-    const rows = loadoutExplorer(space([plasma]), byPlasma).rows([{ boltgun: 3, plasma: 2 }])
-    expect(rows.find((row) => row.option === 'plasma')).toMatchObject({ step: -1, assignment: [{ boltgun: 4, plasma: 1 }] })
+  it('says nothing about a phase the choice does not change', () => {
+    expect(found.get(estimateKey('pistol', 'plasma'))?.phases.melee).toBeUndefined()
   })
-  it('estimates the donor option as the squad stands', () => {
-    const rows = loadoutExplorer(space([plasma]), byPlasma).rows([{ boltgun: 5, plasma: 0 }])
-    expect(rows.find((row) => row.option === 'boltgun')).toMatchObject({ step: 0, assignment: [{ boltgun: 5, plasma: 0 }] })
+  it('marks nothing when no option beats the current one by enough to matter', () => {
+    const close = optionEstimates([[pistol[0]!, option('plasma', { ranged: result(0.201), melee: null })]], now)
+    expect(close.get(estimateKey('pistol', 'plasma'))?.phases.ranged?.best).toBe(false)
   })
-  it('says a small space was searched completely', () => {
-    expect(loadoutExplorer(space([plasma]), byPlasma).search(5).ranged.complete).toBe(true)
+  it('compares options only within their own choice', () => {
+    const other = { group: 'sword', entry: 'axe', step: 0 as const, score: { ranged: result(0.9), melee: null } }
+    const apart = optionEstimates([pistol, [{ ...other, entry: 'blade', score: now }, other]], now)
+    expect(apart.get(estimateKey('pistol', 'plasma'))?.phases.ranged?.best).toBe(true)
   })
-  it('improves one choice at a time when a space is too large to search completely', () => {
-    const found = loadoutExplorer(space([plasma]), byPlasma, { exhaustive: 1 }).search(5).ranged
-    expect([found.complete, found.ranked[0]!.assignment]).toEqual([false, [{ boltgun: 3, plasma: 2 }]])
-  })
-  it('keeps the smaller change when another choice does not alter the result', () => {
-    const grip = single('grip', 'plain', [
-      ['plain', []],
-      ['ornate', [{ name: 'Trooper', models: 0, weapons: [{ name: 'Grip', count: 1 }] }]],
-    ])
-    const shared = new Map<number, CombatResult>()
-    const score = (carriers: CombatCarrier[]) => {
-      const plasmas = count(carriers, 'Plasma gun')
-      if (!shared.has(plasmas)) shared.set(plasmas, result(plasmas / 10))
-      return { ranged: shared.get(plasmas)!, melee: null }
-    }
-    expect(
-      loadoutExplorer(space([plasma, grip]), score)
-        .search(5)
-        .ranged.ranked.map((entry) => entry.assignment),
-    ).toEqual([
-      [{ boltgun: 3, plasma: 2 }, 'plain'],
-      [{ boltgun: 4, plasma: 1 }, 'plain'],
-      [{ boltgun: 5, plasma: 0 }, 'plain'],
-    ])
-  })
-  it('only varies a nested choice while the choice offering it keeps its current value', () => {
-    const parent = single('parent', 'sword', [
-      ['sword', []],
-      ['axe', swap('Boltgun', 'Axe')],
-    ])
-    const nested = single(
-      'parent/sword/edge',
-      'dull',
-      [
-        ['dull', []],
-        ['keen', swap('Boltgun', 'Keen edge')],
-      ],
-      'parent',
-    )
-    const score = (carriers: CombatCarrier[]) => ({ ranged: result(count(carriers, 'Axe') + count(carriers, 'Keen edge')), melee: null })
-    const ranked = loadoutExplorer(space([parent, nested]), score).search(10).ranged.ranked
-    expect(ranked.some((entry) => entry.assignment[0] === 'axe' && entry.assignment[1] === 'keen')).toBe(false)
+  it('describes a squad option as one more model', () => {
+    const step = optionEstimates([[option('bolt', now), option('plasma', { ranged: result(0.3), melee: null }, 1)]], now)
+    expect(step.get(estimateKey('pistol', 'plasma'))?.step).toBe(1)
   })
 })
 
@@ -384,7 +130,7 @@ describe('weapon profile odds', () => {
   } as unknown as Datasheet
   const target = { groups: [{ models: 10, toughness: 4, save: 3, invulnerable: null, wounds: 1 }], feelNoPain: null }
   const odds = loadoutProfileOdds(
-    { carriers: squad({ Boltgun: 5 }), axes: [], weapons: [weapon('Boltgun'), weapon('Plasma gun')] },
+    { carriers: squad({ Boltgun: 5 }), choices: [], weapons: [weapon('Boltgun'), weapon('Plasma gun')] },
     {
       sheet: attacker,
       models: 5,
@@ -407,7 +153,7 @@ describe('weapon profile odds', () => {
       values: Object.entries({ A: '1', BS: '3+', S: strength, AP: '0', D: '1', Keywords: '-' }).map(([name, value]) => ({ name, value })),
     })
     const modes = loadoutProfileOdds(
-      { carriers: [], axes: [], weapons: [] },
+      { carriers: [], choices: [], weapons: [] },
       {
         sheet: { ...attacker, profiles: [mode('Frag', '3'), mode('Krak', '8')] },
         models: 1,
@@ -425,5 +171,58 @@ describe('weapon profile odds', () => {
       each: true,
       result: { meanDamage: expect.closeTo(2 * (4 / 6) * (3 / 6) * (3 / 6), 10) },
     })
+  })
+})
+
+describe('loadout odds', () => {
+  const weapon = (id: string, carried?: number, ap = '-1'): Datasheet['profiles'][number] => ({
+    id,
+    name: id,
+    type: 'Ranged Weapons',
+    ...(carried ? { count: carried } : {}),
+    values: Object.entries({ A: '2', BS: '3+', S: '4', AP: ap, D: '1', Keywords: '-' }).map(([name, value]) => ({ name, value })),
+  })
+  const sheet = {
+    id: 'unit',
+    name: 'Squad',
+    keywords: [],
+    profiles: [weapon('Boltgun', 5)],
+    abilities: [],
+    keywordRules: [],
+  } as unknown as Datasheet
+  const target = { groups: [{ models: 10, toughness: 4, save: 3, invulnerable: null, wounds: 1 }], feelNoPain: null }
+  const setup = { target, options: DEFAULT_COMBAT_OPTIONS, adjustment: {} }
+  const scoring = {
+    sheet,
+    models: 5,
+    rules: [],
+    opponent: { keywords: [], rules: [] },
+    preferences: {},
+    excluded: { ranged: [], melee: [] },
+    phases: { ranged: setup, melee: null },
+  }
+  const space = {
+    carriers: squad({ Boltgun: 5 }),
+    weapons: [weapon('Boltgun'), weapon('Plasma gun', undefined, '-3')],
+    choices: [
+      [
+        { group: 'gun', entry: 'boltgun', step: 0 as const, carriers: squad({ Boltgun: 5 }) },
+        { group: 'gun', entry: 'plasma', step: 1 as const, carriers: squad({ Boltgun: 4, 'Plasma gun': 1 }) },
+      ],
+    ],
+  }
+  const own = combatAttackInput(
+    combatAttacks({ sheet, carriers: space.carriers, models: 5, rules: [] }, scoring.opponent, {}, scoring.excluded).ranged,
+    target,
+    DEFAULT_COMBAT_OPTIONS,
+    {},
+  )
+  it("scores each option with its own carriers when the current loadout reproduces the matchup's attack", () => {
+    expect(loadoutOdds(space, scoring, { ranged: own, melee: null }).estimates.get(estimateKey('gun', 'plasma'))?.phases.ranged?.best).toBe(
+      true,
+    )
+  })
+  it('estimates no option for an attack the current loadout does not reproduce', () => {
+    expect(loadoutOdds(space, scoring, { ranged: null, melee: null }).estimates.size).toBe(0)
   })
 })

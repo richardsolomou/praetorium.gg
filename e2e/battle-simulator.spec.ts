@@ -108,8 +108,6 @@ for (const width of [1440, 390, 900]) {
     if (width < 860) await page.screenshot({ path: 'test-results/battle-simulator-fullscreen-phone.png' })
     await expect(shooting).toContainText('4× Bolt Rifle – Focused Fire')
     await expect(simulator.getByRole('region', { name: 'Melee results' })).toContainText('4× Knives and Fists')
-    // A battle fields frozen loadouts, so it offers no other loadout to use.
-    await expect(simulator.getByRole('region', { name: 'Best loadout' })).toHaveCount(0)
     const baseline = Number(await damage.textContent())
     await simulator.getByRole('button', { name: 'Cover (−1 BS)', exact: true }).click()
     await expect.poll(async () => Number(await damage.textContent())).toBeLessThan(baseline)
