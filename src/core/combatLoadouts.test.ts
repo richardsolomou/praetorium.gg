@@ -162,7 +162,7 @@ describe('weapon profile odds', () => {
   })
   it('resolves a weapon the unit does not carry on one model', () => {
     expect(odds.get('Plasma gun')).toMatchObject({
-      each: true,
+      count: 1,
       result: { meanDamage: expect.closeTo(2 * (4 / 6) * (3 / 6) * (3 / 6), 10) },
     })
   })

@@ -70,7 +70,7 @@ export function useOptionNote(): OptionNote | undefined {
                   phase={phase}
                   result={shown.result}
                   best={shown.best}
-                  prefix={estimate.step ? `Unit, ${estimate.step > 0 ? '+1' : '−1'}` : 'Unit'}
+                  prefix={estimate.step ? `Unit with 1 ${estimate.step > 0 ? 'more' : 'fewer'}` : 'Unit'}
                   subject={estimate.step ? `unit with one ${estimate.step > 0 ? 'more' : 'fewer'}` : 'unit'}
                   muted={Boolean(updating)}
                 />,
@@ -99,8 +99,8 @@ export function useProfileNote(): ((weapon: { id: string; name: string }) => Rea
           phase={alone.phase}
           result={alone.result}
           best={alone.best}
-          prefix={alone.each ? '1 weapon alone' : 'Alone'}
-          subject={alone.each ? 'one weapon alone' : 'alone'}
+          prefix={`${alone.count}× alone`}
+          subject={`${alone.count} ${alone.count === 1 ? 'weapon' : 'weapons'} alone`}
           muted={Boolean(updating)}
         />
       </span>

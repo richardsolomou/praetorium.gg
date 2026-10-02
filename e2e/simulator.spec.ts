@@ -921,7 +921,7 @@ test("the loadout editor shows each option's odds against the defender", async (
   const loadout = page.getByRole('dialog', { name: 'Attacker · Boyz' })
   await expect(loadout.getByLabel(/^Shooting, unit with one more: \d+\.\d% destroyed/).first()).toBeVisible()
   await expect(loadout.getByLabel(/^Shooting, unit with one more: .*, best$/)).toHaveCount(1)
-  await expect(loadout.getByLabel(/^Shooting, alone: \d+\.\d% destroyed/).first()).toBeVisible()
+  await expect(loadout.getByLabel(/^Shooting, \d+ weapons? alone: \d+\.\d% destroyed/).first()).toBeVisible()
   await page.screenshot({ path: 'test-results/simulator-loadout-estimates.png' })
 })
 

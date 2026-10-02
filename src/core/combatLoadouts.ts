@@ -66,10 +66,10 @@ export function compareOutcomes(left: CombatResult, right: CombatResult) {
 }
 
 /**
- * A weapon profile alone: at the count the unit carries, or on one model when it carries none. `best`
- * marks the strongest of one weapon's profiles, so a player knows which mode to use.
+ * A weapon profile alone, at the `count` the unit carries or one when it carries none. `best` marks the
+ * strongest of one weapon's profiles, so a player knows which mode to use.
  */
-export type ProfileOdds = { phase: Phase; result: CombatResult; each: boolean; best: boolean }
+export type ProfileOdds = { phase: Phase; result: CombatResult; count: number; best: boolean }
 
 /** Every weapon profile the unit could carry, resolved alone against the target. */
 export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring) {
@@ -98,7 +98,7 @@ export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring)
     )
     for (const { profile, input } of inputs) {
       try {
-        odds.set(profile.id, { phase, result: calculateCombat(input), each: !held.get(profile.id), best: false })
+        odds.set(profile.id, { phase, result: calculateCombat(input), count: held.get(profile.id) || 1, best: false })
       } catch {
         // A profile the calculation refuses has no odds to show.
       }
