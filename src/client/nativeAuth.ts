@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 import type { SocialAuthProvider } from '../authConfig'
 import { nativeBridgeVersion } from './nativeBridge'
 
@@ -22,6 +23,14 @@ export function hasNativeAuthBridge() {
 
 export function canUseGithubAuth() {
   return !hasNativeAuthBridge() || (nativeBridgeVersion() === 3 && window.PraetoriumNative?.capabilities?.includes('github-auth') === true)
+}
+
+export function useGithubAuthAvailability() {
+  return useSyncExternalStore(
+    () => () => {},
+    canUseGithubAuth,
+    () => true,
+  )
 }
 
 function base64url(bytes: Uint8Array) {

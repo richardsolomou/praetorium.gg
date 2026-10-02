@@ -13,7 +13,7 @@ import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../../../authConfig'
 import { setOwnPassword, unlinkOwnAccount } from '../../../server/functions'
 import { mcpConnections, revokeMcpConnection } from '../../../server/functions/mcpConnections'
 import { authClient } from '../../authClient'
-import { canUseGithubAuth, hasNativeAuthBridge, requestNativeAuth } from '../../nativeAuth'
+import { hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { accountMethodsQuery, meQuery } from '../../queries'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from './AuthMethodIcon'
 import { SettingRow } from '../../components/SettingRow'
@@ -38,6 +38,7 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
   const [revokingConnection, setRevokingConnection] = useState<string | null>(null)
   const [connectionError, setConnectionError] = useState(false)
   const verifyEmail = useAuthAction()
+  const githubAuthAvailable = useGithubAuthAvailability()
   const linked = new Set(methods?.linked ?? [])
   const hasPassword = linked.has('credential')
   const available = new Set<string>(methods?.availableProviders ?? [])
@@ -200,7 +201,7 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
                     <Button type="button" variant="ghost" size="sm" disabled={!canRemove(provider)} onClick={() => setRemoving(provider)}>
                       Unlink
                     </Button>
-                  ) : provider === 'github' && !canUseGithubAuth() ? (
+                  ) : provider === 'github' && !githubAuthAvailable ? (
                     <span className="text-xs text-faint">Update the app to link GitHub.</span>
                   ) : (
                     <Button
