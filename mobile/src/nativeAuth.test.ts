@@ -46,6 +46,16 @@ describe('native authentication bridge', () => {
     })
   })
 
+  it('accepts GitHub sign-in and its bound callback', () => {
+    const requestResult = parseNativeAuthRequest(JSON.stringify({ ...request, version: 3, provider: 'github' }))
+    const callbackResult = parseNativeAuthCallback(
+      `praetorium://auth?version=3&challenge=${proof.challenge}&id=${'i'.repeat(32)}&token=${'t'.repeat(32)}&provider=github&action=sign-in&next=%2Frosters`,
+      proof,
+    )
+
+    expect([requestResult?.provider, callbackResult.kind === 'success' ? callbackResult.provider : null]).toEqual(['github', 'github'])
+  })
+
   it('requires a one-time session token when linking', () => {
     expect(parseNativeAuthRequest(JSON.stringify({ ...request, action: 'link' }))).toBeNull()
     expect(parseNativeAuthRequest(JSON.stringify({ ...request, action: 'link', sessionToken: 'a'.repeat(32) }))).toMatchObject({

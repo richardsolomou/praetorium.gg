@@ -20,6 +20,10 @@ export function hasNativeAuthBridge() {
   return typeof window !== 'undefined' && (version === 1 || version === 2 || version === 3) && Boolean(window.ReactNativeWebView)
 }
 
+export function canUseGithubAuth() {
+  return !hasNativeAuthBridge() || (nativeBridgeVersion() === 3 && window.PraetoriumNative?.capabilities?.includes('github-auth') === true)
+}
+
 function base64url(bytes: Uint8Array) {
   let value = ''
   for (const byte of bytes) value += String.fromCharCode(byte)

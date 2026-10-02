@@ -5,12 +5,12 @@ const NATIVE_AUTH_EXCHANGE_KEY = 'praetorium.native-auth.exchange'
 const NATIVE_AUTH_SUCCESS_QUERY = '__native_auth'
 const NATIVE_AUTH_ERROR_QUERY = '__native_auth_error'
 
-const PROVIDERS = new Set(['apple', 'discord', 'google'])
+const PROVIDERS = new Set(['apple', 'discord', 'google', 'github'])
 const ACTIONS = new Set(['link', 'sign-in'])
 
 export type NativeAuthRequest = {
   action: 'link' | 'sign-in'
-  provider: 'apple' | 'discord' | 'google'
+  provider: 'apple' | 'discord' | 'google' | 'github'
   next: string
   requestSignUp: boolean
   sessionToken?: string

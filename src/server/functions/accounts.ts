@@ -146,10 +146,7 @@ export const unlinkOwnAccount = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const current = await requireUser()
-      const status =
-        data.provider === 'github'
-          ? (await app().service.unlinkAccount(current.id, 'github', ['credential', ...configuredAuthProviders()])).status
-          : await unlinkSignInMethod(current.id, data.provider)
+      const status = await unlinkSignInMethod(current.id, data.provider)
       if (status === 'missing') {
         throw new Response('this sign-in method is not linked', { status: 404 })
       } else if (status === 'two-factor') {
@@ -157,8 +154,7 @@ export const unlinkOwnAccount = createServerFn({ method: 'POST' })
       } else if (status === 'last-method') {
         throw new Response('another available sign-in method must stay linked', { status: 409 })
       }
-      if (data.provider === 'github') await app().telemetry.capture(current.id, 'github_account_unlinked')
-      else await app().telemetry.capture(current.id, 'sign_in_method_removed', { provider: data.provider })
+      await app().telemetry.capture(current.id, 'sign_in_method_removed', { provider: data.provider })
       return null
     }),
   )

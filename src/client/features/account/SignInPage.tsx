@@ -11,7 +11,7 @@ import { PASSWORD_MIN_LENGTH } from '../../../authConfig'
 import { authClient, authRedirectUrl } from '../../authClient'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES } from './AuthMethodIcon'
 import { TwoFactorSignIn } from './TwoFactorSignIn'
-import { requestNativeAuth } from '../../nativeAuth'
+import { canUseGithubAuth, requestNativeAuth } from '../../nativeAuth'
 import { signInOptionsQuery } from '../../queries'
 
 const socialAuthErrorMessage = (error?: string) => {
@@ -40,6 +40,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
   const queryClient = useQueryClient()
   const submit = useAuthAction()
   const callbackError = socialAuthErrorMessage(error)
+  const providers = options?.providers.filter((provider) => provider !== 'github' || canUseGithubAuth()) ?? []
 
   const authenticate = async () => {
     const result = await submit.run(() =>
@@ -196,9 +197,9 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
                 {joining ? 'I already have an account' : 'I need an account'}
               </Button>
 
-              {options?.providers.length ? (
+              {providers.length ? (
                 <div className="mt-6 space-y-2 border-t border-edge pt-6">
-                  {options.providers.map((provider) => (
+                  {providers.map((provider) => (
                     <Button
                       key={provider}
                       variant="outline"

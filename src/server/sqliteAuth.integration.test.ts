@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createLocalJWKSet, jwtVerify } from 'jose'
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeAll, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import { importAuthSqlite } from '../../scripts/nodeAuthSqlite'
 import { account, user } from '../db/authSchema'
 import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken } from '../db/oauthSchema'
@@ -464,10 +464,55 @@ const githubEnvironment = {
   GOOGLE_CLIENT_SECRET: 'google-secret',
 }
 
-it('refuses to sign anybody in with GitHub', async () => {
+it('starts GitHub sign-in with the configured OAuth app', async () => {
   const auth = authFor(githubEnvironment)
 
-  await expect(auth.api.signInSocial({ body: { provider: 'github', callbackURL: '/' } })).rejects.toMatchObject({ status: 'FORBIDDEN' })
+  expect((await auth.api.signInSocial({ body: { provider: 'github', callbackURL: '/' } })).url).toMatch(
+    /^https:\/\/github\.com\/login\/oauth\/authorize\?/,
+  )
+})
+
+it('signs a linked sponsor into the existing player account with GitHub', async () => {
+  const userId = await playerWithGithub('github-returning@example.com', '9011')
+  const accounts = new SqliteAccountRepository(local.database)
+  await accounts.replaceGithubSponsors([{ githubId: '9011', public: true }])
+  const auth = authFor(githubEnvironment)
+  const start = await auth.handler(
+    new Request('https://praetorium.gg/api/auth/sign-in/social', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'https://praetorium.gg' },
+      body: JSON.stringify({ provider: 'github', callbackURL: '/profile' }),
+    }),
+  )
+  const { url } = (await start.json()) as { url: string }
+  const state = new URL(url).searchParams.get('state')
+  if (!state) throw new Error('Missing OAuth state')
+  vi.stubGlobal('fetch', async (input: string | URL | Request) => {
+    const requestUrl = new URL(input instanceof Request ? input.url : input)
+    if (requestUrl.pathname === '/login/oauth/access_token')
+      return Response.json({ access_token: 'github-test-token', token_type: 'bearer' })
+    if (requestUrl.pathname === '/user')
+      return Response.json({ id: 9011, login: 'sponsor', name: 'Sponsor', email: 'github-returning@example.com', avatar_url: null })
+    if (requestUrl.pathname === '/user/emails')
+      return Response.json([{ email: 'github-returning@example.com', primary: true, verified: true }])
+    throw new Error(`Unexpected OAuth request: ${requestUrl.origin}${requestUrl.pathname}`)
+  })
+  try {
+    const callback = await auth.handler(
+      new Request(`https://praetorium.gg/api/auth/callback/github?state=${encodeURIComponent(state)}&code=github-test-code`, {
+        headers: { cookie: start.headers.get('set-cookie')?.split(';')[0] ?? '' },
+      }),
+    )
+    expect(new URL(callback.headers.get('location') ?? '/', 'https://praetorium.gg').searchParams.get('error')).toBeNull()
+    const cookie = callback.headers
+      .getSetCookie()
+      .find((value) => value.includes('session_token='))
+      ?.split(';')[0]
+    const signedIn = cookie ? await auth.api.getSession({ headers: new Headers({ cookie }) }) : null
+    expect([callback.status, signedIn?.user.id, await accounts.githubSponsorship(userId)]).toEqual([302, userId, 'public'])
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })
 
 it('still starts sign-in with the other configured providers', async () => {
@@ -517,6 +562,15 @@ it('finds no sponsorship for a player who has not linked the sponsoring GitHub a
   expect(await accounts.githubSponsorship(userId)).toBeNull()
 })
 
+it('recognizes administrators without depending on their GitHub link', async () => {
+  const accounts = new SqliteAccountRepository(local.database)
+  const admin = await playerWithGithub('badge-admin@example.com', null)
+  const player = await playerWithGithub('badge-player@example.com', '9007')
+  await local.database.update(user).set({ role: 'admin' }).where(eq(user.id, admin))
+
+  expect(await Promise.all([admin, player].map((id) => accounts.isAdmin(id)))).toEqual([true, false])
+})
+
 it('drops a sponsorship GitHub no longer lists', async () => {
   const accounts = new SqliteAccountRepository(local.database)
   const userId = await playerWithGithub('lapsed-sponsor@example.com', '9004')
@@ -526,18 +580,18 @@ it('drops a sponsorship GitHub no longer lists', async () => {
   expect(await accounts.githubSponsorship(userId)).toBeNull()
 })
 
-it('lets a player unlink GitHub without counting it as a way to sign in', async () => {
+it('counts a linked GitHub account as a sign-in method', async () => {
   const accounts = new SqliteAccountRepository(local.database)
   const userId = await playerWithGithub('only-password@example.com', '9005')
 
-  expect(await accounts.unlinkAccount(userId, 'credential', ['credential', 'google'])).toEqual({ status: 'last-method' })
+  expect(await accounts.unlinkAccount(userId, 'credential', ['credential', 'github'])).toMatchObject({ status: 'removed' })
 })
 
-it('leaves a linked GitHub account out of the sign-in methods an administrator sees', async () => {
+it('shows a linked GitHub account among sign-in methods for administrators', async () => {
   const accounts = new SqliteAccountRepository(local.database)
   const userId = await playerWithGithub('admin-listed-sponsor@example.com', '9006')
 
   const { users } = await accounts.adminUserRows({ query: 'admin-listed-sponsor@example.com' }, [])
 
-  expect(users.find((row) => row.id === userId)?.signInMethods.map((method) => method.providerId)).toEqual(['credential'])
+  expect(users.find((row) => row.id === userId)?.signInMethods.map((method) => method.providerId)).toEqual(['credential', 'github'])
 })

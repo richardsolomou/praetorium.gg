@@ -1,8 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { hasNativeAuthBridge, requestNativeAuth } from './nativeAuth'
+import { canUseGithubAuth, hasNativeAuthBridge, requestNativeAuth } from './nativeAuth'
 
 describe('native auth web bridge', () => {
   afterEach(() => vi.unstubAllGlobals())
+
+  it('offers GitHub only where its authentication handoff is supported', () => {
+    vi.stubGlobal('window', undefined)
+    const web = canUseGithubAuth()
+    vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 3, capabilities: ['account'] }, ReactNativeWebView: {} })
+    const olderShell = canUseGithubAuth()
+    vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 3, capabilities: ['github-auth'] }, ReactNativeWebView: {} })
+
+    expect([web, olderShell, canUseGithubAuth()]).toEqual([true, false, true])
+  })
 
   it('does not send messages to an older shell without a bridge version', async () => {
     const postMessage = vi.fn()

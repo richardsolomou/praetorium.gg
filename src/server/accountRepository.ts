@@ -30,6 +30,11 @@ export class SqliteAccountRepository {
     return row
   }
 
+  async isAdmin(id: string) {
+    const [row] = await this.database.select({ role: user.role }).from(user).where(eq(user.id, id)).limit(1)
+    return row?.role === 'admin'
+  }
+
   async namesByIds(ids: readonly string[]) {
     if (!ids.length) return new Map<string, { id: string; name: string }>()
     const rows = await this.database
@@ -118,8 +123,7 @@ export class SqliteAccountRepository {
       ? await this.database
           .select({ userId: account.userId, providerId: account.providerId, linkedAt: account.createdAt })
           .from(account)
-          // A linked GitHub account only proves a sponsorship; it cannot sign in.
-          .where(and(inArray(account.userId, ids), ne(account.providerId, 'github')))
+          .where(inArray(account.userId, ids))
           .orderBy(asc(account.createdAt))
       : []
     const methodsByUser = new Map<string, Map<string, Date>>()
