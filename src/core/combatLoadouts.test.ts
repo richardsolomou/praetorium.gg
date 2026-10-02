@@ -10,7 +10,6 @@ import {
   loadoutOdds,
   loadoutProfileOdds,
   loadoutSheet,
-  materiallyBetter,
   optionEstimates,
   type LoadoutScore,
 } from './combatLoadouts'
@@ -65,15 +64,6 @@ describe('outcome order', () => {
   it('falls back to wounds when wipes and models are equal', () => {
     expect(compareOutcomes(result(0, 1, 3), result(0, 1, 2))).toBeGreaterThan(0)
   })
-  it('does not count a gain too small to matter', () => {
-    expect(materiallyBetter(result(1), result(0.999))).toBe(false)
-  })
-  it('counts a gain in models when the wipe chance barely moves', () => {
-    expect(materiallyBetter(result(0.001, 1.2), result(0, 1))).toBe(true)
-  })
-  it('does not count more wounds as better when the unit is destroyed less often', () => {
-    expect(materiallyBetter(result(0.2, 1, 9), result(0.3, 1, 2))).toBe(false)
-  })
 })
 
 describe('option estimates', () => {
@@ -97,9 +87,13 @@ describe('option estimates', () => {
   it('says nothing about a phase the choice does not change', () => {
     expect(found.get(estimateKey('pistol', 'plasma'))?.phases.melee).toBeUndefined()
   })
-  it('marks nothing when no option beats the current one by enough to matter', () => {
+  it('marks the strongest option however small its lead', () => {
     const close = optionEstimates([[pistol[0]!, option('plasma', { ranged: result(0.201), melee: null })]], now)
-    expect(close.get(estimateKey('pistol', 'plasma'))?.phases.ranged?.best).toBe(false)
+    expect(close.get(estimateKey('pistol', 'plasma'))?.phases.ranged?.best).toBe(true)
+  })
+  it('marks the option the unit already carries when nothing beats it', () => {
+    const weaker = optionEstimates([[pistol[0]!, option('grip', { ranged: result(0.1), melee: null })]], now)
+    expect(weaker.get(estimateKey('pistol', 'bolt'))?.phases.ranged?.best).toBe(true)
   })
   it('compares options only within their own choice', () => {
     const other = { group: 'sword', entry: 'axe', step: 0 as const, score: { ranged: result(0.9), melee: null } }

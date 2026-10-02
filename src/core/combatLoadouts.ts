@@ -56,9 +56,6 @@ export function loadoutSheet(sheet: Datasheet, weapons: Datasheet['profiles'], c
 }
 
 const SAME = 1e-9
-/** Smaller gains than these read as the same result, so no option is marked best. */
-const MATERIAL = { wipe: 0.005, meanKills: 0.05, meanDamage: 0.05 } as const
-
 /** Positive when `left` is the better attack: likelier to destroy the unit, then more models, then more wounds. */
 export function compareOutcomes(left: CombatResult, right: CombatResult) {
   for (const field of ['wipe', 'meanKills', 'meanDamage'] as const) {
@@ -66,15 +63,6 @@ export function compareOutcomes(left: CombatResult, right: CombatResult) {
     if (Math.abs(difference) > SAME) return difference
   }
   return 0
-}
-
-/** Whether `candidate` beats `current` by enough, in the same order of importance, to mark it best. */
-export function materiallyBetter(candidate: CombatResult, current: CombatResult) {
-  for (const field of ['wipe', 'meanKills', 'meanDamage'] as const) {
-    const difference = candidate[field] - current[field]
-    if (Math.abs(difference) >= MATERIAL[field]) return difference > 0
-  }
-  return false
 }
 
 /**
@@ -197,7 +185,7 @@ export function optionEstimates(
         const results = options.flatMap((other) => (other.score[phase] ? [other.score[phase]] : []))
         if (!result || !before || !results.some((other) => compareOutcomes(other, before) !== 0)) continue
         const top = results.reduce((best, candidate) => (compareOutcomes(candidate, best) > 0 ? candidate : best))
-        phases[phase] = { result, best: compareOutcomes(result, top) === 0 && materiallyBetter(top, before) }
+        phases[phase] = { result, best: compareOutcomes(result, top) === 0 }
       }
       if (Object.keys(phases).length) found.set(estimateKey(group, entry), { step, phases })
     }
