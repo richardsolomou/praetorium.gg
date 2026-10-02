@@ -105,7 +105,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
           <PlayerAvatar
             name={profile.name}
             image={profile.image}
-            className={`size-20 text-2xl ${profile.admin ? 'ring-2 ring-info/70 ring-offset-3 ring-offset-panel' : profile.supporter ? 'ring-2 ring-parchment/60 ring-offset-3 ring-offset-panel' : ''}`}
+            className={`size-20 text-2xl ${profile.admin ? 'ring-2 ring-admin/70 ring-offset-3 ring-offset-panel' : profile.supporter ? 'ring-2 ring-supporter/60 ring-offset-3 ring-offset-panel' : ''}`}
           />
         }
       />
