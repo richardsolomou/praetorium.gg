@@ -100,10 +100,11 @@ export function TerrainBoard({
             ))
         )}
         {deployment?.objectives.map((objective) => {
-          if (layout.geometry) return null
+          if (layout.geometry?.areas.some((area) => area.objective)) return null
           const homeZone = deployment.zones.find((zone) => pointInPolygon(objective, zone.points))
           return (
             <g key={`${objective.x}-${objective.y}`} transform={`translate(${objective.x} ${objective.y})`}>
+              <title>Objective marker</title>
               <circle
                 r={homeZone ? '1.18' : '1'}
                 className={homeZone ? `fill-void ${deploymentZoneStroke(homeZone.player)}` : 'fill-void stroke-bone'}
@@ -119,7 +120,13 @@ export function TerrainBoard({
       ) : null}
       {layout.geometry ? (
         <g transform={upright}>
-          <TerrainAnnotations geometry={layout.geometry} detailed={detailed} flipped={flipped} zones={deployment?.zones ?? []} />
+          <TerrainAnnotations
+            geometry={layout.geometry}
+            detailed={detailed}
+            flipped={flipped}
+            zones={deployment?.zones ?? []}
+            objectives={deployment?.objectives ?? []}
+          />
         </g>
       ) : null}
     </svg>
@@ -185,18 +192,20 @@ function TerrainAnnotations({
   detailed,
   flipped,
   zones,
+  objectives,
 }: {
   geometry: TerrainGeometry
   detailed: boolean
   flipped: boolean
   zones: { player: string; points: { x: number; y: number }[] }[]
+  objectives: { x: number; y: number }[]
 }) {
   return (
     <>
       {detailed
         ? geometry.areas.flatMap((area) =>
             area.markers.map((marker) => {
-              const position = terrainMarkerPosition(area, marker)
+              const position = terrainMarkerPosition(area, marker, objectives)
               return (
                 <g key={`${area.id}-${marker.label}`} transform={`translate(${position.x} ${position.y}) rotate(${flipped ? -90 : 90})`}>
                   <circle r="1" className="fill-raised stroke-bone" strokeWidth=".18" />

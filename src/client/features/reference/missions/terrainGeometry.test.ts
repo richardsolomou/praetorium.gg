@@ -111,6 +111,12 @@ describe('placing a marker in a terrain area', () => {
     expect(objectiveTerrainMarkers({ board, areas: [area] })).toEqual([{ key: 'area', position: { x: 5, y: 5 } }])
   })
 
+  it('keeps a terrain label clear of a deployment objective', () => {
+    const area = openArea(square(0, 0, 10), [{ label: 'AB', position: { x: 5, y: 5 } }])
+    const placed = terrainMarkerPosition(area, area.markers[0]!, [{ x: 5, y: 5 }])
+    expect(Math.hypot(placed.x - 5, placed.y - 5)).toBeGreaterThanOrEqual(2.4)
+  })
+
   it('ignores letters when selecting objectives and keeps an unlettered objective', () => {
     const lettered = openArea(square(0, 0, 10), [{ label: 'AB', position: { x: 5, y: 5 } }])
     const unlettered = { ...openArea(square(20, 0, 10)), id: 'generator', objective: { position: { x: 26, y: 4 }, group: null } }

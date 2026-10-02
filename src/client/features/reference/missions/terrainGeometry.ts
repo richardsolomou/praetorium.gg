@@ -28,7 +28,11 @@ export function objectiveTerrainMarkers(geometry: TerrainGeometry) {
   })
 }
 
-export function terrainMarkerPosition(area: TerrainGeometry['areas'][number], marker: TerrainGeometry['areas'][number]['markers'][number]) {
+export function terrainMarkerPosition(
+  area: TerrainGeometry['areas'][number],
+  marker: TerrainGeometry['areas'][number]['markers'][number],
+  objectives: { x: number; y: number }[] = [],
+) {
   const centre = polygonCentroid(area.points)
   const offsets = [
     { x: 0, y: 0 },
@@ -44,14 +48,24 @@ export function terrainMarkerPosition(area: TerrainGeometry['areas'][number], ma
   return (
     offsets
       .map((offset) => ({ x: marker.position.x + offset.x, y: marker.position.y + offset.y }))
-      .find((candidate) => markerPositionIsOpen(area, candidate, 1.05)) ??
-    (markerPositionIsOpen(area, centre, 1.05) ? centre : marker.position)
+      .find((candidate) => markerPositionIsOpen(area, candidate, 1.05, objectives)) ??
+    (markerPositionIsOpen(area, centre, 1.05, objectives) ? centre : marker.position)
   )
 }
 
-function markerPositionIsOpen(area: TerrainGeometry['areas'][number], candidate: { x: number; y: number }, clearance: number) {
+function markerPositionIsOpen(
+  area: TerrainGeometry['areas'][number],
+  candidate: { x: number; y: number },
+  clearance: number,
+  objectives: { x: number; y: number }[],
+) {
   if (!pointInPolygon(candidate, area.points)) return false
-  if (area.objective && Math.hypot(candidate.x - area.objective.position.x, candidate.y - area.objective.position.y) < 2.4) return false
+  if (
+    [...objectives, ...(area.objective ? [area.objective.position] : [])].some(
+      (objective) => Math.hypot(candidate.x - objective.x, candidate.y - objective.y) < 2.4,
+    )
+  )
+    return false
   if (area.parts.some((part) => part.roof?.length && pointInPolygon(candidate, part.roof))) return false
   return area.parts.every((part) =>
     part.walls.every((wall) =>

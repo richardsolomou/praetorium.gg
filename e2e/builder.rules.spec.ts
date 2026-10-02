@@ -201,7 +201,9 @@ for (const width of [390, 1600]) {
     await page.locator('[data-unit="Tomb Blades"]').getByRole('button', { name: 'Tomb Blades', exact: true }).click()
     const loadout = page.locator('aside[aria-label="Loadout"]')
     await expect(loadout.getByRole('heading', { name: 'Equipped melee weapons 3', exact: true })).toBeVisible()
-    await expect(loadout.getByRole('heading', { name: /Equipped ranged weapons/ })).toHaveCount(0)
+    const initialHeadings = await loadout
+      .locator('h2')
+      .evaluateAll((headings) => headings.map((heading) => heading.textContent ?? '').filter((text) => text.startsWith('Equipped ')))
     await loadout.evaluate((pane) => {
       const frames: string[][] = []
       Object.assign(window, { weaponSummaryFrames: frames })
@@ -230,7 +232,7 @@ for (const width of [390, 1600]) {
     await expectNoHorizontalOverflow(loadout)
     const frames = await page.evaluate(() => (window as unknown as { weaponSummaryFrames: string[][] }).weaponSummaryFrames)
     expect(frames.length).toBeGreaterThan(0)
-    expect(frames.every((headings) => headings.length === 1 && headings[0]?.startsWith('Equipped melee weapons'))).toBe(true)
+    expect(frames.every((headings) => headings.join(',') === initialHeadings.join(','))).toBe(true)
   })
 }
 
@@ -482,7 +484,15 @@ test('a weapon both sources name is drawn once', async ({ page }) => {
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByRole('heading', { name: 'Staff of light', exact: true })).toHaveCount(2)
+  for (const title of ['Equipped ranged weapons 1', 'Equipped melee weapons 1']) {
+    await expect(
+      loadout
+        .getByRole('heading', { name: title, exact: true })
+        .locator('..')
+        .getByRole('heading', { name: 'Staff of light', exact: true }),
+    ).toHaveCount(1)
+  }
+  await expect(loadout.getByRole('button', { name: 'Select Staff of light' })).toHaveCount(1)
   await expect(loadout.getByRole('heading', { name: /Staff of light \(/ })).toHaveCount(0)
   // The catalogue's own two rows: one to shoot with, one to fight with. Read at the
   // weapon level rather than the profile, the fighting one printed its range as

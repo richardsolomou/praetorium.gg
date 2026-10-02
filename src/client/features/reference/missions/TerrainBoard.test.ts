@@ -165,9 +165,15 @@ describe('source-backed battlefield annotations', () => {
     expect(markup).not.toContain('translate(1 1)')
   })
 
-  it('does not substitute deployment objectives when terrain has no objectives', () => {
+  it('shows deployment objectives when terrain has no objectives', () => {
     const markup = renderBoard({ board, areas: [terrainArea('area')] }, true)
     expect(markup).not.toContain('<title>Objective terrain</title>')
+    expect(markup).toContain('translate(1 1)')
+  })
+
+  it('does not repeat objectives already placed by the terrain source', () => {
+    const markup = renderBoard({ board, areas: [{ ...terrainArea('area'), objective: { position: { x: 25, y: 20 }, group: null } }] }, true)
+    expect(markup).toContain('<title>Objective terrain</title>')
     expect(markup).not.toContain('translate(1 1)')
   })
 

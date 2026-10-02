@@ -47,12 +47,16 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
         <span className="flex items-center gap-2">
           <span className="h-1 w-4 bg-discarded" /> Light terrain
         </span>
-        <span className="flex items-center gap-2">
-          <span className="size-3 rounded-full border border-bone bg-void" /> Objective
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="h-px w-4 bg-side-a" /> Setup distance
-        </span>
+        {layout.geometry?.areas.some((area) => area.objective) || deployment?.objectives.length ? (
+          <span className="flex items-center gap-2">
+            <span className="size-3 rounded-full border border-bone bg-void" /> Objective
+          </span>
+        ) : null}
+        {layout.geometry?.areas.some((area) => area.measurements.length) ? (
+          <span className="flex items-center gap-2">
+            <span className="h-px w-4 bg-side-a" /> Setup distance
+          </span>
+        ) : null}
         <span>
           {layout.geometry ? `${layout.geometry.board.width}″ × ${layout.geometry.board.height}″ board · ` : ''}Grid: 1″ · heavier line
           every 5″

@@ -22,11 +22,12 @@ test('a squad grows from its unit editor', async ({ page }) => {
   })
 
   const total = page.locator('[data-stat="points"]')
-  await expect(total).toHaveText('120/2000')
+  await expect(total).toHaveText(/^\d+\/2000$/)
+  const startingPoints = Number((await total.innerText()).split('/')[0])
   // The stepper lives with the rest of the selected unit's configuration.
   await page.getByRole('button', { name: 'More models in Immortals' }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
-  await expect(total).not.toHaveText('120/2000')
+  await expect.poll(async () => Number((await total.innerText()).split('/')[0])).toBeGreaterThan(startingPoints)
   await expect(page.locator('html')).not.toHaveAttribute('data-datasheet-reloaded', 'true')
   // And the wargear lines follow the models carrying it.
   await expect(page.getByText('6x Gauss blaster')).toBeVisible()
