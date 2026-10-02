@@ -2,13 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { checkGithubSponsorship } from '../../../server/functions'
 import { SPONSOR } from '../../projectLinks'
-import { accountMethodsQuery, githubSponsorshipQuery } from '../../queries'
+import { githubSponsorshipQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 
 const SPONSORSHIP_TEXT = {
-  public: 'Your profile shows the supporter badge. Thank you for helping keep Praetorium running.',
-  private: 'Your sponsorship is private on GitHub, so your profile does not show a badge. Make it public on GitHub to show one.',
-  none: 'This GitHub account is not sponsoring the project. Sponsors get a supporter badge on their profile and nothing else changes.',
+  public: 'Public sponsor. Your profile shows the Supporter badge.',
+  private: 'Private sponsor. Make your sponsorship public on GitHub to show the badge.',
+  none: 'No active sponsorship found. Sponsors get a Supporter badge on their profile.',
 }
 
 export function GithubSupporter() {
@@ -17,7 +17,6 @@ export function GithubSupporter() {
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: githubSponsorshipQuery().queryKey }),
-      queryClient.invalidateQueries({ queryKey: accountMethodsQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: ['user-profile'] }),
     ])
   }
@@ -25,42 +24,31 @@ export function GithubSupporter() {
   if (!status?.available) return null
   const { linked } = status
   return (
-    <section data-github-supporter className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
-      <div>
-        <p className="rubric border-b border-edge pb-2">Supporter</p>
-        <h2 className="mt-4 text-base">GitHub Sponsors</h2>
-        <p className="mt-1 text-sm text-dim">
+    <div data-github-supporter className="space-y-2 border-l-2 border-info/40 py-1 pl-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-dim">
           {linked ? (
             SPONSORSHIP_TEXT[status.sponsorship ?? 'none']
           ) : (
             <>
-              <a
-                href={SPONSOR}
-                className="text-info underline-offset-4 hover:text-parchment hover:underline"
-                rel="noreferrer noopener"
-                target="_blank"
-              >
-                Sponsors
-              </a>{' '}
-              who link GitHub under{' '}
-              <a href="#sign-in-methods" className="text-info underline-offset-4 hover:underline">
-                Sign-in methods
-              </a>{' '}
-              get a supporter badge on their profile.
+              Link GitHub to check your sponsorship.{' '}
+              <a href={SPONSOR} className="text-info underline-offset-4 hover:underline" rel="noreferrer noopener" target="_blank">
+                Sponsor Praetorium
+              </a>
             </>
           )}
         </p>
+        {linked ? (
+          <Button type="button" variant="ghost" size="sm" disabled={check.isPending} onClick={() => check.mutate()}>
+            {check.isPending ? 'Checking…' : 'Check again'}
+          </Button>
+        ) : null}
       </div>
-      {linked ? (
-        <Button type="button" variant="outline" size="sm" disabled={check.isPending} onClick={() => check.mutate()}>
-          {check.isPending ? 'Checking…' : 'Check again'}
-        </Button>
-      ) : null}
       {check.error ? (
         <p role="alert" className="text-sm text-destructive">
           {errorMessage(check.error)}
         </p>
       ) : null}
-    </section>
+    </div>
   )
 }

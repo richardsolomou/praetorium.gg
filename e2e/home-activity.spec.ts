@@ -125,7 +125,7 @@ test('offers native notification permission on home and retries device setup', a
   })
   await signUp(page, uniqueName('Notified'))
   await page.goto('/profile')
-  await expect(page.getByRole('button', { name: 'Allow on this device' })).toBeVisible()
+  await expect(page.getByText('Notifications on your phone')).toHaveCount(0)
   await expect(page.getByRole('switch', { name: 'Send notifications to my devices' })).toHaveCount(0)
   await page.goto('/')
 
@@ -150,9 +150,8 @@ test('offers native notification permission on home and retries device setup', a
   await offer.getByRole('button', { name: 'Retry notifications' }).click()
   await expect(offer).toHaveCount(0)
   await page.goto('/profile')
-  await expect(page.getByText('Notifications are allowed on this device.')).toBeVisible()
+  await expect(page.getByText('Notifications on your phone')).toHaveCount(0)
   await expect(page.getByRole('switch', { name: 'Send notifications to my devices' })).toHaveCount(0)
-  await page.screenshot({ path: 'test-results/profile-notifications.png', fullPage: true })
 })
 
 test('omits the games shelf when the player has no active game', async ({ page }) => {

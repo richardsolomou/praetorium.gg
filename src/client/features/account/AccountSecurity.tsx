@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, MailCheck, ShieldCheck, Trash2 } from 'lucide-react'
 import { posthog } from 'posthog-js'
@@ -16,6 +16,7 @@ import { authClient } from '../../authClient'
 import { hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { accountMethodsQuery, meQuery } from '../../queries'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from './AuthMethodIcon'
+import { GithubSupporter } from './GithubSupporter'
 import { SettingRow } from '../../components/SettingRow'
 import { PageState } from '../../components/PageState'
 
@@ -190,45 +191,47 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
               }
             />
             {SOCIAL_PROVIDERS.filter((provider) => available.has(provider) || linked.has(provider)).map((provider) => (
-              <MethodRow
-                key={provider}
-                method={provider}
-                name={SOCIAL_AUTH_PROVIDER_NAMES[provider]}
-                linked={linked.has(provider)}
-                available={available.has(provider)}
-                action={
-                  linked.has(provider) ? (
-                    <Button type="button" variant="ghost" size="sm" disabled={!canRemove(provider)} onClick={() => setRemoving(provider)}>
-                      Unlink
-                    </Button>
-                  ) : provider === 'github' && !githubAuthAvailable ? (
-                    <span className="text-xs text-faint">Update the app to link GitHub.</span>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={async () => {
-                        posthog.capture('sign_in_method_linking_started', { provider })
-                        setLinkError(false)
-                        if (hasNativeAuthBridge()) {
-                          const token = await authClient.oneTimeToken.generate()
-                          if (token.error || !token.data?.token) {
-                            if (token.error) posthog.captureException(token.error, { operation: 'native_auth_link_start' })
-                            setLinkError(true)
-                            return
+              <Fragment key={provider}>
+                <MethodRow
+                  method={provider}
+                  name={SOCIAL_AUTH_PROVIDER_NAMES[provider]}
+                  linked={linked.has(provider)}
+                  available={available.has(provider)}
+                  action={
+                    linked.has(provider) ? (
+                      <Button type="button" variant="ghost" size="sm" disabled={!canRemove(provider)} onClick={() => setRemoving(provider)}>
+                        Unlink
+                      </Button>
+                    ) : provider === 'github' && !githubAuthAvailable ? (
+                      <span className="text-xs text-faint">Update the app to link GitHub.</span>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          posthog.capture('sign_in_method_linking_started', { provider })
+                          setLinkError(false)
+                          if (hasNativeAuthBridge()) {
+                            const token = await authClient.oneTimeToken.generate()
+                            if (token.error || !token.data?.token) {
+                              if (token.error) posthog.captureException(token.error, { operation: 'native_auth_link_start' })
+                              setLinkError(true)
+                              return
+                            }
+                            if (await requestNativeAuth({ action: 'link', provider, next: '/profile', sessionToken: token.data.token }))
+                              return
                           }
-                          if (await requestNativeAuth({ action: 'link', provider, next: '/profile', sessionToken: token.data.token }))
-                            return
-                        }
-                        void authClient.linkSocial({ provider, callbackURL: '/profile', errorCallbackURL: '/profile' })
-                      }}
-                    >
-                      Link
-                    </Button>
-                  )
-                }
-              />
+                          void authClient.linkSocial({ provider, callbackURL: '/profile', errorCallbackURL: '/profile' })
+                        }}
+                      >
+                        Link
+                      </Button>
+                    )
+                  }
+                />
+                {provider === 'github' ? <GithubSupporter /> : null}
+              </Fragment>
             ))}
             {linkError ? (
               <p role="alert" className="text-sm text-destructive">

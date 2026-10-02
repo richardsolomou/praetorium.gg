@@ -105,6 +105,19 @@ test('profile security settings reserve their content before hydration', async (
   await context.close()
 })
 
+test('profile keeps account methods without a notifications section', async ({ page }) => {
+  await signUp(page, uniqueName('Account Methods'))
+  await page.goto('/profile')
+
+  await expect(page.locator('#sign-in-methods')).toBeVisible()
+  await expect(page.getByText('Notifications on your phone')).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/profile-settings.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/profile-settings-phone.png', fullPage: true })
+})
+
 test('failed security settings show a retry state', async ({ page }) => {
   await signUp(page, uniqueName('Failed Profile'))
   await page.goto('/')
