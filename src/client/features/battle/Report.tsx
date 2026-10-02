@@ -78,9 +78,11 @@ export function Report({
         <ToggleGroupItem value="cp">CP only</ToggleGroupItem>
       </ToggleGroup>
       <div
+        data-battle-report-scroll
         ref={scroll}
         onScroll={(event) => (scrollTop.current = event.currentTarget.scrollTop)}
         className="mt-3 h-72 overflow-x-hidden overflow-y-auto pr-1"
+        style={{ contain: 'layout' }}
       >
         {visible.length ? (
           <ol className="w-full space-y-1">
