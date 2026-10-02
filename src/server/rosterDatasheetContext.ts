@@ -1,7 +1,18 @@
 import { attachedUnit } from '../core/attach'
+import type { Selection } from '../core/evaluate'
 import { buildUnit, type RosterPick } from '../core/roster'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { rosterDetachments } from './rosterDetachments'
+
+/** One pick built the way the roster around it builds it. */
+export function buildRosterPick(loaded: LoadedCatalogue, catalogueId: string, detachments: readonly Selection[], pick: RosterPick) {
+  return buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
+    primaryCatalogueId: catalogueId,
+    roster: detachments,
+    spreads: pick.spreads,
+    toggles: pick.toggles,
+  })
+}
 
 export function rosterDatasheetContext(
   loaded: LoadedCatalogue,
@@ -18,12 +29,7 @@ export function rosterDatasheetContext(
   if (data.pickIndex === null) return undefined
   const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
   const builtUnits = data.picks.flatMap((pick, index) => {
-    const unit = buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
-      primaryCatalogueId: data.catalogueId,
-      roster: detachments,
-      spreads: pick.spreads,
-      toggles: pick.toggles,
-    })
+    const unit = buildRosterPick(loaded, data.catalogueId, detachments, pick)
     return unit ? [{ index, selection: unit.selection, models: unit.size.models }] : []
   })
   const selected = builtUnits.findIndex((unit) => unit.index === data.pickIndex)

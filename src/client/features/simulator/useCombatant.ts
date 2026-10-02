@@ -1,11 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useState } from 'react'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
 import { combatSurvivors, combatSurvivorSheet } from '../../../core/combatSurvivors'
 import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatRuleChoices, combatRuleDefault } from '../../../core/combatRules'
-import { combatantDatasheetQuery, priceQuery } from '../../queries'
+import { combatLoadoutCheckQuery, combatLoadoutsQuery, combatantDatasheetQuery, priceQuery } from '../../queries'
+import type { CheckLoadouts } from './loadoutSearch'
 import { useSettled } from '../../useSettled'
 import { survivingUnits } from '../rosters/builder/pricePlaceholder'
 import { pickEditor, usePicks } from '../rosters/builder/usePicks'
@@ -68,6 +69,18 @@ export function useCombatant(roster?: CombatRoster) {
     enabled: Boolean(entryId && entryId === settled[pickIndex]?.entryId),
     placeholderData: (previous, query) =>
       query?.queryKey[1] === catalogueId && query.queryKey[2] === entryId && query.queryKey[5] === pickIndex ? previous : undefined,
+  })
+  // A battle fields frozen loadouts, so there is nothing to choose between.
+  const loadoutContext =
+    !roster?.battle && entryId && entryId === settled[pickIndex]?.entryId ? { catalogueId, detachmentIds, picks: settled, pickIndex } : null
+  const queryClient = useQueryClient()
+  const checkLoadouts = useCallback<CheckLoadouts>(
+    (context, candidates) => queryClient.query(combatLoadoutCheckQuery(context, candidates)),
+    [queryClient],
+  )
+  const loadouts = useQuery({
+    ...combatLoadoutsQuery(loadoutContext ?? { catalogueId: '', detachmentIds: [], picks: [], pickIndex: 0 }),
+    enabled: Boolean(loadoutContext),
   })
   const battleUnit = roster?.battle?.units[pickIndex]
   const currentHealth = health[identity] ?? battleUnit
@@ -136,6 +149,21 @@ export function useCombatant(roster?: CombatRoster) {
             rules: activeRules,
           }
         : null,
+    loadouts: loadoutContext
+      ? {
+          context: loadoutContext,
+          space: loadouts.data,
+          check: checkLoadouts,
+          onUse: (chosen: RosterPick) =>
+            picks.setPicks((current) =>
+              current.map((entry, at) =>
+                at === pickIndex
+                  ? { ...entry, models: chosen.models ?? entry.models, choices: chosen.choices, spreads: chosen.spreads }
+                  : entry,
+              ),
+            ),
+        }
+      : undefined,
     edit: pickEditor(picks.setPicks, { catalogueId, units: price.data?.units ?? [] }, picks.allocateKey),
     selectRosterUnit,
     selectUnit: (catalogue: string, id: string) => {

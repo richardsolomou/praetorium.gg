@@ -21,7 +21,16 @@ export function sameWargear(one: string, other: string) {
   return wargearKey(one) === wargearKey(other)
 }
 
-export const wargearKey = (name: string, includeUnmarkedModes = false) => routeSlug(wargearBaseName(name, includeUnmarkedModes))
+const keys = new Map<string, string>()
+/** Catalogue names are a bounded set, and matching runs for every weapon of every model. */
+export const wargearKey = (name: string, includeUnmarkedModes = false) => {
+  let key = keys.get(name)
+  if (key === undefined) {
+    key = routeSlug(wargearBaseName(name, includeUnmarkedModes))
+    keys.set(name, key)
+  }
+  return key
+}
 
 /** The shared name without a profile mode, aura label, or source marker. */
 export const wargearBaseName = (name: string, includeUnmarkedModes = false) => {

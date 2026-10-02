@@ -18,11 +18,14 @@ import { mutationRpc, rpc } from '../rpc'
 import { rosterLabel } from '../../core/rosterLabel'
 import { rosterDatasheetContext } from '../rosterDatasheetContext'
 import { rosterCombatant } from '../rosterCombatRules'
+import { checkCombatLoadouts as checkLoadouts, combatLoadoutSpace } from '../combatLoadouts'
 import { currentUserId } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { selectedBattleDetachmentData } from '../battleDetachmentData'
 import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
 import {
+  combatLoadoutCheckSchema,
+  combatLoadoutSchema,
   datasheetSchema,
   datasheetSlugSchema,
   detachmentRulesSchema,
@@ -181,6 +184,26 @@ export const combatantDatasheet = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const loaded = await app().catalogueFor(data.catalogueId)
       return loaded ? rosterCombatant(loaded, await app().rulesFor(), data) : null
+    }),
+  )
+
+/** Each weapon choice of a pick, measured once so the browser can compare loadouts against any target. */
+export const combatLoadouts = createServerFn({ method: 'POST' })
+  .validator(combatLoadoutSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const loaded = await app().catalogueFor(data.catalogueId)
+      return loaded ? combatLoadoutSpace(loaded, data) : null
+    }),
+  )
+
+/** Legality, points, and real carriers for the loadouts the browser ranked highest. */
+export const checkCombatLoadouts = createServerFn({ method: 'POST' })
+  .validator(combatLoadoutCheckSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const loaded = await app().catalogueFor(data.catalogueId)
+      return loaded ? checkLoadouts(loaded, data) : null
     }),
   )
 

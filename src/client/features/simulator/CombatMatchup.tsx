@@ -19,28 +19,25 @@ import {
   type CombatResult,
 } from '../../../core/combat'
 import type { CombatCarrier } from '../../../core/combatLoadout'
-import { combatPlan, combatTarget } from '../../../core/combatProfiles'
+import { combatTarget } from '../../../core/combatProfiles'
+import { combatAttackInput, combatAttacks } from '../../../core/combatScenario'
 import {
   adjustCombatTarget,
-  adjustCombatWeapon,
   combineAttackAdjustments,
   combineWeaponAdjustments,
   type TargetAdjustment,
   type WeaponAdjustment,
 } from '../../../core/combatAdjustments'
 import { wargearKey } from '../../../core/wargear'
-import {
-  combatRuleDefences,
-  combatRuleOptions,
-  combatRuleProfiles,
-  combatRuleWeapons,
-  combatRuleMortals,
-  type ActiveCombatRule,
-} from '../../../core/combatRules'
+import { combatRuleDefences, combatRuleOptions, type ActiveCombatRule } from '../../../core/combatRules'
 import { CombatRuleLabel } from './CombatRuleLabel'
 import { Chip, Choice } from './CombatControls'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CombatEstimate } from './CombatEstimate'
+import { LoadoutSuggestions } from './LoadoutSuggestions'
+import { useLoadoutSearch, type CheckLoadouts, type LoadoutContext } from './loadoutSearch'
+import type { LoadoutSpace } from '../../../core/combatLoadouts'
+import type { RosterPick } from '../../../core/roster'
 
 function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][number]; count: number }[]) {
   const groups = new Map<string, Datasheet['profiles']>()
@@ -132,6 +129,7 @@ export function CombatMatchup({
   defenderControl,
   buffs,
   inDialog = false,
+  loadouts,
 }: {
   entryPoint?: CombatEntryPoint
   attacker: CombatantSnapshot | null
@@ -142,6 +140,8 @@ export function CombatMatchup({
   defenderControl?: ReactNode
   buffs?: ReactNode
   inDialog?: boolean
+  /** The attacker's weapon choices, offered when its loadout can change in this matchup. */
+  loadouts?: { context: LoadoutContext; space: LoadoutSpace | null | undefined; check: CheckLoadouts; onUse: (pick: RosterPick) => void }
 }) {
   const [adjustments, setAdjustments] = useState<CombatAdjustments>({})
   const [preferences, setPreferences] = useState<Record<string, string>>({})
@@ -232,52 +232,32 @@ export function CombatMatchup({
       phase,
     }
   }
-  const attackSheet = attacker
-    ? combatRuleProfiles(attacker.sheet, attackRules, 'attacker', defender?.sheet.keywords ?? [], defenceRules)
+  const attacks = attacker
+    ? combatAttacks(attacker, { keywords: defender?.sheet.keywords ?? [], rules: defenceRules }, preferences, excludedWeapons)
     : null
-  const plans = {
-    ranged:
-      attacker && attackSheet
-        ? combatPlan(attackSheet, attacker.carriers, defender?.sheet.keywords ?? [], 'ranged', preferences, new Set(excludedWeapons.ranged))
-        : null,
-    melee:
-      attacker && attackSheet
-        ? combatPlan(attackSheet, attacker.carriers, defender?.sheet.keywords ?? [], 'melee', preferences, new Set(excludedWeapons.melee))
-        : null,
-  }
-  const baseAttack = (phase: Phase) => {
-    const plan = plans[phase]
-    if (!attacker || !plan || plan.errors.length) return null
-    const mortalWounds = combatRuleMortals(attackRules, phase, defender?.sheet.keywords ?? [], plan.active, attacker.models)
-    const weapons = combatRuleWeapons(
-      attacker.sheet,
-      combatRuleWeapons(attacker.sheet, plan.active, attackRules, 'attacker', phase, defender?.sheet.keywords ?? []).map(
-        (weapon, index) => ({ weapon, count: weapon.count, profile: plan.active[index]!.profile }),
-      ),
-      defenceRules,
-      'defender',
-      phase,
-      attacker.sheet.keywords,
-    )
-    return { weapons, mortalWounds }
-  }
-  const baseAttacks = { ranged: baseAttack('ranged'), melee: baseAttack('melee') }
+  const plans = { ranged: attacks?.ranged.plan ?? null, melee: attacks?.melee.plan ?? null }
   const scenario = (phase: Phase, settings: CombatAdjustments = adjustments): CombatInput | null => {
-    const plan = plans[phase]
-    const base = baseAttacks[phase]
     const defences = defencesIn(phase, settings)
-    return attacker && defences && !attacker.allocationRequired && plan && base && (plan.weapons.length || base.mortalWounds.length)
-      ? {
-          target: withExtraFeelNoPain(defences, settings),
-          weapons: base.weapons.map((weapon) =>
-            adjustCombatWeapon(weapon, combineWeaponAdjustments(settings.weapons?.all ?? {}, settings.weapons?.[phase] ?? {})),
-          ),
-          options: options(phase, settings),
-          ...(base.mortalWounds.length ? { mortalWounds: base.mortalWounds } : {}),
-        }
+    return attacks && !attacker?.allocationRequired
+      ? combatAttackInput(
+          attacks[phase],
+          defences && withExtraFeelNoPain(defences, settings),
+          options(phase, settings),
+          combineWeaponAdjustments(settings.weapons?.all ?? {}, settings.weapons?.[phase] ?? {}),
+        )
       : null
   }
   const scenarios: CombatRequest = { ranged: scenario('ranged'), melee: scenario('melee') }
+  const phaseSetup = (phase: Phase) => {
+    const defences = defencesIn(phase)
+    return defences
+      ? {
+          target: withExtraFeelNoPain(defences),
+          options: options(phase),
+          adjustment: combineWeaponAdjustments(adjustments.weapons?.all ?? {}, adjustments.weapons?.[phase] ?? {}),
+        }
+      : null
+  }
   const modifierChoiceHasEffect = (
     scope: Scope,
     source: 'attack' | 'weapon' | 'target' | 'feelNoPain',
@@ -444,6 +424,25 @@ export function CombatMatchup({
     }
     return stop
   }, [requestKey, pending, failed, retry, entryPoint])
+  // After the estimate's effect, so the matchup's own calculation starts first.
+  const found = useLoadoutSearch({
+    context: loadouts?.context ?? null,
+    space: loadouts?.space,
+    check: loadouts?.check ?? null,
+    scoring:
+      attacker && defender && !attacker.allocationRequired && !pending && !failed
+        ? {
+            sheet: attacker.sheet,
+            models: attacker.models,
+            rules: attackRules,
+            opponent: { keywords: defender.sheet.keywords, rules: defenceRules },
+            preferences,
+            excluded: excludedWeapons,
+            phases: { ranged: phaseSetup('ranged'), melee: phaseSetup('melee') },
+          }
+        : null,
+    expected: scenarios,
+  })
   const change = <K extends keyof CombatOptions>(scope: Scope, name: K, value: CombatOptions[K] | undefined) =>
     setAdjustments((current) => ({ ...current, [scope]: { ...current[scope], [name]: value } }))
   const changeWeapon = <K extends keyof WeaponAdjustment>(scope: Scope, name: K, value: WeaponAdjustment[K]) =>
@@ -677,6 +676,9 @@ export function CombatMatchup({
             )
           })}
         </div>
+        {found && defender && loadouts ? (
+          <LoadoutSuggestions loadouts={found} defender={defender.sheet.name} disabled={pending || updating} onUse={loadouts.onUse} />
+        ) : null}
         {buffs ?? (
           <div className="mt-4 grid gap-4 @xl:grid-cols-2">
             {[

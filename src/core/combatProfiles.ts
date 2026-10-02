@@ -75,115 +75,133 @@ export function combatTarget(
     : refuse('This unit has missing or unsupported defensive characteristics.')
 }
 
+const parsedWeapons = new Map<string, { weapon: CombatWeapon; unsupported: string[]; valid: boolean }>()
+
+/** A weapon profile's characteristics and abilities, which depend on everything but how many are carried. */
+function parsedWeapon(profile: Profile, targetKeywords: readonly string[], phase: CombatInput['options']['phase']) {
+  const key = JSON.stringify([phase, targetKeywords, profile.name, profile.values])
+  const cached = parsedWeapons.get(key)
+  if (cached) return cached
+  const unsupported: string[] = []
+  const baseSkill = integer(
+    profile.values.find((entry) => entry.kind === (phase === 'ranged' ? 'ballistic-skill' : 'weapon-skill'))?.baseValue,
+  )
+  const weapon: CombatWeapon = {
+    count: 1,
+    ...(baseSkill ? { baseSkill } : {}),
+    attacks: diceExpression(value(profile, 'attacks') ?? '') ?? { dice: 0, sides: 6, bonus: 0 },
+    skill: integer(value(profile, phase === 'ranged' ? 'ballistic-skill' : 'weapon-skill')) ?? 0,
+    strength: integer(value(profile, 'strength')) ?? 0,
+    ap: integer(value(profile, 'armour-penetration')) ?? 1,
+    damage: diceExpression(value(profile, 'damage') ?? '') ?? { dice: 0, sides: 6, bonus: 0 },
+    torrent: false,
+    lethal: false,
+    sustained: 0,
+    devastating: false,
+    criticalWound: 6,
+    twinLinked: false,
+    ignoresCover: false,
+    psychic: false,
+    blast: 0,
+    rapidFire: 0,
+    melta: 0,
+    heavy: false,
+    lance: false,
+  }
+  const seen = new Set<string>()
+  for (const written of (value(profile, 'keywords') ?? '')
+    .split(/,|;/)
+    .map((part) => part.trim())
+    .filter((part) => part && part !== '-')) {
+    const ability = combatKeyword(written)
+    if (!ability) {
+      unsupported.push(written)
+      continue
+    }
+    if (!combatKeywordApplies(ability, targetKeywords)) continue
+    const { kind } = ability
+    if (seen.has(kind)) {
+      if (kind !== 'close-quarters') unsupported.push(`${written} (multiple instances)`)
+      continue
+    }
+    seen.add(kind)
+    switch (kind) {
+      case 'torrent':
+        weapon.torrent = true
+        weapon.skill ||= 2
+        break
+      case 'lethal hits':
+        weapon.lethal = true
+        break
+      case 'sustained hits':
+        weapon.sustained = ability.amount!
+        break
+      case 'devastating wounds':
+        weapon.devastating = true
+        break
+      case 'twin-linked':
+        weapon.twinLinked = true
+        break
+      case 'ignores cover':
+        weapon.ignoresCover = true
+        break
+      case 'indirect fire':
+        weapon.indirectFire = true
+        break
+      case 'psychic':
+        weapon.psychic = true
+        break
+      case 'blast':
+        weapon.blast = Number(ability.amount)
+        break
+      case 'cleave':
+        weapon.cleave = Number(ability.amount)
+        break
+      case 'one shot':
+        weapon.oneShot = true
+        break
+      case 'rapid fire':
+        weapon.rapidFire = ability.amount!
+        break
+      case 'melta':
+        weapon.melta = ability.amount!
+        break
+      case 'heavy':
+        weapon.heavy = true
+        break
+      case 'lance':
+        weapon.lance = true
+        break
+      case 'anti':
+        weapon.criticalWound = ability.critical!
+        break
+      case 'assault':
+      case 'close-quarters':
+      case 'extra attacks':
+      case 'hazardous':
+      case 'precision':
+        break
+    }
+  }
+  const parsed = combatSchema.shape.weapons.element.safeParse(weapon)
+  const result = {
+    weapon,
+    unsupported,
+    valid: parsed.success && weapon.attacks.dice + weapon.attacks.bonus > 0 && weapon.damage.dice + weapon.damage.bonus > 0,
+  }
+  if (parsedWeapons.size > 5_000) parsedWeapons.clear()
+  parsedWeapons.set(key, result)
+  return result
+}
+
 export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[], phase: CombatInput['options']['phase']) {
-  const profiles = datasheetProfilesByKind(sheet)[phase]
-  return profiles.map((profile) => {
-    const unsupported: string[] = []
-    const baseSkill = integer(
-      profile.values.find((entry) => entry.kind === (phase === 'ranged' ? 'ballistic-skill' : 'weapon-skill'))?.baseValue,
-    )
-    const weapon: CombatWeapon = {
-      count: profile.count ?? 0,
-      ...(baseSkill ? { baseSkill } : {}),
-      attacks: diceExpression(value(profile, 'attacks') ?? '') ?? { dice: 0, sides: 6, bonus: 0 },
-      skill: integer(value(profile, phase === 'ranged' ? 'ballistic-skill' : 'weapon-skill')) ?? 0,
-      strength: integer(value(profile, 'strength')) ?? 0,
-      ap: integer(value(profile, 'armour-penetration')) ?? 1,
-      damage: diceExpression(value(profile, 'damage') ?? '') ?? { dice: 0, sides: 6, bonus: 0 },
-      torrent: false,
-      lethal: false,
-      sustained: 0,
-      devastating: false,
-      criticalWound: 6,
-      twinLinked: false,
-      ignoresCover: false,
-      psychic: false,
-      blast: 0,
-      rapidFire: 0,
-      melta: 0,
-      heavy: false,
-      lance: false,
-    }
-    const seen = new Set<string>()
-    for (const written of (value(profile, 'keywords') ?? '')
-      .split(/,|;/)
-      .map((part) => part.trim())
-      .filter((part) => part && part !== '-')) {
-      const ability = combatKeyword(written)
-      if (!ability) {
-        unsupported.push(written)
-        continue
-      }
-      if (!combatKeywordApplies(ability, targetKeywords)) continue
-      const { kind } = ability
-      if (seen.has(kind)) {
-        if (kind !== 'close-quarters') unsupported.push(`${written} (multiple instances)`)
-        continue
-      }
-      seen.add(kind)
-      switch (kind) {
-        case 'torrent':
-          weapon.torrent = true
-          weapon.skill ||= 2
-          break
-        case 'lethal hits':
-          weapon.lethal = true
-          break
-        case 'sustained hits':
-          weapon.sustained = ability.amount!
-          break
-        case 'devastating wounds':
-          weapon.devastating = true
-          break
-        case 'twin-linked':
-          weapon.twinLinked = true
-          break
-        case 'ignores cover':
-          weapon.ignoresCover = true
-          break
-        case 'indirect fire':
-          weapon.indirectFire = true
-          break
-        case 'psychic':
-          weapon.psychic = true
-          break
-        case 'blast':
-          weapon.blast = Number(ability.amount)
-          break
-        case 'cleave':
-          weapon.cleave = Number(ability.amount)
-          break
-        case 'one shot':
-          weapon.oneShot = true
-          break
-        case 'rapid fire':
-          weapon.rapidFire = ability.amount!
-          break
-        case 'melta':
-          weapon.melta = ability.amount!
-          break
-        case 'heavy':
-          weapon.heavy = true
-          break
-        case 'lance':
-          weapon.lance = true
-          break
-        case 'anti':
-          weapon.criticalWound = ability.critical!
-          break
-        case 'assault':
-        case 'close-quarters':
-        case 'extra attacks':
-        case 'hazardous':
-        case 'precision':
-          break
-      }
-    }
-    const parsed = combatSchema.shape.weapons.element.safeParse(weapon)
-    const valid = parsed.success && weapon.attacks.dice + weapon.attacks.bonus > 0 && weapon.damage.dice + weapon.damage.bonus > 0
+  return datasheetProfilesByKind(sheet)[phase].map((profile) => {
+    const { weapon, unsupported, valid: characteristics } = parsedWeapon(profile, targetKeywords, phase)
+    const count = profile.count ?? 0
+    const valid = characteristics && Number.isInteger(count) && count >= 1 && count <= 100
     return {
       profile,
-      weapon: valid && !unsupported.length ? weapon : null,
+      weapon: valid && !unsupported.length ? { ...weapon, count } : null,
       error: unsupported.length
         ? `Unsupported: ${unsupported.join(', ')}.`
         : valid
