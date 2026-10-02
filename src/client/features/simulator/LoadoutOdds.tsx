@@ -99,8 +99,8 @@ export function useProfileNote(): ((weapon: { id: string; name: string }) => Rea
           phase={alone.phase}
           result={alone.result}
           best={alone.best}
-          prefix={`${alone.count}× alone`}
-          subject={`${alone.count} ${alone.count === 1 ? 'weapon' : 'weapons'} alone`}
+          prefix={`${alone.models} ${alone.models === 1 ? 'model' : 'models'}`}
+          subject={`${alone.models} ${alone.models === 1 ? 'model' : 'models'} with this weapon`}
           muted={Boolean(updating)}
         />
       </span>

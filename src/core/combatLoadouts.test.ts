@@ -160,9 +160,27 @@ describe('weapon profile odds', () => {
     )
     expect([modes.get('Frag')?.best, modes.get('Krak')?.best]).toEqual([false, true])
   })
+  it('names the models that carry a weapon', () => {
+    expect(odds.get('Boltgun')?.models).toBe(5)
+  })
+  it('counts a model carrying two of one weapon once', () => {
+    const twin = loadoutProfileOdds(
+      { carriers: [{ name: 'Gunslinger', models: 1, weapons: [{ name: 'Boltgun', count: 2 }] }], choices: [], weapons: [] },
+      {
+        sheet: { ...attacker, profiles: [weapon('Boltgun', 2)] },
+        models: 1,
+        rules: [],
+        opponent: { keywords: [], rules: [] },
+        preferences: {},
+        excluded: { ranged: [], melee: [] },
+        phases: { ranged: { target, options: DEFAULT_COMBAT_OPTIONS, adjustment: {} }, melee: null },
+      },
+    )
+    expect(twin.get('Boltgun')?.models).toBe(1)
+  })
   it('resolves a weapon the unit does not carry on one model', () => {
     expect(odds.get('Plasma gun')).toMatchObject({
-      count: 1,
+      models: 1,
       result: { meanDamage: expect.closeTo(2 * (4 / 6) * (3 / 6) * (3 / 6), 10) },
     })
   })
