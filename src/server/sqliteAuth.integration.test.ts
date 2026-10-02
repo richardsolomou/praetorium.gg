@@ -70,6 +70,48 @@ it('signs up, claims an administrator, and revokes its product session', async (
   expect(await auth.api.getSession({ headers })).toBeNull()
 })
 
+it.each([
+  ['http://127.0.0.1:3000', 'http://localhost:3000'],
+  ['http://localhost:3000', 'http://127.0.0.1:3000'],
+])('signs in from the other loopback hostname when APP_URL is %s', async (appUrl, browserOrigin) => {
+  const auth = authFor({ APP_URL: appUrl, AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' })
+  const email = `${randomUUID()}@example.com`
+  await auth.api.signUpEmail({ body: { email, password: 'password1234', name: 'Local player' } })
+  const response = await auth.handler(
+    new Request(`${appUrl}/api/auth/sign-in/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: browserOrigin, Cookie: 'existing=1' },
+      body: JSON.stringify({ email, password: 'password1234' }),
+    }),
+  )
+  expect(response.status).toBe(200)
+})
+
+it.each(['http://localhost:3001', 'https://example.com'])('rejects sign-in from %s for a local app', async (browserOrigin) => {
+  const appUrl = 'http://127.0.0.1:3000'
+  const auth = authFor({ APP_URL: appUrl, AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' })
+  const response = await auth.handler(
+    new Request(`${appUrl}/api/auth/sign-in/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: browserOrigin, Cookie: 'existing=1' },
+      body: JSON.stringify({ email: 'missing@example.com', password: 'password1234' }),
+    }),
+  )
+  expect(response.status).toBe(403)
+})
+
+it('does not trust loopback sign-in origins for a hosted app', async () => {
+  const auth = authFor({ APP_URL: 'https://praetorium.gg', AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' })
+  const response = await auth.handler(
+    new Request('https://praetorium.gg/api/auth/sign-in/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000', Cookie: 'existing=1' },
+      body: JSON.stringify({ email: 'missing@example.com', password: 'password1234' }),
+    }),
+  )
+  expect(response.status).toBe(403)
+})
+
 it('authorizes an MCP client with consent and resource-bound scopes', async () => {
   const auth = authFor({ APP_URL: 'https://praetorium.gg', AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' })
   const metadata = await auth.handler(new Request('https://praetorium.gg/.well-known/oauth-protected-resource/mcp'))

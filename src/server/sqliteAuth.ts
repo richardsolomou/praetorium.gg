@@ -53,6 +53,10 @@ type AuthOptions = {
 export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret: string, options: AuthOptions) {
   const environment = options.environment
   const authUrl = new URL('/api/auth', environment.APP_URL)
+  const alternateLoopbackOrigin =
+    authUrl.hostname === '127.0.0.1' || authUrl.hostname === 'localhost'
+      ? `${authUrl.protocol}//${authUrl.hostname === 'localhost' ? '127.0.0.1' : 'localhost'}${authUrl.port ? `:${authUrl.port}` : ''}`
+      : undefined
   const issuer = environment.SPACETIME_ISSUER ?? authUrl.toString()
   if (environment.SPACETIME_ISSUER) {
     const previewUrl = new URL(issuer)
@@ -250,7 +254,11 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     },
     trustedOrigins: trustedOrigins({
       trustForwardedHeaders: true,
-      configured: configuredAuthProviders(environment).includes('apple') ? [APPLE_AUTH_ORIGIN] : [],
+      configured: [
+        environment.APP_URL,
+        alternateLoopbackOrigin,
+        ...(configuredAuthProviders(environment).includes('apple') ? [APPLE_AUTH_ORIGIN] : []),
+      ],
     }),
     plugins: [
       admin({ adminRoles: ['admin'], defaultRole: 'user', allowImpersonatingAdmins: false, impersonationSessionDuration: 60 * 60 }),
