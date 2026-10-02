@@ -73,54 +73,6 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
 
   return (
     <div className="ph-no-capture grid gap-6 lg:grid-cols-2">
-      <section className="border border-edge bg-panel p-5 md:p-7">
-        <p className="rubric border-b border-edge pb-2">Two-factor authentication</p>
-        <div className="mt-4 flex items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center border border-edge bg-sunken text-parchment">
-            <ShieldCheck className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base">Authenticator app</h2>
-              {methodsPending ? (
-                <Skeleton className="h-5 w-24" />
-              ) : (
-                <span className={`chip ${me.twoFactorEnabled ? 'text-achieved' : 'text-dim'}`}>
-                  {me.twoFactorEnabled ? 'Enabled' : hasPassword ? 'Not set up' : 'Needs a password'}
-                </span>
-              )}
-            </div>
-            {methodsPending ? (
-              <div className="mt-2 space-y-2">
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-4/5" />
-              </div>
-            ) : (
-              <p className="mt-1 text-sm text-dim">
-                {me.twoFactorEnabled
-                  ? 'Password sign-in requires a current authenticator code or one-time recovery code.'
-                  : hasPassword
-                    ? 'Protect password sign-in with a time-based code from your authenticator app.'
-                    : 'Create a password sign-in method before setting up an authenticator.'}
-              </p>
-            )}
-          </div>
-        </div>
-        {methodsPending ? (
-          <Skeleton className="mt-4 h-8 w-40" />
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-4"
-            disabled={!hasPassword}
-            onClick={() => setDialog(me.twoFactorEnabled ? 'two-factor-disable' : 'two-factor-setup')}
-          >
-            {me.twoFactorEnabled ? 'Turn off' : 'Set up authenticator'}
-          </Button>
-        )}
-      </section>
-
       <section id="sign-in-methods" className="border border-edge bg-panel p-5 md:p-7">
         <p className="rubric border-b border-edge pb-2">Sign-in methods</p>
         {methodsPending ? <AccountMethodsSkeleton /> : null}
@@ -240,6 +192,54 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
             ) : null}
           </div>
         ) : null}
+      </section>
+
+      <section className="border border-edge bg-panel p-5 md:p-7">
+        <p className="rubric border-b border-edge pb-2">Two-factor authentication</p>
+        <div className="mt-4 flex items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center border border-edge bg-sunken text-parchment">
+            <ShieldCheck className="size-5" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base">Authenticator app</h2>
+              {methodsPending ? (
+                <Skeleton className="h-5 w-24" />
+              ) : (
+                <span className={`chip ${me.twoFactorEnabled ? 'text-achieved' : 'text-dim'}`}>
+                  {me.twoFactorEnabled ? 'Enabled' : hasPassword ? 'Not set up' : 'Needs a password'}
+                </span>
+              )}
+            </div>
+            {methodsPending ? (
+              <div className="mt-2 space-y-2">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-4/5" />
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-dim">
+                {me.twoFactorEnabled
+                  ? 'Password sign-in requires a current authenticator code or one-time recovery code.'
+                  : hasPassword
+                    ? 'Protect password sign-in with a time-based code from your authenticator app.'
+                    : 'Create a password sign-in method before setting up an authenticator.'}
+              </p>
+            )}
+          </div>
+        </div>
+        {methodsPending ? (
+          <Skeleton className="mt-4 h-8 w-40" />
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-4"
+            disabled={!hasPassword}
+            onClick={() => setDialog(me.twoFactorEnabled ? 'two-factor-disable' : 'two-factor-setup')}
+          >
+            {me.twoFactorEnabled ? 'Turn off' : 'Set up authenticator'}
+          </Button>
+        )}
       </section>
 
       <section className="border border-edge bg-panel p-5 md:p-7 lg:col-span-2">

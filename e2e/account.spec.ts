@@ -105,16 +105,21 @@ test('profile security settings reserve their content before hydration', async (
   await context.close()
 })
 
-test('profile keeps account methods without a notifications section', async ({ page }) => {
+test('profile puts sign-in methods first without a notifications section', async ({ page }) => {
   await signUp(page, uniqueName('Account Methods'))
   await page.goto('/profile')
 
-  await expect(page.locator('#sign-in-methods')).toBeVisible()
+  const methods = page.locator('#sign-in-methods')
+  const twoFactor = page.getByText('Two-factor authentication', { exact: true }).locator('..')
+  await expect(methods).toBeVisible()
+  await expect(twoFactor).toBeVisible()
+  expect((await methods.boundingBox())!.x).toBeLessThan((await twoFactor.boundingBox())!.x)
   await expect(page.getByText('Notifications on your phone')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/profile-settings.png', fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  expect((await methods.boundingBox())!.y).toBeLessThan((await twoFactor.boundingBox())!.y)
   await page.screenshot({ path: 'test-results/profile-settings-phone.png', fullPage: true })
 })
 
