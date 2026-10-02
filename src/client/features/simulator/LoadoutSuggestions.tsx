@@ -49,8 +49,14 @@ export function LoadoutAdvice({ disabled }: { disabled: boolean }) {
   const advice = useContext(LoadoutsContext)
   if (!advice) return null
   const { loadouts, defender, onUse } = advice
+  // A stale suggestion would undo the edit being searched, so it waits.
+  const updating = loadouts.status === 'searching' || (loadouts.status === 'ready' && Boolean(loadouts.updating))
   return (
-    <section aria-label="Best loadout" aria-busy={loadouts.status === 'searching'} className="shrink-0 border-b border-edge p-3 text-xs">
+    <section
+      aria-label="Best loadout"
+      aria-busy={updating}
+      className={`shrink-0 border-b border-edge p-3 text-xs ${updating && loadouts.status === 'ready' ? 'opacity-60' : ''}`}
+    >
       <p className="text-dim">Against {defender}</p>
       {loadouts.status === 'searching' ? <p className="mt-1 text-dim">Comparing loadouts…</p> : null}
       {loadouts.status === 'failed' ? (
@@ -79,7 +85,7 @@ export function LoadoutAdvice({ disabled }: { disabled: boolean }) {
                   </span>
                 ) : null}
               </span>
-              <Button size="sm" variant="outline" disabled={disabled} onClick={() => onUse(suggestion.pick)}>
+              <Button size="sm" variant="outline" disabled={disabled || updating} onClick={() => onUse(suggestion.pick)}>
                 {suggestion.phases.length > 1 ? 'Use best loadout' : `Use best for ${titles[suggestion.phases[0]!].toLowerCase()}`}
               </Button>
             </div>
@@ -96,23 +102,27 @@ function Odds({
   best,
   prefix,
   subject,
+  muted,
 }: {
   phase: Phase
   result: CombatResult
   best: boolean
-  prefix?: string
+  prefix: string
   subject: string
+  muted: boolean
 }) {
   const destroyed = percent(result.wipe)
   const wounds = result.meanDamage.toFixed(2)
   return (
     <span
-      className={`inline-flex items-center gap-1 ${best ? 'text-primary' : 'text-dim'}`}
-      aria-label={`${titles[phase]}${subject}: ${destroyed} destroyed, ${wounds} wounds lost on average${best ? ', best' : ''}`}
+      className={`inline-flex items-center gap-1 ${muted ? 'text-faint' : best ? 'text-primary' : 'text-dim'}`}
+      aria-label={`${titles[phase]}, ${subject}: ${destroyed} destroyed, ${wounds} wounds lost on average${best ? ', best' : ''}`}
     >
       <PhaseIcon phase={phase} />
-      {prefix ? `${prefix} → ` : ''}
-      {destroyed} · {wounds} W{best ? <span className="text-[0.6rem] uppercase">Best</span> : null}
+      {prefix}: {destroyed} · {wounds} W
+      {best ? (
+        <span className="rounded-sm bg-primary px-1 text-[0.6rem] font-semibold tracking-wide text-sunken uppercase">Best</span>
+      ) : null}
     </span>
   )
 }
@@ -123,7 +133,7 @@ const noteClass = 'readout mt-0.5 flex flex-wrap gap-x-3 text-2xs font-normal no
 export function useOptionNote(): OptionNote | undefined {
   const advice = useContext(LoadoutsContext)
   if (advice?.loadouts.status !== 'ready') return undefined
-  const { estimates } = advice.loadouts
+  const { estimates, updating } = advice.loadouts
   return function OptionEstimates(choiceKey, optionId) {
     const estimate = estimates.get(estimateKey(choiceKey, optionId))
     if (!estimate) return null
@@ -138,8 +148,9 @@ export function useOptionNote(): OptionNote | undefined {
                   phase={phase}
                   result={shown.result}
                   best={shown.best}
-                  prefix={estimate.step ? (estimate.step > 0 ? '+1' : '−1') : undefined}
-                  subject={estimate.step ? ` with one ${estimate.step > 0 ? 'more' : 'fewer'}` : ''}
+                  prefix={estimate.step ? `Unit, ${estimate.step > 0 ? '+1' : '−1'}` : 'Unit'}
+                  subject={estimate.step ? `unit with one ${estimate.step > 0 ? 'more' : 'fewer'}` : 'unit'}
+                  muted={Boolean(updating)}
                 />,
               ]
             : []
@@ -156,7 +167,7 @@ export function useOptionNote(): OptionNote | undefined {
 export function useProfileNote(): ((weapon: { id: string; name: string }) => ReactNode) | null {
   const advice = useContext(LoadoutsContext)
   if (advice?.loadouts.status !== 'ready') return null
-  const { profiles } = advice.loadouts
+  const { profiles, updating } = advice.loadouts
   return function ProfileOdds(weapon) {
     const odds = profiles.get(weapon.id)
     if (!odds) return null
@@ -166,8 +177,9 @@ export function useProfileNote(): ((weapon: { id: string; name: string }) => Rea
           phase={odds.phase}
           result={odds.result}
           best={odds.best}
-          prefix={odds.each ? '1 model' : undefined}
-          subject={odds.each ? ' on one model' : ''}
+          prefix={odds.each ? '1 weapon alone' : 'Alone'}
+          subject={odds.each ? 'one weapon alone' : 'alone'}
+          muted={Boolean(updating)}
         />
       </span>
     )

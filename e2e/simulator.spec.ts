@@ -927,7 +927,7 @@ test('the loadout editor estimates each option and uses the strongest legal load
   const advice = loadout.getByRole('region', { name: 'Best loadout' })
   await expect(advice).toHaveAttribute('aria-busy', 'false')
   await expect(advice).toContainText('Against Tomb Blades')
-  await expect(loadout.getByLabel(/^Shooting with one more: \d+\.\d% destroyed/).first()).toBeVisible()
+  await expect(loadout.getByLabel(/^Shooting, unit with one more: \d+\.\d% destroyed/).first()).toBeVisible()
   await page.screenshot({ path: 'test-results/simulator-loadout-estimates.png' })
   await advice.getByRole('button', { name: 'Use best loadout' }).click()
   await expect(advice).toContainText('No loadout is meaningfully stronger.')

@@ -82,6 +82,7 @@ export function useCombatant(roster?: CombatRoster) {
   const loadouts = useQuery({
     ...combatLoadoutsQuery(loadoutContext ?? { catalogueId: '', detachmentIds: [], picks: [], pickIndex: 0 }),
     enabled: Boolean(loadoutContext),
+    placeholderData: (previous, query) => (query?.queryKey[4] === pickIndex && query.queryKey[1] === catalogueId ? previous : undefined),
   })
   const battleUnit = roster?.battle?.units[pickIndex]
   const currentHealth = health[identity] ?? battleUnit
@@ -153,7 +154,7 @@ export function useCombatant(roster?: CombatRoster) {
     loadouts: loadoutContext
       ? {
           context: loadoutContext,
-          space: loadouts.data,
+          space: loadouts.isPlaceholderData ? undefined : loadouts.data,
           check: checkLoadouts,
           onOpen: () => setLoadoutOpen(true),
           onUse: (chosen: RosterPick) =>

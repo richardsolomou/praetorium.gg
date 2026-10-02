@@ -56,6 +56,8 @@ export type Loadouts =
   | { status: 'failed'; retry: () => void }
   | {
       status: 'ready'
+      /** The previous answer, shown while the current loadout is searched. */
+      updating?: boolean
       /** A unit with no weapon choices still has odds for each weapon profile. */
       choices: boolean
       suggestions: LoadoutSuggestion[]
@@ -215,8 +217,10 @@ export function useLoadoutSearch({
       worker.terminate()
     }
   }, [key, request, check])
-  if (!request) return null
-  if (found?.key !== key) return { status: 'searching' }
+  // An edit keeps the last answer in place, marked as updating, so the editor does not reflow while it searches.
+  const last = found?.loadouts?.status === 'ready' ? { ...found.loadouts, updating: true } : null
+  if (!request) return last
+  if (found?.key !== key) return last ?? { status: 'searching' }
   return found.loadouts ?? { status: 'failed', retry: () => setAttempt((value) => value + 1) }
 }
 
