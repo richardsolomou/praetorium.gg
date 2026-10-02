@@ -21,14 +21,16 @@ export function sameWargear(one: string, other: string) {
   return wargearKey(one) === wargearKey(other)
 }
 
-export const wargearKey = (name: string) => routeSlug(wargearBaseName(name))
+export const wargearKey = (name: string, includeUnmarkedModes = false) => routeSlug(wargearBaseName(name, includeUnmarkedModes))
 
 /** The shared name without a profile mode, aura label, or source marker. */
-export const wargearBaseName = (name: string) => {
+export const wargearBaseName = (name: string, includeUnmarkedModes = false) => {
   const trimmed = name.trim()
+  const marked = /^[^\p{L}\p{N}]+/u.test(trimmed)
   const unmarked = trimmed.replace(/^[^\p{L}\p{N}]+/u, '')
-  return unmarked
-    .replace(/\s*[-–—]\s+[^–—]+$/, '')
+  const mode = includeUnmarkedModes ? /\s*[-–—]\s+[^–—]+$/ : /\s+-\s+[^-]+$/
+  const withoutMode = marked || includeUnmarkedModes ? unmarked.replace(mode, '') : unmarked
+  return withoutMode
     .replace(/\s*\([^)]*\)\s*$/, '')
     .trim()
     .toLowerCase()

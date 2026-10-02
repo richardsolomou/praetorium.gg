@@ -45,7 +45,7 @@ import { CombatEstimate } from './CombatEstimate'
 function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][number]; count: number }[]) {
   const groups = new Map<string, Datasheet['profiles']>()
   for (const { profile, count } of entries) {
-    const key = wargearKey(profile.name)
+    const key = wargearKey(profile.name, true)
     groups.set(key, [...(groups.get(key) ?? []), { ...profile, count }])
   }
   return [...groups]

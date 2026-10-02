@@ -290,7 +290,7 @@ describe('automatic combat loadouts', () => {
     const initial = combatPlan(data, carriers, [], 'melee')
     const preferences = { 'melee:0:claws': sweep }
     const switched = combatPlan(data, carriers, [], 'melee', preferences)
-    const excluded = combatPlan(data, carriers, [], 'melee', preferences, new Set([wargearKey(strike)]))
+    const excluded = combatPlan(data, carriers, [], 'melee', preferences, new Set([wargearKey(strike, true)]))
     expect({ initial: selected(initial), switched: selected(switched), excluded: excluded.weapons, errors: initial.errors }).toEqual({
       initial: [[strike, 1]],
       switched: [[sweep, 1]],

@@ -4,7 +4,7 @@ import { storesUnitTotal } from './collective'
 import { resolve } from './definitions'
 import { datasheetProfileKind } from './datasheetStructure'
 import type { Selection } from './evaluate'
-import { sameWargear, wargearKey, wargearOf, type Wargear } from './wargear'
+import { wargearKey, wargearOf, type Wargear } from './wargear'
 
 export type CombatEquipment = Wargear & { profileIds?: string[] }
 export type CombatCarrier = { name: string; models: number; weapons: CombatEquipment[]; unitWide?: boolean }
@@ -12,7 +12,7 @@ export type CombatCarrier = { name: string; models: number; weapons: CombatEquip
 export const referenceOnlyWeapon = (name: string) => /\(ref\.?\s*only\)/i.test(name)
 
 export const combatEquipmentMatches = (piece: CombatEquipment, profile: Pick<StructuredDatasheetProfile, 'id' | 'name'>) =>
-  piece.profileIds ? piece.profileIds.includes(profile.id) : sameWargear(piece.name, profile.name)
+  piece.profileIds ? piece.profileIds.includes(profile.id) : wargearKey(piece.name, true) === wargearKey(profile.name, true)
 
 function weaponProfiles(definition: Definition, index: CatalogueIndex): Profile[] {
   const found = new Map<string, Profile>()
@@ -33,7 +33,7 @@ function weaponProfiles(definition: Definition, index: CatalogueIndex): Profile[
 function profileEquipment(profiles: readonly Profile[], count: number, name?: string): CombatEquipment[] {
   const groups = new Map<string, Profile[]>()
   for (const profile of profiles) {
-    const key = wargearKey(profile.name ?? profile.id)
+    const key = wargearKey(profile.name ?? profile.id, true)
     groups.set(key, [...(groups.get(key) ?? []), profile])
   }
   return [...groups.values()].map((group) => ({

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
-import { sameWargear, wargearOf } from './wargear'
+import { sameWargear, wargearKey, wargearOf } from './wargear'
 
 const PTS = 'cost-pts'
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }] } }
@@ -9,12 +9,15 @@ const indexOf = (catalogue: Partial<Catalogue>) =>
   buildIndex([system, { catalogue: { id: 'cat', name: 'Test catalogue', ...catalogue } }], 'test-revision')
 
 describe('the wargear a unit is carrying', () => {
+  it('keeps separately selected unmarked weapon variants distinct', () => {
+    expect(sameWargear('Rifle – focused', 'Rifle – saturation')).toBe(false)
+  })
   it.each([
     ['Claws - strike', 'Blade - strike'],
     ['Claws – sweep', 'Blade – sweep'],
     ['Twin-linked rifle', 'Rifle'],
   ])('does not match distinct weapons %s and %s', (one, other) => {
-    expect(sameWargear(one, other)).toBe(false)
+    expect(wargearKey(one, true)).not.toBe(wargearKey(other, true))
   })
   it('names each leaf upgrade with how many of it there are', () => {
     const index = indexOf({

@@ -248,7 +248,7 @@ export function combatPlan(
       for (const { profile } of modes) accounted.set(profile.id, (accounted.get(profile.id) ?? 0) + piece.count)
       if (!modes.length) return []
       const selected = choose(
-        `${phase}:${at}:${wargearBaseName(piece.name)}`,
+        `${phase}:${at}:${wargearBaseName(piece.name, true)}`,
         `${carrier.name} · ${piece.name}`,
         modes.map(({ profile }) => ({ value: profile.id, label: profile.name })),
       )
@@ -306,7 +306,7 @@ export function combatPlan(
     const count = counts.get(entry.profile.id) ?? 0
     return count ? [{ ...entry, count }] : []
   })
-  const active = used.filter((entry) => !excluded.has(wargearKey(entry.profile.name)))
+  const active = used.filter((entry) => !excluded.has(wargearKey(entry.profile.name, true)))
   for (const entry of active) if (entry.error) errors.push(`${entry.profile.name}: ${entry.error}`)
   return {
     used,
