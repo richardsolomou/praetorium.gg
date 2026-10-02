@@ -21,6 +21,30 @@ test('the full replay preloads before scrubbing', async ({ page }) => {
   expect(singleRequests).toBe(0)
 })
 
+test('a long battle report does not extend the page past its footer', async ({ page }) => {
+  await page.goto('/battles/preview-league-battle-duel')
+  const report = page.locator('[data-battle-report-scroll]')
+  await expect(report).toBeVisible()
+
+  await report.evaluate((element) => {
+    const list = element.querySelector('ol')!
+    const row = list.lastElementChild!
+    for (let index = 0; index < 150; index++) list.append(row.cloneNode(true))
+  })
+
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect.poll(() => report.evaluate((element) => element.scrollHeight)).toBeGreaterThan(900)
+    expect(
+      await page.evaluate(
+        () =>
+          document.documentElement.scrollHeight -
+          Math.ceil(document.querySelector('[data-native-app-frame]')!.getBoundingClientRect().bottom + scrollY),
+      ),
+    ).toBeLessThanOrEqual(1)
+  }
+})
+
 test('dragging the replay timeline on a phone changes the event without scrolling the page', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
   try {
