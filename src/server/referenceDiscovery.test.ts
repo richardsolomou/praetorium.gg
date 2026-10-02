@@ -78,9 +78,15 @@ const canonical = {
   datasheets: [{ catalogueId: 'test-catalogue', id: 'unit', referenceRoute: { catalogueId: 'test', slug: 'unit' } }],
   detachments: [],
 }
+const rules = {}
 vi.mock('./app', () => ({
-  app: () => ({ catalogueHistoryFor: async () => history.entries, canonicalCatalogueFor: async () => canonical }),
+  app: () => ({
+    catalogueHistoryFor: async () => history.entries,
+    canonicalCatalogueFor: async () => canonical,
+    battleReadRulesFor: async () => rules,
+  }),
 }))
+vi.mock('./gameReferences', () => ({ gameReferencesFor: () => ({ dispositions: [{ id: 'take-and-hold' }] }) }))
 
 import { referenceLlms, referenceRobots, referenceSitemap } from './referenceDiscovery'
 
@@ -150,10 +156,24 @@ it("dates a faction's data updates page by the newest update that reached it", a
   expect(await sitemap()).toContain('<loc>https://praetorium.gg/data-updates/test</loc><lastmod>2026-09-02T00:00:00.000Z</lastmod>')
 })
 
+it('dates a datasheet by the newest update that changed it', async () => {
+  history.entries = [factionUpdate('a', Date.UTC(2026, 8, 2)), update('b', Date.UTC(2026, 8, 5))]
+
+  expect(await sitemap()).toContain(
+    '<loc>https://praetorium.gg/factions/test/datasheets/unit</loc><lastmod>2026-09-02T00:00:00.000Z</lastmod>',
+  )
+})
+
 it('dates no reference page the history cannot date', async () => {
   history.entries = [factionUpdate('a', Date.UTC(2026, 8, 2))]
 
-  expect(await sitemap()).toContain('<loc>https://praetorium.gg/factions/test/datasheets/unit</loc></url>')
+  expect(await sitemap()).toContain('<loc>https://praetorium.gg/factions/test/detachments/detachment</loc></url>')
+})
+
+it('lists every force disposition page', async () => {
+  expect(await sitemap()).toMatch(
+    /<loc>https:\/\/praetorium\.gg\/force-dispositions<\/loc>.*<loc>https:\/\/praetorium\.gg\/force-dispositions\/take-and-hold<\/loc>/s,
+  )
 })
 
 it('lists no data updates for a snapshot that carries none', async () => {

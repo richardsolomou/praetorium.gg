@@ -248,9 +248,12 @@ test('a signed-in player cannot return to the sign-in form', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
 })
 
-/** A page's canonical link is absolute, on the origin that served it. */
-const expectCanonical = (page: Page, path: string) =>
-  expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(path, page.url()).href)
+/** A page's canonical link is absolute, on the origin that served it, and its Open Graph address is the same. */
+async function expectCanonical(page: Page, path: string) {
+  const href = new URL(path, page.url()).href
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', href)
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', href)
+}
 
 test('public reference data renders without client JavaScript', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false })
@@ -316,12 +319,16 @@ test('public reference data renders without client JavaScript', async ({ browser
   await page.goto('/factions/necrons/datasheets/overlord')
   await expect(page.getByRole('heading', { name: 'Overlord', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'My Will Be Done' })).toBeVisible()
-  await expect(page).toHaveTitle(/Overlord datasheet — Necrons — Praetorium/)
+  await expect(page).toHaveTitle(/^Overlord datasheet \(\d+ pts\) — Necrons — Praetorium$/)
   await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
     'content',
     /^Overlord datasheet for Necrons\. 1 model for \d+ pts\..*Profiles, weapons, abilities and wargear/,
   )
   await expectCanonical(page, '/factions/necrons/datasheets/overlord')
+  await expect(page.locator('link[rel="alternate"][type="text/markdown"]')).toHaveAttribute(
+    'href',
+    /\/api\/reference\/v1\/datasheets\/[^/]+\/overlord\?format=markdown$/,
+  )
 
   await page.goto('/factions/necrons/detachments/cryptek-conclave')
   await expect(page.getByRole('heading', { name: 'Cryptek Conclave', exact: true })).toBeVisible()

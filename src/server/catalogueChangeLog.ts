@@ -103,6 +103,43 @@ export function factionHistory(history: readonly CatalogueHistoryEntry[], canoni
   })
 }
 
+/** The page a reference link opens. */
+export const referencePath = (link: ReferenceLink) => `/factions/${link.faction}/${link.kind}s/${link.slug}`
+
+/**
+ * The changes the history recorded to the one datasheet or detachment the current data files at
+ * `path`, newest first, linked the same way the index links them.
+ */
+export function referenceHistory(history: readonly CatalogueHistoryEntry[], canonical: CanonicalCatalogue, path: string) {
+  const routes = routesOf(canonical)
+  return history
+    .flatMap((entry) =>
+      entry.changes.factions.flatMap((faction) =>
+        faction.changes.flatMap((change) => {
+          const link = linkOf(routes, faction.catalogueId, change)
+          return link && referencePath(link) === path ? [{ recordedAt: entry.recordedAt, change }] : []
+        }),
+      ),
+    )
+    .toSorted((left, right) => right.recordedAt - left.recordedAt)
+}
+
+/** When the history last recorded a change to each datasheet and detachment page the current data can address. */
+export function referencesLastUpdated(history: readonly CatalogueHistoryEntry[], canonical: CanonicalCatalogue) {
+  const routes = routesOf(canonical)
+  const updated = new Map<string, number>()
+  for (const entry of history) {
+    for (const faction of entry.changes.factions) {
+      for (const change of faction.changes) {
+        const link = linkOf(routes, faction.catalogueId, change)
+        const path = link && referencePath(link)
+        if (path && entry.recordedAt > (updated.get(path) ?? -1)) updated.set(path, entry.recordedAt)
+      }
+    }
+  }
+  return updated
+}
+
 /** When each faction the current data can address last had an update recorded, by its slug. */
 export function factionsLastUpdated(history: readonly CatalogueHistoryEntry[], canonical: CanonicalCatalogue) {
   const slugs = routesOf(canonical).factions

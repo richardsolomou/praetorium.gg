@@ -18,6 +18,7 @@ export type PreviewCard =
     }
   | { kind: 'roster'; name: string; faction: string | null; detachments: string | null; points: string | null }
   | { kind: 'player'; name: string; record: string | null; rank: string | null }
+  | { kind: 'reference'; label: 'Datasheet' | 'Detachment'; name: string; faction: string; points: string | null }
 
 /** The size every unfurling client expects of a large card. */
 export const PREVIEW_SIZE = { width: 1200, height: 630 } as const

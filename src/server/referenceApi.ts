@@ -238,7 +238,10 @@ export function parseReferenceSearch(url: URL):
 }
 
 function referenceResponse(request: Request, revision: string, key: string, data: unknown, markdown: string) {
-  const asMarkdown = request.headers.get('accept')?.toLocaleLowerCase().includes('text/markdown') ?? false
+  // A query parameter as well as the header, so a plain link can name the Markdown representation.
+  const asMarkdown =
+    new URL(request.url).searchParams.get('format') === 'markdown' ||
+    (request.headers.get('accept')?.toLocaleLowerCase().includes('text/markdown') ?? false)
   const etag = `"${createHash('sha256')
     .update(`${revision}\0${key}\0${asMarkdown ? 'markdown' : 'json'}`)
     .digest('hex')}"`

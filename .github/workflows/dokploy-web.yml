@@ -69,6 +69,7 @@ jobs:
       GITHUB_CLIENT_ID: ${{ secrets.PRAETORIUM_GITHUB_CLIENT_ID }}
       GITHUB_CLIENT_SECRET: ${{ secrets.PRAETORIUM_GITHUB_CLIENT_SECRET }}
       GITHUB_SPONSORS_TOKEN: ${{ secrets.PRAETORIUM_GITHUB_SPONSORS_TOKEN }}
+      INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
       SMTP_HOST: ${{ vars.SMTP_HOST }}
       SMTP_PORT: ${{ vars.SMTP_PORT }}
       SMTP_SECURE: ${{ vars.SMTP_SECURE }}
@@ -160,6 +161,11 @@ jobs:
             "$module_url$query"
       - name: Configure the selected web service
         run: node scripts/configureDokployNode.ts configure "$TARGET"
+      # Compared with the sitemap after the deploy, so only pages it added or re-dated reach IndexNow.
+      - name: Record the sitemap production serves before the deploy
+        if: inputs.environment == 'production'
+        continue-on-error: true
+        run: curl --fail --silent --show-error --max-time 30 --output "$RUNNER_TEMP/sitemap-before.xml" https://praetorium.gg/sitemap.xml
       - name: Deploy the pinned image
         uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v1
         with:
@@ -170,3 +176,8 @@ jobs:
       - name: Verify and schedule production auth backups
         if: inputs.environment == 'production'
         run: node scripts/dokployAuthSchedule.ts
+      # Search engines recrawl on their own schedule regardless, so a failure here never fails the release.
+      - name: Tell search engines which pages changed
+        if: inputs.environment == 'production'
+        continue-on-error: true
+        run: node scripts/submitIndexNow.ts "$RUNNER_TEMP/sitemap-before.xml" https://praetorium.gg

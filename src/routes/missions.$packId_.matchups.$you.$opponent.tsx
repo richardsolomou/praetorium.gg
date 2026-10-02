@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { MissionMatchupPage } from '../client/features/reference/missions/MissionMatchupPage'
 import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../client/queries'
-import { breadcrumbMeta, canonicalLink } from '../client/linkPreview'
+import { breadcrumbMeta, pageHead } from '../client/linkPreview'
 
 export const Route = createFileRoute('/missions/$packId_/matchups/$you/$opponent')({
   loader: async ({ context, params }) => {
@@ -22,30 +22,25 @@ export const Route = createFileRoute('/missions/$packId_/matchups/$you/$opponent
     else void context.queryClient.query(terrainQuery).catch(() => undefined)
     return { pack: pack.name, you: you.name, opponent: opponent.name, yours: yours.name, theirs: theirs.name }
   },
-  head: ({ loaderData, match, params }) => ({
-    meta: loaderData
-      ? [
-          { title: `${loaderData.you} vs ${loaderData.opponent} — ${loaderData.pack} — Praetorium` },
-          {
-            name: 'description',
-            content: `${loaderData.you} plays ${loaderData.yours}; ${loaderData.opponent} plays ${loaderData.theirs}, with source scoring and actions.`,
-          },
-          { property: 'og:title', content: `${loaderData.you} vs ${loaderData.opponent}` },
-          {
-            property: 'og:description',
-            content: `${loaderData.you} plays ${loaderData.yours}; ${loaderData.opponent} plays ${loaderData.theirs}, with source scoring and actions.`,
-          },
-          { property: 'og:type', content: 'article' },
-          breadcrumbMeta(match.context.origin, [
-            { name: loaderData.pack, path: `/missions/${params.packId}` },
-            {
-              name: `${loaderData.you} vs ${loaderData.opponent}`,
-              path: `/missions/${params.packId}/matchups/${params.you}/${params.opponent}`,
-            },
-          ]),
-        ]
-      : [],
-    links: loaderData ? [canonicalLink(match.context.origin, `/missions/${params.packId}/matchups/${params.you}/${params.opponent}`)] : [],
-  }),
+  head: ({ loaderData, match, params }) => {
+    if (!loaderData) return {}
+    const path = `/missions/${params.packId}/matchups/${params.you}/${params.opponent}`
+    const head = pageHead(match.context.origin, {
+      title: `${loaderData.you} vs ${loaderData.opponent} — ${loaderData.pack}`,
+      description: `${loaderData.you} plays ${loaderData.yours}; ${loaderData.opponent} plays ${loaderData.theirs}, with source scoring and actions.`,
+      path,
+      article: true,
+    })
+    return {
+      meta: [
+        ...head.meta,
+        breadcrumbMeta(match.context.origin, [
+          { name: loaderData.pack, path: `/missions/${params.packId}` },
+          { name: `${loaderData.you} vs ${loaderData.opponent}`, path },
+        ]),
+      ],
+      links: head.links,
+    }
+  },
   component: () => <MissionMatchupPage {...Route.useParams()} />,
 })

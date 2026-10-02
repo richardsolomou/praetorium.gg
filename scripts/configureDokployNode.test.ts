@@ -45,6 +45,14 @@ it('leaves GitHub sponsor linking out of staging, whose address the OAuth app do
   expect(nodeEnvironment({ ...environment, ...github }, 'staging')).not.toContain('GITHUB_')
 })
 
+it('passes the IndexNow key to production', () => {
+  expect(nodeEnvironment({ ...environment, ...apple, INDEXNOW_KEY: 'index-key' }, 'production')).toContain('INDEXNOW_KEY=index-key')
+})
+
+it('leaves the IndexNow key out of staging, whose pages search engines should not be told about', () => {
+  expect(nodeEnvironment({ ...environment, INDEXNOW_KEY: 'index-key' }, 'staging')).not.toContain('INDEXNOW_KEY')
+})
+
 it('rejects an external SpacetimeDB host for the VM runtime', () => {
   expect(() => nodeEnvironment({ ...environment, SPACETIME_INTERNAL_HOST: 'stdb-staging.praetorium.gg' }, 'staging')).toThrow(
     'Invalid SpacetimeDB internal host',

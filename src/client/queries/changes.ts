@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
-import { catalogueChangeLog, rosterChanges, savedRosterChangedCount } from '../../server/functions'
+import { catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedCount } from '../../server/functions'
+import type { ReferenceLink } from '../../contracts/catalogueChanges'
 import { SSR_STALE_TIME } from './shared'
 
 /**
@@ -10,6 +11,14 @@ export const catalogueChangeLogQuery = (before?: string, faction?: string) =>
   queryOptions({
     queryKey: ['catalogue-changes', faction ?? null, before ?? null],
     queryFn: () => catalogueChangeLog({ data: { ...(before ? { before } : {}), ...(faction ? { faction } : {}) } }),
+    staleTime: SSR_STALE_TIME,
+  })
+
+/** The newest recorded changes to one datasheet or detachment page. */
+export const referenceChangesQuery = (link: ReferenceLink) =>
+  queryOptions({
+    queryKey: ['reference-changes', link.kind, link.faction, link.slug],
+    queryFn: () => referenceChanges({ data: link }),
     staleTime: SSR_STALE_TIME,
   })
 

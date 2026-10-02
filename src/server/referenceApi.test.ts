@@ -108,6 +108,22 @@ it('serves the same document as source-attributed Markdown', async () => {
   expect(await response.text()).toContain('# Move Units\n\nrule\n\n## Move Units\n\nMove across the battlefield.')
 })
 
+it('serves Markdown to a plain link that asks for it by name', async () => {
+  const response = await referenceDocumentResponse(
+    new Request(`https://praetorium.gg/api/reference/v1/documents/${encodeURIComponent(document.id)}?format=markdown`),
+    document.id,
+  )
+
+  expect(response.headers.get('content-type')).toBe('text/markdown; charset=utf-8')
+})
+
+it('names the Markdown representation in its own cache entry', async () => {
+  const url = `https://praetorium.gg/api/reference/v1/documents/${encodeURIComponent(document.id)}`
+  const json = (await referenceDocumentResponse(new Request(url), document.id)).headers.get('etag')
+
+  expect((await referenceDocumentResponse(new Request(`${url}?format=markdown`), document.id)).headers.get('etag')).not.toBe(json)
+})
+
 it('serves product guidance, discovery, and the structured record behind a document', async () => {
   const guide = await (await referenceGuideResponse(new Request('https://praetorium.gg/api/reference/v1/about'))).json()
   const index = await (await referenceIndexResponse(new Request('https://praetorium.gg/api/reference/v1/'))).json()

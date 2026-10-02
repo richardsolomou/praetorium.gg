@@ -11,11 +11,27 @@ type AbilityKind = Datasheet['abilities'][number]['kind']
  * without the condition that makes it true.
  */
 export function unitCostsSummary(costs: Datasheet['costs']) {
-  const unconditional = costs
-    .filter((cost) => !cost.keyword && !cost.faction && !cost.detachment)
-    .toSorted((left, right) => Number(left.models) - Number(right.models))
+  const unconditional = unconditionalCosts(costs)
   if (!unconditional.length) return null
   return unconditional.map((cost) => `${cost.models} ${cost.models === '1' ? 'model' : 'models'} for ${cost.cost} pts`).join(', ')
+}
+
+const unconditionalCosts = (costs: Datasheet['costs']) =>
+  costs
+    .filter((cost) => !cost.keyword && !cost.faction && !cost.detachment)
+    .toSorted((left, right) => Number(left.models) - Number(right.models))
+
+/**
+ * A datasheet's unconditional price as one figure, `80 pts`, or the range its unit sizes span,
+ * `80–160 pts`; the sheet's own points when it prints no sizes, and null when nothing is unconditional.
+ */
+export function datasheetPoints(sheet: Pick<Datasheet, 'points' | 'costs'>) {
+  const unconditional = unconditionalCosts(sheet.costs).map((cost) => Number(cost.cost))
+  if (!unconditional.length) return sheet.points === null ? null : `${sheet.points} pts`
+  if (unconditional.some((cost) => !Number.isFinite(cost))) return null
+  const low = Math.min(...unconditional)
+  const high = Math.max(...unconditional)
+  return low === high ? `${low} pts` : `${low}–${high} pts`
 }
 
 export function datasheetDescription(sheet: Pick<Datasheet, 'name' | 'points' | 'costs' | 'baseSize'>, faction: string) {

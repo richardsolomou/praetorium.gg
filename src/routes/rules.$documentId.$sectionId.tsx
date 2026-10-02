@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { RuleSectionPage } from '../client/features/reference/rules/RuleSectionPage'
 import { ruleIndexQuery, ruleSectionQuery } from '../client/queries'
-import { breadcrumbMeta, canonicalLink } from '../client/linkPreview'
+import { breadcrumbMeta, pageHead } from '../client/linkPreview'
 
 export const Route = createFileRoute('/rules/$documentId/$sectionId')({
   loader: async ({ context, params }) => {
@@ -12,34 +12,29 @@ export const Route = createFileRoute('/rules/$documentId/$sectionId')({
     if (!section) throw notFound()
     return { index, section }
   },
-  head: ({ loaderData, match }) => ({
-    meta: loaderData
-      ? [
-          { title: `${loaderData.section.section.title} — ${loaderData.section.document.title} — Praetorium` },
-          {
-            name: 'description',
-            content: `${loaderData.section.section.title} from ${loaderData.section.document.title}, with printed rule numbers and clarifications.`,
-          },
-          { property: 'og:title', content: `${loaderData.section.section.title} — ${loaderData.section.document.title}` },
-          {
-            property: 'og:description',
-            content: `${loaderData.section.section.title} from ${loaderData.section.document.title}, with printed rule numbers and clarifications.`,
-          },
-          { property: 'og:type', content: 'article' },
-          breadcrumbMeta(match.context.origin, [
-            { name: 'Rules', path: '/rules' },
-            { name: loaderData.section.document.title, path: `/rules/${loaderData.section.document.slug}` },
-            {
-              name: loaderData.section.section.title,
-              path: `/rules/${loaderData.section.document.slug}/${loaderData.section.section.slug}`,
-            },
-          ]),
-        ]
-      : [],
-    links: loaderData
-      ? [canonicalLink(match.context.origin, `/rules/${loaderData.section.document.slug}/${loaderData.section.section.slug}`)]
-      : [],
-  }),
+  head: ({ loaderData, match }) => {
+    if (!loaderData) return {}
+    const { document, section } = loaderData.section
+    const path = `/rules/${document.slug}/${section.slug}`
+    const head = pageHead(match.context.origin, {
+      title: `${section.title} — ${document.title}`,
+      description: `${section.title} from ${document.title}, with printed rule numbers and clarifications.`,
+      path,
+      article: true,
+      markdown: `/api/reference/v1/rules/${document.slug}/${section.slug}`,
+    })
+    return {
+      meta: [
+        ...head.meta,
+        breadcrumbMeta(match.context.origin, [
+          { name: 'Rules', path: '/rules' },
+          { name: document.title, path: `/rules/${document.slug}` },
+          { name: section.title, path },
+        ]),
+      ],
+      links: head.links,
+    }
+  },
   component: RuleSection,
 })
 

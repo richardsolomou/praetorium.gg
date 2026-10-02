@@ -10,4 +10,6 @@ Before publishing an existing SpacetimeDB module, the workflow obtains its migra
 
 The source-snapshot publisher resolves community data separately from the application, verifies each archive after upload, and updates the current pointer only after the archive is readable. Releases package a pinned, verified snapshot, so publishing a new snapshot does not change a running application's rules data.
 
+After a production deploy, `scripts/submitIndexNow.ts` waits until every replica reports the new revision, compares the sitemap with the copy recorded before the deploy, and submits the pages it added or dated afresh to IndexNow. The `INDEXNOW_KEY` secret is passed only to production, which serves it at `/indexnow.txt`; without it the key file is a `404` and nothing is submitted. A failed submission does not fail the release.
+
 Each web replica reads the packaged catalogue from its image and prepares it in memory. Production SQLite backups include the matching auth secret, are verified by restoring an off-host archive, and expire from R2 after 30 days. The product database has its own off-host backup and restore check. Both web replicas and SpacetimeDB run on one VM, so a VM outage still interrupts the service until it is restored.
