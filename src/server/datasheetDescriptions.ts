@@ -88,8 +88,19 @@ export function describeDatasheetAbilitiesWithContributions(
         enhancements: character
           ? detachment.enhancements.filter(
               (enhancement) =>
-                enhancement.keywordRestrictions !== null &&
-                enhancement.keywordRestrictions.every((keyword) => keywords.has(routeSlug(keyword))),
+                enhancement.eligibility !== null &&
+                enhancement.eligibility.anyOf.some((required) =>
+                  required.every((keyword) => keywords.has(routeSlug(keyword)) || routeSlug(sheet.name) === routeSlug(keyword)),
+                ) &&
+                enhancement.eligibility.excluded.every(
+                  (keyword) => !keywords.has(routeSlug(keyword)) && routeSlug(sheet.name) !== routeSlug(keyword),
+                ) &&
+                (enhancement.eligibility.requiredAbilities ?? []).every((name) =>
+                  sheet.abilities.some((ability) => routeSlug(ability.name) === routeSlug(name)),
+                ) &&
+                (enhancement.eligibility.requiredWargear ?? []).every((name) =>
+                  sheet.profiles.some((profile) => /weapons?/i.test(profile.type) && joinKey(profile.name) === joinKey(name)),
+                ),
             )
           : [],
       }))

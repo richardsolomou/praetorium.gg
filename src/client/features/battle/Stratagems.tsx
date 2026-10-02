@@ -133,7 +133,7 @@ function StratagemCard({
     written?.type,
     stratagem.phases?.length ? `${stratagem.phases.map(title).join(', ')} phase` : 'Any phase',
     stratagem.turn === 'your-turn' ? 'Your turn' : stratagem.turn === 'opponent-turn' ? 'Opponent’s turn' : 'Either turn',
-    stratagem.limit === 'unlimited' ? 'No use limit' : `Once per ${stratagem.limit}`,
+    stratagem.limit === 'unlimited' ? 'No use limit' : `Once per ${stratagem.limit.replace('-', ' ')}`,
   ]
     .filter(Boolean)
     .join(' · ')

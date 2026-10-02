@@ -22,7 +22,7 @@ import {
   fetchSnapshot,
   remoteRevocations,
 } from '../src/server/catalogueSnapshot'
-import { isComplete, syncSources } from '../src/server/sync'
+import { isComplete, syncFactionIcons, syncSources } from '../src/server/sync'
 
 const root = path.join(import.meta.dirname, '..')
 const sourcesFile = path.join(root, 'catalogue', 'sources.json')
@@ -60,6 +60,9 @@ const argument = process.argv[2]
 if (argument === '--check') {
   readSources()
   console.log('catalogue source definitions are well formed')
+} else if (argument === '--supplemental') {
+  if (!fs.existsSync(path.join(dataDirectory, 'revision.json'))) throw new Error('materialize the pinned catalogue sources first')
+  await syncFactionIcons(dataDirectory, (message) => console.log(message))
 } else if (argument === '--upstream') {
   const base = catalogueBaseUrl()
   const pointer = await fetchCurrentPointer(base)
@@ -73,7 +76,11 @@ if (argument === '--check') {
       fs.rmSync(work, { recursive: true, force: true })
     }
   }
-  const current = await resolve(readSources())
+  const config = readSources()
+  const current = {
+    ...(await resolve(config)),
+    icons: { ...config.icons, revision: head(config.icons.repository, config.icons.branch) },
+  }
   const changed = SNAPSHOT_SOURCE_NAMES.filter((name) => previous[name] !== current[name].revision)
   console.log(`published snapshot ${pointer.id}`)
   if (!changed.length) console.log('all upstream source revisions match the published snapshot')
@@ -109,5 +116,5 @@ if (argument === '--check') {
     console.log(`catalogue-data -> ${cached}`)
   }
 } else {
-  throw new Error('expected --check, --upstream, --update, --latest, or no argument')
+  throw new Error('expected --check, --supplemental, --upstream, --update, --latest, or no argument')
 }

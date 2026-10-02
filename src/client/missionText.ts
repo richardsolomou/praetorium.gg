@@ -71,6 +71,7 @@ export function awardTotal(award: Pick<MissionAward, 'vp' | 'max' | 'per'>, time
 
 export function timingLabel(trigger: MissionAward['trigger']) {
   if (trigger.timing === 'end-of-battle') return 'End of battle'
+  if (trigger.timing === 'end-of-turn-or-final-round') return 'End of your opponent’s turn or the fifth battle round'
   const owner =
     trigger.playerTurn === 'your-turn'
       ? 'your'

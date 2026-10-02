@@ -201,7 +201,9 @@ for (const width of [390, 1600]) {
     await page.locator('[data-unit="Tomb Blades"]').getByRole('button', { name: 'Tomb Blades', exact: true }).click()
     const loadout = page.locator('aside[aria-label="Loadout"]')
     await expect(loadout.getByRole('heading', { name: 'Equipped melee weapons 3', exact: true })).toBeVisible()
-    await expect(loadout.getByRole('heading', { name: /Equipped ranged weapons/ })).toHaveCount(0)
+    const initialHeadings = await loadout
+      .locator('h2')
+      .evaluateAll((headings) => headings.map((heading) => heading.textContent ?? '').filter((text) => text.startsWith('Equipped ')))
     await loadout.evaluate((pane) => {
       const frames: string[][] = []
       Object.assign(window, { weaponSummaryFrames: frames })
@@ -230,7 +232,7 @@ for (const width of [390, 1600]) {
     await expectNoHorizontalOverflow(loadout)
     const frames = await page.evaluate(() => (window as unknown as { weaponSummaryFrames: string[][] }).weaponSummaryFrames)
     expect(frames.length).toBeGreaterThan(0)
-    expect(frames.every((headings) => headings.length === 1 && headings[0]?.startsWith('Equipped melee weapons'))).toBe(true)
+    expect(frames.every((headings) => headings.join(',') === initialHeadings.join(','))).toBe(true)
   })
 }
 
@@ -482,7 +484,15 @@ test('a weapon both sources name is drawn once', async ({ page }) => {
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByRole('heading', { name: 'Staff of light', exact: true })).toHaveCount(2)
+  for (const title of ['Equipped ranged weapons 1', 'Equipped melee weapons 1']) {
+    await expect(
+      loadout
+        .getByRole('heading', { name: title, exact: true })
+        .locator('..')
+        .getByRole('heading', { name: 'Staff of light', exact: true }),
+    ).toHaveCount(1)
+  }
+  await expect(loadout.getByRole('button', { name: 'Select Staff of light' })).toHaveCount(1)
   await expect(loadout.getByRole('heading', { name: /Staff of light \(/ })).toHaveCount(0)
   // The catalogue's own two rows: one to shoot with, one to fight with. Read at the
   // weapon level rather than the profile, the fighting one printed its range as
@@ -492,12 +502,6 @@ test('a weapon both sources name is drawn once', async ({ page }) => {
   await page.screenshot({ path: 'test-results/lokhust-lord-staff.png', fullPage: true })
 })
 
-/**
- * A squad divides itself between the weapons its models carry, and a specialist takes
- * a body from a squadmate to carry his. Arming the specialist used to come out of
- * whatever the squad held most of, so a player filling a squad with combi-weapons
- * found them quietly turning back into bolt rifles somewhere around half the squad.
- */
 test('a squad keeps the weapons it was given while a specialist is armed', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Dark Angels', /Wrath of the Rock/)
@@ -514,26 +518,25 @@ test('a squad keeps the weapons it was given while a specialist is armed', async
   }
   // The sergeant carries his own weapons, so every count here is the squad's.
   const veterans = loadout.locator('section').filter({ has: page.getByLabel('Sternguard Veteran models', { exact: true }) })
-  await expect(veterans.getByLabel('Sternguard Bolt Rifle count')).toHaveText('9')
+  await expect(veterans.getByLabel('Artificer Firearm count')).toHaveText('9')
 
   await veterans.getByRole('button', { name: 'More Pyrecannon' }).click()
   await expect(veterans.getByLabel('Pyrecannon count')).toHaveText('1')
-  await expect(veterans.getByLabel('Sternguard Bolt Rifle count')).toHaveText('8')
+  await expect(veterans.getByLabel('Artificer Firearm count')).toHaveText('8')
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
 
-  for (const count of ['1', '2', '3', '4', '5', '6', '7', '8']) {
-    await veterans.getByRole('button', { name: 'More Combi-weapon' }).click()
-    await expect(veterans.getByLabel('Combi-weapon count')).toHaveText(count)
-    await expect(veterans.getByLabel('Pyrecannon count')).toHaveText('1')
-  }
-  await expect(veterans.getByLabel('Sternguard Bolt Rifle count')).toHaveText('0')
+  await veterans.getByRole('button', { name: 'More Heavy Bolter' }).click()
+  await expect(veterans.getByLabel('Heavy Bolter count')).toHaveText('1')
+  await expect(veterans.getByLabel('Artificer Firearm count')).toHaveText('7')
+  await expect(veterans.getByLabel('Pyrecannon count')).toHaveText('1')
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await expect(page.locator('[data-unit="Sternguard Veteran Squad"]')).toContainText('1x Pyrecannon')
-  await page.screenshot({ path: 'test-results/sternguard-combi-weapons.png', fullPage: true })
+  await page.screenshot({ path: 'test-results/sternguard-specialist-weapons.png', fullPage: true })
 
   // Putting the pyrecannon down hands its body back rather than shrinking the squad.
   await veterans.getByRole('button', { name: 'Fewer Pyrecannon' }).click()
   await expect(veterans.getByLabel('Pyrecannon count')).toHaveText('0')
+  await expect(veterans.getByLabel('Artificer Firearm count')).toHaveText('8')
   await expect(veterans.getByLabel('Sternguard Veteran models')).toHaveText('9')
   await expect(loadout.getByLabel('Sternguard Veteran Squad models')).toHaveText('10')
 })

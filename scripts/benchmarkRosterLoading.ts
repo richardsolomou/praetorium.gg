@@ -17,7 +17,7 @@ const requireCatalogue = () => {
   return catalogue
 }
 const loaded = requireCatalogue()
-const rules = loadRules(undefined, undefined, undefined, undefined, loaded.datacards, loaded.sourceReferences)
+const rules = loadRules(undefined, undefined, undefined, undefined, loaded.datacards)
 const faction = loaded.factions.toSorted(
   (left, right) => (right.references[0]?.datasheets ?? 0) - (left.references[0]?.datasheets ?? 0),
 )[0]!

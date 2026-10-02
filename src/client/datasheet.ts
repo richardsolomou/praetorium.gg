@@ -18,7 +18,7 @@ export function unitCostsSummary(costs: Datasheet['costs']) {
 
 const unconditionalCosts = (costs: Datasheet['costs']) =>
   costs
-    .filter((cost) => !cost.keyword && !cost.faction && !cost.detachment)
+    .filter((cost) => !cost.keyword && !cost.faction && !cost.detachment && !cost.copies)
     .toSorted((left, right) => Number(left.models) - Number(right.models))
 
 /**

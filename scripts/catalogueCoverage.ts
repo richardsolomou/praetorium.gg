@@ -19,7 +19,6 @@ import { routeSlug } from '../src/core/slug'
 import { compareCatalogueCoverage } from './lib/catalogueCoverageComparison'
 
 process.env.CATALOGUE_DIR ??= path.join(import.meta.dirname, '..', 'catalogue-data')
-process.env.RULES_DIR ??= path.join(process.env.CATALOGUE_DIR, 'rules')
 
 const arguments_ = process.argv.slice(2)
 const output = arguments_[0]
@@ -37,7 +36,7 @@ if (shardAt >= 0 && (!shard || Number(shard[2]) < 1 || Number(shard[1]) >= Numbe
 
 const loaded = loadCatalogue(process.env.CATALOGUE_DIR)
 if (!loaded) throw new Error('catalogue unavailable')
-const rules = loadRules(undefined, undefined, undefined, undefined, loaded.datacards, loaded.sourceReferences)
+const rules = loadRules(undefined, undefined, undefined, undefined, loaded.datacards)
 if (!rules) throw new Error('rules unavailable')
 
 type Described = { name: string; described: boolean }

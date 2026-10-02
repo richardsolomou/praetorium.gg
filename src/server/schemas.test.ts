@@ -211,6 +211,19 @@ describe('saved roster input', () => {
     prep: null,
   }
 
+  it('accepts a battle-round stratagem limit in saved prep', () => {
+    expect(
+      saveRosterSchema.safeParse({
+        ...roster,
+        name: '',
+        prep: {
+          stratagems: [{ key: 'titan-killer', name: 'Titan Killer', cp: 1, limit: 'battle-round' }],
+          secondaries: [],
+        },
+      }).success,
+    ).toBe(true)
+  })
+
   it('accepts projected detachment ids throughout roster requests', () => {
     const detachmentId = 'profile-detachment-option-470a-6daa-9014-12df-f261-3980-2765-e3be'
     expect([

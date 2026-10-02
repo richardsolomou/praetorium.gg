@@ -2,14 +2,15 @@
   "format": "praetorium.catalogue-lock.v1",
   "pointer": {
     "format": "praetorium.catalogue-pointer.v1",
-    "id": "3e2a091c92b1687f6b3031e1abf7a87dae12733a9dc8e58468c8d9a52b75d321",
-    "archiveSha256": "7f2fbc78ba10ceb3c1f5e3d78d169ef4d688f6109bc0956040ca8bfc0fbb3c58"
+    "id": "59573dc138aa5e332d23d51310ff69bb8dd4e62c4fb929f8088c88a5e3c233cf",
+    "archiveSha256": "ceb0d4fd9f1422e01bd8936afb60c872583255610316365ca80aef5d24a17a7d"
   },
   "revisions": {
-    "definitions": "659a6027f7b192d3a21a630b1c9786ae29ec741f",
-    "points": "27c6ec57c17a71b2855f5f77e841b7e5eee1bfe8",
-    "rules": "709ecd9f5bb6c06b7446eda6a6a0eae6b921a1c8",
+    "definitions": "6cd87e7c53badbac33773587d4fbee8fe06a023c",
+    "marineCodex": "659a6027f7b192d3a21a630b1c9786ae29ec741f",
+    "points": "8e0e635674018969fdcfaa64e83d4153ebefad70",
     "datacards": "9c0762c8311db122c0faa9a3a09ef891c3c2d782",
-    "battlemaster": "4ac21244c7bde9a3be8ee2faa6dc44d639606c32788570e3b244d93291997a82"
+    "battlemaster": "4ac21244c7bde9a3be8ee2faa6dc44d639606c32788570e3b244d93291997a82",
+    "icons": "be230023ff0755d19ffb1a1762658c711c2887f9"
   }
 }

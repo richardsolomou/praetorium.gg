@@ -56,6 +56,14 @@ export type LoadoutUnit = {
 
 export type WeaponProfileData = Datasheet['profiles'][number]
 
+export function equippedWeaponProfiles(
+  profiles: readonly WeaponProfileData[],
+  models: readonly LoadoutModel[],
+  choices: readonly { options: readonly Pick<LoadoutOption, 'name' | 'count' | 'pieceCounts'>[] }[],
+) {
+  return profiles.filter((profile) => !models.length || (profile.count ?? 1) > controlledProfileCount(choices, profile.name))
+}
+
 export function unmodeledGrantedWeapons(
   profiles: readonly WeaponProfileData[],
   models: readonly LoadoutModel[],

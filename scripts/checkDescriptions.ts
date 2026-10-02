@@ -7,7 +7,7 @@ import { loadRules } from '../src/server/rules'
 
 /** Add `--details` to print every missing item as faction | detachment | name. */
 const directory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
-const rules = loadRules(path.join(directory, 'rules'))
+const rules = loadRules(directory)
 if (!rules) throw new Error('rules data is unavailable')
 const catalogue = loadCatalogue(directory)
 if (!catalogue) throw new Error('catalogue data is unavailable')

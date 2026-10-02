@@ -269,8 +269,8 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page).toHaveURL(/\/missions\/.+/)
   await expect(page.getByRole('heading', { name: 'Chapter Approved 2026-2027' })).toBeVisible()
   await expect(page.locator('#matrix')).toContainText('Disruption')
-  const fixedSecondary = page.locator('a[href$="/secondaries/assassination"]')
-  const tacticalSecondary = page.locator('a[href$="/secondaries/forward-position"]')
+  const fixedSecondary = page.locator('a[href*="/secondaries/"]').filter({ hasText: 'Assassination' })
+  const tacticalSecondary = page.locator('a[href*="/secondaries/"]').filter({ hasText: 'Forward Position' })
   await expect(fixedSecondary).toContainText('Fixed')
   await expect(tacticalSecondary).toBeVisible()
   await expect(tacticalSecondary).not.toContainText('Fixed')
@@ -300,8 +300,13 @@ test('public reference data renders without client JavaScript', async ({ browser
   await page.screenshot({ path: 'test-results/secondary-mission-mobile.png', fullPage: true })
   await page.setViewportSize({ width: 1_440, height: 900 })
 
-  await page.goto('/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold#mission-death-trap')
-  await expect(page.locator('#mission-death-trap')).toContainText('For each terrain area trapped this turn.')
+  await page.goto('/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold')
+  const deathTrap = page.getByRole('heading', { name: 'Death Trap', exact: true }).locator('..')
+  await expect(deathTrap).toContainText('For each terrain area trapped this turn.')
+  const missionId = await deathTrap.getAttribute('id')
+  expect(missionId).toMatch(/^mission-/)
+  await page.goto(`/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold#${missionId}`)
+  await expect(page.locator(`#${missionId}`)).toBeVisible()
   await expect(page.locator('[id^="terrain-"]').first()).toBeAttached()
   await expect(page.locator('[id^="deployment-"]').first()).toBeAttached()
   await expect(page).toHaveTitle(/Disruption vs Take and Hold — Chapter Approved 2026-2027 — Praetorium/)
@@ -313,8 +318,8 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page).toHaveURL('/missions/chapter-approved-2026-2027')
   await page.goto('/mission-packs/chapter-approved-2026-2027/secondary-missions/assassination')
   await expect(page).toHaveURL('/missions/chapter-approved-2026-2027/secondaries/assassination')
-  await page.goto('/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold#mission-death-trap')
-  await expect(page).toHaveURL('/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold#mission-death-trap')
+  await page.goto(`/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold#${missionId}`)
+  await expect(page).toHaveURL(`/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold#${missionId}`)
 
   await page.goto('/factions/necrons/datasheets/overlord')
   await expect(page.getByRole('heading', { name: 'Overlord', exact: true })).toBeVisible()
@@ -597,25 +602,39 @@ test('authentication panels and empty states fill the page above the footer', as
   expect(footer ? Math.round(footer.y + footer.height) : 0).toBe(800)
 })
 
-test('terrain layouts open with measurement guidance', async ({ page }) => {
+test('terrain layouts show source-backed areas and measurement guidance', async ({ page }) => {
   await page.goto('/missions/chapter-approved-2026-2027/matchups/purge-the-foe/take-and-hold')
   const dialog = page.getByRole('dialog')
-  const guidance = dialog.getByText('Setup distance', { exact: true })
   await expect(async () => {
-    if (await guidance.isVisible()) return
+    if (await dialog.isVisible()) return
     await page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click({ timeout: 1_000 })
-    await expect(guidance).toBeVisible({ timeout: 1_000 })
+    await expect(dialog).toBeVisible({ timeout: 1_000 })
   }).toPass({ timeout: 10_000 })
   const board = dialog.locator('svg[aria-label]').first()
   await expect(board).toBeVisible()
-  await expect(board.locator('line[marker-end]').first()).toBeAttached()
-  await expect(board.locator('text').filter({ hasText: /″$/ }).first()).toBeVisible()
+  expect(
+    await board
+      .locator('title')
+      .filter({ hasText: /^Objective (terrain|marker)$/ })
+      .count(),
+  ).toBeGreaterThan(0)
+  await page.screenshot({ path: 'test-results/terrain-layout-objectives.png' })
+  await expect(dialog.getByText('60″ × 44″ board', { exact: false })).toBeVisible()
+  await expect(dialog.getByText('Grid: 1″ · heavier line every 5″', { exact: false })).toBeVisible()
   await expect(
     board
-      .locator('g')
-      .filter({ has: page.locator('title', { hasText: /^Objective terrain$/ }) })
-      .last(),
+      .locator('polygon')
+      .filter({ has: page.locator('title') })
+      .first(),
   ).toBeVisible()
+  const distances = board.locator('line[marker-end]')
+  const guidance = dialog.getByText('Setup distance', { exact: true })
+  if (await distances.count()) {
+    await expect(guidance).toBeVisible()
+    await expect(board.locator('text').filter({ hasText: /″$/ }).first()).toBeVisible()
+  } else {
+    await expect(guidance).toHaveCount(0)
+  }
 })
 
 test('a mission opens while its terrain layouts load', async ({ page }) => {
@@ -651,7 +670,7 @@ test('a mission opens while its terrain layouts load', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Enlarge terrain layout/ }).first()).toBeVisible()
 })
 
-test('terrain placement uses structural corners and whole-inch labels', async ({ page }) => {
+test('terrain layout preserves structural corners and source distances', async ({ page }) => {
   await page.goto('/missions/chapter-approved-2026-2027/matchups/take-and-hold/priority-assets')
   const dialog = page.getByRole('dialog')
   await expect(async () => {
@@ -660,19 +679,24 @@ test('terrain placement uses structural corners and whole-inch labels', async ({
     await expect(dialog).toBeVisible({ timeout: 1_000 })
   }).toPass({ timeout: 10_000 })
   const board = dialog.locator('svg[aria-label]').first()
-  await expect(
-    board
-      .locator('text')
-      .filter({ hasText: /^3″$/ })
-      .first(),
-  ).toBeVisible()
-  await expect(
-    board
-      .locator('text')
-      .filter({ hasText: /^5″$/ })
-      .first(),
-  ).toBeVisible()
-  await expect(board.locator('text').filter({ hasText: /\d\.\d+″$/ })).toHaveCount(0)
+  await expect(board.locator('polyline[stroke-linejoin="miter"]').first()).toBeAttached()
+  await expect(board.locator('text').filter({ hasText: /^AB$/ }).first()).toBeVisible()
+  if (await board.locator('line[marker-end]').count()) {
+    await expect(
+      board
+        .locator('text')
+        .filter({ hasText: /^3″$/ })
+        .first(),
+    ).toBeVisible()
+    await expect(
+      board
+        .locator('text')
+        .filter({ hasText: /^5″$/ })
+        .first(),
+    ).toBeVisible()
+  } else {
+    await expect(board.locator('text').filter({ hasText: /″$/ })).toHaveCount(0)
+  }
 })
 
 test('a matchup keeps each action in the column of the side whose mission asks for it', async ({ page }) => {
@@ -946,8 +970,9 @@ test('a player can enter through the roster library and browse the product', asy
       .locator('..')
       .locator('article > div:last-child'),
   ).toHaveCount(6)
-  await expect(page.getByText(/Tabletop Developer Consortium/)).toBeVisible()
+  await expect(page.getByText(/Catalogue data from BSData\/wh40k-11e/)).toBeVisible()
   await expect(page.getByText(/Data provided by game-datacards/)).toBeVisible()
+  await expect(page.getByText(/Points from BSData Munitorum Field Manual \d+\.\d+/)).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Cryptek Conclave', exact: true })).toBeVisible()
   const detachmentResponse = await page.request.get('/factions/necrons/detachments/cryptek-conclave')

@@ -74,6 +74,21 @@ describe('stratagems', () => {
     expect(validate(reduceBattle(PLAYERS, history), ALICE, { kind: 'use-stratagem', key: 's1' })).toBeNull()
   })
 
+  it('resets a battle-round limit only when the next round begins', () => {
+    const card = { ...STRAT, limit: 'battle-round' as const }
+    const history: [string, Command][] = [
+      ...started(),
+      [ALICE, { kind: 'set-prep', stratagems: [card], secondaries: [], primary: null, secondaryMode: 'fixed' }],
+      [ALICE, { kind: 'adjust-cp', delta: 3 }],
+      [ALICE, { kind: 'use-stratagem', key: card.key }],
+      ...turns(6, ALICE),
+    ]
+    expect(validate(reduceBattle(PLAYERS, log(...history)), ALICE, { kind: 'use-stratagem', key: card.key })).toBe(
+      'Grenade has been used this battle round',
+    )
+    expect(validate(reduceBattle(PLAYERS, log(...history, ...turns(6, BOB))), ALICE, { kind: 'use-stratagem', key: card.key })).toBeNull()
+  })
+
   it('are refused without the command points to pay for them', () => {
     const state = reduceBattle(
       PLAYERS,

@@ -6,6 +6,7 @@ import { factionContentOf, factionDisplayName } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from './rulesSource'
 import { detachmentPoints } from './detachmentPoints'
+import { mfmDetachmentFor } from './mfm'
 import {
   isProfiledDetachment,
   profiledArmyRulesFor,
@@ -174,20 +175,21 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
       const rulesId = rulesFaction(rules, routeSlug(faction.name))
       return withProfiledArmyRules(loaded, {
         ...summary,
-        armyRules:
-          loaded.profiledArmyRules.get(faction.id) ??
-          (content?.armyRules.length
+        armyRules: loaded.profiledArmyRules.get(faction.id) ?? [
+          ...(content?.armyRules.length
             ? content.armyRules
             : rules?.factionRules?.get(summary.slug)
               ? [rules.factionRules.get(summary.slug)!]
               : []),
+          ...(rules?.supplementalArmyRules?.get(rulesId) ?? []),
+        ],
         referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
         detachments: detachments.map((detachment) => {
           const reference = detachmentNamed(rules?.detachmentReferences?.get(rulesId), detachment.name)
           const detail = detachmentNamed(rules?.detachmentDetails?.get(rulesId), detachment.name)
           if (isProfiledDetachment(loaded, detachment.id) && !profiledDetachmentMatchesCards(loaded, detachment.id, detail)) {
             const cards = profiledDetachmentCards(loaded, detachment.id)
-            const points = profiledDetachmentPoints(loaded, detachment.id)
+            const points = detachmentPoints(loaded, faction.id, detachment.id, undefined) ?? profiledDetachmentPoints(loaded, detachment.id)
             return {
               id: detachment.id,
               slug: routeSlug(detachment.name),
@@ -223,9 +225,19 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
             reference: reference
               ? {
                   ...reference,
+                  points: detachmentPoints(loaded, faction.id, detachment.id, reference),
                   enhancements: new Set([
                     ...(detail?.enhancements.map((enhancement) => enhancement.name) ?? []),
+                    ...(mfmDetachmentFor(loaded, faction.id, detachment.name)
+                      ?.enhancements?.filter((entry) => !/\(upgrade\)\s*$/i.test(entry.name))
+                      .map((entry) => entry.name) ?? []),
                     ...forced.map((entry) => entry.name),
+                  ]).size,
+                  upgrades: new Set([
+                    ...(detail?.upgrades.map((upgrade) => upgrade.name) ?? []),
+                    ...(mfmDetachmentFor(loaded, faction.id, detachment.name)
+                      ?.enhancements?.filter((entry) => /\(upgrade\)\s*$/i.test(entry.name))
+                      .map((entry) => entry.name) ?? []),
                   ]).size,
                   dispositions: reference.dispositions.map((disposition) => rules?.dispositions?.get(disposition) ?? disposition),
                 }

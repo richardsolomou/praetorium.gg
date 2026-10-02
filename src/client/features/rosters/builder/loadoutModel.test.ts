@@ -5,6 +5,7 @@ import {
   choiceRemoval,
   controlledProfileCount,
   donorPriority,
+  equippedWeaponProfiles,
   type LoadoutChoice,
   type LoadoutModel,
   loadoutRowCount,
@@ -43,6 +44,21 @@ const choice = (options: LoadoutChoice['options'], room: number, optional = fals
 })
 
 const weapon = (name: string, type: string) => ({ id: name, name, type, values: [] })
+
+it('shows a selected weapon swap for a squad without model rows', () => {
+  const profiles = [
+    { ...weapon('Superfrag Rocket Launcher', 'Ranged Weapons'), count: 4 },
+    { ...weapon('Vengor Launcher', 'Ranged Weapons'), count: 1 },
+  ]
+  const choices = [
+    choice([{ ...option('vengor', 1, 1), name: 'Vengor Launcher', pieceCounts: [{ name: 'Vengor Launcher', count: 1 }] }], 1),
+  ]
+
+  expect(equippedWeaponProfiles(profiles, [], choices).map((profile) => profile.name)).toEqual([
+    'Superfrag Rocket Launcher',
+    'Vengor Launcher',
+  ])
+})
 
 it('shows an equipped enhancement weapon outside the model loadout without repeating its other weapons', () => {
   const model: LoadoutModel = {

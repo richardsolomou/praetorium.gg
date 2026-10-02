@@ -1,217 +1,122 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { loadTerrainLayouts } from './rulesTerrain'
+import { createHash } from 'node:crypto'
+import { afterEach, beforeEach, expect, it } from 'vitest'
+import { battlemasterGeometry } from './rulesTerrain'
 
 let directory: string
 const id = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
-const points = [
-  { x: 0, y: 0 },
-  { x: 5, y: 0 },
-  { x: 4, y: 3 },
-  { x: 0, y: 3 },
-]
-const area = {
-  id: 'area',
-  name: 'Area',
-  footprint: { origin: { x: 2, y: 3 }, widthIn: 5, heightIn: 3, rotationDeg: 90 },
-  outline: { points },
-  parts: [],
-}
-const template = {
-  id: 'template',
-  name: 'Template',
-  kind: 'area',
-  footprint: { type: 'polygon', points: points.map((point) => ({ x: point.x, y: 3 - point.y })) },
-}
-const piece = { id: 'area', name: 'Area', piece_type: 'area', template: 'template', position: { x: 30, y: 20 } }
 
 beforeEach(() => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-terrain-'))
   fs.mkdirSync(path.join(directory, 'layouts'))
+  fs.writeFileSync(
+    path.join(directory, 'layouts', `${id}.json`),
+    JSON.stringify({
+      layout: { id },
+      terrain: [
+        {
+          name: 'Area AB',
+          footprint: { origin: { x: 2, y: 3 }, widthIn: 5, heightIn: 3, rotationDeg: 90 },
+          outline: {
+            points: [
+              { x: 0, y: 0 },
+              { x: 5, y: 0 },
+              { x: 5, y: 3 },
+            ],
+          },
+          parts: [
+            {
+              name: 'Wall',
+              material: 'solid',
+              hasRoof: false,
+              origin: { x: 0, y: 0 },
+              rotationDeg: 0,
+              mirroredX: false,
+              mirroredY: false,
+              outline: null,
+              walls: [
+                {
+                  points: [
+                    { x: 0, y: 0 },
+                    { x: 5, y: 0 },
+                  ],
+                  thicknessIn: 0.25,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+  )
 })
+
 afterEach(() => fs.rmSync(directory, { recursive: true, force: true }))
 
-function load(pieces: unknown[], areas = [area], templates = [template]) {
-  fs.writeFileSync(
-    path.join(directory, 'terrain-layouts.json'),
-    JSON.stringify([{ id: 'layout', name: 'Layout', mission_matchup_id: 'matchup', description: `Battlemaster layout ${id}`, pieces }]),
-  )
-  fs.writeFileSync(path.join(directory, 'terrain-templates.json'), JSON.stringify(templates))
-  fs.writeFileSync(path.join(directory, 'layouts', `${id}.json`), JSON.stringify({ layout: { id }, terrain: areas }))
-  return loadTerrainLayouts(directory, directory)[0]!.geometry!
-}
-
-describe('source objective metadata', () => {
-  it('does not infer an objective from terrain letters or stray metadata', () => {
-    const geometry = load(
-      [
-        { ...piece, id: 'lettered' },
-        { ...piece, id: 'disabled', is_objective: false, objective: { position: { x: 7, y: 8 } }, link_group: 'center' },
-      ],
-      [
-        { ...area, id: 'lettered', name: 'Area AB' },
-        { ...area, id: 'disabled', name: 'Area CD' },
-      ],
-    )
-    expect(geometry.areas.map((entry) => entry.objective)).toEqual([null, null])
-  })
-
-  it('keeps explicit positions and groups on unlettered terrain, matching pieces by id', () => {
-    const geometry = load([
-      { ...piece, id: 'other' },
-      { ...piece, is_objective: true, objective: { position: { x: 7, y: 8 } }, link_group: 'center' },
-    ])
-    expect(geometry.areas[0]!.objective).toEqual({ position: { x: 7, y: 8 }, group: 'center' })
-  })
-
-  it('uses the piece position when the source omits an objective position', () => {
-    expect(load([{ ...piece, is_objective: true }]).areas[0]!.objective).toEqual({ position: piece.position, group: null })
-  })
-
-  it('retains the objective grouping field used by already-open clients', () => {
-    const geometry = load(
-      [
-        { ...piece, id: 'first', is_objective: true, link_group: 'center' },
-        { ...piece, id: 'second', is_objective: true, link_group: 'center' },
-        { ...piece, id: 'disabled', is_objective: false, link_group: 'center' },
-      ],
-      [
-        { ...area, id: 'first' },
-        { ...area, id: 'second' },
-        { ...area, id: 'disabled' },
-      ],
-    )
-    expect(geometry.areas.map((entry) => entry.objectiveGroup)).toEqual(['center', 'center', null])
-  })
-})
-
-describe('source terrain reference markers', () => {
-  it.each([
-    { home: 'CD', expansion: 'CD GH' },
-    { home: 'EF', expansion: 'EF GH' },
-    { home: 'GH', expansion: 'CD GH' },
-  ])('resolves a duplicated $home marker from the objective roles', ({ home, expansion }) => {
-    const areas = [
-      { ...area, id: 'centre-a', name: 'Area AB' },
-      { ...area, id: 'home-a', name: `Area ${home}` },
-      { ...area, id: 'expansion-a', name: `Area ${expansion}` },
-      { ...area, id: 'centre-b', name: 'Area AB' },
-      { ...area, id: 'home-b', name: `Area ${home}` },
-      { ...area, id: 'expansion-b', name: `Area ${expansion}` },
-    ]
-    const pieces = areas.map((entry) => ({
-      ...piece,
-      id: entry.id,
-      name: entry.name,
-      objective_role: entry.id.startsWith('home') ? 'home' : entry.id.startsWith('expansion') ? 'expansion' : 'center',
-    }))
-
-    expect(load(pieces, areas).areas.map((entry) => entry.markers.map((marker) => marker.label))).toEqual([
-      ['AB'],
-      ['EF'],
-      ['CD', 'GH'],
-      ['AB'],
-      ['EF'],
-      ['CD', 'GH'],
-    ])
-  })
-
-  it('leaves a complete source marker set unchanged', () => {
-    const areas = [
-      { ...area, id: 'centre-a', name: 'Area AB' },
-      { ...area, id: 'home-a', name: 'Area CD' },
-      { ...area, id: 'expansion-a', name: 'Area EF GH' },
-      { ...area, id: 'centre-b', name: 'Area AB' },
-      { ...area, id: 'home-b', name: 'Area CD' },
-      { ...area, id: 'expansion-b', name: 'Area EF GH' },
-    ]
-    const pieces = areas.map((entry) => ({
-      ...piece,
-      id: entry.id,
-      name: entry.name,
-      objective_role: entry.id.startsWith('home') ? 'home' : entry.id.startsWith('expansion') ? 'expansion' : 'center',
-    }))
-
-    expect(load(pieces, areas).areas.map((entry) => entry.markers.map((marker) => marker.label))).toEqual([
-      ['AB'],
-      ['CD'],
-      ['EF', 'GH'],
-      ['AB'],
-      ['CD'],
-      ['EF', 'GH'],
-    ])
-  })
-})
-
-describe('source placement measurements', () => {
-  it('keeps the third reference that fixes the rotation of a piece', () => {
-    const geometry = load([
+it('places terrain and walls in board coordinates', () => {
+  expect(battlemasterGeometry(directory, id)?.areas[0]).toMatchObject({
+    points: [
+      { x: 32, y: 19 },
+      { x: 32, y: 14 },
+      { x: 29, y: 14 },
+    ],
+    parts: [
       {
-        ...piece,
-        keystones: [
-          { edge: 'left', ref: { kind: 'vertex', index: 1 } },
-          { edge: 'top', ref: { kind: 'vertex', index: 1 } },
-          { edge: 'left', ref: { kind: 'vertex', index: 2 } },
+        walls: [
+          {
+            points: [
+              { x: 32, y: 19 },
+              { x: 32, y: 14 },
+            ],
+            thickness: 0.25,
+          },
         ],
       },
-    ])
-    expect(geometry.areas[0]!.measurements).toEqual([
-      { from: { x: 0, y: 14 }, to: { x: 32, y: 14 } },
-      { from: { x: 32, y: 0 }, to: { x: 32, y: 14 } },
-      { from: { x: 0, y: 15 }, to: { x: 29, y: 15 } },
-    ])
+    ],
   })
+})
 
-  it('measures from the far board edges without changing the referenced vertex', () => {
-    expect(
-      load([
-        {
-          ...piece,
-          keystones: [
-            { edge: 'right', ref: { kind: 'vertex', index: 0 } },
-            { edge: 'bottom', ref: { kind: 'vertex', index: 0 } },
-          ],
-        },
-      ]).areas[0]!.measurements,
-    ).toEqual([
-      { from: { x: 60, y: 19 }, to: { x: 32, y: 19 } },
-      { from: { x: 32, y: 44 }, to: { x: 32, y: 19 } },
-    ])
-  })
+it('does not invent objective positions from terrain names', () => {
+  expect(battlemasterGeometry(directory, id)?.areas[0]?.objective).toBeNull()
+})
 
-  it('uses the nearer end of the referenced outline edge', () => {
-    expect(load([{ ...piece, keystones: [{ edge: 'bottom', ref: { kind: 'vertex', index: 1 } }] }]).areas[0]!.measurements).toEqual([
-      { from: { x: 29, y: 44 }, to: { x: 29, y: 15 } },
-    ])
-  })
+it('rejects a detail with the wrong identity', () => {
+  const file = path.join(directory, 'layouts', `${id}.json`)
+  const value = JSON.parse(fs.readFileSync(file, 'utf8'))
+  value.layout.id = 'different'
+  fs.writeFileSync(file, JSON.stringify(value))
+  expect(battlemasterGeometry(directory, id)).toBeNull()
+})
 
-  it('does not invent measurements when the source supplies none', () => {
-    expect(load([piece]).areas[0]!.measurements).toEqual([])
-  })
+it('rejects an unsafe layout id', () => {
+  expect(battlemasterGeometry(directory, '../other')).toBeNull()
+})
 
-  it('omits invalid or unsupported references', () => {
-    expect(
-      load([
-        {
-          ...piece,
-          keystones: [
-            { edge: 'left', ref: { kind: 'vertex', index: -1 } },
-            { edge: 'left', ref: { kind: 'vertex', index: 100 } },
-            { edge: 'left', ref: { kind: 'vertex', index: 1.5 } },
-            { edge: 'left', ref: { kind: 'unknown', index: 0 } },
-            { edge: 'unknown', ref: { kind: 'vertex', index: 0 } },
-          ],
-        },
-      ]).areas[0]!.measurements,
-    ).toEqual([])
-  })
+it('applies a source-pinned terrain label correction to both matching areas', () => {
+  const file = path.join(directory, 'layouts', `${id}.json`)
+  const layout = JSON.parse(fs.readFileSync(file, 'utf8'))
+  layout.layout.layoutKey = 'layout-key'
+  layout.terrain.push(structuredClone(layout.terrain[0]))
+  fs.writeFileSync(file, JSON.stringify(layout))
+  fs.writeFileSync(path.join(directory, 'catalog.json'), JSON.stringify({ catalogKey: 'catalog-key' }))
+  fs.writeFileSync(
+    path.join(directory, 'terrain-labels.json'),
+    JSON.stringify({
+      format: 'praetorium.terrain-label-corrections.v1',
+      battlemasterRevision: createHash('sha256').update('catalog-key').digest('hex'),
+      corrections: [{ layoutId: id, layoutKey: 'layout-key', areaName: 'Area AB', from: 'AB', to: 'EF' }],
+    }),
+  )
+  expect(battlemasterGeometry(directory, id)?.areas.flatMap((area) => area.markers.map((marker) => marker.label))).toEqual(['EF', 'EF'])
+})
 
-  it('omits references when the template is absent or its vertex order differs', () => {
-    const source = { ...piece, keystones: [{ edge: 'left', ref: { kind: 'vertex', index: 0 } }] }
-    expect(load([source], [area], []).areas[0]!.measurements).toEqual([])
-    const reordered = { ...template, footprint: { ...template.footprint, points: template.footprint.points.toReversed() } }
-    expect(load([source], [area], [reordered]).areas[0]!.measurements).toEqual([])
-  })
+it('rejects a terrain label correction from another Battlemaster revision', () => {
+  fs.writeFileSync(path.join(directory, 'catalog.json'), JSON.stringify({ catalogKey: 'current' }))
+  fs.writeFileSync(
+    path.join(directory, 'terrain-labels.json'),
+    JSON.stringify({ format: 'praetorium.terrain-label-corrections.v1', battlemasterRevision: 'stale', corrections: [] }),
+  )
+  expect(() => battlemasterGeometry(directory, id)).toThrow('terrain label corrections do not match the Battlemaster source')
 })

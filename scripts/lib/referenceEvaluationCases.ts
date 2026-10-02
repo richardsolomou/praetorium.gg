@@ -102,29 +102,29 @@ export const referenceEvaluationFixtures: readonly Fixture[] = [
   },
   {
     name: 'primary mission scoring',
-    expectedDocumentId: 'mission:chapter-approved-2026-2027:death-trap',
-    expectedSectionId: 'mission-death-trap',
+    expectedDocumentId: 'mission:chapter-approved-2026-2027:eecd8d9e-73a3-4316-ac51-ed2e424d36a5',
+    expectedSectionId: 'mission-eecd8d9e-73a3-4316-ac51-ed2e424d36a5',
     query: { kind: 'document-title-and-section-text', start: 39, words: 5 },
     kinds: ['mission'],
   },
   {
     name: 'secondary mission scoring',
-    expectedDocumentId: 'mission:secondary:assassination',
-    expectedSectionId: 'secondary-assassination',
+    expectedDocumentId: 'mission:secondary:56ceebfa-1be3-4520-a7cb-10b5e8b2a150',
+    expectedSectionId: 'secondary-56ceebfa-1be3-4520-a7cb-10b5e8b2a150',
     query: { kind: 'document-title-and-section-text', start: 8, words: 6 },
     kinds: ['mission'],
   },
   {
     name: 'deployment pattern',
-    expectedDocumentId: 'deployment:tipping-point',
-    expectedSectionId: 'deployment-tipping-point',
+    expectedDocumentId: 'deployment:d1c7a63c-ff7f-4fc3-a998-a4e4dca7ce5d',
+    expectedSectionId: 'deployment-d1c7a63c-ff7f-4fc3-a998-a4e4dca7ce5d',
     query: { kind: 'section-title' },
     kinds: ['deployment'],
   },
   {
     name: 'terrain layout',
-    expectedDocumentId: 'terrain:bm-disrupt-vs-assets-01',
-    expectedSectionId: 'terrain-bm-disrupt-vs-assets-01',
+    expectedDocumentId: 'terrain:019d6708-3fd8-4140-9ed2-ad4b46121d56',
+    expectedSectionId: 'terrain-019d6708-3fd8-4140-9ed2-ad4b46121d56',
     query: { kind: 'section-title' },
     kinds: ['terrain'],
   },
@@ -137,7 +137,7 @@ export const referenceEvaluationFixtures: readonly Fixture[] = [
     faction: 'Genestealer Cults',
   },
   {
-    name: 'conflicting source field uses the declared winner',
+    name: 'datasheet points',
     expectedDocumentId: 'datasheet:chaos-daemons:pink-horrors',
     expectedSectionId: 'points',
     query: { kind: 'document-title-and-section-text', start: 2, words: 2 },
@@ -191,8 +191,5 @@ function validateSourceCases(corpus: ReferenceCorpus) {
     !corpus.catalogue.datasheets.some((sheet) => Object.values(sheet.provenance.fields).some((field) => field.strategy === 'unresolved'))
   ) {
     throw new Error('reference evaluation requires an unresolved source field')
-  }
-  if (!corpus.catalogue.issues.some((issue) => issue.kind === 'source-field-conflict')) {
-    throw new Error('reference evaluation requires a conflicting source field')
   }
 }

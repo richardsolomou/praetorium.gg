@@ -597,8 +597,8 @@ describe('the abilities and wargear a datasheet lists', () => {
                 dispositions: ['disruption'],
                 rules: [],
                 enhancements: [
-                  { name: 'Known', points: 10, description: 'Known.', keywordRestrictions: [] },
-                  { name: 'Unknown', points: 10, description: 'Unknown.', keywordRestrictions: null },
+                  { name: 'Known', points: 10, description: 'Known.', eligibility: { anyOf: [[]], excluded: [] } },
+                  { name: 'Unknown', points: 10, description: 'Unknown.', eligibility: null },
                 ],
                 upgrades: [],
                 stratagems: [],
@@ -614,6 +614,154 @@ describe('the abilities and wargear a datasheet lists', () => {
         ({ name }) => name,
       ),
     ).toEqual(['Known'])
+  })
+
+  it('offers an enhancement to either allowed keyword but excludes the barred one', () => {
+    const categories = ['Character', 'Infantry', 'Mounted', 'Damned']
+    const book = bookOf({
+      categoryEntries: categories.map((name) => ({ id: name.toLowerCase(), name })),
+      selectionEntries: [
+        { id: 'captain', name: 'Captain', keyword: 'Infantry' },
+        { id: 'rider', name: 'Rider', keyword: 'Mounted' },
+        { id: 'fallen', name: 'Fallen', keyword: 'Damned' },
+      ].map(({ id, name, keyword }) => ({
+        id,
+        name,
+        type: 'unit' as const,
+        categoryLinks: ['Character', keyword, ...(keyword === 'Damned' ? ['Infantry'] : [])].map((category) => ({
+          id: `${name}-${category}`,
+          targetId: category.toLowerCase(),
+        })),
+      })),
+    })
+    const rules = {
+      abilityDescriptions: new Map(),
+      factionKeys: new Map(),
+      detachmentDetails: new Map([
+        [
+          'test-catalogue',
+          new Map([
+            [
+              'detachment',
+              {
+                id: 'detachment',
+                name: 'Detachment',
+                points: 1,
+                dispositions: [],
+                rules: [],
+                enhancements: [
+                  {
+                    name: 'Restricted',
+                    points: 10,
+                    description: 'Restricted.',
+                    eligibility: { anyOf: [['Infantry'], ['Mounted']], excluded: ['Damned'] },
+                  },
+                ],
+                upgrades: [],
+                stratagems: [],
+              },
+            ],
+          ]),
+        ],
+      ]),
+    } as Partial<LoadedRules> as LoadedRules
+    const offered = (id: string) =>
+      describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', id), rules)?.detachments[0]?.enhancements.map(({ name }) => name)
+    expect([offered('captain'), offered('rider'), offered('fallen')]).toEqual([['Restricted'], ['Restricted'], []])
+  })
+
+  it('requires a printed ability before offering its enhancement', () => {
+    const book = bookOf({
+      categoryEntries: ['Character', 'Heretic Astartes'].map((name) => ({ id: name.toLowerCase(), name })),
+      selectionEntries: ['striker', 'walker'].map((id) => ({
+        id,
+        name: id,
+        type: 'unit' as const,
+        categoryLinks: ['Character', 'Heretic Astartes'].map((name) => ({ id: `${id}-${name}`, targetId: name.toLowerCase() })),
+        profiles: id === 'striker' ? [ability('deep-strike', 'Deep Strike')] : [],
+      })),
+    })
+    const rules = {
+      abilityDescriptions: new Map(),
+      factionKeys: new Map(),
+      detachmentDetails: new Map([
+        [
+          'test-catalogue',
+          new Map([
+            [
+              'detachment',
+              {
+                id: 'detachment',
+                name: 'Detachment',
+                points: 1,
+                dispositions: [],
+                rules: [],
+                enhancements: [
+                  {
+                    name: 'Warpstrike',
+                    points: 10,
+                    description: 'Warpstrike.',
+                    eligibility: { anyOf: [['Heretic Astartes']], excluded: [], requiredAbilities: ['Deep Strike'] },
+                  },
+                ],
+                upgrades: [],
+                stratagems: [],
+              },
+            ],
+          ]),
+        ],
+      ]),
+    } as Partial<LoadedRules> as LoadedRules
+    const offered = (id: string) =>
+      describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', id), rules)?.detachments[0]?.enhancements.map(({ name }) => name)
+    expect([offered('striker'), offered('walker')]).toEqual([['Warpstrike'], []])
+  })
+
+  it('offers a weapon-dependent enhancement only to a datasheet with that weapon', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'character', name: 'Character' }],
+      selectionEntries: [{ id: 'leader', name: 'Leader', type: 'unit', categoryLinks: [{ id: 'character-link', targetId: 'character' }] }],
+    })
+    const rules = {
+      abilityDescriptions: new Map(),
+      factionKeys: new Map(),
+      detachmentDetails: new Map([
+        [
+          'test-catalogue',
+          new Map([
+            [
+              'detachment',
+              {
+                id: 'detachment',
+                name: 'Detachment',
+                points: 1,
+                dispositions: [],
+                rules: [],
+                enhancements: [
+                  {
+                    name: 'Iron Ambassador',
+                    points: 5,
+                    description: 'Requires the Autoch-pattern combi-bolter.',
+                    eligibility: { anyOf: [[]], excluded: [], requiredWargear: ['Autoch‑pattern combi‑bolter'] },
+                  },
+                ],
+                upgrades: [],
+                stratagems: [],
+              },
+            ],
+          ]),
+        ],
+      ]),
+    } as Partial<LoadedRules> as LoadedRules
+    const sheet = datasheetIn(book, 'cat', 'leader')!
+    const offered = (weapon: string) =>
+      describeDatasheetAbilities(
+        book,
+        'cat',
+        { ...sheet, profiles: [{ id: 'weapon', name: weapon, type: 'Ranged Weapons', values: [] }] },
+        rules,
+      )?.detachments[0]?.enhancements.map(({ name }) => name)
+    expect([offered('Autoch-pattern combi-bolter'), offered('Autoch-pattern bolter')]).toEqual([['Iron Ambassador'], []])
   })
 
   it('classifies game-system rules linked by a datasheet as core abilities', () => {

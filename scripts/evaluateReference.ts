@@ -20,12 +20,11 @@ const directory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '.
 const catalogue = loadCatalogue(directory)
 if (!catalogue) throw new Error('reference evaluation requires an installed catalogue snapshot')
 const rules = loadRules(
-  path.join(directory, 'rules'),
+  directory,
   path.join(directory, 'battlemaster'),
   path.join(directory, 'faction-icons'),
   path.join(directory, 'datacards', '11th', 'gdc'),
   catalogue.datacards,
-  catalogue.sourceReferences,
 )
 const canonical = loadCanonicalCatalogue(directory) ?? compileCanonicalCatalogueFromSnapshot(catalogue, rules, directory)
 const corpus = referenceCorpusFor({ canonicalCatalogue: () => canonical, catalogue: () => catalogue, rules: () => rules })

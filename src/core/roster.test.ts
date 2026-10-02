@@ -976,6 +976,45 @@ describe('optional wargear on repeated models', () => {
     })
   })
 
+  it('keeps a nested optional upgrade available when its parent holds the prerequisite', () => {
+    const conditionalIndex = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'conditional-unit',
+          name: 'Conditional Unit',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'conditional-model',
+              name: 'Conditional Model',
+              type: 'model',
+              constraints: mandatory('model-min'),
+              selectionEntries: [
+                { id: 'gun', name: 'Gun', type: 'upgrade', constraints: mandatory('gun-min') },
+                {
+                  id: 'bonus',
+                  name: 'Bonus',
+                  type: 'upgrade',
+                  constraints: [{ id: 'bonus-max', field: 'selections', scope: 'parent', type: 'max', value: 1 }],
+                  modifiers: [
+                    {
+                      field: 'bonus-max',
+                      type: 'set',
+                      value: 0,
+                      conditions: [{ childId: 'gun', field: 'selections', scope: 'parent', type: 'lessThan', value: 1 }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(buildUnit('conditional-unit', conditionalIndex)?.choices.map((choice) => choice.name)).toContain('Bonus')
+  })
+
   it('equips the upgrade on only the requested models', () => {
     const built = buildUnit('unit', index, 3, undefined, { spreads: { 'model/shield': { shield: 2 } } })!
     expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Shieldvanes', count: 2 })
@@ -1318,6 +1357,94 @@ it('does not offer mandatory weapons as alternatives to each other', () => {
   const built = buildUnit('soldier', index)!
 
   expect(built.choices).toEqual([])
+})
+
+it('offers a third weapon when two copies are required and the group allows three', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'tank',
+        name: 'Tank',
+        type: 'model',
+        selectionEntryGroups: [
+          {
+            id: 'pintle',
+            name: 'Pintle Mount Option',
+            constraints: [{ id: 'pintle-max', type: 'max', value: 3, field: 'selections', scope: 'parent' }],
+            selectionEntries: [
+              {
+                id: 'melta',
+                name: 'Multi-melta',
+                type: 'upgrade',
+                constraints: [
+                  { id: 'melta-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+                  { id: 'melta-max', type: 'max', value: 3, field: 'selections', scope: 'parent' },
+                ],
+              },
+              {
+                id: 'stubber',
+                name: 'Ironhail Heavy Stubber',
+                type: 'upgrade',
+                constraints: [{ id: 'stubber-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const choice = buildUnit('tank', index)!.choices.find((candidate) => candidate.key === 'pintle')
+
+  expect(choice?.options.map((option) => [option.name, option.count, option.min, option.max])).toEqual([
+    ['Multi-melta', 2, 2, 3],
+    ['Ironhail Heavy Stubber', 0, 0, 1],
+  ])
+})
+
+it('lets a vehicle take several independently offered optional weapons', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'vehicle',
+        name: 'Vehicle',
+        type: 'model',
+        selectionEntryGroups: [
+          {
+            id: 'wargear',
+            name: 'Wargear Options',
+            selectionEntries: [
+              {
+                id: 'missile',
+                name: 'This model can be equipped with 1 Missile.',
+                type: 'upgrade',
+                constraints: [{ id: 'missile-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+              {
+                id: 'bolter',
+                name: 'This model can be equipped with 1 Bolter.',
+                type: 'upgrade',
+                constraints: [{ id: 'bolter-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const built = buildUnit('vehicle', index, undefined, undefined, { spreads: { wargear: { missile: 1, bolter: 1 } } })!
+
+  expect({
+    room: built.choices[0]?.room,
+    options: built.choices[0]?.options.map((option) => [option.name, option.count, option.max]),
+    errors: evaluate([built.selection], index).errors,
+  }).toEqual({
+    room: 2,
+    options: [
+      ['This model can be equipped with 1 Missile.', 1, 1],
+      ['This model can be equipped with 1 Bolter.', 1, 1],
+    ],
+    errors: [],
+  })
 })
 
 describe('a choice the data closes behind another', () => {

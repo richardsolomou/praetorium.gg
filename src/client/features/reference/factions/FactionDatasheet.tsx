@@ -216,9 +216,9 @@ function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rul
                   <div key={JSON.stringify(cost)} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
                     <span className="min-w-0">
                       {cost.models} {cost.models === '1' ? 'model' : 'models'}
-                      {[cost.keyword, cost.faction, cost.detachment].filter(Boolean).length ? (
+                      {[cost.keyword, cost.faction, cost.detachment, cost.copies].filter(Boolean).length ? (
                         <span className="ml-1 text-xs text-dim">
-                          · {[cost.keyword, cost.faction, cost.detachment].filter(Boolean).join(' · ')}
+                          · {[cost.keyword, cost.faction, cost.detachment, cost.copies].filter(Boolean).join(' · ')}
                         </span>
                       ) : null}
                     </span>

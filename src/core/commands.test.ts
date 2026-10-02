@@ -3,6 +3,17 @@ import { FIXED_SECONDARIES, SECONDARIES_MAX, SETUP_STEP_MAX } from './battle'
 import { commandSchema } from './commands'
 
 describe('command schema', () => {
+  it('accepts a battle-round stratagem limit from a prepared card', () => {
+    const command = {
+      kind: 'set-prep',
+      stratagems: [{ key: 'titan-killer', name: 'Titan Killer', cp: 1, limit: 'battle-round' }],
+      secondaries: [],
+      primary: null,
+      secondaryMode: 'tactical',
+    }
+    expect(commandSchema.safeParse(command).success).toBe(true)
+  })
+
   it('keeps the transport key on an embarked formation command', () => {
     const command = { kind: 'set-unit-formation', unitKey: 'squad', formation: 'embarked', transportKey: 'rhino' }
     expect(commandSchema.parse(command)).toEqual(command)

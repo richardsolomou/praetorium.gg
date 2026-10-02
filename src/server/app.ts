@@ -167,7 +167,7 @@ function catalogueLoaders(getInstance: () => App, directory: string) {
     canonical: memoize(() => canonicalCatalogue(getInstance(), directory)),
     rules: memoize(() => {
       const catalogue = getInstance().catalogue()
-      return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards, catalogue?.sourceReferences)
+      return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards)
     }),
     history: memoize(() => loadCatalogueHistory(directory)),
     combatUnits: memoize(() => {

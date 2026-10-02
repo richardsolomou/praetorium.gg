@@ -27,7 +27,7 @@ export function factionRestrictionViolations(restrictions: FactionRestrictions |
 }
 
 /**
- * Prototype KOTC 2.0 army-construction changes layered over normal Incursion legality.
+ * KOTC 2.0 army-construction changes layered over normal Incursion legality.
  *
  * Every rule here is named in `formatRules`, and a roster that has waived one is not
  * told about it: the restriction the player switched off is the restriction they
@@ -40,7 +40,12 @@ export function kotcViolations(detachments: number, units: readonly KotcUnit[], 
   if (enforces(waived, 'detachments') && detachments !== 1) add(`needs exactly 1 detachment, has ${detachments}`)
   if (enforces(waived, 'kotc-infantry') && units.filter((unit) => hasKeyword(unit, 'infantry')).length < 2)
     add('needs at least 2 Infantry units')
-  if (enforces(waived, 'kotc-warlord') && !units.some((unit) => unit.warlord)) add('needs a Warlord')
+  if (enforces(waived, 'kotc-warlord')) {
+    const warlords = units.filter((unit) => unit.warlord)
+    if (!warlords.length) add('needs a Warlord')
+    else if (warlords.length !== 1) add(`needs exactly 1 Warlord, has ${warlords.length}`)
+    for (const warlord of warlords) if (!hasKeyword(warlord, 'character')) add('Warlord must have the Character keyword', warlord)
+  }
   for (const unit of units) {
     for (const message of kotcUnitExclusions(unit, waived)) add(message, unit)
     // Only worth saying while a Toughness rule is being enforced: with the cap

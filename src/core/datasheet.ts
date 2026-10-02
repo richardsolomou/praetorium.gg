@@ -28,7 +28,7 @@ export type Datasheet = {
   wargearGroups?: { instruction: string; options: string[] }[]
   baseSize: string | null
   transport: string | null
-  costs: { models: string; cost: string; keyword: string | null; faction: string | null; detachment: string | null }[]
+  costs: { models: string; cost: string; keyword: string | null; faction: string | null; detachment: string | null; copies?: string }[]
   attachments: DatasheetRelationship[]
   leaders: DatasheetRelationship[]
   supporters: DatasheetRelationship[]

@@ -14,7 +14,7 @@ const { values } = parseArgs({ options: { json: { type: 'boolean' }, faction: { 
 const directory = path.resolve(process.env.CATALOGUE_DIR ?? 'catalogue-data')
 const loaded = loadCatalogue(directory)
 if (!loaded) throw new Error('Fetch the catalogue snapshot before auditing combat rules.')
-const rules = loadRules(path.join(directory, 'rules'), undefined, undefined, undefined, loaded.datacards, loaded.sourceReferences)
+const rules = loadRules(directory, undefined, undefined, undefined, loaded.datacards)
 if (!rules) throw new Error('The snapshot is missing its rules source.')
 const entries = new Map<string, InventoryRule>()
 function add(name: string, description: string | null, source: string, scope: CombatRule['scope']) {

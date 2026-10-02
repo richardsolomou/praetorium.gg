@@ -357,7 +357,7 @@ async function verifiedSnapshots(): Promise<PreviewSnapshots> {
   const directory = process.env.CATALOGUE_DIR ? path.resolve(process.env.CATALOGUE_DIR) : catalogueDirectory()
   if (!installedSnapshot(directory)) await fetchCurrentSnapshot(directory, catalogueBaseUrl(), (message) => console.log(message))
   const catalogue = loadCatalogue(directory)
-  const rules = loadRules(path.join(directory, 'rules'))
+  const rules = loadRules(directory)
   if (!catalogue || !rules) throw new Error('the verified catalogue snapshot is incomplete')
 
   return new Map(

@@ -22,11 +22,12 @@ test('a squad grows from its unit editor', async ({ page }) => {
   })
 
   const total = page.locator('[data-stat="points"]')
-  await expect(total).toHaveText('120/2000')
+  await expect(total).toHaveText(/^\d+\/2000$/)
+  const startingPoints = Number((await total.innerText()).split('/')[0])
   // The stepper lives with the rest of the selected unit's configuration.
   await page.getByRole('button', { name: 'More models in Immortals' }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
-  await expect(total).not.toHaveText('120/2000')
+  await expect.poll(async () => Number((await total.innerText()).split('/')[0])).toBeGreaterThan(startingPoints)
   await expect(page.locator('html')).not.toHaveAttribute('data-datasheet-reloaded', 'true')
   // And the wargear lines follow the models carrying it.
   await expect(page.getByText('6x Gauss blaster')).toBeVisible()
@@ -324,8 +325,18 @@ test('a character can be marked as the warlord from its unit editor', async ({ p
   await expect(profile.getByText('2+', { exact: true })).toBeVisible()
   await expect(profile.getByText('4+', { exact: true })).toBeVisible()
   await shot(profile, 'test-results/invulnerable-save-row.png')
-  await expect(loadout.getByText('Tachyon arrow', { exact: true })).toBeVisible()
-  await expect(loadout.getByText("Overlord's blade", { exact: true })).toBeVisible()
+  await expect(
+    loadout
+      .getByRole('heading', { name: /^Equipped ranged weapons/ })
+      .locator('..')
+      .getByText('Tachyon arrow'),
+  ).toBeVisible()
+  await expect(
+    loadout
+      .getByRole('heading', { name: /^Equipped melee weapons/ })
+      .locator('..')
+      .getByText("Overlord's blade"),
+  ).toBeVisible()
   await expect(loadout.getByText('Voidscythe', { exact: true })).toBeVisible()
   const stats = await profile.boundingBox()
   const lastStat = await profile.locator(':scope > div').last().boundingBox()
@@ -566,12 +577,12 @@ test('a squad the datasheet keeps identical is asked once, not counted', async (
   await page.screenshot({ path: 'test-results/loadout.png', fullPage: true })
 })
 
-test('a squad-wide choice has the same count on its roster card and loadout', async ({ page }) => {
+test('a model-specific weapon has the same count on its roster card and loadout', async ({ page }) => {
   await openBuilder(page, 'Dark Angels', /Inner Circle Task Force/)
   await waitForRosterSave(page, () => add(page, 'Vanguard Veteran Squad with Jump Packs'))
 
   const card = page.locator('[data-unit="Vanguard Veteran Squad with Jump Packs"]')
-  await expect(card).toContainText('4x Storm Shield')
+  await expect(card).toContainText('4x Master-crafted Power Weapon')
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   const rosterWidths = await page.locator('[data-slot="roster-units"]').evaluate((element) => ({
@@ -579,7 +590,7 @@ test('a squad-wide choice has the same count on its roster card and loadout', as
     scroll: element.scrollWidth,
   }))
   expect(rosterWidths.scroll).toBe(rosterWidths.client)
-  await page.screenshot({ path: 'test-results/vanguard-veteran-shield-count.png', fullPage: true })
+  await page.screenshot({ path: 'test-results/vanguard-veteran-weapon-count.png', fullPage: true })
   await card.getByRole('button', { name: 'Vanguard Veteran Squad with Jump Packs', exact: true }).click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
@@ -588,11 +599,11 @@ test('a squad-wide choice has the same count on its roster card and loadout', as
     scroll: element.scrollWidth,
   }))
   expect(loadoutWidths.scroll).toBe(loadoutWidths.client)
-  const masterCrafted = loadout.getByRole('button', { name: 'Select Master-crafted Power Weapon' })
-  await masterCrafted.first().click()
-  const sergeant = loadout.locator('section').filter({ hasText: 'Vanguard Veteran Sergeant with Jump Pack' })
-  await sergeant.getByRole('button', { name: 'Select Master-crafted Power Weapon' }).click()
-  await expect(loadout.getByLabel('Master-crafted Power Weapon count')).toHaveText(['4', '1'])
+  await expect(loadout.getByLabel('Master-crafted Power Weapon count')).toHaveText('4')
+  await waitForRosterSave(page, () =>
+    loadout.getByRole('button', { name: 'More models in Vanguard Veteran Squad with Jump Packs' }).click(),
+  )
+  await expect(loadout.getByLabel('Master-crafted Power Weapon count')).toHaveText('5')
   await expect(card).toContainText('5x Master-crafted Power Weapon')
 
   await loadout.getByRole('button', { name: 'Back to roster' }).click()

@@ -4,7 +4,7 @@ const linkClass = 'text-info hover:text-parchment'
 
 export function Sources() {
   return (
-    <LegalPage title="Data sources" updated="1 September 2026">
+    <LegalPage title="Data sources" updated="2 October 2026">
       <LegalSection title="Community data">
         <p>Praetorium uses rules and reference data from these community projects:</p>
         <LegalLinks>
@@ -16,20 +16,23 @@ export function Sources() {
             .
           </li>
           <li>
-            Stratagem, mission, and scoring data by Alpaca Software and the 40kdc community contributors. This data is licensed under{' '}
-            <a href="https://github.com/wn-mitch/40kdc-data/blob/main/LICENSE-DATA" className={linkClass}>
-              CC BY 4.0
-            </a>
-            . Praetorium prepares this data for use in the army builder and battle tracker.{' '}
-            <a href="https://40kdc.alpacasoft.dev" className={linkClass}>
-              Powered by 40kdc-data
+            Provisional Space Marines codex records from{' '}
+            <a href="https://github.com/richardsolomou/wh40k-11e" className={linkClass}>
+              the pinned community fork
             </a>
             .
           </li>
           <li>
-            Faction descriptions, mission layouts, and other reference data from{' '}
+            Faction descriptions, stratagems, missions, scoring, and layout names from{' '}
             <a href="https://github.com/game-datacards/datasources" className={linkClass}>
               game-datacards
+            </a>
+            .
+          </li>
+          <li>
+            Current unit, wargear, detachment, enhancement, and upgrade prices from{' '}
+            <a href="https://github.com/BSData/wh40k-11e-mfm" className={linkClass}>
+              BSData Munitorum Field Manual
             </a>
             .
           </li>
@@ -37,6 +40,20 @@ export function Sources() {
             Terrain geometry from{' '}
             <a href="https://battlemaster.online" className={linkClass}>
               Battlemaster
+            </a>
+            .
+          </li>
+          <li>
+            Faction icons from{' '}
+            <a href="https://github.com/Certseeds/wh40k-icon" className={linkClass}>
+              Certseeds/wh40k-icon
+            </a>
+            , licensed under AGPL-3.0.
+          </li>
+          <li>
+            King of the Colosseum battlefield diagrams from{' '}
+            <a href="https://playontabletop.com/kotc/" className={linkClass}>
+              Play On Tabletop
             </a>
             .
           </li>

@@ -51,7 +51,7 @@ describe('catalogue coverage comparison', () => {
       JSON.stringify([faction('Example Army (11e)', 'New Parent Rule'), faction('Example Chapter', ''), faction('Unrelated Army', '')]),
     )
 
-    expect(compareCatalogueCoverage(base, head, [], catalogue, rules, 'Example Army (11e)').lost).toEqual([
+    expect(compareCatalogueCoverage(base, head, [], catalogue, 'Example Army (11e)').lost).toEqual([
       'unrelated-army army rules: Other Rule',
     ])
   })
@@ -100,7 +100,46 @@ describe('catalogue coverage comparison', () => {
     fs.writeFileSync(base, JSON.stringify(snapshot(100)))
     fs.writeFileSync(head, JSON.stringify(snapshot(price)))
 
-    expect(compareCatalogueCoverage(base, head, [], catalogue, rules).lost).toEqual(lost)
+    expect(compareCatalogueCoverage(base, head, [], catalogue).lost).toEqual(lost)
+  })
+
+  it('keeps a roster option when another option joins its group', () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-choice-coverage-'))
+    temporaryDirectories.push(root)
+    const catalogue = path.join(root, 'catalogue')
+    fs.mkdirSync(path.join(catalogue, 'datacards', '11th', 'gdc'), { recursive: true })
+    const snapshot = (choices: string[]) => [
+      {
+        name: 'Example Faction',
+        slug: 'example-faction',
+        armyRules: [],
+        detachments: [],
+        datasheets: [
+          {
+            name: 'Rhino',
+            points: 80,
+            profiles: [],
+            abilities: [],
+            keywordRules: [],
+            attachments: [],
+            leaders: [],
+            composition: 0,
+            wargearOptions: 0,
+            keywords: 0,
+            loadout: false,
+            baseSize: false,
+            roster: { points: 80, models: [], wargear: [], choices, errors: [], deployment: [] },
+          },
+        ],
+      },
+    ]
+    const base = path.join(root, 'base.json')
+    const head = path.join(root, 'head.json')
+    fs.writeFileSync(base, JSON.stringify(snapshot(['Wargear: Hunter-killer missile'])))
+    fs.writeFileSync(head, JSON.stringify(snapshot(['Wargear: Storm bolter; Hunter-killer missile'])))
+
+    expect(compareCatalogueCoverage(base, head, [], catalogue).lost).toEqual([])
   })
 
   it.each([
@@ -160,7 +199,7 @@ describe('catalogue coverage comparison', () => {
     fs.writeFileSync(base, JSON.stringify(snapshot(before)))
     fs.writeFileSync(head, JSON.stringify(snapshot(after)))
 
-    expect(compareCatalogueCoverage(base, head, [], catalogue, rules).lost).toEqual(lost)
+    expect(compareCatalogueCoverage(base, head, [], catalogue).lost).toEqual(lost)
   })
 
   it('reports a field removed from the head snapshot', () => {
@@ -187,7 +226,7 @@ describe('catalogue coverage comparison', () => {
     fs.writeFileSync(base, JSON.stringify([faction]))
     fs.writeFileSync(head, JSON.stringify([{ ...faction, armyRules: [] }]))
 
-    const compared = compareCatalogueCoverage(base, head, [], catalogue, rules)
+    const compared = compareCatalogueCoverage(base, head, [], catalogue)
 
     expect(compared.lost).toEqual(['example-faction army rules: Example Rule'])
   })
@@ -224,6 +263,6 @@ describe('catalogue coverage comparison', () => {
     fs.writeFileSync(base, JSON.stringify(snapshot('Coordinated Strike')))
     fs.writeFileSync(head, JSON.stringify(snapshot('Co-ordinated Strike')))
 
-    expect(compareCatalogueCoverage(base, head, [], catalogue, rules).lost).toEqual([])
+    expect(compareCatalogueCoverage(base, head, [], catalogue).lost).toEqual([])
   })
 })

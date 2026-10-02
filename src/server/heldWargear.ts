@@ -4,6 +4,7 @@ import { wargearKey } from '../core/wargear'
 
 export type ReplacementSource = { choiceKey: string; optionId: string }
 export const replacementKey = ({ choiceKey, optionId }: ReplacementSource) => `${choiceKey}\0${optionId}`
+const grantedWargear = (name: string) => /\b(?:replaced|equipped) with\s+\d+\s+(.+)$/i.exec(name)?.[1]?.replace(/\.$/, '')
 
 /**
  * What a unit is carrying, counted the way its loadout is drawn.
@@ -22,7 +23,11 @@ export function heldWargear(
   }[],
   catalogued: readonly { name: string; count: number }[],
 ): { name: string; count: number }[] {
-  if (!models.length) return [...catalogued]
+  const carried = catalogued.filter((piece) => {
+    const replacement = grantedWargear(piece.name)
+    return !replacement || !catalogued.some((other) => wargearKey(other.name) === wargearKey(replacement))
+  })
+  if (!models.length) return carried
   const countOf = (choiceKey: string, optionId: string) =>
     choices.find((choice) => choice.key === choiceKey)?.options.find((option) => option.id === optionId)?.count ?? 0
   const held = new Map<string, { name: string; count: number }>()
@@ -57,11 +62,13 @@ export function heldWargear(
     if (choice.name && isUnitCompositionChoice({ name: choice.name, options: choice.options })) continue
     for (const option of choice.options) {
       if (option.count <= 0 || modeled.has(replacementKey({ choiceKey: choice.key, optionId: option.id }))) continue
+      const replacement = grantedWargear(option.name ?? '')
+      if (replacement && carried.some((piece) => wargearKey(piece.name) === wargearKey(replacement))) continue
       const pieces = option.pieceCounts ?? (option.name ? [{ name: option.name, count: option.count }] : [])
       for (const piece of pieces) add(piece.name, piece.count)
     }
   }
-  for (const piece of catalogued) {
+  for (const piece of carried) {
     const key = wargearKey(piece.name)
     if (!named.has(key)) add(piece.name, piece.count)
   }

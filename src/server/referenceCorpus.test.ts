@@ -270,7 +270,6 @@ it('keeps missing source descriptions explicit in bounded documents', () => {
     attribution: 'Community data',
     provenance: {
       definitions: { revision: 'one', detachmentId: 'detachment' },
-      rules: { revision: 'one' },
       datacards: { revision: 'one' },
     },
   })

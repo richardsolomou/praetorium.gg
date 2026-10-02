@@ -4,6 +4,7 @@ import type { SelectionEntry } from '../core/catalogue'
 import {
   calculateRosterAssessment,
   calculateRosterPrice,
+  calculateRosterTotals,
   choiceOptionsForPricing,
   deploymentRules,
   heldWargear,
@@ -54,6 +55,34 @@ const rulesWithout = {
   detachmentDetails: new Map(),
   factionRestrictions: new Map(),
 } as Partial<LoadedRules> as LoadedRules
+
+it('marks a saved datasheet missing from the new source as illegal', () => {
+  const loaded = bookOf({ selectionEntries: [{ id: 'current', name: 'Current unit', type: 'model', costs: pointsCost(50) }] })
+  const priced = calculateRosterPrice(
+    { catalogueId: 'cat', detachmentIds: [], disposition: null, limit: 2_000, units: [{ entryId: 'retired' }] },
+    loaded,
+    rulesWithout,
+  )
+  expect(priced?.errors).toContainEqual({
+    entryId: 'retired',
+    entryName: 'retired',
+    message: 'this saved datasheet is no longer available; choose a current unit',
+  })
+})
+
+it('marks an old selected wargear option as illegal instead of silently dropping it', () => {
+  const loaded = bookOf({ selectionEntries: [{ id: 'current', name: 'Current unit', type: 'model', costs: pointsCost(50) }] })
+  const priced = calculateRosterPrice(
+    { catalogueId: 'cat', detachmentIds: [], disposition: null, limit: 2_000, units: [{ entryId: 'current', choices: { old: 'weapon' } }] },
+    loaded,
+    rulesWithout,
+  )
+  expect(priced?.errors).toContainEqual({
+    entryId: 'current',
+    entryName: 'Current unit',
+    message: 'a saved choice is no longer available; reselect this unit’s options',
+  })
+})
 
 describe('the enhancements an army may hold', () => {
   const bearer = (id: string, name: string) => ({
@@ -494,7 +523,9 @@ describe('enhancement descriptions', () => {
                 dispositions: [],
                 rules: [],
                 enhancements: [],
-                upgrades: [{ name: 'Furious Assault', points: 10, description: 'Charge harder.', keywordRestrictions: [] }],
+                upgrades: [
+                  { name: 'Furious Assault', points: 10, description: 'Charge harder.', eligibility: { anyOf: [[]], excluded: [] } },
+                ],
                 stratagems: [],
               },
             ],
@@ -559,7 +590,9 @@ describe('catalogue-backed deployment rules', () => {
       ],
       selectionEntries: units,
     })
-  const flyboyzRules = (enhancements: { name: string; points: number; description: string; keywordRestrictions: string[] }[] = []) =>
+  const flyboyzRules = (
+    enhancements: { name: string; points: number; description: string; eligibility: { anyOf: string[][]; excluded: string[] } }[] = [],
+  ) =>
     ({
       factionKeys: new Map([['orks', 'orks']]),
       detachmentReferences: new Map([
@@ -663,7 +696,7 @@ describe('catalogue-backed deployment rules', () => {
         name: 'Master of Manoeuvre',
         points: 30,
         description: '',
-        keywordRestrictions: [],
+        eligibility: { anyOf: [[]], excluded: [] },
       },
     ])
 
@@ -700,7 +733,7 @@ describe('catalogue-backed deployment rules', () => {
         points: 30,
         description:
           "If the bearer's unit starts the battle in Strategic Reserves, its points value does not count towards the combined points limit for units from your army that are in Strategic Reserve.",
-        keywordRestrictions: [],
+        eligibility: { anyOf: [[]], excluded: [] },
       },
     ])
 
@@ -725,6 +758,54 @@ describe('catalogue-backed deployment rules', () => {
     expect(assessed?.units).toEqual(
       priced?.units.map(({ key, size, enhancements, upgrades }) => ({ key, size: { models: size.models }, enhancements, upgrades })),
     )
+  })
+
+  it('uses MFM enhancement points in the option, roster, assessment, and saved total', () => {
+    const loaded = detachmentBook({
+      id: 'warboss',
+      name: 'Warboss',
+      type: 'unit',
+      costs: pointsCost(75),
+      selectionEntryGroups: [
+        {
+          id: 'enhancements',
+          name: 'Enhancements',
+          constraints: [{ id: 'enhancements-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+          selectionEntries: [{ id: 'master', name: 'Master of Manoeuvre', type: 'upgrade', costs: pointsCost(20) }],
+        },
+      ],
+    })
+    loaded.mfm = new Map([
+      [
+        'orks',
+        {
+          slug: 'orks',
+          version: '1.5',
+          units: [],
+          detachments: [{ name: 'Flyboyz', dp: 2, enhancements: [{ name: 'Master of Manoeuvre', points: 15 }] }],
+        },
+      ],
+    ])
+    const saved = {
+      catalogueId: 'cat',
+      detachmentIds: ['flyboyz'],
+      disposition: null,
+      limit: 2_000,
+      picks: [{ entryId: 'warboss', choices: { enhancements: 'master' } }],
+    }
+    const input = savedRosterPriceInput(saved)
+    const priced = calculateRosterPrice(
+      input,
+      loaded,
+      flyboyzRules([{ name: 'Master of Manoeuvre', points: 20, description: 'Test', eligibility: { anyOf: [[]], excluded: [] } }]),
+    )
+    expect({
+      option: priced?.units[0]?.choices.find((choice) => choice.name === 'Enhancements')?.options[0]?.points,
+      unit: priced?.units[0]?.points,
+      roster: priced?.points,
+      assessment: calculateRosterAssessment(input, loaded, null)?.points,
+      savedTotal: calculateRosterTotals(input, loaded, null)?.points,
+    }).toEqual({ option: 15, unit: 90, roster: 90, assessment: 90, savedTotal: 90 })
   })
 })
 
@@ -759,7 +840,7 @@ describe('King of the Colosseum army construction', () => {
     warlord,
   })
 
-  it('accepts a legal prototype roster', () => {
+  it('accepts a legal KOTC roster', () => {
     expect(
       kotcViolations(1, [
         unit('leader', ['Infantry', 'Character'], 4, true),
@@ -767,6 +848,36 @@ describe('King of the Colosseum army construction', () => {
         unit('tank', ['Vehicle'], 9),
       ]),
     ).toEqual([])
+  })
+
+  it('requires exactly one Character Warlord', () => {
+    const infantry = unit('infantry', ['Infantry'], 4)
+    const character = unit('character', ['Infantry', 'Character'], 4)
+    expect(kotcViolations(1, [{ ...infantry, warlord: true }, character]).map((error) => error.message)).toEqual([
+      'Warlord must have the Character keyword',
+    ])
+    expect(
+      kotcViolations(1, [
+        { ...character, warlord: true },
+        { ...infantry, warlord: true },
+      ]).map((error) => error.message),
+    ).toEqual(['needs exactly 1 Warlord, has 2', 'Warlord must have the Character keyword'])
+  })
+
+  it('does not count a toggle absent from the catalogue as a Warlord', () => {
+    const loaded = bookOf({ selectionEntries: [cappedLord('lord', 'Lord')] })
+    const price = calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        limit: 600,
+        units: [{ entryId: 'lord', toggles: { invented: 1 } }],
+      },
+      loaded,
+      rulesWithout,
+    )
+    expect(price?.errors.map((error) => error.message)).toContain('needs a Warlord')
   })
 
   it('refuses to pass a Toughness 9 unit whose enhancement could raise it', () => {
@@ -817,7 +928,7 @@ describe('King of the Colosseum army construction', () => {
   })
 
   it('stops enforcing a restriction the roster has waived', () => {
-    const army = [unit('hero', ['Infantry', 'Epic Hero'], 4, true), unit('troops', ['Infantry', 'Battleline'], 4)]
+    const army = [unit('hero', ['Infantry', 'Character', 'Epic Hero'], 4, true), unit('troops', ['Infantry', 'Battleline'], 4)]
     expect(kotcViolations(1, army).map((error) => error.message)).toEqual(['does not allow Epic Heroes'])
     expect(kotcViolations(1, army, 600, ['kotc-epic-heroes'])).toEqual([])
   })
@@ -834,7 +945,7 @@ describe('King of the Colosseum army construction', () => {
 
   it('says nothing about a Toughness the catalogue cannot state once the cap is waived', () => {
     const army = [
-      { entryId: 'mystery', name: 'mystery', keywords: ['Infantry'], toughness: null, warlord: true },
+      { entryId: 'mystery', name: 'mystery', keywords: ['Infantry', 'Character'], toughness: null, warlord: true },
       unit('troops', ['Infantry', 'Battleline'], 4),
     ]
     expect(kotcViolations(1, army).map((error) => error.message)).toEqual(['cannot verify its Toughness from the synced catalogue'])
@@ -1143,7 +1254,13 @@ describe('the name an unnamed list falls back on', () => {
       name: 'Necrons',
       selectionEntries: [
         { id: 'ctan', name: "C'tan Shard of the Nightbringer", type: 'unit', costs: pointsCost(330) },
-        { id: 'hexmark', name: 'Hexmark Destroyer', type: 'unit', costs: pointsCost(90) },
+        {
+          id: 'hexmark',
+          name: 'Hexmark Destroyer',
+          type: 'unit',
+          costs: pointsCost(90),
+          selectionEntries: [{ id: 'warlord', name: 'Warlord', type: 'upgrade' }],
+        },
       ],
       sharedSelectionEntries: [
         {
@@ -1166,6 +1283,10 @@ describe('the name an unnamed list falls back on', () => {
 
   it('names the detachment, the size, the centrepiece and the Warlord', () => {
     expect(priceOf([{ entryId: 'ctan' }, { entryId: 'hexmark', toggles: { warlord: 1 } }])?.label).toBe("HL 1K - C'tan & Hexmark")
+  })
+
+  it('does not name an invented Warlord toggle', () => {
+    expect(priceOf([{ entryId: 'ctan' }, { entryId: 'hexmark', toggles: { invented: 1 } }])?.label).toBe("HL 1K - C'tan")
   })
 
   it('is the detachment and the size while the list is still empty', () => {

@@ -69,12 +69,16 @@ export type ConstructionEnhancement = {
   detachment: string
   points: number | null
   description: string | null
+  eligibility: EnhancementEligibility | null
 }
+
+export type EnhancementEligibility = { anyOf: string[][]; excluded: string[]; requiredAbilities?: string[]; requiredWargear?: string[] }
 
 export type ConstructionStratagem = {
   id: string
   name: string
   cp: number
+  limit: Stratagem['limit']
   phases: NonNullable<Stratagem['phases']>
   turn: NonNullable<Stratagem['turn']>
   type: string | null
@@ -83,6 +87,7 @@ export type ConstructionStratagem = {
 
 export type FactionContent = {
   name: string
+  parentName?: string | null
   datasheets: Set<string>
   datasheetDetails: Map<string, DatasheetDetails>
   datasheetIds: ReadonlyMap<string, DatasheetDetails>
@@ -124,6 +129,7 @@ export type FactionRestrictions = {
 type DatacardsFaction = {
   id?: unknown
   name?: unknown
+  parent_name?: unknown
   datasheets?: unknown
   detachments?: unknown
   rules?: unknown
@@ -169,10 +175,19 @@ export function loadDatacards(directory: string, sections: SectionProse = NO_SEC
       constructionDetachments: new Map(),
       enhancementPoints: new Map(),
     }
-  for (const fileName of fs.readdirSync(directory).filter((entry) => entry.endsWith('.json'))) {
-    const parsed = JSON.parse(fs.readFileSync(path.join(directory, fileName), 'utf8')) as DatacardsFaction
-    if (typeof parsed.name !== 'string' || !Array.isArray(parsed.datasheets) || !Array.isArray(parsed.detachments)) continue
-    const content = factionContent(parsed.name, parsed, sections)
+  const files = fs
+    .readdirSync(directory)
+    .filter((entry) => entry.endsWith('.json'))
+    .map((fileName) => JSON.parse(fs.readFileSync(path.join(directory, fileName), 'utf8')) as DatacardsFaction)
+    .filter(
+      (parsed): parsed is DatacardsFaction & { name: string } =>
+        typeof parsed.name === 'string' && Array.isArray(parsed.datasheets) && Array.isArray(parsed.detachments),
+    )
+  const datasheetNames = [
+    ...new Set(files.flatMap((parsed) => records(parsed, 'datasheets').flatMap((entry) => localizedField(entry, 'name') ?? []))),
+  ]
+  for (const parsed of files) {
+    const content = factionContent(parsed.name, parsed, sections, datasheetNames)
     for (const key of datacardsFactionKeys(parsed.name)) factions.set(key, content)
     for (const rule of content.armyRules) remember(armyRules, routeSlug(rule.name), rule.description)
     for (const detachment of records(parsed, 'detachments')) {
@@ -323,6 +338,13 @@ function cardPhases(value: unknown): NonNullable<Stratagem['phases']> | null {
   return [...new Set(value)] as NonNullable<Stratagem['phases']>
 }
 
+function phaseFromWhen(value: string | null): NonNullable<Stratagem['phases']> | null {
+  const phases = [...(value?.matchAll(/\b(command|movement|shooting|charge|fight|end) phase\b/gi) ?? [])].map((match) =>
+    match[1]!.toLowerCase(),
+  )
+  return phases.length === 1 ? (phases as NonNullable<Stratagem['phases']>) : null
+}
+
 function cardTurn(value: unknown): NonNullable<Stratagem['turn']> | null {
   if (value === 'your') return 'your-turn'
   if (value === 'opponents') return 'opponent-turn'
@@ -336,7 +358,7 @@ export const enhancementPoints = (datacards: LoadedDatacards, detachment: string
 const unique = (candidates: ReadonlyMap<string, Set<string>>) =>
   new Map([...candidates].flatMap(([key, texts]) => (texts.size === 1 ? [[key, texts.values().next().value!] as const] : [])))
 
-function factionContent(name: string, parsed: DatacardsFaction, sections: SectionProse): FactionContent {
+function factionContent(name: string, parsed: DatacardsFaction, sections: SectionProse, datasheetNames: readonly string[]): FactionContent {
   const datasheets = records(parsed, 'datasheets').flatMap((entry) => {
     const datasheetName = localizedField(entry, 'name')
     return datasheetName ? [{ id: stringField(entry, 'id'), name: datasheetName, details: datasheetDetails(entry) }] : []
@@ -372,6 +394,7 @@ function factionContent(name: string, parsed: DatacardsFaction, sections: Sectio
         detachment,
         points: integerField(entry, 'cost'),
         description: localizedField(entry, 'description') ? prose(localizedField(entry, 'description')!) : null,
+        eligibility: enhancementEligibility(entry, datasheetNames),
       },
     ])
   }
@@ -382,6 +405,7 @@ function factionContent(name: string, parsed: DatacardsFaction, sections: Sectio
     if (names.size !== 1 || detachments.size !== 1) continue
     const points = new Set(candidates.map((candidate) => candidate.points))
     const descriptions = new Set(candidates.map((candidate) => candidate.description))
+    const restrictions = new Set(candidates.map((candidate) => JSON.stringify(candidate.eligibility)))
     const ids = [...new Set(candidates.flatMap((candidate) => candidate.ids ?? []))]
     const candidate = candidates[0]!
     const resolved = {
@@ -389,6 +413,7 @@ function factionContent(name: string, parsed: DatacardsFaction, sections: Sectio
       ...(ids.length ? { ids } : {}),
       points: points.size === 1 ? candidate.points : null,
       description: descriptions.size === 1 ? candidate.description : null,
+      eligibility: restrictions.size === 1 ? candidate.eligibility : null,
     }
     const key = joinKey(candidate.detachment)
     enhancements.set(key, [...(enhancements.get(key) ?? []), resolved])
@@ -409,7 +434,9 @@ function factionContent(name: string, parsed: DatacardsFaction, sections: Sectio
     const stratagemName = localizedField(entry, 'name')
     const cp = integerField(entry, 'cost')
     const description = stratagemText(entry)
-    const phases = cardPhases(entry.phase)
+    const phases =
+      cardPhases(entry.phase) ??
+      (Array.isArray(entry.phase) && entry.phase.length === 0 ? phaseFromWhen(localizedField(entry, 'when')) : null)
     const turn = cardTurn(entry.turn)
     if (!id || !stratagemName || cp === null || !description || phases === null || !turn) {
       if (stratagemName) cards.set(routeSlug(stratagemName), null)
@@ -420,7 +447,16 @@ function factionContent(name: string, parsed: DatacardsFaction, sections: Sectio
       stratagemIssues.push(`${detachment} | ${stratagemName ?? 'unnamed card'}: incomplete card`)
       continue
     }
-    const card = { id, name: stratagemName, cp, phases, turn, type: stringField(entry, 'type'), description }
+    const card = {
+      id,
+      name: stratagemName,
+      cp,
+      limit: stratagemLimit(localizedField(entry, 'restrictions')),
+      phases,
+      turn,
+      type: stringField(entry, 'type'),
+      description,
+    }
     const nameKey = routeSlug(stratagemName)
     const previous = cards.get(nameKey)
     const previousId = stratagemIds.get(id)
@@ -445,6 +481,7 @@ function factionContent(name: string, parsed: DatacardsFaction, sections: Sectio
   }
   return {
     name,
+    ...(typeof parsed.parent_name === 'string' ? { parentName: parsed.parent_name } : {}),
     datasheets: new Set(datasheets.map(({ name: datasheetName }) => datasheetName)),
     datasheetDetails: datasheetDetailsByName,
     datasheetIds: new Map(
@@ -563,6 +600,133 @@ export function prose(text: string) {
   return tight.trim().replaceAll(/\uE000(\d+)\uE000/g, (_, at: string) => tables[Number(at)] ?? '')
 }
 
+export function enhancementEligibility(
+  card: Record<string, unknown>,
+  datasheetNames: readonly string[] = [],
+): EnhancementEligibility | null {
+  const description = localizedField(card, 'description')
+    ?.replaceAll(/<[^>]*>|\*\*/g, '')
+    .replace(/\b(models?) only \(excluding (.*?)\)\./i, '$1 (excluding $2) only.')
+  const equipped = /^(.*?)\s+model equipped with an? ([^.]+?) only\./i.exec(description ?? '')
+  const restriction = equipped ? `${equipped[1]} model only.` : description
+  const deepStrike = /^(.*?)\s+model with the Deep Strike ability only\./i.exec(restriction ?? '')
+  const plain = deepStrike?.[1] ?? /^(.*?)\s+(?:model|unit)s? only\./i.exec(restriction ?? '')?.[1]
+  const clause = plain ?? /^(.*?) only\./i.exec(restriction ?? '')?.[1]
+  const sourceKeywords = card.keywords
+  const keywords = Array.isArray(sourceKeywords) ? sourceKeywords.filter((value): value is string => typeof value === 'string') : []
+  const invalidKeywords =
+    !Array.isArray(sourceKeywords) || keywords.length !== sourceKeywords.length || keywords.some((keyword) => !keyword || keyword === 'DNU')
+  if (!clause) {
+    if (!description || /\bonly\b/i.test(description) || invalidKeywords || !keywords.length || card.equipableByNonCharacter !== false)
+      return null
+    return { anyOf: [[...keywords, ...(keywords.some((keyword) => joinKey(keyword) === 'character') ? [] : ['Character'])]], excluded: [] }
+  }
+  const exclusion = /^(.*?)\s+\(excluding (.*?) models?\)$/i.exec(clause)
+  const included = exclusion ? exclusion[1]!.replace(/\s+(?:model|unit)s?$/i, '') : clause
+  if (/[()]|\b(?:and|without|excluding|except)\b/i.test(included)) return null
+  if (
+    card.equipableByNonCharacter === false &&
+    /\bCHARACTER\b/i.test(included) &&
+    !keywords.some((keyword) => joinKey(keyword) === 'character')
+  ) {
+    keywords.push('Character')
+  }
+  const words = (text: string) =>
+    text
+      .normalize('NFKD')
+      .replaceAll(/\p{M}/gu, '')
+      .toLowerCase()
+      .match(/[a-z0-9]+/g) ?? []
+  const requirement = (phrase: string) => {
+    const named = datasheetNames.filter((name) => joinKey(name) === joinKey(phrase))
+    if (named.length === 1) return [named[0]!]
+    const exact = !invalidKeywords ? keywords.filter((keyword) => joinKey(keyword) === joinKey(phrase)) : []
+    if (exact.length === 1) return exact
+    const ending = words(phrase)
+    const suffixed =
+      ending.length >= 2 ? datasheetNames.filter((name) => words(name).slice(-ending.length).join(' ') === ending.join(' ')) : []
+    if (suffixed.length === 1) return [suffixed[0]!]
+    if ((!plain && !exclusion) || invalidKeywords || !keywords.length) return null
+    const required = new Set(words(phrase))
+    const selected = keywords.filter((keyword) => words(keyword).every((word) => required.has(word)))
+    const covered = new Set(words(selected.join(' ')))
+    return required.size && [...required].every((word) => covered.has(word)) ? selected : null
+  }
+  const phrases = included.split(/\s+or\s+|\//i)
+  if (phrases.length > 3) return null
+  const exact = (phrase: string) =>
+    datasheetNames.some((name) => joinKey(name) === joinKey(phrase)) || keywords.some((keyword) => joinKey(keyword) === joinKey(phrase))
+  const alternatives: string[][][] = []
+  if (included.includes('/') && !phrases.every(exact) && phrases.length === 2 && !invalidKeywords) {
+    const [left, right] = phrases.map(words)
+    for (const first of keywords) {
+      if (joinKey(phrases[0]!) === joinKey(first)) {
+        for (const second of keywords) {
+          const secondWords = words(second)
+          if (right?.slice(0, secondWords.length).join(' ') !== secondWords.join(' ')) continue
+          const common = requirement(right.slice(secondWords.length).join(' '))
+          if (common?.length)
+            alternatives.push([
+              [first, ...common],
+              [second, ...common],
+            ])
+        }
+      }
+      if (joinKey(phrases[1]!) === joinKey(first)) {
+        for (const second of keywords) {
+          const secondWords = words(second)
+          if (left?.slice(-secondWords.length).join(' ') !== secondWords.join(' ')) continue
+          const common = requirement(left.slice(0, -secondWords.length).join(' '))
+          if (common?.length)
+            alternatives.push([
+              [...common, second],
+              [...common, first],
+            ])
+        }
+      }
+    }
+  }
+  const shared = [...new Map(alternatives.map((candidate) => [JSON.stringify(candidate), candidate])).values()]
+  const anyOf = included.includes('/')
+    ? phrases.every(exact)
+      ? phrases.map(requirement)
+      : shared.length === 1
+        ? shared[0]!
+        : []
+    : phrases.map(requirement)
+  if (!anyOf.length || anyOf.some((entry) => !entry?.length)) return null
+  const excluded = exclusion ? exclusion[2]!.split(/\s+(?:or|and)\s+/i) : []
+  if (excluded.some((name) => !name || /[()/]|\b(?:and|with|without)\b/i.test(name))) return null
+  return {
+    anyOf: anyOf as string[][],
+    excluded,
+    ...(deepStrike ? { requiredAbilities: ['Deep Strike'] } : {}),
+    ...(equipped ? { requiredWargear: [equipped[2]!] } : {}),
+  }
+}
+
+export function keywordAbilityDescriptions(directory: string) {
+  const file = path.join(directory, 'keywords.json')
+  const descriptions = new Map<string, string>()
+  if (!fs.existsSync(file)) return descriptions
+  const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as { keywords?: unknown }
+  const candidates = new Map<string, Set<string>>()
+  for (const entry of records({ keywords: parsed.keywords }, 'keywords')) {
+    if (entry.matchType !== 'exact' || !Array.isArray(entry.appliesTo) || !entry.appliesTo.includes('abilities')) continue
+    const name = stringField(entry, 'name')
+    const description = localizedField(entry, 'descriptionLoc') ?? stringField(entry, 'description')
+    if (!name || !description) continue
+    const key = joinKey(name)
+    const texts = candidates.get(key) ?? new Set<string>()
+    texts.add(prose(description))
+    candidates.set(key, texts)
+  }
+  for (const [name, texts] of candidates) {
+    if (texts.size === 1) descriptions.set(name, texts.values().next().value!)
+  }
+  return descriptions
+}
+
 /** A stratagem's card, section by section, in the order the card prints them. */
 export function stratagemText(card: Record<string, unknown>) {
   const section = (label: string, field: string) => {
@@ -576,6 +740,21 @@ export function stratagemText(card: Record<string, unknown>) {
     section('Restrictions', 'restrictions'),
   ].filter((part): part is string => Boolean(part))
   return sections.length ? sections.join('\n\n') : null
+}
+
+export function stratagemLimit(restrictions: string | null): Stratagem['limit'] {
+  const text = restrictions?.replaceAll(/<[^>]*>|\*\*/g, '') ?? ''
+  const usage =
+    /(?:you cannot use this stratagem more than|you can only use this stratagem|this stratagem can only be used) once per (battle round|battle|turn)\b/i.exec(
+      text,
+    )
+  return usage?.[1]?.toLowerCase() === 'battle round'
+    ? 'battle-round'
+    : usage?.[1]?.toLowerCase() === 'battle'
+      ? 'battle'
+      : usage?.[1]?.toLowerCase() === 'turn'
+        ? 'turn'
+        : 'phase'
 }
 
 /** Parse only supported faction bans and keyword exemptions; `factionRestrictionCoverageIssues` reports unmatched source wording rather than silently allowing it. */

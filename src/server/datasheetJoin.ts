@@ -4,21 +4,26 @@ import { routeSlug } from '../core/slug'
 import { type LoadedCatalogue, datasheetsOf } from './catalogueIndex'
 import type { DatasheetDetails, FactionContent } from './datacards'
 import { factionContentsOf } from './factionNames'
-import { relatedExternalIds } from './externalReferences'
 
 /**
  * The one join between a catalogue datasheet and its Game Datacards card.
  *
- * Exact references take priority. An entity without one falls back to the book's
- * own faction file by name, then to an identical card shared by other files.
+ * The book's own faction file is checked by name, then identical cards shared by
+ * other files.
  */
-export type DatacardJoin = { details: DatasheetDetails; own: boolean; method: 'external-ref' | 'name' }
+export type DatacardJoin = { details: DatasheetDetails; own: boolean; method: 'name' }
 
 const cardIndexes = new WeakMap<FactionContent, Map<string, DatasheetDetails>>()
 const joins = new WeakMap<LoadedCatalogue, Map<string, DatacardJoin | null>>()
 
-/** Catalogue and datacard sources use different apostrophe glyphs in otherwise identical names. */
-const comparable = (name: string) => normalizedName(name.normalize('NFKC').replaceAll(/[‘’ʼ]/g, "'"))
+/** Catalogue and datacard sources use different apostrophe and hyphen glyphs in otherwise identical names. */
+const comparable = (name: string) =>
+  normalizedName(
+    name
+      .normalize('NFKC')
+      .replaceAll(/[‘’ʼ]/g, "'")
+      .replaceAll(/[‐‑‒–—−]/g, '-'),
+  )
 
 function cardIn(content: FactionContent, name: string): DatasheetDetails | null {
   let index = cardIndexes.get(content)
@@ -57,22 +62,6 @@ function join(loaded: LoadedCatalogue, catalogueId: string, entryId: string): Da
   // book's own file, and the files of the books it is a supplement to, come after.
   const source = loaded.index.alliedDatasheets.get(catalogueId)?.get(entryId)?.name
   const nearby = [...new Set([...(source ? factionContentsOf(loaded, source) : []), ...factionContentsOf(loaded, book.name)])]
-  const definitionId = definition.id
-  const externalIds = relatedExternalIds(loaded.sourceReferences.units, 'bsdata', definitionId, 'game-datacards')
-  if (externalIds.length) {
-    const cardsIn = (content: FactionContent) => externalIds.flatMap((id) => content.datasheetIds.get(id) ?? [])
-    for (const content of nearby) {
-      const cards = cardsIn(content)
-      if (!cards.length) continue
-      const agreed = cards.every((details) => JSON.stringify(details) === JSON.stringify(cards[0]))
-      return agreed ? { details: cards[0]!, own: true, method: 'external-ref' } : null
-    }
-    const matches = [...new Set(loaded.factionContents.values())].flatMap((content) => cardsIn(content))
-    if (matches.length) {
-      const agreed = matches.every((details) => JSON.stringify(details) === JSON.stringify(matches[0]))
-      return agreed ? { details: matches[0]!, own: false, method: 'external-ref' } : null
-    }
-  }
   for (const content of nearby) {
     const card = cardIn(content, name)
     if (card) return { details: card, own: true, method: 'name' }
@@ -98,9 +87,8 @@ export function datacardJoinReport(loaded: LoadedCatalogue, isReference: (catalo
   const catalogueOnly: { faction: string; name: string }[] = []
   const datacardsOnly: { faction: string; name: string }[] = []
   const factionsWithoutArmyRules: string[] = []
-  const fallbacks: { faction: string; name: string }[] = []
+  const nameJoins: { faction: string; name: string }[] = []
   const nonMatchedPlayCatalogueOnly: { faction: string; name: string }[] = []
-  let exact = 0
   for (const book of loaded.factions) {
     const leaf = book.name.split(' - ').at(-1) ?? book.name
     const content = loaded.factionContents.get(routeSlug(leaf))
@@ -118,8 +106,7 @@ export function datacardJoinReport(loaded: LoadedCatalogue, isReference: (catalo
       if (!isReference(book.id, entryId)) continue
       if (isNonMatchedPlay) {
         if (!found) nonMatchedPlayCatalogueOnly.push({ faction: book.name, name })
-      } else if (found?.method === 'external-ref') exact++
-      else if (found?.method === 'name') fallbacks.push({ faction: book.name, name })
+      } else if (found?.method === 'name') nameJoins.push({ faction: book.name, name })
       else if (!found) catalogueOnly.push({ faction: book.name, name })
     }
     for (const [cardName, details] of content.datasheetDetails) {
@@ -127,5 +114,5 @@ export function datacardJoinReport(loaded: LoadedCatalogue, isReference: (catalo
       datacardsOnly.push({ faction: book.name, name: cardName })
     }
   }
-  return { catalogueOnly, datacardsOnly, exact, factionsWithoutArmyRules, fallbacks, nonMatchedPlayCatalogueOnly }
+  return { catalogueOnly, datacardsOnly, factionsWithoutArmyRules, nameJoins, nonMatchedPlayCatalogueOnly }
 }

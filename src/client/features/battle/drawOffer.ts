@@ -21,14 +21,15 @@ export function redrawOffer(rule: WhenDrawn | undefined, round: number, held: re
   }
   if (rule.roundMax !== null) {
     if (round > rule.roundMax) return null
+    const required = rule.required !== false
     return {
       message:
         rule.roundMax === 1
-          ? 'You must put this back in battle round 1.'
-          : `You must put this back in battle round ${rule.roundMax} or earlier.`,
+          ? `You ${required ? 'must' : 'can'} put this back in battle round 1.`
+          : `You ${required ? 'must' : 'can'} put this back in battle round ${rule.roundMax} or earlier.`,
       status: 'returned',
       label: 'Put back and draw another',
-      required: true,
+      required,
     }
   }
   if (rule.heldCards.length) {

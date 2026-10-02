@@ -1,9 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
-import { targetOf } from '../core/catalogue'
 import { structureDatasheetProfiles } from '../core/datasheetStructure'
-import { compareText, sameText } from '../core/text'
+import { compareText } from '../core/text'
 import type {
   CanonicalCatalogue,
   CanonicalCatalogueIssue,
@@ -14,25 +13,24 @@ import type {
 } from '../contracts/catalogue'
 import type { RuleDocument } from '../contracts/rules'
 import { datasheetIn } from './catalogue'
-import { catalogueDirectory, datasheetsOf, isReferenceDatasheet, loadCatalogue, type LoadedCatalogue } from './catalogueIndex'
-import { isMatchedPlayDatasheet } from './cataloguePicker'
 import {
-  loadSourceUnits,
-  sourceBaseSize,
-  sourceComposition,
-  sourceCosts,
-  sourceUnitOf,
-  type SourceUnit,
-  type SourceUnitJoin,
-} from './catalogueSourceUnits'
+  catalogueDirectory,
+  datasheetsOf,
+  definitionSource,
+  isReferenceDatasheet,
+  loadCatalogue,
+  type LoadedCatalogue,
+} from './catalogueIndex'
+import { isMatchedPlayDatasheet } from './cataloguePicker'
 import { currentProfileValue, DATACARDS_ATTRIBUTION } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { describeDatasheetAbilitiesWithContributions } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
 import { factionsFor } from './factionReferences'
 import { factionDisplayName } from './factionNames'
-import { loadRules, type LoadedRules, RULES_DATA_ATTRIBUTION } from './rules'
-import { joinKey } from './rulesSource'
+import { loadRules, type LoadedRules } from './rules'
+import { mfmAttribution, mfmCostRows } from './mfm'
+import { mfmUnitFor } from './unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
 
@@ -68,7 +66,7 @@ const relationshipSchema = z.object({
   route: z.object({ catalogueId: z.string(), slug: z.string() }).nullable(),
 })
 
-const sourceNameSchema = z.enum(['definitions', 'points', 'rules', 'datacards', 'battlemaster'])
+const sourceNameSchema = z.enum(['definitions', 'marineCodex', 'points', 'rules', 'datacards', 'battlemaster'])
 const fieldResolutionSchema = z.object({
   sources: z.array(sourceNameSchema),
   strategy: z.enum(['single-source', 'sources-agree', 'merged', 'source-priority', 'fallback', 'unresolved']),
@@ -116,6 +114,7 @@ const canonicalDatasheetSchema = z.object({
       keyword: z.string().nullable(),
       faction: z.string().nullable(),
       detachment: z.string().nullable(),
+      copies: z.string().optional(),
     }),
   ),
   attachments: z.array(relationshipSchema),
@@ -123,7 +122,7 @@ const canonicalDatasheetSchema = z.object({
   supporters: z.array(relationshipSchema),
   keywordRules: z.array(z.object({ name: z.string(), description: z.string() })),
   provenance: z.object({
-    definitions: z.object({ revision: z.string(), entryId: z.string() }),
+    definitions: z.object({ revision: z.string(), entryId: z.string(), source: z.enum(['definitions', 'marineCodex']).optional() }),
     datacards: z.object({ revision: z.string(), resolution: z.enum(['external-reference', 'normalized-name']) }).nullable(),
     rules: z.object({ revision: z.string(), unitId: z.string(), resolution: z.literal('external-reference') }).nullable(),
     fields: z.object({
@@ -169,8 +168,7 @@ const canonicalDetachmentSchema = z.object({
   keywordRules: z.array(z.object({ name: z.string(), description: z.string() })),
   attribution: z.string(),
   provenance: z.object({
-    definitions: z.object({ revision: z.string(), detachmentId: z.string() }),
-    rules: z.object({ revision: z.string() }),
+    definitions: z.object({ revision: z.string(), detachmentId: z.string(), source: z.enum(['definitions', 'marineCodex']).optional() }),
     datacards: z.object({ revision: z.string() }),
   }),
 })
@@ -252,6 +250,7 @@ export function compileCanonicalDetachments(
         if (!faction.referenceDetachmentIds.includes(detachment.id)) return []
         const detail = detachmentReference(loaded, rules, faction.id, detachment.slug)
         if (!detail) return []
+        const source = definitionSource(loaded, detachment.id)
         return [
           {
             ...detail,
@@ -261,8 +260,7 @@ export function compileCanonicalDetachments(
             id: detachment.id,
             slug: detachment.slug,
             provenance: {
-              definitions: { revision: revisions.definitions ?? loaded.index.revision, detachmentId: detachment.id },
-              rules: { revision: revisions.rules ?? 'unknown' },
+              definitions: { revision: revisions[source] ?? loaded.index.revision, detachmentId: detachment.id, source },
               datacards: { revision: revisions.datacards ?? 'unknown' },
             },
           },
@@ -283,123 +281,17 @@ const sourceOrUnresolved = (source: CanonicalSourceName | null, fallback = false
 const uniqueSources = (sources: readonly CanonicalSourceName[]) => [...new Set(sources)]
 
 function singleUnqualifiedPoint(costs: readonly CanonicalDatasheet['costs'][number][]) {
-  const unqualified = costs.filter((cost) => !cost.keyword && !cost.faction && !cost.detachment)
+  const unqualified = costs.filter((cost) => !cost.keyword && !cost.faction && !cost.detachment && !cost.copies)
   if (unqualified.length !== 1 || !/^\d+$/.test(unqualified[0]!.cost)) return null
   return Number(unqualified[0]!.cost)
 }
 
-type ModelCountRange = { minimum: number; maximum: number }
-
-function declaredCompositionRange(composition: readonly string[]): ModelCountRange | null {
-  const alternatives: ModelCountRange[][] = [[]]
-  for (const line of composition) {
-    if (line.trim().toLowerCase() === 'or') {
-      alternatives.push([])
-      continue
-    }
-    if (!/^\*{0,2}\s*\d/.test(line.trim())) return null
-    const counts = [...line.matchAll(/(?<![\p{L}\p{N}])(\d+)(?:\s*\p{Pd}\s*(\d+))?(?![\p{L}\p{N}])/gu)]
-    if (!counts.length) return null
-    alternatives.at(-1)!.push(...counts.map((count) => ({ minimum: Number(count[1]), maximum: Number(count[2] ?? count[1]) })))
-  }
-  const totals = alternatives.flatMap((groups) =>
-    groups.length
-      ? [
-          {
-            minimum: groups.reduce((total, group) => total + group.minimum, 0),
-            maximum: groups.reduce((total, group) => total + group.maximum, 0),
-          },
-        ]
-      : [],
-  )
-  return totals.length
-    ? {
-        minimum: Math.min(...totals.map((total) => total.minimum)),
-        maximum: Math.max(...totals.map((total) => total.maximum)),
-      }
-    : null
-}
-
-const sameModelCount = (left: ModelCountRange, right: ModelCountRange) => left.minimum === right.minimum && left.maximum === right.maximum
-
-const modelCountLabel = ({ minimum, maximum }: ModelCountRange) => (minimum === maximum ? String(minimum) : `${minimum}-${maximum}`)
-
-const comparableBaseSize = (value: string) => {
-  const trimmed = value.trim()
-  if (
-    !/^(?:\d+(?:\.\d+)?\s*(?:x\s*\d+(?:\.\d+)?\s*)?mm(?:\s+oval\s+base)?|hull|unique|small flying base|large flying base)$/i.test(trimmed)
-  ) {
-    return null
-  }
-  return trimmed
-    .toLowerCase()
-    .replaceAll(/\s+/g, '')
-    .replace(/ovalbase$/, 'oval')
-}
-
-function sharedCostConflicts(cards: readonly CanonicalDatasheet['costs'][number][], rules: readonly CanonicalDatasheet['costs'][number][]) {
-  const cardCosts = new Map(
-    cards.filter((cost) => !cost.keyword && !cost.faction && !cost.detachment).map((cost) => [cost.models, cost.cost]),
-  )
-  return rules.filter((cost) => cardCosts.has(cost.models) && cardCosts.get(cost.models) !== cost.cost)
-}
-
-type SourceEvidence = {
-  definitionsPoints: number | null
-  cardsBaseSize: string | null
-  rulesBaseSize: string | null
-  cardsComposition: readonly string[]
-  rulesComposition: readonly string[]
-  cardsModelCount: ModelCountRange | null
-  rulesModelCount: ModelCountRange | null
-  cardsCosts: readonly CanonicalDatasheet['costs'][number][]
-  rulesCosts: readonly CanonicalDatasheet['costs'][number][]
-}
-
-const sourceStatKeys = {
-  movement: 'M',
-  toughness: 'T',
-  save: 'Sv',
-  wounds: 'W',
-  leadership: 'Ld',
-  'objective-control': 'OC',
-  'invulnerable-save': 'invuln_sv',
-} as const
-
-function sourceStat(kind: keyof typeof sourceStatKeys, raw: string | number) {
-  const value = String(raw).trim()
-  if (kind === 'movement') return /["″”]$/.test(value) ? value : `${value}"`
-  if (kind === 'save' || kind === 'leadership' || kind === 'invulnerable-save') return value.endsWith('+') ? value : `${value}+`
-  return value
-}
-
-const comparableStat = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replaceAll(/[″”]/g, '"')
-    .replaceAll('*', '')
-    .replaceAll(/\s+/g, '')
-
 function issuesFor(
   sheet: CanonicalDatasheet,
   joined: ReturnType<typeof datacardOf>,
-  sourceJoin: SourceUnitJoin | null,
-  evidence: SourceEvidence,
-  usesCardProfiles: boolean,
+  definitionsPoints: number | null,
 ): CanonicalCatalogueIssue[] {
   const issues: CanonicalCatalogueIssue[] = []
-  const {
-    definitionsPoints,
-    cardsBaseSize,
-    rulesBaseSize,
-    cardsComposition,
-    rulesComposition,
-    cardsModelCount,
-    rulesModelCount,
-    cardsCosts,
-    rulesCosts,
-  } = evidence
   if (!joined) {
     issues.push({
       kind: 'missing-source-record',
@@ -416,89 +308,7 @@ function issuesFor(
       catalogueId: sheet.catalogueId,
       entryId: sheet.id,
       path: '/provenance/datacards',
-      message: `${sheet.name} joins Game Datacards by normalized name rather than an external reference`,
-    })
-  }
-  if (!sourceJoin) {
-    issues.push({
-      kind: 'missing-source-record',
-      severity: 'warning',
-      catalogueId: sheet.catalogueId,
-      entryId: sheet.id,
-      path: '/provenance/rules',
-      message: `${sheet.name} has no unambiguous 40kdc record linked by an external reference`,
-    })
-  } else if (!sameText(sourceJoin.unit.name, sheet.name)) {
-    issues.push({
-      kind: 'source-field-conflict',
-      severity: 'warning',
-      catalogueId: sheet.catalogueId,
-      entryId: sheet.id,
-      path: '/name',
-      message: `${sheet.name} keeps the BSData name ${JSON.stringify(sheet.name)} over 40kdc ${JSON.stringify(sourceJoin.unit.name)}`,
-    })
-  }
-  if (!cardsBaseSize && rulesBaseSize) {
-    issues.push({
-      kind: 'source-field-fallback',
-      severity: 'notice',
-      catalogueId: sheet.catalogueId,
-      entryId: sheet.id,
-      path: '/baseSize',
-      message: `${sheet.name} uses 40kdc for base size because Game Datacards has no value`,
-    })
-  }
-  if (!cardsComposition.length && rulesComposition.length) {
-    issues.push({
-      kind: 'source-field-fallback',
-      severity: 'notice',
-      catalogueId: sheet.catalogueId,
-      entryId: sheet.id,
-      path: '/composition',
-      message: `${sheet.name} uses 40kdc model counts because Game Datacards has no composition`,
-    })
-  }
-  if (cardsModelCount && rulesModelCount && !sameModelCount(cardsModelCount, rulesModelCount)) {
-    issues.push({
-      kind: 'source-field-conflict',
-      severity: 'warning',
-      catalogueId: sheet.catalogueId,
-      entryId: sheet.id,
-      path: '/composition',
-      message: `${sheet.name} keeps Game Datacards composition ${modelCountLabel(cardsModelCount)} over 40kdc ${modelCountLabel(rulesModelCount)}`,
-    })
-  }
-  const cardsBaseKey = cardsBaseSize ? comparableBaseSize(cardsBaseSize) : null
-  const rulesBaseKey = rulesBaseSize ? comparableBaseSize(rulesBaseSize) : null
-  if (cardsBaseKey && rulesBaseKey && cardsBaseKey !== rulesBaseKey) {
-    issues.push({
-      kind: 'source-field-conflict',
-      severity: 'warning',
-      catalogueId: sheet.catalogueId,
-      entryId: sheet.id,
-      path: '/baseSize',
-      message: `${sheet.name} keeps Game Datacards base size ${JSON.stringify(cardsBaseSize)} over 40kdc ${JSON.stringify(rulesBaseSize)}`,
-    })
-  }
-  if (!cardsCosts.length && rulesCosts.length) {
-    issues.push({
-      kind: 'source-field-fallback',
-      severity: 'notice',
-      catalogueId: sheet.catalogueId,
-      entryId: sheet.id,
-      path: '/costs',
-      message: `${sheet.name} uses unambiguous 40kdc points because Game Datacards has no values`,
-    })
-  }
-  const conflictingCosts = sharedCostConflicts(cardsCosts, rulesCosts)
-  if (conflictingCosts.length) {
-    issues.push({
-      kind: 'source-field-conflict',
-      severity: 'warning',
-      catalogueId: sheet.catalogueId,
-      entryId: sheet.id,
-      path: '/costs',
-      message: `${sheet.name} keeps Game Datacards points where 40kdc disagrees for ${conflictingCosts.map((cost) => `${cost.models} models`).join(', ')}`,
+      message: `${sheet.name} joins Game Datacards by normalized name`,
     })
   }
   if (sheet.points !== null && definitionsPoints !== null && sheet.points !== definitionsPoints) {
@@ -508,33 +318,8 @@ function issuesFor(
       catalogueId: sheet.catalogueId,
       entryId: sheet.id,
       path: '/points',
-      message: `${sheet.name} uses ${cardsCosts.length ? 'Game Datacards' : '40kdc'} ${sheet.points} points for reference display over BSData ${definitionsPoints}`,
+      message: `${sheet.name} uses Game Datacards ${sheet.points} points for reference display over BSData ${definitionsPoints}`,
     })
-  }
-  const sheetUnitProfiles = sheet.profiles.filter((profile) => profile.kind === 'unit')
-  for (const [profileIndex, profile] of sheet.profiles.entries()) {
-    if (profile.kind !== 'unit' || !sourceJoin) continue
-    const named = sourceJoin.unit.profiles.find((candidate) => joinKey(candidate.name) === joinKey(profile.name))
-    const sourceProfile =
-      named ?? (sheetUnitProfiles.length === 1 && sourceJoin.unit.profiles.length === 1 ? sourceJoin.unit.profiles[0] : null)
-    if (!sourceProfile) continue
-    for (const [valueIndex, value] of profile.values.entries()) {
-      if (!(value.kind in sourceStatKeys)) continue
-      const kind = value.kind as keyof typeof sourceStatKeys
-      const raw = sourceProfile.values[sourceStatKeys[kind]]
-      if (raw === undefined) continue
-      const candidate = sourceStat(kind, raw)
-      if (comparableStat(candidate) === comparableStat(value.value)) continue
-      const fromCards = usesCardProfiles && currentProfileValue(joined?.details, profile.type, profile.name, value.name) !== undefined
-      issues.push({
-        kind: 'source-field-conflict',
-        severity: 'warning',
-        catalogueId: sheet.catalogueId,
-        entryId: sheet.id,
-        path: `/profiles/${profileIndex}/values/${valueIndex}`,
-        message: `${sheet.name} keeps ${fromCards ? 'Game Datacards' : 'BSData'} ${value.name} ${JSON.stringify(value.value)} over 40kdc ${JSON.stringify(candidate)}`,
-      })
-    }
   }
   for (const [profileIndex, profile] of sheet.profiles.entries()) {
     if (profile.kind === 'other') {
@@ -567,7 +352,6 @@ export function compileCanonicalCatalogue(
   loaded: LoadedCatalogue,
   revisions: Record<string, string>,
   rules: LoadedRules | null = null,
-  sourceUnits: ReadonlyMap<string, readonly SourceUnit[]> = new Map(),
 ): CanonicalCatalogue {
   const datasheets: CanonicalDatasheet[] = []
   const issues: CanonicalCatalogueIssue[] = []
@@ -578,29 +362,18 @@ export function compileCanonicalCatalogue(
       const projected = datasheetIn(loaded, faction.id, entryId)
       if (!projected) continue
       const joined = datacardOf(loaded, faction.id, entryId)
-      const sourceJoin = sourceUnitOf(sourceUnits, targetOf(entry, loaded.index.definitions).id)
       const description = describeDatasheetAbilitiesWithContributions(loaded, faction.id, projected, rules, { reference: true })
       if (!description) continue
       const { datasheet: described, contributions: abilityContributions } = description
       const cardsBaseSize = described.baseSize
-      const rulesBaseSize = sourceBaseSize(sourceJoin?.unit.baseSize ?? null)
       const cardsComposition = described.composition
-      const rulesComposition = sourceComposition(sourceJoin?.unit.modelCount ?? null)
-      const cardsModelCount = declaredCompositionRange(cardsComposition)
-      const rulesModelCount = sourceJoin?.unit.modelCount
-        ? { minimum: sourceJoin.unit.modelCount.min, maximum: sourceJoin.unit.modelCount.max }
-        : null
       const cardsCosts = described.costs
-      const rulesCosts = sourceCosts(sourceJoin?.unit.points ?? [])
-      const baseSize = cardsBaseSize ?? rulesBaseSize
-      const composition = cardsComposition.length ? cardsComposition : rulesComposition
-      const costs = cardsCosts.length ? cardsCosts : rulesCosts
-      const costPoint = singleUnqualifiedPoint(costs)
-      const points = costs.length ? costPoint : described.points
-      const usesRulesDisplayData =
-        (!cardsBaseSize && Boolean(rulesBaseSize)) ||
-        (!cardsComposition.length && Boolean(rulesComposition.length)) ||
-        (!cardsCosts.length && Boolean(rulesCosts.length))
+      const mfmUnit = mfmUnitFor(loaded, faction.id, entryId)
+      const definition = definitionSource(loaded, entryId)
+      const sourceCosts = mfmUnit ? mfmCostRows(mfmUnit) : cardsCosts
+      const costSource: CanonicalSourceName = mfmUnit ? 'points' : 'datacards'
+      const costPoint = singleUnqualifiedPoint(sourceCosts)
+      const points = sourceCosts.length ? costPoint : described.points
       const usesCardProfiles =
         loaded.profiledSupplementIds.has(faction.id) &&
         described.profiles.some((profile) =>
@@ -617,37 +390,30 @@ export function compileCanonicalCatalogue(
         joined?.details.wargearGroups?.length ||
         abilityContributions.datacards,
       )
-      const attribution = [
-        ...new Set([
-          usesDatacards ? DATACARDS_ATTRIBUTION : null,
-          usesRulesDisplayData || abilityContributions.rules ? RULES_DATA_ATTRIBUTION : null,
-        ]),
-      ]
-        .filter((value): value is string => Boolean(value))
-        .join('. ')
+      const attribution =
+        [
+          definition === 'marineCodex' ? 'Provisional Space Marines codex data from richardsolomou/wh40k-11e' : null,
+          usesDatacards || abilityContributions.rules ? DATACARDS_ATTRIBUTION : null,
+          mfmUnit ? mfmAttribution(loaded.mfm) : null,
+        ]
+          .filter(Boolean)
+          .join('. ') || null
       const abilitySources = uniqueSources([
-        'definitions',
-        ...(abilityContributions.datacards ? (['datacards'] as const) : []),
-        ...(abilityContributions.rules ? (['rules'] as const) : []),
+        definition,
+        ...(abilityContributions.datacards || abilityContributions.rules ? (['datacards'] as const) : []),
       ])
-      const costSources: CanonicalSourceName[] = [
-        ...(cardsCosts.length ? (['datacards'] as const) : []),
-        ...(rulesCosts.length ? (['rules'] as const) : []),
-      ]
-      const costsResolution = cardsCosts.length
-        ? resolution(costSources, rulesCosts.length ? 'source-priority' : 'single-source')
-        : sourceOrUnresolved(rulesCosts.length ? 'rules' : null, Boolean(rulesCosts.length))
-      const pointSources = uniqueSources([...(described.points === null ? [] : (['definitions'] as const)), ...costSources])
-      const pointsResolution = !costs.length
-        ? sourceOrUnresolved(described.points === null ? null : 'definitions')
+      const costsResolution = sourceOrUnresolved(sourceCosts.length ? costSource : null)
+      const pointSources = uniqueSources([
+        ...(described.points === null ? [] : [definition]),
+        ...(sourceCosts.length ? ([costSource] as const) : []),
+      ])
+      const pointsResolution = !sourceCosts.length
+        ? sourceOrUnresolved(described.points === null ? null : definition)
         : costPoint === null
           ? resolution(pointSources, 'unresolved')
           : described.points === null
-            ? resolution(costSources, costsResolution.strategy === 'source-priority' ? 'source-priority' : 'fallback')
-            : resolution(
-                pointSources,
-                described.points === costPoint && costsResolution.strategy !== 'source-priority' ? 'sources-agree' : 'source-priority',
-              )
+            ? sourceOrUnresolved(costSource)
+            : resolution(pointSources, described.points === costPoint ? 'sources-agree' : 'source-priority')
       const sheet: CanonicalDatasheet = {
         ...described,
         catalogueId: faction.id,
@@ -655,74 +421,36 @@ export function compileCanonicalCatalogue(
         attribution: attribution || null,
         points,
         profiles: structureDatasheetProfiles(described.profiles),
-        baseSize,
-        composition,
-        costs,
+        baseSize: cardsBaseSize,
+        composition: cardsComposition,
+        costs: sourceCosts,
         provenance: {
-          definitions: { revision: revisions.definitions ?? loaded.index.revision, entryId },
+          definitions: { revision: revisions[definition] ?? loaded.index.revision, entryId, source: definition },
           datacards: joined
             ? {
                 revision: revisions.datacards ?? 'unknown',
-                resolution: joined.method === 'external-ref' ? 'external-reference' : 'normalized-name',
+                resolution: 'normalized-name',
               }
             : null,
-          rules: sourceJoin ? { revision: revisions.rules ?? 'unknown', unitId: sourceJoin.unit.id, resolution: sourceJoin.method } : null,
+          rules: null,
           fields: {
-            identity: sourceJoin
-              ? resolution(['definitions', 'rules'], sameText(sourceJoin.unit.name, described.name) ? 'sources-agree' : 'source-priority')
-              : sourceOrUnresolved('definitions'),
+            identity: sourceOrUnresolved(definition),
             points: pointsResolution,
-            keywords: sourceOrUnresolved('definitions'),
-            profiles: usesCardProfiles
-              ? resolution(
-                  sourceJoin?.unit.profiles.length ? ['definitions', 'datacards', 'rules'] : ['definitions', 'datacards'],
-                  'source-priority',
-                )
-              : sourceJoin?.unit.profiles.length
-                ? resolution(['definitions', 'rules'], 'source-priority')
-                : sourceOrUnresolved('definitions'),
+            keywords: sourceOrUnresolved(definition),
+            profiles: usesCardProfiles ? resolution([definition, 'datacards'], 'source-priority') : sourceOrUnresolved(definition),
             abilities: resolution(abilitySources, abilitySources.length > 1 ? 'merged' : 'single-source'),
-            composition: cardsComposition.length
-              ? sourceOrUnresolved('datacards')
-              : sourceOrUnresolved(rulesComposition.length ? 'rules' : null, Boolean(rulesComposition.length)),
+            composition: sourceOrUnresolved(cardsComposition.length ? 'datacards' : null),
             loadout: sourceOrUnresolved(joined && described.loadout ? 'datacards' : null),
-            wargear: sourceOrUnresolved(joined?.details.wargear.length ? 'datacards' : 'definitions', !joined?.details.wargear.length),
-            baseSize: cardsBaseSize
-              ? resolution(
-                  rulesBaseSize ? ['datacards', 'rules'] : ['datacards'],
-                  rulesBaseSize && comparableBaseSize(cardsBaseSize) === comparableBaseSize(rulesBaseSize)
-                    ? 'sources-agree'
-                    : rulesBaseSize
-                      ? 'source-priority'
-                      : 'single-source',
-                )
-              : sourceOrUnresolved(rulesBaseSize ? 'rules' : null, Boolean(rulesBaseSize)),
+            wargear: sourceOrUnresolved(joined?.details.wargear.length ? 'datacards' : definition, !joined?.details.wargear.length),
+            baseSize: sourceOrUnresolved(cardsBaseSize ? 'datacards' : null),
             transport: sourceOrUnresolved(joined && described.transport ? 'datacards' : null),
             costs: costsResolution,
-            relationships: sourceOrUnresolved('definitions'),
+            relationships: sourceOrUnresolved(definition),
           },
         },
       }
       datasheets.push(sheet)
-      issues.push(
-        ...issuesFor(
-          sheet,
-          joined,
-          sourceJoin,
-          {
-            definitionsPoints: described.points,
-            cardsBaseSize,
-            rulesBaseSize,
-            cardsComposition,
-            rulesComposition,
-            cardsModelCount,
-            rulesModelCount,
-            cardsCosts,
-            rulesCosts,
-          },
-          usesCardProfiles,
-        ),
-      )
+      issues.push(...issuesFor(sheet, joined, described.points))
     }
   }
   const canonicalRoutes = new Set(
@@ -769,12 +497,11 @@ export function canonicalCataloguePath(directory: string) {
 /** The rules a snapshot directory carries, read beside the catalogue already loaded from it. */
 export const snapshotRules = (directory: string, loaded: LoadedCatalogue) =>
   loadRules(
-    path.join(directory, 'rules'),
+    directory,
     path.join(directory, 'battlemaster'),
     path.join(directory, 'faction-icons'),
     path.join(directory, 'datacards', '11th', 'gdc'),
     loaded.datacards,
-    loaded.sourceReferences,
   )
 
 /**
@@ -791,7 +518,7 @@ export function referenceCatalogue(directory: string, catalogue: () => LoadedCat
     }
   }
   const packaged = loadCanonicalCatalogue(directory)
-  if (packaged) return packaged
+  if (packaged && !packaged.revisions.rules) return packaged
   const loaded = catalogue()
   return loaded ? compileCanonicalCatalogueFromSnapshot(loaded, rules(), directory) : null
 }
@@ -812,7 +539,8 @@ export function compileCanonicalCatalogueFromSnapshot(
 ) {
   const revisionFile = path.join(directory, 'revision.json')
   const revisions = JSON.parse(fs.readFileSync(revisionFile, 'utf8')) as Record<string, string>
-  return compileCanonicalCatalogue(loaded, revisions, rules, loadSourceUnits(path.join(directory, 'rules', 'data', 'core')))
+  delete revisions.rules
+  return compileCanonicalCatalogue(loaded, revisions, rules)
 }
 
 export function readCanonicalCatalogue(file: string): CanonicalCatalogue {

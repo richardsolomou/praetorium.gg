@@ -9,7 +9,7 @@ import { loadoutDatasheetsQuery } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
 import {
-  controlledProfileCount,
+  equippedWeaponProfiles,
   type LoadoutModel,
   type LoadoutUnit,
   orderedChoices,
@@ -126,8 +126,10 @@ export function Loadout({
   const abilities = availableSheet.abilities
 
   const equipped = (type: string) =>
-    sheet.profiles.filter(
-      (profile) => profile.type === type && (profile.count ?? 1) > controlledProfileCount(sheets.controlledChoices, profile.name),
+    equippedWeaponProfiles(
+      sheet.profiles.filter((profile) => profile.type === type),
+      unit.models,
+      sheets.controlledChoices,
     )
   const equippedRanged = equipped('Ranged Weapons')
   const equippedMelee = equipped('Melee Weapons')

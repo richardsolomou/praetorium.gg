@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Command } from '../../../../core/battle'
+import { isKotcLimit } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
+import { KOTC_MATCHUP_ID } from '../../../../contracts/terrain'
 import { deploymentsQuery, terrainMatchupIds, terrainReferencesQuery } from '../../../queries'
 import { CHOOSABLE, CHOSEN } from './chrome'
 import { TerrainBoard } from '../../reference/missions/TerrainBoard'
@@ -30,13 +32,14 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
   const dispositions = [...new Set(view.players.map((player) => player.side))]
     .map((side) => view.players.find((player) => player.side === side)?.disposition)
     .filter((value): value is string => Boolean(value))
-  const matchupIds = terrainMatchupIds(dispositions)
+  const kotc = isKotcLimit(view.settings.limit)
+  const matchupIds = kotc ? [KOTC_MATCHUP_ID] : terrainMatchupIds(dispositions)
   const referencesQuery = useQuery(terrainReferencesQuery(matchupIds))
   const references = referencesQuery.data
   const options =
     references?.layouts.flatMap((terrain) => {
       const deployment = allPatterns?.find((pattern) => pattern.id === terrain.deploymentId)
-      if (!deployment || (allowedIds?.length && !allowedIds.includes(deployment.id))) return []
+      if (!deployment || (!kotc && allowedIds?.length && !allowedIds.includes(deployment.id))) return []
       return [{ terrain, deployment }]
     }) ?? []
   const available = options.filter((option) => option.terrain.geometry)
@@ -70,7 +73,9 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
         <div className="min-w-0">
           <p className="eyebrow">Deployment and terrain layout</p>
           <p className="mt-0.5 max-w-2xl text-sm text-dim">
-            Choose one layout{matchup ? ` for ${matchup}` : ''}. Each option includes its deployment zones and exact terrain setup.
+            {kotc
+              ? 'Choose the Colosseum battlefield. Deployment is 8″ from each board edge.'
+              : `Choose one layout${matchup ? ` for ${matchup}` : ''}. Each option shows its deployment zones and terrain outlines.`}
           </p>
         </div>
         <Button

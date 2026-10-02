@@ -6,6 +6,7 @@ import {
   constructionCardKey,
   constructionDetachment,
   descriptionKey,
+  enhancementEligibility,
   enhancementPoints,
   factionRestrictionCoverageIssues,
   factionRestrictions,
@@ -13,6 +14,144 @@ import {
   prose,
   restrictedBy,
 } from './datacards'
+
+it('requires the printed enhancement keywords on a datasheet', () => {
+  const eligibility = (description: string, keywords: string[]) => enhancementEligibility({ description: { en: description }, keywords })
+  expect(eligibility('<k>Adeptus Astartes Infantry</k> model only. Gain a save.', ['Infantry', 'Adeptus Astartes'])).toEqual({
+    anyOf: [['Infantry', 'Adeptus Astartes']],
+    excluded: [],
+  })
+  expect(eligibility('**Malignant Plaguecaster** only. Gain a save.', ['Malignant Plaguecaster'])).toEqual({
+    anyOf: [['Malignant Plaguecaster']],
+    excluded: [],
+  })
+  expect(
+    enhancementEligibility({ description: { en: '**Malignant Plaguecaster** only. Gain a save.' }, keywords: ['Death Guard'] }, [
+      'Malignant Plaguecaster',
+    ]),
+  ).toEqual({ anyOf: [['Malignant Plaguecaster']], excluded: [] })
+  expect(eligibility('**SHIELD-CAPTAIN** or **BLADE CHAMPION** model only. Gain a save.', ['Shield-Captain', 'Blade Champion'])).toEqual({
+    anyOf: [['Shield-Captain'], ['Blade Champion']],
+    excluded: [],
+  })
+  expect(eligibility('WATCH MASTER/CAPTAIN model only. Gain a save.', ['Watch Master', 'Captain'])).toEqual({
+    anyOf: [['Watch Master'], ['Captain']],
+    excluded: [],
+  })
+  expect(
+    enhancementEligibility({ description: { en: 'Big Mek/bigBoss/Warboss model only. Gain a save.' }, keywords: ['Big Mek', 'Warboss'] }, [
+      'Bigboss',
+    ]),
+  ).toEqual({ anyOf: [['Big Mek'], ['Bigboss'], ['Warboss']], excluded: [] })
+  expect(eligibility('Big Mek/bigBoss/Warboss model only. Gain a save.', ['Big Mek', 'Warboss'])).toBeNull()
+  expect(
+    enhancementEligibility(
+      { description: { en: 'IRON-MASTER or MEMNYR STRATEGIST model only. Gain a save.' }, keywords: ['Brôkhyr', 'Memnyr Strategist'] },
+      ['Brôkhyr Iron-master', 'Memnyr Strategist'],
+    ),
+  ).toEqual({ anyOf: [['Brôkhyr Iron-master'], ['Memnyr Strategist']], excluded: [] })
+  expect(
+    enhancementEligibility({ description: { en: 'IRON-MASTER model only. Gain a save.' }, keywords: ['Brôkhyr'] }, [
+      'Brôkhyr Iron-master',
+      'Other Iron-master',
+    ]),
+  ).toBeNull()
+  expect(eligibility('Big Mek/Warboss Infantry model only. Gain a save.', ['Big Mek', 'Warboss', 'Infantry'])).toEqual({
+    anyOf: [
+      ['Big Mek', 'Infantry'],
+      ['Warboss', 'Infantry'],
+    ],
+    excluded: [],
+  })
+  expect(eligibility('Adeptus Astartes Infantry/Mounted model only. Gain a save.', ['Adeptus Astartes', 'Infantry', 'Mounted'])).toEqual({
+    anyOf: [
+      ['Adeptus Astartes', 'Infantry'],
+      ['Adeptus Astartes', 'Mounted'],
+    ],
+    excluded: [],
+  })
+  expect(
+    eligibility('Infantry/Mounted Thousand Sons Psyker model only. Gain a save.', ['Infantry', 'Mounted', 'Thousand Sons', 'Psyker']),
+  ).toEqual({
+    anyOf: [
+      ['Infantry', 'Thousand Sons', 'Psyker'],
+      ['Mounted', 'Thousand Sons', 'Psyker'],
+    ],
+    excluded: [],
+  })
+  expect(eligibility('Chaplain/Judiciar model only. Gain a save.', ['Chaplain'])).toBeNull()
+  expect(
+    enhancementEligibility({ description: { en: 'Chaplain/Judiciar model only. Gain a save.' }, keywords: ['Chaplain'] }, ['Judiciar']),
+  ).toEqual({ anyOf: [['Chaplain'], ['Judiciar']], excluded: [] })
+  expect(
+    enhancementEligibility({ description: { en: 'Chaos Lord with Jump Pack model only. Gain a save.' }, keywords: ['Heretic Astartes'] }, [
+      'Chaos Lord with Jump Pack',
+    ]),
+  ).toEqual({ anyOf: [['Chaos Lord with Jump Pack']], excluded: [] })
+  expect(
+    enhancementEligibility(
+      { description: { en: 'Winged Tyranid Prime/Tyranid Prime with lash whip model only. Gain a save.' }, keywords: ['Tyranids'] },
+      ['Winged Tyranid Prime', 'Tyranid Prime with Lash Whip'],
+    ),
+  ).toEqual({ anyOf: [['Winged Tyranid Prime'], ['Tyranid Prime with Lash Whip']], excluded: [] })
+  expect(eligibility('HERETIC ASTARTES model with the Deep Strike ability only. Gain a save.', ['Heretic Astartes'])).toEqual({
+    anyOf: [['Heretic Astartes']],
+    excluded: [],
+    requiredAbilities: ['Deep Strike'],
+  })
+  expect(eligibility('<k>Deffkilla Wartrike</k> model only. Gain a save.', ['Orks'])).toBeNull()
+  expect(
+    enhancementEligibility({ description: { en: '<k>Deffkilla Wartrike</k> model only. Gain a save.' }, keywords: ['Orks'] }, [
+      'Deffkilla Wartrike',
+    ]),
+  ).toEqual({ anyOf: [['Deffkilla Wartrike']], excluded: [] })
+  expect(eligibility('**HERETIC ASTARTES** model (excluding **DAMNED** models) only. Gain a save.', ['Heretic Astartes'])).toEqual({
+    anyOf: [['Heretic Astartes']],
+    excluded: ['DAMNED'],
+  })
+  expect(eligibility('HERETIC ASTARTES model only (excluding DAMNED models). Gain a save.', ['Heretic Astartes'])).toEqual({
+    anyOf: [['Heretic Astartes']],
+    excluded: ['DAMNED'],
+  })
+  expect(eligibility('CHAOS LORD model only (excluding TERMINATOR and JUMP PACK models). Gain a save.', ['Chaos Lord'])).toEqual({
+    anyOf: [['Chaos Lord']],
+    excluded: ['TERMINATOR', 'JUMP PACK'],
+  })
+  expect(
+    enhancementEligibility(
+      { description: { en: 'CALLIDUS ASSASSIN models only. Gain a save.' }, keywords: ['DNU', 'Agents of the Imperium'] },
+      ['Callidus Assassin'],
+    ),
+  ).toEqual({ anyOf: [['Callidus Assassin']], excluded: [] })
+  expect(eligibility('CALLIDUS ASSASSIN models only. Gain a save.', ['DNU', 'Agents of the Imperium'])).toBeNull()
+})
+
+it('requires Character when the printed enhancement restriction says Character', () => {
+  expect(
+    enhancementEligibility({
+      description: { en: 'ASTRA MILITARUM TITANIC CHARACTER TRANSPORT model only. Gain a save.' },
+      keywords: ['Astra Militarum', 'Titanic', 'Transport'],
+      equipableByNonCharacter: false,
+    }),
+  ).toEqual({ anyOf: [['Astra Militarum', 'Titanic', 'Transport', 'Character']], excluded: [] })
+})
+
+it('uses structured enhancement eligibility when the effect has no restriction sentence', () => {
+  expect(
+    enhancementEligibility({
+      description: { en: 'Once per battle, this unit can enter strategic reserves.' },
+      keywords: ['Necrons'],
+      equipableByNonCharacter: false,
+    }),
+  ).toEqual({ anyOf: [['Necrons', 'Character']], excluded: [] })
+  expect(
+    enhancementEligibility({
+      description: { en: 'LEAGUES OF VOTANN model equipped with an Autoch‑pattern combi‑bolter only. Gain a bonus.' },
+      keywords: ['Leagues of Votann'],
+      equipableByNonCharacter: false,
+    }),
+  ).toEqual({ anyOf: [['Leagues of Votann']], excluded: [], requiredWargear: ['Autoch‑pattern combi‑bolter'] })
+})
 
 it('folds accents and repeated construction suffixes into one join key', () => {
   expect(constructionCardKey('Tempête Shroud (Aura) (Upgrade)')).toBe(constructionCardKey('Tempete Shroud'))
@@ -409,11 +548,13 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
     conflictingDetachment: null,
     conflictingEnhancement: null,
     factionEnhancements: [
-      { name: 'Fury of the Storm', detachment: 'Stormlance Task Force', points: null, description: null },
-      { name: 'Valid Relic', detachment: 'Stormlance Task Force', points: 25, description: null },
-      { name: 'Broken Relic', detachment: 'Stormlance Task Force', points: null, description: null },
+      { name: 'Fury of the Storm', detachment: 'Stormlance Task Force', points: null, description: null, eligibility: null },
+      { name: 'Valid Relic', detachment: 'Stormlance Task Force', points: 25, description: null, eligibility: null },
+      { name: 'Broken Relic', detachment: 'Stormlance Task Force', points: null, description: null, eligibility: null },
     ],
-    factionScopedEnhancement: [{ name: 'Shared Relic', detachment: 'Shared Detachment', points: 10, description: 'One relic.' }],
+    factionScopedEnhancement: [
+      { name: 'Shared Relic', detachment: 'Shared Detachment', points: 10, description: 'One relic.', eligibility: null },
+    ],
     factionScopedRule: [{ name: 'Shared Rule', description: 'One rule.' }],
   })
 })
@@ -496,6 +637,16 @@ it('reads faction stratagem mechanics and leaves malformed cards unavailable', (
           turn: 'either',
           effect: { en: 'Do something.' },
         },
+        {
+          id: 'printed-phase',
+          name: { en: 'Order the Advance' },
+          detachment: 'War Horde',
+          cost: 1,
+          phase: [],
+          turn: 'your',
+          when: { en: 'Start of your Movement phase.' },
+          effect: { en: 'Advance.' },
+        },
       ],
     }),
   )
@@ -505,10 +656,21 @@ it('reads faction stratagem mechanics and leaves malformed cards unavailable', (
       id: 'hit-em-harder',
       name: 'Hit ’Em Harder',
       cp: 1,
+      limit: 'phase',
       phases: [],
       turn: 'your-turn',
       type: 'Battle Tactic',
       description: '**Effect:** Your attacks have Lethal Hits.',
+    },
+    {
+      id: 'printed-phase',
+      name: 'Order the Advance',
+      cp: 1,
+      limit: 'phase',
+      phases: ['movement'],
+      turn: 'your-turn',
+      type: null,
+      description: '**When:** Start of your Movement phase.\n\n**Effect:** Advance.',
     },
   ])
   expect(loadDatacards(directory).factions.get('orks')?.stratagemIssues).toEqual(['War Horde | Unknown Phase: incomplete card'])
@@ -615,6 +777,33 @@ it('answers for a faction under the name the catalogues give it', () => {
     enhancement: 'The bearer has a 2+ Save.',
     stratagem: { name: 'Armour of Contempt', description: '**When:** Your opponent’s Shooting phase.\n\n**Effect:** Worsen the AP by 1.' },
   })
+})
+
+it('resolves a named enhancement target in another faction file', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'black-templars.json'),
+    JSON.stringify({
+      name: 'Black Templars',
+      datasheets: [],
+      detachments: [],
+      enhancements: [
+        {
+          name: { en: 'Incendiary Animus' },
+          detachment: 'Vow-sworn Crusaders',
+          description: { en: 'Chaplain/Judiciar model only. Gain a save.' },
+          keywords: ['Chaplain'],
+        },
+      ],
+    }),
+  )
+  fs.writeFileSync(
+    path.join(directory, 'space-marines.json'),
+    JSON.stringify({ name: 'Adeptus Astartes', datasheets: [{ name: { en: 'Judiciar' } }], detachments: [] }),
+  )
+
+  const enhancements = loadDatacards(directory).factions.get('black-templars')?.enhancements
+  expect([...enhancements!.values()][0]?.[0]?.eligibility).toEqual({ anyOf: [['Chaplain'], ['Judiciar']], excluded: [] })
 })
 
 it('leaves a card the files describe two ways blank', () => {

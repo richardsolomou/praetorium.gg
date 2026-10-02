@@ -137,9 +137,18 @@ jobs:
           fetch-depth: 0
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
       - run: pnpm catalogue:sync
+      - name: Choose a compatible comparison revision
+        id: comparison
+        run: |
+          set -euo pipefail
+          base_sha="$BASE_SHA"
+          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue/lock.json; then
+            base_sha="$(git rev-parse "$HEAD_SHA^")"
+          fi
+          echo "sha=$base_sha" >> "$GITHUB_OUTPUT"
       # Definitions and the points reference can publish at different times. Run
-      # both revisions against one snapshot and report absolute source baselines;
-      # the base/head points ratio below remains the regression gate.
+      # both revisions against one snapshot and report absolute source baselines.
+      # A new snapshot needs a preceding code revision able to read its source format.
       - name: Pin the catalogue snapshot
         run: cp -a catalogue-data catalogue-data.pinned
       - name: Measure the base
@@ -147,7 +156,7 @@ jobs:
           CATALOGUE_BASELINES: report
         run: |
           set -euo pipefail
-          git checkout --quiet --force "$BASE_SHA"
+          git checkout --quiet --force '${{ steps.comparison.outputs.sha }}'
           pnpm install --frozen-lockfile
           rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
           pnpm catalogue:descriptions
@@ -191,12 +200,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Resolve compared revisions
         id: revisions
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           base_sha="$(git rev-parse "$GITHUB_SHA^1")"
+          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue/lock.json; then
+            base_sha="$(git rev-parse "$HEAD_SHA^")"
+          fi
           {
             echo "base-sha=$base_sha"
             echo "head-sha=$GITHUB_SHA"
