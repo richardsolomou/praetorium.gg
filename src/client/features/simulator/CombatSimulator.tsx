@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { posthog } from 'posthog-js'
 import { ArrowLeftRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -38,6 +39,12 @@ export function CombatSimulatorMatchup({
   secondArmyControl?: ReactNode
   inDialog?: boolean
 }) {
+  const opened = useRef(false)
+  useEffect(() => {
+    if (opened.current) return
+    opened.current = true
+    posthog.capture('combat_simulator_opened', { source })
+  }, [source])
   const first = useCombatant(roster)
   const second = useCombatant(opponentRoster)
   const [reversed, setReversed] = useState(false)

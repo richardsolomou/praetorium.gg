@@ -51,6 +51,7 @@ export function RosterImport() {
   const queryClient = useQueryClient()
 
   const keep = useMutation({
+    onError: () => posthog.capture('roster_import_save_failed', { reason: 'request' }),
     mutationFn: async (imported: Matched) => {
       const defaults = await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })
       const { id } = await saveRoster({
@@ -69,6 +70,7 @@ export function RosterImport() {
       return id
     },
     onSuccess: async (id, imported) => {
+      posthog.capture('roster_import_saved', { source: imported.source, pick_count: imported.units.length })
       if (imported.unknown.length || imported.unplaced.length)
         posthog.capture('roster_import_shortfall_accepted', {
           missing_count: imported.unknown.length,
@@ -82,8 +84,12 @@ export function RosterImport() {
   })
 
   const bring = useMutation({
+    onMutate: () => posthog.capture('roster_import_submitted', { input: 'text' }),
     mutationFn: async (file: string): Promise<Matched> => {
-      const imported = await importRoster({ data: { file } })
+      const imported = await importRoster({ data: { file } }).catch((error: unknown) => {
+        posthog.capture('roster_import_failed', { reason: 'request', input: 'text' })
+        throw error
+      })
       if (!imported.catalogueId || !imported.source) {
         posthog.capture('roster_import_failed', { reason: 'catalogue_unmatched', input: 'text' })
         throw new Error(explain(imported.unknown) || `Could not match ${imported.catalogueName || 'the faction'}`)
@@ -96,6 +102,11 @@ export function RosterImport() {
     // the rest of it is still the list they asked for.
     onSuccess: (imported) => {
       if (!imported.unknown.length && !imported.unplaced.length) keep.mutate(imported)
+      else
+        posthog.capture('roster_import_review_required', {
+          missing_count: imported.unknown.length,
+          unplaced_count: imported.unplaced.length,
+        })
     },
   })
 
@@ -104,6 +115,7 @@ export function RosterImport() {
   const failure = bring.error ?? keep.error
 
   const show = () => {
+    posthog.capture('roster_import_started', { input: 'text' })
     bring.reset()
     keep.reset()
     setOpen(true)

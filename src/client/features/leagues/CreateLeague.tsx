@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
+import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
@@ -11,6 +12,7 @@ export function CreateLeague() {
       <Button
         data-onboarding="create-league"
         onClick={() => {
+          posthog.capture('league_creation_started')
           advanceOnboarding('league', 'league-start', 'league-name')
           setOpen(true)
         }}

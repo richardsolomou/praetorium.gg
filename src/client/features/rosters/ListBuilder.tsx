@@ -314,6 +314,7 @@ export function ListBuilder({
     // What the row holds is unknown after a failure, so the next draft is sent whatever it is.
     onError: () => {
       lastSaved.current = null
+      posthog.capture('roster_save_failed', { reason: 'request' })
     },
   })
 
@@ -1205,6 +1206,7 @@ export function ListBuilder({
           guest
             ? () => {
                 guest.onDraftChange(draft)
+                posthog.capture('guest_roster_save_started', { unit_count: attachedUnitCount(picks) })
                 guest.onSave()
               }
             : undefined
