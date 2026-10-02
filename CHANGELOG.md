@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.96.0
+
+### Minor Changes
+
+- aeb846f: Redraw the logo, favicon and app icons as the King of the Colosseum arena seen from above.
+
 ## 0.95.4
 
 ### Patch Changes
