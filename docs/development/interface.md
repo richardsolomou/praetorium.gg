@@ -12,6 +12,8 @@ Free and open source is prominent in public documentation but secondary to the p
 
 ## Application navigation
 
+The sign-in screen shows “I need an account” as a compact outlined button below Sign in. Keep it visible without competing with the primary form action.
+
 Feature screens stay shared between the website and native applications. Mobile web and native phones use a compact utility bar for Home, search, and the player's account, plus a bottom bar with Battles, Rosters, Factions, Missions, and More. More links to Home, Leagues, Leaderboard, Force dispositions (labelled Dispositions to fit its tile), Rules, Simulator, Data updates, and secondary destinations such as Friends, Admin, and Feedback; it does not repeat the four bottom tabs. The homepage belongs to no tab, so none is selected there. Native layouts that are at least 1024 pixels wide move the bottom navigation into a left rail, while the website returns to its desktop header at 860 pixels. Immersive roster screens omit the utility bar. Each section returns to the URL, route state, and scroll position where it was left, and tapping the section you are already in goes to its top. This memory lasts for the browser session.
 
 The desktop header uses the same section icons as the mobile tabs and More page. Its rightmost Reference menu groups Factions, Missions, Force dispositions, and Rules with their icons. On phones, Factions and Missions remain bottom tabs, and the mission pack header links to Force dispositions without adding a tab.

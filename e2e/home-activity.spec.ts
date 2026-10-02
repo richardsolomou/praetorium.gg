@@ -1,12 +1,45 @@
 import { expect, test } from '@playwright/test'
 import { createBattle, createRoster, PRACTICE_OPPONENT, setupBattle, signUp, uniqueName } from './account'
-import { productSql } from './storage'
+import { productSql, withAuthSql } from './storage'
 import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
 
 async function makePreviewBattleMostRecent() {
   const battles = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = 'preview-casual-doubles'`
   if (battles.length !== 1) throw new Error('The preview doubles battle is missing.')
   await productSql`UPDATE battles SET created_at = ${Date.now()} WHERE id = ${battles[0].id}`
+}
+
+test('greets a signed-in player whose provider supplied no name', async ({ page }) => {
+  const { email } = await signUp(page, uniqueName('Nameless'))
+  await withAuthSql((database) => database.prepare('UPDATE user SET name = ? WHERE email = ?').run('', email))
+  await page.goto('/')
+
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome back')
+  await page.screenshot({ path: 'test-results/home-nameless-greeting.png' })
+})
+
+for (const width of [390, 1440]) {
+  test(`offers a secondary account-creation button below sign-in at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/sign-in?next=%2Frosters')
+    const switchAccount = page.getByRole('button', { name: 'I need an account' })
+    await expect(switchAccount).toBeVisible()
+    const switchBounds = await switchAccount.boundingBox()
+    const signInBounds = await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).boundingBox()
+    expect(switchBounds!.y).toBeGreaterThan(signInBounds!.y + signInBounds!.height)
+    expect(switchBounds!.width).toBeLessThan(signInBounds!.width)
+    await page.screenshot({ path: `test-results/sign-in-account-switch-${width}.png` })
+
+    await switchAccount.click()
+    await expect(page.getByRole('heading', { name: 'Make an account' })).toBeVisible()
+    await expect(page.getByLabel('Your name')).toBeVisible()
+    await expect(page).toHaveURL('/sign-in?next=%2Frosters')
+
+    await page.getByRole('button', { name: 'I already have an account' }).click()
+    await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toBeVisible()
+    await expect(page.getByLabel('Your name')).toHaveCount(0)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+  })
 }
 
 /**

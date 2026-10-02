@@ -28,6 +28,7 @@ Read the guide for the area you are changing:
 
 ## Rules that hold everywhere
 
+- **Keep account-creation switches secondary.** Use a compact outlined button below the primary sign-in action; do not promote it to a full-width highlighted action above the fields.
 - **More does not duplicate the mobile tabs.** Rosters, Battles, Factions, and Missions belong in the bottom navigation; More links to destinations outside those tabs, including Force dispositions.
 - **Combat simulation uses one compact matchup view.** Keep its inputs and previous estimates stable through edits, calculate both phases automatically, and fail closed on unsupported rules.
 - **Keep simulator outcomes compact on phones.** Pin one readout with a shared metric heading and one row per phase, leaving enough scroll space to read the final controls. Keep each phase icon visible and its label separate from the first metric. Align the standalone pinned readout with the matchup at desktop and phone widths when changing page width. Distribution charts show the chance of losing at least a positive number of wounds or models; omit the certain zero threshold.
