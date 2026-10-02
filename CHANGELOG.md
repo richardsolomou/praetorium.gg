@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.94.1
+
+### Patch Changes
+
+- 925c5ef: Stop pages breaking for hours after a deploy by never letting a missing build file be cached.
+
 ## 0.94.0
 
 ### Minor Changes
