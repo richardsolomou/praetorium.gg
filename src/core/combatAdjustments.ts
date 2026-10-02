@@ -1,33 +1,49 @@
-import { rerollRank, type CombatInput, type CombatOptions, type CombatWeapon, type DiceExpression } from './combat'
+import { z } from 'zod'
+import { combatSchema, rerollRank, type CombatInput, type CombatWeapon, type DiceExpression } from './combat'
 
-type Amount = CombatWeapon['sustained']
+const step = z.int().min(-10).max(10)
+const roll = z.int().min(2).max(6)
 
 /** Situational changes to one phase's attacks, from rules the datasheet and its switches do not already apply. */
-export type WeaponAdjustment = {
-  skill?: number
-  strength?: number
-  attacks?: number
-  ap?: number
-  damage?: number
-  criticalHit?: number
-  criticalWound?: number
-  sustained?: Amount
-  lethal?: boolean
-  devastating?: boolean
-  damageReroll?: boolean
-}
+export const weaponAdjustmentSchema = z.object({
+  skill: step.optional(),
+  strength: step.optional(),
+  attacks: step.optional(),
+  ap: step.optional(),
+  damage: step.optional(),
+  criticalHit: roll.optional(),
+  criticalWound: roll.optional(),
+  sustained: combatSchema.shape.weapons.element.shape.sustained.optional(),
+  lethal: z.boolean().optional(),
+  devastating: z.boolean().optional(),
+  damageReroll: z.boolean().optional(),
+})
+export type WeaponAdjustment = z.infer<typeof weaponAdjustmentSchema>
 
 /** Situational changes to the defending unit, for both phases. */
-export type TargetAdjustment = {
-  toughness?: number
-  save?: number
-  invulnerable?: number | null
-  saveReroll?: 'ones' | 'failed'
-  damageReduction?: boolean
-  halveDamage?: boolean
-}
+export const targetAdjustmentSchema = z.object({
+  toughness: step.optional(),
+  save: step.optional(),
+  invulnerable: roll.nullable().optional(),
+  saveReroll: z.enum(['ones', 'failed']).optional(),
+  damageReduction: z.boolean().optional(),
+  halveDamage: z.boolean().optional(),
+})
+export type TargetAdjustment = z.infer<typeof targetAdjustmentSchema>
 
-type AttackAdjustment = Partial<Omit<CombatOptions, 'phase'>>
+const attackAdjustmentSchema = combatSchema.shape.options.omit({ phase: true }).partial()
+type AttackAdjustment = z.infer<typeof attackAdjustmentSchema>
+
+/** Situational extras layered over the datasheet and its rules; each combines the way the game combines two sources. */
+export const combatAdjustmentsSchema = z.object({
+  all: attackAdjustmentSchema.optional(),
+  ranged: attackAdjustmentSchema.optional(),
+  melee: attackAdjustmentSchema.optional(),
+  weapons: z.object({ all: weaponAdjustmentSchema, ranged: weaponAdjustmentSchema, melee: weaponAdjustmentSchema }).partial().optional(),
+  target: targetAdjustmentSchema.optional(),
+  feelNoPain: roll.nullable().optional(),
+})
+export type CombatAdjustments = z.infer<typeof combatAdjustmentsSchema>
 
 /** A phase chooses its own grants, while numeric modifiers from both scopes cancel or accumulate. */
 export function combineAttackAdjustments(all: AttackAdjustment, phase: AttackAdjustment): AttackAdjustment {
@@ -51,7 +67,7 @@ export function combineWeaponAdjustments(all: WeaponAdjustment, phase: WeaponAdj
   }
 }
 
-const average = (amount: Amount) => (typeof amount === 'number' ? amount : (amount.dice * (amount.sides + 1)) / 2 + amount.bonus)
+const average = (amount: CombatWeapon['sustained']) => (typeof amount === 'number' ? amount : (amount.dice * (amount.sides + 1)) / 2 + amount.bonus)
 /** A changed flat value stays at least 1; a dice value keeps its dice and never subtracts below them. */
 const plus = (dice: DiceExpression, bonus: number) => (bonus ? { ...dice, bonus: Math.max(dice.dice ? 0 : 1, dice.bonus + bonus) } : dice)
 const between = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value))

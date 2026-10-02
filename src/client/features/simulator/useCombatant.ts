@@ -7,8 +7,10 @@ import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatRuleChoices, combatRuleDefault } from '../../../core/combatRules'
 import { combatLoadoutCheckQuery, combatLoadoutsQuery, combatantDatasheetQuery, priceQuery } from '../../queries'
 import type { CheckLoadouts } from './loadoutSearch'
+import type { SimulatorSide } from './simulatorUrl'
 import { useSettled } from '../../useSettled'
 import { survivingUnits } from '../rosters/builder/pricePlaceholder'
+import type { KeyedPick } from '../rosters/rosterPicks'
 import { pickEditor, usePicks } from '../rosters/builder/usePicks'
 
 export type CombatRoster = {
@@ -26,14 +28,18 @@ export type CombatRoster = {
   }
 }
 
-export function useCombatant(roster?: CombatRoster) {
-  const [catalogueId, setCatalogueId] = useState(roster?.catalogueId ?? '')
+/** `initial` restores a standalone side from a shared link; a roster side starts from its roster. */
+export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | null) {
+  const [catalogueId, setCatalogueId] = useState(roster?.catalogueId ?? initial?.catalogueId ?? '')
   const [pickIndex, selectRosterUnit] = useState(roster?.pickIndex ?? 0)
-  const [selectedRules, setSelectedRules] = useState<Record<string, Record<string, number>>>({})
+  // A restored pick takes the first key, so its rule choices belong to that identity.
+  const [selectedRules, setSelectedRules] = useState<Record<string, Record<string, number>>>(() =>
+    initial ? { [`${initial.pick.catalogueId ?? initial.catalogueId}:0:${initial.pick.entryId}`]: initial.rules } : {},
+  )
   const [loadoutOpen, setLoadoutOpen] = useState(false)
   const [health, setHealth] = useState<Record<string, { models: number; damage: number }>>({})
   const [allocations, setAllocations] = useState<Record<string, CombatCarrier[]>>({})
-  const picks = usePicks(roster?.picks ?? [])
+  const picks = usePicks(roster?.picks ?? (initial ? [initial.pick] : []))
   const detachmentIds = roster?.detachmentIds ?? []
   const settled = useSettled(picks.positioned)
   const pick = picks.positioned[pickIndex]
@@ -169,6 +175,8 @@ export function useCombatant(roster?: CombatRoster) {
       : undefined,
     edit: pickEditor(picks.setPicks, { catalogueId, units: price.data?.units ?? [] }, picks.allocateKey),
     selectRosterUnit,
+    /** What a shared link needs to restore this standalone side. */
+    shared: shareable(roster, catalogueId, picks.picks[pickIndex], ruleSelections),
     loadoutOpen,
     setLoadoutOpen,
     selectUnit: (catalogue: string, id: string) => {
@@ -180,3 +188,14 @@ export function useCombatant(roster?: CombatRoster) {
 }
 
 export type Combatant = ReturnType<typeof useCombatant>
+
+function shareable(
+  roster: CombatRoster | undefined,
+  catalogueId: string,
+  pick: KeyedPick | undefined,
+  rules: Record<string, number>,
+): SimulatorSide | null {
+  if (roster || !catalogueId || !pick) return null
+  const { key: _key, attachedTo: _attachedTo, ...shared } = pick
+  return { catalogueId, pick: shared, rules }
+}

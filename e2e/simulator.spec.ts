@@ -935,3 +935,24 @@ test('the loadout editor estimates each option and uses the strongest legal load
   await expect.poll(async () => Number.parseFloat((await destroyed.textContent()) ?? '')).toBeGreaterThan(before)
   await expect(hint).toHaveCount(0)
 })
+
+test('a simulator link reopens the same units, swap, and modifiers', async ({ page }) => {
+  await page.goto('/simulator')
+  await chooseUnit(page, 'Attacker', 'Necrons', 'Tomb Blades')
+  await chooseUnit(page, 'Defender', 'Orks', 'Boyz')
+  await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
+  await page.getByRole('button', { name: 'Cover (−1 BS)', exact: true }).click()
+  await expect(estimate(page, 'Shooting')).toHaveAttribute('aria-busy', 'false')
+  const damage = await estimate(page, 'Shooting').locator('.readout').first().textContent()
+  await expect(page).toHaveURL(/[?&]s=[\w-]+/)
+  await page.goto(page.url())
+  await expect(page.getByRole('region', { name: 'Attacker', exact: true })).toContainText('Boyz')
+  await expect(page.getByRole('button', { name: 'Cover (−1 BS)', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(estimate(page, 'Shooting').locator('.readout').first()).toHaveText(damage!)
+})
+
+test('a link that does not decode opens an empty simulator', async ({ page }) => {
+  await page.goto('/simulator?s=broken')
+  await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toBeVisible()
+  await expect(estimate(page, 'Shooting')).toHaveCount(0)
+})

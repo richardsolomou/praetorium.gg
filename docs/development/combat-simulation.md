@@ -12,6 +12,8 @@ The simulator’s `combatantDatasheetQuery` accepts detachment IDs, the full ros
 
 The roster editor offers **Simulate combat** in the selected unit’s pane, including the owner’s View mode. Opening it copies the current draft picks and roster settings into an isolated simulator session, including model counts, loadouts, enhancements, detachment IDs, and attachments. The roster side can switch among those picks; the opponent uses catalogue selection. Both sides share the standalone controls, loadout editor, swapping, and results. Simulator edits do not autosave or alter the roster; closing discards them and reopening starts from the current roster. Frozen battle rosters do not offer this action.
 
+The standalone page keeps its matchup in the `s` search parameter: each side's unit, loadout, and rule choices, whether the sides are swapped, and the matchup's adjustments, weapon modes, excluded weapons, and allocation order. Each change replaces the current history entry, so reloading the page or opening a shared link restores the same calculation. A link that does not decode against the current schema opens an empty simulator. Roster and battle sessions keep nothing in the URL.
+
 Same-unit query placeholders preserve controls and the open loadout editor during edits. A pending edit cancels computation and leaves previous estimates visible and muted until current inputs are ready; recalculation and trial counts have no status labels. An error is shown with a retry action. A different unit resets the matchup. Browser tests pause requests to observe these intermediate states, not just their final results.
 
 ## Battle integration

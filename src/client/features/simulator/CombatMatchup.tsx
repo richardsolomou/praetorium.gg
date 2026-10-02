@@ -25,6 +25,7 @@ import {
   adjustCombatTarget,
   combineAttackAdjustments,
   combineWeaponAdjustments,
+  type CombatAdjustments,
   type TargetAdjustment,
   type WeaponAdjustment,
 } from '../../../core/combatAdjustments'
@@ -37,6 +38,7 @@ import { CombatEstimate } from './CombatEstimate'
 import { LoadoutHint, LoadoutsContext } from './LoadoutSuggestions'
 import { WeaponOdds } from './WeaponOdds'
 import { useLoadoutSearch, type CheckLoadouts, type LoadoutContext } from './loadoutSearch'
+import type { MatchupSettings } from './simulatorUrl'
 import type { LoadoutSpace } from '../../../core/combatLoadouts'
 import type { RosterPick } from '../../../core/roster'
 
@@ -60,15 +62,6 @@ export type CombatantSnapshot = {
 }
 type Phase = CombatOptions['phase']
 type Scope = Phase | 'all'
-/** Situational extras layered over the datasheet and its rules; each combines the way the game combines two sources. */
-type CombatAdjustments = {
-  all?: Partial<Omit<CombatOptions, 'phase'>>
-  ranged?: Partial<Omit<CombatOptions, 'phase'>>
-  melee?: Partial<Omit<CombatOptions, 'phase'>>
-  weapons?: Partial<Record<Scope, WeaponAdjustment>>
-  target?: TargetAdjustment
-  feelNoPain?: number | null
-}
 export type CombatRequest = Record<Phase, CombatInput | null>
 /** Each weapon profile alone, so a card can show what it contributes and what its other modes would. */
 export type CombatWeaponRequest = Record<Phase, { id: string; input: CombatInput }[]>
@@ -135,6 +128,8 @@ export function CombatMatchup({
   buffs,
   inDialog = false,
   loadouts,
+  initialSettings,
+  onSettingsChange,
 }: {
   entryPoint?: CombatEntryPoint
   attacker: CombatantSnapshot | null
@@ -145,6 +140,9 @@ export function CombatMatchup({
   defenderControl?: ReactNode
   buffs?: ReactNode
   inDialog?: boolean
+  /** Choices restored from a shared link, and where to report them as they change. */
+  initialSettings?: MatchupSettings
+  onSettingsChange?: (settings: MatchupSettings) => void
   /** The attacker's weapon choices, offered when its loadout can change in this matchup. */
   loadouts?: {
     context: LoadoutContext
@@ -154,14 +152,17 @@ export function CombatMatchup({
     onOpen: () => void
   }
 }) {
-  const [adjustments, setAdjustments] = useState<CombatAdjustments>({})
-  const [preferences, setPreferences] = useState<Record<string, string>>({})
-  const [excludedWeapons, setExcludedWeapons] = useState<Record<Phase, string[]>>({ ranged: [], melee: [] })
+  const [adjustments, setAdjustments] = useState<CombatAdjustments>(initialSettings?.adjustments ?? {})
+  const [preferences, setPreferences] = useState<Record<string, string>>(initialSettings?.preferences ?? {})
+  const [excludedWeapons, setExcludedWeapons] = useState<Record<Phase, string[]>>(initialSettings?.excluded ?? { ranged: [], melee: [] })
   const [outcome, setOutcome] = useState<{ key: string; attempt: number; answer: CombatAnswer } | null>(null)
   const [retry, setRetry] = useState(0)
   const reported = useRef(false)
   const failureReported = useRef(false)
-  const [allocation, setAllocation] = useState<readonly string[]>([])
+  const [allocation, setAllocation] = useState<readonly string[]>(initialSettings?.allocation ?? [])
+  useEffect(() => {
+    onSettingsChange?.({ adjustments, preferences, excluded: excludedWeapons, allocation: [...allocation] })
+  }, [adjustments, preferences, excludedWeapons, allocation, onSettingsChange])
   const built = defender ? combatTarget(defender.sheet, defender.models, defender.startingModels, defender.carriers) : null
   const position = (label: string) => (allocation.includes(label) ? allocation.indexOf(label) : allocation.length)
   const order = (built?.labels ?? []).map((_, index) => index).toSorted((a, b) => position(built!.labels[a]!) - position(built!.labels[b]!))
