@@ -109,19 +109,22 @@ function objectiveAreas(source: Source): Area[] {
     const spread = (Math.acos(1 - (range * range) / (2 * radiusIn * radiusIn)) * 180) / Math.PI
     const start = direction + turn(degrees(polar(centre, radiusIn, direction - spread), objective) - direction)
     const end = direction + turn(degrees(polar(centre, radiusIn, direction + spread), objective) - direction)
+    const edge = polar(centre, BOARD_IN / 2, direction)
+    const measurements = [placement(edge, objective), placement(centre, objective)]
+    if (direction === -90) measurements.push(placement({ x: 0, y: objective.y }, objective))
+    if (direction === 180) measurements.push(placement({ x: objective.x, y: 0 }, objective))
+    if (direction === -90) {
+      measurements.push({ from: landscape({ x: 8, y: 0 }), to: landscape({ x: 8, y: source.deploymentDepthIn }) })
+    }
+    if (direction === 90) {
+      measurements.push({
+        from: landscape({ x: BOARD_IN - 8, y: BOARD_IN }),
+        to: landscape({ x: BOARD_IN - 8, y: BOARD_IN - source.deploymentDepthIn }),
+      })
+    }
     return area(id, name, [...arc(centre, radiusIn, direction - spread, direction + spread), ...arc(objective, range, end, start)], {
       objective,
-      measurements:
-        direction === -90
-          ? [{ from: landscape({ x: 8, y: 0 }), to: landscape({ x: 8, y: source.deploymentDepthIn }) }]
-          : direction === 90
-            ? [
-                {
-                  from: landscape({ x: BOARD_IN - 8, y: BOARD_IN }),
-                  to: landscape({ x: BOARD_IN - 8, y: BOARD_IN - source.deploymentDepthIn }),
-                },
-              ]
-            : [],
+      measurements,
       parts: [
         {
           id: `${id}-wall`,
@@ -162,8 +165,15 @@ function pieceAreas(source: Source): Area[] {
       ])
       const xs = extent.map((entry) => clamp(entry.x))
       const ys = extent.map((entry) => clamp(entry.y))
+      const corner = parts
+        .flatMap((part) => part.walls.flat())
+        .sort((a, b) => Math.hypot(a.x - BOARD_IN / 2, a.y - BOARD_IN / 2) - Math.hypot(b.x - BOARD_IN / 2, b.y - BOARD_IN / 2))[0]!
       return area(id, piece.name, rectangle(Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)), {
         objective: null,
+        measurements: [
+          placement({ x: corner.x <= BOARD_IN / 2 ? 0 : BOARD_IN, y: corner.y }, corner),
+          placement({ x: corner.x, y: corner.y <= BOARD_IN / 2 ? 0 : BOARD_IN }, corner),
+        ].filter(({ from, to }) => from.x !== to.x || from.y !== to.y),
         parts: parts.map((part) => ({
           id: part.id,
           name: part.name,
@@ -178,6 +188,10 @@ function pieceAreas(source: Source): Area[] {
       })
     }),
   )
+}
+
+function placement(from: Point, to: Point): Area['measurements'][number] {
+  return { from: landscape(from), to: landscape(to), approximate: true }
 }
 
 function area(

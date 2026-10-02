@@ -1,6 +1,6 @@
 import { DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { TerrainBoard } from './TerrainBoard'
-import type { TerrainGeometry, TerrainPiece, TerrainTemplate } from './terrainGeometry'
+import { deploymentObjectiveMarkers, type TerrainGeometry, type TerrainPiece, type TerrainTemplate } from './terrainGeometry'
 
 type Props = {
   title: string
@@ -24,6 +24,11 @@ type Props = {
 
 /** The one full-size terrain inspection surface used during setup and in mission references. */
 export function TerrainLayoutDialogContent({ title, description, layout, deployment, templates, ariaLabel }: Props) {
+  const terrainObjectives = layout.geometry?.areas.some((area) => area.objective) ?? false
+  const deploymentObjectives = deploymentObjectiveMarkers(layout.geometry, deployment?.objectives ?? [])
+  const objectiveTerrain = terrainObjectives || deploymentObjectives.some((objective) => objective.kind === 'terrain')
+  const objectiveMarkers = deploymentObjectives.some((objective) => objective.kind !== 'terrain')
+  const measurements = layout.geometry?.areas.flatMap((area) => area.measurements) ?? []
   return (
     <DialogContent className="max-h-[92dvh] overflow-y-auto p-4 sm:max-w-6xl">
       <DialogHeader>
@@ -47,21 +52,43 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
         <span className="flex items-center gap-2">
           <span className="h-1 w-4 bg-discarded" /> Light terrain
         </span>
-        {layout.geometry?.areas.some((area) => area.objective) || deployment?.objectives.length ? (
+        {objectiveTerrain ? (
           <span className="flex items-center gap-2">
-            <span className="size-3 rounded-full border border-bone bg-void" /> Objective
+            <span className="size-3 rounded-full border border-bone bg-void" /> Objective terrain
           </span>
         ) : null}
-        {layout.geometry?.areas.some((area) => area.measurements.length) ? (
+        {objectiveMarkers ? (
           <span className="flex items-center gap-2">
-            <span className="h-px w-4 bg-side-a" /> Setup distance
+            <span className="size-3 rounded-full border border-bone bg-void" />{' '}
+            {layout.geometry ? '40 mm objective marker · outside terrain' : '40 mm objective marker'}
+          </span>
+        ) : null}
+        {measurements.some((measurement) => !measurement.approximate) ? (
+          <span className="flex items-center gap-2">
+            <span className="h-px w-4 bg-side-a" />
+            {layout.publisherUrl ? 'Deployment depth' : 'Placement distance · nearest ⅛″'}
+          </span>
+        ) : null}
+        {measurements.some((measurement) => measurement.approximate) ? (
+          <span className="flex items-center gap-2">
+            <span className="h-px w-4 bg-side-a" /> ≈ Approximate placement · nearest ⅛″
           </span>
         ) : null}
         <span>
-          {layout.geometry ? `${layout.geometry.board.width}″ × ${layout.geometry.board.height}″ board · ` : ''}Grid: 1″ · heavier line
-          every 5″
+          {layout.geometry ? `${layout.geometry.board.width}″ × ${layout.geometry.board.height}″ board · ` : ''}
+          Grid: 1″ · heavier line every 5″
         </span>
       </div>
+      {layout.publisherUrl && measurements.some((measurement) => measurement.approximate) ? (
+        <p className="text-xs text-dim">
+          Measure to the marked wall corners and objective centres. Keep the ruin walls parallel to the board edges.
+        </p>
+      ) : null}
+      {!layout.publisherUrl && layout.geometry?.areas.some((area) => area.measurements.length > 2) ? (
+        <p className="text-xs text-dim">
+          For tilted terrain, match the two distances at the first marked corner, then the distance at the second corner.
+        </p>
+      ) : null}
       <TerrainBoard
         layout={layout}
         deployment={deployment}

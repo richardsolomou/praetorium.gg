@@ -628,13 +628,29 @@ test('terrain layouts show source-backed areas and measurement guidance', async 
       .first(),
   ).toBeVisible()
   const distances = board.locator('line[marker-end]')
-  const guidance = dialog.getByText('Setup distance', { exact: true })
-  if (await distances.count()) {
-    await expect(guidance).toBeVisible()
-    await expect(board.locator('text').filter({ hasText: /″$/ }).first()).toBeVisible()
-  } else {
-    await expect(guidance).toHaveCount(0)
-  }
+  await expect(distances).toHaveCount(42)
+  await expect(board.locator('circle').filter({ has: page.locator('title', { hasText: /^Measurement endpoint$/ }) })).toHaveCount(26)
+  await expect(board.locator('text').filter({ hasText: /^16⅜″$/ })).toHaveCount(2)
+  await expect(dialog.getByText('For tilted terrain, match the two distances', { exact: false })).toBeVisible()
+  await expect(dialog.getByText('Placement distance · nearest ⅛″', { exact: true })).toBeVisible()
+  await expect(board.locator('text').filter({ hasText: /″$/ }).first()).toBeVisible()
+  await expect(dialog.getByText('Approximate placement coordinates')).toHaveCount(0)
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/terrain-layout-tilt-phone.png' })
+})
+
+test('Tipping Point shows its off-terrain objectives as 40 mm markers', async ({ page }) => {
+  await page.goto('/missions/chapter-approved-2026-2027/matchups/take-and-hold/reconnaissance')
+  await page.getByRole('button', { name: 'Enlarge terrain layout A: Tipping Point' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByText('40 mm objective marker · outside terrain')).toBeVisible()
+  await expect(dialog.locator('svg title').filter({ hasText: /^Objective marker outside terrain \(40 mm\)$/ })).toHaveCount(5)
+  await expect(dialog.locator('svg title').filter({ hasText: /^Objective terrain$/ })).toHaveCount(0)
+  await expect(dialog.locator('svg text').filter({ hasText: /^OBJECTIVE$/ })).toHaveCount(5)
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/tipping-point-objective-markers-phone.png' })
 })
 
 test('a mission opens while its terrain layouts load', async ({ page }) => {
@@ -681,22 +697,13 @@ test('terrain layout preserves structural corners and source distances', async (
   const board = dialog.locator('svg[aria-label]').first()
   await expect(board.locator('polyline[stroke-linejoin="miter"]').first()).toBeAttached()
   await expect(board.locator('text').filter({ hasText: /^AB$/ }).first()).toBeVisible()
-  if (await board.locator('line[marker-end]').count()) {
-    await expect(
-      board
-        .locator('text')
-        .filter({ hasText: /^3″$/ })
-        .first(),
-    ).toBeVisible()
-    await expect(
-      board
-        .locator('text')
-        .filter({ hasText: /^5″$/ })
-        .first(),
-    ).toBeVisible()
-  } else {
-    await expect(board.locator('text').filter({ hasText: /″$/ })).toHaveCount(0)
-  }
+  await expect(board.locator('line[marker-end]')).toHaveCount(44)
+  await expect(
+    board
+      .locator('text')
+      .filter({ hasText: /^3″$/ })
+      .first(),
+  ).toBeVisible()
 })
 
 test('a matchup keeps each action in the column of the side whose mission asks for it', async ({ page }) => {

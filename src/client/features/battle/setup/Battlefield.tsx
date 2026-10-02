@@ -1,11 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Eye, Shuffle } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { Command } from '../../../../core/battle'
 import { isKotcLimit } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
 import { KOTC_MATCHUP_ID } from '../../../../contracts/terrain'
@@ -13,10 +12,11 @@ import { deploymentsQuery, terrainMatchupIds, terrainReferencesQuery } from '../
 import { CHOOSABLE, CHOSEN } from './chrome'
 import { TerrainBoard } from '../../reference/missions/TerrainBoard'
 import { TerrainLayoutDialogContent } from '../../reference/missions/TerrainLayoutDialogContent'
+import type { SendCommand } from '../useCommand'
 
 type Props = {
   view: BattleView
-  send: (command: Command) => void
+  send: SendCommand
   pending: boolean
   allowedIds?: string[]
   /** The two dispositions these layouts are for, named the way the pack names them. */
@@ -25,6 +25,7 @@ type Props = {
 
 export function Battlefield({ view, send, pending, allowedIds, matchup }: Props) {
   const [inspecting, setInspecting] = useState<string | null>(null)
+  const attempted = useRef<number | null>(null)
   const patternsQuery = useQuery(deploymentsQuery())
   const allPatterns = patternsQuery.data
   // The card each side plays, as the domain folded it: an allied pair fields one army
@@ -44,6 +45,17 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
     }) ?? []
   const available = options.filter((option) => option.terrain.geometry)
   const inspected = options.find((option) => option.terrain.id === inspecting)
+  const singleColosseum = kotc && options.length === 1
+  const fixed = singleColosseum ? available[0] : undefined
+  const fixedTerrainId = fixed?.terrain.id
+  const fixedPatternId = fixed?.deployment.id
+  const fixedSelected = fixed && view.settings.terrainLayoutId === fixed.terrain.id && view.deploymentId === fixed.deployment.id
+
+  useEffect(() => {
+    if (!fixedTerrainId || !fixedPatternId || fixedSelected || pending || attempted.current === view.seq) return
+    attempted.current = view.seq
+    send({ kind: 'set-battlefield', patternId: fixedPatternId, terrainLayoutId: fixedTerrainId })
+  }, [fixedTerrainId, fixedPatternId, fixedSelected, pending, send, view.seq])
 
   if (!matchupIds.length) {
     const viewerRoster = view.players.find((player) => player.isViewer)?.roster
@@ -73,22 +85,24 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
         <div className="min-w-0">
           <p className="eyebrow">Deployment and terrain layout</p>
           <p className="mt-0.5 max-w-2xl text-sm text-dim">
-            {kotc
-              ? 'Choose the Colosseum battlefield. Deployment is 8″ from each board edge.'
+            {singleColosseum
+              ? 'The Colosseum battlefield is fixed. Use the enlarged map to place its terrain and objectives.'
               : `Choose one layout${matchup ? ` for ${matchup}` : ''}. Each option shows its deployment zones and terrain outlines.`}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={pending || !available.length}
-          onClick={() => {
-            const option = available[Math.floor(Math.random() * available.length)]
-            if (option) send({ kind: 'set-battlefield', patternId: option.deployment.id, terrainLayoutId: option.terrain.id })
-          }}
-        >
-          <Shuffle /> Select random
-        </Button>
+        {!singleColosseum ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pending || !available.length}
+            onClick={() => {
+              const option = available[Math.floor(Math.random() * available.length)]
+              if (option) send({ kind: 'set-battlefield', patternId: option.deployment.id, terrainLayoutId: option.terrain.id })
+            }}
+          >
+            <Shuffle /> Select random
+          </Button>
+        ) : null}
       </div>
       {/* An unanswered request is not an empty pack, so the three cards are reserved until one of them is. */}
       {loading ? (
@@ -98,26 +112,32 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
       ) : !options.length ? (
         <p className="mt-3 text-sm text-dim">No combined battlefield layouts match these armies and mission.</p>
       ) : (
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <div className={singleColosseum ? 'mt-3 flex justify-center' : 'mt-3 grid gap-3 sm:grid-cols-3'}>
           {options.map(({ terrain, deployment }, index) => {
             const selected = view.settings.terrainLayoutId === terrain.id && view.deploymentId === deployment.id
             const label = String.fromCharCode(65 + index)
             return (
-              <article key={terrain.id} className={`flex flex-col border bg-sunken p-2 transition-colors ${selected ? CHOSEN : CHOOSABLE}`}>
-                <span className="block text-center text-lg font-bold">{label}</span>
-                {/* Taking a layout is the deliberate act, so it is the one button on the card. */}
-                <Button
-                  variant={selected ? 'secondary' : 'outline'}
-                  className="mt-2 w-full"
-                  disabled={!terrain.geometry}
-                  aria-label={`${selected ? 'Selected' : 'Select'} layout ${label}: ${deployment.name}`}
-                  onClick={() => {
-                    if (!pending) send({ kind: 'set-battlefield', patternId: deployment.id, terrainLayoutId: terrain.id })
-                  }}
-                >
-                  {selected ? <Check /> : null}
-                  {selected ? 'Selected' : terrain.geometry ? 'Select' : 'Loading'}
-                </Button>
+              <article
+                key={terrain.id}
+                className={`flex flex-col border bg-sunken p-2 transition-colors ${singleColosseum ? 'w-full max-w-md border-edge' : selected ? CHOSEN : CHOOSABLE}`}
+              >
+                {!singleColosseum ? (
+                  <>
+                    <span className="block text-center text-lg font-bold">{label}</span>
+                    <Button
+                      variant={selected ? 'secondary' : 'outline'}
+                      className="mt-2 w-full"
+                      disabled={!terrain.geometry}
+                      aria-label={`${selected ? 'Selected' : 'Select'} layout ${label}: ${deployment.name}`}
+                      onClick={() => {
+                        if (!pending) send({ kind: 'set-battlefield', patternId: deployment.id, terrainLayoutId: terrain.id })
+                      }}
+                    >
+                      {selected ? <Check /> : null}
+                      {selected ? 'Selected' : terrain.geometry ? 'Select' : 'Loading'}
+                    </Button>
+                  </>
+                ) : null}
                 {/*
                  * The board itself opens the board, the way the mission pack pages do it.
                  * A third of a column cannot hold the measurements the exact geometry
@@ -126,7 +146,11 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
                 <button
                   type="button"
                   className="group mt-2 block w-full flex-1 text-left"
-                  aria-label={`Enlarge terrain layout ${label}: ${deployment.name} battlefield with ${terrain.name}`}
+                  aria-label={
+                    singleColosseum
+                      ? 'Enlarge Colosseum battlefield'
+                      : `Enlarge terrain layout ${label}: ${deployment.name} battlefield with ${terrain.name}`
+                  }
                   onClick={() => setInspecting(terrain.id)}
                 >
                   <TerrainBoard
@@ -138,7 +162,7 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
                   />
                   <span className="mt-2 flex items-center justify-center gap-1 text-xs font-bold text-bone uppercase group-hover:text-azure">
                     <Eye className="size-3.5 shrink-0 text-dim group-hover:text-azure" />
-                    {deployment.name}
+                    {singleColosseum ? 'View setup measurements' : deployment.name}
                   </span>
                 </button>
               </article>
@@ -146,6 +170,19 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
           })}
         </div>
       )}
+      {fixed && !fixedSelected && !pending && attempted.current === view.seq ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-3"
+          onClick={() => {
+            attempted.current = view.seq
+            send({ kind: 'set-battlefield', patternId: fixed.deployment.id, terrainLayoutId: fixed.terrain.id })
+          }}
+        >
+          Retry battlefield setup
+        </Button>
+      ) : null}
       {options.some((option) => !option.terrain.geometry) ? (
         <p role="alert" className="mt-2 text-xs text-destructive">
           Terrain labels and measurements are still loading. Those layouts cannot be selected yet.

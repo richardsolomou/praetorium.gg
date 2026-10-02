@@ -95,7 +95,7 @@ export function battlemasterGeometry(directory: string, id: string): TerrainGeom
         })),
         objective: null,
         objectiveGroup: null,
-        measurements: [],
+        measurements: placementMeasurements(area),
         parts: area.parts.map((part, partIndex) => ({
           id: part.id ?? `area-${at + 1}-part-${partIndex + 1}`,
           name: part.name,
@@ -110,6 +110,58 @@ export function battlemasterGeometry(directory: string, id: string): TerrainGeom
       }
     }),
   }
+}
+
+function placementMeasurements(area: Area): TerrainGeometry['areas'][number]['measurements'] {
+  if (!area.outline.points.length) return []
+  const footprint = area.footprint
+  const corners = [
+    { x: 0, y: 0 },
+    { x: footprint.widthIn, y: 0 },
+    { x: footprint.widthIn, y: footprint.heightIn },
+    { x: 0, y: footprint.heightIn },
+  ]
+    .flatMap((corner, index) => {
+      const point = area.outline.points.reduce((nearest, candidate) =>
+        Math.hypot(candidate.x - corner.x, candidate.y - corner.y) < Math.hypot(nearest.x - corner.x, nearest.y - corner.y)
+          ? candidate
+          : nearest,
+      )
+      return Math.hypot(point.x - corner.x, point.y - corner.y) <= 0.01 ? [{ index, point: boardPoint(point, footprint) }] : []
+    })
+    .filter(({ point }) => point.x >= 0 && point.x <= 60 && point.y >= 0 && point.y <= 44)
+  if (!corners.length) return []
+
+  const centre = {
+    x: corners.reduce((total, { point }) => total + point.x, 0) / corners.length,
+    y: corners.reduce((total, { point }) => total + point.y, 0) / corners.length,
+  }
+  const edgeX = centre.x < 30 ? 0 : 60
+  const edgeY = centre.y < 22 ? 0 : 44
+  const anchor = corners.reduce((nearest, corner) =>
+    Math.abs(corner.point.x - edgeX) + Math.abs(corner.point.y - edgeY) <
+    Math.abs(nearest.point.x - edgeX) + Math.abs(nearest.point.y - edgeY)
+      ? corner
+      : nearest,
+  )
+  const corner = anchor.point
+  const measurements = [
+    { from: { x: edgeX, y: corner.y }, to: corner },
+    { from: { x: corner.x, y: edgeY }, to: corner },
+  ]
+  const adjacent = corners.filter((candidate) => Math.abs(candidate.index - anchor.index) % 2 === 1)
+  const second = adjacent.toSorted(
+    (left, right) =>
+      Math.hypot(right.point.x - corner.x, right.point.y - corner.y) - Math.hypot(left.point.x - corner.x, left.point.y - corner.y),
+  )[0]?.point
+  if (second) {
+    const dx = Math.abs(second.x - corner.x)
+    const dy = Math.abs(second.y - corner.y)
+    if (Math.min(dx, dy) > 0.01) {
+      measurements.push({ from: dx > dy ? { x: second.x, y: edgeY } : { x: edgeX, y: second.y }, to: second })
+    }
+  }
+  return measurements.filter(({ from, to }) => from.x !== to.x || from.y !== to.y)
 }
 
 function matches(layout: Layout['layout'], id: string) {

@@ -23,7 +23,7 @@ export type TerrainGeometry = {
     markers: { label: string; position: Point }[]
     objective: { position: Point; group: string | null } | null
     objectiveGroup: string | null
-    measurements: { from: Point; to: Point }[]
+    measurements: { from: Point; to: Point; approximate?: boolean }[]
     parts: {
       id: string
       name: string

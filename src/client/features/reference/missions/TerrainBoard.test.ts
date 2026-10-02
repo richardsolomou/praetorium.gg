@@ -100,6 +100,32 @@ it('keeps both deployment measurements within a square board', () => {
   ])
 })
 
+it('marks traced placement distances as approximate while preserving printed distances', () => {
+  const markup = renderToStaticMarkup(
+    createElement(TerrainBoard, {
+      layout: {
+        name: 'Colosseum',
+        pieces: [],
+        geometry: {
+          board: { width: 36, height: 36 },
+          areas: [
+            {
+              ...terrainArea('area'),
+              measurements: [
+                { from: { x: 36, y: 8 }, to: { x: 28, y: 8 } },
+                { from: { x: 21.25, y: 0 }, to: { x: 21.25, y: 14.75 }, approximate: true },
+              ],
+            },
+          ],
+        },
+      },
+      templates: [],
+      detailed: true,
+    }),
+  )
+  expect([...markup.matchAll(/<text[^>]+>([^<]*″)<\/text>/g)].map((match) => match[1])).toEqual(['8″', '≈14¾″'])
+})
+
 it('credits the publisher whose diagrams a traced layout follows', () => {
   const markup = renderToStaticMarkup(
     createElement(TerrainBoard, {
@@ -114,6 +140,35 @@ it('credits the publisher whose diagrams a traced layout follows', () => {
     }),
   )
   expect(markup).toContain('href="https://playontabletop.com/kotc/"')
+})
+
+it('keeps a detailed traced square battlefield free of edge rulers', () => {
+  const markup = renderToStaticMarkup(
+    createElement(TerrainBoard, {
+      layout: {
+        name: 'Colosseum',
+        pieces: [],
+        geometry: { board: { width: 36, height: 36 }, areas: [] },
+        publisherUrl: 'https://playontabletop.com/kotc/',
+      },
+      templates: [],
+      detailed: true,
+    }),
+  )
+  expect(markup).toContain('viewBox="0 0 36 36"')
+  expect(markup).not.toContain('edge ruler')
+})
+
+it('keeps detailed Battlemaster battlefields free of edge rulers', () => {
+  const markup = renderToStaticMarkup(
+    createElement(TerrainBoard, {
+      layout: { name: 'Chapter Approved', pieces: [], geometry: { board, areas: [] } },
+      templates: [],
+      detailed: true,
+    }),
+  )
+  expect(markup).toContain('viewBox="0 0 44 60"')
+  expect(markup).not.toContain('edge ruler')
 })
 
 const rectangle = (x: number, y: number, width: number, height: number) => [
@@ -132,7 +187,7 @@ const terrainArea = (id: string): TerrainGeometry['areas'][number] => ({
   objectiveGroup: null,
   measurements: [],
 })
-function renderBoard(geometry: TerrainGeometry, detailed: boolean, flipped = false) {
+function renderBoard(geometry: TerrainGeometry, detailed: boolean, flipped = false, objectives = [{ x: 1, y: 1 }]) {
   return renderToStaticMarkup(
     createElement(TerrainBoard, {
       layout: { name: 'Test layout', pieces: [], geometry },
@@ -143,7 +198,7 @@ function renderBoard(geometry: TerrainGeometry, detailed: boolean, flipped = fal
           { name: 'Attacker', player: 'attacker', points: rectangle(flipped ? 0 : 45, 0, 10, 44) },
           { name: 'Defender', player: 'defender', points: rectangle(flipped ? 45 : 0, 0, 10, 44) },
         ],
-        objectives: [{ x: 1, y: 1 }],
+        objectives,
       },
     }),
   )
@@ -169,6 +224,50 @@ describe('source-backed battlefield annotations', () => {
     const markup = renderBoard({ board, areas: [terrainArea('area')] }, true)
     expect(markup).not.toContain('<title>Objective terrain</title>')
     expect(markup).toContain('translate(1 1)')
+  })
+
+  it('distinguishes objective terrain from a 40 mm marker outside terrain', () => {
+    const markup = renderBoard({ board, areas: [terrainArea('area')] }, true, false, [
+      { x: 12, y: 12 },
+      { x: 1, y: 1 },
+    ])
+    expect(markup).toContain('<title>Objective terrain</title>')
+    expect(markup).toContain('<title>Objective marker outside terrain (40 mm)</title>')
+    expect(markup).toContain('r="0.787"')
+    expect(markup.match(/>OBJECTIVE<\/text>/g)).toHaveLength(2)
+  })
+
+  it('keeps distance labels clear of objective badges', () => {
+    const geometry: TerrainGeometry = {
+      board,
+      areas: [
+        {
+          ...terrainArea('area'),
+          measurements: [{ from: { x: 0, y: 33 }, to: { x: 14, y: 33 } }],
+        },
+      ],
+    }
+    const markup = renderBoard(geometry, true, false, [{ x: 14, y: 33 }])
+    const label = markup.match(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" rx="\.14" class="fill-side-a"/)
+    const [, x, y, width, height] = label ?? []
+    expect(Number(x) < 34.08 && Number(x) + Number(width) > 31.92 && Number(y) < 47.28 && Number(y) + Number(height) > 46.78).toBe(false)
+  })
+
+  it('keeps distance labels clear of terrain labels', () => {
+    const geometry: TerrainGeometry = {
+      board,
+      areas: [
+        {
+          ...terrainArea('area'),
+          markers: [{ label: 'AB', position: { x: 12.3, y: 12 } }],
+          measurements: [{ from: { x: 0, y: 12 }, to: { x: 14, y: 12 } }],
+        },
+      ],
+    }
+    const markup = renderBoard(geometry, true, false, [])
+    const label = markup.match(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" rx="\.14" class="fill-side-a"/)
+    const [, x, y, width, height] = label ?? []
+    expect(Number(x) < 13.1 && Number(x) + Number(width) > 10.9 && Number(y) < 48.8 && Number(y) + Number(height) > 46.6).toBe(false)
   })
 
   it('does not repeat objectives already placed by the terrain source', () => {
@@ -205,7 +304,7 @@ describe('source-backed battlefield annotations', () => {
     )
     expect(markup).toContain('>18″</text>')
     expect(markup).toContain('>10″</text>')
-    expect(markup).toContain('>28″</text>')
+    expect(markup).toContain('>27⅝″</text>')
   })
 
   it('keeps preview maps free of setup rulers', () => {

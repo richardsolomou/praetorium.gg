@@ -10,6 +10,10 @@ import type { TerrainGeometry } from '../../../../contracts/terrain'
 
 export type { Point, TerrainGeometry, TerrainPiece, TerrainTemplate } from '../../../../contracts/terrain'
 
+const markerOffsets = Array.from({ length: 17 }, (_, x) => x - 8)
+  .flatMap((x) => Array.from({ length: 17 }, (_, y) => ({ x: x / 2, y: (y - 8) / 2 })))
+  .sort((left, right) => left.x * left.x + left.y * left.y - right.x * right.x - right.y * right.y)
+
 export function objectiveTerrainMarkers(geometry: TerrainGeometry) {
   const objectives = geometry.areas.flatMap((area) => (area.objective ? [{ id: area.id, ...area.objective }] : []))
   return objectives.flatMap((objective, index) => {
@@ -28,25 +32,22 @@ export function objectiveTerrainMarkers(geometry: TerrainGeometry) {
   })
 }
 
+export function deploymentObjectiveMarkers(geometry: TerrainGeometry | null, objectives: { x: number; y: number }[]) {
+  if (geometry?.areas.some((area) => area.objective)) return []
+  return objectives.map((position) => ({
+    position,
+    kind: !geometry ? 'unknown' : geometry.areas.some((area) => pointInPolygon(position, area.points)) ? 'terrain' : 'marker',
+  }))
+}
+
 export function terrainMarkerPosition(
   area: TerrainGeometry['areas'][number],
   marker: TerrainGeometry['areas'][number]['markers'][number],
   objectives: { x: number; y: number }[] = [],
 ) {
   const centre = polygonCentroid(area.points)
-  const offsets = [
-    { x: 0, y: 0 },
-    { x: 1.4, y: 0 },
-    { x: -1.4, y: 0 },
-    { x: 0, y: 1.4 },
-    { x: 0, y: -1.4 },
-    { x: 2.4, y: 0 },
-    { x: -2.4, y: 0 },
-    { x: 0, y: 2.4 },
-    { x: 0, y: -2.4 },
-  ]
   return (
-    offsets
+    markerOffsets
       .map((offset) => ({ x: marker.position.x + offset.x, y: marker.position.y + offset.y }))
       .find((candidate) => markerPositionIsOpen(area, candidate, 1.05, objectives)) ??
     (markerPositionIsOpen(area, centre, 1.05, objectives) ? centre : marker.position)
@@ -169,7 +170,9 @@ export function portraitPoint(point: { x: number; y: number }, flipped: boolean,
 }
 
 export function formatInches(value: number) {
-  return `${Math.round(value)}″`
+  const eighths = Math.round(value * 8)
+  const fraction = ['', '⅛', '¼', '⅜', '½', '⅝', '¾', '⅞'][eighths % 8]
+  return `${Math.floor(eighths / 8)}${fraction}″`
 }
 
 export function polygonCentroid(points: { x: number; y: number }[]) {

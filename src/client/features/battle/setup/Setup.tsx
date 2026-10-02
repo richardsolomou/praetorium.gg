@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import type { Command } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
-import { FIXED_SECONDARIES, GAME_SIZES } from '../../../../core/battle'
+import { FIXED_SECONDARIES, GAME_SIZES, isKotcLimit } from '../../../../core/battle'
 import { deploymentsQuery, gameReferencesQuery } from '../../../queries'
 import { missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../../../sides'
 import type { SendCommand } from '../useCommand'
@@ -103,7 +103,8 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
     if (step >= 1 && !youHaveAnArmy) return 'Choose your army to continue.'
     const undecided = table.filter((side) => side.dispositionChoices.length > 1 && !side.disposition)
     if (step === 1 && undecided.length) return 'Choose the Force Disposition each allied side plays to continue.'
-    if (step === 2 && !view.deploymentId) return 'Choose a battlefield layout to continue.'
+    if (step === 2 && !view.deploymentId)
+      return isKotcLimit(view.settings.limit) ? 'Setting up the Colosseum battlefield.' : 'Choose a battlefield layout to continue.'
     if (step === 3 && !view.attackerId) return 'Roll off and record the defender to continue.'
     const missingCards = table.filter((side) => !missionCardsReady(side))
     if (step >= 4 && missingCards.length) return 'Wait for every side’s mission cards before continuing.'
@@ -216,8 +217,13 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
          * a step starts asking for something.
          */}
         <header className="space-y-1 text-center">
-          <h1 className="text-lg text-balance sm:text-xl">{HEADLINES[at]}</h1>
-          <p className={`text-sm ${blocked ? 'text-discarded' : 'text-dim'}`}>{blocked ?? BLURBS[at]}</p>
+          <h1 className="text-lg text-balance sm:text-xl">
+            {at === 2 && isKotcLimit(view.settings.limit) ? 'The Colosseum battlefield' : HEADLINES[at]}
+          </h1>
+          <p className={`text-sm ${blocked ? 'text-discarded' : 'text-dim'}`}>
+            {blocked ??
+              (at === 2 && isKotcLimit(view.settings.limit) ? 'The terrain and objectives always go in the same places.' : BLURBS[at])}
+          </p>
         </header>
 
         <section aria-label={steps[at]?.name} className="min-w-0 space-y-4">
