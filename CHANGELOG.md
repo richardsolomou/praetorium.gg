@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.96.3
+
+### Patch Changes
+
+- 7579a8c: Match equipped weapons to their source profiles and preserve unit-level equipment through combat simulation.
+
 ## 0.96.2
 
 ### Patch Changes
