@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.95.4
+
+### Patch Changes
+
+- 0c572b1: Stop sending the sign-in cookie to PostHog along with analytics requests.
+
 ## 0.95.3
 
 ### Patch Changes
