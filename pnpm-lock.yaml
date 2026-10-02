@@ -129,8 +129,8 @@ importers:
         specifier: ^1.5.4
         version: 1.5.4
       ras-stack:
-        specifier: ^2.0.0
-        version: 2.0.0(ef07eb425dc9878faf3da16c1127b8f7)
+        specifier: ^2.0.2
+        version: 2.0.2(ef07eb425dc9878faf3da16c1127b8f7)
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -6853,8 +6853,8 @@ packages:
     resolution: {integrity: sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg==}
     engines: {node: '>= 0.6'}
 
-  ras-stack@2.0.0:
-    resolution: {integrity: sha512-50X27EsRz4HWhpRCv84tCaEWvXjIJQIWhtoP0HTrbDvNsl0jrjkLBxb/D0LuG/AwkcsLMoTQm1FWiS1q1wrHHw==}
+  ras-stack@2.0.2:
+    resolution: {integrity: sha512-h22OmquInf+nFb0HetqomovzhU/g3GMWZqCjgqJRNNx9YWtCrN/A2jUdFEv5nYjyNBWzwF3nijywDEL+qCUO4Q==}
     engines: {node: '>=24 <25'}
     hasBin: true
     peerDependencies:
@@ -14603,7 +14603,7 @@ snapshots:
 
   range-parser@1.2.1: {}
 
-  ras-stack@2.0.0(ef07eb425dc9878faf3da16c1127b8f7):
+  ras-stack@2.0.2(ef07eb425dc9878faf3da16c1127b8f7):
     dependencies:
       '@changesets/parse': 1.0.0
       '@inquirer/confirm': 6.3.1(@types/node@24.13.6)
