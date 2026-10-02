@@ -385,8 +385,8 @@ test('changing detachments clears enhancements unless another detachment is adde
   await page.getByRole('button', { name: 'Roster actions' }).click()
   await page.getByRole('menuitem', { name: 'Export GW text' }).click()
   const exported = page.getByRole('dialog', { name: 'Games Workshop text' })
-  await expect(exported.locator('pre')).toContainText('Force Dispositions: Purge the Foe, Reconnaissance')
-  await exported.screenshot({ path: 'test-results/multiple-dispositions-export.png' })
+  await expect(exported.locator('pre')).toContainText('Force Disposition: Purge the Foe\n')
+  await exported.screenshot({ path: 'test-results/selected-disposition-export.png' })
   await exported.getByRole('button', { name: 'Close' }).click()
 
   await page.getByRole('button', { name: 'Roster actions' }).click()

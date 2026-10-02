@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test'
-import { attachRoster, chooseBattlefield, createBattle, createRoster, desktopContext, PRACTICE_OPPONENT, signUp } from './account'
+import {
+  attachRoster,
+  chooseBattlefield,
+  createBattle,
+  createRoster,
+  desktopContext,
+  PRACTICE_OPPONENT,
+  signUp,
+  waitForRosterSave,
+} from './account'
 
 test('a list can be copied as Games Workshop text', async ({ browser }) => {
   const page = await (await browser.newContext({ ...desktopContext, permissions: ['clipboard-read', 'clipboard-write'] })).newPage()
@@ -61,11 +70,11 @@ test('an imported roster with disagreeing dispositions asks for one before battl
 
   await page.goto('/rosters')
   await page.getByRole('button', { name: 'Import roster' }).click()
-  await page.getByLabel('Roster text').fill(`PoWSS 2K (2000 Points)
+  await page.getByLabel('Roster text').fill(`HLHOTD 2K - C'tan (1995 Points)
 
 Necrons
-Pantheon of Woe and Skyshroud Spearhead (3 Detachment Points)
-Force Dispositions: Disruption, Reconnaissance
+Hypercrypt Legion and Hand of the Dynasty (3 Detachment Points)
+Force Dispositions: Reconnaissance, Take and Hold
 Strike Force (2,000 Points)
 
 CHARACTER
@@ -81,13 +90,31 @@ Exported with BattleBase, Data Version: v20260812`)
   await expect(notice).toBeVisible()
   await notice.getByRole('button', { name: 'Choose one' }).click()
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
-  await setup.getByRole('button', { name: 'Disruption', exact: true }).click()
-  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await setup.getByRole('button', { name: 'Take and Hold', exact: true }).click()
+  await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
   await expect(notice).toHaveCount(0)
-  await expect(page.getByText('Disruption', { exact: true })).toBeVisible()
+  await expect(page.getByText('Take and Hold', { exact: true })).toBeVisible()
+
+  for (const disposition of ['Take and Hold', 'Reconnaissance']) {
+    if (disposition === 'Reconnaissance') {
+      await page.getByRole('button', { name: 'Roster actions' }).click()
+      await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+      await setup.getByRole('button', { name: disposition, exact: true }).click()
+      await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+    }
+    await page.reload()
+    await expect(page.getByText(disposition, { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Roster actions' }).click()
+    await page.getByRole('menuitem', { name: 'Export GW text' }).click()
+    const exported = page.getByRole('dialog', { name: 'Games Workshop text' })
+    await expect(exported.locator('pre')).toContainText(`Force Disposition: ${disposition}\n`)
+    await expect(exported.locator('pre')).not.toContainText('Force Dispositions:')
+    await exported.screenshot({ path: `test-results/selected-disposition-export-${disposition.toLowerCase()}.png` })
+    await exported.getByRole('button', { name: 'Close' }).click()
+  }
 
   await createBattle(page, { practice: true })
-  await attachRoster(page, 'PoWSS 2K')
-  await attachRoster(page, 'PoWSS 2K', { forPlayer: PRACTICE_OPPONENT })
+  await attachRoster(page, "HLHOTD 2K - C'tan")
+  await attachRoster(page, "HLHOTD 2K - C'tan", { forPlayer: PRACTICE_OPPONENT })
   await chooseBattlefield(page)
 })

@@ -127,8 +127,8 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
 
   // One panel for the pair, carrying both armies and a single command point pool.
   await expect(sidePanels(ally)).toHaveCount(2)
-  await expect(side(ally, 1)).toContainText(allyRoster)
-  await expect(side(ally, 1)).toContainText(partnerRoster)
+  await expect(side(ally, 1).getByRole('button', { name: `Open ${allyRoster}`, exact: true })).toHaveText('Army')
+  await expect(side(ally, 1).getByRole('button', { name: `Open ${partnerRoster}`, exact: true })).toHaveText('Army')
   await expect(side(ally, 1).locator('[data-stat="cp"]')).toHaveCount(1)
 
   // A command point one ally gains is the same one their partner is holding.
@@ -251,10 +251,9 @@ test('a manual 2v2 seats two armies on each side with one shared pool', async ({
   await startBattle(host, `${names[0]} & ${names[1]}`)
 
   await expect(sidePanels(host)).toHaveCount(2)
-  await expect(side(host, 0)).toContainText(rosters[0])
-  await expect(side(host, 0)).toContainText(rosters[1])
-  await expect(side(host, 1)).toContainText(rosters[2])
-  await expect(side(host, 1)).toContainText(rosters[3])
+  for (const [index, roster] of rosters.entries()) {
+    await expect(side(host, index < 2 ? 0 : 1).getByRole('button', { name: `Open ${roster}`, exact: true })).toHaveText('Army')
+  }
   await expect(side(host, 0).locator('[data-stat="cp"]')).toHaveCount(1)
   await expect(side(host, 1).locator('[data-stat="cp"]')).toHaveCount(1)
 

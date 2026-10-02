@@ -334,7 +334,9 @@ export const exportRoster = createServerFn({ method: 'POST' })
       const rules = await instance.rulesFor()
       const priced = calculateRosterPrice(data, loaded, rules)
       if (!priced) throw new Response('army data is not available', { status: 409 })
-      const dispositionNames = priced.dispositions.map((disposition) => rules?.dispositions.get(disposition) ?? disposition)
+      const dispositionNames = (priced.disposition ? [priced.disposition] : priced.dispositions).map(
+        (disposition) => rules?.dispositions.get(disposition) ?? disposition,
+      )
       const result = exportRosterFile(data, loaded, { ...priced, disposition: priced.disposition ?? null }, dispositionNames)
       const userId = await currentUserId()
       if (userId)
