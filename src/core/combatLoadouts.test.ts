@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Datasheet } from '../contracts/catalogue'
+import type { Datasheet } from './datasheet'
 import type { CombatResult } from './combat'
 import type { CombatCarrier } from './combatLoadout'
 import { DEFAULT_COMBAT_OPTIONS } from './combat'

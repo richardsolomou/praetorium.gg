@@ -1,4 +1,4 @@
-import type { Datasheet } from '../contracts/catalogue'
+import type { Datasheet } from './datasheet'
 import type { CombatInput, CombatOptions, CombatWeapon } from './combat'
 import { adjustCombatWeapon, type WeaponAdjustment } from './combatAdjustments'
 import type { CombatCarrier } from './combatLoadout'
