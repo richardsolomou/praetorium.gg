@@ -49,6 +49,15 @@ export function spacetimeOrigin(environment: NodeJS.ProcessEnv) {
   return upstream
 }
 
+/**
+ * During a rolling deploy one replica's pages name hashed assets the other replica lacks. Cloudflare caches an
+ * uncached 404 for a static path and tells browsers to keep it for hours, which breaks the new build long after
+ * both replicas match.
+ */
+export function uncacheAssetMiss(request: Pick<IncomingMessage, 'url'>, response: Pick<IncomingMessage, 'statusCode' | 'headers'>) {
+  if (request.url?.startsWith('/assets/') && (response.statusCode ?? 0) >= 400) response.headers['cache-control'] = 'no-store'
+}
+
 async function requestBody(request: IncomingMessage) {
   const chunks: Buffer[] = []
   let size = 0
@@ -164,6 +173,7 @@ export async function startNodeServer() {
   }
   if (!ready) throw new Error('Node server did not become healthy')
   const proxy = httpProxy.createProxyServer({ changeOrigin: false, xfwd: true })
+  proxy.on('proxyRes', (proxyResponse, request) => uncacheAssetMiss(request, proxyResponse))
   proxy.on('proxyReqWs', (upstreamRequest, request) => {
     if (!request.url?.startsWith(`/v1/database/${database}/subscribe`)) return
     if (process.env.SPACETIME_ACCESS_CLIENT_ID && process.env.SPACETIME_ACCESS_CLIENT_SECRET) {
