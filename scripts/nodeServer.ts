@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
-import type { Socket } from 'node:net'
+import { isIP, type Socket } from 'node:net'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -56,6 +56,16 @@ export function spacetimeOrigin(environment: NodeJS.ProcessEnv) {
  */
 export function uncacheAssetMiss(request: Pick<IncomingMessage, 'url'>, response: Pick<IncomingMessage, 'statusCode' | 'headers'>) {
   if (request.url?.startsWith('/assets/') && (response.statusCode ?? 0) >= 400) response.headers['cache-control'] = 'no-store'
+}
+
+/**
+ * The edge in front of this server replaces `x-forwarded-for` with its own address, so PostHog (through the ingest
+ * proxy), the reference rate limit and the crawler log all saw one client. Cloudflare's `cf-connecting-ip` still names
+ * the visitor; it goes first, and anything that is not an address is ignored.
+ */
+export function forwardVisitor(request: Pick<IncomingMessage, 'headers'>) {
+  const visitor = request.headers['cf-connecting-ip']
+  if (typeof visitor === 'string' && isIP(visitor)) request.headers['x-forwarded-for'] = visitor
 }
 
 async function requestBody(request: IncomingMessage) {
@@ -186,6 +196,7 @@ export async function startNodeServer() {
     else response.destroy()
   }
   const server = createServer((request, response) => {
+    forwardVisitor(request)
     if (
       process.env.PRAETORIUM_LOCAL_DEV === 'true' &&
       ['/praetorium/', '/catalogue/', '/avatars/'].some((prefix) => request.url?.startsWith(prefix))

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { spacetimeOrigin, spacetimeRoute, uncacheAssetMiss } from './nodeServer'
+import { forwardVisitor, spacetimeOrigin, spacetimeRoute, uncacheAssetMiss } from './nodeServer'
 
 const database = 'praetorium-staging'
 
@@ -37,4 +37,26 @@ it('stops a CDN or browser from keeping a missing build asset', () => {
     'public, max-age=31536000, immutable',
     undefined,
   ])
+})
+
+const forwarded = (headers: Record<string, string>) => {
+  const request = { headers: { ...headers } }
+  forwardVisitor(request)
+  return request.headers['x-forwarded-for']
+}
+
+it("forwards Cloudflare's visitor address ahead of the edge's own", () => {
+  expect(forwarded({ 'cf-connecting-ip': '203.0.113.7', 'x-forwarded-for': '5.75.151.151' })).toBe('203.0.113.7')
+})
+
+it('keeps the forwarded chain when Cloudflare names no visitor', () => {
+  expect(forwarded({ 'x-forwarded-for': '198.51.100.4' })).toBe('198.51.100.4')
+})
+
+it('ignores a visitor header that is not an address', () => {
+  expect(forwarded({ 'cf-connecting-ip': 'not-an-address', 'x-forwarded-for': '198.51.100.4' })).toBe('198.51.100.4')
+})
+
+it('accepts an IPv6 visitor address', () => {
+  expect(forwarded({ 'cf-connecting-ip': '2001:db8::1' })).toBe('2001:db8::1')
 })
