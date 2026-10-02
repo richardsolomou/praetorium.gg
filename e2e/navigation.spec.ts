@@ -183,6 +183,7 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await expect(morePage.getByRole('link', { name: /^Leagues/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Leaderboard/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Rules/ })).toBeVisible()
+  await expect(morePage.getByRole('link', { name: /^Dispositions/ })).toBeVisible()
   await expect(morePage.getByRole('button', { name: 'Search Praetorium' })).toHaveCount(0)
   await expect(morePage.getByRole('link', { name: /^Sign in/ })).toHaveCount(0)
   await expect(mobileHeader.getByRole('button', { name: 'Search Praetorium' })).toBeVisible()
