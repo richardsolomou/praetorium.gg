@@ -22,6 +22,7 @@ test('an army is read and its losses recorded without leaving the battle', async
 
   // The list opens over the battle rather than on a page of its own.
   const panel = page.locator('[data-panel="player"][data-side="0"]')
+  await expect(panel.getByRole('link', { name: roster, exact: true })).toHaveCount(0)
   const units = panel.locator('[data-army-units]')
   const models = panel.locator('[data-army-models]')
   await expect(units).toHaveText('2/2')
@@ -34,6 +35,14 @@ test('an army is read and its losses recorded without leaving the battle', async
   await panel.getByRole('button', { name: `Open ${roster}` }).click()
   const army = page.locator('[data-army-roster]')
   const squad = army.locator('[data-unit="Plague Marines"]')
+  await squad.getByRole('button', { name: 'Plague Marines', exact: true }).click()
+  const loadout = army.locator('[data-army-loadout]')
+  await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
+  await expect(loadout).toContainText('Boltgun')
+  await expect(loadout.getByRole('combobox')).toHaveCount(0)
+  await army.getByRole('button', { name: 'Minimize dialog' }).click()
+  await page.getByRole('button', { name: 'Return to army' }).click()
+  await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
 
   // Casualty controls stay mounted while the command is in flight.
   let releaseSubmit = () => undefined
@@ -61,6 +70,7 @@ test('an army is read and its losses recorded without leaving the battle', async
   await expect(army.getByRole('button', { name: 'Mark Foetid Bloat-drone lost' })).toBeVisible()
   releaseSubmit()
   await expect(models).toHaveText(`${brought - 1}/${brought}`)
+  await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
   await expect(units).toHaveText('2/2')
 
   // A unit lost outright leaves the shelf it was read on, and is kept only to be taken back.

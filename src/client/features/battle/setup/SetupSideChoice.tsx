@@ -19,14 +19,12 @@ import { CHOOSABLE, CHOSEN } from './chrome'
 export function SetupSideChoice({
   label,
   sides,
-  token,
   chosen,
   roles,
   onChoose,
 }: {
   label: string
   sides: Side[]
-  token: string
   chosen: number | null
   /** What each side becomes once one is picked: the one picked, then the other. */
   roles?: { chosen: string; other: string }
@@ -52,7 +50,7 @@ export function SetupSideChoice({
               {/* Unlinked throughout: the card itself is the control. */}
               <SidePlayers side={side} linked={false} />
               {side.armies.map((army) => (
-                <ArmyIdentity key={army.playerId} army={army} token={token} linked={false} />
+                <ArmyIdentity key={army.playerId} army={army} linked={false} />
               ))}
               {role ? (
                 <span className={`text-2xs font-bold tracking-label uppercase ${picked ? tint(side.index).text : 'text-dim'}`}>{role}</span>

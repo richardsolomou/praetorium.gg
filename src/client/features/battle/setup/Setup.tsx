@@ -347,7 +347,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
             </SetupPanel>
           ) : null}
 
-          {at === 3 ? <DefenderStep sides={table} attackerId={view.attackerId} token={view.token} send={send} /> : null}
+          {at === 3 ? <DefenderStep sides={table} attackerId={view.attackerId} send={send} /> : null}
 
           {at === 4 && youHaveAnArmy ? <SecondariesStep view={view} sides={table} send={send} pending={pending} /> : null}
 
@@ -355,9 +355,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
 
           {at === 6 && youHaveAnArmy ? <DeployStep sides={table} defender={defender} /> : null}
 
-          {at === 7 && view.deploymentId ? (
-            <FirstTurnStep sides={table} token={view.token} first={firstSide?.index ?? null} send={send} />
-          ) : null}
+          {at === 7 && view.deploymentId ? <FirstTurnStep sides={table} first={firstSide?.index ?? null} send={send} /> : null}
 
           {at === 8 && view.deploymentId ? (
             <PreBattleRulesStep sides={table} first={firstSide} ready={ready} pending={pending} send={send} />

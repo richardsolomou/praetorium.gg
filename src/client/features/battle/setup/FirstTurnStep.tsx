@@ -3,7 +3,7 @@ import type { Side } from '../../../sides'
 import { SetupPanel } from './chrome'
 import { SetupSideChoice } from './SetupSideChoice'
 
-type Props = { sides: Side[]; token: string; first: number | null; send: (command: Command) => void }
+type Props = { sides: Side[]; first: number | null; send: (command: Command) => void }
 
 /**
  * The post-deployment first-turn roll-off, recorded rather than rolled.
@@ -13,13 +13,12 @@ type Props = { sides: Side[]; token: string; first: number | null; send: (comman
  * whoever takes the first turn — and is where the battle is finally begun, which may
  * be from another seat entirely.
  */
-export function FirstTurnStep({ sides, token, first, send }: Props) {
+export function FirstTurnStep({ sides, first, send }: Props) {
   return (
     <SetupPanel>
       <SetupSideChoice
         label="First turn"
         sides={sides}
-        token={token}
         chosen={first}
         roles={{ chosen: 'Takes the first turn', other: 'Takes the second turn' }}
         onChoose={(index) => {

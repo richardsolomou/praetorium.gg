@@ -328,16 +328,8 @@ function SpectatorSide({
             <h2 className={`text-lg leading-tight font-bold uppercase ${colours.text}`}>
               <PlayerName army={army} />
             </h2>
-            <ArmyIdentity army={army} token={view.token} className="mt-0.5" />
-            <ArmyRoster
-              onSimulate={onSimulate}
-              army={army}
-              side={side}
-              token={view.token}
-              actionable={false}
-              pending={false}
-              send={ignoreCommand}
-            />
+            <ArmyIdentity army={army} list={false} className="mt-0.5" />
+            <ArmyRoster onSimulate={onSimulate} army={army} side={side} actionable={false} pending={false} send={ignoreCommand} />
           </div>
         ))}
       </div>
