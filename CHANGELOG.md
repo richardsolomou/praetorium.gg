@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.94.0
+
+### Minor Changes
+
+- 58256ae: Restyle Praetorium as a plotting table: slate surfaces, field-green actions, red and blue sides that stay distinct for colour-blind players, Chakra Petch headings over Sofia Sans interface text, and scores set as plotted figures.
+
+### Patch Changes
+
+- 464f490: Stop the desktop header from scrolling sideways just above 1000 pixels wide by showing the Praetorium name from 1100 pixels.
+- 7ff15b2: Shorten the Force dispositions tile on the More page to Dispositions.
+
 ## 0.93.1
 
 ### Patch Changes
