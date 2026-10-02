@@ -9,6 +9,8 @@ import { combatUnitsQuery, factionIndexQuery } from '../../queries'
 import { Loadout } from '../rosters/builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { CombatSurvivorControls } from './CombatSurvivorControls'
+import { LoadoutAdvice, useOptionNote, useProfileNote } from './LoadoutSuggestions'
+import { WeaponProfileNote } from '../../components/DatasheetProfiles'
 import type { Combatant } from './useCombatant'
 
 const unitValue = (catalogueId: string, id: string) => JSON.stringify([catalogueId, id])
@@ -24,8 +26,9 @@ export function CombatantCard({
   armyControl?: ReactNode
   headingAction?: ReactNode
 }) {
-  const [open, setOpen] = useState(false)
   const [survivorsOpen, setSurvivorsOpen] = useState(false)
+  const optionNote = useOptionNote()
+  const profileNote = useProfileNote()
   const factions = useQuery(factionIndexQuery())
   const catalogueUnits = useQuery({ ...combatUnitsQuery(), enabled: !combatant.roster })
   const { unit, picks, edit, ready, pick, pickIndex, battleUnit } = combatant
@@ -114,7 +117,7 @@ export function CombatantCard({
       <div className="mt-3 flex min-h-8 flex-wrap items-center justify-between gap-3">
         {unit ? (
           <>
-            <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => combatant.setLoadoutOpen(true)}>
               Loadout
             </Button>
             {battleUnit && models < battleUnit.startingModels ? (
@@ -217,25 +220,29 @@ export function CombatantCard({
           ) : null}
         </DialogContent>
       </Dialog>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={combatant.loadoutOpen} onOpenChange={combatant.setLoadoutOpen}>
         <DialogContent className="flex h-[85dvh] sm:max-w-2xl min-w-0 flex-col overflow-hidden p-0">
           <DialogHeader className="shrink-0 border-b border-edge p-4">
             <DialogTitle>
               {side} · {unit?.name ?? 'Loadout'}
             </DialogTitle>
           </DialogHeader>
+          <LoadoutAdvice disabled={!ready} />
           <div className="min-h-0 min-w-0 flex-1">
-            <Loadout
-              catalogueId={combatant.faction}
-              unit={unit ?? null}
-              loading={!unit}
-              detachmentIds={combatant.detachmentIds}
-              picks={picks.positioned}
-              pickIndex={pickIndex}
-              controlsDisabled={!ready}
-              onChoose={(key, id) => edit.choose(pickIndex, key, id)}
-              onSpread={(key, update) => edit.spread(pickIndex, key, update)}
-            />
+            <WeaponProfileNote.Provider value={profileNote}>
+              <Loadout
+                catalogueId={combatant.faction}
+                unit={unit ?? null}
+                loading={!unit}
+                detachmentIds={combatant.detachmentIds}
+                picks={picks.positioned}
+                pickIndex={pickIndex}
+                controlsDisabled={!ready}
+                onChoose={(key, id) => edit.choose(pickIndex, key, id)}
+                onSpread={(key, update) => edit.spread(pickIndex, key, update)}
+                optionNote={optionNote}
+              />
+            </WeaponProfileNote.Provider>
           </div>
         </DialogContent>
       </Dialog>

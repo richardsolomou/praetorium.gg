@@ -17,7 +17,7 @@ import {
   type SpreadUpdate,
   wholeSquadTakes,
 } from './loadoutModel'
-import { EitherChoice, LoadoutLoading, SpecialChoice, SpreadChoice } from './LoadoutControls'
+import { EitherChoice, LoadoutLoading, type OptionNote, SpecialChoice, SpreadChoice } from './LoadoutControls'
 import { ModelCard } from './ModelCard'
 import type { ReminderControls } from '../ReminderButton'
 
@@ -38,6 +38,8 @@ type Props = {
   /** A persisted read-only roster can be resolved without sending its picks. */
   persistedRoster?: { id: string; battle?: string }
   reminders?: ReminderControls
+  /** Something to say beside an option, such as what it would do in a combat simulation. */
+  optionNote?: OptionNote
 }
 
 /**
@@ -64,6 +66,7 @@ export function Loadout({
   reference,
   persistedRoster,
   reminders,
+  optionNote,
 }: Props) {
   const posthog = usePostHog()
   const timing = useRef<{ request: number; resolvedAt: number } | null>(null)
@@ -197,6 +200,7 @@ export function Loadout({
                   editable={editable}
                   controlsDisabled={controlsDisabled}
                   showOptions={showOptions}
+                  optionNote={optionNote}
                   {...described}
                 />
               ))}
@@ -241,6 +245,7 @@ export function Loadout({
                       rules={rules}
                       showOptions={showOptions}
                       highlightSelection={showOptions}
+                      optionNote={optionNote}
                     />
                   ) : (
                     <EitherChoice
@@ -256,6 +261,7 @@ export function Loadout({
                       rules={rules}
                       showOptions={showOptions}
                       highlightSelection={showOptions}
+                      optionNote={optionNote}
                     />
                   ),
                 )}

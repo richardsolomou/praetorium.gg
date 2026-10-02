@@ -2,7 +2,7 @@ import type { Datasheet } from '../contracts/catalogue'
 import { calculateCombat, type CombatInput, type CombatOptions, type CombatResult } from './combat'
 import type { WeaponAdjustment } from './combatAdjustments'
 import { combatEquipmentMatches, type CombatCarrier, type CombatEquipment } from './combatLoadout'
-import { combatAttackInput, combatAttacks, type CombatAttacker, type CombatOpponent } from './combatScenario'
+import { combatAttackInput, combatAttacks, combatWeaponInputs, type CombatAttacker, type CombatOpponent } from './combatScenario'
 import { datasheetProfileKind } from './datasheetStructure'
 import type { RosterPick } from './roster'
 
@@ -180,6 +180,11 @@ export function axisChanges(axis: LoadoutAxis, value: LoadoutAssignment[number])
     return option && value !== axis.current ? [[option.change, 1]] : []
   }
   const counts = value as Record<string, number>
+  // A whole-squad option was measured as the whole squad taking it.
+  if (axis.uniform) {
+    const taken = axis.options.find((option) => counts[option.id] === axis.room && option.count !== axis.room)
+    return taken ? [[taken.change, 1]] : []
+  }
   return axis.options.flatMap((option) => {
     const times = (counts[option.id] ?? 0) - option.count
     return option.id !== axis.donor && times ? [[option.change, times] as [CombatCarrier[], number]] : []
@@ -217,6 +222,11 @@ export function loadoutChanges(axes: readonly LoadoutAxis[], assignment: Loadout
       return [`${from} → ${to}`]
     }
     const counts = value as Record<string, number>
+    if (axis.uniform) {
+      const from = axis.options.find((option) => option.count === axis.room)?.name ?? 'Nothing'
+      const to = axis.options.find((option) => counts[option.id] === axis.room)?.name ?? 'Nothing'
+      return from === to ? [] : [`${from} → ${to}`]
+    }
     return axis.options.flatMap((option) => {
       const difference = (counts[option.id] ?? 0) - option.count
       return difference ? [`${difference > 0 ? '+' : '−'}${Math.abs(difference)} ${option.name}`] : []
@@ -250,6 +260,8 @@ type Phase = 'ranged' | 'melee'
 export type LoadoutScore = Record<Phase, CombatResult | null>
 export type RankedLoadout = { assignment: LoadoutAssignment; result: CombatResult }
 export type LoadoutSearch = Record<Phase, { current: CombatResult | null; ranked: RankedLoadout[]; complete: boolean }>
+/** One option from a base loadout on its own: taken outright (0), or given to one more (1) or one fewer (−1) model. */
+export type LoadoutRow = { axis: number; option: string; step: -1 | 0 | 1; assignment: LoadoutAssignment }
 
 /** How many choices differ, which breaks ties in favour of the smaller change. */
 export const changedChoices = (from: LoadoutAssignment, to: LoadoutAssignment) =>
@@ -334,6 +346,41 @@ export function loadoutExplorer(
   }
   return {
     current,
+    /**
+     * Each option of each choice from `base` on its own, as the loadout editor offers it: an either-or
+     * option taken, and a squad option given to one more model, or one fewer when no more can take it.
+     */
+    rows(base: LoadoutAssignment): LoadoutRow[] {
+      return space.axes.flatMap((axis, at) => {
+        const held = base[at]!
+        const counted = (wanted: Record<string, number>) =>
+          values[at]!.find((candidate) =>
+            axis.options.every((entry) => (candidate as Record<string, number>)[entry.id] === (wanted[entry.id] ?? 0)),
+          )
+        return axis.options.flatMap((option): LoadoutRow[] => {
+          const row = (value: LoadoutAssignment[number] | undefined, step: LoadoutRow['step']) => {
+            const assignment = value === undefined ? null : base.map((entry, index) => (index === at ? value : entry))
+            return assignment && evaluate(assignment) ? [{ axis: at, option: option.id, step, assignment }] : []
+          }
+          if (axis.kind === 'single') return row(option.id, 0)
+          if (axis.uniform)
+            return row(
+              values[at]!.find((candidate) => (candidate as Record<string, number>)[option.id] === axis.room),
+              0,
+            )
+          if (option.id === axis.donor) return row(held, 0)
+          const counts = held as Record<string, number>
+          const moved = (by: number) =>
+            counted({
+              ...counts,
+              [option.id]: (counts[option.id] ?? 0) + by,
+              ...(axis.donor ? { [axis.donor]: (counts[axis.donor] ?? 0) - by } : {}),
+            })
+          const more = moved(1)
+          return more ? row(more, 1) : (counts[option.id] ?? 0) > 0 ? row(moved(-1), -1) : []
+        })
+      })
+    },
     /** The strongest loadouts per phase, best first. */
     search(keep: number): LoadoutSearch {
       if (complete) {
@@ -369,6 +416,45 @@ export function loadoutExplorer(
       }
     },
   }
+}
+
+/** A weapon profile alone: at the count the unit carries, or on one model when it carries none. */
+export type ProfileOdds = { result: CombatResult; each: boolean }
+
+/** Every weapon profile the unit could carry, resolved alone against the target. */
+export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring) {
+  const held = new Map(scoring.sheet.profiles.filter(isWeaponProfile).map((profile) => [profile.id, profile.count ?? 0]))
+  const weapons = [
+    ...new Map([...scoring.sheet.profiles.filter(isWeaponProfile), ...space.weapons].map((profile) => [profile.id, profile])).values(),
+  ]
+  const sheet = {
+    ...scoring.sheet,
+    profiles: [
+      ...scoring.sheet.profiles.filter((profile) => !isWeaponProfile(profile)),
+      ...weapons.map((profile) => ({ ...profile, count: held.get(profile.id) || 1 })),
+    ],
+  }
+  const odds = new Map<string, ProfileOdds>()
+  for (const phase of ['ranged', 'melee'] as const) {
+    const setup = scoring.phases[phase]
+    if (!setup) continue
+    const inputs = combatWeaponInputs(
+      { sheet, carriers: space.carriers, models: scoring.models, rules: scoring.rules },
+      scoring.opponent,
+      phase,
+      setup.target,
+      setup.options,
+      setup.adjustment,
+    )
+    for (const { profile, input } of inputs) {
+      try {
+        odds.set(profile.id, { result: calculateCombat(input), each: !held.get(profile.id) })
+      } catch {
+        // A profile the calculation refuses has no odds to show.
+      }
+    }
+  }
+  return odds
 }
 
 export type LoadoutScoring = {

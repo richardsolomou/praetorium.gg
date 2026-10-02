@@ -22,7 +22,7 @@ import {
   wholeSquadTakes,
 } from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
-import { PickControl, PoolStepper, WargearRow } from './LoadoutControls'
+import { type OptionNote, PickControl, PoolStepper, WargearRow } from './LoadoutControls'
 
 /**
  * One kind of model in the unit, and everything it can carry.
@@ -47,6 +47,7 @@ export function ModelCard({
   editable,
   controlsDisabled = false,
   showOptions = true,
+  optionNote,
 }: {
   model: LoadoutModel
   choices: LoadoutChoice[]
@@ -62,6 +63,7 @@ export function ModelCard({
   editable: boolean
   controlsDisabled?: boolean
   showOptions?: boolean
+  optionNote?: OptionNote
 }) {
   const optionOf = (choiceKey: string, optionId: string) => {
     const choice = choices.find((candidate) => candidate.key === choiceKey)
@@ -109,7 +111,10 @@ export function ModelCard({
   return (
     <section>
       <p className="eyebrow mb-2 flex items-center justify-between gap-2 text-bone">
-        <span className="min-w-0">{model.name}</span>
+        <span className="min-w-0">
+          {model.name}
+          {stands ? optionNote?.(stands.choice.key, stands.option.id) : null}
+        </span>
         {stands && counted ? (
           <PoolStepper name={model.name} count={stands.option.count} editable={editable} disabled={controlsDisabled} {...counted} />
         ) : (
@@ -185,6 +190,7 @@ export function ModelCard({
               rules={rules}
               highlightSelection={showOptions}
               instructions={instructions}
+              annotation={optionNote?.(row.choiceKey, row.optionId)}
               control={
                 picked ? (
                   <PickControl

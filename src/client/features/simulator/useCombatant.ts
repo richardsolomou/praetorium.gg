@@ -30,6 +30,7 @@ export function useCombatant(roster?: CombatRoster) {
   const [catalogueId, setCatalogueId] = useState(roster?.catalogueId ?? '')
   const [pickIndex, selectRosterUnit] = useState(roster?.pickIndex ?? 0)
   const [selectedRules, setSelectedRules] = useState<Record<string, Record<string, number>>>({})
+  const [loadoutOpen, setLoadoutOpen] = useState(false)
   const [health, setHealth] = useState<Record<string, { models: number; damage: number }>>({})
   const [allocations, setAllocations] = useState<Record<string, CombatCarrier[]>>({})
   const picks = usePicks(roster?.picks ?? [])
@@ -154,6 +155,7 @@ export function useCombatant(roster?: CombatRoster) {
           context: loadoutContext,
           space: loadouts.data,
           check: checkLoadouts,
+          onOpen: () => setLoadoutOpen(true),
           onUse: (chosen: RosterPick) =>
             picks.setPicks((current) =>
               current.map((entry, at) =>
@@ -166,6 +168,8 @@ export function useCombatant(roster?: CombatRoster) {
       : undefined,
     edit: pickEditor(picks.setPicks, { catalogueId, units: price.data?.units ?? [] }, picks.allocateKey),
     selectRosterUnit,
+    loadoutOpen,
+    setLoadoutOpen,
     selectUnit: (catalogue: string, id: string) => {
       setCatalogueId(catalogue)
       setSelectedRules({})

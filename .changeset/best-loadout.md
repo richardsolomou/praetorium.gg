@@ -2,4 +2,4 @@
 'praetorium.gg': minor
 ---
 
-Suggest the attacker's strongest legal loadout against the selected defender, rank the alternatives by their average results, and apply any of them to the matchup in one tap.
+Show each weapon's and loadout option's odds against the selected defender on the simulator's weapon cards and in its loadout editor, and apply the strongest legal loadout to the matchup in one tap.
