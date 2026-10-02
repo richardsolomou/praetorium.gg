@@ -191,7 +191,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
               </form>
 
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 className="mt-4"
                 onClick={() => {
