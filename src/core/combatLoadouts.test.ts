@@ -398,6 +398,28 @@ describe('weapon profile odds', () => {
   it('resolves a carried weapon at the count the unit carries', () => {
     expect(odds.get('Boltgun')?.result.meanDamage).toBeCloseTo(5 * 2 * (4 / 6) * (3 / 6) * (3 / 6), 10)
   })
+  it("marks the strongest of one weapon's profiles", () => {
+    const mode = (id: string, strength: string): Datasheet['profiles'][number] => ({
+      id,
+      name: `➤ Launcher - ${id}`,
+      type: 'Ranged Weapons',
+      count: 1,
+      values: Object.entries({ A: '1', BS: '3+', S: strength, AP: '0', D: '1', Keywords: '-' }).map(([name, value]) => ({ name, value })),
+    })
+    const modes = loadoutProfileOdds(
+      { carriers: [], axes: [], weapons: [] },
+      {
+        sheet: { ...attacker, profiles: [mode('Frag', '3'), mode('Krak', '8')] },
+        models: 1,
+        rules: [],
+        opponent: { keywords: [], rules: [] },
+        preferences: {},
+        excluded: { ranged: [], melee: [] },
+        phases: { ranged: { target, options: DEFAULT_COMBAT_OPTIONS, adjustment: {} }, melee: null },
+      },
+    )
+    expect([modes.get('Frag')?.best, modes.get('Krak')?.best]).toEqual([false, true])
+  })
   it('resolves a weapon the unit does not carry on one model', () => {
     expect(odds.get('Plasma gun')).toMatchObject({
       each: true,

@@ -119,6 +119,7 @@ export function WeaponProfile({
           {showCount && weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : (label ?? weapon.name)}
         </h3>
       ) : null}
+      {note}
       <div className={`${showName ? 'mt-1 ' : ''}grid grid-cols-6 gap-1`}>
         {weapon.values
           .filter((value) => datasheetCharacteristicKindOf(value) !== 'keywords')
@@ -136,7 +137,6 @@ export function WeaponProfile({
           <KeywordList value={keywordText} rules={rules} added={addedKeywords(keywords!)} note={addedBy(keywords!)} />
         </p>
       ) : null}
-      {note}
     </div>
   )
 }

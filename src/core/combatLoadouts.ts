@@ -5,6 +5,7 @@ import { combatEquipmentMatches, type CombatCarrier, type CombatEquipment } from
 import { combatAttackInput, combatAttacks, combatWeaponInputs, type CombatAttacker, type CombatOpponent } from './combatScenario'
 import { datasheetProfileKind } from './datasheetStructure'
 import type { RosterPick } from './roster'
+import { wargearKey } from './wargear'
 
 /**
  * The weapon choices a unit can make, each measured as the change one step makes to the models
@@ -418,8 +419,11 @@ export function loadoutExplorer(
   }
 }
 
-/** A weapon profile alone: at the count the unit carries, or on one model when it carries none. */
-export type ProfileOdds = { result: CombatResult; each: boolean }
+/**
+ * A weapon profile alone: at the count the unit carries, or on one model when it carries none. `best`
+ * marks the strongest of one weapon's profiles, so a player knows which mode to use.
+ */
+export type ProfileOdds = { phase: Phase; result: CombatResult; each: boolean; best: boolean }
 
 /** Every weapon profile the unit could carry, resolved alone against the target. */
 export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring) {
@@ -448,10 +452,17 @@ export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring)
     )
     for (const { profile, input } of inputs) {
       try {
-        odds.set(profile.id, { result: calculateCombat(input), each: !held.get(profile.id) })
+        odds.set(profile.id, { phase, result: calculateCombat(input), each: !held.get(profile.id), best: false })
       } catch {
         // A profile the calculation refuses has no odds to show.
       }
+    }
+    const modes = new Map<string, string[]>()
+    for (const { profile } of inputs) modes.set(wargearKey(profile.name), [...(modes.get(wargearKey(profile.name)) ?? []), profile.id])
+    for (const ids of modes.values()) {
+      const scored = ids.flatMap((id) => (odds.get(id) ? [odds.get(id)!] : []))
+      const top = scored.toSorted((left, right) => compareOutcomes(right.result, left.result))
+      if (top.length > 1 && compareOutcomes(top[0]!.result, top[1]!.result) > 0) top[0]!.best = true
     }
   }
   return odds

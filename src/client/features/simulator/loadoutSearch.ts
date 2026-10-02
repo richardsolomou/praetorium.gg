@@ -56,6 +56,8 @@ export type Loadouts =
   | { status: 'failed'; retry: () => void }
   | {
       status: 'ready'
+      /** A unit with no weapon choices still has odds for each weapon profile. */
+      choices: boolean
       suggestions: LoadoutSuggestion[]
       complete: boolean
       estimates: ReadonlyMap<string, OptionEstimate>
@@ -92,7 +94,7 @@ export function useLoadoutSearch({
   scoring: LoadoutScoring | null
   expected: CombatRequest
 }): Loadouts | null {
-  const request = context && space?.axes.length && check && scoring ? JSON.stringify({ context, space, scoring, expected }) : null
+  const request = context && space && check && scoring ? JSON.stringify({ context, space, scoring, expected }) : null
   const [attempt, setAttempt] = useState(0)
   const [found, setFound] = useState<{ key: string; loadouts: Loadouts | null } | null>(null)
   const key = `${attempt}:${request}`
@@ -199,6 +201,7 @@ export function useLoadoutSearch({
           key,
           loadouts: {
             status: 'ready',
+            choices: axes.length > 0,
             suggestions,
             complete: search.ranged.complete,
             estimates: optionEstimates(axes, rows, verified, current, now),
