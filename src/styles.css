@@ -1,58 +1,56 @@
 @import 'tailwindcss' source('./');
-@import '@fontsource/barlow-semi-condensed/latin-400.css';
-@import '@fontsource/barlow-semi-condensed/latin-500.css';
-@import '@fontsource/barlow-semi-condensed/latin-600.css';
-@import '@fontsource/barlow-semi-condensed/latin-700.css';
-@import '@fontsource/barlow/latin-400.css';
-@import '@fontsource/barlow/latin-600.css';
+@import '@fontsource/chakra-petch/600.css';
+@import '@fontsource/chakra-petch/700.css';
+@import '@fontsource-variable/sofia-sans-semi-condensed/wght.css';
+@import '@fontsource-variable/martian-mono/wdth.css';
 
 /*
- * BattleBase's typeface is ITC Conduit, which is Monotype's to license and cannot
- * ship here. Barlow Semi Condensed is the closest open face: same squared
- * grotesque with a tall x-height, and it takes uppercase tracking the same way.
- * Regular Barlow gives paragraph-length rules more room without changing the
- * family or the compact display hierarchy.
+ * The world is a plotting table: a slate map under acetate, marked in
+ * grease pencil. Chakra Petch, squared with cut corners like stencilled map
+ * labels, sets headings and the wordmark; Sofia Sans Semi Condensed keeps dense rosters and long rules
+ * readable; Martian Mono is kept for the figures a player reads across the table.
  */
 /*
  * One palette, two vocabularies: the named colours the app writes by hand, and
  * the shadcn tokens its components read. Both point at the same values.
  *
- * The layout, density and vocabulary are BattleBase's; the surfaces are dark.
- * The palette takes its cues from printed deployment plans: charcoal
- * structure with muted red and green field markings, muted-green selections,
- * and steel-blue navigation.
+ * Slate surfaces, chalk text, and field green for the primary action and
+ * selection. The two side colours follow the overlay convention of hostile red
+ * against friendly blue, which stays apart for red-green colour blindness, and
+ * a deeper map green marks success.
  *
  * The two side colours are not decoration. Every number on screen belongs to one
  * player or the other, and at arm's length across a table the tint is what tells
  * you whose it is before you have read the name.
  */
 @theme {
-  --font-sans: 'Barlow Semi Condensed', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-rules: 'Barlow', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-sans: 'Sofia Sans Semi Condensed Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'Chakra Petch', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-rules: 'Sofia Sans Semi Condensed Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'Martian Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --color-void: #0b0c0e;
-  --color-panel: #121417;
-  --color-raised: #1a1d21;
-  --color-sunken: #08090b;
-  --color-edge: #292d32;
-  --color-edge-strong: #3a4047;
-  --color-bone: #eceff1;
-  --color-dim: #a4a8ac;
-  --color-faint: #83888d;
+  --color-void: #0e1316;
+  --color-panel: #141a1e;
+  --color-raised: #1b2328;
+  --color-sunken: #090d0f;
+  --color-edge: #28323a;
+  --color-edge-strong: #3a4650;
+  --color-bone: #e7ece9;
+  --color-dim: #a6b0ae;
+  --color-faint: #86918f;
 
-  --color-parchment: #89b89d;
-  --color-parchment-ink: #101a14;
-  --color-info: #7fa8ca;
+  --color-parchment: #9bd0a9;
+  --color-parchment-ink: #0c2014;
+  --color-info: #9db6d4;
   --color-admin: #b9a0df;
   --color-supporter: #d9b76e;
-  --color-azure: #89b89d;
-  --color-azure-ink: #101a14;
-  --color-side-a: #df8078;
-  --color-side-b: #7eaa9e;
-  --color-achieved: #63b36f;
-  --color-discarded: #d6a44f;
-  --color-rust: #b85b46;
+  --color-azure: #9bd0a9;
+  --color-azure-ink: #0c2014;
+  --color-side-a: #f57a7a;
+  --color-side-b: #5fc8ea;
+  --color-achieved: #7cc48a;
+  --color-discarded: #e3ab52;
+  --color-rust: #d0625a;
 
   /*
    * Two label sizes below `text-xs`, for chips, eyebrows and the counts on a
@@ -63,6 +61,9 @@
   --text-3xs: 0.625rem;
   --tracking-label: 0.06em;
   --tracking-eyebrow: 0.14em;
+
+  /* Chakra Petch sets wide, so headings run slightly tight, section headings included. */
+  --tracking-heading: -0.01em;
 
   /* Light crossing a supporter's seal once as the profile opens, and again on hover; two names so hovering restarts it. */
   --animate-supporter-glint: supporter-glint 1100ms cubic-bezier(0.45, 0, 0.2, 1) 300ms both;
@@ -332,29 +333,29 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 }
 
 :root {
-  /* BattleBase rounds almost nothing: 3px on buttons, 4px on cards. */
+  /* Almost nothing is rounded: 3px on buttons, 4px on cards. */
   --radius: 0.25rem;
 
-  --background: #0b0c0e;
-  --foreground: #eceff1;
-  --card: #121417;
-  --card-foreground: #eceff1;
+  --background: #0e1316;
+  --foreground: #e7ece9;
+  --card: #141a1e;
+  --card-foreground: #e7ece9;
   /* A menu or dialog is a panel lifted off the page, not a lighter surface. */
-  --popover: #121417;
-  --popover-foreground: #eceff1;
-  --primary: #89b89d;
-  --primary-foreground: #101a14;
-  --secondary: #1a1d21;
-  --secondary-foreground: #eceff1;
-  --muted: #1a1d21;
-  --muted-foreground: #a4a8ac;
-  --accent: #292d32;
-  --accent-foreground: #eceff1;
-  --destructive: #df8078;
-  --destructive-foreground: #21110f;
-  --border: #292d32;
-  --input: #3a4047;
-  --ring: #89b89d;
+  --popover: #141a1e;
+  --popover-foreground: #e7ece9;
+  --primary: #9bd0a9;
+  --primary-foreground: #0c2014;
+  --secondary: #1b2328;
+  --secondary-foreground: #e7ece9;
+  --muted: #1b2328;
+  --muted-foreground: #a6b0ae;
+  --accent: #28323a;
+  --accent-foreground: #e7ece9;
+  --destructive: #f57a7a;
+  --destructive-foreground: #2a0d0d;
+  --border: #28323a;
+  --input: #3a4650;
+  --ring: #9bd0a9;
 }
 
 /*
@@ -407,18 +408,26 @@ html[data-native-app='true'] [data-battle-sticky-header] {
     color: var(--color-bone);
     font-family: var(--font-sans);
     font-size: 18px;
+    caret-color: var(--color-parchment);
     -webkit-text-size-adjust: 100%;
   }
 
+  ::selection {
+    background-color: color-mix(in srgb, var(--color-parchment) 32%, transparent);
+    color: var(--color-bone);
+  }
+
   /*
-   * Every heading in this interface is uppercase and tracked, which is most of
-   * what makes the thing recognisable across a table.
+   * Every heading in this interface is uppercase Chakra Petch like a map's
+   * printed labels, which is most of what makes the thing recognisable across a
+   * table.
    */
   h1,
   h2,
   h3 {
+    font-family: var(--font-display);
     font-weight: 700;
-    letter-spacing: 0.01em;
+    letter-spacing: var(--tracking-heading);
     text-transform: uppercase;
     text-wrap: balance;
   }
@@ -502,6 +511,14 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   border-radius: 0;
 }
 
+/* A disabled primary action drops its green; faded green on slate reads as a smudge, not as unavailable. */
+[data-slot='button'].bg-primary:is(:disabled, [data-disabled]) {
+  border-color: var(--color-edge-strong);
+  background-color: var(--color-raised);
+  color: var(--color-faint);
+  opacity: 1;
+}
+
 /* The footer is the sunken strip a dialog's actions stand on. */
 [data-slot='dialog-footer'],
 [data-slot='alert-dialog-footer'] {
@@ -567,16 +584,38 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 /** A section heading with a count beside it, as every list on screen carries. */
 @utility rubric {
   @apply text-[0.9375rem] font-bold tracking-label text-dim uppercase;
+
+  &:is(h1, h2, h3) {
+    @apply tracking-heading;
+  }
 }
 
-/** The faint diagonal of parchment light behind a page's opening band. */
-@utility sheen {
-  @apply pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)];
+/** The map grid printed under a page's opening band, fading out before the content below. */
+@utility plot-grid {
+  @apply pointer-events-none absolute inset-0;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--color-bone) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-bone) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(to right, color-mix(in srgb, var(--color-bone) 3%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-bone) 3%, transparent) 1px, transparent 1px);
+  background-size:
+    6rem 6rem,
+    6rem 6rem,
+    1.5rem 1.5rem,
+    1.5rem 1.5rem;
+  mask-image: linear-gradient(to bottom, black, transparent);
 }
 
 /** Any number that changes during a game: fixed width, so it does not jitter. */
 @utility readout {
   @apply tabular-nums;
+}
+
+/** A score or total read from across the table, set as a plotted figure. */
+@utility figure {
+  @apply font-mono tabular-nums;
+  font-stretch: 75%;
+  letter-spacing: -0.02em;
 }
 
 /** The bordered points chip that follows every datasheet name around. */

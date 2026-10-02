@@ -113,7 +113,7 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
           )
         })}
         {combatant.sheets.isError ? (
-          <p role="alert" className="text-sm text-amber-400">
+          <p role="alert" className="text-sm text-discarded">
             Buffs could not load.{' '}
             <Button variant="outline" size="sm" onClick={() => void combatant.sheets.refetch()}>
               Retry

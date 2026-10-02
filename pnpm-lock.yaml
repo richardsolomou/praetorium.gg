@@ -23,10 +23,16 @@ importers:
       '@better-auth/oauth-provider':
         specifier: 1.7.5
         version: 1.7.5(patch_hash=dc3c3b9adb96632f4337ca2329a617ed455c0755ce5761488b37e9034a5f9f16)(c25d149967111267e2470e939fe9515b)
-      '@fontsource/barlow':
+      '@fontsource-variable/martian-mono':
         specifier: 5.3.0
         version: 5.3.0
-      '@fontsource/barlow-semi-condensed':
+      '@fontsource-variable/sofia-sans-semi-condensed':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/chakra-petch':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/sofia-sans-semi-condensed':
         specifier: 5.3.0
         version: 5.3.0
       '@libsql/client':
@@ -1699,11 +1705,17 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
-  '@fontsource/barlow-semi-condensed@5.3.0':
-    resolution: {integrity: sha512-EdpQ1GlLMofGqDsQhEw+g6DonNKmzt21p8y/oNbTl4BFzEkqYkFyE2fj25YGxmZBL/LZZGAxe74FlvEWcgc31w==}
+  '@fontsource-variable/martian-mono@5.3.0':
+    resolution: {integrity: sha512-0wVODx9ILwNnaYC4XCuSaFRYtj1Prd89MRVaSuv2ng6zLiQkS4SepaWEPefs7vqCZS8sbEOA8jb/4F5KNMnGdg==}
 
-  '@fontsource/barlow@5.3.0':
-    resolution: {integrity: sha512-tGR0y6QObRtKv71MOth44222+mdNFM/ZWFWDV1VLzNbG4oK9PNRlyJzmkck4vHAi9ibHBXgt4SlY51amFP55CA==}
+  '@fontsource-variable/sofia-sans-semi-condensed@5.3.0':
+    resolution: {integrity: sha512-qeDC2S6tUo5QLFmgxN3XWwQZaIyM6eN11rZWXR2J4KjXMw+0PaWUXNObgt85yEThwb7P76xAzgDkWXOIkrzyHw==}
+
+  '@fontsource/chakra-petch@5.3.0':
+    resolution: {integrity: sha512-QZvbM/q2R6n1pg2x+TJPftZmBNS+ADU37L4Z4L/6UJIz+JZ/SRaEf8usPFRiP7Ht28sIideMu/Bm1SnGlSrwNw==}
+
+  '@fontsource/sofia-sans-semi-condensed@5.3.0':
+    resolution: {integrity: sha512-zqubLbT0ruDFqn0cVp1/19jBxEYrZdiNX5ZWLfmGsMLYgj9jK5O9Td9nLyV+AD8kMurWoBJn1vEgYRoTNZ9pkA==}
 
   '@hono/node-server@2.1.1':
     resolution: {integrity: sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==}
@@ -9374,9 +9386,13 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@fontsource/barlow-semi-condensed@5.3.0': {}
+  '@fontsource-variable/martian-mono@5.3.0': {}
 
-  '@fontsource/barlow@5.3.0': {}
+  '@fontsource-variable/sofia-sans-semi-condensed@5.3.0': {}
+
+  '@fontsource/chakra-petch@5.3.0': {}
+
+  '@fontsource/sofia-sans-semi-condensed@5.3.0': {}
 
   '@hono/node-server@2.1.1(hono@4.13.7)':
     dependencies:

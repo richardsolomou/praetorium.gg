@@ -95,7 +95,7 @@ function Result({ view, sides, outcome }: Omit<Props, 'clock'>) {
       <h1 className="text-base leading-tight font-bold text-balance uppercase sm:text-lg">
         <span className={colours.text}>{sideName(winner)}</span> <span className="text-dim">{result.verb}</span>{' '}
         {result.score ? (
-          <span className="readout block text-2xl leading-none">{result.score}</span>
+          <span className="figure block text-2xl leading-none">{result.score}</span>
         ) : (
           <span className="text-dim">{result.detail}</span>
         )}
@@ -150,9 +150,9 @@ function SideScore({
           ))}
         </p>
         <p className={`readout mt-0.5 flex items-baseline gap-1.5 ${end ? 'justify-end' : ''}`}>
-          <span className="text-2xl leading-none font-bold sm:text-3xl">{side.total}</span>
+          <span className="figure text-2xl leading-none font-bold sm:text-3xl">{side.total}</span>
           <span className="text-3xs text-dim uppercase">vp</span>
-          <span className={`ml-1 text-base leading-none font-bold ${colours.text}`}>{side.cp}</span>
+          <span className={`figure ml-1 text-base leading-none font-bold ${colours.text}`}>{side.cp}</span>
           <span className="text-3xs text-dim uppercase">cp</span>
         </p>
         <div className={`mt-1 flex gap-0.5 ${end ? 'flex-row-reverse' : ''}`} aria-hidden>

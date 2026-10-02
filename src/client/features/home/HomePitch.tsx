@@ -126,7 +126,7 @@ export function HomeIncluded() {
 export function HomeClosing() {
   return (
     <section className="relative overflow-hidden border-t border-edge bg-panel">
-      <div className="sheen" />
+      <div className="plot-grid" />
       <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-10 sm:px-6 md:flex-row md:items-end md:justify-between md:py-16">
         <div>
           <h2 className="text-3xl leading-[0.9] sm:text-4xl">

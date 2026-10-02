@@ -111,7 +111,7 @@
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#0b0c0e",
+        "backgroundColor": "#0e1316",
         "foregroundImage": "./assets/adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -133,7 +133,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0b0c0e",
+          "backgroundColor": "#0e1316",
           "image": "./assets/splash-icon.png",
           "imageWidth": 160
         }

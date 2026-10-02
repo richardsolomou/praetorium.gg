@@ -73,7 +73,7 @@ export function RosterBuilderFooter({
                     : 'Within the points limit'}
             </span>
           )}
-          <span data-stat="points" className={`readout text-xl font-bold ${over ? 'text-destructive' : 'text-info'}`}>
+          <span data-stat="points" className={`figure text-xl font-bold ${over ? 'text-destructive' : 'text-info'}`}>
             {loading ? <span aria-label="Loading roster points">…</span> : points}/{limit}
           </span>
           <span className="eyebrow">points</span>

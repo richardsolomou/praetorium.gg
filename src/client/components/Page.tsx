@@ -34,7 +34,7 @@ export function PageHeader({
       className={cn('relative overflow-hidden border-b border-edge bg-panel', tint && 'border-t-[3px]')}
       style={tint ? { borderTopColor: tint } : undefined}
     >
-      <div className="sheen" />
+      <div className="plot-grid" />
       <div className="relative mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-7">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex min-w-0 items-center gap-4">
