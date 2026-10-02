@@ -1,6 +1,7 @@
 import { useId } from 'react'
 
 import {
+  deploymentObjectiveMarkers,
   deploymentNeedsFlip,
   formatInches,
   measurementLabelSize,
@@ -39,6 +40,7 @@ export function TerrainBoard({
   const board = layout.geometry?.board ?? { width: 60, height: 44 }
   const flipped = deploymentNeedsFlip(deployment?.zones ?? [], board)
   const upright = flipped ? `translate(${board.height} 0) rotate(90)` : `translate(0 ${board.width}) rotate(-90)`
+  const objectives = deploymentObjectiveMarkers(layout.geometry, deployment?.objectives ?? [])
 
   const svg = (
     <svg
@@ -99,27 +101,17 @@ export function TerrainBoard({
               />
             ))
         )}
-        {deployment?.objectives.map((objective) => {
-          if (layout.geometry?.areas.some((area) => area.objective)) return null
-          const homeZone = deployment.zones.find((zone) => pointInPolygon(objective, zone.points))
-          return (
-            <g key={`${objective.x}-${objective.y}`} transform={`translate(${objective.x} ${objective.y})`}>
-              <title>Objective marker</title>
-              <circle
-                r={homeZone ? '1.18' : '1'}
-                className={homeZone ? `fill-void ${deploymentZoneStroke(homeZone.player)}` : 'fill-void stroke-bone'}
-                strokeWidth=".3"
-              />
-              {homeZone ? <circle r=".62" fill="none" className="stroke-bone" strokeWidth=".22" /> : null}
-            </g>
-          )
-        })}
       </g>
       {detailed && layout.geometry ? (
-        <TerrainMeasurements geometry={layout.geometry} flipped={flipped} arrowId={`${patternId}-arrow`} />
+        <TerrainMeasurements
+          geometry={layout.geometry}
+          flipped={flipped}
+          arrowId={`${patternId}-arrow`}
+          objectives={objectives.map((objective) => objective.position)}
+        />
       ) : null}
-      {layout.geometry ? (
-        <g transform={upright}>
+      <g transform={upright}>
+        {layout.geometry ? (
           <TerrainAnnotations
             geometry={layout.geometry}
             detailed={detailed}
@@ -127,8 +119,31 @@ export function TerrainBoard({
             zones={deployment?.zones ?? []}
             objectives={deployment?.objectives ?? []}
           />
-        </g>
-      ) : null}
+        ) : null}
+        {objectives.map(({ position, kind }) => {
+          const homeZone = deployment?.zones.find((zone) => pointInPolygon(position, zone.points))
+          return kind === 'terrain' ? (
+            <ObjectiveTerrainMarker
+              key={`${position.x}-${position.y}`}
+              position={position}
+              counterRotation={flipped ? -90 : 90}
+              homePlayer={homeZone?.player}
+              detailed={detailed}
+            />
+          ) : (
+            <g key={`${position.x}-${position.y}`} transform={`translate(${position.x} ${position.y}) rotate(${flipped ? -90 : 90})`}>
+              <title>{kind === 'marker' ? 'Objective marker outside terrain (40 mm)' : 'Objective marker (40 mm)'}</title>
+              <circle
+                r="0.787"
+                className={homeZone ? `fill-void ${deploymentZoneStroke(homeZone.player)}` : 'fill-void stroke-bone'}
+                strokeWidth=".15"
+              />
+              {homeZone ? <circle r=".48" fill="none" className="stroke-bone" strokeWidth=".12" /> : null}
+              {detailed ? <ObjectiveBadge /> : null}
+            </g>
+          )
+        })}
+      </g>
     </svg>
   )
   if (!detailed || !layout.publisherUrl) return svg
@@ -136,11 +151,11 @@ export function TerrainBoard({
     <figure className="contents">
       {svg}
       <figcaption className="mt-2 text-sm text-dim">
-        Traced from diagrams by{' '}
+        The walls, ruins, and objectives are traced from diagrams by{' '}
         <a href={layout.publisherUrl} target="_blank" rel="noopener noreferrer" className="text-info underline">
           Play On Tabletop
         </a>
-        , which print only the board size and deployment depth; terrain and objective positions are approximate.
+        . The diagrams print no placement distances, so those positions are approximate.
       </figcaption>
     </figure>
   )
@@ -253,14 +268,22 @@ function ObjectiveTerrainMarker({
         <>
           <circle r=".54" fill="none" className="stroke-bone" strokeWidth=".14" />
           <circle r=".16" className="fill-bone" />
-          <rect x="-1.08" y=".78" width="2.16" height=".5" rx=".1" className="fill-bone" />
-          <text x="0" y="1.04" textAnchor="middle" dominantBaseline="middle" className="fill-void" fontSize=".28" fontWeight="800">
-            OBJECTIVE
-          </text>
+          <ObjectiveBadge />
         </>
       ) : null}
       <title>Objective terrain</title>
     </g>
+  )
+}
+
+function ObjectiveBadge() {
+  return (
+    <>
+      <rect x="-1.08" y=".78" width="2.16" height=".5" rx=".1" className="fill-bone" />
+      <text x="0" y="1.04" textAnchor="middle" dominantBaseline="middle" className="fill-void" fontSize=".28" fontWeight="800">
+        OBJECTIVE
+      </text>
+    </>
   )
 }
 
@@ -276,7 +299,17 @@ function deploymentZoneStroke(player: string) {
   return 'stroke-parchment'
 }
 
-function TerrainMeasurements({ geometry, flipped, arrowId }: { geometry: TerrainGeometry; flipped: boolean; arrowId: string }) {
+function TerrainMeasurements({
+  geometry,
+  flipped,
+  arrowId,
+  objectives,
+}: {
+  geometry: TerrainGeometry
+  flipped: boolean
+  arrowId: string
+  objectives: { x: number; y: number }[]
+}) {
   const measurements = [
     ...new Map(
       geometry.areas
@@ -285,12 +318,23 @@ function TerrainMeasurements({ geometry, flipped, arrowId }: { geometry: Terrain
     ).values(),
   ]
 
-  const occupied: LabelBox[] = []
+  const occupied: LabelBox[] = [...objectiveTerrainMarkers(geometry).map((objective) => objective.position), ...objectives].map(
+    (position) => {
+      const centre = portraitPoint(position, flipped, geometry.board)
+      return { left: centre.x - 1.3, right: centre.x + 1.3, top: centre.y - 1.3, bottom: centre.y + 1.4 }
+    },
+  )
+  for (const area of geometry.areas) {
+    for (const marker of area.markers) {
+      const centre = portraitPoint(terrainMarkerPosition(area, marker, objectives), flipped, geometry.board)
+      occupied.push({ left: centre.x - 1.1, right: centre.x + 1.1, top: centre.y - 1.1, bottom: centre.y + 1.1 })
+    }
+  }
   const annotations = measurements.map((measurement, index) => {
     const from = portraitPoint(measurement.from, flipped, geometry.board)
     const to = portraitPoint(measurement.to, flipped, geometry.board)
     const vertical = Math.abs(from.x - to.x) < Math.abs(from.y - to.y)
-    const text = formatInches(Math.hypot(to.x - from.x, to.y - from.y))
+    const text = `${measurement.approximate ? '≈' : ''}${formatInches(Math.hypot(to.x - from.x, to.y - from.y))}`
     const label = placeMeasurementLabel(to, from, vertical, text, occupied, geometry.board)
     const { width: labelWidth, height: labelHeight } = measurementLabelSize(text)
     return {
@@ -332,6 +376,11 @@ function TerrainMeasurements({ geometry, flipped, arrowId }: { geometry: Terrain
             {text}
           </text>
         </g>
+      ))}
+      {[...new Map(annotations.map(({ to }) => [`${to.x}-${to.y}`, to])).values()].map((point) => (
+        <circle key={`${point.x}-${point.y}`} cx={point.x} cy={point.y} r=".18" className="fill-side-a">
+          <title>Measurement endpoint</title>
+        </circle>
       ))}
     </g>
   )

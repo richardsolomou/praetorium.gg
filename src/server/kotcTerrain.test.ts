@@ -89,7 +89,9 @@ it('gives the attacker the printed 8-inch strip along the north edge', () => {
 })
 
 it('marks both printed deployment depths on clear parts of the board', () => {
-  const measurements = load(source())!.layout.geometry!.areas.flatMap((area) => area.measurements)
+  const measurements = load(source())!
+    .layout.geometry!.areas.flatMap((area) => area.measurements)
+    .filter((measurement) => !measurement.approximate)
   expect(measurements).toEqual([
     { from: { x: 36, y: 8 }, to: { x: 28, y: 8 } },
     { from: { x: 0, y: 28 }, to: { x: 8, y: 28 } },
@@ -126,6 +128,89 @@ it('frames a piece in the extent of its walls and floor', () => {
     { x: 26, y: 15 },
     { x: 21, y: 15 },
     { x: 21, y: 10 },
+  ])
+})
+
+it('locates each mirrored ruin by the real wall corner nearest the arena centre', () => {
+  const ruins = load(source())!.layout.geometry!.areas.filter((area) => area.name === 'Inner ruin')
+  expect(ruins.map((ruin) => ruin.measurements)).toEqual([
+    [
+      { from: { x: 21.25, y: 0 }, to: { x: 21.25, y: 14.75 }, approximate: true },
+      { from: { x: 36, y: 14.75 }, to: { x: 21.25, y: 14.75 }, approximate: true },
+    ],
+    [
+      { from: { x: 21.25, y: 36 }, to: { x: 21.25, y: 21.25 }, approximate: true },
+      { from: { x: 36, y: 21.25 }, to: { x: 21.25, y: 21.25 }, approximate: true },
+    ],
+    [
+      { from: { x: 14.75, y: 0 }, to: { x: 14.75, y: 14.75 }, approximate: true },
+      { from: { x: 0, y: 14.75 }, to: { x: 14.75, y: 14.75 }, approximate: true },
+    ],
+    [
+      { from: { x: 14.75, y: 36 }, to: { x: 14.75, y: 21.25 }, approximate: true },
+      { from: { x: 0, y: 21.25 }, to: { x: 14.75, y: 21.25 }, approximate: true },
+    ],
+  ])
+})
+
+it('derives objective offsets and arena radii from the fetched geometry', () => {
+  const geometry = load({ ...source(), arena: { radiusIn: 12, wallHalfAngleDeg: 31.4 } })!.layout.geometry!
+  const outer = geometry.areas.filter((area) => area.objective && area.parts.length)
+  const centre = geometry.areas.find((area) => area.id === 'centre-objective')!.objective!.position
+  expect(
+    outer.map((area) =>
+      area.measurements
+        .filter((measurement) => measurement.approximate)
+        .map(({ from, to }) => ({
+          length: Math.hypot(to.x - from.x, to.y - from.y),
+          fromCentre: from.x === centre.x && from.y === centre.y,
+          toObjective: to.x === area.objective!.position.x && to.y === area.objective!.position.y,
+        })),
+    ),
+  ).toEqual([
+    [
+      { length: 6, fromCentre: false, toObjective: true },
+      { length: 12, fromCentre: true, toObjective: true },
+      { length: 18, fromCentre: false, toObjective: true },
+    ],
+    [
+      { length: 6, fromCentre: false, toObjective: true },
+      { length: 12, fromCentre: true, toObjective: true },
+    ],
+    [
+      { length: 6, fromCentre: false, toObjective: true },
+      { length: 12, fromCentre: true, toObjective: true },
+    ],
+    [
+      { length: 6, fromCentre: false, toObjective: true },
+      { length: 12, fromCentre: true, toObjective: true },
+      { length: 18, fromCentre: false, toObjective: true },
+    ],
+  ])
+})
+
+it('does not draw a zero-length guide for a wall that touches a board edge', () => {
+  const changed = source()
+  changed.pieces = [
+    {
+      ...changed.pieces[0]!,
+      mirrors: ['none'],
+      parts: [
+        {
+          name: 'Wall',
+          material: 'dense',
+          walls: [
+            [
+              { x: 0, y: 5 },
+              { x: 0, y: 8 },
+            ],
+          ],
+        },
+      ],
+    },
+  ]
+  expect(load(changed)!.layout.geometry!.areas.find((area) => area.name === 'Inner ruin')!.measurements).toEqual([
+    { from: { x: 36, y: 0 }, to: { x: 28, y: 0 }, approximate: true },
   ])
 })
 

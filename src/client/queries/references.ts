@@ -18,7 +18,7 @@ import {
 } from '../../server/functions'
 import { SSR_STALE_TIME } from './shared'
 
-const TERRAIN_GEOMETRY_VERSION = 3
+const TERRAIN_GEOMETRY_VERSION = 6
 
 export const factionQuery = (catalogueId: string) =>
   queryOptions({ queryKey: ['faction', catalogueId], queryFn: () => faction({ data: { catalogueId } }), staleTime: Infinity })

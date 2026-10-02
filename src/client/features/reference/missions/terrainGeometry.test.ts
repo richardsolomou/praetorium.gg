@@ -117,6 +117,20 @@ describe('placing a marker in a terrain area', () => {
     expect(Math.hypot(placed.x - 5, placed.y - 5)).toBeGreaterThanOrEqual(2.4)
   })
 
+  it('searches along a narrow terrain area when cardinal positions collide with an objective', () => {
+    const area = openArea(
+      [
+        { x: 1, y: 1.5 },
+        { x: 1.5, y: 1 },
+        { x: 9, y: 8.5 },
+        { x: 8.5, y: 9 },
+      ],
+      [{ label: 'EF', position: { x: 5, y: 5 } }],
+    )
+    const placed = terrainMarkerPosition(area, area.markers[0]!, [{ x: 5, y: 5 }])
+    expect(Math.hypot(placed.x - 5, placed.y - 5)).toBeGreaterThanOrEqual(2.4)
+  })
+
   it('ignores letters when selecting objectives and keeps an unlettered objective', () => {
     const lettered = openArea(square(0, 0, 10), [{ label: 'AB', position: { x: 5, y: 5 } }])
     const unlettered = { ...openArea(square(20, 0, 10)), id: 'generator', objective: { position: { x: 26, y: 4 }, group: null } }
@@ -131,11 +145,12 @@ describe('placing a marker in a terrain area', () => {
 })
 
 describe('printing a measurement', () => {
-  it('prints placement guidance in whole inches', () => {
+  it('prints source distances to the nearest eighth inch', () => {
     expect(formatInches(6)).toBe('6\u2033')
-    expect(formatInches(6.49)).toBe('6\u2033')
-    expect(formatInches(6.5)).toBe('7\u2033')
+    expect(formatInches(6.49)).toBe('6½\u2033')
+    expect(formatInches(6.5)).toBe('6½\u2033')
     expect(formatInches(6.003)).toBe('6″')
+    expect(formatInches(15.877)).toBe('15⅞″')
   })
 })
 

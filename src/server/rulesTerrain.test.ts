@@ -78,6 +78,45 @@ it('places terrain and walls in board coordinates', () => {
   })
 })
 
+it('measures a rotated footprint corner from the nearest board edges', () => {
+  expect(battlemasterGeometry(directory, id)?.areas[0]?.measurements).toEqual([
+    { from: { x: 60, y: 14 }, to: { x: 32, y: 14 } },
+    { from: { x: 32, y: 0 }, to: { x: 32, y: 14 } },
+  ])
+})
+
+it('locates both ends of a tilted straight edge', () => {
+  const file = path.join(directory, 'layouts', `${id}.json`)
+  const value = JSON.parse(fs.readFileSync(file, 'utf8'))
+  value.terrain[0].footprint.rotationDeg = 30
+  value.terrain[0].outline.points.push({ x: 0, y: 3 })
+  fs.writeFileSync(file, JSON.stringify(value))
+  expect(battlemasterGeometry(directory, id)?.areas[0]?.measurements).toEqual([
+    { from: { x: 60, y: 13.902 }, to: { x: 34.83, y: 13.902 } },
+    { from: { x: 34.83, y: 0 }, to: { x: 34.83, y: 13.902 } },
+    { from: { x: 30.5, y: 0 }, to: { x: 30.5, y: 16.402 } },
+  ])
+})
+
+it('uses a real outline corner when a triangular footprint omits a bounding corner', () => {
+  const file = path.join(directory, 'layouts', `${id}.json`)
+  const value = JSON.parse(fs.readFileSync(file, 'utf8'))
+  value.terrain[0].footprint = { origin: { x: -20, y: 10 }, widthIn: 5, heightIn: 3, rotationDeg: 0 }
+  fs.writeFileSync(file, JSON.stringify(value))
+  expect(battlemasterGeometry(directory, id)?.areas[0]?.measurements).toEqual([
+    { from: { x: 0, y: 12 }, to: { x: 10, y: 12 } },
+    { from: { x: 10, y: 0 }, to: { x: 10, y: 12 } },
+  ])
+})
+
+it('does not invent placement references when the outline is missing', () => {
+  const file = path.join(directory, 'layouts', `${id}.json`)
+  const value = JSON.parse(fs.readFileSync(file, 'utf8'))
+  value.terrain[0].outline.points = []
+  fs.writeFileSync(file, JSON.stringify(value))
+  expect(battlemasterGeometry(directory, id)?.areas[0]?.measurements).toEqual([])
+})
+
 it('does not invent objective positions from terrain names', () => {
   expect(battlemasterGeometry(directory, id)?.areas[0]?.objective).toBeNull()
 })
