@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { ChevronRight, Search } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
@@ -38,32 +38,61 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   const [shortcutModifier, setShortcutModifier] = useState('Ctrl')
   const trimmed = query.trim()
   const settled = useSettled(trimmed, 75)
-  const { data = [], isFetching } = useQuery({ ...globalSearchQuery(settled), placeholderData: keepPreviousData })
+  const { data = [], isFetching, isPending, isError } = useQuery({ ...globalSearchQuery(settled), placeholderData: keepPreviousData })
   const results = [...matchingPages(trimmed), ...data]
-  const openSearch = useCallback(() => setOpen(true), [])
+  const resultCount = results.length
+  const reportedQuery = useRef<string | null>(null)
+  const changeOpen = useCallback(
+    (next: boolean, selected = false) => {
+      if (next === open) return
+      if (next) {
+        reportedQuery.current = null
+        posthog.capture('global_search_opened')
+      } else {
+        posthog.capture('global_search_closed', {
+          selected,
+          has_query: Boolean(trimmed),
+          result_count: resultCount,
+          pending: trimmed !== settled || isFetching,
+          failed: isError,
+        })
+        setQuery('')
+      }
+      setOpen(next)
+    },
+    [isError, isFetching, open, resultCount, settled, trimmed],
+  )
+  const openSearch = useCallback(() => changeOpen(true), [changeOpen])
   const context = useMemo(() => ({ open: openSearch, shortcutModifier }), [openSearch, shortcutModifier])
+
+  useEffect(() => {
+    const outcome = isError ? 'error' : 'success'
+    const key = `${outcome}:${settled}`
+    if (!open || settled.length < 2 || trimmed !== settled || isFetching || isPending || reportedQuery.current === key) return
+    reportedQuery.current = key
+    posthog.capture('global_search_completed', { outcome, result_count: isError ? 0 : resultCount })
+  }, [isError, isFetching, isPending, open, resultCount, settled, trimmed])
 
   useEffect(() => {
     setShortcutModifier(searchShortcutModifier(navigator.userAgent))
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isSearchShortcut(event)) return
       event.preventDefault()
-      setOpen((current) => !current)
+      changeOpen(!open)
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [changeOpen, open])
 
   useEffect(() => {
-    const openNativeSearch = () => setOpen(true)
+    const openNativeSearch = () => changeOpen(true)
     document.addEventListener('praetorium:open-search', openNativeSearch)
     return () => document.removeEventListener('praetorium:open-search', openNativeSearch)
-  }, [])
+  }, [changeOpen])
 
   const go = async (result: GlobalSearchResult) => {
     posthog.capture('global_search_result_opened', { group: result.group, result_count: results.length, fuzzy: Boolean(result.fuzzy) })
-    setOpen(false)
-    setQuery('')
+    changeOpen(false, true)
     await navigate({ href: result.href })
   }
 
@@ -72,10 +101,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
       {children}
       <CommandDialog
         open={open}
-        onOpenChange={(next) => {
-          setOpen(next)
-          if (!next) setQuery('')
-        }}
+        onOpenChange={(next) => changeOpen(next)}
         title="Search Praetorium"
         description="Search pages, factions, datasheets and their rules, detachments, missions, rosters and battles."
         className="top-1/2 max-w-xl -translate-y-1/2 rounded-none!"

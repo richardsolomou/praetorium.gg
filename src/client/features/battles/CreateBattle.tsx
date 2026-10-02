@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
+import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
@@ -62,6 +63,8 @@ export function CreateBattle() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useMutation({
+    onMutate: (casual: boolean) => posthog.capture('battle_creation_submitted', { format: shape, casual }),
+    onError: () => posthog.capture('battle_creation_failed', { format: shape, reason: 'request' }),
     mutationFn: async (casual: boolean) => {
       const players = seatedPlayers(seats, seatedIn)
       const playerData = {
@@ -112,6 +115,7 @@ export function CreateBattle() {
   }
   const changeOpen = (next: boolean) => {
     if (create.isPending) return
+    if (next && !open) posthog.capture('battle_creation_started')
     changeIntent()
     setOpen(next)
   }

@@ -44,6 +44,11 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
   const providers = options?.providers.filter((provider) => provider !== 'github' || githubAuthAvailable) ?? []
 
   const authenticate = async () => {
+    posthog.capture('account_authentication_started', {
+      method: 'email',
+      action: joining ? 'create' : 'sign_in',
+      redirected: Boolean(next),
+    })
     const result = await submit.run(() =>
       joining
         ? authClient.signUp.email({
@@ -206,7 +211,11 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
                       variant="outline"
                       className="h-11 w-full text-base"
                       onClick={async () => {
-                        posthog.capture('account_authentication_started', { method: provider, redirected: Boolean(next) })
+                        posthog.capture('account_authentication_started', {
+                          method: provider,
+                          action: joining ? 'create' : 'sign_in',
+                          redirected: Boolean(next),
+                        })
                         if (
                           await requestNativeAuth({
                             action: 'sign-in',

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { posthog } from 'posthog-js'
+import { attachedUnitCount } from '../../../core/attachedUnits'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { saveRoster } from '../../../server/functions'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -154,7 +155,6 @@ export function GuestRoster({
         guest={{
           onDraftChange: ({ id: _saved, ...draft }) => setUnkept(!writeGuestDraft({ ...guest, draft })),
           onSave: () => {
-            posthog.capture('guest_roster_save_started')
             void navigate({ to: '/sign-in', search: { next: GUEST_PATH, join: true } })
           },
         }}
@@ -175,11 +175,15 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
   const queryClient = useQueryClient()
   const started = useRef(false)
   const claim = useMutation({
+    onError: () => posthog.capture('guest_roster_save_failed', { reason: 'request' }),
     mutationFn: async (draft: GuestDraft) => {
       const defaults = await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })
       return saveRoster({ data: { ...claimInput(draft), visibility: defaults.rosterVisibility } })
     },
-    onSuccess: async ({ id }) => {
+    onSuccess: async ({ id }, draft) => {
+      posthog.capture('guest_roster_saved', {
+        unit_count: attachedUnitCount(draft.draft.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
+      })
       clearGuestDraft()
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id }, replace: true })

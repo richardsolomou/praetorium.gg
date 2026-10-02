@@ -1,6 +1,7 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
+import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { leagueMinimumPlaces, leaguePlacesSeat, leagueTableShape, LEAGUE_DEFAULT_ROSTER_LIMIT } from '../../../core/league'
@@ -94,6 +95,12 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
 
   const save = useMutation({
     mutationKey: SAVE,
+    onMutate: () => {
+      if (mode.kind === 'create') posthog.capture('league_creation_submitted', { format: value.format })
+    },
+    onError: () => {
+      if (mode.kind === 'create') posthog.capture('league_creation_failed', { reason: 'request' })
+    },
     mutationFn: async () => {
       const { format, rosterLimit, ...details } = value
       if (mode.kind === 'create') return createLeague({ data: { ...details, format, rosterLimit, ownerPlays } })

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
+import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { DEFAULT_PLAYER_DEFAULTS } from '../../../core/playerDefaults'
 import { saveRoster } from '../../../server/functions'
@@ -17,6 +18,8 @@ export function CreateRoster({ factionOptions }: { factionOptions: RosterSetupFa
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useMutation({
+    onMutate: () => posthog.capture('roster_creation_submitted'),
+    onError: () => posthog.capture('roster_creation_failed', { reason: 'request' }),
     mutationFn: (setup: RosterSetup) =>
       saveRoster({
         data: {
@@ -37,6 +40,7 @@ export function CreateRoster({ factionOptions }: { factionOptions: RosterSetupFa
       <Button
         data-onboarding="create-roster"
         onClick={() => {
+          posthog.capture('roster_creation_started')
           advanceOnboarding('roster', 'roster-start', 'roster-faction')
           setOpen(true)
         }}
