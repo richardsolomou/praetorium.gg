@@ -12,9 +12,7 @@ import {
   loadCanonicalCatalogue,
   referenceCatalogue,
 } from './canonicalCatalogue'
-import type { SourceUnit } from './catalogueSourceUnits'
 import { DATACARDS_ATTRIBUTION, type DatasheetDetails } from './datacards'
-import { indexExternalReferences } from './externalReferences'
 import { type LoadedRules, RULES_DATA_ATTRIBUTION } from './rules'
 
 const revisions = { definitions: 'definitions-revision', datacards: 'datacards-revision' }
@@ -56,41 +54,65 @@ function catalogue() {
   return loaded
 }
 
-function compileWithSourceUnit(
-  loaded: ReturnType<typeof catalogue>,
-  over: Partial<SourceUnit> = {},
-  sourceRevisions: Record<string, string> = { ...revisions, rules: 'rules-revision' },
-) {
-  const unit: SourceUnit = {
-    id: 'source-squad',
-    name: 'Squad',
-    keywords: ['Infantry'],
-    factionKeywords: ['Test catalogue'],
-    profiles: [{ name: 'Squad', values: { M: 6, T: 4 } }],
-    points: [{ models: 5, modelsMax: null, cost: 100 }],
-    modelCount: { min: 5, max: 10 },
-    baseSize: { shape: 'round', diameter: 32, draft: false },
-    ...over,
-  }
-  loaded.sourceReferences.units = indexExternalReferences([{ id: unit.id, external_refs: [{ namespace: 'bsdata', id: 'squad' }] }])
-  return compileCanonicalCatalogue(loaded, sourceRevisions, null, new Map([['squad', [unit]]]))
-}
-
 describe('canonical catalogue', () => {
+  it('attributes an overlaid Marine datasheet to its own pinned revision', () => {
+    const loaded = catalogue()
+    loaded.marineCodexCatalogueIds = new Set(['cat'])
+
+    const sheet = compileCanonicalCatalogue(loaded, { ...revisions, marineCodex: 'marine-revision' }).datasheets[0]
+    expect({
+      provenance: sheet?.provenance.definitions,
+      identity: sheet?.provenance.fields.identity,
+      attribution: sheet?.attribution,
+    }).toEqual({
+      provenance: { revision: 'marine-revision', entryId: 'squad', source: 'marineCodex' },
+      identity: { sources: ['marineCodex'], strategy: 'single-source' },
+      attribution: `Provisional Space Marines codex data from richardsolomou/wh40k-11e. ${DATACARDS_ATTRIBUTION}`,
+    })
+  })
+
+  it('prints MFM copy tiers and attributes their points to the pinned source', () => {
+    const loaded = catalogue()
+    loaded.mfm = new Map([
+      [
+        'test-catalogue',
+        {
+          slug: 'test-catalogue',
+          version: '1.5',
+          units: [
+            {
+              name: 'Squad',
+              pricing: [
+                { range: '[1,2]', label: 'Your 1st To 2nd Units Cost', costs: [{ models: 1, points: 90 }] },
+                { range: '[3,)', label: 'Your 3rd + Unit Costs', costs: [{ models: 1, points: 105 }] },
+              ],
+            },
+          ],
+        },
+      ],
+    ])
+    const sheet = compileCanonicalCatalogue(loaded, { ...revisions, points: 'mfm-1.5' }).datasheets[0]
+    expect({ costs: sheet?.costs, provenance: sheet?.provenance.fields.costs }).toEqual({
+      costs: [
+        { models: '1', cost: '90', keyword: null, faction: null, detachment: null, copies: 'Your 1st To 2nd Units Cost' },
+        { models: '1', cost: '105', keyword: null, faction: null, detachment: null, copies: 'Your 3rd + Unit Costs' },
+      ],
+      provenance: { sources: ['points'], strategy: 'single-source' },
+    })
+  })
   it('attributes a newer card profile when older sources disagree', () => {
     const loaded = catalogue()
     loaded.profiledSupplementIds.add('cat')
     loaded.factionContents
       .get('test-catalogue')!
       .datasheetDetails.set('Squad', card({ profiles: [{ name: 'Squad', type: 'Unit', values: { T: '10' } }] }))
-    const compiled = compileWithSourceUnit(loaded, { profiles: [{ name: 'Squad', values: { T: 9 } }] })
+    const compiled = compileCanonicalCatalogue(loaded, revisions)
 
     expect(compiled.datasheets[0]?.profiles[0]?.values[0]?.value).toBe('10')
     expect(compiled.datasheets[0]?.provenance.fields.profiles).toEqual({
-      sources: ['definitions', 'datacards', 'rules'],
+      sources: ['definitions', 'datacards'],
       strategy: 'source-priority',
     })
-    expect(compiled.issues).toContainEqual(expect.objectContaining({ message: 'Squad keeps Game Datacards T "10" over 40kdc "9"' }))
   })
 
   it('compiles upstream labels into one typed datasheet with provenance', () => {
@@ -189,7 +211,7 @@ describe('canonical catalogue', () => {
 
     const sheet = compileCanonicalCatalogue(loaded, revisions, rules).datasheets[0]
 
-    expect(sheet?.provenance.fields.abilities.sources).toEqual(['definitions', 'rules'])
+    expect(sheet?.provenance.fields.abilities.sources).toEqual(['definitions', 'datacards'])
     expect(sheet?.attribution).toBe(RULES_DATA_ATTRIBUTION)
   })
 
@@ -198,83 +220,6 @@ describe('canonical catalogue', () => {
       expect.arrayContaining([
         expect.objectContaining({ kind: 'unclassified-characteristic', entryId: 'squad', path: '/profiles/0/values/1' }),
         expect.objectContaining({ kind: 'source-name-fallback', entryId: 'squad' }),
-        expect.objectContaining({ kind: 'missing-source-record', entryId: 'squad', path: '/provenance/rules' }),
-      ]),
-    )
-  })
-
-  it('resolves safe display gaps from an exactly linked 40kdc unit', () => {
-    const loaded = catalogue()
-    loaded.factionContents.get('test-catalogue')!.datasheetDetails.get('Squad')!.composition = []
-    const compiled = compileWithSourceUnit(loaded)
-
-    expect(compiled.datasheets[0]).toMatchObject({
-      baseSize: '32mm',
-      composition: ['5-10 models'],
-      costs: [{ models: '5', cost: '100' }],
-      attribution: expect.stringContaining('40kdc community contributors'),
-      provenance: {
-        rules: { revision: 'rules-revision', unitId: 'source-squad', resolution: 'external-reference' },
-        fields: {
-          baseSize: { sources: ['rules'], strategy: 'fallback' },
-          composition: { sources: ['rules'], strategy: 'fallback' },
-          costs: { sources: ['rules'], strategy: 'fallback' },
-        },
-      },
-    })
-    expect(compiled.issues).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ kind: 'source-field-fallback', path: '/baseSize' }),
-        expect.objectContaining({ kind: 'source-field-fallback', path: '/composition' }),
-        expect.objectContaining({ kind: 'source-field-fallback', path: '/costs' }),
-      ]),
-    )
-  })
-
-  it('does not publish draft source base sizes', () => {
-    const compiled = compileWithSourceUnit(catalogue(), { baseSize: { shape: 'hull', draft: true } })
-
-    expect(compiled.datasheets[0]?.baseSize).toBeNull()
-    expect(compiled.issues).not.toContainEqual(expect.objectContaining({ kind: 'source-field-fallback', path: '/baseSize' }))
-  })
-
-  it('keeps the declared source priority and reports conflicting facts', () => {
-    const loaded = catalogue()
-    const content = loaded.factionContents.get('test-catalogue')!
-    content.datasheetDetails.set(
-      'Squad',
-      card({
-        baseSize: '40mm',
-        points: [{ models: '5', cost: '90', keyword: null, faction: null, detachment: null }],
-      }),
-    )
-    const compiled = compileWithSourceUnit(loaded, {
-      name: 'Source Squad',
-      profiles: [{ name: 'Squad', values: { T: 5 } }],
-    })
-
-    expect(compiled.datasheets[0]).toMatchObject({
-      points: 90,
-      baseSize: '40mm',
-      costs: [{ models: '5', cost: '90' }],
-      provenance: {
-        fields: {
-          identity: { sources: ['definitions', 'rules'], strategy: 'source-priority' },
-          points: { sources: ['definitions', 'datacards', 'rules'], strategy: 'source-priority' },
-          keywords: { sources: ['definitions'], strategy: 'single-source' },
-          baseSize: { sources: ['datacards', 'rules'], strategy: 'source-priority' },
-          costs: { sources: ['datacards', 'rules'], strategy: 'source-priority' },
-          relationships: { sources: ['definitions'], strategy: 'single-source' },
-        },
-      },
-    })
-    expect(compiled.issues).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ kind: 'source-field-conflict', path: '/baseSize' }),
-        expect.objectContaining({ kind: 'source-field-conflict', path: '/costs' }),
-        expect.objectContaining({ kind: 'source-field-conflict', path: '/name' }),
-        expect.objectContaining({ kind: 'source-field-conflict', path: '/points' }),
-        expect.objectContaining({ kind: 'source-field-conflict', path: '/profiles/0/values/0' }),
       ]),
     )
   })
@@ -295,27 +240,6 @@ describe('canonical catalogue', () => {
       points: null,
       provenance: { fields: { points: { sources: ['definitions', 'datacards'], strategy: 'unresolved' } } },
     })
-  })
-
-  it('reports a composition conflict while keeping Game Datacards presentation', () => {
-    const loaded = catalogue()
-    loaded.factionContents
-      .get('test-catalogue')!
-      .datasheetDetails.set('Squad', card({ composition: ['**1 Squad Leader and 9 Squad models**'] }))
-
-    const compiled = compileWithSourceUnit(loaded, { modelCount: { min: 10, max: 20 } })
-
-    expect(compiled.datasheets[0]?.composition).toEqual(['**1 Squad Leader and 9 Squad models**'])
-    expect(compiled.issues).toContainEqual(expect.objectContaining({ kind: 'source-field-conflict', path: '/composition' }))
-  })
-
-  it('does not read digits embedded in a model name as a composition count', () => {
-    const loaded = catalogue()
-    loaded.factionContents.get('test-catalogue')!.datasheetDetails.set('Squad', card({ composition: ['**1 XV8 Crisis Battlesuit**'] }))
-
-    const compiled = compileWithSourceUnit(loaded, { modelCount: { min: 1, max: 1 } })
-
-    expect(compiled.issues).not.toContainEqual(expect.objectContaining({ kind: 'source-field-conflict', path: '/composition' }))
   })
 
   it('does not link relationships to datasheets omitted from the canonical catalogue', () => {
@@ -473,8 +397,7 @@ describe('canonical catalogue', () => {
         slug: 'vanguard',
         rules: [{ name: 'Shadow Masters', description: 'Remain concealed.' }],
         provenance: {
-          definitions: { revision: 'definitions-revision', detachmentId: 'vanguard' },
-          rules: { revision: 'rules-revision' },
+          definitions: { revision: 'definitions-revision', detachmentId: 'vanguard', source: 'definitions' },
           datacards: { revision: 'datacards-revision' },
         },
       }),

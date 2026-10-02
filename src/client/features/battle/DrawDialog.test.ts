@@ -15,6 +15,13 @@ describe('redrawOffer', () => {
     expect(redrawOffer(roundRule(3), 2, [])?.message).toBe('You must put this back in battle round 3 or earlier.')
   })
 
+  it('offers an optional first-round return without blocking the draw', () => {
+    expect(redrawOffer({ ...roundRule(1), required: false }, 1, [])).toMatchObject({
+      message: 'You can put this back in battle round 1.',
+      required: false,
+    })
+  })
+
   it('does not offer a redraw after the threshold', () => {
     expect(redrawOffer(roundRule(1), 2, [])).toBeNull()
   })

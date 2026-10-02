@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
@@ -16,8 +17,8 @@ import { compareText, sameText } from '../core/text'
 import { type FactionContent, type LoadedDatacards, type RuleCard, loadDatacards } from './datacards'
 import { catalogueSections } from './catalogueSections'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
-import { type ExternalReferences, loadExternalReferences } from './externalReferences'
 import { catalogueProfileMetadata, prepareCatalogueProfileRules } from './catalogueProfileRules'
+import { loadMfm, type MfmIndex } from './mfm'
 
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
@@ -34,9 +35,10 @@ export type LoadedCatalogue = {
   profiledDetachmentIds: Set<string>
   profiledArmyRules: Map<string, RuleCard[]>
   replacements: ReadonlyMap<string, string>
+  marineCodexCatalogueIds?: ReadonlySet<string>
+  mfm?: MfmIndex | null
   /** Game Datacards, read once here and handed to the rules loader. */
   datacards: LoadedDatacards
-  sourceReferences: ExternalReferences
 }
 
 const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
@@ -51,7 +53,7 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
   const revisionFile = path.join(directory, 'revision.json')
   if (!fs.existsSync(definitions) || !fs.existsSync(revisionFile)) return null
 
-  const revision: { definitions?: string } = JSON.parse(fs.readFileSync(revisionFile, 'utf8'))
+  const revision: Record<string, string> = JSON.parse(fs.readFileSync(revisionFile, 'utf8'))
   if (!revision.definitions) return null
 
   const prepared = prepareCatalogueProfileRules(
@@ -62,20 +64,39 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
   )
   const { files } = prepared
   if (!files.length) return null
+  const marineCodex = path.join(directory, 'marineCodex')
+  const marineCodexCatalogueIds = new Set<string>(
+    fs.existsSync(marineCodex)
+      ? fs
+          .readdirSync(marineCodex)
+          .filter((name) => name.endsWith('.json'))
+          .flatMap((name) => {
+            const file = JSON.parse(fs.readFileSync(path.join(marineCodex, name), 'utf8')) as CatalogueFile
+            return file.catalogue ? [file.catalogue.id] : []
+          })
+      : [],
+  )
 
-  const index = buildIndex(files, revision.definitions)
+  const index = buildIndex(files, catalogueRevision(revision))
   // The cards name sections they do not describe, and the catalogue is where those words are.
   const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index))
-  const rulesCore = path.join(directory, 'rules', 'data', 'core')
-  const sourceReferences = loadExternalReferences(rulesCore)
-  return catalogueFromIndex(index, files, datacards, sourceReferences, prepared)
+  return {
+    ...catalogueFromIndex(index, files, datacards, prepared),
+    marineCodexCatalogueIds,
+    mfm: loadMfm(directory),
+  }
+}
+
+export function catalogueRevision(revisions: Record<string, string>) {
+  return createHash('sha256')
+    .update(JSON.stringify(Object.entries(revisions).sort(([left], [right]) => left.localeCompare(right))))
+    .digest('hex')
 }
 
 export function catalogueFromIndex(
   index: CatalogueIndex,
   files: readonly CatalogueFile[],
   datacards: LoadedDatacards,
-  sourceReferences: ExternalReferences,
   profiled: Pick<
     ReturnType<typeof catalogueProfileMetadata>,
     'profiledCatalogueIds' | 'profiledSupplementIds' | 'profiledDetachmentIds' | 'profiledArmyRules' | 'replacements'
@@ -93,9 +114,14 @@ export function catalogueFromIndex(
     profiledDetachmentIds: profiled.profiledDetachmentIds,
     profiledArmyRules: profiled.profiledArmyRules,
     replacements: profiled.replacements,
+    marineCodexCatalogueIds: new Set(),
     datacards,
-    sourceReferences,
   }
+}
+
+export function definitionSource(loaded: LoadedCatalogue, entryId: string): 'definitions' | 'marineCodex' {
+  const owner = loaded.index.catalogueOf.get(entryId)
+  return owner && loaded.marineCodexCatalogueIds?.has(owner) ? 'marineCodex' : 'definitions'
 }
 
 /** Characteristic type ids are defined inline throughout the source files. */

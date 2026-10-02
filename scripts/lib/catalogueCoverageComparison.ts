@@ -83,8 +83,9 @@ const localizedName = (value: unknown) => {
   return typeof english === 'string' ? english : null
 }
 
-function rawConstructionReader(catalogueDirectory: string, rulesDirectory: string) {
+function rawConstructionReader(catalogueDirectory: string) {
   const byFaction = new Map<string, Map<string, RawConstruction>>()
+  const factionParents = new Map<string, string>()
   const datacardsDirectory = path.join(catalogueDirectory, 'datacards', '11th', 'gdc')
   for (const file of fs.readdirSync(datacardsDirectory).filter((entry) => entry.endsWith('.json'))) {
     const parsed = JSON.parse(fs.readFileSync(path.join(datacardsDirectory, file), 'utf8')) as Record<string, unknown>
@@ -104,31 +105,15 @@ function rawConstructionReader(catalogueDirectory: string, rulesDirectory: strin
         if (name && detachment) detachments.get(joinKey(detachment))?.enhancements.add(constructionCardKey(name))
       }
     }
-    for (const key of datacardsFactionKeys(parsed.name)) byFaction.set(key, detachments)
-  }
-
-  const factionKeys = new Map<string, string>()
-  const factionParents = new Map<string, string>()
-  const rulesCore = path.join(rulesDirectory, 'data', 'core')
-  for (const entry of fs.readdirSync(rulesCore, { withFileTypes: true }).filter((candidate) => candidate.isDirectory())) {
-    factionKeys.set(entry.name, entry.name)
-    const file = path.join(rulesCore, entry.name, 'factions.json')
-    if (!fs.existsSync(file)) continue
-    const factions = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>[]
-    for (const faction of factions) {
-      if (typeof faction.name === 'string') factionKeys.set(routeSlug(faction.name), entry.name)
-      if (Array.isArray(faction.aliases)) {
-        for (const alias of faction.aliases) if (typeof alias === 'string') factionKeys.set(routeSlug(alias), entry.name)
-      }
-      if (typeof faction.id === 'string' && typeof faction.parent_faction_id === 'string') {
-        factionParents.set(faction.id, faction.parent_faction_id)
-      }
+    for (const key of datacardsFactionKeys(parsed.name)) {
+      byFaction.set(key, detachments)
+      if (typeof parsed.parent_name === 'string') factionParents.set(key, routeSlug(parsed.parent_name))
     }
   }
 
   return (factionName: string) => {
-    const faction = factionKeys.get(routeSlug(factionName)) ?? routeSlug(factionName)
-    const own = byFaction.get(routeSlug(factionName)) ?? byFaction.get(faction)
+    const faction = routeSlug(factionName)
+    const own = byFaction.get(faction)
     const inherited = byFaction.get(factionParents.get(faction) ?? '')
     const found = new Map<string, RawConstruction>()
     for (const source of [inherited, own]) for (const [key, detachment] of source ?? []) found.set(key, detachment)
@@ -141,12 +126,11 @@ export function compareCatalogueCoverage(
   afterFile: string,
   accepted: AcceptedLoss[],
   catalogueDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', '..', 'catalogue-data'),
-  rulesDirectory = process.env.RULES_DIR ?? path.join(catalogueDirectory, 'rules'),
   replacementName?: string,
 ) {
   const before: FactionCoverage[] = JSON.parse(fs.readFileSync(beforeFile, 'utf8'))
   const after: FactionCoverage[] = JSON.parse(fs.readFileSync(afterFile, 'utf8'))
-  const rawConstructionFor = rawConstructionReader(catalogueDirectory, rulesDirectory)
+  const rawConstructionFor = rawConstructionReader(catalogueDirectory)
   const lost: string[] = []
   const gained: string[] = []
   const compareLists = (where: string, earlier: readonly string[], later: readonly string[], key = (item: string) => item) => {
@@ -198,6 +182,16 @@ export function compareCatalogueCoverage(
       else if (!prior.described && entry.described) gained.push(`${where}: description of ${entry.name}`)
     }
   }
+  const choiceOptions = (choices: readonly string[]) =>
+    choices.flatMap((choice) => {
+      const separator = choice.indexOf(': ')
+      if (separator < 0) return [choice]
+      const group = choice.slice(0, separator + 2)
+      return choice
+        .slice(separator + 2)
+        .split('; ')
+        .map((option) => `${group}${option}`)
+    })
 
   for (const faction of before) {
     const now = after.find((candidate) => candidate.name === faction.name)
@@ -264,7 +258,8 @@ export function compareCatalogueCoverage(
       if (sheet.roster && current.roster) {
         const roster = `${where} roster`
         if (sheet.roster.points > 0 && !(current.roster.points > 0)) lost.push(`${roster}: points unavailable`)
-        for (const field of ['models', 'wargear', 'choices', 'errors', 'deployment'] as const) {
+        compareLists(`${roster} choices`, choiceOptions(sheet.roster.choices), choiceOptions(current.roster.choices))
+        for (const field of ['models', 'wargear', 'errors', 'deployment'] as const) {
           compareLists(`${roster} ${field}`, sheet.roster[field] ?? [], current.roster[field] ?? [])
         }
       } else if (sheet.roster && !current.roster) {

@@ -297,6 +297,151 @@ function withPrintedDefaultWargear(entry: SelectionEntry, index: CatalogueIndex,
   })
 }
 
+function withPrintedWeaponSwaps(entry: SelectionEntry): SelectionEntry {
+  const options = entry.selectionEntryGroups?.find((group) => group.name === 'Wargear Options')?.selectionEntries ?? []
+  const swaps = options.flatMap((option) => {
+    const specific = /^The (.+?) can have their (.+?) replaced with 1 (.+?)\.$/i.exec(option.name ?? '')
+    const all = /^All models in this unit can each have their (.+?) replaced with 1 (.+?)\.$/i.exec(option.name ?? '')
+    const allNamed = /^All (.+?) models in this unit can each have their (.+?) replaced with 1 (.+?)\.$/i.exec(option.name ?? '')
+    const equipped = /^This model can be equipped with 1 (.+?)\.$/i.exec(option.name ?? '')
+    const from = specific?.[2] ?? all?.[1] ?? allNamed?.[2]
+    const to = specific?.[3] ?? all?.[2] ?? allNamed?.[3] ?? equipped?.[1]
+    const linked = option.entryLinks?.length === 1 ? option.entryLinks[0] : undefined
+    if ((!from && !equipped) || !to || !linked || joinKey(linked.name ?? '') !== joinKey(to)) return []
+    return [{ id: option.id, model: specific?.[1] ?? allNamed?.[1] ?? null, from: from ?? null, to, linked }]
+  })
+
+  const applied = new Set<string>()
+  const apply = (links: EntryLink[] | undefined, candidates: typeof swaps, ownerId: string) => {
+    if (!links?.length) return links
+    const usable = candidates.filter((swap) => {
+      const from = swap.from
+      if (from === null) return true
+      return links.some(
+        (link) =>
+          joinKey(link.name ?? '') === joinKey(from) &&
+          link.constraints?.some((constraint) => constraint.field === 'selections' && constraint.type === 'min' && constraint.value >= 1),
+      )
+    })
+    if (!usable.length) return links
+    usable.forEach((swap) => applied.add(swap.id))
+    const additions = new Map<string, EntryLink>()
+    for (const swap of usable) {
+      const key = `${joinKey(swap.to)}:${swap.linked.targetId}`
+      if (!links.some((link) => joinKey(link.name ?? '') === joinKey(swap.to) && link.targetId === swap.linked.targetId)) {
+        additions.set(key, {
+          ...swap.linked,
+          id: `profile-swap-weapon-${ownerId}-${swap.id}`,
+          constraints: undefined,
+          modifiers: undefined,
+        })
+      }
+    }
+    return [...links, ...additions.values()].map((link) => {
+      const relevant = usable.filter(
+        (swap) =>
+          (swap.from !== null && joinKey(link.name ?? '') === joinKey(swap.from)) ||
+          (joinKey(link.name ?? '') === joinKey(swap.to) && link.targetId === swap.linked.targetId),
+      )
+      if (!relevant.length) return link
+      const original = link.constraints ?? []
+      const minId =
+        original.find((constraint) => constraint.field === 'selections' && constraint.type === 'min')?.id ?? `profile-swap-min-${link.id}`
+      const maxId =
+        original.find((constraint) => constraint.field === 'selections' && constraint.type === 'max')?.id ?? `profile-swap-max-${link.id}`
+      return {
+        ...link,
+        constraints: [
+          ...original,
+          ...(!original.some((constraint) => constraint.id === minId)
+            ? [{ id: minId, field: 'selections' as const, scope: 'parent' as const, type: 'min' as const, value: 0 }]
+            : []),
+          ...(!original.some((constraint) => constraint.id === maxId)
+            ? [{ id: maxId, field: 'selections' as const, scope: 'parent' as const, type: 'max' as const, value: 0 }]
+            : []),
+        ],
+        modifiers: [
+          ...(link.modifiers ?? []),
+          ...relevant.flatMap((swap) => {
+            const value = joinKey(link.name ?? '') === joinKey(swap.to) ? 1 : 0
+            const condition = {
+              childId: swap.id,
+              field: 'selections' as const,
+              includeChildSelections: true,
+              scope: 'roster' as const,
+              type: 'atLeast' as const,
+              value: 1,
+            }
+            return [
+              { field: minId, type: 'set' as const, value, conditions: [condition] },
+              { field: maxId, type: 'set' as const, value, conditions: [condition] },
+            ]
+          }),
+        ],
+      }
+    })
+  }
+
+  const modelGroups = entry.selectionEntryGroups?.filter((group) => group.selectionEntries?.some((model) => model.type === 'model')) ?? []
+  const projected: SelectionEntry = !modelGroups.length
+    ? {
+        ...entry,
+        entryLinks: apply(
+          entry.entryLinks,
+          swaps.filter((swap) => !swap.model),
+          entry.id,
+        ),
+      }
+    : {
+        ...entry,
+        selectionEntryGroups: entry.selectionEntryGroups?.map((group) =>
+          modelGroups.includes(group)
+            ? {
+                ...group,
+                selectionEntries: group.selectionEntries?.map((model) => ({
+                  ...model,
+                  entryLinks: apply(
+                    model.entryLinks,
+                    swaps.filter((swap) => swap.from !== null && (!swap.model || joinKey(swap.model) === joinKey(model.name ?? ''))),
+                    model.id,
+                  ),
+                })),
+              }
+            : group,
+        ),
+      }
+  const unsupported = new Set(
+    options
+      .filter(
+        (option) =>
+          !applied.has(option.id) &&
+          !option.selectionEntries?.length &&
+          !option.selectionEntryGroups?.length &&
+          !(option.entryLinks ?? []).some((link) =>
+            link.constraints?.some((constraint) => constraint.field === 'selections' && constraint.type === 'min' && constraint.value >= 1),
+          ),
+      )
+      .map((option) => option.id),
+  )
+  if (!unsupported.size) return projected
+  const instructions = options
+    .filter((option) => unsupported.has(option.id))
+    .flatMap((option) =>
+      (option.profiles ?? [])
+        .filter((profile) => profile.name === 'Option')
+        .map((profile) => ({ ...profile, id: `profile-wargear-instruction-${entry.id}-${option.id}`, name: 'Wargear option' })),
+    )
+  return {
+    ...projected,
+    profiles: [...(projected.profiles ?? []), ...instructions],
+    selectionEntryGroups: projected.selectionEntryGroups?.map((group) =>
+      group.name === 'Wargear Options'
+        ? { ...group, selectionEntries: group.selectionEntries?.filter((option) => !unsupported.has(option.id)) }
+        : group,
+    ),
+  }
+}
+
 export function catalogueReplacements(books: ReadonlyMap<string, Catalogue>, profiledIds: ReadonlySet<string>) {
   const byName = new Map([...books.values()].map((book) => [book.name, book]))
   const replacements = new Map(
@@ -520,7 +665,10 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
     const sharedSelectionEntries = profiledCatalogueIds.has(book.id)
       ? (book.sharedSelectionEntries ?? []).map((entry) => {
           const readable = entry.type === 'unit' || entry.type === 'model' ? withReadableWargearOptions(entry) : entry
-          const projected = entry.type === 'unit' || entry.type === 'model' ? withPrintedDefaultWargear(readable, rawIndex, book.id) : entry
+          const projected =
+            entry.type === 'unit' || entry.type === 'model'
+              ? withPrintedWeaponSwaps(withPrintedDefaultWargear(readable, rawIndex, book.id))
+              : entry
           const equipped =
             readable === entry
               ? projected

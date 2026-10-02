@@ -1,5 +1,7 @@
 export type Point = { x: number; y: number }
 
+export const KOTC_MATCHUP_ID = 'king-of-the-colosseum'
+
 export type TerrainPiece = {
   id: string
   name: string
@@ -12,6 +14,8 @@ export type TerrainPiece = {
 }
 
 export type TerrainGeometry = {
+  /** The board in inches, landscape: `width` is the long edge on a rectangular board. */
+  board: { width: number; height: number }
   areas: {
     id: string
     name: string
@@ -47,6 +51,9 @@ export type TerrainLayout = {
   deploymentId: string | null
   pieces: TerrainPiece[]
   geometry: TerrainGeometry | null
+  publisherObjectiveUrl?: string
+  publisherTerrainUrl?: string
+  publisherUrl?: string
 }
 
 export type TerrainTemplate = {

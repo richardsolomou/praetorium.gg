@@ -51,9 +51,25 @@ function localRevisions(directory: string): Partial<Record<SourceName | 'battlem
 export const isCurrent = (directory: string, sources: ResolvedCatalogueSources, disabled = disabledCatalogueSources()) => {
   const local = localRevisions(directory)
   const pinned = pinnedRevisions(sources, disabled)
-  return SOURCE_NAMES.filter((name) => !disabled.has(name)).every(
-    (name) => local[name] === pinned[name] && fs.existsSync(path.join(directory, name)),
+  return (
+    SOURCE_NAMES.filter((name) => !disabled.has(name)).every(
+      (name) => local[name] === pinned[name] && fs.existsSync(path.join(directory, name)),
+    ) &&
+    (disabled.has('marineCodex') ||
+      disabled.has('definitions') ||
+      (sources.marineCodex.files ?? []).every((file) => fs.existsSync(path.join(directory, 'definitions', file))))
   )
+}
+
+function overlayMarineCodex(directory: string, sources: ResolvedCatalogueSources) {
+  const files = sources.marineCodex.files
+  if (!files?.length) throw new Error('Marine codex file list is empty')
+  for (const file of files) {
+    if (!/^Imperium - [A-Za-z ]+ \(11e\)\.json$/.test(file)) throw new Error(`invalid Marine codex file ${file}`)
+    const from = path.join(directory, 'marineCodex', file)
+    if (!fs.existsSync(from)) throw new Error(`Marine codex file ${file} is missing`)
+    fs.copyFileSync(from, path.join(directory, 'definitions', file))
+  }
 }
 
 /** Publication gate: every optional source must be complete too. */
@@ -80,6 +96,9 @@ export async function syncSources(
   disabled = disabledCatalogueSources(),
 ): Promise<void> {
   for (const name of disabled) fs.rmSync(path.join(directory, name), { recursive: true, force: true })
+  if (disabled.has('marineCodex')) {
+    for (const file of sources.marineCodex.files ?? []) fs.rmSync(path.join(directory, 'definitions', file), { force: true })
+  }
 
   if (isCurrent(directory, sources, disabled)) {
     await syncFactionIcons(directory, report)
@@ -103,6 +122,7 @@ export async function syncSources(
     report(`${name}: fetching ${source.repository} at ${source.revision.slice(0, 10)}`)
     await fetchInto(source.repository, source.revision, target, 'path' in source ? source.path : undefined)
   }
+  if (!disabled.has('marineCodex') && !disabled.has('definitions')) overlayMarineCodex(directory, sources)
   fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(pinned, null, 2)}\n`)
   await syncFactionIcons(directory, report)
   if (!disabled.has('battlemaster')) await syncBattlemaster(directory, report, sources.battlemaster)
@@ -111,20 +131,8 @@ export async function syncSources(
 
 const MAX_FACTION_ICON_BYTES = 256 * 1024
 
-async function syncFactionIcons(directory: string, report: (message: string) => void) {
-  const core = path.join(directory, 'rules', 'data', 'core')
-  if (!fs.existsSync(core)) return
-  const factions = fs
-    .readdirSync(core, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('_'))
-    .flatMap((entry) => {
-      const file = path.join(core, entry.name, 'factions.json')
-      if (!fs.existsSync(file)) return []
-      return (JSON.parse(fs.readFileSync(file, 'utf8')) as { id?: string; logo_url?: string }[]).filter(
-        (faction): faction is { id: string; logo_url: string } => Boolean(faction.id && faction.logo_url),
-      )
-    })
-    .concat(SUPPLEMENTAL_FACTION_ICONS.map((faction) => ({ id: faction.id, logo_url: faction.logoUrl })))
+export async function syncFactionIcons(directory: string, report: (message: string) => void = () => {}) {
+  const factions = SUPPLEMENTAL_FACTION_ICONS.map((faction) => ({ id: faction.id, logo_url: faction.logoUrl }))
   const target = path.join(directory, 'faction-icons')
   if (factions.length && factions.every((faction) => fs.existsSync(path.join(target, `${faction.id}.svg`)))) return
 

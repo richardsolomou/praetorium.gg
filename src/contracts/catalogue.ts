@@ -29,7 +29,7 @@ export type UnitSummary = {
 
 export type PickerUnit = UnitSummary & { search: DatasheetSearchFields | null }
 
-export type CanonicalSourceName = 'definitions' | 'points' | 'rules' | 'datacards' | 'battlemaster'
+export type CanonicalSourceName = 'definitions' | 'marineCodex' | 'points' | 'rules' | 'datacards' | 'battlemaster'
 
 export type CanonicalFieldResolution = {
   sources: CanonicalSourceName[]
@@ -42,7 +42,7 @@ export type CanonicalDatasheet = Omit<Datasheet, 'profiles'> & {
   attribution: string | null
   profiles: StructuredDatasheetProfile[]
   provenance: {
-    definitions: { revision: string; entryId: string }
+    definitions: { revision: string; entryId: string; source?: 'definitions' | 'marineCodex' }
     datacards: { revision: string; resolution: 'external-reference' | 'normalized-name' } | null
     rules: { revision: string; unitId: string; resolution: 'external-reference' } | null
     fields: {
@@ -86,8 +86,7 @@ export type CanonicalDetachment = {
   keywordRules: { name: string; description: string }[]
   attribution: string
   provenance: {
-    definitions: { revision: string; detachmentId: string }
-    rules: { revision: string }
+    definitions: { revision: string; detachmentId: string; source?: 'definitions' | 'marineCodex' }
     datacards: { revision: string }
   }
 }

@@ -946,8 +946,9 @@ test('a player can enter through the roster library and browse the product', asy
       .locator('..')
       .locator('article > div:last-child'),
   ).toHaveCount(6)
-  await expect(page.getByText(/Tabletop Developer Consortium/)).toBeVisible()
+  await expect(page.getByText(/Catalogue data from BSData\/wh40k-11e/)).toBeVisible()
   await expect(page.getByText(/Data provided by game-datacards/)).toBeVisible()
+  await expect(page.getByText(/Points from BSData Munitorum Field Manual 1.5/)).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Cryptek Conclave', exact: true })).toBeVisible()
   const detachmentResponse = await page.request.get('/factions/necrons/detachments/cryptek-conclave')

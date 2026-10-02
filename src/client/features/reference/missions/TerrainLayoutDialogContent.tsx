@@ -5,7 +5,14 @@ import type { TerrainGeometry, TerrainPiece, TerrainTemplate } from './terrainGe
 type Props = {
   title: string
   description: string
-  layout: { name: string; pieces: TerrainPiece[]; geometry: TerrainGeometry | null }
+  layout: {
+    name: string
+    pieces: TerrainPiece[]
+    geometry: TerrainGeometry | null
+    publisherObjectiveUrl?: string
+    publisherTerrainUrl?: string
+    publisherUrl?: string
+  }
   deployment?: {
     name: string
     zones: { player: string; name: string; colour: string; points: { x: number; y: number }[] }[]
@@ -46,7 +53,10 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
         <span className="flex items-center gap-2">
           <span className="h-px w-4 bg-side-a" /> Setup distance
         </span>
-        <span>Grid: 1″ · heavier line every 5″</span>
+        <span>
+          {layout.geometry ? `${layout.geometry.board.width}″ × ${layout.geometry.board.height}″ board · ` : ''}Grid: 1″ · heavier line
+          every 5″
+        </span>
       </div>
       <TerrainBoard
         layout={layout}
@@ -56,6 +66,16 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
         detailed
         ariaLabel={ariaLabel}
       />
+      {layout.publisherObjectiveUrl && layout.publisherTerrainUrl ? (
+        <p className="flex flex-wrap gap-4 text-sm text-info">
+          <a href={layout.publisherObjectiveUrl} target="_blank" rel="noopener noreferrer" className="underline">
+            Publisher objective diagram
+          </a>
+          <a href={layout.publisherTerrainUrl} target="_blank" rel="noopener noreferrer" className="underline">
+            Publisher terrain diagram
+          </a>
+        </p>
+      ) : null}
     </DialogContent>
   )
 }

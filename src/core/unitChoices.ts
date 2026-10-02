@@ -27,7 +27,7 @@ import {
   scaleOf,
   UNBOUNDED,
 } from './definitions'
-import { evaluate, type EvaluateOptions, hiddenByRules, type Selection } from './evaluate'
+import { evaluate, type EvaluateOptions, hiddenByRules, selectionCountBoundsAt, type Selection } from './evaluate'
 import { allAt, at, countAt, withCounts, withSpread } from './selection'
 import { modelCountOf, sizeOf } from './unitSize'
 
@@ -153,16 +153,11 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
 
       const repeatingEntry = inner.type === 'upgrade' ? repeatedModelOn(trail, index) : null
       const lower = minimum(child.definition)
-      const single = inner.type === 'upgrade' && lower === 0 && maximumCount(child.definition, index) === 1
+      const upperBound = selectionCountBoundsAt(selection, here, index, options)?.maximum ?? maximumCount(child.definition, index)
+      const single = inner.type === 'upgrade' && lower === 0 && upperBound === 1
       let upper: number | null = null
       if (single) upper = 1
-      else if (inner.type === 'upgrade' && lower > 0) {
-        upper = maximumCount(child.definition, index, {
-          primaryCatalogueId: options.primaryCatalogueId,
-          mustering: options.mustering,
-          roster,
-        })
-      }
+      else if (inner.type === 'upgrade' && lower > 0) upper = upperBound
       const boundedUpgrade = single || (inner.type === 'upgrade' && lower > 0 && upper !== null && upper > lower)
       const onRepeatedModel = Boolean(repeatingEntry && repeatingEntry.path.length === trail.length)
       if (repeatingEntry && onRepeatedModel && single) {
@@ -215,11 +210,32 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
           ? effectiveCount(selection, repeating.path, repeating.definition, index, options)
           : scaleOf(child.definition, index, carriers)
         const capacity = maximumCountAt(selection, here, child.definition, index, options)
-        const room = capacity === null ? occupantRoom(choosable, index) : capacity * scale
+        const independent =
+          capacity === null &&
+          choosable.length > 1 &&
+          choosable.every((option) => /^This model can be equipped with 1 .+\.$/i.test(resolve(option.definition, index).name ?? ''))
+        const room =
+          capacity === null
+            ? independent
+              ? sum(choosable.map((option) => scaled(maximumCount(option.definition, index), scale)))
+              : occupantRoom(choosable, index)
+            : capacity * scale
         const fixed = choosable.some((option) => minimum(option.definition) > 0)
         const dynamic = choosable.some((option) => minimum(option.definition) === 0 && hasDynamicSelectionLimit(option.definition, index))
         const mutableMinimum = (option: Option) => dynamic && hasMutableMinimum(option.definition, index)
-        const adjustable = fixed ? choosable.filter((option) => minimum(option.definition) === 0 || mutableMinimum(option)) : choosable
+        const variableMinimum = (option: Option) => {
+          if (resolve(option.definition, index).type !== 'upgrade') return false
+          const minCount = minimum(option.definition)
+          const maxCount = maximumCount(option.definition, index, {
+            primaryCatalogueId: options.primaryCatalogueId,
+            mustering: options.mustering,
+            roster,
+          })
+          return minCount > 0 && maxCount !== null && maxCount > minCount
+        }
+        const adjustable = fixed
+          ? choosable.filter((option) => minimum(option.definition) === 0 || mutableMinimum(option) || variableMinimum(option))
+          : choosable
         const held = repeating
           ? repeatedOptions(selection, repeating.path, here.slice(repeating.path.length))
           : allAt(selection, here).flatMap((group) => group.selections ?? [])
@@ -239,8 +255,17 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
         // A group's catalogue cap names its largest squad, which is not the room a
         // five-model squad currently has to divide between its loadouts.
         const resizesUnit = resizingGroup.length === here.length && resizingGroup.every((step, position) => step === here[position])
-        const adjustableRoom = separate ? sum(adjustable.map(roomFor)) : fixed || resizesUnit ? heldRoom(adjustable, countOf) : room
+        const adjustableRoom = separate
+          ? sum(adjustable.map(roomFor))
+          : resizesUnit
+            ? heldRoom(adjustable, countOf)
+            : fixed && adjustable.some(variableMinimum)
+              ? room - choosable.filter((option) => !adjustable.includes(option)).reduce((total, option) => total + countOf(option.id), 0)
+              : fixed
+                ? heldRoom(adjustable, countOf)
+                : room
         const maximumFor = (option: Option) => {
+          if (independent) return roomFor(option)
           if (!repeating) return legalMaximum(selection, here, option, adjustable, adjustableRoom, index, options)
           return separate ? roomFor(option) : adjustableRoom
         }

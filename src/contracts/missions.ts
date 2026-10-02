@@ -11,6 +11,7 @@ export type MissionAction = {
 export type WhenDrawn = {
   operation: 'redraw' | 'replace'
   roundMax: number | null
+  required?: boolean
   heldCards: string[]
   condition: string | null
 }

@@ -9,6 +9,7 @@ const repositorySourceSchema = z.object({
   licenseUrl: z.url().optional(),
   attribution: z.string().optional(),
   description: z.string().optional(),
+  files: z.array(z.string()).optional(),
 })
 
 const battlemasterSourceSchema = z.object({
@@ -23,25 +24,28 @@ const battlemasterSourceSchema = z.object({
 
 export const catalogueSourcesSchema = z.object({
   definitions: repositorySourceSchema,
+  marineCodex: repositorySourceSchema,
   points: repositorySourceSchema,
-  rules: repositorySourceSchema,
   datacards: repositorySourceSchema,
   battlemaster: battlemasterSourceSchema,
 })
 
-export const SOURCE_NAMES = ['definitions', 'points', 'rules', 'datacards'] as const
+export const SOURCE_NAMES = ['definitions', 'marineCodex', 'points', 'datacards'] as const
 export type SourceName = (typeof SOURCE_NAMES)[number]
 export const SNAPSHOT_SOURCE_NAMES = [...SOURCE_NAMES, 'battlemaster'] as const
-export type SnapshotSourceName = (typeof SNAPSHOT_SOURCE_NAMES)[number]
+export type SnapshotSourceName = (typeof SNAPSHOT_SOURCE_NAMES)[number] | 'rules'
 
 export function isSnapshotSourceName(value: string): value is SnapshotSourceName {
-  return (SNAPSHOT_SOURCE_NAMES as readonly string[]).includes(value)
+  return value === 'rules' || (SNAPSHOT_SOURCE_NAMES as readonly string[]).includes(value)
 }
 export type CatalogueSourceConfig = z.infer<typeof catalogueSourcesSchema>
-export type ResolvedCatalogueSources = Omit<CatalogueSourceConfig, 'definitions' | 'points' | 'rules' | 'datacards' | 'battlemaster'> & {
+export type ResolvedCatalogueSources = Omit<
+  CatalogueSourceConfig,
+  'definitions' | 'marineCodex' | 'points' | 'datacards' | 'battlemaster'
+> & {
   definitions: CatalogueSourceConfig['definitions'] & { revision: string }
+  marineCodex: CatalogueSourceConfig['marineCodex'] & { revision: string }
   points: CatalogueSourceConfig['points'] & { revision: string }
-  rules: CatalogueSourceConfig['rules'] & { revision: string }
   datacards: CatalogueSourceConfig['datacards'] & { revision: string }
   battlemaster: CatalogueSourceConfig['battlemaster'] & { revision: string }
 }

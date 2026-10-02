@@ -407,7 +407,9 @@ function Chip({
 
 /** The cards a side's own advance settles, or an empty list when it settles none. */
 export function dueForAdvance(view: BattleView, side: Side, awardsFor: (key: string, mode?: string) => MissionAward[]): DueCard[] {
-  return cardsDue(view, side.isActive, playable(side, awardsFor))
+  const firstSide = view.players.find((player) => player.id === view.firstPlayerId)?.side
+  const fallbackKeys = firstSide !== undefined && side.index !== firstSide ? side.secondariesDrawnThisTurn : []
+  return cardsDue(view, side.isActive, playable(side, awardsFor), fallbackKeys)
 }
 
 /**

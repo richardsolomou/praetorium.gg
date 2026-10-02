@@ -357,7 +357,7 @@ function datasheetDocument(sheet: CanonicalDatasheet): ReferenceDocument {
         'points',
         'Points',
         sheet.costs.map((cost) =>
-          [cost.models, 'models', cost.cost, 'points', cost.keyword, cost.faction, cost.detachment].filter(Boolean).join(' '),
+          [cost.models, 'models', cost.cost, 'points', cost.keyword, cost.faction, cost.detachment, cost.copies].filter(Boolean).join(' '),
         ),
       ),
       section(url, 'relationships', 'Attachments', relationships),
@@ -368,7 +368,7 @@ function datasheetDocument(sheet: CanonicalDatasheet): ReferenceDocument {
 function revisionsForDatasheet(sheet: CanonicalDatasheet) {
   return Object.fromEntries(
     [
-      ['definitions', sheet.provenance.definitions.revision],
+      [sheet.provenance.definitions.source ?? 'definitions', sheet.provenance.definitions.revision],
       ['datacards', sheet.provenance.datacards?.revision],
       ['rules', sheet.provenance.rules?.revision],
     ].filter((entry): entry is [string, string] => Boolean(entry[1])),
@@ -384,8 +384,7 @@ function detachmentDocument(detachment: CanonicalDetachment): ReferenceDocument 
     faction: detachment.faction,
     url,
     revisions: {
-      definitions: detachment.provenance.definitions.revision,
-      rules: detachment.provenance.rules.revision,
+      [detachment.provenance.definitions.source ?? 'definitions']: detachment.provenance.definitions.revision,
       datacards: detachment.provenance.datacards.revision,
     },
     attribution: [detachment.attribution],

@@ -203,7 +203,12 @@ it('shows the linked weapon profile when an enhancement ends by naming its weapo
               dispositions: [],
               rules: [],
               enhancements: [
-                { name: "Imperium's Sword", points: 20, description: 'This model has the following weapon:', keywordRestrictions: [] },
+                {
+                  name: "Imperium's Sword",
+                  points: 20,
+                  description: 'This model has the following weapon:',
+                  eligibility: { anyOf: [[]], excluded: [] },
+                },
               ],
               upgrades: [],
               stratagems: [],

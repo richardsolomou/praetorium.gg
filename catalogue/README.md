@@ -1,17 +1,18 @@
 # Catalogue sources
 
-Praetorium packages community Warhammer 40,000 data into verified snapshots. This directory defines the upstream sources, the release pin, and emergency revocations. Snapshot manifests contain revisions, source inventory, provenance, and checksums. Fetched data stays in `catalogue-data/`, the shared development cache, and the snapshot store.
+Praetorium packages community Warhammer 40,000 data into verified snapshots. The private `richardsolomou/praetorium-catalogue` repository pins the upstream revisions and carries local correction patches. This directory retains source attribution, the release snapshot pin, and emergency revocations. Snapshot manifests contain revisions, source inventory, provenance, and checksums. Fetched data stays in `catalogue-data/`, the shared development cache, and the snapshot store.
 
 No game data is committed to this repository.
 
 ## Sources
 
 - `definitions` uses [BSData/wh40k-11e](https://github.com/BSData/wh40k-11e) for faction entries, constraints, modifiers, and costs. The repository does not include a licence file.
-- `points` uses [BSData/wh40k-11e-mfm](https://github.com/BSData/wh40k-11e-mfm) under the MIT licence as an independent points reference.
-- `rules` uses [40kdc-data](https://github.com/wn-mitch/40kdc-data) for stratagems, missions, and scoring data under [CC BY 4.0](https://github.com/wn-mitch/40kdc-data/blob/main/LICENSE-DATA).
-- `datacards` uses the 11th-edition export from [game-datacards/datasources](https://github.com/game-datacards/datasources) for factions, core rules, missions, and layouts. The repository does not include a licence file.
+- `marineCodex` pins the seven provisional `(11e)` Space Marines files from [richardsolomou/wh40k-11e](https://github.com/richardsolomou/wh40k-11e) while BSData's codex branch lacks them. Their saved roster IDs are preserved. The fork does not include a licence file.
+- `points` uses [BSData/wh40k-11e-mfm](https://github.com/BSData/wh40k-11e-mfm) under the MIT licence for current unit, wargear, detachment, enhancement, and upgrade prices.
+- `datacards` uses the 11th-edition export from [game-datacards/datasources](https://github.com/game-datacards/datasources) for factions, core rules, stratagems, missions, scoring, and layouts. The repository does not include a licence file.
+- `battlemaster` supplies exact terrain outlines for Chapter Approved layouts.
 
-The points source tests the evaluator and is not loaded by the product. Evaluator changes are assessed against all three inputs: the generated selection, definitions, and points source.
+The product reads the points source from each verified snapshot. The points audit also compares the raw BSData evaluator against it so source disagreements remain visible.
 
 ## Commands
 
@@ -19,7 +20,8 @@ The points source tests the evaluator and is not loaded by the product. Evaluato
 - `pnpm catalogue:upstream` reports which upstream revisions moved since the published snapshot without changing the active catalogue. A moved revision may contain non-game changes; follow its comparison link to inspect the data before publishing.
 - `pnpm catalogue:sync` activates the release-pinned snapshot from a cache shared by every worktree.
 - `pnpm catalogue:sync --latest` follows the remote `current.json` pointer.
-- `pnpm catalogue:update` resolves and downloads the latest upstream revisions for snapshot publication.
+- The catalogue update workflow materializes the pinned private source repository, adds supplemental faction icons, and publishes its verified result.
+- `pnpm catalogue:supplemental` adds the supplemental faction icons to a materialized source directory.
 - `pnpm catalogue:compile` reconciles the upstream records into the canonical datasheet and rule-document structure included in snapshots. Set `CATALOGUE_CANONICAL_FILE` to write outside the active catalogue directory.
 - `pnpm catalogue:audit` reports missing records, field fallbacks, source conflicts, and unknown UI semantics. Add `-- --details` for every finding.
 - `pnpm catalogue:snapshot pack` creates an immutable snapshot and checksummed pointer from the downloaded data.
@@ -30,6 +32,6 @@ The points source tests the evaluator and is not loaded by the product. Evaluato
 
 ## Snapshot revisions
 
-The publisher records every included upstream revision, source, licence declaration, attribution, modification notice, and file checksum before atomically replacing `current.json`. It omits repository metadata, reports, examples, Combat Patrol exports, and layout exports that neither the product nor its verification checks read. Saved rosters continue to record the definitions revision used for validation.
+The publisher records every included upstream revision, source, licence declaration, attribution, modification notice, and file checksum before atomically replacing `current.json`. It omits repository metadata, reports, examples, Combat Patrol exports, and layout exports that neither the product nor its verification checks read. Roster validation uses a revision fingerprint of all source revisions, so an MFM or Marine codex update also invalidates cached prices.
 
 `lock.json` is the catalogue tested with a released application. The publisher runs only when `catalogue-update.yml` is dispatched manually; review upstream changes before running it. `revocations.json` blocks named snapshots or every snapshot containing a named source. The publisher uploads revocations before moving `current.json` and removes revoked archives after the pointer has moved. `CATALOGUE_DISABLED_SOURCES` provides the same fail-closed source switch to an operator or publisher.

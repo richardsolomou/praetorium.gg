@@ -35,7 +35,8 @@ export function momentsPassed(view: Pick<ScoringMoment, 'phase' | 'round' | 'rou
 }
 
 export function dueNow(trigger: AwardTrigger, view: ScoringMoment, yourTurn: boolean): boolean {
-  if (!trigger.timing || !momentsPassed(view).includes(trigger.timing)) return false
+  if (!trigger.timing || !momentsPassed(view).includes(trigger.timing === 'end-of-turn-or-final-round' ? 'end-of-turn' : trigger.timing))
+    return false
   if (trigger.timing === 'end-of-phase' && trigger.phase && trigger.phase !== view.phase) return false
   if (trigger.playerTurn === 'your-turn' && !yourTurn) return false
   if (trigger.playerTurn === 'opponent-turn' && yourTurn) return false
@@ -54,7 +55,7 @@ export function cardsDueFromTheirTurn(round: number, rounds: number, cards: read
       awards: card.awards.filter((award) => {
         if (card.category === 'primary' && round >= rounds) return false
         const trigger = award.trigger
-        if (trigger.timing !== 'end-of-turn') return false
+        if (trigger.timing !== 'end-of-turn' && trigger.timing !== 'end-of-turn-or-final-round') return false
         if (trigger.playerTurn !== 'opponent-turn' && trigger.playerTurn !== 'either') return false
         if (trigger.roundMin !== null && round < trigger.roundMin) return false
         if (trigger.roundMax !== null && round > trigger.roundMax) return false
@@ -64,17 +65,29 @@ export function cardsDueFromTheirTurn(round: number, rounds: number, cards: read
     .filter((card) => card.awards.length > 0)
 }
 
-export function cardsDue(view: ScoringMoment, yourTurn: boolean, cards: readonly ScoringCard[]): DueCard[] {
+export function cardsDue(
+  view: ScoringMoment,
+  yourTurn: boolean,
+  cards: readonly ScoringCard[],
+  finalRoundFallbackKeys: readonly string[] = [],
+): DueCard[] {
   return cards
     .map((card) => ({
       key: card.key,
       name: card.name,
       category: card.category,
-      awards: card.awards.filter((award) =>
-        card.category === 'primary' && view.round >= view.rounds
-          ? finalRoundPrimaryDue(award.trigger, view, yourTurn)
-          : dueNow(award.trigger, view, yourTurn),
-      ),
+      awards: card.awards.filter((award) => {
+        if (card.category === 'primary' && view.round >= view.rounds) return finalRoundPrimaryDue(award.trigger, view, yourTurn)
+        if (
+          award.trigger.timing === 'end-of-turn-or-final-round' &&
+          yourTurn &&
+          view.phase === 'end' &&
+          view.round === view.rounds &&
+          finalRoundFallbackKeys.includes(card.key)
+        )
+          return true
+        return dueNow(award.trigger, view, yourTurn)
+      }),
     }))
     .filter((card) => card.awards.length > 0)
 }

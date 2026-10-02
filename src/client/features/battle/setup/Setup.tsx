@@ -5,14 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import type { Command } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
-import { FIXED_SECONDARIES, GAME_SIZES, isKotcLimit } from '../../../../core/battle'
+import { FIXED_SECONDARIES, GAME_SIZES } from '../../../../core/battle'
 import { deploymentsQuery, gameReferencesQuery } from '../../../queries'
 import { missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../../../sides'
 import type { SendCommand } from '../useCommand'
 import { SearchableSelect, type SearchableGroup } from '../../../components/SearchableSelect'
 import { Battlefield } from './Battlefield'
 import { ArmiesStep } from './ArmiesStep'
-import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupPanel, useDispositionNames } from './chrome'
+import { CHOOSABLE, CHOSEN, DispositionChip, SetupPanel, useDispositionNames } from './chrome'
 import { TwistChoice } from './TwistChoice'
 import { DefenderStep } from './DefenderStep'
 import { FirstTurnStep } from './FirstTurnStep'
@@ -272,12 +272,6 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
                   </fieldset>
                 ) : null}
               </SetupPanel>
-              {isKotcLimit(view.settings.limit) ? (
-                <SetupNote>
-                  The KOTC 2.0 battlefield is not available yet. Use the prototype pack for setup; Praetorium will not substitute the older
-                  9-inch deployment.
-                </SetupNote>
-              ) : null}
               <ArmiesStep view={view} sides={table} send={send} attachSavedRoster={attachSavedRoster} pending={pending} problem={problem} />
             </>
           ) : null}

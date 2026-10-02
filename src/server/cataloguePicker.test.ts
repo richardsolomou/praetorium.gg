@@ -802,6 +802,23 @@ describe('the picker', () => {
     expect(unitsIn(book, 'cat', 'Crucible')).toEqual([])
   })
 
+  it('does not offer reference-only spawned units as roster choices', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'reference', name: 'Reference' }],
+      selectionEntries: [
+        { id: 'biovore', name: 'Biovore', type: 'unit', costs: points(60) },
+        {
+          id: 'mines',
+          name: 'Spore Mines (Biovore)',
+          type: 'unit',
+          costs: points(0),
+          categoryLinks: [{ id: 'reference-link', targetId: 'reference', name: 'Reference', primary: true }],
+        },
+      ],
+    })
+    expect(offered(book)).toEqual(['Biovore'])
+  })
+
   it('never offers mission assets from the Unaligned Forces shelf', () => {
     const shelf = shelfOf(
       {

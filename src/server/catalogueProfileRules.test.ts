@@ -1,6 +1,8 @@
 import { expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
+import { combatCarriers } from '../core/combatLoadout'
+import { evaluate } from '../core/evaluate'
 import { wargearOf } from '../core/wargear'
 import { detachmentsOf, factionsIn, isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
 import {
@@ -15,6 +17,7 @@ import { factionsFor } from './factionReferences'
 import { battleDetachmentData, selectedBattleDetachmentData } from './battleDetachmentData'
 import { detachmentReference } from './detachmentReference'
 import { calculateRosterPrice } from './pricing'
+import { heldWargear } from './heldWargear'
 import type { LoadedRules } from './rules'
 
 const files: CatalogueFile[] = [
@@ -648,6 +651,131 @@ it('keeps text-only Marine wargear instructions without offering a fake swap', (
   }).toEqual({ choices: [], instructions: [instruction] })
 })
 
+it('applies a linked printed weapon swap to the named model after a saved choice reloads', () => {
+  const current: CatalogueFile = {
+    catalogue: {
+      id: 'new-marines',
+      name: 'Imperium - Adeptus Astartes - Space Marines (11e)',
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'notes',
+              name: 'Datasheet Notes',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text: 'UNIT COMPOSITION: 1 Squad Sergeant model | 4 Squad Marine models | Every model is equipped with: 1 Old Gun.',
+                },
+              ],
+            },
+          ],
+          entryLinks: [
+            { id: 'old-link', name: 'Old Gun', targetId: 'old', type: 'selectionEntry' },
+            { id: 'new-link', name: 'New Gun', targetId: 'new', type: 'selectionEntry' },
+          ],
+          selectionEntryGroups: [
+            {
+              id: 'wargear',
+              name: 'Wargear Options',
+              constraints: [{ id: 'wargear-max', field: 'selections', scope: 'parent', type: 'max', value: 1 }],
+              selectionEntries: [
+                {
+                  id: 'swap',
+                  name: 'The Squad Sergeant can have their Old Gun replaced with 1 New Gun.',
+                  type: 'upgrade',
+                  constraints: [{ id: 'swap-max', field: 'selections', scope: 'parent', type: 'max', value: 1 }],
+                  profiles: [
+                    {
+                      id: 'option',
+                      name: 'Option',
+                      characteristics: [
+                        { name: 'Description', $text: 'The Squad Sergeant can have their Old Gun replaced with 1 New Gun.' },
+                      ],
+                    },
+                  ],
+                  entryLinks: [{ id: 'swap-weapon', name: 'New Gun', targetId: 'new', type: 'selectionEntry' }],
+                },
+                {
+                  id: 'all-swap',
+                  name: 'All models in this unit can each have their Old Gun replaced with 1 New Gun.',
+                  type: 'upgrade',
+                  constraints: [{ id: 'all-swap-max', field: 'selections', scope: 'parent', type: 'max', value: 1 }],
+                  entryLinks: [{ id: 'all-swap-weapon', name: 'New Gun', targetId: 'new', type: 'selectionEntry' }],
+                },
+                {
+                  id: 'unbounded-swap',
+                  name: 'For every 5 models in this unit, 1 Squad Marine can have their Old Gun replaced with 1 New Gun.',
+                  type: 'upgrade',
+                  profiles: [
+                    {
+                      id: 'unbounded-option',
+                      name: 'Option',
+                      characteristics: [
+                        {
+                          name: 'Description',
+                          $text: 'For every 5 models in this unit, 1 Squad Marine can have their Old Gun replaced with 1 New Gun.',
+                        },
+                      ],
+                    },
+                  ],
+                  entryLinks: [{ id: 'unbounded-weapon', name: 'New Gun', targetId: 'new', type: 'selectionEntry' }],
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'old', name: 'Old Gun', type: 'upgrade' },
+        { id: 'new', name: 'New Gun', type: 'upgrade' },
+      ],
+      sharedSelectionEntryGroups: [
+        {
+          id: 'detachments',
+          name: 'Detachment',
+          selectionEntries: [
+            {
+              id: 'detachment',
+              name: 'Test Detachment',
+              type: 'upgrade',
+              profiles: [{ id: 'rule', name: 'Rule', characteristics: [{ name: 'Description', $text: 'Rule.' }] }],
+            },
+          ],
+        },
+      ],
+    },
+  }
+  const { index } = loadedCatalogue([files[0]!, current])
+  const entryId = 'profile-unit-new-marines-squad'
+  const choices = JSON.parse(JSON.stringify({ wargear: 'swap' }))
+  const built = buildUnit(entryId, index, undefined, choices, { primaryCatalogueId: 'new-marines' })!
+  const all = buildUnit(entryId, index, undefined, { wargear: 'all-swap' }, { primaryCatalogueId: 'new-marines' })!
+
+  expect({
+    wargear: heldWargear([], [], wargearOf(built.selection, index)),
+    sergeant: combatCarriers(built.selection, index)[0]?.weapons,
+    all: heldWargear([], [], wargearOf(all.selection, index)),
+    choices: built.choices.map((choice) => [choice.key, choice.options.map((option) => option.id)]),
+    instructions: index.definitions
+      .get('squad')
+      ?.profiles?.filter((profile) => profile.name === 'Wargear option')
+      .map((profile) => profile.characteristics?.[0]?.$text),
+    errors: evaluate([built.selection], index, { primaryCatalogueId: 'new-marines' }).errors,
+  }).toEqual({
+    wargear: [
+      { name: 'New Gun', count: 1 },
+      { name: 'Old Gun', count: 4 },
+    ],
+    sergeant: [{ name: 'New Gun', count: 1 }],
+    all: [{ name: 'New Gun', count: 5 }],
+    choices: [['wargear', ['swap', 'all-swap']]],
+    instructions: ['For every 5 models in this unit, 1 Squad Marine can have their Old Gun replaced with 1 New Gun.'],
+    errors: [],
+  })
+})
+
 it('offers a new chapter book instead of the chapter that imports the old parent', () => {
   const newerParent: CatalogueFile = {
     catalogue: {
@@ -1186,7 +1314,7 @@ it('uses Game Datacards details for a profiled detachment when available', () =>
     points: 2,
     dispositions: ['take-and-hold'],
     rules: [{ name: 'Tactical Mastery', description: 'Game Datacards rule.' }],
-    enhancements: [{ name: 'Chapter Champion', points: 15, description: 'Game Datacards enhancement.', keywordRestrictions: null }],
+    enhancements: [{ name: 'Chapter Champion', points: 15, description: 'Game Datacards enhancement.', eligibility: null }],
     upgrades: [],
     stratagems: [
       {

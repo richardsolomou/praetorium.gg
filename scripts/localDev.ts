@@ -203,7 +203,6 @@ async function main() {
     SPACETIME_AUDIENCE: database,
     SPACETIME_OPERATOR_TOKEN: value.operator.token,
     CATALOGUE_DIR: catalogueDirectory,
-    RULES_DIR: path.join(catalogueDirectory, 'rules'),
     PORT: String(appPort),
     NODE_INTERNAL_PORT: String(appPort + 1),
     ...(testMode ? { AUTH_RATE_LIMIT: 'off' } : {}),

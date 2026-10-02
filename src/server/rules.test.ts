@@ -1,873 +1,530 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { hasDetachmentSemantics, loadRules, missionFor, rulesFaction } from './rules'
+import { afterEach, beforeEach, expect, it } from 'vitest'
+import { hasDetachmentSemantics, loadRules, missionFor } from './rules'
+import { missionCardsFromDatacards } from './datacardMissions'
+import { stratagemLimit } from './datacards'
 
 let directory: string
+const write = (file: string, value: unknown) => {
+  fs.mkdirSync(path.dirname(file), { recursive: true })
+  fs.writeFileSync(file, JSON.stringify(value))
+}
+const pack = () => path.join(directory, 'datacards', '11th', 'gdc', 'missions', 'chapter.json')
+const rules = () => loadRules(directory)!
 
-/** A dataset small enough to read, shaped exactly like the real one. */
 beforeEach(() => {
-  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-rules-'))
-  const core = path.join(directory, 'data', 'core', 'death-guard')
-  fs.mkdirSync(core, { recursive: true })
-  const root = path.join(directory, 'data', 'core')
-  const imperialFists = path.join(root, 'imperial-fists')
-  fs.mkdirSync(imperialFists)
-  write(path.join(imperialFists, 'factions.json'), [
-    { id: 'imperial-fists', name: 'Imperial Fists', parent_faction_id: 'adeptus-astartes' },
-  ])
-  const ravenGuard = path.join(root, 'raven-guard')
-  fs.mkdirSync(ravenGuard)
-  write(path.join(ravenGuard, 'factions.json'), [{ id: 'raven-guard', name: 'Raven Guard', parent_faction_id: 'adeptus-astartes' }])
-  write(path.join(ravenGuard, 'detachments.json'), [{ id: 'stormlance-task-force', name: 'Stormlance Task Force' }])
-  write(path.join(ravenGuard, 'stratagems.json'), [
-    { id: 'ride-the-winds', name: 'RIDE THE WINDS', detachment_id: 'stormlance-task-force', cp_cost: 1, timing: 'once-per-phase' },
-  ])
-  const adeptusAstartes = path.join(root, 'adeptus-astartes')
-  fs.mkdirSync(adeptusAstartes)
-  write(path.join(adeptusAstartes, 'detachments.json'), [{ id: 'stormlance-task-force', name: 'Stormlance Task Force' }])
-  write(path.join(adeptusAstartes, 'enhancements.json'), [
-    {
-      id: 'tempete-relic',
-      name: 'Tempete Relic',
-      detachment_id: 'stormlance-task-force',
-      keyword_restrictions: ['Character'],
-    },
-  ])
-  write(path.join(adeptusAstartes, 'stratagems.json'), [
-    { id: 'ride-the-winds', name: 'RIDE THE WINDS', detachment_id: 'stormlance-task-force', cp_cost: 1, timing: 'once-per-phase' },
-  ])
-
-  write(path.join(core, 'stratagems.json'), [
-    {
-      id: 'grim-reapers-flyblown-host',
-      name: 'GRIM REAPERS',
-      detachment_id: 'flyblown-host',
-      cp_cost: 1,
-      timing: 'once-per-phase',
-      game_version: { edition: '11th', dataslate: 'launch' },
-      external_refs: [{ namespace: 'game-datacards', id: 'gdc-grim-reapers' }],
-    },
-    { id: 'mortarions-teachings', name: "MORTARION'S TEACHINGS", detachment_id: 'flyblown-host', cp_cost: 2, timing: 'unknown-timing' },
-    // The same card written down a second time under the detachment that shares it.
-    { id: 'grim-reapers-plague-cohort', name: 'GRIM REAPERS', detachment_id: 'plague-cohort', cp_cost: 1, timing: 'once-per-phase' },
-  ])
-  write(path.join(core, 'detachments.json'), [
-    {
-      id: 'flyblown-host',
-      name: 'Flyblown Host',
-      enhancement_ids: ['living-plague', 'rejuvenating-swarm', 'virulent-carapace'],
-      stratagem_ids: ['grim-reapers-plague-cohort', 'mortarions-teachings'],
-      detachment_points: 2,
-      force_dispositions: ['disruption'],
-    },
-    // Two detachments sharing one stratagem, written down once under the other.
-    { id: 'plague-cohort', name: 'Plague Cohort', stratagem_ids: ['grim-reapers-flyblown-host'], detachment_points: 1 },
-  ])
-  write(path.join(core, 'enhancements.json'), [
-    {
-      id: 'living-plague',
-      name: 'Living Plague',
-      detachment_id: 'flyblown-host',
-      cost: 20,
-      keyword_restrictions: ['Character'],
-      external_refs: [{ namespace: 'game-datacards', id: 'gdc-living-plague' }],
-    },
-    {
-      id: 'rejuvenating-swarm',
-      name: 'Rejuvenating Swarm',
-      detachment_id: 'flyblown-host',
-      cost: 10,
-      external_refs: [{ namespace: 'game-datacards', id: 'missing-rejuvenating-swarm' }],
-    },
-    { id: 'virulent-carapace', name: 'Virulent Carapace (Upgrade)', detachment_id: 'flyblown-host', cost: 15 },
-  ])
-  write(path.join(core, 'factions.json'), [
-    {
-      id: 'death-guard',
-      name: 'Death Guard',
-      aliases: ['Plague Marines'],
-      faction_rule_id: 'oath-of-moment',
-      logo_url: 'https://cdn.jsdelivr.net/example/death-guard.svg',
-    },
-    { id: 'orks', name: 'Orks', logo_url: 'https://cdn.jsdelivr.net/example/orks.svg' },
-  ])
-  const icons = path.join(directory, 'faction-icons')
-  fs.mkdirSync(icons)
-  fs.writeFileSync(path.join(icons, 'death-guard.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
-  write(path.join(root, 'stratagems.json'), [
-    { id: 'command-re-roll', name: 'COMMAND RE-ROLL', cp_cost: 1, timing: 'once-per-battle' },
-    { id: 'counter-offensive', name: 'COUNTER-OFFENSIVE', cp_cost: 2, timing: 'once-per-phase' },
-    { id: 'insane-bravery', name: 'INSANE BRAVERY', cp_cost: 1, timing: 'once-per-battle' },
-  ])
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacard-rules-'))
   const datacards = path.join(directory, 'datacards', '11th', 'gdc')
-  fs.mkdirSync(datacards, { recursive: true })
   write(path.join(datacards, 'deathguard.json'), {
     name: 'Death Guard',
     datasheets: [],
-    detachments: [
-      {
-        name: { en: 'Flyblown Host' },
-        detachmentPoints: 3,
-        detachmentPointsOverrides: [{ faction: 'Death Guard', detachmentPoints: 1 }],
-        forceDisposition: { name: { en: 'Take and Hold' } },
-      },
-      {
-        name: { en: 'Virulent Vectorium' },
-        detachmentPoints: 2,
-        forceDisposition: { name: { en: 'Disruption' } },
-      },
-    ],
-    rules: {
-      army: [{ name: { en: 'Oath of Moment' }, rules: [{ order: 1, type: 'text', text: { en: 'Re-roll Hit rolls.' } }] }],
-      detachment: [
-        {
-          detachment: 'Flyblown Host',
-          rules: [{ name: { en: 'Virulent Vectorium' }, rules: [{ order: 1, type: 'text', text: { en: 'Spread disease.' } }] }],
-        },
-        {
-          detachment: 'Virulent Vectorium',
-          rules: [{ name: { en: 'Lord of Virulence' }, rules: [{ order: 1, type: 'text', text: { en: 'Spread farther.' } }] }],
-        },
-      ],
-    },
+    detachments: [{ name: { en: 'Flyblown Host' }, detachmentPoints: 2, forceDisposition: { name: { en: 'Disruption' } } }],
     enhancements: [
-      {
-        id: 'gdc-living-plague',
-        name: { en: 'Living Plague Card' },
-        detachment: 'Flyblown Host',
-        cost: '25',
-        description: { en: 'Spread the plague.' },
-      },
-      { name: { en: 'Rejuvenating Swarm' }, detachment: 'Flyblown Host', cost: '5', description: { en: 'Return models.' } },
-      // The rules dataset spells the upgrade with its suffix; the cards may not.
-      { name: { en: 'Virulent Carapace' }, detachment: 'Flyblown Host', cost: '30', description: { en: 'Improve the unit.' } },
-      { name: { en: 'Daemon Weapon of Nurgle' }, detachment: 'Virulent Vectorium', cost: '10', description: { en: 'Corrupt it.' } },
+      { id: 'relic', name: { en: 'Living Plague' }, detachment: 'Flyblown Host', cost: 20, description: { en: 'Spread disease.' } },
     ],
     stratagems: [
       {
-        id: 'gdc-grim-reapers',
-        name: { en: 'Grim Reapers Card' },
+        id: 'reapers',
+        name: { en: 'Grim Reapers' },
         detachment: 'Flyblown Host',
         cost: 1,
         phase: ['fight'],
         turn: 'either',
         effect: { en: 'Cut them down.' },
       },
+    ],
+  })
+  write(path.join(datacards, 'core.json'), {
+    stratagems: [{ id: 'reroll', name: { en: 'Command Re-roll' }, cost: 1, phase: ['any'], turn: 'either', effect: { en: 'Re-roll.' } }],
+  })
+  write(pack(), {
+    name: { en: 'Chapter Approved' },
+    forceDispositions: [{ name: { en: 'Disruption' } }, { name: { en: 'Take and Hold' } }],
+    primaryMissionScoreBattleRoundLimit: 15,
+    primaryMissionScoreGameLimit: 45,
+    secondaryMissionScoreBattleRoundLimit: 15,
+    secondaryMissionScoreGameLimit: 45,
+    fixedSecondaryMissionCapLimit: 20,
+    deployments: [{ id: 'deploy-1', name: { en: 'Tipping Point' } }],
+    layouts: [{ id: 'layout-1', name: { en: 'Disruption / Take and Hold - Layout A' }, deployments: ['Tipping Point'] }],
+    presets: [
+      { name: { en: 'Disruption/Take and Hold - Layout A' }, layout: 'Disruption / Take and Hold - Layout A', deployment: 'Tipping Point' },
+    ],
+    primaryMissions: [
       {
-        id: 'gdc-mortarions-teachings',
-        name: { en: "Mortarion's Teachings" },
-        detachment: 'Flyblown Host',
-        cost: 2,
-        phase: ['command'],
-        turn: 'your',
-        effect: { en: 'Share the plague.' },
+        id: 'primary-1',
+        name: { en: 'Death Trap' },
+        forceDispositions: [
+          { friendly: 'Disruption', opposition: 'Take and Hold', recommendedPresets: ['Disruption/Take and Hold - Layout A'] },
+        ],
+        objectives: [
+          {
+            whenText: { en: 'End of your turn.' },
+            scorablePeriods: ['secondBattleRound', 'thirdBattleRound'],
+            scoring: [{ victoryPoints: 5, inputType: 'stepper', scoringCriteria: { en: 'For each objective you control.' } }],
+          },
+        ],
+      },
+    ],
+    secondaryMissions: [
+      {
+        id: 'secondary-1',
+        name: { en: 'No Prisoners' },
+        objectives: [
+          {
+            whenText: { en: 'End of a turn.' },
+            scoring: [{ victoryPoints: 4, scoringType: 'tactical', scoringCriteria: { en: 'Destroy an enemy unit.' } }],
+          },
+        ],
       },
     ],
   })
-  write(path.join(datacards, 'deathwatch.json'), {
-    name: 'Deathwatch',
+})
+
+afterEach(() => fs.rmSync(directory, { recursive: true, force: true }))
+
+it('loads Game Datacards rules without a 40kdc directory', () => {
+  expect(rules()).toMatchObject({
+    core: [{ key: 'reroll', name: 'Command Re-roll' }],
+    primaries: [{ key: 'primary-1', name: 'Death Trap' }],
+    secondaries: [{ key: 'secondary-1', name: 'No Prisoners' }],
+  })
+})
+
+it('loads the publisher-backed Colosseum battlefield when its source is present', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'kotc.json'), {
+    format: 'praetorium.kotc.v1',
+    id: 'king-of-the-colosseum-2',
+    name: 'King of the Colosseum 2.0',
+    publisher: 'https://playontabletop.com/kotc/',
+    boardIn: 36,
+    deploymentDepthIn: 8,
+    objectiveDiagram: 'https://playontabletop.com/wp-content/uploads/2026/09/frontline-objectives.png',
+    terrainDiagram: 'https://playontabletop.com/wp-content/uploads/2026/09/frontline-terrain.png',
+    wallThicknessIn: 0.5,
+    arena: { radiusIn: 13, wallHalfAngleDeg: 31.4 },
+    objectiveRadiusIn: 3.79,
+    pieces: [
+      {
+        name: 'Corner ruin',
+        mirrors: ['none'],
+        parts: [
+          {
+            name: 'Ruin wall',
+            material: 'dense',
+            walls: [
+              [
+                { x: 0.25, y: 5.15 },
+                { x: 5.75, y: 5.15 },
+              ],
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const loaded = rules()
+  const layout = loaded.terrainLayouts.find((entry) => entry.id === 'king-of-the-colosseum-2')
+  expect(layout).toMatchObject({
+    matchupId: 'king-of-the-colosseum',
+    deploymentId: 'deployment-king-of-the-colosseum-2',
+    geometry: { board: { width: 36, height: 36 } },
+  })
+  expect(layout?.geometry?.areas.filter((area) => area.objective)).toHaveLength(5)
+  expect(loaded.deployments.find((entry) => entry.id === layout?.deploymentId)?.zones).toHaveLength(2)
+  expect(loaded.attribution).toContain('Play On Tabletop')
+})
+
+it('uses the current detachment points and stratagem card', () => {
+  expect(rules().detachmentDetails.get('death-guard')?.get('flyblown-host')).toMatchObject({
+    points: 2,
+    dispositions: ['disruption'],
+    stratagems: [{ id: 'reapers', cp: 1, phases: ['fight'] }],
+    enhancements: [{ name: 'Living Plague', points: 20, eligibility: null }],
+  })
+})
+
+it('enforces the core once per phase limit for faction and core stratagems', () => {
+  expect(rules().byDetachment.get('death-guard')?.get('flyblown-host')?.[0]?.limit).toBe('phase')
+  expect(rules().core[0]?.limit).toBe('phase')
+})
+
+it('uses an explicit whole-stratagem exception without treating a target limit as one', () => {
+  expect([
+    stratagemLimit('You cannot use this <b>stratagem</b> more than once per battle.'),
+    stratagemLimit('You can only use this Stratagem once per turn.'),
+    stratagemLimit('You cannot target the same unit with this Stratagem more than once per battle.'),
+    stratagemLimit('You cannot use this Stratagem on the same model more than once per battle.'),
+    stratagemLimit('You can only use this Stratagem once per battle round.'),
+  ]).toEqual(['battle', 'turn', 'phase', 'phase', 'battle-round'])
+})
+
+it('recognizes a detachment whose slug contains an accented name', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'votann.json'), {
+    name: 'Leagues of Votann',
+    datasheets: [],
+    detachments: [{ name: { en: 'Dêlve Assault Shift' }, detachmentPoints: 2, forceDisposition: { name: { en: 'Disruption' } } }],
+    stratagems: [
+      {
+        id: 'delve',
+        name: { en: 'Drill' },
+        detachment: 'Dêlve Assault Shift',
+        cost: 1,
+        phase: ['fight'],
+        turn: 'either',
+        effect: { en: 'Drill.' },
+      },
+    ],
+  })
+  expect(hasDetachmentSemantics(rules(), { faction: 'Leagues of Votann', name: 'Dêlve Assault Shift' })).toBe(true)
+})
+
+it('does not substitute an unrelated army rule for a missing faction ability', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'orks.json'), {
+    name: 'Orks',
+    datasheets: [{ abilities: { faction: [{ name: { en: 'Waaagh!' } }] } }],
+    detachments: [],
+    rules: { army: [{ name: { en: 'Da Boss' }, rules: [{ type: 'text', text: { en: 'Gain a command point.' } }] }] },
+  })
+  expect(rules().factionRules.has('orks')).toBe(false)
+})
+
+it('fills a missing army ability from the same faction catalogue by exact name', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'orks.json'), {
+    name: 'Orks',
+    datasheets: [{ abilities: { faction: [{ name: { en: 'Waaagh!' } }] } }],
+    detachments: [],
+  })
+  write(path.join(directory, 'definitions', 'Orks.json'), {
+    catalogue: {
+      name: 'Xenos - Orks',
+      rules: [
+        { id: 'waaagh', name: 'Waaagh!', description: 'Orks become riled up.' },
+        { id: 'war-cry', name: 'War Cry', description: 'Friendly Orks with the **Waaagh!** ability become riled up.' },
+      ],
+    },
+  })
+  expect(rules().supplementalArmyRules.get('orks')).toEqual([
+    { name: 'Waaagh!', description: 'Orks become riled up.' },
+    { name: 'War Cry', description: 'Friendly Orks with the **Waaagh!** ability become riled up.' },
+  ])
+})
+
+it('uses a sole catalogue army rule when the faction card prints no army ability', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'titan.json'), {
+    name: 'Adeptus Titanicus',
+    datasheets: [{ abilities: { faction: [{ name: { en: 'Super-heavy Walker' } }] } }],
+    detachments: [],
+    rules: { army: [] },
+  })
+  write(path.join(directory, 'definitions', 'Imperium - Adeptus Titanicus.json'), {
+    catalogue: {
+      name: 'Imperium - Adeptus Titanicus',
+      rules: [{ id: 'towering', name: 'Towering Example', description: 'Choose one Titan as your Warlord.' }],
+    },
+  })
+  expect(rules().supplementalArmyRules.get('adeptus-titanicus')).toEqual([
+    { name: 'Towering Example', description: 'Choose one Titan as your Warlord.' },
+  ])
+})
+
+it('leaves an ambiguous catalogue army rule unselected', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'titan.json'), {
+    name: 'Adeptus Titanicus',
     datasheets: [],
     detachments: [],
-    rules: {
-      army: [
+    rules: { army: [] },
+  })
+  write(path.join(directory, 'definitions', 'Imperium - Adeptus Titanicus.json'), {
+    catalogue: {
+      name: 'Imperium - Adeptus Titanicus',
+      rules: [
+        { id: 'first', name: 'Towering Example', description: 'One rule.' },
+        { id: 'second', name: 'Other Rule', description: 'Another rule.' },
+      ],
+    },
+  })
+  expect(rules().supplementalArmyRules.has('adeptus-titanicus')).toBe(false)
+})
+
+it('reads a missing ability from its faction library alias', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'aeldari.json'), {
+    name: 'Asuryani',
+    datasheets: [{ abilities: { faction: [{ name: { en: 'Disparate Paths' } }] } }],
+    detachments: [],
+  })
+  write(path.join(directory, 'definitions', 'Aeldari - Aeldari Library.json'), {
+    catalogue: { name: 'Aeldari - Aeldari Library', rules: [{ id: 'paths', name: 'Disparate Paths', description: 'One path.' }] },
+  })
+  expect(rules().supplementalArmyRules.get('asuryani')).toEqual([{ name: 'Disparate Paths', description: 'One path.' }])
+})
+
+it('rejects a conflicting catalogue army ability', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'orks.json'), {
+    name: 'Orks',
+    datasheets: [{ abilities: { faction: [{ name: { en: 'Waaagh!' } }] } }],
+    detachments: [],
+  })
+  write(path.join(directory, 'definitions', 'Orks.json'), {
+    catalogue: {
+      name: 'Xenos - Orks',
+      rules: [
+        { id: 'first', name: 'Waaagh!', description: 'First wording.' },
+        { id: 'second', name: 'Waaagh!', description: 'Conflicting wording.' },
+      ],
+    },
+  })
+  expect(rules().supplementalArmyRules.has('orks')).toBe(false)
+})
+
+it('uses an exact Game Datacards ability definition omitted from a faction file', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'titan.json'), {
+    name: 'Adeptus Titanicus',
+    datasheets: [{ abilities: { faction: [{ name: { en: 'Super-heavy Walker' } }] } }],
+    detachments: [],
+  })
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'keywords.json'), {
+    keywords: [
+      { name: 'Super-heavy Walker', description: 'Walk through terrain.', matchType: 'exact', appliesTo: ['abilities'] },
+      { name: 'Super-heavy Walker', description: 'Unrelated keyword.', matchType: 'exact', appliesTo: ['keywords'] },
+    ],
+  })
+  expect(rules().supplementalArmyRules.get('adeptus-titanicus')).toEqual([
+    { name: 'Super-heavy Walker', description: 'Walk through terrain.' },
+  ])
+})
+
+it('leaves conflicting Game Datacards ability definitions unresolved', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'titan.json'), {
+    name: 'Adeptus Titanicus',
+    datasheets: [{ abilities: { faction: [{ name: { en: 'Super-heavy Walker' } }] } }],
+    detachments: [],
+  })
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'keywords.json'), {
+    keywords: [
+      { name: 'Super-heavy Walker', description: 'First wording.', matchType: 'exact', appliesTo: ['abilities'] },
+      { name: 'Super-heavy Walker', description: 'Second wording.', matchType: 'exact', appliesTo: ['abilities'] },
+    ],
+  })
+  expect(rules().supplementalArmyRules.has('adeptus-titanicus')).toBe(false)
+})
+
+it('joins an army rule despite differences in name capitalization', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'drukhari.json'), {
+    name: 'Drukhari',
+    datasheets: [{ abilities: { faction: [{ name: { en: 'Power from Pain' } }] } }],
+    detachments: [],
+    rules: { army: [{ name: { en: 'Power From Pain' }, rules: [{ type: 'text', text: { en: 'Gain pain tokens.' } }] }] },
+  })
+  expect(rules().factionRules.get('drukhari')?.name).toBe('Power From Pain')
+})
+
+it('finds the primary from its declared force disposition pairing', () => {
+  expect(missionFor(rules(), 'disruption', 'take-and-hold', 'chapter-approved')).toMatchObject({
+    id: 'primary-1',
+    roundCap: 15,
+    gameCap: 45,
+    deploymentIds: ['deploy-1'],
+    fixedSecondaryCap: 20,
+  })
+})
+
+it('keeps a selected pack from falling through to another pack', () => {
+  expect(missionFor(rules(), 'disruption', 'take-and-hold', 'other-pack')).toBeNull()
+})
+
+it('schedules only scoring moments declared by the card', () => {
+  expect(rules().primaries[0]?.awards).toEqual([
+    expect.objectContaining({
+      vp: 5,
+      per: 'each',
+      criteria: 'For each objective you control.',
+      trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: 2, roundMax: 3 },
+    }),
+  ])
+})
+
+it('keeps deployments named without inventing their missing polygons', () => {
+  expect(rules().deployments).toEqual([{ id: 'deploy-1', name: 'Tipping Point', description: null, zones: [], objectives: [] }])
+})
+
+it('keeps a layout unavailable when its exact terrain geometry is missing', () => {
+  expect(rules().terrainLayouts).toEqual([
+    expect.objectContaining({
+      id: 'layout-1',
+      matchupId: 'disruption-vs-take-and-hold',
+      deploymentId: 'deploy-1',
+      geometry: null,
+    }),
+  ])
+})
+
+it('matches the pinned Battlemaster slot to its Game Datacards layout', () => {
+  const id = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
+  write(path.join(directory, 'battlemaster', 'catalog.json'), { layouts: [{ id }] })
+  write(path.join(directory, 'battlemaster', 'layouts', `${id}.json`), {
+    layout: { id, chapterApprovedSlot: { archetypeA: 'disruption', archetypeB: 'take-and-hold', slotIndex: 1 } },
+    terrain: [
+      {
+        name: 'Area AB',
+        footprint: { origin: { x: 0, y: 0 }, widthIn: 4, heightIn: 4, rotationDeg: 0 },
+        outline: {
+          points: [
+            { x: 0, y: 0 },
+            { x: 4, y: 0 },
+            { x: 4, y: 4 },
+          ],
+        },
+        parts: [],
+      },
+    ],
+  })
+  expect(rules().terrainLayouts[0]?.geometry?.areas[0]?.points).toEqual([
+    { x: 30, y: 22 },
+    { x: 34, y: 22 },
+    { x: 34, y: 18 },
+  ])
+})
+
+it('reads deployment zones and objectives from its matched Battlemaster detail', () => {
+  const id = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
+  write(path.join(directory, 'battlemaster', 'catalog.json'), { layouts: [{ id }] })
+  write(path.join(directory, 'battlemaster', 'layouts', `${id}.json`), {
+    layout: { id, chapterApprovedSlot: { archetypeA: 'disruption', archetypeB: 'take-and-hold', slotIndex: 1 } },
+    terrain: [
+      {
+        name: 'Area AB',
+        footprint: { origin: { x: 0, y: 0 }, widthIn: 4, heightIn: 4, rotationDeg: 0 },
+        outline: {
+          points: [
+            { x: 0, y: 0 },
+            { x: 4, y: 0 },
+            { x: 4, y: 4 },
+          ],
+        },
+        parts: [],
+      },
+    ],
+    deployment: {
+      name: 'TIPPING POINT',
+      board: { widthIn: 60, heightIn: 44 },
+      zones: [
         {
-          name: { en: 'Space Marine Chapters' },
-          rules: [
+          role: 'attacker',
+          points: [
+            { x: -30, y: 22 },
+            { x: -20, y: 22 },
+            { x: -30, y: 12 },
+          ],
+        },
+        {
+          role: 'defender',
+          points: [
+            { x: 30, y: -22 },
+            { x: 20, y: -22 },
+            { x: 30, y: -12 },
+          ],
+        },
+      ],
+      objectives: [
+        { center: { x: 0, y: 0 } },
+        { center: { x: -20, y: 12 } },
+        { center: { x: 20, y: -12 } },
+        { center: { x: -10, y: -12 } },
+        { center: { x: 10, y: 12 } },
+      ],
+    },
+  })
+  expect(rules().deployments[0]).toMatchObject({
+    zones: [
+      {
+        player: 'attacker',
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 0, y: 10 },
+        ],
+      },
+      {
+        player: 'defender',
+        points: [
+          { x: 60, y: 44 },
+          { x: 50, y: 44 },
+          { x: 60, y: 34 },
+        ],
+      },
+    ],
+    objectives: [
+      { x: 30, y: 22 },
+      { x: 10, y: 10 },
+      { x: 50, y: 34 },
+      { x: 20, y: 34 },
+      { x: 40, y: 10 },
+    ],
+  })
+})
+
+it('does not schedule an unrecognized scoring time', () => {
+  const value = JSON.parse(fs.readFileSync(pack(), 'utf8'))
+  value.secondaryMissions[0].objectives[0].whenText.en = 'At an unspecified time.'
+  write(pack(), value)
+  expect(rules().secondaries[0]?.awards).toEqual([])
+})
+
+it('keeps optional first-round redraws optional', () => {
+  const cards = missionCardsFromDatacards([
+    {
+      secondaryMissions: [
+        {
+          id: 'optional',
+          name: { en: 'Forward Position' },
+          description: {
+            en: '**WHEN DRAWN:** If it is the first battle round, you can draw one new **Secondary Mission** card and shuffle this card back into your **Secondary Mission** deck.',
+          },
+          objectives: [],
+        },
+      ],
+    },
+  ])
+  expect(cards.secondaries[0]?.whenDrawn).toEqual({ operation: 'redraw', roundMax: 1, required: false, heldCards: [], condition: null })
+})
+
+it('requires a first-round return only when the source requires it', () => {
+  const cards = missionCardsFromDatacards([
+    {
+      secondaryMissions: [
+        {
+          id: 'required',
+          name: { en: 'Defend Stronghold' },
+          description: {
+            en: '**WHEN DRAWN:** If it is the first battle round, draw one new **Secondary Mission** card and shuffle this card back into your **Secondary Mission** deck.',
+          },
+          objectives: [],
+        },
+      ],
+    },
+  ])
+  expect(cards.secondaries[0]?.whenDrawn?.required).toBe(true)
+})
+
+it('preserves the fifth-round fallback on opponent-turn secondaries', () => {
+  const cards = missionCardsFromDatacards([
+    {
+      secondaryMissions: [
+        {
+          id: 'beacon',
+          name: { en: 'Beacon' },
+          objectives: [
             {
-              order: 1,
-              type: 'text',
-              text: { en: 'Your army cannot include any of the following units: **SCOUT SQUAD**; **TACTICAL SQUAD**.' },
+              whenText: { en: 'End of your opponent’s turn or the end of the fifth battle round (whichever comes first).' },
+              scoring: [{ scoringCriteria: { en: 'Hold the beacon.' }, victoryPoints: 5 }],
             },
           ],
         },
       ],
     },
-  })
-  write(path.join(datacards, 'spacemarines.json'), {
-    name: 'Adeptus Astartes',
-    datasheets: [],
-    detachments: [
-      {
-        name: { en: 'Stormlance Task Force' },
-        detachmentPoints: 3,
-        detachmentPointsOverrides: [{ faction: 'Imperial Fists', detachmentPoints: 2 }],
-        forceDisposition: { name: { en: 'Priority Assets' } },
-      },
-    ],
-    enhancements: [
-      { name: { en: 'Tempête Relic' }, detachment: 'Stormlance Task Force', cost: '20', description: { en: 'Move swiftly.' } },
-    ],
-  })
-  write(path.join(datacards, 'newxenos.json'), {
-    name: 'New Xenos',
-    datasheets: [],
-    detachments: [
-      {
-        name: { en: 'Uncharted Host' },
-        detachmentPoints: 2,
-        forceDisposition: { name: { en: 'Disruption' } },
-      },
-    ],
-    enhancements: [{ name: { en: 'Unknown Relic' }, detachment: 'Uncharted Host', cost: '15', description: { en: 'Do something.' } }],
-  })
-  write(path.join(datacards, 'core.json'), {
-    stratagems: [
-      {
-        name: { en: 'Command Re-roll' },
-        type: 'Core Stratagem',
-        fluff: { en: 'Bend fate to your will.' },
-        when: { en: 'Any phase.' },
-        target: { en: 'That unit or model.' },
-        effect: { en: 'Re-roll that roll.' },
-        restrictions: { en: 'One re-roll.' },
-      },
-      {
-        name: { en: 'Counteroffensive' },
-        type: 'Core Stratagem',
-        when: { en: 'Fight phase.' },
-        effect: { en: 'Fight next.' },
-      },
-      {
-        id: 'new-orders',
-        name: { en: 'New Orders' },
-        cost: 1,
-        turn: 'your',
-        phase: ['command'],
-        type: 'Strategic Ploy',
-        when: { en: 'End of your Command phase.' },
-        target: { en: 'One of your active Secondary Mission cards.' },
-        effect: { en: 'Discard it and draw one new Secondary Mission card.' },
-      },
-    ],
-  })
-  write(path.join(root, 'mission-cards.json'), [
-    {
-      id: 'assassination',
-      name: 'Assassination',
-      card_type: 'secondary',
-      awards: [
-        { vp: 5, mode: 'tactical' },
-        { vp_per: 3, per: 'kill' },
-      ],
-    },
-    { id: 'battlefield-dominance', name: 'Battlefield Dominance', card_type: 'primary', awards: [{ vp: 2 }] },
   ])
-  write(path.join(root, 'missions.json'), [
-    {
-      id: 'death-trap',
-      name: 'Death Trap',
-      vp_per_round_cap: 15,
-      vp_per_game_cap: 45,
-      secondary_vp_per_round_cap: 15,
-      secondary_vp_per_game_cap: 45,
-    },
-    {
-      id: 'vital-link',
-      name: 'Vital Link',
-      vp_per_round_cap: 15,
-      vp_per_game_cap: 45,
-      secondary_vp_per_round_cap: 15,
-      secondary_vp_per_game_cap: 45,
-    },
-  ])
-  write(path.join(root, 'mission-matchups.json'), [
-    { disposition: 'disruption', opponent_disposition: 'take-and-hold', mission_id: 'death-trap' },
-    { disposition: 'take-and-hold', opponent_disposition: 'disruption', mission_id: 'vital-link' },
-  ])
-  write(path.join(root, 'force-dispositions.json'), [{ id: 'disruption', name: 'Disruption' }])
-  write(path.join(root, 'deployment-patterns.json'), [
-    {
-      id: 'tipping-point',
-      name: 'Tipping Point',
-      zones: [
-        { player: 'defender', name: 'Defender', color: '#00f', position: { x: 0, y: 0 }, shape: { points: box(20, 44) } },
-        { player: 'attacker', name: 'Attacker', color: '#f00', position: { x: 40, y: 0 }, shape: { points: box(20, 44) } },
-      ],
-      objectives: [{ x: 30, y: 22 }],
-    },
-  ])
-})
-
-afterEach(() => fs.rmSync(directory, { recursive: true, force: true }))
-
-const write = (file: string, value: unknown) => fs.writeFileSync(file, JSON.stringify(value))
-const box = (width: number, height: number) => [
-  { x: 0, y: 0 },
-  { x: width, y: 0 },
-  { x: width, y: height },
-  { x: 0, y: height },
-]
-
-const load = () => loadRules(directory, undefined, path.join(directory, 'faction-icons'), path.join(directory, 'datacards', '11th', 'gdc'))!
-
-describe('stratagems', () => {
-  it('finds parent-faction detachment semantics in a declared child faction', () => {
-    expect(hasDetachmentSemantics(load(), { faction: 'Adeptus Astartes', name: 'Stormlance Task Force' })).toBe(true)
-  })
-
-  it('does not find same-named detachment semantics in an unrelated faction', () => {
-    expect(hasDetachmentSemantics(load(), { faction: 'Adeptus Astartes', name: 'Flyblown Host' })).toBe(false)
-  })
-
-  it('keeps descriptions that supplement datasheet abilities', () => {
-    expect(load().abilityDescriptions.get('oath-of-moment')).toBe('Re-roll Hit rolls.')
-  })
-
-  it('keeps the player-facing faction name', () => {
-    expect(load().factionNames.get('death-guard')).toBe('Death Guard')
-  })
-
-  it('reads faction restrictions from army rules', () => {
-    expect(load().factionRestrictions.get('deathwatch')).toEqual({
-      excludedNames: new Map([
-        ['scout squad', null],
-        ['tactical squad', null],
-      ]),
-      excludedKeywords: new Set(),
-    })
-  })
-
-  it('keeps the local faction icon path', () => {
-    expect(load().factionIcons.get('death-guard')).toMatch(/^data:image\/svg\+xml;base64,/)
-  })
-
-  it('uses a faction icon for its aliases', () => {
-    expect(load().factionIcons.get('plague-marines')).toBe(load().factionIcons.get('death-guard'))
-  })
-
-  it('keeps the named army rule for the faction and its aliases', () => {
-    expect(load().factionRules.get('plague-marines')).toEqual({ name: 'Oath of Moment', description: 'Re-roll Hit rolls.' })
-  })
-
-  it('uses the pinned upstream icon while an older snapshot has no local copy', () => {
-    expect(load().factionIcons.get('orks')).toBe('https://cdn.jsdelivr.net/example/orks.svg')
-  })
-
-  it('keeps the reference metadata for each detachment', () => {
-    expect(load().detachmentReferences.get('death-guard')?.get('flyblown-host')).toEqual({
-      enhancements: 2,
-      upgrades: 1,
-      stratagems: 2,
-      points: 1,
-      dispositions: ['take-and-hold'],
-    })
-  })
-
-  it('reads shared construction values from a declared parent faction', () => {
-    expect(load().detachmentReferences.get('imperial-fists')?.get('stormlance-task-force')).toMatchObject({
-      points: 2,
-      dispositions: ['priority-assets'],
-      enhancements: 1,
-      stratagems: 1,
-    })
-    expect(load().detachmentDetails.get('imperial-fists')?.get('stormlance-task-force')).toMatchObject({
-      enhancements: [{ name: 'Tempête Relic', points: 20, keywordRestrictions: ['Character'] }],
-      stratagems: [expect.objectContaining({ name: 'Ride The Winds', cp: 1 })],
-    })
-  })
-
-  it('inherits a parent enhancement overlay when the child repeats only the detachment', () => {
-    expect(load().detachmentDetails.get('raven-guard')?.get('stormlance-task-force')?.enhancements).toEqual([
-      expect.objectContaining({ name: 'Tempête Relic', keywordRestrictions: ['Character'] }),
-    ])
-  })
-
-  it('keeps the detail needed by the detachment reference page', () => {
-    expect(load().detachmentDetails.get('death-guard')?.get('flyblown-host')).toMatchObject({
-      rules: [{ name: 'Virulent Vectorium', description: 'Spread disease.' }],
-      enhancements: [
-        { name: 'Living Plague Card', points: 25, description: 'Spread the plague.', keywordRestrictions: ['Character'] },
-        { name: 'Rejuvenating Swarm', points: 5, description: 'Return models.' },
-      ],
-      upgrades: [{ name: 'Virulent Carapace', points: 30, description: 'Improve the unit.' }],
-      stratagems: expect.arrayContaining([
-        expect.objectContaining({ name: 'Grim Reapers Card', cp: 1, description: '**Effect:** Cut them down.' }),
-      ]),
-    })
-  })
-
-  it('are grouped under the detachment that brings them', () => {
-    expect(load().byDetachment.get('death-guard')?.get('flyblown-host')).toHaveLength(2)
-  })
-
-  it('does not enumerate a detachment that only the semantic source names', () => {
-    const rules = load()
-    expect(rules.byDetachment.get('death-guard')?.get('plague-cohort')).toBeUndefined()
-    expect(rules.detachmentDetails.get('death-guard')?.get('plague-cohort')).toBeUndefined()
-    expect(rules.detachmentReferences.get('death-guard')?.get('plague-cohort')).toBeUndefined()
-  })
-
-  it('enumerates a Game Datacards detachment without inventing missing semantics', () => {
-    const rules = load()
-    expect(rules.detachmentDetails.get('death-guard')?.get('virulent-vectorium')).toMatchObject({
-      name: 'Virulent Vectorium',
-      points: 2,
-      rules: [{ name: 'Lord of Virulence', description: 'Spread farther.' }],
-      enhancements: [{ name: 'Daemon Weapon of Nurgle', points: 10, description: 'Corrupt it.', keywordRestrictions: null }],
-      stratagems: [],
-    })
-    expect(rules.byDetachment.get('death-guard')?.get('virulent-vectorium')).toBeUndefined()
-  })
-
-  it('uses a current Game Datacards stratagem when the rules source has no detachment', () => {
-    const file = path.join(directory, 'datacards', '11th', 'gdc', 'deathguard.json')
-    const cards = JSON.parse(fs.readFileSync(file, 'utf8'))
-    cards.stratagems.push({
-      id: 'virulent-intervention',
-      name: { en: 'Virulent Intervention' },
-      detachment: 'Virulent Vectorium',
-      cost: 2,
-      phase: ['shooting'],
-      turn: 'opponents',
-      type: 'Strategic Ploy',
-      effect: { en: 'Protect your unit.' },
-    })
-    write(file, cards)
-
-    const rules = load()
-    expect(rules.byDetachment.get('death-guard')?.get('virulent-vectorium')).toEqual([
-      {
-        key: 'virulent-intervention',
-        name: 'Virulent Intervention',
-        cp: 2,
-        limit: 'unlimited',
-        phases: ['shooting'],
-        turn: 'opponent-turn',
-      },
-    ])
-    expect(rules.detachmentDetails.get('death-guard')?.get('virulent-vectorium')?.stratagems).toEqual([
-      {
-        id: 'virulent-intervention',
-        name: 'Virulent Intervention',
-        cp: 2,
-        type: 'Strategic Ploy',
-        phases: ['shooting'],
-        turn: 'opponent-turn',
-        description: '**Effect:** Protect your unit.',
-      },
-    ])
-  })
-
-  it('does not offer a stale rules-source stratagem after its Game Datacards detachment changes', () => {
-    const file = path.join(directory, 'datacards', '11th', 'gdc', 'deathguard.json')
-    const cards = JSON.parse(fs.readFileSync(file, 'utf8'))
-    cards.stratagems = [
-      {
-        id: 'new-grim-reapers',
-        name: { en: 'New Grim Reapers' },
-        detachment: 'Flyblown Host',
-        cost: 1,
-        phase: ['fight'],
-        turn: 'your',
-        effect: { en: 'Cut them down.' },
-      },
-    ]
-    write(file, cards)
-
-    expect(
-      load()
-        .byDetachment.get('death-guard')
-        ?.get('flyblown-host')
-        ?.map((stratagem) => stratagem.name),
-    ).toEqual(['New Grim Reapers'])
-  })
-
-  it('does not restore stale stratagems when a current card has unreadable timing', () => {
-    const file = path.join(directory, 'datacards', '11th', 'gdc', 'deathguard.json')
-    const cards = JSON.parse(fs.readFileSync(file, 'utf8'))
-    cards.stratagems = [
-      {
-        id: 'unknown-timing',
-        name: { en: 'Unknown Timing' },
-        detachment: 'Flyblown Host',
-        cost: 1,
-        phase: ['deployment'],
-        turn: 'either',
-        effect: { en: 'Unknown effect.' },
-      },
-    ]
-    write(file, cards)
-
-    expect(load().byDetachment.get('death-guard')?.get('flyblown-host')).toBeUndefined()
-  })
-
-  it('enumerates a Game Datacards faction before the semantic source adds a directory', () => {
-    const rules = load()
-    expect(rules.factionNames.get('new-xenos')).toBe('New Xenos')
-    expect(rules.detachmentDetails.get('new-xenos')?.get('uncharted-host')).toMatchObject({
-      name: 'Uncharted Host',
-      points: 2,
-      enhancements: [{ name: 'Unknown Relic', points: 15, keywordRestrictions: null }],
-    })
-    expect(rules.byDetachment.get('new-xenos')).toBeUndefined()
-  })
-
-  it('counts a card reached both ways once', () => {
-    const found = load().byDetachment.get('death-guard')?.get('flyblown-host') ?? []
-    expect(found.map((stratagem) => stratagem.name)).toEqual(['Grim Reapers Card', "Mortarion's Teachings"])
-    // The copy filed under this detachment, not the one it merely names.
-    expect(found[0]?.key).toBe('grim-reapers-flyblown-host')
-  })
-
-  it('answer to every name the dataset gives the faction', () => {
-    // The catalogues call the Adeptus Astartes book Space Marines, and a whole
-    // faction's detachment points and stratagems went missing over the difference.
-    const rules = load()
-    const key = rulesFaction(rules, 'plague-marines')
-    expect(key).toBe('death-guard')
-    expect(rules.detachmentReferences.get(key)?.get('flyblown-host')?.points).toBe(1)
-    expect(rules.detachmentDetails.get(key)?.get('flyblown-host')?.name).toBe('Flyblown Host')
-    expect(rules.byDetachment.get(key)?.get('flyblown-host')).toHaveLength(2)
-  })
-
-  it('are filed once, so counting them whole counts each faction once', () => {
-    // Filing a faction under each of its names would have every reader that walks the
-    // whole map see it twice, which is what the description ratchet caught.
-    const rules = load()
-    expect([...rules.detachmentDetails.keys()]).toEqual([
-      'adeptus-astartes',
-      'death-guard',
-      'imperial-fists',
-      'raven-guard',
-      'deathwatch',
-      'new-xenos',
-    ])
-    expect(rulesFaction(rules, 'a-faction-nobody-has-heard-of')).toBe('a-faction-nobody-has-heard-of')
-  })
-
-  it('reports each missing construction join by its own kind', () => {
-    expect(load().constructionJoinIssues).toEqual([{ kind: 'detachment', faction: 'Death Guard', detachment: 'Plague Cohort' }])
-  })
-
-  it('does not report an exact enhancement join as a name fallback', () => {
-    expect(load().sourceJoinFallbacks).not.toContainEqual({
-      kind: 'enhancement',
-      faction: 'Death Guard',
-      detachment: 'Flyblown Host',
-      name: 'Living Plague Card',
-    })
-  })
-
-  it('reports a resolved exact enhancement join', () => {
-    expect(load().sourceJoinExacts).toContainEqual({
-      kind: 'enhancement',
-      faction: 'Death Guard',
-      detachment: 'Flyblown Host',
-      name: 'Living Plague Card',
-    })
-  })
-
-  it('reports an enhancement without an external reference as a name fallback', () => {
-    expect(load().sourceJoinFallbacks).toContainEqual({
-      kind: 'enhancement',
-      faction: 'Death Guard',
-      detachment: 'Flyblown Host',
-      name: 'Rejuvenating Swarm',
-    })
-  })
-
-  it('name the slug back when a stale rules object lacks the map', () => {
-    // A memoized rules object built before the map existed keeps no factionKeys.
-    // The reader must fall back to the slug rather than throw on the missing map.
-    const stale = {} as ReturnType<typeof load>
-    expect(rulesFaction(stale, 'death-guard')).toBe('death-guard')
-  })
-
-  it('take the usage limit the dataset states', () => {
-    const found = load().byDetachment.get('death-guard')?.get('flyblown-host')?.[0]
-    expect(found?.limit).toBe('phase')
-  })
-
-  it('fall back to unlimited rather than inventing a restriction', () => {
-    // Guessing here would stop a player using something they are entitled to.
-    const found = load().byDetachment.get('death-guard')?.get('flyblown-host')?.[1]
-    expect(found?.limit).toBe('unlimited')
-  })
-
-  it('are titled rather than shouted, apostrophes included', () => {
-    const found = load().byDetachment.get('death-guard')?.get('flyblown-host')?.[1]
-    expect(found?.name).toBe("Mortarion's Teachings")
-  })
-
-  it('include the ones every army has', () => {
-    // A card supplies its casing when the names agree; the semantic source keeps
-    // punctuation that the card source omitted.
-    expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-roll', 'Counter-Offensive', 'Insane Bravery', 'New Orders'])
-  })
-
-  it('reads core cards and descriptions from the verified Game Datacards path when the semantic source has a gap', () => {
-    expect(load().coreDetails).toEqual([
-      {
-        id: 'command-re-roll',
-        type: 'Core Stratagem',
-        description:
-          '**When:** Any phase.\n\n**Target:** That unit or model.\n\n**Effect:** Re-roll that roll.\n\n**Restrictions:** One re-roll.',
-      },
-      {
-        id: 'counter-offensive',
-        type: 'Core Stratagem',
-        description: '**When:** Fight phase.\n\n**Effect:** Fight next.',
-      },
-      {
-        id: 'new-orders',
-        type: 'Strategic Ploy',
-        description:
-          '**When:** End of your Command phase.\n\n**Target:** One of your active Secondary Mission cards.\n\n**Effect:** Discard it and draw one new Secondary Mission card.',
-      },
-    ])
-  })
-})
-
-describe('mission cards', () => {
-  it('separate the primary from the secondaries', () => {
-    expect(load().secondaries.map((card) => card.name)).toEqual(['Assassination'])
-  })
-
-  it('keep what each payout is worth', () => {
-    expect(load().secondaries[0]?.awards.map((award) => award.vp)).toEqual([5, 3])
-  })
-
-  it('keep which style of play a payout belongs to', () => {
-    expect(load().secondaries[0]?.awards[0]?.mode).toBe('tactical')
-  })
-
-  /**
-   * The action is printed by the datacards pack and the card is named by the rules
-   * source, and the two are joined by the card's name alone. They are separately
-   * maintained community sources, so a rename on either side has to fail here rather
-   * than silently dropping the action the card's points depend on.
-   */
-  it('carry the action their pack prints for them', () => {
-    const missions = path.join(directory, 'datacards', '11th', 'gdc', 'missions')
-    fs.mkdirSync(missions, { recursive: true })
-    write(path.join(missions, 'pack-a.json'), {
-      name: { en: 'Pack A' },
-      secondaryMissions: [
-        { name: { en: 'Assassination' }, actions: [{ name: { en: 'MARK THE TARGET' }, effectText: { en: 'Your unit marks it.' } }] },
-      ],
-    })
-
-    expect(load().secondaries[0]?.actions).toEqual([
-      {
-        name: 'MARK THE TARGET',
-        starts: null,
-        completes: null,
-        effect: 'Your unit marks it.',
-        units: null,
-        useLimit: null,
-        restriction: null,
-      },
-    ])
-  })
-
-  it('carry the instructions their pack prints without falling back to a paraphrase', () => {
-    const missions = path.join(directory, 'datacards', '11th', 'gdc', 'missions')
-    fs.mkdirSync(missions, { recursive: true })
-    write(path.join(missions, 'pack-a.json'), {
-      secondaryMissions: [
-        {
-          name: { en: 'Assassination' },
-          description: { en: '**WHEN DRAWN:** Select one enemy unit.' },
-          lore: { en: 'Atmospheric flavour.' },
-        },
-      ],
-    })
-
-    expect(load().secondaries[0]?.text).toBe('**WHEN DRAWN:** Select one enemy unit.')
-  })
-
-  it('carry no action for a card whose pack prints none', () => {
-    expect(load().secondaries[0]?.actions).toEqual([])
-  })
-})
-
-describe('the mission', () => {
-  it('belongs to the army whose disposition comes first', () => {
-    expect(missionFor(load(), 'take-and-hold', 'disruption')?.name).toBe('Vital Link')
-  })
-
-  it('carries the caps the mission itself states', () => {
-    expect(missionFor(load(), 'disruption', 'take-and-hold')).toMatchObject({
-      roundCap: 15,
-      gameCap: 45,
-      secondaryRoundCap: 15,
-      secondaryGameCap: 45,
-    })
-  })
-
-  /**
-   * The ceiling is printed by the datacards pack and the mission is named by the rules
-   * source, and the two are joined by the pack's name alone. They are separately
-   * maintained community sources, so a rename on either side has to fail here rather
-   * than silently stop enforcing the cap.
-   */
-  it('carries the per-card fixed ceiling its pack prints', () => {
-    const root = path.join(directory, 'data', 'core')
-    write(path.join(root, 'missions.json'), [{ id: 'pack-a-mission', name: 'Pack A Mission', source: 'Pack A' }])
-    write(path.join(root, 'mission-matchups.json'), [
-      { disposition: 'disruption', opponent_disposition: 'take-and-hold', mission_id: 'pack-a-mission' },
-    ])
-    const missions = path.join(directory, 'datacards', '11th', 'gdc', 'missions')
-    fs.mkdirSync(missions, { recursive: true })
-    write(path.join(missions, 'pack-a.json'), { name: { en: 'Pack A' }, fixedSecondaryMissionCapLimit: 20 })
-
-    expect(missionFor(load(), 'disruption', 'take-and-hold', 'pack-a')?.fixedSecondaryCap).toBe(20)
-  })
-
-  it('states no per-card ceiling for a pack that prints none', () => {
-    expect(missionFor(load(), 'disruption', 'take-and-hold')?.fixedSecondaryCap).toBeNull()
-  })
-
-  it('is absent until both dispositions are known', () => {
-    expect(missionFor(load(), 'disruption', null)).toBeNull()
-  })
-
-  it('constrains a matchup to the selected mission pack', () => {
-    const root = path.join(directory, 'data', 'core')
-    write(path.join(root, 'missions.json'), [
-      { id: 'pack-a-mission', name: 'Pack A Mission', source: 'Pack A' },
-      { id: 'pack-b-mission', name: 'Pack B Mission', source: 'Pack B' },
-    ])
-    write(path.join(root, 'mission-matchups.json'), [
-      { disposition: 'disruption', opponent_disposition: 'take-and-hold', mission_id: 'pack-a-mission' },
-      { disposition: 'disruption', opponent_disposition: 'take-and-hold', mission_id: 'pack-b-mission' },
-    ])
-
-    expect(missionFor(load(), 'disruption', 'take-and-hold', 'pack-b')?.name).toBe('Pack B Mission')
-  })
-
-  it('does not fall through to another modern mission pack', () => {
-    const root = path.join(directory, 'data', 'core')
-    write(path.join(root, 'missions.json'), [{ id: 'pack-a-mission', name: 'Pack A Mission', source: 'Pack A' }])
-    write(path.join(root, 'mission-matchups.json'), [
-      { disposition: 'disruption', opponent_disposition: 'take-and-hold', mission_id: 'pack-a-mission' },
-    ])
-
-    expect(missionFor(load(), 'disruption', 'take-and-hold', 'pack-b')).toBeNull()
-  })
-
-  it('keeps the unqualified mission fallback for legacy battles', () => {
-    expect(missionFor(load(), 'disruption', 'take-and-hold', null)?.name).toBe('Death Trap')
-  })
-})
-
-describe('a deployment pattern', () => {
-  it('offsets each zone by its own position', () => {
-    // Without this every zone piles into one corner, which is what the first
-    // drawing of the battlefield did.
-    const zones = load().deployments[0]?.zones ?? []
-    expect(zones.map((zone) => Math.min(...zone.points.map((point) => point.x)))).toEqual([0, 40])
-  })
-
-  it('keeps the objective markers', () => {
-    expect(load().deployments[0]?.objectives).toEqual([{ x: 30, y: 22 }])
-  })
-})
-
-describe('Battlemaster terrain geometry', () => {
-  it('resolves the current REST reference through the pinned catalog', () => {
-    const id = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
-    const root = path.join(directory, 'data', 'core')
-    write(path.join(root, 'terrain-layouts.json'), [
-      {
-        id: 'layout-a',
-        name: 'Take vs Disrupt 01',
-        mission_matchup_id: 'disruption-vs-take-and-hold',
-        description: 'Imported from Battlemaster REST API layout superwutz/take-vs-disrupt-01.',
-      },
-    ])
-    const battlemaster = path.join(directory, 'battlemaster')
-    fs.mkdirSync(path.join(battlemaster, 'layouts'), { recursive: true })
-    write(path.join(battlemaster, 'catalog.json'), {
-      layouts: [{ id, owner: 'owner-id', ownerUsername: 'superwutz', name: 'Take vs Disrupt 01' }],
-    })
-    write(path.join(battlemaster, 'layouts', `${id}.json`), {
-      layout: { id },
-      terrain: [
-        {
-          name: 'Area',
-          footprint: { origin: { x: 0, y: 0 }, widthIn: 10, heightIn: 10, rotationDeg: 0 },
-          outline: { points: box(10, 10) },
-          parts: [],
-        },
-      ],
-    })
-
-    expect(loadRules(directory, battlemaster)?.terrainLayouts[0]?.geometry?.areas).toHaveLength(1)
-  })
-
-  it('fails closed when a REST reference is ambiguous in the pinned catalog', () => {
-    const first = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
-    const second = 'terrain-fedcba98-7654-3210-fedc-ba9876543210'
-    const root = path.join(directory, 'data', 'core')
-    write(path.join(root, 'terrain-layouts.json'), [
-      {
-        id: 'layout-a',
-        name: 'Take vs Disrupt 01',
-        mission_matchup_id: 'disruption-vs-take-and-hold',
-        description: 'Imported from Battlemaster REST API layout superwutz/take-vs-disrupt-01.',
-      },
-    ])
-    const battlemaster = path.join(directory, 'battlemaster')
-    fs.mkdirSync(path.join(battlemaster, 'layouts'), { recursive: true })
-    write(path.join(battlemaster, 'catalog.json'), {
-      layouts: [
-        { id: first, ownerUsername: 'superwutz', name: 'Take vs Disrupt 01' },
-        { id: second, ownerUsername: 'superwutz', name: 'Take vs Disrupt 01' },
-      ],
-    })
-    for (const id of [first, second]) {
-      write(path.join(battlemaster, 'layouts', `${id}.json`), {
-        layout: { id },
-        terrain: [
-          {
-            name: 'Area',
-            footprint: { origin: { x: 0, y: 0 }, widthIn: 10, heightIn: 10, rotationDeg: 0 },
-            outline: { points: box(10, 10) },
-            parts: [],
-          },
-        ],
-      })
-    }
-
-    expect(loadRules(directory, battlemaster)?.terrainLayouts[0]?.geometry).toBeNull()
-  })
-
-  it('accepts the current detail identity used by the public API', () => {
-    const id = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
-    const root = path.join(directory, 'data', 'core')
-    write(path.join(root, 'terrain-layouts.json'), [
-      {
-        id: 'layout-a',
-        name: 'Layout A',
-        mission_matchup_id: 'disruption-vs-take-and-hold',
-        description: `Imported from Battlemaster layout ${id}.`,
-        pieces: [{ id: 'area-01', position: { x: 0, y: 0 }, is_objective: true, link_group: 'center' }],
-      },
-    ])
-    const battlemaster = path.join(directory, 'battlemaster', 'layouts')
-    fs.mkdirSync(battlemaster, { recursive: true })
-    write(path.join(battlemaster, `${id}.json`), {
-      format: 'battlemaster.data.layout',
-      layout: { links: { page: `https://battlemaster.online/community/layout/owner/${id}` } },
-      terrain: [
-        {
-          name: 'Area AB',
-          footprint: { origin: { x: 0, y: 0 }, widthIn: 10, heightIn: 10, rotationDeg: 0 },
-          outline: { points: box(10, 10) },
-          parts: [],
-        },
-      ],
-    })
-
-    const rules = loadRules(directory, path.join(directory, 'battlemaster'))!
-
-    expect(rules.terrainLayouts[0]?.geometry?.areas[0]).toMatchObject({
-      id: 'area-1',
-      markers: [{ label: 'AB', position: { x: 35, y: 17 } }],
-      objective: { position: { x: 0, y: 0 }, group: 'center' },
-    })
-  })
+  expect(cards.secondaries[0]?.awards[0]?.trigger.timing).toBe('end-of-turn-or-final-round')
 })

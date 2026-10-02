@@ -130,7 +130,7 @@ function assemble(
 
   if (requestedModels === undefined || !size.path.length || requestedModels === size.models) {
     const fitted = refit(toggled, index, 1, context)
-    return finishUnit(entryId, fitted, size, index, context)
+    return finishUnit(entryId, settleProfileWeaponSwaps(fitted, index, context), size, index, context)
   }
 
   const wanted = Math.min(Math.max(requestedModels, size.min), size.max)
@@ -139,7 +139,36 @@ function assemble(
   const resizedModel = `${size.path.join('/')}/`
   const restored = requests.filter(([key]) => key.startsWith(resizedModel) && !modelGroup(key)).reduce(applySpread, resized)
   const selection = refit(restored, index, 1, context)
-  return finishUnit(entryId, selection, { ...size, models: wanted }, index, context)
+  return finishUnit(entryId, settleProfileWeaponSwaps(selection, index, context), { ...size, models: wanted }, index, context)
+}
+
+function settleProfileWeaponSwaps(selection: Selection, index: CatalogueIndex, context: BuildContext = {}): Selection {
+  const roster = context.roster?.includes(selection) ? context.roster : [...(context.roster ?? []), selection]
+  const updates: { path: string[]; count: number }[] = []
+  const walk = (node: Selection, path: string[]) => {
+    const definition = index.definitions.get(node.id)
+    const target = definition && resolve(definition, index)
+    if (target && (target.type === 'model' || path.length === 0)) {
+      for (const child of childrenOf(target, index)) {
+        if (
+          !child.definition.modifiers?.some(
+            (modifier) =>
+              (modifier.field.startsWith('profile-default-') || modifier.field.startsWith('profile-swap-')) &&
+              modifier.conditions?.some((condition) => condition.scope === 'roster'),
+          )
+        )
+          continue
+        const required = requiredCount(child.definition, index, { ...context, roster })
+        const maximum = maximumCount(child.definition, index, { ...context, roster })
+        if (required !== maximum) continue
+        const childPath = [...path, child.id]
+        if (countAt(selection, childPath) !== required) updates.push({ path: childPath, count: required })
+      }
+    }
+    for (const child of node.selections ?? []) walk(child, [...path, child.id])
+  }
+  walk(selection, [])
+  return updates.length ? withCounts(selection, updates) : selection
 }
 
 /** Fixed model-count alternatives offered by a unit-composition choice. */

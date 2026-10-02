@@ -315,10 +315,9 @@ export type Stratagem = {
   detachment?: string
 }
 
-/** How often a stratagem may be used. `phase` and `turn` reset; `battle` does not. */
-export type StratagemLimit = 'phase' | 'turn' | 'battle' | 'unlimited'
-
-export const STRATAGEM_LIMITS: StratagemLimit[] = ['phase', 'turn', 'battle', 'unlimited']
+/** How often a stratagem may be used. Every limit except `battle` resets at its named boundary. */
+export const STRATAGEM_LIMITS = ['phase', 'turn', 'battle-round', 'battle', 'unlimited'] as const
+export type StratagemLimit = (typeof STRATAGEM_LIMITS)[number]
 
 /**
  * The last section of setup, which is what a `set-setup-step` may name.
@@ -500,7 +499,7 @@ export function formatRules(limit: number | null): FormatRule[] {
       pointsLimit,
       { id: 'detachments', label: 'One detachment', hint: 'The roster is built from exactly one detachment' },
       { id: 'kotc-infantry', label: 'Two Infantry units', hint: 'The roster holds at least two Infantry units' },
-      { id: 'kotc-warlord', label: 'A Warlord', hint: 'One unit is named as the Warlord' },
+      { id: 'kotc-warlord', label: 'Character Warlord', hint: 'Exactly one Character unit is named as the Warlord' },
       { id: 'kotc-epic-heroes', label: 'No Epic Heroes', hint: 'Datasheets with the Epic Hero keyword may not be taken' },
       { id: 'kotc-toughness', label: 'Toughness cap', hint: 'Nothing above Toughness 9, and at most one Toughness 9 unit' },
       {
@@ -1963,6 +1962,7 @@ function limitReached(player: PlayerState, stratagem: Stratagem, state: BattleSt
   if (stratagem.limit === 'unlimited') return false
   const uses = player.uses.filter((use) => use.key === stratagem.key)
   if (stratagem.limit === 'battle') return uses.length > 0
+  if (stratagem.limit === 'battle-round') return uses.some((use) => use.round === state.round)
   const thisTurn = uses.filter((use) => use.round === state.round && use.turn === state.activePlayerId)
   return stratagem.limit === 'turn' ? thisTurn.length > 0 : thisTurn.some((use) => use.phase === state.phase)
 }
@@ -1978,7 +1978,7 @@ function stratagemRefusal(state: BattleState, player: PlayerState, stratagem: St
   const cost = overriddenCost ?? stratagem.cp
   if (!Number.isInteger(cost) || cost < 0 || cost > STRATAGEM_CP_MAX) return 'that is not a possible cost'
   if (player.cp < cost) return 'not enough command points'
-  if (limitReached(player, stratagem, state)) return `${stratagem.name} has been used this ${stratagem.limit}`
+  if (limitReached(player, stratagem, state)) return `${stratagem.name} has been used this ${stratagem.limit.replace('-', ' ')}`
   return null
 }
 

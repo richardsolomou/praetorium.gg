@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { bookOf, card, points, withCards } from './catalogue.fixtures'
 import { datacardJoinOutcome, datacardJoinReport, datacardOf } from './datasheetJoin'
-import { indexExternalReferences } from './externalReferences'
 
 const book = () =>
   bookOf({
@@ -56,39 +55,11 @@ describe('the join from a datasheet to its card', () => {
     expect(datacardOf(loaded, 'cat', 'captain')).toEqual({ details: card(), own: true, method: 'name' })
   })
 
-  it('prefers an exact reference over a same-named card', () => {
-    const loaded = book()
-    const exact = withCards('Test catalogue', new Map([['Different Card Name', card({ baseSize: '80mm' })]]))
-    exact.datasheetIds = new Map([['card-rhino', card({ baseSize: '80mm' })]])
-    loaded.factionContents.set('test-catalogue', exact)
-    loaded.factionContents.set('other', withCards('Other', new Map([['Rhino', card({ baseSize: '60mm' })]])))
-    loaded.sourceReferences.units = indexExternalReferences([
-      {
-        id: 'semantic-rhino',
-        external_refs: [
-          { namespace: 'bsdata', id: 'rhino' },
-          { namespace: 'game-datacards', id: 'card-rhino' },
-        ],
-      },
-    ])
+  it('joins a datacard name that uses a nonbreaking hyphen', () => {
+    const loaded = bookOf({ selectionEntries: [{ id: 'bommer', name: 'Blitza-bommer', type: 'model' }] })
+    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', new Map([['Blitza‑bommer', card({ baseSize: '120mm' })]])))
 
-    expect(datacardOf(loaded, 'cat', 'rhino')).toEqual({ details: card({ baseSize: '80mm' }), own: true, method: 'external-ref' })
-  })
-
-  it('falls back by name when the referenced card is absent', () => {
-    const loaded = book()
-    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Rhino']))
-    loaded.sourceReferences.units = indexExternalReferences([
-      {
-        id: 'semantic-rhino',
-        external_refs: [
-          { namespace: 'bsdata', id: 'rhino' },
-          { namespace: 'game-datacards', id: 'missing-card' },
-        ],
-      },
-    ])
-
-    expect(datacardOf(loaded, 'cat', 'rhino')?.method).toBe('name')
+    expect(datacardOf(loaded, 'cat', 'bommer')?.details.baseSize).toBe('120mm')
   })
 
   it('names every datasheet and card the join could not carry across', () => {
@@ -101,9 +72,8 @@ describe('the join from a datasheet to its card', () => {
         { faction: 'Test catalogue', name: 'Plague Walker' },
       ],
       datacardsOnly: [{ faction: 'Test catalogue', name: 'Land Raider' }],
-      exact: 0,
       factionsWithoutArmyRules: ['Test catalogue'],
-      fallbacks: [{ faction: 'Test catalogue', name: 'Rhino' }],
+      nameJoins: [{ faction: 'Test catalogue', name: 'Rhino' }],
       nonMatchedPlayCatalogueOnly: [],
     })
   })

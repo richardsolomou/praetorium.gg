@@ -17,7 +17,7 @@ export function CombatSimulator() {
       />
       <PageContent>
         <CombatSimulatorMatchup />
-        <p className="mt-3 text-xs text-faint">Data provided by game-datacards, BSData, and the 40kdc community contributors.</p>
+        <p className="mt-3 text-xs text-faint">Data provided by game-datacards and BSData.</p>
       </PageContent>
     </main>
   )

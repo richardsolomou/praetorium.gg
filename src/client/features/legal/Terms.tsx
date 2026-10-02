@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function Terms() {
   return (
-    <LegalPage title="Terms of service" updated="26 September 2026">
+    <LegalPage title="Terms of service" updated="2 October 2026">
       <LegalSection title="The service">
         <p>
           Praetorium at praetorium.gg helps you build Warhammer 40,000 army lists and track games between the players seated at them. Using
@@ -44,9 +44,12 @@ export function Terms() {
 
       <LegalSection title="Game data and trademarks">
         <p>
-          Unit, points and rules data comes from community projects including BSData and the Tabletop Developer Consortium under their own
-          licences. Warhammer 40,000 and related marks belong to Games Workshop. Praetorium is unofficial and is not endorsed by or
-          affiliated with Games Workshop; nothing here is an official product or rules reference.
+          Unit, points and rules data comes from the community projects listed on the{' '}
+          <a href="/sources" className="text-info hover:text-parchment">
+            data sources page
+          </a>
+          . Each source retains its rights in its work. Warhammer 40,000 and related marks belong to Games Workshop. Praetorium is
+          unofficial and is not endorsed by or affiliated with Games Workshop; nothing here is an official product or rules reference.
         </p>
       </LegalSection>
 

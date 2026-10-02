@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { deploymentZoneClass, TerrainBoard } from './TerrainBoard'
 import type { TerrainGeometry } from './terrainGeometry'
 
+const board = { width: 60, height: 44 }
+
 describe('deployment zone theme colors', () => {
   it('uses red for the attacker and green for the defender', () => {
     expect(deploymentZoneClass('attacker')).toBe('fill-side-a/20 stroke-side-a')
@@ -24,6 +26,7 @@ describe('terrain material colours', () => {
     ]
     const materials = ['dense', 'dense', 'light', 'light', 'unknown']
     const geometry: TerrainGeometry = {
+      board,
       areas: [
         {
           id: 'area',
@@ -59,6 +62,58 @@ describe('terrain material colours', () => {
       'fill-bone/10 stroke-bone',
     ])
   })
+})
+
+it('draws a square board upright at its own size', () => {
+  const markup = renderToStaticMarkup(
+    createElement(TerrainBoard, {
+      layout: { name: 'Colosseum', pieces: [], geometry: { board: { width: 36, height: 36 }, areas: [terrainArea('area')] } },
+      templates: [],
+    }),
+  )
+  expect(markup).toContain('viewBox="0 0 36 36"')
+})
+
+it('keeps both deployment measurements within a square board', () => {
+  const geometry: TerrainGeometry = {
+    board: { width: 36, height: 36 },
+    areas: [
+      {
+        ...terrainArea('area'),
+        measurements: [
+          { from: { x: 36, y: 8 }, to: { x: 28, y: 8 } },
+          { from: { x: 0, y: 28 }, to: { x: 8, y: 28 } },
+        ],
+      },
+    ],
+  }
+  const markup = renderToStaticMarkup(
+    createElement(TerrainBoard, { layout: { name: 'Colosseum', pieces: [], geometry }, templates: [], detailed: true }),
+  )
+  expect(
+    [...markup.matchAll(/<line x1="([^"]+)" y1="([^"]+)" x2="([^"]+)" y2="([^"]+)"[^>]+marker-end=/g)].map((line) =>
+      line.slice(1).map(Number),
+    ),
+  ).toEqual([
+    [8, 0, 8, 8],
+    [28, 36, 28, 28],
+  ])
+})
+
+it('credits the publisher whose diagrams a traced layout follows', () => {
+  const markup = renderToStaticMarkup(
+    createElement(TerrainBoard, {
+      layout: {
+        name: 'Colosseum',
+        pieces: [],
+        geometry: { board: { width: 36, height: 36 }, areas: [] },
+        publisherUrl: 'https://playontabletop.com/kotc/',
+      },
+      templates: [],
+      detailed: true,
+    }),
+  )
+  expect(markup).toContain('href="https://playontabletop.com/kotc/"')
 })
 
 const rectangle = (x: number, y: number, width: number, height: number) => [
@@ -97,6 +152,7 @@ function renderBoard(geometry: TerrainGeometry, detailed: boolean, flipped = fal
 describe('source-backed battlefield annotations', () => {
   it.each([false, true])('shows the grouped unlettered objective, not lettered non-objectives (detailed: %s)', (detailed) => {
     const geometry: TerrainGeometry = {
+      board,
       areas: [
         { ...terrainArea('lettered'), markers: [{ label: 'AB', position: { x: 12, y: 12 } }] },
         { ...terrainArea('left'), objective: { position: { x: 25, y: 20 }, group: 'center' } },
@@ -110,7 +166,7 @@ describe('source-backed battlefield annotations', () => {
   })
 
   it('does not substitute deployment objectives when terrain has no objectives', () => {
-    const markup = renderBoard({ areas: [terrainArea('area')] }, true)
+    const markup = renderBoard({ board, areas: [terrainArea('area')] }, true)
     expect(markup).not.toContain('<title>Objective terrain</title>')
     expect(markup).not.toContain('translate(1 1)')
   })
@@ -121,7 +177,11 @@ describe('source-backed battlefield annotations', () => {
       { from: { x: 18, y: 0 }, to: { x: 18, y: 10 } },
       { from: { x: 18, y: 44 }, to: { x: 18, y: 16.402 } },
     ]
-    const markup = renderBoard({ areas: [{ ...terrainArea('area'), measurements: [...measurements, measurements[0]!] }] }, true, flipped)
+    const markup = renderBoard(
+      { board, areas: [{ ...terrainArea('area'), measurements: [...measurements, measurements[0]!] }] },
+      true,
+      flipped,
+    )
     const rulers = [...markup.matchAll(/<line x1="([^"]+)" y1="([^"]+)" x2="([^"]+)" y2="([^"]+)"[^>]+marker-end=/g)]
     const coordinates = rulers.map((ruler) => ruler.slice(1).map(Number))
     expect(coordinates).toEqual(
@@ -144,7 +204,7 @@ describe('source-backed battlefield annotations', () => {
 
   it('keeps preview maps free of setup rulers', () => {
     const markup = renderBoard(
-      { areas: [{ ...terrainArea('area'), measurements: [{ from: { x: 0, y: 10 }, to: { x: 18, y: 10 } }] }] },
+      { board, areas: [{ ...terrainArea('area'), measurements: [{ from: { x: 0, y: 10 }, to: { x: 18, y: 10 } }] }] },
       false,
     )
     expect(markup).not.toContain('marker-end=')

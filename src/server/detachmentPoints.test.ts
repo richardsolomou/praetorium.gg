@@ -81,6 +81,16 @@ it('keeps a present Game Datacards cost authoritative', () => {
   expect(detachmentPoints(loaded, 'cat', 'anvil', { points: 1 })).toBe(1)
 })
 
+it('uses MFM DP above an older card and catalogue cost', () => {
+  const current = {
+    ...loaded,
+    mfm: new Map([
+      ['test-catalogue', { slug: 'test-catalogue', version: '1.5', units: [], detachments: [{ name: 'Anvil Siege Force', dp: 3 }] }],
+    ]),
+  }
+  expect(detachmentPoints(current, 'cat', 'anvil', { points: 1 })).toBe(3)
+})
+
 it('does not replace an unresolved Game Datacards cost', () => {
   expect(detachmentPoints(loaded, 'cat', 'anvil', { points: null })).toBeNull()
 })

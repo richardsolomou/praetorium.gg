@@ -5,7 +5,8 @@ import path from 'node:path'
 import { zipSync } from 'fflate'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { catalogueSources as config, type ResolvedCatalogueSources } from './catalogueSources'
-import { syncSources } from './sync'
+import { syncFactionIcons, syncSources } from './sync'
+import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 
 let directory: string
 let sources: ResolvedCatalogueSources
@@ -14,19 +15,25 @@ const hash = (value: string) => createHash('sha256').update(value).digest('hex')
 beforeEach(() => {
   sources = {
     definitions: { ...config.definitions, revision: 'definitions-revision' },
+    marineCodex: { ...config.marineCodex, revision: 'marine-codex-revision' },
     points: { ...config.points, revision: 'points-revision' },
-    rules: { ...config.rules, revision: 'rules-revision' },
     datacards: { ...config.datacards, revision: 'datacards-revision' },
     battlemaster: { ...config.battlemaster, revision: 'battlemaster-revision' },
   }
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-sync-'))
-  for (const name of ['definitions', 'points', 'rules', 'datacards']) fs.mkdirSync(path.join(directory, name))
+  for (const name of ['definitions', 'marineCodex', 'points', 'datacards']) fs.mkdirSync(path.join(directory, name))
+  for (const file of sources.marineCodex.files ?? []) {
+    fs.writeFileSync(path.join(directory, 'marineCodex', file), '{}')
+    fs.writeFileSync(path.join(directory, 'definitions', file), '{}')
+  }
+  fs.mkdirSync(path.join(directory, 'faction-icons'))
+  for (const { id } of SUPPLEMENTAL_FACTION_ICONS) fs.writeFileSync(path.join(directory, 'faction-icons', `${id}.svg`), '<svg/>')
   fs.writeFileSync(
     path.join(directory, 'revision.json'),
     JSON.stringify({
       definitions: sources.definitions.revision,
+      marineCodex: sources.marineCodex.revision,
       points: sources.points.revision,
-      rules: sources.rules.revision,
       datacards: sources.datacards.revision,
     }),
   )
@@ -35,6 +42,20 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals()
   fs.rmSync(directory, { recursive: true, force: true })
+})
+
+it('adds supplemental icons to a materialized source directory', async () => {
+  fs.rmSync(path.join(directory, 'faction-icons'), { recursive: true })
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response('<svg xmlns="http://www.w3.org/2000/svg"/>')),
+  )
+
+  await syncFactionIcons(directory)
+
+  expect(fs.readdirSync(path.join(directory, 'faction-icons')).toSorted()).toEqual(
+    SUPPLEMENTAL_FACTION_ICONS.map((icon) => `${icon.id}.svg`).toSorted(),
+  )
 })
 
 it('accepts the current Battlemaster detail identity', async () => {
@@ -74,29 +95,6 @@ it('accepts the current Battlemaster detail identity', async () => {
   expect(fs.existsSync(path.join(directory, 'battlemaster', 'layouts', `${id}.json`))).toBe(true)
 })
 
-it('extracts only a source configured subpath', async () => {
-  const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
-  fs.writeFileSync(path.join(directory, 'revision.json'), JSON.stringify({ ...revisions, rules: 'old' }))
-  const archive = zipSync({
-    'repository/data/core/faction/rules.json': new TextEncoder().encode('{}'),
-    'repository/tools/package.json': new TextEncoder().encode('{}'),
-  })
-  vi.stubGlobal(
-    'fetch',
-    vi.fn<(url: string | URL) => Promise<Response>>(async (url) => {
-      const href = String(url)
-      if (href.includes('codeload.github.com')) return new Response(archive)
-      if (href.includes('cdn.jsdelivr.net')) return new Response('<svg xmlns="http://www.w3.org/2000/svg"/>')
-      return new Response('changed export')
-    }),
-  )
-
-  await syncSources(directory, sources)
-
-  expect(fs.existsSync(path.join(directory, 'rules', 'data', 'core', 'faction', 'rules.json'))).toBe(true)
-  expect(fs.existsSync(path.join(directory, 'rules', 'tools', 'package.json'))).toBe(false)
-})
-
 it('extracts the Game Datacards 11th edition data without other editions', async () => {
   const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
   fs.writeFileSync(path.join(directory, 'revision.json'), JSON.stringify({ ...revisions, datacards: 'old' }))
@@ -117,19 +115,41 @@ it('extracts the Game Datacards 11th edition data without other editions', async
   expect(fs.existsSync(path.join(directory, 'datacards', '10th'))).toBe(false)
 })
 
+it('overlays a newly pinned Marine codex without changing the BSData files', async () => {
+  const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
+  fs.writeFileSync(path.join(directory, 'revision.json'), JSON.stringify({ ...revisions, marineCodex: 'old' }))
+  fs.writeFileSync(path.join(directory, 'definitions', 'shared.json'), '{}')
+  const archive = zipSync(
+    Object.fromEntries(
+      (sources.marineCodex.files ?? []).map((file) => [`repository/${file}`, new TextEncoder().encode('{"revision":"new"}')]),
+    ),
+  )
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(archive)),
+  )
+
+  await syncSources(directory, sources)
+
+  expect({
+    codex: fs.readFileSync(path.join(directory, 'definitions', sources.marineCodex.files![0]!), 'utf8'),
+    shared: fs.readFileSync(path.join(directory, 'definitions', 'shared.json'), 'utf8'),
+  }).toEqual({ codex: '{"revision":"new"}', shared: '{}' })
+})
+
 it('keeps the current source when an archive lacks its configured subpath', async () => {
   const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
-  fs.writeFileSync(path.join(directory, 'revision.json'), JSON.stringify({ ...revisions, rules: 'old' }))
-  fs.writeFileSync(path.join(directory, 'rules', 'current.json'), '{}')
+  fs.writeFileSync(path.join(directory, 'revision.json'), JSON.stringify({ ...revisions, datacards: 'old' }))
+  fs.writeFileSync(path.join(directory, 'datacards', 'current.json'), '{}')
   const archive = zipSync({ 'repository/tools/package.json': new TextEncoder().encode('{}') })
   vi.stubGlobal(
     'fetch',
     vi.fn<() => Promise<Response>>(async () => new Response(archive)),
   )
 
-  await expect(syncSources(directory, sources)).rejects.toThrow('archive contains no files under data/core')
+  await expect(syncSources(directory, sources)).rejects.toThrow('archive contains no files under 11th/gdc')
 
-  expect(fs.existsSync(path.join(directory, 'rules', 'current.json'))).toBe(true)
+  expect(fs.existsSync(path.join(directory, 'datacards', 'current.json'))).toBe(true)
 })
 
 it('removes disabled sources without fetching them', async () => {

@@ -87,6 +87,7 @@ describe('joining catalogue detachments to their rules reference', () => {
       factionNames: new Map(),
       factionIcons: new Map(),
       factionRules: new Map(),
+      supplementalArmyRules: new Map(),
       detachmentReferences: new Map([
         ['death-guard', new Map([['flyblown-host', { enhancements: 0, upgrades: 0, stratagems: 0, points: null, dispositions: [] }]])],
       ]),

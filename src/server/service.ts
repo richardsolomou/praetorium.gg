@@ -7,6 +7,7 @@ import {
   commandArmy,
   FIXED_SECONDARIES,
   GAME_SIZES,
+  isKotcLimit,
   type PlayerId,
   reduceBattle,
   type Secondary,
@@ -16,6 +17,7 @@ import {
   sidePaintedPoints,
   type SubmitResult,
 } from '../core/battle'
+import { KOTC_MATCHUP_ID } from '../contracts/terrain'
 import { type BattleAudience, battleAudience, maySpectate } from '../core/battleAudience'
 import type { PlayerDefaults } from '../core/playerDefaults'
 import { type BattleView, battleView } from '../core/battleView'
@@ -1207,12 +1209,13 @@ function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: Load
   const deploymentId = state.deploymentId
   if (!deploymentId) return 'choose a deployment'
   if (!rules.deployments.some((deployment) => deployment.id === deploymentId)) return 'that deployment is not available'
-  if (missions.some((mission) => mission?.deploymentIds.length && !mission.deploymentIds.includes(deploymentId)))
+  const kotc = isKotcLimit(state.settings.limit)
+  if (!kotc && missions.some((mission) => mission?.deploymentIds.length && !mission.deploymentIds.includes(deploymentId)))
     return 'that deployment does not match the mission'
-  if (!state.settings.terrainLayoutId) return null
+  if (!state.settings.terrainLayoutId) return kotc ? 'choose the Colosseum battlefield' : null
   const terrain = rules.terrainLayouts.find((layout) => layout.id === state.settings.terrainLayoutId)
   if (!terrain) return 'that terrain layout is not available'
-  const matchups = one && two ? new Set([`${one}-vs-${two}`, `${two}-vs-${one}`]) : new Set<string>()
+  const matchups = kotc ? new Set([KOTC_MATCHUP_ID]) : one && two ? new Set([`${one}-vs-${two}`, `${two}-vs-${one}`]) : new Set<string>()
   if (matchups.size && !matchups.has(terrain.matchupId)) return 'that terrain layout does not match the armies'
   if (terrain.deploymentId && terrain.deploymentId !== state.deploymentId) return 'that terrain layout does not match the deployment'
   if (!terrain.geometry) return 'exact terrain data is not available yet'

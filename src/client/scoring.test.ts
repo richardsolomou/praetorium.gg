@@ -152,6 +152,21 @@ describe('when a mission is asked about', () => {
     expect(cardsDueFromTheirTurn(1, 5, cards, ['guard'])).toHaveLength(1)
   })
 
+  it('offers the fifth-round fallback only for a card drawn after the opponent’s final turn', () => {
+    const cards = [
+      {
+        key: 'beacon',
+        name: 'Beacon',
+        category: 'secondary' as const,
+        awards: [payout(5, { timing: 'end-of-turn-or-final-round', playerTurn: 'opponent-turn' })],
+      },
+    ]
+    expect(cardsDue(at('end', 5), true, cards, [])).toEqual([])
+    expect(cardsDue(at('end', 5), true, cards, ['beacon'])).toHaveLength(1)
+    expect(cardsDue(at('end', 4), true, cards, ['beacon'])).toEqual([])
+    expect(cardsDueFromTheirTurn(5, 5, cards, ['beacon'])).toHaveLength(1)
+  })
+
   it('settles an either-turn card from their turn as well as your own', () => {
     const cards = [
       { key: 'kills', name: 'Kills', category: 'secondary' as const, awards: [payout(2, { timing: 'end-of-turn', playerTurn: 'either' })] },

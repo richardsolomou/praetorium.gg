@@ -1,6 +1,6 @@
-import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem } from '../core/battle'
+import { routeSlug } from '../core/slug'
 import {
   type ConstructionDetachment,
   datacardsFactionKeys,
@@ -8,35 +8,27 @@ import {
   type FactionRestrictions,
   factionRestrictions,
   type LoadedDatacards,
+  keywordAbilityDescriptions,
   loadDatacards,
 } from './datacards'
-import { type LoadedCards, loadCards, loadDispositions, loadMissions, type Mission, missionForIn, type MissionCard } from './rulesCards'
-import {
-  type ConstructionJoinIssue,
-  type DetachmentReference,
-  type DetachmentRulesDetail,
-  type LoadedFactions,
-  loadFactions,
-} from './rulesFactions'
+import { type LoadedCards, coreFromDatacards, type Mission, missionForIn, type MissionCard } from './rulesCards'
+import { type DetachmentReference, type DetachmentRulesDetail } from './rulesFactions'
+import { factionsFromDatacards } from './datacardFactions'
+import { dispositionsFromDatacards, missionCardsFromDatacards, missionsFromDatacards } from './datacardMissions'
+import { terrainFromDatacards } from './datacardTerrain'
+import { kotcTerrain } from './kotcTerrain'
 import { fixedSecondaryCapsIn, type MissionTwist, twistsIn } from './missionTwists'
 import { readMissionPacks } from './missionPacks'
 import { type RuleDocument, loadRuleDocuments } from './rulesCore'
-import { joinKey, rulesDirectory } from './rulesSource'
-import type { ExternalReferences } from './externalReferences'
-import { catalogueSources } from './catalogueSources'
-import {
-  type Deployment,
-  loadDeployments,
-  loadTerrainLayouts,
-  loadTerrainTemplates,
-  type TerrainLayout,
-  type TerrainTemplate,
-} from './rulesTerrain'
+import { catalogueDirectory } from './catalogueIndex'
+import { type Deployment, type TerrainLayout, type TerrainTemplate } from './rulesTerrain'
+import { missingArmyRulesFromCatalogue } from './catalogueArmyRules'
+import { joinKey } from './rulesSource'
 
 /** Assemble rules from the available sources without guessing missing parts; preserve the source attribution required by CC BY 4.0. */
-export const RULES_DATA_ATTRIBUTION = `${catalogueSources.rules.attribution}, CC BY 4.0`
-const RULES_ATTRIBUTION = 'Stratagem usage limits and mission cards by the Tabletop Developer Consortium, CC BY 4.0'
+export const RULES_DATA_ATTRIBUTION = DATACARDS_ATTRIBUTION
 const BATTLEMASTER_ATTRIBUTION = 'Terrain geometry provided by Battlemaster'
+const KOTC_ATTRIBUTION = 'King of the Colosseum battlefield diagrams provided by Play On Tabletop'
 
 export type { Mission } from './rulesCards'
 
@@ -58,6 +50,7 @@ export type LoadedRules = {
   factionNames: Map<string, string>
   factionIcons: Map<string, string>
   factionRules: Map<string, { name: string; description: string }>
+  supplementalArmyRules: ReadonlyMap<string, { name: string; description: string }[]>
   /** Stratagems every army has, offered alongside whatever the detachment brings. */
   core: Stratagem[]
   /** The rules documents the datacards source writes out, for the pages that read them. */
@@ -79,10 +72,6 @@ export type LoadedRules = {
   terrainTemplates: TerrainTemplate[]
   /** Whatever the dataset says about how settled these numbers are. */
   dataslate: string | null
-  /** Construction overlays with no unambiguous Game Datacards answer. */
-  constructionJoinIssues: ConstructionJoinIssue[]
-  sourceJoinFallbacks: LoadedFactions['sourceJoinFallbacks']
-  sourceJoinExacts: LoadedFactions['sourceJoinExacts']
 }
 
 export type BattleMissionRules = Pick<LoadedRules, 'missions' | 'fixedSecondaryCaps'>
@@ -103,33 +92,64 @@ export type BattleReadRules = Pick<
 export type TerrainReadRules = Pick<LoadedRules, 'terrainLayouts' | 'terrainTemplates'>
 
 export function loadRules(
-  directory = rulesDirectory(),
-  battlemasterDirectory = path.join(path.dirname(directory), 'battlemaster'),
-  iconDirectory = path.join(path.dirname(directory), 'faction-icons'),
-  datacardsDirectory = path.join(path.dirname(directory), 'datacards', '11th', 'gdc'),
+  directory = catalogueDirectory(),
+  battlemasterDirectory = path.join(directory, 'battlemaster'),
+  iconDirectory = path.join(directory, 'faction-icons'),
+  datacardsDirectory = path.join(directory, 'datacards', '11th', 'gdc'),
   /** The cards the catalogue already read, so one snapshot is parsed once. */
   loadedDatacards?: LoadedDatacards,
-  sourceReferences?: ExternalReferences,
 ): LoadedRules | null {
-  const core = path.join(directory, 'data', 'core')
-  if (!fs.existsSync(core)) return null
   const datacards = loadedDatacards ?? loadDatacards(datacardsDirectory)
-  const factions = loadFactions(core, iconDirectory, datacards, sourceReferences)
+  const factions = factionsFromDatacards(datacards, iconDirectory)
+  const catalogueRules = missingArmyRulesFromCatalogue(path.join(directory, 'definitions'), datacards)
+  const keywordRules = keywordAbilityDescriptions(datacardsDirectory)
+  const supplementalArmyRules = new Map<string, { name: string; description: string }[]>()
+  for (const content of new Set(datacards.factions.values())) {
+    const faction = routeSlug(content.name)
+    const sourceRules = catalogueRules.get(faction) ?? []
+    const keywordMissing = [...content.factionAbilityNames].flatMap((name) => {
+      if (content.armyRules.some((rule) => routeSlug(rule.name) === routeSlug(name))) return []
+      const description = keywordRules.get(joinKey(name))
+      return description ? [{ name, description }] : []
+    })
+    const preferred = new Set(keywordMissing.map((rule) => routeSlug(rule.name)))
+    const selected = [...keywordMissing, ...sourceRules.filter((rule) => !preferred.has(routeSlug(rule.name)))]
+    if (selected.length) supplementalArmyRules.set(faction, selected)
+  }
   // Parsed once and read three ways: what each payout asks for, the twists a pack
   // offers, and the ceiling it puts on a single fixed card.
   const packs = readMissionPacks(datacardsDirectory)
-  const cards: LoadedCards = loadCards(core, datacardsDirectory, packs)
-  const terrainLayouts = loadTerrainLayouts(core, battlemasterDirectory)
-  const dispositionDetails = loadDispositions(core)
+  const cards: LoadedCards = { ...coreFromDatacards(datacardsDirectory), ...missionCardsFromDatacards(packs) }
+  const { terrainLayouts, deployments } = terrainFromDatacards(packs, battlemasterDirectory)
+  const kotc = kotcTerrain(datacardsDirectory)
+  if (kotc) {
+    deployments.push(kotc.deployment)
+    terrainLayouts.push(kotc.layout)
+  }
+  const dispositionDetails = dispositionsFromDatacards(packs)
 
   // The dataset is optional, and an instance without its two headline parts has
   // nothing to offer from it. Reporting that is what lets the app fall back cleanly.
   if (!factions.byDetachment.size && !cards.secondaries.length) return null
 
   const hasBattlemaster = terrainLayouts.some((layout) => layout.geometry)
+  const abilityDescriptions = new Map(datacards.armyRules)
+  for (const rules of supplementalArmyRules.values()) {
+    for (const rule of rules) {
+      const key = routeSlug(rule.name)
+      if (!abilityDescriptions.has(key)) abilityDescriptions.set(key, rule.description)
+    }
+  }
   return {
-    attribution: [RULES_ATTRIBUTION, DATACARDS_ATTRIBUTION, hasBattlemaster ? BATTLEMASTER_ATTRIBUTION : null].filter(Boolean).join('. '),
-    abilityDescriptions: datacards.armyRules,
+    attribution: [
+      DATACARDS_ATTRIBUTION,
+      hasBattlemaster ? BATTLEMASTER_ATTRIBUTION : null,
+      kotc ? KOTC_ATTRIBUTION : null,
+      catalogueRules.size ? 'Army rules provided by BSData' : null,
+    ]
+      .filter(Boolean)
+      .join('. '),
+    abilityDescriptions,
     factionRestrictions: factionRestrictions(datacards),
     factionKeys: factions.factionKeys,
     factionParents: factions.factionParents,
@@ -139,23 +159,21 @@ export function loadRules(
     factionNames: factions.factionNames,
     factionIcons: factions.factionIcons,
     factionRules: factions.factionRules,
+    supplementalArmyRules,
     core: cards.core,
     coreDetails: cards.coreDetails,
     ruleDocuments: loadRuleDocuments(datacardsDirectory),
     secondaries: cards.secondaries,
     primaries: cards.primaries,
-    missions: loadMissions(core),
+    missions: missionsFromDatacards(packs),
     missionTwists: twistsIn(packs),
     fixedSecondaryCaps: fixedSecondaryCapsIn(packs),
     dispositions: new Map(dispositionDetails.map((entry) => [entry.id, entry.name])),
     dispositionDetails,
-    deployments: loadDeployments(core),
+    deployments,
     terrainLayouts,
-    terrainTemplates: loadTerrainTemplates(core),
-    dataslate: factions.dataslate,
-    constructionJoinIssues: factions.constructionJoinIssues,
-    sourceJoinFallbacks: factions.sourceJoinFallbacks,
-    sourceJoinExacts: factions.sourceJoinExacts,
+    terrainTemplates: [],
+    dataslate: null,
   }
 }
 
@@ -174,7 +192,7 @@ export function hasDetachmentSemantics(
   rules: Pick<LoadedRules, 'byDetachment' | 'factionKeys' | 'factionParents'>,
   candidate: Pick<ConstructionDetachment, 'faction' | 'name'>,
 ) {
-  const name = joinKey(candidate.name)
+  const id = routeSlug(candidate.name)
   const candidateFactions = new Set(
     [...datacardsFactionKeys(candidate.faction)].map((faction) => rules.factionKeys.get(faction) ?? faction),
   )
@@ -182,7 +200,7 @@ export function hasDetachmentSemantics(
     ...candidateFactions,
     ...[...rules.factionParents].flatMap(([child, parent]) => (candidateFactions.has(parent) ? [child] : [])),
   ])
-  return [...owners].some((owner) => [...(rules.byDetachment.get(owner)?.keys() ?? [])].some((id) => joinKey(id) === name))
+  return [...owners].some((owner) => rules.byDetachment.get(owner)?.has(id))
 }
 
 /** The primary an army plays, derived from its disposition and the one opposing it. */

@@ -9,4 +9,4 @@ const accepted: { reason: string; entries: string[] }[] =
 const replacementAt = process.argv.indexOf('--replacement')
 const replacement = replacementAt < 0 ? undefined : process.argv[replacementAt + 1]
 
-compareCatalogueCoverage(before, after, accepted, undefined, undefined, replacement)
+compareCatalogueCoverage(before, after, accepted, undefined, replacement)

@@ -98,6 +98,7 @@ export function placeMeasurementLabel(
   vertical: boolean,
   text: string,
   occupied: LabelBox[],
+  board: TerrainGeometry['board'],
 ) {
   const { width, height } = measurementLabelSize(text)
   const length = Math.hypot(boardEdge.x - arrow.x, boardEdge.y - arrow.y)
@@ -112,8 +113,8 @@ export function placeMeasurementLabel(
   )
 
   for (const offset of offsets) {
-    const x = Math.min(44 - width / 2 - 0.25, Math.max(width / 2 + 0.25, arrow.x + offset.x))
-    const y = Math.min(60 - height / 2 - 0.25, Math.max(height / 2 + 0.25, arrow.y + offset.y))
+    const x = Math.min(board.height - width / 2 - 0.25, Math.max(width / 2 + 0.25, arrow.x + offset.x))
+    const y = Math.min(board.width - height / 2 - 0.25, Math.max(height / 2 + 0.25, arrow.y + offset.y))
     const box = { left: x - width / 2, right: x + width / 2, top: y - height / 2, bottom: y + height / 2 }
     if (occupied.every((other) => !boxesOverlap(box, other))) {
       occupied.push(box)
@@ -121,8 +122,8 @@ export function placeMeasurementLabel(
     }
   }
 
-  const x = Math.min(44 - width / 2 - 0.25, Math.max(width / 2 + 0.25, arrow.x + direction.x * inlineDistance))
-  const y = Math.min(60 - height / 2 - 0.25, Math.max(height / 2 + 0.25, arrow.y + direction.y * inlineDistance))
+  const x = Math.min(board.height - width / 2 - 0.25, Math.max(width / 2 + 0.25, arrow.x + direction.x * inlineDistance))
+  const y = Math.min(board.width - height / 2 - 0.25, Math.max(height / 2 + 0.25, arrow.y + direction.y * inlineDistance))
   occupied.push({ left: x - width / 2, right: x + width / 2, top: y - height / 2, bottom: y + height / 2 })
   return { x, y }
 }
@@ -136,18 +137,21 @@ function boxesOverlap(one: LabelBox, two: LabelBox) {
   return one.left < two.right + gap && one.right + gap > two.left && one.top < two.bottom + gap && one.bottom + gap > two.top
 }
 
-export function deploymentNeedsFlip(zones: { player: string; name: string; points: { x: number; y: number }[] }[]) {
+export function deploymentNeedsFlip(
+  zones: { player: string; name: string; points: { x: number; y: number }[] }[],
+  board: TerrainGeometry['board'],
+) {
   const attacker = zones.find((zone) => zone.player === 'attacker' || zone.name.toLowerCase().includes('attacker'))
   const defender = zones.find((zone) => zone.player === 'defender' || zone.name.toLowerCase().includes('defender'))
   if (!attacker || !defender) return false
-  const red = portraitPoint(polygonCentroid(attacker.points), false)
-  const blue = portraitPoint(polygonCentroid(defender.points), false)
+  const red = portraitPoint(polygonCentroid(attacker.points), false, board)
+  const blue = portraitPoint(polygonCentroid(defender.points), false, board)
   const horizontalSeparation = Math.abs(red.x - blue.x) > Math.abs(red.y - blue.y)
   return horizontalSeparation ? red.x > blue.x : red.y > blue.y
 }
 
-export function portraitPoint(point: { x: number; y: number }, flipped: boolean) {
-  return flipped ? { x: 44 - point.y, y: point.x } : { x: point.y, y: 60 - point.x }
+export function portraitPoint(point: { x: number; y: number }, flipped: boolean, board: TerrainGeometry['board']) {
+  return flipped ? { x: board.height - point.y, y: point.x } : { x: point.y, y: board.width - point.x }
 }
 
 export function formatInches(value: number) {

@@ -25,7 +25,7 @@ export function TerrainBoard({
   detailed = false,
   ariaLabel,
 }: {
-  layout: { name: string; pieces: TerrainPiece[]; geometry: TerrainGeometry | null }
+  layout: { name: string; pieces: TerrainPiece[]; geometry: TerrainGeometry | null; publisherUrl?: string }
   templates: TerrainTemplate[]
   deployment?: {
     zones: { player: string; name: string; points: { x: number; y: number }[] }[]
@@ -36,10 +36,16 @@ export function TerrainBoard({
   ariaLabel?: string
 }) {
   const patternId = useId().replaceAll(':', '')
-  const flipped = deploymentNeedsFlip(deployment?.zones ?? [])
+  const board = layout.geometry?.board ?? { width: 60, height: 44 }
+  const flipped = deploymentNeedsFlip(deployment?.zones ?? [], board)
+  const upright = flipped ? `translate(${board.height} 0) rotate(90)` : `translate(0 ${board.width}) rotate(-90)`
 
-  return (
-    <svg viewBox="0 0 44 60" className={`border border-edge bg-sunken ${className ?? ''}`} aria-label={ariaLabel ?? layout.name}>
+  const svg = (
+    <svg
+      viewBox={`0 0 ${board.height} ${board.width}`}
+      className={`border border-edge bg-sunken ${className ?? ''}`}
+      aria-label={ariaLabel ?? layout.name}
+    >
       <title>{ariaLabel ?? layout.name}</title>
       <defs>
         <pattern id={`${patternId}-minor`} width="1" height="1" patternUnits="userSpaceOnUse">
@@ -66,9 +72,9 @@ export function TerrainBoard({
           <path d="M 0 0 L 1.2 .6 L 0 1.2 Z" className="fill-side-a" />
         </marker>
       </defs>
-      <rect width="44" height="60" fill={`url(#${patternId}-major)`} />
-      <g transform={flipped ? 'translate(44 0) rotate(90)' : 'translate(0 60) rotate(-90)'}>
-        <rect width="60" height="44" fill="none" stroke="currentColor" strokeWidth=".25" />
+      <rect width={board.height} height={board.width} fill={`url(#${patternId}-major)`} />
+      <g transform={upright}>
+        <rect width={board.width} height={board.height} fill="none" stroke="currentColor" strokeWidth=".25" />
         {deployment?.zones.map((zone) => (
           <polygon
             key={zone.name}
@@ -112,11 +118,24 @@ export function TerrainBoard({
         <TerrainMeasurements geometry={layout.geometry} flipped={flipped} arrowId={`${patternId}-arrow`} />
       ) : null}
       {layout.geometry ? (
-        <g transform={flipped ? 'translate(44 0) rotate(90)' : 'translate(0 60) rotate(-90)'}>
+        <g transform={upright}>
           <TerrainAnnotations geometry={layout.geometry} detailed={detailed} flipped={flipped} zones={deployment?.zones ?? []} />
         </g>
       ) : null}
     </svg>
+  )
+  if (!detailed || !layout.publisherUrl) return svg
+  return (
+    <figure className="contents">
+      {svg}
+      <figcaption className="mt-2 text-sm text-dim">
+        Traced from diagrams by{' '}
+        <a href={layout.publisherUrl} target="_blank" rel="noopener noreferrer" className="text-info underline">
+          Play On Tabletop
+        </a>
+        , which print only the board size and deployment depth; terrain and objective positions are approximate.
+      </figcaption>
+    </figure>
   )
 }
 
@@ -259,11 +278,11 @@ function TerrainMeasurements({ geometry, flipped, arrowId }: { geometry: Terrain
 
   const occupied: LabelBox[] = []
   const annotations = measurements.map((measurement, index) => {
-    const from = portraitPoint(measurement.from, flipped)
-    const to = portraitPoint(measurement.to, flipped)
+    const from = portraitPoint(measurement.from, flipped, geometry.board)
+    const to = portraitPoint(measurement.to, flipped, geometry.board)
     const vertical = Math.abs(from.x - to.x) < Math.abs(from.y - to.y)
     const text = formatInches(Math.hypot(to.x - from.x, to.y - from.y))
-    const label = placeMeasurementLabel(to, from, vertical, text, occupied)
+    const label = placeMeasurementLabel(to, from, vertical, text, occupied, geometry.board)
     const { width: labelWidth, height: labelHeight } = measurementLabelSize(text)
     return {
       key: `${measurement.from.x}-${measurement.from.y}-${measurement.to.x}-${measurement.to.y}-${index}`,

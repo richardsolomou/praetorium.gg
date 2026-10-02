@@ -10,7 +10,6 @@ import { buildIndex, type Catalogue, type CatalogueFile, type Modifier } from '.
 import { characteristicNamesOf, detachmentsOf, factionsIn, type LoadedCatalogue } from './catalogueIndex'
 import { unitsIn } from './cataloguePicker'
 import type { DatasheetDetails, FactionContent, LoadedDatacards } from './datacards'
-import { emptyExternalReferences } from './externalReferences'
 
 export const PTS = 'cost-pts'
 
@@ -105,8 +104,8 @@ export function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
     profiledDetachmentIds: new Set(),
     profiledArmyRules: new Map(),
     replacements: new Map(),
+    marineCodexCatalogueIds: new Set(),
     datacards,
-    sourceReferences: emptyExternalReferences(),
   }
 }
 
