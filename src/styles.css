@@ -215,6 +215,10 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
   }
 }
 
+html:has([data-replay-timeline]) [data-web-app-footer] {
+  padding-bottom: 5rem;
+}
+
 html[data-native-shell='true'] [data-native-app-chrome],
 html[data-native-shell='true'] [data-mobile-app-header],
 html[data-native-shell='true'] [data-mobile-app-header-spacer],
