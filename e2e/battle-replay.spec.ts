@@ -42,6 +42,14 @@ test('a long battle report does not extend the page past its footer', async ({ p
           Math.ceil(document.querySelector('[data-native-app-frame]')!.getBoundingClientRect().bottom + scrollY),
       ),
     ).toBeLessThanOrEqual(1)
+    expect(
+      await page.evaluate(() => {
+        scrollTo(0, document.documentElement.scrollHeight)
+        const links = document.querySelector('[data-web-app-footer] p:last-child')!.getBoundingClientRect()
+        const timeline = document.querySelector('[data-replay-timeline]')!.getBoundingClientRect()
+        return links.bottom <= timeline.top
+      }),
+    ).toBe(true)
   }
 })
 
