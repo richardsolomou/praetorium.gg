@@ -109,6 +109,9 @@ export function PickControl({
   )
 }
 
+/** Something to say beside one option of one choice; the roster builder says nothing. */
+export type OptionNote = (choiceKey: string, optionId: string) => ReactNode
+
 export function WargearRow({
   name,
   pieces,
@@ -119,6 +122,7 @@ export function WargearRow({
   rules,
   control,
   note,
+  annotation,
   highlightSelection = true,
   instructions,
 }: Described & {
@@ -128,6 +132,7 @@ export function WargearRow({
   points?: number
   control?: ReactNode
   note?: string
+  annotation?: ReactNode
   highlightSelection?: boolean
   instructions?: readonly string[]
 }) {
@@ -137,6 +142,7 @@ export function WargearRow({
       <span className="block text-sm font-semibold">{name}</span>
       {note ? <span className="block text-2xs text-faint">{note}</span> : null}
       {points ? <span className="readout text-2xs text-info">+{points} each</span> : null}
+      {annotation}
     </span>
   )
   return (
@@ -194,6 +200,7 @@ function ChoiceOption({
   disabled = false,
   onSelect,
   action,
+  annotation,
   children,
 }: {
   option: LoadoutOption
@@ -202,6 +209,7 @@ function ChoiceOption({
   disabled?: boolean
   onSelect?: () => void
   action?: ReactNode
+  annotation?: ReactNode
   children: ReactNode
 }) {
   return (
@@ -220,7 +228,10 @@ function ChoiceOption({
       ) : null}
       <div className="pointer-events-none relative z-10 [&_button]:pointer-events-auto">
         <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
-          <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{option.name}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-bone">{option.name}</span>
+            {annotation}
+          </span>
           <span className="flex shrink-0 items-center gap-1.5">
             {option.points ? <span className="chip text-info">+{option.points} pts</span> : null}
             {action}
@@ -350,6 +361,7 @@ export function EitherChoice({
   rules,
   showOptions = true,
   highlightSelection = true,
+  optionNote,
 }: Described & {
   choice: LoadoutChoice
   unitName: string
@@ -358,6 +370,7 @@ export function EitherChoice({
   onChoose: (key: string, optionId: string) => void
   showOptions?: boolean
   highlightSelection?: boolean
+  optionNote?: OptionNote
 }) {
   const options = showOptions ? defaultFirst(choice.options) : choice.options.filter((option) => choice.chosen === option.id)
   return (
@@ -382,6 +395,7 @@ export function EitherChoice({
             highlightSelection={highlightSelection}
             disabled={controlsDisabled}
             onSelect={editable ? () => onChoose(choice.key, option.id) : undefined}
+            annotation={optionNote?.(choice.key, option.id)}
           >
             <OptionProfiles option={option} weapons={weapons} rules={rules} />
             <OptionAbilities option={option} abilities={abilities} rules={rules} />
@@ -408,6 +422,7 @@ export function SpreadChoice({
   rules,
   showOptions = true,
   highlightSelection = true,
+  optionNote,
 }: Described & {
   choice: LoadoutChoice
   editable: boolean
@@ -415,6 +430,7 @@ export function SpreadChoice({
   onSpread: (key: string, update: SpreadUpdate) => void
   showOptions?: boolean
   highlightSelection?: boolean
+  optionNote?: OptionNote
 }) {
   const { taken, more, less } = spreadHandlers(choice)
   const press = (update: SpreadUpdate | undefined) => (update ? () => onSpread(choice.key, update) : undefined)
@@ -437,6 +453,7 @@ export function SpreadChoice({
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-semibold">{option.name}</span>
                 {option.points ? <span className="readout text-2xs text-info">+{option.points} each</span> : null}
+                {optionNote?.(choice.key, option.id)}
               </span>
               <PoolStepper
                 name={option.name}

@@ -1,3 +1,4 @@
+import { createContext, useContext, type ReactNode } from 'react'
 import { wargearBaseName } from '../../core/wargear'
 import { datasheetCharacteristicKindOf } from '../../core/datasheetStructure'
 import type { Datasheet } from '../../contracts/catalogue'
@@ -90,6 +91,9 @@ export function WeaponProfiles({
   })
 }
 
+/** Something to say under a weapon profile, such as its odds in a combat simulation; most screens say nothing. */
+export const WeaponProfileNote = createContext<((weapon: Profile) => ReactNode) | null>(null)
+
 export function WeaponProfile({
   weapon,
   rules,
@@ -107,6 +111,7 @@ export function WeaponProfile({
 }) {
   const keywords = weapon.values.find((value) => datasheetCharacteristicKindOf(value) === 'keywords')
   const keywordText = keywords?.value.trim()
+  const note = useContext(WeaponProfileNote)?.(weapon)
   return (
     <div className={`${embedded ? '' : 'border border-edge bg-card '}px-2 py-1.5`}>
       {showName ? (
@@ -114,6 +119,7 @@ export function WeaponProfile({
           {showCount && weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : (label ?? weapon.name)}
         </h3>
       ) : null}
+      {note}
       <div className={`${showName ? 'mt-1 ' : ''}grid grid-cols-6 gap-1`}>
         {weapon.values
           .filter((value) => datasheetCharacteristicKindOf(value) !== 'keywords')

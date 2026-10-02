@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { attackSequence, diceExpression, simulateCombat, woundTarget, type CombatInput } from './combat'
+import { calculateCombat, diceExpression, woundTarget, type CombatInput } from './combat'
+import { attackSequence, sampleCombat } from './combatReference'
 
 const input = (): CombatInput => ({
   target: { groups: [{ models: 5, toughness: 4, save: 7, invulnerable: null, wounds: 2 }], feelNoPain: null },
@@ -149,7 +150,7 @@ describe('combat', () => {
       attacks: { dice: 0, sides: 6, bonus: 10 },
       sustained: { dice: 10, sides: 6, bonus: 100 },
     })
-    expect(() => simulateCombat(scenario)).toThrow('too large')
+    expect(() => calculateCombat(scenario)).toThrow('too large')
   })
   it('rerolls a damage roll of one once before applying prevention', () => {
     const scenario = input()
@@ -205,7 +206,7 @@ describe('combat', () => {
     const scenario = input()
     scenario.weapons = []
     scenario.mortalWounds = [{ timing: 'before', rolls: 1, outcomes: [{ min: 2, max: 6, damage: { dice: 1, sides: 3, bonus: 0 } }] }]
-    expect(simulateCombat(scenario).meanDamage).toBeCloseTo(5 / 3, 1)
+    expect(calculateCombat(scenario).meanDamage).toBeCloseTo(5 / 3, 12)
   })
   it('rejects overlapping mortal-wound outcomes', () => {
     const scenario = input()
@@ -219,13 +220,13 @@ describe('combat', () => {
         ],
       },
     ]
-    expect(() => simulateCombat(scenario)).toThrow()
+    expect(() => calculateCombat(scenario)).toThrow()
   })
-  it('bounds mortal-wound simulation work', () => {
+  it('stops counting separate mortal wounds once the target is destroyed', () => {
     const scenario = input()
     scenario.target.feelNoPain = 5
     scenario.mortalWounds = [{ timing: 'before', rolls: 100, outcomes: [{ min: 1, max: 6, damage: { dice: 10, sides: 6, bonus: 100 } }] }]
-    expect(() => simulateCombat(scenario)).toThrow('too large')
+    expect(calculateCombat(scenario).wipe).toBeCloseTo(1, 10)
   })
   it('psychic attacks ignore a worsened ballistic skill', () => {
     const scenario = input()
@@ -347,12 +348,12 @@ describe('combat', () => {
     const scenario = input()
     scenario.target.groups[0]!.models = 1
     scenario.target.damage = 1
-    expect(simulateCombat(scenario).damage).toHaveLength(2)
+    expect(calculateCombat(scenario).damage).toHaveLength(2)
   })
   it('rejects a front model with no wounds remaining', () => {
     const scenario = input()
     scenario.target.damage = 2
-    expect(() => simulateCombat(scenario)).toThrow('at least one wound')
+    expect(() => calculateCombat(scenario)).toThrow('at least one wound')
   })
   it('reduces each damage packet before damage prevention', () => {
     const scenario = input()
@@ -606,27 +607,25 @@ describe('combat', () => {
     it('sizes the damage distribution from every group', () => {
       const scenario = input()
       scenario.target.groups = [group({ models: 2 }), group({ wounds: 3 })]
-      expect(simulateCombat(scenario).damage).toHaveLength(6)
+      expect(calculateCombat(scenario).damage).toHaveLength(6)
     })
   })
-  it('estimates an independently calculated one-attack kill probability', () => {
-    const result = simulateCombat(input())
-    expect(result.kills[1]).toBeCloseTo((4 / 6) * (3 / 6), 2)
+  it('calculates an independently derived one-attack kill probability exactly', () => {
+    const result = calculateCombat(input())
+    expect(result.kills[1]).toBeCloseTo((4 / 6) * (3 / 6), 12)
   })
-  it('returns a normalized distribution and repeats the same scenario exactly', () => {
-    const result = simulateCombat(input())
-    expect([result.kills.reduce((a, b) => a + b, 0), simulateCombat(input())]).toEqual([1, result])
+  it('returns a normalized distribution', () => {
+    expect(calculateCombat(input()).kills.reduce((total, weight) => total + weight, 0)).toBeCloseTo(1, 12)
   })
   it('rejects unbounded simulation work', () => {
     const scenario = input()
     scenario.weapons[0]!.count = 1000000
-    expect(() => simulateCombat(scenario)).toThrow()
+    expect(() => calculateCombat(scenario)).toThrow()
   })
   it('rejects an excessive combined workload even when each characteristic is valid', () => {
     const scenario = input()
-    scenario.weapons[0]!.count = 100
-    scenario.weapons[0]!.attacks.bonus = 100
-    expect(() => simulateCombat(scenario)).toThrow('This attack is too large to simulate.')
+    Object.assign(scenario.weapons[0]!, { count: 100, attacks: { dice: 0, sides: 6, bonus: 100 }, devastating: true })
+    expect(() => calculateCombat(scenario)).toThrow('This attack is too large to simulate.')
   })
 })
 
@@ -651,12 +650,248 @@ describe('Psychic damage prevention', () => {
   })
 })
 
-it('budgets the per-wound rolls of conditional Psychic prevention', () => {
-  const scenario = input()
-  scenario.weapons[0]!.psychic = true
-  scenario.weapons[0]!.count = 30
-  scenario.weapons[0]!.attacks.bonus = 10
-  scenario.weapons[0]!.damage.bonus = 10
-  scenario.target.psychicFeelNoPain = 5
-  expect(simulateCombat(scenario).trials).toBeLessThan(10_000)
+describe('exact calculation', () => {
+  const dice = (bonus: number, count = 0, sides: 3 | 6 = 6) => ({ dice: count, sides, bonus })
+  const weapon = (overrides: Partial<CombatInput['weapons'][number]> = {}): CombatInput['weapons'][number] => ({
+    ...input().weapons[0]!,
+    attacks: dice(2),
+    ap: -1,
+    damage: dice(1),
+    ...overrides,
+  })
+  const group = (overrides: Partial<CombatInput['target']['groups'][number]> = {}) => ({
+    models: 5,
+    toughness: 4,
+    save: 3,
+    invulnerable: null,
+    wounds: 2,
+    ...overrides,
+  })
+  const scenario = (
+    target: Partial<CombatInput['target']>,
+    weapons: CombatInput['weapons'],
+    options: Partial<CombatInput['options']> = {},
+    mortalWounds?: CombatInput['mortalWounds'],
+  ): CombatInput => ({
+    target: { groups: [group()], feelNoPain: null, ...target },
+    weapons,
+    options: { ...input().options, ...options },
+    ...(mortalWounds ? { mortalWounds } : {}),
+  })
+  it.each([
+    [
+      'Rapid Fire at half range',
+      scenario({ groups: [group({ models: 10 })] }, [weapon({ count: 10, attacks: dice(1), rapidFire: 1 })], { halfRange: true }),
+    ],
+    [
+      'variable Sustained Hits with Lethal Hits and re-rolls',
+      scenario({ groups: [group({ models: 3, toughness: 5, save: 4 })] }, [
+        weapon({
+          count: 3,
+          attacks: dice(3),
+          sustained: dice(0, 1, 3),
+          lethal: true,
+          hitReroll: 'ones',
+          woundReroll: 'failed',
+          damage: dice(1, 1, 3),
+        }),
+      ]),
+    ],
+    [
+      'Devastating Wounds and critical AP against mixed saves',
+      scenario({ groups: [group({ models: 2 }), group({ models: 3, save: 5, wounds: 1 })] }, [
+        weapon({ count: 4, devastating: true, criticalAp: -2, damage: dice(2) }),
+      ]),
+    ],
+    [
+      'critical AP against mixed saves',
+      scenario({ groups: [group({ models: 2, save: 2 }), group({ models: 3, save: 4 })] }, [weapon({ count: 6, criticalAp: -1 })]),
+    ],
+    [
+      'mixed Toughness with failed-save re-rolls',
+      scenario(
+        { groups: [group({ models: 1, toughness: 6, save: 2, invulnerable: 4, wounds: 5 }), group({ models: 4 })], saveReroll: 'failed' },
+        [weapon({ count: 5, strength: 5, ap: -2, damage: dice(0, 1) })],
+      ),
+    ],
+    [
+      'save re-rolls of one with Feel No Pain and Torrent',
+      scenario({ groups: [group({ models: 6 })], saveReroll: 'ones', feelNoPain: 5 }, [
+        weapon({ count: 3, attacks: dice(4), damage: dice(2) }),
+        weapon({ attacks: dice(0, 2), torrent: true, strength: 5 }),
+      ]),
+    ],
+    [
+      'a wounded model with halved and reduced Melta damage',
+      scenario(
+        { groups: [group({ models: 2, wounds: 6 })], damage: 2, feelNoPain: 5, damageDivisor: 2, damageReduction: 1, mortalFeelNoPain: 4 },
+        [weapon({ count: 2, attacks: dice(3), damage: dice(1, 1), devastating: true, damageReroll: 'ones', melta: dice(0, 1, 3) })],
+        { halfRange: true },
+      ),
+    ],
+    [
+      'separate mortal wounds before and after the attacks',
+      scenario(
+        { groups: [group({ models: 4, wounds: 3 })], feelNoPain: 6 },
+        [weapon({ count: 2, attacks: dice(3), damage: dice(0, 1, 3) })],
+        {},
+        [
+          {
+            timing: 'before',
+            rolls: 3,
+            outcomes: [
+              { min: 4, max: 5, damage: dice(1) },
+              { min: 6, max: 6, damage: dice(0, 1, 3) },
+            ],
+          },
+          { timing: 'after', rolls: 2, psychic: true, outcomes: [{ min: 2, max: 6, damage: dice(1) }] },
+        ],
+      ),
+    ],
+    [
+      'spotted indirect fire with Blast, cover, Heavy and Psychic attacks',
+      scenario(
+        { groups: [group({ models: 10, wounds: 1, save: 5 })] },
+        [
+          weapon({ count: 2, attacks: dice(0, 1), blast: 1, indirectFire: true, heavy: true, hitModifier: -1, strength: 6 }),
+          weapon({ count: 3, psychic: true, baseSkill: 3, skill: 4, ignoreHitModifiers: true }),
+        ],
+        { indirectFire: 'spotted', cover: true, heavy: true, hitModifier: -1 },
+      ),
+    ],
+    [
+      'a charging Lance with Twin-linked Anti and Cleave',
+      scenario(
+        { groups: [group({ models: 3, toughness: 10, wounds: 8 })] },
+        [
+          weapon({
+            count: 3,
+            attacks: dice(4),
+            strength: 6,
+            ap: -2,
+            damage: dice(2),
+            lance: true,
+            twinLinked: true,
+            criticalWound: 4,
+            devastating: true,
+          }),
+          weapon({ count: 3, attacks: dice(1), cleave: 1 }),
+        ],
+        { phase: 'melee', charged: true },
+      ),
+    ],
+    [
+      'successful-only critical thresholds with declined Lethal Hits',
+      scenario(
+        { groups: [group({ save: 4 })] },
+        [
+          weapon({ count: 5, successfulCriticalHit: 5, successfulCriticalWound: 5, lethal: true, sustained: 1, devastating: true }),
+          weapon({ count: 2, allHitsCritical: true, sustained: 2 }),
+        ],
+        { lethal: false },
+      ),
+    ],
+  ])('matches the dice-by-dice sequence for %s', (_, matchup) => {
+    const exact = calculateCombat(matchup)
+    const sampled = sampleCombat(matchup, 60_000)
+    const difference = Math.max(
+      ...exact.damage.map((weight, lost) => Math.abs(weight - sampled.damage[lost]!)),
+      ...exact.kills.map((weight, killed) => Math.abs(weight - sampled.kills[killed]!)),
+    )
+    expect(difference).toBeLessThan(0.01)
+  })
+})
+
+/** Every roll sequence of the reference, each D6 or D3 roll taking all six equally likely values. */
+function enumerated(scenario: CombatInput) {
+  const damage = new Map<number, number>()
+  const explore = (prefix: number[]) => {
+    let at = 0
+    let result: ReturnType<typeof attackSequence> | undefined
+    try {
+      result = attackSequence(scenario, () => {
+        if (at === prefix.length) throw prefix
+        return (prefix[at++]! + 0.5) / 6
+      })
+    } catch (error) {
+      if (error !== prefix) throw error
+      for (let face = 0; face < 6; face++) explore([...prefix, face])
+      return
+    }
+    damage.set(result.damage, (damage.get(result.damage) ?? 0) + 6 ** -prefix.length)
+  }
+  explore([])
+  return damage
+}
+
+describe('exact calculation against every roll sequence', () => {
+  const group = (overrides: Partial<CombatInput['target']['groups'][number]>) => ({
+    models: 1,
+    toughness: 4,
+    save: 7,
+    invulnerable: null,
+    wounds: 1,
+    ...overrides,
+  })
+  const attacks = (bonus: number) => ({ dice: 0, sides: 6 as const, bonus })
+  const torrent = (overrides: Partial<CombatInput['weapons'][number]>) => ({
+    ...input().weapons[0]!,
+    torrent: true,
+    strength: 8,
+    damage: attacks(1),
+    ...overrides,
+  })
+  it.each([
+    [
+      'equal ordinary and critical saves against a changing group',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({}), group({ save: 3, models: 2 })]
+        scenario.weapons = [torrent({ attacks: attacks(3), criticalWound: 5, criticalAp: -1 })]
+      },
+    ],
+    [
+      'failed-save re-rolls judged by the group current when the pool is rolled',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({}), group({ save: 2, models: 2 })]
+        scenario.target.saveReroll = 'failed'
+        scenario.weapons = [torrent({}), torrent({})]
+      },
+    ],
+    [
+      'devastating wounds changing the group before saves',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ wounds: 2 }), group({ save: 3, wounds: 2 })]
+        scenario.target.saveReroll = 'ones'
+        scenario.weapons = [torrent({ attacks: attacks(2), devastating: true, criticalWound: 4, damage: attacks(2) })]
+      },
+    ],
+    [
+      'wound rolls against the highest Toughness on the battlefield',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ save: 4 }), group({ toughness: 8, save: 4 })]
+        scenario.weapons = [torrent({ strength: 4, attacks: attacks(2) }), torrent({ strength: 4 })]
+      },
+    ],
+    [
+      'Sustained Hits and Lethal Hits with re-rolled hit rolls of one',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ wounds: 3, save: 5 })]
+        Object.assign(scenario.weapons[0]!, { skill: 4, lethal: true, sustained: 1, hitReroll: 'ones', damage: attacks(2) })
+      },
+    ],
+    [
+      'Feel No Pain on each point of damage beyond the current model',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ wounds: 2, models: 2, save: 5 })]
+        scenario.target.feelNoPain = 5
+        scenario.weapons = [torrent({ damage: attacks(3) })]
+      },
+    ],
+  ])('matches %s', (_, arrange) => {
+    const scenario = input()
+    arrange(scenario)
+    const expected = enumerated(scenario)
+    const exact = calculateCombat(scenario).damage
+    expect(Math.max(...exact.map((weight, lost) => Math.abs(weight - (expected.get(lost) ?? 0))))).toBeLessThan(1e-12)
+  })
 })

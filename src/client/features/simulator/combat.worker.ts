@@ -1,15 +1,19 @@
-import { simulateCombat, type CombatInput } from '../../../core/combat'
+import { calculateCombat, type CombatInput } from '../../../core/combat'
+import { loadoutOdds } from '../../../core/combatLoadouts'
 import type { CombatAnswer, CombatRequest } from './CombatMatchup'
+import type { LoadoutOdds, LoadoutOddsRequest } from './useLoadoutOdds'
 
 function run(input: CombatInput | null) {
   if (!input) return null
   try {
-    return { result: simulateCombat(input) }
+    return { result: calculateCombat(input) }
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'The simulation failed.' }
   }
 }
 
-self.onmessage = (event: MessageEvent<CombatRequest>) => {
-  self.postMessage({ ranged: run(event.data.ranged), melee: run(event.data.melee) } satisfies CombatAnswer)
+self.onmessage = (event: MessageEvent<CombatRequest | LoadoutOddsRequest>) => {
+  const { data } = event
+  if ('kind' in data) self.postMessage(loadoutOdds(data.space, data.scoring, data.expected) satisfies LoadoutOdds)
+  else self.postMessage({ ranged: run(data.ranged), melee: run(data.melee) } satisfies CombatAnswer)
 }

@@ -18,11 +18,13 @@ import { mutationRpc, rpc } from '../rpc'
 import { rosterLabel } from '../../core/rosterLabel'
 import { rosterDatasheetContext } from '../rosterDatasheetContext'
 import { rosterCombatant } from '../rosterCombatRules'
+import { combatLoadoutSpace } from '../combatLoadouts'
 import { currentUserId } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { selectedBattleDetachmentData } from '../battleDetachmentData'
 import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
 import {
+  combatLoadoutSchema,
   datasheetSchema,
   datasheetSlugSchema,
   detachmentRulesSchema,
@@ -181,6 +183,16 @@ export const combatantDatasheet = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const loaded = await app().catalogueFor(data.catalogueId)
       return loaded ? rosterCombatant(loaded, await app().rulesFor(), data) : null
+    }),
+  )
+
+/** Each weapon option of a pick, built once so the browser can score them against any target. */
+export const combatLoadouts = createServerFn({ method: 'POST' })
+  .validator(combatLoadoutSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const loaded = await app().catalogueFor(data.catalogueId)
+      return loaded ? combatLoadoutSpace(loaded, data) : null
     }),
   )
 

@@ -5,9 +5,11 @@ import type { RosterPick } from '../../../core/roster'
 import { combatSurvivors, combatSurvivorSheet } from '../../../core/combatSurvivors'
 import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatRuleChoices, combatRuleDefault } from '../../../core/combatRules'
-import { combatantDatasheetQuery, priceQuery } from '../../queries'
+import { combatLoadoutsQuery, combatantDatasheetQuery, priceQuery } from '../../queries'
+import type { SimulatorSide } from './simulatorUrl'
 import { useSettled } from '../../useSettled'
 import { survivingUnits } from '../rosters/builder/pricePlaceholder'
+import type { KeyedPick } from '../rosters/rosterPicks'
 import { pickEditor, usePicks } from '../rosters/builder/usePicks'
 
 export type CombatRoster = {
@@ -25,13 +27,17 @@ export type CombatRoster = {
   }
 }
 
-export function useCombatant(roster?: CombatRoster) {
-  const [catalogueId, setCatalogueId] = useState(roster?.catalogueId ?? '')
+/** `initial` restores a standalone side from a shared link; a roster side starts from its roster. */
+export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | null) {
+  const [catalogueId, setCatalogueId] = useState(roster?.catalogueId ?? initial?.catalogueId ?? '')
   const [pickIndex, selectRosterUnit] = useState(roster?.pickIndex ?? 0)
-  const [selectedRules, setSelectedRules] = useState<Record<string, Record<string, number>>>({})
+  // A restored pick takes the first key, so its rule choices belong to that identity.
+  const [selectedRules, setSelectedRules] = useState<Record<string, Record<string, number>>>(() =>
+    initial ? { [`${initial.pick.catalogueId ?? initial.catalogueId}:0:${initial.pick.entryId}`]: initial.rules } : {},
+  )
   const [health, setHealth] = useState<Record<string, { models: number; damage: number }>>({})
   const [allocations, setAllocations] = useState<Record<string, CombatCarrier[]>>({})
-  const picks = usePicks(roster?.picks ?? [])
+  const picks = usePicks(roster?.picks ?? (initial ? [initial.pick] : []))
   const detachmentIds = roster?.detachmentIds ?? []
   const settled = useSettled(picks.positioned)
   const pick = picks.positioned[pickIndex]
@@ -68,6 +74,14 @@ export function useCombatant(roster?: CombatRoster) {
     enabled: Boolean(entryId && entryId === settled[pickIndex]?.entryId),
     placeholderData: (previous, query) =>
       query?.queryKey[1] === catalogueId && query.queryKey[2] === entryId && query.queryKey[5] === pickIndex ? previous : undefined,
+  })
+  // A battle fields frozen loadouts, so there is nothing to choose between.
+  const loadoutContext =
+    !roster?.battle && entryId && entryId === settled[pickIndex]?.entryId ? { catalogueId, detachmentIds, picks: settled, pickIndex } : null
+  const loadouts = useQuery({
+    ...combatLoadoutsQuery(loadoutContext ?? { catalogueId: '', detachmentIds: [], picks: [], pickIndex: 0 }),
+    enabled: Boolean(loadoutContext),
+    placeholderData: (previous, query) => (query?.queryKey[4] === pickIndex && query.queryKey[1] === catalogueId ? previous : undefined),
   })
   const battleUnit = roster?.battle?.units[pickIndex]
   const currentHealth = health[identity] ?? battleUnit
@@ -136,8 +150,12 @@ export function useCombatant(roster?: CombatRoster) {
             rules: activeRules,
           }
         : null,
+    /** Undefined while another loadout's options are still being built. */
+    loadoutSpace: loadoutContext && !loadouts.isPlaceholderData ? loadouts.data : undefined,
     edit: pickEditor(picks.setPicks, { catalogueId, units: price.data?.units ?? [] }, picks.allocateKey),
     selectRosterUnit,
+    /** What a shared link needs to restore this standalone side. */
+    shared: shareable(roster, catalogueId, picks.picks[pickIndex], ruleSelections),
     selectUnit: (catalogue: string, id: string) => {
       setCatalogueId(catalogue)
       setSelectedRules({})
@@ -147,3 +165,14 @@ export function useCombatant(roster?: CombatRoster) {
 }
 
 export type Combatant = ReturnType<typeof useCombatant>
+
+function shareable(
+  roster: CombatRoster | undefined,
+  catalogueId: string,
+  pick: KeyedPick | undefined,
+  rules: Record<string, number>,
+): SimulatorSide | null {
+  if (roster || !catalogueId || !pick) return null
+  const { key: _key, attachedTo: _attachedTo, ...shared } = pick
+  return { catalogueId, pick: shared, rules }
+}

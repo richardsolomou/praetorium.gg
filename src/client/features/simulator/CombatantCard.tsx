@@ -9,6 +9,8 @@ import { combatUnitsQuery, factionIndexQuery } from '../../queries'
 import { Loadout } from '../rosters/builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { CombatSurvivorControls } from './CombatSurvivorControls'
+import { useOptionNote, useProfileNote } from './LoadoutOdds'
+import { WeaponProfileNote } from '../../components/DatasheetProfiles'
 import type { Combatant } from './useCombatant'
 
 const unitValue = (catalogueId: string, id: string) => JSON.stringify([catalogueId, id])
@@ -26,6 +28,8 @@ export function CombatantCard({
 }) {
   const [open, setOpen] = useState(false)
   const [survivorsOpen, setSurvivorsOpen] = useState(false)
+  const optionNote = useOptionNote()
+  const profileNote = useProfileNote()
   const factions = useQuery(factionIndexQuery())
   const catalogueUnits = useQuery({ ...combatUnitsQuery(), enabled: !combatant.roster })
   const { unit, picks, edit, ready, pick, pickIndex, battleUnit } = combatant
@@ -225,17 +229,20 @@ export function CombatantCard({
             </DialogTitle>
           </DialogHeader>
           <div className="min-h-0 min-w-0 flex-1">
-            <Loadout
-              catalogueId={combatant.faction}
-              unit={unit ?? null}
-              loading={!unit}
-              detachmentIds={combatant.detachmentIds}
-              picks={picks.positioned}
-              pickIndex={pickIndex}
-              controlsDisabled={!ready}
-              onChoose={(key, id) => edit.choose(pickIndex, key, id)}
-              onSpread={(key, update) => edit.spread(pickIndex, key, update)}
-            />
+            <WeaponProfileNote.Provider value={profileNote}>
+              <Loadout
+                catalogueId={combatant.faction}
+                unit={unit ?? null}
+                loading={!unit}
+                detachmentIds={combatant.detachmentIds}
+                picks={picks.positioned}
+                pickIndex={pickIndex}
+                controlsDisabled={!ready}
+                onChoose={(key, id) => edit.choose(pickIndex, key, id)}
+                onSpread={(key, update) => edit.spread(pickIndex, key, update)}
+                optionNote={optionNote}
+              />
+            </WeaponProfileNote.Provider>
           </div>
         </DialogContent>
       </Dialog>

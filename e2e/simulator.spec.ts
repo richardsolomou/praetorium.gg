@@ -462,7 +462,7 @@ for (const width of [1440, 390, 860, 1024]) {
     }
     const shooting = page.getByRole('region', { name: 'Shooting results' })
     const melee = page.getByRole('region', { name: 'Melee results' })
-    await expect(estimate(page, 'Shooting')).toContainText('2.23')
+    await expect(estimate(page, 'Shooting')).toContainText('2.22')
     await expect(shooting).toContainText('5× Bolt Rifle – Focused Fire')
     await expect(melee).toContainText('5× Knives and Fists')
     for (const [results, phase] of [
@@ -520,7 +520,7 @@ for (const width of [1440, 390, 860, 1024]) {
 
     await page.getByRole('button', { name: 'Cover (−1 BS)', exact: true }).click()
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect(estimate(page, 'Shooting')).not.toContainText('2.23')
+    await expect(estimate(page, 'Shooting')).not.toContainText('2.22')
     const coveredDamage = await estimate(page, 'Shooting').locator('.readout').first().textContent()
 
     let hold = true
@@ -744,7 +744,7 @@ test('a failed worker can be retried without reselecting either unit', async ({ 
   const shooting = page.getByRole('region', { name: 'Shooting results' })
   await expect(shooting).toContainText('The calculation could not start.')
   await shooting.getByRole('button', { name: 'Retry' }).click()
-  await expect(estimate(page, 'Shooting')).toContainText('2.23')
+  await expect(estimate(page, 'Shooting')).toContainText('2.22')
   await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')
 })
 
@@ -910,4 +910,38 @@ test.describe('touch probability charts', () => {
     await page.getByRole('heading', { name: 'Attacker rules & buffs', exact: true }).tap()
     await expect(tooltip).toBeHidden()
   })
+})
+
+test("the loadout editor shows each option's odds against the defender", async ({ page }) => {
+  await page.goto('/simulator')
+  await chooseUnit(page, 'Attacker', 'Orks', 'Boyz')
+  await chooseUnit(page, 'Defender', 'Necrons', 'Tomb Blades')
+  await expect(estimate(page, 'Shooting')).toHaveAttribute('aria-busy', 'false')
+  await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
+  const loadout = page.getByRole('dialog', { name: 'Attacker · Boyz' })
+  await expect(loadout.getByLabel(/^Shooting, unit with one more: \d+\.\d% destroyed/).first()).toBeVisible()
+  await expect(loadout.getByLabel(/^Shooting, unit with one more: .*, best$/)).toHaveCount(1)
+  await expect(loadout.getByLabel(/^Shooting, \d+ models? with this weapon: \d+\.\d% destroyed/).first()).toBeVisible()
+  await page.screenshot({ path: 'test-results/simulator-loadout-estimates.png' })
+})
+
+test('a simulator link reopens the same units, swap, and modifiers', async ({ page }) => {
+  await page.goto('/simulator')
+  await chooseUnit(page, 'Attacker', 'Necrons', 'Tomb Blades')
+  await chooseUnit(page, 'Defender', 'Orks', 'Boyz')
+  await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
+  await page.getByRole('button', { name: 'Cover (−1 BS)', exact: true }).click()
+  await expect(estimate(page, 'Shooting')).toHaveAttribute('aria-busy', 'false')
+  const damage = await estimate(page, 'Shooting').locator('.readout').first().textContent()
+  await expect(page).toHaveURL(/[?&]s=[\w-]+/)
+  await page.goto(page.url())
+  await expect(page.getByRole('region', { name: 'Attacker', exact: true })).toContainText('Boyz')
+  await expect(page.getByRole('button', { name: 'Cover (−1 BS)', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(estimate(page, 'Shooting').locator('.readout').first()).toHaveText(damage!)
+})
+
+test('a link that does not decode opens an empty simulator', async ({ page }) => {
+  await page.goto('/simulator?s=broken')
+  await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toBeVisible()
+  await expect(page.getByText('Choose a unit to see its buffs.')).toHaveCount(2)
 })
