@@ -119,9 +119,7 @@ export function LoadoutSuggestions({
             <ChevronDown className="size-3.5 transition-transform group-data-panel-open:rotate-180" aria-hidden />
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-2 grid gap-4 @xl:grid-cols-2">
-            {shown.map(([phase, found]) => (
-              <OptionTable key={phase} phase={phase} rows={found.rows} />
-            ))}
+            {shown.map(([phase, found]) => (found.rows.length ? <OptionTable key={phase} phase={phase} rows={found.rows} /> : null))}
           </CollapsibleContent>
         </Collapsible>
       ) : null}

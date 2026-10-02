@@ -190,25 +190,28 @@ export function useLoadoutSearch({
                 points: best.points,
               }
             : null,
-          rows: rows[name].flatMap((row) => {
-            const rowKey = keyOf(row.assignment)
-            const result = rowKey === currentKey ? now : verified.get(rowKey)?.score[name]
-            if (!result) return []
-            const axis = parsed.space.axes[row.axis]!
-            const value = row.assignment[row.axis]!
-            return [
-              {
-                axis: axis.name,
-                label:
-                  axis.kind === 'single'
-                    ? (axis.options.find((option) => option.id === value)?.name ?? 'Nothing')
-                    : loadoutChanges([axis], [value]).join(', ') || 'As chosen',
-                result,
-                best: rowKey === baseKey,
-                current: rowKey === currentKey,
-              },
-            ]
-          }),
+          rows: rows[name]
+            // A choice whose options all resolve alike, such as a melee weapon when shooting, has nothing to compare.
+            .filter((row) => rows[name].some((other) => other.axis === row.axis && compareOutcomes(other.result, row.result) !== 0))
+            .flatMap((row) => {
+              const rowKey = keyOf(row.assignment)
+              const result = rowKey === currentKey ? now : verified.get(rowKey)?.score[name]
+              if (!result) return []
+              const axis = parsed.space.axes[row.axis]!
+              const value = row.assignment[row.axis]!
+              return [
+                {
+                  axis: axis.name,
+                  label:
+                    axis.kind === 'single'
+                      ? (axis.options.find((option) => option.id === value)?.name ?? 'Nothing')
+                      : loadoutChanges([axis], [value]).join(', ') || 'As chosen',
+                  result,
+                  best: rowKey === baseKey,
+                  current: rowKey === currentKey,
+                },
+              ]
+            }),
           complete: search[name].complete,
         }
       }
