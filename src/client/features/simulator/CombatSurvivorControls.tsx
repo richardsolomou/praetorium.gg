@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { validCombatSurvivors } from '../../../core/combatSurvivors'
+import { combatSurvivorWeaponBounds, validCombatSurvivors } from '../../../core/combatSurvivors'
 import type { CombatCarrier } from '../../../core/combatLoadout'
 import { Stepper } from '../../components/Stepper'
 
@@ -31,10 +31,8 @@ export function CombatSurvivorControls({
           ...carrier,
           models: remaining,
           weapons: carrier.weapons.map((weapon, weaponIndex) => {
-            const equipped = source.weapons[weaponIndex]!
-            const perModel = Math.ceil(equipped.count / source.models)
-            const min = Math.max(0, equipped.count - (source.models - remaining) * perModel)
-            return { ...weapon, count: Math.max(min, Math.min(weapon.count, equipped.count, remaining * perModel)) }
+            const { minimum, maximum } = combatSurvivorWeaponBounds(source, weaponIndex, remaining, models)
+            return { ...weapon, count: Math.max(minimum, Math.min(weapon.count, maximum)) }
           }),
         }
       }),
@@ -50,20 +48,19 @@ export function CombatSurvivorControls({
         >
           <div className="flex items-center justify-between gap-3">
             <h3 className="rubric">{carrier.name}</h3>
-            <Stepper
-              label={`${carrier.name} survivors`}
-              countLabel={`${carrier.name} surviving models`}
-              count={carrier.models}
-              onRemove={carrier.models > 0 ? () => resize(index, carrier.models - 1) : undefined}
-              onAdd={carrier.models < original[index]!.models ? () => resize(index, carrier.models + 1) : undefined}
-            />
+            {!carrier.unitWide && (
+              <Stepper
+                label={`${carrier.name} survivors`}
+                countLabel={`${carrier.name} surviving models`}
+                count={carrier.models}
+                onRemove={carrier.models > 0 ? () => resize(index, carrier.models - 1) : undefined}
+                onAdd={carrier.models < original[index]!.models ? () => resize(index, carrier.models + 1) : undefined}
+              />
+            )}
           </div>
           {carrier.weapons.map((weapon, at) => {
             const source = original[index]!
-            const equipped = source.weapons[at]!
-            const perModel = Math.ceil(equipped.count / source.models)
-            const min = Math.max(0, equipped.count - (source.models - carrier.models) * perModel)
-            const max = Math.min(equipped.count, carrier.models * perModel)
+            const { minimum: min, maximum: max } = combatSurvivorWeaponBounds(source, at, carrier.models, count)
             const change = (weaponCount: number) =>
               setDraft((current) =>
                 current.map((entry, i) =>

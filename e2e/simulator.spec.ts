@@ -15,6 +15,63 @@ function estimate(page: Page, phase: 'Shooting' | 'Melee') {
   return page.getByRole('region', { name: `${phase} estimate` })
 }
 
+test('the Death Guard Defiler calculates either Shearing claws mode', async ({ page }) => {
+  await page.goto('/simulator')
+  await chooseUnit(page, 'Attacker', 'Death Guard', 'Defiler')
+  await chooseUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+  const melee = page.getByRole('region', { name: 'Melee results' })
+  const damage = estimate(page, 'Melee').locator('.readout').first()
+  for (const mode of ['strike', 'sweep']) {
+    await choose(page, 'Defiler · Shearing claws', `Shearing claws - ${mode}`)
+    await expect(melee.getByRole('heading', { name: `Shearing claws - ${mode}`, exact: true })).toBeVisible()
+    await expect(melee.locator('[data-weapon-card]')).toHaveCount(1)
+    await expect(melee).not.toContainText('equipped weapons could not be matched')
+    await expect(melee).toHaveAttribute('aria-busy', 'false')
+    await expect(damage).toHaveText(/^\d+\.\d{2}$/)
+    await page.screenshot({ path: `test-results/simulator-defiler-${mode}.png` })
+  }
+})
+
+for (const width of [1440, 390]) {
+  test(`source-linked equipment calculates without ownership errors at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto('/simulator')
+    await chooseUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+    for (const [faction, unit, phase] of [
+      ['Blood Angels', 'Lemartes', 'Shooting'],
+      ['Chaos Daemons', 'Pink Horrors', 'Shooting'],
+      ['Astra Militarum', 'Cadian Heavy Weapons Squad', 'Melee'],
+      ['Aeldari', 'Jain Zar', 'Melee'],
+      ['Drukhari', 'Lady Malys', 'Melee'],
+      ['Orks', 'Deffkoptas', 'Shooting'],
+    ] as const) {
+      await chooseUnit(page, 'Attacker', faction, unit)
+      const results = page.getByRole('region', { name: `${phase} results` })
+      await expect(results).toHaveAttribute('aria-busy', 'false')
+      await expect(results.getByRole('alert')).toHaveCount(0)
+      await expect(estimate(page, phase).locator('.readout').first()).toHaveText(/^\d+\.\d{2}$/)
+      await expect(results).not.toContainText('ref. only')
+      await noOverflow(page)
+      await page.screenshot({ path: `test-results/simulator-ownership-${unit.replaceAll(' ', '-')}-${width}.png` })
+    }
+    await chooseUnit(page, 'Attacker', 'Necrons', 'Triarch Praetorians')
+    await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
+    const loadout = page.getByRole('dialog')
+    for (let count = 1; count <= 5; count++) {
+      await loadout.getByRole('button', { name: 'More Particle caster and voidblade', exact: true }).click()
+      await expect(loadout.getByLabel('Particle caster and voidblade count', { exact: true })).toHaveText(String(count))
+    }
+    await loadout.getByRole('button', { name: 'Close', exact: true }).click()
+    await expect(page.getByRole('region', { name: 'Shooting results' })).toContainText('Particle caster')
+    await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Voidblade')
+    for (const phase of ['Shooting', 'Melee'] as const) {
+      await expect(page.getByRole('region', { name: `${phase} results` }).getByRole('alert')).toHaveCount(0)
+      await expect(estimate(page, phase).locator('.readout').first()).toHaveText(/^\d+\.\d{2}$/)
+    }
+    await page.screenshot({ path: `test-results/simulator-ownership-bundle-${width}.png` })
+  })
+}
+
 /** Every modifier tab offers the same chips, and the previous panel can linger while the next one opens. */
 async function modifierTab(page: Page, title: 'All' | 'Shooting' | 'Melee') {
   // A tab, and the panel it labels, count the modifiers selected in it.

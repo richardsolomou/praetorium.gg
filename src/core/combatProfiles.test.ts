@@ -270,6 +270,34 @@ const plan = (
 const selected = (result: ReturnType<typeof combatPlan>) => result.used.map(({ profile, count }) => [profile.name, count])
 
 describe('automatic combat loadouts', () => {
+  it('refuses unit-level melee equipment without individual model ownership', () => {
+    const equipment = { ...carrier(0, ['Blade', 1]), name: 'Unit equipment', unitWide: true }
+    expect(plan([weaponProfile('Blade', 'melee', 1)], [equipment], 'melee').errors).toEqual([
+      'Unit equipment: melee allocation needs individual model ownership.',
+    ])
+  })
+  it('refuses a matching equipment label whose authoritative profile identity differs', () => {
+    const carriers = [{ name: 'Model', models: 1, weapons: [{ name: 'Rifle', count: 1, profileIds: ['other'] }] }]
+    expect(plan([weaponProfile('Rifle', 'ranged', 1)], carriers).errors).toEqual([
+      'Rifle: equipped weapons could not be matched to their models.',
+    ])
+  })
+  it.each(['-', '–', '—'])('selects one unmarked %s-separated weapon mode and preserves exclusion across modes', (separator) => {
+    const strike = `Claws ${separator} strike`
+    const sweep = `Claws ${separator} sweep`
+    const data = { ...sheet(), profiles: [weaponProfile(strike, 'melee', 1), weaponProfile(sweep, 'melee', 1)] }
+    const carriers = [carrier(1, ['Claws', 1])]
+    const initial = combatPlan(data, carriers, [], 'melee')
+    const preferences = { 'melee:0:claws': sweep }
+    const switched = combatPlan(data, carriers, [], 'melee', preferences)
+    const excluded = combatPlan(data, carriers, [], 'melee', preferences, new Set([wargearKey(strike)]))
+    expect({ initial: selected(initial), switched: selected(switched), excluded: excluded.weapons, errors: initial.errors }).toEqual({
+      initial: [[strike, 1]],
+      switched: [[sweep, 1]],
+      excluded: [],
+      errors: [],
+    })
+  })
   it.each(['Close-Quarters', 'Pistol'])('uses rifles without also adding the same models’ %s attacks', (keyword) => {
     expect(
       selected(

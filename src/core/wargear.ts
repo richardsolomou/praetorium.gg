@@ -26,10 +26,9 @@ export const wargearKey = (name: string) => routeSlug(wargearBaseName(name))
 /** The shared name without a profile mode, aura label, or source marker. */
 export const wargearBaseName = (name: string) => {
   const trimmed = name.trim()
-  const marked = /^[^\p{L}\p{N}]+/u.test(trimmed)
   const unmarked = trimmed.replace(/^[^\p{L}\p{N}]+/u, '')
-  const withoutMarkedMode = marked ? unmarked.replace(/\s+-\s+[^-]+$/, '') : unmarked
-  return withoutMarkedMode
+  return unmarked
+    .replace(/\s*[-–—]\s+[^–—]+$/, '')
     .replace(/\s*\([^)]*\)\s*$/, '')
     .trim()
     .toLowerCase()

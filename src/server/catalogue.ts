@@ -13,7 +13,7 @@ import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
 import { choiceOptionWargear } from '../core/modelKinds'
 import { wargearKey, wargearOf } from '../core/wargear'
-import { combatCarriers } from '../core/combatLoadout'
+import { combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
 import { ruleReferenceMatches } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
 import {
@@ -380,6 +380,12 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     const key = wargearKey(name)
     wargearCounts.set(key, (wargearCounts.get(key) ?? 0) + count)
   }
+  const equippedCounts = new Map<string, number>()
+  for (const carrier of selectedUnit ? combatCarriers(selectedUnit, loaded.index) : []) {
+    for (const weapon of carrier.weapons) {
+      for (const id of weapon.profileIds ?? []) equippedCounts.set(id, (equippedCounts.get(id) ?? 0) + weapon.count)
+    }
+  }
   const profiles = new Map<string, { profile: Profile; lineage: string[]; owner: string[] }>()
   const abilities = new Map<string, Datasheet['abilities'][number]>()
   const keywordRules = new Map<string, Datasheet['keywordRules'][number]>()
@@ -547,6 +553,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     const profileType = profile.typeName
     const weapon = profileType === 'Ranged Weapons' || profileType === 'Melee Weapons'
     const intrinsic = owner.includes(root.id) || owner.includes(sheet.id)
+    if (selectedUnit && weapon && !context?.everyWeapon && referenceOnlyWeapon(profile.name)) return []
     if (selectedUnit && weapon && !context?.everyWeapon && !intrinsic && !owner.some((id) => selected.has(id))) return []
     const profileLineage = [...lineage, profile.id]
     const hidden = modifiedProfileField(String(profile.hidden ?? false), 'hidden', profileType, profileLineage, owner, modifiers).value
@@ -601,7 +608,12 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
         name: annotation ? `${changedName.value} (${annotation})` : changedName.value,
         type: profileType,
         ...(weapon && selectedUnit
-          ? { count: wargearCounts.get(wargearKey(profile.name)) ?? Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) }
+          ? {
+              count:
+                equippedCounts.get(profile.id) ??
+                wargearCounts.get(wargearKey(profile.name)) ??
+                Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)),
+            }
           : {}),
         values: displayedValues,
       },
