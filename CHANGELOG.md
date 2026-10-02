@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.95.1
+
+### Patch Changes
+
+- 3da2863: Allow sign-in through either local loopback hostname.
+
 ## 0.95.0
 
 ### Minor Changes
