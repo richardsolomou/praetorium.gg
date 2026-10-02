@@ -78,7 +78,7 @@ it.each([
   const email = `${randomUUID()}@example.com`
   await auth.api.signUpEmail({ body: { email, password: 'password1234', name: 'Local player' } })
   const response = await auth.handler(
-    new Request(`${appUrl}/api/auth/sign-in/email`, {
+    new Request(`${browserOrigin}/api/auth/sign-in/email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: browserOrigin, Cookie: 'existing=1' },
       body: JSON.stringify({ email, password: 'password1234' }),

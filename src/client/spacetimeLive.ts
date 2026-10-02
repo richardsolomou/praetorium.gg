@@ -6,6 +6,7 @@ import { DbConnection, tables } from '../spacetime/generated'
 import { battleQuery, battlesQuery } from './queries'
 import { maintainSpacetimeConnection } from './spacetimeConnection'
 import { invalidateAdminProductQueries, invalidateProductQueries, invalidatePublicProductQueries } from './productSignals'
+import { spacetimeBrowserUri } from './spacetimeBrowserUri'
 
 type RealtimeConfig = { mode: 'spacetime'; database: string; uri: string }
 let modePromise: Promise<RealtimeConfig> | null = null
@@ -19,7 +20,10 @@ export function useRealtimeConfig() {
         if (!response.ok) throw new Error(`Realtime mode failed with HTTP ${response.status}`)
         return response.json()
       })
-      .then((value: unknown) => z.object({ mode: z.literal('spacetime'), database: z.string().min(1), uri: z.url() }).parse(value))
+      .then((value: unknown) => {
+        const parsed = z.object({ mode: z.literal('spacetime'), database: z.string().min(1), uri: z.url() }).parse(value)
+        return { ...parsed, uri: spacetimeBrowserUri(parsed.uri, window.location.origin) }
+      })
       .catch((error: unknown) => {
         modePromise = null
         throw error
@@ -47,7 +51,8 @@ async function ticket(battle?: string) {
   const url = battle ? `/api/spacetime/token?battle=${encodeURIComponent(battle)}` : '/api/spacetime/token'
   const response = await fetch(url, { cache: 'no-store' })
   if (!response.ok) throw new Error(`Spacetime token failed with HTTP ${response.status}`)
-  return ticketSchema.parse(await response.json())
+  const issued = ticketSchema.parse(await response.json())
+  return { ...issued, uri: spacetimeBrowserUri(issued.uri, window.location.origin) }
 }
 
 async function guestTicket(config: RealtimeConfig) {
