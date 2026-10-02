@@ -36,14 +36,14 @@ export function BattleShelf({
   const { date } = useDateFormatting()
   if (!battles.length) return null
   return (
-    <section data-onboarding={onboarding} data-battle-shelf={title ?? ''}>
+    <section className="mx-auto max-w-[88rem]" data-onboarding={onboarding} data-battle-shelf={title ?? ''}>
       {title ? (
         <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
           <span>{title}</span>
           <span className="readout">{battles.length}</span>
         </p>
       ) : null}
-      <div className={`space-y-3 ${title ? 'mt-2' : ''}`}>
+      <div className={`grid items-stretch gap-3 lg:grid-cols-2 ${title ? 'mt-2' : ''}`}>
         {battles.map((battle) => {
           const canDelete = Boolean(viewerId && onDelete && battle.playerIds[0] === viewerId)
           // Folded into sides rather than read seat by seat: an ally of a 2v1 sits second.
@@ -63,13 +63,11 @@ export function BattleShelf({
           )
           return (
             <ContextMenu key={battle.token}>
-              <ContextMenuTrigger render={<article className="relative border border-edge bg-panel hover:border-edge-strong" />}>
-                <Link
-                  to="/battles/$token"
-                  params={{ token: battle.token }}
-                  className="flex min-w-0 flex-col gap-2 p-3 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-3 sm:pr-10"
-                >
-                  <span className="border-b border-edge pb-2 text-center sm:order-2 sm:border-0 sm:pb-0">
+              <ContextMenuTrigger
+                render={<article className="relative h-full min-w-0 border border-edge bg-panel hover:border-edge-strong" />}
+              >
+                <Link to="/battles/$token" params={{ token: battle.token }} className="flex h-full min-w-0 flex-col gap-2 p-3">
+                  <span className="border-b border-edge pb-2 text-center">
                     <span className={`chip ${battleStage(battle.status).tint}`}>{battleStage(battle.status).name}</span>
                     <span className="mt-1 block text-xs text-dim">
                       {battle.status === 'playing'
@@ -83,25 +81,19 @@ export function BattleShelf({
                       {battle.result?.reason ? ` · ${battle.result.reason.replaceAll('-', ' ')}` : ''}
                     </span>
                   </span>
-                  <BattleSide seats={ours?.seats ?? []} score={ours?.score ?? 0} side="a" className="sm:order-1" />
+                  <BattleSide seats={ours?.seats ?? []} score={ours?.score ?? 0} side="a" />
                   <BattleSide
                     seats={theirs?.seats ?? []}
                     score={theirs?.score ?? 0}
                     side="b"
                     emptyLabel="Open seat"
                     emptyArmy="Waiting for an opponent"
-                    className="sm:order-3"
                   />
                 </Link>
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="absolute top-2 right-2 sm:top-1/2 sm:-translate-y-1/2"
-                        aria-label={`Actions for ${label}`}
-                      />
+                      <Button variant="ghost" size="icon-sm" className="absolute top-2 right-2" aria-label={`Actions for ${label}`} />
                     }
                   >
                     <EllipsisVertical />
@@ -133,7 +125,6 @@ function BattleSide({
   side,
   emptyLabel = 'Open seat',
   emptyArmy = 'Waiting for an opponent',
-  className = '',
 }: {
   seats: {
     player: { id: string; name: string; image: string | null }
@@ -145,12 +136,11 @@ function BattleSide({
   side: 'a' | 'b'
   emptyLabel?: string
   emptyArmy?: string
-  className?: string
 }) {
   const waiting = !seats.length
   return (
-    <span className={`flex min-w-0 items-center gap-3 ${side === 'b' ? 'sm:justify-end' : ''} ${className}`}>
-      <span className="min-w-0 flex-1 sm:flex-initial">
+    <span className="flex min-w-0 items-center gap-3">
+      <span className="min-w-0 flex-1">
         {waiting ? (
           <>
             <span className="block truncate font-bold uppercase">{emptyLabel}</span>
