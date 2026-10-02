@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.97.0
+
+### Minor Changes
+
+- 8292689: Calculate combat odds exactly instead of sampling them, so estimates appear instantly and match on every device.
+- 69f7097: Show each weapon option's and profile's odds against the selected defender in the simulator's loadout editor, with the strongest option of each choice marked.
+- 6ed424c: Keep the simulator's units, loadouts, and modifiers in its link, so a reload or a shared link reopens the same calculation.
+
 ## 0.96.3
 
 ### Patch Changes
