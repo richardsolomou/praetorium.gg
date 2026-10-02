@@ -624,7 +624,7 @@ test('a card names its own condition, and what their turn owed is asked as the t
       const prep = alice.getByRole('group', { name: 'Secondary play' }).first().locator('..')
       await press(prep.getByRole('button', { name: 'Fixed' }))
       for (const card of ['Assassination', 'Engage on All Fronts']) {
-        await press(prep.getByRole('button', { name: new RegExp(`^(Select|Remove) ${card}$`) }))
+        await press(prep.getByRole('button', { name: new RegExp(`^(Select|Remove) ${card}$`, 'i') }))
       }
     },
   })
@@ -635,7 +635,7 @@ test('a card names its own condition, and what their turn owed is asked as the t
   // What the round still allows is stated while the player is choosing, not only once
   // a cap has already eaten something.
   await expect(scoring).toContainText(/Secondary missions 0\/15 this round/)
-  const fronts = scoring.locator('[data-due="engage-on-all-fronts"]')
+  const fronts = scoring.locator('[data-due]').filter({ hasText: /Engage on All Fronts/i })
   // Two tiers of one thing rather than two payouts, each asking in the mission pack's own words.
   await expect(fronts).toContainText('or')
   await expect(fronts).toContainText('presence in three table quarters')
@@ -655,7 +655,9 @@ test('a card names its own condition, and what their turn owed is asked as the t
   await expect(refereeing).toBeVisible()
   await expect(owed.getByRole('button', { name: 'Undo latest action' })).toBeEnabled()
   await expect(refereeing).toContainText(aliceName)
-  await expect(owed.locator('[data-due="assassination"]')).toContainText('For each enemy CHARACTER model destroyed this turn.')
+  await expect(owed.locator('[data-due]').filter({ hasText: 'Assassination' })).toContainText(
+    'For each enemy CHARACTER model destroyed this turn.',
+  )
   // The allowance belongs to the round the ended turn was in, which the battle has
   // already moved out of, so it still reads as untouched rather than as the new round's.
   await expect(owed).toContainText(/Secondary missions 0\/15 this round/)
@@ -691,7 +693,7 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
           }).toPass({ timeout: 10_000 })
         }
         await press(fixed)
-        await press(prep.getByRole('button', { name: /^(Select|Remove) Engage on All Fronts$/ }))
+        await press(prep.getByRole('button', { name: /^(Select|Remove) Engage on All Fronts$/i }))
         await press(prep.getByRole('button', { name: /^(Select|Remove) Bring It Down$/ }))
         await expect(prep).toHaveAttribute('data-secondary-deck-ready', 'true')
       }
@@ -719,14 +721,14 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
   const alicePanel = alice.locator('[data-panel="player"]').filter({ hasText: aliceName })
   await alicePanel.getByRole('button', { name: 'Select secret mission' }).click()
   await alice.getByRole('dialog', { name: 'Select a secret mission' }).getByRole('button', { name: 'Assassination' }).click()
-  await expect(alicePanel.locator('[data-secondary="assassination"]')).toContainText('secret')
+  await expect(alicePanel.locator('[data-secondary]').filter({ hasText: 'Assassination' })).toContainText('secret')
   const bobPanel = bob.locator('[data-panel="player"]').filter({ hasText: bobName })
   await expect(bob.locator('[data-panel="player"]').filter({ hasText: aliceName }).locator('[data-secondary="secret"]')).toContainText(
     'Secret mission',
   )
   await bobPanel.getByRole('button', { name: 'Select secret mission' }).click()
   await bob.getByRole('dialog', { name: 'Select a secret mission' }).getByRole('button', { name: 'Beacon' }).click()
-  await expect(bobPanel.locator('[data-secondary="beacon"]')).toContainText('secret')
+  await expect(bobPanel.locator('[data-secondary]').filter({ hasText: 'Beacon' })).toContainText('secret')
 
   for (let phase = 0; phase < 5; phase += 1) await advance(bob)
   await bob.getByRole('button', { name: 'Pass the turn' }).click()
@@ -764,7 +766,7 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
   await sharedAliceAction.getByRole('button', { name: 'Reveal and continue' }).click()
   const owed = bob.getByRole('dialog', { name: /^Scoring end of their turn points/ })
   await expect(owed).toBeVisible()
-  await expect(owed.locator('[data-due="assassination"]')).toBeVisible()
+  await expect(owed.locator('[data-due]').filter({ hasText: 'Assassination' })).toBeVisible()
   await owed.getByRole('button', { name: 'Take the turn' }).click()
   await expect(owed).toBeHidden()
   await expect(alice.getByRole('dialog')).toHaveCount(0)

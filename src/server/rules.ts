@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
@@ -94,7 +95,7 @@ export type TerrainReadRules = Pick<LoadedRules, 'terrainLayouts' | 'terrainTemp
 export function loadRules(
   directory = catalogueDirectory(),
   battlemasterDirectory = path.join(directory, 'battlemaster'),
-  iconDirectory = path.join(directory, 'faction-icons'),
+  iconDirectory = fs.existsSync(path.join(directory, 'icons')) ? path.join(directory, 'icons') : path.join(directory, 'faction-icons'),
   datacardsDirectory = path.join(directory, 'datacards', '11th', 'gdc'),
   /** The cards the catalogue already read, so one snapshot is parsed once. */
   loadedDatacards?: LoadedDatacards,

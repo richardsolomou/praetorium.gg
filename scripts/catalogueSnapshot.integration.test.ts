@@ -43,6 +43,8 @@ function completeCatalogue(root: string) {
   )
   fs.mkdirSync(path.join(catalogue, 'battlemaster', 'layouts'), { recursive: true })
   fs.writeFileSync(path.join(catalogue, 'battlemaster', 'layouts', 'test.json'), '{}\n')
+  fs.mkdirSync(path.join(catalogue, 'icons'), { recursive: true })
+  fs.writeFileSync(path.join(catalogue, 'icons', 'test.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>\n')
   fs.writeFileSync(
     path.join(catalogue, 'revision.json'),
     `${JSON.stringify({
@@ -51,6 +53,7 @@ function completeCatalogue(root: string) {
       points: 'points-revision',
       datacards: 'datacards-revision',
       battlemaster: 'battlemaster-revision',
+      icons: 'icons-revision',
     })}\n`,
   )
   return catalogue

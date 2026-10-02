@@ -27,12 +27,13 @@ export const catalogueSourcesSchema = z.object({
   marineCodex: repositorySourceSchema,
   points: repositorySourceSchema,
   datacards: repositorySourceSchema,
+  icons: repositorySourceSchema,
   battlemaster: battlemasterSourceSchema,
 })
 
 export const SOURCE_NAMES = ['definitions', 'marineCodex', 'points', 'datacards'] as const
 export type SourceName = (typeof SOURCE_NAMES)[number]
-export const SNAPSHOT_SOURCE_NAMES = [...SOURCE_NAMES, 'battlemaster'] as const
+export const SNAPSHOT_SOURCE_NAMES = [...SOURCE_NAMES, 'battlemaster', 'icons'] as const
 export type SnapshotSourceName = (typeof SNAPSHOT_SOURCE_NAMES)[number] | 'rules'
 
 export function isSnapshotSourceName(value: string): value is SnapshotSourceName {
@@ -41,7 +42,7 @@ export function isSnapshotSourceName(value: string): value is SnapshotSourceName
 export type CatalogueSourceConfig = z.infer<typeof catalogueSourcesSchema>
 export type ResolvedCatalogueSources = Omit<
   CatalogueSourceConfig,
-  'definitions' | 'marineCodex' | 'points' | 'datacards' | 'battlemaster'
+  'definitions' | 'marineCodex' | 'points' | 'datacards' | 'battlemaster' | 'icons'
 > & {
   definitions: CatalogueSourceConfig['definitions'] & { revision: string }
   marineCodex: CatalogueSourceConfig['marineCodex'] & { revision: string }

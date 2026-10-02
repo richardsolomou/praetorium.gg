@@ -4,7 +4,7 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 
 ## Sources and loading
 
-- The private `richardsolomou/praetorium-catalogue` repository pins each upstream revision, overlays the provisional Marine codex files absent from BSData, and carries local corrections as patches. `catalogue/sources.json` retains source licence and attribution metadata. `catalogue/lock.json` pins one verified snapshot for releases and `catalogue/revocations.json` withdraws snapshots or sources. Revisions, provenance, source inventory, and file hashes also live inside each immutable snapshot manifest.
+- The private `richardsolomou/praetorium-catalogue` repository pins each upstream revision, overlays the provisional Marine codex files absent from BSData, selects pinned faction icons from Certseeds/wh40k-icon, and carries local corrections as patches. `catalogue/sources.json` retains source licence and attribution metadata. `catalogue/lock.json` pins one verified snapshot for releases and `catalogue/revocations.json` withdraws snapshots or sources. Revisions, provenance, source inventory, and file hashes also live inside each immutable snapshot manifest.
 - The Game Datacards source extracts only `11th/gdc`; data for other games and editions is excluded from snapshots.
 - Mission cards, payout values, scoring criteria, timing text, dispositions, and their matchup pairs come from Game Datacards. Only recognized scoring moments enter the battle schedule. BSData remains the authority for executable roster choices.
 - `catalogue-data/` contains fetched data and is gitignored. Game data and copied rules text never enter version control.

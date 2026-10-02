@@ -76,7 +76,11 @@ if (argument === '--check') {
       fs.rmSync(work, { recursive: true, force: true })
     }
   }
-  const current = await resolve(readSources())
+  const config = readSources()
+  const current = {
+    ...(await resolve(config)),
+    icons: { ...config.icons, revision: head(config.icons.repository, config.icons.branch) },
+  }
   const changed = SNAPSHOT_SOURCE_NAMES.filter((name) => previous[name] !== current[name].revision)
   console.log(`published snapshot ${pointer.id}`)
   if (!changed.length) console.log('all upstream source revisions match the published snapshot')

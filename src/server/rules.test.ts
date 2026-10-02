@@ -93,6 +93,23 @@ it('loads Game Datacards rules without a 40kdc directory', () => {
   })
 })
 
+it('loads pinned faction icons and maps the Astartes icon to Space Marines', () => {
+  const icons = path.join(directory, 'icons')
+  fs.mkdirSync(icons)
+  fs.writeFileSync(path.join(icons, 'death-guard.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
+  fs.writeFileSync(path.join(icons, 'adeptus-astartes.svg'), '<svg xmlns="http://www.w3.org/2000/svg"><path/></svg>')
+  const loaded = rules()
+  expect(loaded.factionIcons.get('death-guard')).toContain('data:image/svg+xml;base64,')
+  expect(loaded.factionIcons.get('space-marines')).toBe(loaded.factionIcons.get('adeptus-astartes'))
+})
+
+it('loads faction icons from a legacy snapshot', () => {
+  const icons = path.join(directory, 'faction-icons')
+  fs.mkdirSync(icons)
+  fs.writeFileSync(path.join(icons, 'necrons.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
+  expect(rules().factionIcons.get('necrons')).toContain('data:image/svg+xml;base64,')
+})
+
 it('loads the publisher-backed Colosseum battlefield when its source is present', () => {
   write(path.join(directory, 'datacards', '11th', 'gdc', 'kotc.json'), {
     format: 'praetorium.kotc.v1',
@@ -343,6 +360,24 @@ it('schedules only scoring moments declared by the card', () => {
       criteria: 'For each objective you control.',
       trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: 2, roundMax: 3 },
     }),
+  ])
+})
+
+it('groups every tier when a later scoring row marks the tiers exclusive', () => {
+  const value = JSON.parse(fs.readFileSync(pack(), 'utf8'))
+  value.secondaryMissions[0].objectives[0].id = 'tiers'
+  value.secondaryMissions[0].objectives[0].scoring = [
+    { scoringType: 'fixed', victoryPoints: 2, scoringCriteria: { en: 'Three quarters.' }, isMutuallyExclusive: false },
+    { scoringType: 'tactical', victoryPoints: 3, scoringCriteria: { en: 'Three quarters.' }, isMutuallyExclusive: false },
+    { scoringType: 'fixed', victoryPoints: 4, scoringCriteria: { en: 'Four quarters.' }, isMutuallyExclusive: true },
+    { scoringType: 'tactical', victoryPoints: 5, scoringCriteria: { en: 'Four quarters.' }, isMutuallyExclusive: true },
+  ]
+  write(pack(), value)
+  expect(rules().secondaries[0]?.awards.map((award) => award.group)).toEqual([
+    'tiers:fixed',
+    'tiers:tactical',
+    'tiers:fixed',
+    'tiers:tactical',
   ])
 })
 

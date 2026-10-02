@@ -44,6 +44,13 @@ export function Sources() {
             .
           </li>
           <li>
+            Faction icons from{' '}
+            <a href="https://github.com/Certseeds/wh40k-icon" className={linkClass}>
+              Certseeds/wh40k-icon
+            </a>
+            , licensed under AGPL-3.0.
+          </li>
+          <li>
             King of the Colosseum battlefield diagrams from{' '}
             <a href="https://playontabletop.com/kotc/" className={linkClass}>
               Play On Tabletop

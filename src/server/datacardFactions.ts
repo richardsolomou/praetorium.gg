@@ -93,10 +93,14 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
     detachmentDetails.set(faction, details)
     if (stratagems.size) byDetachment.set(faction, stratagems)
   }
-  for (const { id, logoUrl } of SUPPLEMENTAL_FACTION_ICONS) {
-    const file = path.join(iconDirectory, `${id}.svg`)
-    factionIcons.set(id, fs.existsSync(file) ? `data:image/svg+xml;base64,${fs.readFileSync(file).toString('base64')}` : logoUrl)
+  if (fs.existsSync(iconDirectory)) {
+    for (const file of fs.readdirSync(iconDirectory).filter((name) => /^[a-z0-9-]+\.svg$/.test(name))) {
+      factionIcons.set(file.slice(0, -4), `data:image/svg+xml;base64,${fs.readFileSync(path.join(iconDirectory, file)).toString('base64')}`)
+    }
   }
+  const astartes = factionIcons.get('adeptus-astartes')
+  if (astartes) factionIcons.set('space-marines', astartes)
+  for (const { id, logoUrl } of SUPPLEMENTAL_FACTION_ICONS) if (!factionIcons.has(id)) factionIcons.set(id, logoUrl)
   return {
     factionNames,
     factionIcons,

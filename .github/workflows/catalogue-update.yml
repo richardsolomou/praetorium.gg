@@ -51,7 +51,6 @@ jobs:
           CATALOGUE_BASELINES: report
         run: |
           node catalogue-sources/scripts/materialize.mjs
-          pnpm catalogue:supplemental
           pnpm catalogue:descriptions
           pnpm catalogue:points
       - name: Validate terrain geometry and marker labels

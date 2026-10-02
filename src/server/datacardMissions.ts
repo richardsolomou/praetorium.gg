@@ -63,23 +63,30 @@ function whenDrawn(text: string | null, ids: ReadonlyMap<string, string>): WhenD
 function cardOf(raw: RecordValue, actions: ReturnType<typeof actionsIn>, ids: ReadonlyMap<string, string>): MissionCard | null {
   const name = english(raw.name)
   if (!name || typeof raw.id !== 'string') return null
-  const awards: Award[] = records(raw.objectives).flatMap((objective) =>
-    records(objective.scoring).flatMap((scoring) => {
+  const awards: Award[] = records(raw.objectives).flatMap((objective) => {
+    const scorings = records(objective.scoring)
+    const exclusiveModes = new Set(
+      scorings
+        .filter((scoring) => scoring.isMutuallyExclusive === true)
+        .map((scoring) => (typeof scoring.scoringType === 'string' ? scoring.scoringType : '')),
+    )
+    return scorings.flatMap((scoring) => {
       const vp = scoring.victoryPoints
       const criteria = english(scoring.scoringCriteria)
       if (typeof vp !== 'number' || vp <= 0 || !criteria) return []
+      const mode = typeof scoring.scoringType === 'string' ? scoring.scoringType : ''
       return triggers(english(objective.whenText), objective.scorablePeriods).map((trigger) => ({
         vp,
         per: scoring.inputType === 'stepper' && /^for each\b/i.test(criteria) ? 'each' : null,
         max: typeof scoring.victoryPointsCap === 'number' ? scoring.victoryPointsCap : null,
-        mode: typeof scoring.scoringType === 'string' ? scoring.scoringType : null,
-        group: scoring.isMutuallyExclusive === true && typeof objective.id === 'string' ? objective.id : null,
+        mode: mode || null,
+        group: exclusiveModes.has(mode) && typeof objective.id === 'string' ? `${objective.id}:${mode}` : null,
         cumulative: scoring.isCumulative === true,
         criteria,
         trigger,
       }))
-    }),
-  )
+    })
+  })
   return {
     key: raw.id,
     name,
