@@ -187,7 +187,7 @@ export function AppShell() {
                       className="group flex shrink-0 items-center gap-1.5 font-display text-base leading-none font-bold tracking-label text-bone uppercase hover:text-info"
                     >
                       <img src="/logo.svg" alt="" className="size-7 transition-transform group-hover:rotate-180" />
-                      <span className="min-[860px]:hidden min-[1000px]:inline">Praetorium</span>
+                      <span className="min-[860px]:hidden min-[1100px]:inline">Praetorium</span>
                     </Link>
                     <PrimaryNavigation path={path} />
                     <GlobalSearch />
