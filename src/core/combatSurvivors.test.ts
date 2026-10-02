@@ -6,6 +6,32 @@ const squad = [
   { name: 'Troopers', models: 4, weapons: [{ name: 'Rifle', count: 4 }] },
 ]
 describe('combat survivors', () => {
+  it('preserves authoritative weapon profile links when reducing a uniform squad', () => {
+    const carriers = [{ name: 'Troopers', models: 4, weapons: [{ name: 'Equipment label', count: 4, profileIds: ['profile'] }] }]
+    expect(combatSurvivors(carriers, 2)).toEqual([
+      { name: 'Troopers', models: 2, weapons: [{ name: 'Equipment label', count: 2, profileIds: ['profile'] }] },
+    ])
+  })
+  it.each([0, 1])('accepts an explicit remaining unit-level weapon count of %s without adding models', (count) => {
+    const carriers = [...squad, { name: 'Unit equipment', models: 0, unitWide: true, weapons: [{ name: 'Grenade', count: 1 }] }]
+    const survivors = [
+      squad[0]!,
+      { ...squad[1]!, models: 2, weapons: [{ name: 'Rifle', count: 2 }] },
+      { ...carriers[2]!, weapons: [{ name: 'Grenade', count }] },
+    ]
+    expect(validCombatSurvivors(carriers, survivors, 3)).toBe(true)
+  })
+  it('requires an explicit decision for unit-level equipment after casualties', () => {
+    expect(
+      combatSurvivors([...squad, { name: 'Unit equipment', models: 0, unitWide: true, weapons: [{ name: 'Grenade', count: 1 }] }], 3),
+    ).toBeNull()
+  })
+  it('rejects surviving equipment linked to a different source profile', () => {
+    const carriers = [{ name: 'Troopers', models: 4, weapons: [{ name: 'Rifle', count: 4, profileIds: ['rifle'] }] }]
+    expect(
+      validCombatSurvivors(carriers, [{ name: 'Troopers', models: 2, weapons: [{ name: 'Rifle', count: 2, profileIds: ['cannon'] }] }], 2),
+    ).toBe(false)
+  })
   it('reduces identical loadouts across differently named models', () => {
     expect(combatSurvivors(squad, 3)).toEqual([{ name: 'Sergeant', models: 3, weapons: [{ name: 'Rifle', count: 3 }] }])
   })

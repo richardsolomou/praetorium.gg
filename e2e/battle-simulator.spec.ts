@@ -15,6 +15,56 @@ function estimate(simulator: Locator, phase: 'Shooting' | 'Melee') {
   return simulator.getByRole('region', { name: `${phase} estimate` })
 }
 
+test('unit-level equipment remains an explicit survivor choice after a casualty', async ({ page }) => {
+  await signUp(page, 'Equipment')
+  const roster = await createRoster(page, {
+    faction: 'Agents of the Imperium',
+    detachment: /Imperialis Fleet/,
+    name: 'Breachers',
+  })
+  await page.getByLabel('Add a unit').fill('Imperial Navy Breachers')
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Imperial Navy Breachers', exact: true }).click())
+  await page.locator('[data-unit="Imperial Navy Breachers"]').getByRole('button', { name: 'Imperial Navy Breachers', exact: true }).click()
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Select Demolition charge', exact: true }).click())
+  await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await startBattle(page)
+  const panel = page.locator('[data-panel="player"][data-side="0"]')
+  await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
+  const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
+  await expect(simulator.getByRole('region', { name: 'Shooting results' })).toContainText('Demolition charge')
+  await simulator.getByRole('button', { name: 'Fewer attacker models', exact: true }).click()
+  await expect(simulator).toContainText("Choose the attacker's surviving models and weapons")
+  await simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Survivors', exact: true }).click()
+  const survivors = page.getByRole('dialog', { name: 'Attacker survivors', exact: true })
+  await survivors.getByRole('button', { name: 'Fewer Navis Armsman survivors', exact: true }).click()
+  const equipment = survivors
+    .locator('section')
+    .filter({ has: page.getByRole('heading', { name: 'Imperial Navy Breachers equipment', exact: true }) })
+  await expect(equipment.getByLabel('Imperial Navy Breachers equipment surviving models', { exact: true })).toHaveCount(0)
+  const count = equipment.getByLabel('Imperial Navy Breachers equipment surviving Demolition charge', { exact: true })
+  await expect(count).toHaveText('1')
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
+    await survivors.screenshot({ path: `test-results/simulator-unit-equipment-survivors-${width}.png` })
+    expect(await survivors.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
+  }
+  await survivors.getByRole('button', { name: 'Use survivors', exact: true }).click()
+  const shooting = simulator.getByRole('region', { name: 'Shooting results' })
+  await expect(estimate(simulator, 'Shooting').locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  await expect(shooting).toContainText('Demolition charge')
+  await simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Survivors', exact: true }).click()
+  await equipment.getByRole('button', { name: 'Fewer Imperial Navy Breachers equipment surviving Demolition charge', exact: true }).click()
+  await expect(count).toHaveText('0')
+  await survivors.getByRole('button', { name: 'Use survivors', exact: true }).click()
+  await expect(shooting).not.toContainText('Demolition charge')
+  await expect(estimate(simulator, 'Shooting').locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  await simulator.getByRole('button', { name: 'Close', exact: true }).click()
+  await panel.getByRole('button', { name: `Open ${roster}`, exact: true }).click()
+  await expect(page.locator('[data-army-roster] [data-unit="Imperial Navy Breachers"] [data-count="models"]')).toHaveText('10/10')
+})
+
 for (const width of [1440, 390, 900]) {
   test(`battle combat uses frozen loadouts and live casualties at ${width}px`, async ({ page, browser }) => {
     await signUp(page, 'Combat')

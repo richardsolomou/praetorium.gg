@@ -1,7 +1,7 @@
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import { datasheetCharacteristicKind, datasheetProfileKind, datasheetProfilesByKind } from './datasheetStructure'
-import type { CombatCarrier } from './combatLoadout'
-import { sameWargear, wargearBaseName, wargearKey } from './wargear'
+import { combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
+import { wargearBaseName, wargearKey } from './wargear'
 import { combatSchema, diceExpression, type CombatInput, type CombatWeapon } from './combat'
 import { combatKeyword, combatKeywordApplies, normalizeCombatKeyword as normalized } from './combatKeywords'
 
@@ -46,6 +46,7 @@ export function combatTarget(
   else {
     const counts = defences.map(() => 0)
     for (const carrier of carriers) {
+      if (carrier.unitWide) continue
       const index = defences.findIndex((defence) => normalized(defence.name) === normalized(carrier.name))
       if (index < 0) return refuse(`${carrier.name} could not be matched to a model profile.`)
       counts[index]! += carrier.models
@@ -243,11 +244,11 @@ export function combatPlan(
   const accounted = new Map<string, number>()
   for (const [at, carrier] of carriers.entries()) {
     const equipment = carrier.weapons.flatMap((piece) => {
-      const modes = profiles.filter(({ profile }) => sameWargear(piece.name, profile.name))
+      const modes = profiles.filter(({ profile }) => combatEquipmentMatches(piece, profile))
       for (const { profile } of modes) accounted.set(profile.id, (accounted.get(profile.id) ?? 0) + piece.count)
       if (!modes.length) return []
       const selected = choose(
-        `${phase}:${at}:${wargearBaseName(piece.name)}`,
+        `${phase}:${at}:${wargearBaseName(piece.name, true)}`,
         `${carrier.name} · ${piece.name}`,
         modes.map(({ profile }) => ({ value: profile.id, label: profile.name })),
       )
@@ -275,6 +276,10 @@ export function combatPlan(
       const selected = unrestricted ? equipment : group === 'close' ? close : ordinary
       selected.forEach((entry) => add(entry))
     } else {
+      if (carrier.unitWide && equipment.length) {
+        errors.push(`${carrier.name}: melee allocation needs individual model ownership.`)
+        continue
+      }
       const normal = equipment.filter(({ profile }) => !has(profile, 'extra attacks'))
       const partial = normal.filter((entry) => entry.count < carrier.models)
       if (partial.length > 1) errors.push(`${carrier.name}: melee allocation needs individual model ownership.`)
@@ -301,7 +306,7 @@ export function combatPlan(
     const count = counts.get(entry.profile.id) ?? 0
     return count ? [{ ...entry, count }] : []
   })
-  const active = used.filter((entry) => !excluded.has(wargearKey(entry.profile.name)))
+  const active = used.filter((entry) => !excluded.has(wargearKey(entry.profile.name, true)))
   for (const entry of active) if (entry.error) errors.push(`${entry.profile.name}: ${entry.error}`)
   return {
     used,

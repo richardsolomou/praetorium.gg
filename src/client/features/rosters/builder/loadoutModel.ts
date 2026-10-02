@@ -72,7 +72,7 @@ export function unmodeledGrantedWeapons(
   const modeled = new Set(
     models
       .flatMap((model) => [...model.fixed.map((piece) => piece.name), ...model.rows.flatMap((row) => row.pieces ?? [row.name])])
-      .map(wargearKey),
+      .map((name) => wargearKey(name)),
   )
   const granted = new Set(
     choices
@@ -80,7 +80,7 @@ export function unmodeledGrantedWeapons(
       .flatMap((choice) =>
         choice.options.filter((option) => option.count > 0).flatMap((option) => option.pieceCounts?.map((piece) => piece.name) ?? []),
       )
-      .map(wargearKey),
+      .map((name) => wargearKey(name)),
   )
   return profiles.filter((profile) => granted.has(wargearKey(profile.name)) && !modeled.has(wargearKey(profile.name)))
 }
