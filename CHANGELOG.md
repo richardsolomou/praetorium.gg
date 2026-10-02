@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.96.1
+
+### Patch Changes
+
+- 04e1966: Restore enlarged battlefield maps and add terrain placement arrows, objective labels, and Colosseum setup measurements.
+
 ## 0.96.0
 
 ### Minor Changes
