@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.97.1
+
+### Patch Changes
+
+- 8bd0dfe: Omit the comma in the home greeting when a sign-in provider supplies no name.
+- 8bd0dfe: Make the account-creation switch easier to find with a compact outlined button.
+
 ## 0.97.0
 
 ### Minor Changes
