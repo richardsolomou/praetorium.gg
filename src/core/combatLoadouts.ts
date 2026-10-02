@@ -1,11 +1,10 @@
 import type { Datasheet } from '../contracts/catalogue'
 import { calculateCombat, type CombatInput, type CombatOptions, type CombatResult } from './combat'
 import type { WeaponAdjustment } from './combatAdjustments'
-import type { CombatCarrier } from './combatLoadout'
+import { combatEquipmentMatches, type CombatCarrier, type CombatEquipment } from './combatLoadout'
 import { combatAttackInput, combatAttacks, type CombatAttacker, type CombatOpponent } from './combatScenario'
 import { datasheetProfileKind } from './datasheetStructure'
 import type { RosterPick } from './roster'
-import { sameWargear } from './wargear'
 
 /**
  * The weapon choices a unit can make, each measured as the change one step makes to the models
@@ -51,51 +50,49 @@ export type LoadoutSpace = { carriers: CombatCarrier[]; axes: LoadoutAxis[]; wea
 /** One value per axis: an option id for single choices, counts for spreads. */
 export type LoadoutAssignment = (string | Record<string, number>)[]
 
-type Carried = Map<string, { models: number; weapons: Map<string, number> }>
+type Carried = Map<string, { models: number; unitWide?: boolean; weapons: Map<string, CombatEquipment> }>
+
+/** A weapon keeps the catalogue profiles it was equipped with, so two weapons of one name stay apart. */
+const equipmentKey = (weapon: CombatEquipment) => JSON.stringify([weapon.name, weapon.profileIds ?? null])
 
 function carried(carriers: readonly CombatCarrier[]): Carried {
   const found: Carried = new Map()
-  for (const carrier of carriers) {
-    const entry = found.get(carrier.name) ?? { models: 0, weapons: new Map() }
-    entry.models += carrier.models
-    for (const weapon of carrier.weapons) entry.weapons.set(weapon.name, (entry.weapons.get(weapon.name) ?? 0) + weapon.count)
-    found.set(carrier.name, entry)
-  }
+  for (const carrier of carriers) add(found, carrier, 1)
   return found
+}
+
+function add(found: Carried, carrier: CombatCarrier, times: number) {
+  const entry = found.get(carrier.name) ?? { models: 0, ...(carrier.unitWide ? { unitWide: true } : {}), weapons: new Map() }
+  entry.models += carrier.models * times
+  for (const weapon of carrier.weapons) {
+    const key = equipmentKey(weapon)
+    entry.weapons.set(key, { ...weapon, count: (entry.weapons.get(key)?.count ?? 0) + weapon.count * times })
+  }
+  found.set(carrier.name, entry)
 }
 
 /** What a build changed, per model name, as signed model and weapon counts. */
 export function carrierChange(before: readonly CombatCarrier[], after: readonly CombatCarrier[]): CombatCarrier[] {
-  const old = carried(before)
-  const now = carried(after)
-  return [...new Set([...old.keys(), ...now.keys()])].flatMap((name) => {
-    const was = old.get(name)
-    const is = now.get(name)
-    const weapons = [...new Set([...(was?.weapons.keys() ?? []), ...(is?.weapons.keys() ?? [])])].flatMap((weapon) => {
-      const count = (is?.weapons.get(weapon) ?? 0) - (was?.weapons.get(weapon) ?? 0)
-      return count ? [{ name: weapon, count }] : []
-    })
-    const models = (is?.models ?? 0) - (was?.models ?? 0)
-    return models || weapons.length ? [{ name, models, weapons }] : []
+  const difference = carried(after)
+  for (const carrier of before) add(difference, carrier, -1)
+  return [...difference].flatMap(([name, { models, unitWide, weapons }]) => {
+    const changed = [...weapons.values()].filter((weapon) => weapon.count)
+    return models || changed.length ? [{ name, models, ...(unitWide ? { unitWide } : {}), weapons: changed }] : []
   })
 }
 
 /** The carriers a combination of steps leaves, or null when the steps cannot all apply. */
 export function composeCarriers(base: readonly CombatCarrier[], changes: readonly (readonly [CombatCarrier[], number])[]) {
   const result = carried(base)
-  for (const [change, times] of changes)
-    for (const step of change) {
-      const entry = result.get(step.name) ?? { models: 0, weapons: new Map() }
-      entry.models += step.models * times
-      for (const weapon of step.weapons) entry.weapons.set(weapon.name, (entry.weapons.get(weapon.name) ?? 0) + weapon.count * times)
-      result.set(step.name, entry)
-    }
+  for (const [change, times] of changes) for (const step of change) add(result, step, times)
   const carriers: CombatCarrier[] = []
-  for (const [name, { models, weapons }] of result) {
-    if (models < 0 || [...weapons.values()].some((count) => count < 0)) return null
-    const held = [...weapons].flatMap(([weapon, count]) => (count ? [{ name: weapon, count }] : []))
-    if (models > 0) carriers.push({ name, models, weapons: held })
-    else if (held.length) return null
+  for (const [name, { models, unitWide, weapons }] of result) {
+    const held = [...weapons.values()]
+    if (models < 0 || held.some((weapon) => weapon.count < 0)) return null
+    const kept = held.filter((weapon) => weapon.count)
+    // Equipment the unit holds as a whole sits on a carrier with no models of its own.
+    if (models > 0 || unitWide) carriers.push({ name, models, ...(unitWide ? { unitWide } : {}), weapons: kept })
+    else if (kept.length) return null
   }
   return carriers
 }
@@ -105,21 +102,35 @@ export const isWeaponProfile = (profile: Datasheet['profiles'][number]) =>
 
 /** A change matters to an attack only if it moves a weapon the unit has a profile for. */
 export const changesWeapons = (change: readonly CombatCarrier[], weapons: Datasheet['profiles']) =>
-  change.some((step) => step.weapons.some((piece) => weapons.some((profile) => sameWargear(piece.name, profile.name))))
+  change.some((step) => step.weapons.some((piece) => weapons.some((profile) => combatEquipmentMatches(piece, profile))))
 
-/** The datasheet with each weapon profile counted from the carriers that hold it. */
+/** The datasheet with each weapon profile it could carry counted from the carriers that hold it. */
 export function loadoutSheet(sheet: Datasheet, weapons: Datasheet['profiles'], carriers: readonly CombatCarrier[]): Datasheet {
   const held = (profile: Datasheet['profiles'][number]) =>
     carriers.reduce(
       (total, carrier) =>
-        total + carrier.weapons.reduce((sum, piece) => sum + (sameWargear(piece.name, profile.name) ? piece.count : 0), 0),
+        total + carrier.weapons.reduce((sum, piece) => sum + (combatEquipmentMatches(piece, profile) ? piece.count : 0), 0),
       0,
     )
+  // The matchup's own profiles keep variants the every-weapon view can merge, and the order that picks each
+  // default mode; the view adds what the unit does not carry, in catalogue order between them.
+  const own = sheet.profiles.filter(isWeaponProfile)
+  const profiles: Datasheet['profiles'] = []
+  let next = 0
+  for (const profile of weapons) {
+    const at = own.findIndex((entry) => entry.id === profile.id)
+    if (at < 0) profiles.push(profile)
+    else if (at >= next) {
+      profiles.push(...own.slice(next, at + 1))
+      next = at + 1
+    }
+  }
+  profiles.push(...own.slice(next))
   return {
     ...sheet,
     profiles: [
       ...sheet.profiles.filter((profile) => !isWeaponProfile(profile)),
-      ...weapons.flatMap((profile) => {
+      ...profiles.flatMap((profile) => {
         const count = held(profile)
         return count ? [{ ...profile, count }] : []
       }),

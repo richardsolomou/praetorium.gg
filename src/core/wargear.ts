@@ -24,10 +24,11 @@ export function sameWargear(one: string, other: string) {
 const keys = new Map<string, string>()
 /** Catalogue names are a bounded set, and matching runs for every weapon of every model. */
 export const wargearKey = (name: string, includeUnmarkedModes = false) => {
-  let key = keys.get(name)
+  const asked = `${Number(includeUnmarkedModes)}${name}`
+  let key = keys.get(asked)
   if (key === undefined) {
     key = routeSlug(wargearBaseName(name, includeUnmarkedModes))
-    keys.set(name, key)
+    keys.set(asked, key)
   }
   return key
 }

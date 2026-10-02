@@ -60,8 +60,8 @@ describe('combat loadout space', () => {
   it('measures a specialist as one model swapping its weapon', () => {
     const specialist = combatLoadoutSpace(book, request)?.axes[0]?.options.find((option) => option.name === 'Specialist')
     expect(specialist?.change).toEqual([
-      { name: 'Trooper', models: -1, weapons: [{ name: 'Boltgun', count: -1 }] },
-      { name: 'Specialist', models: 1, weapons: [{ name: 'Plasma gun', count: 1 }] },
+      { name: 'Trooper', models: -1, weapons: [{ name: 'Boltgun', count: -1, profileIds: ['boltgun-profile'] }] },
+      { name: 'Specialist', models: 1, weapons: [{ name: 'Plasma gun', count: 1, profileIds: ['plasma-profile'] }] },
     ])
   })
   it('offers every weapon profile the unit can take', () => {
@@ -75,7 +75,7 @@ describe('checked combat loadouts', () => {
     expect(checkCombatLoadouts(book, { ...request, candidates: [spread(1)] })?.[0]?.carriers).toContainEqual({
       name: 'Specialist',
       models: 1,
-      weapons: [{ name: 'Plasma gun', count: 1 }],
+      weapons: [{ name: 'Plasma gun', count: 1, profileIds: ['plasma-profile'] }],
     })
   })
   it('reports the points a candidate adds', () => {

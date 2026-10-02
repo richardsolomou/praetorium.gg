@@ -1,4 +1,4 @@
-import { combatCarriers } from '../core/combatLoadout'
+import { combatCarriers, type CombatCarrier } from '../core/combatLoadout'
 import { carrierChange, changesWeapons, isWeaponProfile, type LoadoutAxis, type LoadoutAxisOption } from '../core/combatLoadouts'
 import { evaluate } from '../core/evaluate'
 import type { RosterPick } from '../core/roster'
@@ -9,6 +9,23 @@ import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContex
 import { rosterDetachments } from './rosterDetachments'
 
 type LoadoutRequest = { catalogueId: string; detachmentIds: string[]; picks: RosterPick[]; pickIndex: number }
+type ChoiceOption = Pick<UnitChoice['options'][number], 'id' | 'name' | 'count' | 'min' | 'max'>
+
+const axisOption = (option: ChoiceOption, group: string, prefix: string, change: CombatCarrier[]): LoadoutAxisOption => ({
+  id: `${prefix}${option.id}`,
+  entry: option.id,
+  name: option.name,
+  group,
+  count: option.count,
+  min: option.min,
+  max: option.max,
+  change,
+})
+const scaled = (carrier: CombatCarrier, sign: number): CombatCarrier => ({
+  ...carrier,
+  models: carrier.models * sign,
+  weapons: carrier.weapons.map((weapon) => ({ ...weapon, count: weapon.count * sign })),
+})
 
 /** Enhancements and detachment upgrades are army decisions, not a unit's weapon choice. */
 const ARMY_CHOICE = /enhancement|upgrade/i
@@ -68,40 +85,22 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
       ? (choice.options.find((option) => option.default && option.count > 0) ?? choice.options.toSorted((a, b) => b.count - a.count)[0])
       : undefined
     const options = choice.options.flatMap((option): LoadoutAxisOption[] => {
-      const step = (change: ReturnType<typeof measure>, sign = 1) =>
-        change && [
-          {
-            id: `${prefix}${option.id}`,
-            entry: option.id,
-            name: option.name,
-            group,
-            count: option.count,
-            min: option.min,
-            max: option.max,
-            change: change.map((entry) => ({
-              ...entry,
-              models: entry.models * sign,
-              weapons: entry.weapons.map((weapon) => ({ ...weapon, count: weapon.count * sign })),
-            })),
-          },
-        ]
-      if (option.id === donor?.id)
-        return [
-          {
-            id: `${prefix}${option.id}`,
-            entry: option.id,
-            name: option.name,
-            group,
-            count: option.count,
-            min: option.min,
-            max: option.max,
-            change: [],
-          },
-        ]
+      const step = (change: CombatCarrier[] | null, sign = 1) =>
+        change
+          ? [
+              axisOption(
+                option,
+                group,
+                prefix,
+                change.map((entry) => scaled(entry, sign)),
+              ),
+            ]
+          : []
+      if (option.id === donor?.id) return step([])
       if (donor)
-        return donor.count > 0 ? (step(spread(group, { ...counts, [option.id]: option.count + 1, [donor.id]: donor.count - 1 })) ?? []) : []
-      if (used < choice.room) return step(spread(group, { ...counts, [option.id]: option.count + 1 })) ?? []
-      return option.count > 0 ? (step(spread(group, { ...counts, [option.id]: option.count - 1 }), -1) ?? []) : []
+        return donor.count > 0 ? step(spread(group, { ...counts, [option.id]: option.count + 1, [donor.id]: donor.count - 1 })) : []
+      if (used < choice.room) return step(spread(group, { ...counts, [option.id]: option.count + 1 }))
+      return option.count > 0 ? step(spread(group, { ...counts, [option.id]: option.count - 1 }), -1) : []
     })
     return { exact, donor: donor ? `${prefix}${donor.id}` : null, options }
   }
@@ -110,10 +109,12 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
     const host = hostOf(choice)
     const shared = { key: choice.key, name: choice.name, owner: choice.owner?.name ?? null, host: host ? host.parent.key : null }
     if (!isSpread(choice)) {
-      const options = [...choice.options, ...(choice.optional ? [{ id: '', name: 'Nothing' }] : [])].flatMap((option) => {
-        const change = option.id === choice.chosen ? [] : chosen(choice.key, option.id)
-        return change ? [{ id: option.id, entry: option.id, name: option.name, group: choice.key, count: 0, min: 0, max: 1, change }] : []
-      })
+      const options = [...choice.options, ...(choice.optional ? [{ id: '', name: 'Nothing', count: 0, min: 0, max: 1 }] : [])].flatMap(
+        (option) => {
+          const change = option.id === choice.chosen ? [] : chosen(choice.key, option.id)
+          return change ? [{ ...axisOption(option, choice.key, '', change), count: 0, min: 0, max: 1 }] : []
+        },
+      )
       return [{ ...shared, kind: 'single', current: choice.chosen, options }]
     }
     if (choice.uniform) {
@@ -122,20 +123,7 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
           option.count === choice.room
             ? []
             : spread(choice.key, Object.fromEntries(choice.options.map((other) => [other.id, other === option ? choice.room : 0])))
-        return change
-          ? [
-              {
-                id: option.id,
-                entry: option.id,
-                name: option.name,
-                group: choice.key,
-                count: option.count,
-                min: 0,
-                max: choice.room,
-                change,
-              },
-            ]
-          : []
+        return change ? [{ ...axisOption(option, choice.key, '', change), min: 0, max: choice.room }] : []
       })
       return [{ ...shared, kind: 'spread', room: choice.room, uniform: true, exact: false, donor: null, limits: [], options }]
     }

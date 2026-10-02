@@ -72,6 +72,23 @@ describe('loadout changes', () => {
   it('repeats a one-model change for each model that takes it', () => {
     expect(count(composeCarriers(squad({ Boltgun: 5 }), [[swap('Boltgun', 'Plasma gun'), 3]])!, 'Plasma gun')).toBe(3)
   })
+  it('keeps equipment the unit holds as a whole', () => {
+    const unitWide: CombatCarrier = { name: 'Squad equipment', models: 0, unitWide: true, weapons: [{ name: 'Mortar', count: 1 }] }
+    expect(composeCarriers([...squad({ Boltgun: 5 }), unitWide], [[swap('Boltgun', 'Plasma gun'), 1]])).toContainEqual(unitWide)
+  })
+  it('keeps weapons of one name apart when they come from different profiles', () => {
+    const carriers: CombatCarrier[] = [
+      {
+        name: 'Trooper',
+        models: 2,
+        weapons: [
+          { name: 'Combi-weapon', count: 1, profileIds: ['bolter'] },
+          { name: 'Combi-weapon', count: 1, profileIds: ['flamer'] },
+        ],
+      },
+    ]
+    expect(composeCarriers(carriers, [])![0]!.weapons).toEqual(carriers[0]!.weapons)
+  })
   it('refuses a combination that would remove weapons the unit does not carry', () => {
     expect(composeCarriers(squad({ Boltgun: 1 }), [[swap('Boltgun', 'Plasma gun'), 2]])).toBeNull()
   })
@@ -175,6 +192,23 @@ describe('loadout datasheets', () => {
       ['Squad', undefined],
       ['Boltgun', 4],
       ['Plasma gun', 1],
+    ])
+  })
+  it("keeps profile variants the matchup's own datasheet tells apart", () => {
+    const variants = {
+      ...sheet,
+      profiles: [...sheet.profiles, { ...profile('Blade'), id: 'trooper-blade' }, { ...profile('Blade'), id: 'leader-blade' }],
+    }
+    const carriers: CombatCarrier[] = [
+      { name: 'Trooper', models: 4, weapons: [{ name: 'Blade', count: 4, profileIds: ['trooper-blade'] }] },
+      { name: 'Leader', models: 1, weapons: [{ name: 'Blade', count: 1, profileIds: ['leader-blade'] }] },
+    ]
+    expect(
+      loadoutSheet(variants, [{ ...profile('Blade'), id: 'trooper-blade' }], carriers).profiles.map((entry) => [entry.id, entry.count]),
+    ).toEqual([
+      ['unit', undefined],
+      ['trooper-blade', 4],
+      ['leader-blade', 1],
     ])
   })
   it('leaves out weapons nobody carries', () => {
