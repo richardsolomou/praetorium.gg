@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { checkGithubSponsorship } from '../../../server/functions'
 import { SPONSOR } from '../../projectLinks'
 import { githubSponsorshipQuery } from '../../queries'
@@ -25,8 +27,30 @@ export function GithubSupporter() {
   const { linked } = status
   return (
     <div data-github-supporter className="space-y-2 border-l-2 border-info/40 py-1 pl-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-dim">
+      <div className="flex items-center gap-2">
+        {linked ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-info pointer-coarse:size-11"
+                  aria-label="Refresh sponsorship status"
+                  disabled={check.isPending}
+                  onClick={() => check.mutate()}
+                />
+              }
+            >
+              <RefreshCw className={check.isPending ? 'animate-spin' : ''} aria-hidden />
+            </TooltipTrigger>
+            <TooltipContent role="tooltip" side="top">
+              Refresh GitHub sponsorship status
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+        <p className="min-w-0 text-xs text-dim">
           {linked ? (
             SPONSORSHIP_TEXT[status.sponsorship ?? 'none']
           ) : (
@@ -38,11 +62,6 @@ export function GithubSupporter() {
             </>
           )}
         </p>
-        {linked ? (
-          <Button type="button" variant="ghost" size="sm" disabled={check.isPending} onClick={() => check.mutate()}>
-            {check.isPending ? 'Checking…' : 'Check again'}
-          </Button>
-        ) : null}
       </div>
       {check.error ? (
         <p role="alert" className="text-sm text-destructive">

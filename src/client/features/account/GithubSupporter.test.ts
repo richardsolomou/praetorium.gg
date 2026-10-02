@@ -12,6 +12,6 @@ it('shows a linked sponsor result and refresh control inside the sign-in methods
   const html = renderToString(createElement(QueryClientProvider, { client }, createElement(GithubSupporter)))
 
   expect(html).toContain('Public sponsor. Your profile shows the Supporter badge.')
-  expect(html).toContain('Check again')
+  expect(html).toContain('aria-label="Refresh sponsorship status"')
   expect(html).not.toContain('<section')
 })
