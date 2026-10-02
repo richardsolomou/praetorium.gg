@@ -2,7 +2,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { SPONSOR } from '../projectLinks'
 
 /**
- * A sponsor's insignia: the logo's own centre, the nested diamond, struck as a seal.
+ * A sponsor's insignia: a nested diamond struck as a seal.
  *
  * Light crosses it once when the profile opens and again on hover or focus; the
  * global reduced-motion rule leaves it still.

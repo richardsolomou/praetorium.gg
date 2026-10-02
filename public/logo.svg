@@ -1,10 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title description">
   <title id="title">Praetorium</title>
-  <desc id="description">Praetorium shield logo</desc>
-  <circle cx="32" cy="32" r="27" fill="none" stroke="#a6b0ae" stroke-width="6" stroke-dasharray="21 4"/>
-  <path fill="#f57a7a" d="M8 29h17l7 3-7 3H8Z"/>
-  <path fill="#5fc8ea" d="M56 29H39l-7 3 7 3h17Z"/>
-  <path fill="#1b2328" stroke="#e7ece9" stroke-width="2" d="m32 16 16 16-16 16-16-16Z"/>
-  <path fill="#9bd0a9" d="m32 23 9 9-9 9-9-9Z"/>
-  <circle cx="32" cy="32" r="3" fill="#0e1316"/>
+  <desc id="description">Praetorium arena logo</desc>
+  <path fill="#f57a7a" d="M25.56 9.4a6.5 6.5 0 1 1 12.88 0 23.5 23.5 0 0 0-12.88 0Z"/>
+  <path fill="#e7ece9" d="M54.6 25.56a6.5 6.5 0 1 1 0 12.88 23.5 23.5 0 0 0 0-12.88ZM9.4 38.44a6.5 6.5 0 1 1 0-12.88 23.5 23.5 0 0 0 0 12.88Z"/>
+  <path fill="#5fc8ea" d="M38.44 54.6a6.5 6.5 0 1 1-12.88 0 23.5 23.5 0 0 0 12.88 0Z"/>
+  <path fill="none" stroke="#a6b0ae" stroke-width="4" stroke-linecap="round" d="M19.76 11.94a23.5 23.5 0 0 1 24.48 0m7.82 7.82a23.5 23.5 0 0 1 0 24.48m-7.82 7.82a23.5 23.5 0 0 1-24.48 0m-7.82-7.82a23.5 23.5 0 0 1 0-24.48"/>
+  <path fill="#1b2328" d="M16.5 16.5h9v9h-9Zm22 0h9v9h-9Zm0 22h9v9h-9Zm-22 0h9v9h-9Z"/>
+  <path fill="none" stroke="#9bd0a9" stroke-width="3.5" d="M16.5 25.5h9v-9m22 9h-9v-9m9 22h-9v9m-22-9h9v9"/>
+  <circle cx="32" cy="32" r="4.6" fill="none" stroke="#e7ece9" stroke-width="2.8"/>
 </svg>
