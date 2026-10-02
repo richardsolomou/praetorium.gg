@@ -174,6 +174,10 @@ it('advertises the canonical sitemap to crawlers', async () => {
   )
 })
 
+it('keeps crawlers off the sign-in page, which has a copy per return address', async () => {
+  expect(await referenceRobots(new Request('https://praetorium.gg/robots.txt')).text()).toMatch(/Disallow: \/sign-in\nDisallow: \/signin\n/)
+})
+
 it('documents reference updates, licensing, and attribution for agents', async () => {
   const response = await referenceLlms(new Request('https://praetorium.gg/llms.txt'))
 
