@@ -1,7 +1,14 @@
 import { afterEach, expect, it, vi } from 'vitest'
+
+const { capture } = vi.hoisted(() => ({ capture: vi.fn(async () => {}) }))
+vi.mock('./adapters/posthog', () => ({ serverTelemetry: () => ({ capture }) }))
+
 import { startInstance } from './start'
 
-afterEach(() => vi.unstubAllEnvs())
+afterEach(() => {
+  vi.unstubAllEnvs()
+  capture.mockClear()
+})
 
 async function request(url: string) {
   const { requestMiddleware } = await startInstance.getOptions()
@@ -32,4 +39,26 @@ it.each([
 it('leaves local requests on their incoming host', async () => {
   vi.stubEnv('APP_URL', '')
   expect(await (await request('https://local.example/')).text()).toBe('application')
+})
+
+async function served(url: string) {
+  const { requestMiddleware } = await startInstance.getOptions()
+  const middleware = requestMiddleware?.[1]
+  if (!middleware?.options.server) throw new Error('Missing crawler request middleware')
+  const response = new Response('application', { status: 200 })
+  return middleware.options.server({ request: new Request(url), next: () => ({ response }) } as never)
+}
+
+it('records a public page read as an HTTP log', async () => {
+  await served('https://praetorium.gg/factions/necrons')
+  expect(capture).toHaveBeenCalledWith(
+    expect.stringMatching(/^http_log_/),
+    '$http_log',
+    expect.objectContaining({ $pathname: '/factions/necrons' }),
+  )
+})
+
+it('records nothing for a page that can name a player', async () => {
+  await served('https://praetorium.gg/battles/secret-token')
+  expect(capture).not.toHaveBeenCalled()
 })
