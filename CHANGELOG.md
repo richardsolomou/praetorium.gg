@@ -1,5 +1,21 @@
 # praetorium
 
+## 0.95.0
+
+### Minor Changes
+
+- f519799: Show each datasheet's recent points changes on its page, with a link to the rest of its faction's data updates.
+- f519799: Unfurl shared datasheet and detachment links with their own card, naming the unit's faction and points.
+
+### Patch Changes
+
+- af2b360: Record which crawlers and AI agents read the public reference pages, without recording who reads them.
+- f519799: Name a datasheet's points in its page title, so searches for a unit's cost find it.
+- f519799: Tell Bing and other IndexNow search engines which pages changed after each release.
+- f519799: Link each datasheet, detachment and rules page to its Markdown text for AI agents, and accept format=markdown on the reference API.
+- 34564c9: Keep crawlers from opening a copy of the sign-in page for every reference page.
+- f519799: Tell search engines when each datasheet and detachment last changed, and list the Force Dispositions pages.
+
 ## 0.94.1
 
 ### Patch Changes
