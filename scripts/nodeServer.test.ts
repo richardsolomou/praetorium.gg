@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { spacetimeOrigin, spacetimeRoute } from './nodeServer'
+import { spacetimeOrigin, spacetimeRoute, uncacheAssetMiss } from './nodeServer'
 
 const database = 'praetorium-staging'
 
@@ -24,4 +24,17 @@ it('accepts HTTP only for loopback or one configured internal service', () => {
   expect(() => spacetimeOrigin({ ...environment, SPACETIME_URL: 'http://spacetimedb-staging:3000/sql' })).toThrow(
     'Invalid SpacetimeDB proxy origin',
   )
+})
+
+it('stops a CDN or browser from keeping a missing build asset', () => {
+  const proxied = (url: string, statusCode: number) => {
+    const response = { statusCode, headers: { 'cache-control': statusCode === 200 ? 'public, max-age=31536000, immutable' : undefined } }
+    uncacheAssetMiss({ url }, response)
+    return response.headers['cache-control']
+  }
+  expect([proxied('/assets/index-BRgM8bBN.js', 404), proxied('/assets/index-BRgM8bBN.js', 200), proxied('/rosters/missing', 404)]).toEqual([
+    'no-store',
+    'public, max-age=31536000, immutable',
+    undefined,
+  ])
 })
