@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.95.2
+
+### Patch Changes
+
+- aadcb48: Record feature use, setup attempts, search outcomes, and roster save failures in product analytics.
+
 ## 0.95.1
 
 ### Patch Changes
