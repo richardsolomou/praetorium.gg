@@ -4,6 +4,7 @@ type NativeCapability =
   | 'back-gesture'
   | 'battle-active'
   | 'haptic'
+  | 'github-auth'
   | 'notifications'
   | 'open-window'
   | 'print'

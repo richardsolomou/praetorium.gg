@@ -6,6 +6,7 @@ import { BattleShelf } from '../battles/BattleShelf'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { AdminBadge } from '../../components/AdminBadge'
 import { SupporterBadge } from '../../components/SupporterBadge'
 import { PlayerRankings } from './PlayerRankings'
 import { PlayerRosters } from './PlayerRosters'
@@ -94,6 +95,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
         eyebrow={
           <span className="inline-flex items-center gap-2">
             {yourself ? 'You' : 'Player'}
+            {profile.admin ? <AdminBadge /> : null}
             {profile.supporter ? <SupporterBadge /> : null}
           </span>
         }
@@ -103,7 +105,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
           <PlayerAvatar
             name={profile.name}
             image={profile.image}
-            className={`size-20 text-2xl ${profile.supporter ? 'ring-2 ring-parchment/60 ring-offset-3 ring-offset-panel' : ''}`}
+            className={`size-20 text-2xl ${profile.admin ? 'ring-2 ring-info/70 ring-offset-3 ring-offset-panel' : profile.supporter ? 'ring-2 ring-parchment/60 ring-offset-3 ring-offset-panel' : ''}`}
           />
         }
       />

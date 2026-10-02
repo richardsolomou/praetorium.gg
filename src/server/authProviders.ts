@@ -8,7 +8,6 @@ type AuthEnvironment = NodeJS.ProcessEnv
 export function configuredAuthProviderOptions(
   environment: AuthEnvironment = process.env,
 ): NonNullable<BetterAuthOptions['socialProviders']> {
-  // GitHub is linked to show a sponsor's badge and never signs anybody in; see `createSqliteAuth`.
   const options: NonNullable<BetterAuthOptions['socialProviders']> = configuredProviderOptions(['google', 'discord', 'github'], environment)
   const apple = appleCredentials(environment)
   if (apple) options.apple = async () => ({ clientId: apple.clientId, clientSecret: await apple.clientSecret() })

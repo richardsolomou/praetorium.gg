@@ -13,7 +13,7 @@ import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../../../authConfig'
 import { setOwnPassword, unlinkOwnAccount } from '../../../server/functions'
 import { mcpConnections, revokeMcpConnection } from '../../../server/functions/mcpConnections'
 import { authClient } from '../../authClient'
-import { hasNativeAuthBridge, requestNativeAuth } from '../../nativeAuth'
+import { hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { accountMethodsQuery, meQuery } from '../../queries'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from './AuthMethodIcon'
 import { SettingRow } from '../../components/SettingRow'
@@ -38,6 +38,7 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
   const [revokingConnection, setRevokingConnection] = useState<string | null>(null)
   const [connectionError, setConnectionError] = useState(false)
   const verifyEmail = useAuthAction()
+  const githubAuthAvailable = useGithubAuthAvailability()
   const linked = new Set(methods?.linked ?? [])
   const hasPassword = linked.has('credential')
   const available = new Set<string>(methods?.availableProviders ?? [])
@@ -119,7 +120,7 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
         )}
       </section>
 
-      <section className="border border-edge bg-panel p-5 md:p-7">
+      <section id="sign-in-methods" className="border border-edge bg-panel p-5 md:p-7">
         <p className="rubric border-b border-edge pb-2">Sign-in methods</p>
         {methodsPending ? <AccountMethodsSkeleton /> : null}
         {methods ? (
@@ -133,7 +134,7 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-bone">Verify your email</p>
                     <p className="mt-1 text-xs text-dim">
-                      Verify {me.email} so a matching Apple, Google or Discord account can sign you in safely.
+                      Verify {me.email} so a matching Apple, Google, Discord or GitHub account can sign you in safely.
                     </p>
                   </div>
                 </div>
@@ -200,6 +201,8 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
                     <Button type="button" variant="ghost" size="sm" disabled={!canRemove(provider)} onClick={() => setRemoving(provider)}>
                       Unlink
                     </Button>
+                  ) : provider === 'github' && !githubAuthAvailable ? (
+                    <span className="text-xs text-faint">Update the app to link GitHub.</span>
                   ) : (
                     <Button
                       type="button"

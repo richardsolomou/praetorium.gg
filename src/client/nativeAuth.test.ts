@@ -1,8 +1,27 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { hasNativeAuthBridge, requestNativeAuth } from './nativeAuth'
+import { createElement } from 'react'
+import { renderToString } from 'react-dom/server'
+import { canUseGithubAuth, hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } from './nativeAuth'
 
 describe('native auth web bridge', () => {
   afterEach(() => vi.unstubAllGlobals())
+
+  it('offers GitHub only where its authentication handoff is supported', () => {
+    vi.stubGlobal('window', undefined)
+    const web = canUseGithubAuth()
+    vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 3, capabilities: ['account'] }, ReactNativeWebView: {} })
+    const olderShell = canUseGithubAuth()
+    vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 3, capabilities: ['github-auth'] }, ReactNativeWebView: {} })
+
+    expect([web, olderShell, canUseGithubAuth()]).toEqual([true, false, true])
+  })
+
+  it('keeps the server frame stable before an older shell is detected', () => {
+    vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 3, capabilities: ['account'] }, ReactNativeWebView: {} })
+    const GithubOption = () => (useGithubAuthAvailability() ? 'GitHub' : 'Unavailable')
+
+    expect(renderToString(createElement(GithubOption))).toBe('GitHub')
+  })
 
   it('does not send messages to an older shell without a bridge version', async () => {
     const postMessage = vi.fn()

@@ -164,9 +164,8 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     }),
     emailVerification: authEmails ? { sendOnSignUp: true, sendVerificationEmail: authEmails.sendVerificationEmail } : undefined,
     socialProviders: configuredAuthProviderOptions(environment),
-    // Linking starts from a signed-in session, so a provider account under another address still belongs to its player.
     account: standardAccountOptions({
-      accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS, 'github'], allowDifferentEmails: true },
+      accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS], allowDifferentEmails: true },
     }),
     user: {
       deleteUser: {
@@ -228,8 +227,6 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     },
     hooks: {
       before: createAuthMiddleware(async (context) => {
-        if (context.path === '/sign-in/social' && context.body?.provider === 'github')
-          throw new APIError('FORBIDDEN', { message: 'GitHub can be linked to an account but cannot sign in' })
         if (!context.path.startsWith('/callback/')) return
         const provider = context.params?.id ?? context.path.split('/').pop()
         const state = context.query?.state

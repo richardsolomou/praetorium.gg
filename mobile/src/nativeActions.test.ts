@@ -90,7 +90,7 @@ describe('nativePushAnswerScript', () => {
 describe('NATIVE_BRIDGE_SCRIPT', () => {
   it('publishes only the version 3 capabilities the shell handles', () => {
     expect(NATIVE_BRIDGE_SCRIPT).toContain(
-      "const capabilities = ['app-navigation', 'back-gesture', 'battle-active', 'haptic', 'notifications', 'open-window', 'print', 'share']",
+      "const capabilities = ['app-navigation', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'notifications', 'open-window', 'print', 'share']",
     )
     expect(NATIVE_BRIDGE_SCRIPT).toContain('bridgeVersion: 3')
   })

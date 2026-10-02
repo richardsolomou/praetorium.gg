@@ -1,8 +1,13 @@
-export const SOCIAL_PROVIDERS = ['apple', 'google', 'discord'] as const
+export const SOCIAL_PROVIDERS = ['apple', 'google', 'discord', 'github'] as const
 
 export type SocialAuthProvider = (typeof SOCIAL_PROVIDERS)[number]
 
-export const SOCIAL_AUTH_PROVIDER_NAMES: Record<SocialAuthProvider, string> = { apple: 'Apple', google: 'Google', discord: 'Discord' }
+export const SOCIAL_AUTH_PROVIDER_NAMES: Record<SocialAuthProvider, string> = {
+  apple: 'Apple',
+  google: 'Google',
+  discord: 'Discord',
+  github: 'GitHub',
+}
 
 export const PASSWORD_MIN_LENGTH = 10
 
