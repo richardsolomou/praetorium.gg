@@ -11,7 +11,7 @@ export function referenceOpenApi(request: Request) {
       description: 'Read-only search and retrieval for the verified Warhammer 40,000 community reference used by Praetorium.',
     },
     servers: [{ url: origin }],
-    paths: {
+    paths: withFormat({
       '/api/reference/v1/about': {
         get: {
           operationId: 'getPraetoriumGuide',
@@ -105,7 +105,7 @@ export function referenceOpenApi(request: Request) {
           responses: responseSchemas('Structured reference record', schemaRef('ReferenceRecord')),
         },
       },
-    },
+    }),
     components: {
       schemas: {
         Error: objectSchema({ error: { type: 'string' } }, ['error']),
@@ -589,5 +589,13 @@ const recordSchema = (kind: ReferenceKind, data: object) =>
 
 const nullable = (schema: object) => ({ anyOf: [schema, { type: 'null' }] })
 const stringArray = () => ({ type: 'array', items: { type: 'string' } })
+
+/** Every read answers Markdown for `format=markdown` as it does for `Accept: text/markdown`. */
+const FORMAT_PARAMETER = { name: 'format', in: 'query', schema: { type: 'string', enum: ['markdown'] } }
+
+const withFormat = <Operation extends { parameters?: object[] }>(paths: Record<string, { get: Operation }>) =>
+  Object.fromEntries(
+    Object.entries(paths).map(([path, { get }]) => [path, { get: { ...get, parameters: [...(get.parameters ?? []), FORMAT_PARAMETER] } }]),
+  )
 
 const pathParameters = (...names: string[]) => names.map((name) => ({ name, in: 'path', required: true, schema: { type: 'string' } }))

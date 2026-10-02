@@ -1,10 +1,12 @@
 import type { JSX } from 'react'
 import { PREVIEW_SIZE, type PreviewCard, SITE } from '../contracts/linkPreview'
 import type { BattleView } from '../core/battleView'
+import type { Datasheet } from '../contracts/catalogue'
 import type { RosterVisibility } from '../core/savedRoster'
 import type { ServiceRecord } from '../core/serviceRecord'
 import { battleOutcome } from './battleOutcome'
 import { battleStage } from './battleStage'
+import { datasheetDescription, datasheetPoints } from './datasheet'
 import { recordSummary } from './features/profile/recordSummary'
 import type { Rankings } from './features/profile/PlayerRankings'
 import { sides } from './sides'
@@ -25,6 +27,10 @@ type Page = {
   path?: string
   /** Its preview image; absent pages keep the instance's own card. */
   image?: { path: string; alt: string }
+  /** A reference page describes one thing rather than being a place on the site. */
+  article?: boolean
+  /** The same content as compact source-faithful Markdown, for agents. */
+  markdown?: string
   /** For a page anyone holding the link may read but nobody should find by searching. */
   noindex?: boolean
 }
@@ -59,6 +65,7 @@ export function pageMeta(origin: string, page: Page) {
     { property: 'og:title', content: page.title },
     { property: 'og:description', content: page.description },
     ...(page.path ? [{ property: 'og:url', content: `${origin}${page.path}` }] : []),
+    ...(page.article ? [{ property: 'og:type', content: 'article' }] : []),
     ...(page.image ? imageMeta(origin, page.image) : []),
     ...(page.noindex ? [{ name: 'robots', content: 'noindex' }] : []),
   ]
@@ -67,10 +74,16 @@ export function pageMeta(origin: string, page: Page) {
 /** The address search engines should file a page under, absolute because some crawlers resolve nothing else. */
 export const canonicalLink = (origin: string, path: string) => ({ rel: 'canonical', href: `${origin}${path}` })
 
-/** A page's tags and, for one search engines may index, its canonical address. */
+/** A page's tags and, for one search engines may index, its canonical address and any Markdown alternative. */
 export const pageHead = (origin: string, page: Page) => ({
   meta: pageMeta(origin, page),
-  links: page.path && !page.noindex ? [canonicalLink(origin, page.path)] : [],
+  links:
+    page.path && !page.noindex
+      ? [
+          canonicalLink(origin, page.path),
+          ...(page.markdown ? [{ rel: 'alternate', type: 'text/markdown', href: `${origin}${page.markdown}?format=markdown` }] : []),
+        ]
+      : [],
 })
 
 /** A reference page's place under the site as schema.org breadcrumbs, ending with the page itself. */
@@ -181,6 +194,24 @@ export function rosterPreview(
     title: name,
     description: [factionName, detachments, points].filter(Boolean).join(' · '),
     card: { kind: 'roster', name, faction: factionName, detachments, points },
+  }
+}
+
+/** A datasheet as its name, faction and unconditional points. */
+export function datasheetPreview(sheet: Pick<Datasheet, 'name' | 'points' | 'costs' | 'baseSize'>, faction: string): LinkPreview {
+  const points = datasheetPoints(sheet)
+  return {
+    title: `${sheet.name} datasheet${points ? ` (${points})` : ''} — ${faction}`,
+    description: datasheetDescription(sheet, faction),
+    card: { kind: 'reference', label: 'Datasheet', name: sheet.name, faction, points },
+  }
+}
+
+export function detachmentPreview(name: string, faction: string): LinkPreview {
+  return {
+    title: `${name} detachment — ${faction}`,
+    description: `${name} rules, enhancements and stratagems for ${faction}.`,
+    card: { kind: 'reference', label: 'Detachment', name, faction, points: null },
   }
 }
 

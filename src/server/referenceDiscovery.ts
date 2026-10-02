@@ -3,18 +3,19 @@ import { publicOrigin } from './requestOrigin'
 import { activeReferenceCorpus } from './referenceApi'
 import { app } from './app'
 import { updateId } from './catalogueHistory'
-import { factionsLastUpdated } from './catalogueChangeLog'
+import { factionsLastUpdated, referencesLastUpdated } from './catalogueChangeLog'
+import { gameReferencesFor } from './gameReferences'
 import { ifNoneMatch } from './ifNoneMatch'
 
 /** Pages anyone may read that no reference document names. */
-const PUBLIC_PAGES = ['/', '/factions', '/leaderboard', '/rosters', '/rules', '/simulator', '/sources']
+const PUBLIC_PAGES = ['/', '/factions', '/force-dispositions', '/leaderboard', '/missions', '/rosters', '/rules', '/simulator', '/sources']
 
 export async function referenceSitemap(request: Request) {
   const corpus = await activeReferenceCorpus()
   if (!corpus) return new Response('Reference data is unavailable', { status: 503, headers: { 'Cache-Control': 'no-store' } })
   const origin = publicOrigin(request)
-  // A page's last modification is stated only where the history records it; nothing records
-  // when a datasheet's rules text last changed, and a guessed date teaches crawlers to ignore it.
+  // A page's last modification is stated only where the history records one: its points or its
+  // arrival. Nothing records when rules text changed, and a guessed date teaches crawlers to ignore it.
   const paths = new Map<string, number | null>(PUBLIC_PAGES.map((path) => [path, null]))
   const add = (path: string) => paths.set(path, paths.get(path) ?? null)
   for (const document of corpus.documents) {
@@ -30,6 +31,8 @@ export async function referenceSitemap(request: Request) {
     add(`/rules/${document.slug}`)
     for (const section of document.sections) add(`/rules/${document.slug}/${section.slug}`)
   }
+  const rules = await app().battleReadRulesFor()
+  if (rules) for (const disposition of gameReferencesFor(rules).dispositions) add(`/force-dispositions/${disposition.id}`)
   // The history rides in the snapshot but is not part of the corpus revision, so the updates
   // it carries are part of the cache key.
   const history = (await app().catalogueHistoryFor()) ?? []
@@ -37,7 +40,10 @@ export async function referenceSitemap(request: Request) {
   if (history.length) {
     paths.set('/data-updates', Math.max(...history.map((entry) => entry.recordedAt)))
     const canonical = await app().canonicalCatalogueFor()
-    if (canonical) for (const [slug, recordedAt] of factionsLastUpdated(history, canonical)) paths.set(`/data-updates/${slug}`, recordedAt)
+    if (canonical) {
+      for (const [slug, recordedAt] of factionsLastUpdated(history, canonical)) paths.set(`/data-updates/${slug}`, recordedAt)
+      for (const [path, recordedAt] of referencesLastUpdated(history, canonical)) if (paths.has(path)) paths.set(path, recordedAt)
+    }
   }
   const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...paths]
     .toSorted(([left], [right]) => (left < right ? -1 : 1))
@@ -73,7 +79,7 @@ Praetorium is a public Warhammer 40,000 army builder, battle tracker, and commun
 - [Factions](${origin}/api/reference/v1/factions): discover available factions
 - [MCP](${origin}/mcp): public reference tools with optional account sign-in for rosters and battles
 
-For roster planning, read \`/api/reference/v1/factions/{catalogueId}/units\` once to get compact unit-size costs, composition, attachment relationships, limits, keywords, links, and optional detachment rules instead of reading every datasheet. API reads return JSON by default. Send \`Accept: text/markdown\` for compact source-faithful text. Search results include canonical page URLs, source revisions, attribution, and cursor pagination.
+For roster planning, read \`/api/reference/v1/factions/{catalogueId}/units\` once to get compact unit-size costs, composition, attachment relationships, limits, keywords, links, and optional detachment rules instead of reading every datasheet. API reads return JSON by default. Send \`Accept: text/markdown\` or add \`format=markdown\` for compact source-faithful text. Search results include canonical page URLs, source revisions, attribution, and cursor pagination.
 
 ## Human reference
 

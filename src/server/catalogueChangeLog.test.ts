@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CatalogueChangeSet } from '../core/catalogueChanges'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
-import { factionHistory, factionsLastUpdated, linkedChanges } from './catalogueChangeLog'
+import { factionHistory, factionsLastUpdated, linkedChanges, referenceHistory, referencesLastUpdated } from './catalogueChangeLog'
 
 const canonical = {
   datasheets: [
@@ -93,5 +93,62 @@ describe("a faction's data updates", () => {
 
   it('date no faction the current data cannot address', () => {
     expect(factionsLastUpdated([entry(1, ['squats'])], canonical).size).toBe(0)
+  })
+})
+
+const recorded = (recordedAt: number, changes: CatalogueChangeSet['factions'][number]['changes']): CatalogueHistoryEntry => ({
+  from: `from-${recordedAt}`,
+  revisions: {},
+  recordedAt,
+  changes: set(changes),
+})
+
+const intercessors = (from: string, to: string): CatalogueChangeSet['factions'][number]['changes'][number] => ({
+  kind: 'datasheet-points',
+  id: 'intercessors',
+  name: 'Intercessor Squad',
+  rows: [{ models: '5', condition: null, from, to }],
+})
+
+describe("a reference page's own changes", () => {
+  it('list the changes to that page, newest first', () => {
+    expect(
+      referenceHistory(
+        [recorded(1, [intercessors('80', '85')]), recorded(2, [intercessors('85', '90')])],
+        canonical,
+        '/factions/space-marines/datasheets/intercessor-squad',
+      ).map((change) => change.recordedAt),
+    ).toEqual([2, 1])
+  })
+
+  it('leave out changes to other pages', () => {
+    expect(referenceHistory([recorded(1, [repriced])], canonical, '/factions/space-marines/datasheets/intercessor-squad')).toEqual([])
+  })
+
+  it('include enhancement changes on their detachment', () => {
+    const enhancement = {
+      kind: 'enhancement-added',
+      detachmentId: 'gladius',
+      detachment: 'Gladius Task Force',
+      name: 'Artificer Armour',
+      upgrade: false,
+    } as const
+    expect(referenceHistory([recorded(1, [enhancement])], canonical, '/factions/space-marines/detachments/gladius-task-force')).toEqual([
+      { recordedAt: 1, change: enhancement },
+    ])
+  })
+})
+
+describe('reference page dates', () => {
+  it('date each page by the newest change to it', () => {
+    expect(referencesLastUpdated([recorded(3, [intercessors('80', '85')]), recorded(2, [intercessors('85', '90')])], canonical)).toEqual(
+      new Map([['/factions/space-marines/datasheets/intercessor-squad', 3]]),
+    )
+  })
+
+  it('date no page for a change the current data cannot address', () => {
+    expect(
+      referencesLastUpdated([recorded(1, [{ kind: 'datasheet-removed', id: 'intercessors', name: 'Intercessor Squad' }])], canonical).size,
+    ).toBe(0)
   })
 })

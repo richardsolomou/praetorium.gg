@@ -128,7 +128,7 @@ const clip: CSSProperties = { display: 'block', overflow: 'hidden', whiteSpace: 
 const KIND_LABEL = { battle: null, roster: 'Army list', player: 'Player', site: null } as const
 
 function Frame({ card }: { card: PreviewCard }) {
-  const label = card.kind === 'battle' ? card.stage : KIND_LABEL[card.kind]
+  const label = card.kind === 'battle' ? card.stage : card.kind === 'reference' ? card.label : KIND_LABEL[card.kind]
   return (
     <div
       style={{
@@ -165,6 +165,7 @@ function Body({ card }: { card: PreviewCard }) {
   if (card.kind === 'battle') return <Battle card={card} />
   if (card.kind === 'roster') return <Headline title={card.name} lead={card.faction} detail={card.detachments} figure={card.points} />
   if (card.kind === 'player') return <Headline title={card.name} lead={card.record} detail={card.rank} figure={null} />
+  if (card.kind === 'reference') return <Headline title={card.name} lead={card.faction} detail={null} figure={card.points} />
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 56 }}>
       <img src={LOGO} width={220} height={220} alt="" />

@@ -35,3 +35,11 @@ it('publishes concrete OpenAPI response contracts', () => {
     },
   })
 })
+
+it('documents the Markdown format parameter on every read', () => {
+  const openApi = referenceOpenApi(new Request('https://praetorium.gg/api/reference/v1/openapi.json'))
+
+  expect(
+    Object.values(openApi.paths).every(({ get }) => get.parameters.some((parameter) => 'name' in parameter && parameter.name === 'format')),
+  ).toBe(true)
+})

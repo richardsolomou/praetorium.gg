@@ -3,6 +3,7 @@ import {
   addedKeywords,
   attachmentGroups,
   compositionCount,
+  datasheetPoints,
   unitCostsSummary,
   datasheetDescription,
   primaryUnitProfile,
@@ -157,6 +158,40 @@ describe('datasheet unit costs summary', () => {
 
   it('states nothing when every cost has a condition', () => {
     expect(unitCostsSummary([cost('1', '60', { keyword: 'Epic Hero' })])).toBeNull()
+  })
+})
+
+describe('datasheet points', () => {
+  const cost = (models: string, points: string, detachment: string | null = null) => ({
+    models,
+    cost: points,
+    keyword: null,
+    faction: null,
+    detachment,
+  })
+
+  it('states one unit size as one figure', () => {
+    expect(datasheetPoints({ points: 80, costs: [cost('1', '80')] })).toBe('80 pts')
+  })
+
+  it('states several unit sizes as the range they span', () => {
+    expect(datasheetPoints({ points: 80, costs: [cost('10', '160'), cost('5', '80')] })).toBe('80–160 pts')
+  })
+
+  it('leaves out a cost that depends on a detachment', () => {
+    expect(datasheetPoints({ points: 80, costs: [cost('5', '80'), cost('5', '60', 'Gladius')] })).toBe('80 pts')
+  })
+
+  it("falls back to the sheet's points when it prints no sizes", () => {
+    expect(datasheetPoints({ points: 55, costs: [] })).toBe('55 pts')
+  })
+
+  it('states nothing when every cost has a condition', () => {
+    expect(datasheetPoints({ points: null, costs: [cost('5', '60', 'Gladius')] })).toBeNull()
+  })
+
+  it('states nothing for a cost that is not a number', () => {
+    expect(datasheetPoints({ points: 80, costs: [cost('5', '80'), cost('10', 'varies')] })).toBeNull()
   })
 })
 

@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { FactionDetachment } from '../client/features/reference/factions/FactionDetachment'
 import { detachmentDetailQuery, factionQuery, favouriteDetachmentsQuery } from '../client/queries'
-import { breadcrumbMeta, canonicalLink } from '../client/linkPreview'
+import { breadcrumbMeta, detachmentPreview, pageHead } from '../client/linkPreview'
 
 export const Route = createFileRoute('/factions/$catalogueId/detachments/$detachmentId')({
   loader: async ({ context, params }) => {
@@ -16,30 +16,31 @@ export const Route = createFileRoute('/factions/$catalogueId/detachments/$detach
     if (!detachment) throw notFound()
     return { detachment, faction }
   },
-  head: ({ loaderData, match, params }) => ({
-    meta: loaderData
-      ? [
-          { title: `${loaderData.detachment.name} detachment — ${loaderData.faction.displayName} — Praetorium` },
-          {
-            name: 'description',
-            content: `${loaderData.detachment.name} rules, enhancements and stratagems for ${loaderData.faction.displayName}.`,
-          },
-          { property: 'og:title', content: `${loaderData.detachment.name} detachment` },
-          {
-            property: 'og:description',
-            content: `${loaderData.detachment.name} rules, enhancements and stratagems for ${loaderData.faction.displayName}.`,
-          },
-          { property: 'og:type', content: 'article' },
-          breadcrumbMeta(match.context.origin, [
-            { name: 'Factions', path: '/factions' },
-            { name: loaderData.faction.displayName, path: `/factions/${loaderData.faction.slug}` },
-            { name: loaderData.detachment.name, path: `/factions/${loaderData.faction.slug}/detachments/${params.detachmentId}` },
-          ]),
-        ]
-      : [],
-    links: loaderData
-      ? [canonicalLink(match.context.origin, `/factions/${loaderData.faction.slug}/detachments/${params.detachmentId}`)]
-      : [],
-  }),
+  head: ({ loaderData, match, params }) => {
+    if (!loaderData) return {}
+    const { detachment, faction } = loaderData
+    const origin = match.context.origin
+    const path = `/factions/${faction.slug}/detachments/${params.detachmentId}`
+    const { title, description } = detachmentPreview(detachment.name, faction.displayName)
+    const head = pageHead(origin, {
+      title,
+      description,
+      path,
+      article: true,
+      image: { path: `/api/previews/detachments/${faction.slug}/${params.detachmentId}`, alt: title },
+      markdown: `/api/reference/v1/detachments/${faction.id}/${params.detachmentId}`,
+    })
+    return {
+      meta: [
+        ...head.meta,
+        breadcrumbMeta(origin, [
+          { name: 'Factions', path: '/factions' },
+          { name: faction.displayName, path: `/factions/${faction.slug}` },
+          { name: detachment.name, path },
+        ]),
+      ],
+      links: head.links,
+    }
+  },
   component: FactionDetachment,
 })

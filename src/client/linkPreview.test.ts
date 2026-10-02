@@ -6,6 +6,7 @@ import type { ServiceRecord } from '../core/serviceRecord'
 import {
   battlePreview,
   breadcrumbMeta,
+  datasheetPreview,
   pageHead,
   pageMeta,
   playerPreview,
@@ -163,6 +164,25 @@ describe('search engine metadata', () => {
     ])
   })
 
+  it('offers a reference page as Markdown for agents', () => {
+    expect(
+      pageHead(ORIGIN, {
+        title: 'Movement',
+        description: 'Moving.',
+        path: '/rules/core/movement',
+        markdown: '/api/reference/v1/rules/core/movement',
+      }).links,
+    ).toContainEqual({
+      rel: 'alternate',
+      type: 'text/markdown',
+      href: 'https://praetorium.example/api/reference/v1/rules/core/movement?format=markdown',
+    })
+  })
+
+  it('describes a reference page as an article', () => {
+    expect(content(pageMeta(ORIGIN, { title: 'Movement', description: 'Moving.', article: true }), 'og:type')).toBe('article')
+  })
+
   it('gives a page kept out of search results no canonical address', () => {
     expect(pageHead(ORIGIN, { title: 'List', description: 'List.', path: '/rosters/one', noindex: true }).links).toEqual([])
   })
@@ -185,6 +205,38 @@ describe('search engine metadata', () => {
     expect((structured(siteStructuredData(ORIGIN))['@graph'] as { '@type': string; offers?: unknown }[])[1]).toMatchObject({
       '@type': 'WebApplication',
       offers: { '@type': 'Offer', price: '0' },
+    })
+  })
+})
+
+describe('a datasheet preview', () => {
+  const sheet = {
+    name: 'Intercessor Squad',
+    points: 80,
+    costs: [
+      { models: '5', cost: '80', keyword: null, faction: null, detachment: null },
+      { models: '10', cost: '160', keyword: null, faction: null, detachment: null },
+    ],
+    baseSize: '32mm',
+  }
+
+  it('names the points a unit costs in its title', () => {
+    expect(datasheetPreview(sheet, 'Space Marines').title).toBe('Intercessor Squad datasheet (80–160 pts) — Space Marines')
+  })
+
+  it('leaves the points out of the title when none are unconditional', () => {
+    expect(datasheetPreview({ ...sheet, points: null, costs: [] }, 'Space Marines').title).toBe(
+      'Intercessor Squad datasheet — Space Marines',
+    )
+  })
+
+  it('draws the same points on its card', () => {
+    expect(datasheetPreview(sheet, 'Space Marines').card).toEqual({
+      kind: 'reference',
+      label: 'Datasheet',
+      name: 'Intercessor Squad',
+      faction: 'Space Marines',
+      points: '80–160 pts',
     })
   })
 })

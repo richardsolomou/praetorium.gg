@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { SecondaryMissionPage } from '../client/features/reference/missions/SecondaryMissionPage'
 import { gameReferencesQuery } from '../client/queries'
-import { breadcrumbMeta, canonicalLink } from '../client/linkPreview'
+import { breadcrumbMeta, pageHead } from '../client/linkPreview'
 
 export const Route = createFileRoute('/missions/$packId_/secondaries/$cardId')({
   loader: async ({ context, params }) => {
@@ -11,21 +11,25 @@ export const Route = createFileRoute('/missions/$packId_/secondaries/$cardId')({
     if (!pack || !card) throw notFound()
     return { pack: pack.name, card: card.name }
   },
-  head: ({ loaderData, match, params }) => ({
-    meta: loaderData
-      ? [
-          { title: `${loaderData.card} — ${loaderData.pack} — Praetorium` },
-          { name: 'description', content: `${loaderData.card} secondary mission scoring, timing, and actions.` },
-          { property: 'og:title', content: loaderData.card },
-          { property: 'og:description', content: `${loaderData.card} secondary mission scoring, timing, and actions.` },
-          { property: 'og:type', content: 'article' },
-          breadcrumbMeta(match.context.origin, [
-            { name: loaderData.pack, path: `/missions/${params.packId}` },
-            { name: loaderData.card, path: `/missions/${params.packId}/secondaries/${params.cardId}` },
-          ]),
-        ]
-      : [],
-    links: loaderData ? [canonicalLink(match.context.origin, `/missions/${params.packId}/secondaries/${params.cardId}`)] : [],
-  }),
+  head: ({ loaderData, match, params }) => {
+    if (!loaderData) return {}
+    const path = `/missions/${params.packId}/secondaries/${params.cardId}`
+    const head = pageHead(match.context.origin, {
+      title: `${loaderData.card} — ${loaderData.pack}`,
+      description: `${loaderData.card} secondary mission scoring, timing, and actions.`,
+      path,
+      article: true,
+    })
+    return {
+      meta: [
+        ...head.meta,
+        breadcrumbMeta(match.context.origin, [
+          { name: loaderData.pack, path: `/missions/${params.packId}` },
+          { name: loaderData.card, path },
+        ]),
+      ],
+      links: head.links,
+    }
+  },
   component: () => <SecondaryMissionPage {...Route.useParams()} />,
 })

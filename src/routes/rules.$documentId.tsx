@@ -1,7 +1,7 @@
 import { createFileRoute, notFound, Outlet, useRouterState } from '@tanstack/react-router'
 import { RuleContents } from '../client/features/reference/rules/RuleContents'
 import { ruleIndexQuery } from '../client/queries'
-import { breadcrumbMeta, canonicalLink } from '../client/linkPreview'
+import { breadcrumbMeta, pageHead } from '../client/linkPreview'
 
 export const Route = createFileRoute('/rules/$documentId')({
   loader: async ({ context, location, params }) => {
@@ -11,30 +11,33 @@ export const Route = createFileRoute('/rules/$documentId')({
     if (!known && location.pathname === `/rules/${params.documentId}`) throw notFound()
     return { document: index?.documents.find((document) => document.slug === params.documentId) ?? null }
   },
-  head: ({ loaderData, match, matches }) => ({
-    meta: loaderData?.document
-      ? [
-          { title: `${loaderData.document.title} — Praetorium` },
-          { name: 'description', content: `Contents and numbered rules from ${loaderData.document.title}.` },
-          { property: 'og:title', content: loaderData.document.title },
-          { property: 'og:description', content: `Contents and numbered rules from ${loaderData.document.title}.` },
-          { property: 'og:type', content: 'article' },
-          // Breadcrumbs are not replaced by a child's, so only the page itself writes them.
-          ...(matches.at(-1)?.routeId === match.routeId
-            ? [
-                breadcrumbMeta(match.context.origin, [
-                  { name: 'Rules', path: '/rules' },
-                  { name: loaderData.document.title, path: `/rules/${loaderData.document.slug}` },
-                ]),
-              ]
-            : []),
-        ]
-      : [],
-    links:
-      loaderData?.document && matches.at(-1)?.routeId === match.routeId
-        ? [canonicalLink(match.context.origin, `/rules/${loaderData.document.slug}`)]
-        : [],
-  }),
+  head: ({ loaderData, match, matches }) => {
+    if (!loaderData?.document) return {}
+    const { document } = loaderData
+    const path = `/rules/${document.slug}`
+    // Breadcrumbs and links are not replaced by a child's, so only the page itself writes them.
+    const leaf = matches.at(-1)?.routeId === match.routeId
+    const head = pageHead(match.context.origin, {
+      title: document.title,
+      description: `Contents and numbered rules from ${document.title}.`,
+      path: leaf ? path : undefined,
+      article: true,
+    })
+    return {
+      meta: [
+        ...head.meta,
+        ...(leaf
+          ? [
+              breadcrumbMeta(match.context.origin, [
+                { name: 'Rules', path: '/rules' },
+                { name: document.title, path },
+              ]),
+            ]
+          : []),
+      ],
+      links: head.links,
+    }
+  },
   component: RuleDocumentPage,
 })
 

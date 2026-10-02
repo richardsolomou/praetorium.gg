@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { ForceDispositionPage } from '../client/features/reference/missions/ForceDispositionPage'
 import { dispositionDetachmentsQuery, gameReferencesQuery } from '../client/queries'
-import { canonicalLink } from '../client/linkPreview'
+import { pageHead } from '../client/linkPreview'
 
 export const Route = createFileRoute('/force-dispositions/$dispositionId')({
   loader: async ({ context, params }) => {
@@ -13,23 +13,14 @@ export const Route = createFileRoute('/force-dispositions/$dispositionId')({
     if (!disposition) throw notFound()
     return { name: disposition.name }
   },
-  head: ({ loaderData, match, params }) => ({
-    meta: loaderData
-      ? [
-          { title: `${loaderData.name} force disposition — Praetorium` },
-          {
-            name: 'description',
-            content: `${loaderData.name} primary missions by opposing force disposition, and the detachments that offer it.`,
-          },
-          { property: 'og:title', content: `${loaderData.name} force disposition` },
-          {
-            property: 'og:description',
-            content: `${loaderData.name} primary missions by opposing force disposition, and the detachments that offer it.`,
-          },
-          { property: 'og:type', content: 'article' },
-        ]
-      : [],
-    links: loaderData ? [canonicalLink(match.context.origin, `/force-dispositions/${params.dispositionId}`)] : [],
-  }),
+  head: ({ loaderData, match, params }) =>
+    loaderData
+      ? pageHead(match.context.origin, {
+          title: `${loaderData.name} force disposition`,
+          description: `${loaderData.name} primary missions by opposing force disposition, and the detachments that offer it.`,
+          path: `/force-dispositions/${params.dispositionId}`,
+          article: true,
+        })
+      : {},
   component: () => <ForceDispositionPage dispositionId={Route.useParams().dispositionId} />,
 })

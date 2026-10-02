@@ -14,7 +14,9 @@ import {
   weaponProfileGroups,
   weaponProfileMode,
 } from '../../../datasheet'
-import { datasheetSlugQuery, factionQuery } from '../../../queries'
+import { datasheetSlugQuery, factionQuery, referenceChangesQuery } from '../../../queries'
+import { changeDetail } from '../../../catalogueChanges'
+import { useDateFormatting } from '../../../dates'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
 import { CollectionToggle } from './CollectionToggle'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from '../../../components/Keyword'
@@ -119,6 +121,7 @@ export function FactionDatasheet() {
         <Abilities onboarding="datasheet-abilities" abilities={abilities} rules={sheet.keywordRules} />
         <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} />
         <UnitConfiguration onboarding="datasheet-config" sheet={sheet} rules={sheet.keywordRules} />
+        <PointsChanges faction={faction} slug={sheet.slug} />
         <TransportReference transport={sheet.transport} profiles={structured.transport} rules={sheet.keywordRules} />
         <Relationships sheet={sheet} abilityIds={relationshipAbilityIds} />
         {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
@@ -243,6 +246,36 @@ function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rul
           </div>
         ) : null}
       </div>
+    </section>
+  )
+}
+
+/** The newest points changes the data updates recorded to this datasheet, linking to the rest of its faction's. */
+function PointsChanges({ faction, slug }: { faction: { slug: string; displayName: string }; slug: string }) {
+  const { data: changes } = useQuery(referenceChangesQuery({ kind: 'datasheet', faction: faction.slug, slug }))
+  const { date } = useDateFormatting()
+  if (!changes?.length) return null
+  return (
+    <section id="points-changes">
+      <h2 className="rubric">Points changes</h2>
+      <ul className="mt-2 border border-edge bg-panel">
+        {changes.map(({ recordedAt, change }) => (
+          <li
+            key={`${recordedAt}${JSON.stringify(change)}`}
+            className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-b border-edge px-3 py-2 text-sm last:border-b-0"
+          >
+            <span className="readout text-dim">{date(recordedAt)}</span>
+            <span className="readout text-xs text-bone">{changeDetail(change)}</span>
+          </li>
+        ))}
+      </ul>
+      <Link
+        to="/data-updates/$catalogueId"
+        params={{ catalogueId: faction.slug }}
+        className="mt-2 inline-block text-sm text-info hover:text-bone"
+      >
+        All {faction.displayName} data updates
+      </Link>
     </section>
   )
 }
