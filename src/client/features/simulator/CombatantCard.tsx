@@ -174,7 +174,7 @@ export function CombatantCard({
         </div>
       ) : null}
       {failed ? (
-        <div role="alert" className="mt-2 text-sm text-amber-400">
+        <div role="alert" className="mt-2 text-sm text-discarded">
           Unit data could not load.{' '}
           <Button
             variant="outline"

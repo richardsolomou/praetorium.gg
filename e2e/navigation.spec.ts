@@ -19,8 +19,8 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await page.goto('/')
 
   await expect(page.locator('head link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg')
-  await expect(page.locator('head link[rel="preload"][as="font"]')).toHaveCount(6)
-  expect(await page.evaluate(() => document.fonts.check('400 16px "Barlow Semi Condensed"'))).toBe(true)
+  await expect(page.locator('head link[rel="preload"][as="font"]')).toHaveCount(3)
+  expect(await page.evaluate(() => document.fonts.check('400 16px "Sofia Sans Semi Condensed Variable"'))).toBe(true)
   const primary = page.locator('#primary-navigation')
   const webHeader = page.locator('[data-web-app-chrome]')
   const mobileHeader = page.locator('[data-mobile-app-header]')
@@ -183,6 +183,7 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   await expect(morePage.getByRole('link', { name: /^Leagues/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Leaderboard/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Rules/ })).toBeVisible()
+  await expect(morePage.getByRole('link', { name: /^Dispositions/ })).toBeVisible()
   await expect(morePage.getByRole('button', { name: 'Search Praetorium' })).toHaveCount(0)
   await expect(morePage.getByRole('link', { name: /^Sign in/ })).toHaveCount(0)
   await expect(mobileHeader.getByRole('button', { name: 'Search Praetorium' })).toBeVisible()

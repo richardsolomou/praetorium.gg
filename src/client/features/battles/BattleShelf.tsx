@@ -173,7 +173,7 @@ function BattleSide({
           </>
         )}
       </span>
-      <span className={`readout shrink-0 text-2xl ${side === 'a' ? 'text-side-a' : 'text-side-b'}`}>{score ?? 0}</span>
+      <span className={`figure shrink-0 text-2xl ${side === 'a' ? 'text-side-a' : 'text-side-b'}`}>{score ?? 0}</span>
     </span>
   )
 }

@@ -27,7 +27,7 @@ const MORE_LINKS: readonly MoreLink[] = [
   { description: 'Live battles and activity', icon: House, label: 'Home', to: '/' },
   { description: 'Organized play', icon: Trophy, label: 'Leagues', to: '/leagues' },
   { description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
-  { description: 'Primary mission matchups', icon: Layers3, label: 'Force dispositions', to: '/force-dispositions' },
+  { description: 'Primary mission matchups', icon: Layers3, label: 'Dispositions', to: '/force-dispositions' },
   { description: 'Game reference', icon: Gavel, label: 'Rules', to: '/rules' },
   { description: 'Damage and kill probabilities', icon: Dices, label: 'Simulator', to: '/simulator' },
   { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },

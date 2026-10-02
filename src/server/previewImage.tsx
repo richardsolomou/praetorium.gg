@@ -1,10 +1,11 @@
 import type { CSSProperties } from 'react'
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
 import satori, { init as initYoga, type Font } from 'satori/standalone'
-import display500 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-500-normal.woff?inline'
-import display500Extended from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-ext-500-normal.woff?inline'
-import display700 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-700-normal.woff?inline'
-import display700Extended from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-ext-700-normal.woff?inline'
+import display500 from '@fontsource/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-500-normal.woff?inline'
+import display500Extended from '@fontsource/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-ext-500-normal.woff?inline'
+import display700 from '@fontsource/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-700-normal.woff?inline'
+import display700Extended from '@fontsource/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-ext-700-normal.woff?inline'
+import wordmark700 from '@fontsource/chakra-petch/files/chakra-petch-latin-700-normal.woff?inline'
 import logo from '../../public/logo.svg?raw'
 import { PREVIEW_SIZE, type PreviewCard, SITE } from '../contracts/linkPreview'
 
@@ -13,18 +14,22 @@ const RENDERS_AT_ONCE = 2
 const RENDERS_WAITING = 16
 
 const COLOR = {
-  void: '#0b0c0e',
-  edge: '#292d32',
-  bone: '#eceff1',
-  dim: '#a4a8ac',
-  faint: '#83888d',
-  parchment: '#89b89d',
-  sides: ['#df8078', '#7eaa9e'],
+  void: '#0e1316',
+  edge: '#28323a',
+  bone: '#e7ece9',
+  dim: '#a6b0ae',
+  faint: '#86918f',
+  parchment: '#9bd0a9',
+  sides: ['#f57a7a', '#5fc8ea'],
 } as const
 
-/** Fontsource splits a face by script, and satori falls back between families rather than within one. */
-const FAMILY = 'Barlow Semi Condensed'
-const EXTENDED = 'Barlow Semi Condensed Extended'
+/**
+ * Satori draws only static faces, so the card uses the interface fonts' static instances. Fontsource splits a
+ * face by script, and satori falls back between families rather than within one.
+ */
+const FAMILY = 'Sofia Sans Semi Condensed'
+const EXTENDED = 'Sofia Sans Semi Condensed Extended'
+const WORDMARK = 'Chakra Petch'
 
 const bytes = (dataUrl: string) => Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64')
 
@@ -43,6 +48,7 @@ function prepare() {
       { data: display500Extended, weight: 500 as const, name: EXTENDED },
       { data: display700, weight: 700 as const, name: FAMILY },
       { data: display700Extended, weight: 700 as const, name: EXTENDED },
+      { data: wordmark700, weight: 700 as const, name: WORDMARK },
     ].map(({ data, ...font }) => ({ ...font, data: bytes(data), style: 'normal' as const }))
   })()
   return ready
@@ -138,7 +144,9 @@ function Frame({ card }: { card: PreviewCard }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <img src={LOGO} width={56} height={56} alt="" />
-          <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: 6, textTransform: 'uppercase' }}>{SITE.name}</span>
+          <span style={{ fontFamily: WORDMARK, fontSize: 30, fontWeight: 700, letterSpacing: 6, textTransform: 'uppercase' }}>
+            {SITE.name}
+          </span>
         </div>
         {label ? (
           <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: 4, textTransform: 'uppercase', color: COLOR.parchment }}>

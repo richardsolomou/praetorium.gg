@@ -51,7 +51,7 @@ import { pushAnswer } from './src/pushDevice'
 import { NATIVE_USER_AGENT } from './src/version'
 import { deleteSecureValue, getSecureValue, setSecureValue } from './src/secureStorage'
 
-const BACKGROUND = '#0b0c0e'
+const BACKGROUND = '#0e1316'
 const PENDING_AUTH_KEY = 'praetorium.native-auth.pending'
 let pendingAuthTestValue: string | null = null
 const pendingAuthStorage = process.env.EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL
@@ -117,7 +117,7 @@ function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
         </>
       ) : (
         <>
-          <ActivityIndicator color="#7eaa9e" size="large" />
+          <ActivityIndicator color="#9bd0a9" size="large" />
           <Text style={styles.loading}>Opening Praetorium</Text>
         </>
       )}
@@ -600,25 +600,25 @@ const styles = StyleSheet.create({
     backgroundColor: BACKGROUND,
   },
   eyebrow: {
-    color: '#c8c1ae',
+    color: '#9bd0a9',
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.4,
   },
   title: {
-    color: '#eceff1',
+    color: '#e7ece9',
     fontSize: 24,
     fontWeight: '700',
     textAlign: 'center',
   },
   explanation: {
-    color: '#a7aea8',
+    color: '#a6b0ae',
     fontSize: 15,
     lineHeight: 22,
     textAlign: 'center',
   },
   loading: {
-    color: '#a7aea8',
+    color: '#a6b0ae',
     fontSize: 14,
   },
   button: {
@@ -627,14 +627,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 20,
     borderWidth: 1,
-    borderColor: '#7eaa9e',
-    backgroundColor: '#171a1e',
+    borderColor: '#9bd0a9',
+    backgroundColor: '#1b2328',
   },
   buttonPressed: {
-    backgroundColor: '#24292f',
+    backgroundColor: '#28323a',
   },
   buttonText: {
-    color: '#eceff1',
+    color: '#e7ece9',
     fontSize: 15,
     fontWeight: '600',
   },

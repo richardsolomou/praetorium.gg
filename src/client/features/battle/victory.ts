@@ -1,7 +1,7 @@
 const CELEBRATED_KEY = 'praetorium.celebrated-battles'
 
 /** Fallbacks for a canvas that has to paint before the stylesheet has been read. */
-const SIDE_COLOURS = ['#df8078', '#7eaa9e']
+const SIDE_COLOURS = ['#f57a7a', '#5fc8ea']
 
 function tintColours(side: number) {
   const styles = getComputedStyle(document.documentElement)

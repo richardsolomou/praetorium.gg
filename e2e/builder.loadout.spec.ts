@@ -1047,7 +1047,7 @@ for (const width of [390, 1600]) {
     ).toHaveCount(1)
     await waitForRosterSave(page, () => loadout.getByRole('button', { name: `More ${pair}`, exact: true }).click())
     await expect(profiles.locator('[data-equipped]')).toHaveAttribute('data-equipped', 'true')
-    await expect(profiles).toHaveCSS('border-left-color', 'rgb(137, 184, 157)')
+    await expect(profiles).toHaveCSS('border-left-color', 'rgb(155, 208, 169)')
     const selectedHeading = await profiles.locator('[data-equipped]').boundingBox()
     expect(selectedHeading?.x).toBe(unselectedHeading?.x)
     expect(selectedHeading?.width).toBe(unselectedHeading?.width)

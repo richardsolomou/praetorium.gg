@@ -218,7 +218,7 @@ function Tallies({ label, items }: { label: string; items: readonly TallyItem[] 
         {items.map((item) => (
           <div key={item.label} className="min-w-28 flex-1 border border-edge bg-panel p-3">
             <p className="eyebrow truncate">{item.label}</p>
-            <p className={`readout mt-1 text-2xl leading-none font-bold ${item.tint ?? 'text-bone'}`}>{item.value}</p>
+            <p className={`figure mt-1 text-2xl leading-none font-bold ${item.tint ?? 'text-bone'}`}>{item.value}</p>
           </div>
         ))}
       </div>

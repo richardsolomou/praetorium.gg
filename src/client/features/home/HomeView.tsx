@@ -135,7 +135,7 @@ export function HomeView({
 function Welcome({ name, going, waiting, newBattle }: { name: string; going: number; waiting: number; newBattle?: ReactNode }) {
   return (
     <section data-onboarding="home-activity" className="relative overflow-hidden border-b border-edge bg-panel">
-      <div className="sheen" />
+      <div className="plot-grid" />
       <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-x-6 gap-y-4 px-5 py-6 sm:px-6 sm:py-7">
         <div>
           <h1 className="text-2xl leading-none sm:text-3xl">Welcome back, {name.trim().split(/\s+/)[0]}</h1>

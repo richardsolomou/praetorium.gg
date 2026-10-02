@@ -591,12 +591,12 @@ export function CombatMatchup({
       </div>
       <div className="border-t border-edge p-3 sm:p-4">
         {attacker?.allocationRequired ? (
-          <p role="alert" className="mb-3 text-sm text-amber-400">
+          <p role="alert" className="mb-3 text-sm text-discarded">
             Choose the attacker's surviving models and weapons to calculate attacks.
           </p>
         ) : null}
         {target?.error ? (
-          <p role="alert" className="mb-3 text-sm text-amber-400">
+          <p role="alert" className="mb-3 text-sm text-discarded">
             {target.error}
           </p>
         ) : null}
@@ -627,12 +627,12 @@ export function CombatMatchup({
                   </p>
                 ) : null}
                 {plan?.errors.map((message) => (
-                  <p key={message} role="alert" className="mt-2 text-xs text-amber-400">
+                  <p key={message} role="alert" className="mt-2 text-xs text-discarded">
                     {message}
                   </p>
                 ))}
                 {error ? (
-                  <div role="alert" className="mt-2 text-xs text-amber-400">
+                  <div role="alert" className="mt-2 text-xs text-discarded">
                     {error}{' '}
                     <Button size="sm" variant="outline" onClick={() => setRetry((value) => value + 1)}>
                       Retry

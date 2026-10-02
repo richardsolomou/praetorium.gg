@@ -20,7 +20,7 @@ import { SOURCE } from '../../projectLinks'
 export function HomeHero({ battle }: { battle?: Battle }) {
   return (
     <section className="relative overflow-hidden border-b border-edge bg-panel">
-      <div className="sheen" />
+      <div className="plot-grid" />
       <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-5 py-10 sm:px-6 md:py-16 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center lg:gap-14">
         <div>
           <h1 className="text-4xl leading-[0.9] sm:text-5xl lg:text-6xl">
@@ -151,7 +151,7 @@ function HeroSide({ sideSummary, score, side }: { sideSummary?: SummarySide; sco
           </span>
         ))}
       </span>
-      <span className={`readout shrink-0 text-5xl leading-none font-bold ${side === 'a' ? 'text-side-a' : 'text-side-b'}`}>{score}</span>
+      <span className={`figure shrink-0 text-5xl leading-none font-bold ${side === 'a' ? 'text-side-a' : 'text-side-b'}`}>{score}</span>
     </span>
   )
 }
@@ -162,7 +162,7 @@ function HeroMark() {
     <div className="hidden place-items-center border border-edge-strong bg-sunken p-10 lg:grid" aria-hidden>
       <div className="relative grid size-40 place-items-center">
         <div className="absolute inset-0 rotate-45 border border-parchment/25" />
-        <img src="/logo.svg" alt="" className="relative size-24 drop-shadow-[0_0_2rem_rgba(137,184,157,0.2)]" />
+        <img src="/logo.svg" alt="" className="relative size-24" />
       </div>
     </div>
   )

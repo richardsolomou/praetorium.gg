@@ -25,7 +25,7 @@ export function PageState({
   const Heading = headingLevel === 1 ? 'h1' : 'h2'
   return (
     <div className={`${className} relative grid place-items-center overflow-hidden border border-edge bg-panel px-6 py-12 text-center`}>
-      <div className="sheen" />
+      <div className="plot-grid" />
       <div className="relative grid max-w-md justify-items-center">
         <span className="grid size-14 place-items-center rounded-full border border-edge-strong bg-sunken text-parchment">
           <Mark className={`size-6 ${loading ? 'animate-spin' : ''}`} aria-hidden />

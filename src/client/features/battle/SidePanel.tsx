@@ -110,7 +110,7 @@ export const SidePanel = memo(function SidePanel({
       <div className="grid grid-cols-2 gap-2 border-y border-edge py-2">
         <div className="min-w-0">
           <p className="eyebrow">Victory points</p>
-          <p data-stat="vp" className="readout text-4xl leading-none font-bold">
+          <p data-stat="vp" className="figure text-4xl leading-none font-bold">
             {side.total}
           </p>
           {/* Chosen before the battle and paid as it begins, so the score above already holds it. */}
@@ -118,7 +118,7 @@ export const SidePanel = memo(function SidePanel({
         </div>
         <div className="min-w-0">
           <p className="eyebrow">Command points</p>
-          <p data-stat="cp" className={`readout text-4xl leading-none font-bold ${colours.text}`}>
+          <p data-stat="cp" className={`figure text-4xl leading-none font-bold ${colours.text}`}>
             {side.cp}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">

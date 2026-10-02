@@ -85,13 +85,13 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
   return (
     <main className="grid w-full flex-1 md:grid-cols-2">
       <aside className="relative hidden overflow-hidden border-r border-edge bg-sunken md:block">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,transparent_30%,color-mix(in_srgb,var(--color-parchment)_10%,transparent),transparent_75%)]" />
+        <div className="plot-grid" />
         <div className="relative ml-auto grid h-full w-full max-w-lg content-between p-8">
           <div>
             <p className="eyebrow text-parchment">Build. Plan. Play.</p>
             <h2 className="mt-1 text-3xl">Your armies and battles, ready when you are.</h2>
           </div>
-          <img src="/logo.svg" alt="" className="mx-auto size-40 drop-shadow-[0_0_2rem_rgba(137,184,157,0.18)]" />
+          <img src="/logo.svg" alt="" className="mx-auto size-40" />
           <p className="text-sm text-dim">Sign in on any device to get back to your army lists and games.</p>
         </div>
       </aside>

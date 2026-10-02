@@ -1,11 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext } from '@tanstack/react-router'
-import barlow400 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-400-normal.woff2?url'
-import barlow500 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-500-normal.woff2?url'
-import barlow600 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-600-normal.woff2?url'
-import barlow700 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-700-normal.woff2?url'
-import rules400 from '@fontsource/barlow/files/barlow-latin-400-normal.woff2?url'
-import rules600 from '@fontsource/barlow/files/barlow-latin-600-normal.woff2?url'
+import sofiaSans from '@fontsource-variable/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-wght-normal.woff2?url'
+import chakraPetch from '@fontsource/chakra-petch/files/chakra-petch-latin-700-normal.woff2?url'
+import martianMono from '@fontsource-variable/martian-mono/files/martian-mono-latin-wdth-normal.woff2?url'
 import { PageState } from '../client/components/PageState'
 import { siteMeta } from '../client/linkPreview'
 import { AppShell } from '../client/features/shell/AppShell'
@@ -27,13 +24,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; orig
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { name: 'theme-color', content: '#0b0c0e' },
+      { name: 'theme-color', content: '#0e1316' },
       ...siteMeta(match.context.origin),
     ],
     links: [
       { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
       { rel: 'stylesheet', href: appCss },
-      ...[barlow400, barlow500, barlow600, barlow700, rules400, rules600].map((href) => ({
+      ...[sofiaSans, chakraPetch, martianMono].map((href) => ({
         rel: 'preload' as const,
         href,
         as: 'font' as const,
