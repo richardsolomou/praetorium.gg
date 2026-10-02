@@ -56,4 +56,4 @@ Run `pnpm reference:verify https://<deployment>` against a deployed revision. It
 
 ## Privacy and attribution
 
-Raw search queries are not sent to telemetry. Every retrieval result identifies its source revisions and includes the attribution required by the upstream sources. Reproducing a result does not remove those upstream licence conditions.
+Raw search queries are not sent to telemetry. Crawler reads of public pages reach PostHog as `$http_log` events without the reader's address; [Telemetry](telemetry.md) describes what they carry. Every retrieval result identifies its source revisions and includes the attribution required by the upstream sources. Reproducing a result does not remove those upstream licence conditions.
