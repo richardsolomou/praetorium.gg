@@ -508,6 +508,17 @@ test('signed-out faction browsing does not load account collection data', async 
   expect(serverReads).toHaveLength(0)
 })
 
+for (const [path, name] of [
+  ['/factions/necrons/datasheets/overlord', 'Sign in to add Overlord to your collection'],
+  ['/factions/necrons', 'Sign in to add Necrons to favourites'],
+  ['/factions/necrons/detachments/cryptek-conclave', 'Sign in to add Cryptek Conclave to favourite detachments'],
+] as const) {
+  test(`crawlers are asked not to follow the sign-in link on ${path}`, async ({ page }) => {
+    await page.goto(path)
+    await expect(page.getByRole('link', { name })).toHaveAttribute('rel', 'nofollow')
+  })
+}
+
 test('saving a faction asks signed-out visitors to sign in', async ({ page }) => {
   await page.goto('/factions')
   await page.getByRole('link', { name: 'Sign in to add Necrons to favourites' }).click()

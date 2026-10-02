@@ -57,7 +57,8 @@ export async function referenceSitemap(request: Request) {
 
 export function referenceRobots(request: Request) {
   const origin = publicOrigin(request)
-  return new Response(`User-agent: *\nAllow: /\n\nSitemap: ${origin}/sitemap.xml\n`, {
+  // Sign-in carries a return address per page, so following its links would crawl one copy of it per page.
+  return new Response(`User-agent: *\nAllow: /\nDisallow: /sign-in\nDisallow: /signin\n\nSitemap: ${origin}/sitemap.xml\n`, {
     headers: { 'Cache-Control': 'public, max-age=86400', 'Content-Type': 'text/plain; charset=utf-8' },
   })
 }

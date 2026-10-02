@@ -134,7 +134,7 @@ export function Spectator({
               </Link>
             ) : null}
             {!me ? (
-              <Link to="/sign-in" search={{ next: `/battles/${view.token}` }} className="shrink-0 text-info hover:text-bone">
+              <Link to="/sign-in" search={{ next: `/battles/${view.token}` }} rel="nofollow" className="shrink-0 text-info hover:text-bone">
                 Sign in to play
               </Link>
             ) : null}
