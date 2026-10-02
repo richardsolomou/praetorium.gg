@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.95.3
+
+### Patch Changes
+
+- 4a5723a: Record each visitor's own location in analytics instead of the server's, and rate-limit reference API clients separately.
+
 ## 0.95.2
 
 ### Patch Changes
