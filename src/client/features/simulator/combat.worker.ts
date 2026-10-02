@@ -1,10 +1,10 @@
-import { simulateCombat, type CombatInput } from '../../../core/combat'
+import { calculateCombat, type CombatInput } from '../../../core/combat'
 import type { CombatAnswer, CombatRequest } from './CombatMatchup'
 
 function run(input: CombatInput | null) {
   if (!input) return null
   try {
-    return { result: simulateCombat(input) }
+    return { result: calculateCombat(input) }
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'The simulation failed.' }
   }

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { DEFAULT_COMBAT_OPTIONS, simulateCombat } from '../core/combat'
+import { DEFAULT_COMBAT_OPTIONS, calculateCombat } from '../core/combat'
 import { combatPlan } from '../core/combatProfiles'
 import { bookOf } from './catalogue.fixtures'
 import { datasheetViewsIn } from './catalogue'
@@ -183,10 +183,10 @@ it('simulates the evaluated enhancement and preserves its source through the loa
   expect(views.selected?.profiles[0]?.values[0]?.modifiers).toEqual(['Relic'])
   const plan = combatPlan(views.selected!, views.carriers, [], 'ranged')
   expect(plan.errors).toEqual([])
-  const result = simulateCombat({
+  const result = calculateCombat({
     weapons: plan.weapons,
     options: DEFAULT_COMBAT_OPTIONS,
     target: { groups: [{ models: 1, wounds: 10, toughness: 4, save: 3, invulnerable: null }], feelNoPain: null },
   })
-  expect(Math.abs(result.meanDamage - 4 * (4 / 6) * (3 / 6) * (2 / 6))).toBeLessThan(0.02)
+  expect(result.meanDamage).toBeCloseTo(4 * (4 / 6) * (3 / 6) * (2 / 6), 12)
 })

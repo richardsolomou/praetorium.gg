@@ -462,7 +462,7 @@ for (const width of [1440, 390, 860, 1024]) {
     }
     const shooting = page.getByRole('region', { name: 'Shooting results' })
     const melee = page.getByRole('region', { name: 'Melee results' })
-    await expect(estimate(page, 'Shooting')).toContainText('2.23')
+    await expect(estimate(page, 'Shooting')).toContainText('2.22')
     await expect(shooting).toContainText('5× Bolt Rifle – Focused Fire')
     await expect(melee).toContainText('5× Knives and Fists')
     for (const [results, phase] of [
@@ -520,7 +520,7 @@ for (const width of [1440, 390, 860, 1024]) {
 
     await page.getByRole('button', { name: 'Cover (−1 BS)', exact: true }).click()
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect(estimate(page, 'Shooting')).not.toContainText('2.23')
+    await expect(estimate(page, 'Shooting')).not.toContainText('2.22')
     const coveredDamage = await estimate(page, 'Shooting').locator('.readout').first().textContent()
 
     let hold = true
@@ -744,7 +744,7 @@ test('a failed worker can be retried without reselecting either unit', async ({ 
   const shooting = page.getByRole('region', { name: 'Shooting results' })
   await expect(shooting).toContainText('The calculation could not start.')
   await shooting.getByRole('button', { name: 'Retry' }).click()
-  await expect(estimate(page, 'Shooting')).toContainText('2.23')
+  await expect(estimate(page, 'Shooting')).toContainText('2.22')
   await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')
 })
 
