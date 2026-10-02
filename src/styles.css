@@ -173,6 +173,18 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
     max-height: calc(100dvh - 6rem - env(safe-area-inset-bottom));
   }
 
+  html [data-slot='dialog-content'][data-mobile-fullscreen],
+  html:has([data-battle-prompt]) [data-slot='dialog-content'][data-mobile-fullscreen] {
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    height: calc(100dvh - 4rem - env(safe-area-inset-bottom));
+    max-height: calc(100dvh - 4rem - env(safe-area-inset-bottom));
+    translate: none;
+    border-radius: 0;
+  }
+
   html:not([data-native-app='true']) [data-web-app-chrome] {
     display: none;
   }

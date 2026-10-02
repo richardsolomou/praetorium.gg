@@ -11,13 +11,11 @@ import { FactionMark, type FactionPresentation } from '../../components/FactionM
 /** Reuse one army identity across setup and battle; frozen lists remain named even when their saved roster no longer exists. */
 export function ArmyIdentity({
   army,
-  token,
   list = true,
   linked = true,
   className = '',
 }: {
   army: Army
-  token: string
   /** Whether to name the list too. Off where the list is already the headline above. */
   list?: boolean
   /** Off where the card around it is a control: a link inside a button cannot be pressed. */
@@ -32,7 +30,7 @@ export function ArmyIdentity({
     <IdentityLine
       faction={faction ?? undefined}
       detachmentNames={detachmentNames}
-      trailing={list ? <ArmyLink army={army} token={token} linked={linked} /> : null}
+      trailing={list ? <span className="truncate">{army.roster?.name ?? 'No list'}</span> : null}
       linked={linked}
       className={className}
     />
@@ -145,20 +143,5 @@ function IdentityLine({
         </span>
       ))}
     </span>
-  )
-}
-
-function ArmyLink({ army, token, linked }: { army: Army; token: string; linked: boolean }) {
-  if (!army.roster) return <span className="text-faint">No list</span>
-  if (!linked) return <span className="truncate">{army.roster.name}</span>
-  return (
-    <Link
-      to="/rosters/$id"
-      params={{ id: army.rosterId ?? army.playerId }}
-      search={{ battle: token }}
-      className="truncate text-bone hover:text-azure"
-    >
-      {army.roster.name}
-    </Link>
   )
 }

@@ -17,7 +17,7 @@ export function CombatDialog({ children, onClose, battle = false }: { children: 
   const Content = battle ? BattleDialogContent : DialogContent
   return (
     <Root open onOpenChange={(open) => !open && onClose()} minimizedLabel="Combat simulator" resumeLabel="Return to simulator">
-      <Content className="flex h-[90dvh] min-w-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+      <Content data-mobile-fullscreen className="flex h-[90dvh] min-w-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
         <DialogHeader className="shrink-0 border-b border-edge p-4 pr-12">
           <DialogTitle>Combat simulator</DialogTitle>
         </DialogHeader>

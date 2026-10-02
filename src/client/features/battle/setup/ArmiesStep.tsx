@@ -92,7 +92,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                     {side.armies.length > 1 ? <span className="eyebrow block">{army.playerName}</span> : null}
                     <span className="block break-words font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
                     {/* What the army is, named the same way the battle will name it. */}
-                    {army.roster ? <ArmyIdentity army={army} token={view.token} list={false} className="mt-0.5" /> : null}
+                    {army.roster ? <ArmyIdentity army={army} list={false} className="mt-0.5" /> : null}
                     <span className="mt-0.5 block text-xs text-dim">
                       {army.roster?.built && army.units.length
                         ? `${army.unitCount} units · ${army.points} of ${army.roster.built.limit} points`

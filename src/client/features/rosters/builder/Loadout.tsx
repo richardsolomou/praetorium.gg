@@ -31,6 +31,7 @@ type Props = {
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, update: SpreadUpdate) => void
   editable?: boolean
+  embedded?: boolean
   controlsDisabled?: boolean
   showOptions?: boolean
   reference?: ReactElement<{ providedSheet?: Datasheet | null }>
@@ -57,6 +58,7 @@ export function Loadout({
   onChoose,
   onSpread,
   editable = true,
+  embedded = false,
   controlsDisabled = false,
   showOptions = true,
   reference,
@@ -85,7 +87,12 @@ export function Loadout({
     persistedRoster,
     recordTiming,
   )
-  const { data: sheets, dataUpdatedAt } = useQuery({
+  const {
+    data: sheets,
+    dataUpdatedAt,
+    isError,
+    isPending,
+  } = useQuery({
     ...request,
     enabled: request.enabled && (pickIndex === null || settledPicks[pickIndex]?.entryId === unit?.entryId),
     placeholderData: (previous, previousQuery) => (forSameUnit(previousQuery) ? previous : undefined),
@@ -119,7 +126,15 @@ export function Loadout({
       </div>
     )
   }
-  if (!sheet || !availableSheet) return <LoadoutLoading />
+  if (!sheet || !availableSheet) {
+    return isError || !isPending ? (
+      <p role="alert" className="p-3 text-xs text-destructive">
+        This loadout could not be loaded. Try again shortly.
+      </p>
+    ) : (
+      <LoadoutLoading />
+    )
+  }
 
   const weapons = availableSheet.profiles.filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
   const rules = availableSheet.keywordRules
@@ -152,10 +167,17 @@ export function Loadout({
     ? loose
     : loose.filter((choice) => choice.options.some((option) => option.count || choice.chosen === option.id))
   const described = { weapons, abilities, rules }
+  const Container = embedded ? 'div' : ScrollArea
 
   return (
-    <div className="flex h-full min-w-0 flex-col">
-      <ScrollArea className="min-h-0 min-w-0 max-w-full flex-1 overflow-hidden [&_[data-slot=scroll-area-viewport]]:touch-pan-y [&_[data-slot=scroll-area-viewport]]:!overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:overscroll-x-none [&_[data-slot=scroll-area-viewport]]:p-2.5">
+    <div className={`flex min-w-0 flex-col ${embedded ? '' : 'h-full'}`}>
+      <Container
+        className={
+          embedded
+            ? 'min-w-0 p-2.5'
+            : 'min-h-0 min-w-0 max-w-full flex-1 overflow-hidden [&_[data-slot=scroll-area-viewport]]:touch-pan-y [&_[data-slot=scroll-area-viewport]]:!overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:overscroll-x-none [&_[data-slot=scroll-area-viewport]]:p-2.5'
+        }
+      >
         <div className="w-full min-w-0 space-y-4">
           {profile ? <UnitProfile profile={profile} /> : null}
           {unit.models.length ? (
@@ -242,7 +264,7 @@ export function Loadout({
           ) : null}
           {sheet && reference ? cloneElement(reference, { providedSheet: sheet }) : null}
         </div>
-      </ScrollArea>
+      </Container>
     </div>
   )
 }

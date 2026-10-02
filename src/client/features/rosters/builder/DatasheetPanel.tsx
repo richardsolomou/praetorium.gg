@@ -194,7 +194,7 @@ function DatasheetLoading() {
   )
 }
 
-function AbilitySummary({
+export function AbilitySummary({
   abilities,
   rules,
   unitName,

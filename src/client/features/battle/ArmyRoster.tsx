@@ -1,5 +1,5 @@
 import { Minus, Plus, Scroll, Swords } from 'lucide-react'
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
@@ -12,11 +12,11 @@ import { UnitCard } from '../rosters/builder/UnitCard'
 import { formationLabel } from './setup/chrome'
 import type { BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { tint } from './battleTints'
+import { ArmyLoadout } from './ArmyLoadout'
 
 type Props = {
   army: Army
   side: Side
-  token: string
   onSimulate: (selection: BattleCombatSelection) => void
   /** Casualties are recorded only while the battle is running. */
   actionable: boolean
@@ -25,8 +25,15 @@ type Props = {
 }
 
 /** Show the frozen roster from the battle log in place, with current losses; either seated side can record either army’s losses. */
-export function ArmyRoster({ army, side, token, actionable, pending, send, onSimulate }: Props) {
+export function ArmyRoster({ army, side, actionable, pending, send, onSimulate }: Props) {
   const [open, setOpen] = useState(false)
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const unitCards = useRef(new Map<string, HTMLDivElement>())
+  const collapsedCard = useRef<HTMLDivElement | null>(null)
+  useLayoutEffect(() => {
+    collapsedCard.current?.scrollIntoView({ block: 'nearest' })
+    collapsedCard.current = null
+  }, [expanded])
   const roster = army.roster
   if (!roster) return null
 
@@ -34,26 +41,47 @@ export function ArmyRoster({ army, side, token, actionable, pending, send, onSim
   const lost = army.units.filter((unit) => unit.destroyed)
   const canSimulate = (unit: UnitState) =>
     Boolean(roster.built?.picks?.length && unit.entryId && !unit.destroyed && unit.formation === 'battlefield')
-  const simulate = (unitKey?: string) => {
-    setOpen(false)
-    onSimulate({ playerId: army.playerId, unitKey })
-  }
+  const simulate = () => onSimulate({ playerId: army.playerId })
   const card = (unit: UnitState) => (
-    <BattleUnit
-      key={unit.key}
-      unit={unit}
-      army={army}
-      actionable={actionable}
-      pending={pending}
-      send={send}
-      onSimulate={canSimulate(unit) ? () => simulate(unit.key) : undefined}
-    />
+    <div key={unit.key} data-army-unit>
+      <div
+        ref={(element) => {
+          if (element) unitCards.current.set(unit.key, element)
+          else unitCards.current.delete(unit.key)
+        }}
+        data-army-unit-header
+        className={expanded.has(unit.key) ? 'sticky -top-4 z-20 bg-panel' : undefined}
+      >
+        <BattleUnit
+          unit={unit}
+          army={army}
+          selected={expanded.has(unit.key)}
+          onSelect={
+            roster.built?.picks?.length && unit.entryId
+              ? () => {
+                  if (expanded.has(unit.key)) collapsedCard.current = unitCards.current.get(unit.key) ?? null
+                  setExpanded((previous) => {
+                    const next = new Set(previous)
+                    if (next.has(unit.key)) next.delete(unit.key)
+                    else next.add(unit.key)
+                    return next
+                  })
+                }
+              : undefined
+          }
+          actionable={actionable}
+          pending={pending}
+          send={send}
+        />
+      </div>
+      {expanded.has(unit.key) ? <ArmyLoadout army={army} unit={unit} /> : null}
+    </div>
   )
 
   return (
     <>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <Button variant="secondary" size="xs" onClick={() => setOpen(true)} aria-label={`Open ${roster.name}`}>
+        <Button variant="secondary" size="xs" className="max-w-full" onClick={() => setOpen(true)} aria-label={`Open ${roster.name}`}>
           <Scroll aria-hidden /> Army
         </Button>
         {army.units.some(canSimulate) ? (
@@ -82,12 +110,17 @@ export function ArmyRoster({ army, side, token, actionable, pending, send, onSim
         minimizedLabel={`${army.playerName} · ${roster.name}`}
         resumeLabel="Return to army"
       >
-        <BattleDialogContent data-army-roster className={`max-h-[85dvh] overflow-y-auto sm:max-w-xl ${tint(side.index).border}`}>
+        <BattleDialogContent
+          data-army-roster
+          data-mobile-fullscreen
+          className={`max-h-[85dvh] content-start overflow-y-auto sm:max-w-xl ${tint(side.index).border}`}
+        >
           <DialogHeader className="text-center">
             <p className="eyebrow">{army.playerName}</p>
             <DialogTitle>{roster.name}</DialogTitle>
             <DialogDescription render={<div />}>
-              <ArmyIdentity army={army} token={token} list={false} className="justify-center" />
+              <ArmyIdentity army={army} list={false} className="justify-center" />
+              {roster.built?.picks?.length ? <p className="mt-1 text-xs text-dim">Select a unit to see its loadout.</p> : null}
             </DialogDescription>
           </DialogHeader>
 
@@ -127,9 +160,11 @@ function BattleUnit({
   actionable,
   pending,
   send,
-  onSimulate,
+  selected,
+  onSelect,
 }: {
-  onSimulate?: () => void
+  selected: boolean
+  onSelect?: () => void
   unit: UnitState
   army: Army
   actionable: boolean
@@ -150,21 +185,13 @@ function BattleUnit({
         enhancements: unit.enhancements ?? [],
         upgrades: unit.upgrades ?? [],
       }}
-      selected={false}
+      selected={selected}
+      onSelect={onSelect}
       joined={unit.joined ?? []}
       editable={false}
       status={
-        worthSaying || onSimulate ? (
-          <>
-            {onSimulate ? (
-              <Button variant="outline" size="xs" aria-label={`Simulate ${unit.name}`} onClick={onSimulate}>
-                <Swords aria-hidden /> Simulate
-              </Button>
-            ) : null}
-            {worthSaying ? (
-              <UnitStatus unit={unit} units={army.units} playerId={army.playerId} actionable={actionable} pending={pending} send={send} />
-            ) : null}
-          </>
+        worthSaying ? (
+          <UnitStatus unit={unit} units={army.units} playerId={army.playerId} actionable={actionable} pending={pending} send={send} />
         ) : undefined
       }
     />
