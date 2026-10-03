@@ -114,6 +114,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     !sheets.isError,
   )
   return {
+    catalogueId,
     faction,
     battleUnit,
     availableUnits: roster?.battle?.units.map((member) => member.available),

@@ -1,8 +1,8 @@
 import { combatCarriers } from '../core/combatLoadout'
-import { isWeaponProfile, type LoadoutOption, type LoadoutSpace } from '../core/combatLoadouts'
-import { evaluate } from '../core/evaluate'
-import type { RosterPick } from '../core/roster'
-import { isUnitCompositionChoice, type UnitChoice } from '../core/unitChoices'
+import { isWeaponProfile, type LoadoutBatch, type LoadoutCandidate, type LoadoutOption, type LoadoutSpace } from '../core/combatLoadouts'
+import { evaluate, type ModifierCache } from '../core/evaluate'
+import type { BuiltUnit, RosterPick } from '../core/roster'
+import { isUnitCompositionChoice, type UnitChoice, type UnitChoiceCache } from '../core/unitChoices'
 import { datasheetViewsIn } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContext'
@@ -12,6 +12,8 @@ type LoadoutRequest = { catalogueId: string; detachmentIds: string[]; picks: Ros
 
 /** Enhancements and detachment upgrades are army decisions, not a unit's weapon choice. */
 const ARMY_CHOICE = /enhancement|upgrade/i
+const weaponChoices = (choices: UnitChoice[]) =>
+  choices.filter((choice) => choice.options.length && !isUnitCompositionChoice(choice) && !ARMY_CHOICE.test(choice.name))
 
 /**
  * Each weapon choice the selected pick offers, every option built from the current loadout the way the
@@ -46,9 +48,7 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
     return { ...pick, choices }
   }
   const spread = (key: string, counts: Record<string, number>) => ({ ...pick, models, spreads: { ...pick.spreads, [key]: counts } })
-  const choices = base.choices.filter(
-    (choice) => choice.options.length && !isUnitCompositionChoice(choice) && !ARMY_CHOICE.test(choice.name),
-  )
+  const choices = weaponChoices(base.choices)
   const hostOf = (choice: UnitChoice) => {
     const parent = choices
       .filter((other) => choice.key.startsWith(`${other.key}/`))
@@ -112,5 +112,161 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
         ],
       ]
     }),
+  }
+}
+
+export async function* combatLoadoutCandidates(
+  loaded: LoadedCatalogue,
+  data: LoadoutRequest,
+  signal: AbortSignal,
+): AsyncGenerator<LoadoutBatch> {
+  if (signal.aborted) return
+  const pick = data.picks[data.pickIndex]
+  const space = combatLoadoutSpace(loaded, data)
+  const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
+  const choiceCache: UnitChoiceCache = new WeakMap()
+  const modifierCache: ModifierCache = new WeakMap()
+  const build = (candidate: RosterPick) => buildRosterPick(loaded, data.catalogueId, detachments, candidate, choiceCache, modifierCache)
+  const base = pick && build(pick)
+  if (!pick || !space || !base) throw new Error('The loadout could not be loaded.')
+  const errors = (selection: typeof base.selection) =>
+    evaluate([selection], loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments, modifierCache }).errors.map(
+      (error) => `${error.entryId}:${error.message}`,
+    )
+  const known = new Set(errors(base.selection))
+  const queue: ({ choices: UnitChoice[]; resolved: RosterPick } | null)[] = []
+  const requested = new Set([loadoutRequestKey(pick)])
+  const seen = new Set<string>()
+  const equipment = new Set<string>()
+  let candidates: LoadoutCandidate[] = []
+  let attempts = 1
+  let expanded = 0
+  let head = 0
+  const started = performance.now()
+  let work = 0
+  const takeBatch = (done = false): LoadoutBatch => {
+    const batch = { weapons: space.weapons, candidates, built: expanded, scheduled: seen.size, done }
+    candidates = []
+    work = 0
+    return batch
+  }
+  const enqueue = (candidate: RosterPick, built: BuiltUnit) => {
+    if (built.size.models !== base.size.models) return
+    const key = JSON.stringify(built.selection)
+    if (seen.has(key)) return
+    if (queue.length - head >= 50_000) throw new Error('The full search could not finish. The best loadout found so far has been kept.')
+    seen.add(key)
+    const resolved = {
+      ...candidate,
+      spreads: {
+        ...candidate.spreads,
+        ...Object.fromEntries(
+          built.choices
+            .filter((choice) => candidate.spreads?.[choice.key] !== undefined)
+            .map((choice) => [choice.key, Object.fromEntries(choice.options.map((option) => [option.id, option.count]))]),
+        ),
+      },
+    }
+    queue.push({ choices: built.choices, resolved })
+    if (errors(built.selection).every((error) => known.has(error))) {
+      const carriers = combatCarriers(built.selection, loaded.index)
+      const equipmentKey = JSON.stringify(carriers)
+      if (!equipment.has(equipmentKey)) {
+        equipment.add(equipmentKey)
+        candidates.push({ pick: candidate, carriers })
+      }
+    }
+  }
+  enqueue(pick, base)
+  yield { weapons: space.weapons, candidates: [], built: 0, scheduled: 1, done: false }
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  while (head < queue.length) {
+    if (signal.aborted) return
+    if (performance.now() - started > 120_000)
+      throw new Error('The full search could not finish. The best loadout found so far has been kept.')
+    const current = queue[head]!
+    queue[head++] = null
+    expanded++
+    if (head >= 1024) {
+      queue.splice(0, head)
+      head = 0
+    }
+    if (++work >= 32) {
+      yield takeBatch()
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      if (signal.aborted) return
+    }
+    // Illegal intermediate selections can connect legal combinations with shared limits.
+    for (const candidate of loadoutEdits(current.resolved, current.choices, base.size.models)) {
+      if (signal.aborted) return
+      const key = loadoutRequestKey(candidate)
+      if (requested.has(key)) continue
+      if (++work >= 32) {
+        yield takeBatch()
+        await new Promise<void>((resolve) => setImmediate(resolve))
+        if (signal.aborted) return
+      }
+      if (attempts >= 100_000 || performance.now() - started > 120_000)
+        throw new Error('The full search could not finish. The best loadout found so far has been kept.')
+      requested.add(key)
+      attempts++
+      const built = build(candidate)
+      if (built) enqueue(candidate, built)
+    }
+  }
+  yield takeBatch(true)
+}
+
+function loadoutRequestKey(pick: RosterPick): string {
+  return JSON.stringify({
+    choices: Object.entries(pick.choices ?? {}).toSorted(([left], [right]) => left.localeCompare(right)),
+    spreads: Object.entries(pick.spreads ?? {})
+      .toSorted(([left], [right]) => left.localeCompare(right))
+      .map(([group, counts]) => [group, Object.entries(counts).toSorted(([left], [right]) => left.localeCompare(right))]),
+  })
+}
+
+function* loadoutEdits(resolved: RosterPick, availableChoices: UnitChoice[], models: number): Generator<RosterPick> {
+  for (const choice of weaponChoices(availableChoices)) {
+    if (choice.room <= 1) {
+      for (const id of [...choice.options.map((option) => option.id), ...(choice.optional ? [''] : [])]) {
+        if (id === choice.chosen) continue
+        const choices = { ...resolved.choices }
+        if (id) choices[choice.key] = id
+        else delete choices[choice.key]
+        const spreads = Object.fromEntries(
+          Object.entries(resolved.spreads ?? {}).filter(([key]) => key !== choice.key && !key.startsWith(`${choice.key}/`)),
+        )
+        yield { ...resolved, choices, spreads }
+      }
+    } else {
+      const counts = Object.fromEntries(choice.options.map((option) => [option.id, option.count]))
+      const used = choice.options.reduce((sum, option) => sum + option.count, 0)
+      const hasModels = choice.options.some((option) => option.profile !== undefined)
+      const replace = (spreadCounts: Record<string, number>): RosterPick => ({
+        ...resolved,
+        models,
+        spreads: { ...resolved.spreads, [choice.key]: spreadCounts },
+      })
+      if (choice.uniform) {
+        const count = hasModels ? used : Math.min(choice.room, used || models)
+        for (const option of choice.options) {
+          if (option.count === count || option.max < count) continue
+          yield replace(Object.fromEntries(choice.options.map((entry) => [entry.id, entry === option ? count : 0])))
+        }
+      } else {
+        for (const option of choice.options) {
+          if (option.count < option.max) {
+            if ((!hasModels || choice.optional) && used < choice.room) yield replace({ ...counts, [option.id]: option.count + 1 })
+            for (const donor of choice.options) {
+              if (donor === option || donor.count <= (donor.mutableMin ? 0 : donor.min)) continue
+              yield replace({ ...counts, [option.id]: option.count + 1, [donor.id]: donor.count - 1 })
+            }
+          }
+          if ((!hasModels || choice.optional) && option.count > (option.mutableMin ? 0 : option.min))
+            yield replace({ ...counts, [option.id]: option.count - 1 })
+        }
+      }
+    }
   }
 }

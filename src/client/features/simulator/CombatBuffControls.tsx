@@ -36,7 +36,7 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
   return (
     <section aria-label={`${side} buffs`} className="min-w-0">
       <section aria-label={`${side} rules`} className="space-y-3">
-        <h3 className="rubric">{side} rules & buffs</h3>
+        <h3 className="rubric">{side}</h3>
         {enhancements.map((choice) => (
           <div key={choice.key} className="space-y-2">
             <Choice

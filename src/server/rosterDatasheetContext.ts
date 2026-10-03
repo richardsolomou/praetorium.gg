@@ -1,16 +1,26 @@
 import { attachedUnit } from '../core/attach'
-import type { Selection } from '../core/evaluate'
+import type { ModifierCache, Selection } from '../core/evaluate'
 import { buildUnit, type RosterPick } from '../core/roster'
+import type { UnitChoiceCache } from '../core/unitChoices'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { rosterDetachments } from './rosterDetachments'
 
 /** One pick built the way the roster around it builds it. */
-export function buildRosterPick(loaded: LoadedCatalogue, catalogueId: string, detachments: readonly Selection[], pick: RosterPick) {
+export function buildRosterPick(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  detachments: readonly Selection[],
+  pick: RosterPick,
+  choiceCache?: UnitChoiceCache,
+  modifierCache?: ModifierCache,
+) {
   return buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
     primaryCatalogueId: catalogueId,
     roster: detachments,
     spreads: pick.spreads,
     toggles: pick.toggles,
+    choiceCache,
+    modifierCache,
   })
 }
 

@@ -23,43 +23,62 @@ it('does not report an estimate when neither phase was requested', () => {
   expect(combatOutcomeEvent({ ranged: null, melee: null }, 'standalone')).toBeNull()
 })
 
-it('does not promise an ongoing calculation when neither phase can be simulated', () => {
-  const unit: CombatantSnapshot = {
-    models: 1,
-    carriers: [],
+const unit: CombatantSnapshot = {
+  models: 1,
+  carriers: [],
+  sheet: {
+    id: 'unit',
+    slug: 'unit',
+    name: 'Unit',
+    referenceRoute: null,
+    points: null,
+    keywords: [],
+    profiles: [
+      {
+        id: 'model',
+        name: 'Model',
+        type: 'Unit',
+        values: [
+          { name: 'T', value: '4' },
+          { name: 'Sv', value: '3+' },
+          { name: 'W', value: '2' },
+        ],
+      },
+    ],
+    abilities: [],
+    composition: [],
+    loadout: null,
+    wargearOptions: [],
+    baseSize: null,
+    transport: null,
+    costs: [],
+    attachments: [],
+    leaders: [],
+    supporters: [],
+    keywordRules: [],
+  },
+}
+
+it('calculates zero-attack phases when no weapons are equipped', () => {
+  const markup = renderToStaticMarkup(createElement(CombatMatchup, { attacker: unit, defender: unit }))
+  expect([...markup.matchAll(/aria-label="(?:Shooting|Melee) results" aria-busy="([^"]+)"/g)].map((match) => match[1])).toEqual([
+    'true',
+    'true',
+  ])
+})
+
+it('does not promise a calculation against unsupported defensive characteristics', () => {
+  const defender = {
+    ...unit,
     sheet: {
-      id: 'unit',
-      slug: 'unit',
-      name: 'Unit',
-      referenceRoute: null,
-      points: null,
-      keywords: [],
-      profiles: [
-        {
-          id: 'model',
-          name: 'Model',
-          type: 'Unit',
-          values: [
-            { name: 'T', value: '4' },
-            { name: 'Sv', value: '3+' },
-            { name: 'W', value: '2' },
-          ],
-        },
-      ],
-      abilities: [],
-      composition: [],
-      loadout: null,
-      wargearOptions: [],
-      baseSize: null,
-      transport: null,
-      costs: [],
-      attachments: [],
-      leaders: [],
-      supporters: [],
-      keywordRules: [],
+      ...unit.sheet,
+      profiles: unit.sheet.profiles.map((profile) => ({
+        ...profile,
+        values: profile.values.map((value) => (value.name === 'T' ? { ...value, value: '?' } : value)),
+      })),
     },
   }
-  const markup = renderToStaticMarkup(createElement(CombatMatchup, { attacker: unit, defender: unit }))
+  const markup = renderToStaticMarkup(createElement(CombatMatchup, { attacker: unit, defender }))
   expect([...markup.matchAll(/aria-label="(?:Shooting|Melee) results" aria-busy="([^"]+)"/g)].map((match) => match[1])).toEqual([
     'false',
     'false',

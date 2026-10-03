@@ -12,6 +12,7 @@ import { CombatSurvivorControls } from './CombatSurvivorControls'
 import { useOptionNote, useProfileNote } from './LoadoutOdds'
 import { WeaponProfileNote } from '../../components/DatasheetProfiles'
 import type { Combatant } from './useCombatant'
+import { useLoadoutOptimizer } from './useLoadoutOptimizer'
 
 const unitValue = (catalogueId: string, id: string) => JSON.stringify([catalogueId, id])
 
@@ -28,6 +29,7 @@ export function CombatantCard({
 }) {
   const [open, setOpen] = useState(false)
   const [survivorsOpen, setSurvivorsOpen] = useState(false)
+  const optimizer = useLoadoutOptimizer(combatant)
   const optionNote = useOptionNote()
   const profileNote = useProfileNote()
   const factions = useQuery(factionIndexQuery())
@@ -115,18 +117,43 @@ export function CombatantCard({
           />
         )}
       </div>
-      <div className="mt-3 flex min-h-8 flex-wrap items-center justify-between gap-3">
+      <div className="mt-3 min-h-8">
         {unit ? (
-          <>
-            <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-              Loadout
-            </Button>
-            {battleUnit && models < battleUnit.startingModels ? (
-              <Button variant="outline" size="sm" onClick={() => setSurvivorsOpen(true)}>
-                Survivors
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+                Loadout
               </Button>
-            ) : null}
-            <div className="ml-auto flex items-center gap-2">
+              {optimizer.available ? (
+                <Button
+                  size="sm"
+                  className="relative w-24 shrink-0 overflow-hidden px-2 tabular-nums"
+                  disabled={!optimizer.enabled && !optimizer.busy}
+                  onClick={() => (optimizer.busy ? optimizer.cancel() : void optimizer.optimize())}
+                  title={
+                    optimizer.busy
+                      ? `Estimated progress: ${optimizer.progress}%. Cancel keeps improvements.`
+                      : 'Maximize combined kill chance, then models and wounds lost'
+                  }
+                  aria-label={optimizer.busy ? `Cancel optimization, approximately ${optimizer.progress}% complete` : 'Optimize'}
+                >
+                  {optimizer.busy ? (
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-y-0 left-0 bg-sunken/25 transition-[width]"
+                      style={{ width: `${optimizer.progress}%` }}
+                    />
+                  ) : null}
+                  <span className="relative">{optimizer.busy ? `Cancel · ~${optimizer.progress}%` : 'Optimize'}</span>
+                </Button>
+              ) : null}
+              {battleUnit && models < battleUnit.startingModels ? (
+                <Button variant="outline" size="sm" onClick={() => setSurvivorsOpen(true)}>
+                  Survivors
+                </Button>
+              ) : null}
+            </div>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
               <span className="text-xs text-dim">Models</span>
               <Stepper
                 label={`${side.toLowerCase()} models`}
@@ -147,7 +174,7 @@ export function CombatantCard({
                 }
               />
             </div>
-          </>
+          </div>
         ) : (
           <p className="text-sm text-faint">
             {failed
@@ -160,6 +187,11 @@ export function CombatantCard({
           </p>
         )}
       </div>
+      {optimizer.error ? (
+        <p role="alert" className="mt-2 text-xs text-discarded">
+          {optimizer.error}
+        </p>
+      ) : null}
       {pick?.attachedTo !== undefined || picks.positioned.some((entry) => entry.attachedTo === pickIndex) ? (
         <p className="mt-2 text-xs text-dim">
           {pick?.attachedTo !== undefined ? 'Character models only' : 'Bodyguard models only'} · attached models are selected separately.
@@ -222,9 +254,9 @@ export function CombatantCard({
         </DialogContent>
       </Dialog>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="flex h-[85dvh] sm:max-w-2xl min-w-0 flex-col overflow-hidden p-0">
-          <DialogHeader className="shrink-0 border-b border-edge p-4">
-            <DialogTitle>
+        <DialogContent className="flex h-[calc(100dvh-2rem)] sm:max-w-2xl min-w-0 flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="shrink-0 flex-row items-center justify-between gap-3 border-b border-edge p-4 pr-12">
+            <DialogTitle className="min-w-0">
               {side} · {unit?.name ?? 'Loadout'}
             </DialogTitle>
           </DialogHeader>
@@ -237,7 +269,7 @@ export function CombatantCard({
                 detachmentIds={combatant.detachmentIds}
                 picks={picks.positioned}
                 pickIndex={pickIndex}
-                controlsDisabled={!ready}
+                controlsDisabled={!ready || optimizer.busy}
                 onChoose={(key, id) => edit.choose(pickIndex, key, id)}
                 onSpread={(key, update) => edit.spread(pickIndex, key, update)}
                 optionNote={optionNote}

@@ -459,7 +459,7 @@ function attackCounts(weapon: CombatWeapon, models: number, halfRange: boolean) 
 }
 
 /** How one weapon resolves against one Toughness, before its pool is built. */
-function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number) {
+function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number, models = targetModels(input.target)) {
   const { target, options } = input
   const halfRange = options.phase === 'ranged' && options.halfRange
   const { indirect, skill, hitBonus, woundBonus, wound } = attackRolls(weapon, options, toughness)
@@ -515,7 +515,7 @@ function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number)
       groups.some((group) => saveSucceeds(value, true, group, weapon) !== saveSucceeds(value, false, group, weapon)),
     )
   const sustained = diceWeights(weapon.sustained)
-  const attacks = attackCounts(weapon, targetModels(target), halfRange)
+  const attacks = attackCounts(weapon, models, halfRange)
   const events = (attacks.length - 1) * sustained.length + 1
   const dimensions = [
     ...(devastating ? ['devastating'] : []),
@@ -632,9 +632,9 @@ function allocateSaves(
   return states.get(0) ?? new Float64Array(layout.total + 1)
 }
 
-function resolvePool(state: State, weapon: CombatWeapon, input: CombatInput, layout: Allocation, toughness: number) {
+function resolvePool(state: State, weapon: CombatWeapon, input: CombatInput, layout: Allocation, toughness: number, models: number) {
   const { target } = input
-  const plan = weaponPlan(weapon, input, toughness)
+  const plan = weaponPlan(weapon, input, toughness, models)
   const pool = attackPool(weapon, input, plan)
   const feelNoPain = weapon.psychic ? Math.min(target.feelNoPain ?? 7, target.psychicFeelNoPain ?? 7) : (target.feelNoPain ?? 7)
   const ordinaryLost = packetLosses(weapon, target, feelNoPain, plan.halfRange)
@@ -701,15 +701,16 @@ function workOf(input: CombatInput, layout: Allocation) {
   }, 0)
 }
 
-/** The exact distribution of wounds lost and models destroyed after every attack resolves. */
-export function calculateCombat(scenario: CombatInput): CombatResult {
+function checkedCombat(scenario: CombatInput) {
   const input = combatSchema.parse(scenario)
+  if ((input.target.damage ?? 0) >= input.target.groups[0]!.wounds)
+    throw new Error('The wounded model must have at least one wound remaining.')
+  return input
+}
+
+function resolveCombat(input: CombatInput, layout: Allocation, initial: State, models = targetModels(input.target)) {
   const { target } = input
-  if ((target.damage ?? 0) >= target.groups[0]!.wounds) throw new Error('The wounded model must have at least one wound remaining.')
-  const layout = allocation(target)
-  if (workOf(input, layout) > MAX_COMBAT_WORK) throw new Error('This attack is too large to simulate. Select fewer weapons or models.')
-  let state: State = new Float64Array(layout.total + 1)
-  state[0] = 1
+  let state = initial
   const mortals = (timing: 'before' | 'after') => {
     for (const ability of input.mortalWounds ?? []) {
       if (ability.timing !== timing) continue
@@ -748,10 +749,14 @@ export function calculateCombat(scenario: CombatInput): CombatResult {
       part[at] = weight
       byToughness.set(layout.toughness[at]!, part)
     }
-    for (const [toughness, part] of byToughness) addInto(next, resolvePool(part, weapon, input, layout, toughness))
+    for (const [toughness, part] of byToughness) addInto(next, resolvePool(part, weapon, input, layout, toughness, models))
     state = next
   }
   mortals('after')
+  return state
+}
+
+function combatResult(state: State, target: CombatInput['target'], layout: Allocation): CombatResult {
   const damage = Array.from(state)
   const kills = Array.from({ length: targetModels(target) + 1 }, () => 0)
   damage.forEach((weight, lost) => (kills[layout.killed[lost]!]! += weight))
@@ -762,4 +767,50 @@ export function calculateCombat(scenario: CombatInput): CombatResult {
     meanDamage: damage.reduce((total, weight, lost) => total + weight * lost, 0),
     wipe: damage[layout.total]!,
   }
+}
+
+/** Resolve successive phases against the surviving models and their remaining wounds. */
+export function calculateCombatSequence(scenarios: readonly CombatInput[]): CombatResult {
+  if (!scenarios.length) throw new Error('Select an attack to simulate.')
+  const inputs = scenarios.map(checkedCombat)
+  const target = inputs[0]!.target
+  const layout = allocation(target)
+  if (
+    inputs.some(
+      (input) =>
+        (input.target.damage ?? 0) !== (target.damage ?? 0) ||
+        input.target.groups.length !== target.groups.length ||
+        input.target.groups.some(
+          (group, index) => group.models !== target.groups[index]!.models || group.wounds !== target.groups[index]!.wounds,
+        ),
+    )
+  )
+    throw new Error('Every phase must attack the same target with the same starting wounds.')
+  let state: State = new Float64Array(layout.total + 1)
+  state[0] = 1
+  let work = 0
+  for (const input of inputs) {
+    const currentLayout = allocation(input.target)
+    const byModels = new Map<number, State>()
+    const varies = input.weapons.some((weapon) => weapon.blast || weapon.cleave)
+    for (let at = 0; at < layout.total; at++) {
+      if (!state[at]) continue
+      const models = targetModels(target) - (varies ? layout.killed[at]! : 0)
+      const part = byModels.get(models) ?? new Float64Array(state.length)
+      part[at] = state[at]!
+      byModels.set(models, part)
+    }
+    work += workOf(input, currentLayout) * byModels.size
+    if (work > MAX_COMBAT_WORK) throw new Error('This attack is too large to simulate. Select fewer weapons or models.')
+    const next = new Float64Array(state.length)
+    next[layout.total] = state[layout.total]!
+    for (const [models, part] of byModels) addInto(next, resolveCombat(input, currentLayout, part, models))
+    state = next
+  }
+  return combatResult(state, target, layout)
+}
+
+/** The exact distribution of wounds lost and models destroyed after every attack resolves. */
+export function calculateCombat(scenario: CombatInput): CombatResult {
+  return calculateCombatSequence([scenario])
 }

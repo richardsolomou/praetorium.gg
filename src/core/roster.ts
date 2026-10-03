@@ -31,7 +31,7 @@ export type RosterPick = {
   attachedTo?: number
 }
 
-type BuildContext = EvaluateOptions & {
+type BuildContext = ChoiceOptions & {
   spreads?: Readonly<Record<string, Record<string, number>>>
   toggles?: Readonly<Record<string, number>>
 }
@@ -206,7 +206,8 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
     return withUnitSpread(tree, choice.key, { [option.id]: defaultedComposition ? option.max : 1 }, index, context)
   }, selection)
   /** When growing an identical squad, copy its existing loadout to new models; preserve an imported split and report its illegality separately. */
-  const settled = unitChoices(entryId, completed, index, context).reduce((tree, choice) => {
+  const completedChoices = completed === selection ? choices : unitChoices(entryId, completed, index, context)
+  const settled = completedChoices.reduce((tree, choice) => {
     const held = choice.options.filter((option) => option.count > 0)
     const asked = context?.spreads?.[choice.key] ?? {}
     const stated = choice.options.filter((option) => (asked[option.id] ?? 0) > 0)
@@ -222,11 +223,14 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
     )
   }, completed)
 
+  let toggles: UnitToggle[] | undefined
   return {
     selection: settled,
     size,
-    choices: unitChoices(entryId, settled, index, context),
-    toggles: unitToggles(entryId, settled, index, context),
+    choices: settled === completed ? completedChoices : unitChoices(entryId, settled, index, context),
+    get toggles() {
+      return (toggles ??= unitToggles(entryId, settled, index, context))
+    },
   }
 }
 
