@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
     // The Node preview renderer inlines its WebAssembly, which only an asset type accepts.
     assetsInclude: ['**/*.wasm'],
     build: {
+      sourcemap: 'hidden',
       rolldownOptions: {
         output: {
           codeSplitting: {
