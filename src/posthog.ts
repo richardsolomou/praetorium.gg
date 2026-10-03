@@ -39,7 +39,14 @@ export function telemetryFeature(pathname: string) {
 
 export const browserEventContext: BeforeSendFn = (event) => {
   if (!event || typeof window === 'undefined') return event
-  const pathname = typeof event.properties.$pathname === 'string' ? event.properties.$pathname : window.location.pathname
+  let pathname = typeof event.properties.$pathname === 'string' ? event.properties.$pathname : window.location.pathname
+  if (event.event === '$web_vitals' && typeof event.properties.$current_url === 'string') {
+    try {
+      pathname = new URL(event.properties.$current_url).pathname
+    } catch {
+      // A malformed metric URL must not interrupt capture.
+    }
+  }
   return {
     ...event,
     properties: {
