@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.98.0
+
+### Minor Changes
+
+- 18cc39d: Show combined shooting and melee losses and the exact chance to destroy the target.
+
+### Patch Changes
+
+- a719dab: Lead with the combined combat result even when a phase has no enabled attacks, group phase details, buffs, and manual modifiers, and offer progressive loadout optimization against the selected defender. Clarify which outcome makes a loadout best, show finer small kill chances, and remove the simulator’s Mathhammer label.
+- bb098fb: Keep battle feeds readable when a page is missing during refresh.
+
 ## 0.97.2
 
 ### Patch Changes
