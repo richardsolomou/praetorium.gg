@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --filte
 COPY . .
 ARG VITE_POSTHOG_HOST
 ARG VITE_POSTHOG_PROJECT_TOKEN
-RUN CATALOGUE_CACHE_DIR=off pnpm catalogue:sync && NITRO_PRESET=node-server pnpm build
+RUN CATALOGUE_CACHE_DIR=off pnpm catalogue:sync
 ARG GITHUB_SHA
 ARG POSTHOG_UPLOAD_SOURCEMAPS=false
 ARG POSTHOG_CLI_HOST
@@ -24,8 +24,11 @@ RUN --mount=type=secret,id=posthog_api_key,env=POSTHOG_CLI_API_KEY \
         "${POSTHOG_CLI_HOST:?PostHog host is required}" \
         "${POSTHOG_CLI_PROJECT_ID:?PostHog project is required}" \
         "${GITHUB_SHA:?Release revision is required}"; \
-      POSTHOG_CLI_DRY_RUN=false pnpm exec posthog-cli sourcemap process \
-        --directory .output/public --release-name praetorium-web --release-version "$GITHUB_SHA" --delete-after; \
+    fi; \
+    POSTHOG_CLI_DRY_RUN=false NITRO_PRESET=node-server pnpm build; \
+    if [ "$POSTHOG_UPLOAD_SOURCEMAPS" = true ]; then \
+      POSTHOG_CLI_DRY_RUN=false pnpm exec posthog-cli sourcemap upload \
+        --directory .output/public --release-name praetorium-web --release-version "$GITHUB_SHA"; \
     fi; \
     find .output/public -type f -name '*.map' -delete
 ADD --checksum=sha256:d25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831 https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.7.0-hotfix3/spacetime-x86_64-unknown-linux-gnu.tar.gz /tmp/spacetime.tar.gz

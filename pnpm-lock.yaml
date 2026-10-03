@@ -162,6 +162,9 @@ importers:
       '@posthog/cli':
         specifier: 0.14.1
         version: 0.14.1
+      '@posthog/rollup-plugin':
+        specifier: 1.6.1
+        version: 1.6.1(rollup@4.63.2)
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.2.2(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -2457,6 +2460,11 @@ packages:
     engines: {node: '>=14.14', npm: '>=6'}
     hasBin: true
 
+  '@posthog/cli@0.16.2':
+    resolution: {integrity: sha512-h8bpf9ffBUH/Z9IoyGV+wiI+vS8rIPorKT3eKQXuzuwawO0G7Qvy+hDd7HQ9YJjHByYZ77yPPQvrSs4WsqTUCg==}
+    engines: {node: '>=14.14', npm: '>=6'}
+    hasBin: true
+
   '@posthog/core@1.48.8':
     resolution: {integrity: sha512-LAOBOjMQrQmgcbZxnubl74l2GQd5OWqxCJJ8mzcWdZRWbfO6Y/A6E3fqWjDtm68hY4LxC/bbopG60cxZW8cfWw==}
 
@@ -2479,6 +2487,9 @@ packages:
       '@modelcontextprotocol/server':
         optional: true
 
+  '@posthog/plugin-utils@2.0.0':
+    resolution: {integrity: sha512-PC94+3zeEQ2IkhiU+pskOIOEkAFKZvwVixvrwpRfy+cl4b6gkTuHN44vp5OeG5ndfQOLJQF5onx8/K7yZC3i1g==}
+
   '@posthog/react-native-plugin@2.4.1':
     resolution: {integrity: sha512-Oxg3KSjD/w44nYR7AsX4Ugseig6hIWfCuUR933GHjMTgwSFqd814vJ9axBpaZlwS0plpSTE7wdoReuDJNYsdmA==}
     peerDependencies:
@@ -2494,6 +2505,11 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  '@posthog/rollup-plugin@1.6.1':
+    resolution: {integrity: sha512-oVViFAZnIT3YVPahXzvvZtsPHISWikoYpqF+Hb4YMvufeVmTeljhFeg/hH5Y7b9UYhYbbv0JE7UQRfeSZZ6R+A==}
+    peerDependencies:
+      rollup: '>= 4.0.0'
 
   '@posthog/types@1.405.1':
     resolution: {integrity: sha512-JvaR4ChUKUk7qSTG58vKN2Br6es9riFF5mvlu7YGcwbB476vfyTO0o/TBh+zE88QhsfxnE5Tr/jKxI+e1v3Q5A==}
@@ -9951,6 +9967,10 @@ snapshots:
     dependencies:
       detect-libc: 2.1.2
 
+  '@posthog/cli@0.16.2':
+    dependencies:
+      detect-libc: 2.1.2
+
   '@posthog/core@1.48.8':
     dependencies:
       '@posthog/types': 1.405.1
@@ -9970,6 +9990,10 @@ snapshots:
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.30.0(supports-color@10.2.2)(zod@4.5.4)
 
+  '@posthog/plugin-utils@2.0.0':
+    dependencies:
+      cross-spawn: 7.0.6
+
   '@posthog/react-native-plugin@2.4.1(react-native@0.86.2(@babel/core@7.29.7(supports-color@10.2.2))(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)':
     dependencies:
       react: 19.2.8
@@ -9981,6 +10005,13 @@ snapshots:
       react: 19.2.8
     optionalDependencies:
       '@types/react': 19.2.18
+
+  '@posthog/rollup-plugin@1.6.1(rollup@4.63.2)':
+    dependencies:
+      '@posthog/cli': 0.16.2
+      '@posthog/plugin-utils': 2.0.0
+      magic-string: 0.30.21
+      rollup: 4.63.2
 
   '@posthog/types@1.405.1': {}
 
@@ -14903,7 +14934,6 @@ snapshots:
       '@rollup/rollup-win32-x64-gnu': 4.63.2
       '@rollup/rollup-win32-x64-msvc': 4.63.2
       fsevents: 2.3.3
-    optional: true
 
   rou3@0.8.1: {}
 

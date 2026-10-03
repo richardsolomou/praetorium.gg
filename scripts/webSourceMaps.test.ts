@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, expect, test } from 'vitest'
+import { build } from 'vite'
+import { webSourceMapPlugins } from '../vite.config'
 
 const dockerfile = readFileSync(new URL('../Dockerfile.node', import.meta.url), 'utf8')
 const uploadCommand = dockerfile
@@ -15,13 +17,13 @@ afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true })
 })
 
-function imageBuild(environment: Record<string, string>) {
+function imageBuild(environment: Record<string, string>, buildExitCode = 37) {
   const directory = mkdtempSync(path.join(tmpdir(), 'praetorium-source-maps-test-'))
   directories.push(directory)
   mkdirSync(path.join(directory, '.output/public/assets'), { recursive: true })
   const map = path.join(directory, '.output/public/assets/app.js.map')
   writeFileSync(map, '{}')
-  writeFileSync(path.join(directory, 'pnpm'), '#!/bin/sh\nexit 37\n', { mode: 0o755 })
+  writeFileSync(path.join(directory, 'pnpm'), `#!/bin/sh\nif [ "$1" = build ]; then exit ${buildExitCode}; fi\nexit 37\n`, { mode: 0o755 })
   const result = spawnSync('sh', ['-c', uploadCommand], {
     cwd: directory,
     env: { PATH: `${directory}:${process.env.PATH}`, ...environment },
@@ -50,14 +52,52 @@ test.each(['POSTHOG_CLI_API_KEY', 'POSTHOG_CLI_HOST', 'POSTHOG_CLI_PROJECT_ID', 
   },
 )
 
-test('propagates an upload failure before removing its source maps', () => {
+test('stops publication when the browser build fails before source-map cleanup', () => {
   const { result, map } = imageBuild(uploadEnvironment)
 
   expect({ status: result.status, mapRetained: existsSync(map) }).toEqual({ status: 37, mapRetained: true })
 })
 
+test('stops publication when the worker upload fails after the browser build succeeds', () => {
+  const { result, map } = imageBuild(uploadEnvironment, 0)
+
+  expect({ status: result.status, mapRetained: existsSync(map) }).toEqual({ status: 37, mapRetained: true })
+})
+
 test('removes served source maps from preview images without upload credentials', () => {
-  const { result, map } = imageBuild({ POSTHOG_UPLOAD_SOURCEMAPS: 'false' })
+  const { result, map } = imageBuild({ POSTHOG_UPLOAD_SOURCEMAPS: 'false' }, 0)
 
   expect({ status: result.status, mapRetained: existsSync(map) }).toEqual({ status: 0, mapRetained: false })
+})
+
+test('changes content-hashed chunk URLs when their injected PostHog IDs change', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'praetorium-source-maps-hash-'))
+  directories.push(directory)
+  const entry = path.join(directory, 'entry.js')
+  writeFileSync(entry, 'export const fail = () => { throw new Error("verification") }')
+  const bundle = async () => {
+    const output = await build({
+      configFile: false,
+      logLevel: 'silent',
+      plugins: webSourceMapPlugins(uploadEnvironment),
+      build: {
+        write: false,
+        minify: true,
+        lib: { entry, formats: ['es'] },
+        rolldownOptions: { output: { entryFileNames: '[name]-[hash].js' } },
+      },
+    })
+    const result = Array.isArray(output) ? output[0]! : output
+    if (!('output' in result)) throw new Error('Missing bundle output')
+    const chunk = result.output.find((item) => item.type === 'chunk')!
+    if (chunk.type !== 'chunk') throw new Error('Missing JavaScript chunk')
+    return chunk
+  }
+  const first = await bundle()
+  const second = await bundle()
+
+  expect({
+    changedUrl: first.fileName !== second.fileName,
+    registeredIds: [first, second].map((chunk) => chunk.code.includes('_posthogChunkIds')),
+  }).toEqual({ changedUrl: true, registeredIds: [true, true] })
 })
