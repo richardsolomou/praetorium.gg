@@ -1,31 +1,46 @@
+import { isExpectedRealtimeDisconnect } from './realtimeErrors'
+
 type Connection = { disconnect(): void }
 
 const RETRY_MS = 5_000
+const MAX_RETRY_MS = 60_000
+const RECOVERY_MS = 30_000
 const TOKEN_REFRESH_MS = 4 * 60 * 1_000
 
 export function maintainSpacetimeConnection<T>(options: {
   issue: () => Promise<T | null>
-  open: (issued: T, failed: (error?: unknown) => void, isCurrent: () => boolean) => Connection
+  open: (issued: T, failed: (error?: unknown) => void, isCurrent: () => boolean, ready: () => void) => Connection
   inactive: () => void
   report: (error: unknown) => void
 }) {
   let active = true
   let generation = 0
+  let retryDelay = RETRY_MS
+  let reported = false
   let connection: Connection | null = null
   let retry: ReturnType<typeof setTimeout> | undefined
+  let recovery: ReturnType<typeof setTimeout> | undefined
   let refresh: ReturnType<typeof setTimeout> | undefined
 
   const connect = async () => {
     const attempt = ++generation
     const failed = (error?: unknown) => {
       if (!active || attempt !== generation || retry !== undefined) return
-      if (error !== undefined) options.report(error)
+      if (error !== undefined && !reported && !isExpectedRealtimeDisconnect(error)) {
+        reported = true
+        options.report(error)
+      }
       generation++
       clearTimeout(refresh)
-      retry = setTimeout(() => {
-        retry = undefined
-        void connect()
-      }, RETRY_MS)
+      clearTimeout(recovery)
+      retry = setTimeout(
+        () => {
+          retry = undefined
+          void connect()
+        },
+        retryDelay * (1 + Math.random()),
+      )
+      retryDelay = Math.min(retryDelay * 2, MAX_RETRY_MS)
       const previous = connection
       connection = null
       previous?.disconnect()
@@ -34,7 +49,17 @@ export function maintainSpacetimeConnection<T>(options: {
     try {
       const issued = await options.issue()
       if (!active || attempt !== generation || issued === null) return
-      const opened = options.open(issued, failed, () => active && attempt === generation)
+      const isCurrent = () => active && attempt === generation
+      const ready = () => {
+        if (!isCurrent()) return
+        clearTimeout(recovery)
+        recovery = setTimeout(() => {
+          if (!isCurrent()) return
+          retryDelay = RETRY_MS
+          reported = false
+        }, RECOVERY_MS)
+      }
+      const opened = options.open(issued, failed, isCurrent, ready)
       if (!active || attempt !== generation) {
         opened.disconnect()
         return
@@ -43,6 +68,7 @@ export function maintainSpacetimeConnection<T>(options: {
       refresh = setTimeout(() => {
         if (!active || attempt !== generation) return
         generation++
+        clearTimeout(recovery)
         const previous = connection
         connection = null
         previous?.disconnect()
@@ -59,6 +85,7 @@ export function maintainSpacetimeConnection<T>(options: {
     generation++
     clearTimeout(retry)
     clearTimeout(refresh)
+    clearTimeout(recovery)
     connection?.disconnect()
     connection = null
     options.inactive()
