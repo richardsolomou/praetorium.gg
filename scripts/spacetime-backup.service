@@ -1,0 +1,11 @@
+[Unit]
+Description=Back up Praetorium SpacetimeDB without disconnecting clients
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=/usr/bin/python3 /usr/local/libexec/praetorium/backupSpacetime.py /etc/praetorium-spacetime-backup/production.json
+TimeoutStartSec=30min
+TimeoutStopSec=15s

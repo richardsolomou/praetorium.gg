@@ -25,21 +25,37 @@ export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
 application="$(api application.one applicationId -Su13uDBf96psvGEiBula)"
 app_name="$(jq -er '. | select(.applicationId == "-Su13uDBf96psvGEiBula" and .name == "spacetimedb-production") | .appName | select(test("^[a-z0-9-]+$"))' <<< "$application")"
 
-latest_key() {
-  local kind="$1" prefix="$app_name/backups/$1/" listing
-  listing="$(aws s3api list-objects-v2 --bucket "$bucket" --prefix "$prefix" --endpoint-url "$endpoint" --output json)"
-  jq -er --arg prefix "$prefix" --arg kind "$kind" \
-    '. | select(.IsTruncated != true) | [.Contents[]?.Key | select(startswith($prefix)) | select((ltrimstr($prefix)) | test("^praetorium-spacetime-production-" + $kind + "-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z[.]tar$"))] | sort | last | select(type == "string")' \
-    <<< "$listing"
-}
-
 work="$(mktemp -d)"
 trap 'docker rm --force praetorium-backup-readback > /dev/null 2>&1 || true; rm -rf "${work:?}"' EXIT
 umask 077
-data_key="$(latest_key data)"
-identity_key="$(latest_key identity)"
+aws s3 cp "s3://$bucket/$app_name/backups/latest.json" "$work/latest.json" --endpoint-url "$endpoint" --only-show-errors
+python3 - "$work/latest.json" <<'PY'
+import datetime
+import json
+import sys
+from pathlib import Path
+
+manifest = json.loads(Path(sys.argv[1]).read_text())
+created = datetime.datetime.fromisoformat(manifest['createdAt'])
+age = datetime.datetime.now(datetime.timezone.utc) - created
+if manifest['format'] != 'praetorium.spacetime-backup.v1' or not datetime.timedelta(0) <= age <= datetime.timedelta(hours=12):
+    raise ValueError('SpacetimeDB backup manifest is invalid or older than 12 hours')
+PY
+manifest_key() {
+  local kind="$1" prefix="$app_name/backups/$1/"
+  jq -er --arg prefix "$prefix" --arg kind "$kind" \
+    '.[$kind] | select(.sha256 | test("^[0-9a-f]{64}$")) | .key | select(startswith($prefix)) | select((ltrimstr($prefix)) | test("^praetorium-spacetime-production-" + $kind + "-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z[.]tar$"))' \
+    "$work/latest.json"
+}
+data_key="$(manifest_key data)"
+identity_key="$(manifest_key identity)"
 aws s3 cp "s3://$bucket/$data_key" "$work/data.tar" --endpoint-url "$endpoint" --only-show-errors
 aws s3 cp "s3://$bucket/$identity_key" "$work/identity.tar" --endpoint-url "$endpoint" --only-show-errors
+for kind in data identity; do
+  expected="$(jq -er --arg kind "$kind" '.[$kind].sha256' "$work/latest.json")"
+  actual="$(sha256sum "$work/$kind.tar" | cut -d ' ' -f 1)"
+  test "$actual" = "$expected"
+done
 mkdir "$work/data" "$work/identity"
 tar -xf "$work/data.tar" --strip-components=2 -C "$work/data"
 tar -xf "$work/identity.tar" -C "$work/identity"
