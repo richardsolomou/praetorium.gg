@@ -4,6 +4,7 @@ import { postHogEnvironment } from 'ras-stack/posthog'
 import { installPostHogServerTelemetryShutdown } from 'ras-stack/posthog/server'
 import { globalSingleton } from 'ras-stack/server'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { deploymentHost } from './posthog'
 
 const EVENT_PROPERTIES = [
   '$mcp_source',
@@ -21,8 +22,10 @@ const EVENT_PROPERTIES = [
 
 export function privateMcpEvent(event: Parameters<BeforeSendFn>[0]) {
   if (!event.event.startsWith('$mcp_')) return null
+  const host = deploymentHost()
   event.properties = {
     ...Object.fromEntries(EVENT_PROPERTIES.flatMap((key) => (key in event.properties ? [[key, event.properties[key]]] : []))),
+    ...(host ? { $host: host } : {}),
     $ip: null,
   }
   return event
