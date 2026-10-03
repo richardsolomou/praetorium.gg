@@ -115,6 +115,11 @@ jobs:
             GITHUB_SHA=${{ inputs.revision || github.sha }}
             VITE_POSTHOG_HOST=${{ vars.VITE_POSTHOG_HOST }}
             VITE_POSTHOG_PROJECT_TOKEN=${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
+            POSTHOG_UPLOAD_SOURCEMAPS=true
+            POSTHOG_CLI_HOST=${{ vars.POSTHOG_HOST }}
+            POSTHOG_CLI_PROJECT_ID=${{ vars.POSTHOG_PROJECT_ID }}
+          secrets: |
+            posthog_api_key=${{ secrets.POSTHOG_API_KEY }}
           cache-scope: node-web-image
       - name: Require anonymous image pulls
         env:
