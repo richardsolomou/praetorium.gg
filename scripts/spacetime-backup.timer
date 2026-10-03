@@ -1,0 +1,11 @@
+[Unit]
+Description=Back up Praetorium SpacetimeDB every six hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:00:00 UTC
+AccuracySec=1s
+Persistent=true
+Unit=spacetime-backup.service
+
+[Install]
+WantedBy=timers.target
