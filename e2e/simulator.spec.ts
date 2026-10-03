@@ -521,10 +521,21 @@ for (const width of [1440, 390, 860, 1024]) {
       const panel = page.getByRole('region', { name: side, exact: true })
       await expect(panel.locator('[data-characteristic] .readout')).toHaveText(['5', '3+', '2', '—', '—'])
       await expect(panel.getByRole('button', { name: `Fewer ${side.toLowerCase()} models` })).toBeDisabled()
-      const loadoutBounds = await panel.getByRole('button', { name: 'Loadout', exact: true }).boundingBox()
-      const modelsBounds = await panel.getByLabel(`${side} models`, { exact: true }).boundingBox()
-      expect(loadoutBounds!.x + loadoutBounds!.width).toBeLessThan(modelsBounds!.x)
-      expect(Math.abs(loadoutBounds!.y + loadoutBounds!.height / 2 - modelsBounds!.y - modelsBounds!.height / 2)).toBeLessThan(2)
+      const controls = await panel.getByRole('button', { name: 'Loadout', exact: true }).evaluate((element) => {
+        const actions = element.parentElement!
+        const models = actions.nextElementSibling!
+        const row = actions.parentElement!
+        return {
+          actions: actions.getBoundingClientRect().toJSON(),
+          models: models.getBoundingClientRect().toJSON(),
+          row: row.getBoundingClientRect().toJSON(),
+          gap: parseFloat(getComputedStyle(row).columnGap),
+        }
+      })
+      if (controls.actions.width + controls.models.width + controls.gap <= controls.row.width) {
+        expect(Math.abs(controls.actions.y + controls.actions.height / 2 - controls.models.y - controls.models.height / 2)).toBeLessThan(2)
+      } else expect(controls.models.top).toBeGreaterThanOrEqual(controls.actions.bottom)
+      expect(Math.abs(controls.models.right - controls.row.right)).toBeLessThan(2)
     }
     await expect(
       page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Swap attacker and defender' }),
