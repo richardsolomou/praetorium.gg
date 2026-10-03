@@ -41,7 +41,29 @@ it('adds only bounded context to an existing browser event', () => {
 
 it('uses the captured page for a pageleave after navigation', () => {
   vi.stubGlobal('window', { location: { pathname: '/rosters' } })
-  expect(browserEventContext(event({ $pathname: '/battles/private-token' }))?.properties.feature).toBe('battles')
+  expect(
+    browserEventContext({
+      ...event({ $pathname: '/battles/private-token', $current_url: 'https://praetorium.gg/rosters' }),
+      event: '$pageleave',
+    })?.properties.feature,
+  ).toBe('battles')
+})
+
+it('attributes delayed web vitals to the measured page after navigation', () => {
+  vi.stubGlobal('window', { location: { pathname: '/rosters' } })
+  const properties = { $pathname: '/rosters', $current_url: 'https://praetorium.gg/', $web_vitals_LCP_value: 2800 }
+  expect(browserEventContext({ ...event(properties), event: '$web_vitals' })?.properties).toEqual({
+    ...properties,
+    feature: 'home',
+    surface: 'web',
+  })
+})
+
+it.each([undefined, 42, 'not-a-url'])('keeps captured context when the web-vital URL is %s', (url) => {
+  vi.stubGlobal('window', { location: { pathname: '/rosters' } })
+  expect(
+    browserEventContext({ ...event({ $pathname: '/battles/private-token', $current_url: url }), event: '$web_vitals' })?.properties.feature,
+  ).toBe('battles')
 })
 
 it('identifies a native WebView without capturing bridge contents', () => {
