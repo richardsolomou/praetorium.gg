@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.98.2
+
+### Patch Changes
+
+- bb87f8e: Organize the administration player list into a compact table with sortable date columns.
+
 ## 0.98.1
 
 ### Patch Changes
