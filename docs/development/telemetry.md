@@ -54,7 +54,7 @@ ids, catalogue ids, search text, unit names, list contents, command payloads, ru
 text, and error messages. They contain only bounded enums, booleans, counts,
 durations, and non-sensitive outcome labels.
 
-Errors may contain stack traces through PostHog Error Tracking. Manual exception captures add only an operation label. Server logs use stable messages and bounded request metadata rather than request bodies or URLs containing opaque ids. Request metrics contain a method, outcome, and duration; request spans use a stable name and never include the raw URL.
+Errors may contain stack traces through PostHog Error Tracking. Manual exception captures add only an operation label. Realtime recovery excludes WebSocket error events, closed connections, lost-session errors, fetch network failures, and token or mode HTTP 401, 408, 429, and 5xx responses. Unexpected connection failures are captured once per mounted subscription outage, with reporting reset after 30 seconds of an applied subscription. Server logs use stable messages and bounded request metadata rather than request bodies or URLs containing opaque ids. Request metrics contain a method, outcome, and duration; request spans use a stable name and never include the raw URL.
 
 ## Measuring success
 
