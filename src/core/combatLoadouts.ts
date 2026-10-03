@@ -1,5 +1,6 @@
 import type { Datasheet } from './datasheet'
-import { calculateCombat, type CombatInput, type CombatOptions, type CombatResult } from './combat'
+import { calculateCombat, calculateCombatSequence, type CombatInput, type CombatOptions, type CombatResult } from './combat'
+import type { RosterPick } from './roster'
 import type { WeaponAdjustment } from './combatAdjustments'
 import { combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
 import { combatAttackInput, combatAttacks, combatWeaponInputs, type CombatAttacker, type CombatOpponent } from './combatScenario'
@@ -16,6 +17,10 @@ const PHASES = ['ranged', 'melee'] as const
 export type LoadoutOption = { group: string; entry: string; step: -1 | 0 | 1; carriers: CombatCarrier[] }
 /** A unit's current carriers, every weapon profile it could carry, and the legal options of each weapon choice. */
 export type LoadoutSpace = { carriers: CombatCarrier[]; weapons: Datasheet['profiles']; choices: LoadoutOption[][] }
+export type LoadoutCandidate = { pick: RosterPick; carriers: CombatCarrier[] }
+export type LoadoutCandidates = { weapons: Datasheet['profiles']; candidates: LoadoutCandidate[] }
+export type LoadoutBatch = LoadoutCandidates & { built: number; scheduled: number; done: boolean }
+export type OptimizedLoadout = { pick: RosterPick; preferences: Record<string, string>; result: CombatResult }
 export type LoadoutScore = Record<Phase, CombatResult | null>
 
 export const isWeaponProfile = (profile: Datasheet['profiles'][number]) =>
@@ -56,20 +61,27 @@ export function loadoutSheet(sheet: Datasheet, weapons: Datasheet['profiles'], c
 }
 
 const SAME = 1e-9
+const OUTCOME_PRIORITIES = ['wipe', 'meanKills', 'meanDamage'] as const
+export type OutcomePriority = (typeof OUTCOME_PRIORITIES)[number]
+
+export function outcomePriority(left: CombatResult, right: CombatResult): OutcomePriority | undefined {
+  for (const field of OUTCOME_PRIORITIES) {
+    if (Math.abs(left[field] - right[field]) > SAME) return field
+  }
+  return undefined
+}
+
 /** Positive when `left` is the better attack: likelier to destroy the unit, then more models, then more wounds. */
 export function compareOutcomes(left: CombatResult, right: CombatResult) {
-  for (const field of ['wipe', 'meanKills', 'meanDamage'] as const) {
-    const difference = left[field] - right[field]
-    if (Math.abs(difference) > SAME) return difference
-  }
-  return 0
+  const field = outcomePriority(left, right)
+  return field ? left[field] - right[field] : 0
 }
 
 /**
  * A weapon profile alone, on the `models` that carry it or on one model when none does. `best` marks the
  * strongest of one weapon's profiles, so a player knows which mode to use.
  */
-export type ProfileOdds = { phase: Phase; result: CombatResult; models: number; best: boolean }
+export type ProfileOdds = { phase: Phase; result: CombatResult; models: number; best: boolean; bestBy?: OutcomePriority }
 
 /** Every weapon profile the unit could carry, resolved alone against the target. */
 export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring) {
@@ -119,7 +131,10 @@ export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring)
     for (const ids of modes.values()) {
       const scored = ids.flatMap((id) => (odds.get(id) ? [odds.get(id)!] : []))
       const top = scored.toSorted((left, right) => compareOutcomes(right.result, left.result))
-      if (top.length > 1 && compareOutcomes(top[0]!.result, top[1]!.result) > 0) top[0]!.best = true
+      if (top.length > 1 && compareOutcomes(top[0]!.result, top[1]!.result) > 0) {
+        top[0]!.best = true
+        top[0]!.bestBy = outcomePriority(top[0]!.result, top[1]!.result)
+      }
     }
   }
   return odds
@@ -173,7 +188,10 @@ function loadoutScorer(space: LoadoutSpace, scoring: LoadoutScoring) {
 }
 
 /** What one option does to the attack, for the phases its choice affects. */
-export type OptionEstimate = { step: LoadoutOption['step']; phases: Partial<Record<Phase, { result: CombatResult; best: boolean }>> }
+export type OptionEstimate = {
+  step: LoadoutOption['step']
+  phases: Partial<Record<Phase, { result: CombatResult; best: boolean; bestBy?: OutcomePriority }>>
+}
 
 /** The editor names an option by its group and catalogue entry. */
 export const estimateKey = (group: string, entry: string) => `${group}|${entry}`
@@ -196,7 +214,14 @@ export function optionEstimates(
         const results = options.flatMap((other) => (other.score[phase] ? [other.score[phase]] : []))
         if (!result || !before || !results.some((other) => compareOutcomes(other, before) !== 0)) continue
         const top = results.reduce((best, candidate) => (compareOutcomes(candidate, best) > 0 ? candidate : best))
-        phases[phase] = { result, best: compareOutcomes(result, top) === 0 }
+        const runnerUp = results
+          .filter((candidate) => compareOutcomes(top, candidate) > 0)
+          .reduce<CombatResult | undefined>(
+            (best, candidate) => (!best || compareOutcomes(candidate, best) > 0 ? candidate : best),
+            undefined,
+          )
+        const best = compareOutcomes(result, top) === 0
+        phases[phase] = { result, best, bestBy: best && runnerUp ? outcomePriority(top, runnerUp) : undefined }
       }
       if (Object.keys(phases).length) found.set(estimateKey(group, entry), { step, phases })
     }
@@ -217,4 +242,49 @@ export function loadoutOdds(space: LoadoutSpace, scoring: LoadoutScoring, expect
   ) as LoadoutScore
   const choices = space.choices.map((options) => options.map(({ carriers, ...option }) => ({ ...option, score: scorer.score(carriers) })))
   return { estimates: optionEstimates(choices, now), profiles: loadoutProfileOdds(space, scoring) }
+}
+
+export function optimizeLoadout(space: LoadoutCandidates, scoring: LoadoutScoring): OptimizedLoadout {
+  let best: OptimizedLoadout | undefined
+  const results = new Map<string, CombatResult>()
+  for (const candidate of space.candidates) {
+    const attacker = {
+      sheet: loadoutSheet(scoring.sheet, space.weapons, candidate.carriers),
+      carriers: candidate.carriers,
+      models: scoring.models,
+      rules: scoring.rules,
+    }
+    const search = (preferences: Record<string, string>, chosen: ReadonlySet<string>) => {
+      const attacks = combatAttacks(attacker, scoring.opponent, preferences, { ranged: [], melee: [] })
+      const choice = PHASES.flatMap((phase) => attacks[phase].plan.choices).find(
+        (entry) => !chosen.has(entry.key) && !entry.key.endsWith(':one-shot'),
+      )
+      if (choice) {
+        for (const option of choice.options) search({ ...preferences, [choice.key]: option.value }, new Set([...chosen, choice.key]))
+        return
+      }
+      const inputs = PHASES.map((phase) => {
+        const setup = scoring.phases[phase]
+        const attack = attacks[phase]
+        if (!setup || !attack.base) throw new Error('Some loadouts contain unsupported rules. Optimization could not finish.')
+        return (
+          combatAttackInput(attack, setup.target, setup.options, setup.adjustment) ?? {
+            target: setup.target,
+            weapons: [],
+            options: setup.options,
+          }
+        )
+      })
+      const key = JSON.stringify(inputs)
+      let result = results.get(key)
+      if (!result) {
+        result = calculateCombatSequence(inputs)
+        results.set(key, result)
+      }
+      if (!best || compareOutcomes(result, best.result) > 0) best = { pick: candidate.pick, preferences, result }
+    }
+    search({ ...scoring.preferences }, new Set())
+  }
+  if (!best) throw new Error('No supported legal loadout is available.')
+  return best
 }

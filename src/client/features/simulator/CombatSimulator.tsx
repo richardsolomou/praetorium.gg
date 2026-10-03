@@ -22,7 +22,7 @@ export function CombatSimulator({ shared, onShare }: { shared?: string; onShare:
   return (
     <main className="w-full bg-sunken">
       <PageHeader
-        eyebrow="Mathhammer"
+        eyebrow={null}
         title="Combat simulator"
         description="Compare shooting and melee between two units. Change a loadout and the odds update automatically."
       />
@@ -112,14 +112,8 @@ export function CombatSimulatorMatchup({
         />
       }
       defenderControl={<CombatantCard side="Defender" combatant={defender} armyControl={reversed ? firstArmyControl : secondArmyControl} />}
-      buffs={
-        <section aria-label="Buffs" className="mt-5 border-t border-edge pt-4">
-          <div className="grid gap-4 @xl:grid-cols-2">
-            <CombatBuffControls side="Attacker" combatant={attacker} opponent={defender} />
-            <CombatBuffControls side="Defender" combatant={defender} opponent={attacker} />
-          </div>
-        </section>
-      }
+      attackerBuffs={<CombatBuffControls side="Attacker" combatant={attacker} opponent={defender} />}
+      defenderBuffs={<CombatBuffControls side="Defender" combatant={defender} opponent={attacker} />}
     />
   )
 }

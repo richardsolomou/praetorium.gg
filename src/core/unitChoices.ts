@@ -27,7 +27,7 @@ import {
   scaleOf,
   UNBOUNDED,
 } from './definitions'
-import { evaluate, type EvaluateOptions, hiddenByRules, selectionCountBoundsAt, type Selection } from './evaluate'
+import { evaluationErrorsFor, type EvaluateOptions, hiddenByRules, selectionCountBoundsAt, type Selection } from './evaluate'
 import { allAt, at, countAt, withCounts, withSpread } from './selection'
 import { modelCountOf, sizeOf } from './unitSize'
 
@@ -96,9 +96,11 @@ export type UnitChoice = {
 
 export type UnitToggle = { key: string; name: string; selected: boolean }
 
-export type ChoiceOptions = EvaluateOptions & { depth?: number }
+export type UnitChoiceCache = WeakMap<CatalogueIndex, { choices: Map<string, UnitChoice[]>; forbidden: Map<string, string[][]> }>
+export type ChoiceOptions = EvaluateOptions & { depth?: number; choiceCache?: UnitChoiceCache }
 
 const MODEL_COUNT = /^\d+\s+models?$/i
+const CACHE_LIMIT = 4096
 
 /**
  * A group that picks how many models the squad fields rather than what they carry.
@@ -110,24 +112,31 @@ export const isUnitCompositionChoice = ({ name, options }: { name: string; optio
   (options.length > 0 && options.every((option) => MODEL_COUNT.test(option.name?.trim() ?? '')))
 
 export function unitChoices(entryId: string, selection: Selection, index: CatalogueIndex, options: ChoiceOptions = {}): UnitChoice[] {
+  if (!options.choiceCache) return collectUnitChoices(entryId, selection, index, options)
+  let cache = options.choiceCache.get(index)
+  if (!cache) {
+    cache = { choices: new Map(), forbidden: new Map() }
+    options.choiceCache.set(index, cache)
+  }
+  const key = JSON.stringify([entryId, selection, options.primaryCatalogueId, options.roster, options.mustering, options.depth])
+  const cached = cache.choices.get(key)
+  if (cached) return cached
   const depth = options.depth ?? MAX_DEPTH
-  // The unit's own selection has to be in the roster it is judged against, or a
-  // question about its surroundings has nothing to look at.
-  const roster = [...(options.roster ?? []), selection]
-  const entry = index.definitions.get(entryId)
-  if (!entry) return []
-  const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster }, entry)
-  const minimum = (definition: Definition) =>
-    requiredCount(definition, index, { primaryCatalogueId: options.primaryCatalogueId, mustering: options.mustering, roster })
-  const resizingGroup = sizeOf(selection, index).path.slice(0, -1)
+  const catalogueKey = JSON.stringify([entryId, depth])
+  let forbidden = cache.forbidden.get(catalogueKey)
+  if (!forbidden) {
+    const entry = index.definitions.get(entryId)
+    forbidden = entry ? exclusiveSetsIn(entry, depth + 1, index) : []
+    if (cache.forbidden.size >= CACHE_LIMIT) cache.forbidden.delete(cache.forbidden.keys().next().value!)
+    cache.forbidden.set(catalogueKey, forbidden)
+  }
+  const choices = collectUnitChoices(entryId, selection, index, options, forbidden)
+  if (cache.choices.size >= CACHE_LIMIT) cache.choices.delete(cache.choices.keys().next().value!)
+  cache.choices.set(key, choices)
+  return choices
+}
 
-  /**
-   * What the datasheet refuses to see held together, wherever it says so.
-   *
-   * A squad that must match is written against the unit for Immortals and against the
-   * weapon group itself for Lychguard, so the answer is the same either way only if
-   * the whole datasheet is read for it.
-   */
+function exclusiveSetsIn(entry: Definition, depth: number, index: CatalogueIndex): string[][] {
   const forbidden: string[][] = []
   const gather = (definition: Definition, left: number, seen: Set<string>) => {
     const target = resolve(definition, index)
@@ -136,9 +145,49 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
     forbidden.push(...exclusiveSets(definition), ...(target === definition ? [] : exclusiveSets(target)))
     for (const child of childrenOf(target, index)) gather(child.definition, left - 1, visited)
   }
+  gather(entry, depth, new Set())
+  return forbidden
+}
+
+function collectUnitChoices(
+  entryId: string,
+  selection: Selection,
+  index: CatalogueIndex,
+  options: ChoiceOptions,
+  knownForbidden?: string[][],
+): UnitChoice[] {
+  const depth = options.depth ?? MAX_DEPTH
+  // The unit's own selection has to be in the roster it is judged against, or a
+  // question about its surroundings has nothing to look at.
+  const roster = [...(options.roster ?? []), selection]
+  const entry = index.definitions.get(entryId)
+  if (!entry) return []
+  const visibility = new Map<Definition, boolean>()
+  const minima = new Map<Definition, number>()
+  const visible = (definition: Definition) => {
+    const cached = visibility.get(definition)
+    if (cached !== undefined) return cached
+    const value = !hiddenByRules(definition, index, { ...options, roster }, entry)
+    visibility.set(definition, value)
+    return value
+  }
+  const minimum = (definition: Definition) => {
+    const cached = minima.get(definition)
+    if (cached !== undefined) return cached
+    const value = requiredCount(definition, index, {
+      primaryCatalogueId: options.primaryCatalogueId,
+      mustering: options.mustering,
+      modifierCache: options.modifierCache,
+      roster,
+    })
+    minima.set(definition, value)
+    return value
+  }
+  const resizingGroup = sizeOf(selection, index).path.slice(0, -1)
+
   // One deeper than the choices themselves: the catalogue writes the rule onto each
   // of the options it holds apart, which is a level below the group that offers them.
-  gather(entry, depth + 1, new Set())
+  const forbidden = knownForbidden ?? exclusiveSetsIn(entry, depth + 1, index)
 
   const choices: UnitChoice[] = []
   const walk = (definition: Definition, trail: string[], left: number, seen: Set<string>, carriers: number) => {
@@ -153,7 +202,10 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
 
       const repeatingEntry = inner.type === 'upgrade' ? repeatedModelOn(trail, index) : null
       const lower = minimum(child.definition)
-      const upperBound = selectionCountBoundsAt(selection, here, index, options)?.maximum ?? maximumCount(child.definition, index)
+      const upperBound =
+        inner.type === 'upgrade'
+          ? (selectionCountBoundsAt(selection, here, index, options)?.maximum ?? maximumCount(child.definition, index))
+          : null
       const single = inner.type === 'upgrade' && lower === 0 && upperBound === 1
       let upper: number | null = null
       if (single) upper = 1
@@ -221,8 +273,10 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
               : occupantRoom(choosable, index)
             : capacity * scale
         const fixed = choosable.some((option) => minimum(option.definition) > 0)
-        const dynamic = choosable.some((option) => minimum(option.definition) === 0 && hasDynamicSelectionLimit(option.definition, index))
-        const mutableMinimum = (option: Option) => dynamic && hasMutableMinimum(option.definition, index)
+        const dynamic = choosable.some(
+          (option) => minimum(option.definition) === 0 && hasDynamicSelectionLimit(option.definition, index, options.modifierCache),
+        )
+        const mutableMinimum = (option: Option) => dynamic && hasMutableMinimum(option.definition, index, options.modifierCache)
         const variableMinimum = (option: Option) => {
           if (resolve(option.definition, index).type !== 'upgrade') return false
           const minCount = minimum(option.definition)
@@ -372,7 +426,7 @@ function effectiveCount(
   path: readonly string[],
   definition: Definition,
   index: CatalogueIndex,
-  context: { primaryCatalogueId?: string; roster?: readonly Selection[] },
+  context: EvaluateOptions,
 ): number {
   const targetId = resolve(definition, index).id
   const ceiling = Math.max(1, modelCountOf(selection, index))
@@ -387,8 +441,11 @@ function effectiveCount(
       if (resized < 0) return count - 1
       candidate = withCounts(candidate, [{ path: size.path, count: resized }])
     }
-    const result = evaluate([...(context.roster ?? []), candidate], index, { primaryCatalogueId: context.primaryCatalogueId })
-    if (result.errors.some((error) => error.entryId === targetId && error.message.startsWith('allows at most'))) {
+    const errors = evaluationErrorsFor(targetId, [...(context.roster ?? []), candidate], index, {
+      primaryCatalogueId: context.primaryCatalogueId,
+      modifierCache: context.modifierCache,
+    })
+    if (errors.some((error) => error.message.startsWith('allows at most'))) {
       return Math.max(existing, count - 1)
     }
   }
@@ -403,7 +460,7 @@ function legalMaximum(
   siblings: readonly Option[],
   room: number,
   index: CatalogueIndex,
-  context: { primaryCatalogueId?: string; roster?: readonly Selection[] },
+  context: EvaluateOptions,
 ): number {
   const targetId = resolve(option.definition, index).id
   for (let count = room; count >= 1; count--) {
@@ -411,8 +468,11 @@ function legalMaximum(
     const counts: Record<string, number> = { [option.id]: count }
     if (other) counts[other.id] = room - count
     const candidate = withSpread(selection, path.join('/'), counts)
-    const result = evaluate([...(context.roster ?? []), candidate], index, { primaryCatalogueId: context.primaryCatalogueId })
-    if (!result.errors.some((error) => error.entryId === targetId)) return count
+    const errors = evaluationErrorsFor(targetId, [...(context.roster ?? []), candidate], index, {
+      primaryCatalogueId: context.primaryCatalogueId,
+      modifierCache: context.modifierCache,
+    })
+    if (!errors.length) return count
   }
   return 0
 }
