@@ -9,7 +9,7 @@ import { HomeFeed } from './HomeFeed'
 import { HomeHero } from './HomeHero'
 import { HomeIntro } from './HomeIntro'
 import { HomeLeaders } from './HomeLeaders'
-import { HomeClosing, HomeIncluded, HomeSteps } from './HomePitch'
+import { HomeClosing, HomeFeatures, HomeIncluded } from './HomePitch'
 import { HomePlayed } from './HomePlayed'
 import { type HomeRoster, HomeRosters } from './HomeRosters'
 import { HomeWaiting, type RosterDue } from './HomeWaiting'
@@ -109,15 +109,15 @@ export function HomeView({
     <main className="w-full">
       <HomeHero battle={hero} />
       <div className="mx-auto w-full max-w-6xl space-y-12 px-5 py-10 sm:px-6 md:space-y-16 md:py-16">
-        <HomeSteps />
+        <HomeFeatures />
+        <HomeIncluded />
+        <HomeIntro title="Try it before you sign up" />
         <Columns
           // A hero holding the only public battle is the shelf; an empty one under it would contradict it.
           // A visitor is shown that games are played here, not the archive of them.
           lead={rest.length || !hero ? <PublicTables battles={rest.slice(0, RECENT)} signedIn={false} /> : null}
           aside={leaders ? <HomeLeaders rows={leaders.rows} days={leaders.days} /> : null}
         />
-        <HomeIncluded />
-        <HomeIntro title="Explore" />
       </div>
       <HomeClosing />
     </main>
