@@ -2,6 +2,8 @@
 
 `src/core/battle.ts` owns the log, `validate`, and `apply`. `battleView.ts` controls visibility. `battleReport.ts` renders the log. The battle report shows each event’s date and time from its existing timestamp, and battle shelves show the last activity date even while a game is live. `src/server/service.ts` connects the domain to storage and realtime updates.
 
+Paginated battle queries reject missing response pages before TanStack Query can cache them. A failed refresh keeps the previous pages; readers skip missing cached pages and treat a missing final page as the end until a successful refresh replaces it.
+
 ## Command log
 
 - The log stores commands rather than derived battle state. `reduceBattle` derives the score, round, phase, and unit state.
