@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.98.1
+
+### Patch Changes
+
+- c4377fd: Attribute web vitals to their measured page after navigation.
+
 ## 0.98.0
 
 ### Minor Changes
