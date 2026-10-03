@@ -23,12 +23,13 @@ export function HomeHero({ battle }: { battle?: Battle }) {
       <div className="plot-grid" />
       <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-5 py-10 sm:px-6 md:py-16 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center lg:gap-14">
         <div>
+          <p className="eyebrow mb-4 text-dim">Warhammer 40,000 army builder & battle tracker</p>
           <h1 className="text-4xl leading-[0.9] sm:text-5xl lg:text-6xl">
-            Build the force.
-            <span className="block text-parchment">Run the battle.</span>
+            Build your army.
+            <span className="block text-parchment">Test it. Play it.</span>
           </h1>
           <p className="mt-5 max-w-lg font-rules text-base text-dim sm:text-lg">
-            Build your list, play it with friends on any device, and let the app keep the score.
+            Build lists, test matchups and track battles with friends. All free.
           </p>
           {/*
             The builder leads because it needs no account. Sign in stays here because a
@@ -56,7 +57,7 @@ export function HomeHero({ battle }: { battle?: Battle }) {
             >
               open source
             </a>
-            . The builder works without an account.
+            . Try the builder and combat simulator without an account.
           </p>
         </div>
         {battle ? <HeroBattle battle={battle} /> : <HeroMark />}

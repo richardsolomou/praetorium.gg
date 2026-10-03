@@ -80,6 +80,30 @@ test('links each tool a visitor can use without an account as one action', async
   await expect(page.getByRole('link', { name: /Look up a rule/ })).toHaveAttribute('href', '/rules')
 })
 
+test('explains supported features before public activity and opens an account-free matchup', async ({ page }) => {
+  await page.goto('/')
+
+  const features = page.locator('[data-home-features]')
+  for (const name of [
+    'Combat simulator',
+    'Unlimited lists & variants',
+    'Ability reminders',
+    'Live battle tracking',
+    'Team & practice games',
+    'Sealed league rosters',
+    'King of the Colosseum',
+    'Battle replay & stats',
+  ]) {
+    await expect(features.getByRole('heading', { name, exact: true })).toBeVisible()
+  }
+  const activity = page.locator('[data-home-feed="Public games"], [data-public-empty]')
+  expect((await features.boundingBox())!.y).toBeLessThan((await activity.boundingBox())!.y)
+  await features.getByRole('link', { name: 'Try a combat matchup' }).click()
+
+  await expect(page).toHaveURL('/simulator')
+  await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
+})
+
 test("a visitor's first action opens the builder without an account", async ({ page }) => {
   await page.goto('/')
   await page.getByRole('link', { name: 'Try the builder', exact: true }).click()

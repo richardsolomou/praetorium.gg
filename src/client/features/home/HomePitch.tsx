@@ -1,85 +1,80 @@
 import { Link } from '@tanstack/react-router'
-import { Check, ClipboardPaste, Code, Heart } from 'lucide-react'
+import { Bell, ChevronRight, ClipboardPaste, Code, Crosshair, Heart, Layers3, LockKeyhole, RotateCcw, Swords, Users } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { SOURCE, SPONSOR } from '../../projectLinks'
 
-const INCLUDED = [
-  { title: 'Unlimited lists', text: 'Save as many lists and variants as you like.' },
-  { title: '1v1, 2v1 and 2v2', text: 'Or a practice game on your own.' },
-  { title: 'King of the Colosseum', text: "Built at 600 points, with the format's own limits." },
-  { title: 'Leagues', text: 'Approve entries and keep rosters sealed until the reveal.' },
-  { title: 'Live tracking', text: "Phases, command points, stratagems and scoring on every player's device." },
-  { title: 'Combat simulator', text: 'Shooting and melee odds for any two units.' },
-  { title: 'Spectating', text: 'Anyone can watch a public game or read the leaderboard.' },
-  { title: 'Print and export', text: 'Print a list or copy it as Games Workshop text.' },
+const FEATURES = [
+  {
+    icon: Crosshair,
+    title: 'Combat simulator',
+    text: 'Compare loadouts and see shooting and melee odds before committing.',
+  },
+  {
+    icon: Layers3,
+    title: 'Unlimited lists & variants',
+    text: 'Check points and legality. Compare variants, share, print and export.',
+  },
+  {
+    icon: Bell,
+    title: 'Ability reminders',
+    text: 'Private reminders for your abilities, timed to the phase and turn.',
+  },
+  {
+    icon: Swords,
+    title: 'Live battle tracking',
+    text: 'Track phases, scores, CP, stratagems, casualties and turn times together.',
+  },
+  {
+    icon: Users,
+    title: 'Team & practice games',
+    text: 'Play 1v1, 2v1 or 2v2 with friends, or practise solo.',
+  },
+  {
+    icon: LockKeyhole,
+    title: 'Sealed league rosters',
+    text: 'Approve entries, reveal lists together and play with the sealed armies.',
+  },
+  {
+    icon: Crosshair,
+    title: 'King of the Colosseum',
+    text: 'Build and battle at 600 points with the format’s own limits and battlefield.',
+  },
+  {
+    icon: RotateCcw,
+    title: 'Battle replay & stats',
+    text: 'Revisit each turn. Track your results by detachment, mission and game size.',
+  },
 ]
 
-const STEPS = [
-  {
-    title: 'Build the list',
-    text: 'Points and legality checked as you build.',
-  },
-  {
-    title: 'Set the table',
-    text: '1v1, 2v1 or 2v2, or practise alone. Pick the mission, deployment and terrain.',
-  },
-  {
-    title: 'Play on any device',
-    text: 'Everyone follows the same game: phases, command points, scoring and casualties.',
-  },
-  {
-    title: 'Look back',
-    text: 'Finished games build your record and the leaderboard.',
-  },
-]
-
-/**
- * How a game runs here, for somebody deciding whether to bring theirs.
- *
- * Drawn as one line with a marker per stage, the diamond the logo stands on,
- * because these are the order a game actually happens in rather than four
- * features that could be read in any order. Each step says what the app does:
- * a visitor reads this before they know the navigation, and "track the battle"
- * promises nothing a paper tally does not.
- */
-export function HomeSteps() {
+export function HomeFeatures() {
   return (
-    <section data-home-steps>
-      <h2 className="text-2xl leading-none sm:text-3xl">From list to final score</h2>
-      <ol className="mt-6 grid gap-6 sm:mt-8 sm:grid-cols-2 sm:gap-8 lg:grid-cols-4 lg:gap-0">
-        {STEPS.map(({ title, text }, index) => (
-          <li key={title} className="min-w-0 lg:pr-8">
-            {/* The line joining the markers only reads as a sequence when the steps sit in one row. */}
-            <span className="mb-4 hidden items-center gap-3 lg:flex" aria-hidden>
-              <span className="size-2.5 shrink-0 rotate-45 bg-parchment" />
-              {index < STEPS.length - 1 ? <span className="h-px flex-1 bg-edge-strong" /> : null}
-            </span>
-            <h3 className="flex items-center gap-3 text-lg leading-tight">
-              <span className="size-2 shrink-0 rotate-45 bg-parchment lg:hidden" aria-hidden />
-              {title}
-            </h3>
-            <p className="mt-2 max-w-sm font-rules text-sm leading-relaxed text-dim">{text}</p>
-          </li>
+    <section data-home-features className="border border-edge bg-panel/50 p-5 sm:p-6">
+      <h2 className="text-2xl leading-none text-parchment sm:text-3xl">Built for your next battle</h2>
+      <div className="mt-6 grid border-t border-edge md:grid-cols-2 md:gap-x-10">
+        {FEATURES.map(({ icon: Icon, title, text }) => (
+          <article key={title} className="min-w-0 border-b border-edge py-5">
+            <div className="flex items-start gap-3">
+              <Icon className="mt-0.5 size-5 shrink-0 text-parchment" aria-hidden />
+              <h3 className="text-xl leading-tight">{title}</h3>
+            </div>
+            <p className="mt-3 font-rules text-base leading-relaxed text-dim">{text}</p>
+          </article>
         ))}
-      </ol>
+      </div>
+      <Link to="/simulator" className={buttonVariants({ variant: 'outline', className: 'mt-6' })}>
+        Try a combat matchup <ChevronRight aria-hidden />
+      </Link>
     </section>
   )
 }
 
-/**
- * What is free, and how a player's existing lists come with them.
- *
- * The included list is what is free, said without naming who charges for it,
- * because another app's tiers change and a stale comparison reads worse than none.
- * Importing needs an account, so its door is the sign-up that leads to the library.
- */
 export function HomeIncluded() {
   return (
     <section data-home-included className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-16">
-      <div className="min-w-0">
-        <h2 className="text-2xl leading-none sm:text-3xl">No paywall</h2>
+      <div className="min-w-0 border-l-2 border-parchment bg-parchment/5 p-5 sm:p-6">
+        <h2 className="text-2xl leading-none text-parchment sm:text-3xl">All free. No subscription.</h2>
         <p className="mt-4 max-w-2xl font-rules text-dim">
-          Everything here is free. If you want to help keep the project going, you can{' '}
+          Every feature is free. Save lists and play with an account. Help keep it running:{' '}
           <a
             href={SPONSOR}
             className="text-info underline-offset-4 hover:text-parchment hover:underline"
@@ -88,25 +83,14 @@ export function HomeIncluded() {
           >
             sponsor it on GitHub
           </a>
-          . Sponsoring gets you a fancy badge on your profile, and nothing else.
+          . Sponsors get a badge, not extra features.
         </p>
-        <ul className="mt-6 grid border-t border-edge sm:grid-cols-2 sm:gap-x-10">
-          {INCLUDED.map(({ title, text }) => (
-            <li key={title} className="flex min-w-0 items-start gap-3 border-b border-edge py-3.5">
-              <Check className="mt-0.5 size-4 shrink-0 text-parchment" aria-hidden />
-              <span className="min-w-0">
-                <span className="block leading-tight font-bold uppercase">{title}</span>
-                <span className="mt-1 block font-rules text-sm text-dim">{text}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
       </div>
-      <aside data-home-import className="border border-edge-strong bg-sunken p-5 shadow-[0_1.5rem_3rem_-1rem_rgba(0,0,0,0.6)]">
-        <ClipboardPaste className="size-6 text-parchment" aria-hidden />
-        <h2 className="mt-4 text-xl leading-tight text-balance">Coming from New Recruit or BattleBase?</h2>
+      <aside data-home-import className="border border-info/30 bg-info/5 p-5">
+        <ClipboardPaste className="size-6 text-info" aria-hidden />
+        <h2 className="mt-4 text-xl leading-tight text-balance">Bring your existing lists</h2>
         <p className="mt-2 font-rules text-sm leading-relaxed text-dim">
-          Export your list as Games Workshop text and paste it in. If a unit or option can't be matched, the import tells you which.
+          Paste a Games Workshop text export from BattleBase or New Recruit. Review any unmatched units or options.
         </p>
         <Link to="/sign-in" search={{ next: '/rosters', join: true }} className={buttonVariants({ className: 'mt-5 w-full' })}>
           Create an account to import
@@ -116,13 +100,6 @@ export function HomeIncluded() {
   )
 }
 
-/**
- * The last thing a visitor reads: the hero's invitation again, and the promise behind it.
- *
- * A band the width of the page, like the hero it answers, so the page closes on the
- * same note it opened on. The code being open is what the product offers instead of
- * a subscription, so it is said beside the sign-up rather than in a box of its own.
- */
 export function HomeClosing() {
   return (
     <section className="relative overflow-hidden border-t border-edge bg-panel">
