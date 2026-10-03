@@ -122,10 +122,11 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
   const meleeDamage = estimate(page, 'Melee').locator('.readout').first()
   const resultsSummary = page.getByLabel('Results summary')
   await expect(resultsSummary).toBeVisible()
-  await expect(page.locator('[data-result-numbers]')).toHaveCount(2)
+  await expect(page.locator('[data-result-numbers]')).toHaveCount(3)
   expect(await resultsSummary.evaluate((element) => getComputedStyle(element).position)).toBe('fixed')
   await expect(shootingDamage).toHaveText(/^\d+\.\d{2}$/)
   await expect(meleeDamage).toHaveText(/^\d+\.\d{2}$/)
+  await expect(page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(2)).toHaveText(/^\d+\.\d%$/)
   const startingShooting = Number(await shootingDamage.textContent())
   const startingMelee = Number(await meleeDamage.textContent())
   const boltRifle = page.getByRole('switch', { name: 'Include Bolt Rifle – Focused Fire in shooting calculation' })
@@ -945,3 +946,28 @@ test('a link that does not decode opens an empty simulator', async ({ page }) =>
   await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toBeVisible()
   await expect(page.getByText('Choose a unit to see its buffs.')).toHaveCount(2)
 })
+
+for (const width of [1440, 390]) {
+  test(`combined shooting and melee against Lion El'Jonson at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto('/simulator')
+    await chooseUnit(page, 'Attacker', 'Necrons', "C'tan Shard of the Void Dragon")
+    await chooseUnit(page, 'Defender', 'Dark Angels', "Lion El'Jonson")
+    const combined = page.getByRole('region', { name: 'Combined estimate' })
+    const numbers = combined.locator('.readout')
+    await expect(combined).toHaveAttribute('aria-busy', 'false')
+    await expect(numbers.nth(2)).toHaveText(/^\d+\.\d%$/)
+    const percentage = async (region: Locator) => Number((await region.locator('.readout').nth(2).textContent())!.replace('%', ''))
+    expect(await percentage(combined)).toBeGreaterThan(
+      (await percentage(estimate(page, 'Shooting'))) + (await percentage(estimate(page, 'Melee'))),
+    )
+    await noOverflow(page)
+    if (width === 390) {
+      expect(await page.getByLabel('Results summary').evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(160)
+    }
+    await page.getByRole('region', { name: 'Defender buffs' }).evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await page.screenshot({ path: `test-results/simulator-combined-lion-${width}.png` })
+    await numbers.first().click()
+    await expect(page.getByRole('dialog', { name: 'Combined · Wounds lost probabilities', exact: true })).toBeVisible()
+  })
+}

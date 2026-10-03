@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calculateCombat, diceExpression, woundTarget, type CombatInput } from './combat'
+import { calculateCombat, calculateCombatSequence, diceExpression, woundTarget, type CombatInput } from './combat'
 import { attackSequence, sampleCombat } from './combatReference'
 
 const input = (): CombatInput => ({
@@ -893,5 +893,78 @@ describe('exact calculation against every roll sequence', () => {
     const expected = enumerated(scenario)
     const exact = calculateCombat(scenario).damage
     expect(Math.max(...exact.map((weight, lost) => Math.abs(weight - (expected.get(lost) ?? 0))))).toBeLessThan(1e-12)
+  })
+})
+
+describe('shooting followed by melee', () => {
+  const phase = (kind: 'ranged' | 'melee', damage = 1) => {
+    const scenario = input()
+    scenario.target.groups = [{ models: 1, toughness: 4, save: 7, invulnerable: null, wounds: 2 }]
+    scenario.options.phase = kind
+    Object.assign(scenario.weapons[0]!, { torrent: true, damage: { dice: 0, sides: 6, bonus: damage } })
+    return scenario
+  }
+
+  it('can destroy a target neither phase can destroy alone', () => {
+    expect(calculateCombatSequence([phase('ranged'), phase('melee')]).wipe).toBeCloseTo(1 / 4)
+  })
+
+  it('counts wounds and models only once when shooting destroys the target', () => {
+    const shooting = phase('ranged', 2)
+    const melee = phase('melee', 2)
+    const result = calculateCombatSequence([shooting, melee])
+    expect([result.meanDamage, result.meanKills, result.wipe]).toEqual([expect.closeTo(1.5), expect.closeTo(0.75), expect.closeTo(0.75)])
+  })
+
+  it('keeps damage from spilling between models across phases', () => {
+    const shooting = phase('ranged', 3)
+    shooting.target.groups[0]!.models = 2
+    const melee = structuredClone(shooting)
+    melee.options.phase = 'melee'
+    expect(calculateCombatSequence([shooting, melee]).wipe).toBeCloseTo(1 / 4)
+  })
+
+  it('preserves existing wounds and applies each phase’s defences', () => {
+    const shooting = phase('ranged')
+    shooting.target.groups[0]!.wounds = 3
+    shooting.target.damage = 1
+    const melee = structuredClone(shooting)
+    melee.options.phase = 'melee'
+    melee.target.feelNoPain = 4
+    expect(calculateCombatSequence([shooting, melee]).wipe).toBeCloseTo(1 / 8)
+  })
+
+  it('uses the surviving allocation group’s defences for melee', () => {
+    const shooting = phase('ranged')
+    shooting.target.groups = [
+      { models: 1, toughness: 8, save: 7, invulnerable: null, wounds: 1 },
+      { models: 1, toughness: 4, save: 7, invulnerable: null, wounds: 1 },
+    ]
+    const melee = structuredClone(shooting)
+    melee.options.phase = 'melee'
+    expect(calculateCombatSequence([shooting, melee]).wipe).toBeCloseTo(1 / 12)
+  })
+
+  it('counts Cleave from the models surviving at the start of melee', () => {
+    const shooting = phase('ranged')
+    shooting.target.groups[0]!.models = 5
+    shooting.target.groups[0]!.wounds = 1
+    const melee = structuredClone(shooting)
+    melee.options.phase = 'melee'
+    melee.weapons[0]!.cleave = 1
+    expect(calculateCombatSequence([shooting, melee]).meanKills).toBeCloseTo(1.25)
+  })
+
+  it('includes mortal wounds before and after phase attacks', () => {
+    const shooting = phase('ranged')
+    shooting.weapons = []
+    shooting.mortalWounds = [{ timing: 'after', rolls: 1, outcomes: [{ min: 1, max: 6, damage: { dice: 0, sides: 6, bonus: 1 } }] }]
+    expect(calculateCombatSequence([shooting, phase('melee')]).wipe).toBeCloseTo(1 / 2)
+  })
+
+  it('refuses mismatched target health between phases', () => {
+    const melee = phase('melee')
+    melee.target.groups[0]!.wounds = 3
+    expect(() => calculateCombatSequence([phase('ranged'), melee])).toThrow('same target')
   })
 })

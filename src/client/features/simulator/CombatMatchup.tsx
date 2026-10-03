@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { ArrowUp, Crosshair, RotateCcw, Swords } from 'lucide-react'
+import { ArrowUp, Crosshair, Layers, RotateCcw, Swords } from 'lucide-react'
 import { ProfileGrid, WeaponProfiles } from '../../components/DatasheetProfiles'
 import type { Datasheet } from '../../../contracts/catalogue'
 import {
@@ -61,7 +61,8 @@ export type CombatantSnapshot = {
 type Phase = CombatOptions['phase']
 type Scope = Phase | 'all'
 export type CombatRequest = Record<Phase, CombatInput | null>
-export type CombatAnswer = Record<Phase, { result?: CombatResult; error?: string } | null>
+type CombatPhaseAnswer = { result?: CombatResult; error?: string } | null
+export type CombatAnswer = Record<Phase, CombatPhaseAnswer> & { combined?: CombatPhaseAnswer }
 type CombatEntryPoint = 'standalone' | 'roster' | 'battle'
 
 export function combatOutcomeEvent(answer: CombatAnswer, source: CombatEntryPoint) {
@@ -974,11 +975,19 @@ export function CombatMatchup({
           </section>
         </section>
       </div>
+      {outcome?.key === requestKey && outcome.answer.combined?.error ? (
+        <div role="alert" className="mt-3 text-sm text-discarded">
+          Combined estimate: {outcome.answer.combined.error}
+          <Button className="ml-2" size="sm" variant="outline" onClick={() => setRetry((value) => value + 1)}>
+            Retry
+          </Button>
+        </div>
+      ) : null}
       <div className="h-40 sm:h-32" aria-hidden />
       <div
         aria-label="Results summary"
         data-results-summary
-        className={`fixed right-0 left-0 z-40 mx-auto grid gap-1 border border-edge bg-panel/95 p-1 shadow-lg backdrop-blur sm:grid-cols-2 sm:gap-2 sm:p-2 ${inDialog ? 'bottom-0 max-w-3xl' : 'bottom-16 w-[calc(100%-1.5rem)] max-w-[calc(64rem-2rem)] sm:w-[calc(100%-2rem)] min-[860px]:bottom-0'}`}
+        className={`fixed right-0 left-0 z-40 mx-auto grid gap-1 border border-edge bg-panel/95 p-1 shadow-lg backdrop-blur sm:grid-cols-3 sm:gap-2 sm:p-2 ${inDialog ? 'bottom-0 max-w-3xl' : 'bottom-16 w-[calc(100%-1.5rem)] max-w-[calc(64rem-2rem)] sm:w-[calc(100%-2rem)] min-[860px]:bottom-0'}`}
       >
         <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2 px-2 text-xs text-dim sm:hidden">
           <span />
@@ -988,18 +997,20 @@ export function CombatMatchup({
             <span>Destroyed</span>
           </div>
         </div>
-        {phases.map(([phase, title]) => {
-          const valid = Boolean(scenario(phase))
+        {([...phases, ['combined', 'Combined']] as const).map(([phase, title]) => {
+          const valid = phase === 'combined' ? Boolean(scenarios.ranged && scenarios.melee) : Boolean(scenario(phase))
           const result = valid ? outcome?.answer[phase]?.result : undefined
           return (
             <section
               key={phase}
               aria-label={`${title} estimate`}
               aria-busy={valid && updating && !failed}
-              className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 rounded-md border border-edge bg-sunken px-2 py-1.5 sm:block sm:px-3 sm:py-2"
+              className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 rounded-md border border-edge bg-sunken px-2 py-0 sm:block sm:px-3 sm:py-2"
             >
               <h2 className="rubric flex items-center gap-1 text-xs sm:gap-2 sm:text-base">
-                {phase === 'ranged' ? (
+                {phase === 'combined' ? (
+                  <Layers className="size-3 shrink-0 text-info sm:size-4" aria-hidden />
+                ) : phase === 'ranged' ? (
                   <Crosshair className="size-3 shrink-0 text-info sm:size-4" aria-hidden />
                 ) : (
                   <Swords className="size-3 shrink-0 text-info sm:size-4" aria-hidden />
@@ -1018,7 +1029,7 @@ export function CombatMatchup({
                       <CombatEstimate label={`${title} · ${label}`} value={value} distribution={distribution} muted={updating || failed} />
                     ) : (
                       <p
-                        className={`readout flex min-h-9 items-center text-sm sm:mt-1 sm:min-h-0 sm:text-xl ${updating || failed ? 'text-dim' : 'text-primary'}`}
+                        className={`readout flex min-h-8 items-center text-sm sm:mt-1 sm:min-h-0 sm:text-xl ${updating || failed ? 'text-dim' : 'text-primary'}`}
                       >
                         {value ?? '—'}
                       </p>
