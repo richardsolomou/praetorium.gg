@@ -61,13 +61,15 @@ The GitHub workflow builds the canary and stable iOS applications in sequence on
 
 `just check` formats, lints, type-checks, and tests the mobile source with the web application.
 
-Native authentication testing requires a booted iOS Simulator, Java 21, and Maestro:
+Native authentication testing requires a booted iOS Simulator, Java 21, and Maestro. Set `NATIVE_AUTH_SIMULATOR_UDID` when several simulators are booted. The journey reserves that device before changing it, so another worktree cannot uninstall or launch its application on the same simulator concurrently:
 
 ```sh
 just e2e-native-auth-ios
 ```
 
-The test builds the Release application and launches it one time. It completes the native Google handoff against an isolated local stack. It checks the proof exchange, authenticated redirect, proof consumption, and authenticated reload. It also checks that the account appears without another application launch. On the signed-in Home screen it requests iOS notification permission, accepts the system prompt, and confirms that the device's Expo token reaches the local product database.
+The test allocates fresh ports and data independently of browser tests and the interactive preview, then builds the Release application and launches it one time. It completes the native Google handoff against an isolated local stack. It checks the proof exchange, authenticated redirect, proof consumption, and authenticated reload. It also checks that the account appears without another application launch. On the signed-in Home screen it requests iOS notification permission, accepts the system prompt, and confirms that the device's Expo token reaches the local product database.
+
+Authentication tests also cover a stale cookie and missing or null WebView `Origin` headers; browser headers alone do not prove the native exchange.
 
 Run this journey before pushing a change to the native shell, its dependencies, or its configuration. TestFlight submission is automatic, so the pushed commit must already have passed the release-mode journey.
 

@@ -57,3 +57,7 @@ Battle creation copies each selected stored event snapshot into the command log 
 Every battle started from an event appears in that event's battle history. Anyone who can open the league or battle link can follow a running battle or review it after it finishes without taking a seat. The spectator view shows the folded score and phase, both frozen armies with their current unit state, public missions and stratagem use, and the visibility-filtered battle report. It never exposes an unrevealed secret mission or any command controls.
 
 The ordinary battle creator checks the selected seats against every revealed event the player entered. An exact valid matchup sends the player to that event so the sealed rosters and event history are not skipped accidentally; continuing as an unlinked casual battle requires an explicit confirmation.
+
+## Verification
+
+Compare the saved choices with the sealed copy, including a change followed by restoration. Only an open event with different choices shows an actionable update notice beside the persistent points total, with replacement details in a popover. Matching and revealed events add no notice. Compare closed and open event layouts on phones.

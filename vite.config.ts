@@ -9,10 +9,11 @@ import { postHogIngestProxy } from 'ras-stack/posthog/proxy'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  process.env = { ...process.env, ...env }
+  process.env = { ...env, ...process.env }
   const posthog = postHogEnvironment({ projectToken: env.VITE_POSTHOG_PROJECT_TOKEN, host: env.VITE_POSTHOG_HOST })
   const proxy = posthog ? postHogIngestProxy(posthog) : undefined
   return {
+    ...(process.env.LOCAL_BUILD_DIR ? { cacheDir: path.join(process.env.LOCAL_BUILD_DIR, 'vite-cache') } : {}),
     resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
     // The Node preview renderer inlines its WebAssembly, which only an asset type accepts.
     assetsInclude: ['**/*.wasm'],
@@ -32,12 +33,23 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
+      strictPort: true,
       proxy: proxy?.vite,
       ...(process.env.LOCAL_VITE_ORIGIN ? { ws: { clientPort: Number(process.env.LOCAL_APP_PORT ?? 3000) } } : {}),
     },
     plugins: [
       tanstackStart({ serverFns: { disableCsrfMiddlewareWarning: true } }),
       nitro({
+        ...(process.env.LOCAL_BUILD_DIR
+          ? {
+              buildDir: path.join(process.env.LOCAL_BUILD_DIR, 'nitro'),
+              output: {
+                dir: process.env.LOCAL_BUILD_DIR,
+                serverDir: path.join(process.env.LOCAL_BUILD_DIR, 'server'),
+                publicDir: path.join(process.env.LOCAL_BUILD_DIR, 'public'),
+              },
+            }
+          : {}),
         plugins: [
           path.resolve(import.meta.dirname, 'src/server/warmPlugin.ts'),
           path.resolve(import.meta.dirname, 'src/server/cspPlugin.ts'),

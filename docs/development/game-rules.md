@@ -61,3 +61,9 @@ The same source ships the rules themselves beside its cards, in `datacards/11th/
 - A movement behaviour and a core stratagem carry labelled fields beside their prose. Each is labelled from the name the source gives it, so a field this app has never heard of reaches the page instead of disappearing. A field the source states only as a dash is not a rule and is left out.
 - The pictures are the printed rulebook's own photography and are not republished. Nothing else the format describes is dropped.
 - Every rules page shows the Game Datacards attribution.
+
+## Verification
+
+When replacing a layout source, trace every derived annotation to its inputs and check every affected map type. Compare every repeated piece with the publisher's image for reflection, rotation, orientation, and wall overlap. Preserve each objective type's visible marker label and leave room for it beside distance callouts.
+
+Placement guides anchor to actual outline corners; tilted terrain needs a second corner on a straight edge to determine rotation. Derive placement from the board's actual size, keep printed distances separate from approximate traced measurements, and inspect the enlarged map beside the publisher's image at desktop and phone widths. A format with one valid battlefield selects it automatically and offers enlargement without a selection control.

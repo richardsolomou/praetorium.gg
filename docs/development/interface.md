@@ -161,7 +161,7 @@ The palette is a plotting table: slate surfaces and chalk text. Field green repr
 
 The loadout pane is divided by responsibility. `loadoutModel.ts` contains screen-free shapes and decisions, `LoadoutControls.tsx` contains controls, `ModelCard.tsx` renders one model kind, and `Loadout.tsx` assigns choices to model or unit cards.
 
-Route files contain loaders, search parameters, and page shells; stateful interface code lives in `src/client/components`. `src/components/ui` contains generated shadcn Base UI components and changes only through the shadcn CLI. `src/styles.css` maps root tokens to Tailwind utilities through `@theme inline`.
+Route files contain loaders, search parameters, and page shells. Feature-specific state and rendering live in `src/client/features`; shared components live in `src/client/components`, as defined in [Architecture](architecture.md). `src/components/ui` contains generated shadcn Base UI components and changes only through the shadcn CLI. `src/styles.css` maps root tokens to Tailwind utilities through `@theme inline`.
 
 Every top-level page opens with `PageHeader` from `src/client/components/Page.tsx`: an eyebrow naming the area, the page's name, a line on what it is for, and the page's primary actions beside them. The reading column beneath it is `PageContent`, one width and one gutter for every page. The roster builder, the battle tracker, setup, and the sign-in screens have their own structure and share only the label styles below.
 
@@ -186,4 +186,10 @@ Both libraries are WebAssembly rather than native binaries, so the hosted Node a
 
 ## Verification
 
-Rendered changes are inspected at desktop and phone widths before the relevant Playwright flow runs. Both widths use the same component instances.
+Inspect rendered changes at desktop and phone widths before the relevant Playwright flow runs. Both widths use the same component instances. Check the last working interaction and its scroll container before restoring a map or dialog layout.
+
+For roster changes, inspect the unopened roster and the opened unit at the reported viewport; neither the document nor an affected pane may overflow horizontally. Battle cards remain two equal-height cards per desktop row and stacked on phones. Expanded battle loadouts are independent accordions in the army window's scroll flow, with no nested scroll pane; verify their pinned unit cards, collapse behavior, and return position at both widths.
+
+Inspect loading frames with JavaScript disabled as well as after hydration. Reserve the final geometry of asynchronous regions and check first navigation separately from a hard request. For replay changes, inspect the fixed timeline, scoreboard, and preserved report reading position through multiple scrubbed frames at both widths.
+
+Advance phases in browser tests through the shared E2E helper; checking a reminder and clicking separately races the asynchronous prompt. Exercise scoring, draw, and discard draft restoration through a full Undo and return. While prompts are minimized, their return controls remain visible and all battle-changing controls stay in place but disabled; this lock is local UI state, so domain validation must be checked separately.

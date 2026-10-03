@@ -94,7 +94,6 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --reporter=json > /dev/null
           node --import tsx scripts/e2eShard.ts "$RUNNER_TEMP/e2e-tests.json" "$E2E_SHARD" 8 > "$RUNNER_TEMP/e2e-shard.txt"
           PLAYWRIGHT_PORT="$((4170 + E2E_SHARD))" \
-            PLAYWRIGHT_DATA_ROOT="/tmp/praetorium-e2e-$((4170 + E2E_SHARD))" \
             PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
             PLAYWRIGHT_JSON_OUTPUT_NAME="e2e-report-$E2E_SHARD.json" \
             pnpm exec playwright test --test-list="$RUNNER_TEMP/e2e-shard.txt" --reporter=github,json
