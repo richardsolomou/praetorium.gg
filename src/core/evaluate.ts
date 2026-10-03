@@ -74,7 +74,10 @@ type Node = {
 class Census {
   private readonly seen = new Set<string>()
 
-  constructor(readonly associations = 0) {}
+  constructor(
+    readonly associations = 0,
+    readonly modifierCache?: ModifierCache,
+  ) {}
 
   note(what: string) {
     this.seen.add(what)
@@ -86,6 +89,8 @@ class Census {
 }
 
 export type EvaluateOptions = {
+  /** Reuse catalogue-only modifier expansion while the source definitions stay unchanged. */
+  modifierCache?: ModifierCache
   /**
    * The catalogue the list is being built from. Chapter-specific pricing asks for
    * it directly — a Blood Angels captain costs five points more than the same
@@ -146,7 +151,7 @@ export function profileModifiers(
    */
   companionIndexes: readonly number[] = [],
 ): ProfileModifier[] {
-  const census = new Census(companionIndexes.length)
+  const census = new Census(companionIndexes.length, options.modifierCache)
   const { root, forces } = rosterContext([selections], index, census, options)
   const force = forces[0]
   if (!force) return []
@@ -236,7 +241,7 @@ export function profileModifiers(
   }
 
   for (const node of descendants(root)) {
-    for (const modifier of modifiersOf(node)) add(node, modifier)
+    for (const modifier of modifiersOf(node, census)) add(node, modifier)
     if (!unitNodes.has(node)) continue
     for (const source of sourcesOf(node)) {
       for (const profile of source.profiles ?? []) {
@@ -258,25 +263,36 @@ export function profileModifiers(
   return [...found.values()]
 }
 
-export function flattenedModifiers(sources: readonly { modifiers?: Modifier[]; modifierGroups?: ModifierGroup[] }[]) {
+type ModifierSource = { modifiers?: Modifier[]; modifierGroups?: ModifierGroup[] }
+export type ModifierCache = WeakMap<ModifierSource, Modifier[]>
+
+export function flattenedModifiers(sources: readonly ModifierSource[], cache?: ModifierCache) {
   const collected: Modifier[] = []
-  const flatten = (group: ModifierGroup, inherited: ModifierGroup[]) => {
-    const chain = [...inherited, group]
-    for (const modifier of group.modifiers ?? []) {
-      collected.push({
-        ...modifier,
-        conditions: [...chain.flatMap((entry) => entry.conditions ?? []), ...(modifier.conditions ?? [])],
-        conditionGroups: [...chain.flatMap((entry) => entry.conditionGroups ?? []), ...(modifier.conditionGroups ?? [])],
-        repeats: [...chain.flatMap((entry) => entry.repeats ?? []), ...(modifier.repeats ?? [])],
-      })
-    }
-    for (const nested of group.modifierGroups ?? []) flatten(nested, chain)
-  }
   for (const source of sources) {
+    const cached = cache?.get(source)
+    if (cached) {
+      collected.push(...cached)
+      continue
+    }
+    const start = collected.length
     collected.push(...(source.modifiers ?? []))
-    for (const group of source.modifierGroups ?? []) flatten(group, [])
+    for (const group of source.modifierGroups ?? []) flattenModifierGroup(group, [], collected)
+    cache?.set(source, collected.slice(start))
   }
   return collected
+}
+
+function flattenModifierGroup(group: ModifierGroup, inherited: readonly ModifierGroup[], collected: Modifier[]) {
+  const chain = [...inherited, group]
+  for (const modifier of group.modifiers ?? []) {
+    collected.push({
+      ...modifier,
+      conditions: [...chain.flatMap((entry) => entry.conditions ?? []), ...(modifier.conditions ?? [])],
+      conditionGroups: [...chain.flatMap((entry) => entry.conditionGroups ?? []), ...(modifier.conditionGroups ?? [])],
+      repeats: [...chain.flatMap((entry) => entry.repeats ?? []), ...(modifier.repeats ?? [])],
+    })
+  }
+  for (const nested of group.modifierGroups ?? []) flattenModifierGroup(nested, chain, collected)
 }
 
 const PROFILE_MODIFIER_TYPES = new Set<Modifier['type']>([
@@ -380,6 +396,25 @@ export function evaluate(selections: readonly Selection[], index: CatalogueIndex
   return evaluateForces([selections], index, options)
 }
 
+/** Check one entry's legality in the full roster context without pricing the roster. */
+export function evaluationErrorsFor(
+  entryId: string,
+  selections: readonly Selection[],
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+): EvaluationError[] {
+  const census = new Census(0, options.modifierCache)
+  const { root } = rosterContext([selections], index, census, options)
+  const category = index.categories.has(entryId)
+  return descendants(root).flatMap((node) => {
+    // Category constraints report the category id rather than the selected entry's id.
+    if (node.target.id !== entryId && (!category || !linkedCategories(node).has(entryId))) return []
+    return [...violations(node, root, index, census), ...modifierErrors(node, root, index, census)].filter(
+      (error) => error.entryId === entryId,
+    )
+  })
+}
+
 /**
  * The keywords one of a roster's selections carries, by category id.
  *
@@ -393,7 +428,7 @@ export function keywordIds(selections: readonly Selection[], at: number, index: 
 }
 
 export function keywordIdsBySelection(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): string[][] {
-  const census = new Census()
+  const census = new Census(0, options.modifierCache)
   const { root, forces } = rosterContext([selections], index, census, options)
   const built = forces[0]?.children ?? []
   const grants = grantsOf(root, index, census)
@@ -416,7 +451,7 @@ export function evaluateForces(
   index: CatalogueIndex,
   options: EvaluateOptions = {},
 ): Evaluation {
-  const census = new Census()
+  const census = new Census(0, options.modifierCache)
   const { root, forces: builtForces } = rosterContext(forces, index, census, options)
   // Read up front rather than on the first question about a keyword, so a list that
   // asks none still reports the keyword rules this evaluator did not act on.
@@ -457,7 +492,7 @@ export function evaluateForces(
 function modifierErrors(node: Node, root: Node, index: CatalogueIndex, census: Census): EvaluationError[] {
   if (node === root) return []
   const name = node.target.name ?? node.target.id
-  return modifiersOf(node).flatMap((modifier) => {
+  return modifiersOf(node, census).flatMap((modifier) => {
     if (modifier.field !== 'error' || repeatCount(modifier, node, root, index, census) === 0) return []
     if (modifier.type !== 'add' || typeof modifier.value !== 'string') {
       census.note(`error modifier ${modifier.type} without text`)
@@ -474,11 +509,11 @@ export function hiddenByRules(
   options: EvaluateOptions = {},
   enclosingRoot?: Definition,
 ): boolean {
-  const census = new Census()
+  const census = new Census(0, options.modifierCache)
   const { root, node } = candidateContext(definition, index, options, census, enclosingRoot)
 
   let hidden = Boolean(definition.hidden || node.target.hidden)
-  for (const modifier of modifiersOf(node)) {
+  for (const modifier of modifiersOf(node, census)) {
     if (modifier.field !== 'hidden') continue
     if (repeatCount(modifier, node, root, index, census) === 0) continue
     if (modifier.type === 'set') hidden = modifier.value === true
@@ -506,7 +541,7 @@ export function selectionCountBounds(
   index: CatalogueIndex,
   options: EvaluateOptions = {},
 ): { minimum: number; maximum: number | null } {
-  const census = new Census()
+  const census = new Census(0, options.modifierCache)
   const { root, node } = candidateContext(definition, index, options, census)
   return selectionCountBoundsFor(node, root, index, census)
 }
@@ -518,7 +553,7 @@ export function selectionCountBoundsAt(
   index: CatalogueIndex,
   options: EvaluateOptions = {},
 ): { minimum: number; maximum: number | null } | null {
-  const census = new Census()
+  const census = new Census(0, options.modifierCache)
   const candidate = withPath(selection, path)
   const { root, forces } = rosterContext([[...(options.roster ?? []), candidate]], index, census, options)
   let node = forces[0]?.children.at(-1)
@@ -574,7 +609,7 @@ export function enhancementLimit(
   const type = [...index.costTypes.values()].find((cost) => cost.name === ENHANCEMENT_COST)
   const entry = index.forces[0]
   if (!type || !entry) return null
-  const census = new Census()
+  const census = new Census(0, options.modifierCache)
   const { root, forces: built } = rosterContext(forces, index, census, options)
   const force = built[0]
   if (!force) return null
@@ -603,7 +638,7 @@ export function battleSizeSelection(index: CatalogueIndex, limit: number | null)
 
 /** Resolve roster-scoped limits with the full selection and battle size; `violations` remains the authority on legality. */
 export function rosterLimit(definition: Definition, index: CatalogueIndex, options: EvaluateOptions = {}): number | null {
-  const census = new Census()
+  const census = new Census(0, options.modifierCache)
   const { root, node } = candidateContext(definition, index, options, census)
   const target = node.target
 
@@ -758,7 +793,7 @@ function costsOf(node: Node, root: Node, index: CatalogueIndex, census: Census):
     for (const cost of source.costs ?? []) base.set(cost.typeId, cost.value)
   }
 
-  const modifiers = modifiersOf(node).toSorted((left, right) => Number(right.type === 'set') - Number(left.type === 'set'))
+  const modifiers = modifiersOf(node, census).toSorted((left, right) => Number(right.type === 'set') - Number(left.type === 'set'))
   for (const modifier of modifiers) {
     if (!index.costTypes.has(modifier.field)) continue
     const times = repeatCount(modifier, node, root, index, census)
@@ -781,30 +816,8 @@ function costsOf(node: Node, root: Node, index: CatalogueIndex, census: Census):
 }
 
 /** Every modifier that applies to this node, with modifier groups flattened and gated. */
-function modifiersOf(node: Node): Modifier[] {
-  if (node.modifiers) return node.modifiers
-  const collected: Modifier[] = []
-  const flatten = (group: ModifierGroup, inherited: ModifierGroup[]) => {
-    const chain = [...inherited, group]
-    for (const modifier of group.modifiers ?? []) {
-      // A group's conditions gate everything inside it, so they become the
-      // modifier's own — the modifier is only ever evaluated once, here.
-      collected.push({
-        ...modifier,
-        conditions: [...chain.flatMap((entry) => entry.conditions ?? []), ...(modifier.conditions ?? [])],
-        conditionGroups: [...chain.flatMap((entry) => entry.conditionGroups ?? []), ...(modifier.conditionGroups ?? [])],
-        repeats: [...chain.flatMap((entry) => entry.repeats ?? []), ...(modifier.repeats ?? [])],
-      })
-    }
-    for (const nested of group.modifierGroups ?? []) flatten(nested, chain)
-  }
-
-  for (const source of sourcesOf(node)) {
-    collected.push(...(source.modifiers ?? []))
-    for (const group of source.modifierGroups ?? []) flatten(group, [])
-  }
-  node.modifiers = collected
-  return collected
+function modifiersOf(node: Node, census: Census): Modifier[] {
+  return (node.modifiers ??= flattenedModifiers(sourcesOf(node), census.modifierCache))
 }
 
 /**
@@ -1045,7 +1058,7 @@ function grantsOf(root: Node, index: CatalogueIndex, census: Census): Map<Node, 
   root.grants = grants
   const decided: { target: Node; categoryId: string; present: boolean }[] = []
   for (const node of descendants(root)) {
-    for (const modifier of modifiersOf(node)) {
+    for (const modifier of modifiersOf(node, census)) {
       if (modifier.field !== 'category') continue
       // `set-primary` and `unset-primary` change which keyword shelves a datasheet,
       // not which keywords it carries. They are understood but irrelevant here.
@@ -1253,7 +1266,7 @@ function constraintValue(
   extra: readonly Modifier[] = [],
 ): number {
   let value = constraint.value
-  for (const modifier of [...modifiersOf(node), ...extra]) {
+  for (const modifier of [...modifiersOf(node, census), ...extra]) {
     if (modifier.field !== constraint.id) continue
     const times = repeatCount(modifier, node, root, index, census)
     if (times === 0) continue

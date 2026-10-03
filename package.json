@@ -1,6 +1,6 @@
 {
   "name": "praetorium.gg",
-  "version": "0.97.1",
+  "version": "0.97.2",
   "private": true,
   "description": "Build Warhammer 40,000 armies and track games from setup to final score.",
   "license": "AGPL-3.0-only",
@@ -115,6 +115,8 @@
   "devDependencies": {
     "@changesets/cli": "3.0.3",
     "@playwright/test": "^1.62.1",
+    "@posthog/cli": "0.14.1",
+    "@posthog/rollup-plugin": "1.6.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/canvas-confetti": "^1.9.0",
     "@types/http-proxy": "1.17.17",

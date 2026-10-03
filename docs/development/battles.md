@@ -2,6 +2,8 @@
 
 `src/core/battle.ts` owns the log, `validate`, and `apply`. `battleView.ts` controls visibility. `battleReport.ts` renders the log. The battle report shows each event’s date and time from its existing timestamp, and battle shelves show the last activity date even while a game is live. `src/server/service.ts` connects the domain to storage and realtime updates.
 
+Paginated battle queries reject missing response pages before TanStack Query can cache them. A failed refresh keeps the previous pages; readers skip missing cached pages and treat a missing final page as the end until a successful refresh replaces it.
+
 ## Command log
 
 - The log stores commands rather than derived battle state. `reduceBattle` derives the score, round, phase, and unit state.
@@ -124,6 +126,7 @@ The fold reads whole logs, so it is bounded by a window and a count, and the ser
 - Realtime messages contain only the battle ID, plus the log's new sequence number when one command caused them. The client refetches through the normal read path, unless its screen already holds that sequence, and never draws state from the message. While the battle subscription is unavailable, the open battle polls until it subscribes, so a connected transport with a failed subscription cannot leave the table stale. A subscription token carries its subject and its channel and nothing else — nothing on a screen is drawn from a connection, so nothing needs to be.
 - `/api/spacetime/token` requires an account and issues a token for that deployment's product database. A guest receives only a SpacetimeDB-native identity through the restricted `/spacetime/v1/identity` proxy; private views return no rows for it, and product reducers require an authenticated session or the operator.
 - Both guest and signed-in browser connections use the page's origin for the `/spacetime/` proxy, including when a local page uses the other loopback hostname from `APP_URL`.
+- Reconnection starts after 5–10 seconds and doubles its base delay to 60 seconds, with jitter up to another 60 seconds. Retries continue while the subscription is mounted; 30 seconds of an applied subscription resets the backoff. Brief socket or subscription flaps do not reset it. Only a token HTTP 401 rechecks the signed-in account; transport failures and service outages leave the account query alone.
 - Battle signals use the internal battle ID, not the shared token.
 - Deployments use one authenticated, user-scoped SpacetimeDB product signal subscription across pages. A battle create, command, or deletion advances that player's `battles` revision and refetches their cached lists. The open battle also subscribes to its own sequence view.
 - A second view carries only global revision counters for shared reads: battle feeds, spectator screens, standings, public and unlisted rosters, league pages, invite links, and practice opponent choices. Both guests and signed-in readers can subscribe to those counters. Server functions still enforce every viewer's permissions; the counters contain no IDs or product rows. The browser coalesces overlapping refetches through React Query, and a disconnected subscription falls back to periodic active-query refetches.

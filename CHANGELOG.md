@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.97.2
+
+### Patch Changes
+
+- 9fbc682: Back off realtime reconnections during outages and stop reporting expected network failures as exceptions.
+
 ## 0.97.1
 
 ### Patch Changes

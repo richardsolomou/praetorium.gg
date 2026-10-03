@@ -7,6 +7,7 @@ import { battleQuery, battlesQuery } from './queries'
 import { maintainSpacetimeConnection } from './spacetimeConnection'
 import { invalidateAdminProductQueries, invalidateProductQueries, invalidatePublicProductQueries } from './productSignals'
 import { spacetimeBrowserUri } from './spacetimeBrowserUri'
+import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
 
 type RealtimeConfig = { mode: 'spacetime'; database: string; uri: string }
 let modePromise: Promise<RealtimeConfig> | null = null
@@ -17,7 +18,7 @@ export function useRealtimeConfig() {
     let active = true
     modePromise ??= fetch('/api/realtime/mode')
       .then((response) => {
-        if (!response.ok) throw new Error(`Realtime mode failed with HTTP ${response.status}`)
+        if (!response.ok) throw new RealtimeHttpError('Realtime mode', response.status)
         return response.json()
       })
       .then((value: unknown) => {
@@ -50,19 +51,20 @@ const ticketSchema = z.object({
 async function ticket(battle?: string) {
   const url = battle ? `/api/spacetime/token?battle=${encodeURIComponent(battle)}` : '/api/spacetime/token'
   const response = await fetch(url, { cache: 'no-store' })
-  if (!response.ok) throw new Error(`Spacetime token failed with HTTP ${response.status}`)
+  if (!response.ok) throw new RealtimeHttpError('Spacetime token', response.status)
   const issued = ticketSchema.parse(await response.json())
   return { ...issued, uri: spacetimeBrowserUri(issued.uri, window.location.origin) }
 }
 
 async function guestTicket(config: RealtimeConfig) {
   const response = await fetch(new URL('v1/identity', config.uri), { method: 'POST', cache: 'no-store' })
-  if (!response.ok) throw new Error(`Spacetime guest token failed with HTTP ${response.status}`)
+  if (!response.ok) throw new RealtimeHttpError('Spacetime guest token', response.status)
   const { token } = z.object({ token: z.string().min(1) }).parse(await response.json())
   return { token, database: config.database, uri: config.uri, battleId: null }
 }
 
 function report(error: unknown) {
+  if (isExpectedRealtimeDisconnect(error)) return
   posthog.captureException(error, { operation: 'spacetime_realtime' })
   console.error({ event: 'spacetime_realtime_failed', error })
 }
@@ -94,7 +96,7 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
         const battleId = issued.battleId
         return battleId ? { ...issued, battleId } : null
       },
-      open: (issued, failed, isCurrent) => {
+      open: (issued, failed, isCurrent, ready) => {
         const battleId = issued.battleId
         return DbConnection.builder()
           .withUri(issued.uri)
@@ -113,6 +115,7 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
               .subscriptionBuilder()
               .onApplied(() => {
                 if (!isCurrent()) return
+                ready()
                 setSubscribed(true)
                 refresh()
                 void current.reducers.watchBattle({ battleId }).catch(report)
@@ -162,16 +165,17 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
   useEffect(() => {
     if (!config) return
     return maintainSpacetimeConnection({
-      // Rotating a session deletes its row before the response carrying the new cookie
-      // arrives, so a deleted row only reconnects; a refused ticket is what signs out.
+      // Session rotation deletes its row before the new cookie arrives; only a ticket 401 rechecks authentication.
       issue: signedIn
         ? () =>
             ticket().catch((error: unknown) => {
-              void queryClient.invalidateQueries({ queryKey: ['me'] })
+              if (error instanceof RealtimeHttpError && error.status === 401) {
+                void queryClient.invalidateQueries({ queryKey: ['me'] })
+              }
               throw error
             })
         : () => guestTicket(config),
-      open: (issued, failed, isCurrent) =>
+      open: (issued, failed, isCurrent, ready) =>
         DbConnection.builder()
           .withUri(issued.uri)
           .withDatabaseName(issued.database)
@@ -203,6 +207,7 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
               .onApplied(() => {
                 if (!isCurrent()) return
                 applied = true
+                ready()
                 setSubscribed(true)
                 if (signedIn) refresh()
                 if (signedIn) refreshAdmin()

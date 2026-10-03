@@ -19,7 +19,14 @@ import {
   targetOf,
 } from './catalogue'
 import { isCollectiveGroup } from './collective'
-import { type EvaluateOptions, flattenedModifiers, selectionCountBounds, selectionCountBoundsAt, type Selection } from './evaluate'
+import {
+  type EvaluateOptions,
+  flattenedModifiers,
+  type ModifierCache,
+  selectionCountBounds,
+  selectionCountBoundsAt,
+  type Selection,
+} from './evaluate'
 
 export { isCollective, isCollectiveGroup, scaleOf } from './collective'
 
@@ -91,26 +98,26 @@ export function requiredCount(definition: Definition, index: CatalogueIndex, opt
   return minimums.length ? Math.max(...minimums) : 0
 }
 
-export function hasMutableMinimum(definition: Definition, index: CatalogueIndex): boolean {
+export function hasMutableMinimum(definition: Definition, index: CatalogueIndex, cache?: ModifierCache): boolean {
   const minimums = new Set(
     constraintsOn(definition, index)
       .filter(isSelectionMinimum)
       .map((constraint) => constraint.id),
   )
   const target = resolve(definition, index)
-  return flattenedModifiers([definition, ...(target === definition ? [] : [target])]).some(
+  return flattenedModifiers([definition, ...(target === definition ? [] : [target])], cache).some(
     (modifier) => minimums.has(modifier.field) && ['set', 'increment', 'decrement'].includes(modifier.type),
   )
 }
 
-export function hasDynamicSelectionLimit(definition: Definition, index: CatalogueIndex): boolean {
+export function hasDynamicSelectionLimit(definition: Definition, index: CatalogueIndex, cache?: ModifierCache): boolean {
   const maximums = new Set(
     constraintsOn(definition, index)
       .filter((constraint) => constraint.type === 'max' && constraint.field === 'selections')
       .map((constraint) => constraint.id),
   )
   const target = resolve(definition, index)
-  return flattenedModifiers([definition, ...(target === definition ? [] : [target])]).some(
+  return flattenedModifiers([definition, ...(target === definition ? [] : [target])], cache).some(
     (modifier) => modifier.field === 'error' || (maximums.has(modifier.field) && ['set', 'increment', 'decrement'].includes(modifier.type)),
   )
 }

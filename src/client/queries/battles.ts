@@ -25,23 +25,28 @@ export type { BattlesCursor } from '../../contracts/battles'
 export const battlesQuery = () =>
   infiniteQueryOptions({
     queryKey: ['battles'],
-    queryFn: ({ pageParam }) => myBattles({ data: { before: pageParam } }),
+    queryFn: ({ pageParam }) => myBattles({ data: { before: pageParam } }).then(requireBattlePage),
     initialPageParam: null as BattlesCursor | null,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    getNextPageParam: (page) => page?.nextCursor ?? undefined,
     staleTime: SSR_STALE_TIME,
   })
 
-export const battlesFrom = (data: { pages: { battles: unknown[] }[] } | undefined) =>
-  (data?.pages.flatMap((page) => page.battles) ?? []) as Awaited<ReturnType<typeof myBattles>>['battles']
+export const battlesFrom = (data: { pages: ({ battles: unknown[] } | undefined)[] } | undefined) =>
+  (data?.pages.flatMap((page) => page?.battles ?? []) ?? []) as Awaited<ReturnType<typeof myBattles>>['battles']
+
+export function requireBattlePage<T>(page: T | null | undefined): T {
+  if (page == null) throw new Error('The battle feed returned no page.')
+  return page
+}
 
 const FEED_POLL_MS = 20_000
 
 export const publicBattlesQuery = () =>
   infiniteQueryOptions({
     queryKey: ['public-battles'],
-    queryFn: ({ pageParam }) => publicBattles({ data: { before: pageParam } }),
+    queryFn: ({ pageParam }) => publicBattles({ data: { before: pageParam } }).then(requireBattlePage),
     initialPageParam: null as BattlesCursor | null,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    getNextPageParam: (page) => page?.nextCursor ?? undefined,
     staleTime: SSR_STALE_TIME,
     refetchInterval: FEED_POLL_MS,
   })
@@ -49,9 +54,9 @@ export const publicBattlesQuery = () =>
 export const friendBattlesQuery = () =>
   infiniteQueryOptions({
     queryKey: ['friend-battles'],
-    queryFn: ({ pageParam }) => friendBattles({ data: { before: pageParam } }),
+    queryFn: ({ pageParam }) => friendBattles({ data: { before: pageParam } }).then(requireBattlePage),
     initialPageParam: null as BattlesCursor | null,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    getNextPageParam: (page) => page?.nextCursor ?? undefined,
     staleTime: SSR_STALE_TIME,
     refetchInterval: FEED_POLL_MS,
   })

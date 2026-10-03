@@ -6,6 +6,24 @@ import viteReact from '@vitejs/plugin-react'
 import { nitro } from 'nitro/vite'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { postHogIngestProxy } from 'ras-stack/posthog/proxy'
+import posthogRollup from '@posthog/rollup-plugin'
+
+export function webSourceMapPlugins(env: NodeJS.ProcessEnv) {
+  if (env.POSTHOG_UPLOAD_SOURCEMAPS !== 'true') return []
+  return [
+    posthogRollup({
+      personalApiKey: env.POSTHOG_CLI_API_KEY!,
+      projectId: env.POSTHOG_CLI_PROJECT_ID,
+      host: env.POSTHOG_CLI_HOST,
+      sourcemaps: {
+        releaseName: 'praetorium-web',
+        releaseVersion: env.GITHUB_SHA,
+        releaseMode: 'symbol-set',
+        deleteAfterUpload: true,
+      },
+    }),
+  ]
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -18,6 +36,7 @@ export default defineConfig(({ mode }) => {
     // The Node preview renderer inlines its WebAssembly, which only an asset type accepts.
     assetsInclude: ['**/*.wasm'],
     build: {
+      sourcemap: 'hidden',
       rolldownOptions: {
         output: {
           codeSplitting: {
@@ -31,6 +50,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    worker: { plugins: () => webSourceMapPlugins(env) },
     server: {
       port: 3000,
       strictPort: true,
@@ -73,6 +93,10 @@ export default defineConfig(({ mode }) => {
       }),
       viteReact(),
       tailwindcss(),
+      ...webSourceMapPlugins(env).map((plugin) => ({
+        ...plugin,
+        applyToEnvironment: (environment: { name: string }) => environment.name === 'client',
+      })),
     ],
   }
 })
