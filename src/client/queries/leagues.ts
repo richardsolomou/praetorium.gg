@@ -1,6 +1,6 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import { listLeagueBattles, listLeagues, openLeague, openLeagueRoster, outdatedLeagueEntriesForRoster } from '../../server/functions'
-import type { BattlesCursor } from './battles'
+import { type BattlesCursor, requireBattlePage } from './battles'
 import { SSR_STALE_TIME } from './shared'
 
 export const leaguesQuery = () => queryOptions({ queryKey: ['leagues'], queryFn: () => listLeagues(), staleTime: SSR_STALE_TIME })
@@ -29,12 +29,12 @@ export const leagueRosterQuery = (token: string, eventToken: string | undefined,
 export const leagueBattlesQuery = (token: string, eventToken: string) =>
   infiniteQueryOptions({
     queryKey: ['league-battles', token, eventToken],
-    queryFn: ({ pageParam }) => listLeagueBattles({ data: { token, eventToken, before: pageParam } }),
+    queryFn: ({ pageParam }) => listLeagueBattles({ data: { token, eventToken, before: pageParam } }).then(requireBattlePage),
     initialPageParam: null as BattlesCursor | null,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    getNextPageParam: (page) => page?.nextCursor ?? undefined,
     staleTime: SSR_STALE_TIME,
     refetchInterval: 5_000,
   })
 
-export const leagueBattlesFrom = (data: { pages: { battles: unknown[] }[] } | undefined) =>
-  (data?.pages.flatMap((page) => page.battles) ?? []) as Awaited<ReturnType<typeof listLeagueBattles>>['battles']
+export const leagueBattlesFrom = (data: { pages: ({ battles: unknown[] } | undefined)[] } | undefined) =>
+  (data?.pages.flatMap((page) => page?.battles ?? []) ?? []) as Awaited<ReturnType<typeof listLeagueBattles>>['battles']
