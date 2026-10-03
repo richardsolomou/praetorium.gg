@@ -101,3 +101,9 @@ pnpm catalogue:combat:shortlist --input combat-reports/inventory.json
 The audit bounds concurrency, request count, retries, and deadlines. Successful judgments are cached by source text, question definitions, and model revision; compiler changes can reuse them. A failed cache restore stops classification. An incomplete run emits a partial report and exits nonzero. Reports and caches stay outside Git, and the application needs no TypeSafe credentials.
 
 Extend compiler coverage from source descriptions and test recipients, phases, conditions, stacking, and observable probabilities. An unknown additional clause keeps its whole rule uncalculated. Recheck the source inventory after parser changes; model classifications are discovery leads, not proof of mechanic support.
+
+## Verification
+
+Keep the compact matchup, its inputs, and previous estimates stable through edits; both phases calculate automatically. Group Loadout and Optimize together, align model controls to the right, and wrap only when their actual widths cannot fit together. The phone's pinned outcome readout shows combined results above the navigation, with phase rows and charts under Breakdown. Treat unequipped or fully excluded phases as zero attacks while keeping unsupported phases blocked. Keep each phase icon visible and its label separate from the first metric. Verify the readout's alignment with the matchup and enough scroll space for the final controls at both widths. Distribution charts show positive thresholds only.
+
+Apply AP before comparing printed, effective, and invulnerable saves. Ineffective selections remain quiet cues, while every selected modifier remains visibly selected and listed by source even at the roll cap; explain the cap separately. When changing selection cues, update browser assertions for every selected and unselected state. Estimate only the actual carriers of evaluator-accepted server-built loadouts, and keep battle loadouts free of loadout odds.

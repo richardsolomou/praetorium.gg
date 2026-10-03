@@ -1,9 +1,12 @@
 import { defineConfig, devices } from '@playwright/test'
-import { baseURL, catalogue, port, root } from './e2e/stackEnv'
+import path from 'node:path'
+import { baseURL, catalogue, internalPort, port, readyPort, root, spacetimePort } from './e2e/stackEnv'
+
+delete process.env.NO_COLOR
 
 export default defineConfig({
   testDir: './e2e',
-  outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results',
+  outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? path.join('test-results', path.basename(root)),
   // Each CI shard owns its local SQLite and SpacetimeDB data; scripts/e2eShard.ts assigns its tests.
   // Every test signs up its own players, so tests in one file can share a stack. Two workers is
   // what one stack sustains: at three, live-update tests start timing out locally.
@@ -30,13 +33,20 @@ export default defineConfig({
     command: 'pnpm exec tsx scripts/localDev.ts',
     env: {
       LOCAL_APP_PORT: String(port),
+      LOCAL_INTERNAL_PORT: String(internalPort),
+      LOCAL_SPACETIME_PORT: String(spacetimePort),
+      LOCAL_READY_PORT: String(readyPort),
+      LOCAL_PUBLIC_URL: baseURL,
+      LOCAL_VITE_ORIGIN: '',
       LOCAL_DATA_DIR: root,
       LOCAL_TEST_MODE: 'true',
+      NO_COLOR: '',
       EXPO_PUSH_ACCESS_TOKEN: 'unused-e2e-token',
-      CATALOGUE_HOST_DIR: catalogue,
+      CATALOGUE_DIR: catalogue,
     },
-    url: `http://127.0.0.1:${port + 20_000}/ready`,
+    url: `http://127.0.0.1:${readyPort}/ready`,
     reuseExistingServer: false,
+    gracefulShutdown: { signal: 'SIGTERM', timeout: 15_000 },
     // The first run builds and seeds the local web and product databases.
     timeout: 240_000,
   },

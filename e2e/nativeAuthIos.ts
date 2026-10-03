@@ -4,15 +4,19 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { request as httpRequest, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer as createHttpsServer, request as httpsRequest } from 'node:https'
 import path from 'node:path'
+import { localControlPort } from '../scripts/localDevPreview'
+import { localTestEnvironment, reserveLocalPort } from '../scripts/lib/localStack'
 import { withAuthSql } from './storage'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 
 const root = path.join(import.meta.dirname, '..')
-const backendPort = Number(process.env.NATIVE_AUTH_BACKEND_PORT ?? 4274)
-const publicPort = Number(process.env.NATIVE_AUTH_PUBLIC_PORT ?? 4273)
-const dataDirectory = `/tmp/praetorium-native-auth-ios-${backendPort}`
+const stackEnvironment = await localTestEnvironment('native-auth-ios', { PLAYWRIGHT_PORT: process.env.NATIVE_AUTH_BACKEND_PORT })
+const backendPort = Number(stackEnvironment.PLAYWRIGHT_PORT)
+const publicReservation = await reserveLocalPort(Number(process.env.NATIVE_AUTH_PUBLIC_PORT ?? 0))
+const publicPort = publicReservation.port
+const dataDirectory = stackEnvironment.PLAYWRIGHT_DATA_ROOT
 const backendUrl = `http://127.0.0.1:${backendPort}`
-const readyUrl = `http://127.0.0.1:${backendPort + 20_000}/ready`
+const readyUrl = `http://127.0.0.1:${stackEnvironment.PLAYWRIGHT_READY_PORT}/ready`
 const publicUrl = `https://localhost:${publicPort}`
 const fixtureName = 'Native Auth Simulator'
 const fixtureEmail = `native-auth-${randomUUID()}@example.test`
@@ -27,7 +31,8 @@ let fixtureCookie = ''
 let fixtureUserId = ''
 let initialNativeRouteHandled = false
 let expectedAuthenticatedDestination: URL | undefined
-let stopStack: (() => void) | undefined
+let stopStack: (() => Promise<void>) | undefined
+let deviceReservation: Awaited<ReturnType<typeof reserveLocalPort>> | undefined
 let proxy: ReturnType<typeof createHttpsServer> | undefined
 
 function isExpectedAuthenticatedDestination(target: URL, withMarker: boolean) {
@@ -263,8 +268,10 @@ async function bootedSimulator() {
   const devices = JSON.parse(await output('xcrun', ['simctl', 'list', 'devices', 'booted', '--json'])) as {
     devices: Record<string, { udid: string }[]>
   }
-  const udid = Object.values(devices.devices).flat()[0]?.udid
-  if (!udid) throw new Error('Boot an iOS Simulator before running the native authentication test.')
+  const booted = Object.values(devices.devices).flat()
+  const requested = process.env.NATIVE_AUTH_SIMULATOR_UDID
+  const udid = requested ? booted.find((device) => device.udid === requested)?.udid : booted.length === 1 ? booted[0].udid : undefined
+  if (!udid) throw new Error('Select one booted iOS Simulator with NATIVE_AUTH_SIMULATOR_UDID when more than one is booted.')
   return udid
 }
 
@@ -282,7 +289,7 @@ async function assertPushRegistered() {
     operator: { token: string }
   }
   const operator = new SpacetimeOperator(
-    `http://127.0.0.1:${backendPort + 10_000}/`,
+    `http://127.0.0.1:${stackEnvironment.PLAYWRIGHT_SPACETIME_PORT}/`,
     `praetorium-local-${backendPort}`,
     credentials.operator.token,
   )
@@ -299,17 +306,23 @@ function skipLocalPostHogUpload(projectFile: string) {
 }
 
 async function main() {
+  const udid = await bootedSimulator()
+  deviceReservation = await reserveLocalPort(localControlPort(`native-auth-device:${udid}`))
   await ensureTlsCertificate()
+  await publicReservation.release()
   await startProxy()
-  const stack = spawn('pnpm', ['exec', 'tsx', 'scripts/localDev.ts'], {
+  const stack = spawn(process.execPath, ['--import', 'tsx', 'scripts/localDev.ts'], {
     cwd: root,
     env: {
       ...process.env,
-      CATALOGUE_HOST_DIR: process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data'),
+      CATALOGUE_DIR: process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data'),
       GOOGLE_CLIENT_ID: 'native-auth-simulator',
       GOOGLE_CLIENT_SECRET: 'native-auth-simulator-secret',
       LOCAL_PUBLIC_URL: publicUrl,
       LOCAL_APP_PORT: String(backendPort),
+      LOCAL_INTERNAL_PORT: stackEnvironment.PLAYWRIGHT_INTERNAL_PORT,
+      LOCAL_SPACETIME_PORT: stackEnvironment.PLAYWRIGHT_SPACETIME_PORT,
+      LOCAL_READY_PORT: stackEnvironment.PLAYWRIGHT_READY_PORT,
       LOCAL_DATA_DIR: dataDirectory,
       LOCAL_TEST_MODE: 'true',
       EXPO_PUSH_ACCESS_TOKEN: 'unused-native-e2e-token',
@@ -317,10 +330,14 @@ async function main() {
     },
     stdio: 'inherit',
   })
-  stopStack = () => stack.kill('SIGTERM')
+  stopStack = async () => {
+    if (stack.exitCode !== null || stack.signalCode !== null) return
+    const exited = new Promise<void>((resolve) => stack.once('exit', () => resolve()))
+    stack.kill('SIGTERM')
+    await exited
+  }
   await waitForHealth()
   await createFixture()
-  const udid = await bootedSimulator()
   await run('xcrun', ['simctl', 'keychain', udid, 'add-root-cert', tlsCertificate])
   const mobile = path.join(root, 'mobile')
   const derived = path.join(mobile, '.simulator-derived', 'native-auth-e2e')
@@ -388,6 +405,9 @@ try {
   console.error(`Observed native authentication events: ${events.join(' -> ') || 'none'}`)
   throw error
 } finally {
+  await stopStack?.()
+  proxy?.closeAllConnections()
   if (proxy) await new Promise<void>((resolve) => proxy!.close(() => resolve()))
-  stopStack?.()
+  await publicReservation.release()
+  await deviceReservation?.release()
 }

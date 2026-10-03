@@ -7,9 +7,18 @@ install:
     corepack enable
     pnpm install
 
-# The Node app, local SQLite and object storage, and a local SpacetimeDB instance
+# Start or reuse this worktree's persistent Vite, SQLite, object storage, and SpacetimeDB stack
 dev:
     pnpm dev
+
+dev-status:
+    pnpm dev:status
+
+dev-stop:
+    pnpm dev:stop
+
+dev-restart:
+    pnpm dev:restart
 
 # The native application against the local development service
 mobile *args:

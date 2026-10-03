@@ -52,3 +52,5 @@ Large authoritative modules are not split by line count alone. `src/core/battle.
 Tests stay beside the behavior they specify. Split large suites by scenario while continuing to exercise the same public entry point, and share setup through a narrowly named harness rather than copying fixtures.
 
 Use `*.integration.test.ts` for database, application-service, authentication, and snapshot integration tests; other `*.test.ts` files are unit tests. Use `just test-unit` for the fast feedback loop and `just test-integration` for those integration boundaries. `just check` continues to run the complete suite.
+
+Test server request adapters with a foreign `Request` implementation. Rebuild requests from their URL, fields, and body rather than passing a framework request to `new Request(request)`.

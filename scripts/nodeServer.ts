@@ -16,6 +16,10 @@ import { publicAssetsR2Client } from '../src/server/r2Client.ts'
 
 const execFile = promisify(execFileCallback)
 
+export function nodeBuildDirectory(environment: NodeJS.ProcessEnv = process.env) {
+  return environment.LOCAL_BUILD_DIR ? path.resolve(environment.LOCAL_BUILD_DIR) : fileURLToPath(new URL('../.output', import.meta.url))
+}
+
 type SpacetimeRoute = 'identity' | 'exchange' | 'subscribe' | null
 
 export function spacetimeRoute(request: Pick<IncomingMessage, 'url' | 'method' | 'headers'>, database: string): SpacetimeRoute {
@@ -128,7 +132,7 @@ export async function startNodeServer() {
       const temporary = `${authPath}.${randomUUID()}.seed`
       try {
         await importAuthSqlite(migration, temporary)
-        await execFile(process.execPath, [fileURLToPath(new URL('../.output/server/seed-preview.mjs', import.meta.url))], {
+        await execFile(process.execPath, [path.join(nodeBuildDirectory(), 'server/seed-preview.mjs')], {
           env: { ...process.env, AUTH_SQLITE_PATH: temporary },
           maxBuffer: 4_000_000,
           timeout: 180_000,
@@ -162,10 +166,13 @@ export async function startNodeServer() {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(database)) throw new Error('Invalid SpacetimeDB database')
   const upstream = spacetimeOrigin(process.env)
   const viteOrigin = process.env.PRAETORIUM_LOCAL_DEV === 'true' ? process.env.LOCAL_VITE_ORIGIN : undefined
+  if (process.env.PRAETORIUM_LOCAL_DEV === 'true' && process.env.LOCAL_TEST_MODE !== 'true' && !viteOrigin) {
+    throw new Error('Interactive local development requires Vite. Start it with just dev.')
+  }
   if (!viteOrigin) {
     process.env.NITRO_PORT = String(internalPort)
     process.env.NITRO_HOST = '127.0.0.1'
-    await import(new URL('../.output/server/index.mjs', import.meta.url).href)
+    await import(pathToFileURL(path.join(nodeBuildDirectory(), 'server/index.mjs')).href)
   }
   const appOrigin = viteOrigin ?? `http://127.0.0.1:${internalPort}`
   let ready = false

@@ -6,7 +6,7 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
-    "dev": "tsx scripts/localDev.ts",
+    "dev": "tsx scripts/dev.ts",
     "build": "vite build && vite build --config vite.seed.config.ts",
     "start:node": "node scripts/nodeServer.ts",
     "auth:node:backup": "node scripts/nodeAuthBackup.ts backup",
@@ -58,7 +58,10 @@
     "db:seed": "tsx scripts/seedPreview.ts",
     "mobile": "pnpm --dir mobile start",
     "mobile:android": "pnpm --dir mobile android",
-    "mobile:ios": "pnpm --dir mobile ios"
+    "mobile:ios": "pnpm --dir mobile ios",
+    "dev:status": "tsx scripts/dev.ts status",
+    "dev:stop": "tsx scripts/dev.ts stop",
+    "dev:restart": "tsx scripts/dev.ts restart"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
