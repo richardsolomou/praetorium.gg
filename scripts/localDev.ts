@@ -249,7 +249,16 @@ async function main() {
     PORT: String(app.port),
     LOCAL_APP_PORT: String(app.port),
     NODE_INTERNAL_PORT: String(internal.port),
-    ...(testMode ? { AUTH_RATE_LIMIT: 'off', NODE_ENV: 'production', NITRO_PRESET: 'node-server' } : { NODE_ENV: 'development' }),
+    // Browser tests would otherwise report to whichever PostHog project the worktree's .env names.
+    ...(testMode
+      ? {
+          AUTH_RATE_LIMIT: 'off',
+          NODE_ENV: 'production',
+          NITRO_PRESET: 'node-server',
+          VITE_POSTHOG_PROJECT_TOKEN: '',
+          VITE_POSTHOG_HOST: '',
+        }
+      : { NODE_ENV: 'development' }),
   })
   if (testMode) await run('pnpm', ['build'])
   else {

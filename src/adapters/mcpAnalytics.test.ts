@@ -1,5 +1,7 @@
-import { expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { privateMcpEvent } from './mcpAnalytics'
+
+afterEach(() => vi.unstubAllEnvs())
 
 const event = (name: string) => ({
   event: name,
@@ -27,6 +29,11 @@ it('keeps bounded MCP usage data without request or result content', () => {
     $mcp_is_error: false,
     $ip: null,
   })
+})
+
+it('labels MCP usage with the deployment host', () => {
+  vi.stubEnv('APP_URL', 'https://pr-722.praetorium.gg')
+  expect(privateMcpEvent(event('$mcp_tool_call'))?.properties.$host).toBe('pr-722.praetorium.gg')
 })
 
 it('drops non-MCP events', () => {
