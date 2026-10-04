@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.102.4
+
+### Patch Changes
+
+- 9da6b3d: Use patched Nodemailer 10 for SMTP delivery with the shared runtime.
+
 ## 0.102.3
 
 ### Patch Changes
