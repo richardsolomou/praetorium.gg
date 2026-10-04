@@ -40,34 +40,50 @@ export const Route = createFileRoute('/rosters/$id/')({
     const cachedUpdatedAt =
       cachedBootstrap === undefined ? undefined : context.queryClient.getQueryState(bootstrapOptions.queryKey)?.dataUpdatedAt
     const bootstrap = cachedBootstrap === undefined ? await context.queryClient.query(bootstrapOptions) : cachedBootstrap
-    if (cachedBootstrap !== undefined) void context.queryClient.query(bootstrapOptions).catch(() => {})
+    const seedBootstrap = (value: NonNullable<typeof bootstrap>, updatedAt: number) => {
+      const current = context.queryClient.getQueryData(rosterAccessQuery(params.id, deps.battle).queryKey)
+      if (current && current.roster.updatedAt > value.roster.updatedAt) return
+      const seed = (key: readonly unknown[], data: unknown) => {
+        if ((context.queryClient.getQueryState(key)?.dataUpdatedAt ?? 0) <= updatedAt)
+          context.queryClient.setQueryData(key, data, { updatedAt })
+      }
+      const { roster, editable, variants, differences, faction, price, changes } = value
+      seed(rosterAccessQuery(params.id, deps.battle).queryKey, { roster, editable, variants, differences, faction })
+      seed(rosterChangesQuery(params.id).queryKey, changes)
+      seed(
+        savedRosterPriceQuery(
+          roster.id,
+          roster.catalogueId,
+          roster.detachmentIds,
+          roster.disposition,
+          roster.limit,
+          normalisePicks(roster.picks),
+          deps.battle,
+          roster.waivedRules,
+          roster.borrowedDetachmentId,
+          roster.optionalRules,
+        ).queryKey,
+        price,
+      )
+    }
+    if (cachedBootstrap !== undefined)
+      void context.queryClient
+        .query({ ...bootstrapOptions, staleTime: 0 })
+        .then((fresh) => {
+          if (fresh) seedBootstrap(fresh, context.queryClient.getQueryState(bootstrapOptions.queryKey)!.dataUpdatedAt)
+        })
+        .catch(() => {})
     if (!bootstrap) throw notFound()
     const updatedAt = cachedUpdatedAt ?? context.queryClient.getQueryState(bootstrapOptions.queryKey)!.dataUpdatedAt
-    const seed = (key: readonly unknown[], data: unknown) => {
-      if ((context.queryClient.getQueryState(key)?.dataUpdatedAt ?? 0) <= updatedAt)
-        context.queryClient.setQueryData(key, data, { updatedAt })
-    }
-    const { editable, variants, differences, price, changes } = bootstrap
+    seedBootstrap(bootstrap, updatedAt)
+    const { editable, price } = bootstrap
     let { roster, faction } = bootstrap
     if (editable) await context.queryClient.query({ ...outdatedLeagueEntriesQuery(params.id), staleTime: 'static' })
-    const access = { roster, editable, variants, differences, faction }
     const accessKey = rosterAccessQuery(params.id, deps.battle).queryKey
-    seed(accessKey, access)
-    seed(rosterChangesQuery(params.id).queryKey, changes)
-    const priced = savedRosterPriceQuery(
-      roster.id,
-      roster.catalogueId,
-      roster.detachmentIds,
-      roster.disposition,
-      roster.limit,
-      normalisePicks(roster.picks),
-      deps.battle,
-      roster.waivedRules,
-      roster.borrowedDetachmentId,
-      roster.optionalRules,
-    )
-    seed(priced.queryKey, price)
-    const currentAccess = context.queryClient.getQueryData<typeof access>(accessKey)
+    const currentAccess =
+      context.queryClient.getQueryData<Pick<NonNullable<typeof bootstrap>, 'roster' | 'editable' | 'variants' | 'differences' | 'faction'>>(
+        accessKey,
+      )
     if (currentAccess) ({ roster, faction } = currentAccess)
     return {
       editable: currentAccess?.editable ?? editable,

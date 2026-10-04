@@ -79,17 +79,15 @@ jobs:
       - run: pnpm catalogue:sync
       - name: Require the terrain geometry
         run: pnpm catalogue:terrain
-      - name: Install pinned SpacetimeDB
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release download v2.7.0-hotfix3 -R clockworklabs/SpacetimeDB -p spacetime-x86_64-unknown-linux-gnu.tar.gz -D "$RUNNER_TEMP"
-          echo 'd25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831  '"$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" | sha256sum --check
-          tar -xzf "$RUNNER_TEMP/spacetime-x86_64-unknown-linux-gnu.tar.gz" -C "$RUNNER_TEMP" spacetimedb-cli spacetimedb-standalone
+      - uses: richardsolomou/ras-stack/actions/setup-spacetime@v1
+        id: spacetime
+        with:
+          version: '2.7.0-hotfix3'
+          sha256: d25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831
       - name: Run the E2E shard
         env:
           E2E_SHARD: ${{ matrix.runner }}
-          SPACETIME_BIN: ${{ runner.temp }}/spacetimedb-cli
+          SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
         run: |
           set -euo pipefail
           PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --reporter=json > /dev/null

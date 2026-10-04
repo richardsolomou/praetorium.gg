@@ -124,6 +124,9 @@ test('profile puts sign-in methods first without a notifications section', async
 })
 
 test('failed security settings show a retry state', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.requestIdleCallback = () => 0
+  })
   await signUp(page, uniqueName('Failed Profile'))
   await page.goto('/')
   await page.route('**/_serverFn/**', (route) => route.abort('failed'))

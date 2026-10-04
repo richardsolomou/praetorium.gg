@@ -1,5 +1,5 @@
 const REFERENCE_CACHE = 'praetorium-reference-v2'
-const HOSTED_PATH = /^\/(?:api|sign-in|sign-up|reset-password|verify-email|oauth|\.well-known)(?:\/|$)/
+const HOSTED_PATH = /^\/(?:api|admin|sign-in|sign-up|reset-password|verify-email|oauth|\.well-known)(?:\/|$)/
 self.addEventListener('install', (event) => event.waitUntil(self.skipWaiting()))
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
 self.addEventListener('fetch', (event) => {

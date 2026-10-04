@@ -27,6 +27,7 @@ export function referenceRead<T>(key: readonly unknown[], online: () => Promise<
   const saved = referenceData()
   if (!saved) return online()
   const found = saved.queries.find((entry) => JSON.stringify(entry.key) === JSON.stringify(key))
+  if (!found && navigator.onLine) return online()
   if (!found) return Promise.reject(new Error('This reference is unavailable in the saved download. Connect and refresh the reference.'))
   return Promise.resolve(found.data as T)
 }

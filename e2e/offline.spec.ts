@@ -1,6 +1,33 @@
 import { expect, test } from '@playwright/test'
 import { signUp, uniqueName } from './account'
 
+test('saved application pages load same-origin telemetry scripts when connected', async ({ page }) => {
+  test.setTimeout(240_000)
+  await page.goto('/rules')
+  await expect
+    .poll(() => page.evaluate(async () => Boolean(await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html'))), {
+      timeout: 180_000,
+    })
+    .toBe(true)
+  await page.goto('/rules/core-rules/moving')
+  await expect(page.getByRole('heading', { name: '03. Moving', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => Boolean(window.PraetoriumOffline))).toBe(true)
+  await page.route('**/t/offline-telemetry-probe.js', (route) =>
+    route.fulfill({ contentType: 'application/javascript', body: 'window.__offlineTelemetryLoaded = true' }),
+  )
+  const loaded = await page.evaluate(
+    () =>
+      new Promise<boolean>((resolve) => {
+        const script = document.createElement('script')
+        script.src = '/t/offline-telemetry-probe.js'
+        script.onload = () => resolve((window as typeof window & { __offlineTelemetryLoaded?: boolean }).__offlineTelemetryLoaded === true)
+        script.onerror = () => resolve(false)
+        document.head.append(script)
+      }),
+  )
+  expect(loaded).toBe(true)
+})
+
 test('the complete reference keeps its existing UI after a cold offline launch', async ({ page, context }) => {
   test.setTimeout(240_000)
   const player = uniqueName('Offline reference')

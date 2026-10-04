@@ -1,5 +1,5 @@
-import { reconcileAppAccount } from '../offline/appSnapshot'
-import { clearSavedApp } from '../offline/appStorage'
+import { captureAppSnapshot, reconcileAppAccount } from '../offline/appSnapshot'
+import { clearSavedApp, writeAppSnapshot } from '../offline/appStorage'
 import { infiniteQueryOptions, keepPreviousData, queryOptions, type QueryClient } from '@tanstack/react-query'
 import type { AdminUserFilter, AdminUserSort, AdminUsersCursor } from '../../admin'
 import {
@@ -32,6 +32,7 @@ export const meQuery = () =>
       if (typeof window !== 'undefined' && reconcileAppAccount(client, user)) {
         client.setQueryData(['me'], user)
         await clearSavedApp().catch(() => {})
+        await writeAppSnapshot(captureAppSnapshot(client)).catch(() => {})
       }
       return user
     },

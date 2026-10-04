@@ -5,11 +5,12 @@ import { rosterAccessQuery, rosterBootstrapQuery } from '../client/queries'
 import { Route } from './rosters.$id.index'
 
 vi.mock('../client/features/rosters/RosterPage', () => ({ RosterPage: () => null }))
-const bootstrap = (name: string) =>
+const bootstrap = (name: string, updatedAt = 0) =>
   ({
     roster: {
       id: 'army',
       name,
+      updatedAt,
       catalogueId: 'necrons',
       detachmentIds: [],
       disposition: null,
@@ -34,6 +35,24 @@ afterEach(() => {
   onlineManager.setOnline(true)
 })
 
+it('keeps an edit completed while an older bootstrap response was in flight', async () => {
+  const client = new QueryClient()
+  const options = rosterBootstrapQuery('army')
+  client.setQueryData(options.queryKey, bootstrap('Original army', 1))
+  let resolve!: (value: ReturnType<typeof bootstrap>) => void
+  vi.spyOn(functions, 'rosterBootstrap').mockImplementation(() => new Promise((done) => (resolve = done)))
+  try {
+    await load(client)
+    const newer = bootstrap('Renamed army', 2)
+    client.setQueryData(rosterAccessQuery('army').queryKey, newer)
+    resolve(bootstrap('Original army', 1))
+    await vi.waitFor(() => expect(client.getQueryState(options.queryKey)?.fetchStatus).toBe('idle'))
+    expect(client.getQueryData(rosterAccessQuery('army').queryKey)?.roster.name).toBe('Renamed army')
+  } finally {
+    client.clear()
+  }
+})
+
 it('refreshes an invalidated bootstrap after client navigation', async () => {
   const client = new QueryClient()
   client.setQueryData(rosterBootstrapQuery('army').queryKey, bootstrap('Original army'))
@@ -41,7 +60,8 @@ it('refreshes an invalidated bootstrap after client navigation', async () => {
   const request = vi.spyOn(functions, 'rosterBootstrap').mockResolvedValue(bootstrap('Renamed army'))
   try {
     await load(client)
-    await vi.waitFor(() => expect(request).toHaveBeenCalledOnce())
+    await vi.waitFor(() => expect(client.getQueryData(rosterAccessQuery('army').queryKey)?.roster.name).toBe('Renamed army'))
+    expect(request).toHaveBeenCalledOnce()
   } finally {
     client.clear()
   }

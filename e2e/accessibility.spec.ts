@@ -4,12 +4,12 @@ import { signUp } from './account'
 test('opening a battle is operable from the keyboard', async ({ page }) => {
   await signUp(page, 'Alice')
   await page.goto('/battles')
-  const initialResponse = await page.reload()
-  if (!initialResponse) throw new Error('The battles page did not return a document response.')
+  const initialResponse = await page.request.get('/battles')
   const initialDocument = await initialResponse.text()
   expect(initialDocument).not.toContain('Practice Opponent')
   expect(initialDocument).not.toContain('favourite-factions')
   expect(initialDocument).not.toContain('favourite-detachments')
+  await page.reload()
 
   // Enough tabs to cross the header: the logo, every primary navigation link,
   // search and the account menu all come before the page's own first control.

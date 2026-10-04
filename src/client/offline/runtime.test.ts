@@ -43,7 +43,10 @@ const saved: OfflineReferenceData = {
     ],
   },
 }
-beforeEach(() => vi.stubGlobal('window', { PraetoriumOffline: saved }))
+beforeEach(() => {
+  vi.stubGlobal('window', { PraetoriumOffline: saved })
+  vi.stubGlobal('navigator', { onLine: false })
+})
 afterEach(() => {
   onlineManager.setOnline(true)
   vi.unstubAllGlobals()
@@ -57,6 +60,12 @@ it('reads a downloaded rule without contacting the service', async () => {
 it('reports missing saved data rather than hanging on a network request', async () => {
   await expect(referenceRead(['rule-section', 'core', 'missing'], () => Promise.resolve('Network'))).rejects.toThrow(
     'unavailable in the saved download',
+  )
+})
+it('loads an uncached reference from the service while connected', async () => {
+  vi.stubGlobal('navigator', { onLine: true })
+  expect(await referenceRead(['detachment-rules', 'necrons', ['Uncached combination']], () => Promise.resolve('Live rules'))).toBe(
+    'Live rules',
   )
 })
 it('uses the current service while connected', async () => {

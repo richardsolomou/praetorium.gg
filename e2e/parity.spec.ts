@@ -25,7 +25,7 @@ test('roster visibility controls search indexing and public URL variants', async
     await setup.getByRole('combobox', { name: 'Access' }).click()
     await page.getByRole('option', { name }).click()
     const saved = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes(`"${value}"`)))
-    await setup.getByRole('button', { name: 'Save changes' }).click()
+    await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
     await saved
   }
 
