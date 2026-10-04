@@ -17,7 +17,7 @@ type Props = { sides: Side[]; defender: Side | undefined }
  */
 export function DeployStep({ sides, defender }: Props) {
   return (
-    <div className="space-y-4">
+    <div data-onboarding="battle-setup-deploy" className="space-y-4">
       <SetupNote>
         Sides alternate setting up one unit at a time, wholly within their own deployment zone
         {defender ? `, starting with ${sideName(defender)} as the defender` : ''}. Once a side has finished, the other sets up whatever it

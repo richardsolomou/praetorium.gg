@@ -123,7 +123,7 @@ export function RosterImport() {
 
   return (
     <>
-      <Button variant="outline" onClick={show}>
+      <Button data-onboarding="roster-import" variant="outline" onClick={show}>
         <FileUp /> Import roster
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>

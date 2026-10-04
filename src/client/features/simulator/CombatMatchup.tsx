@@ -596,7 +596,7 @@ export function CombatMatchup({
     <>
       <div className="@container min-w-0 border border-edge bg-panel" aria-label="Combat matchup">
         <div className="grid divide-y divide-edge @xl:grid-cols-2 @xl:divide-x @xl:divide-y-0">
-          <section aria-label="Attacker" className="min-w-0">
+          <section data-onboarding="simulator-attacker" aria-label="Attacker" className="min-w-0">
             <LoadoutOddsContext.Provider value={loadoutOdds}>
               <LoadoutOptimizationContext.Provider value={optimizationContext}>
                 {attackerControl ?? <CombatantHeading side="Attacker" unit={attacker} />}
@@ -604,7 +604,7 @@ export function CombatMatchup({
             </LoadoutOddsContext.Provider>
             <CombatDefences unit={attacker} />
           </section>
-          <section aria-label="Defender" className="min-w-0">
+          <section data-onboarding="simulator-defender" aria-label="Defender" className="min-w-0">
             {defenderControl ?? <CombatantHeading side="Defender" unit={defender} />}
             <CombatDefences
               unit={defender}
@@ -704,7 +704,10 @@ export function CombatMatchup({
             })}
           </div>
           <details data-combat-buffs open className="mt-3 border-t border-edge">
-            <summary className="rubric w-fit cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            <summary
+              data-onboarding="simulator-buffs"
+              className="rubric w-fit cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
               Rules & buffs
             </summary>
             <div className="grid gap-4 pb-3 @xl:grid-cols-2">
@@ -714,7 +717,10 @@ export function CombatMatchup({
           </details>
           <section aria-label="Modifiers" className="border-t border-edge">
             <details data-manual-modifiers open>
-              <summary className="rubric w-fit cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <summary
+                data-onboarding="simulator-modifiers"
+                className="rubric w-fit cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
                 Manual modifiers
               </summary>
               <div className="pb-3">

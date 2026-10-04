@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
+import { realpathSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { eq } from 'drizzle-orm'
 import type { Command, Roster } from '../src/core/battle'
 import type { RosterPick } from '../src/core/roster'
@@ -844,4 +846,4 @@ async function seedInto(
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) await seedPreview()
+if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) await seedPreview()

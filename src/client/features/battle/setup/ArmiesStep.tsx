@@ -76,7 +76,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
   const confirmingWaivers = rosterWaivers(confirming)
   const oneWaiver = confirmingWaivers.length === 1
   return (
-    <div className="space-y-4">
+    <div data-onboarding="battle-setup-armies" className="space-y-4">
       {perArmy !== null && perArmy !== view.settings.limit ? (
         <SetupNote>
           The allied side splits {view.settings.limit} points evenly, so each ally brings a {perArmy}-point army.

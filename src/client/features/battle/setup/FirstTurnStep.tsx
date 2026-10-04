@@ -15,7 +15,7 @@ type Props = { sides: Side[]; first: number | null; send: (command: Command) => 
  */
 export function FirstTurnStep({ sides, first, send }: Props) {
   return (
-    <SetupPanel>
+    <SetupPanel onboarding="battle-setup-first">
       <SetupSideChoice
         label="First turn"
         sides={sides}

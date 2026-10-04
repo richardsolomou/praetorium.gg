@@ -23,6 +23,7 @@ import {
   FIRST_ONBOARDING_STEP,
   ONBOARDING_ADVANCE_EVENT,
   ONBOARDING_EVENT,
+  ONBOARDING_FOCUS_EVENT,
   ONBOARDING_UI,
   focusAfterOnboardingNavigation,
   focusAfterOnboardingOperation,
@@ -72,6 +73,7 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
   const storageKey = onboardingFocusStorageKey(userId)
   const [open, setOpen] = useState(false)
   const [focus, setFocus] = useState<OnboardingFocus | undefined>(() => storedOnboardingFocus(userId))
+  const currentFocus = useRef(focus)
   const [target, setTarget] = useState<HTMLElement | undefined>()
   const [atTop, setAtTop] = useState(false)
   // Named rather than a flag: a step that has just moved on must not read the step before it as lost.
@@ -83,6 +85,7 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
 
   const rememberFocus = useCallback(
     (next: OnboardingFocus | undefined) => {
+      currentFocus.current = next
       setFocus(next)
       if (next) sessionStorage.setItem(storageKey, JSON.stringify(next))
       else sessionStorage.removeItem(storageKey)
@@ -100,6 +103,14 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
   )
 
   useEffect(() => {
+    window.dispatchEvent(new CustomEvent<OnboardingFocus | undefined>(ONBOARDING_FOCUS_EVENT, { detail: focus }))
+  }, [focus])
+
+  useEffect(() => {
+    target?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [target])
+
+  useEffect(() => {
     const show = () => setOpen(true)
     window.addEventListener(ONBOARDING_EVENT, show)
     return () => window.removeEventListener(ONBOARDING_EVENT, show)
@@ -107,12 +118,12 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
 
   useEffect(() => {
     const advance = (event: Event) => {
-      const next = nextOnboardingFocus(focus, (event as CustomEvent<OnboardingAdvanceEvent>).detail)
-      if (next !== focus) rememberFocus(next)
+      const next = nextOnboardingFocus(currentFocus.current, (event as CustomEvent<OnboardingAdvanceEvent>).detail)
+      if (next !== currentFocus.current) rememberFocus(next)
     }
     window.addEventListener(ONBOARDING_ADVANCE_EVENT, advance)
     return () => window.removeEventListener(ONBOARDING_ADVANCE_EVENT, advance)
-  }, [focus, rememberFocus])
+  }, [rememberFocus])
 
   // Arriving on the next step's own page is the whole transition wherever a step changes page.
   useEffect(() => {
@@ -247,6 +258,7 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
       />
     ) : null
   const placement = focusedStep ? PLACEMENTS[focusedStep.placement] : PLACEMENTS.bottom
+  const setupPrompt = focus?.step.startsWith('battle-setup-')
 
   return (
     <>
@@ -284,7 +296,11 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
             <div
               data-inert-exempt
               className={`fixed inset-x-4 z-[60] mx-auto w-[min(20rem,calc(100vw-2rem))] border-2 border-info/50 bg-panel p-3 text-bone shadow-xl min-[860px]:inset-x-auto min-[860px]:top-auto min-[860px]:right-4 min-[860px]:bottom-4 ${
-                atTop ? 'top-[calc(1rem+env(safe-area-inset-top))]' : 'bottom-[calc(5rem+env(safe-area-inset-bottom))]'
+                atTop
+                  ? 'top-[calc(4rem+env(safe-area-inset-top))]'
+                  : setupPrompt
+                    ? 'bottom-[calc(9rem+env(safe-area-inset-bottom))]'
+                    : 'bottom-[calc(5rem+env(safe-area-inset-bottom))]'
               }`}
             >
               {prompt}

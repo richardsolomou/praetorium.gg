@@ -22,6 +22,7 @@ export function Scoreboard({ view, clock, sides, outcome }: Props) {
 
   return (
     <section
+      data-onboarding="battle-live-score"
       data-scoreboard
       aria-label="Battle scoreboard"
       className="sticky top-12 z-20 -mx-3 border-b border-edge bg-void/95 px-3 py-2 backdrop-blur"

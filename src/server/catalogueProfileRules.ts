@@ -17,6 +17,7 @@ import { editionlessCatalogueName } from './factionNames'
 import { hiddenByRules } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { wargearOf } from '../core/wargear'
+import { withPrintedModelWeaponSwaps } from './catalogueModelWeaponSwaps'
 import { linkedEnhancementWeapon } from './catalogueDescriptions'
 
 const DETACHMENT_ENTRY = 'detachment'
@@ -664,13 +665,12 @@ export function prepareCatalogueProfileRules(files: readonly CatalogueFile[]) {
     const warlordTarget = warlordTargets.get(book.id)
     const sharedSelectionEntries = profiledCatalogueIds.has(book.id)
       ? (book.sharedSelectionEntries ?? []).map((entry) => {
-          const readable = entry.type === 'unit' || entry.type === 'model' ? withReadableWargearOptions(entry) : entry
-          const projected =
-            entry.type === 'unit' || entry.type === 'model'
-              ? withPrintedWeaponSwaps(withPrintedDefaultWargear(readable, rawIndex, book.id))
-              : entry
+          const defaults = entry.type === 'unit' || entry.type === 'model' ? withPrintedDefaultWargear(entry, rawIndex, book.id) : entry
+          const modelSwaps = entry.type === 'unit' || entry.type === 'model' ? withPrintedModelWeaponSwaps(defaults, rawIndex) : entry
+          const readable = entry.type === 'unit' || entry.type === 'model' ? withReadableWargearOptions(modelSwaps) : entry
+          const projected = entry.type === 'unit' || entry.type === 'model' ? withPrintedWeaponSwaps(readable) : entry
           const equipped =
-            readable === entry
+            readable === modelSwaps
               ? projected
               : { ...projected, selectionEntryGroups: projected.selectionEntryGroups?.filter((group) => group.name !== 'Weapon Options') }
           const eligible = groups ? withoutIneligibleGroups(equipped, groups) : equipped
