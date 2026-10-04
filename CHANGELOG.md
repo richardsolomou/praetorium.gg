@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.98.4
+
+### Patch Changes
+
+- 9c982a6: Fix loadout optimization for squads with mixed exclusive weapon choices.
+
 ## 0.98.3
 
 ### Patch Changes
