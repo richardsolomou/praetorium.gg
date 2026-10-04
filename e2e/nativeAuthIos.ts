@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { request as httpRequest, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer as createHttpsServer, request as httpsRequest, type Server as HttpsServer } from 'node:https'
 import path from 'node:path'
@@ -310,10 +310,14 @@ async function waitForSavedApp(udid: string) {
   const container = (await output('xcrun', ['simctl', 'get_app_container', udid, 'gg.praetorium', 'data'])).trim()
   const origin = Array.from(publicUrl, (character) => character.charCodeAt(0).toString(16)).join('')
   const referenceDirectory = path.join(container, 'Documents', 'offline-app', origin)
-  const snapshotFile = path.join(container, 'Documents', 'app-state', origin, 'snapshot.json')
+  const snapshotDirectory = path.join(container, 'Documents', 'app-state', origin)
   for (let attempt = 0; attempt < 180; attempt++) {
     try {
-      const snapshot = parseAppSnapshot(JSON.parse(readFileSync(snapshotFile, 'utf8')))
+      const latest = readdirSync(snapshotDirectory)
+        .filter((name) => /^\d+-[\w-]+\.json$/.test(name))
+        .sort()
+        .at(-1)
+      const snapshot = latest ? parseAppSnapshot(JSON.parse(readFileSync(path.join(snapshotDirectory, latest), 'utf8'))) : null
       if (
         existsSync(referenceDirectory) &&
         snapshot?.owner === fixtureUserId &&
@@ -327,6 +331,18 @@ async function waitForSavedApp(udid: string) {
     await new Promise((resolve) => setTimeout(resolve, 1000))
   }
   throw new Error('The application bundle and account data were not saved automatically')
+}
+
+async function terminateSavedRenderer(udid: string) {
+  const processes = (await output('ps', ['-ax', '-o', 'pid=,ppid=,comm=']))
+    .split('\n')
+    .map((line) => line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/))
+    .filter((row) => row !== null)
+  const app = processes.find((row) => row[3].includes(`/Devices/${udid}/`) && row[3].endsWith('/Praetorium.app/Praetorium'))
+  if (!app) throw new Error('The owned simulator application is not running')
+  const renderers = processes.filter((row) => row[2] === app[2] && row[3].endsWith('/com.apple.WebKit.WebContent'))
+  if (!renderers.length) throw new Error('The owned simulator has no WebView renderer to terminate')
+  for (const row of renderers) process.kill(Number(row[1]), 'SIGKILL')
 }
 
 async function bootedSimulator() {
@@ -501,6 +517,20 @@ async function main() {
       { env: maestroEnvironment },
     )
     console.log('Saved reference reopened after a cold launch with the service unreachable.')
+    await terminateSavedRenderer(udid)
+    await run(
+      'maestro',
+      [
+        'test',
+        '--udid',
+        udid,
+        '--test-output-dir',
+        path.join(root, 'test-results', 'native-offline-ios'),
+        path.join(root, 'e2e', 'native-offline-recovery-ios.yaml'),
+      ],
+      { env: maestroEnvironment },
+    )
+    console.log('Saved WebView recovered its current rule after renderer termination while disconnected.')
     proxy = offlineProxy
     await new Promise<void>((resolve) => proxy!.listen(publicPort, '127.0.0.1', resolve))
     await seedSavedApp(true)

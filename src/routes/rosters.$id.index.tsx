@@ -35,13 +35,25 @@ export const Route = createFileRoute('/rosters/$id/')({
       if (!roster) throw notFound()
       return { editable: false, snapshot: true }
     }
-    const bootstrap = await context.queryClient.query({ ...rosterBootstrapQuery(params.id, deps.battle), staleTime: 'static' })
+    const bootstrapOptions = rosterBootstrapQuery(params.id, deps.battle)
+    const cachedBootstrap = context.queryClient.getQueryData(bootstrapOptions.queryKey)
+    const cachedUpdatedAt =
+      cachedBootstrap === undefined ? undefined : context.queryClient.getQueryState(bootstrapOptions.queryKey)?.dataUpdatedAt
+    const bootstrap = cachedBootstrap === undefined ? await context.queryClient.query(bootstrapOptions) : cachedBootstrap
+    if (cachedBootstrap !== undefined) void context.queryClient.query(bootstrapOptions).catch(() => {})
     if (!bootstrap) throw notFound()
-    const { roster, editable, variants, differences, faction, price, changes } = bootstrap
+    const updatedAt = cachedUpdatedAt ?? context.queryClient.getQueryState(bootstrapOptions.queryKey)!.dataUpdatedAt
+    const seed = (key: readonly unknown[], data: unknown) => {
+      if ((context.queryClient.getQueryState(key)?.dataUpdatedAt ?? 0) <= updatedAt)
+        context.queryClient.setQueryData(key, data, { updatedAt })
+    }
+    const { editable, variants, differences, price, changes } = bootstrap
+    let { roster, faction } = bootstrap
     if (editable) await context.queryClient.query({ ...outdatedLeagueEntriesQuery(params.id), staleTime: 'static' })
     const access = { roster, editable, variants, differences, faction }
-    context.queryClient.setQueryData(rosterAccessQuery(params.id, deps.battle).queryKey, access)
-    context.queryClient.setQueryData(rosterChangesQuery(params.id).queryKey, changes)
+    const accessKey = rosterAccessQuery(params.id, deps.battle).queryKey
+    seed(accessKey, access)
+    seed(rosterChangesQuery(params.id).queryKey, changes)
     const priced = savedRosterPriceQuery(
       roster.id,
       roster.catalogueId,
@@ -54,8 +66,15 @@ export const Route = createFileRoute('/rosters/$id/')({
       roster.borrowedDetachmentId,
       roster.optionalRules,
     )
-    context.queryClient.setQueryData(priced.queryKey, price)
-    return { editable, snapshot: false, preview: rosterPreview(roster, faction, price), exposure: rosterExposure(roster.visibility) }
+    seed(priced.queryKey, price)
+    const currentAccess = context.queryClient.getQueryData<typeof access>(accessKey)
+    if (currentAccess) ({ roster, faction } = currentAccess)
+    return {
+      editable: currentAccess?.editable ?? editable,
+      snapshot: false,
+      preview: rosterPreview(roster, faction, price),
+      exposure: rosterExposure(roster.visibility),
+    }
   },
   head: ({ loaderData, match, params }) => {
     const preview = loaderData?.preview

@@ -71,13 +71,13 @@ Keep rendering bounded, cache only public results, and preserve glyph coverage l
 
 ## Saved application data
 
-Keep saved lookup in the normal interface, without offline banners or download/update controls. Restore successful screen data before routing; refresh in the background without resetting navigation, scroll, or expanded content. Failed refreshes retain the last successful response.
+Keep saved lookup in the normal interface, without offline banners or download/update controls. Restore successful screen data before routing; refresh in the background without resetting navigation, scroll, or expanded content. Failed refreshes retain the last successful response. Mutable roster bootstraps must respect invalidation; seed sibling queries with the bootstrap timestamp and never replace newer responses. Background refreshes reuse active refetches and leave inactive multi-page battle history for its screen to refresh, preserving loaded pagination.
 
-[`src/client/offline`](../../src/client/offline) owns reference downloads, account snapshots, and refreshes. [`src/contracts/appSnapshot.ts`](../../src/contracts/appSnapshot.ts) owns saved-query eligibility and limits. Exclude authentication secrets, administration, and impersonated accounts; clear private data on sign-out or account changes, including other browser tabs. Saved responses are display data, not authentication or another authority for roster edits and battle commands.
+[`src/client/offline`](../../src/client/offline) owns reference downloads, account snapshots, and refreshes. [`src/contracts/appSnapshot.ts`](../../src/contracts/appSnapshot.ts) owns saved-query eligibility and limits. Exclude authentication secrets, administration, and impersonated accounts; clear private data on sign-out or account changes, including other browser tabs. A failed disk cleanup must be reported to telemetry without interrupting server sign-out, memory cleanup, or navigation. Saved responses are display data, not authentication or another authority for roster edits and battle commands.
 
 Production browsers use Cache Storage for public bundles and `idb-keyval` for IndexedDB snapshots. Its atomic `update` keeps account-generation checks and writes in one transaction, preventing a stale tab from restoring signed-out data. Development websites do not install the service worker. [Mobile](mobile.md#saved-application-data) owns native storage and launch behavior. Authentication and API documents retain their hosted path.
 
-Run `just e2e offline.spec.ts app-cache.spec.ts` after changes to this flow. The journeys must cover cold offline Home, roster/battle feeds and details, unvisited public references, search, automatic reconnect updates without a reload, connected edits, and sign-out cleanup across tabs.
+Run `just e2e offline.spec.ts app-cache.spec.ts` after changes to this flow. The journeys must cover cold offline Home, roster/battle feeds and details, unvisited public references, search, automatic reconnect updates without a reload, connected edits followed by client navigation and another save, sign-out cleanup across tabs, and sign-out when snapshot storage fails.
 
 ## Verification
 

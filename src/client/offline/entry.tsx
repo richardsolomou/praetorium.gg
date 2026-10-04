@@ -9,7 +9,12 @@ window.addEventListener('praetorium-app-navigate', (event) => {
 })
 window.addEventListener('praetorium-app-back', () => router.history.back())
 const start = window.PraetoriumOfflineStart ?? window.location.pathname + window.location.search + window.location.hash
-if (window.ReactNativeWebView) router.update({ context: router.options.context, history: createMemoryHistory({ initialEntries: [start] }) })
+if (window.ReactNativeWebView) {
+  router.update({ context: router.options.context, history: createMemoryHistory({ initialEntries: [start] }) })
+  router.subscribe('onResolved', () => {
+    window.ReactNativeWebView?.postMessage(JSON.stringify({ type: 'offline-location', path: router.state.location.href }))
+  })
+}
 void router.load().then(() => {
   createRoot(document).render(<RouterProvider router={router} />)
 })

@@ -138,6 +138,8 @@ function AppShell() {
     }
   })
   const [offlineView, setOfflineView] = useState<{ path: string; html: string } | null>(null)
+  const [offlineRenderKey, setOfflineRenderKey] = useState(0)
+  const offlinePath = useRef('/')
   const [initialSnapshotScript] = useState(appSnapshotScript)
   const snapshotScript = useRef(initialSnapshotScript)
   const [historyBack, setHistoryBack] = useState(false)
@@ -461,6 +463,7 @@ function AppShell() {
               const saved = readOfflineReference()
               if (saved) {
                 const target = new URL(initialUrl ?? '/', APP_URL)
+                offlinePath.current = target.pathname + target.search + target.hash
                 setOfflineView({ path: target.pathname + target.search + target.hash, html: saved.html })
               }
             }
@@ -521,10 +524,17 @@ function AppShell() {
       const saved = readOfflineReference()
       if (!saved) return
       const target = new URL(url, APP_URL)
+      offlinePath.current = target.pathname + target.search + target.hash
       setOfflineView({ path: target.pathname + target.search + target.hash, html: saved.html })
     } catch (error) {
       captureNativeException('offline_reference_read', error)
     }
+  }
+
+  const recoverSavedRenderer = () => {
+    captureNativeException('web_renderer')
+    openSavedReference(offlinePath.current)
+    setOfflineRenderKey((key) => key + 1)
   }
 
   const retryOnline = (path?: string) => {
@@ -540,6 +550,7 @@ function AppShell() {
       <StatusBar style="light" />
       {offlineView ? (
         <WebView
+          key={`saved-${offlineRenderKey}`}
           ref={webView}
           source={{ html: offlineView.html, baseUrl: APP_URL + offlineView.path }}
           style={styles.webView}
@@ -555,6 +566,7 @@ function AppShell() {
           onMessage={({ nativeEvent }) => {
             try {
               const message = JSON.parse(nativeEvent.data) as { type?: unknown; path?: unknown }
+              if (message.type === 'offline-location' && typeof message.path === 'string') offlinePath.current = message.path
               if (message.type === 'offline-retry' && typeof message.path === 'string') retryOnline(message.path)
               if (!handleNativeActionMessage(nativeEvent.data)) void openNativeAuth(nativeEvent.data)
             } catch {
@@ -568,8 +580,8 @@ function AppShell() {
             if (decision.kind === 'internal') retryOnline(new URL(decision.url).pathname + new URL(decision.url).search)
             return false
           }}
-          onContentProcessDidTerminate={() => openSavedReference(offlineView.path)}
-          onRenderProcessGone={() => openSavedReference(offlineView.path)}
+          onContentProcessDidTerminate={recoverSavedRenderer}
+          onRenderProcessGone={recoverSavedRenderer}
         />
       ) : renderedShell.sourceUrl ? (
         <WebView

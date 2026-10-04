@@ -1,3 +1,4 @@
+import { PUBLIC_APP_QUERIES } from '../src/contracts/appSnapshot'
 import { expect, test, type Page } from '@playwright/test'
 import { createBattle, createRoster, PRACTICE_OPPONENT, signUp, uniqueName } from './account'
 
@@ -84,14 +85,19 @@ test('Home, rosters and battles launch from saved state and update without repla
   await expect(reopened.getByRole('main').locator(`a[href="${newBattlePath}"]`).first()).toBeVisible()
   expect(await reopened.evaluate(() => (window as Window & { navigationMarker?: string }).navigationMarker)).toBe('same app')
   await expect(reopened).toHaveURL('/')
+  await reopened.setViewportSize({ width: 1440, height: 900 })
   await reopened.goto(rosterPath)
   await reopened.getByLabel('List name').fill('Renamed saved army')
   await reopened.getByLabel('List name').press('Tab')
   await other.goto('/rosters')
   await expect(other.locator('[data-roster="Renamed saved army"]')).toBeVisible()
-  await reopened.goto('/')
-  await reopened.goto(rosterPath)
+  await reopened.locator('[data-web-app-chrome]').getByRole('link', { name: 'Praetorium', exact: true }).click()
+  await reopened.getByRole('main').getByText('Renamed saved army', { exact: true }).click()
   await expect(reopened.getByLabel('List name')).toHaveValue('Renamed saved army')
+  await reopened.getByLabel('List name').fill('Renamed twice saved army')
+  await reopened.getByLabel('List name').press('Tab')
+  await other.reload()
+  await expect(other.locator('[data-roster="Renamed twice saved army"]')).toBeVisible()
   await reopened.setViewportSize({ width: 1440, height: 900 })
   await reopened
     .locator('[data-web-app-chrome]')
@@ -99,11 +105,49 @@ test('Home, rosters and battles launch from saved state and update without repla
     .click()
   await reopened.getByRole('menuitem', { name: 'Sign out' }).click()
   await expect(reopened.getByRole('link', { name: 'Sign in', exact: true }).first()).toBeVisible()
-  await expect.poll(() => savedState(reopened)).not.toContain('Saved army')
+  await expect
+    .poll(async () => {
+      const snapshot = JSON.parse((await savedState(reopened)) || 'null')
+      if (!snapshot) return null
+      return {
+        owner: snapshot.owner,
+        privateQueries: snapshot.queries.filter(
+          (query: { key: string[] }) => query.key[0] !== 'me' && !PUBLIC_APP_QUERIES.has(query.key[0]),
+        ),
+      }
+    })
+    .toEqual({ owner: null, privateQueries: [] })
   await expect.poll(() => other.getByRole('button', { name: `Account menu for ${player}`, includeHidden: true }).count()).toBe(0)
   await context.setOffline(true)
   await reopened.reload()
   await expect(reopened.getByRole('heading', { name: `Welcome back, ${player}` })).toHaveCount(0)
-  await expect(reopened.getByText(roster, { exact: true })).toHaveCount(0)
+  for (const name of ['Renamed twice saved army', newRoster]) await expect(reopened.getByText(name, { exact: true })).toHaveCount(0)
+  await expect(reopened.locator(`a[href="${newBattlePath}"]`)).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
+test('sign-out finishes when saved-device storage is unavailable', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const player = uniqueName('Storage failure')
+  await signUp(page, player)
+  await page.evaluate(() => {
+    const state = window as Window & { failedStorageAttempts?: number }
+    state.failedStorageAttempts = 0
+    IDBDatabase.prototype.transaction = () => {
+      state.failedStorageAttempts!++
+      throw new Error('IndexedDB unavailable')
+    }
+  })
+  await page
+    .getByRole('button', { name: `Account menu for ${player}` })
+    .first()
+    .click()
+  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await expect(page.getByRole('link', { name: 'Sign in', exact: true }).first()).toBeVisible()
+  await expect(page).toHaveURL('/')
+  expect(await page.evaluate(() => (window as Window & { failedStorageAttempts?: number }).failedStorageAttempts)).toBeGreaterThan(0)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: `Welcome back, ${player}` })).toHaveCount(0)
   expect(errors).toEqual([])
 })

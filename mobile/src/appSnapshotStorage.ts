@@ -8,8 +8,24 @@ function directory() {
 
 export function readAppSnapshot(): AppSnapshot | null {
   try {
-    const file = new File(directory(), 'snapshot.json')
-    return file.exists && file.size <= MAX_APP_SNAPSHOT_BYTES ? parseAppSnapshot(JSON.parse(file.textSync())) : null
+    const root = directory()
+    if (!root.exists) return null
+    const names = root
+      .list()
+      .map((file) => file.name)
+      .filter((name) => /^\d+-[\w-]+\.json$/.test(name))
+      .sort((a, b) => b.localeCompare(a))
+    for (const name of names) {
+      try {
+        const file = new File(root, name)
+        if (file.size > MAX_APP_SNAPSHOT_BYTES) continue
+        const snapshot = parseAppSnapshot(JSON.parse(file.textSync()))
+        if (snapshot) return snapshot
+      } catch {
+        // A prior generation remains readable after an interrupted replacement.
+      }
+    }
+    return null
   } catch {
     return null
   }
@@ -25,14 +41,21 @@ export function storeAppSnapshot(snapshot: AppSnapshot | null, id: string) {
   const size = new TextEncoder().encode(serialized).byteLength
   if (size > MAX_APP_SNAPSHOT_BYTES) throw new Error('Application data exceeds the save limit')
   root.create({ intermediates: true, idempotent: true })
+  const previous = root
+    .list()
+    .map((file) => file.name)
+    .filter((name) => /^\d+-[\w-]+\.json$/.test(name))
+    .sort((a, b) => b.localeCompare(a))
+  const newest = Math.max(Date.now(), ...previous.map((name) => Number(name.split('-')[0]) + 1))
   const file = new File(root, `${id}.tmp`)
   try {
     file.write(serialized)
     if (file.size !== size) throw new Error('Incomplete application data write')
-    file.moveSync(new File(root, 'snapshot.json'), { overwrite: true })
+    file.moveSync(new File(root, `${newest}-${id}.json`))
   } finally {
     if (file.exists && file.name.endsWith('.tmp')) file.delete()
   }
+  for (const name of previous.slice(1)) new File(root, name).delete()
 }
 
 export function appSnapshotScript(snapshot = readAppSnapshot()) {

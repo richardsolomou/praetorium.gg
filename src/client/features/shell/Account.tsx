@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { posthog } from 'posthog-js'
 import { authClient } from '../../authClient'
 import { clearSavedApp } from '../../offline/appStorage'
 import { reconcileAppAccount } from '../../offline/appSnapshot'
@@ -35,7 +36,7 @@ function useAccountControls() {
       await authClient.signOut()
       reconcileAppAccount(queryClient, null)
       queryClient.setQueryData(['me'], null)
-      await clearSavedApp()
+      await clearSavedApp().catch((error: unknown) => posthog.captureException(error, { operation: 'sign_out_saved_data' }))
       await queryClient.invalidateQueries()
       await navigate({ to: '/' })
     })()

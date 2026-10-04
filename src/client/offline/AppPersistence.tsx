@@ -22,6 +22,7 @@ import {
   favouriteFactionsQuery,
   favouriteDetachmentsQuery,
 } from '../queries'
+import { refreshBattleFeed } from './refreshBattleFeed'
 import { sortRosters } from '../features/rosters/rosterSort'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../core/rosterLibrary'
 
@@ -70,43 +71,46 @@ export function AppPersistence() {
         await client.invalidateQueries({
           predicate: (query) => APP_SNAPSHOT_QUERIES.has(String(query.queryKey[0])) && query.queryKey[0] !== 'me',
         })
+        if (!active || (client.getQueryData<{ id: string } | null>(['me'])?.id ?? null) !== (me?.id ?? null)) return
         await Promise.allSettled([
-          client.infiniteQuery({ ...publicBattlesQuery(), staleTime: 0 }),
+          refreshBattleFeed(client, publicBattlesQuery()),
           ...(me
             ? [
-                client.infiniteQuery({ ...battlesQuery(), staleTime: 0 }).then(async (feed) => {
+                refreshBattleFeed(client, battlesQuery()).then(async (feed) => {
                   const recent = battlesFrom(feed).slice(0, ROSTER_LIBRARY_BATCH_SIZE)
                   for (let index = 0; index < recent.length; index += 3) {
                     if (!active || client.getQueryData<{ id: string }>(['me'])?.id !== me.id) break
                     await Promise.allSettled(
-                      recent.slice(index, index + 3).map((battle) => client.query({ ...battleQuery(battle.token), staleTime: 0 })),
+                      recent.slice(index, index + 3).map((battle) => client.query({ ...battleQuery(battle.token), staleTime: Infinity })),
                     )
                   }
                 }),
-                client.infiniteQuery({ ...friendBattlesQuery(), staleTime: 0 }),
-                client.query({ ...homeRostersQuery(), staleTime: 0 }),
-                client.query({ ...leaguesQuery(), staleTime: 0 }),
-                client.query({ ...friendshipsQuery(), staleTime: 0 }),
-                client.query({ ...onboardingQuery(), staleTime: 0 }),
-                client.query({ ...favouriteFactionsQuery(), staleTime: 0 }),
-                client.query({ ...favouriteDetachmentsQuery(), staleTime: 0 }),
-                client.query({ ...savedRosterSummariesQuery(), staleTime: 0 }).then(async (summaries) => {
+                refreshBattleFeed(client, friendBattlesQuery()),
+                client.query({ ...homeRostersQuery(), staleTime: Infinity }),
+                client.query({ ...leaguesQuery(), staleTime: Infinity }),
+                client.query({ ...friendshipsQuery(), staleTime: Infinity }),
+                client.query({ ...onboardingQuery(), staleTime: Infinity }),
+                client.query({ ...favouriteFactionsQuery(), staleTime: Infinity }),
+                client.query({ ...favouriteDetachmentsQuery(), staleTime: Infinity }),
+                client.query({ ...savedRosterSummariesQuery(), staleTime: Infinity }).then(async (summaries) => {
+                  if (!active || client.getQueryData<{ id: string }>(['me'])?.id !== me.id) return
                   const ids = sortRosters(summaries, 'updated-desc')
                     .slice(0, ROSTER_LIBRARY_BATCH_SIZE)
                     .map((roster) => roster.id)
-                  await client.query({ ...savedRosterPageQuery(ids), staleTime: 0 })
+                  await client.query({ ...savedRosterPageQuery(ids), staleTime: Infinity })
                   for (let index = 0; index < ids.length; index += 3) {
                     if (!active || client.getQueryData<{ id: string }>(['me'])?.id !== me.id) break
                     await Promise.allSettled(
                       ids.slice(index, index + 3).map(async (id) => {
-                        await client.query({ ...rosterBootstrapQuery(id), staleTime: 0 })
-                        await client.query({ ...outdatedLeagueEntriesQuery(id), staleTime: 0 })
+                        await client.query({ ...rosterBootstrapQuery(id), staleTime: Infinity })
+                        if (active && client.getQueryData<{ id: string }>(['me'])?.id === me.id)
+                          await client.query({ ...outdatedLeagueEntriesQuery(id), staleTime: Infinity })
                       }),
                     )
                   }
                 }),
               ]
-            : [client.query({ ...standingsQuery(), staleTime: 0 })]),
+            : [client.query({ ...standingsQuery(), staleTime: Infinity })]),
         ])
       } catch {
         // Saved data remains available when the service cannot be reached.
