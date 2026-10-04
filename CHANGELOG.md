@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.98.3
+
+### Patch Changes
+
+- 4a0745f: Clarify supported features and distinguish signed-out homepage sections with subtle color accents.
+- 4c48fec: Label server and MCP analytics events with the deployment host so preview and local traffic can be filtered out.
+- 4c48fec: Stop browser test stacks from sending telemetry to the PostHog project named in the local environment.
+- c4be00a: Prompt for standard secondary mission payouts, including Cleanse and Centre Ground, at the end of the turn.
+
 ## 0.98.2
 
 ### Patch Changes
