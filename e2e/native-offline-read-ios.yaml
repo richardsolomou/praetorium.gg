@@ -32,11 +32,11 @@ appId: gg.praetorium
 - tapOn: More
 - tapOn:
     text: RULES Game reference
-    optional: true
 - scrollUntilVisible:
     element:
       text: '03\. Moving.*'
     direction: DOWN
+    centerElement: true
 - tapOn: '03\. Moving.*'
 - assertVisible: 03. Moving
 - takeScreenshot: native-rules-offline
