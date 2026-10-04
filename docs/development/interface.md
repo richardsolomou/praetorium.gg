@@ -14,6 +14,8 @@ Write for a player building an army or playing Warhammer 40,000. Name the game t
 
 Compact roster panes use browser history and stop above the application tabs. Closing a datasheet returns to the picker or roster that opened it. Required battle prompts leave application navigation reachable. At intermediate website widths, compact panes remain modal dialogs. [Mobile](mobile.md#shell-boundaries) owns native Back behavior.
 
+Release notices use one compact sentence and a manual Refresh action, centred at the bottom above any application tabs. Match a supplied interface reference before adding copy or secondary actions.
+
 ## Components and styles
 
 - `src/styles.css` owns palette, typography, spacing tokens, and generated-component treatment. Use its `eyebrow`, `rubric`, `chip`, `figure`, and `readout` utilities instead of restating them. Green signals actions/selection, amber attention, blue navigation; side red and blue remain separate ownership signals.

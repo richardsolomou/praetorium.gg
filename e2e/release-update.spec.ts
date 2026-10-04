@@ -14,12 +14,15 @@ for (const width of [1440, 390]) {
     served = '99.0.0'
     await page.clock.runFor(60_000)
     await expect(notice).toBeVisible()
-    await expect(notice).toContainText('v99.0.0')
+    await expect(notice).toHaveText('Praetorium has been updated.Refresh')
+    await expect(notice.getByRole('button')).toHaveCount(1)
+    const bounds = await notice.boundingBox()
+    expect(Math.abs(bounds!.x + bounds!.width / 2 - width / 2)).toBeLessThan(1)
+    if (width === 390) {
+      const tabs = await page.locator('[data-native-app-tabs]').boundingBox()
+      expect(bounds!.y + bounds!.height).toBeLessThan(tabs!.y)
+    }
     await page.screenshot({ path: `test-results/release-update-${width}.png` })
-    await notice.getByRole('button', { name: 'Later' }).click()
-    await page.clock.runFor(60_000)
-    await expect(notice).toHaveCount(0)
-    served = '99.0.1'
     await page.clock.runFor(60_000)
     await expect(notice).toBeVisible()
     served = version

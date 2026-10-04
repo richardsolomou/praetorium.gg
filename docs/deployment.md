@@ -16,7 +16,7 @@ Before changing replicas or publishing the product module, the workflow copies h
 
 The public Node proxy owns a separate Nitro child process. Shutdown stops accepting connections, closes upgraded connections, and drains HTTP requests for up to five seconds before stopping Nitro. The child then has three seconds to exit, within Docker's ten-second stop grace period. The public listener opens only after the child's `/api/health` succeeds.
 
-Open pages check an uncached `/api/release` endpoint once a minute while visible and when focus returns. A newer version offers Refresh and Later actions. Refresh is explicit to preserve unsaved edits; Later hides that version until the tab reloads or another release appears.
+Open pages check an uncached `/api/release` endpoint once a minute while visible and when focus returns. A newer web version offers a manual Refresh action, including inside the native WebView. Native shell updates are distributed through the app stores separately.
 
 Product publication requires a migration plan/token. Automatic schema migrations may disconnect clients; manual migrations stop delivery without clearing data. Catalogue assets are pinned and verified inside the image; publishing a source snapshot alone does not update the running service.
 
