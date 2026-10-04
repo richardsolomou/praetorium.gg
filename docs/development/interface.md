@@ -75,7 +75,7 @@ Keep saved lookup in the normal interface, without offline banners or download/u
 
 [`src/client/offline`](../../src/client/offline) owns reference downloads, account snapshots, and refreshes. [`src/contracts/appSnapshot.ts`](../../src/contracts/appSnapshot.ts) owns saved-query eligibility and limits. Exclude authentication secrets, administration, and impersonated accounts; clear private data on sign-out or account changes, including other browser tabs. Saved responses are display data, not authentication or another authority for roster edits and battle commands.
 
-Production browsers use Cache Storage and IndexedDB; development websites do not install the service worker. [Mobile](mobile.md#saved-application-data) owns native storage and launch behavior. Authentication and API documents retain their hosted path.
+Production browsers use Cache Storage for public bundles and `idb-keyval` for IndexedDB snapshots. Its atomic `update` keeps account-generation checks and writes in one transaction, preventing a stale tab from restoring signed-out data. Development websites do not install the service worker. [Mobile](mobile.md#saved-application-data) owns native storage and launch behavior. Authentication and API documents retain their hosted path.
 
 Run `just e2e offline.spec.ts app-cache.spec.ts` after changes to this flow. The journeys must cover cold offline Home, roster/battle feeds and details, unvisited public references, search, automatic reconnect updates without a reload, connected edits, and sign-out cleanup across tabs.
 

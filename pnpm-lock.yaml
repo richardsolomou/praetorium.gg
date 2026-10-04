@@ -107,6 +107,9 @@ importers:
       http-proxy:
         specifier: 1.18.1
         version: 1.18.1(debug@4.4.3(supports-color@10.2.2))
+      idb-keyval:
+        specifier: 6.3.0
+        version: 6.3.0
       jose:
         specifier: ^6.2.12
         version: 6.2.12
@@ -203,7 +206,7 @@ importers:
         version: 0.23.3(supports-color@10.2.2)
       nitro:
         specifier: 3.0.260610-beta
-        version: 3.0.260610-beta(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(aws4fetch@1.0.20)(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.6)(postgres@3.4.9))(jiti@2.7.0)(lru-cache@11.5.3)(rollup@4.63.2)(vite@8.2.2(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(wrangler@4.135.0(@cloudflare/workers-types@5.20260918.1)(@types/node@24.13.6))
+        version: 3.0.260610-beta(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(aws4fetch@1.0.20)(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.6)(postgres@3.4.9))(idb-keyval@6.3.0)(jiti@2.7.0)(lru-cache@11.5.3)(rollup@4.63.2)(vite@8.2.2(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(wrangler@4.135.0(@cloudflare/workers-types@5.20260918.1)(@types/node@24.13.6))
       oxfmt:
         specifier: ^0.63.0
         version: 0.63.0
@@ -5730,6 +5733,9 @@ packages:
   iconv-lite@0.7.3:
     resolution: {integrity: sha512-IKXpvIzjnC9XTAUbVBcMfGS0EPaIXtW6v+zr+RRp+hqULEpo0owZax6wyRwPOJbWbzjYspQwusTsfVr0ifh4uQ==}
     engines: {node: '>=0.10.0'}
+
+  idb-keyval@6.3.0:
+    resolution: {integrity: sha512-um+2dgAWmYsu615EXpWVwSmapJhON0G43t3Ka/EVaohzPQXSMqKEqeDK/oIW3Ow+BXaF2PvSc+oBTFp793A5Ow==}
 
   ignore@5.3.2:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
@@ -13207,6 +13213,8 @@ snapshots:
     dependencies:
       safer-buffer: 2.1.2
 
+  idb-keyval@6.3.0: {}
+
   ignore@5.3.2: {}
 
   ignore@7.0.9: {}
@@ -14262,7 +14270,7 @@ snapshots:
 
   nf3@0.3.23: {}
 
-  nitro@3.0.260610-beta(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(aws4fetch@1.0.20)(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.6)(postgres@3.4.9))(jiti@2.7.0)(lru-cache@11.5.3)(rollup@4.63.2)(vite@8.2.2(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(wrangler@4.135.0(@cloudflare/workers-types@5.20260918.1)(@types/node@24.13.6)):
+  nitro@3.0.260610-beta(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(aws4fetch@1.0.20)(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.6)(postgres@3.4.9))(idb-keyval@6.3.0)(jiti@2.7.0)(lru-cache@11.5.3)(rollup@4.63.2)(vite@8.2.2(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(wrangler@4.135.0(@cloudflare/workers-types@5.20260918.1)(@types/node@24.13.6)):
     dependencies:
       consola: 3.4.2
       crossws: 0.4.10(srvx@0.11.22)
@@ -14277,7 +14285,7 @@ snapshots:
       rolldown: 1.2.3
       srvx: 0.11.22
       unenv: 2.0.0-rc.24
-      unstorage: 2.0.0-alpha.7(aws4fetch@1.0.20)(chokidar@5.0.0)(db0@0.3.4(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.6)(postgres@3.4.9)))(lru-cache@11.5.3)(ofetch@2.0.0-alpha.3)
+      unstorage: 2.0.0-alpha.7(aws4fetch@1.0.20)(chokidar@5.0.0)(db0@0.3.4(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.6)(postgres@3.4.9)))(idb-keyval@6.3.0)(lru-cache@11.5.3)(ofetch@2.0.0-alpha.3)
     optionalDependencies:
       dotenv: 17.4.2
       jiti: 2.7.0
@@ -15456,11 +15464,12 @@ snapshots:
       rollup: 4.63.2
       vite: 8.2.2(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
 
-  unstorage@2.0.0-alpha.7(aws4fetch@1.0.20)(chokidar@5.0.0)(db0@0.3.4(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.6)(postgres@3.4.9)))(lru-cache@11.5.3)(ofetch@2.0.0-alpha.3):
+  unstorage@2.0.0-alpha.7(aws4fetch@1.0.20)(chokidar@5.0.0)(db0@0.3.4(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.6)(postgres@3.4.9)))(idb-keyval@6.3.0)(lru-cache@11.5.3)(ofetch@2.0.0-alpha.3):
     optionalDependencies:
       aws4fetch: 1.0.20
       chokidar: 5.0.0
       db0: 0.3.4(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.6)(postgres@3.4.9))
+      idb-keyval: 6.3.0
       lru-cache: 11.5.3
       ofetch: 2.0.0-alpha.3
 

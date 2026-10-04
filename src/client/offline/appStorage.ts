@@ -1,42 +1,27 @@
+import { createStore, get, update } from 'idb-keyval'
 import { MAX_APP_SNAPSHOT_BYTES, parseAppSnapshot, type AppSnapshot } from '../../contracts/appSnapshot'
 import { requestNativeAppSnapshot, supportsNativeAppSnapshot } from '../nativeBridge'
 
-const DATABASE = 'praetorium-app'
+const store = createStore('praetorium-app', 'state')
 export const APP_ACCOUNT_EVENT = 'praetorium-app-account'
-let database: Promise<IDBDatabase> | undefined
 let epoch: string | undefined
-
-function open() {
-  database ??= new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DATABASE, 1)
-    request.onupgradeneeded = () => request.result.createObjectStore('state')
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error)
-  }).catch((error) => {
-    database = undefined
-    throw error
-  })
-  return database
-}
+type SavedState = { epoch: string; snapshot: unknown }
 
 export async function readAppSnapshot(): Promise<AppSnapshot | null> {
   if (supportsNativeAppSnapshot()) return window.PraetoriumAppSnapshot ?? null
-  const db = await open()
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction('state', 'readwrite')
-    const store = transaction.objectStore('state')
-    const request = store.get('snapshot')
-    let snapshot: AppSnapshot | null = null
-    request.onsuccess = () => {
-      const saved = request.result as { epoch: string; snapshot: unknown } | undefined
-      epoch = saved?.epoch ?? crypto.randomUUID()
-      if (!saved) store.put({ epoch, snapshot: null }, 'snapshot')
-      snapshot = parseAppSnapshot(saved?.snapshot)
-    }
-    transaction.oncomplete = () => resolve(snapshot)
-    transaction.onerror = () => reject(transaction.error)
-    transaction.onabort = () => reject(transaction.error)
-  })
+  let saved = await get<SavedState>('snapshot', store)
+  if (!saved) {
+    await update<SavedState>(
+      'snapshot',
+      (current) => {
+        saved = current ?? { epoch: crypto.randomUUID(), snapshot: null }
+        return saved
+      },
+      store,
+    )
+  }
+  epoch = saved!.epoch
+  return parseAppSnapshot(saved!.snapshot)
 }
 
 export async function writeAppSnapshot(snapshot: AppSnapshot | null, reset = false): Promise<void> {
@@ -46,22 +31,16 @@ export async function writeAppSnapshot(snapshot: AppSnapshot | null, reset = fal
     window.PraetoriumAppSnapshot = snapshot ?? undefined
     return
   }
-  const db = await open()
   const expectedEpoch = epoch
-  await new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction('state', 'readwrite')
-    const store = transaction.objectStore('state')
-    const request = store.get('snapshot')
-    request.onsuccess = () => {
-      const saved = request.result as { epoch: string } | undefined
+  await update<SavedState | undefined>(
+    'snapshot',
+    (saved) => {
       if (reset) epoch = crypto.randomUUID()
-      if (!epoch || (!reset && saved?.epoch !== expectedEpoch)) return
-      store.put({ epoch, snapshot }, 'snapshot')
-    }
-    transaction.oncomplete = () => resolve()
-    transaction.onerror = () => reject(transaction.error)
-    transaction.onabort = () => reject(transaction.error)
-  })
+      if (!epoch || (!reset && saved?.epoch !== expectedEpoch)) return saved
+      return { epoch, snapshot }
+    },
+    store,
+  )
   if (reset) {
     try {
       localStorage.setItem(APP_ACCOUNT_EVENT, epoch!)
