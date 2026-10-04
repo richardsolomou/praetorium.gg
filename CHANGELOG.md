@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.101.0
+
+### Minor Changes
+
+- 8f17481: Show aligned mission scores with current-round emphasis, compact completed missions, and a remaining-deck reference.
+
+### Patch Changes
+
+- 19ed05e: Show published battlefield names on battle cards and remove the repeated completed label.
+
 ## 0.100.0
 
 ### Minor Changes
