@@ -581,7 +581,7 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: BACKGROUND,
+    backgroundColor: '#141a1e',
   },
   webView: {
     flex: 1,
