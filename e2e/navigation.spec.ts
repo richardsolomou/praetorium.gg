@@ -501,7 +501,10 @@ test('opening faction datasheets does not render the route error boundary', asyn
   await page.screenshot({ path: 'test-results/faction-datasheets-first-load.png', fullPage: true })
 })
 
-test('signed-out faction browsing does not load account collection data', async ({ page }) => {
+test('signed-out faction browsing does not load account collection data before background warming', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.requestIdleCallback = () => 1
+  })
   const serverReads: string[] = []
   page.on('request', (request) => {
     if (request.method() === 'GET' && request.url().includes('/_serverFn/')) serverReads.push(request.url())
@@ -567,13 +570,20 @@ test('account libraries share their page width and fit a phone', async ({ page }
   await page.setViewportSize({ width: 1280, height: 800 })
 
   const widths: number[] = []
-  for (const path of ['/rosters', '/battles', '/friends']) {
+  for (const [path, heading] of [
+    ['/rosters', 'My rosters'],
+    ['/battles', 'My battles'],
+    ['/friends', 'Friends'],
+  ]) {
     await page.goto(path)
+    await expect(page.getByRole('heading', { name: heading, exact: true, level: 1 })).toBeVisible()
     if (path === '/rosters') await expect(page.getByLabel('Loading roster count')).toHaveCount(0)
     widths.push((await page.locator('main').boundingBox())?.width ?? 0)
   }
   expect(new Set(widths).size).toBe(1)
   await page.goto('/rosters')
+  await expect(page.getByRole('heading', { name: 'My rosters', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Loading roster count')).toHaveCount(0)
   const heroRail = await page.locator('main > header').first().locator('div.relative').last().boundingBox()
   const contentRail = await page.getByLabel('Roster filters').locator('..').boundingBox()
   expect(Math.abs((heroRail?.width ?? 0) - (contentRail?.width ?? 0))).toBeLessThan(4)

@@ -16,6 +16,8 @@ Expo generates disposable, gitignored `mobile/ios` and `mobile/android` projects
 
 ## Shell boundaries
 
+`mobile/src/package.json` marks shared mobile source as ES modules for Node-based test consumers. Keep Expo and Metro configuration in the parent CommonJS scope. Run full Playwright collection (`pnpm exec playwright test --list`) after changing shared imports; focused runs do not load every consumer.
+
 - `mobile/src/appShellState.ts` owns launch, load, callback delivery, retry, and renderer recovery. Ordinary launch does not wait for secure storage; an authentication callback does.
 - `mobile/src/navigation.ts` keeps trusted application links in the main WebView and sends supported external links to the operating system. The injected bridge and native new-window fallback cover both `_blank` and `window.open`.
 - Internal links preserve path, query, and fragment on cold and warm launches. Associated-domain configuration and signed-device checks belong to [Mobile release](mobile-release.md#production-identity-checks).
