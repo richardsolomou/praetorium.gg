@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.101.1
+
+### Patch Changes
+
+- e7237da: Restore missing weapon and granted ability rule tooltips across datasheets.
+
 ## 0.101.0
 
 ### Minor Changes
