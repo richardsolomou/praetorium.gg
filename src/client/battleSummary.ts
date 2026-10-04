@@ -1,11 +1,13 @@
 import { routeSlug } from '../core/slug'
 
-export function deploymentName(id: string | null, deployments: readonly { id: string; name: string }[] = []): string | null {
+export function deploymentFor<T extends { id: string; name: string }>(id: string | null, deployments: readonly T[] = []): T | null {
   return (
-    deployments.find((deployment) => deployment.id === id)?.name ??
-    deployments.find((deployment) => routeSlug(deployment.name) === id)?.name ??
-    null
+    deployments.find((deployment) => deployment.id === id) ?? deployments.find((deployment) => routeSlug(deployment.name) === id) ?? null
   )
+}
+
+export function deploymentName(id: string | null, deployments: readonly { id: string; name: string }[] = []): string | null {
+  return deploymentFor(id, deployments)?.name ?? null
 }
 
 /** Fold list rows by side, not seat order: a 2v1 creator can sit beside an ally in the first two seats. */

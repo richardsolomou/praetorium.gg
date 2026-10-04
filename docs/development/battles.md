@@ -32,6 +32,8 @@ Practice opponents are ordinary seats backed by accounts without credentials. Th
 
 Setup position is command-derived and shared across devices. Changing points removes selected catalogue rosters that no longer match the side's share. `set-battlefield` records deployment and terrain together; a layout without pinned geometry cannot start. Reset clears roster/battlefield choices without discarding the configured format or audit trail.
 
+Tracker and replay battlefield names open the saved layout through `BattlefieldFact.tsx` and `battlefieldLayout.ts`. Load terrain on opening and fit the whole board without placement measurements or zoom controls. Legacy layout IDs resolve only through an unambiguous saved disposition pair and variant; never substitute another layout. Battles without a saved terrain layout show deployment zones/objectives alone. Shelves omit missing battlefield labels instead of showing internal IDs.
+
 ## Frozen armies
 
 Attaching a saved roster rechecks ownership, price, and legality on the server before freezing selections, cards, unit keys, model counts, and supported wound values. Text-only imports remain usable without a catalogue. Incomplete validation is a warning, not invented legality. Later saved-list edits or deletion cannot rewrite a battle. Old snapshots retain card/text fallbacks.

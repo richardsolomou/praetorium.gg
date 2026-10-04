@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.102.0
+
+### Minor Changes
+
+- 8df0ad9: Show the chosen battlefield in older battles and open its map from the battlefield name in trackers and replays.
+
 ## 0.101.1
 
 ### Patch Changes
