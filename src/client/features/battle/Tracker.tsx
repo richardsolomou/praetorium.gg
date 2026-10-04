@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../../server/functions'
+import { deploymentFor } from '../../battleSummary'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../../queries'
 import { missionCardsByKey, primaryCards, secondaryCards } from './missionDeck'
 import {
@@ -48,6 +49,7 @@ import { Report, type ReportPlayer } from './Report'
 import { BattleMinimizeContext } from './BattlePromptDialog'
 import { advanceOnboarding, ONBOARDING_FOCUS_EVENT, storedOnboardingFocus, type OnboardingFocus } from '../onboarding/onboarding'
 import { Fact } from '../../components/Fact'
+import { BattlefieldFact } from './BattlefieldFact'
 
 type Props = {
   view: BattleView
@@ -239,7 +241,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   // with nothing synced answers null and is not waiting on anything; a request still
   // in flight or one that failed is, and neither may be read as a card that pays nothing.
   const deckUnknown = referencesQuery.isPending || referencesQuery.isError
-  const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
+  const deployment = deploymentFor(view.deploymentId, deployments)
   const missionPack = references?.packs.find((entry) => entry.id === view.settings.missionPackId)
   const twist = missionPack?.twists.find((entry) => entry.id === view.settings.twistId)
   const navigate = useNavigate()
@@ -608,10 +610,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                 <Fact label="Mission" value={yours?.mission?.name ?? 'Matched play'} />
                 <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
-                <Fact
-                  label="Battlefield"
-                  value={deployment ? `${deployment.name} · ${deployment.objectives.length} objectives` : 'Not chosen'}
-                />
+                <BattlefieldFact view={view} deployment={deployment} objectives />
                 <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
                 <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
                 <Fact label="Format" value={formatName(table)} />
