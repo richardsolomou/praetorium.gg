@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.99.0
+
+### Minor Changes
+
+- 4012673: Expand the getting started guide with combat simulation, army tools, and battle setup and play.
+
 ## 0.98.5
 
 ### Patch Changes
