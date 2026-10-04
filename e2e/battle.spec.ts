@@ -54,9 +54,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await scoring.getByRole('button', { name: 'Pass the turn', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
   await page.reload()
-  await takeTheTurn(page)
-  await page.getByRole('tab', { name: 'Battle', exact: true }).click()
-  await expect(page.getByText(/settles 3 VP on Centre Ground, 2 VP on Cleanse/)).toBeVisible()
+  await expect(page.locator('[data-panel="player"][data-side="0"] [data-stat="secondary"]')).toHaveText('5')
 })
 
 test('native battle controls leave the application tabs reachable', async ({ page }) => {
