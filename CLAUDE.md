@@ -24,7 +24,7 @@ Read the relevant guide and section before changing its behavior. Read [Architec
 
 ## Shared constraints
 
-- No game data belongs in Git. Use the verified fetched snapshot, inspect the exact source required by the change, and report missing or unsupported semantics rather than inventing rules.
+- Keep fetched upstream catalogues, copied rules prose, generated catalogues, and snapshots out of Git. Authored source corrections belong in `catalogue/patches/`, with minimal upstream context and verified provenance. Use the verified fetched snapshot, inspect the exact source required by the change, and report missing or unsupported semantics rather than inventing rules.
 - Keep deterministic domain decisions in `src/core`, without IO or framework imports except zod. Reuse the existing authority for legality, pricing, visibility, and battle state; a second implementation of the same decision is a bug.
 - Fold battle state from its command log. Do not persist a second score, phase, round, or mission that can disagree with it.
 - Server reads use `rpc()` and mutations use `mutationRpc()`. Mutations check their origin before state access; CSRF protection is per function.

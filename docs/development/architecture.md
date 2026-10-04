@@ -21,6 +21,7 @@ routes ──> client ──> contracts ──> core
 - `src/client/components` contains components shared by multiple features.
 - `src/components/ui` is generated shadcn code and is treated as vendored.
 - `src/routes` owns URLs, search validation, loaders, metadata, and composition of feature pages.
+- `catalogue` contains upstream pins and attribution, authored correction patches, the release snapshot pin, and revocations. Fetched and generated catalogues stay outside Git.
 - `scripts` contains executable maintenance and deployment entry points; `scripts/lib` contains their shared helpers and adjacent tests.
 
 ## Placement rules
