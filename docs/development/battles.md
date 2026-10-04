@@ -4,7 +4,9 @@
 
 Signed-out visitors to `/battles` browse the paginated public feed, grouped into active, setup, and finished games, and open them as spectators. It uses the same audience checks and practice-game exclusion as the home-page feed. Signed-in players see their own battles and creation and deletion controls. The route loads only the feed appropriate to the session.
 
-Battle shelves resolve battlefield names from deployment references, including name-based IDs in older battles. Missing references omit the battlefield label rather than showing an internal ID. Finished cards show their status once and retain a separate end reason only for concessions or early finishes.
+Battle shelves, setup, trackers, and replays resolve battlefield names from deployment references, including name-based IDs in older battles. Missing references omit the battlefield label on shelves rather than showing an internal ID. Finished cards show their status once and retain a separate end reason only for concessions or early finishes.
+
+The battlefield name in trackers and replays opens the saved layout in a dialog. Its whole board fits the viewport, with terrain, deployment zones, and objectives, without placement measurements or zoom controls. Terrain references load when the dialog opens. Older Battlemaster IDs resolve by their saved disposition pair and numbered variant; ambiguous matches remain unavailable. Older battles without a saved terrain layout show their deployment zones and objectives alone; a missing saved layout is reported as unavailable rather than replaced with another variant.
 
 Paginated battle queries reject missing response pages before TanStack Query can cache them. A failed refresh keeps the previous pages; readers skip missing cached pages and treat a missing final page as the end until a successful refresh replaces it.
 
