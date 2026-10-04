@@ -140,6 +140,10 @@ html[data-native-app='true'] [data-mobile-app-header-spacer] {
 }
 
 @media (max-width: 1023px) {
+  html[data-native-app='true'] [data-release-update] {
+    bottom: 5rem;
+  }
+
   html[data-native-app='true'] [data-turn-control] {
     bottom: 4rem;
   }
@@ -172,6 +176,10 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
 }
 
 @media (max-width: 859px) {
+  html:not([data-native-app='true']) [data-release-update] {
+    bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+
   html:has([data-battle-prompt]) [data-slot='dialog-content'] {
     top: calc((100dvh - 4rem - env(safe-area-inset-bottom)) / 2);
     max-height: calc(100dvh - 6rem - env(safe-area-inset-bottom));
