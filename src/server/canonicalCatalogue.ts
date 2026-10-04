@@ -33,6 +33,7 @@ import { mfmAttribution, mfmCostRows } from './mfm'
 import { mfmUnitFor } from './unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 2 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -230,7 +231,7 @@ const ruleDocumentSchema = z.object({
 
 export const canonicalCatalogueSchema = z.object({
   format: z.literal(CANONICAL_CATALOGUE_FORMAT),
-  compilerVersion: z.literal(1),
+  compilerVersion: z.union([z.literal(1), z.literal(CANONICAL_CATALOGUE_COMPILER_VERSION)]),
   revisions: z.record(z.string(), z.string()),
   datasheets: z.array(canonicalDatasheetSchema),
   detachments: z.array(canonicalDetachmentSchema).default([]),
@@ -470,7 +471,7 @@ export function compileCanonicalCatalogue(
   }))
   return canonicalCatalogueSchema.parse({
     format: CANONICAL_CATALOGUE_FORMAT,
-    compilerVersion: 1,
+    compilerVersion: CANONICAL_CATALOGUE_COMPILER_VERSION,
     revisions: Object.fromEntries(Object.entries(revisions).toSorted(([left], [right]) => compareText(left, right))),
     datasheets: routedDatasheets.toSorted(
       (left, right) => compareText(left.faction, right.faction) || compareText(left.name, right.name) || compareText(left.id, right.id),
@@ -514,11 +515,15 @@ export function referenceCatalogue(directory: string, catalogue: () => LoadedCat
     if (fs.existsSync(local)) {
       const candidate = readCanonicalCatalogue(local)
       const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')) as Record<string, string>
-      if (Object.entries(revisions).every(([source, revision]) => candidate.revisions[source] === revision)) return candidate
+      if (
+        candidate.compilerVersion === CANONICAL_CATALOGUE_COMPILER_VERSION &&
+        Object.entries(revisions).every(([source, revision]) => candidate.revisions[source] === revision)
+      )
+        return candidate
     }
   }
   const packaged = loadCanonicalCatalogue(directory)
-  if (packaged && !packaged.revisions.rules) return packaged
+  if (packaged?.compilerVersion === CANONICAL_CATALOGUE_COMPILER_VERSION && !packaged.revisions.rules) return packaged
   const loaded = catalogue()
   return loaded ? compileCanonicalCatalogueFromSnapshot(loaded, rules(), directory) : null
 }

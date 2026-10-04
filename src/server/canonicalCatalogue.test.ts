@@ -424,15 +424,22 @@ describe('canonical catalogue', () => {
   })
 
   it.each([
-    { scenario: 'uses a current local projection', localRevision: 'definitions-revision', expected: 101 },
-    { scenario: 'ignores a local projection from another snapshot', localRevision: 'older-revision', expected: 100 },
-  ])('$scenario', ({ localRevision, expected }) => {
+    { scenario: 'uses a current local projection', localRevision: 'definitions-revision', compilerVersion: 2, expected: 101 },
+    { scenario: 'ignores a local projection from another snapshot', localRevision: 'older-revision', compilerVersion: 2, expected: 100 },
+    {
+      scenario: 'ignores a local projection from an older compiler',
+      localRevision: 'definitions-revision',
+      compilerVersion: 1,
+      expected: 100,
+    },
+  ])('$scenario', ({ localRevision, compilerVersion, expected }) => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-local-'))
     const localFile = path.join(root, 'working.json')
     try {
       const packaged = compileCanonicalCatalogue(catalogue(), revisions)
       const working = {
         ...packaged,
+        compilerVersion,
         revisions: { ...packaged.revisions, definitions: localRevision },
         datasheets: packaged.datasheets.map((sheet) => ({ ...sheet, points: 101 })),
       }
@@ -451,6 +458,37 @@ describe('canonical catalogue', () => {
           () => null,
         )?.datasheets[0]?.points,
       ).toBe(expected)
+    } finally {
+      vi.unstubAllEnvs()
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('recompiles an older packaged catalogue from its verified sources in production', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-compiler-'))
+    try {
+      const source = catalogue()
+      const packaged = compileCanonicalCatalogue(source, revisions)
+      fs.mkdirSync(path.join(root, 'canonical'))
+      fs.writeFileSync(path.join(root, 'revision.json'), JSON.stringify(revisions))
+      fs.writeFileSync(
+        path.join(root, 'canonical', 'catalogue.json'),
+        JSON.stringify({
+          ...packaged,
+          compilerVersion: 1,
+          datasheets: packaged.datasheets.map((sheet) => ({ ...sheet, points: 999 })),
+        }),
+      )
+      vi.stubEnv('PRAETORIUM_LOCAL_DEV', 'false')
+      const result = referenceCatalogue(
+        root,
+        () => source,
+        () => null,
+      )
+      expect({ compilerVersion: result?.compilerVersion, points: result?.datasheets[0]?.points }).toEqual({
+        compilerVersion: 2,
+        points: 100,
+      })
     } finally {
       vi.unstubAllEnvs()
       fs.rmSync(root, { recursive: true, force: true })

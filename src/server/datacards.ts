@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
+import { normalizeRuleReference } from '../core/ruleReference'
 import { catalogueFactionName } from './factionNames'
 import { joinKey, titleCase } from './rulesSource'
 
@@ -103,6 +104,7 @@ export type FactionContent = {
 }
 
 export type LoadedDatacards = {
+  keywordRules?: readonly RuleCard[]
   /** By the slug of every name a faction answers to. */
   factions: Map<string, FactionContent>
   /** By detachment slug. */
@@ -280,6 +282,7 @@ export function loadDatacards(directory: string, sections: SectionProse = NO_SEC
   }
   return {
     factions,
+    keywordRules: keywordDescriptions(directory, ['weapons', 'abilities'], ['exact', 'parameterized']),
     detachmentRules: new Map(
       [...detachmentRules].map(([detachment, rules]) => [
         detachment,
@@ -706,25 +709,32 @@ export function enhancementEligibility(
 }
 
 export function keywordAbilityDescriptions(directory: string) {
+  return new Map(keywordDescriptions(directory, ['abilities'], ['exact']).map(({ name, description }) => [joinKey(name), description]))
+}
+
+function keywordDescriptions(directory: string, appliesTo: readonly string[], matchTypes: readonly string[]): RuleCard[] {
   const file = path.join(directory, 'keywords.json')
-  const descriptions = new Map<string, string>()
-  if (!fs.existsSync(file)) return descriptions
+  if (!fs.existsSync(file)) return []
   const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as { keywords?: unknown }
-  const candidates = new Map<string, Set<string>>()
+  const candidates = new Map<string, { name: string; texts: Set<string> }>()
   for (const entry of records({ keywords: parsed.keywords }, 'keywords')) {
-    if (entry.matchType !== 'exact' || !Array.isArray(entry.appliesTo) || !entry.appliesTo.includes('abilities')) continue
+    if (
+      !matchTypes.includes(String(entry.matchType)) ||
+      !Array.isArray(entry.appliesTo) ||
+      !entry.appliesTo.some((kind) => appliesTo.includes(kind))
+    )
+      continue
     const name = stringField(entry, 'name')
     const description = localizedField(entry, 'descriptionLoc') ?? stringField(entry, 'description')
     if (!name || !description) continue
-    const key = joinKey(name)
-    const texts = candidates.get(key) ?? new Set<string>()
-    texts.add(prose(description))
-    candidates.set(key, texts)
+    const key = normalizeRuleReference(name)
+    const candidate = candidates.get(key) ?? { name, texts: new Set<string>() }
+    candidate.texts.add(prose(description))
+    candidates.set(key, candidate)
   }
-  for (const [name, texts] of candidates) {
-    if (texts.size === 1) descriptions.set(name, texts.values().next().value!)
-  }
-  return descriptions
+  return [...candidates.values()].flatMap(({ name, texts }) =>
+    texts.size === 1 ? [{ name, description: texts.values().next().value! }] : [],
+  )
 }
 
 /** A stratagem's card, section by section, in the order the card prints them. */

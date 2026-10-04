@@ -1,7 +1,7 @@
 import { bracketedRuleReferences, normalizeRuleReference, ruleReferenceKeys } from '../core/ruleReference'
 import type { LoadedCatalogue } from './catalogueIndex'
 
-type RuleSource = { index: Pick<LoadedCatalogue['index'], 'rules'> }
+type RuleSource = { index: Pick<LoadedCatalogue['index'], 'rules'>; datacards?: Pick<LoadedCatalogue['datacards'], 'keywordRules'> }
 
 export function rulesReferencedIn(loaded: RuleSource, texts: readonly (string | null)[]) {
   return rulesNamed(
@@ -32,6 +32,10 @@ function ruleNameIndex(loaded: RuleSource) {
     const existing = bucket.find((candidate) => candidate.name === rule.name)
     if (existing) existing.descriptions.add(rule.description)
     else bucket.push({ name: rule.name, descriptions: new Set([rule.description]), order: order++ })
+  }
+  for (const rule of loaded.datacards?.keywordRules ?? []) {
+    const key = normalizeRuleReference(rule.name)
+    if (!index.has(key)) index.set(key, [{ name: rule.name, descriptions: new Set([rule.description]), order: order++ }])
   }
   ruleNameIndexCache.set(loaded, index)
   return index

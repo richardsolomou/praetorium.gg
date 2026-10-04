@@ -1,7 +1,30 @@
 import { describe, expect, it } from 'vitest'
-import { bracketedRuleReferences, normalizeRuleReference, ruleReferenceKeys, ruleReferenceMatches } from './ruleReference'
+import {
+  bracketedRuleReferences,
+  normalizeRuleReference,
+  ruleReferenceKeys,
+  ruleReferenceMatches,
+  splitWeaponKeywords,
+} from './ruleReference'
 
 describe('rule references', () => {
+  it('splits comma and semicolon weapon abilities without splitting target restrictions', () => {
+    expect(splitWeaponKeywords('Assault, Melta 2; Hunter: Monster/Vehicle')).toEqual(['Assault', 'Melta 2', 'Hunter: Monster/Vehicle'])
+  })
+
+  it.each(['', '-', '—', ' , ; '])('omits empty weapon abilities in %s', (value) => {
+    expect(splitWeaponKeywords(value)).toEqual([])
+  })
+
+  it.each([
+    ['Twin Linked', 'Twin-linked'],
+    ['[TWIN LINKED]', 'Twin‑linked'],
+    ['Twin-linked', 'Twin Linked'],
+    ['Twin Linked: non-MONSTER/VEHICLE', 'Twin-linked'],
+  ])('matches %s to the rule %s', (reference, rule) => {
+    expect(ruleReferenceMatches(reference, rule)).toBe(true)
+  })
+
   it.each([
     '[Anti-Beast 2+]',
     '[ANTI-BEASTS 3+]',
@@ -61,6 +84,7 @@ describe('rule references', () => {
     ['Heavy Intercessor Squad', 'Heavy'],
     ['Heavy Mortar Team', 'Heavy'],
     ['Twin-linked Lascannon', 'Twin'],
+    ['Twin Linked Lascannon', 'Twin-linked'],
   ])('does not read %s as the rule %s', (reference, rule) => {
     expect(ruleReferenceMatches(reference, rule)).toBe(false)
   })

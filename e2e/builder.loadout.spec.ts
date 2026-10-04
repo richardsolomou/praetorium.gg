@@ -1035,12 +1035,12 @@ for (const width of [390, 1600]) {
     await page.keyboard.press('Escape')
 
     await loadout.getByRole('button', { name: 'LETHAL HITS: non-MONSTER/VEHICLE', exact: true }).first().click()
-    await expect(page.getByRole('tooltip')).toContainText('Lethal Hits')
+    await expect(page.getByRole('tooltip')).toContainText(/automatically wound/i)
     await page.screenshot({ path: `test-results/conditional-keyword-${width}.png` })
     await page.keyboard.press('Escape')
     await expect(page.getByRole('tooltip')).toBeHidden()
     await loadout.getByRole('button', { name: 'LETHAL HITS: non-MONSTER/VEHICLE', exact: true }).first().press('Enter')
-    await expect(page.getByRole('tooltip')).toContainText('Lethal Hits')
+    await expect(page.getByRole('tooltip')).toContainText(/automatically wound/i)
     await page.keyboard.press('Escape')
 
     const pair = 'Big Skorcha and Kustom Choppa'

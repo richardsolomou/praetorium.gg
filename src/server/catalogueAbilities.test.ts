@@ -952,6 +952,43 @@ describe('the abilities and wargear a datasheet lists', () => {
     ])
   })
 
+  it('describes a spaced Twin Linked weapon keyword with the hyphenated rule', () => {
+    const book = bookOf({
+      sharedRules: [{ id: 'twin-linked', name: 'Twin-linked', description: 'You can re-roll the wound roll.' }],
+      selectionEntries: [
+        {
+          id: 'venom',
+          name: 'Venom',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'rifle',
+              name: 'Twin splinter rifle',
+              typeName: 'Ranged Weapons',
+              characteristics: [{ name: 'Keywords', typeId: 'keywords', $text: 'Twin Linked' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'venom'), null)?.keywordRules).toEqual([
+      { name: 'Twin-linked', description: 'You can re-roll the wound roll.' },
+    ])
+  })
+
+  it('describes a granted core ability from its parameterized rule definition', () => {
+    const book = bookOf({
+      sharedRules: [{ id: 'fnp', name: 'Feel No Pain', description: 'Ignore lost wounds.' }],
+      selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }],
+    })
+    const sheet = {
+      ...datasheetIn(book, 'cat', 'unit')!,
+      abilities: [{ id: 'granted:fnp', name: 'Feel No Pain 6+', source: 'Counteragents', description: null, kind: 'core' as const }],
+    }
+    expect(describeDatasheetAbilities(book, 'cat', sheet, null)?.abilities[0]?.description).toBe('Ignore lost wounds.')
+  })
+
   /**
    * A keyword a detachment upgrade appends to a weapon arrives as a bare word: the
    * entry that printed the profile links the rules it was printed with, and nothing

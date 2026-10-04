@@ -1,4 +1,5 @@
 import { wargearBaseName } from '../core/wargear'
+import { splitWeaponKeywords as splitKeywords } from '../core/ruleReference'
 import { datasheetCharacteristicKindOf, datasheetProfileKindOf } from '../core/datasheetStructure'
 import type { Datasheet } from '../contracts/catalogue'
 import { normalizedName, normalizedNameVariants } from '../core/name'
@@ -141,7 +142,7 @@ export function addedKeywords(keywords: { value: string; baseValue?: string }): 
   return splitKeywords(keywords.value).filter((keyword) => !printed.has(keyword))
 }
 
-export const splitKeywords = (value: string) => value.split(',').map((keyword) => keyword.trim())
+export { splitKeywords }
 
 type Ability = { name: string; kind: string }
 type Attachment = { kind?: string }
