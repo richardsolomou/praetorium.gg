@@ -2,132 +2,11 @@ import fs from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { unzipSync } from 'fflate'
-import {
-  type BattlemasterSource,
-  disabledCatalogueSources,
-  type ResolvedCatalogueSources,
-  SOURCE_NAMES,
-  type SnapshotSourceName,
-  type SourceName,
-} from './catalogueSources'
+import { type BattlemasterSource } from './catalogueSources'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 import { fetchWithRetry } from './fetch'
 
-/**
- * Fetching the community data an instance needs, without anybody running a script.
- *
- * The sources are imported rather than read from disk so they travel in the bundle:
- * a container has `src` and nothing else. GitHub's zipball is used rather than its
- * tarball because `fflate` already reads zip and Node has no tar — one fewer
- * dependency for the same job.
- */
 export type SyncState = { status: 'absent' | 'working' | 'ready' | 'failed'; detail: string | null }
-
-const REVISION_FILE = 'revision.json'
-
-function pinnedRevisions(
-  sources: ResolvedCatalogueSources,
-  disabled: ReadonlySet<SnapshotSourceName>,
-): Partial<Record<SourceName | 'battlemaster', string>> {
-  const revisions: Partial<Record<SourceName | 'battlemaster', string>> = {}
-  for (const name of SOURCE_NAMES) {
-    if (!disabled.has(name)) revisions[name] = sources[name].revision
-  }
-  return revisions
-}
-
-/** What is on disk, or nothing when this instance has never synced. */
-function localRevisions(directory: string): Partial<Record<SourceName | 'battlemaster', string>> {
-  try {
-    const parsed: Partial<Record<SourceName | 'battlemaster', string>> = JSON.parse(
-      fs.readFileSync(path.join(directory, REVISION_FILE), 'utf8'),
-    )
-    return parsed
-  } catch {
-    return {}
-  }
-}
-
-export const isCurrent = (directory: string, sources: ResolvedCatalogueSources, disabled = disabledCatalogueSources()) => {
-  const local = localRevisions(directory)
-  const pinned = pinnedRevisions(sources, disabled)
-  return (
-    SOURCE_NAMES.filter((name) => !disabled.has(name)).every(
-      (name) => local[name] === pinned[name] && fs.existsSync(path.join(directory, name)),
-    ) &&
-    (disabled.has('marineCodex') ||
-      disabled.has('definitions') ||
-      (sources.marineCodex.files ?? []).every((file) => fs.existsSync(path.join(directory, 'definitions', file))))
-  )
-}
-
-function overlayMarineCodex(directory: string, sources: ResolvedCatalogueSources) {
-  const files = sources.marineCodex.files
-  if (!files?.length) throw new Error('Marine codex file list is empty')
-  for (const file of files) {
-    if (!/^Imperium - [A-Za-z ]+ \(11e\)\.json$/.test(file)) throw new Error(`invalid Marine codex file ${file}`)
-    const from = path.join(directory, 'marineCodex', file)
-    if (!fs.existsSync(from)) throw new Error(`Marine codex file ${file} is missing`)
-    fs.copyFileSync(from, path.join(directory, 'definitions', file))
-  }
-}
-
-/** Publication gate: every optional source must be complete too. */
-export const isComplete = (directory: string, sources: ResolvedCatalogueSources, disabled = disabledCatalogueSources()) => {
-  const local = localRevisions(directory)
-  if (!isCurrent(directory, sources, disabled)) return false
-  if (disabled.has('battlemaster')) return true
-  if (local.battlemaster !== sources.battlemaster.revision) return false
-  const layouts = path.join(directory, 'battlemaster', 'layouts')
-  if (!fs.existsSync(layouts) || !fs.readdirSync(layouts).length) return false
-  return true
-}
-
-/**
- * Brings the directory up to the pinned revisions, doing nothing when it already is.
- *
- * Each source lands in a sibling directory first and is swapped in, so a run that
- * dies halfway cannot leave a half-written catalogue that looks complete.
- */
-export async function syncSources(
-  directory: string,
-  sources: ResolvedCatalogueSources,
-  report: (message: string) => void = () => {},
-  disabled = disabledCatalogueSources(),
-): Promise<void> {
-  for (const name of disabled) fs.rmSync(path.join(directory, name), { recursive: true, force: true })
-  if (disabled.has('marineCodex')) {
-    for (const file of sources.marineCodex.files ?? []) fs.rmSync(path.join(directory, 'definitions', file), { force: true })
-  }
-
-  if (isCurrent(directory, sources, disabled)) {
-    await syncFactionIcons(directory, report)
-    if (!disabled.has('battlemaster')) await syncBattlemaster(directory, report, sources.battlemaster)
-    report('catalogue is already at the pinned revisions')
-    return
-  }
-
-  fs.mkdirSync(directory, { recursive: true })
-  const local = localRevisions(directory)
-  const pinned = pinnedRevisions(sources, disabled)
-  for (const name of SOURCE_NAMES.filter((candidate) => !disabled.has(candidate))) {
-    const target = path.join(directory, name)
-    if (local[name] === pinned[name] && fs.existsSync(target)) {
-      report(`${name}: already at the pinned revision`)
-      continue
-    }
-    // Deliberately one at a time: unzipping three archives together would spike
-    // well past what a small instance has.
-    const source = sources[name]
-    report(`${name}: fetching ${source.repository} at ${source.revision.slice(0, 10)}`)
-    await fetchInto(source.repository, source.revision, target, 'path' in source ? source.path : undefined)
-  }
-  if (!disabled.has('marineCodex') && !disabled.has('definitions')) overlayMarineCodex(directory, sources)
-  fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(pinned, null, 2)}\n`)
-  await syncFactionIcons(directory, report)
-  if (!disabled.has('battlemaster')) await syncBattlemaster(directory, report, sources.battlemaster)
-  report('catalogue is ready')
-}
 
 const MAX_FACTION_ICON_BYTES = 256 * 1024
 
@@ -185,20 +64,7 @@ type BattlemasterDetail = {
 const MAX_BATTLEMASTER_FILE_BYTES = 5 * 1024 * 1024
 const MAX_BATTLEMASTER_TOTAL_BYTES = 64 * 1024 * 1024
 
-async function syncBattlemaster(directory: string, report: (message: string) => void, source: BattlemasterSource) {
-  const target = path.join(directory, 'battlemaster')
-  if (localRevisions(directory).battlemaster === source.revision && fs.existsSync(target)) return
-  report(`battlemaster: fetching ${source.missionPack} terrain geometry`)
-  try {
-    await fetchBattlemasterInto(source, target)
-    const revisions = { ...localRevisions(directory), battlemaster: source.revision }
-    fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(revisions, null, 2)}\n`)
-  } catch (error) {
-    report(`battlemaster: terrain geometry unavailable (${error instanceof Error ? error.message : String(error)})`)
-  }
-}
-
-async function fetchBattlemasterInto(source: BattlemasterSource, target: string) {
+export async function fetchBattlemasterInto(source: BattlemasterSource, target: string) {
   const catalogUrl = new URL('/v1.1/public/tts/layouts', source.baseUrl)
   catalogUrl.searchParams.set('owner', source.owner)
   catalogUrl.searchParams.set('missionPack', source.missionPack)
@@ -262,7 +128,7 @@ function battlemasterDetailMatches(entry: BattlemasterCatalog['layouts'][number]
 const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024
 const MAX_EXTRACTED_BYTES = 512 * 1024 * 1024
 
-async function fetchInto(repository: string, revision: string, target: string, sourcePath?: string) {
+export async function fetchInto(repository: string, revision: string, target: string, sourcePath?: string) {
   const response = await fetchWithRetry(`https://codeload.github.com/${repository}/zip/${revision}`)
   if (!response.ok) throw new Error(`${repository} answered ${response.status}`)
   extractSourceArchive(new Uint8Array(await response.arrayBuffer()), repository, target, sourcePath)

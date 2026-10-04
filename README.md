@@ -22,7 +22,7 @@ Anyone can watch public battles and see the leaderboard. Players can control who
 
 Praetorium does not provide matchmaking, chat, tournament pairings, or a rules encyclopedia. An account is required to play or to keep a list, though not to watch a public battle, read the leaderboard, or try the roster builder.
 
-This repository contains no game data. The service uses verified snapshots from the configured community sources.
+This repository contains source pins and authored correction patches, but no fetched upstream catalogues, copied rules prose, or generated snapshots. The service uses verified snapshots from the configured community sources.
 
 ## Use
 

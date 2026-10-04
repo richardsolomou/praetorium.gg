@@ -4,7 +4,14 @@ import rawSources from '../../catalogue/sources.json' with { type: 'json' }
 const repositorySourceSchema = z.object({
   repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'expected owner/name'),
   branch: z.string().min(1),
-  path: z.string().optional(),
+  revision: z.string().regex(/^[0-9a-f]{40}$/, 'expected a full Git commit SHA'),
+  path: z
+    .string()
+    .refine(
+      (value) => !value.startsWith('/') && !value.split('/').some((part) => part === '..' || !part),
+      'expected a relative source path',
+    )
+    .optional(),
   license: z.string().min(1).nullable(),
   licenseUrl: z.url().optional(),
   attribution: z.string().optional(),
@@ -13,6 +20,7 @@ const repositorySourceSchema = z.object({
 })
 
 const battlemasterSourceSchema = z.object({
+  revision: z.string().regex(/^[0-9a-f]{64}$/, 'expected a SHA-256 catalogue hash'),
   baseUrl: z.literal('https://battlemaster.online'),
   owner: z.string().min(1),
   missionPack: z.literal('chapter-approved-2026'),
@@ -27,7 +35,11 @@ export const catalogueSourcesSchema = z.object({
   marineCodex: repositorySourceSchema,
   points: repositorySourceSchema,
   datacards: repositorySourceSchema,
-  icons: repositorySourceSchema,
+  icons: repositorySourceSchema.extend({
+    icons: z
+      .record(z.string().regex(/^[a-z0-9-]+$/), z.string())
+      .refine((icons) => Object.keys(icons).length > 0, 'icon selection is empty'),
+  }),
   battlemaster: battlemasterSourceSchema,
 })
 
@@ -40,17 +52,7 @@ export function isSnapshotSourceName(value: string): value is SnapshotSourceName
   return value === 'rules' || (SNAPSHOT_SOURCE_NAMES as readonly string[]).includes(value)
 }
 export type CatalogueSourceConfig = z.infer<typeof catalogueSourcesSchema>
-export type ResolvedCatalogueSources = Omit<
-  CatalogueSourceConfig,
-  'definitions' | 'marineCodex' | 'points' | 'datacards' | 'battlemaster' | 'icons'
-> & {
-  definitions: CatalogueSourceConfig['definitions'] & { revision: string }
-  marineCodex: CatalogueSourceConfig['marineCodex'] & { revision: string }
-  points: CatalogueSourceConfig['points'] & { revision: string }
-  datacards: CatalogueSourceConfig['datacards'] & { revision: string }
-  battlemaster: CatalogueSourceConfig['battlemaster'] & { revision: string }
-}
-export type BattlemasterSource = ResolvedCatalogueSources['battlemaster']
+export type BattlemasterSource = CatalogueSourceConfig['battlemaster']
 
 export const catalogueSources = catalogueSourcesSchema.parse(rawSources)
 
