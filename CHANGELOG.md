@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.98.5
+
+### Patch Changes
+
+- bb5c2bf: Restore selectable thunder hammers and storm shields for Terminator Assault Squads.
+
 ## 0.98.4
 
 ### Patch Changes
