@@ -1,4 +1,5 @@
 import { readdir, readFile, lstat } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { publicAssetsR2Client } from '../src/server/r2Client.ts'
@@ -113,18 +114,36 @@ export async function publishWebAssets(
 }
 
 export async function verifyWebAssetRoute(directories: string[], origin: string, request = fetch) {
+  const cancelled = new AbortController()
   const deadline = AbortSignal.timeout(180_000)
-  const signal = () => AbortSignal.any([deadline, AbortSignal.timeout(30_000)])
+  const signal = () => AbortSignal.any([cancelled.signal, deadline, AbortSignal.timeout(30_000)])
+  const assets = new Map<string, string>()
   for (const directory of directories) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (entry.name.endsWith('.map')) continue
-      const expected = await readFile(path.join(directory, entry.name))
-      const response = await request(new URL(`/assets/${entry.name}`, origin), { cache: 'no-store', signal: signal() })
-      if (!response.ok || response.headers.get('cache-control') !== CACHE || !(await bytes(response)).equals(expected))
-        throw new Error(`Asset route verification failed: ${entry.name}`)
+      assets.set(entry.name, path.join(directory, entry.name))
     }
   }
-  const missing = await request(new URL('/assets/deployment-probe-missing.js', origin), {
+  const entries = [...assets]
+  let next = 0
+  await Promise.all(
+    Array.from({ length: 4 }, async () => {
+      try {
+        while (next < entries.length) {
+          cancelled.signal.throwIfAborted()
+          const [name, file] = entries[next++]!
+          const expected = await readFile(file)
+          const response = await request(new URL(`/assets/${name}`, origin), { cache: 'no-store', signal: signal() })
+          if (!response.ok || response.headers.get('cache-control') !== CACHE || !(await bytes(response)).equals(expected))
+            throw new Error(`Asset route verification failed: ${name}`)
+        }
+      } catch (error) {
+        cancelled.abort()
+        throw error
+      }
+    }),
+  )
+  const missing = await request(new URL(`/assets/deployment-probe-missing-${randomUUID()}.js`, origin), {
     cache: 'no-store',
     signal: signal(),
   })

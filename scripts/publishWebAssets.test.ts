@@ -73,3 +73,22 @@ it('rejects cacheable misses on the hosted asset route', async () => {
     })
   await expect(verifyWebAssetRoute([await assets()], 'https://app.test', request)).rejects.toThrow('Asset misses must remain uncached')
 })
+
+it('checks each hosted asset once with four concurrent workers', async () => {
+  const directory = await assets()
+  for (let index = 0; index < 7; index++) await writeFile(path.join(directory, `chunk${index}-abcdefgh.js`), 'export const ready = true')
+  let active = 0
+  let peak = 0
+  const checked: string[] = []
+  const request: typeof fetch = async (url) => {
+    const pathname = new URL(url instanceof Request ? url.url : url.toString()).pathname
+    if (pathname.includes('deployment-probe-missing')) return new Response(null, { status: 404, headers: { 'cache-control': 'no-store' } })
+    checked.push(pathname)
+    peak = Math.max(peak, ++active)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    active--
+    return new Response('export const ready = true', { headers })
+  }
+  await verifyWebAssetRoute([directory, directory], 'https://app.test', request)
+  expect({ peak, requests: checked.length, unique: new Set(checked).size }).toEqual({ peak: 4, requests: 8, unique: 8 })
+})
