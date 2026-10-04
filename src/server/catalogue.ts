@@ -14,7 +14,7 @@ import { unitChoices } from '../core/unitChoices'
 import { choiceOptionWargear } from '../core/modelKinds'
 import { wargearKey, wargearOf } from '../core/wargear'
 import { combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
-import { ruleReferenceMatches } from '../core/ruleReference'
+import { ruleReferenceMatches, splitWeaponKeywords as weaponKeywordsOf } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
 import {
   datasheetIdBySlug,
@@ -87,12 +87,7 @@ export function unitWoundsIn(loaded: LoadedCatalogue, catalogueId: string, entry
   )
 }
 
-/** The keywords a weapon profile prints as one comma-joined characteristic, none where it prints a dash. */
-export const weaponKeywordsOf = (value: string | undefined) =>
-  (value ?? '')
-    .split(',')
-    .map((keyword) => keyword.trim())
-    .filter((keyword) => keyword && keyword !== '-' && keyword !== '—')
+export { splitWeaponKeywords as weaponKeywordsOf } from '../core/ruleReference'
 
 type DatasheetContext = {
   selections: readonly Selection[]

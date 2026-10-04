@@ -4,6 +4,7 @@ import { combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
 import { wargearBaseName, wargearKey } from './wargear'
 import { combatSchema, diceExpression, type CombatInput, type CombatWeapon } from './combat'
 import { combatKeyword, combatKeywordApplies, normalizeCombatKeyword as normalized } from './combatKeywords'
+import { splitWeaponKeywords } from './ruleReference'
 
 type Profile = ReturnType<typeof datasheetProfilesByKind>['profiles'][number]
 const value = (profile: Profile, kind: DatasheetCharacteristicKind) => profile.values.find((entry) => entry.kind === kind)?.value.trim()
@@ -109,10 +110,7 @@ function parsedWeapon(profile: Profile, targetKeywords: readonly string[], phase
     lance: false,
   }
   const seen = new Set<string>()
-  for (const written of (value(profile, 'keywords') ?? '')
-    .split(/,|;/)
-    .map((part) => part.trim())
-    .filter((part) => part && part !== '-')) {
+  for (const written of splitWeaponKeywords(value(profile, 'keywords'))) {
     const ability = combatKeyword(written)
     if (!ability) {
       unsupported.push(written)
@@ -235,7 +233,7 @@ export function combatPlan(
       ...profile,
       values: profile.values.map((entry) => {
         if (datasheetProfileKind(profile.type) !== `${phase}-weapon` || datasheetCharacteristicKind(entry.name) !== 'keywords') return entry
-        const keywords = [...new Set(entry.value.split(/[,;]/).map((word) => word.trim()))]
+        const keywords = [...new Set(splitWeaponKeywords(entry.value))]
         const groups = new Map<string, string[]>()
         for (const word of keywords) {
           const parsed = combatKeyword(word)
@@ -257,7 +255,7 @@ export function combatPlan(
   }
   const profiles = combatWeapons(selectedSheet, targetKeywords, phase)
   const has = (profile: Profile, keyword: string) =>
-    (value(profile, 'keywords') ?? '').split(/,|;/).some((written) => combatKeyword(written)?.kind === keyword)
+    splitWeaponKeywords(value(profile, 'keywords')).some((written) => combatKeyword(written)?.kind === keyword)
   const unrestricted = sheet.keywords.some((keyword) => ['monster', 'vehicle'].includes(normalized(keyword)))
   const accounted = new Map<string, number>()
   for (const [at, carrier] of carriers.entries()) {

@@ -1,4 +1,5 @@
 import { routeSlug } from '../core/slug'
+import { ruleReferenceMatches } from '../core/ruleReference'
 import { datasheetIn, detachmentAbilitiesIn, rulesNamed, rulesReferencedIn, weaponKeywordsOf } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
@@ -70,9 +71,15 @@ export function describeDatasheetAbilitiesWithContributions(
   const describeAbility = (ability: (typeof visibleAbilities)[number]) => ({
     ...ability,
     kind: ability.kind === 'wargear' && upgradeNames.has(routeSlug(ability.name)) ? ('upgrade' as const) : ability.kind,
-    description: ability.description ?? armyRule(ability.name),
+    description:
+      ability.description ??
+      armyRule(ability.name) ??
+      (ability.kind === 'core' && ability.source
+        ? (rulesNamed(loaded, [ability.name]).toSorted((left, right) => right.name.length - left.name.length)[0]?.description ?? null)
+        : null),
   })
   const abilities = visibleAbilities.map(describeAbility)
+  const weaponAbilityNames = weaponKeywords(sheet.profiles)
   const keywords = new Set(sheet.keywords.map((keyword) => routeSlug(keyword.replace(/^faction:\s*/i, ''))))
   const character = keywords.has('character')
   const abilitiesByDetachment = new Map(
@@ -128,6 +135,11 @@ export function describeDatasheetAbilitiesWithContributions(
       abilities,
       keywordRules: mergeKeywordRules(
         [
+          ...abilities.flatMap((ability) =>
+            ability.description && weaponAbilityNames.some((name) => ruleReferenceMatches(name, ability.name))
+              ? [{ name: ability.name, description: ability.description }]
+              : [],
+          ),
           ...rulesReferencedIn(
             loaded,
             abilities.map((ability) => ability.description),
@@ -136,7 +148,7 @@ export function describeDatasheetAbilitiesWithContributions(
             loaded,
             abilities.filter((ability) => ability.source).map((ability) => ability.name),
           ),
-          ...rulesNamed(loaded, weaponKeywords(sheet.profiles)),
+          ...rulesNamed(loaded, weaponAbilityNames),
         ],
         sheet.keywordRules,
       ),

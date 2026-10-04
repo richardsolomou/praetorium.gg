@@ -108,7 +108,7 @@ export type CanonicalCatalogueIssue = {
 
 export type CanonicalCatalogue = {
   format: 'praetorium.canonical-catalogue.v1'
-  compilerVersion: 1
+  compilerVersion: 1 | 2
   revisions: Record<string, string>
   datasheets: CanonicalDatasheet[]
   detachments: CanonicalDetachment[]

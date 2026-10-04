@@ -159,6 +159,32 @@ it('folds accents and repeated construction suffixes into one join key', () => {
 
 let directory: string | null = null
 
+it('loads named and parameterized weapon and core keyword definitions', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-keywords-'))
+  fs.writeFileSync(
+    path.join(directory, 'keywords.json'),
+    JSON.stringify({
+      keywords: [
+        { name: 'Linked Fire', description: '<b>Link</b> attacks.', matchType: 'exact', appliesTo: ['weapons'] },
+        { name: 'Melta', description: 'Add damage.', matchType: 'parameterized', appliesTo: ['weapons'] },
+        { name: 'Stealth', description: 'Gain cover.', matchType: 'exact', appliesTo: ['abilities'] },
+        { name: 'Feel No Pain', description: 'Ignore wounds.', matchType: 'parameterized', appliesTo: ['abilities'] },
+        { name: 'Unrelated', description: 'Not an ability.', matchType: 'exact', appliesTo: ['other'] },
+        { name: 'Unsupported', description: 'Unknown matching.', matchType: 'regex', appliesTo: ['weapons'] },
+        { name: 'Empty', matchType: 'exact', appliesTo: ['weapons'] },
+        { name: 'Conflicting', description: 'One.', matchType: 'exact', appliesTo: ['weapons'] },
+        { name: 'Conflicting', description: 'Two.', matchType: 'exact', appliesTo: ['weapons'] },
+      ],
+    }),
+  )
+  expect(loadDatacards(directory).keywordRules).toEqual([
+    { name: 'Linked Fire', description: '**Link** attacks.' },
+    { name: 'Melta', description: 'Add damage.' },
+    { name: 'Stealth', description: 'Gain cover.' },
+    { name: 'Feel No Pain', description: 'Ignore wounds.' },
+  ])
+})
+
 it('reads source instructions with their equipment names and skips incomplete groups', () => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
   fs.writeFileSync(

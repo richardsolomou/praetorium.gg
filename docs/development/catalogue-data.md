@@ -21,7 +21,11 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 
 The client keeps catalogue picker entries and searches their structured fields locally for the lifetime of the page, as it does faction records and datasheets. A reload takes the server's current snapshot after an update.
 
+Rule references recognize both `Twin Linked` and `Twin-linked` as the same weapon ability while preserving the source's displayed spelling. Weapon abilities split on commas and semicolons, preserving colon-delimited target restrictions. The server, client, and combat reader share that splitting rule. Missing catalogue rule definitions fall back to unambiguous weapon and core ability definitions in Game Datacards' `keywords.json`; a datasheet's own named ability can also describe a weapon keyword. Granted core abilities retain their source note and use the same rule definitions for their tooltip.
+
 The hosted service reads a checksum-verified snapshot packaged with its image. Each web replica loads the catalogue and rules into memory at startup and prepares the search index and simulator picker; health checks wait for this preparation. Compact navigation, battle, and terrain responses send only the records each screen needs. A hosted release keeps its packaged snapshot until its next deployment, so publishing a new source snapshot alone does not change the live reference.
+
+Canonical catalogue output carries a compiler version. When its version is older than the application's compiler, startup recompiles the reference in memory from the verified snapshot's sources. Local generated output must match both the current compiler version and source revisions. Compiler fixes therefore reach reference pages on deployment without changing the pinned upstream data or editing the immutable snapshot.
 
 ### Profile-backed catalogue rules
 

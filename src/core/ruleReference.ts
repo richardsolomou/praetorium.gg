@@ -1,5 +1,11 @@
 const BRACKETED_RULE = /\[([\p{L}\p{N} +'"’:/\p{Pd}]+)\]/gu
 
+export const splitWeaponKeywords = (value: string | undefined) =>
+  (value ?? '')
+    .split(/[,;]/)
+    .map((keyword) => keyword.trim())
+    .filter((keyword) => keyword && keyword !== '-' && keyword !== '—')
+
 export function normalizeRuleReference(value: string) {
   return value
     .replace(/^\[|\]$/g, '')
@@ -9,6 +15,7 @@ export function normalizeRuleReference(value: string) {
     .replaceAll(/\s+/g, ' ')
     .trim()
     .toLowerCase()
+    .replace(/^twin linked(?=\s*:|$)/, 'twin-linked')
 }
 
 /** A rule's parameter as a datasheet prints one: a number, a die, a threshold, a distance. */
