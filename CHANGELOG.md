@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.102.2
+
+### Patch Changes
+
+- 1848932: Keep build assets available across rolling releases, drain web requests before shutdown, and offer an optional refresh when a new release is ready.
+
 ## 0.102.1
 
 ### Patch Changes
