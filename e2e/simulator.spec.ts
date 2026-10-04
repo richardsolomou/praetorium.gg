@@ -1125,6 +1125,25 @@ test('folded rules keep saved selections through reload', async ({ page }) => {
 })
 
 for (const width of [1440, 390]) {
+  test(`Deathwing Knights optimize against Mortarion at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto('/simulator')
+    await chooseCombatUnit(page, 'Attacker', 'Dark Angels', 'Deathwing Knights')
+    await chooseCombatUnit(page, 'Defender', 'Death Guard', 'Mortarion')
+    const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
+    const headline = page.getByRole('region', { name: 'Combined estimate' })
+    await expect(headline.locator('.readout').nth(1)).toHaveText('5.55')
+    const response = page.waitForResponse((answer) => answer.url().endsWith('/api/simulator/optimize'))
+    await attacker.getByRole('button', { name: 'Optimize', exact: true }).click()
+    expect((await response).ok()).toBe(true)
+    await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeVisible()
+    await expect(attacker.getByRole('alert')).toHaveCount(0)
+    await expect(headline.locator('.readout').nth(1)).toHaveText('6.00')
+    await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Relic Weapon')
+    await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeEnabled()
+    await page.screenshot({ path: `test-results/simulator-deathwing-optimized-${width}.png` })
+  })
+
   test(`the headline retains results when weapon phases are empty at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 })
     await page.goto('/simulator')
