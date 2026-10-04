@@ -1,5 +1,8 @@
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
+import { verifyWebAssetRoute } from './publishWebAssets.ts'
+import { webAssetRouting } from './lib/webAssetRouting.ts'
 
 type Application = {
   applicationId: string
@@ -8,6 +11,7 @@ type Application = {
   env: string | null
   buildArgs: string | null
   buildSecrets: string | null
+  dockerImage: string | null
 }
 
 function required(environment: NodeJS.ProcessEnv, name: string) {
@@ -131,10 +135,53 @@ export async function ensureWebDomain(origin: URL, headers: Record<string, strin
   }
 }
 
+export async function configureWebAssetRoute(
+  origin: URL,
+  headers: Record<string, string>,
+  applicationId: string,
+  host: string,
+  directories: string[],
+  { request = fetch, wait = (milliseconds: number) => delay(milliseconds), verify = verifyWebAssetRoute } = {},
+) {
+  const url = new URL('/api/application.readTraefikConfig', origin)
+  url.searchParams.set('applicationId', applicationId)
+  const read = async () => {
+    const response = await request(url, { headers, signal: AbortSignal.timeout(30_000) })
+    if (!response.ok) throw new Error('Dokploy Traefik read failed')
+    const source = await response.json()
+    if (typeof source !== 'string') throw new Error('Missing Dokploy Traefik configuration')
+    return source
+  }
+  const previous = await read()
+  if (!directories.length) throw new Error('Asset directories are required for route verification')
+  const traefikConfig = webAssetRouting(previous, host)
+  const save = async (config: string) => {
+    const response = await request(new URL('/api/application.updateTraefikConfig', origin), {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({ applicationId, traefikConfig: config }),
+      signal: AbortSignal.timeout(30_000),
+    })
+    if (!response.ok || (await read()) !== config) throw new Error('Dokploy asset routing did not persist')
+  }
+  try {
+    await save(traefikConfig)
+    // Traefik's file provider debounces configuration reloads.
+    await wait(5_000)
+    await verify(directories, `https://${host}`)
+  } catch (error) {
+    const current = await read()
+    if (current !== previous && current !== traefikConfig)
+      throw new Error('Dokploy routing changed during asset verification', { cause: error })
+    await save(previous)
+    throw error
+  }
+}
+
 async function run() {
   const [command, target] = process.argv.slice(2)
-  if ((command !== 'configure' && command !== 'domain') || (target !== 'staging' && target !== 'production')) {
-    throw new Error('Usage: configureDokployNode.ts configure|domain staging|production')
+  if (!['configure', 'domain', 'image', 'assets'].includes(command ?? '') || (target !== 'staging' && target !== 'production')) {
+    throw new Error('Usage: configureDokployNode.ts configure|domain|image|assets staging|production')
   }
   const origin = new URL(required(process.env, 'DOKPLOY_URL'))
   if (origin.protocol !== 'https:' || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Invalid Dokploy URL')
@@ -153,6 +200,23 @@ async function run() {
     return application
   }
   const application = await inspect()
+  if (command === 'image') {
+    if (!/^ghcr\.io\/richardsolomou\/praetorium\.gg(?::[a-zA-Z0-9_.-]+)?@sha256:[a-f0-9]{64}$/.test(application.dockerImage ?? ''))
+      throw new Error('Expected an immutable installed web image')
+    console.log(application.dockerImage)
+    return
+  }
+  if (command === 'assets') {
+    await configureWebAssetRoute(
+      origin,
+      headers,
+      applicationId,
+      target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg',
+      process.argv.slice(4),
+    )
+    console.log(`Configured ${target} shared web assets`)
+    return
+  }
   if (command === 'domain') {
     await ensureWebDomain(origin, headers, applicationId, target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg')
     console.log(`Configured ${target} web domain`)

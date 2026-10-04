@@ -127,6 +127,22 @@ jobs:
         run: |
           docker logout ghcr.io
           docker buildx imagetools inspect --raw "$IMAGE" > /dev/null
+      - name: Publish and route shared build assets before changing replicas
+        env:
+          IMAGE: ${{ steps.image.outputs.reference }}
+        run: |
+          set -euo pipefail
+          installed="$(node scripts/configureDokployNode.ts image "$TARGET")"
+          docker pull "$installed"
+          docker pull "$IMAGE"
+          previous="$(docker create "$installed")"
+          current="$(docker create "$IMAGE")"
+          trap 'docker rm "$previous" "$current" > /dev/null' EXIT
+          mkdir "$RUNNER_TEMP/previous-assets" "$RUNNER_TEMP/current-assets"
+          docker cp "$previous:/app/.output/public/assets/." "$RUNNER_TEMP/previous-assets/"
+          docker cp "$current:/app/.output/public/assets/." "$RUNNER_TEMP/current-assets/"
+          node scripts/publishWebAssets.ts "$RUNNER_TEMP/previous-assets" "$RUNNER_TEMP/current-assets"
+          node scripts/configureDokployNode.ts assets "$TARGET" "$RUNNER_TEMP/previous-assets" "$RUNNER_TEMP/current-assets"
       - name: Publish the matching product module
         if: inputs['skip-product-publish'] != true
         env:

@@ -1,4 +1,4 @@
-import { execFile as execFileCallback } from 'node:child_process'
+import { spawn, execFile as execFileCallback } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync } from 'node:fs'
@@ -12,6 +12,7 @@ import httpProxy from 'http-proxy'
 import { backupAuthSqlite, importAuthSqlite, migrateAuthSqlite } from './nodeAuthSqlite.ts'
 import { localPublicObject } from '../src/server/localPublicObject.ts'
 import { localObjectStore } from '../src/server/localObjectStore.ts'
+import { nodeLifecycle } from './lib/nodeLifecycle.ts'
 import { publicAssetsR2Client } from '../src/server/r2Client.ts'
 
 const execFile = promisify(execFileCallback)
@@ -53,11 +54,7 @@ export function spacetimeOrigin(environment: NodeJS.ProcessEnv) {
   return upstream
 }
 
-/**
- * During a rolling deploy one replica's pages name hashed assets the other replica lacks. Cloudflare caches an
- * uncached 404 for a static path and tells browsers to keep it for hours, which breaks the new build long after
- * both replicas match.
- */
+/** A missing immutable asset must not become a cached failure. */
 export function uncacheAssetMiss(request: Pick<IncomingMessage, 'url'>, response: Pick<IncomingMessage, 'statusCode' | 'headers'>) {
   if (request.url?.startsWith('/assets/') && (response.statusCode ?? 0) >= 400) response.headers['cache-control'] = 'no-store'
 }
@@ -119,7 +116,7 @@ async function proxySpacetimeHttp(request: IncomingMessage, response: ServerResp
   }
 }
 
-export async function startNodeServer() {
+async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
   if (process.env.APPLE_PRIVATE_KEY_BASE64) {
     if (process.env.APPLE_PRIVATE_KEY) throw new Error('Configure one Apple private key source')
     process.env.APPLE_PRIVATE_KEY = Buffer.from(process.env.APPLE_PRIVATE_KEY_BASE64, 'base64').toString('utf8')
@@ -170,15 +167,19 @@ export async function startNodeServer() {
     throw new Error('Interactive local development requires Vite. Start it with just dev.')
   }
   if (!viteOrigin) {
-    process.env.NITRO_PORT = String(internalPort)
-    process.env.NITRO_HOST = '127.0.0.1'
-    await import(pathToFileURL(path.join(nodeBuildDirectory(), 'server/index.mjs')).href)
+    lifecycle.ownChild(
+      spawn(process.execPath, [path.join(nodeBuildDirectory(), 'server/index.mjs')], {
+        env: { ...process.env, NITRO_PORT: String(internalPort), NITRO_HOST: '127.0.0.1' },
+        stdio: 'inherit',
+      }),
+    )
   }
   const appOrigin = viteOrigin ?? `http://127.0.0.1:${internalPort}`
   let ready = false
   for (let attempt = 0; attempt < 120; attempt++) {
+    lifecycle.signal.throwIfAborted()
     try {
-      const response = await fetch(`${appOrigin}/api/health`, { signal: AbortSignal.timeout(2_000) })
+      const response = await fetch(`${appOrigin}/api/health`, { signal: AbortSignal.any([lifecycle.signal, AbortSignal.timeout(2_000)]) })
       if (response.ok) {
         ready = true
         break
@@ -186,7 +187,7 @@ export async function startNodeServer() {
     } catch {
       // The application is still warming its catalogue.
     }
-    await delay(1_000)
+    await delay(1_000, undefined, { signal: lifecycle.signal })
   }
   if (!ready) throw new Error('Node server did not become healthy')
   const proxy = httpProxy.createProxyServer({ changeOrigin: false, xfwd: true })
@@ -224,6 +225,8 @@ export async function startNodeServer() {
     }
     proxy.web(request, response, { target: appOrigin }, appError)
   })
+  lifecycle.ownServer(server, proxy)
+  lifecycle.signal.throwIfAborted()
   server.on('upgrade', (request, socket, head) => {
     if (spacetimeRoute(request, database) === 'subscribe') {
       delete request.headers.cookie
@@ -248,5 +251,23 @@ export async function startNodeServer() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  await startNodeServer()
+  const lifecycle = nodeLifecycle()
+  const shutdown = () => {
+    void lifecycle.stop()
+  }
+  process.on('SIGTERM', shutdown)
+  process.on('SIGINT', shutdown)
+
+  try {
+    await startNodeServer(lifecycle)
+    await lifecycle.finished
+    process.exit(lifecycle.failure ? 1 : 0)
+  } catch (error) {
+    if (!lifecycle.signal.aborted || lifecycle.failure) {
+      console.error(lifecycle.failure ?? error)
+      process.exitCode = 1
+    }
+    await lifecycle.stop()
+    process.exit(process.exitCode ?? 0)
+  }
 }

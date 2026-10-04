@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { ensureWebDomain, nodeEnvironment } from './configureDokployNode'
+import { configureWebAssetRoute, ensureWebDomain, nodeEnvironment } from './configureDokployNode'
 
 const environment = {
   AUTH_SECRET: 's'.repeat(64),
@@ -116,4 +116,30 @@ it('rejects a web domain with TLS disabled', async () => {
   await expect(
     ensureWebDomain(new URL('https://dokploy.example'), { 'x-api-key': 'test' }, 'web-id', 'praetorium.gg', request),
   ).rejects.toThrow('differs from the verified configuration')
+})
+
+it('restores the previous asset route if hosted verification fails', async () => {
+  const original =
+    'http:\n  routers:\n    web:\n      rule: Host(`praetorium.gg`)\n      service: app\n      entryPoints: [websecure]\n      tls: {certResolver: letsencrypt}\n  services:\n    app: {loadBalancer: {servers: [{url: "http://app:3000"}]}}\n'
+  let current = original
+  const writes: string[] = []
+  const request: typeof fetch = async (_url, options) => {
+    if (options?.method === 'POST') {
+      current = JSON.parse(options.body as string).traefikConfig
+      writes.push(current)
+      return Response.json(true)
+    }
+    return Response.json(current)
+  }
+  await expect(
+    configureWebAssetRoute(new URL('https://dokploy.test'), {}, 'web', 'praetorium.gg', ['/assets'], {
+      request,
+      wait: async () => {},
+      verify: async () => {
+        throw new Error('CDN unavailable')
+      },
+    }),
+  ).rejects.toThrow('CDN unavailable')
+  expect(writes.at(-1)).toBe(original)
+  expect(writes[0]).toContain('web-assets')
 })

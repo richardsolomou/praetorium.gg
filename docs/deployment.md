@@ -6,11 +6,17 @@
 
 Dokploy runs the web replicas. SQLite accounts/sessions share a production volume; SpacetimeDB owns product state and realtime updates. Public R2 stores profile images/catalogues; private R2 stores backups/audit cache. The replicas and product database share one VM, so an outage requires restoration.
 
-The Node server trusts Cloudflare's visitor header for proxying/rate limits. Restrict origin traffic to Cloudflare: direct callers could otherwise choose that header. Failed hashed-asset responses use `no-store` during rolling updates so an old replica cannot poison the new revision's asset cache.
+The Node server trusts Cloudflare's visitor header for proxying/rate limits. Restrict origin traffic to Cloudflare: direct callers could otherwise choose that header. Asset errors use `no-store` so a missing file cannot poison the browser or edge cache.
 
 ## Delivery
 
 `.github/workflows/dokploy-web.yml` owns image publication, product migration, Dokploy deployment, and health checks. It deploys a digest-pinned image without rebuilding it. Production follows main/releases; staging uses separate data. `scripts/releaseProof.sh` permits CI reuse only for an exact previously tested tree.
+
+Before changing replicas or publishing the product module, the workflow copies hashed assets from the installed and replacement images to `web-assets/` in public R2. It verifies their bytes and immutable cache headers through storage and the public CDN, then routes same-origin `/assets/` reads directly to that store through Traefik. Hosted route verification restores the previous configuration on failure. Asset errors use the application's uncached miss handler. Source maps are excluded; retained files remain available to older open tabs and rollbacks.
+
+The public Node proxy owns a separate Nitro child process. Shutdown stops accepting connections, closes upgraded connections, and drains HTTP requests for up to five seconds before stopping Nitro. The child then has three seconds to exit, within Docker's ten-second stop grace period. The public listener opens only after the child's `/api/health` succeeds.
+
+Open pages check an uncached `/api/release` endpoint once a minute while visible and when focus returns. A newer version offers Refresh and Later actions. Refresh is explicit to preserve unsaved edits; Later hides that version until the tab reloads or another release appears.
 
 Product publication requires a migration plan/token. Automatic schema migrations may disconnect clients; manual migrations stop delivery without clearing data. Catalogue assets are pinned and verified inside the image; publishing a source snapshot alone does not update the running service.
 
