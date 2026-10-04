@@ -12,6 +12,7 @@ import { POSTHOG_BROWSER_OPTIONS } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
+import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
 import { NativePushRegistration } from './NativePushRegistration'
@@ -232,6 +233,7 @@ export function AppShell() {
                 <OnboardingGuide />
                 <Impersonation />
                 <NativePushRegistration />
+                <ReleaseUpdateNotice />
                 {/*
                  * Said plainly and on every page, because the name is drawn from Games
                  * Workshop's setting and nothing about this is theirs or endorsed by them.
