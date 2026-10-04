@@ -18,6 +18,47 @@ import {
 } from './account'
 import { productSql } from './storage'
 
+test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ page, browser }) => {
+  const opponent = await (await browser.newContext(desktopContext)).newPage()
+  const opponentName = uniqueName('Scoring opponent')
+  await signUp(opponent, opponentName)
+  const opponentRoster = await createRoster(opponent, {
+    faction: 'Necrons',
+    detachment: /Awakened Dynasty/,
+    name: 'Scoring opponent roster',
+  })
+  await signUp(page, uniqueName('Standard secondaries'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Standard scoring roster' })
+  await setupBattle(page, opponent, {
+    opponent: opponentName,
+    hostRoster: roster,
+    guestRoster: opponentRoster,
+    openingSecondaries: ['Cleanse', 'Centre Ground'],
+  })
+
+  for (let step = 0; step < 5; step += 1) await advance(page)
+  await page.getByRole('button', { name: 'Pass the turn' }).click()
+  const scoring = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
+  await expect(scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true })).toBeVisible()
+  await expect(scoring.getByRole('button', { name: 'Centre Ground plus 3', exact: true })).toBeVisible()
+  await page.reload()
+  await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).click()
+  await scoring.getByRole('button', { name: 'Centre Ground plus 3', exact: true }).click()
+  await expect(scoring.locator('output')).toContainText('Scoring 5 VP')
+  await page.screenshot({ path: 'test-results/standard-secondary-scoring-desktop.png' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(scoring).toBeVisible()
+  await page.screenshot({ path: 'test-results/standard-secondary-scoring-phone.png' })
+  await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).scrollIntoViewIfNeeded()
+  await page.screenshot({ path: 'test-results/standard-secondary-scoring-phone-bottom.png' })
+  await scoring.getByRole('button', { name: 'Pass the turn', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
+  await page.reload()
+  await takeTheTurn(page)
+  await page.getByRole('tab', { name: 'Battle', exact: true }).click()
+  await expect(page.getByText(/settles 3 VP on Centre Ground, 2 VP on Cleanse/)).toBeVisible()
+})
+
 test('native battle controls leave the application tabs reachable', async ({ page }) => {
   await signUp(page, uniqueName('Native controls'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Native battle roster' })
