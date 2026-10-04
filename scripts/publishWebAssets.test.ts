@@ -92,3 +92,31 @@ it('checks each hosted asset once with four concurrent workers', async () => {
   await verifyWebAssetRoute([directory, directory], 'https://app.test', request)
   expect({ peak, requests: checked.length, unique: new Set(checked).size }).toEqual({ peak: 4, requests: 8, unique: 8 })
 })
+
+it('publishes compressed reference bytes unchanged as an immutable binary asset', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'web-reference-'))
+  directories.push(directory)
+  const body = new Uint8Array([31, 139, 8, 0, 255, 128])
+  await writeFile(path.join(directory, 'reference-abcdefgh.bin'), body)
+  let uploaded: Uint8Array<ArrayBuffer> | undefined
+  let uploadedHeaders: Headers | undefined
+  const binaryHeaders = { ...headers, 'content-type': 'application/octet-stream' }
+  const request: typeof fetch = async (_url, options) => {
+    if (options?.method === 'PUT') {
+      uploaded = new Uint8Array(options.body as Uint8Array)
+      uploadedHeaders = new Headers(options.headers)
+      return new Response(null)
+    }
+    return uploaded ? new Response(uploaded, { headers: binaryHeaders }) : new Response(null, { status: 404 })
+  }
+  await publishWebAssets(
+    [directory],
+    { base: 'https://storage.test/', request },
+    async () => new Response(uploaded, { headers: binaryHeaders }),
+  )
+  expect({
+    bytes: Array.from(uploaded!),
+    type: uploadedHeaders?.get('content-type'),
+    encoding: uploadedHeaders?.get('content-encoding'),
+  }).toEqual({ bytes: Array.from(body), type: 'application/octet-stream', encoding: null })
+})

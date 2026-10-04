@@ -408,9 +408,9 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   // An organizer who plays is entered by creating the event, so the first thing they can do is seal a list.
   await expect(page.getByRole('button', { name: 'Choose a list' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
-  const initialResponse = await page.reload()
-  if (!initialResponse) throw new Error('The league page did not return a document response.')
+  const initialResponse = await page.request.get(page.url())
   expect(await initialResponse.text()).not.toContain(rosterName)
+  await page.reload()
 
   await expect(page.getByRole('heading', { name: 'Seal your 2,000-point list' })).toBeVisible()
   await page.getByRole('button', { name: 'Choose a list' }).click()
@@ -454,8 +454,10 @@ test('only a changed roster in an open league event offers replacement', async (
   await join(page)
   await sealOwnRoster(page, 'Original league list')
 
-  const editorResponse = await page.goto(rosterUrl)
-  expect(await editorResponse?.text()).not.toContain('League roster out of date')
+  const editorResponse = await page.request.get(rosterUrl)
+  expect(await editorResponse.text()).not.toContain('League roster out of date')
+  await page.goto(rosterUrl)
+  await expect(page.getByLabel('List name')).toHaveValue('Original league list')
   await expect(page.getByRole('button', { name: 'League roster out of date' })).toHaveCount(0)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: 'test-results/league-roster-current-phone.png', fullPage: true })

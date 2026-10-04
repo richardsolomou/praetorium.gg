@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 
 const queryFamilies = {
   rosters: [
+    'roster-bootstrap',
     'roster-access',
     'shared-roster',
     'saved-roster-summaries',

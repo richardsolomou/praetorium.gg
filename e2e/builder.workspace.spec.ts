@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
+import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 import { createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import {
   shot,
@@ -16,81 +16,91 @@ test('the unit picker stays within the roster faction', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
 })
 
-test('the roster workspace reserves the desktop picker while its book loads', async ({ browser, page }) => {
-  await openBuilder(page)
-  await page.getByLabel('Add a unit').fill('Immortals')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
-  await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
-  await page.getByLabel('Add a unit').fill('')
-  await expect(page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
+test('the roster workspace reserves the desktop picker while its book loads', async ({ browser, page: savedPage }) => {
+  await openBuilder(savedPage)
+  await savedPage.getByLabel('Add a unit').fill('Immortals')
+  await waitForRosterSave(savedPage, () => savedPage.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await expect(savedPage.locator('[data-unit="Immortals"]')).toBeVisible()
+  await savedPage.getByLabel('Add a unit').fill('')
+  await expect(savedPage.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
 
   const serverContext = await browser.newContext({
     javaScriptEnabled: false,
-    storageState: await page.context().storageState(),
+    storageState: await savedPage.context().storageState(),
     viewport: { width: 1440, height: 900 },
   })
   const serverPage = await serverContext.newPage()
-  await serverPage.goto(page.url())
+  await serverPage.goto(savedPage.url())
   await expect(serverPage.getByLabel('Add units')).toBeVisible()
   await expect(serverPage.getByLabel('Loading units')).toBeVisible()
   await expect(serverPage.getByRole('button', { name: 'Add Lychguard', exact: true })).toHaveCount(0)
   await serverPage.screenshot({ path: 'test-results/loading-roster-workspace.png', fullPage: true })
   await serverContext.close()
 
-  const clientUnitRequests: string[] = []
-  page.on('request', (request) => {
-    const url = decodeURIComponent(request.url())
-    if (url.includes('/_serverFn/') && url.includes('"catalogueId"') && url.includes('"query"') && url.includes('"battleSize"')) {
-      clientUnitRequests.push(url)
-    }
+  const coldContext = await browser.newContext({
+    storageState: await savedPage.context().storageState(),
+    viewport: { width: 1440, height: 900 },
   })
-
-  await page.addInitScript(() => {
-    const values: number[] = []
-    Object.assign(window, { __rosterLayoutShiftValues: values })
-    new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        const shift = entry as PerformanceEntry & { value: number; hadRecentInput: boolean }
-        if (!shift.hadRecentInput) values.push(shift.value)
+  const rosterUrl = savedPage.url()
+  const page = await coldContext.newPage()
+  try {
+    const clientUnitRequests: string[] = []
+    page.on('request', (request) => {
+      const url = decodeURIComponent(request.url())
+      if (url.includes('/_serverFn/') && url.includes('"catalogueId"') && url.includes('"query"') && url.includes('"battleSize"')) {
+        clientUnitRequests.push(url)
       }
-    }).observe({ type: 'layout-shift', buffered: true })
-  })
-  await page.reload()
-  await expect(page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
-  expect(clientUnitRequests.length).toBeGreaterThan(0)
-  const response = await page.request.get(page.url())
-  const body = await response.body()
-  expect(body.byteLength).toBeLessThan(500_000)
-  expect(body.toString()).not.toContain('["collection"]')
-  await page.waitForTimeout(1_500)
-  const values = await page.evaluate(() => (window as typeof window & { __rosterLayoutShiftValues: number[] }).__rosterLayoutShiftValues)
-  expect(values.reduce((total, value) => total + value, 0)).toBeLessThan(0.05)
-  await page.screenshot({ path: 'test-results/stable-roster-workspace.png', fullPage: true })
+    })
 
-  await page.setViewportSize({ width: 364, height: 759 })
-  await page.reload()
-  await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
-  await expectNoHorizontalOverflow(page.locator('html'))
-  const roster = page.locator('[data-slot="roster-units"]')
-  await expectNoHorizontalOverflow(roster)
-  await expectVerticalPanOnly(roster)
-  await page.screenshot({ path: 'test-results/stable-roster-workspace-phone.png', fullPage: true })
+    await page.addInitScript(() => {
+      const values: number[] = []
+      Object.assign(window, { __rosterLayoutShiftValues: values })
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          const shift = entry as PerformanceEntry & { value: number; hadRecentInput: boolean }
+          if (!shift.hadRecentInput) values.push(shift.value)
+        }
+      }).observe({ type: 'layout-shift', buffered: true })
+    })
+    await page.goto(rosterUrl)
+    await expect(page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
+    expect(clientUnitRequests.length).toBeGreaterThan(0)
+    const response = await page.request.get(page.url())
+    const body = await response.body()
+    expect(body.byteLength).toBeLessThan(500_000)
+    expect(body.toString()).not.toContain('["collection"]')
+    await page.waitForTimeout(1_500)
+    const values = await page.evaluate(() => (window as typeof window & { __rosterLayoutShiftValues: number[] }).__rosterLayoutShiftValues)
+    expect(values.reduce((total, value) => total + value, 0)).toBeLessThan(0.05)
+    await page.screenshot({ path: 'test-results/stable-roster-workspace.png', fullPage: true })
 
-  await page.getByRole('button', { name: 'Add units', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
-  await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
+    await page.setViewportSize({ width: 364, height: 759 })
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
+    await expectNoHorizontalOverflow(page.locator('html'))
+    const roster = page.locator('[data-slot="roster-units"]')
+    await expectNoHorizontalOverflow(roster)
+    await expectVerticalPanOnly(roster)
+    await page.screenshot({ path: 'test-results/stable-roster-workspace-phone.png', fullPage: true })
 
-  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout).toBeVisible()
-  await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
-  await expectNoHorizontalOverflow(page.locator('html'))
-  await expectNoHorizontalOverflow(loadout)
-  const viewport = loadout.locator('[data-slot="scroll-area-viewport"]')
-  await expectNoHorizontalOverflow(viewport)
-  await expectVerticalPanOnly(viewport)
-  await expectNoHorizontalOverflow(loadout.locator('[data-slot="unit-profile"]'))
-  await page.screenshot({ path: 'test-results/stable-roster-loadout-phone.png', fullPage: true })
+    await page.getByRole('button', { name: 'Add units', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
+    await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
+
+    await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+    const loadout = page.locator('aside[aria-label="Loadout"]')
+    await expect(loadout).toBeVisible()
+    await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
+    await expectNoHorizontalOverflow(page.locator('html'))
+    await expectNoHorizontalOverflow(loadout)
+    const viewport = loadout.locator('[data-slot="scroll-area-viewport"]')
+    await expectNoHorizontalOverflow(viewport)
+    await expectVerticalPanOnly(viewport)
+    await expectNoHorizontalOverflow(loadout.locator('[data-slot="unit-profile"]'))
+    await page.screenshot({ path: 'test-results/stable-roster-loadout-phone.png', fullPage: true })
+  } finally {
+    await coldContext.close()
+  }
 })
 
 test('the roster header fades whichever end of its facts it is hiding', async ({ browser }) => {
@@ -163,7 +173,7 @@ test('a native unit screen keeps the tab bar beside it', async ({ browser }) => 
   const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
   await context.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BRIDGE_SCRIPT}`,
+${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   })
   const page = await context.newPage()
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
@@ -227,7 +237,7 @@ test('the roster tab comes back to the unit it was left on', async ({ browser })
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BRIDGE_SCRIPT}`,
+${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   })
   const page = await context.newPage()
   await openBuilder(page)
@@ -265,7 +275,7 @@ test('a unit that moved while the roster was open does not eject the roster tab'
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BRIDGE_SCRIPT}`,
+${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   })
   const page = await context.newPage()
   await openBuilder(page)
@@ -440,10 +450,12 @@ test('a mixed-model squad shows its own profile instead of an optional model', a
 test('datasheet metadata is searchable in the picker and global search', async ({ page }) => {
   await openBuilder(page)
   await expect(page.getByRole('button', { name: 'Add Immortals', exact: true })).toBeVisible()
-  const pickerRequests: string[] = []
+  const pickerSearchRequests: string[] = []
   page.on('request', (request) => {
     const url = decodeURIComponent(request.url())
-    if (url.includes('/_serverFn/') && url.includes('"catalogueId"') && url.includes('"query"')) pickerRequests.push(url)
+    if (url.includes('/_serverFn/') && url.includes('"catalogueId"') && url.includes('"query"') && url.includes('cryptek')) {
+      pickerSearchRequests.push(url)
+    }
   })
   await page.getByLabel('Add a unit').fill('cryptek')
 
@@ -452,7 +464,7 @@ test('datasheet metadata is searchable in the picker and global search', async (
   await expect(page.locator('[data-picker-unit="Necron Warriors"]')).toHaveCount(0)
   await page.getByLabel('Add a unit').fill('cryptek staff')
   await expect(page.locator('[data-picker-unit="Technomancer"]')).toContainText('Matches Cryptek keyword · Staff of light weapon')
-  expect(pickerRequests).toHaveLength(0)
+  expect(pickerSearchRequests).toHaveLength(0)
   await shot(page.locator('[data-pane="picker"]'), 'test-results/roster-picker-metadata-search.png')
 
   await page.getByRole('button', { name: 'Search Praetorium' }).click()

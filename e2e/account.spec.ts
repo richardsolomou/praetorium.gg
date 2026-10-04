@@ -124,6 +124,9 @@ test('profile puts sign-in methods first without a notifications section', async
 })
 
 test('failed security settings show a retry state', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.requestIdleCallback = () => 0
+  })
   await signUp(page, uniqueName('Failed Profile'))
   await page.goto('/')
   await page.route('**/_serverFn/**', (route) => route.abort('failed'))
@@ -299,6 +302,7 @@ test('a one-time link connects a new player after they create an account and acc
   await recipient.screenshot({ path: 'test-results/friend-invite-phone.png', fullPage: true })
 
   await recipient.getByRole('link', { name: 'Create an account' }).click()
+  await recipient.waitForLoadState('networkidle')
   await expect(recipient.getByRole('heading', { name: 'Make an account' })).toBeVisible()
   await recipient.getByLabel('Your name').fill(recipientName)
   await recipient.getByLabel('Email').fill(`friend-invite-${crypto.randomUUID()}@example.test`)
@@ -443,6 +447,7 @@ test('a list saved under an account is there on another device', async ({ browse
   const second = await browser.newContext()
   const elsewhere = await second.newPage()
   await elsewhere.goto('/sign-in')
+  await elsewhere.waitForLoadState('networkidle')
   await elsewhere.getByLabel('Email').fill(email)
   await elsewhere.getByLabel('Password').fill('a-long-enough-password')
   await elsewhere.getByRole('button', { name: 'Sign in', exact: true }).click()
@@ -489,6 +494,7 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
 
   await guest.goto(link)
   await guest.getByRole('main').getByRole('link', { name: 'Sign in' }).click()
+  await guest.waitForLoadState('networkidle')
   await guest.getByLabel('Email').fill(bobEmail)
   await guest.getByLabel('Password').fill('a-long-enough-password')
   await guest.getByRole('button', { name: 'Sign in', exact: true }).click()
@@ -498,6 +504,7 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   // The table strip names both sides, which is how the guest knows it is the battle they were invited to.
   await expect(guest.getByRole('main')).toContainText(aliceName)
   await expect(guest.getByRole('main')).toContainText(bobName)
+  await guest.screenshot({ path: 'test-results/seated-battle-after-sign-in.png', fullPage: true })
 })
 
 test('signing out in one tab signs the other tab out', async ({ page }) => {

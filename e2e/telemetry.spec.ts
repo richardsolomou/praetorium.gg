@@ -2,6 +2,8 @@ import { expect, type Page, test } from '@playwright/test'
 import { signUp, uniqueName } from './account'
 import { add } from './builder.harness'
 
+test.use({ serviceWorkers: 'block' })
+
 type Event = { name: string; properties: Record<string, unknown> }
 
 async function recordEvents(page: Page) {
@@ -77,6 +79,7 @@ test('a failed search reports an error rather than a successful empty search', a
 test('an unmatched import reports one failed attempt and no completed save', async ({ page }) => {
   await signUp(page, uniqueName('Import analytics'))
   await page.goto('/rosters')
+  await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
   const events = await recordEvents(page)
   await page.getByRole('button', { name: 'Import roster', exact: true }).click()
@@ -94,6 +97,7 @@ test('an unmatched import reports one failed attempt and no completed save', asy
 test('an import reports saving only after the write succeeds, including a retry', async ({ page }) => {
   await signUp(page, uniqueName('Import retry analytics'))
   await page.goto('/rosters')
+  await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
   const events = await recordEvents(page)
   await page.route('**/_serverFn/**', (route) => {

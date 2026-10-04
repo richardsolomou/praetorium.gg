@@ -1,0 +1,20 @@
+appId: gg.praetorium
+---
+- extendedWaitUntil:
+    visible: 03. Moving
+    timeout: 30000
+- assertVisible: 03. Moving
+- takeScreenshot: native-renderer-recovered
+- tapOn: Praetorium home
+- assertVisible: '(?i)Welcome back, Native.*'
+- takeScreenshot: native-home-after-renderer-recovery
+- tapOn: More
+- tapOn:
+    text: RULES Game reference
+- scrollUntilVisible:
+    element:
+      text: '03\. Moving.*'
+    direction: DOWN
+    centerElement: true
+- tapOn: '03\. Moving.*'
+- assertVisible: 03. Moving

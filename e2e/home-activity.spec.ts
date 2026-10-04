@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { createBattle, createRoster, PRACTICE_OPPONENT, setupBattle, signUp, uniqueName } from './account'
 import { productSql, withAuthSql } from './storage'
-import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
+import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 
 async function makePreviewBattleMostRecent() {
   const battles = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = 'preview-casual-doubles'`
@@ -178,7 +178,7 @@ test('offers native notification permission on home and retries device setup', a
         })));
       }
     };
-    ${NATIVE_BRIDGE_SCRIPT}`,
+    ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   })
   await signUp(page, uniqueName('Notified'))
   await page.goto('/profile')

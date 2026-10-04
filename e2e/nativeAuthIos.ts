@@ -1,13 +1,14 @@
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcess } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { request as httpRequest, type IncomingMessage, type ServerResponse } from 'node:http'
-import { createServer as createHttpsServer, request as httpsRequest } from 'node:https'
+import { createServer as createHttpsServer, request as httpsRequest, type Server as HttpsServer } from 'node:https'
 import path from 'node:path'
 import { localControlPort } from '../scripts/localDevPreview'
 import { localTestEnvironment, reserveLocalPort } from '../scripts/lib/localStack'
 import { withAuthSql } from './storage'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
+import { parseAppSnapshot } from '../src/contracts/appSnapshot'
 
 const root = path.join(import.meta.dirname, '..')
 const stackEnvironment = await localTestEnvironment('native-auth-ios', { PLAYWRIGHT_PORT: process.env.NATIVE_AUTH_BACKEND_PORT })
@@ -33,7 +34,7 @@ let initialNativeRouteHandled = false
 let expectedAuthenticatedDestination: URL | undefined
 let stopStack: (() => Promise<void>) | undefined
 let deviceReservation: Awaited<ReturnType<typeof reserveLocalPort>> | undefined
-let proxy: ReturnType<typeof createHttpsServer> | undefined
+let proxy: HttpsServer | undefined
 
 function isExpectedAuthenticatedDestination(target: URL, withMarker: boolean) {
   if (!expectedAuthenticatedDestination || target.pathname !== expectedAuthenticatedDestination.pathname) return false
@@ -222,8 +223,9 @@ function startProxy() {
   })
 }
 
-async function waitForHealth() {
+async function waitForHealth(stack: ChildProcess) {
   for (let attempt = 0; attempt < 240; attempt += 1) {
+    if (stack.exitCode !== null || stack.signalCode !== null) throw new Error('The native test stack stopped before becoming healthy')
     if ((await fetch(readyUrl).catch(() => null))?.ok) return
     await new Promise((resolve) => setTimeout(resolve, 1_000))
   }
@@ -262,6 +264,85 @@ async function createFixture() {
         ),
     dataDirectory,
   )
+  if (process.env.NATIVE_OFFLINE_VERIFY === '1') await seedSavedApp()
+}
+
+function fixtureOperator() {
+  const credentials = JSON.parse(readFileSync(path.join(dataDirectory, 'credentials.json'), 'utf8')) as { operator: { token: string } }
+  return new SpacetimeOperator(
+    `http://127.0.0.1:${stackEnvironment.PLAYWRIGHT_SPACETIME_PORT}/`,
+    `praetorium-local-${backendPort}`,
+    credentials.operator.token,
+  )
+}
+
+async function seedSavedApp(updated = false) {
+  const operator = fixtureOperator()
+  const source = await operator.roster('preview-necrons-cursed-skyshroud')
+  if (!source) throw new Error('The native offline roster fixture is missing')
+  await operator.saveRoster({
+    ...source,
+    id: 'native-saved-army',
+    userId: fixtureUserId,
+    name: updated ? 'Updated native army' : 'Native saved army',
+    automaticName: false,
+    now: Date.now(),
+  })
+  const opponentIds = await operator.practiceOpponentIds()
+  await operator.createBattle({
+    id: updated ? 'native-cache-game-new' : 'native-cache-game',
+    token: updated ? 'native-cache-game-new' : 'native-cache-game',
+    userId: fixtureUserId,
+    opponentIds: opponentIds.slice(0, 1),
+    now: Date.now(),
+    initialCommand: {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      clockLimitMinutes: null,
+    },
+  })
+}
+
+async function waitForSavedApp(udid: string) {
+  const container = (await output('xcrun', ['simctl', 'get_app_container', udid, 'gg.praetorium', 'data'])).trim()
+  const origin = Array.from(publicUrl, (character) => character.charCodeAt(0).toString(16)).join('')
+  const referenceDirectory = path.join(container, 'Documents', 'offline-app', origin)
+  const snapshotDirectory = path.join(container, 'Documents', 'app-state', origin)
+  for (let attempt = 0; attempt < 180; attempt++) {
+    try {
+      const latest = readdirSync(snapshotDirectory)
+        .filter((name) => /^\d+-[\w-]+\.json$/.test(name))
+        .sort()
+        .at(-1)
+      const snapshot = latest ? parseAppSnapshot(JSON.parse(readFileSync(path.join(snapshotDirectory, latest), 'utf8'))) : null
+      if (
+        existsSync(referenceDirectory) &&
+        snapshot?.owner === fixtureUserId &&
+        JSON.stringify(snapshot).includes('Native saved army') &&
+        snapshot.queries.some((query) => query.key[0] === 'saved-roster-page')
+      )
+        return
+    } catch {
+      /* The first background save is still in progress. */
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+  throw new Error('The application bundle and account data were not saved automatically')
+}
+
+async function terminateSavedRenderer(udid: string) {
+  const processes = (await output('ps', ['-ax', '-o', 'pid=,ppid=,comm=']))
+    .split('\n')
+    .map((line) => line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/))
+    .filter((row) => row !== null)
+  const app = processes.find((row) => row[3].includes(`/Devices/${udid}/`) && row[3].endsWith('/Praetorium.app/Praetorium'))
+  if (!app) throw new Error('The owned simulator application is not running')
+  const renderers = processes.filter((row) => row[2] === app[2] && row[3].endsWith('/com.apple.WebKit.WebContent'))
+  if (!renderers.length) throw new Error('The owned simulator has no WebView renderer to terminate')
+  for (const row of renderers) process.kill(Number(row[1]), 'SIGKILL')
 }
 
 async function bootedSimulator() {
@@ -336,7 +417,7 @@ async function main() {
     stack.kill('SIGTERM')
     await exited
   }
-  await waitForHealth()
+  await waitForHealth(stack)
   await createFixture()
   await run('xcrun', ['simctl', 'keychain', udid, 'add-root-cert', tlsCertificate])
   const mobile = path.join(root, 'mobile')
@@ -397,10 +478,91 @@ async function main() {
   await assertPushRegistered()
   console.log(`Native authentication refreshed without an app restart: ${events.join(' -> ')}`)
   console.log('Simulator notification permission and device registration succeeded.')
+  if (process.env.NATIVE_OFFLINE_VERIFY === '1') {
+    const maestroEnvironment = {
+      ...process.env,
+      ...(javaHome ? { JAVA_HOME: javaHome, PATH: `${javaHome}/bin:${process.env.PATH ?? ''}` } : {}),
+      MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true',
+      MAESTRO_CLI_NO_ANALYTICS: 'true',
+    }
+    await run(
+      'maestro',
+      [
+        'test',
+        '--udid',
+        udid,
+        '--test-output-dir',
+        path.join(root, 'test-results', 'native-offline-ios'),
+        path.join(root, 'e2e', 'native-offline-save-ios.yaml'),
+      ],
+      { env: maestroEnvironment },
+    )
+    await waitForSavedApp(udid)
+    const offlineProxy = proxy
+    proxy?.closeAllConnections()
+    if (proxy) await new Promise<void>((resolve) => proxy!.close(() => resolve()))
+    proxy = undefined
+    await run('xcrun', ['simctl', 'terminate', udid, 'gg.praetorium'])
+    await run('xcrun', ['simctl', 'launch', udid, 'gg.praetorium'])
+    await run(
+      'maestro',
+      [
+        'test',
+        '--udid',
+        udid,
+        '--test-output-dir',
+        path.join(root, 'test-results', 'native-offline-ios'),
+        path.join(root, 'e2e', 'native-offline-read-ios.yaml'),
+      ],
+      { env: maestroEnvironment },
+    )
+    console.log('Saved reference reopened after a cold launch with the service unreachable.')
+    await terminateSavedRenderer(udid)
+    await run(
+      'maestro',
+      [
+        'test',
+        '--udid',
+        udid,
+        '--test-output-dir',
+        path.join(root, 'test-results', 'native-offline-ios'),
+        path.join(root, 'e2e', 'native-offline-recovery-ios.yaml'),
+      ],
+      { env: maestroEnvironment },
+    )
+    console.log('Saved WebView recovered its current rule after renderer termination while disconnected.')
+    proxy = offlineProxy
+    await new Promise<void>((resolve) => proxy!.listen(publicPort, '127.0.0.1', resolve))
+    await seedSavedApp(true)
+    await run(
+      'maestro',
+      [
+        'test',
+        '--udid',
+        udid,
+        '--test-output-dir',
+        path.join(root, 'test-results', 'native-offline-ios'),
+        path.join(root, 'e2e', 'native-offline-resume-ios.yaml'),
+      ],
+      { env: maestroEnvironment },
+    )
+    console.log('Saved reference revalidated on foreground without navigating away from the current rule.')
+  }
 }
 
 try {
   await main()
+  if (process.env.NATIVE_AUTH_KEEP_STACK === '1') {
+    writeFileSync(
+      path.join(tlsDirectory, '..', 'preview-owner.json'),
+      JSON.stringify({ pid: process.pid, origin: publicUrl, dataDirectory }),
+    )
+    console.log(`Native preview remains available at ${publicUrl}; stop the owning process ${process.pid} to clean up.`)
+    await new Promise<void>((resolve) => {
+      process.once('SIGTERM', resolve)
+      process.once('SIGINT', resolve)
+    })
+  }
 } catch (error) {
   console.error(`Observed native authentication events: ${events.join(' -> ') || 'none'}`)
   throw error

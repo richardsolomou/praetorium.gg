@@ -4,7 +4,7 @@ import { meQuery } from '../client/queries'
 
 export const Route = createFileRoute('/admin')({
   loader: async ({ context }) => {
-    const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
+    const me = await context.queryClient.query({ ...meQuery(), staleTime: 0 })
     if (me?.role !== 'admin' || me.impersonatedBy) throw redirect({ to: '/' })
     return me
   },

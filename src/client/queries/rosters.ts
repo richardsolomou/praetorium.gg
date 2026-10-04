@@ -1,3 +1,4 @@
+import { offlineDatasheets } from '../offline/runtime'
 import { type QueryClient, queryOptions } from '@tanstack/react-query'
 import type { FormatRuleId, OptionalRuleId } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
@@ -9,6 +10,7 @@ import {
   loadoutDatasheets,
   priceRoster,
   rosterAccess,
+  rosterBootstrap,
   savedRosterLoadoutDatasheets,
   savedRosterPrice,
   savedRosterSummaries,
@@ -33,7 +35,8 @@ export const unitsQuery = (catalogueId: string, battleSize?: number, waivedRules
 export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
   queryOptions({
     queryKey: ['faction-datasheets', catalogueId, query],
-    queryFn: () => factionDatasheets({ data: { catalogueId, query } }),
+    networkMode: 'always',
+    queryFn: () => Promise.resolve(offlineDatasheets(catalogueId, query) ?? factionDatasheets({ data: { catalogueId, query } })),
     enabled: Boolean(catalogueId),
     staleTime: Infinity,
   })
@@ -135,10 +138,17 @@ export const savedRosterSummariesQuery = () =>
 export const savedRosterPageQuery = (ids: string[]) =>
   queryOptions({ queryKey: ['saved-roster-page', ids], queryFn: () => savedRosterPage({ data: { ids } }), staleTime: SSR_STALE_TIME })
 export const homeRostersQuery = () => queryOptions({ queryKey: ['home-rosters'], queryFn: () => homeRosters(), staleTime: SSR_STALE_TIME })
+export const rosterBootstrapQuery = (id: string, battle?: string) =>
+  queryOptions({
+    queryKey: ['roster-bootstrap', id, battle ?? null],
+    queryFn: () => rosterBootstrap({ data: { id, ...(battle ? { battle } : {}) } }),
+    staleTime: SSR_STALE_TIME,
+  })
 
 export function invalidateSavedRosters(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['roster-access'] }),
+    queryClient.invalidateQueries({ queryKey: ['roster-bootstrap'] }),
     queryClient.invalidateQueries({ queryKey: ['shared-roster'] }),
     queryClient.invalidateQueries({ queryKey: ['saved-roster-loadout-datasheets'] }),
     queryClient.invalidateQueries({ queryKey: ['player-rosters'] }),

@@ -1,3 +1,6 @@
+import { offlineReferenceDataScript, readOfflineReference, storeOfflineReference } from './src/offlineReferenceStorage'
+import { appSnapshotScript, storeAppSnapshot } from './src/appSnapshotStorage'
+import { APP_URL } from './src/navigation'
 import { StatusBar } from 'expo-status-bar'
 import * as Haptics from 'expo-haptics'
 import * as KeepAwake from 'expo-keep-awake'
@@ -127,6 +130,18 @@ function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
 
 function AppShell() {
   const webView = useRef<WebView>(null)
+  const [referenceCacheScript, setReferenceCacheScript] = useState(() => {
+    try {
+      return offlineReferenceDataScript()
+    } catch {
+      return ''
+    }
+  })
+  const [offlineView, setOfflineView] = useState<{ path: string; html: string } | null>(null)
+  const [offlineRenderKey, setOfflineRenderKey] = useState(0)
+  const offlinePath = useRef('/')
+  const [initialSnapshotScript] = useState(appSnapshotScript)
+  const snapshotScript = useRef(initialSnapshotScript)
   const [historyBack, setHistoryBack] = useState(false)
   const authOpen = useRef(false)
   const battleAwake = useRef(false)
@@ -185,6 +200,7 @@ function AppShell() {
       const callback = parseNativeAuthCallback(url, pending ?? undefined)
       if (callback.kind === 'success') {
         if (handledAuthTokens.current.has(callback.token)) return
+        setOfflineView(null)
         handledAuthTokens.current.add(callback.token)
         try {
           await pendingAuthStorage.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(completedPendingNativeAuth(pending!, url)))
@@ -262,14 +278,50 @@ function AppShell() {
 
   const navigateApplication = useCallback(
     (url: string) => {
+      if (offlineView && classifyNavigation(url).kind === 'internal') {
+        webView.current?.injectJavaScript(
+          `window.dispatchEvent(new CustomEvent('praetorium-app-navigate', { detail: ${JSON.stringify(url)} })); true;`,
+        )
+        return
+      }
+      setOfflineView(null)
       commitAndDrain(warmUrlReceived(shellRef.current, url))
     },
-    [commitAndDrain],
+    [commitAndDrain, offlineView],
   )
 
   const handleNativeAction = useCallback(
     async (action: NativeActionRequest) => {
       switch (action.kind) {
+        case 'app-snapshot': {
+          let saved = false
+          try {
+            storeAppSnapshot(action.snapshot, action.id)
+            snapshotScript.current = appSnapshotScript(action.snapshot)
+            saved = true
+          } catch (error) {
+            captureNativeException('app_snapshot_save', error)
+          }
+          webView.current?.injectJavaScript(
+            `window.dispatchEvent(new CustomEvent('praetorium-native-app-snapshot', { detail: ${JSON.stringify({ id: action.id, saved })} })); true;`,
+          )
+          break
+        }
+        case 'offline-save': {
+          let saved = false
+          try {
+            storeOfflineReference(action.reference, action.id)
+            setReferenceCacheScript(offlineReferenceDataScript(action.reference))
+            saved = true
+          } catch (error) {
+            captureNativeException('offline_reference_save', error)
+          }
+          const detail = JSON.stringify({ id: action.id, saved })
+          webView.current?.injectJavaScript(
+            `window.dispatchEvent(new CustomEvent('praetorium-native-offline', { detail: ${detail} })); true;`,
+          )
+          break
+        }
         case 'back-gesture':
           setHistoryBack(action.enabled)
           break
@@ -334,6 +386,7 @@ function AppShell() {
   const handleIncomingUrl = useCallback(
     (url: string) => {
       if (url.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
+        setOfflineView(null)
         void handleAuthCallback(url).catch((error) => {
           captureNativeException('native_auth_callback', error)
           Alert.alert('Sign-in did not finish', 'The secure sign-in result could not be saved. Try again.')
@@ -346,11 +399,12 @@ function AppShell() {
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       if (!historyBack) return false
-      webView.current?.goBack()
+      if (offlineView) webView.current?.injectJavaScript("window.dispatchEvent(new Event('praetorium-app-back')); true;")
+      else webView.current?.goBack()
       return true
     })
     return () => subscription.remove()
-  }, [historyBack])
+  }, [historyBack, offlineView])
 
   useEffect(() => {
     let active = true
@@ -405,6 +459,13 @@ function AppShell() {
               }
             } else if (active && pending?.callbackUrl) {
               await handleAuthCallback(pending.callbackUrl, pending)
+            } else if (!pending && (!initialUrl || classifyNavigation(initialUrl).kind === 'internal')) {
+              const saved = readOfflineReference()
+              if (saved) {
+                const target = new URL(initialUrl ?? '/', APP_URL)
+                offlinePath.current = target.pathname + target.search + target.hash
+                setOfflineView({ path: target.pathname + target.search + target.hash, html: saved.html })
+              }
             }
           },
         )
@@ -436,13 +497,13 @@ function AppShell() {
     const subscription = AppState.addEventListener('change', (status) => {
       const changed = appStateChanged(lifecycle.current, status)
       lifecycle.current = changed.lifecycle
-      if (changed.shouldResumeWebApp && shellRef.current.ready) webView.current?.injectJavaScript(WEB_RESUME_SCRIPT)
+      if (changed.shouldResumeWebApp && (shellRef.current.ready || offlineView)) webView.current?.injectJavaScript(WEB_RESUME_SCRIPT)
       const nextShell = appShellActivityChanged(shellRef.current, status === 'active')
       if (status === 'active') commitAndDrain(nextShell)
       else commitShell(nextShell)
     })
     return () => subscription.remove()
-  }, [commitAndDrain, commitShell])
+  }, [commitAndDrain, commitShell, offlineView])
 
   const updateNavigation = useCallback(
     (navigation: WebViewNavigation) => {
@@ -458,11 +519,71 @@ function AppShell() {
     commitShell(rendererTerminated(shellRef.current))
   }, [cancelScheduledDrain, commitShell, setBattleActive])
 
+  const openSavedReference = (url: string) => {
+    try {
+      const saved = readOfflineReference()
+      if (!saved) return
+      const target = new URL(url, APP_URL)
+      offlinePath.current = target.pathname + target.search + target.hash
+      setOfflineView({ path: target.pathname + target.search + target.hash, html: saved.html })
+    } catch (error) {
+      captureNativeException('offline_reference_read', error)
+    }
+  }
+
+  const recoverSavedRenderer = () => {
+    captureNativeException('web_renderer')
+    openSavedReference(offlinePath.current)
+    setOfflineRenderKey((key) => key + 1)
+  }
+
+  const retryOnline = (path?: string) => {
+    setOfflineView(null)
+    const decision = path ? classifyNavigation(new URL(path, APP_URL).href) : null
+    const state = decision?.kind === 'internal' ? webNavigationChanged(shellRef.current, decision.url) : shellRef.current
+    commitShell(rendererTerminated(state))
+  }
+
   return (
     <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.safeArea}>
       {/* oxlint-disable-next-line react/style-prop-object -- Expo's style prop selects a color scheme. */}
       <StatusBar style="light" />
-      {renderedShell.sourceUrl ? (
+      {offlineView ? (
+        <WebView
+          key={`saved-${offlineRenderKey}`}
+          ref={webView}
+          source={{ html: offlineView.html, baseUrl: APP_URL + offlineView.path }}
+          style={styles.webView}
+          originWhitelist={['*']}
+          applicationNameForUserAgent={NATIVE_USER_AGENT}
+          sharedCookiesEnabled
+          thirdPartyCookiesEnabled={false}
+          allowsBackForwardNavigationGestures={false}
+          allowsLinkPreview={false}
+          setBuiltInZoomControls={false}
+          setSupportMultipleWindows
+          injectedJavaScriptBeforeContentLoaded={`${snapshotScript.current}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}`}
+          onMessage={({ nativeEvent }) => {
+            try {
+              const message = JSON.parse(nativeEvent.data) as { type?: unknown; path?: unknown }
+              if (message.type === 'offline-location' && typeof message.path === 'string') offlinePath.current = message.path
+              if (message.type === 'offline-retry' && typeof message.path === 'string') retryOnline(message.path)
+              if (!handleNativeActionMessage(nativeEvent.data)) void openNativeAuth(nativeEvent.data)
+            } catch {
+              // Ignore malformed bridge messages.
+            }
+          }}
+          onShouldStartLoadWithRequest={({ url, navigationType }) => {
+            if (navigationType !== 'click') return true
+            const decision = classifyNavigation(url)
+            if (decision.kind === 'external') void openExternal(decision.url)
+            if (decision.kind === 'internal') retryOnline(new URL(decision.url).pathname + new URL(decision.url).search)
+            return false
+          }}
+          onContentProcessDidTerminate={recoverSavedRenderer}
+          onRenderProcessGone={recoverSavedRenderer}
+        />
+      ) : renderedShell.sourceUrl ? (
         <WebView
           key={renderedShell.renderKey}
           ref={webView}
@@ -471,7 +592,7 @@ function AppShell() {
           containerStyle={styles.webView}
           originWhitelist={['*']}
           applicationNameForUserAgent={NATIVE_USER_AGENT}
-          injectedJavaScriptBeforeContentLoaded={`${NATIVE_BRIDGE_SCRIPT}\n${nativeAuthCompletionScript()}`}
+          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${snapshotScript.current}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeAuthCompletionScript()}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures={false}
@@ -480,7 +601,7 @@ function AppShell() {
           setSupportMultipleWindows
           startInLoadingState
           renderLoading={() => <StateView />}
-          renderError={() => <StateView error retry={() => webView.current?.reload()} />}
+          renderError={() => <StateView error retry={retryOnline} />}
           onLoadStart={({ nativeEvent }) => {
             mainFrameUrl.current = nativeEvent.url
             cancelScheduledDrain()
@@ -494,6 +615,8 @@ function AppShell() {
             captureNativeException('web_load', new Error(`WebView load failed: ${nativeEvent.description} (code ${nativeEvent.code})`))
             cancelScheduledDrain()
             commitShell(webLoadFailed(shellRef.current))
+            if (!shellRef.current.pendingAuth && !shellRef.current.delivering)
+              openSavedReference(nativeEvent.url || shellRef.current.lastInternalUrl)
           }}
           onHttpError={({ nativeEvent }) => {
             // A failing sub-resource must not tear down the loaded document; only

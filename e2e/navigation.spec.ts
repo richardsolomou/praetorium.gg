@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import { join } from 'node:path'
 import { devices, expect, type Page, test } from '@playwright/test'
-import { NATIVE_BRIDGE_SCRIPT } from '../mobile/src/nativeActions'
+import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 import { createRoster, retryUntilVisible, signUp } from './account'
 import { catalogue } from './stackEnv'
 
@@ -107,7 +107,7 @@ test('the native application has stable route-aware phone and tablet navigation'
   const loadingContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await loadingContext.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BRIDGE_SCRIPT}`,
+${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   })
   const loadingPage = await loadingContext.newPage()
   await loadingPage.route('**/*', (route) => (route.request().resourceType() === 'script' ? route.abort() : route.continue()))
@@ -124,7 +124,7 @@ ${NATIVE_BRIDGE_SCRIPT}`,
   const legacyContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await legacyContext.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BRIDGE_SCRIPT}
+${NATIVE_BROWSER_BRIDGE_SCRIPT}
 document.addEventListener('DOMContentLoaded', () => { document.documentElement.dataset.nativeShell = 'true' }, { once: true });`,
   })
   const legacyPage = await legacyContext.newPage()
@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => { document.documentElement.d
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BRIDGE_SCRIPT}`,
+${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   })
   const page = await context.newPage()
   const hydrationErrors: string[] = []
@@ -239,6 +239,7 @@ test('a signed-in player cannot return to the sign-in form', async ({ page }) =>
   await page.getByRole('menuitem', { name: 'Sign out' }).click()
   await page.goto('/support')
   await page.goto('/sign-in?next=%2Ffactions')
+  await page.waitForLoadState('networkidle')
   await page.getByLabel('Email').fill(credentials.email)
   await page.getByLabel('Password').fill(credentials.password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
@@ -501,7 +502,10 @@ test('opening faction datasheets does not render the route error boundary', asyn
   await page.screenshot({ path: 'test-results/faction-datasheets-first-load.png', fullPage: true })
 })
 
-test('signed-out faction browsing does not load account collection data', async ({ page }) => {
+test('signed-out faction browsing does not load account collection data before background warming', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.requestIdleCallback = () => 1
+  })
   const serverReads: string[] = []
   page.on('request', (request) => {
     if (request.method() === 'GET' && request.url().includes('/_serverFn/')) serverReads.push(request.url())
@@ -567,13 +571,20 @@ test('account libraries share their page width and fit a phone', async ({ page }
   await page.setViewportSize({ width: 1280, height: 800 })
 
   const widths: number[] = []
-  for (const path of ['/rosters', '/battles', '/friends']) {
+  for (const [path, heading] of [
+    ['/rosters', 'My rosters'],
+    ['/battles', 'My battles'],
+    ['/friends', 'Friends'],
+  ]) {
     await page.goto(path)
+    await expect(page.getByRole('heading', { name: heading, exact: true, level: 1 })).toBeVisible()
     if (path === '/rosters') await expect(page.getByLabel('Loading roster count')).toHaveCount(0)
     widths.push((await page.locator('main').boundingBox())?.width ?? 0)
   }
   expect(new Set(widths).size).toBe(1)
   await page.goto('/rosters')
+  await expect(page.getByRole('heading', { name: 'My rosters', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Loading roster count')).toHaveCount(0)
   const heroRail = await page.locator('main > header').first().locator('div.relative').last().boundingBox()
   const contentRail = await page.getByLabel('Roster filters').locator('..').boundingBox()
   expect(Math.abs((heroRail?.width ?? 0) - (contentRail?.width ?? 0))).toBeLessThan(4)
@@ -1065,7 +1076,7 @@ test('the first sort choice orders saved rosters and persists on mobile', async 
 })
 
 test('a guest roster stays within the native mobile builder viewport', async ({ page, context }) => {
-  await context.addInitScript({ content: `window.ReactNativeWebView = { postMessage: () => {} };\n${NATIVE_BRIDGE_SCRIPT}` })
+  await context.addInitScript({ content: `window.ReactNativeWebView = { postMessage: () => {} };\n${NATIVE_BROWSER_BRIDGE_SCRIPT}` })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/rosters')
   const search = page.getByPlaceholder('Search factions…')

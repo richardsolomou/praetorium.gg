@@ -7,7 +7,6 @@ import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
 import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
-import { profiledArmyRulesFor } from '../catalogueProfileRules'
 import { unitsIn } from '../cataloguePicker'
 import { pickerUnitsFor } from '../pickerUnits'
 import { detachmentsOffering } from '../factionReferences'
@@ -22,7 +21,7 @@ import { combatLoadoutSpace } from '../combatLoadouts'
 import { currentUserId } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { selectedBattleDetachmentData } from '../battleDetachmentData'
-import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
+import { referenceDatasheetBySlug, referenceDatasheetIsLive, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
 import {
   combatLoadoutSchema,
   datasheetSchema,
@@ -299,12 +298,8 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
       const catalogue = await app().catalogueFor(data.catalogueId)
       const rules = await app().rulesFor()
       const canonical = await app().canonicalCatalogueFor()
-      const book = catalogue?.index.catalogues.get(data.catalogueId)
-      const live = Boolean(
-        catalogue && book && (catalogue.profiledCatalogueIds.has(book.id) || profiledArmyRulesFor(catalogue, book.id).length),
-      )
       return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data, {
-        live,
+        live: referenceDatasheetIsLive(catalogue, data.catalogueId),
       })
     }),
   )

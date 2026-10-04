@@ -13,7 +13,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { posthog } from 'posthog-js'
 import { authClient } from '../../authClient'
+import { clearSavedApp } from '../../offline/appStorage'
+import { reconcileAppAccount } from '../../offline/appSnapshot'
 import { setNativeAccountMenuOpen } from '../../nativeBridge'
 import { onboardingTasks, openOnboarding } from '../onboarding/onboarding'
 import { forgetThisDevice } from '../../pushNotifications'
@@ -31,6 +34,9 @@ function useAccountControls() {
       // Forgotten while the session still exists, since the server only lets an account remove its own device.
       await forgetThisDevice()
       await authClient.signOut()
+      reconcileAppAccount(queryClient, null)
+      queryClient.setQueryData(['me'], null)
+      await clearSavedApp().catch((error: unknown) => posthog.captureException(error, { operation: 'sign_out_saved_data' }))
       await queryClient.invalidateQueries()
       await navigate({ to: '/' })
     })()

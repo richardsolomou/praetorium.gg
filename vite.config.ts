@@ -1,3 +1,4 @@
+import { offlineAppPlugin } from './scripts/lib/offlineAppPlugin.ts'
 import { defineConfig, loadEnv } from 'vite'
 import path from 'node:path'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
@@ -76,6 +77,8 @@ export default defineConfig(({ mode }) => {
         ],
         routeRules: {
           ...proxy?.nitro,
+          '/offline-app-version.json': { headers: { 'Cache-Control': 'no-store' } },
+          '/offline-reference-version.json': { headers: { 'Cache-Control': 'no-store' } },
           '/**': {
             headers: {
               // img-src widens further at runtime, in cspPlugin.ts: this base list is
@@ -92,6 +95,7 @@ export default defineConfig(({ mode }) => {
         },
       }),
       viteReact(),
+      offlineAppPlugin(),
       tailwindcss(),
       ...webSourceMapPlugins(env).map((plugin) => ({
         ...plugin,

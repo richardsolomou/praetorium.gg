@@ -2,6 +2,28 @@ import { describe, expect, it, vi } from 'vitest'
 import { NATIVE_BRIDGE_SCRIPT, nativePushAnswerScript, parseNativeActionRequest } from './nativeActions'
 
 describe('parseNativeActionRequest', () => {
+  it('accepts an account snapshot and its explicit removal', () => {
+    const snapshot = { version: 1, owner: 'alice', queries: [{ key: ['me'], data: { id: 'alice' }, updatedAt: 1 }] }
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-app-snapshot', id: 'save-1', snapshot }))).toEqual({
+      kind: 'app-snapshot',
+      id: 'save-1',
+      snapshot,
+    })
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-app-snapshot', id: 'clear-1', snapshot: null }))).toEqual({
+      kind: 'app-snapshot',
+      id: 'clear-1',
+      snapshot: null,
+    })
+  })
+
+  it('rejects mismatched owners and private data without an owner', () => {
+    for (const snapshot of [
+      { version: 1, owner: 'bob', queries: [{ key: ['me'], data: { id: 'alice' }, updatedAt: 1 }] },
+      { version: 1, owner: null, queries: [{ key: ['home-rosters'], data: ['Alice army'], updatedAt: 1 }] },
+    ])
+      expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-app-snapshot', id: 'save-1', snapshot }))).toBeNull()
+  })
+
   it('accepts an internal share link', () => {
     expect(
       parseNativeActionRequest(
@@ -90,7 +112,7 @@ describe('nativePushAnswerScript', () => {
 describe('NATIVE_BRIDGE_SCRIPT', () => {
   it('publishes only the version 3 capabilities the shell handles', () => {
     expect(NATIVE_BRIDGE_SCRIPT).toContain(
-      "const capabilities = ['app-navigation', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'notifications', 'open-window', 'print', 'share']",
+      "const capabilities = ['app-navigation', 'app-snapshot', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'notifications', 'offline-reference', 'open-window', 'print', 'share']",
     )
     expect(NATIVE_BRIDGE_SCRIPT).toContain('bridgeVersion: 3')
   })

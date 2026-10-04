@@ -5,13 +5,13 @@ import {
   battleQuery,
   leagueRosterQuery,
   rosterAccessQuery,
+  rosterBootstrapQuery,
   rosterChangesQuery,
   savedRosterPriceQuery,
   outdatedLeagueEntriesQuery,
 } from '../client/queries'
 import { pageHead, rosterExposure, rosterPreview } from '../client/linkPreview'
 import { normalisePicks } from '../client/features/rosters/rosterPicks'
-import { rosterBootstrap } from '../server/functions'
 
 export const Route = createFileRoute('/rosters/$id/')({
   // A battle token is what lets an entitled battle reader open a list that is otherwise private.
@@ -35,27 +35,62 @@ export const Route = createFileRoute('/rosters/$id/')({
       if (!roster) throw notFound()
       return { editable: false, snapshot: true }
     }
-    const bootstrap = await rosterBootstrap({ data: { id: params.id, ...(deps.battle ? { battle: deps.battle } : {}) } })
+    const bootstrapOptions = rosterBootstrapQuery(params.id, deps.battle)
+    const cachedBootstrap = context.queryClient.getQueryData(bootstrapOptions.queryKey)
+    const cachedUpdatedAt =
+      cachedBootstrap === undefined ? undefined : context.queryClient.getQueryState(bootstrapOptions.queryKey)?.dataUpdatedAt
+    const bootstrap = cachedBootstrap === undefined ? await context.queryClient.query(bootstrapOptions) : cachedBootstrap
+    const seedBootstrap = (value: NonNullable<typeof bootstrap>, updatedAt: number) => {
+      const current = context.queryClient.getQueryData(rosterAccessQuery(params.id, deps.battle).queryKey)
+      if (current && current.roster.updatedAt > value.roster.updatedAt) return
+      const seed = (key: readonly unknown[], data: unknown) => {
+        if ((context.queryClient.getQueryState(key)?.dataUpdatedAt ?? 0) <= updatedAt)
+          context.queryClient.setQueryData(key, data, { updatedAt })
+      }
+      const { roster, editable, variants, differences, faction, price, changes } = value
+      seed(rosterAccessQuery(params.id, deps.battle).queryKey, { roster, editable, variants, differences, faction })
+      seed(rosterChangesQuery(params.id).queryKey, changes)
+      seed(
+        savedRosterPriceQuery(
+          roster.id,
+          roster.catalogueId,
+          roster.detachmentIds,
+          roster.disposition,
+          roster.limit,
+          normalisePicks(roster.picks),
+          deps.battle,
+          roster.waivedRules,
+          roster.borrowedDetachmentId,
+          roster.optionalRules,
+        ).queryKey,
+        price,
+      )
+    }
+    if (cachedBootstrap !== undefined)
+      void context.queryClient
+        .query({ ...bootstrapOptions, staleTime: 0 })
+        .then((fresh) => {
+          if (fresh) seedBootstrap(fresh, context.queryClient.getQueryState(bootstrapOptions.queryKey)!.dataUpdatedAt)
+        })
+        .catch(() => {})
     if (!bootstrap) throw notFound()
-    const { roster, editable, variants, differences, faction, price, changes } = bootstrap
-    if (editable) await context.queryClient.query(outdatedLeagueEntriesQuery(params.id))
-    const access = { roster, editable, variants, differences, faction }
-    context.queryClient.setQueryData(rosterAccessQuery(params.id, deps.battle).queryKey, access)
-    context.queryClient.setQueryData(rosterChangesQuery(params.id).queryKey, changes)
-    const priced = savedRosterPriceQuery(
-      roster.id,
-      roster.catalogueId,
-      roster.detachmentIds,
-      roster.disposition,
-      roster.limit,
-      normalisePicks(roster.picks),
-      deps.battle,
-      roster.waivedRules,
-      roster.borrowedDetachmentId,
-      roster.optionalRules,
-    )
-    context.queryClient.setQueryData(priced.queryKey, price)
-    return { editable, snapshot: false, preview: rosterPreview(roster, faction, price), exposure: rosterExposure(roster.visibility) }
+    const updatedAt = cachedUpdatedAt ?? context.queryClient.getQueryState(bootstrapOptions.queryKey)!.dataUpdatedAt
+    seedBootstrap(bootstrap, updatedAt)
+    const { editable, price } = bootstrap
+    let { roster, faction } = bootstrap
+    if (editable) await context.queryClient.query({ ...outdatedLeagueEntriesQuery(params.id), staleTime: 'static' })
+    const accessKey = rosterAccessQuery(params.id, deps.battle).queryKey
+    const currentAccess =
+      context.queryClient.getQueryData<Pick<NonNullable<typeof bootstrap>, 'roster' | 'editable' | 'variants' | 'differences' | 'faction'>>(
+        accessKey,
+      )
+    if (currentAccess) ({ roster, faction } = currentAccess)
+    return {
+      editable: currentAccess?.editable ?? editable,
+      snapshot: false,
+      preview: rosterPreview(roster, faction, price),
+      exposure: rosterExposure(roster.visibility),
+    }
   },
   head: ({ loaderData, match, params }) => {
     const preview = loaderData?.preview

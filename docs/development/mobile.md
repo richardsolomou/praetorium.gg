@@ -16,6 +16,8 @@ Expo generates disposable, gitignored `mobile/ios` and `mobile/android` projects
 
 ## Shell boundaries
 
+`mobile/src/package.json` marks shared mobile source as ES modules for Node-based test consumers. Keep Expo and Metro configuration in the parent CommonJS scope. Run full Playwright collection (`pnpm exec playwright test --list`) after changing shared imports; focused runs do not load every consumer.
+
 - `mobile/src/appShellState.ts` owns launch, load, callback delivery, retry, and renderer recovery. Ordinary launch does not wait for secure storage; an authentication callback does.
 - `mobile/src/navigation.ts` keeps trusted application links in the main WebView and sends supported external links to the operating system. The injected bridge and native new-window fallback cover both `_blank` and `window.open`.
 - Internal links preserve path, query, and fragment on cold and warm launches. Associated-domain configuration and signed-device checks belong to [Mobile release](mobile-release.md#production-identity-checks).
@@ -33,6 +35,16 @@ Callback delivery waits for the remounted document, confirms the destination loa
 
 Remounting clears `sessionStorage`, so an unsaved visitor roster does not survive system-provider sign-in. Email sign-in stays in the document. Provider linking transfers the existing session through Better Auth's single-use token; failure between token consumption and callback requires restarting the link flow.
 
+## Saved application data
+
+[`mobile/src/offlineReferenceStorage.ts`](../../mobile/src/offlineReferenceStorage.ts) stores the public reference and application bundle; [`mobile/src/appSnapshotStorage.ts`](../../mobile/src/appSnapshotStorage.ts) stores account-scoped screen data. Keep files separate by application origin. Check replacements before discarding previous data, retain a recoverable previous generation, and ignore incomplete writes. Move verified snapshot writes to a new filename: Expo overwrite moves delete the destination before moving and can lose the prior snapshot on failure. [Interface](interface.md#saved-application-data) owns snapshot eligibility and the seamless lookup contract.
+
+A saved launch opens Home in the normal WebView with background refresh. Hosted reference caching uses the same compressed public asset as the website; the native shell still receives one complete saved HTML application. Application-only updates reuse the saved reference corpus. Deep links stay in the same application. Saved and hosted WebViews both remount after renderer termination; saved recovery resumes the memory router’s latest path. Preserve the hosted authentication/receipt path, native capabilities, cookies, and ordinary mutation origin checks. The `offline-reference` and `app-snapshot` capabilities gate storage support; older shells keep their existing path.
+
+Run `just e2e-native-offline-ios` after changing saved launch or storage. It extends the authentication journey with a cold launch while the service is unreachable, saved Home/rosters/battles, unvisited references, real renderer termination and recovery while disconnected, and foreground refresh that preserves the open rule. Also verify airplane mode and reopening on a signed physical iPhone; Android needs an available emulator or device.
+
+Set `NATIVE_AUTH_KEEP_STACK=1` only when leaving a verified simulator preview running. Its origin and owning process are recorded in the ignored `mobile/.simulator-derived/native-auth-e2e/preview-owner.json`; stop that process to clean up its stack.
+
 ## Notifications
 
 `expo-notifications` uses Expo delivery through APNs and FCM. The web bridge carries request IDs; permission is requested only after the player chooses to allow notifications. Home's dismissed offer stays dismissed for that installation. Signed-in document loads silently register an already-authorized token.
@@ -49,6 +61,6 @@ Run `just check`. Before pushing native-shell, dependency, or configuration chan
 just e2e-native-auth-ios
 ```
 
-It requires a booted iOS Simulator, Java 21, and Maestro. Set `NATIVE_AUTH_SIMULATOR_UDID` when several simulators are booted. The journey reserves the device and owns an isolated stack; it must not replace the interactive preview.
+It requires a booted iOS Simulator, Java 21, and Maestro. Set `NATIVE_AUTH_SIMULATOR_UDID` when several simulators are booted. The journey reserves the device and owns an isolated stack; it must not replace the interactive preview. Centre scroll targets before tapping: iOS accessibility can report a link as visible while the fixed application tabs cover it.
 
 The journey verifies proof exchange, authenticated redirect, receipt consumption, authenticated reload without relaunch, and notification permission/token registration. Simulator tests keep pending proofs in memory because the build lacks the production keychain entitlement. They do not prove SecureStore, real provider authentication, verified links, or push delivery; use the [signed physical-device gate](mobile-release.md#physical-device-gate) for those.

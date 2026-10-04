@@ -2,11 +2,11 @@ import { expect, test } from '@playwright/test'
 import { attachRoster, createBattle, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 import { productOperator, withAuthSql } from './storage'
 
-test('the roster library reserves its rows while the first page loads', async ({ browser, page }) => {
-  await signUp(page, 'Loading')
-  const rosterName = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Loading roster' })
+test('the roster library reserves its rows while the first page loads', async ({ browser, page: savedPage }) => {
+  await signUp(savedPage, 'Loading')
+  const rosterName = await createRoster(savedPage, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Loading roster' })
 
-  const firstFrameContext = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
+  const firstFrameContext = await browser.newContext({ javaScriptEnabled: false, storageState: await savedPage.context().storageState() })
   const firstFrame = await firstFrameContext.newPage()
   await firstFrame.goto('/rosters')
   const firstFrameRubric = firstFrame.locator('main section').last().locator('.rubric')
@@ -20,39 +20,48 @@ test('the roster library reserves its rows while the first page loads', async ({
   await firstFrame.screenshot({ path: 'test-results/loading-roster-library-no-js-phone.png', fullPage: true })
   await firstFrameContext.close()
 
-  // The home page loads a player's lists for its own shelf, so the walk starts from a page that does not.
-  await page.goto('/leaderboard')
-  let release: () => void = () => {}
-  const held = new Promise<void>((resolve) => {
-    release = resolve
+  const coldContext = await browser.newContext({ storageState: await savedPage.context().storageState() })
+  const page = await coldContext.newPage()
+  await page.addInitScript(() => {
+    window.requestIdleCallback = () => 1
   })
-  await page.route('**/_serverFn/**', async (route) => {
-    await held
-    await route.continue()
-  })
+  try {
+    // The home page loads a player's lists for its own shelf, so the walk starts from a page that does not.
+    await page.goto('/leaderboard')
+    let release: () => void = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await page.route('**/_serverFn/**', async (route) => {
+      await held
+      await route.continue()
+    })
 
-  await page.getByRole('link', { name: 'Rosters', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'My rosters' })).toBeVisible()
-  const libraryRubric = page.locator('main section').last().locator('.rubric')
-  await expect(libraryRubric.getByText('Rosters', { exact: true })).toBeVisible()
-  await expect(libraryRubric.getByLabel('Loading roster count')).toBeVisible()
-  const createRosterButton = page.getByRole('button', { name: 'Create editable roster' })
-  await expect(createRosterButton).toBeVisible()
-  await expect(page.getByLabel('Loading roster creation options')).toHaveCount(0)
-  await createRosterButton.click()
-  await expect(page.getByRole('heading', { name: 'Create roster' })).toBeVisible()
-  await page.keyboard.press('Escape')
-  await page.screenshot({ path: 'test-results/loading-roster-library.png', fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/loading-roster-library-phone.png', fullPage: true })
-  release()
-  const row = page.locator(`[data-roster="${rosterName}"]`)
-  await expect(row).toBeVisible()
-  await expect(row).toContainText('Take and Hold')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/roster-library-disposition-phone.png', fullPage: true })
-  await page.unroute('**/_serverFn/**')
+    await page.getByRole('link', { name: 'Rosters', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'My rosters' })).toBeVisible()
+    const libraryRubric = page.locator('main section').last().locator('.rubric')
+    await expect(libraryRubric.getByText('Rosters', { exact: true })).toBeVisible()
+    await expect(libraryRubric.getByLabel('Loading roster count')).toBeVisible()
+    const createRosterButton = page.getByRole('button', { name: 'Create editable roster' })
+    await expect(createRosterButton).toBeVisible()
+    await expect(page.getByLabel('Loading roster creation options')).toHaveCount(0)
+    await createRosterButton.click()
+    await expect(page.getByRole('heading', { name: 'Create roster' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await page.screenshot({ path: 'test-results/loading-roster-library.png', fullPage: true })
+    await page.setViewportSize({ width: 390, height: 844 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await page.screenshot({ path: 'test-results/loading-roster-library-phone.png', fullPage: true })
+    release()
+    const row = page.locator(`[data-roster="${rosterName}"]`)
+    await expect(row).toBeVisible()
+    await expect(row).toContainText('Take and Hold')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await page.screenshot({ path: 'test-results/roster-library-disposition-phone.png', fullPage: true })
+    await page.unroute('**/_serverFn/**')
+  } finally {
+    await coldContext.close()
+  }
 })
 
 test('the roster library counts every saved list and prices more rows on demand', async ({ page }) => {
@@ -165,6 +174,7 @@ test('automatic roster names are saved with edits and a player can override or r
   await page.reload()
   await expect(name).toHaveValue('')
   await expect(name).toHaveAttribute('placeholder', "AD 2K - C'tan")
+  await page.screenshot({ path: 'test-results/automatic-roster-reloaded.png' })
 })
 
 test('a roster variant is numbered and grouped under its base without renaming', async ({ browser, page }) => {
@@ -258,6 +268,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await lists.first().click()
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k')
   await expect(page.getByRole('button', { name: 'Variant 1 of 3' })).toBeVisible()
+  await page.screenshot({ path: 'test-results/roster-base-refreshed.png' })
 
   await page.goto('/rosters')
   const third = page.locator('[data-roster="Dynasty 2k · 3"]')
@@ -410,6 +421,9 @@ test('a visitor opening the roster library is given the builder instead', async 
 })
 
 test('a failed roster library read is not shown as an empty library', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.requestIdleCallback = () => 0
+  })
   await signUp(page, 'Library failure')
   await page.goto('/leaderboard')
   await page.route('**/_serverFn/**', (route) => route.abort('failed'))

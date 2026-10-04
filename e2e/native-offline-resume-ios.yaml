@@ -1,0 +1,24 @@
+appId: gg.praetorium
+---
+- pressKey: Home
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible: 03. Moving
+    timeout: 30000
+- assertVisible: 03. Moving
+- takeScreenshot: native-reference-reconnected
+- assertNotVisible: Refresh now
+- tapOn: Praetorium home
+- scrollUntilVisible:
+    element:
+      text: '(?i)Updated native army.*'
+    direction: DOWN
+    timeout: 30000
+- takeScreenshot: native-home-updated
+- tapOn: Rosters
+- assertVisible: 'UPDATED NATIVE ARMY.*'
+- tapOn: Battles
+- assertVisible: MY BATTLES
+- assertVisible: '^2$'
+- takeScreenshot: native-battles-updated

@@ -7,6 +7,8 @@ import { submit } from '../../../server/functions'
 import { battleQuery, meQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { requestNativeHaptic } from '../../nativeBridge'
+import { captureAppSnapshot } from '../../offline/appSnapshot'
+import { writeAppSnapshot } from '../../offline/appStorage'
 
 type SubmittedCommand = Command | { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
 export type SendCommand = (command: Command, options?: { background?: boolean }) => void
@@ -54,6 +56,7 @@ export function useCommand(token: string, seq: number) {
           queryClient.setQueryData(battleQuery(token).queryKey, screen)
           if (screen?.kind === 'battle') seen.current = Math.max(seen.current, screen.view.seq)
           void queryClient.invalidateQueries({ queryKey: ['report', token] })
+          await writeAppSnapshot(captureAppSnapshot(queryClient)).catch(() => {})
           item.complete?.(result.outcome === 'appended')
           if (result.outcome === 'appended' && !item.background) requestNativeHaptic()
           if (result.outcome !== 'appended') {

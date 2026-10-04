@@ -26,9 +26,9 @@ test('battle setup stays shared and does not wait for the other device', async (
   await befriend(alice, bob)
   const url = await createBattle(alice, { opponent: bobName })
   await bob.goto(url)
-  const initialResponse = await alice.reload()
-  if (!initialResponse) throw new Error('The battle page did not return a document response.')
+  const initialResponse = await alice.request.get(url)
   expect(await initialResponse.text()).not.toContain(aliceRoster)
+  await alice.reload()
 
   await expect(alice.getByRole('combobox', { name: 'Battle size' })).toContainText('Strike Force')
   await expect(alice.locator('nav[aria-label="Setup sections"] button[data-step="Format"]')).toHaveCount(0)

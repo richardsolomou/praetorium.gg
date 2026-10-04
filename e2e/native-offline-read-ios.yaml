@@ -1,0 +1,42 @@
+appId: gg.praetorium
+---
+- extendedWaitUntil:
+    visible: '(?i)Welcome back, Native.*'
+    timeout: 30000
+- assertVisible: '(?i)Native saved army.*'
+- assertNotVisible: Refresh now
+- takeScreenshot: native-home-offline
+- tapOn: Rosters
+- assertVisible: 'NATIVE SAVED ARMY.*'
+- takeScreenshot: native-rosters-offline
+- tapOn: Battles
+- assertVisible: MY BATTLES
+- assertVisible: '(?is).*Practice Opponent.*'
+- takeScreenshot: native-battles-offline
+- tapOn: Factions
+- tapOn: Find a faction
+- inputText: Necrons
+- tapOn: Done
+- tapOn: 'NECRONS.*detachments'
+- tapOn: 'DATASHEETS.*'
+- tapOn: Find a datasheet
+- inputText: Immortals
+- tapOn: Done
+- tapOn: 'IMMORTALS [0-9]+ PTS'
+- extendedWaitUntil:
+    visible: IMMORTALS
+    timeout: 30000
+- assertVisible: NECRONS · DATASHEET
+- assertVisible: More
+- takeScreenshot: native-reference-offline
+- tapOn: More
+- tapOn:
+    text: RULES Game reference
+- scrollUntilVisible:
+    element:
+      text: '03\. Moving.*'
+    direction: DOWN
+    centerElement: true
+- tapOn: '03\. Moving.*'
+- assertVisible: 03. Moving
+- takeScreenshot: native-rules-offline
