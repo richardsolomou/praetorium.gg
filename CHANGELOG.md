@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.102.3
+
+### Patch Changes
+
+- d83eaed: Simplify the web release notice to a compact message and manual refresh action above mobile navigation.
+
 ## 0.102.2
 
 ### Patch Changes
