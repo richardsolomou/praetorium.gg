@@ -11,6 +11,7 @@ import { expandReplayFrames } from '../../../core/replayFrames'
 import type { BattleView } from '../../../core/battleView'
 import { replayBattleBatch } from '../../../server/functions'
 import { battleOutcome } from '../../battleOutcome'
+import { deploymentFor } from '../../battleSummary'
 import { replayPreloadBatches } from '../../replayPrefetch'
 import { missionCardsByKey } from './missionDeck'
 import { deploymentsQuery, gameReferencesQuery, meQuery, replayAtQuery } from '../../queries'
@@ -25,6 +26,7 @@ import { Scoreboard } from './Scoreboard'
 import { TurnTimes } from './TurnTimes'
 import { tint } from './battleTints'
 import { Fact } from '../../components/Fact'
+import { BattlefieldFact } from './BattlefieldFact'
 
 type Props = {
   view: BattleView
@@ -90,7 +92,7 @@ export function Spectator({
   const { data: me } = useQuery(meQuery())
   const { data: deployments } = useQuery(deploymentsQuery())
   const { data: references } = useQuery(gameReferencesQuery())
-  const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
+  const deployment = deploymentFor(view.deploymentId, deployments)
   const missionPack = references?.packs.find((entry) => entry.id === view.settings.missionPackId)
   const cardsByKey = useMemo(() => missionCardsByKey(references), [references])
   const referenceFor = (key: string) => cardsByKey.get(key)
@@ -159,7 +161,7 @@ export function Spectator({
           <section className="min-w-0 space-y-3 rounded-lg border border-edge bg-panel p-3 lg:col-start-2 lg:row-start-1">
             <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
               <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
-              <Fact label="Battlefield" value={deployment?.name ?? 'Not chosen'} />
+              <BattlefieldFact view={view} deployment={deployment} />
               <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
               <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
             </dl>

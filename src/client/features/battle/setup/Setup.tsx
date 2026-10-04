@@ -7,6 +7,7 @@ import type { Command } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
 import { FIXED_SECONDARIES, GAME_SIZES, isKotcLimit } from '../../../../core/battle'
 import { deploymentsQuery, gameReferencesQuery } from '../../../queries'
+import { deploymentFor } from '../../../battleSummary'
 import { missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../../../sides'
 import type { SendCommand } from '../useCommand'
 import { SearchableSelect, type SearchableGroup } from '../../../components/SearchableSelect'
@@ -81,7 +82,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
   const logStep = (step: number) => (step === 0 ? 0 : step + 1)
   const nameDisposition = useDispositionNames()
   const { data: deployments } = useQuery(deploymentsQuery())
-  const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
+  const deployment = deploymentFor(view.deploymentId, deployments)
   const attacker = table.find((side) => side.armies.some((army) => army.playerId === view.attackerId))
   const defender = attacker ? table.find((side) => side.index !== attacker.index) : undefined
   // The roll-off is recorded a section before the battle begins, and read back in the
