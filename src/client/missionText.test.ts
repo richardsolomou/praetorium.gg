@@ -1,5 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward, payoutJoin, payoutLabel } from './missionText'
+import {
+  alternatives,
+  appliesInMode,
+  awardLimit,
+  awardTotal,
+  conditionLabel,
+  counted,
+  type MissionAward,
+  payoutJoin,
+  payoutLabel,
+} from './missionText'
+
+describe('which payouts apply to a hand', () => {
+  it.each(['tactical', 'fixed'])('includes standard payouts in a %s hand', (mode) => {
+    expect(appliesInMode({ mode: 'standard' }, mode)).toBe(true)
+  })
+
+  it.each([
+    ['fixed', 'tactical'],
+    ['tactical', 'fixed'],
+  ])('excludes %s payouts from a %s hand', (awardMode, mode) => {
+    expect(appliesInMode({ mode: awardMode }, mode)).toBe(false)
+  })
+})
 
 const per = (vp: number, max: number | null) => ({ vp, max, per: 'enemy-unit-destroyed-this-turn' })
 

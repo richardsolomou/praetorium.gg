@@ -243,6 +243,47 @@ describe('the turn sequence', () => {
     expect(state.scoringAcknowledged).toBe(true)
   })
 
+  it('refuses to pass the first turn with an unreviewed standard tactical payout', () => {
+    const secondary = {
+      key: 'cleanse',
+      name: 'Cleanse',
+      awards: [
+        {
+          vp: 2,
+          per: null,
+          mode: 'standard',
+          max: null,
+          group: null,
+          cumulative: false,
+          criteria: 'One objective was cleansed by your army this turn.',
+          trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
+        },
+      ],
+    }
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started().slice(0, 2),
+        [
+          ALICE,
+          {
+            kind: 'set-prep',
+            stratagems: [],
+            secondaries: [secondary],
+            secondaryDeck: [secondary],
+            primary: null,
+            secondaryMode: 'tactical',
+          },
+        ],
+        [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+        [ALICE, { kind: 'acknowledge-draw' }],
+        ...turns(5, ALICE),
+      ),
+    )
+
+    expect(validate(state, ALICE, { kind: 'advance' })).toBe('review mission scoring before ending the phase')
+  })
+
   it('shares a completed tactical draw without replacing its undo target', () => {
     const actions: [string, Command][] = [
       ...started(),
