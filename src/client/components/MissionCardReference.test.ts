@@ -24,6 +24,30 @@ const award = (vp: number, criteria: string, group: string | null): MissionAward
 })
 
 describe('mission card reference', () => {
+  it.each(['tactical', 'fixed'])('shows standard Cleanse payouts in %s play', (mode) => {
+    const markup = renderToStaticMarkup(
+      createElement(MissionCardReference, {
+        card: {
+          name: 'Cleanse',
+          text: null,
+          awards: [
+            { ...award(2, 'One objective was cleansed by your army this turn.', 'cleanse'), mode: 'standard' },
+            { ...award(5, 'Two or more objectives were cleansed by your army this turn.', 'cleanse'), mode: 'standard' },
+          ],
+        },
+        type: 'Secondary mission',
+        mode,
+      }),
+    )
+
+    expect(markup).toContain('One objective was cleansed by your army this turn.')
+    expect(markup).toContain('>2 VP</span>')
+    expect(markup).toContain('Two or more objectives were cleansed by your army this turn.')
+    expect(markup).toContain('>5 VP</span>')
+    expect(markup).toContain('When:</span> End of your turn')
+    expect(markup).toContain('aria-label="Alternative objective"')
+  })
+
   it('shows the card instructions and labels alternative and additional objectives', () => {
     const markup = renderToStaticMarkup(
       createElement(MissionCardReference, {

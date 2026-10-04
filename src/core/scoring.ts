@@ -27,7 +27,8 @@ export type DueCard = {
 type ScoringMoment = { phase: string; round: number; rounds: number }
 type ScoringCard = { key: string; name: string; category: 'primary' | 'secondary'; awards: readonly MissionAward[] }
 
-export const appliesInMode = (award: Pick<MissionAward, 'mode'>, mode?: string) => !award.mode || !mode || award.mode === mode
+export const appliesInMode = (award: Pick<MissionAward, 'mode'>, mode?: string) =>
+  !award.mode || award.mode === 'standard' || !mode || award.mode === mode
 
 export function momentsPassed(view: Pick<ScoringMoment, 'phase' | 'round' | 'rounds'>): string[] {
   if (view.phase !== 'end') return ['end-of-phase']

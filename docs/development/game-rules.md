@@ -19,6 +19,7 @@ Praetorium reads faction rules, stratagems, missions, force dispositions, and la
 ## Scoring
 
 - Scoring controls use each card's award values.
+- Standard payouts apply in both tactical and fixed play; only payouts marked tactical or fixed are restricted to that mode. The mission reference, scoring prompt, and domain schedule use the same mode check.
 - Both sides gain 1 CP at the start of every command phase. Additional command point gains are tracked separately from that grant and from score corrections. Each side can gain at most one additional CP per battle round, and spending it does not reopen the allowance.
 - After end-of-turn scoring, a player may discard any number of active tactical secondaries, including none. Discarding at least one grants 1 CP when that side has not used its additional gain for the round; otherwise it gains nothing. The discard and CP share one command so undo reverses the entire choice.
 - A payout appears only at the moment named by `trigger.timing`: its `end-of-phase`, `end-of-turn`, or `end-of-battle`. A card without source timing is absent from the scoring schedule.
