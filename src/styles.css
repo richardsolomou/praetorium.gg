@@ -99,6 +99,10 @@
   }
 }
 
+[data-onboarding] {
+  scroll-margin-top: 4rem;
+}
+
 [data-onboarding-active='true'] {
   outline: 2px solid var(--color-info);
   outline-offset: 3px;

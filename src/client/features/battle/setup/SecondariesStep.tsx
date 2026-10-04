@@ -19,7 +19,7 @@ type Props = { view: BattleView; sides: Side[]; send: SendCommand; pending: bool
  */
 export function SecondariesStep({ view, sides, send, pending }: Props) {
   return (
-    <div className={`grid gap-3 ${sides.length > 1 ? 'lg:grid-cols-2' : ''}`}>
+    <div data-onboarding="battle-setup-secondaries" className={`grid gap-3 ${sides.length > 1 ? 'lg:grid-cols-2' : ''}`}>
       {sides.map((side) => (
         <SetupSidePanel key={side.index} side={side} className="space-y-3">
           {/* Said where the choice is made, because a hand short of its two is the one

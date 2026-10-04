@@ -80,7 +80,7 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
 
   return (
     <section>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div data-onboarding="battle-setup-battlefield" className="flex flex-wrap items-start justify-between gap-3">
         {/* Named like the panel above it, so the two questions the step asks look alike. */}
         <div className="min-w-0">
           <p className="eyebrow">Deployment and terrain layout</p>

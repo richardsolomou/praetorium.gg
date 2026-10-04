@@ -7,7 +7,7 @@ export function DefenderStep({ sides, attackerId, send }: { sides: Side[]; attac
   const attacker = sides.find((side) => side.armies.some((army) => army.playerId === attackerId))
   const chosen = attacker ? (sides.find((side) => side.index !== attacker.index)?.index ?? null) : null
   return (
-    <SetupPanel>
+    <SetupPanel onboarding="battle-setup-defender">
       <SetupSideChoice
         label="Defender"
         sides={sides}
