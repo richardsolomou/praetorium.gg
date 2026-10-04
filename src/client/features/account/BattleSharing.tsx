@@ -17,7 +17,7 @@ const AUDIENCES: ChoiceOption<BattleAudience>[] = [
     value: 'public',
     name: 'Anyone',
     detail:
-      'Your battles appear on the home page and count towards the leaderboard. Anyone can watch, and nobody can take a seat or change anything.',
+      'Your battles appear on the home page and public battle list, and count towards the leaderboard. Anyone can watch, and nobody can take a seat or change anything.',
   },
   { value: 'friends', name: 'Friends', detail: 'Only your confirmed friends see your battles listed or can watch one.' },
   { value: 'private', name: 'Players only', detail: 'Only the players seated in a battle can find or watch it.' },
