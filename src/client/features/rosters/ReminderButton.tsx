@@ -29,6 +29,7 @@ export function ReminderButton({
             variant="ghost"
             size="icon-xs"
             className={active ? 'text-parchment' : 'text-faint hover:text-bone'}
+            data-onboarding="unit-reminder"
             aria-label={label}
             onClick={() => controls.onSelect(subject, unitName)}
           />

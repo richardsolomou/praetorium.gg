@@ -121,7 +121,12 @@ export function CombatantCard({
         {unit ? (
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex shrink-0 items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+              <Button
+                data-onboarding={side === 'Attacker' ? 'simulator-loadout' : undefined}
+                variant="outline"
+                size="sm"
+                onClick={() => setOpen(true)}
+              >
                 Loadout
               </Button>
               {optimizer.available ? (
@@ -135,6 +140,7 @@ export function CombatantCard({
                       ? `Estimated progress: ${optimizer.progress}%. Cancel keeps improvements.`
                       : 'Maximize combined kill chance, then models and wounds lost'
                   }
+                  data-onboarding={side === 'Attacker' ? 'simulator-optimize' : undefined}
                   aria-label={optimizer.busy ? `Cancel optimization, approximately ${optimizer.progress}% complete` : 'Optimize'}
                 >
                   {optimizer.busy ? (

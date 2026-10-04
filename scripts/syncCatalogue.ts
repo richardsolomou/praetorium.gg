@@ -1,17 +1,9 @@
-/** Reads or fetches verified snapshots, and checks or refreshes upstream revisions. */
-
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import {
-  catalogueSourcesSchema,
-  SNAPSHOT_SOURCE_NAMES,
-  SOURCE_NAMES,
-  type CatalogueSourceConfig,
-  type ResolvedCatalogueSources,
-} from '../src/server/catalogueSources'
+import { catalogueSourcesSchema, SNAPSHOT_SOURCE_NAMES, type CatalogueSourceConfig } from '../src/server/catalogueSources'
 import {
   activateCachedSnapshot,
   catalogueBaseUrl,
@@ -22,7 +14,8 @@ import {
   fetchSnapshot,
   remoteRevocations,
 } from '../src/server/catalogueSnapshot'
-import { isComplete, syncFactionIcons, syncSources } from '../src/server/sync'
+import { syncFactionIcons } from '../src/server/sync'
+import { materializeCatalogue } from './lib/catalogueMaterialize'
 
 const root = path.join(import.meta.dirname, '..')
 const sourcesFile = path.join(root, 'catalogue', 'sources.json')
@@ -39,10 +32,13 @@ async function responseBytes(url: string) {
   return new Uint8Array(await response.arrayBuffer())
 }
 
-async function resolve(config: CatalogueSourceConfig): Promise<ResolvedCatalogueSources> {
+async function resolve(config: CatalogueSourceConfig): Promise<CatalogueSourceConfig> {
   const repositories = Object.fromEntries(
-    SOURCE_NAMES.map((name) => [name, { ...config[name], revision: head(config[name].repository, config[name].branch) }]),
-  ) as Pick<ResolvedCatalogueSources, (typeof SOURCE_NAMES)[number]>
+    SNAPSHOT_SOURCE_NAMES.filter((name) => name !== 'battlemaster').map((name) => [
+      name,
+      { ...config[name], revision: head(config[name].repository, config[name].branch) },
+    ]),
+  )
   const catalogUrl = new URL('/v1.1/public/tts/layouts', config.battlemaster.baseUrl)
   catalogUrl.searchParams.set('owner', config.battlemaster.owner)
   catalogUrl.searchParams.set('missionPack', config.battlemaster.missionPack)
@@ -51,6 +47,7 @@ async function resolve(config: CatalogueSourceConfig): Promise<ResolvedCatalogue
   if (typeof catalog.catalogKey !== 'string') throw new Error('Battlemaster catalog has no catalog key')
 
   return {
+    ...config,
     ...repositories,
     battlemaster: { ...config.battlemaster, revision: hash(catalog.catalogKey) },
   }
@@ -77,10 +74,7 @@ if (argument === '--check') {
     }
   }
   const config = readSources()
-  const current = {
-    ...(await resolve(config)),
-    icons: { ...config.icons, revision: head(config.icons.repository, config.icons.branch) },
-  }
+  const current = await resolve(config)
   const changed = SNAPSHOT_SOURCE_NAMES.filter((name) => previous[name] !== current[name].revision)
   console.log(`published snapshot ${pointer.id}`)
   if (!changed.length) console.log('all upstream source revisions match the published snapshot')
@@ -92,9 +86,9 @@ if (argument === '--check') {
     console.log(`${name}: ${old} -> ${source.revision}${url}`)
   }
 } else if (argument === '--refresh' || argument === '--update') {
-  const resolved = await resolve(readSources())
-  await syncSources(dataDirectory, resolved, (message) => console.log(message))
-  if (!isComplete(dataDirectory, resolved)) throw new Error('refusing to publish an incomplete catalogue snapshot')
+  const output = process.env.CATALOGUE_DIR ?? path.join(root, '.output', 'catalogue-data')
+  await materializeCatalogue(output, readSources(), { report: console.log })
+  console.log(output)
 } else if (argument === undefined || argument === '--latest') {
   const base = catalogueBaseUrl()
   const shared = process.env.CATALOGUE_CACHE_DIR?.trim()

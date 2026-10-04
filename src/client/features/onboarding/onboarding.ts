@@ -2,6 +2,7 @@ import { onboardingTaskIds, type OnboardingProgressOperation, type OnboardingTas
 import type { OnboardingTarget } from '../../onboardingTargets'
 export { onboardingTargets, type OnboardingTarget } from '../../onboardingTargets'
 
+export const ONBOARDING_FOCUS_EVENT = 'praetorium:onboarding-focus'
 export const ONBOARDING_EVENT = 'praetorium:onboarding'
 export const ONBOARDING_ADVANCE_EVENT = 'praetorium:onboarding-advance'
 
@@ -20,7 +21,7 @@ export const onboardingTasks: readonly { id: OnboardingTaskId; title: string; de
   {
     id: 'battle',
     title: 'Start a battle',
-    description: 'Choose the players at the table, then work through armies, mission, deployment, and first turn together.',
+    description: 'Play with friends or practice alone. Prepare the table, then learn phases, scoring, and army controls.',
   },
   {
     id: 'league',
@@ -36,6 +37,16 @@ export const onboardingTasks: readonly { id: OnboardingTaskId; title: string; de
     id: 'community',
     title: 'Follow games and players',
     description: 'Watch shared battles, check the standings, read a player, and choose who can see your own games.',
+  },
+  {
+    id: 'simulator',
+    title: 'Compare units in combat',
+    description: 'Read shooting and melee odds, compare loadouts, and adjust the conditions at the table.',
+  },
+  {
+    id: 'roster-tools',
+    title: 'Import and manage armies',
+    description: 'Bring an existing list, make variants, share or export it, and check what rules updates changed.',
   },
 ]
 
@@ -61,6 +72,8 @@ type OnboardingPage =
   | 'roster'
   | 'friends'
   | 'battles'
+  | 'battle'
+  | 'simulator'
   | 'leagues'
   | 'league'
   | 'factions'
@@ -76,8 +89,39 @@ type OnboardingPage =
   | 'rule-section'
   | 'player'
   | 'profile'
+  | 'data-updates'
 
 export const onboardingStepIds = [
+  'roster-warlord',
+  'roster-attachment',
+  'roster-reminder',
+  'simulator-attacker',
+  'simulator-defender',
+  'simulator-results',
+  'simulator-loadout',
+  'simulator-optimize',
+  'simulator-buffs',
+  'simulator-modifiers',
+  'simulator-swap',
+  'tools-import',
+  'tools-open',
+  'tools-actions',
+  'tools-variants',
+  'tools-updates',
+  'battle-setup-size',
+  'battle-setup-armies',
+  'battle-setup-mission',
+  'battle-setup-battlefield',
+  'battle-setup-defender',
+  'battle-setup-secondaries',
+  'battle-setup-reserves',
+  'battle-setup-deploy',
+  'battle-setup-first',
+  'battle-setup-begin',
+  'battle-live-score',
+  'battle-live-turn',
+  'battle-live-side',
+  'battle-live-report',
   'roster-start',
   'roster-faction',
   'roster-size',
@@ -183,9 +227,351 @@ export const FIRST_ONBOARDING_STEP: Record<OnboardingTaskId, OnboardingStepId> =
   league: 'league-start',
   reference: 'reference-search',
   community: 'community-home',
+  simulator: 'simulator-attacker',
+  'roster-tools': 'tools-import',
 }
 
 export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
+  'roster-warlord': {
+    task: 'roster',
+    target: 'unit-warlord',
+    page: 'roster',
+    href: '/rosters',
+    title: 'Choose your Warlord',
+    description: 'Eligible characters offer Warlord here. Check the list’s legality warnings before you bring it to a battle.',
+    placement: 'bottom',
+    next: 'roster-attachment',
+    nextLabel: 'Next',
+    optional: true,
+  },
+  'roster-attachment': {
+    task: 'roster',
+    target: 'unit-attachment',
+    page: 'roster',
+    href: '/rosters',
+    title: 'Attach a leader',
+    description:
+      'Attach to unit joins a character to an eligible bodyguard already in your list. The joined cards show who is leading whom.',
+    placement: 'bottom',
+    next: 'roster-reminder',
+    nextLabel: 'Next',
+    optional: true,
+  },
+  'roster-reminder': {
+    task: 'roster',
+    target: 'unit-reminder',
+    page: 'roster',
+    href: '/rosters',
+    title: 'Remember an ability',
+    description:
+      'The bell sets a personal battle alert. Choose the start or end of a phase or turn, whose turn it applies to, and add more triggers if needed. Save it before bringing the army to battle.',
+    placement: 'bottom',
+    next: 'roster-unit-points',
+    nextLabel: 'Next',
+    optional: true,
+  },
+  'simulator-attacker': {
+    task: 'simulator',
+    target: 'simulator-attacker',
+    page: 'simulator',
+    href: '/simulator',
+    title: 'Choose an attacker',
+    description: 'Choose a unit from any faction. Its models and weapons decide the attacks to calculate. Select one to continue.',
+    placement: 'bottom',
+    next: 'simulator-defender',
+  },
+  'simulator-defender': {
+    task: 'simulator',
+    target: 'simulator-defender',
+    page: 'simulator',
+    href: '/simulator',
+    title: 'Choose a defender',
+    description: 'Select the target. Shooting and melee calculate automatically against its toughness, saves, and wounds.',
+    placement: 'bottom',
+    next: 'simulator-results',
+  },
+  'simulator-results': {
+    task: 'simulator',
+    target: 'simulator-results',
+    page: 'simulator',
+    href: '/simulator',
+    title: 'Read the odds',
+    description:
+      'Chance to destroy means removing the whole target unit. Average wounds and models lost describe expected damage. Breakdown separates shooting, melee, and shooting followed by melee.',
+    placement: 'top',
+    next: 'simulator-loadout',
+    nextLabel: 'Next',
+  },
+  'simulator-loadout': {
+    task: 'simulator',
+    target: 'simulator-loadout',
+    page: 'simulator',
+    href: '/simulator',
+    title: 'Compare weapons',
+    description:
+      'Loadout lets you change equipment. Weapon options and profiles show their odds against this defender. Simulating from a roster copies its current choices; simulator edits never change the saved army.',
+    placement: 'bottom',
+    next: 'simulator-optimize',
+    nextLabel: 'Next',
+  },
+  'simulator-optimize': {
+    task: 'simulator',
+    target: 'simulator-optimize',
+    page: 'simulator',
+    href: '/simulator',
+    title: 'Find a stronger loadout',
+    description:
+      'Optimize searches legal weapon choices for the best combined chance to destroy this target. It keeps unit size, enhancements, and your conditions fixed. Cancel keeps improvements already found.',
+    placement: 'bottom',
+    next: 'simulator-buffs',
+    nextLabel: 'Next',
+    optional: true,
+  },
+  'simulator-buffs': {
+    task: 'simulator',
+    target: 'simulator-buffs',
+    page: 'simulator',
+    href: '/simulator',
+    title: 'Apply the rules in play',
+    description:
+      'Rules & buffs shows available effects. Confirm range, eligibility, and activation at the table; unsupported effects are not included in the odds.',
+    placement: 'bottom',
+    next: 'simulator-modifiers',
+    nextLabel: 'Next',
+  },
+  'simulator-modifiers': {
+    task: 'simulator',
+    target: 'simulator-modifiers',
+    page: 'simulator',
+    href: '/simulator',
+    title: 'Set the conditions',
+    description:
+      'Manual modifiers covers situations such as cover, re-rolls, and having charged. All affects both phases; Shooting and Melee affect only that phase. Reset adjustments restores the defaults.',
+    placement: 'bottom',
+    next: 'simulator-swap',
+    nextLabel: 'Next',
+  },
+  'simulator-swap': {
+    task: 'simulator',
+    target: 'simulator-swap',
+    page: 'simulator',
+    href: '/simulator',
+    title: 'Reverse or share the matchup',
+    description:
+      'Swap exchanges attacker and defender and resets situational adjustments. To share a standalone matchup, copy the page address: it restores the units, loadouts, and calculation choices.',
+    placement: 'bottom',
+    final: true,
+  },
+  'tools-import': {
+    task: 'roster-tools',
+    target: 'roster-import',
+    page: 'rosters',
+    href: '/rosters',
+    title: 'Bring an existing army',
+    description:
+      'Import roster accepts Games Workshop text from Praetorium, BattleBase, or New Recruit. Review any units or equipment that cannot be imported before accepting the list.',
+    placement: 'bottom',
+    next: 'tools-open',
+    nextLabel: 'Next',
+  },
+  'tools-open': {
+    task: 'roster-tools',
+    target: 'roster-open',
+    page: 'rosters',
+    href: '/rosters',
+    title: 'Open a saved list',
+    description:
+      'Open one of your armies to find its sharing, export, and variant tools. The library also flags lists that are over their limit or no longer legal.',
+    placement: 'bottom',
+    next: 'tools-actions',
+  },
+  'tools-actions': {
+    task: 'roster-tools',
+    target: 'roster-actions',
+    page: 'roster',
+    href: '/rosters',
+    title: 'Share, print, or make a variant',
+    description:
+      'Roster actions offers New variant, Export GW text, and Print. To share a link, set the list to Unlisted or Public in Edit roster setup; private lists have no share action. A variant is a separate saved list you can edit.',
+    placement: 'bottom',
+    next: 'tools-variants',
+    nextLabel: 'Next',
+  },
+  'tools-variants': {
+    task: 'roster-tools',
+    target: 'roster-variants',
+    page: 'roster',
+    href: '/rosters',
+    title: 'Compare your variants',
+    description:
+      'This button shows changes from the base list and lets you move between its variants. The library groups them together and summarises changed units, loadouts, and detachments.',
+    placement: 'bottom',
+    next: 'tools-updates',
+    nextLabel: 'Next',
+    optional: true,
+  },
+  'tools-updates': {
+    task: 'roster-tools',
+    target: 'roster-data-updates',
+    page: 'data-updates',
+    href: '/data-updates',
+    title: 'Review rules and points changes',
+    description:
+      'Data updates shows what changed and which saved lists were affected. Review their current points and legality before playing; armies already brought to battles or sealed for an event keep their recorded versions.',
+    placement: 'bottom',
+    final: true,
+  },
+  'battle-setup-size': {
+    task: 'battle',
+    target: 'battle-setup-size',
+    page: 'battle',
+    href: '/battles',
+    title: 'Choose the table size',
+    description: 'The points limit applies to each side; allies split it evenly. Choose the mission pack here too.',
+    placement: 'bottom',
+    next: 'battle-setup-armies',
+    nextLabel: 'Next',
+  },
+  'battle-setup-armies': {
+    task: 'battle',
+    target: 'battle-setup-armies',
+    page: 'battle',
+    href: '/battles',
+    title: 'Bring the armies',
+    description:
+      'Choose a saved list for each player you control, including practice opponents. Lists must match their share of the points and pass legality checks. Use the table’s Next button when ready.',
+    placement: 'bottom',
+    next: 'battle-setup-mission',
+  },
+  'battle-setup-mission': {
+    task: 'battle',
+    target: 'battle-setup-mission',
+    page: 'battle',
+    href: '/battles',
+    title: 'Read your primary mission',
+    description:
+      'Your army’s Force Disposition and its opponent determine the primary mission. Read each side’s card, settle any allied disposition choice, and choose an optional twist before Next.',
+    placement: 'bottom',
+    next: 'battle-setup-battlefield',
+  },
+  'battle-setup-battlefield': {
+    task: 'battle',
+    target: 'battle-setup-battlefield',
+    page: 'battle',
+    href: '/battles',
+    title: 'Set the battlefield',
+    description: 'Choose the deployment and terrain layout for this matchup, then arrange the table and continue.',
+    placement: 'bottom',
+    next: 'battle-setup-defender',
+  },
+  'battle-setup-defender': {
+    task: 'battle',
+    target: 'battle-setup-defender',
+    page: 'battle',
+    href: '/battles',
+    title: 'Record the defender',
+    description: 'Resolve the roll-off at the table and record who defends. The defender deploys first.',
+    placement: 'bottom',
+    next: 'battle-setup-secondaries',
+  },
+  'battle-setup-secondaries': {
+    task: 'battle',
+    target: 'battle-setup-secondaries',
+    page: 'battle',
+    href: '/battles',
+    title: 'Choose secondary missions',
+    description:
+      'Choose fixed cards for the game or tactical cards drawn during play. Resolve the choices for both sides before continuing.',
+    placement: 'bottom',
+    next: 'battle-setup-reserves',
+  },
+  'battle-setup-reserves': {
+    task: 'battle',
+    target: 'battle-setup-reserves',
+    page: 'battle',
+    href: '/battles',
+    title: 'Set reserves and transports',
+    description:
+      'Record which units start on the battlefield, in reserves, or embarked in a transport. Check the printed passenger restrictions at the table as well as the app’s capacity checks.',
+    placement: 'bottom',
+    next: 'battle-setup-deploy',
+  },
+  'battle-setup-deploy': {
+    task: 'battle',
+    target: 'battle-setup-deploy',
+    page: 'battle',
+    href: '/battles',
+    title: 'Deploy the armies',
+    description: 'Alternate deploying units from the defender. Move the models on the table; Praetorium does not record their positions.',
+    placement: 'bottom',
+    next: 'battle-setup-first',
+  },
+  'battle-setup-first': {
+    task: 'battle',
+    target: 'battle-setup-first',
+    page: 'battle',
+    href: '/battles',
+    title: 'Record the first turn',
+    description: 'After deployment, resolve the roll-off and record which side takes the first turn.',
+    placement: 'bottom',
+    next: 'battle-setup-begin',
+  },
+  'battle-setup-begin': {
+    task: 'battle',
+    target: 'battle-setup-begin',
+    page: 'battle',
+    href: '/battles',
+    title: 'Resolve pre-battle rules',
+    description: 'Resolve Scouts and other pre-battle abilities at the table, then Start battle opens the first Command phase.',
+    placement: 'bottom',
+    next: 'battle-live-score',
+  },
+  'battle-live-score': {
+    task: 'battle',
+    target: 'battle-live-score',
+    page: 'battle',
+    href: '/battles',
+    title: 'Follow the score',
+    description: 'The scoreboard shows both sides’ points and whose turn it is. Allies share their score, command points, and turn.',
+    placement: 'bottom',
+    next: 'battle-live-turn',
+    nextLabel: 'Next',
+  },
+  'battle-live-turn': {
+    task: 'battle',
+    target: 'battle-live-turn',
+    page: 'battle',
+    href: '/battles',
+    title: 'Advance phases and undo',
+    description:
+      'End each phase here. Required draws and scoring prompts appear as the game advances. Undo rewinds the latest action, including scoring and casualties; turn times are recorded as you play.',
+    placement: 'top',
+    next: 'battle-live-side',
+    nextLabel: 'Next',
+  },
+  'battle-live-side': {
+    task: 'battle',
+    target: 'battle-live-side',
+    page: 'battle',
+    href: '/battles',
+    title: 'Use your army and mission controls',
+    description:
+      'Your side holds mission scoring, CP, and stratagems. Open a unit to record wounds or lost models, or simulate an attack without changing the battle. On a phone, Your side and Opponent switch armies.',
+    placement: 'bottom',
+    next: 'battle-live-report',
+    nextLabel: 'Next',
+  },
+  'battle-live-report': {
+    task: 'battle',
+    target: 'battle-live-report',
+    page: 'battle',
+    href: '/battles',
+    title: 'Read the battle back',
+    description:
+      'Battle events records what happened. Battle options includes the timer and concession controls. A finished battle opens as a replay; use its timeline to revisit earlier rounds and actions.',
+    placement: 'bottom',
+    final: true,
+  },
   'roster-start': {
     task: 'roster',
     target: 'create-roster',
@@ -212,7 +598,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'rosters',
     href: '/rosters',
     title: 'Set the battle size',
-    description: 'Battle size is the points you have to spend, and it decides how many detachments the list may take.',
+    description: 'Battle size sets the army’s points limit and detachment-point budget. The setup shows how many DP your choices use.',
     placement: 'right',
     next: 'roster-detachment',
   },
@@ -223,7 +609,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/rosters',
     title: 'Pick a detachment',
     description:
-      'A detachment brings its own rules, enhancements and stratagems. The icon beside one opens its reference before you commit.',
+      'Each detachment costs DP and brings rules, enhancements, and stratagems. Keep DP used within your budget. Its icon opens the reference before you commit.',
     placement: 'right',
     next: 'roster-name',
   },
@@ -233,7 +619,8 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'rosters',
     href: '/rosters',
     title: 'Name it, or leave it',
-    description: 'An empty name means the list names itself from its detachment, its size and its best units.',
+    description:
+      'An empty name means the list names itself from its army. If setup offers more than one Force disposition, choose one above before creating the list; it helps decide your primary mission in battle.',
     placement: 'right',
     next: 'roster-create',
     nextLabel: 'Next',
@@ -372,7 +759,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     description:
       'A character can carry one enhancement from your detachment for the points printed beside it. No enhancement is a choice too.',
     placement: 'left',
-    next: 'roster-unit-points',
+    next: 'roster-warlord',
     nextLabel: 'Next',
     optional: true,
   },
@@ -482,7 +869,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     title: 'Start the battle',
     description: 'This opens battle setup, where the armies, the mission, the battlefield and the first turn are settled together.',
     placement: 'top',
-    final: true,
+    next: 'battle-setup-size',
   },
   'league-start': {
     task: 'league',
@@ -1063,6 +1450,9 @@ export function focusAfterOnboardingOperation(focus: OnboardingFocus | undefined
 
 export function onboardingPage(pathname: string): OnboardingPage | undefined {
   if (pathname === '/') return 'home'
+  if (pathname === '/simulator' || pathname === '/simulator/') return 'simulator'
+  if (pathname === '/data-updates' || pathname === '/data-updates/') return 'data-updates'
+  if (/^\/battles\/[^/]+\/?$/.test(pathname)) return 'battle'
   if (pathname === '/friends') return 'friends'
   if (pathname === '/rosters' || pathname === '/rosters/') return 'rosters'
   if (/^\/rosters\/[^/]+\/?$/.test(pathname)) return 'roster'

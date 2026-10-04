@@ -181,6 +181,7 @@ export function UnitCard({
                   variant="ghost"
                   size="xs"
                   className="!px-1 text-2xs tracking-label text-azure uppercase hover:bg-transparent hover:text-bone"
+                  data-onboarding="unit-attachment"
                   aria-label={`Attach ${unit.name} to unit`}
                 />
               }

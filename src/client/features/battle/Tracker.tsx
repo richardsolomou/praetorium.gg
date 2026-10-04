@@ -46,6 +46,7 @@ import { TurnControl } from './TurnControl'
 import { TwistName } from './MissionTwist'
 import { Report, type ReportPlayer } from './Report'
 import { BattleMinimizeContext } from './BattlePromptDialog'
+import { advanceOnboarding, ONBOARDING_FOCUS_EVENT, storedOnboardingFocus, type OnboardingFocus } from '../onboarding/onboarding'
 import { Fact } from '../../components/Fact'
 
 type Props = {
@@ -82,6 +83,17 @@ type Focus = (typeof VIEWS)[number]
  */
 export function Tracker({ view, clock, missions, send, pending, problem }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
+  useEffect(() => {
+    advanceOnboarding('battle', 'battle-setup-begin', 'battle-live-score')
+    const reveal = (next: OnboardingFocus | undefined) => {
+      if (next?.step === 'battle-live-side') setFocus('yours')
+      if (next?.step === 'battle-live-report') setFocus('battle')
+    }
+    reveal(storedOnboardingFocus(view.viewerId ?? ''))
+    const changed = (event: Event) => reveal((event as CustomEvent<OnboardingFocus | undefined>).detail)
+    window.addEventListener(ONBOARDING_FOCUS_EVENT, changed)
+    return () => window.removeEventListener(ONBOARDING_FOCUS_EVENT, changed)
+  }, [view.viewerId])
   const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
   const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
   const [dismissalsReady, setDismissalsReady] = useState(false)
@@ -618,7 +630,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                 ) : null}
               </dl>
 
-              <div className="border-t border-edge pt-3">
+              <div data-onboarding="battle-live-report" className="border-t border-edge pt-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="eyebrow">Battle events</p>
                   <BattleMenu

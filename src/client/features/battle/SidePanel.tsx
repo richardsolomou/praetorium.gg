@@ -67,6 +67,7 @@ export const SidePanel = memo(function SidePanel({
 
   return (
     <section
+      data-onboarding={side.isViewer ? 'battle-live-side' : undefined}
       data-panel="player"
       data-side={side.index}
       className={`min-w-0 space-y-3 rounded-lg border border-edge border-t-2 bg-panel p-3 ${colours.edge} ${

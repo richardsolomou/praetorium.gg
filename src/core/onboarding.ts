@@ -1,9 +1,9 @@
-export const onboardingTaskIds = ['roster', 'friend', 'battle', 'league', 'reference', 'community'] as const
+export const onboardingTaskIds = ['roster', 'friend', 'battle', 'league', 'reference', 'community', 'simulator', 'roster-tools'] as const
 
 export type OnboardingTaskId = (typeof onboardingTaskIds)[number]
 
 /** Tours that only a finished walkthrough can complete; every other task is folded from what the player has actually done. */
-export const tourTaskIds = ['reference', 'community'] as const
+export const tourTaskIds = ['reference', 'community', 'simulator', 'roster-tools'] as const
 
 export type TourTaskId = (typeof tourTaskIds)[number]
 
@@ -15,10 +15,12 @@ export type OnboardingFacts = Record<(typeof factTaskIds)[number], boolean>
 export const onboardingPrerequisites: Record<OnboardingTaskId, readonly OnboardingTaskId[]> = {
   roster: [],
   friend: [],
-  battle: ['roster', 'friend'],
+  battle: ['roster'],
   league: [],
   reference: [],
   community: [],
+  simulator: [],
+  'roster-tools': ['roster'],
 }
 
 /** The only onboarding state worth keeping: a welcome, a finished tour, and a task the player waved away. */

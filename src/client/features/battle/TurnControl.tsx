@@ -35,7 +35,7 @@ export function TurnControl({ view, clock, send, pending, blockReason, note, onA
   const label = view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`
 
   return (
-    <section data-turn-control className={`space-y-2 ${className}`}>
+    <section data-onboarding="battle-live-turn" data-turn-control className={`space-y-2 ${className}`}>
       <ol className="flex gap-0.5" aria-label={`${view.phase} phase`}>
         {PHASES.map((phase, index) => (
           <li key={phase} className="min-w-0 flex-1" aria-current={phase === view.phase ? 'step' : undefined}>

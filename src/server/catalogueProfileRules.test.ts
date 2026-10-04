@@ -2,6 +2,9 @@ import { expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
 import { combatCarriers } from '../core/combatLoadout'
+import { combatTarget } from '../core/combatProfiles'
+import { rosterPickSchema } from '../core/commands'
+import { datasheetIn } from './catalogue'
 import { evaluate } from '../core/evaluate'
 import { wargearOf } from '../core/wargear'
 import { detachmentsOf, factionsIn, isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
@@ -1408,4 +1411,212 @@ it('recovers profile metadata from prepared catalogue files', () => {
       ?.options.filter((option) => isProfiledDetachment(loaded, option.id))
       .map((option) => option.name),
   ).toEqual(['Assault Brethren', 'Tacticus Attack Force'])
+})
+
+function perModelSwapCatalogue() {
+  const current: CatalogueFile = {
+    catalogue: {
+      ...files[1]!.catalogue!,
+      id: 'new-marines',
+      name: 'Imperium - Adeptus Astartes - Space Marines (11e)',
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          costs: [{ name: 'pts', typeId: 'points', value: 100 }],
+          modifiers: [
+            {
+              type: 'set',
+              field: 'points',
+              value: 200,
+              conditions: [
+                {
+                  type: 'atLeast',
+                  value: 9,
+                  field: 'selections',
+                  scope: 'self',
+                  includeChildSelections: true,
+                  childId: 'trooper-model-id-0000',
+                },
+              ],
+            },
+          ],
+          profiles: [
+            {
+              id: 'notes',
+              name: 'Datasheet Notes',
+              characteristics: [{ name: 'Description', $text: 'Every model is equipped with: 1 Old Weapon.' }],
+            },
+            {
+              id: 'guard-rule',
+              name: 'Guard',
+              typeName: 'Abilities',
+              characteristics: [{ name: 'Description', $text: 'This model has +1 W.' }],
+            },
+          ],
+          selectionEntryGroups: [
+            {
+              id: 'models',
+              name: 'Unit',
+              selectionEntries: [
+                {
+                  id: 'trooper-model-id-0000',
+                  name: 'Marine',
+                  type: 'model',
+                  constraints: [
+                    { id: 'model-min', field: 'selections', scope: 'parent', shared: true, type: 'min', value: 5 },
+                    { id: 'model-max', field: 'selections', scope: 'parent', shared: true, type: 'max', value: 10 },
+                  ],
+                  profiles: [
+                    {
+                      id: 'model-profile',
+                      name: 'Marine',
+                      typeName: 'Unit',
+                      characteristics: [
+                        { name: 'W', typeId: 'wounds', $text: '3' },
+                        { name: 'T', $text: '6' },
+                        { name: 'Sv', $text: '2+' },
+                      ],
+                    },
+                  ],
+                  entryLinks: [{ id: 'old-link', name: 'Old Weapon', targetId: 'old', type: 'selectionEntry' }],
+                },
+              ],
+            },
+            {
+              id: 'wargear',
+              name: 'Wargear Options',
+              selectionEntries: [
+                {
+                  id: 'swap-option-id-0000',
+                  name: 'Any number of models can each have their Old Weapon replaced with 1 Guard and 1 New Weapon.',
+                  type: 'upgrade',
+                  profiles: [
+                    {
+                      id: 'option-rule',
+                      name: 'Option',
+                      typeName: 'Abilities',
+                      characteristics: [
+                        {
+                          name: 'Description',
+                          $text: 'Any number of models can each have their Old Weapon replaced with 1 Guard and 1 New Weapon.',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              id: 'weapons',
+              name: 'Weapon Options',
+              selectionEntries: [
+                {
+                  id: 'new-option',
+                  name: 'New Weapon',
+                  type: 'upgrade',
+                  entryLinks: [{ id: 'new-link', name: 'New Weapon', targetId: 'new', type: 'selectionEntry' }],
+                },
+              ],
+            },
+          ],
+        },
+        ...['old', 'new'].map((id) => ({ id, name: id === 'old' ? 'Old Weapon' : 'New Weapon', type: 'upgrade' as const })),
+      ],
+    },
+  }
+  return current
+}
+
+it.each([0, 1, 5, 10])('restores a per-model bundled weapon swap for %i carriers', (count) => {
+  const { index, loaded } = loadedCatalogue([files[0]!, perModelSwapCatalogue()])
+  const entryId = 'profile-unit-new-marines-squad'
+  const context = { primaryCatalogueId: 'new-marines' }
+  const initial = buildUnit(entryId, index, 10, undefined, context)!
+  const choice = initial.choices.find((item) => item.options.some((option) => option.name === 'Marine with Guard and New Weapon'))
+  expect(choice).toBeDefined()
+  const replacement = choice!.options.find((option) => option.name === 'Marine with Guard and New Weapon')!
+  const original = choice!.options.find((option) => option.name === 'Marine')!
+  const saved = rosterPickSchema.parse(
+    JSON.parse(JSON.stringify({ entryId, models: 10, spreads: { [choice!.key]: { [replacement.id]: count, [original.id]: 10 - count } } })),
+  ).spreads!
+  const restored = buildUnit(entryId, index, 10, undefined, { ...context, spreads: saved })!
+  expect(wargearOf(restored.selection, index).toSorted((a, b) => a.name.localeCompare(b.name))).toEqual(
+    [
+      ...(count
+        ? [
+            { name: 'Guard', count },
+            { name: 'New Weapon', count },
+          ]
+        : []),
+      ...(count < 10 ? [{ name: 'Old Weapon', count: 10 - count }] : []),
+    ].toSorted((a, b) => a.name.localeCompare(b.name)),
+  )
+  expect(evaluate([restored.selection], index, context).errors).toEqual([])
+  expect(evaluate([restored.selection], index, context).points).toBe(200)
+  expect(
+    combatCarriers(restored.selection, index)
+      .flatMap((carrier) => carrier.weapons)
+      .filter((weapon) => weapon.name === 'New Weapon')
+      .reduce((total, weapon) => total + weapon.count, 0),
+  ).toBe(count)
+  const sheet = datasheetIn(loaded, 'new-marines', entryId, { selections: [restored.selection], unitSelectionIndex: 0 })!
+  const target = combatTarget(sheet, 10, 10, combatCarriers(restored.selection, index))
+  expect(target.error).toBeNull()
+  expect(target.target?.groups.map(({ models, wounds }) => ({ models, wounds }))).toEqual([
+    ...(count < 10 ? [{ models: 10 - count, wounds: 3 }] : []),
+    ...(count ? [{ models: count, wounds: 4 }] : []),
+  ])
+})
+
+it('leaves an unresolved per-model bundle as readable instructions', () => {
+  const current = perModelSwapCatalogue()
+  current.catalogue!.sharedSelectionEntries![0]!.profiles!.splice(1, 1)
+  const { index } = loadedCatalogue([files[0]!, current])
+  const built = buildUnit('profile-unit-new-marines-squad', index, undefined, undefined, { primaryCatalogueId: 'new-marines' })!
+  expect(built.choices.flatMap((choice) => choice.options.map((option) => option.name))).not.toContain('Marine with Guard and New Weapon')
+  expect(index.definitions.get('squad')?.profiles?.some((profile) => profile.name === 'Wargear option')).toBe(true)
+})
+
+it('grows the squad without adding another model to a filled sergeant loadout group', () => {
+  const current = perModelSwapCatalogue()
+  const unit = current.catalogue!.sharedSelectionEntries![0]!
+  const group = unit.selectionEntryGroups![0]!
+  const marine = group.selectionEntries![0]!
+  const sergeant = structuredClone(marine)
+  sergeant.id = 'sergeant'
+  sergeant.name = 'Sergeant'
+  sergeant.profiles![0]!.id = 'sergeant-profile'
+  sergeant.profiles![0]!.name = 'Sergeant'
+  sergeant.entryLinks![0]!.id = 'sergeant-weapon'
+  sergeant.constraints = [
+    { id: 'sergeant-min', field: 'selections', scope: 'parent', shared: true, type: 'min', value: 1 },
+    { id: 'sergeant-max', field: 'selections', scope: 'parent', shared: true, type: 'max', value: 1 },
+  ]
+  marine.constraints![0]!.value = 4
+  marine.constraints![1]!.value = 9
+  group.selectionEntries!.unshift(sergeant)
+  group.constraints = [
+    { id: 'squad-min', field: 'selections', scope: 'parent', shared: true, type: 'min', value: 5 },
+    { id: 'squad-max', field: 'selections', scope: 'parent', shared: true, type: 'max', value: 10 },
+  ]
+  const { index } = loadedCatalogue([files[0]!, current])
+  const entryId = 'profile-unit-new-marines-squad'
+  const context = { primaryCatalogueId: 'new-marines' }
+  const built = buildUnit(entryId, index, 10, undefined, context)!
+  expect(combatCarriers(built.selection, index).map(({ name, models }) => ({ name, models }))).toEqual([
+    { name: 'Sergeant', models: 1 },
+    { name: 'Marine', models: 9 },
+  ])
+  expect(evaluate([built.selection], index, context).errors).toEqual([])
+  const choice = built.choices.find((item) => item.options.some((option) => option.name === 'Sergeant with Guard and New Weapon'))!
+  const replacement = choice.options.find((option) => option.name === 'Sergeant with Guard and New Weapon')!
+  const restored = buildUnit(entryId, index, 10, JSON.parse(JSON.stringify({ [choice.key]: replacement.id })), context)!
+  expect(wargearOf(restored.selection, index).toSorted((a, b) => a.name.localeCompare(b.name))).toEqual([
+    { name: 'Guard', count: 1 },
+    { name: 'New Weapon', count: 1 },
+    { name: 'Old Weapon', count: 9 },
+  ])
+  expect(evaluate([restored.selection], index, context).errors).toEqual([])
 })

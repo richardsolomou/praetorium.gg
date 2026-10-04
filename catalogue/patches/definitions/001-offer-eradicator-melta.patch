@@ -1,0 +1,10 @@
+diff --git a/definitions/Imperium - Space Marines.json b/definitions/Imperium - Space Marines.json
+--- a/definitions/Imperium - Space Marines.json
++++ b/definitions/Imperium - Space Marines.json
+@@ -430,5 +430,5 @@
+       {"name": "Drop Pod", "id": "c4d5-4a1b-2b29-d473", "hidden": false, "import": true, "targetId": "4d57-c5c8-c1a1-e8a6", "type": "selectionEntry"},
+       {"name": "Eliminator Squad", "id": "be63-b837-d723-d3c6", "hidden": false, "import": true, "targetId": "d6c3-e9d2-430d-6c2f", "type": "selectionEntry"},
+-      {"name": "Eradicator Squad", "id": "1b37-d674-f2ef-6d3b", "hidden": false, "import": true, "targetId": "c570-c6ba-c9dc-5a44", "type": "selectionEntry"},
++      {"name": "Eradicator Squad with Melta Rifles", "id": "1b37-d674-f2ef-6d3b", "hidden": false, "import": true, "targetId": "c570-c6ba-c9dc-5a44", "type": "selectionEntry"},
+       {"name": "Firestrike Servo-Turrets", "id": "7d2-9663-8ccc-8595", "hidden": false, "import": true, "targetId": "edf8-643b-cd1-3c11", "type": "selectionEntry"},
+       {"name": "Gladiator Lancer", "id": "774e-1b48-d9b4-84b8", "hidden": false, "import": true, "targetId": "7814-107b-a498-96f6", "type": "selectionEntry"},

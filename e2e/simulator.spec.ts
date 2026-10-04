@@ -18,6 +18,40 @@ async function estimate(page: Page, phase: 'Shooting' | 'Melee') {
   return page.getByRole('region', { name: `${phase} estimate`, includeHidden: true })
 }
 
+for (const width of [1440, 390]) {
+  test(`Terminator hammer and shield loadouts survive reload at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto('/simulator')
+    await chooseCombatUnit(page, 'Attacker', 'Space Marines', 'Terminator Assault Squad')
+    await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+    const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
+    const melee = page.getByRole('region', { name: 'Melee results' })
+    const loadout = page.getByRole('dialog')
+    await attacker.getByRole('button', { name: 'Loadout', exact: true }).click()
+    for (const [name, count] of [
+      ['Terminator Sergeant with Storm Shield and Thunder Hammer', 1],
+      ['Terminator with Storm Shield and Thunder Hammer', 2],
+    ] as const) {
+      for (let selected = 1; selected <= count; selected++) {
+        await loadout.getByRole('button', { name: `More ${name}`, exact: true }).click()
+        await expect(loadout.getByLabel(`${name} count`, { exact: true })).toHaveText(String(selected))
+      }
+    }
+    await noOverflow(page)
+    await page.screenshot({ path: `test-results/simulator-thunder-hammers-${width}.png` })
+    await loadout.getByRole('button', { name: 'Close', exact: true }).click()
+    await expect(melee.getByRole('heading', { name: '3× Thunder Hammer', exact: true })).toBeVisible()
+    await expect(melee.getByRole('heading', { name: '2× Twin Lightning Claws', exact: true })).toBeVisible()
+    await expect(melee.getByRole('alert')).toHaveCount(0)
+    await page.reload()
+    await expect(melee.getByRole('heading', { name: '3× Thunder Hammer', exact: true })).toBeVisible()
+    await attacker.getByRole('button', { name: 'Loadout', exact: true }).click()
+    await expect(loadout.getByLabel('Terminator Sergeant with Storm Shield and Thunder Hammer count', { exact: true })).toHaveText('1')
+    await expect(loadout.getByLabel('Terminator with Storm Shield and Thunder Hammer count', { exact: true })).toHaveText('2')
+    await noOverflow(page)
+  })
+}
+
 test('the Death Guard Defiler calculates either Shearing claws mode', async ({ page }) => {
   await page.goto('/simulator')
   await chooseCombatUnit(page, 'Attacker', 'Death Guard', 'Defiler')
@@ -1125,6 +1159,25 @@ test('folded rules keep saved selections through reload', async ({ page }) => {
 })
 
 for (const width of [1440, 390]) {
+  test(`Deathwing Knights optimize against Mortarion at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto('/simulator')
+    await chooseCombatUnit(page, 'Attacker', 'Dark Angels', 'Deathwing Knights')
+    await chooseCombatUnit(page, 'Defender', 'Death Guard', 'Mortarion')
+    const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
+    const headline = page.getByRole('region', { name: 'Combined estimate' })
+    await expect(headline.locator('.readout').nth(1)).toHaveText('5.55')
+    const response = page.waitForResponse((answer) => answer.url().endsWith('/api/simulator/optimize'))
+    await attacker.getByRole('button', { name: 'Optimize', exact: true }).click()
+    expect((await response).ok()).toBe(true)
+    await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeVisible()
+    await expect(attacker.getByRole('alert')).toHaveCount(0)
+    await expect(headline.locator('.readout').nth(1)).toHaveText('6.00')
+    await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Relic Weapon')
+    await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeEnabled()
+    await page.screenshot({ path: `test-results/simulator-deathwing-optimized-${width}.png` })
+  })
+
   test(`the headline retains results when weapon phases are empty at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 })
     await page.goto('/simulator')

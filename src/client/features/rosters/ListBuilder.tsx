@@ -822,7 +822,9 @@ export function ListBuilder({
                 />
               ) : null}
               <DropdownMenu>
-                <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
+                <DropdownMenuTrigger
+                  render={<Button data-onboarding="roster-actions" variant="ghost" size="icon-sm" aria-label="Roster actions" />}
+                >
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-48">
@@ -1089,6 +1091,7 @@ export function ListBuilder({
                       <Toggle
                         variant="outline"
                         size="sm"
+                        data-onboarding="unit-warlord"
                         title={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
                         aria-label={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
                         pressed={warlord.selected}

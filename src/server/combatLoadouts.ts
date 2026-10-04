@@ -32,13 +32,20 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
       (error) => `${error.entryId}:${error.message}`,
     )
   const known = new Set(errors(base.selection))
-  const carriers = combatCarriers(base.selection, loaded.index)
+  const carriers = combatCarriers(base.selection, loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments })
   const models = pick.models ?? base.size.models
   const option = (group: string, entry: string, step: LoadoutOption['step'], candidate: RosterPick | null): LoadoutOption[] => {
     if (!candidate) return [{ group, entry, step, carriers }]
     const variant = build(candidate)
     return variant && errors(variant.selection).every((error) => known.has(error))
-      ? [{ group, entry, step, carriers: combatCarriers(variant.selection, loaded.index) }]
+      ? [
+          {
+            group,
+            entry,
+            step,
+            carriers: combatCarriers(variant.selection, loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments }),
+          },
+        ]
       : []
   }
   const chosen = (key: string, entry: string) => {
@@ -169,7 +176,11 @@ export async function* combatLoadoutCandidates(
     }
     queue.push({ choices: built.choices, resolved })
     if (errors(built.selection).every((error) => known.has(error))) {
-      const carriers = combatCarriers(built.selection, loaded.index)
+      const carriers = combatCarriers(built.selection, loaded.index, {
+        primaryCatalogueId: data.catalogueId,
+        roster: detachments,
+        modifierCache,
+      })
       const equipmentKey = JSON.stringify(carriers)
       if (!equipment.has(equipmentKey)) {
         equipment.add(equipmentKey)

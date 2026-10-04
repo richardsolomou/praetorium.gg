@@ -1,5 +1,23 @@
 # praetorium
 
+## 0.99.0
+
+### Minor Changes
+
+- 4012673: Expand the getting started guide with combat simulation, army tools, and battle setup and play.
+
+## 0.98.5
+
+### Patch Changes
+
+- bb5c2bf: Restore selectable thunder hammers and storm shields for Terminator Assault Squads.
+
+## 0.98.4
+
+### Patch Changes
+
+- 9c982a6: Fix loadout optimization for squads with mixed exclusive weapon choices.
+
 ## 0.98.3
 
 ### Patch Changes

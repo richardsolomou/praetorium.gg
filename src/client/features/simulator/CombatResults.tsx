@@ -45,6 +45,7 @@ export function CombatResults({
       <div
         ref={summary}
         aria-label="Results summary"
+        data-onboarding="simulator-results"
         data-results-summary
         className={`fixed right-0 left-0 z-40 mx-auto border border-edge bg-sunken shadow-lg ${inDialog ? 'bottom-[calc(4rem+env(safe-area-inset-bottom))] max-w-3xl min-[860px]:bottom-0' : 'bottom-16 w-[calc(100%-1.5rem)] max-w-[calc(64rem-2rem)] sm:w-[calc(100%-2rem)] min-[860px]:bottom-0'}`}
       >

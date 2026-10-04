@@ -29,7 +29,11 @@ const PAGE_ADDRESSES = [
   ['/rosters/a-roster/', 'roster'],
   ['/friends', 'friends'],
   ['/battles', 'battles'],
-  ['/battles/a-token', undefined],
+  ['/battles/a-token', 'battle'],
+  ['/battles/a-token/', 'battle'],
+  ['/simulator', 'simulator'],
+  ['/simulator/', 'simulator'],
+  ['/data-updates', 'data-updates'],
   ['/', 'home'],
   ['/leagues', 'leagues'],
   ['/leagues/', 'leagues'],
@@ -166,7 +170,7 @@ describe('onboarding steps', () => {
 /** Every `advanceOnboarding` a screen makes, as the `from->to` edge it claims to walk. */
 function advancesInSource() {
   return new Set(
-    [...readSource().matchAll(/advanceOnboarding\('[a-z]+', '([a-z-]+)', '([a-z-]+)'\)/g)].map((match) => `${match[1]}->${match[2]}`),
+    [...readSource().matchAll(/advanceOnboarding\('[a-z-]+', '([a-z-]+)', '([a-z-]+)'\)/g)].map((match) => `${match[1]}->${match[2]}`),
   )
 }
 
@@ -174,6 +178,10 @@ function advancesInSource() {
 function markersInSource() {
   const found = new Map<string, number>()
   for (const match of readSource().matchAll(/\b(?:data-)?onboarding="([a-z][a-z-]*)"/g)) {
+    const marker = match[1] ?? ''
+    found.set(marker, (found.get(marker) ?? 0) + 1)
+  }
+  for (const match of readSource().matchAll(/data-onboarding=\{[^}]*?'([a-z][a-z-]*)'[^}]*\}/g)) {
     const marker = match[1] ?? ''
     found.set(marker, (found.get(marker) ?? 0) + 1)
   }

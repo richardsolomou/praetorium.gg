@@ -2,6 +2,8 @@
 
 `src/core/battle.ts` owns the log, `validate`, and `apply`. `battleView.ts` controls visibility. `battleReport.ts` renders the log. The battle report shows each event’s date and time from its existing timestamp, and battle shelves show the last activity date even while a game is live. `src/server/service.ts` connects the domain to storage and realtime updates.
 
+Signed-out visitors to `/battles` browse the paginated public feed, grouped into active, setup, and finished games, and open them as spectators. It uses the same audience checks and practice-game exclusion as the home-page feed. Signed-in players see their own battles and creation and deletion controls. The route loads only the feed appropriate to the session.
+
 Paginated battle queries reject missing response pages before TanStack Query can cache them. A failed refresh keeps the previous pages; readers skip missing cached pages and treat a missing final page as the end until a successful refresh replaces it.
 
 ## Command log
