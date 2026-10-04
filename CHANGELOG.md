@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.100.0
+
+### Minor Changes
+
+- 3500c10: Browse public battles without signing in.
+
 ## 0.99.0
 
 ### Minor Changes
