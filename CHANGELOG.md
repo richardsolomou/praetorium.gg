@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.102.1
+
+### Patch Changes
+
+- 7dc5c2f: Match the iOS status and home-indicator backgrounds to the application bars.
+
 ## 0.102.0
 
 ### Minor Changes
