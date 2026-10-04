@@ -1,44 +1,38 @@
 # Running locally
 
-[Contributing](../../CONTRIBUTING.md) owns installation and checks. Run `just` to list commands.
+[Contributing](../../CONTRIBUTING.md) owns installation and checks. `just` lists recipes; `scripts/dev.ts` and `scripts/localDev.ts` own stack configuration.
 
 ## Catalogue
 
-`just catalogue-sync` activates the release-pinned verified snapshot from the shared platform cache and points this worktree's `catalogue-data/` at it. Set `CATALOGUE_CACHE_DIR=off` for a worktree-local copy. `just catalogue-latest` follows the manually published snapshot; `just catalogue-upstream` reports upstream changes without activating them.
+`just catalogue-sync` activates the release-pinned verified snapshot from the shared platform cache. `CATALOGUE_CACHE_DIR=off` selects a worktree-local copy. `just catalogue-latest` follows the published pointer; `just catalogue-upstream` reports source drift without activation.
 
-Sync before work or browser tests involving lists, missions, or battlefields. The cache is shared, but generated local catalogue output stays with the owning development stack; do not edit the cached snapshot in place.
+Sync before list, mission, or battlefield work. Never edit the shared cache in place. Generated output stays in the owning stack. [Catalogue data](catalogue-data.md) owns publication and provenance.
 
 ## Development lifecycle
 
-`just dev` starts or reuses one persistent development stack for this worktree, waits for readiness, prints its URL, and exits without stopping it. The stack serves application source through Vite with hot reload. It builds only the product module, seed bundle, and derived catalogue needed for startup; it does not build or serve the production web app.
+| Command            | Behavior                                                                     |
+| ------------------ | ---------------------------------------------------------------------------- |
+| `just dev`         | Start/reuse the persistent worktree stack, wait for readiness, print its URL |
+| `just dev-status`  | Report owner, URL, data, and logs                                            |
+| `just dev-stop`    | Stop only the authenticated owner and its children                           |
+| `just dev-restart` | Rebuild/restart while retaining data/settings                                |
 
-| Command            | Behavior                                                   |
-| ------------------ | ---------------------------------------------------------- |
-| `just dev`         | Start or reuse this worktree's Vite stack                  |
-| `just dev-status`  | Print its owner, URL, data directory, and log path         |
-| `just dev-stop`    | Stop only its authenticated owner and children             |
-| `just dev-restart` | Stop and rebuild it, preserving its databases and settings |
+Check browser status and dev status before starting. Use the reported URL and leave the preview running. Source edits hot reload; product-module, startup, or activated-catalogue changes require restart. Never kill a shared-port listener or broad process name. Browser tests own a separate disposable stack.
 
-Application source edits use Vite's live reload. Restart for changes to the SpacetimeDB module, startup configuration, or the activated catalogue. `just check` and `just e2e` do not own the interactive preview. Leave it running for the user after verification; never use `pkill`, `killall`, or kill a listener merely because it occupies a familiar port.
+The owner/readiness record is `data-dev/active-preview.json`; startup logs are `data-dev/dev.log`. A loopback controller verifies worktree/token ownership, not just PID or health. Old records without controller identity require stopping the original runner from its terminal before starting again.
 
-The runner records its worktree, random owner token, service ports, settings, and readiness in `data-dev/active-preview.json`. A loopback control listener prevents concurrent starts from creating duplicate stacks. Status and stop verify the owner rather than trusting a PID or a generic application health response. `data-dev/dev.log` contains startup and application output. For an old record without controller identity, stop its original runner in its owning terminal and run `just dev`; the upgrade retains its settings and database name.
+App ports are allocated automatically, preferring 3000, with separate internal/product ports. Explicit `LOCAL_APP_PORT`, `LOCAL_INTERNAL_PORT`, `LOCAL_SPACETIME_PORT`, and `LOCAL_CONTROL_PORT` fail if occupied. `LOCAL_DATA_DIR` and `LOCAL_PUBLIC_URL` override storage/origin. Existing data fixes its app port/origin through the auth issuer; changing those requires fresh data, preserving the original. For a control-port collision, choose an explicit free control port without touching its other owner.
 
-The first worktree tries app port 3000; if it is occupied, a new worktree selects an available port. Internal Vite and SpacetimeDB ports are allocated separately. Always use the reported URL. `LOCAL_APP_PORT`, `LOCAL_INTERNAL_PORT`, `LOCAL_SPACETIME_PORT`, `LOCAL_CONTROL_PORT`, `LOCAL_DATA_DIR`, and `LOCAL_PUBLIC_URL` provide explicit overrides; occupied explicit ports fail instead of incrementing. Changing a live preview's settings requires `just dev-restart`. Once data is initialized, its app port and public URL are fixed by the product database's authentication issuer; changing them requires a fresh `LOCAL_DATA_DIR` and leaves the original data untouched. A rare collision at the worktree's stable control port fails without touching the other owner; choose an explicit free `LOCAL_CONTROL_PORT` when starting that worktree.
-
-Development data stays inside its worktree under `data-dev/hosted/` by default: SQLite accounts, local object files, SpacetimeDB data, and private generated build output. It survives restart, and its recorded product database name is retained. The first start seeds preview accounts, practice opponents, and example rosters, battles, and leagues. `SPACETIME_BIN` selects the pinned 2.7.0 CLI when it is outside its standard installation path. `pnpm auth:db:generate` creates auth migrations; startup applies checked-in migrations.
-
-Both localhost and 127.0.0.1 work for local sign-in at the reported app port. Native development must use this URL too; set `EXPO_PUBLIC_APP_URL` when it differs from port 3000.
+Default data/build output lives in `data-dev/hosted/` and survives restart. Startup applies checked-in auth migrations and seeds initial preview data. `SPACETIME_BIN` selects the required CLI; [Contributing](../../CONTRIBUTING.md#start-the-app) owns its version. Both loopback hostnames work for sign-in. Native development uses the reported origin via `EXPO_PUBLIC_APP_URL`, with Android's emulator host mapping.
 
 ## Browser tests
 
-`just e2e` runs Playwright against a separate production-mode test stack. Each invocation chooses available app, internal, SpacetimeDB, and readiness ports, creates a unique disposable `/tmp/praetorium-e2e-<id>` directory, and writes private build output there. Workers inherit that invocation's settings. Parallel worktrees do not share auth files, object directories, product databases, or generated builds. Startup refuses an existing test directory; it never resets another run's data. Shutdown stops the owned process groups before removing disposable data.
+`just e2e` owns isolated production-mode stacks with allocated ports, unique fresh `/tmp/praetorium-e2e-<id>` data/build output, and per-run results. Shutdown stops owned process groups before deleting their data. Concurrent worktrees never share test databases or reset each other's data.
 
-`just e2e-trace` records a trace; `just e2e-install` installs Chromium. Results default to a run-specific directory under `test-results/`. `PLAYWRIGHT_PORT`, `PLAYWRIGHT_INTERNAL_PORT`, `PLAYWRIGHT_SPACETIME_PORT`, `PLAYWRIGHT_READY_PORT`, `PLAYWRIGHT_DATA_ROOT`, and `PLAYWRIGHT_OUTPUT_DIR` support explicit configuration; a custom data root must be fresh and use the Praetorium test prefix directly under `/tmp`. Prefer automatic allocation locally.
+`just e2e-install` installs Chromium; `just e2e-trace` records traces. Configuration and worker/retry/shard counts live in the Playwright config and CI. Prefer automatic allocation; explicit `PLAYWRIGHT_*` overrides require fresh data under the expected `/tmp` prefix. `just e2e-durations <run id>` refreshes shard timings.
 
-The suite runs two workers per stack; each test creates its own players and data. CI splits the suite across eight runners using `e2e/durations.json`. `just e2e-durations <run id>` refreshes their recorded durations. CI retries once and still reports a retry-pass as flaky; local runs do not retry.
-
-Native authentication uses its own temporary stack and requires exclusive ownership of its iOS Simulator. See [Mobile](mobile.md).
+[Native authentication](mobile.md#check-it) owns its separate stack and exclusive simulator reservation.
 
 ## Repository backup
 
-`just repository-backup /absolute/destination` creates and verifies a Git bundle of every local ref. Keep the bundle outside this repository and separate from GitHub. It does not include uncommitted files.
+`just repository-backup /absolute/destination` creates/verifies a bundle of every local Git ref. Keep it outside the repo and separate from GitHub. It excludes uncommitted files.

@@ -1,57 +1,42 @@
 # Architecture
 
-Praetorium is organized first by runtime boundary and then by product feature. Dependencies point inward toward shared contracts and the IO-free domain.
+Dependencies point inward toward shared contracts and the IO-free domain:
 
 ```text
 routes ──> client ──> contracts ──> core
   │          │                         ▲
   │          └────> server functions ──┤
-  │                         │           │
   └──────────────────────> server ──> database/adapters
 ```
 
 ## Directories
 
-- `src/core` owns deterministic domain decisions. It contains no IO or framework imports.
-- `src/contracts` owns serializable types shared across runtime boundaries. Contracts may depend on core types but not application layers.
-- `src/db` owns the SQLite account schema. Local and hosted product storage lives in `src/server/spacetimeRepository.ts`.
-- `src/adapters` owns external transports such as email and telemetry.
-- `src/server` owns application services, catalogue loading, authentication, and server functions. `PraetoriumService` is the stable facade; bounded application areas live under `src/server/services`.
-- `src/client/features` groups browser code by product area. A feature contains its components, local models, and tests.
-- `src/client/components` contains components shared by multiple features.
-- `src/components/ui` is generated shadcn code and is treated as vendored.
-- `src/routes` owns URLs, search validation, loaders, metadata, and composition of feature pages.
-- `catalogue` contains upstream pins and attribution, authored correction patches, the release snapshot pin, and revocations. Fetched and generated catalogues stay outside Git.
-- `scripts` contains executable maintenance and deployment entry points; `scripts/lib` contains their shared helpers and adjacent tests.
+| Location                | Responsibility                                                                                        |
+| ----------------------- | ----------------------------------------------------------------------------------------------------- |
+| `src/core`              | Deterministic domain decisions; no IO or framework imports except zod                                 |
+| `src/contracts`         | Serializable cross-runtime types; depends on core, not application layers                             |
+| `src/db`                | SQLite account schema                                                                                 |
+| `src/server`            | Application services, authentication, catalogue loading, server functions, and SpacetimeDB repository |
+| `src/adapters`          | External transports                                                                                   |
+| `src/client/features`   | Feature components, local models, and adjacent tests                                                  |
+| `src/client/components` | Shared browser components                                                                             |
+| `src/components/ui`     | Generated, vendored shadcn components                                                                 |
+| `src/routes`            | URLs, loaders, search validation, metadata, and page composition                                      |
+| `catalogue`             | Source pins, attribution, authored patches, snapshot pin, and revocations                             |
+| `scripts`               | Maintenance and deployment entry points; shared helpers in `scripts/lib`                              |
 
 ## Placement rules
 
-A route should not contain a substantial page implementation. Move state and rendering into a client feature, leaving the route responsible for the URL and initial data.
+Keep page implementation in client features. Routes compose it. Shared browser models live at the client root; React Query options live in `src/client/queries/<feature>.ts`, exported through `src/client/queries.ts`. The roster builder owns the loadout editor reused by simulation.
 
-The roster builder and its pane history live under `src/client/features/rosters/builder`, battle setup under `src/client/features/battle/setup`, and rules and catalogue pages under `src/client/features/reference`. Route files compose those pages and keep URL parameters and metadata.
+Client code may call `src/server/functions`, but must not import server implementation modules. Cross-boundary types belong in contracts. `src/core/datasheet.ts` owns domain datasheet shapes, re-exported by `src/contracts/catalogue.ts`.
 
-A type returned across a server-function boundary belongs in `src/contracts` when client code needs to name it. Client code may call `src/server/functions` but must not import server implementation modules.
+Keep existing `createServerFn` source paths: the pinned compiler includes filenames in production function IDs, so moving them can break older open clients.
 
-Feature-specific browser code belongs in `src/client/features/<feature>`. Shared browser models live at the `src/client` root, and components used by multiple features live in `src/client/components`.
-
-The roster builder owns loadout editing. The simulator uses that editor, while shared datasheet profile displays and count controls live in `src/client/components`.
-
-React Query options belong in `src/client/queries/<feature>.ts`. `src/client/queries.ts` is the public barrel so consumers depend on query behavior rather than its file placement.
-
-Simulator queries live in `src/client/queries/simulator.ts`.
-
-Existing `createServerFn` definitions keep their source paths: the pinned TanStack compiler includes the filename in each production function ID, so a move can break requests from an older open client.
-
-Repository and service facades preserve one application entry point while delegating complete vertical slices. A collaborator owns all methods for its area; do not scatter one transaction or policy decision between the facade and collaborator.
-
-Large authoritative modules are not split by line count alone. `src/core/battle.ts` deliberately owns the complete battle fold and validation. Split a module only when the extracted responsibility has one clear owner and does not duplicate a decision.
-
-`src/core/datasheet.ts` owns datasheet shapes used by deterministic combat code. `src/contracts/catalogue.ts` re-exports them for server and client consumers. Server catalogue projection, ability grants, datasheet relationships, display modifiers, and unit pricing rules live in separate modules under `src/server`.
+`PraetoriumService` and repository facades delegate complete application areas while preserving one entry point. Split modules by responsibility, not length; keep each domain decision under one owner. `src/core/battle.ts` deliberately owns the full battle fold and validation.
 
 ## Tests
 
-Tests stay beside the behavior they specify. Split large suites by scenario while continuing to exercise the same public entry point, and share setup through a narrowly named harness rather than copying fixtures.
+Keep tests beside the behavior. Use `*.integration.test.ts` for database, service, authentication, and snapshot boundaries; other `*.test.ts` files are unit tests. [Contributing](../../CONTRIBUTING.md#check-a-change) owns the check commands.
 
-Use `*.integration.test.ts` for database, application-service, authentication, and snapshot integration tests; other `*.test.ts` files are unit tests. Use `just test-unit` for the fast feedback loop and `just test-integration` for those integration boundaries. `just check` continues to run the complete suite.
-
-Test server request adapters with a foreign `Request` implementation. Rebuild requests from their URL, fields, and body rather than passing a framework request to `new Request(request)`.
+Test public behavior with shared harnesses and scenario-specific suites. Request adapters must accept foreign `Request` implementations: rebuild from URL, fields, and body instead of passing the foreign object into `new Request(request)`.

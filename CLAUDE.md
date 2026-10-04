@@ -4,7 +4,7 @@
 
 ## Read for the task
 
-Read the relevant guide and section before changing its behavior. Read [Architecture](docs/development/architecture.md) for code placement. Topic guides own their domain and verification rules; do not copy them here or read every guide for an unrelated change.
+Read the relevant guide and section before changing its behavior. Read [Architecture](docs/development/architecture.md) for code placement. Topic guides own their domain and verification rules; do not copy them here or read every guide for an unrelated change. Keep guides to durable constraints, code entry points, and verification. Link to code, tests, and workflows for changing implementation details; replace stale guidance rather than appending a history of fixes. State required steps explicitly and distinguish them from descriptions of automation.
 
 | Working on                                          | Read                                                                             |
 | --------------------------------------------------- | -------------------------------------------------------------------------------- |

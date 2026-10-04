@@ -2,11 +2,9 @@
 
 This is the release gate for the `gg.praetorium` iOS and Android applications. Android delivery is disabled until the release gate can be completed on a physical Android device. Recheck the linked store rules before every submission because their dates and SDK floors change.
 
-## Current platform floor
+## Platform requirements
 
-- Apple requires uploads from 28 April 2026 to use the iOS 26 SDK or later. Build the archive with Xcode 26 or later. See [Apple's SDK minimum requirements](https://developer.apple.com/news/?id=ueeok6yw).
-- Google Play requires new apps and updates submitted from 31 August 2026 to target Android 16, API level 36. Expo SDK 57 generates that target. See [Google Play's target API requirements](https://support.google.com/googleplay/android-developer/answer/11926878).
-- Apple requires at least one current iPhone screenshot and, because `supportsTablet` is enabled, at least one 13-inch iPad screenshot. Use an exact size from [Apple's screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/).
+Before submission, check [Apple's SDK minimums](https://developer.apple.com/news/?id=ueeok6yw), [Google Play's target API requirements](https://support.google.com/googleplay/android-developer/answer/11926878), and [Apple's screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/) against the pinned Expo SDK and generated projects. `supportsTablet` requires iPad screenshots as well as phone screenshots. The workflow owns the runner/tool versions; do not copy changing deadlines here.
 
 ## One-time store setup
 
@@ -34,7 +32,9 @@ Run the repository gate first:
 just check
 ```
 
-The checked-in GitHub workflow is the normal iOS delivery path. A mobile change merged to `main` queues one canary build and one stable build. The workflow builds canary first and stable second on macOS 26. Fastlane signs each application, uploads it to TestFlight, and waits for App Store Connect to process it. EAS Update then publishes the same revision on the matching channel. A running delivery completes before the next delivery starts. GitHub replaces an older queued delivery when a newer mobile revision reaches `main`. The canary delivery uses the preview EAS environment. The stable delivery uses the production EAS environment and syncs `mobile/store.config.json`. Android builds, updates, and Play uploads remain manual. Android delivery stays disabled until the physical-device release gate and Google account requirements are complete.
+[`.github/workflows/mobile.yml`](../../.github/workflows/mobile.yml) owns iOS delivery after matching changes reach `main`. It builds/signs locally through EAS with frozen managed credentials, then Fastlane uploads and waits for TestFlight processing, followed by the compatible EAS Update. Canary precedes stable; only one delivery runs at a time. Pull requests validate without distribution. The stable path also syncs `mobile/store.config.json`. This automation uploads builds and updates; it does not submit them for public App Store review.
+
+[`mobile/eas.json`](../../mobile/eas.json) owns profiles, environments, channels, and build-number increments. Canary uses preview and stable uses production. Updates target the native fingerprint; incompatible binaries cannot receive them. Android delivery remains manual and disabled until the physical-device and Google account gates pass.
 
 Use the following command to restart both iOS deliveries from `main`:
 
@@ -52,7 +52,7 @@ pnpm dlx eas-cli@23.2.0 submit --platform android --profile production
 pnpm dlx eas-cli@23.2.0 update --platform android --channel stable --environment production
 ```
 
-Fastlane reads the latest TestFlight build number for the user-facing version and increments it before each iOS build. EAS manages Android `versionCode` remotely. Change the user-facing version in `mobile/app.json` and `mobile/package.json` together for each public application release. The native shell reads that version from the installed binary. EAS Update uses the native fingerprint as its runtime version, so incompatible binaries never receive the same over-the-air bundle.
+Change the user-facing version in `mobile/app.json` and `mobile/package.json` together for a public application release. The shell reads the installed binary's version; EAS owns automatic build-number increments. [Mobile](mobile.md#check-it) owns the mandatory release-mode journey before pushing shell, dependency, or configuration changes.
 
 ## Production identity checks
 
@@ -121,9 +121,9 @@ Use these review notes after replacing the bracketed values:
 
 > I provided a review account with saved rosters, a running practice battle, a finished battle, and a league registration. Sign in with the email and password in the review credentials, then open Battles → [active battle name] to test live tracking without a second person.
 >
-> The application loads the production service at `https://praetorium.gg`. The native shell adds verified links, secure system-browser authentication, native sharing and printing, battle-action haptics, and a screen wake lock during active battles. It does not download executable code or expose an open browser.
+> The application loads the production service at `https://praetorium.gg`. The native shell adds verified links, secure system-browser authentication, native sharing and printing, battle-action haptics, and a screen wake lock during active battles. It loads trusted application pages and opens external links through the operating system. Compatible JavaScript updates are delivered through EAS Update.
 >
-> Apple, Google, and Discord sign-in use the system authentication session. Email/password sign-in is available in the application. Account deletion is under Profile → Account security → Permanently delete account. The application has no purchases, subscriptions, ads, chat, or user-posted public content.
+> Supported social providers use the system authentication session. Email/password sign-in is available in the application. Account deletion is under Profile → Account security → Permanently delete account. The application has no purchases, subscriptions, ads, or chat. Players can publish rosters and share battles.
 >
 > Praetorium uses community-maintained catalogue and rules data under the licences recorded at `https://github.com/richardsolomou/praetorium.gg/blob/main/catalogue/README.md`. It is unofficial and is not affiliated with or endorsed by Games Workshop.
 

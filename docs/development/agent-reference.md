@@ -1,61 +1,46 @@
 # Agent reference
 
-Praetorium exposes its public game reference to crawlers and tool-using clients without generating or storing a second interpretation of the rules. The browser pages, HTTP API, MCP endpoint, sitemap, and Markdown responses all read the verified canonical catalogue snapshot.
+Browser pages, HTTP, MCP, sitemap, and Markdown responses read one verified canonical snapshot. Do not generate or store another rules interpretation. `src/server/referenceCorpus.ts` projects bounded documents/records; `referenceSearch.ts` ranks agent retrieval separately from human navigation search.
 
 ## Reference corpus
 
-`src/server/referenceCorpus.ts` projects canonical datasheets, detachments, primary and secondary missions, Force Dispositions, mission twists, deployments, terrain layouts, mission packs, and numbered rules into bounded documents and sections. Mission-pack documents include the complete ordered Force Disposition matrix and the source-backed scoring, actions, and limits behind each matchup. Every document carries its canonical page URL, source revisions, and attribution. The projection keeps unavailable source fields unavailable and uses the source text without generated summaries. Exact deployment and terrain geometry remains available through structured records without bloating search excerpts.
+Documents cover datasheets, detachments, missions, dispositions/matchups, twists, deployments/terrain, packs, and numbered rules. Preserve canonical URLs, source revisions, attribution, unavailable fields, and source prose. Keep full geometry in structured records rather than search excerpts. Exact names/headings outrank prose; filters and opaque cursors bound retrieval.
 
-The canonical snapshot contains detachments beside datasheets and rules. An instance can derive detachments from the same verified source files while it serves a snapshot compiled before that field existed; new snapshot publications write them into `canonical/catalogue.json`.
-
-`src/server/referenceSearch.ts` owns agent retrieval. It searches full reference text, ranks exact names and headings before prose, paginates with an opaque cursor, and supports faction, mission-pack, rule-document, and kind filters. This is separate from `globalSearch.ts`, whose short grouped results remain tuned for human navigation and deliberately exclude broad rules prose.
-
-`pnpm reference:evaluate` measures the checked-in retrieval fixtures against the active verified snapshot. The fixtures identify stable documents and anchors without copying source prose into Git; the evaluator derives those queries from the snapshot and enforces top-1/top-5 recall, anchor and citation completeness, response size, and cold/warm latency baselines. CI runs it after installing the pinned snapshot.
+`pnpm reference:evaluate` checks snapshot-derived fixtures for recall, anchors/citations, size, and latency. Fixtures identify records without committing source prose.
 
 ## HTTP API
 
-The read-only API is rooted at `/api/reference/v1`:
+`/api/reference/v1/openapi.json` is the contract. The read-only API provides:
 
-- `GET /` lists the active revisions, kinds, factions, mission packs, and rule documents.
-- `GET /about` explains Praetorium's capabilities, privacy boundaries, data model, and recommended agent workflow.
-- `GET /search?q=...` searches all reference kinds. `kind`, `faction`, `pack`, `document`, `limit`, and `cursor` narrow or paginate the bounded result.
-- `GET /factions` lists the available faction filters.
-- `GET /factions/{catalogueId}/units` returns a compact bulk roster-planning index with unit-size costs, composition, attachment relationships, limits, roles, keywords, and canonical links. `battleSize` applies size-dependent limits and `detachment` includes that detachment's complete rules and options.
-- `GET /datasheets/{catalogueId}/{slug}` reads one canonical datasheet.
-- `GET /detachments/{catalogueId}/{slug}` reads one canonical detachment.
-- `GET /rules/{documentId}/{sectionId}` reads one rules section.
-- `GET /documents/{id}` reads the bounded document named by a search result.
-- `GET /records/{id}` reads the source-faithful structured record behind a document, including mission cards and setup geometry.
-- `GET /openapi.json` describes the contract.
+| Endpoint                              | Read                                                                 |
+| ------------------------------------- | -------------------------------------------------------------------- |
+| `/` and `/about`                      | Status, filters, capabilities, and privacy                           |
+| `/search`                             | Filtered, paginated full-text retrieval                              |
+| `/factions`                           | Faction filters                                                      |
+| `/factions/{catalogueId}/units`       | Bounded bulk planning index, with battle-size and detachment context |
+| `/datasheets/{catalogueId}/{slug}`    | Canonical datasheet                                                  |
+| `/detachments/{catalogueId}/{slug}`   | Canonical detachment                                                 |
+| `/rules/{documentId}/{sectionId}`     | Rules section                                                        |
+| `/documents/{id}` and `/records/{id}` | Document or structured source-faithful record                        |
 
-Responses are JSON by default. `Accept: text/markdown` or `format=markdown` selects a compact source-faithful representation; the query parameter lets a plain link name it. Reference responses use content-derived ETags, one-hour public caching, bounded inputs and outputs, and an in-process request limit. A missing, invalid, or revoked catalogue returns `503` rather than an empty or stale reference.
+JSON is default; `Accept: text/markdown` or `format=markdown` selects Markdown. Preserve content-derived ETags, public caching, input/output bounds, and request limits. A missing, invalid, or revoked snapshot returns `503`, not empty/stale reference data.
 
 ## MCP
 
-`POST /mcp` is a stateless Streamable HTTP MCP endpoint. Without sign-in it exposes `list_reference`, `list_factions`, `list_units`, `search_reference`, `get_reference`, and `get_reference_record`. These reference tools are read-only. Server instructions and the `praetorium://guide` resource explain the product and steer roster-planning agents toward one `list_units` call instead of a datasheet-by-datasheet crawl. `praetorium://reference-status` reports the active reference catalogue, while the bundled prompts guide rules questions and mission-matchup explanations.
+`POST /mcp` uses stateless Streamable HTTP. `src/server/referenceMcp.ts` owns tools/resources/version; `server.json` describes the official registry entry. Public reference tools need no sign-in. The guide steers planning toward bulk unit reads rather than one call per datasheet.
 
-Account tools are listed for discovery and require Better Auth OAuth sign-in when called. `mcp:read` grants `list_my_rosters`, `get_my_roster`, `list_my_battles`, and `get_my_battle`. `mcp:write` grants `save_roster`, `set_roster_visibility`, `create_battle`, and `submit_battle_action`. Write tools use the same owner checks, roster rules, command validation, and expected log sequence as the site. The consent page shows the requested access. OAuth clients discover the protected resource at `/.well-known/oauth-protected-resource/mcp` and the authorization server at `/.well-known/oauth-authorization-server/api/auth`; both client metadata documents and dynamic client registration are supported. A client can request `offline_access` for refresh tokens. Public reference calls remain available without sign-in.
+Account tools require Better Auth OAuth: `mcp:read` for owned-roster/battle reads, `mcp:write` for supported writes. Use the site's ownership, legality, and expected-sequence checks. Resource-bound bearer tokens authorize calls; browser cookies do not. Discovery supports protected-resource/authorization metadata, client metadata and dynamic registration, and refresh tokens through `offline_access`.
 
-Production MCP requests report anonymous tool names, durations, and outcomes to PostHog MCP Analytics. The capture hook removes arguments, responses, intent, and client identifiers. Telemetry does not add tool arguments or response content to the protocol.
+Accept one bounded JSON-RPC message, never batches. SQLite migrations must create OAuth storage before serving. Preserve the pinned provider patch for wrapped uniqueness errors during concurrent startup. Anonymous MCP telemetry rules belong to [Telemetry](telemetry.md#runtime-boundaries).
 
-`server.json` describes the endpoint to the official MCP registry as `io.github.richardsolomou/praetorium`; its `version` follows the one `src/server/referenceMcp.ts` declares. Publish a change with `mcp-publisher login github` and `mcp-publisher publish` from the repository root.
-
-The transport accepts one JSON-RPC message of at most 64 KiB per request and rejects batches. Authenticated calls carry a resource-bound bearer token; the MCP route never treats a browser session cookie as authorization. SQLite keeps OAuth clients, grants, and refresh tokens. The startup migration adds these tables to an existing auth database before requests are served.
-
-The pinned Better Auth OAuth provider has a local patch because its concurrent resource seeding handles a uniqueness error only when the database driver puts that text in the top-level error. Drizzle wraps the SQLite error in `cause`, so a simultaneous startup would otherwise fail.
+Publish registry changes from the root with `mcp-publisher login github` and `mcp-publisher publish`; keep registry and server versions aligned.
 
 ## Crawlers
 
-`/sitemap.xml` is generated from the active snapshot, with the public pages no reference document names: home, factions, Force Dispositions and each disposition, leaderboard, missions, the builder, rules, simulator and data sources. [Catalogue data](catalogue-data.md#data-updates) describes which entries carry a `lastmod`. `/robots.txt` advertises it, while `/llms.txt` points clients to the product guide, reference index, bulk unit endpoint, OpenAPI document, and MCP endpoint. Datasheet, detachment, mission-pack, secondary-mission, mission-matchup, and rules-section routes load their content during server rendering and publish page-specific metadata. Every indexable page names an absolute canonical address and the matching `og:url` through `pageHead` in `src/client/linkPreview.ts`. Datasheet, detachment, and rules-section pages also link their API record as `rel="alternate" type="text/markdown"` with `format=markdown`, so an agent reading the page can fetch the compact source text instead. Reference pages below a faction, rules document or mission pack also publish schema.org `BreadcrumbList` data, and the home page describes the site as a free `WebApplication`. A route nested under another writes breadcrumbs only as the page itself, because the router replaces a parent's meta tags by name but keeps every JSON-LD block. Battles, saved lists and player profiles also publish link-preview metadata and a card image for readers without an account; [Interface](interface.md#link-previews) describes what each reveals.
+`/sitemap.xml`, `/robots.txt`, and `/llms.txt` expose public discovery. Reference content must be in initial server-rendered HTML with absolute canonical/preview URLs, alternate Markdown links where supported, and page-owned breadcrumbs. Child routes must not duplicate parent JSON-LD. [Interface](interface.md#link-previews) owns account-sensitive metadata; [Catalogue data](catalogue-data.md#data-updates) owns measured `lastmod` values.
 
-Datasheet search descriptions include points and a single-model base size only when the canonical sheet supplies them. They list every unconditional unit size with its cost, fall back to the sheet's points when it prints no sizes, and leave out any cost that depends on a keyword, faction or detachment. The sign-in page and roster snapshots carry `noindex`; public saved rosters use their parameter-free URL as canonical. Each page's signed-out collection, favourite and play links carry its own return address, so they are `nofollow` and `robots.txt` disallows `/sign-in`; otherwise every reference page hands crawlers another copy of the sign-in page. Faction detachment links point directly at canonical pages.
+Public roster canonicals omit parameters; unlisted/frozen lists and sign-in stay `noindex`. Sign-in return links are `nofollow`, and robots disallows sign-in crawls. Reference points/base descriptions include only unconditional source-backed values. [Deployment](../deployment.md) owns IndexNow submission.
 
-Each production deploy submits the pages it added to the sitemap, or dated afresh, to IndexNow, which Bing shares with the other participating engines; [Deployment](../deployment.md) describes the step. Google has no equivalent and reads the sitemap's `lastmod`.
+## Verification and attribution
 
-Verify crawler-facing changes against the production server output with JavaScript disabled. Hydrated browser content is not evidence that the initial HTML contains the reference.
-
-Run `pnpm reference:verify https://<deployment>` against a deployed revision. It exercises discovery, filtered and paginated search, JSON and Markdown retrieval, structured records, bulk units, conditional caching, MCP tools and resources, and the initial HTML for a datasheet, detachment, mission pack, secondary mission, mission matchup, and rules section.
-
-## Privacy and attribution
-
-Raw search queries are not sent to telemetry. Crawler reads of public pages reach PostHog as `$http_log` events without the reader's address; [Telemetry](telemetry.md) describes what they carry. Every retrieval result identifies its source revisions and includes the attribution required by the upstream sources. Reproducing a result does not remove those upstream licence conditions.
+Run `pnpm reference:verify https://<deployment>` for discovery, filters/pagination, JSON/Markdown/structured reads, caching, MCP, and initial reference HTML. Verify with JavaScript disabled; hydration is not evidence of crawler access. Every result retains its sources and licence attribution. Never send raw search queries or private content to telemetry.

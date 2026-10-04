@@ -1,20 +1,11 @@
 # Pull request previews
 
-Each pull request except an automated release candidate gets a disposable Dokploy preview at `pr-<number>.praetorium.gg`. GitHub builds a digest-pinned Node image separately from the trusted deployment job. A preview is marked ready only after its application reports the expected commit from the health endpoint.
+Pull requests except automated release candidates receive disposable Dokploy previews at `pr-<number>.praetorium.gg`. The PR's status comment links readiness and failures. Ready means `/api/health` reports the expected commit, not merely that a container started.
 
-One pull request comment shows the current state:
+`.github/workflows/dokploy-preview-image.yml` builds a digest-pinned image without deployment credentials. The trusted `dokploy-preview-deploy.yml` job and `scripts/dokployPreview.ts` deploy its module and isolated data. Fork artifacts require maintainer approval before trusted deployment.
 
-- 🔄 A new version is building or deploying.
-- ⏸️ A preview from a fork is waiting for a maintainer to approve its build.
-- ✅ The preview serves the listed commit.
-- ❌ The build, deployment, or CI failed; the link goes to the workflow run.
-- 🗑️ The pull request closed, and the preview was deleted.
+Each preview has separate SQLite accounts, a SpacetimeDB database, secret, operator identity, auth issuer, and audience. It uses its own pinned catalogue. Redeployment resets both stores and ends old sessions; deterministic seed IDs retain cross-store links, and revision-specific issuers refresh signing keys.
 
-Each preview has a separate SQLite authentication file, SpacetimeDB product database, application secret, and product operator identity. The deployed application seeds four test accounts, saved rosters, friendships, favourites, a collection, battles, and league events. A fresh deployment recreates its disposable data. Previews share a SpacetimeDB server and use their own pull request's pinned catalogue snapshot, but their database names, authentication issuers, and token audiences are distinct.
-Seed account IDs are derived from the preview database name and email, so recreating a container's SQLite file preserves its links to the preview's SpacetimeDB data. A deployment still resets both stores.
-The preview's token issuer includes the commit revision so SpacetimeDB fetches the new signing keys when a deployment recreates its authentication database. Existing preview sessions end on redeployment.
-The image contains the pull request's pinned, verified catalogue snapshot and product module. The trusted deployment job extracts that module, creates the preview database, and deploys the pinned image.
+Use `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent` for the primary seats. Previews are public and disposable; keep sensitive data out.
 
-The primary test logins are `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Supporting team seats use two more disposable accounts. Previews are public and are not a place for sensitive data.
-
-Fork builds do not receive deployment credentials. A trusted deployment workflow consumes the build artifact only after approval. Closing or merging a pull request removes its preview resources, and a scheduled prune removes resources left behind by failed cleanup.
+Closing/merging removes preview resources; scheduled pruning recovers missed cleanup. [Deployment](../deployment.md) owns production, and [Running locally](running-locally.md) owns interactive development stacks.
