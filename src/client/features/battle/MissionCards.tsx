@@ -32,69 +32,140 @@ type Props = {
   guides: { primary: number; secondary: number }
 }
 
-/**
- * The cards in play, and what they have paid so far.
- *
- * Nothing here scores. A card pays at the moment its own text names, so the ask
- * arrives with the phase or turn that ends rather than sitting on screen all game
- * where it could be pressed at a moment the card does not allow.
- */
-export function PrimaryMission({ side, referenceFor, guides }: Props) {
+export function PrimaryMission({ view, side, referenceFor, guides }: Props) {
   if (!side.primaryCard) return null
   return (
     <section className="space-y-1.5">
-      <Total label="Primary mission" scored={side.primary} cap={guides.primary} stat="primary" />
-      <div className={CARD}>
+      <p className="eyebrow">Primary mission</p>
+      <div className={`${CARD} space-y-2`}>
         <MissionName name={side.primaryCard.name} card={referenceFor(side.primaryCard.key)} type="Primary mission" />
+        <RoundScores
+          view={view}
+          scores={side.rounds.map((round) => round.primary)}
+          total={side.primary}
+          cap={guides.primary}
+          stat="primary"
+        />
       </div>
     </section>
   )
 }
 
-export function SecondaryMissions({ side, actionable, pending, send, referenceFor, guides }: Props) {
-  const [showResolved, setShowResolved] = useState(false)
+export function SecondaryMissions({ view, side, actionable, pending, send, referenceFor, guides }: Props) {
+  const [showResolved, setShowResolved] = useState<boolean | null>(null)
+  const showingResolved = showResolved ?? view.status === 'finished'
   // A tactical deck deals its own cards, so naming one would be choosing what you were dealt.
   const choosingSecret =
     actionable && side.secondaryMode === 'fixed' && !side.secondaries.some((card) => card.secret) && side.remainingSecondaries.length > 0
   // A card put back into the deck was never really held, so it does not belong in this list at all.
   const drawn = side.secondaries.filter((secondary) => secondary.status !== 'returned')
   const resolved = drawn.filter((secondary) => secondary.status !== 'active')
-  const visible = showResolved ? drawn : drawn.filter((secondary) => secondary.status === 'active')
+  const visible = showingResolved ? drawn : drawn.filter((secondary) => secondary.status === 'active')
   return (
     <section className="space-y-1.5">
-      <Total label="Secondary missions" scored={side.secondary} cap={guides.secondary} stat="secondary" />
-      {drawn.length ? null : <p className="text-xs text-dim">No cards in hand.</p>}
-      {visible.map((secondary) => (
-        <div key={secondary.key} data-secondary={secondary.key} className={`${CARD} space-y-1.5`}>
-          <div className="flex items-baseline gap-2">
-            <span className="min-w-0 flex-1">
-              <MissionName name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" mode={side.secondaryMode} />
-              <span className="mt-0.5 flex flex-wrap gap-1.5 text-3xs font-semibold uppercase">
-                {secondary.secret ? <span className="text-discarded">{secondary.revealed ? 'revealed' : 'secret'}</span> : null}
-                {secondary.status === 'active' ? null : (
-                  <span className={secondary.status === 'achieved' ? 'text-achieved' : 'text-discarded'}>{secondary.status}</span>
-                )}
-              </span>
-            </span>
-            <span className="readout shrink-0 font-bold">{secondary.points}</span>
+      <p className="eyebrow">Secondary missions</p>
+      <div className="border border-transparent px-2.5">
+        <RoundScores
+          view={view}
+          scores={side.rounds.map((round) => round.secondary)}
+          total={side.secondary}
+          cap={guides.secondary}
+          stat="secondary"
+        />
+      </div>
+      {visible.length ? null : <p className="text-xs text-dim">No active missions.</p>}
+      {visible.map((secondary) => {
+        const scoredRounds = secondary.rounds.flatMap((points, index) => (points !== 0 ? [{ round: index + 1, points }] : []))
+        const tacticalActive = secondary.status === 'active' && side.secondaryMode === 'tactical'
+        return (
+          <div key={secondary.key} data-secondary={secondary.key} className={`${CARD} space-y-1.5`}>
+            <div className="flex items-baseline justify-between gap-2">
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+                <MissionName name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" mode={side.secondaryMode} />
+                {secondary.secret ? (
+                  <span className="text-3xs font-semibold text-discarded uppercase">{secondary.revealed ? 'revealed' : 'secret'}</span>
+                ) : null}
+              </div>
+              {tacticalActive ? (
+                <span className="readout shrink-0 text-sm font-bold text-dim">
+                  {secondary.points} <span className="text-3xs font-normal">VP</span>
+                </span>
+              ) : null}
+            </div>
+            {tacticalActive ? (
+              scoredRounds.length ? (
+                <ScoredRounds rounds={scoredRounds} />
+              ) : null
+            ) : secondary.status === 'active' ? (
+              <RoundScores
+                view={view}
+                scores={secondary.rounds}
+                total={secondary.points}
+                cap={side.secondaryMode === 'fixed' ? side.mission?.fixedSecondaryCap : null}
+                labels={false}
+              />
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2 text-3xs">
+                  <span className={`font-semibold uppercase ${secondary.status === 'achieved' ? 'text-achieved' : 'text-discarded'}`}>
+                    {secondary.status}
+                  </span>
+                  <ScoredRounds rounds={scoredRounds} />
+                </div>
+                <span className={`readout text-sm font-bold ${secondary.status === 'achieved' ? 'text-achieved' : 'text-dim'}`}>
+                  {secondary.points} <span className="text-3xs font-normal">VP</span>
+                </span>
+              </div>
+            )}
+            {actionable && secondary.secret && !secondary.revealed ? (
+              <Button
+                variant="ghost"
+                size="xs"
+                className="text-azure"
+                disabled={pending}
+                onClick={() => send({ kind: 'reveal-secret', playerId: side.captain.id })}
+              >
+                Reveal
+              </Button>
+            ) : null}
           </div>
-          {actionable && secondary.secret && !secondary.revealed ? (
-            <Button
-              variant="ghost"
-              size="xs"
-              className="text-azure"
-              disabled={pending}
-              onClick={() => send({ kind: 'reveal-secret', playerId: side.captain.id })}
-            >
-              Reveal
-            </Button>
-          ) : null}
-        </div>
-      ))}
+        )
+      })}
       {resolved.length ? (
-        <Button variant="ghost" size="xs" className="text-azure" onClick={() => setShowResolved((shown) => !shown)}>
-          {showResolved ? 'Hide resolved missions' : `Show ${resolved.length} resolved ${resolved.length === 1 ? 'mission' : 'missions'}`}
+        <Button variant="ghost" size="xs" className="text-azure" onClick={() => setShowResolved(!showingResolved)}>
+          {showingResolved
+            ? 'Hide resolved missions'
+            : `Show ${resolved.length} resolved ${resolved.length === 1 ? 'mission' : 'missions'}`}
         </Button>
+      ) : null}
+      {side.secondaryMode === 'tactical' && side.remainingSecondaries.length > 0 ? (
+        <BattlePromptDialog minimizedLabel="Remaining secondary missions">
+          <DialogTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="xs"
+                className="text-azure"
+                aria-label={`View remaining secondary missions (${side.remainingSecondaries.length})`}
+              />
+            }
+          >
+            Remaining deck · {side.remainingSecondaries.length}
+          </DialogTrigger>
+          <BattleDialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Remaining secondary missions</DialogTitle>
+              <DialogDescription>Cards still available to draw.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              {side.remainingSecondaries.map((card) => (
+                <div key={card.key} className={CARD}>
+                  <MissionName name={card.name} card={referenceFor(card.key)} type="Secondary mission" mode={side.secondaryMode} />
+                </div>
+              ))}
+            </div>
+          </BattleDialogContent>
+        </BattlePromptDialog>
       ) : null}
       {choosingSecret ? (
         <SecretMissionDialog
@@ -104,6 +175,18 @@ export function SecondaryMissions({ side, actionable, pending, send, referenceFo
         />
       ) : null}
     </section>
+  )
+}
+
+function ScoredRounds({ rounds }: { rounds: { round: number; points: number }[] }) {
+  return (
+    <ol className="flex flex-wrap gap-2 text-3xs text-dim" aria-label="Scored rounds">
+      {rounds.map(({ round, points }) => (
+        <li key={round} aria-label={`Round ${round}: ${points} VP`}>
+          {rounds.length === 1 ? `R${round}` : `R${round} · ${points} VP`}
+        </li>
+      ))}
+    </ol>
   )
 }
 
@@ -148,17 +231,58 @@ function SecretMissionDialog({
   )
 }
 
-function Total({ label, scored, cap, stat }: { label: string; scored: number; cap: number; stat: string }) {
+function RoundScores({
+  view,
+  scores,
+  total,
+  cap,
+  stat,
+  labels = true,
+}: {
+  view: Pick<BattleView, 'round' | 'rounds' | 'status'>
+  scores: readonly number[]
+  total: number
+  cap?: number | null
+  stat?: string
+  labels?: boolean
+}) {
   return (
-    <p className="flex items-baseline justify-between gap-2">
-      <span className="eyebrow">{label}</span>
-      <span className="readout text-xs text-dim">
-        <span data-stat={stat} className="text-bone">
-          {scored}
+    <div className="flex items-end gap-2">
+      <ol className="flex min-w-0 flex-1 gap-1" aria-label="Victory points by battle round">
+        {Array.from({ length: view.rounds }, (_, index) => {
+          const round = index + 1
+          const points = scores[index] ?? 0
+          const played = round <= view.round || points !== 0
+          const current = round === view.round && view.status === 'playing'
+          return (
+            <li
+              key={round}
+              className="min-w-0 flex-1 text-center"
+              aria-label={`Round ${round}: ${played ? `${points} VP` : 'not played'}`}
+              aria-current={current ? 'step' : undefined}
+            >
+              {labels ? (
+                <span aria-hidden="true" className={`block text-3xs ${current ? 'font-semibold text-azure' : 'text-faint'}`}>
+                  R{round}
+                </span>
+              ) : null}
+              <span
+                aria-hidden="true"
+                className={`readout flex h-7 items-center justify-center border-b text-xs ${current ? 'rounded-t-sm border-azure bg-azure/10 font-bold text-bone' : played ? 'border-edge text-dim' : 'border-dashed border-edge/50 text-faint'}`}
+              >
+                {played ? points : '–'}
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+      <span className="readout flex h-7 w-12 shrink-0 items-baseline justify-end gap-0.5 pt-1 text-xs text-dim">
+        <span data-stat={stat} className="text-sm font-bold text-bone">
+          {total}
         </span>
-        /{cap}
+        {cap == null ? <span className="text-3xs">VP</span> : `/${cap}`}
       </span>
-    </p>
+    </div>
   )
 }
 

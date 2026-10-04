@@ -36,6 +36,30 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
     openingSecondaries: ['Cleanse', 'Centre Ground'],
   })
 
+  const ongoing = page.locator('[data-panel="player"][data-side="0"]')
+  await expect(ongoing.locator('[data-secondary]')).toHaveCount(2)
+  await expect(ongoing.locator('[data-secondary] [aria-label="Victory points by battle round"]')).toHaveCount(0)
+  for (const width of [900, 1100, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    const missions = await ongoing.locator('[data-missions]').boundingBox()
+    const stratagems = await ongoing.locator('[data-stratagems]').boundingBox()
+    expect(missions && stratagems).toBeTruthy()
+    if (width === 1100) {
+      expect(stratagems!.y).toBeGreaterThan(missions!.y + missions!.height)
+    } else {
+      expect(stratagems!.x).toBeGreaterThan(missions!.x + missions!.width)
+      expect(Math.abs(stratagems!.y - missions!.y)).toBeLessThan(1)
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
+    await ongoing.screenshot({ path: `test-results/ongoing-missions-${width}.png` })
+  }
+  await ongoing.screenshot({ path: 'test-results/ongoing-missions-desktop.png' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await ongoing.screenshot({ path: 'test-results/ongoing-missions-phone.png' })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
+  await page.setViewportSize({ width: 1440, height: 900 })
+
   for (let step = 0; step < 5; step += 1) await advance(page)
   await page.getByRole('button', { name: 'Pass the turn' }).click()
   const scoring = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
@@ -55,6 +79,33 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
   await page.reload()
   await expect(page.locator('[data-panel="player"][data-side="0"] [data-stat="secondary"]')).toHaveText('5')
+  await page
+    .getByRole('dialog', { name: /secondary missions$/ })
+    .getByRole('button', { name: 'Minimize dialog' })
+    .click()
+  const side = page.locator('[data-panel="player"][data-side="0"]')
+  await side.getByRole('button', { name: 'Show 2 resolved missions', exact: true }).click()
+  const cleanse = side.locator('[data-secondary]').filter({ has: page.getByRole('button', { name: 'Read Cleanse', exact: true }) })
+  const centre = side.locator('[data-secondary]').filter({ has: page.getByRole('button', { name: 'Read Centre Ground', exact: true }) })
+  await expect(cleanse.getByRole('listitem', { name: 'Round 1: 2 VP', exact: true })).toBeVisible()
+  await expect(centre.getByRole('listitem', { name: 'Round 1: 3 VP', exact: true })).toHaveText('R1')
+  await expect(cleanse.getByRole('listitem', { name: 'Round 2: not played', exact: true })).toHaveCount(0)
+  await expect(side.locator('[data-missions] .chip')).toHaveCount(0)
+  await expect(side.locator('[data-missions]').getByText(/^(tactical|fixed)$/i)).toHaveCount(0)
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await side.screenshot({ path: 'test-results/mission-scorecards-phone.png' })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await side.screenshot({ path: 'test-results/mission-scorecards-desktop.png' })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
+  await side.getByRole('button', { name: 'View remaining secondary missions (16)' }).click()
+  const remaining = page.getByRole('dialog', { name: 'Remaining secondary missions', exact: true })
+  await expect(remaining.getByRole('button', { name: 'Read Cleanse', exact: true })).toHaveCount(0)
+  await remaining.getByRole('button', { name: 'Read Beacon', exact: true }).click()
+  const beacon = page.getByRole('dialog', { name: 'Beacon', exact: true })
+  await expect(beacon).toBeVisible()
+  await beacon.getByRole('button', { name: 'Close', exact: true }).click()
+  await remaining.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(remaining).toBeHidden()
 })
 
 test('native battle controls leave the application tabs reachable', async ({ page }) => {
