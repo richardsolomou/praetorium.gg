@@ -4,7 +4,7 @@ import type { CatalogueIndex, Definition } from './catalogue'
 import { childrenOf, isCollective, MAX_DEPTH, maximumCount, type Option, pointsOf, requiredCount, resolve } from './definitions'
 import { evaluate, type EvaluateOptions, type Selection } from './evaluate'
 import { defaultSelection, expand, withChoice } from './expand'
-import { countAt, updateSelection, withCounts } from './selection'
+import { at as selectionAt, countAt, updateSelection, withCounts } from './selection'
 import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices, type UnitToggle, unitToggles } from './unitChoices'
 import { boundedGroups, modelCountOf, sizeOf, type UnitSize } from './unitSize'
 import { withUnitChoice, withUnitSpread } from './unitSpread'
@@ -283,7 +283,12 @@ function withOptionalModels(selection: Selection, models: number, index: Catalog
   let result = selection
   for (const slot of optionalModelSlots(selection, index)) {
     if (!remaining) break
-    const added = Math.min(remaining, slot.max - slot.current)
+    const parentPath = slot.path.slice(0, -1)
+    const parent = index.definitions.get(parentPath.at(-1) ?? '')
+    const cap = parent && resolve(parent, index).type === undefined ? maximumCount(parent, index) : null
+    const occupied = selectionAt(result, parentPath)?.selections?.reduce((total, child) => total + (child.count ?? 1), 0) ?? 0
+    const room = cap === null ? remaining : Math.max(0, cap - occupied)
+    const added = Math.min(remaining, slot.max - slot.current, room)
     if (added <= 0) continue
     const count = slot.current + added
     const shallow = withCounts(result, [{ path: slot.path, count }])
