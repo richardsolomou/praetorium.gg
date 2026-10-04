@@ -1,4 +1,6 @@
+import { parseSavedReference, type SavedReference } from './offlineReference'
 import { APP_URL, classifyNavigation } from './navigation'
+import { MAX_APP_SNAPSHOT_BYTES, parseAppSnapshot, type AppSnapshot } from '../../src/contracts/appSnapshot'
 
 const MAX_SHARE_TITLE_LENGTH = 160
 const MAX_SHARE_URL_LENGTH = 2_048
@@ -6,6 +8,8 @@ const MAX_OPEN_WINDOW_URL_LENGTH = 2_048
 const MAX_PRINT_HTML_LENGTH = 2_000_000
 
 export type NativeActionRequest =
+  | { kind: 'app-snapshot'; id: string; snapshot: AppSnapshot | null }
+  | { kind: 'offline-save'; id: string; reference: SavedReference }
   | { kind: 'back-gesture'; enabled: boolean }
   | { kind: 'battle-active'; active: boolean }
   | { kind: 'haptic' }
@@ -28,6 +32,19 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
   try {
     const value = JSON.parse(message) as Record<string, unknown>
     if (value.version !== 3) return null
+    if (
+      value.type === 'native-app-snapshot' &&
+      typeof value.id === 'string' &&
+      /^[\w-]{1,64}$/.test(value.id) &&
+      message.length <= MAX_APP_SNAPSHOT_BYTES + 1024
+    ) {
+      const snapshot = value.snapshot === null ? null : parseAppSnapshot(value.snapshot)
+      return value.snapshot === null || snapshot ? { kind: 'app-snapshot', id: value.id, snapshot } : null
+    }
+    if (value.type === 'native-offline-save' && typeof value.id === 'string' && /^[\w-]{1,64}$/.test(value.id)) {
+      const reference = parseSavedReference({ html: value.html, savedAt: value.savedAt })
+      return reference ? { kind: 'offline-save', id: value.id, reference } : null
+    }
     if (value.type === 'native-back-gesture' && typeof value.enabled === 'boolean') {
       return { kind: 'back-gesture', enabled: value.enabled }
     }
@@ -63,7 +80,7 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
 }
 
 export const NATIVE_BRIDGE_SCRIPT = `(() => {
-  const capabilities = ['app-navigation', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'notifications', 'open-window', 'print', 'share'];
+  const capabilities = ['app-navigation', 'app-snapshot', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'notifications', 'offline-reference', 'open-window', 'print', 'share'];
   window.PraetoriumNative = Object.freeze({ bridgeVersion: 3, capabilities });
   const disableZoom = () => {
     const viewport = document.querySelector('meta[name="viewport"]');

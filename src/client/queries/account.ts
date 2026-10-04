@@ -1,3 +1,5 @@
+import { reconcileAppAccount } from '../offline/appSnapshot'
+import { clearSavedApp } from '../offline/appStorage'
 import { infiniteQueryOptions, keepPreviousData, queryOptions, type QueryClient } from '@tanstack/react-query'
 import type { AdminUserFilter, AdminUserSort, AdminUsersCursor } from '../../admin'
 import {
@@ -18,7 +20,23 @@ import {
 } from '../../server/functions'
 import { SSR_STALE_TIME } from './shared'
 
-export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(), staleTime: SSR_STALE_TIME })
+export const meQuery = () =>
+  queryOptions({
+    queryKey: ['me'],
+    queryFn: async ({ client, signal }) => {
+      const user = await me({
+        signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
+        fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }),
+      })
+      signal.throwIfAborted()
+      if (typeof window !== 'undefined' && reconcileAppAccount(client, user)) {
+        client.setQueryData(['me'], user)
+        await clearSavedApp().catch(() => {})
+      }
+      return user
+    },
+    staleTime: SSR_STALE_TIME,
+  })
 export const notificationSettingsQuery = () =>
   queryOptions({ queryKey: ['notification-settings'], queryFn: () => notificationSettings(), staleTime: SSR_STALE_TIME })
 export const playerDefaultsQuery = () =>

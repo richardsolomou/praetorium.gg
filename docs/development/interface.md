@@ -69,6 +69,16 @@ Administration uses shared account controls, server-side filtering/pagination, a
 
 Keep rendering bounded, cache only public results, and preserve glyph coverage limitations. The image renderer's static fonts and WebAssembly bundling are deliberate; verify compatibility before changing its pinned dependencies. [Agent reference](agent-reference.md#crawlers) owns crawler discovery and initial-HTML verification.
 
+## Saved application data
+
+Keep saved lookup in the normal interface, without offline banners or download/update controls. Restore successful screen data before routing; refresh in the background without resetting navigation, scroll, or expanded content. Failed refreshes retain the last successful response.
+
+[`src/client/offline`](../../src/client/offline) owns reference downloads, account snapshots, and refreshes. [`src/contracts/appSnapshot.ts`](../../src/contracts/appSnapshot.ts) owns saved-query eligibility and limits. Exclude authentication secrets, administration, and impersonated accounts; clear private data on sign-out or account changes, including other browser tabs. Saved responses are display data, not authentication or another authority for roster edits and battle commands.
+
+Production browsers use Cache Storage and IndexedDB; development websites do not install the service worker. [Mobile](mobile.md#saved-application-data) owns native storage and launch behavior. Authentication and API documents retain their hosted path.
+
+Run `just e2e offline.spec.ts app-cache.spec.ts` after changes to this flow. The journeys must cover cold offline Home, roster/battle feeds and details, unvisited public references, search, automatic reconnect updates without a reload, connected edits, and sign-out cleanup across tabs.
+
 ## Verification
 
 Inspect affected surfaces at desktop and phone widths before the relevant browser flow. Test the same components before and after hydration, on hard requests and client navigation, and with delayed requests. Check horizontal overflow, final-control scroll space, keyboard/touch access, and loading geometry.

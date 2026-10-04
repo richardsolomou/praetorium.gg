@@ -1,3 +1,4 @@
+import { offlineAppPlugin } from './scripts/lib/offlineAppPlugin.ts'
 import { defineConfig, loadEnv } from 'vite'
 import path from 'node:path'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
@@ -92,6 +93,7 @@ export default defineConfig(({ mode }) => {
         },
       }),
       viteReact(),
+      offlineAppPlugin(),
       tailwindcss(),
       ...webSourceMapPlugins(env).map((plugin) => ({
         ...plugin,

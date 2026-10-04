@@ -1,0 +1,6 @@
+appId: gg.praetorium
+---
+- tapOn: Praetorium home
+- assertVisible: '(?i)Native saved army.*'
+- assertNotVisible: Refresh now
+- takeScreenshot: native-app-saved

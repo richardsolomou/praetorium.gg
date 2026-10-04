@@ -1,4 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
+import { referenceData } from '../offline/runtime'
 import { catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedCount } from '../../server/functions'
 import type { ReferenceLink } from '../../contracts/catalogueChanges'
 import { SSR_STALE_TIME } from './shared'
@@ -18,7 +19,16 @@ export const catalogueChangeLogQuery = (before?: string, faction?: string) =>
 export const referenceChangesQuery = (link: ReferenceLink) =>
   queryOptions({
     queryKey: ['reference-changes', link.kind, link.faction, link.slug],
-    queryFn: () => referenceChanges({ data: link }),
+    networkMode: 'always',
+    queryFn: async ({ signal }) => {
+      if (referenceData() && !navigator.onLine) return []
+      try {
+        return await referenceChanges({ data: link, signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) })
+      } catch (error) {
+        if (referenceData()) return []
+        throw error
+      }
+    },
     staleTime: SSR_STALE_TIME,
   })
 

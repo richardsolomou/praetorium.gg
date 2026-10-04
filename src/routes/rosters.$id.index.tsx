@@ -5,13 +5,13 @@ import {
   battleQuery,
   leagueRosterQuery,
   rosterAccessQuery,
+  rosterBootstrapQuery,
   rosterChangesQuery,
   savedRosterPriceQuery,
   outdatedLeagueEntriesQuery,
 } from '../client/queries'
 import { pageHead, rosterExposure, rosterPreview } from '../client/linkPreview'
 import { normalisePicks } from '../client/features/rosters/rosterPicks'
-import { rosterBootstrap } from '../server/functions'
 
 export const Route = createFileRoute('/rosters/$id/')({
   // A battle token is what lets an entitled battle reader open a list that is otherwise private.
@@ -35,10 +35,10 @@ export const Route = createFileRoute('/rosters/$id/')({
       if (!roster) throw notFound()
       return { editable: false, snapshot: true }
     }
-    const bootstrap = await rosterBootstrap({ data: { id: params.id, ...(deps.battle ? { battle: deps.battle } : {}) } })
+    const bootstrap = await context.queryClient.query({ ...rosterBootstrapQuery(params.id, deps.battle), staleTime: 'static' })
     if (!bootstrap) throw notFound()
     const { roster, editable, variants, differences, faction, price, changes } = bootstrap
-    if (editable) await context.queryClient.query(outdatedLeagueEntriesQuery(params.id))
+    if (editable) await context.queryClient.query({ ...outdatedLeagueEntriesQuery(params.id), staleTime: 'static' })
     const access = { roster, editable, variants, differences, faction }
     context.queryClient.setQueryData(rosterAccessQuery(params.id, deps.battle).queryKey, access)
     context.queryClient.setQueryData(rosterChangesQuery(params.id).queryKey, changes)

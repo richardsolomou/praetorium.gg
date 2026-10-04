@@ -1,3 +1,4 @@
+import { offlineData } from '../client/offline/runtime'
 import type { QueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext } from '@tanstack/react-router'
 import sofiaSans from '@fontsource-variable/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-wght-normal.woff2?url'
@@ -28,9 +29,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; orig
       ...siteMeta(match.context.origin),
     ],
     links: [
-      { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
-      { rel: 'stylesheet', href: appCss },
-      ...[sofiaSans, chakraPetch, martianMono].map((href) => ({
+      ...(offlineData() ? [] : [{ rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }]),
+      ...(offlineData() ? [] : [{ rel: 'stylesheet', href: appCss }]),
+      ...(offlineData() ? [] : [sofiaSans, chakraPetch, martianMono]).map((href) => ({
         rel: 'preload' as const,
         href,
         as: 'font' as const,

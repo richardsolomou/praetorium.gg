@@ -33,6 +33,16 @@ Callback delivery waits for the remounted document, confirms the destination loa
 
 Remounting clears `sessionStorage`, so an unsaved visitor roster does not survive system-provider sign-in. Email sign-in stays in the document. Provider linking transfers the existing session through Better Auth's single-use token; failure between token consumption and callback requires restarting the link flow.
 
+## Saved application data
+
+[`mobile/src/offlineReferenceStorage.ts`](../../mobile/src/offlineReferenceStorage.ts) stores the public reference and application bundle; [`mobile/src/appSnapshotStorage.ts`](../../mobile/src/appSnapshotStorage.ts) stores account-scoped screen data. Keep files separate by application origin. Check replacements before discarding previous data, retain a recoverable reference generation, and ignore incomplete writes. [Interface](interface.md#saved-application-data) owns snapshot eligibility and the seamless lookup contract.
+
+A saved launch opens Home in the normal WebView with background refresh. Deep links stay in the same application. Preserve the hosted authentication/receipt path, native capabilities, cookies, and ordinary mutation origin checks. The `offline-reference` and `app-snapshot` capabilities gate storage support; older shells keep their existing path.
+
+Run `just e2e-native-offline-ios` after changing saved launch or storage. It extends the authentication journey with a cold launch while the service is unreachable, saved Home/rosters/battles, unvisited references, and foreground refresh that preserves the open rule. Also verify airplane mode and reopening on a signed physical iPhone; Android needs an available emulator or device.
+
+Set `NATIVE_AUTH_KEEP_STACK=1` only when leaving a verified simulator preview running. Its origin and owning process are recorded in the ignored `mobile/.simulator-derived/native-auth-e2e/preview-owner.json`; stop that process to clean up its stack.
+
 ## Notifications
 
 `expo-notifications` uses Expo delivery through APNs and FCM. The web bridge carries request IDs; permission is requested only after the player chooses to allow notifications. Home's dismissed offer stays dismissed for that installation. Signed-in document loads silently register an already-authorized token.

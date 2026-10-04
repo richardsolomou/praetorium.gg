@@ -130,6 +130,10 @@ e2e-run *args:
 e2e-native-auth-ios:
     pnpm test:e2e:native-auth:ios
 
+# Save a native reference, stop its service, and reopen it from device storage
+e2e-native-offline-ios:
+    NATIVE_OFFLINE_VERIFY=1 pnpm test:e2e:native-auth:ios
+
 e2e-trace *args:
     PLAYWRIGHT_TRACE=1 pnpm exec playwright test {{ args }}
 

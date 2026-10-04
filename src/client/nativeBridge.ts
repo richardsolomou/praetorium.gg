@@ -1,4 +1,5 @@
 type NativeCapability =
+  | 'app-snapshot'
   | 'account'
   | 'app-navigation'
   | 'back-gesture'
@@ -6,6 +7,7 @@ type NativeCapability =
   | 'haptic'
   | 'github-auth'
   | 'notifications'
+  | 'offline-reference'
   | 'open-window'
   | 'print'
   | 'share'
@@ -122,4 +124,50 @@ export async function shareLink(url: string, title?: string): Promise<'copied' |
   if (send('share', { type: 'native-share', url, ...(title ? { title } : {}) })) return 'shared'
   await navigator.clipboard.writeText(url)
   return 'copied'
+}
+
+export function supportsNativeOffline() {
+  return supports('offline-reference')
+}
+
+export function supportsNativeAppSnapshot() {
+  return supports('app-snapshot')
+}
+
+export function requestNativeAppSnapshot(snapshot: import('../contracts/appSnapshot').AppSnapshot | null): Promise<boolean> {
+  if (!supportsNativeAppSnapshot()) return Promise.resolve(false)
+  const id = crypto.randomUUID()
+  return new Promise((resolve) => {
+    const finish = (saved: boolean) => {
+      clearTimeout(timer)
+      window.removeEventListener('praetorium-native-app-snapshot', listen)
+      resolve(saved)
+    }
+    const listen = (event: Event) => {
+      const answer = (event as CustomEvent<{ id?: string; saved?: boolean }>).detail
+      if (answer?.id === id) finish(answer.saved === true)
+    }
+    const timer = setTimeout(() => finish(false), 15_000)
+    window.addEventListener('praetorium-native-app-snapshot', listen)
+    if (!send('app-snapshot', { type: 'native-app-snapshot', id, snapshot })) finish(false)
+  })
+}
+
+export function requestNativeOfflineSave(doc: { html: string; savedAt: number }): Promise<boolean> {
+  if (!supportsNativeOffline()) return Promise.resolve(false)
+  const id = crypto.randomUUID()
+  return new Promise((resolve) => {
+    const finish = (saved: boolean) => {
+      clearTimeout(timer)
+      window.removeEventListener('praetorium-native-offline', listen)
+      resolve(saved)
+    }
+    const listen = (event: Event) => {
+      const answer = (event as CustomEvent<{ id?: string; saved?: boolean }>).detail
+      if (answer?.id === id) finish(answer.saved === true)
+    }
+    const timer = setTimeout(() => finish(false), 60_000)
+    window.addEventListener('praetorium-native-offline', listen)
+    if (!send('offline-reference', { type: 'native-offline-save', id, ...doc })) finish(false)
+  })
 }

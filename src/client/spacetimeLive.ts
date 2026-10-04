@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { useCallback, useEffect, useState } from 'react'
 import { z } from 'zod'
@@ -9,37 +9,24 @@ import { invalidateAdminProductQueries, invalidateProductQueries, invalidatePubl
 import { spacetimeBrowserUri } from './spacetimeBrowserUri'
 import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
 
-type RealtimeConfig = { mode: 'spacetime'; database: string; uri: string }
-let modePromise: Promise<RealtimeConfig> | null = null
-
 export function useRealtimeConfig() {
-  const [config, setConfig] = useState<RealtimeConfig | null>(null)
+  const { data, error } = useQuery({
+    queryKey: ['realtime-mode'],
+    queryFn: async ({ signal }) => {
+      const response = await fetch('/api/realtime/mode', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]) })
+      if (!response.ok) throw new RealtimeHttpError('Realtime mode', response.status)
+      const parsed = z.object({ mode: z.literal('spacetime'), database: z.string().min(1), uri: z.url() }).parse(await response.json())
+      return { ...parsed, uri: spacetimeBrowserUri(parsed.uri, window.location.origin) }
+    },
+    staleTime: Infinity,
+  })
   useEffect(() => {
-    let active = true
-    modePromise ??= fetch('/api/realtime/mode')
-      .then((response) => {
-        if (!response.ok) throw new RealtimeHttpError('Realtime mode', response.status)
-        return response.json()
-      })
-      .then((value: unknown) => {
-        const parsed = z.object({ mode: z.literal('spacetime'), database: z.string().min(1), uri: z.url() }).parse(value)
-        return { ...parsed, uri: spacetimeBrowserUri(parsed.uri, window.location.origin) }
-      })
-      .catch((error: unknown) => {
-        modePromise = null
-        throw error
-      })
-    void modePromise
-      .then((value) => {
-        if (active) setConfig(value)
-      })
-      .catch(report)
-    return () => {
-      active = false
-    }
-  }, [])
-  return config
+    if (error) report(error)
+  }, [error])
+  return data ?? null
 }
+
+type RealtimeConfig = NonNullable<ReturnType<typeof useRealtimeConfig>>
 
 const ticketSchema = z.object({
   token: z.string().min(1),

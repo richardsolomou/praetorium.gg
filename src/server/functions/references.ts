@@ -1,3 +1,4 @@
+import { activeReferenceCorpus } from '../referenceApi'
 import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
@@ -410,3 +411,20 @@ export const terrainReferences = createServerFn({ method: 'GET' })
  * quietly.
  */
 export type { GlobalSearchResult }
+
+export const offlineReferenceManifest = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const [corpus, search] = await Promise.all([activeReferenceCorpus(), app().searchIndexFor()])
+    if (!corpus || !search) throw new Error('Reference data is unavailable')
+    cacheUntilSnapshotChanges()
+    return { revision: corpus.revision, search }
+  }),
+)
+
+export const offlineReferenceRevision = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const corpus = await activeReferenceCorpus()
+    if (!corpus) throw new Error('Reference data is unavailable')
+    return { revision: corpus.revision }
+  }),
+)

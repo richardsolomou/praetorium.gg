@@ -1,3 +1,6 @@
+import { offlineData } from '../../offline/runtime'
+import { OfflineReference } from '../../offline/OfflineReference'
+import { AppPersistence } from '../../offline/AppPersistence'
 import { version } from '../../../../package.json'
 import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation, useMatch } from '@tanstack/react-router'
@@ -169,6 +172,7 @@ export function AppShell() {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        {offlineData() ? <style dangerouslySetInnerHTML={{ __html: offlineData()!.css }} /> : null}
       </head>
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
         <PostHogIntegration environment={posthog} options={POSTHOG_BROWSER_OPTIONS} service={posthogService}>
@@ -187,7 +191,7 @@ export function AppShell() {
                       to="/"
                       className="group flex shrink-0 items-center gap-1.5 font-display text-base leading-none font-bold tracking-label text-bone uppercase hover:text-info"
                     >
-                      <img src="/logo.svg" alt="" className="size-7 transition-transform group-hover:rotate-180" />
+                      <img src={offlineData()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-180" />
                       <span className="min-[860px]:hidden min-[1100px]:inline">Praetorium</span>
                     </Link>
                     <PrimaryNavigation path={path} />
@@ -206,7 +210,11 @@ export function AppShell() {
                       aria-label="Praetorium home"
                       className="group flex min-w-0 items-center gap-2 font-display text-[0.9375rem] font-bold tracking-label text-bone uppercase hover:text-info"
                     >
-                      <img src="/logo.svg" alt="" className="size-7 shrink-0 transition-transform group-hover:rotate-180" />
+                      <img
+                        src={offlineData()?.logo ?? '/logo.svg'}
+                        alt=""
+                        className="size-7 shrink-0 transition-transform group-hover:rotate-180"
+                      />
                       <span className="truncate">Praetorium</span>
                     </Link>
                     <span className="ml-auto flex items-center">
@@ -221,6 +229,8 @@ export function AppShell() {
                   data-immersive={immersive || undefined}
                   className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'flex min-h-0 flex-1 flex-col [&>main]:flex-1'}
                 >
+                  <OfflineReference />
+                  <AppPersistence />
                   <Outlet />
                 </div>
                 <NativeAppNavigation
@@ -269,7 +279,7 @@ export function AppShell() {
             </GlobalSearchProvider>
           </TooltipProvider>
         </PostHogIntegration>
-        <Scripts />
+        {offlineData() ? null : <Scripts />}
       </body>
     </html>
   )
