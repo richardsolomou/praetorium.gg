@@ -1,12 +1,14 @@
-import { MutationCache } from '@tanstack/react-query'
-import { createStackQueryClient, queryErrorMessage } from 'ras-stack/tanstack/query'
+import { MutationCache, QueryClient } from '@tanstack/react-query'
 
 export function createQueryClient() {
-  const client = createStackQueryClient({
+  const client = new QueryClient({
+    defaultOptions: { queries: { staleTime: 1000 } },
     // Onboarding progress is folded from rows anything can write, so any successful write may have finished a task.
     mutationCache: new MutationCache({ onSuccess: () => void client.invalidateQueries({ queryKey: ['onboarding'] }) }),
   })
   return client
 }
 
-export const errorMessage = queryErrorMessage
+export function errorMessage(error: unknown, fallback = 'Something went wrong. Try again.') {
+  return error instanceof Error && error.message ? error.message : fallback
+}
