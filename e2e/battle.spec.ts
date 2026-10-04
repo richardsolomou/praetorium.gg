@@ -532,7 +532,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   const stackedStratagemPosition = await ownPanel.locator('button[aria-label^="About "]').first().boundingBox()
   const stackedPrimaryPosition = await ownPanel.locator('[data-stat="primary"]').boundingBox()
   expect(stackedStratagemPosition && stackedPrimaryPosition).toBeTruthy()
-  expect(stackedStratagemPosition!.y).toBeLessThan(stackedPrimaryPosition!.y)
+  expect(stackedStratagemPosition!.y).toBeGreaterThan(stackedPrimaryPosition!.y)
   await alice.screenshot({ path: 'test-results/battle-stacked-desktop.png', fullPage: true })
   // The same panel on a phone, reached the same way. Only one panel is on screen at
   // a time there, so the scoreboard names the players again.
@@ -544,7 +544,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   const stratagemPosition = await ownPanel.locator('button[aria-label^="About "]').first().boundingBox()
   const primaryPosition = await ownPanel.locator('[data-stat="primary"]').boundingBox()
   expect(stratagemPosition && primaryPosition).toBeTruthy()
-  expect(stratagemPosition!.y).toBeLessThan(primaryPosition!.y)
+  expect(stratagemPosition!.y).toBeGreaterThan(primaryPosition!.y)
   const shownSecondaries = await ownPanel.locator('[data-secondary]').count()
   const resolvedToggle = ownPanel.getByRole('button', { name: /Show \d+ resolved missions?/ })
   const resolvedCount = Number((await resolvedToggle.innerText()).match(/\d+/)?.[0])
