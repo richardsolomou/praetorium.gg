@@ -10,6 +10,7 @@ import { deploymentsQuery, gameReferencesQuery } from '../../../queries'
 import { missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../../../sides'
 import type { SendCommand } from '../useCommand'
 import { SearchableSelect, type SearchableGroup } from '../../../components/SearchableSelect'
+import { advanceOnboarding } from '../../onboarding/onboarding'
 import { Battlefield } from './Battlefield'
 import { ArmiesStep } from './ArmiesStep'
 import { CHOOSABLE, CHOSEN, DispositionChip, SetupPanel, useDispositionNames } from './chrome'
@@ -67,6 +68,16 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
   const { data: references } = useQuery(gameReferencesQuery())
   // Logs from battles already in setup can still point at the former Armies section.
   const at = Math.max(0, view.setupStep - 1)
+  useEffect(() => {
+    if (at === 1) advanceOnboarding('battle', 'battle-setup-armies', 'battle-setup-mission')
+    if (at === 2) advanceOnboarding('battle', 'battle-setup-mission', 'battle-setup-battlefield')
+    if (at === 3) advanceOnboarding('battle', 'battle-setup-battlefield', 'battle-setup-defender')
+    if (at === 4) advanceOnboarding('battle', 'battle-setup-defender', 'battle-setup-secondaries')
+    if (at === 5) advanceOnboarding('battle', 'battle-setup-secondaries', 'battle-setup-reserves')
+    if (at === 6) advanceOnboarding('battle', 'battle-setup-reserves', 'battle-setup-deploy')
+    if (at === 7) advanceOnboarding('battle', 'battle-setup-deploy', 'battle-setup-first')
+    if (at === 8) advanceOnboarding('battle', 'battle-setup-first', 'battle-setup-begin')
+  }, [at])
   const logStep = (step: number) => (step === 0 ? 0 : step + 1)
   const nameDisposition = useDispositionNames()
   const { data: deployments } = useQuery(deploymentsQuery())
@@ -230,7 +241,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
           {at === 0 ? (
             <>
               <SetupPanel className="grid gap-4 sm:grid-cols-2">
-                <div>
+                <div data-onboarding="battle-setup-size">
                   {view.leagueToken ? (
                     <>
                       <p className="eyebrow">Battle size</p>
@@ -293,7 +304,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
               <SideDispositionChoice sides={table} nameDisposition={nameDisposition} send={send} />
               <SetupPanel className="space-y-3">
                 <p className="eyebrow">Primary missions</p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div data-onboarding="battle-setup-mission" className="grid gap-2 sm:grid-cols-2">
                   {table.map((side) => {
                     const card = side.mission ? primaryCardFor(side.mission.id) : undefined
                     const body = (

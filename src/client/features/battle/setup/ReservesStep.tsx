@@ -23,7 +23,7 @@ type Props = { sides: Side[]; redeploy: boolean; send: (command: Command) => voi
 /** Where every unit starts: on the battlefield, or held back to arrive later. */
 export function ReservesStep({ sides, redeploy, send }: Props) {
   return (
-    <div className="space-y-4">
+    <div data-onboarding="battle-setup-reserves" className="space-y-4">
       <div>
         {/* Setting the table is often done from one device, so nobody has to hand a phone across it. */}
         <SetupNote>

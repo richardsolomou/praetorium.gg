@@ -39,6 +39,7 @@ export function PreBattleRulesStep({ sides, first, ready, pending, send }: Props
       <PrebattleUnits sides={sides} rule="scouts" empty="No unit has a pre-battle move." />
       <SetupPanel>
         <Button
+          data-onboarding="battle-setup-begin"
           className="h-12 w-full text-base"
           disabled={pending || !first}
           onClick={() => {

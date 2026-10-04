@@ -6,7 +6,7 @@ async function expectOnboardingProgress(page: Parameters<typeof signUp>[0], reso
     .locator('[data-web-app-chrome]')
     .getByRole('button', { name: /Account menu for/ })
     .click()
-  await expect(page.getByRole('menuitem', { name: /Getting started/ })).toContainText(`${resolved}/6`)
+  await expect(page.getByRole('menuitem', { name: /Getting started/ })).toContainText(`${resolved}/8`)
   await page.keyboard.press('Escape')
 }
 
@@ -367,7 +367,7 @@ test('onboarding waits in the profile menu and disappears when complete', async 
   await account.click()
 
   const gettingStarted = page.getByRole('menuitem', { name: /Getting started/ })
-  await expect(gettingStarted).toContainText('0/6')
+  await expect(gettingStarted).toContainText('0/8')
   await expect(gettingStarted).toContainText('New')
   await page.screenshot({ path: 'test-results/account-menu-onboarding.png', fullPage: true })
   await gettingStarted.click()
@@ -381,7 +381,7 @@ test('onboarding waits in the profile menu and disappears when complete', async 
   await account.click()
 
   await expect(page.getByRole('menuitem', { name: 'My profile' })).toContainText(name)
-  await expect(gettingStarted).toContainText('0/6')
+  await expect(gettingStarted).toContainText('0/8')
   await expect(gettingStarted).not.toContainText('New')
   const feedback = page.getByRole('menuitem', { name: 'Send feedback' })
   await expect(feedback).toHaveAttribute('href', 'https://github.com/richardsolomou/praetorium.gg/issues')
@@ -404,6 +404,8 @@ test('onboarding waits in the profile menu and disappears when complete', async 
     'Join or run a league',
     'Explore the game reference',
     'Follow games and players',
+    'Compare units in combat',
+    'Import and manage armies',
   ]) {
     const skip = page.getByRole('button', { name: `Skip ${task}` })
     await skip.click()

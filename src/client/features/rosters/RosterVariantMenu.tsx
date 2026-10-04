@@ -33,7 +33,14 @@ export function RosterVariantMenu({
     <Popover>
       <PopoverTrigger
         disabled={disabled}
-        render={<Button variant="ghost" size="icon-sm" aria-label={`Variant ${position} of ${variants.length}`} />}
+        render={
+          <Button
+            data-onboarding="roster-variants"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Variant ${position} of ${variants.length}`}
+          />
+        }
       >
         <Layers />
       </PopoverTrigger>

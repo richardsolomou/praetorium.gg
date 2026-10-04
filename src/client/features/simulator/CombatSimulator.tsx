@@ -3,6 +3,7 @@ import { posthog } from 'posthog-js'
 import { ArrowLeftRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageContent, PageHeader } from '../../components/Page'
+import { advanceOnboarding, ONBOARDING_FOCUS_EVENT } from '../onboarding/onboarding'
 import { CombatantCard } from './CombatantCard'
 import { CombatMatchup } from './CombatMatchup'
 import { CombatBuffControls } from './CombatBuffControls'
@@ -78,6 +79,15 @@ export function CombatSimulatorMatchup({
   useEffect(() => {
     onChange?.(JSON.parse(state) as SimulatorState)
   }, [state, onChange])
+  useEffect(() => {
+    const advance = () => {
+      if (attacker.snapshot) advanceOnboarding('simulator', 'simulator-attacker', 'simulator-defender')
+      if (attacker.snapshot && defender.snapshot) advanceOnboarding('simulator', 'simulator-defender', 'simulator-results')
+    }
+    advance()
+    window.addEventListener(ONBOARDING_FOCUS_EVENT, advance)
+    return () => window.removeEventListener(ONBOARDING_FOCUS_EVENT, advance)
+  }, [attacker.snapshot, defender.snapshot])
   const failed = attacker.price.isError || attacker.sheets.isError || defender.price.isError || defender.sheets.isError
   return (
     <CombatMatchup
@@ -101,6 +111,7 @@ export function CombatSimulatorMatchup({
               variant="ghost"
               size="sm"
               className="text-dim"
+              data-onboarding="simulator-swap"
               aria-label="Swap attacker and defender"
               onClick={() => setReversed((current) => !current)}
               disabled={!attacker.snapshot || !defender.snapshot || !attacker.ready || !defender.ready || failed}
