@@ -381,7 +381,12 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     wargearCounts.set(key, (wargearCounts.get(key) ?? 0) + count)
   }
   const equippedCounts = new Map<string, number>()
-  for (const carrier of selectedUnit ? combatCarriers(selectedUnit, loaded.index) : []) {
+  for (const carrier of selectedUnit
+    ? combatCarriers(selectedUnit, loaded.index, {
+        primaryCatalogueId: catalogueId,
+        roster: context?.selections.filter((entry) => entry !== selectedUnit),
+      })
+    : []) {
     for (const weapon of carrier.weapons) {
       for (const id of weapon.profileIds ?? []) equippedCounts.set(id, (equippedCounts.get(id) ?? 0) + weapon.count)
     }
@@ -737,7 +742,7 @@ export function datasheetViewsIn(
     : []
   return {
     controlledChoices,
-    carriers: selection ? combatCarriers(selection, loaded.index) : [],
+    carriers: selection ? combatCarriers(selection, loaded.index, options) : [],
     selected: datasheetIn(loaded, catalogueId, entryId, shared),
     available: datasheetIn(loaded, catalogueId, entryId, { ...shared, everyWeapon: true, everyWargearAbility: true }),
   }

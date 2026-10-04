@@ -30,7 +30,10 @@ export function rosterCombatant(
   if (!sheet) return null
   return {
     selected: sheet,
-    carriers: combatCarriers(context.selections[context.unitSelectionIndex]!, loaded.index),
+    carriers: combatCarriers(context.selections[context.unitSelectionIndex]!, loaded.index, {
+      primaryCatalogueId: data.catalogueId,
+      roster: context.selections.filter((_, index) => index !== context.unitSelectionIndex),
+    }),
     rules: rosterCombatRules(loaded, rules, data, context, sheet),
   }
 }

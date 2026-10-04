@@ -1,9 +1,9 @@
 import type { CatalogueIndex, Definition, Profile } from './catalogue'
 import type { StructuredDatasheetProfile } from './datasheet'
-import { storesUnitTotal } from './collective'
+import { isCollectiveGroup, storesUnitTotal } from './collective'
 import { resolve } from './definitions'
 import { datasheetProfileKind } from './datasheetStructure'
-import type { Selection } from './evaluate'
+import { selectionCountBoundsAt, type EvaluateOptions, type Selection } from './evaluate'
 import { wargearKey, wargearOf, type Wargear } from './wargear'
 
 export type CombatEquipment = Wargear & { profileIds?: string[] }
@@ -59,19 +59,46 @@ function equippedWeapons(selection: Selection, index: CatalogueIndex, models: nu
 }
 
 /** Preserve model ownership before the datasheet merges equal weapon profiles. */
-export function combatCarriers(selection: Selection, index: CatalogueIndex): CombatCarrier[] {
+export function combatCarriers(selection: Selection, index: CatalogueIndex, options: EvaluateOptions = {}): CombatCarrier[] {
   const found: CombatCarrier[] = []
-  const visit = (node: Selection) => {
+  const visit = (node: Selection, path: string[]) => {
     if ((node.count ?? 1) <= 0) return
     const definition = index.definitions.get(node.id)
     const target = definition && resolve(definition, index)
     if (target?.type === 'model') {
-      found.push({ name: target.name ?? node.id, models: node.count ?? 1, weapons: equippedWeapons(node, index, node.count ?? 1) })
+      const models = node.count ?? 1
+      const mixed = (node.selections ?? []).filter((child) => {
+        const group = index.definitions.get(child.id)
+        return group && isCollectiveGroup(group, index) && (child.selections ?? []).filter((entry) => (entry.count ?? 1) > 0).length > 1
+      })
+      const group = mixed.length === 1 ? mixed[0] : undefined
+      const allocated = group?.selections?.filter((entry) => (entry.count ?? 1) > 0) ?? []
+      const shared = { ...node, selections: node.selections?.filter((child) => child !== group) }
+      const sharedWeapons = group ? equippedWeapons(shared, index, models) : []
+      // One exclusive choice fixes ownership; independent partial choices cannot be correlated.
+      const separate =
+        group &&
+        allocated.reduce((total, entry) => total + (entry.count ?? 1), 0) === models &&
+        sharedWeapons.every((weapon) => weapon.count % models === 0) &&
+        selectionCountBoundsAt(selection, [...path, group.id], index, options)?.maximum === 1
+      if (separate)
+        for (const entry of allocated) {
+          const count = entry.count ?? 1
+          found.push({
+            name: target.name ?? node.id,
+            models: count,
+            weapons: [
+              ...sharedWeapons.map((weapon) => ({ ...weapon, count: (weapon.count / models) * count })),
+              ...equippedWeapons({ ...group, selections: [entry] }, index, count),
+            ],
+          })
+        }
+      else found.push({ name: target.name ?? node.id, models, weapons: equippedWeapons(node, index, models) })
       return
     }
-    node.selections?.forEach(visit)
+    node.selections?.forEach((child) => visit(child, [...path, child.id]))
   }
-  visit(selection)
+  visit(selection, [])
   const definition = index.definitions.get(selection.id)
   const name = (definition && resolve(definition, index).name) ?? selection.id
   if (!found.length) return [{ name, models: 1, weapons: equippedWeapons(selection, index, 1) }]
