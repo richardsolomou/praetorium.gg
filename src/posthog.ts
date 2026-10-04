@@ -1,4 +1,3 @@
-import { definePostHogCoverage } from 'ras-stack/posthog'
 import type { BeforeSendFn, PostHogConfig } from 'posthog-js'
 import { nativeBridgeVersion } from './client/nativeBridge'
 
@@ -65,17 +64,3 @@ export const POSTHOG_BROWSER_OPTIONS = {
   session_recording: { maskAllInputs: true },
   before_send: browserEventContext,
 } satisfies Partial<PostHogConfig>
-
-export const postHogCoverage = definePostHogCoverage({
-  browser: {
-    analytics: true,
-    errorTracking: true,
-    featureFlags: true,
-    identity: true,
-    logs: true,
-    metrics: true,
-    sessionReplay: true,
-  },
-  server: { analytics: true, errorTracking: true, logs: true, metrics: true, tracing: true },
-  sourceMaps: true,
-})
