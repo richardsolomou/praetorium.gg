@@ -1,3 +1,13 @@
+import { routeSlug } from '../core/slug'
+
+export function deploymentName(id: string | null, deployments: readonly { id: string; name: string }[] = []): string | null {
+  return (
+    deployments.find((deployment) => deployment.id === id)?.name ??
+    deployments.find((deployment) => routeSlug(deployment.name) === id)?.name ??
+    null
+  )
+}
+
 /** Fold list rows by side, not seat order: a 2v1 creator can sit beside an ally in the first two seats. */
 export type BattleSummary = {
   players: readonly string[]

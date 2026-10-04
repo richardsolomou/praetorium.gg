@@ -139,8 +139,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
     { name: 'Mission', detail: mission?.name ?? 'Choose the armies first', complete: Boolean(mission), reachable: reachable(1) },
     {
       name: 'Battlefield',
-      // The layout's own name, not the slug it is stored under.
-      detail: deployment?.name ?? (view.deploymentId ? view.deploymentId : 'Choose a layout'),
+      detail: deployment?.name ?? (view.deploymentId ? 'Layout chosen' : 'Choose a layout'),
       complete: Boolean(view.deploymentId),
       reachable: reachable(2),
     },

@@ -4,6 +4,8 @@
 
 Signed-out visitors to `/battles` browse the paginated public feed, grouped into active, setup, and finished games, and open them as spectators. It uses the same audience checks and practice-game exclusion as the home-page feed. Signed-in players see their own battles and creation and deletion controls. The route loads only the feed appropriate to the session.
 
+Battle shelves resolve battlefield names from deployment references, including name-based IDs in older battles. Missing references omit the battlefield label rather than showing an internal ID. Finished cards show their status once and retain a separate end reason only for concessions or early finishes.
+
 Paginated battle queries reject missing response pages before TanStack Query can cache them. A failed refresh keeps the previous pages; readers skip missing cached pages and treat a missing final page as the end until a successful refresh replaces it.
 
 ## Command log

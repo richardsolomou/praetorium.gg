@@ -1,10 +1,12 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { EllipsisVertical, Eye, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { battleStage } from '../../battleStage'
-import { summarySides } from '../../battleSummary'
+import { deploymentName, summarySides } from '../../battleSummary'
+import { deploymentsQuery } from '../../queries'
 import { useDateFormatting } from '../../dates'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -34,6 +36,7 @@ export function BattleShelf({
   onDelete?: (battle: Battle) => void
 }) {
   const { date } = useDateFormatting()
+  const { data: deployments } = useQuery({ ...deploymentsQuery(), enabled: battles.some((battle) => battle.deploymentId !== null) })
   if (!battles.length) return null
   return (
     <section className="mx-auto max-w-[88rem]" data-onboarding={onboarding} data-battle-shelf={title ?? ''}>
@@ -49,6 +52,7 @@ export function BattleShelf({
           // Folded into sides rather than read seat by seat: an ally of a 2v1 sits second.
           const [ours, theirs] = summarySides(battle)
           const label = battle.players.join(' versus ')
+          const battlefield = deploymentName(battle.deploymentId, deployments)
           const actions = (
             <>
               <DropdownMenuItem render={<Link to="/battles/$token" params={{ token: battle.token }} />}>
@@ -77,8 +81,10 @@ export function BattleShelf({
                     <span className="mt-1 block text-3xs text-faint">
                       {battle.settings.limit ? `${battle.settings.limit} pts` : 'Legacy format'}
                       {battle.mission ? ` · ${battle.mission.name}` : ''}
-                      {battle.deploymentId ? ` · ${battle.deploymentId.replaceAll('-', ' ')}` : ''}
-                      {battle.result?.reason ? ` · ${battle.result.reason.replaceAll('-', ' ')}` : ''}
+                      {battlefield ? ` · ${battlefield}` : ''}
+                      {battle.result?.reason && battle.result.reason !== 'completed'
+                        ? ` · ${battle.result.reason.replaceAll('-', ' ')}`
+                        : ''}
                     </span>
                   </span>
                   <BattleSide seats={ours?.seats ?? []} score={ours?.score ?? 0} side="a" />
