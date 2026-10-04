@@ -239,6 +239,7 @@ test('a signed-in player cannot return to the sign-in form', async ({ page }) =>
   await page.getByRole('menuitem', { name: 'Sign out' }).click()
   await page.goto('/support')
   await page.goto('/sign-in?next=%2Ffactions')
+  await page.waitForLoadState('networkidle')
   await page.getByLabel('Email').fill(credentials.email)
   await page.getByLabel('Password').fill(credentials.password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
