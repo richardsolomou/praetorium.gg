@@ -77,6 +77,8 @@ export default defineConfig(({ mode }) => {
         ],
         routeRules: {
           ...proxy?.nitro,
+          '/offline-app-version.json': { headers: { 'Cache-Control': 'no-store' } },
+          '/offline-reference-version.json': { headers: { 'Cache-Control': 'no-store' } },
           '/**': {
             headers: {
               // img-src widens further at runtime, in cspPlugin.ts: this base list is

@@ -1,7 +1,8 @@
 import path from 'node:path'
 import { createHash } from 'node:crypto'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile, writeFile, rename } from 'node:fs/promises'
 import { build, type Plugin } from 'vite'
+import { writeReferenceBundle } from './offlineReferenceBundle'
 
 export function offlineAppPlugin(): Plugin {
   return {
@@ -38,10 +39,15 @@ export function offlineAppPlugin(): Plugin {
         },
       })
       const script = await readFile(path.resolve(outDir, 'offline-app.js'))
+      const styles = await readFile(path.resolve(outDir, css.fileName))
+      const revision = createHash('sha256').update(script).update(styles).digest('hex')
+      const scriptPath = `/assets/offline-app-${revision}.js`
+      await rename(path.join(outDir, 'offline-app.js'), path.join(outDir, scriptPath))
       await writeFile(
         path.resolve(outDir, 'offline-app-version.json'),
-        JSON.stringify({ revision: createHash('sha256').update(script).digest('hex'), css: '/' + css.fileName }),
+        JSON.stringify({ revision, css: '/' + css.fileName, script: scriptPath }),
       )
+      await writeReferenceBundle(outDir)
     },
   }
 }

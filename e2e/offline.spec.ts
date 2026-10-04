@@ -34,7 +34,7 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   const delayed = new Promise<void>((resolve) => {
     release = resolve
   })
-  await page.route('**/_serverFn/**', async (route) => {
+  await page.route('**/offline-reference-version.json', async (route) => {
     await delayed
     await route.continue()
   })
@@ -51,14 +51,18 @@ test('the complete reference keeps its existing UI after a cold offline launch',
     (await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html'))!.text(),
   )
   expect(download).not.toContain('previous-reference')
-  await page.unroute('**/_serverFn/**')
-  await page.route('**/_serverFn/**', (route) => route.abort())
+  await page.unroute('**/offline-reference-version.json')
+  await page.route('**/offline-reference-version.json', (route) => route.abort())
+  const failedRefresh = page.waitForEvent('requestfailed', {
+    predicate: (request) => request.url().endsWith('/offline-reference-version.json'),
+  })
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await failedRefresh
   await expect(page.getByRole('button', { name: 'Refresh now' })).toHaveCount(0)
   expect(
     await page.evaluate(async () => (await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html'))!.text()),
   ).toBe(download)
-  await page.unroute('**/_serverFn/**')
+  await page.unroute('**/offline-reference-version.json')
   await context.setOffline(true)
   await page.close()
   const offline = await context.newPage()
@@ -106,4 +110,30 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await offline.evaluate(() => window.dispatchEvent(new Event('online')))
   await expect(offline.getByRole('button', { name: 'Refresh now' })).toHaveCount(0)
   await expect(offline.getByText('Offline · Reference saved', { exact: false })).toHaveCount(0)
+})
+
+test('one compressed reference download is reused across an application update', async ({ page, request }) => {
+  test.setTimeout(240_000)
+  const bundles: string[] = []
+  page.on('request', (assetRequest) => {
+    if (/\/assets\/reference-[a-f0-9]+\.bin$/.test(assetRequest.url())) bundles.push(assetRequest.url())
+  })
+  await page.goto('/rules')
+  await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.revision), { timeout: 180_000 }).toBeTruthy()
+  expect(bundles).toHaveLength(1)
+  const manifest = await request.get('/offline-reference-version.json')
+  expect(manifest.headers()['cache-control']).toBe('no-store')
+  const reference = await manifest.json()
+  const bundle = await request.get(reference.bundle)
+  expect(bundle.headers()['content-type']).toBe('application/octet-stream')
+  expect(bundle.headers()['content-encoding']).toBeUndefined()
+  expect((await bundle.body()).subarray(0, 2).toString('hex')).toBe('1f8b')
+  const appManifest = await request.get('/offline-app-version.json')
+  expect(appManifest.headers()['cache-control']).toBe('no-store')
+  const app = await appManifest.json()
+  await page.route('**/offline-app-version.json', (route) => route.fulfill({ json: { ...app, revision: 'next-app-version' } }))
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.appRevision), { timeout: 60_000 }).toBe('next-app-version')
+  expect(bundles).toHaveLength(1)
+  await expect(page.getByRole('heading', { name: 'Rules', exact: true })).toBeVisible()
 })

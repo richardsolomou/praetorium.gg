@@ -6,6 +6,7 @@ import { publicAssetsR2Client } from '../src/server/r2Client.ts'
 
 const CACHE = 'public, max-age=31536000, immutable'
 const TYPES: Record<string, string> = {
+  '.bin': 'application/octet-stream',
   '.js': 'text/javascript',
   '.css': 'text/css',
   '.woff': 'font/woff',

@@ -1,4 +1,5 @@
 import type { CanonicalCatalogue } from '../contracts/catalogue'
+import { profiledArmyRulesFor } from './catalogueProfileRules'
 import { datasheetInBySlug } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
@@ -42,4 +43,9 @@ export function referenceRuleIndex(sources: ReferenceSources) {
 export function referenceRuleSection(sources: ReferenceSources, data: { documentId: string; sectionId: string }) {
   const documents = referenceRuleDocuments(sources)
   return documents ? ruleSectionOf(documents, data.documentId, data.sectionId) : null
+}
+
+export function referenceDatasheetIsLive(catalogue: LoadedCatalogue | null, catalogueId: string) {
+  const book = catalogue?.index.catalogues.get(catalogueId)
+  return Boolean(catalogue && book && (catalogue.profiledCatalogueIds.has(book.id) || profiledArmyRulesFor(catalogue, book.id).length))
 }

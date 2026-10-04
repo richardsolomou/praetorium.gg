@@ -1,3 +1,5 @@
+import { useRouter } from '@tanstack/react-router'
+import { afterInitialScreen } from './background'
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { APP_SNAPSHOT_QUERIES } from '../../contracts/appSnapshot'
@@ -28,6 +30,7 @@ import { ROSTER_LIBRARY_BATCH_SIZE } from '../../core/rosterLibrary'
 
 export function AppPersistence() {
   const client = useQueryClient()
+  const router = useRouter()
   useEffect(() => {
     if (window.PraetoriumAppSnapshot) {
       const current = client.getQueryData<{ id: string } | null>(['me'])
@@ -35,6 +38,7 @@ export function AppPersistence() {
       else restoreAppSnapshot(client, window.PraetoriumAppSnapshot)
     }
     let active = true
+    let ready = false
     let timer: ReturnType<typeof setTimeout> | undefined
     let saving = Promise.resolve()
     let refreshing = false
@@ -59,7 +63,7 @@ export function AppPersistence() {
       timer = setTimeout(save, 250)
     })
     const refresh = async () => {
-      if (!active || !navigator.onLine) return
+      if (!active || !ready || !navigator.onLine) return
       if (refreshing) {
         pendingRefresh = true
         return
@@ -140,7 +144,10 @@ export function AppPersistence() {
         void refresh()
       })
     }
-    void refresh()
+    const cancelInitial = afterInitialScreen(router, () => {
+      ready = true
+      void refresh()
+    })
     save()
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') void refresh()
@@ -150,6 +157,7 @@ export function AppPersistence() {
     window.addEventListener('storage', accountChanged)
     document.addEventListener('visibilitychange', foreground)
     return () => {
+      cancelInitial()
       save()
       active = false
       clearTimeout(timer)
@@ -160,6 +168,6 @@ export function AppPersistence() {
       window.removeEventListener('storage', accountChanged)
       document.removeEventListener('visibilitychange', foreground)
     }
-  }, [client])
+  }, [client, router])
   return null
 }

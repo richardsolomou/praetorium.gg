@@ -1,3 +1,5 @@
+import { TERRAIN_GEOMETRY_VERSION } from '../../contracts/terrainReference'
+export { terrainMatchupIds } from '../../contracts/terrainReference'
 import { referenceRead, offlineSearch } from '../offline/runtime'
 import { queryOptions } from '@tanstack/react-query'
 import {
@@ -18,8 +20,6 @@ import {
   terrainReferences,
 } from '../../server/functions'
 import { SSR_STALE_TIME } from './shared'
-
-const TERRAIN_GEOMETRY_VERSION = 6
 
 export const factionQuery = (catalogueId: string) =>
   queryOptions({
@@ -70,10 +70,6 @@ export const globalSearchQuery = (query: string) =>
     staleTime: 30_000,
   })
 
-export const terrainMatchupIds = (dispositions: readonly string[]) => {
-  const matchup = dispositions.length === 2 ? dispositions : []
-  return matchup.length === 2 ? [...new Set([`${matchup[0]}-vs-${matchup[1]}`, `${matchup[1]}-vs-${matchup[0]}`])].toSorted() : []
-}
 export const terrainReferencesQuery = (matchupIds: readonly string[]) =>
   queryOptions({
     queryKey: ['terrain-references', TERRAIN_GEOMETRY_VERSION, ...matchupIds],

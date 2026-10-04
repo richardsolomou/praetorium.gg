@@ -1,4 +1,3 @@
-import { activeReferenceCorpus } from '../referenceApi'
 import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
@@ -8,7 +7,6 @@ import { isReferenceDatasheet } from '../catalogueIndex'
 import { describeDatasheetAbilities } from '../datasheetDescriptions'
 import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
-import { profiledArmyRulesFor } from '../catalogueProfileRules'
 import { unitsIn } from '../cataloguePicker'
 import { pickerUnitsFor } from '../pickerUnits'
 import { detachmentsOffering } from '../factionReferences'
@@ -23,7 +21,7 @@ import { combatLoadoutSpace } from '../combatLoadouts'
 import { currentUserId } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { selectedBattleDetachmentData } from '../battleDetachmentData'
-import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
+import { referenceDatasheetBySlug, referenceDatasheetIsLive, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
 import {
   combatLoadoutSchema,
   datasheetSchema,
@@ -300,12 +298,8 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
       const catalogue = await app().catalogueFor(data.catalogueId)
       const rules = await app().rulesFor()
       const canonical = await app().canonicalCatalogueFor()
-      const book = catalogue?.index.catalogues.get(data.catalogueId)
-      const live = Boolean(
-        catalogue && book && (catalogue.profiledCatalogueIds.has(book.id) || profiledArmyRulesFor(catalogue, book.id).length),
-      )
       return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data, {
-        live,
+        live: referenceDatasheetIsLive(catalogue, data.catalogueId),
       })
     }),
   )
@@ -411,20 +405,3 @@ export const terrainReferences = createServerFn({ method: 'GET' })
  * quietly.
  */
 export type { GlobalSearchResult }
-
-export const offlineReferenceManifest = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const [corpus, search] = await Promise.all([activeReferenceCorpus(), app().searchIndexFor()])
-    if (!corpus || !search) throw new Error('Reference data is unavailable')
-    cacheUntilSnapshotChanges()
-    return { revision: corpus.revision, search }
-  }),
-)
-
-export const offlineReferenceRevision = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const corpus = await activeReferenceCorpus()
-    if (!corpus) throw new Error('Reference data is unavailable')
-    return { revision: corpus.revision }
-  }),
-)

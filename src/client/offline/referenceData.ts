@@ -1,6 +1,6 @@
 import { notifyManager, type QueryClient } from '@tanstack/react-query'
 import { referenceData } from './runtime'
-import { MAX_OFFLINE_BYTES, MAX_OFFLINE_QUERIES, type OfflineReferenceData } from '../../contracts/offlineReference'
+import { MAX_OFFLINE_BYTES, isReferenceBundle, type OfflineReferenceData } from '../../contracts/offlineReference'
 
 export function savedReferenceData(html: string): OfflineReferenceData | null {
   if (html.length > MAX_OFFLINE_BYTES) return null
@@ -8,18 +8,7 @@ export function savedReferenceData(html: string): OfflineReferenceData | null {
   if (!serialized) return null
   try {
     const data = JSON.parse(serialized) as OfflineReferenceData
-    return data?.version === 1 &&
-      Array.isArray(data.queries) &&
-      data.queries.length <= MAX_OFFLINE_QUERIES &&
-      data.queries.every((entry) => Array.isArray(entry?.key)) &&
-      typeof data.revision === 'string' &&
-      Number.isFinite(data.savedAt) &&
-      data.search &&
-      ['factions', 'detachments', 'datasheets', 'missions', 'rules'].every((key) =>
-        Array.isArray(data.search[key as keyof typeof data.search]),
-      )
-      ? data
-      : null
+    return isReferenceBundle(data) && Number.isFinite(data.savedAt) ? data : null
   } catch {
     return null
   }
