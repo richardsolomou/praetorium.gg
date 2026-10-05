@@ -72,6 +72,51 @@ describe('the view', () => {
     ).toEqual(['army', 'intercessors', 'captain'])
   })
 
+  it('retains an opted-in destroyed-unit reminder only for its owner', () => {
+    const command = builtRoster('World Eaters', ['Angron'])
+    if (command.kind !== 'attach-roster') throw new Error('expected a roster command')
+    command.roster.reminders = [
+      {
+        key: 'reborn',
+        ability: 'Reborn in Blood',
+        description: '',
+        unit: { index: 0, name: 'Angron' },
+        whileDestroyed: true,
+        timings: [{ moment: 'round-start', phase: null, turn: 'either' }],
+      },
+    ]
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, command],
+        [BOB, roster('Death Guard')],
+        [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+        [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
+      ),
+    )
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.roster?.reminders?.map((reminder) => reminder.key)).toEqual([
+      'reborn',
+    ])
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.roster).not.toHaveProperty('reminders')
+  })
+
+  it('does not expose a reminder for a missing unit even when enabled while destroyed', () => {
+    const command = builtRoster('World Eaters', [])
+    if (command.kind !== 'attach-roster') throw new Error('expected a roster command')
+    command.roster.reminders = [
+      {
+        key: 'missing',
+        ability: 'Missing unit',
+        description: '',
+        unit: { index: 0, name: 'Angron' },
+        whileDestroyed: true,
+        timings: [{ moment: 'round-start', phase: null, turn: 'either' }],
+      },
+    ]
+    const state = reduceBattle(PLAYERS, log([ALICE, command]))
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.roster?.reminders).toEqual([])
+  })
+
   it('shows every tactical deck to the table', () => {
     const cards = [
       { key: 'a', name: 'Area Denial' },

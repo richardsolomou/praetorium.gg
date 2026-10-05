@@ -84,7 +84,7 @@ Descriptions and ability definitions require exact, unambiguous joins. An empty 
 - A full group's increment reduces an available sibling; decrement returns capacity to its default. A model override clears other model slots first. Bounds may live on the group or occupants and apply to the total.
 - Apply loadout choices before nested weapon spreads, then model allocations after specialists. Removed loadouts suppress nested equipment; restoring them preserves saved choices. Fixed/default equipment remains readable without duplicate controls.
 - Equipment counts multiply ordinary ancestors once. Empty containers are not weapons, and linked profiles do not merge distinct carriers. Preserve independent choices and paired equipment as their actual bundles.
-- Reminder timing is prose-derived suggestion, confirmed by the player. Unknown wording stays blank; each trigger keeps its own moment, phase, and turn scope.
+- Reminder timing is prose-derived suggestion, confirmed by the player. Unknown wording stays blank; each trigger keeps its own moment, phase, and turn scope. Round boundaries have no phase or turn owner. Explicit first-round wording suggests a first-round restriction; generic phase boundaries suggest “Any phase”. Explicit destruction conditions can suggest retaining the alert while the unit is destroyed, with player confirmation.
 
 ## Pricing and legality
 

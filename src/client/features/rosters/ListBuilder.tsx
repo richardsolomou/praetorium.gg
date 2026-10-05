@@ -32,6 +32,7 @@ import {
   remindersAfterUnitInserted,
   remindersAfterUnitRemoved,
   suggestReminderTimings,
+  suggestReminderWhileDestroyed,
   type ReminderSubject,
   type RosterReminder,
 } from '../../../core/reminders'
@@ -557,6 +558,7 @@ export function ListBuilder({
           description: subject.description ?? '',
           ...(subject.kind === 'faction' || selected === null ? {} : { unit: { index: selected, name: unitName } }),
           timings: suggestReminderTimings(subject.description ?? ''),
+          ...(subject.kind !== 'faction' && suggestReminderWhileDestroyed(subject.description ?? '') ? { whileDestroyed: true } : {}),
         },
       )
     },

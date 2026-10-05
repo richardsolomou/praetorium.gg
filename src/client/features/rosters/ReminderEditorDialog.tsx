@@ -22,6 +22,8 @@ const MOMENTS: { value: ReminderMoment; label: string }[] = [
   { value: 'phase-end', label: 'End of phase' },
   { value: 'turn-start', label: 'Start of turn' },
   { value: 'turn-end', label: 'End of turn' },
+  { value: 'round-start', label: 'Start of round' },
+  { value: 'round-end', label: 'End of round' },
 ]
 
 const TURN_LABELS: Record<ReminderTurn, string> = {
@@ -30,13 +32,14 @@ const TURN_LABELS: Record<ReminderTurn, string> = {
   either: 'Either turn',
 }
 
-const phaseLabel = (phase: ReminderPhase) => `${phase[0]?.toLocaleUpperCase()}${phase.slice(1)}`
+const phaseLabel = (phase: ReminderPhase) => (phase === 'any' ? 'Any phase' : `${phase[0]?.toLocaleUpperCase()}${phase.slice(1)}`)
 
 type TimingDraft = {
   id: string
   moment: ReminderMoment | null
   phase: ReminderPhase | null
   turn: ReminderTurn | null
+  firstRoundOnly?: boolean
 }
 
 export type ReminderDraft = Omit<RosterReminder, 'timings'> & { timings: ReminderTiming[] }
@@ -47,9 +50,13 @@ const timingDrafts = (timings: readonly ReminderTiming[], id: string): TimingDra
   timings.length ? timings.map((timing, index) => ({ id: `${id}-${index}`, ...timing })) : [blankTiming(`${id}-0`)]
 
 const completeTiming = (draft: TimingDraft): ReminderTiming | null => {
+  const restriction = draft.firstRoundOnly ? { firstRoundOnly: true } : {}
+  if (draft.moment === 'round-start' || draft.moment === 'round-end')
+    return { moment: draft.moment, phase: null, turn: 'either', ...restriction }
   if (!draft.moment || !draft.turn) return null
-  if (draft.moment === 'turn-start' || draft.moment === 'turn-end') return { moment: draft.moment, phase: null, turn: draft.turn }
-  return draft.phase ? { moment: draft.moment, phase: draft.phase, turn: draft.turn } : null
+  if (draft.moment === 'turn-start' || draft.moment === 'turn-end')
+    return { moment: draft.moment, phase: null, turn: draft.turn, ...restriction }
+  return draft.phase ? { moment: draft.moment, phase: draft.phase, turn: draft.turn, ...restriction } : null
 }
 
 export function ReminderEditorDialog({
@@ -65,9 +72,11 @@ export function ReminderEditorDialog({
 }) {
   const id = useId()
   const nextTimingId = useRef(draft.timings.length || 1)
+  const [whileDestroyed, setWhileDestroyed] = useState(draft.whileDestroyed === true)
   const [timings, setTimings] = useState<TimingDraft[]>(() => timingDrafts(draft.timings, id))
 
   useEffect(() => {
+    setWhileDestroyed(draft.whileDestroyed === true)
     nextTimingId.current = draft.timings.length || 1
     setTimings(timingDrafts(draft.timings, id))
   }, [draft, id])
@@ -95,6 +104,7 @@ export function ReminderEditorDialog({
         <div className="space-y-3">
           {timings.map((timing, index) => {
             const complete = completed[index]
+            const roundTiming = timing.moment === 'round-start' || timing.moment === 'round-end'
             const prefix = `${id}-${index}`
             return (
               <div key={timing.id} className="border border-edge bg-card p-3">
@@ -122,6 +132,7 @@ export function ReminderEditorDialog({
                         updateTiming(index, {
                           moment: value,
                           ...(value === 'turn-start' || value === 'turn-end' ? { phase: null } : {}),
+                          ...(value === 'round-start' || value === 'round-end' ? { phase: null, turn: 'either' } : {}),
                         })
                       }
                     >
@@ -144,14 +155,14 @@ export function ReminderEditorDialog({
                     </Label>
                     <Select
                       value={timing.phase}
-                      disabled={timing.moment === 'turn-start' || timing.moment === 'turn-end'}
+                      disabled={roundTiming || timing.moment === 'turn-start' || timing.moment === 'turn-end'}
                       onValueChange={(value: ReminderPhase | null) => updateTiming(index, { phase: value })}
                     >
                       <SelectTrigger id={`${prefix}-phase`} className="mt-1.5 w-full">
                         <SelectValue>{(value: unknown) => (value ? phaseLabel(value as ReminderPhase) : 'Choose')}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {REMINDER_PHASES.map((value) => (
+                        {[...REMINDER_PHASES, 'any' as const].map((value) => (
                           <SelectItem key={value} value={value}>
                             {phaseLabel(value)}
                           </SelectItem>
@@ -164,7 +175,11 @@ export function ReminderEditorDialog({
                     <Label className="eyebrow" htmlFor={`${prefix}-turn`}>
                       Whose turn
                     </Label>
-                    <Select value={timing.turn} onValueChange={(value: ReminderTurn | null) => updateTiming(index, { turn: value })}>
+                    <Select
+                      disabled={roundTiming}
+                      value={timing.turn}
+                      onValueChange={(value: ReminderTurn | null) => updateTiming(index, { turn: value })}
+                    >
                       <SelectTrigger id={`${prefix}-turn`} className="mt-1.5 w-full">
                         <SelectValue>{(value: unknown) => (value ? TURN_LABELS[value as ReminderTurn] : 'Choose')}</SelectValue>
                       </SelectTrigger>
@@ -178,6 +193,15 @@ export function ReminderEditorDialog({
                     </Select>
                   </div>
                 </div>
+                <label className="mt-2 flex min-h-11 items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    className="size-4 accent-accent"
+                    checked={timing.firstRoundOnly === true}
+                    onChange={(event) => updateTiming(index, { firstRoundOnly: event.target.checked })}
+                  />
+                  First round only
+                </label>
                 {complete ? <p className="mt-2 text-xs text-info">Alert: {reminderTimingLabel(complete)}</p> : null}
               </div>
             )
@@ -196,6 +220,18 @@ export function ReminderEditorDialog({
           ) : null}
         </div>
 
+        {draft.unit ? (
+          <label className="flex min-h-11 items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              className="size-4 accent-accent"
+              checked={whileDestroyed}
+              onChange={(event) => setWhileDestroyed(event.target.checked)}
+            />
+            Show while unit is destroyed
+          </label>
+        ) : null}
+
         <DialogFooter>
           {onRemove ? (
             <Button variant="destructive" onClick={onRemove} className="sm:mr-auto">
@@ -207,7 +243,14 @@ export function ReminderEditorDialog({
           </Button>
           <Button
             disabled={!valid}
-            onClick={() => valid && onSave({ ...draft, timings: completed.filter((timing): timing is ReminderTiming => timing !== null) })}
+            onClick={() =>
+              valid &&
+              onSave({
+                ...draft,
+                ...(draft.unit ? { whileDestroyed } : {}),
+                timings: completed.filter((timing): timing is ReminderTiming => timing !== null),
+              })
+            }
           >
             Save alert
           </Button>
