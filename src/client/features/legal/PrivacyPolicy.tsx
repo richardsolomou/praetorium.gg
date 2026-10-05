@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="29 September 2026">
+    <LegalPage title="Privacy policy" updated="5 October 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -34,6 +34,11 @@ export function PrivacyPolicy() {
         <p>
           If you connect an MCP app, we store that app’s authorization, access grants and refresh tokens. You can revoke its access from
           your profile’s security settings.
+        </p>
+        <p>
+          If you use a browser assistant, supported browsers can let it read game references and your saved rosters and battles through your
+          signed-in session. You review and approve proposed changes on the page. Information returned to the assistant may be processed by
+          its provider under that provider's privacy policy.
         </p>
         <p>
           If you allow notifications in the mobile app, we store that device's push token, its platform, and when it was last seen. Signing

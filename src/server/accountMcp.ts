@@ -1,4 +1,4 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { AgentTools } from './agentTools'
 import { app } from './app'
 import { submittedBattleCommand } from './battleSubmission'
 import { saveOwnedRoster } from './saveOwnedRoster'
@@ -41,7 +41,7 @@ async function resultOf(work: () => Promise<Record<string, unknown>>) {
   }
 }
 
-export function registerAccountMcpTools(server: McpServer, userId: string | null) {
+export function registerAccountMcpTools(server: AgentTools, userId: string | null) {
   const owner = () => {
     if (!userId) throw new Response('Sign in to use this tool.', { status: 401 })
     return userId
@@ -135,7 +135,7 @@ export function registerAccountMcpTools(server: McpServer, userId: string | null
     {
       title: 'Create a battle',
       description: 'Creates a battle with named player seats, using the same rules as the site. Requires mcp:write.',
-      inputSchema: createBattleSchema.shape,
+      inputSchema: createBattleSchema,
       annotations: WRITE,
     },
     (data) => resultOf(async () => ({ battle: await app().service.createBattle(owner(), data) })),

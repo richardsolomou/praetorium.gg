@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest'
+import { AgentTools } from './agentTools'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 
@@ -20,7 +21,9 @@ import { registerAccountMcpTools } from './accountMcp'
 
 async function call(userId: string, name: string, args: object) {
   const server = new McpServer({ name: 'account-test', version: '1.0.0' })
-  registerAccountMcpTools(server, userId)
+  const tools = new AgentTools()
+  registerAccountMcpTools(tools, userId)
+  tools.registerMcp(server)
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })
   await server.connect(transport)
   try {

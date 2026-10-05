@@ -250,3 +250,12 @@ it('adds MCP CORS headers to rate-limit responses', async () => {
 it('advertises only stateless MCP methods', () => {
   expect(referenceMcpOptions().headers.get('access-control-allow-methods')).toBe('POST, OPTIONS')
 })
+
+it('keeps browser resource adapters out of MCP discovery metadata', async () => {
+  const response = await handleReferenceMcp(rpcRequest('resources/list'))
+  const payload = await response.json()
+  expect(payload.result.resources.map((resource: Record<string, unknown>) => Object.keys(resource).sort())).toEqual([
+    ['description', 'mimeType', 'name', 'title', 'uri'],
+    ['description', 'mimeType', 'name', 'title', 'uri'],
+  ])
+})
