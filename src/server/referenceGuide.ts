@@ -11,6 +11,7 @@ export const PRAETORIUM_GUIDE = {
     'An account is required to play. Public reference pages, public battles, profiles, and leaderboards can be read without one.',
     'Battle visibility is the narrowest setting chosen by anyone seated at the table. Watching never grants a seat or controls.',
     'The MCP reference tools are public. Optional account sign-in adds tools for saved rosters and battles, including edits and battle actions.',
+    'Supported browser assistants can use the same capabilities through WebMCP. Browser account writes require the player to review and approve the proposed change on the page; assistants must never approve their own changes.',
   ],
   dataModel: [
     'Game data is fetched from verified community snapshots and does not live in the repository.',

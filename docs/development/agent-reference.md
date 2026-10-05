@@ -35,6 +35,18 @@ Accept one bounded JSON-RPC message, never batches. SQLite migrations must creat
 
 Publish registry changes from the root with `mcp-publisher login github` and `mcp-publisher publish`; keep registry and server versions aligned.
 
+## WebMCP
+
+Supported browsers register the full agent surface through `document.modelContext`: the fourteen MCP tools plus tool equivalents of both resources and both prompts. [`AgentTools`](../../src/server/agentTools.ts) owns shared schemas and handlers; [`referenceAgentContext.ts`](../../src/server/referenceAgentContext.ts) owns resource text and prompt instructions. Keep MCP OAuth separate from browser sessions; `/mcp` still requires bearer tokens for account access.
+
+[`WebMcp`](../../src/client/features/agents/WebMcp.tsx) registers public tools throughout the application and account tools for a signed-in, non-impersonated player. Registration aborts on account changes and unmount. Server calls bind the expected account to the current session, validate bounded input, enforce mutation origin and request limits, and reuse the existing ownership, legality, and battle-sequence checks. Saved-roster tools operate on saved data; they do not edit an unsaved browser draft.
+
+Every browser-agent write validates and normalizes its input before review, resolves owned roster/player names, and shows the exact proposed input alongside a readable summary. Approval expires after two minutes; decline, cancellation, and account changes prevent dispatch. Only one write may await approval or execute per page. Bound server calls to thirty seconds. Never retry a dispatched write automatically: cancellation cannot undo a server mutation and a lost response can leave its result uncertain. Refresh visible data and save the refreshed application snapshot after a write. Keep late responses from a previous account out of the current page.
+
+The approval dialog governs WebMCP handlers, not all browser automation: an agent with control of the browser can click ordinary controls, including approval. Treat tool annotations as hints, not authorization. Tool results can reach the user's assistant provider and contain untrusted source or player text; do not return credentials or report private inputs/results to telemetry.
+
+Feature-detect the API without installing a polyfill in the application. Chrome's experimental API currently requires its WebMCP testing flag or an origin-trial enrollment; browser support and the draft can change. Follow the [imperative API documentation](https://developer.chrome.com/docs/ai/webmcp/imperative-api) when updating registration signatures. Run `just e2e webmcp.spec.ts webmcp-native.spec.ts` for discovery, sign-in/sign-out, decline, approval, visible refresh, and saved results. The inspector journey executes real server operations for all four write tools, including approval expiry. The native journey enables the browser feature and checks registration, execution, and sign-out against the pinned Chromium API. Chromium 151 omits the execution-options argument and requires JSON-string inputs for `executeTool`; retain page-lifetime cancellation when no per-call signal is supplied.
+
 ## Crawlers
 
 `/sitemap.xml`, `/robots.txt`, and `/llms.txt` expose public discovery. Reference content must be in initial server-rendered HTML with absolute canonical/preview URLs, alternate Markdown links where supported, and page-owned breadcrumbs. Child routes must not duplicate parent JSON-LD. [Interface](interface.md#link-previews) owns account-sensitive metadata; [Catalogue data](catalogue-data.md#data-updates) owns measured `lastmod` values.

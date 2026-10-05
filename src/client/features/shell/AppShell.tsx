@@ -1,5 +1,6 @@
 import { offlineData } from '../../offline/runtime'
 import { OfflineReference } from '../../offline/OfflineReference'
+import { WebMcp } from '../agents/WebMcp'
 import { AppPersistence } from '../../offline/AppPersistence'
 import { version } from '../../../../package.json'
 import { useQuery } from '@tanstack/react-query'
@@ -231,6 +232,7 @@ export function AppShell() {
                 >
                   <OfflineReference />
                   <AppPersistence />
+                  <WebMcp />
                   <Outlet />
                 </div>
                 <NativeAppNavigation
