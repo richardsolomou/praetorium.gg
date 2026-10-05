@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.105.0
+
+### Minor Changes
+
+- 5b7d056: Let supported browser assistants read references, manage saved rosters, and track battles with player approval for changes.
+
 ## 0.104.0
 
 ### Minor Changes
