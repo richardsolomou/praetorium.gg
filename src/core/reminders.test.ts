@@ -7,7 +7,9 @@ import {
   remindersAfterUnitRemoved,
   remindersDueAt,
   reminderTimingLabel,
+  reminderTimingSchema,
   suggestReminderTimings,
+  suggestReminderWhileDestroyed,
 } from './reminders'
 
 it('counts every configured alert timing on a unit', () => {
@@ -40,6 +42,27 @@ it('counts every configured alert timing on a unit', () => {
 })
 
 describe('suggestReminderTimings', () => {
+  it('suggests both Battle Focus round boundaries', () => {
+    expect(
+      suggestReminderTimings(
+        'If your Army Faction is Asuryani, at the start of the battle round, you receive Battle Focus tokens. At the end of the battle round, all unspent tokens are lost.',
+      ),
+    ).toEqual([
+      { moment: 'round-start', phase: null, turn: 'either' },
+      { moment: 'round-end', phase: null, turn: 'either' },
+    ])
+  })
+
+  it.each(['each', 'every', 'a'])('reads the start of %s battle round', (scope) => {
+    expect(suggestReminderTimings(`At the start of ${scope} battle round, select one unit.`)).toEqual([
+      { moment: 'round-start', phase: null, turn: 'either' },
+    ])
+  })
+
+  it('excludes round expiry clauses from suggestions', () => {
+    expect(suggestReminderTimings('This effect lasts until the end of the battle round.')).toEqual([])
+  })
+
   it('reads the start of your command phase', () => {
     expect(suggestReminderTimings('At the start of your Command phase, select one enemy unit.')).toEqual([
       { moment: 'phase-start', phase: 'command', turn: 'your-turn' },
@@ -163,4 +186,121 @@ it('rekeys reminders when a preceding unit is inserted', () => {
   expect(remindersAfterUnitInserted([reminder], 1)).toEqual([
     { ...reminder, key: 'upgrade:dimensional-overseer:2', unit: { ...reminder.unit, index: 2 } },
   ])
+})
+
+describe('round reminder timings', () => {
+  it.each(['round-start', 'round-end'])('accepts a shared %s timing', (moment) => {
+    expect(reminderTimingSchema.safeParse({ moment, phase: null, turn: 'either' }).success).toBe(true)
+  })
+
+  it.each(['your-turn', 'opponent-turn'])('rejects a round timing scoped to %s', (turn) => {
+    expect(reminderTimingSchema.safeParse({ moment: 'round-start', phase: null, turn }).success).toBe(false)
+  })
+
+  it('rejects a round timing with a phase', () => {
+    expect(reminderTimingSchema.safeParse({ moment: 'round-end', phase: 'command', turn: 'either' }).success).toBe(false)
+  })
+
+  it.each([
+    ['round-start', 'Start of round'],
+    ['round-end', 'End of round'],
+  ] as const)('labels %s without turn ownership', (moment, label) => {
+    expect(reminderTimingLabel({ moment, phase: null, turn: 'either' })).toBe(label)
+  })
+
+  it('matches the end of a round', () => {
+    expect(reminderDue({ moment: 'round-end', phase: null, turn: 'either' }, { moment: 'round-end', phase: null, turn: 'either' })).toBe(
+      true,
+    )
+  })
+
+  it('does not match the start of a round to the end', () => {
+    expect(reminderDue({ moment: 'round-start', phase: null, turn: 'either' }, { moment: 'round-end', phase: null, turn: 'either' })).toBe(
+      false,
+    )
+  })
+})
+
+describe('restricted and broad reminders', () => {
+  it('suggests a first-round restriction for Singular Purpose', () => {
+    expect(suggestReminderTimings('At the start of the first battle round, select one enemy unit.')).toEqual([
+      { moment: 'round-start', phase: null, turn: 'either', firstRoundOnly: true },
+    ])
+  })
+
+  it.each(['start', 'end'] as const)('suggests the %s of any phase', (boundary) => {
+    expect(suggestReminderTimings(`At the ${boundary} of any phase, you can use this ability.`)).toEqual([
+      { moment: boundary === 'start' ? 'phase-start' : 'phase-end', phase: 'any', turn: 'either' },
+    ])
+  })
+
+  it('suggests the end of each phase for Grotesque Regeneration', () => {
+    expect(suggestReminderTimings('At the end of each phase, regain lost wounds.')).toEqual([
+      { moment: 'phase-end', phase: 'any', turn: 'either' },
+    ])
+  })
+
+  it('does not turn a reference to an earlier round choice into a trigger', () => {
+    expect(
+      suggestReminderTimings(
+        'At the start of your Command phase, select the Benediction you did not select at the start of the first battle round.',
+      ),
+    ).toEqual([{ moment: 'phase-start', phase: 'command', turn: 'your-turn' }])
+  })
+
+  it('does not suggest a generic phase expiry', () => {
+    expect(suggestReminderTimings('Until the end of any phase, this effect applies.')).toEqual([])
+  })
+
+  it.each([1, 2, 5, undefined])('restricts first-round alerts in round %s', (round) => {
+    expect(
+      reminderDue(
+        { moment: 'round-start', phase: null, turn: 'either', firstRoundOnly: true },
+        { moment: 'round-start', phase: null, turn: 'either' },
+        round,
+      ),
+    ).toBe(round === 1)
+  })
+
+  it.each(['command', 'movement', 'shooting', 'charge', 'fight'] as const)('matches a broad phase alert in %s', (phase) => {
+    expect(
+      reminderDue({ moment: 'phase-end', phase: 'any', turn: 'either' }, { moment: 'phase-end', phase, turn: 'opponent-turn' }, 1),
+    ).toBe(true)
+  })
+
+  it('keeps turn ownership for a broad phase alert', () => {
+    expect(
+      reminderDue(
+        { moment: 'phase-end', phase: 'any', turn: 'your-turn' },
+        { moment: 'phase-end', phase: 'fight', turn: 'opponent-turn' },
+        1,
+      ),
+    ).toBe(false)
+  })
+
+  it('does not match a broad phase alert to a turn boundary', () => {
+    expect(reminderDue({ moment: 'phase-end', phase: 'any', turn: 'either' }, { moment: 'turn-end', phase: null, turn: 'either' }, 1)).toBe(
+      false,
+    )
+  })
+
+  it('labels a first-round alert', () => {
+    expect(reminderTimingLabel({ moment: 'round-start', phase: null, turn: 'either', firstRoundOnly: true })).toBe(
+      'Start of round · First round only',
+    )
+  })
+
+  it('labels a broad phase alert', () => {
+    expect(reminderTimingLabel({ moment: 'phase-end', phase: 'any', turn: 'either' })).toBe('End of any phase')
+  })
+
+  it('suggests retaining a resurrection reminder while destroyed', () => {
+    expect(suggestReminderWhileDestroyed('At the start of the battle round, if this model is destroyed, you can return it.')).toBe(true)
+  })
+
+  it('does not retain ordinary reminders just because they mention destruction', () => {
+    expect(suggestReminderWhileDestroyed('At the end of each phase, if this model has lost wounds but is not destroyed, heal it.')).toBe(
+      false,
+    )
+  })
 })

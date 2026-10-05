@@ -327,7 +327,11 @@ function viewRoster(roster: Roster | null, units: readonly UnitState[], own: boo
   const { reminders, remindersEnabled, ...visible } = roster
   const privateFields = own
     ? {
-        reminders: reminders?.filter((reminder) => !reminder.unit || units[reminder.unit.index]?.destroyed === false),
+        reminders: reminders?.filter((reminder) => {
+          if (!reminder.unit) return true
+          const unit = units[reminder.unit.index]
+          return unit !== undefined && (!unit.destroyed || reminder.whileDestroyed === true)
+        }),
         remindersEnabled,
       }
     : {}

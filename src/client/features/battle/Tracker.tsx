@@ -205,7 +205,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   )
   const remindersAt = useCallback(
     (moments: readonly ReminderTiming[], context: ReminderDismissalContext) =>
-      remindersDueAt(viewerReminders, moments).filter((reminder) => !reminderDismissed(reminder.key, context)),
+      remindersDueAt(viewerReminders, moments, context.round).filter((reminder) => !reminderDismissed(reminder.key, context)),
     [reminderDismissed, viewerReminders],
   )
   const enqueueReminderPrompt = useCallback((prompt: ReminderPrompt) => {
@@ -504,6 +504,21 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
 
   useEffect(() => {
     if (!dismissalsReady || view.status !== 'playing' || reminderPrompt || !reminderTurn) return
+    const context = { round: view.round, activePlayerId: view.activePlayerId, phase: view.phase }
+    const firstSide = view.players.find((player) => player.id === view.firstPlayerId)?.side
+    const roundMoment: ReminderTiming | null =
+      firstSide === undefined || !active
+        ? null
+        : view.phase === 'command' && active.index === firstSide
+          ? { moment: 'round-start', phase: null, turn: 'either' }
+          : view.phase === 'end' && active.index !== firstSide
+            ? { moment: 'round-end', phase: null, turn: 'either' }
+            : null
+    const roundReminders = roundMoment ? remindersAt([roundMoment], context) : []
+    if (roundMoment && roundReminders.length) {
+      enqueueReminderPrompt({ reminders: roundReminders, moment: reminderTimingLabel(roundMoment), confirmLabel: 'Dismiss', context })
+      return
+    }
     const moments: ReminderTiming[] =
       view.phase === 'end'
         ? [{ moment: 'turn-end', phase: null, turn: reminderTurn }]
@@ -511,7 +526,6 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             { moment: 'phase-start', phase: view.phase, turn: reminderTurn },
             ...(view.phase === 'command' ? ([{ moment: 'turn-start', phase: null, turn: reminderTurn }] as const) : []),
           ]
-    const context = { round: view.round, activePlayerId: view.activePlayerId, phase: view.phase }
     const actionReminders =
       actionRemindersEnabled && view.phase === 'shooting' && reminderTurn === 'your-turn'
         ? activeMissionActionReminders.filter((reminder) => !reminderDismissed(reminder.key, context))
@@ -529,6 +543,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     })
   }, [
     actionRemindersEnabled,
+    active,
     activeMissionActionReminders,
     dismissalsReady,
     enqueueReminderPrompt,
@@ -537,6 +552,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     reminderDismissed,
     remindersAt,
     view.activePlayerId,
+    view.firstPlayerId,
+    view.players,
     view.phase,
     view.round,
     view.status,

@@ -17,7 +17,7 @@ const FEATURES = [
   {
     icon: Bell,
     title: 'Ability reminders',
-    text: 'Private reminders for your abilities, timed to the phase and turn.',
+    text: 'Private reminders for your abilities, timed to phases, turns and rounds.',
   },
   {
     icon: Swords,
