@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.104.0
+
+### Minor Changes
+
+- 20303de: Add round alerts, first-round restrictions, any-phase triggers, and reminders for abilities used while destroyed.
+
 ## 0.103.0
 
 ### Minor Changes
