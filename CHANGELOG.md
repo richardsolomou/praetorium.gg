@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.106.0
+
+### Minor Changes
+
+- b65ab69: Add leaders and support to combat simulations with their weapons, wounds, supported abilities and loadout odds, and optimize the whole unit’s equipment.
+
 ## 0.105.0
 
 ### Minor Changes
