@@ -1,4 +1,5 @@
 import type { gameReferences } from '../../../server/functions'
+import { routeSlug } from '../../../core/slug'
 
 type References = Awaited<ReturnType<typeof gameReferences>> | undefined
 
@@ -23,6 +24,11 @@ export function missionCardsByKey(references: References) {
   const found = new Map<string, ReturnType<typeof primaryCards>[number]>()
   for (const card of [...primaryCards(references), ...secondaryCards(references)]) {
     if (!found.has(card.key)) found.set(card.key, card)
+  }
+  const secondaries = secondaryCards(references)
+  for (const card of secondaries) {
+    const slug = routeSlug(card.name)
+    if (!found.has(slug) && secondaries.filter((candidate) => routeSlug(candidate.name) === slug).length === 1) found.set(slug, card)
   }
   return found
 }

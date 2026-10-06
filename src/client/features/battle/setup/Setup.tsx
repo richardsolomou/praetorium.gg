@@ -250,6 +250,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
         <section aria-label={steps[at]?.name} className="min-w-0 space-y-4">
           {at === 0 ? (
             <>
+              <ArmiesStep view={view} sides={table} send={send} attachSavedRoster={attachSavedRoster} pending={pending} problem={problem} />
               <SetupPanel className="grid gap-4 sm:grid-cols-2">
                 <div data-onboarding="battle-setup-size">
                   {view.leagueToken || (view.settings.sizeFromRosters && format.problem !== 'manual') ? (
@@ -300,7 +301,6 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
                   </fieldset>
                 ) : null}
               </SetupPanel>
-              <ArmiesStep view={view} sides={table} send={send} attachSavedRoster={attachSavedRoster} pending={pending} problem={problem} />
             </>
           ) : null}
 

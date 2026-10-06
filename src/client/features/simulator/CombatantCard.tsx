@@ -274,7 +274,7 @@ export function CombatantCard({
                   )}
                 </div>
                 <div className="ml-auto flex shrink-0 items-center gap-2">
-                  {member.index === pickIndex ? (
+                  {member.index === pickIndex && (battleUnit || !unit || unit.size.resizable) ? (
                     <Stepper
                       label={`${side.toLowerCase()} models`}
                       countLabel={`${side} models`}
@@ -296,7 +296,11 @@ export function CombatantCard({
                       }
                     />
                   ) : (
-                    <span aria-label={`${side} ${member.name} models`} className="readout w-22 shrink-0 text-center text-sm text-dim">
+                    <span
+                      aria-label={member.index === pickIndex ? `${side} models` : `${side} ${member.name} models`}
+                      aria-busy={!combatant.price.data?.units[member.index]}
+                      className="readout w-8 shrink-0 text-center text-sm text-dim"
+                    >
                       {combatant.price.data?.units[member.index] ? (
                         member.models
                       ) : (
