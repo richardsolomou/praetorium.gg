@@ -84,11 +84,7 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
         setFailed(true)
         return
       }
-      posthog.capture(search.requestSignUp ? 'account_created' : action === 'link' ? 'sign_in_method_added' : 'account_signed_in', {
-        method: provider,
-        native: true,
-        redirected: next !== '/rosters',
-      })
+      if (action === 'link') posthog.capture('sign_in_method_added', { method: provider, native: true })
       returnToApplication({ action, bridge, next, provider }, exchange, challenge)
     }
 

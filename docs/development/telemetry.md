@@ -20,6 +20,7 @@ Custom events measure starts, attempts, completed actions, and bounded failures.
 
 Important count/identity meanings:
 
+- `account_created` comes from confirmed account creation; `account_signed_in` comes from the final authentication hook after two-factor checks. A signup produces creation only; returning through a signup form still produces sign-in. A pending two-factor challenge is not a sign-in. Browser starts/failures retain intent and redirect context. Completions use the account identity and deployment host, without duplicating client events.
 - `roster_created` can mean an empty saved row or claimed guest draft; require `roster_unit_added` to measure building.
 - `roster_imported` means parsing. `roster_import_saved` and `guest_roster_saved` mean the request succeeded; uncertain-response retries can repeat a guest completion. Use unique people for conversion.
 - Roster `unit_count` counts attached character/bodyguard as one fielded unit through `attachedUnitCount`. Request metrics and import `pick_count` count payload picks instead.

@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { createLocalJWKSet, jwtVerify } from 'jose'
+import { createLocalJWKSet, exportJWK, generateKeyPair, jwtVerify, SignJWT } from 'jose'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import { importAuthSqlite } from '../../scripts/nodeAuthSqlite'
@@ -29,9 +29,13 @@ afterAll(async () => {
   if (directory) await rm(directory, { recursive: true, force: true })
 })
 
-function authFor(environment: NodeJS.ProcessEnv, revoked: string[] = [], deleted: string[] = []) {
+type AuthEvent = { userId: string; event: string; properties: { method: string } }
+function authFor(environment: NodeJS.ProcessEnv, revoked: string[] = [], deleted: string[] = [], events?: AuthEvent[]) {
   return createSqliteAuth(local.database, secret, {
     environment,
+    captureAuthentication: async (userId, event, properties) => {
+      events?.push({ userId, event, properties })
+    },
     deleteUserData: async (userId) => {
       deleted.push(userId)
     },
@@ -636,4 +640,106 @@ it('shows a linked GitHub account among sign-in methods for administrators', asy
   const { users } = await accounts.adminUserRows({ query: 'admin-listed-sponsor@example.com' }, [])
 
   expect(users.find((row) => row.id === userId)?.signInMethods.map((method) => method.providerId)).toEqual(['credential', 'github'])
+})
+
+it('captures confirmed email account creation once and distinguishes later sign-ins', async () => {
+  const events: AuthEvent[] = []
+  const auth = authFor(githubEnvironment, [], [], events)
+  const body = { email: 'analytics-email@example.test', password: 'password1234', name: 'Player' }
+  const created = await auth.api.signUpEmail({ body })
+  await expect(auth.api.signInEmail({ body: { ...body, password: 'wrong-password' } })).rejects.toThrow()
+  await auth.api.signInEmail({ body })
+  expect(events).toEqual([
+    { userId: created.user.id, event: 'account_created', properties: { method: 'email' } },
+    { userId: created.user.id, event: 'account_signed_in', properties: { method: 'email' } },
+  ])
+})
+
+it('does not count a password challenge as a sign-in before two-factor verification', async () => {
+  const events: AuthEvent[] = []
+  const auth = authFor(githubEnvironment, [], [], events)
+  const body = { email: 'analytics-two-factor@example.test', password: 'password1234', name: 'Player' }
+  const created = await auth.api.signUpEmail({ body, returnHeaders: true })
+  const headers = new Headers({ cookie: created.headers.get('set-cookie')!.split(';')[0]! })
+  const enabled = await auth.api.enableTwoFactor({ body: { password: body.password }, headers })
+  if (enabled.method !== 'totp') throw new Error('Expected authenticator setup')
+  await local.database.update(user).set({ twoFactorEnabled: true }).where(eq(user.id, created.response.user.id))
+  events.length = 0
+  const challenge = await auth.api.signInEmail({ body, returnHeaders: true })
+  expect(events).toEqual([])
+  const challengeHeaders = new Headers({
+    cookie: challenge.headers
+      .getSetCookie()
+      .map((cookie) => cookie.split(';')[0])
+      .join('; '),
+  })
+  await auth.api.verifyBackupCode({ body: { code: enabled.backupCodes[0]! }, headers: challengeHeaders })
+  expect(events).toEqual([{ userId: created.response.user.id, event: 'account_signed_in', properties: { method: 'two_factor' } }])
+})
+
+it('keeps authentication working when analytics capture fails', async () => {
+  const events: AuthEvent[] = []
+  vi.spyOn(events, 'push').mockImplementation(() => {
+    throw new Error('Analytics unavailable')
+  })
+  const auth = authFor(githubEnvironment, [], [], events)
+  const body = { email: 'analytics-unavailable@example.test', password: 'password1234', name: 'Player' }
+  await auth.api.signUpEmail({ body })
+  const signedIn = await auth.api.signInEmail({ body })
+  expect(signedIn.user.email).toBe(body.email)
+})
+
+it.each(['github', 'google'])('captures actual %s account creation once, then sign-in when the same player returns', async (provider) => {
+  const events: AuthEvent[] = []
+  const auth = authFor(githubEnvironment, [], [], events)
+  const { privateKey, publicKey } = await generateKeyPair('RS256')
+  const key = { ...(await exportJWK(publicKey)), kid: 'analytics-test', alg: 'RS256' }
+  const idToken = await new SignJWT({
+    sub: 'analytics-google',
+    email: 'analytics-google@example.test',
+    email_verified: true,
+    name: 'Player',
+  })
+    .setProtectedHeader({ alg: 'RS256', kid: key.kid })
+    .setIssuer('https://accounts.google.com')
+    .setAudience('google-client')
+    .setIssuedAt()
+    .setExpirationTime('5m')
+    .sign(privateKey)
+  vi.stubGlobal('fetch', async (input: string | URL | Request) => {
+    const url = new URL(input instanceof Request ? input.url : input)
+    if (url.href === 'https://oauth2.googleapis.com/token')
+      return Response.json({ access_token: 'test-token', token_type: 'bearer', id_token: idToken })
+    if (url.href === 'https://www.googleapis.com/oauth2/v3/certs') return Response.json({ keys: [key] })
+    if (url.pathname === '/login/oauth/access_token') return Response.json({ access_token: 'test-token', token_type: 'bearer' })
+    if (url.pathname === '/user')
+      return Response.json({ id: 91999, login: 'analytics', name: 'Player', email: 'analytics-social@example.test', avatar_url: null })
+    if (url.pathname === '/user/emails') return Response.json([{ email: 'analytics-social@example.test', primary: true, verified: true }])
+    throw new Error(`Unexpected OAuth request: ${url.pathname}`)
+  })
+  try {
+    for (let visit = 0; visit < 2; visit++) {
+      const start = await auth.handler(
+        new Request('https://praetorium.gg/api/auth/sign-in/social', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Origin: 'https://praetorium.gg' },
+          body: JSON.stringify({ provider, callbackURL: '/rosters', requestSignUp: true }),
+        }),
+      )
+      const { url } = (await start.json()) as { url: string }
+      const state = new URL(url).searchParams.get('state')!
+      const callback = await auth.handler(
+        new Request(`https://praetorium.gg/api/auth/callback/${provider}?state=${encodeURIComponent(state)}&code=test-code`, {
+          headers: { cookie: start.headers.get('set-cookie')?.split(';')[0] ?? '' },
+        }),
+      )
+      expect(callback.headers.get('location')).toBe('/rosters')
+    }
+    expect(events.map(({ event, properties }) => ({ event, properties }))).toEqual([
+      { event: 'account_created', properties: { method: provider } },
+      { event: 'account_signed_in', properties: { method: provider } },
+    ])
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })

@@ -168,7 +168,7 @@ for (const units of [[], ['Necron Warriors'], ['Necron Warriors', 'Overlord']]) 
     await setup.getByRole('button', { name: 'Start building' }).click()
     await expect(page.getByLabel('Add a unit')).toBeVisible()
     for (const unit of units) await add(page, unit)
-    const save = page.getByRole('button', { name: 'Sign up to save', exact: true })
+    const save = page.getByRole('button', { name: 'Save roster', exact: true })
     if (!units.length) {
       await expect(save).toBeDisabled()
       expect(events.filter((event) => event.name === 'guest_roster_save_started')).toEqual([])

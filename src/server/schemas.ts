@@ -353,6 +353,7 @@ export const picksSchema = z.array(pickSchema).max(100)
 export const savedPrepSchema = prepSchema
 
 export const priceSchema = z.object({
+  includeUnitLimits: z.boolean().optional(),
   catalogueId,
   detachmentIds: z.array(detachmentIdSchema).max(MAX_DETACHMENTS),
   disposition: id.nullable(),

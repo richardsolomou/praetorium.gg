@@ -48,7 +48,6 @@ import {
   meQuery,
   playerDefaultsQuery,
   priceQuery,
-  unitsQuery,
 } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { advanceOnboarding } from '../onboarding/onboarding'
@@ -66,7 +65,7 @@ import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { survivingUnits } from './builder/pricePlaceholder'
-import { canAddCopy, pickEditor, usePicks } from './builder/usePicks'
+import { canAddCopy, unitLimitMessage, pickEditor, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
@@ -128,7 +127,7 @@ type Props = {
    * Every draft goes to `onDraftChange` instead of the server, and saving it is
    * `onSave`'s: the one thing a visitor cannot do here is keep the list.
    */
-  guest?: { onDraftChange: (draft: RosterDraft) => void; onSave: () => void }
+  guest?: { onDraftChange: (draft: RosterDraft) => boolean; onSave: () => void }
 }
 
 export type FrozenRoster = {
@@ -222,11 +221,6 @@ export function ListBuilder({
   const building = editable && !readOnly
   const pickerOpen = editable && (wideWorkspace || showing === 'picker')
   const pickerEnabled = workspaceMeasured && pickerOpen
-  const { data: availableUnits } = useQuery({
-    ...unitsQuery(catalogueId, limit, waivedRules),
-    enabled: editable && Boolean(catalogueId),
-  })
-  const unitLimits = useMemo(() => new Map(availableUnits?.map((unit) => [unit.id, unit.limit]) ?? []), [availableUnits])
 
   const setSetupDraft = (draft: RosterSetup | null) => {
     setSetupDraftState(draft)
@@ -421,8 +415,10 @@ export function ListBuilder({
     dataUpdatedAt: pricedAt,
     isPlaceholderData: pricePending,
     isPending: priceLoading,
+    isError: priceFailed,
+    refetch: retryPrice,
   } = useQuery({
-    ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned, waivedRules, borrowedDetachmentId, optionalRules),
+    ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned, waivedRules, borrowedDetachmentId, optionalRules, editable),
     // A frozen list already carries its cards and its total; the price is only the
     // applied datasheet behind a unit somebody opened.
     enabled: Boolean(catalogueId) && (!frozen || selected !== null),
@@ -455,6 +451,10 @@ export function ListBuilder({
     evaluatedPicks.current = new Map(picks.map((pick) => [pick.key, pick]))
   }, [picks, pricePending, priced, pricedAt])
 
+  const unitLimits = useMemo(
+    () => new Map(!pricePending && !priceFailed ? priced?.unitLimits?.map((unit) => [unit.id, unit.limit]) : []),
+    [pricePending, priceFailed, priced?.unitLimits],
+  )
   const units = priced?.units ?? NO_UNITS
   // Keep the saved automatic name visible while an edit is being priced.
   const storedAutomaticName = initial.automaticName ? initial.name : ''
@@ -710,9 +710,18 @@ export function ListBuilder({
   const warlord = optimisticUnit?.toggles.find((toggle) => toggle.name === 'Warlord')
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
   const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : null
+  const limitFailure = priceFailed ? (
+    <div role="alert" className="border-b border-edge px-3 py-2 text-xs text-discarded">
+      Could not check unit limits.{' '}
+      <Button variant="link" size="sm" onClick={() => void retryPrice()}>
+        Retry
+      </Button>
+    </div>
+  ) : null
   const picker =
     editable && faction ? (
       <div className="flex h-full flex-col">
+        {limitFailure}
         <div className="min-h-0 flex-1">
           <Picker
             enabled={pickerEnabled}
@@ -720,6 +729,7 @@ export function ListBuilder({
             onAdd={add}
             onPreview={previewUnit}
             inRoster={held}
+            limits={unitLimits}
             room={priced && enforces(waivedRules, 'points-limit') ? limit - priced.points : null}
             battleSize={limit}
             waivedRules={waivedRules}
@@ -1187,7 +1197,19 @@ export function ListBuilder({
               </>
             }
           >
-            {preview ? datasheet : loadout}
+            {preview ? (
+              <>
+                {limitFailure}
+                {!priceFailed && unitLimitMessage(preview.entryId, held[preview.entryId] ?? 0, unitLimits) ? (
+                  <output className="block border-b border-edge px-3 py-2 text-xs text-discarded">
+                    {unitLimitMessage(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
+                  </output>
+                ) : null}
+                {datasheet}
+              </>
+            ) : (
+              loadout
+            )}
           </Pane>
         ) : null}
       </RosterBody>
@@ -1210,7 +1232,7 @@ export function ListBuilder({
         onSave={
           guest
             ? () => {
-                guest.onDraftChange(draft)
+                if (!guest.onDraftChange(draft)) return
                 posthog.capture('guest_roster_save_started', { unit_count: attachedUnitCount(picks) })
                 guest.onSave()
               }

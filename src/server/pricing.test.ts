@@ -1293,3 +1293,48 @@ describe('the name an unnamed list falls back on', () => {
     expect(priceOf([])?.label).toBe('HL 1K')
   })
 })
+
+describe('roster-aware picker limits', () => {
+  const loaded = bookOf({
+    categoryEntries: [
+      {
+        id: 'allies',
+        name: 'Allies',
+        constraints: [{ id: 'cap', type: 'max', field: 'selections', scope: 'roster', includeChildSelections: true, value: 0 }],
+        modifiers: [
+          {
+            field: 'cap',
+            type: 'increment',
+            value: 1,
+            repeats: [{ childId: 'line', field: 'selections', scope: 'roster', includeChildSelections: true, value: 1, repeats: 1 }],
+          },
+        ],
+      },
+    ],
+    selectionEntries: ['line', 'beast', 'hero'].map((id) => ({
+      ...cappedLord(id, id),
+      categoryLinks: id === 'line' ? [] : [{ id: `${id}-ally`, targetId: 'allies' }],
+    })),
+  })
+  it.each([
+    [[], 0],
+    [['line'], 1],
+    [['line', 'line'], 2],
+    [['line', 'hero'], 0],
+    [['line', 'beast'], 1],
+  ] as const)('prices the available beast copies with roster %j', (ids, expected) => {
+    const result = calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        limit: 2000,
+        units: ids.map((entryId) => ({ entryId })),
+        includeUnitLimits: true,
+      },
+      loaded,
+      rulesWithout,
+    )
+    expect(result?.unitLimits?.find((unit) => unit.id === 'beast')?.limit).toBe(expected)
+  })
+})

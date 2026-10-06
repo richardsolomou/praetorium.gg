@@ -92,13 +92,13 @@ test('signing up keeps the list a visitor built', async ({ page }) => {
   await add(page, 'Necron Warriors')
   await expect(page.locator('[data-stat="points"]')).not.toHaveText(/^0\//)
 
-  await page.getByRole('button', { name: 'Sign up to save' }).click()
+  await page.getByRole('button', { name: 'Save roster' }).click()
   await page.waitForURL(/\/sign-in\?next=%2Frosters&join=true$/)
   await page.waitForLoadState('networkidle')
   await page.getByLabel('Your name').fill(uniqueName('Visitor'))
   await page.getByLabel('Email').fill(`visitor-${crypto.randomUUID()}@example.test`)
   await page.getByLabel('Password').fill('a-long-enough-password')
-  await page.getByRole('button', { name: 'Create the account' }).click()
+  await page.getByRole('button', { name: 'Create account and save roster' }).click()
 
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
@@ -125,4 +125,77 @@ test("a visitor's list for an army the data no longer holds can be started again
   await expect(page.getByRole('heading', { name: 'This army is not available' })).toBeVisible()
   await page.getByRole('button', { name: 'Start a new list' }).click()
   await expect(page.getByRole('region', { name: 'Create roster' })).toBeVisible()
+})
+
+for (const width of [1440, 390]) {
+  test(`allied roster slots unlock and explain exhausted limits at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/rosters')
+    await page.waitForLoadState('networkidle')
+    const setup = page.getByRole('region', { name: 'Create roster' })
+    await setup.getByRole('combobox', { name: 'Faction' }).click()
+    await page.getByPlaceholder('Search factions…').fill('Chaos Knights')
+    await page.getByRole('option', { name: 'Chaos Knights', exact: true }).click()
+    await setup.getByRole('button', { name: 'Select Infernal Lance' }).click()
+    await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Priority Assets' }).click()
+    await setup.getByRole('button', { name: 'Start building' }).click()
+    if (width < 1300) await page.getByRole('button', { name: 'Add units', exact: true }).click()
+    await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
+    await page.getByRole('button', { name: 'Toggle Daemons Library' }).click()
+    await expect(page.getByRole('button', { name: 'Add Beasts of Nurgle', exact: true })).toBeDisabled()
+    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('Unavailable with the current roster')
+    await page.getByLabel('Add a unit').fill('Nurglings')
+    await page.getByRole('button', { name: 'Add Nurglings', exact: true }).click()
+    await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
+    await page.getByRole('button', { name: 'View Beasts of Nurgle datasheet', exact: true }).click()
+    await page.getByRole('button', { name: 'Add to list', exact: true }).click()
+    await expect(page.locator('[data-unit="Beasts of Nurgle"]')).toBeVisible()
+    if (width < 1300) {
+      await page.getByRole('button', { name: 'Back to units', exact: true }).click()
+      await page.getByRole('button', { name: 'Toggle Daemons Library' }).click()
+    }
+    await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
+    await expect(page.getByRole('button', { name: 'Add Beasts of Nurgle', exact: true })).toBeDisabled()
+    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('Limit reached (1/1)')
+    await page.screenshot({ path: `test-results/allied-limits-${width}.png` })
+    if (width < 1300) await page.getByRole('button', { name: 'Close', exact: true }).click()
+    await page.getByRole('button', { name: 'Save roster', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Save your roster' })).toBeVisible()
+    await page.screenshot({ path: `test-results/guest-save-${width}.png`, fullPage: true })
+    await page.getByRole('link', { name: 'Back to your roster' }).click()
+    await expect(page.locator('[data-unit="Beasts of Nurgle"]')).toBeVisible()
+  })
+}
+
+test('saving a guest roster does not discard it when browser storage is unavailable', async ({ page }) => {
+  await startGuestRoster(page)
+  await add(page, 'Necron Warriors')
+  await page.evaluate(() =>
+    Object.defineProperty(sessionStorage, 'setItem', {
+      value: () => {
+        throw new DOMException('Storage unavailable', 'QuotaExceededError')
+      },
+    }),
+  )
+  await page.getByRole('button', { name: 'Save roster', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('Allow browser storage to save it')
+  await expect(page.locator('[data-unit="Necron Warriors"]')).toBeVisible()
+})
+
+test('a failed unit-limit check can be retried without losing the roster', async ({ page }) => {
+  await startGuestRoster(page)
+  await add(page, 'Necron Warriors')
+  await expect(page.locator('[data-unit="Necron Warriors"]')).toBeVisible()
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'POST') await route.abort()
+    else await route.continue()
+  })
+  await add(page, 'Immortals')
+  await expect(page.getByRole('alert')).toContainText('Could not check unit limits')
+  await page.getByLabel('Add a unit').fill('Overlord')
+  await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeDisabled()
+  await page.unroute('**/_serverFn/**')
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
 })

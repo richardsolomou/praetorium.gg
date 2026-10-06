@@ -30,6 +30,15 @@ export function canAddCopy(entryId: string, held: number, limits: ReadonlyMap<st
   return limit !== undefined && (limit === null || held < limit)
 }
 
+export function unitLimitMessage(entryId: string, held: number, limits: ReadonlyMap<string, number | null>) {
+  const limit = limits.get(entryId)
+  if (limit === undefined) return 'Checking unit limits…'
+  if (limit === null || held < limit) return null
+  return limit === 0
+    ? 'Unavailable with the current roster. Check your army’s construction rules.'
+    : `Limit reached (${held}/${limit}). Remove a unit or check your army’s construction rules.`
+}
+
 /**
  * The list being edited, in the two shapes the builder reads it in.
  *

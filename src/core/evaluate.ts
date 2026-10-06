@@ -643,17 +643,23 @@ export function rosterLimit(definition: Definition, index: CatalogueIndex, optio
   const target = node.target
 
   let limit: number | null = null
-  const consider = (constraint: Constraint, extra: readonly Modifier[] = []) => {
+  const held = (options.roster ?? [])
+    .filter((selection) => selection.id === definition.id)
+    .reduce((sum, selection) => sum + (selection.count ?? 1), 0)
+  const consider = (constraint: Constraint, childId: string, extra: readonly Modifier[] = []) => {
     if (constraint.type !== 'max') return
     if (constraint.scope !== 'roster' && constraint.scope !== 'force') return
     if (constraint.field !== 'selections') return
     const value = constraintValue(constraint, node, root, index, census, extra)
     // A negative maximum is how the data says "no cap".
     if (value < 0) return
-    limit = limit === null ? value : Math.min(limit, value)
+    const measured = measure({ ...constraint, childId }, node, root, index, census)
+    const copies = Math.max(0, held + value - (measured - 1))
+    limit = limit === null ? copies : Math.min(limit, copies)
   }
 
-  for (const constraint of sourcesOf(node).flatMap((source) => source.constraints ?? [])) consider(constraint)
+  for (const constraint of sourcesOf(node).flatMap((source) => source.constraints ?? []))
+    consider(constraint, constraint.shared === false ? node.id : node.target.id)
   /*
    * Most of the caps are here rather than on the datasheet: every unit carries a
    * category named after itself, and the number sits on that. Without reading them
@@ -664,7 +670,7 @@ export function rosterLimit(definition: Definition, index: CatalogueIndex, optio
     const category = index.categories.get(categoryLink.targetId)
     if (!category) continue
     const extra = [...(category.modifiers ?? []), ...(category.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
-    for (const constraint of category.constraints ?? []) consider(constraint, extra)
+    for (const constraint of category.constraints ?? []) consider(constraint, category.id, extra)
   }
   return limit
 }
