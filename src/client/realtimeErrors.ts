@@ -1,4 +1,4 @@
-const FETCH_NETWORK_FAILURES = ['failed to fetch', 'networkerror when attempting to fetch resource', 'load failed', 'fetch failed']
+import { isFetchNetworkFailure } from './networkErrors'
 
 export class RealtimeHttpError extends Error {
   constructor(
@@ -14,11 +14,9 @@ export function isExpectedRealtimeDisconnect(error: unknown): boolean {
   if (error instanceof RealtimeHttpError) {
     return error.status === 401 || error.status === 408 || error.status === 429 || error.status >= 500
   }
+  if (isFetchNetworkFailure(error)) return true
   if (typeof error !== 'object' || error === null) return false
   const { name, message } = error as { name?: unknown; message?: unknown }
   if (name === 'UnauthorizedError') return true
-  if (typeof message !== 'string') return false
-  if (message.includes('connection closed')) return true
-  const lowered = message.toLowerCase()
-  return name === 'TypeError' && FETCH_NETWORK_FAILURES.some((phrase) => lowered.includes(phrase))
+  return typeof message === 'string' && message.includes('connection closed')
 }
