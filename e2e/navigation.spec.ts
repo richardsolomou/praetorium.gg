@@ -275,6 +275,7 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(fixedSecondary).toContainText('Fixed')
   await expect(tacticalSecondary).toBeVisible()
   await expect(tacticalSecondary).not.toContainText('Fixed')
+  const assassinationPath = (await fixedSecondary.getAttribute('href'))!
   await expect(page.getByRole('heading', { name: 'Mission twists' })).toBeVisible()
   await expect(page).toHaveTitle(/Chapter Approved 2026-2027 missions — Praetorium/)
   await expectCanonical(page, '/missions/chapter-approved-2026-2027')
@@ -317,8 +318,14 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page).toHaveURL('/missions/chapter-approved-2026-2027')
   await page.goto('/mission-packs/chapter-approved-2026-2027')
   await expect(page).toHaveURL('/missions/chapter-approved-2026-2027')
-  await page.goto('/mission-packs/chapter-approved-2026-2027/secondary-missions/assassination')
-  await expect(page).toHaveURL('/missions/chapter-approved-2026-2027/secondaries/assassination')
+  for (const published of [
+    '/missions/chapter-approved-2026-2027/secondaries/assassination',
+    '/mission-packs/chapter-approved-2026-2027/secondary-missions/assassination',
+  ]) {
+    await page.goto(published)
+    await expect(page).toHaveURL(assassinationPath)
+    await expect(page.getByRole('heading', { name: 'Assassination', exact: true })).toBeVisible()
+  }
   await page.goto(`/mission-matchups/chapter-approved-2026-2027/disruption/take-and-hold#${missionId}`)
   await expect(page).toHaveURL(`/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold#${missionId}`)
 
