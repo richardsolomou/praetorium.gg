@@ -26,6 +26,7 @@ self.onmessage = (event: MessageEvent<CombatRequest | LoadoutOddsRequest | Optim
     const answer: CombatAnswer = { ranged: run(data.ranged), melee: run(data.melee) }
     if (data.ranged && data.melee && answer.ranged?.result && answer.melee?.result) {
       try {
+        if (data.sequenceError) throw new Error(data.sequenceError)
         answer.combined = { result: calculateCombatSequence([data.ranged, data.melee]) }
       } catch (error) {
         answer.combined = { error: error instanceof Error ? error.message : 'The simulation failed.' }

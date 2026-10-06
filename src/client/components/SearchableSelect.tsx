@@ -15,6 +15,7 @@ import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox'
 import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual'
 import { type ReactNode, type RefObject, useCallback, useImperativeHandle, useMemo, useRef } from 'react'
 import { cn } from '@/lib/utils'
+import { LoaderCircle } from 'lucide-react'
 import { FactionLabel, type FactionPresentation } from './FactionMark'
 import type { OnboardingTarget } from '../onboardingTargets'
 
@@ -34,12 +35,17 @@ type VirtualList = { virtualizer: Virtualizer<HTMLDivElement, Element>; rowOf: (
 type Props = {
   id?: string
   ariaLabel?: string
+  title?: string
   groups: SearchableGroup[]
   value: string
   onValueChange: (value: string) => void
   placeholder: string
   searchPlaceholder?: string
   className?: string
+  popupClassName?: string
+  disabled?: boolean
+  loading?: boolean
+  trigger?: ReactNode
   onboarding?: OnboardingTarget
   /** Renders only the visible rows, for lists too long to mount at once. */
   virtualized?: boolean
@@ -48,12 +54,17 @@ type Props = {
 export function SearchableSelect({
   id,
   ariaLabel,
+  title,
   groups,
   value,
   onValueChange,
   placeholder,
   searchPlaceholder = 'Search…',
   className,
+  popupClassName,
+  disabled = false,
+  loading = false,
+  trigger,
   onboarding,
   virtualized = false,
 }: Props) {
@@ -64,6 +75,7 @@ export function SearchableSelect({
 
   return (
     <Combobox
+      disabled={disabled}
       items={virtualized ? options : groups}
       virtualized={virtualized}
       filter={virtualized ? matchesGroupedOption : undefined}
@@ -87,16 +99,25 @@ export function SearchableSelect({
         id={id}
         data-onboarding={onboarding}
         aria-label={ariaLabel}
+        title={title}
+        aria-busy={loading}
         className={cn(
           'flex h-8 w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-lg border border-input bg-transparent px-2.5 text-sm font-normal text-bone outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-muted data-placeholder:text-muted-foreground',
+          trigger || loading ? '[&>svg:last-child]:hidden' : undefined,
           className,
         )}
       >
-        <span className="min-w-0 flex-1 overflow-hidden text-left">
-          <ComboboxValue placeholder={placeholder}>{selected ? <OptionLabel option={selected} /> : null}</ComboboxValue>
-        </span>
+        {trigger ?? (
+          <span className="min-w-0 flex-1 overflow-hidden text-left">
+            <ComboboxValue placeholder={placeholder}>{selected ? <OptionLabel option={selected} /> : null}</ComboboxValue>
+          </span>
+        )}
+        {loading ? <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden /> : null}
       </ComboboxTrigger>
-      <ComboboxContent className="transition-none">
+      <ComboboxContent
+        align={trigger ? 'end' : 'start'}
+        className={cn('transition-none', trigger ? 'w-72 min-w-64 max-w-[calc(100vw-2rem)]' : undefined, popupClassName)}
+      >
         <ComboboxInput placeholder={searchPlaceholder} showTrigger={false} />
         <ComboboxEmpty className="text-dim">No matches.</ComboboxEmpty>
         <ComboboxList ref={list} className={virtualized ? 'max-h-none overflow-visible p-0' : undefined}>

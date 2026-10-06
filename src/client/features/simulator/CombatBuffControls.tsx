@@ -1,3 +1,4 @@
+import { combatUnitKeywords } from '../../../core/combatUnit'
 import { Button } from '@/components/ui/button'
 import { combatEffectAppliesTo, combatRuleAppliesTo, combatRuleChoices, combatRuleDefault } from '../../../core/combatRules'
 import { CombatRuleLabel } from './CombatRuleLabel'
@@ -6,7 +7,7 @@ import type { Combatant } from './useCombatant'
 
 export function CombatBuffControls({ side, combatant, opponent }: { side: string; combatant: Combatant; opponent: Combatant }) {
   const role = side === 'Attacker' ? 'attacker' : 'defender'
-  const opposingKeywords = opponent.sheets.data?.selected?.keywords
+  const opposingKeywords = opponent.snapshot ? combatUnitKeywords(opponent.snapshot) : undefined
   const enhancements = (combatant.unit?.choices ?? []).flatMap((choice) => {
     if (choice.kind !== 'enhancement' && choice.kind !== 'upgrade') return []
     const options = choice.options.filter(
@@ -32,7 +33,7 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
     )
     return options.length ? [{ ...choice, options }] : []
   })
-  const rules = (combatant.sheets.data?.rules ?? []).filter((rule) => combatRuleAppliesTo(rule, role, opposingKeywords))
+  const rules = combatant.allRules.filter((rule) => combatRuleAppliesTo(rule, role, opposingKeywords))
   return (
     <section aria-label={`${side} buffs`} className="min-w-0">
       <section aria-label={`${side} rules`} className="space-y-3">

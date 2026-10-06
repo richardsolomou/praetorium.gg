@@ -25,7 +25,7 @@ export function CombatSimulator({ shared, onShare }: { shared?: string; onShare:
       <PageHeader
         eyebrow={null}
         title="Combat simulator"
-        description="Compare shooting and melee between two units. Change a loadout and the odds update automatically."
+        description="Compare shooting and melee between units with their leaders and support. Change a loadout and the odds update automatically."
       />
       <PageContent>
         <CombatSimulatorMatchup initial={initial} onChange={share} />
@@ -65,16 +65,26 @@ export function CombatSimulatorMatchup({
   const [reversed, setReversed] = useState(initial?.swapped ?? false)
   const [attacker, defender] = reversed ? [second, first] : [first, second]
   const matchupKey = `${reversed}:${attacker.identity}:${defender.identity}`
-  // Settings belong to one matchup: changing a unit remounts the matchup without them.
+  const [displayKey, setDisplayKey] = useState(matchupKey)
+  if (attacker.ready && defender.ready && displayKey !== matchupKey) setDisplayKey(matchupKey)
   const [settings, setSettings] = useState(() => ({ key: matchupKey, value: initial?.matchup }))
+  const { setWeaponPreferences } = attacker
   const reportSettings = useCallback(
-    (value: MatchupSettings) =>
+    (value: MatchupSettings) => {
+      if (displayKey !== matchupKey) return
+      setWeaponPreferences(value.preferences)
       setSettings((current) =>
         current.key === matchupKey && JSON.stringify(current.value) === JSON.stringify(value) ? current : { key: matchupKey, value },
-      ),
-    [matchupKey],
+      )
+    },
+    [matchupKey, displayKey, setWeaponPreferences],
   )
-  const matchup = settings.key === matchupKey ? settings.value : undefined
+  const matchup = (settings.key === matchupKey ? settings.value : undefined) ?? {
+    adjustments: {},
+    preferences: attacker.weaponPreferences,
+    excluded: { ranged: [], melee: [] },
+    allocation: [],
+  }
   const state = JSON.stringify({ v: 1, sides: [first.shared, second.shared], swapped: reversed, ...(matchup ? { matchup } : {}) })
   useEffect(() => {
     onChange?.(JSON.parse(state) as SimulatorState)
@@ -92,7 +102,7 @@ export function CombatSimulatorMatchup({
   return (
     <CombatMatchup
       entryPoint={source}
-      key={matchupKey}
+      key={displayKey}
       initialSettings={matchup}
       onSettingsChange={reportSettings}
       attacker={attacker.snapshot}
@@ -108,16 +118,16 @@ export function CombatSimulatorMatchup({
           armyControl={reversed ? secondArmyControl : firstArmyControl}
           headingAction={
             <Button
-              variant="ghost"
-              size="sm"
-              className="text-dim"
+              variant="outline"
+              size="icon-sm"
+              className="bg-panel text-dim active:not-aria-[haspopup]:translate-y-0"
               data-onboarding="simulator-swap"
               aria-label="Swap attacker and defender"
+              title="Swap attacker and defender"
               onClick={() => setReversed((current) => !current)}
               disabled={!attacker.snapshot || !defender.snapshot || !attacker.ready || !defender.ready || failed}
             >
               <ArrowLeftRight aria-hidden />
-              Swap
             </Button>
           }
         />

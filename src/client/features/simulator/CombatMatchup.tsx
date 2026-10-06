@@ -7,6 +7,7 @@ import { ProfileGrid, WeaponProfiles } from '../../components/DatasheetProfiles'
 import type { Datasheet } from '../../../contracts/catalogue'
 import {
   DEFAULT_COMBAT_OPTIONS,
+  combatGroupProtection,
   criticalThresholdMatters,
   halfRangeMatters,
   rerollAdjustmentMatters,
@@ -19,7 +20,7 @@ import {
   type CombatResult,
 } from '../../../core/combat'
 import type { CombatCarrier } from '../../../core/combatLoadout'
-import { combatTarget } from '../../../core/combatProfiles'
+import { combatUnitKeywords, combatUnitTarget, combatUnitSequenceError, type CombatMember } from '../../../core/combatUnit'
 import { combatAttackInput, combatAttacks } from '../../../core/combatScenario'
 import {
   adjustCombatTarget,
@@ -55,12 +56,16 @@ export type CombatantSnapshot = {
   startingModels?: number
   carriers: readonly CombatCarrier[]
   rules?: readonly ActiveCombatRule[]
+  ruleChoices?: Readonly<Record<string, number>>
   damage?: number
+  bodyguard?: boolean
   allocationRequired?: boolean
+  sharedDefenceSources?: readonly string[]
+  companions?: readonly CombatMember[]
 }
 type Phase = CombatOptions['phase']
 type Scope = Phase | 'all'
-export type CombatRequest = Record<Phase, CombatInput | null>
+export type CombatRequest = Record<Phase, CombatInput | null> & { sequenceError?: string }
 type CombatPhaseAnswer = { result?: CombatResult; error?: string } | null
 export type CombatAnswer = Record<Phase, CombatPhaseAnswer> & { combined?: CombatPhaseAnswer }
 type CombatEntryPoint = 'standalone' | 'roster' | 'battle'
@@ -154,26 +159,39 @@ export function CombatMatchup({
   useEffect(() => {
     onSettingsChange?.({ adjustments, preferences, excluded: excludedWeapons, allocation: [...allocation] })
   }, [adjustments, preferences, excludedWeapons, allocation, onSettingsChange])
-  const built = defender ? combatTarget(defender.sheet, defender.models, defender.startingModels, defender.carriers) : null
+  const built = defender ? combatUnitTarget(defender) : null
   const position = (label: string) => (allocation.includes(label) ? allocation.indexOf(label) : allocation.length)
-  const order = (built?.labels ?? []).map((_, index) => index).toSorted((a, b) => position(built!.labels[a]!) - position(built!.labels[b]!))
+  const priority = (index: number) => {
+    const group = built?.target?.groups[index]
+    return (group?.character ? 2 : 0) + ((group?.damage ?? 0) > 0 ? 0 : 1)
+  }
+  const order = (built?.labels ?? [])
+    .map((_, index) => index)
+    .toSorted((a, b) => priority(a) - priority(b) || position(built!.labels[a]!) - position(built!.labels[b]!))
   const labels = order.map((index) => built!.labels[index]!)
   const target =
     built?.target && defender
       ? {
           ...built,
           labels,
-          target: { ...built.target, groups: order.map((index) => built.target!.groups[index]!), damage: defender.damage ?? 0 },
+          target: {
+            ...built.target,
+            groups: order.map((index) => built.target!.groups[index]!),
+            damage: defender.companions?.length ? 0 : (defender.damage ?? 0),
+          },
         }
       : built
   const allocateEarlier = (index: number) =>
     setAllocation(labels.map((label, at) => (at === index - 1 ? labels[index]! : at === index ? labels[index - 1]! : label)))
   const attackRules = attacker?.rules ?? []
   const defenceRules = defender?.rules ?? []
-  const ruleDefences = {
-    ranged: target?.target ? combatRuleDefences(target.target, defenceRules, 'ranged', attackRules) : null,
-    melee: target?.target ? combatRuleDefences(target.target, defenceRules, 'melee', attackRules) : null,
+  const unitDefences = (phase: Phase) => {
+    if (!target?.target || !defender) return null
+    if (!defender.companions?.length) return combatRuleDefences(target.target, defenceRules, phase, attackRules)
+    const calculated = combatUnitTarget(defender, phase, attackRules)
+    return calculated.target ? { ...calculated.target, groups: order.map((index) => calculated.target!.groups[index]!) } : null
   }
+  const ruleDefences = { ranged: unitDefences('ranged'), melee: unitDefences('melee') }
   const defencesIn = (phase: Phase, settings: CombatAdjustments = adjustments) =>
     ruleDefences[phase] ? adjustCombatTarget(ruleDefences[phase], settings.target ?? {}) : null
   const rangedDefences = defencesIn('ranged')
@@ -183,14 +201,21 @@ export function CombatMatchup({
     extraFeelNoPain && (!printed || extraFeelNoPain < printed) ? extraFeelNoPain : (printed ?? null)
   const withExtraFeelNoPain = (defences: CombatInput['target'], settings: CombatAdjustments = adjustments) => {
     const extra = settings.feelNoPain ?? null
-    return { ...defences, feelNoPain: extra && (!defences.feelNoPain || extra < defences.feelNoPain) ? extra : defences.feelNoPain }
+    return {
+      ...defences,
+      feelNoPain: extra && (!defences.feelNoPain || extra < defences.feelNoPain) ? extra : defences.feelNoPain,
+      groups: defences.groups.map((group) => ({
+        ...group,
+        ...(extra && group.feelNoPain !== undefined ? { feelNoPain: Math.min(group.feelNoPain ?? 7, extra) } : {}),
+      })),
+    }
   }
   const feelNoPain = betterFeelNoPain(
     rangedDefences?.feelNoPain === meleeDefences?.feelNoPain ? rangedDefences?.feelNoPain : target?.target?.feelNoPain,
   )
   const attackOptions = {
-    ranged: combatRuleOptions(attackRules, 'attacker', 'ranged'),
-    melee: combatRuleOptions(attackRules, 'attacker', 'melee'),
+    ranged: combatRuleOptions(attacker?.companions?.length ? [] : attackRules, 'attacker', 'ranged'),
+    melee: combatRuleOptions(attacker?.companions?.length ? [] : attackRules, 'attacker', 'melee'),
   }
   const defenceOptions = {
     ranged: combatRuleOptions(defenceRules, 'defender', 'ranged'),
@@ -236,12 +261,13 @@ export function CombatMatchup({
     }
   }
   const attacks = attacker
-    ? combatAttacks(attacker, { keywords: defender?.sheet.keywords ?? [], rules: defenceRules }, preferences, excludedWeapons)
+    ? combatAttacks(attacker, { keywords: defender ? combatUnitKeywords(defender) : [], rules: defenceRules }, preferences, excludedWeapons)
     : null
   const plans = { ranged: attacks?.ranged.plan ?? null, melee: attacks?.melee.plan ?? null }
   const scenario = (phase: Phase, settings: CombatAdjustments = adjustments): CombatInput | null => {
     const defences = defencesIn(phase, settings)
-    if (!attacks || attacker?.allocationRequired || !defences) return null
+    if (!attacks || attacker?.allocationRequired || attacker?.companions?.some((member) => member.allocationRequired) || !defences)
+      return null
     const phaseTarget = withExtraFeelNoPain(defences, settings)
     const resolvedOptions = options(phase, settings)
     return (
@@ -256,7 +282,8 @@ export function CombatMatchup({
         : null)
     )
   }
-  const scenarios: CombatRequest = { ranged: scenario('ranged'), melee: scenario('melee') }
+  const sequenceError = defender ? combatUnitSequenceError(defender, target?.target?.groups) : undefined
+  const scenarios: CombatRequest = { ranged: scenario('ranged'), melee: scenario('melee'), sequenceError }
   const phaseSetup = (phase: Phase) => {
     const defences = defencesIn(phase)
     return defences
@@ -438,9 +465,13 @@ export function CombatMatchup({
     attacker && defender && !attacker.allocationRequired && !pending && !failed
       ? {
           sheet: attacker.sheet,
+          carriers: attacker.carriers,
           models: attacker.models,
           rules: attackRules,
-          opponent: { keywords: defender.sheet.keywords, rules: defenceRules },
+          ruleChoices: attacker.ruleChoices,
+          companions: attacker.companions,
+          sequenceError,
+          opponent: { keywords: combatUnitKeywords(defender), rules: defenceRules },
           preferences,
           excluded: excludedWeapons,
           phases: { ranged: phaseSetup('ranged'), melee: phaseSetup('melee') },
@@ -452,11 +483,12 @@ export function CombatMatchup({
     expected: scenarios,
   })
   const optimizationKey = JSON.stringify({
-    key: JSON.stringify([defender, adjustments, attackRules, defenceRules, attacker?.models]),
+    key: JSON.stringify([defender, adjustments, defenceRules, attacker?.models]),
     preferences,
     excluded: excludedWeapons,
     result: outcome?.key === requestKey ? outcome.answer.combined?.result : undefined,
     scoring: loadoutScoring,
+    expected: scenarios,
   } satisfies Omit<LoadoutOptimization, 'apply'>)
   const optimizationContext = useMemo(
     () => ({
@@ -595,8 +627,12 @@ export function CombatMatchup({
   return (
     <>
       <div className="@container min-w-0 border border-edge bg-panel" aria-label="Combat matchup">
-        <div className="grid divide-y divide-edge @xl:grid-cols-2 @xl:divide-x @xl:divide-y-0">
-          <section data-onboarding="simulator-attacker" aria-label="Attacker" className="min-w-0">
+        <div className="grid @xl:grid-cols-2">
+          <section
+            data-onboarding="simulator-attacker"
+            aria-label="Attacker"
+            className="min-w-0 border-b border-edge @xl:border-r @xl:border-b-0"
+          >
             <LoadoutOddsContext.Provider value={loadoutOdds}>
               <LoadoutOptimizationContext.Provider value={optimizationContext}>
                 {attackerControl ?? <CombatantHeading side="Attacker" unit={attacker} />}
@@ -1049,17 +1085,21 @@ function CombatDefences({
   configured?: { target: CombatInput['target']; labels: readonly string[] }
   onAllocateEarlier?: (index: number) => void
 }) {
-  const printed = configured ?? (unit ? combatTarget(unit.sheet, unit.models, unit.startingModels, unit.carriers) : null)
+  const printed = configured ?? (unit ? combatUnitTarget(unit) : null)
   const target = printed?.target ?? null
   const fnp = feelNoPain === undefined ? target?.feelNoPain : feelNoPain
   const groups = target?.groups ?? []
-  const values = (group: CombatTargetGroup | undefined) => [
-    { name: 'T', value: group ? String(group.toughness) : '—' },
-    { name: 'Sv', value: group ? `${group.save}+` : '—' },
-    { name: 'W', value: group ? String(group.wounds) : '—' },
-    { name: 'InSv', value: group?.invulnerable ? `${group.invulnerable}+` : '—' },
-    { name: 'FNP', value: fnp ? `${fnp}+` : '—' },
-  ]
+  const values = (group: CombatTargetGroup | undefined) => {
+    const protection = group && target ? combatGroupProtection(target, group).feelNoPain : null
+    const threshold = Math.min(protection ?? 7, fnp ?? 7)
+    return [
+      { name: 'T', value: group ? String(group.toughness) : '—' },
+      { name: 'Sv', value: group ? `${group.save}+` : '—' },
+      { name: 'W', value: group ? String(group.wounds) : '—' },
+      { name: 'InSv', value: group?.invulnerable ? `${group.invulnerable}+` : '—' },
+      { name: 'FNP', value: threshold < 7 ? `${threshold}+` : '—' },
+    ]
+  }
   if (groups.length < 2)
     return (
       <div className="px-3 pb-3 sm:px-4 sm:pb-4">
@@ -1090,7 +1130,10 @@ function CombatDefences({
                       {onAllocateEarlier ? `${index + 1}. ` : ''}
                       {label} ×{group.models}
                     </span>
-                    {onAllocateEarlier && index > 0 ? (
+                    {onAllocateEarlier &&
+                    index > 0 &&
+                    Boolean(group.character) === Boolean(groups[index - 1]!.character) &&
+                    Boolean(group.damage) === Boolean(groups[index - 1]!.damage) ? (
                       <Button
                         variant="ghost"
                         size="icon-xs"

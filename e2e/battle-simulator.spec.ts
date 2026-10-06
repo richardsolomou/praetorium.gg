@@ -207,12 +207,16 @@ test('a team matchup switches allied armies and carries both sides through a swa
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
   await simulator.getByRole('combobox', { name: 'First army', exact: true }).click()
   await page.getByRole('option', { name: allyName, exact: true }).click()
-  await expect(simulator.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Canoptek Reanimator')
+  await expect(simulator.getByRole('region', { name: 'Attacker', exact: true }).locator('[data-combat-member]').first()).toContainText(
+    'Canoptek Reanimator',
+  )
   await expect(simulator.getByLabel('Defender faction', { exact: true })).toContainText('Space Marines')
   await expect((await estimate(simulator, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
   await simulator.getByRole('button', { name: 'Swap attacker and defender' }).click()
   await openCombatControls(simulator)
-  await expect(simulator.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Canoptek Reanimator')
+  await expect(simulator.getByRole('region', { name: 'Defender', exact: true }).locator('[data-combat-member]').first()).toContainText(
+    'Canoptek Reanimator',
+  )
   await expect(simulator.getByRole('region', { name: 'Defender', exact: true })).toContainText('4+')
   await simulator.screenshot({ path: 'test-results/battle-simulator-team.png' })
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()

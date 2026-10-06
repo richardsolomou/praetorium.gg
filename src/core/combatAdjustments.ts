@@ -101,6 +101,8 @@ export function adjustCombatTarget(target: CombatInput['target'], adjustment: Ta
       toughness: Math.max(1, group.toughness + (adjustment.toughness ?? 0)),
       save: between(group.save - (adjustment.save ?? 0), 2, 7),
       invulnerable: extra && (group.invulnerable === null || extra < group.invulnerable) ? extra : group.invulnerable,
+      ...(adjustment.damageReduction && group.damageReduction !== undefined ? { damageReduction: group.damageReduction + 1 } : {}),
+      ...(adjustment.halveDamage && group.damageDivisor !== undefined ? { damageDivisor: Math.max(group.damageDivisor, 2) } : {}),
     })),
     ...(adjustment.saveReroll && rerollRank[adjustment.saveReroll] > rerollRank[target.saveReroll ?? 'none']
       ? { saveReroll: adjustment.saveReroll }

@@ -7,6 +7,9 @@ import { datasheetViewsIn } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContext'
 import { rosterDetachments } from './rosterDetachments'
+import { attachedUnit } from '../core/attach'
+import { rosterCombatant } from './rosterCombatRules'
+import type { LoadedRules } from './rules'
 
 type LoadoutRequest = { catalogueId: string; detachmentIds: string[]; picks: RosterPick[]; pickIndex: number }
 
@@ -126,23 +129,39 @@ export async function* combatLoadoutCandidates(
   loaded: LoadedCatalogue,
   data: LoadoutRequest,
   signal: AbortSignal,
+  rules: LoadedRules | null = null,
 ): AsyncGenerator<LoadoutBatch> {
   if (signal.aborted) return
-  const pick = data.picks[data.pickIndex]
-  const space = combatLoadoutSpace(loaded, data)
+  const indexes = [data.pickIndex, ...attachedUnit(data.picks, data.pickIndex)]
+  if (indexes.length > 8) throw new Error('This unit has too many attached members to optimize.')
+  const context = rosterDatasheetContext(loaded, data)
+  if (!context) throw new Error('The loadout could not be loaded.')
   const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
   const choiceCache: UnitChoiceCache = new WeakMap()
   const modifierCache: ModifierCache = new WeakMap()
   const build = (candidate: RosterPick) => buildRosterPick(loaded, data.catalogueId, detachments, candidate, choiceCache, modifierCache)
-  const base = pick && build(pick)
-  if (!pick || !space || !base) throw new Error('The loadout could not be loaded.')
-  const errors = (selection: typeof base.selection) =>
-    evaluate([selection], loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments, modifierCache }).errors.map(
-      (error) => `${error.entryId}:${error.message}`,
-    )
-  const known = new Set(errors(base.selection))
-  const queue: ({ choices: UnitChoice[]; resolved: RosterPick } | null)[] = []
-  const requested = new Set([loadoutRequestKey(pick)])
+  const picks = indexes.map((index) => data.picks[index]!)
+  const base = picks.map(build)
+  if (base.some((unit) => !unit)) throw new Error('The attached unit could not be loaded.')
+  const units = base as BuiltUnit[]
+  const outside = context.selections.filter(
+    (_, selectionIndex) =>
+      !context.unitSelections.some((unit) => indexes.includes(unit.pickIndex) && unit.selectionIndex === selectionIndex),
+  )
+  const errors = (built: BuiltUnit[]) =>
+    evaluate(
+      built.map((unit) => unit.selection),
+      loaded.index,
+      {
+        primaryCatalogueId: data.catalogueId,
+        roster: outside,
+        modifierCache,
+      },
+    ).errors.map((error) => `${error.entryId}:${error.message}`)
+  const known = new Set(errors(units))
+  const queue: ({ units: BuiltUnit[]; resolved: RosterPick[] } | null)[] = []
+  const requestKey = (members: RosterPick[]) => JSON.stringify(members.map(loadoutRequestKey))
+  const requested = new Set([requestKey(picks)])
   const seen = new Set<string>()
   const equipment = new Set<string>()
   let candidates: LoadoutCandidate[] = []
@@ -151,50 +170,82 @@ export async function* combatLoadoutCandidates(
   let head = 0
   const started = performance.now()
   let work = 0
+  let retainedBytes = 0
+  const incomplete = () => new Error('The full search could not finish. The best loadout found so far has been kept.')
+  const retain = (key: string) => {
+    retainedBytes += key.length * 2
+    if (retainedBytes > 64 * 1024 * 1024) throw incomplete()
+  }
   const takeBatch = (done = false): LoadoutBatch => {
-    const batch = { weapons: space.weapons, candidates, built: expanded, scheduled: seen.size, done }
+    const batch = { candidates, built: expanded, scheduled: seen.size, done }
     candidates = []
     work = 0
     return batch
   }
-  const enqueue = (candidate: RosterPick, built: BuiltUnit) => {
-    if (built.size.models !== base.size.models) return
-    const key = JSON.stringify(built.selection)
+  const enqueue = (members: RosterPick[], built: BuiltUnit[]) => {
+    if (built.some((unit, index) => unit.size.models !== units[index]!.size.models)) return
+    const key = JSON.stringify(built.map((unit) => unit.selection))
     if (seen.has(key)) return
-    if (queue.length - head >= 50_000) throw new Error('The full search could not finish. The best loadout found so far has been kept.')
+    if (queue.length - head >= 50_000) throw incomplete()
+    retain(key)
     seen.add(key)
-    const resolved = {
+    const resolved = members.map((candidate, index) => ({
       ...candidate,
       spreads: {
         ...candidate.spreads,
         ...Object.fromEntries(
-          built.choices
-            .filter((choice) => candidate.spreads?.[choice.key] !== undefined)
-            .map((choice) => [choice.key, Object.fromEntries(choice.options.map((option) => [option.id, option.count]))]),
+          built[index]!.choices.filter((choice) => candidate.spreads?.[choice.key] !== undefined).map((choice) => [
+            choice.key,
+            Object.fromEntries(choice.options.map((option) => [option.id, option.count])),
+          ]),
         ),
       },
+    }))
+    queue.push({ units: built, resolved })
+    if (!errors(built).every((error) => known.has(error))) return
+    const updates = new Map(indexes.map((pickIndex, at) => [pickIndex, resolved[at]!]))
+    const roster = data.picks.map((pick, pickIndex) => updates.get(pickIndex) ?? pick)
+    const projected = rosterCombatant(loaded, rules, { ...data, picks: roster })
+    if (!projected) throw new Error('The attached unit could not be loaded.')
+    if (projected.attachmentErrors.length) {
+      if (seen.size === 1) throw new Error('The attached unit could not be evaluated legally.')
+      return
     }
-    queue.push({ choices: built.choices, resolved })
-    if (errors(built.selection).every((error) => known.has(error))) {
-      const carriers = combatCarriers(built.selection, loaded.index, {
-        primaryCatalogueId: data.catalogueId,
-        roster: detachments,
-        modifierCache,
-      })
-      const equipmentKey = JSON.stringify(carriers)
-      if (!equipment.has(equipmentKey)) {
-        equipment.add(equipmentKey)
-        candidates.push({ pick: candidate, carriers })
-      }
+    const member = (
+      pickIndex: number,
+      sheet: NonNullable<typeof projected>['selected'],
+      carriers: NonNullable<typeof projected>['carriers'],
+      memberRules: NonNullable<typeof projected>['rules'],
+      models: number,
+    ) => ({
+      pickIndex,
+      pick: roster[pickIndex]!,
+      sheet,
+      carriers,
+      rules: memberRules,
+      models,
+    })
+    const candidate: LoadoutCandidate = {
+      members: [
+        member(data.pickIndex, projected.selected, projected.carriers, projected.rules, units[0]!.size.models),
+        ...projected.companions.map((companion) =>
+          member(companion.pickIndex, companion.selected, companion.carriers, companion.rules, companion.models),
+        ),
+      ],
     }
+    const equipmentKey = JSON.stringify(candidate.members.map(({ pick: _, ...description }) => description))
+    if (equipment.has(equipmentKey)) return
+    if (equipment.size >= 20_000) throw incomplete()
+    retain(equipmentKey)
+    equipment.add(equipmentKey)
+    candidates.push(candidate)
   }
-  enqueue(pick, base)
-  yield { weapons: space.weapons, candidates: [], built: 0, scheduled: 1, done: false }
+  enqueue(picks, units)
+  yield { candidates: [], built: 0, scheduled: 1, done: false }
   await new Promise<void>((resolve) => setImmediate(resolve))
   while (head < queue.length) {
     if (signal.aborted) return
-    if (performance.now() - started > 120_000)
-      throw new Error('The full search could not finish. The best loadout found so far has been kept.')
+    if (performance.now() - started > 120_000) throw incomplete()
     const current = queue[head]!
     queue[head++] = null
     expanded++
@@ -207,22 +258,29 @@ export async function* combatLoadoutCandidates(
       await new Promise<void>((resolve) => setImmediate(resolve))
       if (signal.aborted) return
     }
-    // Illegal intermediate selections can connect legal combinations with shared limits.
-    for (const candidate of loadoutEdits(current.resolved, current.choices, base.size.models)) {
-      if (signal.aborted) return
-      const key = loadoutRequestKey(candidate)
-      if (requested.has(key)) continue
-      if (++work >= 32) {
-        yield takeBatch()
-        await new Promise<void>((resolve) => setImmediate(resolve))
+    for (let at = 0; at < indexes.length; at++) {
+      // Illegal intermediate selections can connect legal combinations with shared limits.
+      for (const candidate of loadoutEdits(current.resolved[at]!, current.units[at]!.choices, units[at]!.size.models)) {
         if (signal.aborted) return
+        const members = current.resolved.map((pick, index) => (index === at ? candidate : pick))
+        const key = requestKey(members)
+        if (requested.has(key)) continue
+        if (++work >= 32) {
+          yield takeBatch()
+          await new Promise<void>((resolve) => setImmediate(resolve))
+          if (signal.aborted) return
+        }
+        if (attempts >= 100_000 || performance.now() - started > 120_000) throw incomplete()
+        retain(key)
+        requested.add(key)
+        attempts++
+        const built = build(candidate)
+        if (built)
+          enqueue(
+            members,
+            current.units.map((unit, index) => (index === at ? built : unit)),
+          )
       }
-      if (attempts >= 100_000 || performance.now() - started > 120_000)
-        throw new Error('The full search could not finish. The best loadout found so far has been kept.')
-      requested.add(key)
-      attempts++
-      const built = build(candidate)
-      if (built) enqueue(candidate, built)
     }
   }
   yield takeBatch(true)

@@ -225,10 +225,17 @@ describe('exclusive squad weapon choices', () => {
     expect(
       optimizeLoadout(
         {
-          weapons,
           candidates: [0, 1, 2, 3, 4].map((maces) => ({
-            pick: { entryId: 'unit' },
-            carriers: combatCarriers(selection(maces, 4 - maces), book()),
+            members: [
+              {
+                pickIndex: 0,
+                pick: { entryId: 'unit' },
+                sheet: loadoutSheet(sheet, weapons, combatCarriers(selection(maces, 4 - maces), book())),
+                models: 4,
+                rules: [],
+                carriers: combatCarriers(selection(maces, 4 - maces), book()),
+              },
+            ],
           })),
         },
         scoring,
