@@ -149,6 +149,7 @@ export const createBattleSchema = z
       .number()
       .int()
       .refine((value) => GAME_SIZES.some((size) => size.limit === value))
+      .nullable()
       .optional(),
     missionPackId: id.nullable().default(null),
     casual: z.boolean().default(false),

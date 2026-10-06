@@ -3,6 +3,18 @@ import { FIXED_SECONDARIES, SECONDARIES_MAX, SETUP_STEP_MAX } from './battle'
 import { commandSchema } from './commands'
 
 describe('command schema', () => {
+  it('round trips automatic format configuration through stored JSON', () => {
+    const command = {
+      kind: 'configure-battle',
+      limit: null,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      clockLimitMinutes: null,
+    }
+    expect(commandSchema.parse(JSON.parse(JSON.stringify(command)))).toEqual(command)
+  })
+
   it('accepts a battle-round stratagem limit from a prepared card', () => {
     const command = {
       kind: 'set-prep',

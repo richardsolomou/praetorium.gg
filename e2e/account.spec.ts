@@ -199,11 +199,11 @@ test('a player can edit their display name and profile picture', async ({ page }
   await expect(page.locator('main img')).toHaveCount(0)
 })
 
-test('profile defaults choose what new rosters and battles start with', async ({ page }) => {
+test('profile defaults apply to rosters while battles infer their format', async ({ page }) => {
   await signUp(page, uniqueName('Alice'))
   await page.goto('/profile')
   const visibility = page.getByRole('group', { name: 'Roster visibility' })
-  const size = page.getByRole('group', { name: 'Battle size' })
+  const size = page.getByRole('group', { name: 'Roster size' })
   await visibility.getByRole('button', { name: /^Public/ }).click()
   await expect(visibility.getByRole('button', { name: /^Public/ })).toHaveAttribute('aria-pressed', 'true')
   await size.getByRole('button', { name: /^Incursion/ }).click()
@@ -220,7 +220,7 @@ test('profile defaults choose what new rosters and battles start with', async ({
   await page.keyboard.press('Escape')
 
   await createBattle(page, { practice: true })
-  await expect(page.getByRole('combobox', { name: 'Battle size' })).toContainText('Incursion')
+  await expect(page.getByText('Determined by your rosters')).toBeVisible()
 })
 
 test('a player can permanently delete their account', async ({ page }) => {
@@ -500,7 +500,7 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   await guest.getByRole('button', { name: 'Sign in', exact: true }).click()
 
   await guest.waitForURL(/\/battles\/[^/]+$/)
-  await expect(guest.getByRole('heading', { name: 'Choose the battle size and armies' })).toBeVisible()
+  await expect(guest.getByRole('heading', { name: 'Choose your armies' })).toBeVisible()
   // The table strip names both sides, which is how the guest knows it is the battle they were invited to.
   await expect(guest.getByRole('main')).toContainText(aliceName)
   await expect(guest.getByRole('main')).toContainText(bobName)

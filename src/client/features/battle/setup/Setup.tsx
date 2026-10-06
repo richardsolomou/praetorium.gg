@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import type { Command } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
-import { FIXED_SECONDARIES, GAME_SIZES, isKotcLimit } from '../../../../core/battle'
+import { FIXED_SECONDARIES, GAME_SIZES, isKotcLimit, rosterBattleFormat } from '../../../../core/battle'
 import { deploymentsQuery, gameReferencesQuery } from '../../../queries'
 import { deploymentFor } from '../../../battleSummary'
 import { missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../../../sides'
@@ -95,6 +95,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
   useEffect(() => setReading(null), [at])
   const attached = view.players.filter((player) => player.roster).length
   const ready = attached === view.players.length
+  const format = rosterBattleFormat(view)
   const youHaveAnArmy = Boolean(yours?.armies.find((army) => army.isViewer)?.roster)
   // A practice opponent brings nothing on its own, so its list is one of the ones
   // this table still owes before setup can move on.
@@ -110,8 +111,17 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
   const blockedAt = (step: number) => {
     // Said at every section rather than only the first, because each of them draws
     // your army: without one they were blank screens under a cheerful heading.
-    if (step === 0 && view.settings.limit === null) return 'Choose a battle size to continue.'
     if (step === 0 && owed.length) return `Choose an army for ${owed.map((army) => army.playerName).join(' and ')} to continue.`
+    if (view.settings.limit === null)
+      return !ready
+        ? 'Wait for every player to choose an army.'
+        : view.settings.sizeFromRosters
+          ? format.problem === 'manual'
+            ? 'Choose a battle size for text-only armies.'
+            : format.problem === 'unsupported'
+              ? 'These roster formats do not make a supported battle size. Choose another format; allies split the points evenly.'
+              : 'Choose matching roster formats for each side. Allies split the points evenly.'
+          : 'Choose a battle size to continue.'
     if (step >= 1 && !youHaveAnArmy) return 'Choose your army to continue.'
     const undecided = table.filter((side) => side.dispositionChoices.length > 1 && !side.disposition)
     if (step === 1 && undecided.length) return 'Choose the Force Disposition each allied side plays to continue.'
@@ -132,7 +142,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
   const steps: Step[] = [
     {
       name: 'Setup',
-      detail: `${view.settings.limit === null ? 'Choose a size' : `${view.settings.limit} points`} · ${attached}/${view.players.length} armies`,
+      detail: `${view.settings.limit === null ? 'Choose armies' : `${view.settings.limit} points`} · ${attached}/${view.players.length} armies`,
       complete: view.settings.limit !== null && ready,
       reachable: true,
     },
@@ -194,7 +204,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
   const configure = (settings: Partial<Omit<Extract<Command, { kind: 'configure-battle' }>, 'kind'>>) =>
     send({
       kind: 'configure-battle',
-      limit: view.settings.limit ?? 2000,
+      limit: view.settings.sizeFromRosters ? null : view.settings.limit,
       missionPackId: view.settings.missionPackId,
       terrainLayoutId: view.settings.terrainLayoutId,
       twistId: view.settings.twistId,
@@ -242,12 +252,13 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
             <>
               <SetupPanel className="grid gap-4 sm:grid-cols-2">
                 <div data-onboarding="battle-setup-size">
-                  {view.leagueToken ? (
+                  {view.leagueToken || (view.settings.sizeFromRosters && format.problem !== 'manual') ? (
                     <>
                       <p className="eyebrow">Battle size</p>
-                      <p className="mt-1 flex h-11 items-center rounded-lg border border-input bg-input/30 px-3 text-sm font-bold uppercase">
-                        {GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? `${view.settings.limit} points`} ·{' '}
-                        {view.settings.limit}
+                      <p className="mt-1 flex min-h-11 items-center rounded-lg border border-input bg-input/30 px-3 py-2 text-sm font-bold uppercase">
+                        {view.settings.limit === null
+                          ? 'Determined by your rosters'
+                          : `${GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? 'Battle'} · ${view.settings.limit} points`}
                       </p>
                     </>
                   ) : (
@@ -394,7 +405,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
 }
 
 const HEADLINES = [
-  'Choose the battle size and armies',
+  'Choose your armies',
   'Read the mission',
   'Choose the battlefield',
   'Choose the defender',
@@ -406,7 +417,7 @@ const HEADLINES = [
 ]
 
 const BLURBS = [
-  'The points apply to each side. Allies split them evenly, and everyone chooses their own roster.',
+  'The battle format follows your saved rosters. Each side brings the same points allowance; allies split it evenly.',
   'Each side finds its opponent’s disposition on its own Force Disposition card, and plays the primary listed there. A twist is optional and bends one rule for the whole battle.',
   'One shared choice sets the deployment zones and the terrain for both sides.',
   'Roll off. The winner decides who attacks and who defends — the defender deploys first, the attacker deploys second.',

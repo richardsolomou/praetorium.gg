@@ -78,7 +78,7 @@ const battlePrep = z.object({
 export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('configure-battle'),
-    limit: z.number().int().min(0).max(10_000),
+    limit: z.number().int().min(0).max(10_000).nullable(),
     missionPackId: id.nullable(),
     terrainLayoutId: id.nullable(),
     twistId: id.nullable(),
