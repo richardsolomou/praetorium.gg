@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.107.3
+
+### Patch Changes
+
+- 9235351: Keep application updates available immediately by preventing service-worker responses from being cached.
+
 ## 0.107.2
 
 ### Patch Changes
