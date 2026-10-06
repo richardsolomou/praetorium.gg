@@ -1,5 +1,5 @@
 import type { Datasheet } from './datasheet'
-import type { CombatInput, CombatOptions, CombatWeapon } from './combat'
+import { MAX_COMBAT_MODELS, type CombatInput, type CombatOptions, type CombatWeapon } from './combat'
 import { adjustCombatWeapon, type WeaponAdjustment } from './combatAdjustments'
 import type { CombatCarrier } from './combatLoadout'
 import { combatPlan, combatWeapons } from './combatProfiles'
@@ -12,6 +12,7 @@ export type CombatAttacker = {
   carriers: readonly CombatCarrier[]
   models: number
   rules?: readonly ActiveCombatRule[]
+  companions?: readonly CombatAttacker[]
 }
 export type CombatOpponent = { keywords: readonly string[]; rules: readonly ActiveCombatRule[] }
 export type CombatAttack = ReturnType<typeof combatAttacks>[Phase]
@@ -19,12 +20,18 @@ export type CombatAttack = ReturnType<typeof combatAttacks>[Phase]
 type CarriedWeapon = { weapon: CombatWeapon | null; count: number; profile: StructuredDatasheetProfile }
 
 /** The weapons and separate mortal wounds an attack makes once both units' rules apply. */
-function ruledAttack(attacker: CombatAttacker, defender: CombatOpponent, phase: Phase, active: readonly CarriedWeapon[]) {
+function ruledAttack(
+  attacker: CombatAttacker,
+  defender: CombatOpponent,
+  phase: Phase,
+  active: readonly CarriedWeapon[],
+  scopedOptions = false,
+) {
   const rules = attacker.rules ?? []
   const mortalWounds = combatRuleMortals(rules, phase, defender.keywords, active, attacker.models)
   const weapons = combatRuleWeapons(
     attacker.sheet,
-    combatRuleWeapons(attacker.sheet, active, rules, 'attacker', phase, defender.keywords).map((weapon, index) => ({
+    combatRuleWeapons(attacker.sheet, active, rules, 'attacker', phase, defender.keywords, scopedOptions).map((weapon, index) => ({
       weapon,
       count: weapon.count,
       profile: active[index]!.profile,
@@ -44,6 +51,47 @@ export function combatAttacks(
   preferences: Readonly<Record<string, string>>,
   excluded: Readonly<Record<Phase, readonly string[]>>,
 ) {
+  if (attacker.companions?.length) {
+    const members = [attacker, ...attacker.companions]
+    const attack = (phase: Phase) => {
+      const tooMany = members.reduce((total, member) => total + member.models, 0) > MAX_COMBAT_MODELS
+      const parts = members.map((member, index) => {
+        const prefix = index ? `attached:${index}:` : ''
+        const rules = member.rules ?? []
+        const sheet = combatRuleProfiles(member.sheet, rules, 'attacker', defender.keywords, defender.rules)
+        const localPreferences = Object.fromEntries(
+          Object.entries(preferences)
+            .filter(([key]) => !prefix || key.startsWith(prefix))
+            .map(([key, value]) => [prefix ? key.slice(prefix.length) : key, value]),
+        )
+        const plan = combatPlan(sheet, member.carriers, defender.keywords, phase, localPreferences, new Set(excluded[phase]))
+        return {
+          plan: { ...plan, choices: plan.choices.map((choice) => ({ ...choice, key: `${prefix}${choice.key}` })) },
+          base: plan.errors.length ? null : ruledAttack(member, defender, phase, plan.active, true),
+        }
+      })
+      return {
+        plan: {
+          used: parts.flatMap((part) => part.plan.used),
+          active: parts.flatMap((part) => part.plan.active),
+          choices: parts.flatMap((part) => part.plan.choices),
+          errors: [
+            ...parts.flatMap((part) => part.plan.errors),
+            ...(tooMany ? ['This attached unit exceeds the supported model limit.'] : []),
+          ],
+          weapons: parts.flatMap((part) => part.plan.weapons),
+        },
+        base:
+          !tooMany && parts.every((part) => part.base)
+            ? {
+                weapons: parts.flatMap((part) => part.base!.weapons),
+                mortalWounds: parts.flatMap((part) => part.base!.mortalWounds),
+              }
+            : null,
+      }
+    }
+    return { ranged: attack('ranged'), melee: attack('melee') }
+  }
   const rules = attacker.rules ?? []
   const sheet = combatRuleProfiles(attacker.sheet, rules, 'attacker', defender.keywords, defender.rules)
   const attack = (phase: Phase) => {
@@ -82,7 +130,7 @@ export function combatWeaponInputs(
   const sheet = combatRuleProfiles(attacker.sheet, attacker.rules ?? [], 'attacker', defender.keywords, defender.rules)
   return combatWeapons(sheet, defender.keywords, phase).flatMap(({ profile, weapon }) => {
     if (!weapon) return []
-    const base = ruledAttack(attacker, defender, phase, [{ weapon, count: weapon.count, profile }])
+    const base = ruledAttack(attacker, defender, phase, [{ weapon, count: weapon.count, profile }], Boolean(attacker.companions?.length))
     const input = combatAttackInput({ base }, target, options, adjustment)
     return input ? [{ profile, input }] : []
   })

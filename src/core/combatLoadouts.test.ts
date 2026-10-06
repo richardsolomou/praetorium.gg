@@ -11,6 +11,8 @@ import {
   loadoutProfileOdds,
   loadoutSheet,
   optionEstimates,
+  optimizeLoadout,
+  namespaceLoadoutSpace,
   type LoadoutScore,
 } from './combatLoadouts'
 
@@ -236,5 +238,72 @@ describe('loadout odds', () => {
   })
   it('estimates no option for an attack the current loadout does not reproduce', () => {
     expect(loadoutOdds(space, scoring, { ranged: null, melee: null }).estimates.size).toBe(0)
+  })
+  it('scores a leader’s alternative equipment with the unchanged squad’s attacks', () => {
+    const prefix = 'attached:1:'
+    const leaderSpace = namespaceLoadoutSpace(
+      {
+        carriers: squad({ Boltgun: 1 }, 1),
+        weapons: [weapon('Boltgun'), weapon('Plasma gun', undefined, '-3')],
+        choices: [
+          [
+            { group: 'gun', entry: 'boltgun', step: 0, carriers: squad({ Boltgun: 1 }, 1) },
+            { group: 'gun', entry: 'plasma', step: 0, carriers: squad({ 'Plasma gun': 1 }, 1) },
+          ],
+        ],
+      },
+      prefix,
+    )
+    const companion = {
+      sheet: { ...sheet, profiles: [{ ...weapon('Boltgun', 1), id: `${prefix}Boltgun` }] },
+      models: 1,
+      carriers: leaderSpace.carriers,
+      rules: [],
+    }
+    const unit = {
+      sheet: { ...sheet, profiles: [weapon('Boltgun', 1)] },
+      models: 1,
+      carriers: squad({ Boltgun: 1 }, 1),
+      rules: [],
+      companions: [companion],
+    }
+    const full = combatAttackInput(combatAttacks(unit, scoring.opponent, {}, scoring.excluded).ranged, target, DEFAULT_COMBAT_OPTIONS, {})
+    const odds = loadoutOdds(leaderSpace, { ...scoring, ...unit, memberIndex: 1 }, { ranged: full, melee: null })
+    expect(odds.estimates.get(estimateKey('gun', 'plasma'))?.phases.ranged).toMatchObject({
+      best: true,
+      result: { meanDamage: expect.closeTo(1 / 3 + 5 / 9, 12) },
+    })
+  })
+  it('scores a leader’s weapon profile alone with its own model count', () => {
+    const companion = { sheet: { ...sheet, profiles: [weapon('Boltgun', 1)] }, models: 1, carriers: squad({ Boltgun: 1 }, 1), rules: [] }
+    const odds = loadoutProfileOdds({ ...space, carriers: companion.carriers }, { ...scoring, companions: [companion], memberIndex: 1 })
+    expect(odds.get('Boltgun')).toMatchObject({ models: 1, result: { meanDamage: expect.closeTo(1 / 3, 12) } })
+  })
+  it('refuses optimization when a shared defensive source lifetime is unsupported', () => {
+    expect(() => optimizeLoadout({ candidates: [] }, { ...scoring, sequenceError: 'Shared defence can expire.' })).toThrow(
+      'Shared defence can expire.',
+    )
+  })
+  it('refuses a loadout that changes inherited unit-wide attack options', () => {
+    expect(() =>
+      optimizeLoadout(
+        { candidates: [{ members: [{ pickIndex: 0, pick: { entryId: 'unit' }, sheet, models: 5, carriers: space.carriers, rules: [] }] }] },
+        {
+          ...scoring,
+          rules: [{ name: 'Accuracy', effects: [{ role: 'attacker', phases: ['ranged'], options: { hitReroll: 'ones' } }] }],
+        },
+      ),
+    ).toThrow('Some loadouts change unit-wide rules. Optimization could not finish.')
+  })
+  it('refuses a loadout that changes the opponent’s calculated defences', () => {
+    expect(() =>
+      optimizeLoadout(
+        { candidates: [{ members: [{ pickIndex: 0, pick: { entryId: 'unit' }, sheet, models: 5, carriers: space.carriers, rules: [] }] }] },
+        {
+          ...scoring,
+          rules: [{ name: 'Infection', effects: [{ role: 'attacker', phases: ['ranged'], targetToughness: -1 }] }],
+        },
+      ),
+    ).toThrow('Some loadouts change unit-wide rules. Optimization could not finish.')
   })
 })

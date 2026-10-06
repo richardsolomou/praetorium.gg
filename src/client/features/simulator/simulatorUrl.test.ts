@@ -41,3 +41,33 @@ describe('simulator links', () => {
     expect(decodeSimulatorState('a'.repeat(8_001))).toBeNull()
   })
 })
+
+it('restores leader and support loadouts alongside the main squad', () => {
+  const attached: SimulatorState = {
+    ...state,
+    sides: [
+      { ...state.sides[0]!, attached: [{ entryId: 'overlord', choices: { weapon: 'voidscythe' } }, { entryId: 'plasmancer' }] },
+      state.sides[1],
+    ],
+  }
+  expect(decodeSimulatorState(encodeSimulatorState(attached))).toEqual(attached)
+})
+
+it('bounds the number of units in a shared side', () => {
+  expect(
+    decodeSimulatorState(
+      encoded({ ...state, sides: [{ ...state.sides[0], attached: Array.from({ length: 8 }, () => ({ entryId: 'leader' })) }, null] }),
+    ),
+  ).toBeNull()
+})
+
+it('retains both sides’ weapon profiles while the optimized side defends', () => {
+  const withProfiles: SimulatorState = {
+    ...state,
+    sides: [
+      { ...state.sides[0]!, preferences: { 'melee:0:staff': 'sweep' } },
+      { ...state.sides[1]!, preferences: { 'ranged:0:gun': 'focused' } },
+    ],
+  }
+  expect(decodeSimulatorState(encodeSimulatorState(withProfiles))?.sides).toEqual(withProfiles.sides)
+})

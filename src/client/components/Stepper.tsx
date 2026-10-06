@@ -7,13 +7,15 @@ export function Stepper({
   label,
   count,
   countLabel,
+  loading = false,
   onboarding,
   onAdd,
   onRemove,
 }: {
   label: string
-  count: number
+  count: number | null
   countLabel: string
+  loading?: boolean
   onboarding?: OnboardingTarget
   onAdd?: () => void
   onRemove?: () => void
@@ -21,8 +23,8 @@ export function Stepper({
   return (
     <span data-onboarding={onboarding} className="grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
       <CountButton label={`Fewer ${label}`} decrease onClick={onRemove} />
-      <span className="readout text-center text-sm tabular-nums" aria-label={countLabel}>
-        {count}
+      <span className="readout text-center text-sm tabular-nums" aria-label={countLabel} aria-busy={loading}>
+        {loading ? <span aria-hidden className="inline-block h-4 w-5 animate-pulse bg-muted align-middle" /> : (count ?? '—')}
       </span>
       <CountButton label={`More ${label}`} onClick={onAdd} />
     </span>

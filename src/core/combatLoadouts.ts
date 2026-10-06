@@ -6,6 +6,7 @@ import { combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
 import { combatAttackInput, combatAttacks, combatWeaponInputs, type CombatAttacker, type CombatOpponent } from './combatScenario'
 import { datasheetProfileKind } from './datasheetStructure'
 import { wargearKey } from './wargear'
+import { activeCombatRules, combatRuleDefences, combatRuleOptions, type CombatRule } from './combatRules'
 
 type Phase = 'ranged' | 'melee'
 const PHASES = ['ranged', 'melee'] as const
@@ -17,10 +18,39 @@ const PHASES = ['ranged', 'melee'] as const
 export type LoadoutOption = { group: string; entry: string; step: -1 | 0 | 1; carriers: CombatCarrier[] }
 /** A unit's current carriers, every weapon profile it could carry, and the legal options of each weapon choice. */
 export type LoadoutSpace = { carriers: CombatCarrier[]; weapons: Datasheet['profiles']; choices: LoadoutOption[][] }
-export type LoadoutCandidate = { pick: RosterPick; carriers: CombatCarrier[] }
-export type LoadoutCandidates = { weapons: Datasheet['profiles']; candidates: LoadoutCandidate[] }
+export function namespaceLoadoutSpace(space: LoadoutSpace, prefix: string): LoadoutSpace {
+  const carriers = (entries: CombatCarrier[]) =>
+    entries.map((carrier) => ({
+      ...carrier,
+      weapons: carrier.weapons.map((weapon) => ({
+        ...weapon,
+        ...(weapon.profileIds ? { profileIds: weapon.profileIds.map((id) => `${prefix}${id}`) } : {}),
+      })),
+    }))
+  return {
+    carriers: carriers(space.carriers),
+    weapons: space.weapons.map((profile) => ({ ...profile, id: `${prefix}${profile.id}` })),
+    choices: space.choices.map((choices) => choices.map((choice) => ({ ...choice, carriers: carriers(choice.carriers) }))),
+  }
+}
+export type LoadoutCandidate = {
+  members: { pickIndex: number; pick: RosterPick; sheet: Datasheet; models: number; carriers: CombatCarrier[]; rules: CombatRule[] }[]
+}
+export type LoadoutCandidates = { candidates: LoadoutCandidate[] }
 export type LoadoutBatch = LoadoutCandidates & { built: number; scheduled: number; done: boolean }
-export type OptimizedLoadout = { pick: RosterPick; preferences: Record<string, string>; result: CombatResult }
+export type OptimizedLoadout = {
+  picks: { pickIndex: number; pick: RosterPick }[]
+  preferences: Record<string, string>
+  result: CombatResult
+}
+
+export function applyOptimizedLoadout<T extends RosterPick>(picks: readonly T[], optimized: OptimizedLoadout['picks']): T[] {
+  const updates = new Map(optimized.map((member) => [member.pickIndex, member.pick]))
+  return picks.map((pick, index) => {
+    const update = updates.get(index)
+    return update ? { ...pick, choices: update.choices, spreads: update.spreads } : pick
+  })
+}
 export type LoadoutScore = Record<Phase, CombatResult | null>
 
 export const isWeaponProfile = (profile: Datasheet['profiles'][number]) =>
@@ -85,14 +115,15 @@ export type ProfileOdds = { phase: Phase; result: CombatResult; models: number; 
 
 /** Every weapon profile the unit could carry, resolved alone against the target. */
 export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring) {
-  const held = new Map(scoring.sheet.profiles.filter(isWeaponProfile).map((profile) => [profile.id, profile.count ?? 0]))
+  const member = loadoutMember(scoring)
+  const held = new Map(member.sheet.profiles.filter(isWeaponProfile).map((profile) => [profile.id, profile.count ?? 0]))
   const weapons = [
-    ...new Map([...scoring.sheet.profiles.filter(isWeaponProfile), ...space.weapons].map((profile) => [profile.id, profile])).values(),
+    ...new Map([...member.sheet.profiles.filter(isWeaponProfile), ...space.weapons].map((profile) => [profile.id, profile])).values(),
   ]
   const sheet = {
-    ...scoring.sheet,
+    ...member.sheet,
     profiles: [
-      ...scoring.sheet.profiles.filter((profile) => !isWeaponProfile(profile)),
+      ...member.sheet.profiles.filter((profile) => !isWeaponProfile(profile)),
       ...weapons.map((profile) => ({ ...profile, count: held.get(profile.id) || 1 })),
     ],
   }
@@ -112,7 +143,7 @@ export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring)
     const setup = scoring.phases[phase]
     if (!setup) continue
     const inputs = combatWeaponInputs(
-      { sheet, carriers: space.carriers, models: scoring.models, rules: scoring.rules },
+      { ...member, sheet, carriers: space.carriers, companions: scoring.companions },
       scoring.opponent,
       phase,
       setup.target,
@@ -141,13 +172,31 @@ export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring)
 }
 
 export type LoadoutScoring = {
+  memberIndex?: number
+  carriers?: CombatAttacker['carriers']
+  sequenceError?: string
+  ruleChoices?: Readonly<Record<string, number>>
   sheet: Datasheet
   models: number
+  companions?: CombatAttacker['companions']
   rules: CombatAttacker['rules']
   opponent: CombatOpponent
   preferences: Readonly<Record<string, string>>
   excluded: Readonly<Record<Phase, readonly string[]>>
   phases: Record<Phase, { target: CombatInput['target']; options: CombatOptions; adjustment: WeaponAdjustment } | null>
+}
+
+function loadoutMember(scoring: LoadoutScoring): CombatAttacker {
+  const member = scoring.memberIndex
+    ? scoring.companions?.[scoring.memberIndex - 1]
+    : {
+        sheet: scoring.sheet,
+        models: scoring.models,
+        rules: scoring.rules,
+        carriers: scoring.carriers ?? [],
+      }
+  if (!member) throw new Error('The unit member could not be loaded.')
+  return member
 }
 
 /** Scores carriers through the same attack plan and calculation as the matchup itself. */
@@ -166,8 +215,15 @@ function loadoutScorer(space: LoadoutSpace, scoring: LoadoutScoring) {
     return results.get(key) ?? null
   }
   const inputs = (carriers: readonly CombatCarrier[]) => {
+    const member = loadoutMember(scoring)
+    const changed = { ...member, sheet: loadoutSheet(member.sheet, space.weapons, carriers), carriers }
     const attacks = combatAttacks(
-      { sheet: loadoutSheet(scoring.sheet, space.weapons, carriers), carriers, models: scoring.models, rules: scoring.rules },
+      scoring.memberIndex
+        ? {
+            ...loadoutMember({ ...scoring, memberIndex: 0 }),
+            companions: scoring.companions?.map((entry, index) => (index === scoring.memberIndex! - 1 ? changed : entry)),
+          }
+        : { ...changed, companions: scoring.companions },
       scoring.opponent,
       scoring.preferences,
       scoring.excluded,
@@ -245,16 +301,34 @@ export function loadoutOdds(space: LoadoutSpace, scoring: LoadoutScoring, expect
 }
 
 export function optimizeLoadout(space: LoadoutCandidates, scoring: LoadoutScoring): OptimizedLoadout {
+  if (scoring.sequenceError) throw new Error(scoring.sequenceError)
   let best: OptimizedLoadout | undefined
   const results = new Map<string, CombatResult>()
+  let work = 0
+  let retainedBytes = 0
   for (const candidate of space.candidates) {
-    const attacker = {
-      sheet: loadoutSheet(scoring.sheet, space.weapons, candidate.carriers),
-      carriers: candidate.carriers,
-      models: scoring.models,
-      rules: scoring.rules,
+    const members = candidate.members.map((member) => ({
+      sheet: member.sheet,
+      carriers: member.carriers,
+      models: member.models,
+      rules: activeCombatRules(member.rules, scoring.ruleChoices ?? {}),
+    }))
+    const attacker = { ...members[0]!, companions: members.slice(1) }
+    if (!members.length) throw new Error('The attached unit could not be loaded.')
+    for (const phase of PHASES) {
+      const setup = scoring.phases[phase]
+      if (!setup) continue
+      const sameDefences =
+        JSON.stringify(combatRuleDefences(setup.target, [], phase, scoring.rules)) ===
+        JSON.stringify(combatRuleDefences(setup.target, [], phase, attacker.rules))
+      const sameOptions =
+        members.length > 1 ||
+        JSON.stringify(combatRuleOptions(scoring.rules ?? [], 'attacker', phase)) ===
+          JSON.stringify(combatRuleOptions(attacker.rules, 'attacker', phase))
+      if (!sameDefences || !sameOptions) throw new Error('Some loadouts change unit-wide rules. Optimization could not finish.')
     }
     const search = (preferences: Record<string, string>, chosen: ReadonlySet<string>) => {
+      if (++work > 100_000) throw new Error('The full search could not finish. The best loadout found so far has been kept.')
       const attacks = combatAttacks(attacker, scoring.opponent, preferences, { ranged: [], melee: [] })
       const choice = PHASES.flatMap((phase) => attacks[phase].plan.choices).find(
         (entry) => !chosen.has(entry.key) && !entry.key.endsWith(':one-shot'),
@@ -278,10 +352,14 @@ export function optimizeLoadout(space: LoadoutCandidates, scoring: LoadoutScorin
       const key = JSON.stringify(inputs)
       let result = results.get(key)
       if (!result) {
+        retainedBytes += key.length * 2
+        if (results.size >= 20_000 || retainedBytes > 32 * 1024 * 1024)
+          throw new Error('The full search could not finish. The best loadout found so far has been kept.')
         result = calculateCombatSequence(inputs)
         results.set(key, result)
       }
-      if (!best || compareOutcomes(result, best.result) > 0) best = { pick: candidate.pick, preferences, result }
+      if (!best || compareOutcomes(result, best.result) > 0)
+        best = { picks: candidate.members.map(({ pickIndex, pick }) => ({ pickIndex, pick })), preferences, result }
     }
     search({ ...scoring.preferences }, new Set())
   }

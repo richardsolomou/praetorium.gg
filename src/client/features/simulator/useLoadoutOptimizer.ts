@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import {
   compareOutcomes,
+  applyOptimizedLoadout,
   type LoadoutBatch,
   type LoadoutCandidates,
   type LoadoutScoring,
@@ -18,7 +19,14 @@ export function useLoadoutOptimizer(combatant: Combatant) {
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const active = useRef<{ cancel: () => void; key: string } | null>(null)
-  const key = JSON.stringify([combatant.identity, combatant.picks.positioned, context?.key, context?.preferences, context?.excluded])
+  const key = JSON.stringify([
+    combatant.identity,
+    combatant.picks.positioned,
+    combatant.ruleSelections,
+    context?.key,
+    context?.preferences,
+    context?.excluded,
+  ])
   const latest = useRef(key)
   latest.current = key
   useEffect(() => {
@@ -79,20 +87,29 @@ export function useLoadoutOptimizer(combatant: Combatant) {
       const count = Math.min(4, Math.max(1, navigator.hardwareConcurrency ?? 2))
       for (let at = 0; at < count; at++) workers.push(new Worker(new URL('./combat.worker.ts', import.meta.url), { type: 'module' }))
       let best: OptimizedLoadout | undefined =
-        context.result && combatant.pick ? { pick: combatant.pick, preferences: context.preferences, result: context.result } : undefined
+        context.result && combatant.pick
+          ? {
+              picks: [combatant.pickIndex, ...(combatant.sheets.data?.companions ?? []).map((member) => member.pickIndex)].map(
+                (pickIndex) => ({ pickIndex, pick: combatant.picks.positioned[pickIndex]! }),
+              ),
+              preferences: context.preferences,
+              result: context.result,
+            }
+          : undefined
       let scored = 0
       let complete = false
       const apply = (optimized: OptimizedLoadout) => {
-        const picks = combatant.picks.positioned.map((pick, index) =>
-          index === combatant.pickIndex ? { ...pick, choices: optimized.pick.choices, spreads: optimized.pick.spreads } : pick,
-        )
-        job.key = JSON.stringify([combatant.identity, picks, context.key, optimized.preferences, { ranged: [], melee: [] }])
+        const picks = applyOptimizedLoadout(combatant.picks.positioned, optimized.picks)
+        job.key = JSON.stringify([
+          combatant.identity,
+          picks,
+          combatant.ruleSelections,
+          context.key,
+          optimized.preferences,
+          { ranged: [], melee: [] },
+        ])
         latest.current = job.key
-        combatant.picks.setPicks((currentPicks) =>
-          currentPicks.map((pick, index) =>
-            index === combatant.pickIndex ? { ...pick, choices: optimized.pick.choices, spreads: optimized.pick.spreads } : pick,
-          ),
-        )
+        combatant.picks.setPicks((currentPicks) => applyOptimizedLoadout(currentPicks, optimized.picks))
         context.apply(optimized.preferences)
       }
       const score = (worker: Worker, space: LoadoutCandidates) =>
@@ -109,7 +126,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
           }
           worker.postMessage({ kind: 'optimize', space, scoring: context.scoring! } satisfies OptimizeLoadoutRequest)
         })
-      const space: LoadoutCandidates = { weapons: [], candidates: [] }
+      const space: LoadoutCandidates = { candidates: [] }
       let discovered = 0
       let built = 0
       let scheduled = 0
@@ -127,7 +144,6 @@ export function useLoadoutOptimizer(combatant: Combatant) {
         if (batch.error) throw new Error(batch.error)
         discovered += batch.candidates.length
         if (discovered > 20_000) throw new Error('The full search could not finish. The best loadout found so far has been kept.')
-        space.weapons = batch.weapons
         space.candidates.push(...batch.candidates)
         complete = batch.done
         built = batch.built
@@ -140,9 +156,13 @@ export function useLoadoutOptimizer(combatant: Combatant) {
         try {
           const decoder = new TextDecoder()
           let buffer = ''
+          let received = 0
           while (current()) {
             const next = await reader.read()
             if (!current()) return
+            received += next.value?.byteLength ?? 0
+            if (received > 64 * 1024 * 1024)
+              throw new Error('The full search could not finish. The best loadout found so far has been kept.')
             buffer += decoder.decode(next.value, { stream: !next.done })
             let newline: number
             while ((newline = buffer.indexOf('\n')) >= 0) {
@@ -174,7 +194,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
         const results = await Promise.all(
           workers.flatMap((worker, index) => {
             const candidates = batch.filter((_, at) => at % workers.length === index)
-            return candidates.length ? [score(worker, { weapons: space.weapons, candidates })] : []
+            return candidates.length ? [score(worker, { candidates })] : []
           }),
         )
         if (!current()) return

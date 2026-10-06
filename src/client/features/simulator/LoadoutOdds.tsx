@@ -5,6 +5,7 @@ import { estimateKey, type LoadoutScoring, type OutcomePriority } from '../../..
 import { HoverTooltip } from '../../components/HoverTooltip'
 import type { OptionNote } from '../rosters/builder/LoadoutControls'
 import type { LoadoutOdds } from './useLoadoutOdds'
+import type { CombatRequest } from './CombatMatchup'
 
 type Phase = 'ranged' | 'melee'
 const titles: Record<Phase, string> = { ranged: 'Shooting', melee: 'Melee' }
@@ -28,6 +29,7 @@ export type LoadoutOptimization = {
   excluded: Record<Phase, string[]>
   result?: CombatResult
   scoring: LoadoutScoring | null
+  expected: CombatRequest
   apply: (preferences: Record<string, string>) => void
 }
 export const LoadoutOptimizationContext = createContext<LoadoutOptimization | null>(null)
@@ -123,12 +125,12 @@ export function useOptionNote(): OptionNote | undefined {
  * Each weapon profile's odds alone, under its name in the loadout editor. Among one weapon's profiles,
  * the strongest is marked so a player knows which mode to use.
  */
-export function useProfileNote(): ((weapon: { id: string; name: string }) => ReactNode) | null {
+export function useProfileNote(prefix = ''): ((weapon: { id: string; name: string }) => ReactNode) | null {
   const odds = useContext(LoadoutOddsContext)
   if (!odds) return null
   const { profiles, updating } = odds
   return function ProfileOdds(weapon) {
-    const alone = profiles.get(weapon.id)
+    const alone = profiles.get(`${prefix}${weapon.id}`)
     if (!alone) return null
     return (
       <span className={`${noteClass} mb-0.5`}>

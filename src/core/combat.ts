@@ -33,6 +33,19 @@ const targetGroupSchema = z.object({
   save: z.int().min(2).max(7),
   invulnerable: rollTarget.nullable(),
   wounds: z.int().min(1).max(100),
+  feelNoPain: rollTarget.nullable().optional(),
+  psychicFeelNoPain: rollTarget.nullable().optional(),
+  mortalFeelNoPain: rollTarget.nullable().optional(),
+  damageDivisor: z.int().min(1).max(16).optional(),
+  damageReduction: z.int().min(0).max(100).optional(),
+  damage: z.int().min(0).max(99).optional(),
+  bodyguard: z.boolean().optional(),
+  character: z.boolean().optional(),
+  unit: z.string().max(400).optional(),
+  feelNoPainSources: z
+    .array(z.object({ unit: z.string().max(400), value: rollTarget }))
+    .max(8)
+    .optional(),
 })
 
 export const combatSchema = z.object({
@@ -153,7 +166,7 @@ export function diceExpression(value: string): DiceExpression | null {
 
 export const targetModels = (target: CombatInput['target']) => target.groups.reduce((total, group) => total + group.models, 0)
 export const targetWounds = (target: CombatInput['target']) =>
-  target.groups.reduce((total, group) => total + group.models * group.wounds, 0) - (target.damage ?? 0)
+  target.groups.reduce((total, group) => total + group.models * group.wounds - (group.damage ?? 0), 0) - (target.damage ?? 0)
 
 export function woundTarget(strength: number, toughness: number) {
   return strength >= toughness * 2 ? 2 : strength > toughness ? 3 : strength === toughness ? 4 : strength * 2 <= toughness ? 6 : 5
@@ -372,7 +385,11 @@ function allocation(target: CombatInput['target']) {
   let model = 0
   target.groups.forEach((entry, index) => {
     for (let i = 0; i < entry.models; i++, model++)
-      for (let left = model ? entry.wounds : entry.wounds - (target.damage ?? 0); left > 0; left--, lost++) {
+      for (
+        let left = i ? entry.wounds : entry.wounds - (entry.damage ?? 0) - (index === 0 ? (target.damage ?? 0) : 0);
+        left > 0;
+        left--, lost++
+      ) {
         group[lost] = index
         remaining[lost] = left
         killed[lost] = model
@@ -380,7 +397,16 @@ function allocation(target: CombatInput['target']) {
   })
   killed[total] = model
   // Wound rolls use the highest Toughness still on the battlefield (05.02.01); earlier groups are destroyed first.
-  const toughness = Array.from(group, (index) => (index < 0 ? 0 : Math.max(...target.groups.slice(index).map((entry) => entry.toughness))))
+  const toughness = Array.from(group, (index) =>
+    index < 0
+      ? 0
+      : Math.max(
+          ...(target.groups.slice(index).some((entry) => entry.bodyguard)
+            ? target.groups.slice(index).filter((entry) => entry.bodyguard)
+            : target.groups.slice(index)
+          ).map((entry) => entry.toughness),
+        ),
+  )
   return { total, group, remaining, killed, toughness }
 }
 type Allocation = ReturnType<typeof allocation>
@@ -393,14 +419,18 @@ function addInto(target: State, source: State, weight = 1) {
 const tailsOf = new WeakMap<Weights, Weights>()
 
 /** One unsaved attack's damage, discarding whatever exceeds the current model's wounds. */
-function inflict(state: State, lost: Weights, layout: Allocation, applies?: (at: number) => boolean) {
+function inflict(state: State, lost: Weights | readonly Weights[], layout: Allocation, applies?: (at: number) => boolean) {
   const result = new Float64Array(state.length)
   result[layout.total] = state[layout.total]!
-  let tails = tailsOf.get(lost)
-  if (!tails) {
-    tails = lost.map((_, from) => lost.slice(from).reduce((total, weight) => total + weight, 0))
-    tailsOf.set(lost, tails)
-  }
+  const distributions: readonly Weights[] = typeof lost[0] === 'number' ? [lost as Weights] : (lost as readonly Weights[])
+  const tails = distributions.map((points) => {
+    let tail = tailsOf.get(points)
+    if (!tail) {
+      tail = points.map((_, from) => points.slice(from).reduce((total, weight) => total + weight, 0))
+      tailsOf.set(points, tail)
+    }
+    return tail
+  })
   for (let at = 0; at < layout.total; at++) {
     const weight = state[at]!
     if (!weight) continue
@@ -408,21 +438,46 @@ function inflict(state: State, lost: Weights, layout: Allocation, applies?: (at:
       result[at]! += weight
       continue
     }
+    const group = distributions.length === 1 ? 0 : layout.group[at]!
+    const points = distributions[group]!
     const room = layout.remaining[at]!
-    for (let wounds = 0; wounds < Math.min(room, lost.length); wounds++) result[at + wounds]! += weight * lost[wounds]!
-    if (room < lost.length) result[at + room]! += weight * tails[room]!
+    for (let wounds = 0; wounds < Math.min(room, points.length); wounds++) result[at + wounds]! += weight * points[wounds]!
+    if (room < points.length) result[at + room]! += weight * tails[group]![room]!
   }
   return result
 }
 
 /** Mortal wounds from a separate ability, each of which spills onto the next model. */
-function spill(state: State, points: Weights, layout: Allocation) {
+function spill(state: State, points: Weights, layout: Allocation, prevention?: readonly number[]) {
   const result = new Float64Array(state.length)
-  for (let at = 0; at <= layout.total; at++) {
-    const weight = state[at]!
-    if (weight) points.forEach((share, wounds) => (result[Math.min(layout.total, at + wounds)]! += weight * share))
+  let current: State = state
+  for (let wounds = 0; wounds < points.length; wounds++) {
+    addInto(result, current, points[wounds])
+    if (wounds === points.length - 1) break
+    const next = new Float64Array(state.length)
+    for (let at = 0; at <= layout.total; at++) {
+      const kept = at === layout.total ? 0 : keptBy(prevention?.[layout.group[at]!] ?? 7)
+      next[at]! += current[at]! * (1 - kept)
+      next[Math.min(layout.total, at + 1)]! += current[at]! * kept
+    }
+    current = next
   }
   return result
+}
+
+export function combatGroupProtection(target: CombatInput['target'], group: CombatTargetGroup) {
+  const feelNoPain = Math.min(
+    (group.feelNoPain === undefined ? target.feelNoPain : group.feelNoPain) ?? 7,
+    ...(group.feelNoPainSources ?? []).map((source) => source.value),
+  )
+  return {
+    ...target,
+    feelNoPain: feelNoPain === 7 ? null : feelNoPain,
+    psychicFeelNoPain: group.psychicFeelNoPain === undefined ? target.psychicFeelNoPain : group.psychicFeelNoPain,
+    mortalFeelNoPain: group.mortalFeelNoPain === undefined ? target.mortalFeelNoPain : group.mortalFeelNoPain,
+    damageReduction: group.damageReduction ?? target.damageReduction,
+    damageDivisor: group.damageDivisor ?? target.damageDivisor,
+  }
 }
 
 function packetLosses(weapon: CombatWeapon, target: CombatInput['target'], prevention: number, halfRange: boolean) {
@@ -601,7 +656,7 @@ function allocateSaves(
   input: CombatInput,
   layout: Allocation,
   faces: readonly [Weights, Weights],
-  lost: Weights,
+  lost: Weights | readonly Weights[],
   events: number,
 ) {
   let states = start
@@ -636,9 +691,18 @@ function resolvePool(state: State, weapon: CombatWeapon, input: CombatInput, lay
   const { target } = input
   const plan = weaponPlan(weapon, input, toughness, models)
   const pool = attackPool(weapon, input, plan)
-  const feelNoPain = weapon.psychic ? Math.min(target.feelNoPain ?? 7, target.psychicFeelNoPain ?? 7) : (target.feelNoPain ?? 7)
-  const ordinaryLost = packetLosses(weapon, target, feelNoPain, plan.halfRange)
-  const devastatingLost = packetLosses(weapon, target, Math.min(feelNoPain, target.mortalFeelNoPain ?? 7), plan.halfRange)
+  const losses = (mortal: boolean) =>
+    target.groups.map((group) => {
+      const protection = combatGroupProtection(target, group)
+      const prevention = Math.min(
+        protection.feelNoPain ?? 7,
+        weapon.psychic ? (protection.psychicFeelNoPain ?? 7) : 7,
+        mortal ? (protection.mortalFeelNoPain ?? 7) : 7,
+      )
+      return packetLosses(weapon, protection, prevention, plan.halfRange)
+    })
+  const ordinaryLost = losses(false)
+  const devastatingLost = losses(true)
   const devastatingStride = plan.stride('devastating')
   const saveStride = devastatingStride ? plan.events : 1
   const saveCells = pool.length / (devastatingStride ? plan.events : 1)
@@ -689,6 +753,11 @@ function resolvePool(state: State, weapon: CombatWeapon, input: CombatInput, lay
 
 function workOf(input: CombatInput, layout: Allocation) {
   const toughnesses = new Set(layout.toughness).size
+  const mortalWork = (input.mortalWounds ?? []).reduce(
+    (total, ability) =>
+      total + ability.rolls * (layout.total + 1) * (Math.max(...ability.outcomes.map((outcome) => maximum(outcome.damage))) + 1),
+    0,
+  )
   return input.weapons.reduce((total, weapon) => {
     const plan = weaponPlan(weapon, input, layout.toughness[0] ?? 0)
     const size = plan.events ** plan.dimensions.length
@@ -698,12 +767,20 @@ function workOf(input: CombatInput, layout: Allocation) {
     const combine = (plan.devastating ? plan.events : 1) * (states + saveCells * (layout.total + 1))
     const saving = plan.failChances ? plan.events * states : (plan.separateCritical ? 12 : 6) * saveCells * plan.events * states
     return total + toughnesses * (build + combine + saving * (input.target.saveReroll ? input.target.groups.length : 1))
-  }, 0)
+  }, mortalWork)
 }
 
 function checkedCombat(scenario: CombatInput) {
   const input = combatSchema.parse(scenario)
-  if ((input.target.damage ?? 0) >= input.target.groups[0]!.wounds)
+  if (
+    input.target.groups.some((group) =>
+      group.feelNoPainSources?.some((source) => !input.target.groups.some((owner) => owner.unit === source.unit)),
+    )
+  )
+    throw new Error('The source of a shared Feel No Pain ability is missing from the target.')
+  if (input.target.groups.some((group) => group.feelNoPainSources?.length) && input.mortalWounds?.length)
+    throw new Error('Shared Feel No Pain source changes during separate mortal-wound abilities are not yet supported.')
+  if (input.target.groups.some((group, index) => (group.damage ?? 0) + (index === 0 ? (input.target.damage ?? 0) : 0) >= group.wounds))
     throw new Error('The wounded model must have at least one wound remaining.')
   return input
 }
@@ -714,27 +791,27 @@ function resolveCombat(input: CombatInput, layout: Allocation, initial: State, m
   const mortals = (timing: 'before' | 'after') => {
     for (const ability of input.mortalWounds ?? []) {
       if (ability.timing !== timing) continue
-      const prevention = Math.min(
-        target.feelNoPain ?? 7,
-        target.mortalFeelNoPain ?? 7,
-        ability.psychic ? (target.psychicFeelNoPain ?? 7) : 7,
-      )
+      const prevention = target.groups.map((group) => {
+        const protection = combatGroupProtection(target, group)
+        return Math.min(
+          protection.feelNoPain ?? 7,
+          protection.mortalFeelNoPain ?? 7,
+          ability.psychic ? (protection.psychicFeelNoPain ?? 7) : 7,
+        )
+      })
       const attempt: Weights = [0]
       for (let value = 1; value <= 6; value++) {
         const outcome = ability.outcomes.find((candidate) => value >= candidate.min && value <= candidate.max)
-        const points = outcome ? thinned(diceWeights(outcome.damage), keptBy(prevention)) : [1]
+        const points = outcome ? diceWeights(outcome.damage) : [1]
         points.forEach((weight, wounds) => (attempt[wounds] = (attempt[wounds] ?? 0) + weight / 6))
       }
-      let points: Weights = [1]
-      for (let i = 0; i < ability.rolls; i++) {
-        const rolled = convolve(
-          points,
+      for (let i = 0; i < ability.rolls; i++)
+        state = spill(
+          state,
           attempt.map((weight) => weight ?? 0),
+          layout,
+          prevention,
         )
-        points = rolled.slice(0, layout.total + 1)
-        points[layout.total] = rolled.slice(layout.total).reduce((total, weight) => total + weight, 0)
-      }
-      state = spill(state, points, layout)
     }
   }
   mortals('before')
@@ -781,7 +858,11 @@ export function calculateCombatSequence(scenarios: readonly CombatInput[]): Comb
         (input.target.damage ?? 0) !== (target.damage ?? 0) ||
         input.target.groups.length !== target.groups.length ||
         input.target.groups.some(
-          (group, index) => group.models !== target.groups[index]!.models || group.wounds !== target.groups[index]!.wounds,
+          (group, index) =>
+            group.models !== target.groups[index]!.models ||
+            group.unit !== target.groups[index]!.unit ||
+            group.wounds !== target.groups[index]!.wounds ||
+            (group.damage ?? 0) !== (target.groups[index]!.damage ?? 0),
         ),
     )
   )
@@ -791,20 +872,43 @@ export function calculateCombatSequence(scenarios: readonly CombatInput[]): Comb
   let work = 0
   for (const input of inputs) {
     const currentLayout = allocation(input.target)
-    const byModels = new Map<number, State>()
+    const byModels = new Map<string, { models: number; input: CombatInput; state: State }>()
     const varies = input.weapons.some((weapon) => weapon.blast || weapon.cleave)
+    const sources = [...new Set(input.target.groups.flatMap((group) => group.feelNoPainSources?.map((source) => source.unit) ?? []))]
     for (let at = 0; at < layout.total; at++) {
       if (!state[at]) continue
       const models = targetModels(target) - (varies ? layout.killed[at]! : 0)
-      const part = byModels.get(models) ?? new Float64Array(state.length)
-      part[at] = state[at]!
-      byModels.set(models, part)
+      const alive = sources.filter((source) =>
+        input.target.groups.some((group, index) => group.unit === source && index >= layout.group[at]!),
+      )
+      const key = JSON.stringify([models, alive])
+      const part = byModels.get(key) ?? {
+        models,
+        input: sources.length
+          ? {
+              ...input,
+              target: {
+                ...input.target,
+                groups: input.target.groups.map((group) => {
+                  const feelNoPain = Math.min(
+                    (group.feelNoPain === undefined ? input.target.feelNoPain : group.feelNoPain) ?? 7,
+                    ...(group.feelNoPainSources ?? []).filter((source) => alive.includes(source.unit)).map((source) => source.value),
+                  )
+                  return { ...group, feelNoPain: feelNoPain === 7 ? null : feelNoPain, feelNoPainSources: [] }
+                }),
+              },
+            }
+          : input,
+        state: new Float64Array(state.length),
+      }
+      part.state[at] = state[at]!
+      byModels.set(key, part)
     }
     work += workOf(input, currentLayout) * byModels.size
     if (work > MAX_COMBAT_WORK) throw new Error('This attack is too large to simulate. Select fewer weapons or models.')
     const next = new Float64Array(state.length)
     next[layout.total] = state[layout.total]!
-    for (const [models, part] of byModels) addInto(next, resolveCombat(input, currentLayout, part, models))
+    for (const part of byModels.values()) addInto(next, resolveCombat(part.input, currentLayout, part.state, part.models))
     state = next
   }
   return combatResult(state, target, layout)

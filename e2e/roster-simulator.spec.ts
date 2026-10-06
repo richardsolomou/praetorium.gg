@@ -89,7 +89,9 @@ test('Invasion Fleet hides unsupported rules in both roles while retaining calcu
   }
   await simulator.getByRole('button', { name: 'Swap attacker and defender' }).click()
   await openCombatControls(simulator)
-  await expect(simulator.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Hormagaunts')
+  await expect(simulator.getByRole('region', { name: 'Defender', exact: true }).locator('[data-combat-member]').first()).toContainText(
+    'Hormagaunts',
+  )
   for (const name of ['Hyper-adaptations', 'Sustained Hits', 'Lethal Hits', 'Hyper Adaptions', 'Not calculated'])
     for (const panel of await buffs.all()) await expect(panel).not.toContainText(name)
 })

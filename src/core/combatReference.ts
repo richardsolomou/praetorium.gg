@@ -2,6 +2,7 @@ import {
   attackRolls,
   bestReroll,
   combatSchema,
+  combatGroupProtection,
   rollSucceeds,
   saveSucceeds,
   targetModels,
@@ -35,28 +36,44 @@ function check(target: number, bonus: number, critical: number, rerolls: CombatO
 }
 
 export function attackSequence({ target, weapons, options, mortalWounds = [] }: CombatInput, random: () => number) {
+  target = {
+    ...target,
+    groups: target.groups.map((group) => {
+      const grants = (group.feelNoPainSources ?? []).filter((source) =>
+        target.groups.some((owner) => owner.unit === source.unit && owner.models > 0),
+      )
+      const feelNoPain = Math.min(
+        (group.feelNoPain === undefined ? target.feelNoPain : group.feelNoPain) ?? 7,
+        ...grants.map((source) => source.value),
+      )
+      return { ...group, feelNoPain: feelNoPain === 7 ? null : feelNoPain, feelNoPainSources: [] }
+    }),
+  }
   const models = targetModels(target)
   const alive = target.groups.map((group) => group.models)
   let current = 0
   let killed = 0
-  let remaining = target.groups[0]!.wounds - (target.damage ?? 0)
+  let remaining = target.groups[0]!.wounds - (target.groups[0]!.damage ?? 0) - (target.damage ?? 0)
   let damage = 0
   // Wound rolls happen before any save, so a pool uses the highest Toughness still on the battlefield (05.02.01).
-  const toughness = () => Math.max(...target.groups.flatMap((group, index) => (alive[index] ? [group.toughness] : [])))
+  const toughness = () => {
+    const surviving = target.groups.filter((_, index) => alive[index])
+    return Math.max(
+      ...(surviving.some((group) => group.bodyguard) ? surviving.filter((group) => group.bodyguard) : surviving).map(
+        (group) => group.toughness,
+      ),
+    )
+  }
   const destroyOne = () => {
     killed++
     alive[current]!--
     if (!alive[current]) current++
-    remaining = target.groups[current]?.wounds ?? 0
+    const group = target.groups[current]
+    remaining = (group?.wounds ?? 0) - (group && alive[current] === group.models ? (group.damage ?? 0) : 0)
   }
   const inflictMortals = (timing: 'before' | 'after') => {
     for (const ability of mortalWounds) {
       if (ability.timing !== timing) continue
-      const feelNoPain = Math.min(
-        target.feelNoPain ?? 7,
-        target.mortalFeelNoPain ?? 7,
-        ability.psychic ? (target.psychicFeelNoPain ?? 7) : 7,
-      )
       for (let attempt = 0; attempt < ability.rolls; attempt++) {
         if (killed === models) break
         const result = d6(random)
@@ -65,6 +82,12 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
         const wounds = roll(outcome.damage, random)
         for (let wound = 0; wound < wounds; wound++) {
           if (killed === models) break
+          const protection = combatGroupProtection(target, target.groups[current]!)
+          const feelNoPain = Math.min(
+            protection.feelNoPain ?? 7,
+            protection.mortalFeelNoPain ?? 7,
+            ability.psychic ? (protection.psychicFeelNoPain ?? 7) : 7,
+          )
           if (feelNoPain < 7 && d6(random) >= feelNoPain) continue
           damage++
           if (--remaining === 0) destroyOne()
@@ -80,14 +103,18 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
     const defending = toughness()
     const { indirect, skill, hitBonus, woundBonus, wound } = attackRolls(weapon, options, defending)
     const halfRange = ranged && options.halfRange
-    const feelNoPain = weapon.psychic ? Math.min(target.feelNoPain ?? 7, target.psychicFeelNoPain ?? 7) : (target.feelNoPain ?? 7)
     const inflict = (mortal = false) => {
+      const protection = combatGroupProtection(target, target.groups[current]!)
+      const feelNoPain = weapon.psychic
+        ? Math.min(protection.feelNoPain ?? 7, protection.psychicFeelNoPain ?? 7)
+        : (protection.feelNoPain ?? 7)
       let rolledDamage = roll(weapon.damage, random)
       if (weapon.damageReroll === 'ones' && rolledDamage === 1) rolledDamage = roll(weapon.damage, random)
       const baseDamage = rolledDamage + (halfRange ? roll(weapon.melta, random) : 0)
-      const rolled = baseDamage === 0 ? 0 : Math.max(1, Math.ceil(baseDamage / (target.damageDivisor ?? 1) - (target.damageReduction ?? 0)))
+      const rolled =
+        baseDamage === 0 ? 0 : Math.max(1, Math.ceil(baseDamage / (protection.damageDivisor ?? 1) - (protection.damageReduction ?? 0)))
       let lost = rolled
-      const prevention = mortal ? Math.min(feelNoPain, target.mortalFeelNoPain ?? 7) : feelNoPain
+      const prevention = mortal ? Math.min(feelNoPain, protection.mortalFeelNoPain ?? 7) : feelNoPain
       if (prevention < 7) {
         lost = 0
         for (let i = 0; i < rolled; i++) if (d6(random) < prevention) lost++

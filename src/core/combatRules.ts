@@ -55,6 +55,27 @@ export type CombatRuleEffect = {
 export type CombatRuleChoice = { label: string; effects: CombatRuleEffect[] }
 export type ActiveCombatRule = { name: string; effects: CombatRuleEffect[] }
 
+export const combatRuleKey = (rule: CombatRule) => `${rule.source}:${rule.name}`
+
+export function activeCombatRules(rules: readonly CombatRule[], choices: Readonly<Record<string, number>>) {
+  return [
+    ...new Map(
+      rules.flatMap((rule) => {
+        const choice = combatRuleChoices(rule)[(choices[combatRuleKey(rule)] ?? combatRuleDefault(rule)) - 1]
+        return choice ? [[rule.name, { name: rule.name, effects: choice.effects }] as const] : []
+      }),
+    ).values(),
+  ]
+}
+
+export function combatRuleHasSharedDefence(rule: CombatRule, choice: number) {
+  return (
+    rule.scope === 'attached' &&
+    (Boolean(rule.appliedDefences?.length) ||
+      Boolean(combatRuleChoices(rule)[choice - 1]?.effects.some((effect) => effect.role === 'defender')))
+  )
+}
+
 const both: Phase[] = ['ranged', 'melee']
 const plain = (value: string) =>
   value
@@ -488,6 +509,7 @@ export function combatRuleWeapons(
   role: CombatRuleEffect['role'],
   phase: Phase,
   targetKeywords: readonly string[],
+  scopedOptions = false,
 ): CombatWeapon[] {
   const rank = { none: 0, ones: 1, failed: 2 }
   return used.flatMap(({ weapon, count, profile }) => {
@@ -537,7 +559,7 @@ export function combatRuleWeapons(
           next.notStrongerWoundModifier = (next.notStrongerWoundModifier ?? 0) + (effect.options?.woundModifier ?? 0)
         if (effect.condition === 'double-strength')
           next.doubleStrengthWoundModifier = (next.doubleStrengthWoundModifier ?? 0) + (effect.options?.woundModifier ?? 0)
-        if (effect.condition || (!effect.weapon && !effect.targetKeywords && !effect.excludedTargetKeywords)) continue
+        if (effect.condition || (!scopedOptions && !effect.weapon && !effect.targetKeywords && !effect.excludedTargetKeywords)) continue
         for (const field of ['hitModifier', 'woundModifier'] as const) next[field] = (next[field] ?? 0) + (effect.options?.[field] ?? 0)
         next.positiveHitModifier = (next.positiveHitModifier ?? 0) + Math.max(0, effect.options?.hitModifier ?? 0)
         next.positiveWoundModifier = (next.positiveWoundModifier ?? 0) + Math.max(0, effect.options?.woundModifier ?? 0)
