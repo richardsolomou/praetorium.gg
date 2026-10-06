@@ -8,9 +8,8 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     (async () => {
       const saved = await (await caches.open(REFERENCE_CACHE)).match('/offline-reference.html')
-      if (saved && !HOSTED_PATH.test(url.pathname)) return saved
       try {
-        return await fetch(event.request, { signal: AbortSignal.timeout(5000) })
+        return await fetch(event.request, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
       } catch {
         return (
           (!HOSTED_PATH.test(url.pathname) && saved) ||

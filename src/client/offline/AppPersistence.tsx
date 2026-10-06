@@ -32,11 +32,6 @@ export function AppPersistence() {
   const client = useQueryClient()
   const router = useRouter()
   useEffect(() => {
-    if (window.PraetoriumAppSnapshot) {
-      const current = client.getQueryData<{ id: string } | null>(['me'])
-      if (current !== undefined && (current?.id ?? null) !== window.PraetoriumAppSnapshot.owner) void clearSavedApp().catch(() => {})
-      else restoreAppSnapshot(client, window.PraetoriumAppSnapshot)
-    }
     let active = true
     let ready = false
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -44,6 +39,7 @@ export function AppPersistence() {
     let refreshing = false
     let pendingRefresh = false
     const save = () => {
+      if (!ready) return
       clearTimeout(timer)
       saving = saving
         .catch(() => {})
@@ -145,10 +141,15 @@ export function AppPersistence() {
       })
     }
     const cancelInitial = afterInitialScreen(router, () => {
+      if (window.PraetoriumAppSnapshot) {
+        const current = client.getQueryData<{ id: string } | null>(['me'])
+        if (current !== undefined && (current?.id ?? null) !== window.PraetoriumAppSnapshot.owner) void clearSavedApp().catch(() => {})
+        else restoreAppSnapshot(client, window.PraetoriumAppSnapshot)
+      }
       ready = true
+      save()
       void refresh()
     })
-    save()
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') void refresh()
     }, 60_000)
