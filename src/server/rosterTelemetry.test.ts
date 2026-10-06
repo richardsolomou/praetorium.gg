@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bookOf } from './catalogue.fixtures'
+import { ability, bookOf, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'
 import { rosterTelemetryProperties } from './rosterTelemetry'
 
@@ -30,7 +30,68 @@ const rules = {
   byDetachment: new Map([['death-guard', new Map([['plague-host', []]])]]),
 } as Partial<LoadedRules> as LoadedRules
 
+const profiled = shelfOf(
+  {
+    name: 'Imperium - Ultramarines (11e)',
+    sharedSelectionEntries: [
+      {
+        id: 'wrapper',
+        name: 'Detachment',
+        type: 'upgrade',
+        selectionEntryGroups: [
+          {
+            id: 'choices',
+            name: 'Detachment',
+            selectionEntries: [
+              { id: 'blade', name: 'Blade of Ultramar', type: 'upgrade', profiles: [ability('doctrines', 'Mastered Doctrines')] },
+              { id: 'empty', name: 'Unwritten', type: 'upgrade', profiles: [{ id: 'empty-rule', name: 'Unwritten rule' }] },
+              { id: 'missing', name: 'Missing rules', type: 'upgrade', profiles: [ability('other', 'Other profile')] },
+            ],
+            entryLinks: [{ id: 'inherited', type: 'selectionEntry', targetId: 'assault' }],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Imperium - Space Marines (11e)',
+    sharedSelectionEntries: [
+      { id: 'assault', name: 'Assault Brethren', type: 'upgrade', profiles: [ability('armour', 'Armour of Contempt (1CP)')] },
+    ],
+  },
+)
+profiled.profiledDetachmentIds = new Set(['blade', 'empty', 'assault'])
+
 describe('roster telemetry properties', () => {
+  it.each(['blade', 'inherited'])('reports described profile-backed detachment %s as covered without Game Datacards', (id) => {
+    expect(rosterTelemetryProperties({ catalogueId: 'cat', detachmentIds: [id], limit: 2_000 }, profiled, null)).toMatchObject({
+      detachment_rules_covered: true,
+    })
+  })
+
+  it('reports multiple described profile-backed detachments as covered', () => {
+    expect(
+      rosterTelemetryProperties({ catalogueId: 'cat', detachmentIds: ['blade', 'inherited'], limit: 2_000 }, profiled, null),
+    ).toMatchObject({ detachment_rules_covered: true })
+  })
+
+  it('reports a combination of profile-backed and Game Datacards detachments as covered', () => {
+    const mixedRules = {
+      ...rules,
+      factionKeys: new Map([['ultramarines', 'ultramarines']]),
+      byDetachment: new Map([['ultramarines', new Map([['missing-rules', []]])]]),
+    }
+    expect(
+      rosterTelemetryProperties({ catalogueId: 'cat', detachmentIds: ['blade', 'missing'], limit: 2_000 }, profiled, mixedRules),
+    ).toMatchObject({ detachment_rules_covered: true })
+  })
+
+  it.each(['empty', 'missing'])('reports a combination with unsupported or undescribed detachment %s as uncovered', (id) => {
+    expect(rosterTelemetryProperties({ catalogueId: 'cat', detachmentIds: ['blade', id], limit: 2_000 }, profiled, null)).toMatchObject({
+      detachment_rules_covered: false,
+    })
+  })
+
   it('uses normalized source names and reports complete rule coverage', () => {
     expect(rosterTelemetryProperties({ catalogueId: 'cat', detachmentIds: ['plague-host'], limit: 2_000 }, loaded, rules)).toEqual({
       faction: 'death-guard',
