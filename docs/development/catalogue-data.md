@@ -108,7 +108,7 @@ Inspect generated selections and original price rows before blaming code or sour
 
 ## Picker and attachments
 
-Picker prices and limits use the same build inputs as saved rosters. Search covers structured names, keywords, abilities, weapons, and choices; names outrank metadata and broad rules prose stays out. Complete faction summaries are snapshot-cached; an arbitrary alphabetical cap must not hide legal units. Imported allied offers retain their source labels.
+Picker prices and limits use the same build inputs as saved rosters. Builder pricing includes roster-aware copy limits for the picker, datasheet Add, and duplication. Shared category caps deduct other units in the group; prerequisite units can unlock allied slots. Do not gate edits from the empty-roster limits cached with faction summaries. Search covers structured names, keywords, abilities, weapons, and choices; names outrank metadata and broad rules prose stays out. Complete faction summaries are snapshot-cached; an arbitrary alphabetical cap must not hide legal units. Imported allied offers retain their source labels.
 
 `attachmentOf` reads supported source eligibility and enhancement-unlocked targets. Missing rules mean no attachment. Default capacity is one Leader and one Support unless the source changes it; a Support requiring an existing Leader stays unavailable without one. All attachment-dependent projection uses this same grouping.
 

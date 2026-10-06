@@ -95,6 +95,7 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
       return
     }
 
+    if (paneHistoryRef.current !== paneHistory) paneHistoryBackPending.current = false
     paneHistoryRef.current = paneHistory
     setShowing(paneHistory.pane)
     if (paneHistory.pane === 'picker') return

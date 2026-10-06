@@ -137,7 +137,7 @@ export function GuestRoster({
     <main className="flex h-full w-full min-w-0 max-w-full flex-col overflow-x-hidden">
       {unkept ? (
         <p role="alert" className="border-b border-discarded/40 bg-discarded/5 px-3 py-2 text-xs text-discarded">
-          This browser is not keeping the list, so it will be lost if the page reloads.
+          This browser is not keeping the list. Allow browser storage to save it; reloading will lose it.
         </p>
       ) : null}
       <ListBuilder
@@ -153,7 +153,11 @@ export function GuestRoster({
         }}
         initialFaction={faction}
         guest={{
-          onDraftChange: ({ id: _saved, ...draft }) => setUnkept(!writeGuestDraft({ ...guest, draft })),
+          onDraftChange: ({ id: _saved, ...draft }) => {
+            const kept = writeGuestDraft({ ...guest, draft })
+            setUnkept(!kept)
+            return kept
+          },
           onSave: () => {
             void navigate({ to: '/sign-in', search: { next: GUEST_PATH, join: true } })
           },

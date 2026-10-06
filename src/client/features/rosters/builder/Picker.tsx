@@ -25,6 +25,7 @@ import { collectionQuery, meQuery, unitsQuery } from '../../../queries'
 import { shortName } from './factions'
 import { GROUPS } from '../../../unitGroups'
 import { Section } from './Section'
+import { canAddCopy, unitLimitMessage } from './usePicks'
 
 type Props = {
   enabled: boolean
@@ -32,6 +33,7 @@ type Props = {
   onAdd: (entryId: string) => void
   onPreview: (entryId: string, name: string) => void
   inRoster: Record<string, number>
+  limits: ReadonlyMap<string, number | null>
   room: number | null
   battleSize: number
   /** Which of the battle size's restrictions the roster has switched off. */
@@ -65,6 +67,7 @@ export const Picker = memo(function Picker({
   onAdd,
   onPreview,
   inRoster,
+  limits,
   room,
   battleSize,
   waivedRules,
@@ -94,11 +97,11 @@ export const Picker = memo(function Picker({
     () =>
       (found ?? []).filter((unit) => {
         if (active.has('fit') && room !== null && unit.points !== null && unit.points > room) return false
-        if (active.has('limit') && unit.limit !== null && (inRoster[unit.id] ?? 0) >= unit.limit) return false
+        if (active.has('limit') && limits.has(unit.id) && !canAddCopy(unit.id, inRoster[unit.id] ?? 0, limits)) return false
         if (active.has('owned') && !collection.has(unit.id)) return false
         return true
       }),
-    [found, active, room, inRoster, collection],
+    [found, active, room, inRoster, collection, limits],
   )
   const rules = formatRules(battleSize)
   const waived = rules.filter((rule) => !enforces(waivedRules, rule.id))
@@ -202,11 +205,12 @@ export const Picker = memo(function Picker({
                 <Section title={plural} count={rows.length} defaultOpen={!alliedFaction}>
                   {rows.map((unit) => {
                     const held = inRoster[unit.id] ?? 0
-                    const full = unit.limit !== null && held >= unit.limit
+                    const full = !canAddCopy(unit.id, held, limits)
                     return (
                       <PickerRow
                         key={unit.id}
-                        unit={unit}
+                        unit={{ ...unit, limit: limits.has(unit.id) ? limits.get(unit.id)! : unit.limit }}
+                        limitMessage={unitLimitMessage(unit.id, held, limits)}
                         held={held}
                         full={full}
                         inCollection={collection.has(unit.id)}
@@ -258,6 +262,7 @@ type PickerRowProps = {
   inCollection: boolean
   collectionPending: boolean
   query: string
+  limitMessage: string | null
   onPreview: (entryId: string, name: string) => void
   onOwned?: (entryId: string, owned: boolean) => void
   onAdd: (entryId: string) => void
@@ -270,6 +275,7 @@ const PickerRow = memo(function PickerRow({
   inCollection,
   collectionPending,
   query,
+  limitMessage,
   onPreview,
   onOwned,
   onAdd,
@@ -289,6 +295,7 @@ const PickerRow = memo(function PickerRow({
         <span className="min-w-0 flex-1">
           <span className="block text-sm leading-tight font-semibold tracking-wide uppercase">{unit.name}</span>
           <DatasheetMatchReasons query={query} reasons={unit.matchReasons} />
+          {limitMessage ? <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{limitMessage}</span> : null}
           {held ? (
             <span className={`readout block text-2xs ${full ? 'text-discarded' : 'text-faint'}`}>
               {held}

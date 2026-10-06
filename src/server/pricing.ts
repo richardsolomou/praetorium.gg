@@ -23,7 +23,7 @@ import { descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
 import { isProfiledDetachment, profiledDetachmentMatchesCards, profiledDetachmentPoints } from './catalogueProfileRules'
-import { groupOfEntry } from './cataloguePicker'
+import { contextualUnitLimit, groupOfEntry, unitsIn } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
 import { detachmentPoints } from './detachmentPoints'
 import { mfmUnitFor, unitPointAdjustment } from './unitPoints'
@@ -647,6 +647,12 @@ function calculateRoster(
 
   return {
     kind: 'full' as const,
+    unitLimits: data.includeUnitLimits
+      ? unitsIn(loaded, data.catalogueId, '', { battleSize: data.limit, waivedRules: data.waivedRules }).map((unit) => ({
+          id: unit.id,
+          limit: contextualUnitLimit(loaded, data.catalogueId, unit.id, data.limit, data.waivedRules ?? [], selections),
+        }))
+      : undefined,
     revision: loaded.index.revision,
     // Folded here rather than in the browser so a battle snapshot, a library row and
     // the field's own placeholder all read the one answer.

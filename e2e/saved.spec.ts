@@ -223,7 +223,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   const baseDetails = page.locator('[data-roster="Dynasty 2k"]').getByText(/^11th edition/)
   await expect(baseDetails).toHaveText(/1 unit · updated/, { useInnerText: true })
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   // A chip breaks onto a second line inside itself when the row leaves it too little room.
   const chipHeights = await page
     .locator('[data-variant] .chip')

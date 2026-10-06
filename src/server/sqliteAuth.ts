@@ -48,6 +48,7 @@ type AuthOptions = {
   updateProfile: (data: Record<string, unknown>) => Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; error: string }>
   /** Called after a player links GitHub, so their sponsorship shows before they leave the callback. */
   githubLinked?: () => Promise<void>
+  captureAuthentication?: (userId: string, event: 'account_created' | 'account_signed_in', properties: { method: string }) => Promise<void>
 }
 
 export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret: string, options: AuthOptions) {
@@ -80,6 +81,32 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     trustForwardedHeaders: true,
     configured: [environment.APP_URL, ...(configuredAuthProviders(environment).includes('apple') ? [APPLE_AUTH_ORIGIN] : [])],
   })
+
+  const createdAccounts = new WeakSet<GenericEndpointContext['context']>()
+  const authenticationMethod = (context: Partial<Pick<GenericEndpointContext, 'path' | 'params' | 'body'>> | null) => {
+    if (!context?.path) return null
+    if (context.path === '/sign-up/email' || context.path === '/sign-in/email') return 'email'
+    if (context.path.startsWith('/two-factor/verify-')) return 'two_factor'
+    const provider = context.path.startsWith('/callback/')
+      ? context.params?.id
+      : context.path === '/sign-in/social'
+        ? context.body?.provider
+        : undefined
+    return SOCIAL_PROVIDERS.find((method) => method === provider) ?? null
+  }
+  const captureAuthentication = async (
+    userId: string,
+    event: 'account_created' | 'account_signed_in',
+    context: GenericEndpointContext | null,
+  ) => {
+    const method = authenticationMethod(context)
+    if (!method || !options.captureAuthentication) return
+    try {
+      await options.captureAuthentication(userId, event, { method })
+    } catch {
+      ;(await auth.$context).logger.error('Authentication analytics capture failed')
+    }
+  }
 
   const claimInitialAdmin = async (userId: string) => {
     const [promoted] = await pRetry(
@@ -200,6 +227,10 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     databaseHooks: {
       user: {
         create: {
+          after: async (created, context) => {
+            if (context) createdAccounts.add(context.context)
+            await captureAuthentication(created.id, 'account_created', context)
+          },
           before: async (data) => {
             const avatar = await rehostSocialAvatarOnSignUp(data)
             if (!options.userIdForNewAccount) return avatar
@@ -291,6 +322,23 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         allowUnauthenticatedClientRegistration: true,
       }),
       cimd({ fetchClientMetadataResource, metadataProfile: 'mcp-2026-07-28' }),
+      {
+        id: 'authentication-analytics',
+        hooks: {
+          after: [
+            {
+              matcher: (context) => Boolean(authenticationMethod(context)),
+              handler: createAuthMiddleware(async (context) => {
+                // Two-factor removes the password session while a challenge is pending.
+                const confirmed = context.context.newSession
+                if (!confirmed || createdAccounts.has(context.context)) return
+                if (context.path.startsWith('/two-factor/') && context.context.session) return
+                await captureAuthentication(confirmed.user.id, 'account_signed_in', context)
+              }),
+            },
+          ],
+        },
+      },
     ],
   })
 

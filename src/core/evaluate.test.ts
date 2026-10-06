@@ -1045,6 +1045,49 @@ describe("the roster's force", () => {
 })
 
 describe('the limit on how many of a datasheet a roster may hold', () => {
+  const alliedIndex = () =>
+    indexOf({
+      categoryEntries: [
+        {
+          id: 'allies',
+          name: 'Allied units',
+          constraints: [{ id: 'allied-max', type: 'max', value: 0, field: 'selections', scope: 'roster', includeChildSelections: true }],
+          modifiers: [
+            {
+              field: 'allied-max',
+              type: 'increment',
+              value: 1,
+              repeats: [{ childId: 'line', field: 'selections', scope: 'roster', includeChildSelections: true, value: 1, repeats: 1 }],
+            },
+          ],
+        },
+      ],
+      sharedSelectionEntries: [
+        { id: 'line', name: 'Line troops', type: 'unit' },
+        ...['beast', 'hero'].map((id) => ({
+          id,
+          name: id,
+          type: 'unit' as const,
+          categoryLinks: [{ id: `${id}-ally`, targetId: 'allies' }],
+        })),
+      ],
+    })
+
+  it('unlocks an allied datasheet when its prerequisite is added', () => {
+    const index = alliedIndex()
+    expect(rosterLimit(index.definitions.get('beast')!, index, { roster: [{ id: 'line' }] })).toBe(1)
+  })
+
+  it('deducts other datasheets sharing the same roster cap', () => {
+    const index = alliedIndex()
+    expect(rosterLimit(index.definitions.get('beast')!, index, { roster: [{ id: 'line' }, { id: 'hero' }] })).toBe(0)
+  })
+
+  it('retains the total copy limit when the roster already holds that datasheet', () => {
+    const index = alliedIndex()
+    expect(rosterLimit(index.definitions.get('beast')!, index, { roster: [{ id: 'line' }, { id: 'beast' }] })).toBe(1)
+  })
+
   it('is the roster-scoped maximum the data states', () => {
     const index = indexOf({
       sharedSelectionEntries: [

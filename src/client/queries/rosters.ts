@@ -96,12 +96,25 @@ export const priceQuery = (
   waivedRules: readonly FormatRuleId[] = [],
   borrowedDetachmentId: string | null = null,
   optionalRules: readonly OptionalRuleId[] = [],
+  includeUnitLimits = false,
 ) =>
   queryOptions({
-    queryKey: ['price', catalogueId, detachmentIds, disposition, limit, waivedRules, borrowedDetachmentId, optionalRules, picked],
+    queryKey: [
+      'price',
+      catalogueId,
+      detachmentIds,
+      disposition,
+      limit,
+      waivedRules,
+      borrowedDetachmentId,
+      optionalRules,
+      ...(includeUnitLimits ? ['unit-limits'] : []),
+      picked,
+    ],
     queryFn: () =>
       priceRoster({
         data: {
+          includeUnitLimits,
           catalogueId,
           detachmentIds: [...detachmentIds],
           disposition,

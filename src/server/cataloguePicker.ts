@@ -177,6 +177,22 @@ function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, 
   return rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] })
 }
 
+export function contextualUnitLimit(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  battleSize: number,
+  waivedRules: readonly string[],
+  roster: readonly Selection[],
+) {
+  const entry = loaded.index.definitions.get(entryId)
+  if (!entry) return 0
+  const limit = rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster })
+  if (!isKotcLimit(battleSize)) return limit
+  const sheet = datasheetIn(loaded, catalogueId, entryId)
+  return minimumLimit(limit, sheet ? formatDatasheetLimit(battleSize, kotcDatasheetRepeatable(sheet.keywords), waivedRules) : null)
+}
+
 function minimumLimit(left: number | null, right: number | null) {
   if (left === null) return right
   if (right === null) return left

@@ -271,6 +271,8 @@ export function app(): App {
       storeSocialAvatar: storeProfileImageFromUrl,
       updateProfile: profileUpdate,
       githubLinked: () => githubSponsors.refresh(),
+      captureAuthentication: (userId: string, event: 'account_created' | 'account_signed_in', properties: { method: string }) =>
+        telemetry.capture(userId, event, properties),
     }
     const auth = createSqliteAuth(authDatabase, process.env.AUTH_SECRET ?? '', authOptions)
     const instance: App = {

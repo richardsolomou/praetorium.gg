@@ -98,12 +98,15 @@ export function RosterBuilderFooter({
             </Button>
           ) : null}
           {onSave ? (
-            <Button size="sm" onClick={onSave} disabled={!hasUnits}>
-              Sign up to save
+            <Button size="sm" className="min-h-11" onClick={onSave} disabled={!hasUnits}>
+              Save roster
             </Button>
           ) : null}
         </span>
       </div>
+      {onSave && hasUnits ? (
+        <p className="mt-1 text-right text-2xs text-dim">Create a free account or sign in to keep this roster.</p>
+      ) : null}
       {editable && saveFailed ? (
         <div
           role="alert"

@@ -12,7 +12,7 @@ Write for a player building an army or playing Warhammer 40,000. Name the game t
 
 `nativeTabs.ts` preserves each section's URL, route state, and scroll position for the browser session. Tapping the current section returns to its top. Home selects no tab. More holds secondary destinations without repeating the dedicated tabs.
 
-Compact roster panes use browser history and stop above the application tabs. Closing a datasheet returns to the picker or roster that opened it. Required battle prompts leave application navigation reachable. At intermediate website widths, compact panes remain modal dialogs. [Mobile](mobile.md#shell-boundaries) owns native Back behavior.
+Compact roster panes use browser history and stop above the application tabs. Closing a datasheet returns to the picker or roster that opened it; returning to the picker must leave its Close button usable. Verify the full picker → datasheet → picker → roster sequence. Required battle prompts leave application navigation reachable. At intermediate website widths, compact panes remain modal dialogs. [Mobile](mobile.md#shell-boundaries) owns native Back behavior.
 
 Release notices use one compact sentence and a manual Refresh action, centred at the bottom above any application tabs. Match a supplied interface reference before adding copy or secondary actions.
 
@@ -36,7 +36,7 @@ Use the same roster cards for libraries, choosers, editable lists, read-only lis
 
 Library variants remain grouped with their base and show concise differences from the saved base. Filters and tabs that represent destinations live in the URL. Variant navigation stays disabled while edits are unsaved. The library's legality and changed-list counts use the domain decisions in [Catalogue data](catalogue-data.md#data-updates).
 
-A visitor draft uses the same builder. The session cookie hints its layout for SSR without storing the list. Storage failure keeps the open builder usable and warns about reload loss. Claiming the draft after sign-in follows the saved flow.
+A visitor draft uses the same builder. The session cookie hints its layout for SSR without storing the list. Storage failure keeps the open builder usable and warns about reload loss. Claiming the draft after sign-in follows the saved flow. Save keeps the roster context on the authentication page and allows returning to the draft. If storage rejects the latest draft, keep the player in the builder rather than navigating into authentication and losing it.
 
 ## Battles and leagues
 

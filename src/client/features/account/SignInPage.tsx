@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { classifyAuthCallbackFailure } from 'ras-stack/auth/client'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { posthog } from 'posthog-js'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { readGuestDraft, GUEST_PATH } from '../rosters/guestDraft'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,6 +34,8 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [savingRoster, setSavingRoster] = useState(false)
+  useEffect(() => setSavingRoster(next === GUEST_PATH && Boolean(readGuestDraft())), [next])
   const [joining, setJoining] = useState(Boolean(join))
   const [twoFactorPending, setTwoFactorPending] = useState(false)
   const [resetSent, setResetSent] = useState(false)
@@ -71,7 +74,6 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
       return
     }
     if (!result.error) {
-      posthog.capture(joining ? 'account_created' : 'account_signed_in', { method: 'email', redirected: Boolean(next) })
       await queryClient.invalidateQueries()
       const redirectUrl = authRedirectUrl('data' in result ? result.data : null)
       if (redirectUrl) {
@@ -103,8 +105,17 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
       <section className="border-b border-edge bg-panel md:border-l">
         <div className="mr-auto h-full w-full max-w-lg p-6 sm:p-8">
           <p className="eyebrow text-parchment">{joining ? 'Create account' : 'Sign in'}</p>
-          <h1 className="mt-1 text-3xl">{joining ? 'Make an account' : 'Welcome back'}</h1>
-          <p className="mt-3 text-sm text-dim">Save your army lists, start games with friends and pick up battles already in progress.</p>
+          <h1 className="mt-1 text-3xl">{savingRoster ? 'Save your roster' : joining ? 'Make an account' : 'Welcome back'}</h1>
+          <p className="mt-3 text-sm text-dim">
+            {savingRoster
+              ? 'Your roster is ready. Create a free account or sign in to save it and keep building.'
+              : 'Save your army lists, start games with friends and pick up battles already in progress.'}
+          </p>
+          {savingRoster ? (
+            <Link to="/rosters" className="mt-3 inline-block text-sm text-info underline underline-offset-2">
+              Back to your roster
+            </Link>
+          ) : null}
           {callbackError ? (
             <p role="alert" className="mt-6 border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
               {callbackError}
@@ -119,7 +130,6 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
             <TwoFactorSignIn
               onBack={() => setTwoFactorPending(false)}
               onSuccess={(redirectUrl) => {
-                posthog.capture('account_signed_in', { method: 'two_factor', redirected: Boolean(next) })
                 if (redirectUrl || next) window.location.replace(redirectUrl || next!)
                 else void navigate({ to: '/', replace: true })
               }}
@@ -164,7 +174,13 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
                   {joining ? <p className="text-xs text-dim">At least {PASSWORD_MIN_LENGTH} characters.</p> : null}
                 </div>
                 <Button type="submit" className="h-11 w-full text-base" disabled={submit.busy}>
-                  {joining ? 'Create the account' : 'Sign in'}
+                  {savingRoster
+                    ? joining
+                      ? 'Create account and save roster'
+                      : 'Sign in and save roster'
+                    : joining
+                      ? 'Create the account'
+                      : 'Sign in'}
                 </Button>
                 {submit.error ? <p className="text-sm text-destructive">{submit.error}</p> : null}
                 {!joining && options?.passwordReset ? (
