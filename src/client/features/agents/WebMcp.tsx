@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { browserAgentToolCatalog, callBrowserAgentTool, prepareBrowserAgentTool } from '../../../server/functions/agentTools'
 import { meQuery } from '../../queries'
+import { isFetchNetworkFailure } from '../../networkErrors'
 import { captureAppSnapshot } from '../../offline/appSnapshot'
 import { writeAppSnapshot } from '../../offline/appStorage'
 import { APP_ACCOUNT_EVENT } from '../../offline/appStorage'
@@ -70,7 +71,7 @@ export function WebMcp() {
         ),
       )
       .catch((error: unknown) => {
-        if (!lifetime.signal.aborted) posthog.captureException(error, { operation: 'webmcp_registration' })
+        if (!lifetime.signal.aborted && !isFetchNetworkFailure(error)) posthog.captureException(error, { operation: 'webmcp_registration' })
         lifetime.abort()
       })
     return () => {
