@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.107.0
+
+### Minor Changes
+
+- 07a4313: Choose from all saved rosters and infer an even battle format from their saved sizes, while preserving league presets.
+
 ## 0.106.0
 
 ### Minor Changes
