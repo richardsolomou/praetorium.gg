@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.107.5
+
+### Patch Changes
+
+- 50ef3d2: Report profile-backed detachment rule coverage accurately.
+
 ## 0.107.4
 
 ### Patch Changes
