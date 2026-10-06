@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.107.1
+
+### Patch Changes
+
+- 24ccff3: Unlock allied units from the current roster, explain exhausted limits, preserve guest drafts through saving, and count confirmed social signups.
+
 ## 0.107.0
 
 ### Minor Changes
