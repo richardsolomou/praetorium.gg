@@ -122,10 +122,9 @@ for (const width of [1440, 390]) {
         await expect(prompt(page)).toContainText('Start the battle')
       },
     })
-    await expect(prompt(page)).toContainText('Choose the table size')
-    await page.getByRole('combobox', { name: 'Battle size', exact: true }).click()
-    await page.getByRole('option', { name: /Strike Force/ }).click()
-    await next(page, 'Choose the table size')
+    await expect(prompt(page)).toContainText('Find the table format')
+    await expect(page.getByText('Determined by your rosters')).toBeVisible()
+    await next(page, 'Find the table format')
     await attachRoster(page, name)
     await attachRoster(page, name, { forPlayer: PRACTICE_OPPONENT })
     const setupNext = page.locator('[data-setup-next]').getByRole('button', { name: 'Next', exact: true })

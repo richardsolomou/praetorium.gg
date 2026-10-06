@@ -20,7 +20,7 @@ const SIZES: ChoiceOption<string>[] = GAME_SIZES.map((size) => ({
   count: `${size.limit} points`,
 }))
 
-/** Saved on the press like `BattleSharing`; it only changes what the next roster or battle starts with. */
+/** Saved on the press like `BattleSharing`; it changes what the next roster starts with. */
 export function PlayerDefaultsSettings() {
   const { data: defaults = DEFAULT_PLAYER_DEFAULTS } = useQuery(playerDefaultsQuery())
   const queryClient = useQueryClient()
@@ -32,8 +32,8 @@ export function PlayerDefaultsSettings() {
     <section className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
       <div>
         <p className="rubric border-b border-edge pb-2">Defaults</p>
-        <h2 className="mt-4 text-base">What new rosters and battles start with</h2>
-        <p className="mt-1 text-sm text-dim">You can still change either one when you create a roster or set up a battle.</p>
+        <h2 className="mt-4 text-base">What new rosters start with</h2>
+        <p className="mt-1 text-sm text-dim">You can still change either one when you create a roster.</p>
       </div>
       <Choice
         label="Roster visibility"
@@ -43,7 +43,7 @@ export function PlayerDefaultsSettings() {
         onChange={(rosterVisibility) => save.mutate({ ...defaults, rosterVisibility })}
       />
       <Choice
-        label="Battle size"
+        label="Roster size"
         value={String(defaults.battleSize)}
         options={SIZES}
         disabled={save.isPending}

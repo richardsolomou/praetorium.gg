@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { createBattle, leagueBattleOptions } from '../../../server/functions'
-import { battlesQuery, gameReferencesQuery, opponentsQuery, playerDefaultsQuery } from '../../queries'
+import { battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { advanceOnboarding } from '../onboarding/onboarding'
@@ -75,17 +75,13 @@ export function CreateBattle() {
         const matches = await leagueBattleOptions({ data: playerData })
         if (matches.length) return { kind: 'league' as const, matches }
       }
-      const [references, defaults] = await Promise.all([
-        queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' }),
-        queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' }),
-      ])
+      const references = await queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
       let battle
       try {
         battle = await createBattle({
           data: {
             ...playerData,
-            // What the table opens with, and what its first setup step is for changing.
-            limit: defaults.battleSize,
+            limit: null,
             missionPackId: references?.packs[0]?.id ?? null,
             casual,
           },

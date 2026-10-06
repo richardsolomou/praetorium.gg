@@ -137,7 +137,7 @@ const PROFILE_BATTLE_PAGE = 25
  */
 type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen }
 type NewBattlePlayers = { opponentId?: string; opponentIds?: string[]; allyId?: string }
-type CreateBattleInput = NewBattlePlayers & { limit?: number; missionPackId: string | null; casual?: boolean }
+type CreateBattleInput = NewBattlePlayers & { limit?: number | null; missionPackId: string | null; casual?: boolean }
 
 function newBattleSeats(input?: string | NewBattlePlayers) {
   const opponentIds = typeof input === 'string' ? [input] : (input?.opponentIds ?? (input?.opponentId ? [input.opponentId] : []))
@@ -721,11 +721,8 @@ export class PraetoriumService {
   }
 
   async createBattle(userId: string, input?: string | CreateBattleInput) {
-    const settings = typeof input === 'object' && input.limit !== undefined ? { ...input, limit: input.limit } : null
+    const settings = typeof input === 'object' ? { ...input, limit: input.limit ?? null } : { limit: null, missionPackId: null }
     const { allyIds, opponentIds, invited } = newBattleSeats(input)
-    if (!settings && (allyIds.length > 0 || opponentIds.length > 1)) {
-      throw new Response('choose battle settings for a team battle', { status: 400 })
-    }
     // One query for everyone named rather than one apiece, and both reads at once:
     // who exists and who may be invited are independent questions.
     const [known, invitable] = await Promise.all([this.repository.namesByIds(invited), this.opponents(userId)])
@@ -756,18 +753,16 @@ export class PraetoriumService {
       userId,
       allyIds,
       opponentIds,
-      initialCommand: settings
-        ? {
-            kind: 'configure-battle',
-            limit: settings.limit,
-            missionPackId: settings.missionPackId,
-            terrainLayoutId: null,
-            twistId: null,
-            teamBattle: invited.length >= 2,
-            playerCount: (invited.length + 1) as 2 | 3 | 4,
-            clockLimitMinutes: null,
-          }
-        : undefined,
+      initialCommand: {
+        kind: 'configure-battle',
+        limit: settings.limit,
+        missionPackId: settings.missionPackId,
+        terrainLayoutId: null,
+        twistId: null,
+        teamBattle: invited.length >= 2,
+        playerCount: (invited.length + 1) as 2 | 3 | 4,
+        clockLimitMinutes: null,
+      },
       now: this.clock(),
     })
     this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, league: false }])

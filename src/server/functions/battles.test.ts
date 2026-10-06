@@ -59,3 +59,8 @@ it('keeps ordinary battle command payloads out of telemetry', async () => {
     ['actor', 'battle_command_submitted', { command: 'reset-setup', outcome: 'appended', duration_ms: expect.any(Number) }],
   ])
 })
+
+it('reports no preset size for an automatically configured battle', async () => {
+  await invokeCreate({ data: createBattleSchema.parse({ opponentId: 'opponent', limit: null, casual: true }) })
+  expect(mocks.capture.mock.calls).toEqual([['actor', 'battle_created', { practice: false, limit: null, player_count: 2, casual: true }]])
+})

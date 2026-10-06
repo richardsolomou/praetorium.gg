@@ -388,6 +388,7 @@ export type BattleEndReason = 'completed' | 'finished-early' | 'conceded'
 
 export type BattleSettings = {
   limit: number | null
+  sizeFromRosters?: boolean
   missionPackId: string | null
   terrainLayoutId: string | null
   twistId: string | null
@@ -616,7 +617,7 @@ type OnBehalfOf = { playerId?: PlayerId }
 export type Command =
   | {
       kind: 'configure-battle'
-      limit: number
+      limit: number | null
       missionPackId: string | null
       terrainLayoutId: string | null
       twistId: string | null
@@ -958,7 +959,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
         return 'choose a supported player count'
       if (battleCapacity(command) > PLAYERS_PER_BATTLE !== Boolean(command.teamBattle)) return 'choose matching battle sides and seats'
       if (battleCapacity(command) < state.players.length) return 'choose enough seats for every player'
-      if (!GAME_SIZES.some((size) => size.limit === command.limit)) return 'choose a supported battle size'
+      if (command.limit !== null && !GAME_SIZES.some((size) => size.limit === command.limit)) return 'choose a supported battle size'
       return null
     }
     case 'reset-setup':
@@ -993,7 +994,12 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (!command.roster.text.trim()) return 'paste your list'
       if (command.roster.text.length > ROSTER_MAX_LENGTH) return 'that list is too long'
       const built = command.roster.built
-      if (state.settings.limit !== null && built && built.limit !== rosterLimit(state, player))
+      if (
+        (state.status !== 'setup' || !state.settings.sizeFromRosters) &&
+        state.settings.limit !== null &&
+        built &&
+        built.limit !== rosterLimit(state, player)
+      )
         return 'that roster does not match the battle size'
       if (built?.detachmentPointBudget !== undefined) {
         const detachmentError = detachmentPointsError(built.detachments ?? [], built.detachmentPointBudget)
@@ -1035,6 +1041,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
         return 'players must be seated on two valid sides'
       if (state.players.some((candidate) => !candidate.roster))
         return state.settings.teamBattle ? 'every army needs a list' : 'both armies need a list'
+      if (state.settings.sizeFromRosters && state.settings.limit === null) return 'choose matching roster formats for each side'
       if (!state.players.some((candidate) => candidate.id === command.firstPlayerId)) return 'that player is not in this battle'
       // A side of allies plays one Force Disposition, and it decides the primary each
       // side is set. Starting without it would hand the answer to whichever seat is first.
@@ -1429,6 +1436,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       const missionPackChanged = state.settings.missionPackId !== command.missionPackId
       state.settings = {
         limit: command.limit,
+        ...(command.limit === null ? { sizeFromRosters: true } : {}),
         missionPackId: command.missionPackId,
         terrainLayoutId: command.terrainLayoutId,
         twistId: command.twistId,
@@ -1440,8 +1448,10 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         state.settings.terrainLayoutId = null
       }
       for (const candidate of state.players) {
-        if (candidate.roster?.built && candidate.roster.built.limit !== rosterLimit(state, candidate)) detachRoster(state, candidate)
+        if (!state.settings.sizeFromRosters && candidate.roster?.built && candidate.roster.built.limit !== rosterLimit(state, candidate))
+          detachRoster(state, candidate)
       }
+      inferBattleSize(state)
       return
     }
     case 'reset-setup': {
@@ -1452,6 +1462,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       state.deploymentId = null
       state.settings = { ...state.settings, terrainLayoutId: null, twistId: null }
       state.players.forEach(resetPlayer)
+      inferBattleSize(state)
       return
     }
     case 'set-setup-step': {
@@ -1497,11 +1508,13 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       if (state.status === 'setup') {
         state.deploymentId = null
         state.settings.terrainLayoutId = null
+        inferBattleSize(state)
       }
       return
     }
     case 'detach-roster': {
       detachRoster(state, player)
+      inferBattleSize(state)
       return
     }
     case 'lock-league-rosters': {
@@ -2223,6 +2236,28 @@ function rosterLimit(state: BattleState, player: PlayerState): number | null {
   if (state.settings.limit === null || !state.settings.teamBattle) return state.settings.limit
   const teammates = state.players.filter((candidate) => candidate.side === player.side).length
   return state.settings.limit / teammates
+}
+
+export function rosterBattleFormat(state: {
+  settings: BattleSettings
+  players: { side: number; roster: { built?: { limit: number } } | null }[]
+}): { limit: number | null; problem: 'missing' | 'manual' | 'mismatch' | 'unsupported' | null } {
+  if (state.players.length !== battleCapacity(state.settings) || state.players.some((player) => !player.roster))
+    return { limit: null, problem: 'missing' }
+  if (state.players.some((player) => !player.roster?.built)) return { limit: null, problem: 'manual' }
+  const limits = state.players.map((player) => {
+    const teammates = state.players.filter((candidate) => candidate.side === player.side).length
+    return player.roster?.built ? player.roster.built.limit * teammates : null
+  })
+  const limit = limits[0]
+  if (!limits.every((value) => value === limit)) return { limit: null, problem: 'mismatch' }
+  const size = GAME_SIZES.find((candidate) => candidate.limit === limit)
+  return size ? { limit: size.limit, problem: null } : { limit: null, problem: 'unsupported' }
+}
+
+function inferBattleSize(state: BattleState) {
+  if (!state.settings.sizeFromRosters || state.status !== 'setup') return
+  state.settings.limit = rosterBattleFormat(state).limit
 }
 
 function validatePrep(prep: BattlePrep): string | null {

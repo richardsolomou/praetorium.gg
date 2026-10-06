@@ -426,8 +426,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     target: 'battle-setup-size',
     page: 'battle',
     href: '/battles',
-    title: 'Choose the table size',
-    description: 'The points limit applies to each side; allies split it evenly. Choose the mission pack here too.',
+    title: 'Find the table format',
+    description:
+      'Choose your armies to find the battle format from their saved sizes. Both sides must match; allies split the points evenly. League battles use their preset size. Choose the mission pack here too.',
     placement: 'bottom',
     next: 'battle-setup-armies',
     nextLabel: 'Next',
