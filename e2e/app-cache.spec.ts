@@ -1,6 +1,6 @@
 import { PUBLIC_APP_QUERIES } from '../src/contracts/appSnapshot'
 import { expect, test, type Page } from '@playwright/test'
-import { createBattle, createRoster, PRACTICE_OPPONENT, signUp, uniqueName } from './account'
+import { createBattle, createRoster, PRACTICE_OPPONENT, retryUntilVisible, signUp, uniqueName } from './account'
 
 async function savedState(page: Page) {
   return page.evaluate(
@@ -87,10 +87,11 @@ test('Home, rosters and battles launch from saved state and update without repla
   await expect(reopened).toHaveURL('/')
   await reopened.setViewportSize({ width: 1440, height: 900 })
   await reopened.goto(rosterPath)
-  await reopened.getByLabel('List name').fill('Renamed saved army')
-  await reopened.getByLabel('List name').press('Tab')
-  await other.goto('/rosters')
-  await expect(other.locator('[data-roster="Renamed saved army"]')).toBeVisible()
+  await retryUntilVisible(other.locator('[data-roster="Renamed saved army"]'), async () => {
+    await reopened.getByLabel('List name').fill('Renamed saved army')
+    await reopened.getByLabel('List name').press('Tab')
+    await other.goto('/rosters')
+  })
   await reopened.locator('[data-web-app-chrome]').getByRole('link', { name: 'Praetorium', exact: true }).click()
   await reopened.getByRole('main').getByText('Renamed saved army', { exact: true }).click()
   await expect(reopened.getByLabel('List name')).toHaveValue('Renamed saved army')

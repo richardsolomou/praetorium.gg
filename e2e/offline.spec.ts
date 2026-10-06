@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { signUp, uniqueName } from './account'
 
-test('saved application pages load same-origin telemetry scripts when connected', async ({ page }) => {
+test('saved application pages load same-origin telemetry scripts when connected', async ({ page, context }) => {
   test.setTimeout(240_000)
   await page.goto('/rules')
   await expect
@@ -9,9 +9,11 @@ test('saved application pages load same-origin telemetry scripts when connected'
       timeout: 180_000,
     })
     .toBe(true)
+  await context.setOffline(true)
   await page.goto('/rules/core-rules/moving')
   await expect(page.getByRole('heading', { name: '03. Moving', exact: true })).toBeVisible()
   expect(await page.evaluate(() => Boolean(window.PraetoriumOffline))).toBe(true)
+  await context.setOffline(false)
   await page.route('**/t/offline-telemetry-probe.js', (route) =>
     route.fulfill({ contentType: 'application/javascript', body: 'window.__offlineTelemetryLoaded = true' }),
   )
@@ -65,8 +67,11 @@ test('the complete reference keeps its existing UI after a cold offline launch',
     await delayed
     await route.continue()
   })
+  await context.setOffline(true)
   await page.goto('/rules/core-rules/moving')
   await expect(page.getByRole('heading', { name: 'Saved Moving', exact: true })).toBeVisible()
+  await context.setOffline(false)
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
   await page.locator('main details summary').first().click()
   await expect(page.locator('main details').first()).toHaveAttribute('open', '')
   release()

@@ -2,6 +2,22 @@ import { expect, test } from '@playwright/test'
 import manifest from '../package.json' with { type: 'json' }
 const { version } = manifest
 
+test('a connected launch loads the current application instead of the saved application', async ({ page }) => {
+  await page.goto('/')
+  await page.evaluate(async () => {
+    await (
+      await caches.open('praetorium-reference-v2')
+    ).put('/offline-reference.html', new Response('<h1>Previous application release</h1>', { headers: { 'Content-Type': 'text/html' } }))
+    await navigator.serviceWorker.register('/reference-worker.js')
+    await navigator.serviceWorker.ready
+  })
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
+  await page.reload()
+  await expect(page.getByRole('link', { name: 'Rosters', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('complementary', { name: 'Release update' })).toHaveCount(0)
+  await page.screenshot({ path: test.info().outputPath('current-release-launch.png') })
+})
+
 for (const width of [1440, 390]) {
   test(`release notice waits for a new version and refreshes only on request at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })

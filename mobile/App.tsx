@@ -459,13 +459,6 @@ function AppShell() {
               }
             } else if (active && pending?.callbackUrl) {
               await handleAuthCallback(pending.callbackUrl, pending)
-            } else if (!pending && (!initialUrl || classifyNavigation(initialUrl).kind === 'internal')) {
-              const saved = readOfflineReference()
-              if (saved) {
-                const target = new URL(initialUrl ?? '/', APP_URL)
-                offlinePath.current = target.pathname + target.search + target.hash
-                setOfflineView({ path: target.pathname + target.search + target.hash, html: saved.html })
-              }
             }
           },
         )
