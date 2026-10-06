@@ -18,7 +18,7 @@ The client build generates the public offline reference from the same catalogue 
 
 The public Node proxy owns a separate Nitro child process. Shutdown stops accepting connections, closes upgraded connections, and drains HTTP requests for up to five seconds before stopping Nitro. The child then has three seconds to exit, within Docker's ten-second stop grace period. The public listener opens only after the child's `/api/health` succeeds.
 
-Open pages check an uncached `/api/release` endpoint once a minute while visible and when focus returns. A newer web version offers a manual Refresh action, including inside the native WebView. Native shell updates are distributed through the app stores separately.
+Open pages check an uncached `/api/release` endpoint once a minute while visible and when focus returns. A newer web version offers a manual Refresh action, including inside the native WebView. `/reference-worker.js` is uncached so browsers receive the current navigation behavior after deployment. When introducing this header, purge that URL from the edge cache after deployment to remove previously cached responses. Native shell updates use compatible over-the-air updates and app-store builds; [Mobile release](development/mobile-release.md) owns compatibility and delivery.
 
 Product publication requires a migration plan/token. Automatic schema migrations may disconnect clients; manual migrations stop delivery without clearing data. Catalogue assets are pinned and verified inside the image; publishing a source snapshot alone does not update the running service.
 

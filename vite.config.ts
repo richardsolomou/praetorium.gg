@@ -77,6 +77,7 @@ export default defineConfig(({ mode }) => {
         ],
         routeRules: {
           ...proxy?.nitro,
+          '/reference-worker.js': { headers: { 'Cache-Control': 'no-store' } },
           '/offline-app-version.json': { headers: { 'Cache-Control': 'no-store' } },
           '/offline-reference-version.json': { headers: { 'Cache-Control': 'no-store' } },
           '/**': {

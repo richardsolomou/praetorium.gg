@@ -2,6 +2,11 @@ import { expect, test } from '@playwright/test'
 import manifest from '../package.json' with { type: 'json' }
 const { version } = manifest
 
+test('service worker updates bypass browser and edge caches', async ({ request }) => {
+  const response = await request.get('/reference-worker.js')
+  expect(response.headers()['cache-control']).toBe('no-store')
+})
+
 test('a connected launch loads the current application instead of the saved application', async ({ page }) => {
   await page.goto('/')
   await page.evaluate(async () => {
