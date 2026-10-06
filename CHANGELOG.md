@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.107.2
+
+### Patch Changes
+
+- c31baa3: Load the current application on connected launches to avoid an immediate refresh prompt.
+
 ## 0.107.1
 
 ### Patch Changes
