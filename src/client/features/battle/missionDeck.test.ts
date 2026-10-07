@@ -52,4 +52,23 @@ describe('the mission deck', () => {
       ['take-and-hold', 'assassination'],
     )
   })
+
+  it('opens a secondary saved with its name slug', () => {
+    const secondary = { ...card('source-id'), name: 'Bring It Down' }
+    expect(missionCardsByKey(references([], [secondary])).get('bring-it-down')).toEqual(secondary)
+  })
+
+  it('does not guess between secondary cards sharing a name slug', () => {
+    const secondaries = [
+      { ...card('first'), name: 'Bring It Down' },
+      { ...card('second'), name: 'Variant - Bring It Down' },
+    ]
+    expect(missionCardsByKey(references([], secondaries)).get('bring-it-down')).toBeUndefined()
+  })
+
+  it('preserves an exact card key over a name-slug alias', () => {
+    const exact = card('bring-it-down')
+    const secondary = { ...card('source-id'), name: 'Bring It Down' }
+    expect(missionCardsByKey(references([pack('chapter-approved', [exact])], [secondary])).get('bring-it-down')).toEqual(exact)
+  })
 })
