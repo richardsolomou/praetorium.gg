@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.107.6
+
+### Patch Changes
+
+- a362534: Give fixed-count units wider selectors and show roster selection first in battle setup.
+- a362534: Restore secondary mission details in battles saved before the catalogue ID update.
+- 081e683: Open secondary mission pages from links shared before the October data update.
+
 ## 0.107.5
 
 ### Patch Changes
