@@ -847,7 +847,7 @@ function combatResult(state: State, target: CombatInput['target'], layout: Alloc
 }
 
 /** Resolve successive phases against the surviving models and their remaining wounds. */
-export function calculateCombatSequence(scenarios: readonly CombatInput[]): CombatResult {
+export function calculateCombatSequence(scenarios: readonly CombatInput[], maxWork = MAX_COMBAT_WORK): CombatResult {
   if (!scenarios.length) throw new Error('Select an attack to simulate.')
   const inputs = scenarios.map(checkedCombat)
   const target = inputs[0]!.target
@@ -905,7 +905,7 @@ export function calculateCombatSequence(scenarios: readonly CombatInput[]): Comb
       byModels.set(key, part)
     }
     work += workOf(input, currentLayout) * byModels.size
-    if (work > MAX_COMBAT_WORK) throw new Error('This attack is too large to simulate. Select fewer weapons or models.')
+    if (work > maxWork) throw new Error('This attack is too large to simulate. Select fewer weapons or models.')
     const next = new Float64Array(state.length)
     next[layout.total] = state[layout.total]!
     for (const part of byModels.values()) addInto(next, resolveCombat(part.input, currentLayout, part.state, part.models))
@@ -915,6 +915,6 @@ export function calculateCombatSequence(scenarios: readonly CombatInput[]): Comb
 }
 
 /** The exact distribution of wounds lost and models destroyed after every attack resolves. */
-export function calculateCombat(scenario: CombatInput): CombatResult {
-  return calculateCombatSequence([scenario])
+export function calculateCombat(scenario: CombatInput, maxWork?: number): CombatResult {
+  return calculateCombatSequence([scenario], maxWork)
 }

@@ -4,9 +4,9 @@ import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
 import { combatSurvivors, combatSurvivorSheet } from '../../../core/combatSurvivors'
 import type { CombatCarrier } from '../../../core/combatLoadout'
-import { activeCombatRules, combatRuleKey, combatRuleDefault, combatRuleHasSharedDefence } from '../../../core/combatRules'
+import { combatRuleSelections } from '../../../core/combatRules'
 import { combatLoadoutsQuery, combatantDatasheetQuery, priceQuery } from '../../queries'
-import type { SimulatorSide } from './simulatorUrl'
+import type { SimulatorSide } from '../../../contracts/simulatorState'
 import { useSettled } from '../../useSettled'
 import { survivingUnits } from '../rosters/builder/pricePlaceholder'
 import type { KeyedPick } from '../rosters/rosterPicks'
@@ -112,19 +112,15 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
       : sheets.data.carriers
     : null
   const ruleSelections = selectedRules[identity] ?? {}
-  const ruleSources = new Map<string, NonNullable<typeof sheets.data>['rules'][number]>()
-  for (const rule of [...(sheets.data?.rules ?? []), ...(sheets.data?.companions ?? []).flatMap((member) => member.rules)]) {
-    const source = combatRuleKey(rule)
-    if (!ruleSources.has(source)) ruleSources.set(source, rule)
-  }
-  const allRules = [...ruleSources.values()]
-  const ruleChoices = Object.fromEntries(allRules.map((rule) => [combatRuleKey(rule), ruleSelections[rule.id] ?? combatRuleDefault(rule)]))
-  const choiceFor = (rule: (typeof allRules)[number]) => {
-    return ruleChoices[combatRuleKey(rule)]!
-  }
-  const sharedDefenceSources = (rules: typeof allRules) =>
-    rules.filter((rule) => combatRuleHasSharedDefence(rule, choiceFor(rule))).map((rule) => rule.source)
-  const active = (rules: typeof allRules) => activeCombatRules(rules, ruleChoices)
+  const {
+    rules: allRules,
+    choices: ruleChoices,
+    active,
+    sharedDefenceSources,
+  } = combatRuleSelections(
+    [...(sheets.data?.rules ?? []), ...(sheets.data?.companions ?? []).flatMap((member) => member.rules)],
+    ruleSelections,
+  )
   const activeRules = active(sheets.data?.rules ?? [])
   const companions = (sheets.data?.companions ?? []).map((member) => {
     const battleMember = roster?.battle?.units[member.pickIndex]

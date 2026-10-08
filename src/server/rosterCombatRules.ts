@@ -157,6 +157,7 @@ export function rosterCombatant(
   )
   return {
     selected: sheet,
+    models: context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)!.models,
     carriers: combatCarriers(context.selections[context.unitSelectionIndex]!, loaded.index, {
       primaryCatalogueId: data.catalogueId,
       roster: context.selections.filter((_, index) => index !== context.unitSelectionIndex),

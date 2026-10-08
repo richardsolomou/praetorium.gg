@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { combatAdjustmentsSchema } from '../../../core/combatAdjustments'
-import { rosterPickSchema } from '../../../core/commands'
+import { combatAdjustmentsSchema } from '../core/combatAdjustments'
+import { rosterPickSchema } from '../core/commands'
 
 const key = z.string().max(400)
 const weaponPreferencesSchema = z.record(key, z.string().max(200))

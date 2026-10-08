@@ -159,6 +159,7 @@ it('advertises product instructions, read-only tools, resources, and prompts', a
         }),
         expect.objectContaining({ name: 'get_reference_record' }),
         expect.objectContaining({ name: 'list_reference' }),
+        expect.objectContaining({ name: 'simulate_combat', annotations: expect.objectContaining({ readOnlyHint: true }) }),
       ]),
     },
   })

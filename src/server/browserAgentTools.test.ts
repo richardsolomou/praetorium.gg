@@ -12,7 +12,7 @@ beforeEach(() => {
   ownRoster.mockResolvedValue({ id: 'roster-1', name: 'My army' })
 })
 
-it('exposes all fourteen MCP tools and both resources and prompts for a signed-in player', async () => {
+it('exposes all fifteen MCP tools and both resources and prompts for a signed-in player', async () => {
   const tools = await browserAgentDescriptors()
   expect(tools.map((tool) => tool.name).sort()).toEqual(
     [
@@ -30,6 +30,7 @@ it('exposes all fourteen MCP tools and both resources and prompts for a signed-i
       'list_factions',
       'list_reference',
       'list_units',
+      'simulate_combat',
       'get_praetorium_guide',
       'get_reference_status',
       'answer_rules_question',
