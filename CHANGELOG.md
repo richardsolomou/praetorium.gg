@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.108.0
+
+### Minor Changes
+
+- 934efb5: Add public player guides and improve search metadata for army building, battle tracking and other public pages.
+
 ## 0.107.6
 
 ### Patch Changes
