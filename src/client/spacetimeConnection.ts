@@ -1,4 +1,4 @@
-import { isExpectedRealtimeDisconnect } from './realtimeErrors'
+import { isExpectedRealtimeDisconnect, isRealtimeServiceUnavailable, RealtimeOutageError } from './realtimeErrors'
 
 type Connection = { disconnect(): void }
 
@@ -6,6 +6,7 @@ const RETRY_MS = 5_000
 const MAX_RETRY_MS = 60_000
 const RECOVERY_MS = 30_000
 const TOKEN_REFRESH_MS = 4 * 60 * 1_000
+const OUTAGE_ATTEMPTS = 5
 
 export function maintainSpacetimeConnection<T>(options: {
   issue: () => Promise<T | null>
@@ -17,18 +18,28 @@ export function maintainSpacetimeConnection<T>(options: {
   let generation = 0
   let retryDelay = RETRY_MS
   let reported = false
+  let unavailable = 0
   let connection: Connection | null = null
   let retry: ReturnType<typeof setTimeout> | undefined
   let recovery: ReturnType<typeof setTimeout> | undefined
   let refresh: ReturnType<typeof setTimeout> | undefined
 
+  const reportOnce = (error: unknown) => {
+    if (reported) return
+    reported = true
+    options.report(error)
+  }
+
   const connect = async () => {
     const attempt = ++generation
     const failed = (error?: unknown) => {
       if (!active || attempt !== generation || retry !== undefined) return
-      if (error !== undefined && !reported && !isExpectedRealtimeDisconnect(error)) {
-        reported = true
-        options.report(error)
+      if (isRealtimeServiceUnavailable(error)) {
+        unavailable++
+        if (unavailable === OUTAGE_ATTEMPTS) reportOnce(new RealtimeOutageError(error, unavailable))
+      } else {
+        unavailable = 0
+        if (error !== undefined && !isExpectedRealtimeDisconnect(error)) reportOnce(error)
       }
       generation++
       clearTimeout(refresh)
@@ -49,6 +60,7 @@ export function maintainSpacetimeConnection<T>(options: {
     try {
       const issued = await options.issue()
       if (!active || attempt !== generation || issued === null) return
+      unavailable = 0
       const isCurrent = () => active && attempt === generation
       const ready = () => {
         if (!isCurrent()) return

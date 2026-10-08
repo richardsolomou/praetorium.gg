@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { maintainSpacetimeConnection } from './spacetimeConnection'
+import { RealtimeHttpError } from './realtimeErrors'
 
 beforeEach(() => {
   vi.spyOn(Math, 'random').mockReturnValue(0)
@@ -154,4 +155,51 @@ it('ignores a ticket that arrives after stopping', async () => {
   resolve('ticket')
   await Promise.resolve()
   expect(open).not.toHaveBeenCalled()
+})
+
+it('reports a service outage once after consecutive unavailable attempts', async () => {
+  vi.useFakeTimers()
+  const report = vi.fn()
+  const stop = maintainSpacetimeConnection({
+    issue: async () => {
+      throw new RealtimeHttpError('Spacetime guest token', 502)
+    },
+    open: vi.fn(),
+    inactive: vi.fn(),
+    report,
+  })
+  await vi.advanceTimersByTimeAsync(10 * 60_000)
+  stop()
+  expect(report.mock.calls.map(([error]) => (error as Error).message)).toEqual([
+    'Spacetime guest token failed with HTTP 502 on 5 consecutive attempts',
+  ])
+})
+
+it('restarts the outage count after a ticket is issued', async () => {
+  vi.useFakeTimers()
+  const issue = vi.fn(async () => {
+    if (issue.mock.calls.length === 5) return 'ticket'
+    throw new RealtimeHttpError('Spacetime token', 503)
+  })
+  const report = vi.fn()
+  const stop = maintainSpacetimeConnection({ issue, open: () => ({ disconnect: vi.fn() }), inactive: vi.fn(), report })
+  await vi.advanceTimersByTimeAsync(320_000)
+  stop()
+  expect([issue.mock.calls.length, report.mock.calls.length]).toEqual([6, 0])
+})
+
+it('does not report a sustained network failure', async () => {
+  vi.useFakeTimers()
+  const report = vi.fn()
+  const stop = maintainSpacetimeConnection({
+    issue: async () => {
+      throw new TypeError('Failed to fetch')
+    },
+    open: vi.fn(),
+    inactive: vi.fn(),
+    report,
+  })
+  await vi.advanceTimersByTimeAsync(10 * 60_000)
+  stop()
+  expect(report).not.toHaveBeenCalled()
 })

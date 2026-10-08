@@ -19,13 +19,14 @@ import {
   userProfile,
 } from '../../server/functions'
 import { SSR_STALE_TIME } from './shared'
+import { anySignal } from '../abortSignals'
 
 export const meQuery = () =>
   queryOptions({
     queryKey: ['me'],
     queryFn: async ({ client, signal }) => {
       const user = await me({
-        signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
+        signal: anySignal([signal, AbortSignal.timeout(15_000)]),
         fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }),
       })
       signal.throwIfAborted()
