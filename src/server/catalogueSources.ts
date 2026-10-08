@@ -16,7 +16,6 @@ const repositorySourceSchema = z.object({
   licenseUrl: z.url().optional(),
   attribution: z.string().optional(),
   description: z.string().optional(),
-  files: z.array(z.string()).optional(),
 })
 
 const battlemasterSourceSchema = z.object({
@@ -32,7 +31,6 @@ const battlemasterSourceSchema = z.object({
 
 export const catalogueSourcesSchema = z.object({
   definitions: repositorySourceSchema,
-  marineCodex: repositorySourceSchema,
   points: repositorySourceSchema,
   datacards: repositorySourceSchema,
   icons: repositorySourceSchema.extend({
@@ -43,13 +41,15 @@ export const catalogueSourcesSchema = z.object({
   battlemaster: battlemasterSourceSchema,
 })
 
-export const SOURCE_NAMES = ['definitions', 'marineCodex', 'points', 'datacards'] as const
+export const SOURCE_NAMES = ['definitions', 'points', 'datacards'] as const
 export type SourceName = (typeof SOURCE_NAMES)[number]
 export const SNAPSHOT_SOURCE_NAMES = [...SOURCE_NAMES, 'battlemaster', 'icons'] as const
-export type SnapshotSourceName = (typeof SNAPSHOT_SOURCE_NAMES)[number] | 'rules'
+/** Sources earlier published snapshots carry; they are read as history and never materialized again. */
+const RETIRED_SOURCE_NAMES = ['rules', 'marineCodex'] as const
+export type SnapshotSourceName = (typeof SNAPSHOT_SOURCE_NAMES)[number] | (typeof RETIRED_SOURCE_NAMES)[number]
 
 export function isSnapshotSourceName(value: string): value is SnapshotSourceName {
-  return value === 'rules' || (SNAPSHOT_SOURCE_NAMES as readonly string[]).includes(value)
+  return [...RETIRED_SOURCE_NAMES, ...SNAPSHOT_SOURCE_NAMES].some((name) => name === value)
 }
 export type CatalogueSourceConfig = z.infer<typeof catalogueSourcesSchema>
 export type BattlemasterSource = CatalogueSourceConfig['battlemaster']

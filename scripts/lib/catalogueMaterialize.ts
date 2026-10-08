@@ -10,7 +10,7 @@ import {
   type SnapshotSourceName,
 } from '../../src/server/catalogueSources'
 import { fetchBattlemasterInto, fetchInto } from '../../src/server/sync'
-import { applyPatches, overlayMarineCodex } from './cataloguePatches'
+import { applyPatches } from './cataloguePatches'
 
 const root = path.resolve(import.meta.dirname, '..', '..')
 
@@ -70,7 +70,6 @@ export async function materializeCatalogue(directory: string, sources = catalogu
       revisions[name] = source.revision
       options.report?.(`${name}: ${source.revision}`)
     }
-    if (selected.includes('definitions') && selected.includes('marineCodex')) overlayMarineCodex(staged, sources.marineCodex.files)
     fs.writeFileSync(path.join(staged, 'revision.json'), `${JSON.stringify(revisions, null, 2)}\n`)
     fs.rmSync(path.join(staged, '.git'), { recursive: true })
     checkOutput()

@@ -61,3 +61,10 @@ it('reports the write time it stored on a saved roster', async () => {
 
   expect(updatedAt).toBe(saveRoster.mock.calls[0]![0].now)
 })
+
+it('lists a library summary saved against the retired Marine codex under its current faction', async () => {
+  const { picks: _picks, prep: _prep, tags: _tags, userId: _userId, ...fields } = row
+  const rosterSummariesByUser = vi.fn().mockResolvedValue([{ ...fields, catalogueId: 'a603-5039-f08d-e841', unitCount: 1 }])
+  const service = new RosterService({ rosterSummariesByUser } as unknown as RepositoryPort, () => 0)
+  expect(await service.savedRosterSummaries('user-1')).toMatchObject([{ catalogueId: '4029-9237-e8db-af55' }])
+})

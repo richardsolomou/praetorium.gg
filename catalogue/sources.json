@@ -4,23 +4,7 @@
     "branch": "Space-Marine-Codex",
     "license": null,
     "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
-    "revision": "6cd87e7c53badbac33773587d4fbee8fe06a023c"
-  },
-  "marineCodex": {
-    "repository": "richardsolomou/wh40k-11e",
-    "branch": "feat/space-marines-11e-provisional",
-    "license": null,
-    "description": "Pinned provisional 11th-edition Space Marines codex files retained until BSData publishes equivalent records.",
-    "files": [
-      "Imperium - Imperial Fists (11e).json",
-      "Imperium - Iron Hands (11e).json",
-      "Imperium - Raven Guard (11e).json",
-      "Imperium - Salamanders (11e).json",
-      "Imperium - Space Marines (11e).json",
-      "Imperium - Ultramarines (11e).json",
-      "Imperium - White Scars (11e).json"
-    ],
-    "revision": "659a6027f7b192d3a21a630b1c9786ae29ec741f"
+    "revision": "f08174b199be16176287c13cb8afb64fde18303f"
   },
   "points": {
     "repository": "BSData/wh40k-11e-mfm",

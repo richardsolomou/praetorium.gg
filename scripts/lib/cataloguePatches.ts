@@ -24,14 +24,3 @@ export function applyPatches(directory: string, patchesDirectory: string, source
     execFileSync('git', ['apply', patch], { cwd: directory, stdio: 'pipe' })
   }
 }
-
-export function overlayMarineCodex(directory: string, files: readonly string[] | undefined) {
-  if (!files || files.length !== 7) throw new Error('Marine codex file list is incomplete')
-  for (const file of files) {
-    if (!/^Imperium - [A-Za-z ]+ \(11e\)\.json$/.test(file)) throw new Error(`invalid Marine codex file ${file}`)
-    const from = path.join(directory, 'marineCodex', file)
-    const to = path.join(directory, 'definitions', file)
-    if (!fs.existsSync(from) || fs.existsSync(to)) throw new Error(`Marine codex file ${file} is missing or conflicts with BSData`)
-    fs.copyFileSync(from, to)
-  }
-}

@@ -1,20 +1,12 @@
 import { targetOf } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
-import { datasheetsOf, isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
+import type { LoadedCatalogue } from './catalogueIndex'
 import { factionContentOf, factionDisplayName } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from './rulesSource'
 import { detachmentPoints } from './detachmentPoints'
 import { mfmDetachmentFor } from './mfm'
-import {
-  isProfiledDetachment,
-  profiledArmyRulesFor,
-  profiledDetachmentCatalogueId,
-  profiledDetachmentCards,
-  profiledDetachmentMatchesCards,
-  profiledDetachmentPoints,
-} from './catalogueProfileRules'
 
 export function isReferenceDetachment(
   loaded: LoadedCatalogue,
@@ -22,12 +14,6 @@ export function isReferenceDetachment(
   faction: { id: string; name: string },
   detachment: { id: string; name: string },
 ) {
-  if (isProfiledDetachment(loaded, detachment.id)) return profiledDetachmentCatalogueId(loaded, detachment.id) === faction.id
-  if (loaded.profiledCatalogueIds.has(faction.id)) {
-    const entry = loaded.index.definitions.get(detachment.id)
-    const owner = entry ? loaded.index.catalogueOf.get('targetId' in entry ? entry.targetId : entry.id) : undefined
-    return owner === faction.id
-  }
   const displayName = factionDisplayName(faction.name, rules?.factionNames)
   const slugId = routeSlug(displayName)
   const content = loaded.factionContents.get(slugId)
@@ -57,7 +43,7 @@ function referenceDetachmentRoute(
   if (isReferenceDetachment(loaded, rules, faction, detachment)) {
     return { catalogueId: routeSlug(factionDisplayName(faction.name, rules?.factionNames)), slug: routeSlug(detachment.name) }
   }
-  const ownerId = profiledDetachmentCatalogueId(loaded, detachment.id) ?? loaded.index.catalogueOf.get(detachment.id)
+  const ownerId = loaded.index.catalogueOf.get(detachment.id)
   const owner = loaded.factions.find((candidate) => candidate.id === ownerId)
   if (!owner) return null
   const definition = loaded.index.definitions.get(detachment.id)
@@ -78,9 +64,6 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
   const content = loaded.factionContents.get(slugId)
   const detachments = loaded.detachments.get(faction.id)?.options ?? []
   const referenceDetachments = detachments.filter((detachment) => isReferenceDetachment(loaded, rules, faction, detachment))
-  const profiledDatasheets = loaded.profiledCatalogueIds.has(faction.id)
-    ? [...datasheetsOf(loaded.index, faction.id)].filter((id) => isReferenceDatasheet(loaded, faction.id, id)).length
-    : null
   return {
     summary: {
       id: faction.id,
@@ -94,7 +77,7 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
         : null,
       references: faction.references.map((reference) => ({
         ...reference,
-        datasheets: profiledDatasheets ?? content?.datasheets.size ?? reference.datasheets,
+        datasheets: content?.datasheets.size ?? reference.datasheets,
         detachments: referenceDetachments.length,
       })),
       detachments: detachments.map((detachment) => ({
@@ -136,29 +119,6 @@ export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null |
   return cache.full
 }
 
-function withProfiledArmyRules<
-  T extends {
-    id: string
-    name: string
-    detachments: { id: string }[]
-    armyRules: { name: string; description: string }[]
-  },
->(loaded: LoadedCatalogue, faction: T): T {
-  const profiledRules = new Map(
-    profiledArmyRulesFor(
-      loaded,
-      faction.id,
-      faction.detachments.map(({ id }) => id),
-    ).map((rule) => [routeSlug(rule.name), rule]),
-  )
-  if (!profiledRules.size) return faction
-
-  return {
-    ...faction,
-    armyRules: [...profiledRules.values(), ...faction.armyRules.filter((rule) => !profiledRules.has(routeSlug(rule.name)))],
-  }
-}
-
 function buildFactionIndex(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
   return {
     revision: loaded.index.revision,
@@ -173,9 +133,9 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
       const { summary, detachments, referenceDetachments } = factionSummary(loaded, rules, faction)
       const content = factionContentOf(loaded, faction.name)
       const rulesId = rulesFaction(rules, routeSlug(faction.name))
-      return withProfiledArmyRules(loaded, {
+      return {
         ...summary,
-        armyRules: loaded.profiledArmyRules.get(faction.id) ?? [
+        armyRules: [
           ...(content?.armyRules.length
             ? content.armyRules
             : rules?.factionRules?.get(summary.slug)
@@ -187,28 +147,6 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
         detachments: detachments.map((detachment) => {
           const reference = detachmentNamed(rules?.detachmentReferences?.get(rulesId), detachment.name)
           const detail = detachmentNamed(rules?.detachmentDetails?.get(rulesId), detachment.name)
-          if (isProfiledDetachment(loaded, detachment.id) && !profiledDetachmentMatchesCards(loaded, detachment.id, detail)) {
-            const cards = profiledDetachmentCards(loaded, detachment.id)
-            const points = detachmentPoints(loaded, faction.id, detachment.id, undefined) ?? profiledDetachmentPoints(loaded, detachment.id)
-            return {
-              id: detachment.id,
-              slug: routeSlug(detachment.name),
-              name: detachment.name,
-              referenceRoute: referenceDetachmentRoute(loaded, rules, faction, detachment),
-              points,
-              disposition: detachment.disposition,
-              dispositions: detachment.disposition
-                ? [{ id: detachment.disposition, name: rules?.dispositions?.get(detachment.disposition) ?? detachment.disposition }]
-                : [],
-              reference: {
-                enhancements: 0,
-                upgrades: 0,
-                stratagems: cards.stratagems.length,
-                points,
-                dispositions: detachment.disposition ? [rules?.dispositions?.get(detachment.disposition) ?? detachment.disposition] : [],
-              },
-            }
-          }
           const forced = detachmentCatalogueDetail(loaded, faction.id, detachment.id, [])?.forcedEnhancements ?? []
           return {
             id: detachment.id,
@@ -244,7 +182,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
               : null,
           }
         }),
-      })
+      }
     }),
   }
 }

@@ -1099,9 +1099,11 @@ function aimedAt(modifier: Modifier, node: Node, root: Node, index: CatalogueInd
   const origins = resolveScope(modifier.scope ?? 'self', node, root, index, census)
   if (!modifier.affects) return origins
   const reach = parseAffects(modifier.affects.split('.'))
-  // Which group a keyword written against one is meant to reach is not something
-  // the data says here, and guessing hands the keyword to the wrong selections.
   if (reach.group) {
+    // A datasheet granting its own group a keyword is the unit itself: "This unit has
+    // Mobile". Below the unit, which group is meant is not something the data says, and
+    // guessing hands the keyword to the wrong selections.
+    if ((modifier.scope ?? 'self') === 'self' && node.parent?.force) return origins
     census.note('keyword granted to a group')
     return []
   }

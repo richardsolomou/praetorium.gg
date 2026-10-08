@@ -6,7 +6,5 @@ if (!before || !after) throw new Error('usage: compareCatalogueCoverage.ts <befo
 const acceptAt = process.argv[process.argv.indexOf('--accept') + 1]
 const accepted: { reason: string; entries: string[] }[] =
   process.argv.includes('--accept') && acceptAt ? JSON.parse(fs.readFileSync(acceptAt, 'utf8')) : []
-const replacementAt = process.argv.indexOf('--replacement')
-const replacement = replacementAt < 0 ? undefined : process.argv[replacementAt + 1]
 
-compareCatalogueCoverage(before, after, accepted, undefined, replacement)
+compareCatalogueCoverage(before, after, accepted)

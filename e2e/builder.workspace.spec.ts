@@ -562,7 +562,7 @@ test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
 })
 
 test('Black Templars can take generic Codex units under their current faction rule', async ({ page }) => {
-  await openBuilder(page, 'Black Templars', /Companions of Vehemence/)
+  await openBuilder(page, 'Black Templars', /Marshal's Household/)
   await page.getByLabel('Add a unit').fill('Librarian')
   await expect(page.getByRole('button', { name: 'Add Librarian', exact: true })).toHaveCount(1)
   await page.getByLabel('Add a unit').fill('Gladiator Lancer')

@@ -13,16 +13,9 @@ import type {
 } from '../contracts/catalogue'
 import type { RuleDocument } from '../contracts/rules'
 import { datasheetIn } from './catalogue'
-import {
-  catalogueDirectory,
-  datasheetsOf,
-  definitionSource,
-  isReferenceDatasheet,
-  loadCatalogue,
-  type LoadedCatalogue,
-} from './catalogueIndex'
+import { catalogueDirectory, datasheetsOf, isReferenceDatasheet, loadCatalogue, type LoadedCatalogue } from './catalogueIndex'
 import { isMatchedPlayDatasheet } from './cataloguePicker'
-import { currentProfileValue, DATACARDS_ATTRIBUTION } from './datacards'
+import { DATACARDS_ATTRIBUTION } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { describeDatasheetAbilitiesWithContributions } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
@@ -33,7 +26,7 @@ import { mfmAttribution, mfmCostRows } from './mfm'
 import { mfmUnitFor } from './unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 2 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 3 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -67,7 +60,7 @@ const relationshipSchema = z.object({
   route: z.object({ catalogueId: z.string(), slug: z.string() }).nullable(),
 })
 
-const sourceNameSchema = z.enum(['definitions', 'marineCodex', 'points', 'rules', 'datacards', 'battlemaster'])
+const sourceNameSchema = z.enum(['definitions', 'points', 'rules', 'datacards', 'battlemaster'])
 const fieldResolutionSchema = z.object({
   sources: z.array(sourceNameSchema),
   strategy: z.enum(['single-source', 'sources-agree', 'merged', 'source-priority', 'fallback', 'unresolved']),
@@ -123,7 +116,7 @@ const canonicalDatasheetSchema = z.object({
   supporters: z.array(relationshipSchema),
   keywordRules: z.array(z.object({ name: z.string(), description: z.string() })),
   provenance: z.object({
-    definitions: z.object({ revision: z.string(), entryId: z.string(), source: z.enum(['definitions', 'marineCodex']).optional() }),
+    definitions: z.object({ revision: z.string(), entryId: z.string() }),
     datacards: z.object({ revision: z.string(), resolution: z.enum(['external-reference', 'normalized-name']) }).nullable(),
     rules: z.object({ revision: z.string(), unitId: z.string(), resolution: z.literal('external-reference') }).nullable(),
     fields: z.object({
@@ -169,7 +162,7 @@ const canonicalDetachmentSchema = z.object({
   keywordRules: z.array(z.object({ name: z.string(), description: z.string() })),
   attribution: z.string(),
   provenance: z.object({
-    definitions: z.object({ revision: z.string(), detachmentId: z.string(), source: z.enum(['definitions', 'marineCodex']).optional() }),
+    definitions: z.object({ revision: z.string(), detachmentId: z.string() }),
     datacards: z.object({ revision: z.string() }),
   }),
 })
@@ -251,7 +244,6 @@ export function compileCanonicalDetachments(
         if (!faction.referenceDetachmentIds.includes(detachment.id)) return []
         const detail = detachmentReference(loaded, rules, faction.id, detachment.slug)
         if (!detail) return []
-        const source = definitionSource(loaded, detachment.id)
         return [
           {
             ...detail,
@@ -261,7 +253,7 @@ export function compileCanonicalDetachments(
             id: detachment.id,
             slug: detachment.slug,
             provenance: {
-              definitions: { revision: revisions[source] ?? loaded.index.revision, detachmentId: detachment.id, source },
+              definitions: { revision: revisions.definitions ?? loaded.index.revision, detachmentId: detachment.id },
               datacards: { revision: revisions.datacards ?? 'unknown' },
             },
           },
@@ -370,18 +362,11 @@ export function compileCanonicalCatalogue(
       const cardsComposition = described.composition
       const cardsCosts = described.costs
       const mfmUnit = mfmUnitFor(loaded, faction.id, entryId)
-      const definition = definitionSource(loaded, entryId)
       const sourceCosts = mfmUnit ? mfmCostRows(mfmUnit) : cardsCosts
       const costSource: CanonicalSourceName = mfmUnit ? 'points' : 'datacards'
       const costPoint = singleUnqualifiedPoint(sourceCosts)
       const points = sourceCosts.length ? costPoint : described.points
-      const usesCardProfiles =
-        loaded.profiledSupplementIds.has(faction.id) &&
-        described.profiles.some((profile) =>
-          profile.values.some((value) => currentProfileValue(joined?.details, profile.type, profile.name, value.name) !== undefined),
-        )
       const usesDatacards = Boolean(
-        usesCardProfiles ||
         cardsBaseSize ||
         cardsComposition.length ||
         cardsCosts.length ||
@@ -392,24 +377,20 @@ export function compileCanonicalCatalogue(
         abilityContributions.datacards,
       )
       const attribution =
-        [
-          definition === 'marineCodex' ? 'Provisional Space Marines codex data from richardsolomou/wh40k-11e' : null,
-          usesDatacards || abilityContributions.rules ? DATACARDS_ATTRIBUTION : null,
-          mfmUnit ? mfmAttribution(loaded.mfm) : null,
-        ]
+        [usesDatacards || abilityContributions.rules ? DATACARDS_ATTRIBUTION : null, mfmUnit ? mfmAttribution(loaded.mfm) : null]
           .filter(Boolean)
           .join('. ') || null
       const abilitySources = uniqueSources([
-        definition,
+        'definitions',
         ...(abilityContributions.datacards || abilityContributions.rules ? (['datacards'] as const) : []),
       ])
       const costsResolution = sourceOrUnresolved(sourceCosts.length ? costSource : null)
       const pointSources = uniqueSources([
-        ...(described.points === null ? [] : [definition]),
+        ...(described.points === null ? [] : (['definitions'] as const)),
         ...(sourceCosts.length ? ([costSource] as const) : []),
       ])
       const pointsResolution = !sourceCosts.length
-        ? sourceOrUnresolved(described.points === null ? null : definition)
+        ? sourceOrUnresolved(described.points === null ? null : 'definitions')
         : costPoint === null
           ? resolution(pointSources, 'unresolved')
           : described.points === null
@@ -426,7 +407,7 @@ export function compileCanonicalCatalogue(
         composition: cardsComposition,
         costs: sourceCosts,
         provenance: {
-          definitions: { revision: revisions[definition] ?? loaded.index.revision, entryId, source: definition },
+          definitions: { revision: revisions.definitions ?? loaded.index.revision, entryId },
           datacards: joined
             ? {
                 revision: revisions.datacards ?? 'unknown',
@@ -435,18 +416,18 @@ export function compileCanonicalCatalogue(
             : null,
           rules: null,
           fields: {
-            identity: sourceOrUnresolved(definition),
+            identity: sourceOrUnresolved('definitions'),
             points: pointsResolution,
-            keywords: sourceOrUnresolved(definition),
-            profiles: usesCardProfiles ? resolution([definition, 'datacards'], 'source-priority') : sourceOrUnresolved(definition),
+            keywords: sourceOrUnresolved('definitions'),
+            profiles: sourceOrUnresolved('definitions'),
             abilities: resolution(abilitySources, abilitySources.length > 1 ? 'merged' : 'single-source'),
             composition: sourceOrUnresolved(cardsComposition.length ? 'datacards' : null),
             loadout: sourceOrUnresolved(joined && described.loadout ? 'datacards' : null),
-            wargear: sourceOrUnresolved(joined?.details.wargear.length ? 'datacards' : definition, !joined?.details.wargear.length),
+            wargear: sourceOrUnresolved(joined?.details.wargear.length ? 'datacards' : 'definitions', !joined?.details.wargear.length),
             baseSize: sourceOrUnresolved(cardsBaseSize ? 'datacards' : null),
             transport: sourceOrUnresolved(joined && described.transport ? 'datacards' : null),
             costs: costsResolution,
-            relationships: sourceOrUnresolved(definition),
+            relationships: sourceOrUnresolved('definitions'),
           },
         },
       }
@@ -512,18 +493,12 @@ export const snapshotRules = (directory: string, loaded: LoadedCatalogue) =>
 export function referenceCatalogue(directory: string, catalogue: () => LoadedCatalogue | null, rules: () => LoadedRules | null) {
   if (process.env.PRAETORIUM_LOCAL_DEV === 'true' && process.env.LOCAL_TEST_MODE !== 'true') {
     const local = process.env.LOCAL_CANONICAL_FILE ?? path.resolve('.output/canonical-catalogue.json')
-    if (fs.existsSync(local)) {
-      const candidate = readCanonicalCatalogue(local)
-      const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')) as Record<string, string>
-      if (
-        candidate.compilerVersion === CANONICAL_CATALOGUE_COMPILER_VERSION &&
-        Object.entries(revisions).every(([source, revision]) => candidate.revisions[source] === revision)
-      )
-        return candidate
-    }
+    const candidate = currentCanonicalCatalogue(local)
+    const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')) as Record<string, string>
+    if (candidate && Object.entries(revisions).every(([source, revision]) => candidate.revisions[source] === revision)) return candidate
   }
   const packaged = loadCanonicalCatalogue(directory)
-  if (packaged?.compilerVersion === CANONICAL_CATALOGUE_COMPILER_VERSION && !packaged.revisions.rules) return packaged
+  if (packaged && !packaged.revisions.rules) return packaged
   const loaded = catalogue()
   return loaded ? compileCanonicalCatalogueFromSnapshot(loaded, rules(), directory) : null
 }
@@ -552,16 +527,17 @@ export function readCanonicalCatalogue(file: string): CanonicalCatalogue {
   return canonicalCatalogueSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8')))
 }
 
-export function loadCanonicalCatalogue(directory = catalogueDirectory()): CanonicalCatalogue | null {
-  const file = canonicalCataloguePath(directory)
+export const loadCanonicalCatalogue = (directory = catalogueDirectory()) => currentCanonicalCatalogue(canonicalCataloguePath(directory))
+
+/** Null for an artifact of another format or compiler, which older schemas may not parse; its snapshot is recompiled instead. */
+function currentCanonicalCatalogue(file: string): CanonicalCatalogue | null {
   if (!fs.existsSync(file)) return null
   const candidate: unknown = JSON.parse(fs.readFileSync(file, 'utf8'))
   if (
     candidate &&
     typeof candidate === 'object' &&
-    'format' in candidate &&
-    typeof candidate.format === 'string' &&
-    candidate.format !== CANONICAL_CATALOGUE_FORMAT
+    (('format' in candidate && candidate.format !== CANONICAL_CATALOGUE_FORMAT) ||
+      ('compilerVersion' in candidate && candidate.compilerVersion !== CANONICAL_CATALOGUE_COMPILER_VERSION))
   ) {
     return null
   }

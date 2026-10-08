@@ -19,8 +19,6 @@ import { joinKey, titleCase } from './rulesSource'
 export const DATACARDS_ATTRIBUTION = 'Data provided by game-datacards'
 
 export type DatasheetDetails = {
-  profiles?: { name: string; type: 'Unit' | 'Ranged Weapons' | 'Melee Weapons'; values: Record<string, string> }[]
-  abilities?: RuleCard[]
   composition: string[]
   loadout: string | null
   wargear: string[]
@@ -31,12 +29,6 @@ export type DatasheetDetails = {
   attachesTo: { kind: 'leader' | 'support'; name: string }[]
   leaders: string[]
   supporters: string[]
-}
-
-export function currentProfileValue(details: DatasheetDetails | null | undefined, type: string, name: string, characteristic: string) {
-  const key = joinKey(name.replace(/^➤\s*/, ''))
-  const matches = details?.profiles?.filter((profile) => profile.type === type && joinKey(profile.name) === key) ?? []
-  return matches.length === 1 ? matches[0]!.values[characteristic] : undefined
 }
 
 export type RuleCard = { name: string; description: string }
@@ -924,65 +916,6 @@ function composition(value: unknown): { lines: string[]; loadout: string | null 
 }
 
 function datasheetDetails(value: unknown): DatasheetDetails {
-  const profiles: NonNullable<DatasheetDetails['profiles']> = []
-  let abilities: RuleCard[] | undefined
-  if (value && typeof value === 'object' && (value as Record<string, unknown>).source === '40k-11e') {
-    const printed = (value as Record<string, unknown>).abilities
-    const other = printed && typeof printed === 'object' ? (printed as Record<string, unknown>).other : null
-    if (Array.isArray(other)) {
-      const parsed = records(printed, 'other').flatMap((entry) => {
-        const name = localizedField(entry, 'name')
-        const description = localizedField(entry, 'description')
-        return name && description ? [{ name, description: prose(description) }] : []
-      })
-      if (parsed.length === other.length) abilities = parsed
-    }
-    const fields = (entry: Record<string, unknown>, names: readonly (readonly [string, string])[]) =>
-      Object.fromEntries(
-        names.flatMap(([name, field]) => {
-          const text = stringField(entry, field)
-          return text === null ? [] : [[name, text]]
-        }),
-      )
-    for (const entry of records(value, 'stats')) {
-      const name = localizedField(entry, 'name')
-      if (name)
-        profiles.push({
-          name,
-          type: 'Unit',
-          values: fields(entry, [
-            ['M', 'm'],
-            ['T', 't'],
-            ['Sv', 'sv'],
-            ['W', 'w'],
-            ['LD', 'ld'],
-            ['OC', 'oc'],
-          ]),
-        })
-    }
-    for (const [source, type, skill] of [
-      ['rangedWeapons', 'Ranged Weapons', 'BS'],
-      ['meleeWeapons', 'Melee Weapons', 'WS'],
-    ] as const) {
-      for (const group of records(value, source)) {
-        for (const entry of records(group, 'profiles')) {
-          const name = localizedField(entry, 'name')
-          if (!name) continue
-          const values = fields(entry, [
-            ['Range', 'range'],
-            ['A', 'attacks'],
-            [skill, 'skill'],
-            ['S', 'strength'],
-            ['AP', 'ap'],
-            ['D', 'damage'],
-          ])
-          if (Array.isArray(entry.keywords))
-            values.Keywords = entry.keywords.filter((keyword): keyword is string => typeof keyword === 'string').join(', ')
-          profiles.push({ name, type, values })
-        }
-      }
-    }
-  }
   const wargearGroups = records(value, 'wargearOptions').flatMap((group) => {
     const instruction = localizedField(group, 'instruction')
     const options = records(group, 'options').flatMap((option) => {
@@ -993,8 +926,6 @@ function datasheetDetails(value: unknown): DatasheetDetails {
   })
   const { lines, loadout } = composition(value)
   return {
-    ...(profiles.length ? { profiles } : {}),
-    ...(abilities ? { abilities } : {}),
     composition: lines,
     loadout: localizedField(value, 'loadout') || loadout,
     wargear: localizedList(value, 'wargear'),

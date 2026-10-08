@@ -96,15 +96,9 @@ export function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
   return {
     index,
     characteristicNames: characteristicNamesOf([system, ...files]),
-    factions: factionsIn(index, detachmentsOf(files, index), new Map()),
+    factions: factionsIn(index, detachmentsOf(files, index)),
     detachments: detachmentsOf(files, index),
     factionContents: datacards.factions,
-    profiledCatalogueIds: new Set(),
-    profiledSupplementIds: new Set(),
-    profiledDetachmentIds: new Set(),
-    profiledArmyRules: new Map(),
-    replacements: new Map(),
-    marineCodexCatalogueIds: new Set(),
     datacards,
   }
 }

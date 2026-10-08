@@ -9,6 +9,7 @@ Community data supplies roster construction and reference records. Deterministic
 | Upstream revisions, licences, and attribution     | `catalogue/sources.json`     |
 | Release snapshot pin                              | `catalogue/lock.json`        |
 | Withdrawn snapshots/sources                       | `catalogue/revocations.json` |
+| Saved IDs from retired sources                    | `catalogue/retired-ids.json` |
 | Authored corrections with provenance              | `catalogue/patches/`         |
 | Immutable manifest, hashes, and canonical records | Verified snapshot            |
 
@@ -16,17 +17,15 @@ Never commit fetched upstream files, copied rules prose, generated catalogues, o
 
 Rule references recognize both `Twin Linked` and `Twin-linked` as the same weapon ability while preserving the source's displayed spelling. Weapon abilities split on commas and semicolons, preserving colon-delimited target restrictions. The server, client, and combat reader share that splitting rule. Missing catalogue rule definitions fall back to unambiguous weapon and core ability definitions in Game Datacards' `keywords.json`; a datasheet's own named ability can also describe a weapon keyword. Granted core abilities retain their source note and use the same rule definitions for their tooltip.
 
-`src/server/sync.ts` owns bounded downloads and extraction; `catalogueSnapshot.ts` owns archive packing/verification; `scripts/lib/catalogueMaterialize.ts` owns pinned source assembly. Stage complete output and replace it only after every source, overlay, correction, revision, hash, and required-content check succeeds. Do not replace an activated shared-cache symlink. Retry transient transport failures, not checksum or schema failures.
+`src/server/sync.ts` owns bounded downloads and extraction; `catalogueSnapshot.ts` owns archive packing/verification; `scripts/lib/catalogueMaterialize.ts` owns pinned source assembly. Stage complete output and replace it only after every source, correction, revision, hash, and required-content check succeeds. Do not replace an activated shared-cache symlink. Retry transient transport failures, not checksum or schema failures.
 
 `pnpm catalogue:materialize` writes `.output/catalogue-data/` or explicit `CATALOGUE_DIR`; single-source output supports patch verification. Publication verifies the uploaded archive before changing `current.json`. Hosted images retain their packaged snapshot until deployment; publication alone does not update live rules. Health waits for catalogue/search preparation. An instance without data can still serve battles and pasted rosters.
 
 Canonical catalogue output carries a compiler version. When its version is older than the application's compiler, startup recompiles the reference in memory from the verified snapshot's sources. Local generated output must match both the current compiler version and source revisions. Compiler fixes therefore reach reference pages on deployment without changing the pinned upstream data or editing the immutable snapshot.
 
-### Profile-backed catalogue rules
+### Retired sources
 
-`catalogueProfileRules.ts` supports profile-backed books and the source-pinned provisional Marine overlay. Preserve source IDs. Remove an overlay only after equivalent upstream records and saved-roster migration are verified. Replacement books are offered for new choices; older books remain indexed for existing imports and rosters.
-
-Printed model slots, default equipment, firing-mode choices, swaps, and Warlord options are executable only when supported catalogue entries resolve. Keep bearer-only effects on their bearer and model-group capacities intact. Complex instructions remain text. Chapter imports preserve their own rules while inheriting supported replacement-parent options; shared reference detachments have one parent home.
+A retired source stays a known snapshot source name in `catalogueSources.ts`, so published snapshots that carry it still verify as history; it is never materialized again. When its records move to another source, `catalogue/retired-ids.json` maps each saved book, detachment, and datasheet ID to the current record with the same name in the matching faction, and each saved option and toggle to the one option or toggle of the same name on the mapped datasheet under the same detachment. Map only verified one-to-one matches and leave the rest unmapped, so pricing reports them as choices to reselect. `src/core/retiredCatalogueIds.ts` applies the map at each boundary where ids arrive: the server input schemas in `schemas.ts` (prices, saves, datasheets, simulations, battle faction and stratagem reads), saved rows (`rosterPersistence.ts`, library summaries), and stored guest drafts.
 
 ## Canonical catalogue and audits
 
@@ -36,7 +35,6 @@ Printed model slots, default equipment, firing-mode choices, swaps, and Warlord 
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | Executable choices, constraints, contextual modifiers               | BSData evaluation                                                                                |
 | Printed composition, loadout, base, mission/rules prose             | Game Datacards, with supported source-backed fallbacks                                           |
-| Unit/weapon characteristics in replaced books                       | Unambiguous replacement profiles before contextual modifiers; supported card fallback            |
 | Reference and evaluated unit points, DP, enhancement/upgrade prices | Pinned MFM when an unambiguous row joins; supported card/evaluator fallback                      |
 | Wargear prices                                                      | MFM only for matching executable options or source-backed pieces; remaining costs stay evaluated |
 | Terrain geometry                                                    | Pinned Battlemaster detail; source-pinned corrections for supported labels                       |

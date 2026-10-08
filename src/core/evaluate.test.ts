@@ -838,6 +838,50 @@ describe('a keyword the data grants', () => {
     expect(keywordIds([{ id: 'squad' }], 0, index)).not.toContain('deathwing')
   })
 
+  it("gives the unit a keyword its own entry grants to its group, as 'This unit has Mobile' reads", () => {
+    const index = indexOf({
+      categoryEntries: [{ id: 'mobile', name: 'Mobile' }],
+      sharedSelectionEntries: [
+        {
+          id: 'khan',
+          name: 'Suboden Khan',
+          type: 'model',
+          modifiers: [{ type: 'add', field: 'category', value: 'mobile', affects: 'group' }],
+        },
+      ],
+    })
+    expect({ keywords: keywordIds([{ id: 'khan' }], 0, index), unhandled: evaluate([{ id: 'khan' }], index).unhandled }).toEqual({
+      keywords: ['mobile'],
+      unhandled: [],
+    })
+  })
+
+  it('reports a keyword that wargear grants to its group, since the data does not say which group', () => {
+    const index = indexOf({
+      categoryEntries: [{ id: 'font', name: 'Font' }],
+      sharedSelectionEntries: [
+        {
+          id: 'lord',
+          name: 'Lord',
+          type: 'model',
+          selectionEntries: [
+            {
+              id: 'relic',
+              name: 'Relic',
+              type: 'upgrade',
+              modifiers: [{ type: 'add', field: 'category', value: 'font', affects: 'group', scope: 'parent' }],
+            },
+          ],
+        },
+      ],
+    })
+    const roster = [{ id: 'lord', selections: [{ id: 'relic' }] }]
+    expect({ keywords: keywordIds(roster, 0, index), unhandled: evaluate(roster, index).unhandled }).toEqual({
+      keywords: [],
+      unhandled: ['keyword granted to a group'],
+    })
+  })
+
   it('can be withdrawn, and the withdrawal is what the list carries', () => {
     const index = indexOf({
       categoryEntries: [{ id: 'battleline', name: 'Battleline' }],

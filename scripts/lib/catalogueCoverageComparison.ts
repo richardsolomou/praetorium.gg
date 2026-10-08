@@ -3,7 +3,6 @@ import path from 'node:path'
 import { routeSlug } from '../../src/core/slug'
 import { constructionCardKey, datacardsFactionKeys } from '../../src/server/datacards'
 import { joinKey } from '../../src/server/rulesSource'
-import { editionlessCatalogueName } from '../../src/server/factionNames'
 
 type Described = { name: string; described: boolean }
 type DetachmentAbilities = { name: string; abilities: Described[] }
@@ -49,32 +48,6 @@ type FactionCoverage = {
 }
 type AcceptedLoss = { reason: string; entries: string[] }
 type RawConstruction = { name: string; enhancements: Set<string> }
-
-function replacementFactions(directory: string, replacementName: string) {
-  const definitions = path.join(directory, 'definitions')
-  const books = fs.readdirSync(definitions).flatMap((file) => {
-    if (!file.endsWith('.json')) return []
-    const catalogue = (
-      JSON.parse(fs.readFileSync(path.join(definitions, file), 'utf8')) as {
-        catalogue?: {
-          id: string
-          name: string
-          catalogueLinks?: { targetId: string; importRootEntries?: boolean }[]
-        }
-      }
-    ).catalogue
-    return catalogue ? [catalogue] : []
-  })
-  const current = books.find((book) => book.name === replacementName)
-  const legacy = books.find((book) => book.name === editionlessCatalogueName(replacementName))
-  if (!current || !legacy || current.id === legacy.id) throw new Error(`replacement books unavailable: ${replacementName}`)
-  const parents = new Set([current.id, legacy.id])
-  return new Set(
-    books
-      .filter((book) => parents.has(book.id) || book.catalogueLinks?.some((link) => link.importRootEntries && parents.has(link.targetId)))
-      .map((book) => book.name),
-  )
-}
 
 const localizedName = (value: unknown) => {
   if (typeof value === 'string') return value
@@ -126,7 +99,6 @@ export function compareCatalogueCoverage(
   afterFile: string,
   accepted: AcceptedLoss[],
   catalogueDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', '..', 'catalogue-data'),
-  replacementName?: string,
 ) {
   const before: FactionCoverage[] = JSON.parse(fs.readFileSync(beforeFile, 'utf8'))
   const after: FactionCoverage[] = JSON.parse(fs.readFileSync(afterFile, 'utf8'))
@@ -277,15 +249,7 @@ export function compareCatalogueCoverage(
   const claimed = new Set(accepted.flatMap((group) => group.entries))
   const withdrawn = lost.filter((line) => claimed.has(line))
   const stale = [...claimed].filter((line) => !lost.includes(line))
-  const affected = replacementName ? replacementFactions(catalogueDirectory, replacementName) : new Set<string>()
-  const affectedSlugs = new Set([...before, ...after].filter((faction) => affected.has(faction.name)).map((faction) => faction.slug))
-  const replaced = lost.filter(
-    (line) =>
-      !claimed.has(line) &&
-      ([...affected].some((name) => line === `faction ${name}`) || [...affectedSlugs].some((slug) => line.startsWith(`${slug} `))),
-  )
-  const replacedLines = new Set(replaced)
-  const remaining = lost.filter((line) => !claimed.has(line) && !replacedLines.has(line))
+  const remaining = lost.filter((line) => !claimed.has(line))
   if (withdrawn.length) {
     console.log(`\n## withdrawn on purpose (${withdrawn.length})`)
     for (const group of accepted) {
@@ -298,7 +262,6 @@ export function compareCatalogueCoverage(
     for (const line of stale) console.log(`  ${line}`)
     throw new Error('accepted coverage losses that are no longer lost; remove them')
   }
-  if (replaced.length) console.log(`\n## replaced book coverage (${replaced.length})`)
   console.log(`\n## lost (${remaining.length})`)
   for (const line of remaining) console.log(`  ${line}`)
   console.log(`\n## gained (${gained.length})`)

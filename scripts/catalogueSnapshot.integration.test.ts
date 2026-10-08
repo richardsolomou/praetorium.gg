@@ -28,15 +28,11 @@ afterEach(() => {
 
 function completeCatalogue(root: string) {
   const catalogue = path.join(root, 'catalogue')
-  for (const name of ['definitions', 'marineCodex', 'points', 'datacards']) {
+  for (const name of ['definitions', 'points', 'datacards']) {
     fs.mkdirSync(path.join(catalogue, name), { recursive: true })
     fs.writeFileSync(path.join(catalogue, name, 'test.json'), '{"catalogue":true}\n')
   }
   fs.writeFileSync(path.join(catalogue, 'definitions', 'test.json'), '{"catalogue":{"id":"cat","name":"Test"}}\n')
-  const marineFile = 'Imperium - Space Marines (11e).json'
-  const marine = '{"catalogue":{"id":"marine","name":"Imperium - Space Marines (11e)"}}\n'
-  fs.writeFileSync(path.join(catalogue, 'marineCodex', marineFile), marine)
-  fs.writeFileSync(path.join(catalogue, 'definitions', marineFile), marine)
   fs.writeFileSync(
     path.join(catalogue, 'definitions', 'system.json'),
     '{"gameSystem":{"id":"gs","name":"Test","costTypes":[{"id":"pts","name":"pts"}]}}\n',
@@ -49,7 +45,6 @@ function completeCatalogue(root: string) {
     path.join(catalogue, 'revision.json'),
     `${JSON.stringify({
       definitions: 'definitions-revision',
-      marineCodex: 'marine-codex-revision',
       points: 'points-revision',
       datacards: 'datacards-revision',
       battlemaster: 'battlemaster-revision',
@@ -166,8 +161,6 @@ it('installs the previous snapshot format during the source rollout', async () =
 it('omits source paths that no product or catalogue check reads', () => {
   expect(distributableCatalogueFile('definitions/Space Marines.json')).toBe(true)
   expect(distributableCatalogueFile('definitions/README.md')).toBe(false)
-  expect(distributableCatalogueFile('marineCodex/Imperium - Space Marines (11e).json')).toBe(true)
-  expect(distributableCatalogueFile('marineCodex/README.md')).toBe(false)
   expect(distributableCatalogueFile('rules/data/core/_reports/report.json')).toBe(false)
   expect(distributableCatalogueFile('datacards/11th/gdc/combatpatrol/aeldari.json')).toBe(false)
   expect(distributableCatalogueFile('datacards/11th/gdc/core/core_rules.json')).toBe(true)
@@ -190,19 +183,6 @@ it('records provenance and omits unused files from a packed snapshot', () => {
   expect(entries['catalogue/provenance.json']).toBeDefined()
   expect(entries['catalogue/definitions/README.md']).toBeUndefined()
   expect(entries['catalogue/rules/data/core/_reports/report.json']).toBeUndefined()
-})
-
-it('omits the Marine codex overlay when that source is disabled', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
-  roots.push(root)
-  const catalogue = completeCatalogue(root)
-  process.env.CATALOGUE_DISABLED_SOURCES = 'marineCodex'
-  const archiveFile = path.join(root, 'snapshot.zip')
-
-  packCatalogueSnapshot(catalogue, archiveFile, path.join(root, 'pointer.json'))
-
-  const entries = unzipSync(fs.readFileSync(archiveFile))
-  expect(Object.keys(entries).filter((name) => name.includes('(11e)'))).toEqual([])
 })
 
 it('packs the data-update history and hashes it in the manifest', () => {

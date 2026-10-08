@@ -1,17 +1,11 @@
 import { rulesReferencedIn } from './catalogue'
 import { routeSlug } from '../core/slug'
-import { describedEnhancements, detachmentCatalogueDetail, mergeDetachmentRules } from './catalogueDescriptions'
+import { describedEnhancements, mergeDetachmentRules } from './catalogueDescriptions'
 import { DATACARDS_ATTRIBUTION, descriptionKey } from './datacards'
 import { detachmentPoints } from './detachmentPoints'
-import { definitionSource, type LoadedCatalogue } from './catalogueIndex'
+import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { detachmentNamed } from './factionReferences'
-import {
-  isProfiledDetachment,
-  profiledDetachmentCards,
-  profiledDetachmentMatchesCards,
-  profiledDetachmentPoints,
-} from './catalogueProfileRules'
 import { mfmAttribution, mfmDetachmentFor, mfmEnhancementPoints } from './mfm'
 import { joinKey } from './rulesSource'
 
@@ -27,40 +21,7 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   const rulesId = rulesFaction(rules, routeSlug(faction.name))
   const detail = detachmentNamed(rules.detachmentDetails.get(rulesId), option.name)
   const mfm = mfmDetachmentFor(loaded, catalogueId, option.name)
-  const catalogueAttribution =
-    definitionSource(loaded, option.id) === 'marineCodex'
-      ? 'Provisional Space Marines codex data from richardsolomou/wh40k-11e'
-      : 'Catalogue data from BSData/wh40k-11e'
-  const sourceAttribution = [catalogueAttribution, mfm ? mfmAttribution(loaded.mfm) : null].filter(Boolean).join('. ')
-  if (isProfiledDetachment(loaded, option.id) && !profiledDetachmentMatchesCards(loaded, option.id, detail)) {
-    const cards = profiledDetachmentCards(loaded, option.id)
-    const catalogue = detachmentCatalogueDetail(loaded, catalogueId, option.id, mfm?.enhancements?.map((entry) => entry.name) ?? [])
-    const enhancements = (mfm?.enhancements ?? []).map((entry) => ({
-      name: withoutUpgrade(entry.name),
-      points: entry.points,
-      description: catalogue?.enhancements.find((candidate) => specialKey(candidate.name) === specialKey(entry.name))?.description ?? null,
-    }))
-    return {
-      id: option.id,
-      name: option.name,
-      points: detachmentPoints(loaded, catalogueId, option.id, undefined) ?? profiledDetachmentPoints(loaded, option.id),
-      dispositions: option.disposition ? [rules.dispositions?.get(option.disposition) ?? option.disposition] : [],
-      rules: cards.rules,
-      enhancements: enhancements.filter((_, at) => !isUpgrade(mfm!.enhancements![at]!.name)),
-      upgrades: enhancements.filter((_, at) => isUpgrade(mfm!.enhancements![at]!.name)),
-      stratagems: cards.stratagems.map((card) => ({
-        ...card,
-        type: null,
-        phases: [],
-        turn: null,
-      })),
-      keywordRules: rulesReferencedIn(
-        loaded,
-        [...cards.rules, ...cards.stratagems].map((card) => card.description),
-      ),
-      attribution: sourceAttribution,
-    }
-  }
+  const sourceAttribution = ['Catalogue data from BSData/wh40k-11e', mfm ? mfmAttribution(loaded.mfm) : null].filter(Boolean).join('. ')
   const reference = detachmentNamed(rules.detachmentReferences.get(rulesId), option.name)
   const cardEnhancements = detail?.enhancements ?? []
   const cardUpgrades = detail?.upgrades ?? []

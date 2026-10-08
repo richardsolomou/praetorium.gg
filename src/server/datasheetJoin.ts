@@ -1,4 +1,4 @@
-import { nameOf, targetOf } from '../core/catalogue'
+import { nameOf } from '../core/catalogue'
 import { isNonMatchedPlayName, matchedPlayName, normalizedName, normalizedNameVariants } from '../core/name'
 import { routeSlug } from '../core/slug'
 import { type LoadedCatalogue, datasheetsOf } from './catalogueIndex'
@@ -55,8 +55,6 @@ function join(loaded: LoadedCatalogue, catalogueId: string, entryId: string): Da
   const entry = loaded.index.definitions.get(entryId)
   const book = loaded.index.catalogues.get(catalogueId)
   if (!entry || !book) return null
-  const definition = targetOf(entry, loaded.index.definitions)
-  if (loaded.profiledCatalogueIds.has(loaded.index.catalogueOf.get(definition.id) ?? '')) return null
   const name = nameOf(entry, loaded.index.definitions)
   // An allied datasheet's card is in the file of the book it is borrowed from; the
   // book's own file, and the files of the books it is a supplement to, come after.
