@@ -19,9 +19,7 @@ test('a visitor starts a roster from a datasheet and is told when it cannot take
   await expect(page).toHaveURL(/\/rosters$/)
   await expect(page.locator('[data-unit]').filter({ hasText: 'Imotekh the Stormlord' })).toHaveCount(1)
   // Edits are kept once they settle, so leaving waits for the stored draft to hold the unit.
-  await expect
-    .poll(() => page.evaluate(() => sessionStorage.getItem('praetorium.workspace-state:/rosters:guest-draft') ?? ''))
-    .toContain('"picks":[{')
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft') ?? '')).toContain('"picks":[{')
 
   await addFromDatasheet(page)
   await page

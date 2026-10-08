@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { ChevronDown, Crosshair, Shield, Swords } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { datasheetMatchup } from './simulatorUrl'
+import { datasheetMatchup } from '../../../contracts/simulatorState'
 
 /** Opens the simulator with this datasheet on the side the reader picks, the other side left to choose. */
 export function SimulateDatasheet({ catalogueId, entryId }: { catalogueId: string; entryId: string }) {
