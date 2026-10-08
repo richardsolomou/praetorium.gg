@@ -41,6 +41,7 @@ class ReleaseProofTest(unittest.TestCase):
         git(self.repo, "init", "-q")
         git(self.repo, "config", "user.email", "test@example.com")
         git(self.repo, "config", "user.name", "Test")
+        git(self.repo, "config", "commit.gpgsign", "false")
         (self.repo / "package.json").write_text(json.dumps({"name": "app", "version": "1.0.0"}) + "\n")
         (self.repo / "app.ts").write_text("export {}\n")
         (self.repo / ".changeset").mkdir()
