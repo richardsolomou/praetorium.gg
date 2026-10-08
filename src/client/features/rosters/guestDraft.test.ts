@@ -48,6 +48,12 @@ function stubStorage({ refuseDevice = false } = {}) {
 
 const setup = { ...EMPTY_SETUP, catalogueId: 'necrons', visibility: 'public' as const }
 const HOUR = 60 * 60 * 1000
+const CURRENT_MARINE_IDS = { catalogueId: 'e0af-67df-9d63-8fb7', picks: [{ entryId: '85b1-eb9a-17a6-e5be' }] }
+
+function retiredMarineDraft() {
+  const draft = newGuestDraft({ ...setup, catalogueId: 'e0af-67df-9d63-8fb8' })
+  return { ...draft, draft: { ...draft.draft, picks: [{ entryId: 'profile-unit-e0af-67df-9d63-8fb8-34c7-75dd-fcff-ec94' }] } }
+}
 
 describe("a visitor's draft", () => {
   beforeEach(() => {
@@ -82,10 +88,16 @@ describe("a visitor's draft", () => {
   })
 
   it('reads a draft built on the retired Marine codex under current ids', () => {
-    stubSessionStorage()
-    const draft = newGuestDraft({ ...setup, catalogueId: 'e0af-67df-9d63-8fb8' })
-    writeGuestDraft({ ...draft, draft: { ...draft.draft, picks: [{ entryId: 'profile-unit-e0af-67df-9d63-8fb8-34c7-75dd-fcff-ec94' }] } })
-    expect(readGuestDraft()?.draft).toMatchObject({ catalogueId: 'e0af-67df-9d63-8fb7', picks: [{ entryId: '85b1-eb9a-17a6-e5be' }] })
+    stubStorage()
+    writeGuestDraft(retiredMarineDraft())
+    expect(readGuestDraft()?.draft).toMatchObject(CURRENT_MARINE_IDS)
+  })
+
+  it('moves a tab draft built on the retired Marine codex onto the device under current ids', () => {
+    const { device, tab } = stubStorage()
+    tab.set(TAB_KEY, JSON.stringify(retiredMarineDraft()))
+    readGuestDraft()
+    expect(JSON.parse(device.get(KEY)!).draft).toMatchObject(CURRENT_MARINE_IDS)
   })
 
   it('starts private, whatever the setup asked for', () => {
