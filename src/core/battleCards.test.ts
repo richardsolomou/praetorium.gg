@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type Command, reduceBattle, validate } from './battle'
+import { type Command, commandRefusal, reduceBattle, validate } from './battle'
 import { battleView } from './battleView'
 import { battleReport } from './battleReport'
 import { ALICE, BOB, CAROL, NAMES, PLAYERS, log, roster, started, turns, text } from './battle.fixtures'
@@ -51,6 +51,11 @@ describe('stratagems', () => {
   it('cannot be used twice in the same turn when that is the limit', () => {
     const state = reduceBattle(PLAYERS, log(...armed(), [ALICE, { kind: 'use-stratagem', key: 's1' }]))
     expect(validate(state, ALICE, { kind: 'use-stratagem', key: 's1' })).toBe('Grenade has been used this turn')
+  })
+
+  it('codes a spent allowance without the stratagem name the message carries', () => {
+    const state = reduceBattle(PLAYERS, log(...armed(), [ALICE, { kind: 'use-stratagem', key: 's1' }]))
+    expect(commandRefusal(state, ALICE, { kind: 'use-stratagem', key: 's1' })?.code).toBe('stratagem-limit')
   })
 
   it('keeps battle usage when prep is edited', () => {

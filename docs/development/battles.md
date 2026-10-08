@@ -16,7 +16,7 @@
 
 ## Command log
 
-Persist commands, not a second score, phase, round, mission, or casualty state. Every command kind must be covered by both `validate` and `apply`. Repository submission reads, validates, and appends atomically.
+Persist commands, not a second score, phase, round, mission, or casualty state. Every command kind must be covered by both `commandRefusal` and `apply`; every refusal pairs a stable `RefusalCode` with its player-facing message, including the server's rules-dependent refusals in `service.ts`. Repository submission reads, validates, and appends atomically. The product module returns only the message, so `SpacetimeOperator.submit` derives the code by folding the log the module refused against.
 
 `expectedSeq` covers the whole log. A mismatch returns `stale`; never automatically resend with a newer sequence. `useCommand` serializes taps and installs the returned screen before the next command. A stale/refused command discards queued work based on that sequence while preserving work built from a newer realtime screen.
 

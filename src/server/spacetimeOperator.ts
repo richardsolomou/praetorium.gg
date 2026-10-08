@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
-import { reduceBattle, type Command, type LoggedCommand, type SubmitResult } from '../core/battle'
+import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Refusal, type SubmitResult } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, type BattleAudience } from '../core/battleAudience'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
@@ -292,16 +292,18 @@ export class SpacetimeOperator {
 
   async submit(
     input: { battleId: string; userId: string; expectedSeq: number; command: Command; now: number },
-    validateState?: (state: ReturnType<typeof reduceBattle>) => string | null,
+    validateState?: (state: ReturnType<typeof reduceBattle>) => Refusal | null,
     resolveCommand: (state: ReturnType<typeof reduceBattle>, command: Command) => Command = (_, command) => command,
   ): Promise<{ result: SubmitResult; log: LoggedCommand[] }> {
     const snapshot = await this.battleForOperator(input.battleId)
-    const state = reduceBattle(
-      snapshot.seats.map((seat) => seat.id),
-      snapshot.log,
-      snapshot.seats.map((seat) => seat.side),
-      snapshot.seats.filter((seat) => seat.automated).map((seat) => seat.id),
-    )
+    const fold = (log: LoggedCommand[]) =>
+      reduceBattle(
+        snapshot.seats.map((seat) => seat.id),
+        log,
+        snapshot.seats.map((seat) => seat.side),
+        snapshot.seats.filter((seat) => seat.automated).map((seat) => seat.id),
+      )
+    const state = fold(snapshot.log)
     const command = state.seq === input.expectedSeq ? commandSchema.parse(resolveCommand(state, input.command)) : input.command
     const externalRefusal = state.seq === input.expectedSeq ? (validateState?.(state) ?? null) : null
     const response = await this.call('submit_battle', [
@@ -310,9 +312,14 @@ export class SpacetimeOperator {
       input.expectedSeq,
       JSON.stringify(command),
       input.now,
-      externalRefusal ?? '',
+      externalRefusal?.message ?? '',
     ])
-    return submission.parse(JSON.parse(z.string().parse(await response.json())))
+    const { result, log } = submission.parse(JSON.parse(z.string().parse(await response.json())))
+    if (result.outcome !== 'refused') return { result, log }
+    // The product database answers with a message only, so the code is read from the
+    // same rules over the log it refused against, before the resolver touched any state.
+    const code = commandRefusal(fold(log), input.userId, command)?.code ?? externalRefusal?.code ?? 'unclassified'
+    return { result: { ...result, code }, log }
   }
 
   async friendshipsByUser(userId: string) {
