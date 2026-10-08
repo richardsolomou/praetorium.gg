@@ -113,6 +113,14 @@
     {
       "name": "ability",
       "definition": "A named rule on a datasheet, wargear profile or detachment, joined from the catalogue's sources; Praetorium shows its text and models only the effects it supports."
+    },
+    {
+      "name": "mission",
+      "definition": "A scoring objective a battle plays from its mission pack: a primary mission the table shares or a secondary mission a side holds, scored through the command log."
+    },
+    {
+      "name": "seat",
+      "definition": "A player's place on a side of a battle; creation seats the whole table at once, reads never take a seat, and seated players operate the battle."
     }
   ]
 }
