@@ -86,13 +86,16 @@ function send(response: ServerResponse, status: number, body?: Uint8Array) {
   response.end(body)
 }
 
+/** Returns false when no local object exists, so the caller can let Vite serve a repository file at the same path. */
 async function serveLocalObject(request: IncomingMessage, response: ServerResponse, root: string) {
   const url = new URL(request.url ?? '/', 'http://localhost')
   const headers = new Headers()
   if (request.headers['if-none-match']) headers.set('if-none-match', request.headers['if-none-match'])
   const result = await localPublicObject(new Request(url, { method: request.method, headers }), localObjectStore(root))
+  if (result.status === 404) return false
   response.writeHead(result.status, Object.fromEntries(result.headers))
   response.end(result.body ? Buffer.from(await result.arrayBuffer()) : undefined)
+  return true
 }
 
 async function proxySpacetimeHttp(request: IncomingMessage, response: ServerResponse, route: 'identity' | 'exchange', upstream: URL) {
@@ -209,9 +212,9 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
       process.env.PRAETORIUM_LOCAL_DEV === 'true' &&
       ['/praetorium/', '/catalogue/', '/avatars/'].some((prefix) => request.url?.startsWith(prefix))
     ) {
-      void serveLocalObject(request, response, process.env.LOCAL_OBJECT_DIR!).catch((error: unknown) =>
-        appError(error as Error, request, response),
-      )
+      void serveLocalObject(request, response, process.env.LOCAL_OBJECT_DIR!)
+        .then((served) => served || proxy.web(request, response, { target: appOrigin }, appError))
+        .catch((error: unknown) => appError(error as Error, request, response))
       return
     }
     if (request.url?.startsWith('/spacetime/')) {
