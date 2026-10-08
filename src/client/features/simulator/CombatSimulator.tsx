@@ -11,7 +11,16 @@ import { type CombatRoster, useCombatant } from './useCombatant'
 import { decodeSimulatorState, encodeSimulatorState, type MatchupSettings, type SimulatorState } from '../../../contracts/simulatorState'
 
 /** The standalone page keeps its matchup in the URL, so a link reopens the same calculation. */
-export function CombatSimulator({ shared, onShare }: { shared?: string; onShare: (shared: string | undefined) => void }) {
+export function CombatSimulator({
+  shared,
+  onShare,
+  reference,
+}: {
+  shared?: string
+  onShare: (shared: string | undefined) => void
+  /** The reference page that opened the simulator, if one did. */
+  reference?: 'datasheet'
+}) {
   const [initial] = useState(() => decodeSimulatorState(shared))
   const share = useCallback(
     (state: SimulatorState) => {
@@ -28,7 +37,7 @@ export function CombatSimulator({ shared, onShare }: { shared?: string; onShare:
         description="Compare shooting and melee between units with their leaders and support. Change a loadout and the odds update automatically."
       />
       <PageContent>
-        <CombatSimulatorMatchup initial={initial} onChange={share} />
+        <CombatSimulatorMatchup initial={initial} onChange={share} reference={reference} />
         <p className="mt-3 text-xs text-faint">Data provided by game-datacards and BSData.</p>
       </PageContent>
     </main>
@@ -44,6 +53,7 @@ export function CombatSimulatorMatchup({
   inDialog = false,
   initial,
   onChange,
+  reference,
 }: {
   source?: 'standalone' | 'roster' | 'battle'
   roster?: CombatRoster
@@ -53,13 +63,14 @@ export function CombatSimulatorMatchup({
   inDialog?: boolean
   initial?: SimulatorState | null
   onChange?: (state: SimulatorState) => void
+  reference?: 'datasheet'
 }) {
   const opened = useRef(false)
   useEffect(() => {
     if (opened.current) return
     opened.current = true
-    posthog.capture('combat_simulator_opened', { source })
-  }, [source])
+    posthog.capture('combat_simulator_opened', { source, ...(reference ? { reference } : {}) })
+  }, [source, reference])
   const first = useCombatant(roster, initial?.sides[0])
   const second = useCombatant(opponentRoster, initial?.sides[1])
   const [reversed, setReversed] = useState(initial?.swapped ?? false)

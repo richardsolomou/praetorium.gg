@@ -3,6 +3,7 @@ import { ROSTER_VISIBILITIES, type RosterVisibility } from '../core/savedRoster'
 import { GAME_SIZES } from '../core/battle'
 import { keptRosterSort } from '../client/features/rosters/rosterSort'
 import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { BuilderFrame, ClaimGuestRoster, GuestRoster, useGuestDraft } from '../client/features/rosters/GuestRoster'
 import { GUEST_DRAFT_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
 import { requestCookie } from '../server/requestCookie'
@@ -11,7 +12,7 @@ import { factionIndexQuery, meQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 
 export const Route = createFileRoute('/rosters/')({
-  validateSearch: (search: Record<string, unknown>): RosterLibrarySearch => {
+  validateSearch: (search: Record<string, unknown>): RosterLibrarySearch & { add?: string } => {
     const limit = Number(search.limit)
     const faction = typeof search.faction === 'string' && search.faction.length <= 128 ? search.faction : undefined
     const visibility =
@@ -22,6 +23,8 @@ export const Route = createFileRoute('/rosters/')({
       ...(GAME_SIZES.some((size) => size.limit === limit) ? { limit } : {}),
       ...(faction ? { faction } : {}),
       ...(visibility ? { visibility } : {}),
+      // A datasheet a reference page asked to add to a visitor's list, dropped once the builder has answered.
+      ...(typeof search.add === 'string' && search.add && search.add.length <= 64 ? { add: search.add } : {}),
     }
   },
   loader: async ({ context }) => {
@@ -49,12 +52,20 @@ export const Route = createFileRoute('/rosters/')({
  * player arriving with a visitor's list still on the device has it saved first.
  */
 function RosterLibraryRoute() {
-  const search = Route.useSearch()
+  const { add, ...search } = Route.useSearch()
   const { guestDraft: hinted, sort } = Route.useLoaderData()
+  const navigate = Route.useNavigate()
+  const requested = useMemo(
+    () =>
+      add
+        ? { entryId: add, onSettled: () => void navigate({ search: (current) => ({ ...current, add: undefined }), replace: true }) }
+        : undefined,
+    [add, navigate],
+  )
   const { data: me } = useQuery(meQuery())
   const [{ ready, guest, revision }, setGuest] = useGuestDraft(hinted)
   if (!ready && hinted) return <BuilderFrame />
   if (me && guest) return <ClaimGuestRoster key={guest.id} guest={guest} onDiscard={() => setGuest(null)} />
   if (me) return <RosterLibraryPage search={search} sort={sort} />
-  return <GuestRoster key={revision} guest={guest} onStart={setGuest} onDiscard={() => setGuest(null)} />
+  return <GuestRoster key={revision} guest={guest} requested={requested} onStart={setGuest} onDiscard={() => setGuest(null)} />
 }

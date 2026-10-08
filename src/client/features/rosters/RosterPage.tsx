@@ -14,6 +14,7 @@ export function RosterPage({
   editable,
   snapshot,
   leagueSnapshot,
+  requested,
 }: {
   id: string
   battle?: string
@@ -23,6 +24,7 @@ export function RosterPage({
   editable: boolean
   snapshot: boolean
   leagueSnapshot?: boolean
+  requested?: Parameters<typeof RosterEditor>[0]['requested']
 }) {
   const { data: screen } = useQuery({ ...battleQuery(battle ?? ''), enabled: snapshot && Boolean(battle) })
   const { data: sealed } = useQuery({
@@ -50,6 +52,7 @@ export function RosterPage({
       battle={battle}
       variants={access.variants}
       differences={access.differences}
+      requested={requested}
     />
   )
 }

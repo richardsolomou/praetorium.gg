@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { KeyedPick } from '../rosterPicks'
-import { pickEditor } from './usePicks'
+import { pickEditor, requestedUnit } from './usePicks'
 
 /** The group a model's heavy weapon is chosen from, and a choice nested under it. */
 const group = 'members/heavy-terminator/heavy-weapon'
@@ -143,5 +143,36 @@ describe('clearing a choice', () => {
     const spreads = { [group]: { launcher: 1 } }
 
     expect(edited(spreads, (edit) => edit.choose(0, group, 'launcher'))?.spreads).toEqual(spreads)
+  })
+})
+
+describe('a unit a reference page asks the builder to add', () => {
+  const limits = new Map<string, number | null>([
+    ['squad', 3],
+    ['tank', null],
+  ])
+
+  it('waits until the roster has its limits', () => {
+    expect(requestedUnit('squad', 0, null)).toEqual({ kind: 'pending' })
+  })
+
+  it('is added while the roster has room for another copy', () => {
+    expect(requestedUnit('squad', 2, limits)).toEqual({ kind: 'add' })
+  })
+
+  it('is added when nothing limits its copies', () => {
+    expect(requestedUnit('tank', 9, limits)).toEqual({ kind: 'add' })
+  })
+
+  it('is refused with the picker’s reason when the roster holds its limit', () => {
+    expect(requestedUnit('squad', 3, limits)).toEqual({
+      kind: 'refused',
+      reason: 'limit',
+      message: 'Limit reached (3/3). Remove a unit or check your army’s construction rules.',
+    })
+  })
+
+  it('is refused when the roster’s book does not offer it', () => {
+    expect(requestedUnit('stranger', 0, limits)).toMatchObject({ kind: 'refused', reason: 'not_offered' })
   })
 })

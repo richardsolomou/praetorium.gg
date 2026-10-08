@@ -39,6 +39,18 @@ export function unitLimitMessage(entryId: string, held: number, limits: Readonly
     : `Limit reached (${held}/${limit}). Remove a unit or check your army’s construction rules.`
 }
 
+export type RequestedUnit = { kind: 'pending' } | { kind: 'add' } | { kind: 'refused'; reason: 'limit' | 'not_offered'; message: string }
+
+/** A unit asked for from outside the builder waits for the roster's own limits, then gets the picker's answer. */
+export function requestedUnit(entryId: string, held: number, limits: ReadonlyMap<string, number | null> | null): RequestedUnit {
+  if (!limits) return { kind: 'pending' }
+  if (canAddCopy(entryId, held, limits)) return { kind: 'add' }
+  const message = limits.has(entryId) ? unitLimitMessage(entryId, held, limits) : null
+  return message
+    ? { kind: 'refused', reason: 'limit', message }
+    : { kind: 'refused', reason: 'not_offered', message: 'This roster’s army does not include that unit.' }
+}
+
 /**
  * The list being edited, in the two shapes the builder reads it in.
  *

@@ -154,6 +154,30 @@ test('cancelled creation forms report intent without submissions, and opening th
     ])
 })
 
+test('a datasheet reader who starts a roster or the simulator is attributed to the reference page', async ({ page }) => {
+  await page.goto('/factions/necrons/datasheets/imotekh-the-stormlord')
+  await page.waitForLoadState('networkidle')
+  const events = await recordEvents(page)
+  await page.getByRole('button', { name: 'Add to roster' }).click()
+  const setup = page.getByRole('dialog', { name: 'Create roster' })
+  await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
+  await setup.getByRole('button', { name: 'Create roster' }).click()
+  await expect
+    .poll(() => events.filter((event) => ['roster_add_started', 'guest_roster_started', 'roster_unit_added'].includes(event.name)))
+    .toEqual([
+      { name: 'roster_add_started', properties: { reference: 'datasheet' } },
+      { name: 'guest_roster_started', properties: { limit: 2000, detachment_count: 1, reference: 'datasheet' } },
+      { name: 'roster_unit_added', properties: { unit_count: 1, reference: 'datasheet' } },
+    ])
+  await page.goBack()
+  await page.getByRole('button', { name: 'Simulate' }).click()
+  await page.getByRole('menuitem', { name: 'As attacker' }).click()
+  await expect
+    .poll(() => events.filter((event) => event.name === 'combat_simulator_opened'))
+    .toEqual([{ name: 'combat_simulator_opened', properties: { source: 'standalone', reference: 'datasheet' } }])
+})
+
 for (const units of [[], ['Necron Warriors'], ['Necron Warriors', 'Overlord']]) {
   test(`a guest save attempt reports ${units.length} fielded units from the current draft`, async ({ page }) => {
     await page.goto('/rosters')
