@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.110.0
+
+### Minor Changes
+
+- 9101ae3: Add a datasheet to a roster or open it in the simulator from its reference page.
+- 9101ae3: Start a roster from a detachment page with that detachment already chosen.
+- abac057: Set up a battle on one page, with defaults folded away and a bar showing what is left before Start battle.
+
+### Patch Changes
+
+- ff88cac: Defer bulk offline downloads, return proper missing-rules responses, and add illustrated worked examples to player guides.
+
 ## 0.109.0
 
 ### Minor Changes
