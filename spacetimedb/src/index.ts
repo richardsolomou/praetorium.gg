@@ -18,6 +18,7 @@ import {
   requiredLeagueRosterLimit,
 } from '../../src/core/league'
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
+import { admitConnection } from './admission'
 import { rosterReminderSchema } from '../../src/core/reminders'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
@@ -239,64 +240,32 @@ export const configure = spacetime.reducer({ issuer: t.string(), audience: t.str
 
 export const onConnect = spacetime.clientConnected((ctx) => {
   const configured = ctx.db.settings.id.find(0)
-  if (configured?.owner.isEqual(ctx.sender) || (configured?.operator && configured.operator === ctx.sender.toHexString())) return
-  const jwt = ctx.senderAuth.jwt
-  if (
-    jwt?.audience.length === 1 &&
-    jwt.audience[0] === 'spacetimedb' &&
-    jwt.fullPayload.hex_identity === ctx.sender.toHexString() &&
-    jwt.fullPayload.userId === undefined
-  )
-    return
-  if (
-    !configured?.issuer ||
-    !jwt ||
-    jwt.issuer !== configured.issuer ||
-    jwt.audience.length !== 1 ||
-    jwt.audience[0] !== configured.audience
-  ) {
-    throw new SenderError('Invalid auth token')
-  }
-  const userId = jwt.fullPayload.userId
-  const expiresAt = jwt.fullPayload.accessExpiresAt
-  const tokenExpiresAt = jwt.fullPayload.exp
-  const tokenType = jwt.fullPayload.tokenType
-  const isAdmin = jwt.fullPayload.isAdmin
-  const now = nowSeconds(ctx)
-  if (
-    typeof jwt.subject !== 'string' ||
-    jwt.subject.length === 0 ||
-    jwt.subject.length > 128 ||
-    typeof userId !== 'string' ||
-    userId.length === 0 ||
-    userId.length > 128 ||
-    typeof expiresAt !== 'number' ||
-    !Number.isSafeInteger(expiresAt) ||
-    typeof tokenExpiresAt !== 'number' ||
-    !Number.isSafeInteger(tokenExpiresAt) ||
-    tokenType !== 'spacetime-access' ||
-    (isAdmin !== undefined && typeof isAdmin !== 'boolean') ||
-    BigInt(expiresAt) <= now ||
-    BigInt(expiresAt) > now + MAX_TOKEN_SECONDS ||
-    BigInt(tokenExpiresAt) <= now ||
-    BigInt(tokenExpiresAt) > now + MAX_TOKEN_SECONDS ||
-    ctx.db.revokedSession.subject.find(jwt.subject)
-  ) {
-    throw new SenderError('Invalid auth token')
-  }
-  const current = ctx.db.sessionAccess.subject.find(jwt.subject)
+  const admission = admitConnection({
+    trusted: Boolean(configured?.owner.isEqual(ctx.sender) || (configured?.operator && configured.operator === ctx.sender.toHexString())),
+    senderHex: ctx.sender.toHexString(),
+    jwt: ctx.senderAuth.jwt,
+    issuer: configured?.issuer,
+    audience: configured?.audience,
+    now: nowSeconds(ctx),
+    maxTokenSeconds: MAX_TOKEN_SECONDS,
+    isRevoked: (subject) => Boolean(ctx.db.revokedSession.subject.find(subject)),
+  })
+  if (admission.kind === 'refused') throw new SenderError('Invalid auth token')
+  if (admission.kind !== 'player') return
+  const { subject, userId, expiresAt, isAdmin } = admission
+  const current = ctx.db.sessionAccess.subject.find(subject)
   if (current && (!current.identity.isEqual(ctx.sender) || current.userId !== userId)) throw new SenderError('Session identity changed')
-  if (current) ctx.db.sessionAccess.subject.update({ ...current, expiresAt: BigInt(expiresAt) })
+  if (current) ctx.db.sessionAccess.subject.update({ ...current, expiresAt })
   else
     ctx.db.sessionAccess.insert({
-      subject: jwt.subject,
+      subject,
       identity: ctx.sender,
       userId,
-      expiresAt: BigInt(expiresAt),
+      expiresAt,
     })
-  if (isAdmin === true && !ctx.db.adminSessions.subject.find(jwt.subject)) ctx.db.adminSessions.insert({ subject: jwt.subject })
-  if (isAdmin !== true) ctx.db.adminSessions.subject.delete(jwt.subject)
-  ctx.db.accessExpiry.insert({ scheduledId: 0n, subject: jwt.subject, scheduledAt: ScheduleAt.time(BigInt(expiresAt) * 1_000_000n) })
+  if (isAdmin && !ctx.db.adminSessions.subject.find(subject)) ctx.db.adminSessions.insert({ subject })
+  if (!isAdmin) ctx.db.adminSessions.subject.delete(subject)
+  ctx.db.accessExpiry.insert({ scheduledId: 0n, subject, scheduledAt: ScheduleAt.time(expiresAt * 1_000_000n) })
 })
 
 export const revokeOwnAccess = spacetime.reducer({}, (ctx) => {
