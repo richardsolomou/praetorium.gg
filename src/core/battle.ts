@@ -221,7 +221,7 @@ function embarkedCapacityError(units: readonly UnitState[], unit: UnitState, nex
 export const canTransport = (unit: Pick<UnitState, 'transport' | 'group'>): boolean => unit.transport === true || unit.group === 'transport'
 
 export function strategicReserveSideTotals(
-  armies: readonly { units: readonly ReserveUnit[]; roster: { built?: { strategicReserveLimit?: number } | null } | null }[],
+  armies: readonly { units: readonly ReserveUnit[]; roster: ReserveRoster }[],
 ): { points: number; limit: number } | null {
   const limits = armies.map((army) => army.roster?.built?.strategicReserveLimit)
   if (limits.some((limit) => limit === undefined)) return null
@@ -231,7 +231,61 @@ export function strategicReserveSideTotals(
   }
 }
 
-function strategicReserveSideError(state: BattleState, player: PlayerState, changed?: readonly ReserveUnit[]): Refusal | null {
+/** The fields of an army that its formations are judged against, shared by the battle state and its view. */
+type FormationArmy = { side: number; units: readonly UnitState[]; roster: ReserveRoster }
+type ReserveRoster = { built?: { strategicReserveLimit?: number } | null } | null
+type FormationTable = Pick<BattleState, 'status' | 'firstPlayerId'> & { players: readonly FormationArmy[] }
+
+/**
+ * Why one of the army's units cannot move to a formation, or null when it can.
+ *
+ * `validate` refuses `set-unit-formation` with this, and the setup screen asks it of
+ * the battle view to disable what the server would refuse.
+ */
+export function unitFormationRefusal(
+  state: FormationTable,
+  player: FormationArmy,
+  command: Pick<Extract<Command, { kind: 'set-unit-formation' }>, 'unitKey' | 'formation' | 'transportKey'>,
+): Refusal | null {
+  const attached = attachedUnits(player.units, command.unitKey)
+  if (command.formation === 'embarked') {
+    if (!command.transportKey) return refuse('invalid-transport', 'choose a transport for the embarked unit')
+    const transport = player.units.find((unit) => unit.key === command.transportKey)
+    if (!transport || !canTransport(transport) || transport.attachedTo || transport.destroyed || transport.formation === 'embarked')
+      return refuse('invalid-transport', 'choose a transport in this army')
+    if (attached.some((unit) => unit.key === transport.key || canTransport(unit)))
+      return refuse('invalid-transport', 'a transport cannot embark in another transport')
+    if (attached.some((unit) => unit.destroyed)) return refuse('invalid-transport', 'a destroyed unit cannot embark')
+    const capacity = transportCapacity(transport.transportRule, transport.wargear)
+    if (capacity === null) return refuse('transport-capacity-unknown', 'this transport has no known model capacity')
+    const aboard = embarkedModelCount(player.units, transport.key) - embarkedModelCount(attached, transport.key)
+    if (aboard + attached.reduce((models, unit) => models + unit.alive, 0) > capacity)
+      return refuse('transport-full', `this transport can carry at most ${capacity} models`)
+  } else if (command.transportKey) {
+    return refuse('invalid-transport', 'only an embarked unit can name a transport')
+  }
+  // Asked of the whole attached unit, because a deployment ability needs every
+  // model in it: a character who can deep strike cannot take a bodyguard unit
+  // that cannot with him.
+  if (
+    !['battlefield', 'strategic-reserves', 'embarked'].includes(command.formation) &&
+    !attached.every((unit) => unit.formationOptions?.includes(command.formation))
+  ) {
+    return refuse('formation-unsupported', 'the roster data does not support that formation')
+  }
+  if (state.status !== 'setup') return null
+  const keys = new Set(attached.map((unit) => unit.key))
+  const redeployed =
+    Boolean(state.firstPlayerId) &&
+    command.formation === 'strategic-reserves' &&
+    attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
+  const changed = player.units.map((unit) =>
+    keys.has(unit.key) ? changedFormation(unit, command.formation, redeployed, command.transportKey) : unit,
+  )
+  return strategicReserveSideError(state, player, changed)
+}
+
+function strategicReserveSideError(state: FormationTable, player: FormationArmy, changed?: readonly ReserveUnit[]): Refusal | null {
   const armies = state.players.filter((candidate) => candidate.side === player.side)
   const totals = strategicReserveSideTotals(armies)
   if (!totals) return null
@@ -242,7 +296,7 @@ function strategicReserveSideError(state: BattleState, player: PlayerState, chan
   return points > totals.limit
     ? refuse(
         'reserves-over-limit',
-        `no more than ${totals.limit} points of this ${armies.length > 1 ? 'side' : 'army'} can start in strategic reserves`,
+        armies.length > 1 ? `over this side's ${totals.limit} pt reserve limit` : `over the ${totals.limit} pt reserve limit`,
       )
     : null
 }
@@ -1336,49 +1390,11 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     }
     case 'set-unit-formation': {
       if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
-      const attached = attachedUnits(player.units, command.unitKey)
-      if (!attached.length)
+      if (!attachedUnits(player.units, command.unitKey).length)
         return namesAnotherArmy(command, actor)
           ? refuse('unknown-unit', 'that is not one of their units')
           : refuse('unknown-unit', 'that is not one of your units')
-      if (command.formation === 'embarked') {
-        if (!command.transportKey) return refuse('invalid-transport', 'choose a transport for the embarked unit')
-        const transport = player.units.find((unit) => unit.key === command.transportKey)
-        if (!transport || !canTransport(transport) || transport.attachedTo || transport.destroyed || transport.formation === 'embarked')
-          return refuse('invalid-transport', 'choose a transport in this army')
-        if (attached.some((unit) => unit.key === transport.key || canTransport(unit)))
-          return refuse('invalid-transport', 'a transport cannot embark in another transport')
-        if (attached.some((unit) => unit.destroyed)) return refuse('invalid-transport', 'a destroyed unit cannot embark')
-        const capacity = transportCapacity(transport.transportRule, transport.wargear)
-        if (capacity === null) return refuse('transport-capacity-unknown', 'this transport has no known model capacity')
-        const aboard = embarkedModelCount(player.units, transport.key) - embarkedModelCount(attached, transport.key)
-        if (aboard + attached.reduce((models, unit) => models + unit.alive, 0) > capacity)
-          return refuse('transport-full', `this transport can carry at most ${capacity} models`)
-      } else if (command.transportKey) {
-        return refuse('invalid-transport', 'only an embarked unit can name a transport')
-      }
-      // Asked of the whole attached unit, because a deployment ability needs every
-      // model in it: a character who can deep strike cannot take a bodyguard unit
-      // that cannot with him.
-      if (
-        !['battlefield', 'strategic-reserves', 'embarked'].includes(command.formation) &&
-        !attached.every((unit) => unit.formationOptions?.includes(command.formation))
-      ) {
-        return refuse('formation-unsupported', 'the roster data does not support that formation')
-      }
-      if (state.status === 'setup') {
-        const keys = new Set(attached.map((unit) => unit.key))
-        const redeployed =
-          Boolean(state.firstPlayerId) &&
-          command.formation === 'strategic-reserves' &&
-          attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
-        const changed = player.units.map((unit) =>
-          keys.has(unit.key) ? changedFormation(unit, command.formation, redeployed, command.transportKey) : unit,
-        )
-        const reserveError = strategicReserveSideError(state, player, changed)
-        if (reserveError) return reserveError
-      }
-      return null
+      return unitFormationRefusal(state, player, command)
     }
     // The bonus is for a painted army, settled before the battle and paid as it begins.
     case 'set-painted':

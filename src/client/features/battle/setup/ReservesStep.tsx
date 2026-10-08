@@ -1,5 +1,5 @@
 import { MapPin } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 import type { AttachedUnit } from '../../../../core/attachedUnits'
@@ -12,16 +12,37 @@ import {
   transportCapacity,
   transportLabel,
   UNIT_FORMATIONS,
+  unitFormationRefusal,
 } from '../../../../core/battle'
+import type { BattleView } from '../../../../core/battleView'
 import { RuleText } from '../../../components/RuleText'
 import type { Army, Side } from '../../../sides'
 import { formationLabel, SetupNote, SetupSidePanel } from './chrome'
 import { reserveSections, reserveUnitLabel } from './reservesModel'
 
-type Props = { sides: Side[]; redeploy: boolean; send: (command: Command) => void }
+type FormationCommand = Extract<Command, { kind: 'set-unit-formation' }>
+type Props = { view: BattleView; sides: Side[]; send: (command: Command) => void; problem: string | null }
+/** Everything a unit row needs to judge and send a move, and to say why one was refused. */
+type Moves = {
+  view: BattleView
+  /** Sends a move, remembering which unit row it came from. */
+  move: (row: string, command: FormationCommand) => void
+  /** The server's refusal of the latest move, for the row it came from. */
+  refusalFor: (row: string) => string | null
+}
 
 /** Where every unit starts: on the battlefield, or held back to arrive later. */
-export function ReservesStep({ sides, redeploy, send }: Props) {
+export function ReservesStep({ view, sides, send, problem }: Props) {
+  const [sentFrom, setSentFrom] = useState<string | null>(null)
+  const moves: Moves = {
+    view,
+    move: (row, command) => {
+      setSentFrom(row)
+      send(command)
+    },
+    refusalFor: (row) => (row === sentFrom ? problem : null),
+  }
+  const redeploy = view.firstPlayerId !== null
   return (
     <div data-onboarding="battle-setup-reserves" className="space-y-4">
       <div>
@@ -34,14 +55,15 @@ export function ReservesStep({ sides, redeploy, send }: Props) {
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         {sides.map((side) => (
-          <ReserveSide key={side.index} side={side} redeploy={redeploy} send={send} />
+          <ReserveSide key={side.index} side={side} moves={moves} />
         ))}
       </div>
+      {problem && sentFrom === null ? <p className="text-sm text-destructive">{problem}</p> : null}
     </div>
   )
 }
 
-function ReserveSide({ side, redeploy, send }: { side: Side; redeploy: boolean; send: (command: Command) => void }) {
+function ReserveSide({ side, moves }: { side: Side; moves: Moves }) {
   const totals = side.armies.length > 1 ? strategicReserveSideTotals(side.armies) : null
   return (
     <SetupSidePanel side={side} className="space-y-3">
@@ -51,23 +73,13 @@ function ReserveSide({ side, redeploy, send }: { side: Side; redeploy: boolean; 
         </span>
       ) : null}
       {side.armies.map((army) => (
-        <ArmySetup key={army.playerId} army={army} multiple={side.armies.length > 1} redeploy={redeploy} send={send} />
+        <ArmySetup key={army.playerId} army={army} multiple={side.armies.length > 1} moves={moves} />
       ))}
     </SetupSidePanel>
   )
 }
 
-function ArmySetup({
-  army,
-  multiple,
-  redeploy,
-  send,
-}: {
-  army: Army
-  multiple: boolean
-  redeploy: boolean
-  send: (command: Command) => void
-}) {
+function ArmySetup({ army, multiple, moves }: { army: Army; multiple: boolean; moves: Moves }) {
   const sections = reserveSections(army.units)
   // Counted the way the rows are: a character and the unit he joined are one unit.
   const listed = sections.reduce((total, section) => total + section.units.length, 0)
@@ -95,7 +107,7 @@ function ArmySetup({
         <section key={section.label} className="space-y-1">
           <p className="eyebrow">{section.label}</p>
           {section.units.map((unit) => (
-            <UnitFormationRow key={unit.host.key} army={army} unit={unit} units={units} redeploy={redeploy} send={send} />
+            <UnitFormationRow key={unit.host.key} army={army} unit={unit} units={units} moves={moves} />
           ))}
         </section>
       ))}
@@ -114,16 +126,17 @@ function UnitFormationRow({
   army,
   unit,
   units,
-  redeploy,
-  send,
+  moves,
 }: {
   army: Army
   unit: AttachedUnit<Army['units'][number]>
   units: AttachedUnit<Army['units'][number]>[]
-  redeploy: boolean
-  send: (command: Command) => void
+  moves: Moves
 }) {
   const { host, joined } = unit
+  const redeploy = moves.view.firstPlayerId !== null
+  const row = `${army.playerId}:${host.key}`
+  const reasonId = useId()
   const transportName = transportLabel(army.units, host.embarkedIn ?? '')
   const offered = UNIT_FORMATIONS.filter((formation) => {
     if (formation === 'battlefield') return true
@@ -131,6 +144,14 @@ function UnitFormationRow({
     if (formation === 'embarked') return false
     return unit.formationOptions.includes(formation)
   })
+  const choices = offered
+    .filter((formation) => formation !== host.formation)
+    .map((formation) => {
+      const command: FormationCommand = { kind: 'set-unit-formation', unitKey: host.key, formation, playerId: army.playerId }
+      return { formation, command, refusal: formationRefusal(moves.view, command) }
+    })
+  const reasons = [...new Set(choices.flatMap((choice) => (choice.refusal ? [choice.refusal] : [])))]
+  const refused = moves.refusalFor(row)
 
   return (
     <div className="rounded-sm bg-sunken p-2">
@@ -161,52 +182,64 @@ function UnitFormationRow({
           }
           action={
             <span className="flex flex-wrap gap-1">
-              {offered
-                .filter((formation) => formation !== host.formation)
-                .map((formation) => {
-                  const returning =
-                    redeploy && host.deployedAtRollOff === true && host.formation === 'battlefield' && formation === 'strategic-reserves'
-                  return (
-                    <Button
-                      key={formation}
-                      variant="outline"
-                      size="xs"
-                      aria-label={`${returning ? 'Redeploy' : 'Start'} ${host.name} ${returning ? 'into' : 'in'} ${formationLabel(formation)}`}
-                      onClick={() =>
-                        send({
-                          kind: 'set-unit-formation',
-                          unitKey: host.key,
-                          formation,
-                          playerId: army.playerId,
-                        })
-                      }
-                    >
-                      {formation === 'battlefield'
-                        ? 'Put on the battlefield'
-                        : `${returning ? 'Redeploy into' : 'Start in'} ${formationLabel(formation).toLocaleLowerCase()}`}
-                    </Button>
-                  )
-                })}
+              {choices.map(({ formation, command, refusal }) => {
+                const returning =
+                  redeploy && host.deployedAtRollOff === true && host.formation === 'battlefield' && formation === 'strategic-reserves'
+                return (
+                  <Button
+                    key={formation}
+                    variant="outline"
+                    size="xs"
+                    disabled={refusal !== null}
+                    aria-describedby={refusal ? `${reasonId}-${reasons.indexOf(refusal)}` : undefined}
+                    aria-label={`${returning ? 'Redeploy' : 'Start'} ${host.name} ${returning ? 'into' : 'in'} ${formationLabel(formation)}`}
+                    onClick={() => moves.move(row, command)}
+                  >
+                    {formation === 'battlefield'
+                      ? 'Put on the battlefield'
+                      : `${returning ? 'Redeploy into' : 'Start in'} ${formationLabel(formation).toLocaleLowerCase()}`}
+                  </Button>
+                )
+              })}
             </span>
           }
         />
+        {reasons.map((reason, index) => (
+          <p key={reason} id={`${reasonId}-${index}`} className="mt-1 px-0.5 text-3xs text-discarded">
+            {reason}
+          </p>
+        ))}
       </div>
-      {canTransport(host) ? <TransportBoarding army={army} transport={host} units={units} send={send} /> : null}
+      {canTransport(host) ? <TransportBoarding army={army} transport={host} units={units} row={row} moves={moves} /> : null}
+      {refused ? (
+        <p role="alert" className="mt-1 px-0.5 text-xs text-destructive">
+          {refused}
+        </p>
+      ) : null}
     </div>
   )
+}
+
+/** The refusal the server would give this move, judged against the view of the same battle. */
+function formationRefusal(view: BattleView, command: FormationCommand): string | null {
+  const player = view.players.find((candidate) => candidate.id === command.playerId)
+  return player ? (unitFormationRefusal(view, player, command)?.message ?? null) : null
 }
 
 function TransportBoarding({
   army,
   transport,
   units,
-  send,
+  row,
+  moves,
 }: {
   army: Army
   transport: Army['units'][number]
   units: AttachedUnit<Army['units'][number]>[]
-  send: (command: Command) => void
+  row: string
+  moves: Moves
 }) {
+  const reasonId = useId()
   const [open, setOpen] = useState(false)
   const name = transportLabel(army.units, transport.key) ?? transport.name
   const passengers = units.filter((unit) => unit.host.embarkedIn === transport.key)
@@ -237,26 +270,32 @@ function TransportBoarding({
                   const embarked = unit.host.embarkedIn === transport.key
                   const members = [unit.host, ...unit.joined]
                   const models = members.reduce((total, member) => total + member.alive, 0)
+                  const command: FormationCommand = {
+                    kind: 'set-unit-formation',
+                    unitKey: unit.host.key,
+                    formation: embarked ? 'battlefield' : 'embarked',
+                    ...(embarked ? {} : { transportKey: transport.key }),
+                    playerId: army.playerId,
+                  }
+                  const refusal = formationRefusal(moves.view, command)
                   return (
                     <div key={unit.host.key} className="flex items-center justify-between gap-2 rounded-sm bg-sunken px-2 py-1.5">
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-bone">{reserveUnitLabel(units, unit)}</p>
                         <p className="text-3xs text-dim">{models} models</p>
+                        {refusal ? (
+                          <p id={`${reasonId}-${unit.host.key}`} className="text-3xs text-discarded">
+                            {refusal}
+                          </p>
+                        ) : null}
                       </div>
                       <Button
                         variant={embarked ? 'secondary' : 'outline'}
                         size="xs"
-                        disabled={!embarked && (capacity === null || used + models > capacity)}
+                        disabled={refusal !== null}
+                        aria-describedby={refusal ? `${reasonId}-${unit.host.key}` : undefined}
                         aria-label={`${embarked ? 'Disembark' : 'Embark'} ${reserveUnitLabel(units, unit)} ${embarked ? 'from' : 'in'} ${name}`}
-                        onClick={() =>
-                          send({
-                            kind: 'set-unit-formation',
-                            unitKey: unit.host.key,
-                            formation: embarked ? 'battlefield' : 'embarked',
-                            ...(embarked ? {} : { transportKey: transport.key }),
-                            playerId: army.playerId,
-                          })
-                        }
+                        onClick={() => moves.move(row, command)}
                       >
                         {embarked ? 'Remove' : 'Embark'}
                       </Button>

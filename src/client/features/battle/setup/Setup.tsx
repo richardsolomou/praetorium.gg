@@ -373,7 +373,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
 
           {at === 4 && youHaveAnArmy ? <SecondariesStep view={view} sides={table} send={send} pending={pending} /> : null}
 
-          {at === 5 && youHaveAnArmy ? <ReservesStep sides={table} redeploy={view.firstPlayerId !== null} send={send} /> : null}
+          {at === 5 && youHaveAnArmy ? <ReservesStep view={view} sides={table} send={send} problem={problem} /> : null}
 
           {at === 6 && youHaveAnArmy ? <DeployStep sides={table} defender={defender} /> : null}
 
@@ -383,7 +383,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
             <PreBattleRulesStep sides={table} first={firstSide} ready={ready} pending={pending} send={send} />
           ) : null}
 
-          {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
+          {problem && at !== 5 ? <p className="text-sm text-destructive">{problem}</p> : null}
         </section>
       </div>
 

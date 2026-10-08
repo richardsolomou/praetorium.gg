@@ -6,6 +6,7 @@ import {
   strategicReservePoints,
   transportCapacity,
   transportLabel,
+  unitFormationRefusal,
   validate,
 } from './battle'
 import { battleView } from './battleView'
@@ -327,7 +328,7 @@ describe('battle management', () => {
     )
 
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u1' })).toBe(
-      'no more than 100 points of this army can start in strategic reserves',
+      'over the 100 pt reserve limit',
     )
   })
 
@@ -343,7 +344,7 @@ describe('battle management', () => {
     )
 
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'strategic-reserves' })).toBe(
-      'no more than 100 points of this army can start in strategic reserves',
+      'over the 100 pt reserve limit',
     )
   })
 
@@ -456,11 +457,52 @@ describe('battle management', () => {
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'deep-strike' })).toBeNull()
     expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBeNull()
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u2', formation: 'strategic-reserves' })).toBe(
-      'no more than 500 points of this army can start in strategic reserves',
+      'over the 500 pt reserve limit',
     )
-    expect(validate(state, ALICE, { kind: 'deploy-unit', unitKey: 'u2', deployed: false })).toBe(
-      'no more than 500 points of this army can start in strategic reserves',
+    expect(validate(state, ALICE, { kind: 'deploy-unit', unitKey: 'u2', deployed: false })).toBe('over the 500 pt reserve limit')
+  })
+
+  describe('a formation asked from the screen a player reads', () => {
+    const army = builtRoster('Ultramarines', ['Intercessors', 'Rhino', 'Hellblasters'])
+    if (army.kind !== 'attach-roster' || !army.roster.built) throw new Error('expected built roster')
+    army.roster.built.strategicReserveLimit = 100
+    army.roster.built.units[1]!.transport = true
+    army.roster.built.units[1]!.transportRule = 'This model has a transport capacity of 12 models.'
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, army],
+        [BOB, roster('Death Guard')],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'strategic-reserves' }],
+      ),
     )
+    const view = battleView({ token: 'abc' }, NAMES, state, BOB)
+
+    it.each<[string, Extract<Command, { kind: 'set-unit-formation' }>, string | null]>([
+      [
+        'refuses a unit over the reserve limit',
+        { kind: 'set-unit-formation', unitKey: 'u2', formation: 'strategic-reserves', playerId: ALICE },
+        'over the 100 pt reserve limit',
+      ],
+      [
+        'refuses boarding a transport held in reserve once the limit is reached',
+        { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u1', playerId: ALICE },
+        'over the 100 pt reserve limit',
+      ],
+      [
+        'refuses a formation the roster data does not support',
+        { kind: 'set-unit-formation', unitKey: 'u2', formation: 'deep-strike', playerId: ALICE },
+        'the roster data does not support that formation',
+      ],
+      ['allows freeing reserve points', { kind: 'set-unit-formation', unitKey: 'u1', formation: 'battlefield', playerId: ALICE }, null],
+    ])('%s', (_, command, refusal) => {
+      expect(unitFormationRefusal(view, view.players[0]!, command)?.message ?? null).toBe(refusal)
+    })
+
+    it('agrees with the server for the same command', () => {
+      const command = { kind: 'set-unit-formation', unitKey: 'u2', formation: 'strategic-reserves', playerId: ALICE } as const
+      expect(unitFormationRefusal(view, view.players[0]!, command)?.message ?? null).toBe(validate(state, BOB, command))
+    })
   })
 
   it('shares the 2v1 reserve allowance across allied armies', () => {
@@ -494,10 +536,10 @@ describe('battle management', () => {
 
     expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBeNull()
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'strategic-reserves', playerId: CAROL })).toBe(
-      'no more than 1000 points of this side can start in strategic reserves',
+      "over this side's 1000 pt reserve limit",
     )
     expect(validate(state, ALICE, { kind: 'deploy-unit', unitKey: 'u1', deployed: false, playerId: CAROL })).toBe(
-      'no more than 1000 points of this side can start in strategic reserves',
+      "over this side's 1000 pt reserve limit",
     )
 
     const over = reduceBattle(
@@ -514,9 +556,7 @@ describe('battle management', () => {
       [0, 1, 1],
     )
     over.settings = state.settings
-    expect(validate(over, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe(
-      'no more than 1000 points of this side can start in strategic reserves',
-    )
+    expect(validate(over, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe("over this side's 1000 pt reserve limit")
     expect(validate(over, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'battlefield', playerId: BOB })).toBeNull()
   })
 
@@ -540,7 +580,7 @@ describe('battle management', () => {
     )
 
     expect(validate(beforeRoll, ALICE, { kind: 'set-unit-formation', unitKey: 'u2', formation: 'strategic-reserves' })).toBe(
-      'no more than 1000 points of this army can start in strategic reserves',
+      'over the 1000 pt reserve limit',
     )
     const state = reduceBattle(
       PLAYERS,
@@ -600,7 +640,7 @@ describe('battle management', () => {
     const state = reduceBattle(PLAYERS, log([ALICE, command]))
 
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' })).toBe(
-      'no more than 150 points of this army can start in strategic reserves',
+      'over the 150 pt reserve limit',
     )
   })
 
@@ -625,9 +665,7 @@ describe('battle management', () => {
     const state = reduceBattle(PLAYERS, log([ALICE, command], [BOB, roster('Death Guard')]))
     state.players[0]!.units[0]!.formation = 'strategic-reserves'
 
-    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe(
-      'no more than 50 points of this army can start in strategic reserves',
-    )
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('over the 50 pt reserve limit')
   })
 
   it('refuses to begin with a known setup over the strategic reserves limit', () => {
@@ -644,9 +682,7 @@ describe('battle management', () => {
       ),
     )
 
-    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe(
-      'no more than 1000 points of this army can start in strategic reserves',
-    )
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('over the 1000 pt reserve limit')
   })
 
   it('keeps an older roster snapshot without reserve-limit facts startable', () => {
@@ -714,7 +750,7 @@ describe('battle management', () => {
 
     expect(state.players[0]?.units[0]).toMatchObject({ formation: 'battlefield', deployedAtRollOff: false })
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' })).toBe(
-      'no more than 0 points of this army can start in strategic reserves',
+      'over the 0 pt reserve limit',
     )
   })
 

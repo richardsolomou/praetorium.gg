@@ -42,7 +42,7 @@ One wound state drives models, current-model damage, and destruction. `wound-uni
 
 Personal roster reminders are owner-only. Strip them from opponent, spectator, shared, and revealed-event reads. Their dismissals are bounded local state, not commands or shared prompts; destroyed-unit reminders stop until the unit is restored unless the player enables “Show while unit is destroyed”. First-round-only triggers match round 1, and “Any phase” matches each named phase boundary. Round reminders use either side’s turn: start before the first turn’s Command phase prompts, and end at the end of the second turn before passing to the next round.
 
-Starting Strategic Reserves use one allowance per side, shared by allies. Deep Strike changes ingress, not membership in that allowance. Source-backed exemptions and post-deployment redeployments are separate. Check formations and battle start against frozen facts; incomplete source facts must not invent restrictions.
+Starting Strategic Reserves use one allowance per side, shared by allies. Deep Strike changes ingress, not membership in that allowance. Source-backed exemptions and post-deployment redeployments are separate. Check formations and battle start against frozen facts; incomplete source facts must not invent restrictions. `unitFormationRefusal` is the formation authority for `validate` and the setup controls, which disable each move it refuses and show its reason beside the control.
 
 Transport assignments name a unit in the same frozen army and clear when formation changes. Count joined leaders, existing passengers, and restored models against supported printed capacity and wargear conditions. Refuse an unreadable capacity; leave prose-only passenger restrictions and special space costs for the table.
 
