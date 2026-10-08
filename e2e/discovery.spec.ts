@@ -80,7 +80,7 @@ for (const guide of guides) {
       await image.scrollIntoViewIfNeeded()
       await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
       await expect(image).toHaveAttribute('alt', /\S/)
-      await expect(page.locator('main figure a')).toHaveAttribute('href', `/guides/${guide.slug}.png`)
+      await expect(page.locator('main figure a')).toHaveAttribute('href', new RegExp(`^/guides/${guide.slug}-[a-f0-9]{8}\\.png$`))
       await expect(page.getByRole('heading', { name: 'Common questions' })).toBeVisible()
       await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(`/guides/${guide.slug}`, baseURL).href)
       expect(
