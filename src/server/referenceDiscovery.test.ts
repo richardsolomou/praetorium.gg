@@ -43,6 +43,22 @@ const { corpus } = vi.hoisted(() => ({
         attribution: ['Community data'],
       },
       {
+        id: 'deployment:unmatched',
+        kind: 'deployment',
+        title: 'Unmatched deployment',
+        url: '/missions#deployment-unmatched',
+        sections: [
+          { id: 'deployment-unmatched', title: 'Unmatched deployment', text: 'Deployment.', url: '/missions#deployment-unmatched' },
+        ],
+      },
+      {
+        id: 'mission-pack:test',
+        kind: 'mission',
+        title: 'Test Pack',
+        url: '/missions/test',
+        sections: [],
+      },
+      {
         id: 'mission:secondary:test-secondary',
         kind: 'mission',
         title: 'Test Secondary',
@@ -92,6 +108,7 @@ import { referenceLlms, referenceRobots, referenceSitemap } from './referenceDis
 
 afterEach(() => {
   corpus.revision = 'snapshot-one'
+  corpus.catalogue.revisions.definitions = 'revision'
   history.entries = []
 })
 
@@ -142,6 +159,30 @@ it('lists the public pages no reference document names', async () => {
   expect(await sitemap()).toMatch(
     /<loc>https:\/\/praetorium\.gg\/<\/loc>.*<loc>https:\/\/praetorium\.gg\/leaderboard<\/loc>.*<loc>https:\/\/praetorium\.gg\/rosters<\/loc>.*<loc>https:\/\/praetorium\.gg\/simulator<\/loc>/s,
   )
+})
+
+it('lists public workflow guides alongside battles and leagues', async () => {
+  const urls = [...(await sitemap()).matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1])
+
+  expect(urls).toEqual(
+    expect.arrayContaining([
+      'https://praetorium.gg/battles',
+      'https://praetorium.gg/leagues',
+      'https://praetorium.gg/guides',
+      'https://praetorium.gg/guides/build-an-army',
+      'https://praetorium.gg/guides/import-a-roster',
+      'https://praetorium.gg/guides/compare-loadouts',
+      'https://praetorium.gg/guides/track-a-battle',
+    ]),
+  )
+})
+
+it('lists the mission pack destination without its redirecting entry point', async () => {
+  expect([...(await sitemap()).matchAll(/<loc>([^<]*\/missions[^<]*)<\/loc>/g)].map((match) => match[1])).toEqual([
+    'https://praetorium.gg/missions/test',
+    'https://praetorium.gg/missions/test/matchups/one/two',
+    'https://praetorium.gg/missions/test/secondaries/test-secondary',
+  ])
 })
 
 it('dates the data updates page by its newest update', async () => {
@@ -211,6 +252,19 @@ it('serves conditional llms.txt responses', async () => {
   const etag = (await referenceLlms(request)).headers.get('etag')!
 
   expect((await referenceLlms(new Request(request, { headers: { 'If-None-Match': etag } }))).status).toBe(304)
+})
+
+it('returns updated discovery text when its content changes without a corpus revision change', async () => {
+  const request = new Request('https://praetorium.gg/llms.txt')
+  const etag = (await referenceLlms(request)).headers.get('etag')!
+  corpus.catalogue.revisions.definitions = 'replacement'
+
+  const response = await referenceLlms(new Request(request, { headers: { 'If-None-Match': etag } }))
+
+  expect({ status: response.status, containsReplacement: (await response.text()).includes('definitions: replacement') }).toEqual({
+    status: 200,
+    containsReplacement: true,
+  })
 })
 
 it('accepts a weak ETag for llms.txt', async () => {

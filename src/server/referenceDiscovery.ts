@@ -6,9 +6,26 @@ import { updateId } from './catalogueHistory'
 import { factionsLastUpdated, referencesLastUpdated } from './catalogueChangeLog'
 import { gameReferencesFor } from './gameReferences'
 import { ifNoneMatch } from './ifNoneMatch'
+import { PRODUCT_GUIDES } from '../contracts/productGuides'
 
 /** Pages anyone may read that no reference document names. */
-const PUBLIC_PAGES = ['/', '/factions', '/force-dispositions', '/leaderboard', '/missions', '/rosters', '/rules', '/simulator', '/sources']
+const PUBLIC_PAGES = [
+  '/',
+  '/battles',
+  '/factions',
+  '/force-dispositions',
+  '/guides',
+  '/leaderboard',
+  '/leagues',
+  '/rosters',
+  '/rules',
+  '/simulator',
+  '/sources',
+  '/support',
+  '/privacy',
+  '/terms',
+  '/delete-account',
+]
 
 export async function referenceSitemap(request: Request) {
   const corpus = await activeReferenceCorpus()
@@ -17,7 +34,10 @@ export async function referenceSitemap(request: Request) {
   // A page's last modification is stated only where the history records one: its points or its
   // arrival. Nothing records when rules text changed, and a guessed date teaches crawlers to ignore it.
   const paths = new Map<string, number | null>(PUBLIC_PAGES.map((path) => [path, null]))
-  const add = (path: string) => paths.set(path, paths.get(path) ?? null)
+  const add = (path: string) => {
+    if (path !== '/missions') paths.set(path, paths.get(path) ?? null)
+  }
+  for (const guide of PRODUCT_GUIDES) add(`/guides/${guide.slug}`)
   for (const document of corpus.documents) {
     add(document.url.split('#')[0]!)
     for (const section of document.sections) add(section.url.split('#')[0]!)
@@ -69,7 +89,7 @@ export async function referenceLlms(request: Request) {
   const revisions = corpus ? Object.entries(corpus.catalogue.revisions).map(([source, revision]) => `- ${source}: ${revision}`) : []
   const body = `# Praetorium
 
-Praetorium is a public Warhammer 40,000 army builder, battle tracker, and community-data reference. Reference answers come from verified immutable snapshots and never from generated summaries.
+Praetorium is a free Warhammer 40,000 army builder, combat simulator, battle tracker, and community-data reference. Visitors can build a draft and simulate a matchup without an account; sign in to keep rosters, import lists, or play battles. Reference answers come from verified immutable snapshots and never from generated summaries.
 
 ## Agent interfaces
 
@@ -84,6 +104,7 @@ For roster planning, read \`/api/reference/v1/factions/{catalogueId}/units\` onc
 
 ## Human reference
 
+- [Player guides](${origin}/guides): ${PRODUCT_GUIDES.map((guide) => `[${guide.title}](${origin}/guides/${guide.slug})`).join(', ')}
 - [Factions](${origin}/factions)
 - [Missions](${origin}/missions)
 - [Rules](${origin}/rules)
@@ -105,7 +126,7 @@ Praetorium is AGPL-3.0 open source software. Community game data remains subject
 }
 
 function cachedText(request: Request, revision: string, key: string, body: string, contentType: string) {
-  const etag = `"${createHash('sha256').update(`${revision}\0${key}`).digest('hex')}"`
+  const etag = `"${createHash('sha256').update(`${revision}\0${key}\0${body}`).digest('hex')}"`
   const headers = { 'Cache-Control': 'public, max-age=3600', 'Content-Type': contentType, ETag: etag }
   return ifNoneMatch(request, etag) ? new Response(null, { status: 304, headers }) : new Response(body, { headers })
 }

@@ -1,4 +1,5 @@
 import type { GlobalSearchResult } from '../../../server/functions'
+import { PRODUCT_GUIDES } from '../../../contracts/productGuides'
 
 const pages: GlobalSearchResult[] = [
   { id: 'page:home', group: 'Pages', label: 'Home', detail: 'Praetorium home', href: '/' },
@@ -15,6 +16,20 @@ const pages: GlobalSearchResult[] = [
     href: '/force-dispositions',
   },
   { id: 'page:rules', group: 'Pages', label: 'Rules', detail: 'Core rules, missions and event rules', href: '/rules' },
+  {
+    id: 'page:guides',
+    group: 'Pages',
+    label: 'Player guides',
+    detail: 'Army lists, imports, combat comparisons and battle tracking',
+    href: '/guides',
+  },
+  ...PRODUCT_GUIDES.map<GlobalSearchResult>((guide) => ({
+    id: `guide:${guide.slug}`,
+    group: 'Pages',
+    label: guide.title,
+    detail: guide.description,
+    href: `/guides/${guide.slug}`,
+  })),
   { id: 'page:sign-in', group: 'Pages', label: 'Sign in', detail: 'Access your Praetorium account', href: '/sign-in' },
 ]
 

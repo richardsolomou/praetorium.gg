@@ -259,6 +259,9 @@ export function AppShell() {
                   >
                     <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
                     <p className="space-x-3">
+                      <Link to="/guides" className="transition-colors hover:text-bone">
+                        Player guides
+                      </Link>
                       <Link to="/support" className="transition-colors hover:text-bone">
                         Support
                       </Link>

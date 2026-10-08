@@ -53,6 +53,8 @@ Feature-detect the API without installing a polyfill in the application. Chrome'
 
 Public roster canonicals omit parameters; unlisted/frozen lists and sign-in stay `noindex`. Sign-in return links are `nofollow`, and robots disallows sign-in crawls. Reference points/base descriptions include only unconditional source-backed values. [Deployment](../deployment.md) owns IndexNow submission.
 
+`src/contracts/productGuides.ts` owns authored player instructions shared by the public guide pages, navigation search, sitemap and agent discovery. Keep these instructions about product workflows, not a second interpretation of game rules. Verify claims against the builder, importer, simulator and battle flows when changing them. Public product and guide pages use `pageHead` with parameter-free canonical URLs; the sitemap lists final destinations rather than redirecting entry points. Product-guide and discovery ETags must change with their content even when the catalogue snapshot does not change. Run `just e2e discovery.spec.ts` to check metadata, guide navigation, initial HTML, phone layout and missing-page responses.
+
 ## Verification and attribution
 
 Run `pnpm reference:verify https://<deployment>` for discovery, filters/pagination, JSON/Markdown/structured reads, caching, MCP, and initial reference HTML. Verify with JavaScript disabled; hydration is not evidence of crawler access. Every result retains its sources and licence attribution. Never send raw search queries or private content to telemetry.

@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
+import { PRAETORIUM_GUIDE } from './referenceGuide'
 
 const { document, corpus, state } = vi.hoisted(() => {
   const record = {
@@ -145,6 +146,32 @@ it('changes an ETag when the active snapshot changes', async () => {
   corpus.revision = 'replacement-snapshot'
 
   expect((await referenceDocumentResponse(request, document.id)).headers.get('etag')).not.toBe(before)
+})
+
+it.each(['json', 'markdown'])('refreshes cached %s product guidance when the product changes', async (format) => {
+  const request = new Request(`https://praetorium.gg/api/reference/v1/about?format=${format}`)
+  const etag = (await referenceGuideResponse(request)).headers.get('etag')!
+  const product = PRAETORIUM_GUIDE.product
+  try {
+    Object.assign(PRAETORIUM_GUIDE, { product: 'Updated product guidance' })
+    const response = await referenceGuideResponse(new Request(request, { headers: { 'If-None-Match': etag } }))
+    expect({ status: response.status, hasUpdate: (await response.text()).includes('Updated product guidance') }).toEqual({
+      status: 200,
+      hasUpdate: true,
+    })
+  } finally {
+    Object.assign(PRAETORIUM_GUIDE, { product })
+  }
+})
+
+it('explains the simulator and visitor access in the HTTP product guide', async () => {
+  const guide = await (await referenceGuideResponse(new Request('https://praetorium.gg/api/reference/v1/about'))).json()
+
+  expect({
+    simulator: guide.capabilities.some((text: string) => text.includes('shooting and melee')),
+    visitorAccess: guide.boundaries.some((text: string) => text.includes('standalone combat simulator without an account')),
+    guides: guide.capabilities.some((text: string) => text.includes('/guides')),
+  }).toEqual({ simulator: true, visitorAccess: true, guides: true })
 })
 
 it('keeps an ETag stable while the active snapshot is unchanged', async () => {
