@@ -1,5 +1,5 @@
 # Battle setup
 
-The walked rail of pre-battle sections that separates table decisions from army preparation and shows both sides before play starts.
+The one-page pre-battle setup, in rules order, that separates table decisions from army preparation and shows both sides before play starts.
 
 ## invariants

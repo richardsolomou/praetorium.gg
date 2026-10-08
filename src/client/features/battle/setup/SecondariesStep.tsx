@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { FIXED_SECONDARIES } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
-import type { Side } from '../../../sides'
+import { fixedHandShort, type Side } from '../../../sides'
 import type { SendCommand } from '../useCommand'
 import { Prep } from './Prep'
 import { SetupSidePanel } from './chrome'
@@ -10,30 +11,39 @@ type Props = { view: BattleView; sides: Side[]; send: SendCommand; pending: bool
 /**
  * The one card decision each side actually makes: how its secondaries are drawn.
  *
- * Its own section rather than sharing one with the reserves, because it is the last
- * thing the table agrees before the roll-off and it is a different conversation —
- * the reserves are each army's, and this belongs to the side.
- *
  * Both sides stay visible so the table can see what is still outstanding and either
  * player can referee the choices for both sides from one device.
  */
 export function SecondariesStep({ view, sides, send, pending }: Props) {
+  /** Sides this device has opened. Tactical is the default, so a side reads as one line until someone changes it. */
+  const [opened, setOpened] = useState<number[]>([])
   return (
     <div data-onboarding="battle-setup-secondaries" className={`grid gap-3 ${sides.length > 1 ? 'lg:grid-cols-2' : ''}`}>
-      {sides.map((side) => (
-        <SetupSidePanel key={side.index} side={side} className="space-y-3">
-          {/* Said where the choice is made, because a hand short of its two is the one
-              thing on this section that stops the table moving on. */}
-          {side.secondaryMode === 'fixed' && side.secondaries.length < FIXED_SECONDARIES ? (
-            <p className="text-xs font-bold text-discarded uppercase">
-              Need {FIXED_SECONDARIES}, selected {side.secondaries.length}
-            </p>
-          ) : null}
-          <p className="text-xs text-dim">{cardsBlurb(side)}</p>
-          {/* Each side's primary follows from its own matchup, which the fold already put on it. */}
-          <Prep view={view} side={side} missionId={side.mission?.id ?? null} send={send} pending={pending} />
-        </SetupSidePanel>
-      ))}
+      {sides.map((side) => {
+        const short = fixedHandShort(side)
+        const open = short || opened.includes(side.index)
+        return (
+          <SetupSidePanel key={side.index} side={side} className="space-y-3">
+            {/* Said where the choice is made, because a hand short of its two stops the battle starting. */}
+            {short ? (
+              <p className="text-xs font-bold text-discarded uppercase">
+                Need {FIXED_SECONDARIES}, selected {side.secondaries.length}
+              </p>
+            ) : null}
+            {open ? <p className="text-xs text-dim">{cardsBlurb(side)}</p> : null}
+            {/* Each side's primary follows from its own matchup, which the fold already put on it. */}
+            <Prep
+              view={view}
+              side={side}
+              missionId={side.mission?.id ?? null}
+              send={send}
+              pending={pending}
+              open={open}
+              onOpen={() => setOpened((current) => [...current, side.index])}
+            />
+          </SetupSidePanel>
+        )
+      })}
     </div>
   )
 }

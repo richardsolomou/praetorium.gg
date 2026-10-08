@@ -127,7 +127,7 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
                     <Button
                       variant={selected ? 'secondary' : 'outline'}
                       className="mt-2 w-full"
-                      disabled={!terrain.geometry}
+                      disabled={!terrain.geometry || pending}
                       aria-label={`${selected ? 'Selected' : 'Select'} layout ${label}: ${deployment.name}`}
                       onClick={() => {
                         if (!pending) send({ kind: 'set-battlefield', patternId: deployment.id, terrainLayoutId: terrain.id })

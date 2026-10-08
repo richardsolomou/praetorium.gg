@@ -21,6 +21,7 @@ export function SetupSideChoice({
   sides,
   chosen,
   roles,
+  disabled = false,
   onChoose,
 }: {
   label: string
@@ -28,6 +29,7 @@ export function SetupSideChoice({
   chosen: number | null
   /** What each side becomes once one is picked: the one picked, then the other. */
   roles?: { chosen: string; other: string }
+  disabled?: boolean
   onChoose: (index: number) => void
 }) {
   return (
@@ -42,7 +44,8 @@ export function SetupSideChoice({
               key={side.index}
               variant="outline"
               aria-pressed={picked}
-              className={`h-auto flex-col items-stretch gap-1.5 border-t-2 px-3 py-2.5 text-left ${tint(side.index).edge} ${
+              disabled={disabled}
+              className={`h-auto min-w-0 flex-col items-stretch gap-1.5 border-t-2 px-3 py-2.5 text-left whitespace-normal ${tint(side.index).edge} ${
                 picked ? CHOSEN : CHOOSABLE
               }`}
               onClick={() => onChoose(side.index)}

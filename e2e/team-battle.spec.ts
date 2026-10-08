@@ -118,7 +118,7 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   await chooseBattlefield(host)
   await setupStep(host, 'Secondaries')
   // Any player at the table can referee either side's secondary choices.
-  await expect(partner.getByRole('group', { name: 'Secondary play' })).toHaveCount(2)
+  await expect(partner.getByRole('button', { name: /^Change secondaries for / })).toHaveCount(2)
   await recordFirstTurn(host)
   await host.getByRole('button', { name: 'Start battle' }).click()
   await takeTheTurn(host)

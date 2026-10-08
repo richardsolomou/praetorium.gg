@@ -295,9 +295,14 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
         ? createPortal(
             <div
               data-inert-exempt
-              className={`fixed inset-x-4 z-[60] mx-auto w-[min(20rem,calc(100vw-2rem))] border-2 border-info/50 bg-panel p-3 text-bone shadow-xl min-[860px]:inset-x-auto min-[860px]:top-auto min-[860px]:right-4 min-[860px]:bottom-4 ${
+              className={`fixed inset-x-4 z-[60] mx-auto w-[min(20rem,calc(100vw-2rem))] border-2 border-info/50 bg-panel p-3 text-bone shadow-xl min-[860px]:inset-x-auto min-[860px]:top-auto min-[860px]:right-4 ${
+                // Battle setup pins its section index under the header and its Start bar at the foot.
+                setupPrompt ? 'min-[860px]:bottom-[5.5rem]' : 'min-[860px]:bottom-4'
+              } ${
                 atTop
-                  ? 'top-[calc(4rem+env(safe-area-inset-top))]'
+                  ? setupPrompt
+                    ? 'top-[calc(7.5rem+env(safe-area-inset-top))]'
+                    : 'top-[calc(4rem+env(safe-area-inset-top))]'
                   : setupPrompt
                     ? 'bottom-[calc(9rem+env(safe-area-inset-bottom))]'
                     : 'bottom-[calc(5rem+env(safe-area-inset-bottom))]'

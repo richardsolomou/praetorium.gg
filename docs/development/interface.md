@@ -40,7 +40,7 @@ A visitor draft uses the same builder. A cookie hints its layout for SSR without
 
 ## Battles and leagues
 
-Render battle controls by side, not seat. Allies share a panel and resources. Keep one scoreboard and one phase-control instance across layouts. Missions and stratagems remain visible together, stacking when the panel is narrow.
+Setup is one page in rules order under `StepRail`, a jump index marking the section the table owes next. Sections with a default or nothing to decide fold to one line with Change or Show; folding is local to the device. The fixed bar lists what is left, shows refusals, and holds Start battle. Render battle controls by side, not seat. Allies share a panel and resources. Keep one scoreboard and one phase-control instance across layouts. Missions and stratagems remain visible together, stacking when the panel is narrow.
 
 Required prompts open one at a time. Minimize preserves local answers and exposes a persistent return control; battle-changing controls remain in place but disabled until parked dialogs are resumed or closed. Undo must preserve answers when the same battle moment returns, without leaking them into another hand or prompt. Personal reminders precede shared prompts without becoming shared commands.
 

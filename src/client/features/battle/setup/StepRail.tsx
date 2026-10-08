@@ -5,8 +5,6 @@ export type RailStep = {
   name: string
   detail: string
   complete: boolean
-  /** Whether everything this section needs settling first has been settled. */
-  reachable: boolean
 }
 
 type Props = {
@@ -15,7 +13,7 @@ type Props = {
   onGo: (step: number) => void
 }
 
-/** Setup navigation is shared battle state. Keep section names readable at every width and scroll the current section into view. */
+/** The setup page's index: every section is a press away, and `at` marks the one the table owes next. */
 export function StepRail({ steps, at, onGo }: Props) {
   const current = useRef<HTMLLIElement>(null)
   useEffect(() => {
@@ -31,14 +29,13 @@ export function StepRail({ steps, at, onGo }: Props) {
             <li key={step.name} ref={here ? current : undefined} className="min-w-36 flex-1">
               <button
                 type="button"
-                disabled={!step.reachable}
                 data-step={step.name}
                 data-complete={step.complete}
                 aria-current={here ? 'step' : undefined}
                 onClick={() => onGo(index)}
-                className={`flex h-full w-full items-center gap-2 border-t-2 px-2 py-2 text-left transition-colors disabled:cursor-not-allowed ${
-                  here ? 'border-t-discarded bg-panel' : step.complete ? 'border-t-achieved/60 hover:bg-panel' : 'border-t-edge-strong'
-                } ${step.reachable ? '' : 'opacity-45'}`}
+                className={`flex h-full w-full items-center gap-2 border-t-2 px-2 py-2 text-left transition-colors hover:bg-panel ${
+                  here ? 'border-t-discarded bg-panel' : step.complete ? 'border-t-achieved/60' : 'border-t-edge-strong'
+                }`}
               >
                 <span
                   className={`readout grid size-5 shrink-0 place-items-center rounded-full text-3xs font-bold ${

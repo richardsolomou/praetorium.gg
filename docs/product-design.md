@@ -32,7 +32,7 @@ The interface has these recurring patterns:
 
 On phones, the roster stays visible. The picker or loadout moves into one sheet. The battle tracker uses one column and a fixed scoreboard.
 
-Battle setup is a walked rail of sections with a persistent summary. It separates table decisions from army preparation. It shows both sides before play starts.
+Battle setup is one page in rules order, with an index to each section and a bar naming what is left beside Start battle. Sections with a default or nothing to decide fold to one line. It separates table decisions from army preparation, and anyone at the table can answer for either side. It shows both sides before play starts.
 
 Screenshots containing roster or battle data stay outside version control.
 
