@@ -64,3 +64,5 @@ just e2e-native-auth-ios
 It requires a booted iOS Simulator, Java 21, and Maestro. Set `NATIVE_AUTH_SIMULATOR_UDID` when several simulators are booted. The journey reserves the device and owns an isolated stack; it must not replace the interactive preview. Centre scroll targets before tapping: iOS accessibility can report a link as visible while the fixed application tabs cover it.
 
 The journey verifies proof exchange, authenticated redirect, receipt consumption, authenticated reload without relaunch, and notification permission/token registration. Simulator tests keep pending proofs in memory because the build lacks the production keychain entitlement. They do not prove SecureStore, real provider authentication, verified links, or push delivery; use the [signed physical-device gate](mobile-release.md#physical-device-gate) for those.
+
+Run `just e2e-native-guest-draft-ios` after changing callback delivery, WebView storage, or the visitor draft. It builds a visitor roster with two units, presses Save, signs in through the simulated Google provider, and checks the account holds the roster after the remount.

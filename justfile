@@ -134,6 +134,10 @@ e2e-native-auth-ios:
 e2e-native-offline-ios:
     NATIVE_OFFLINE_VERIFY=1 pnpm test:e2e:native-auth:ios
 
+# Build a visitor roster in the native app, sign in with a system provider, and check the account saved it
+e2e-native-guest-draft-ios:
+    NATIVE_GUEST_DRAFT_VERIFY=1 pnpm test:e2e:native-auth:ios
+
 e2e-trace *args:
     PLAYWRIGHT_TRACE=1 pnpm exec playwright test {{ args }}
 

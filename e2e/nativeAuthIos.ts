@@ -30,7 +30,9 @@ const tlsCertificate = path.join(tlsDirectory, 'localhost.crt')
 const tlsKey = path.join(tlsDirectory, 'localhost.key')
 let fixtureCookie = ''
 let fixtureUserId = ''
-let initialNativeRouteHandled = false
+const guestDraftJourney = process.env.NATIVE_GUEST_DRAFT_VERIFY === '1'
+// The guest journey starts as a visitor on Home; the others start at sign-in.
+let initialNativeRouteHandled = guestDraftJourney
 let expectedAuthenticatedDestination: URL | undefined
 let stopStack: (() => Promise<void>) | undefined
 let deviceReservation: Awaited<ReturnType<typeof reserveLocalPort>> | undefined
@@ -378,6 +380,13 @@ async function assertPushRegistered() {
   if (targets.length !== 1) throw new Error(`Expected one registered simulator push device, found ${targets.length}.`)
 }
 
+async function assertGuestRosterSaved() {
+  const rosters = await fixtureOperator().rostersByUser(fixtureUserId)
+  if (rosters.length !== 1) throw new Error(`Expected the guest roster as the account's only roster, found ${rosters.length}.`)
+  const picks = JSON.parse(rosters[0].picks) as unknown[]
+  if (picks.length !== 2) throw new Error(`Expected the guest roster's two units, found ${picks.length}.`)
+}
+
 function skipLocalPostHogUpload(projectFile: string) {
   const project = readFileSync(projectFile, 'utf8')
   const wrapper =
@@ -453,17 +462,11 @@ async function main() {
   await run('xcrun', ['simctl', 'uninstall', udid, 'gg.praetorium']).catch(() => undefined)
   await run('xcrun', ['simctl', 'install', udid, app])
   await run('xcrun', ['simctl', 'launch', udid, 'gg.praetorium'])
+  const journey = guestDraftJourney ? 'native-guest-draft-ios' : 'native-auth-ios'
   const javaHome = process.env.JAVA_HOME ?? (existsSync('/opt/homebrew/opt/openjdk@21') ? '/opt/homebrew/opt/openjdk@21' : undefined)
   await run(
     'maestro',
-    [
-      'test',
-      '--udid',
-      udid,
-      '--test-output-dir',
-      path.join(root, 'test-results', 'native-auth-ios'),
-      path.join(root, 'e2e', 'native-auth-ios.yaml'),
-    ],
+    ['test', '--udid', udid, '--test-output-dir', path.join(root, 'test-results', journey), path.join(root, 'e2e', `${journey}.yaml`)],
     {
       env: {
         ...process.env,
@@ -475,9 +478,14 @@ async function main() {
   )
   await new Promise((resolve) => setTimeout(resolve, 1_000))
   assertFlow()
-  await assertPushRegistered()
   console.log(`Native authentication refreshed without an app restart: ${events.join(' -> ')}`)
-  console.log('Simulator notification permission and device registration succeeded.')
+  if (guestDraftJourney) {
+    await assertGuestRosterSaved()
+    console.log("The visitor's unsaved roster survived system-provider sign-in and was saved to the account.")
+  } else {
+    await assertPushRegistered()
+    console.log('Simulator notification permission and device registration succeeded.')
+  }
   if (process.env.NATIVE_OFFLINE_VERIFY === '1') {
     const maestroEnvironment = {
       ...process.env,
