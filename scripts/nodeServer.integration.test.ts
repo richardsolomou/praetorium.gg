@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, expect, it } from 'vitest'
+import { localObjectStore } from '../src/server/localObjectStore'
 import { reserveLocalPort } from './lib/localStack'
 
 const require = createRequire(import.meta.url)
@@ -57,6 +58,7 @@ async function fixture(healthy = true) {
       AUTH_SQLITE_PATH: path.join(directory, 'auth.sqlite'),
       AUTH_INITIALIZE_EMPTY: 'true',
       PRAETORIUM_LOCAL_DEV: 'true',
+      LOCAL_OBJECT_DIR: path.join(directory, 'objects'),
       LOCAL_TEST_MODE: 'true',
       SPACETIME_DATABASE: 'test',
       SPACETIME_URL: 'http://127.0.0.1:1',
@@ -78,7 +80,7 @@ async function fixture(healthy = true) {
       ])
     }
   }
-  return { child, waitFor, origin: `http://127.0.0.1:${publicPort.port}` }
+  return { child, waitFor, origin: `http://127.0.0.1:${publicPort.port}`, objects: localObjectStore(path.join(directory, 'objects')) }
 }
 
 it('completes an HTTP request and exits cleanly after SIGTERM with Nitro’s real signal handler', async () => {
@@ -107,4 +109,19 @@ it('stops the public proxy and exits unsuccessfully when the application crashes
   const exited = once(child, 'close')
   await fetch(`${origin}/crash`).catch(() => {})
   expect((await exited)[0]).toBe(1)
+})
+
+it('serves a stored catalogue object from local object storage', async () => {
+  const { waitFor, origin, objects } = await fixture()
+  await objects.put('catalogue/current.json', new TextEncoder().encode('{}'))
+  await waitFor('Node server ready')
+  const response = await fetch(`${origin}/catalogue/current.json`)
+  expect(response.headers.get('x-praetorium-object-source')).toBe('local')
+})
+
+it('lets the application serve a catalogue path with no stored object', async () => {
+  const { waitFor, origin } = await fixture()
+  await waitFor('Node server ready')
+  const response = await fetch(`${origin}/catalogue/retired-ids.json?import`)
+  expect(await response.text()).toBe('health')
 })
