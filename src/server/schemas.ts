@@ -252,6 +252,9 @@ export const unitsSchema = z.object({
   waivedRules,
 })
 
+/** A player's own roster books are few, so the bound is every faction rather than a page. */
+export const datasheetOfferedBySchema = z.object({ entryId: id, catalogueIds: z.array(catalogueId).min(1).max(64) })
+
 export const globalSearchSchema = z.object({ query: z.string().trim().min(2).max(80) })
 
 /**

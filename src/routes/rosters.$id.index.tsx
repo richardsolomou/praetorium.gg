@@ -1,4 +1,5 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
+import { useMemo } from 'react'
 import { fieldedRoster } from '../client/features/rosters/fieldedRoster'
 import { RosterPage } from '../client/features/rosters/RosterPage'
 import {
@@ -15,8 +16,12 @@ import { normalisePicks } from '../client/features/rosters/rosterPicks'
 
 export const Route = createFileRoute('/rosters/$id/')({
   // A battle token is what lets an entitled battle reader open a list that is otherwise private.
-  validateSearch: (search: Record<string, unknown>): { battle?: string; league?: string; event?: string; print?: boolean } => ({
+  // `add` is a datasheet a reference page asked to add, dropped once the builder has answered.
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { battle?: string; league?: string; event?: string; print?: boolean; add?: string } => ({
     ...(typeof search.battle === 'string' ? { battle: search.battle } : {}),
+    ...(typeof search.add === 'string' && search.add && search.add.length <= 64 ? { add: search.add } : {}),
     ...(typeof search.league === 'string' ? { league: search.league } : {}),
     ...(typeof search.event === 'string' ? { event: search.event } : {}),
     ...(search.print === true || search.print === 'true' ? { print: true } : {}),
@@ -110,8 +115,16 @@ export const Route = createFileRoute('/rosters/$id/')({
 
 function RosterRoute() {
   const { id } = Route.useParams()
-  const { battle, league, event, print } = Route.useSearch()
+  const { battle, league, event, print, add } = Route.useSearch()
   const { editable, snapshot, league: leagueSnapshot } = Route.useLoaderData()
+  const navigate = Route.useNavigate()
+  const requested = useMemo(
+    () =>
+      add
+        ? { entryId: add, onSettled: () => void navigate({ search: (current) => ({ ...current, add: undefined }), replace: true }) }
+        : undefined,
+    [add, navigate],
+  )
   return (
     <RosterPage
       id={id}
@@ -122,6 +135,7 @@ function RosterRoute() {
       editable={editable}
       snapshot={snapshot}
       leagueSnapshot={leagueSnapshot}
+      requested={requested}
     />
   )
 }

@@ -59,3 +59,9 @@ export function decodeSimulatorState(value: string | undefined): SimulatorState 
     return null
   }
 }
+
+/** A link that puts one datasheet on the chosen side, with the other side still to pick. */
+export function datasheetMatchup(catalogueId: string, entryId: string, side: 'attacker' | 'defender') {
+  const unit = { catalogueId, pick: { entryId, catalogueId }, rules: {} }
+  return encodeSimulatorState({ v: 1, sides: side === 'attacker' ? [unit, null] : [null, unit], swapped: false })
+}

@@ -14,12 +14,15 @@ export function DetachmentReference({
   slug,
   detachmentId,
   faction,
+  action,
   afterHero,
 }: {
   catalogueId: string
   slug: string
   detachmentId?: string
   faction?: FactionPresentation
+  /** The page's way into the builder, beside the detachment's own chips. */
+  action?: ReactNode
   afterHero?: ReactNode
 }) {
   const { data: detachment, isPending, isError } = useQuery(detachmentDetailQuery(catalogueId, slug))
@@ -53,7 +56,7 @@ export function DetachmentReference({
         title={detachment.name}
         media={faction ? <FactionMark id={faction.slug} icon={faction.icon} /> : undefined}
         actions={
-          detachment.dispositions.length || detachment.points !== null || detachmentId ? (
+          detachment.dispositions.length || detachment.points !== null || detachmentId || action ? (
             <div className="flex flex-wrap items-center gap-1">
               {detachment.dispositions.map((disposition) => (
                 <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
@@ -64,6 +67,7 @@ export function DetachmentReference({
               {detachmentId ? (
                 <FavouriteDetachmentToggle catalogueId={catalogueId} detachmentId={detachmentId} name={detachment.name} />
               ) : null}
+              {action}
             </div>
           ) : null
         }

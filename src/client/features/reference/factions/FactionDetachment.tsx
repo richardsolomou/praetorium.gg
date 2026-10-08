@@ -3,6 +3,7 @@ import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { factionQuery } from '../../../queries'
 import { DetachmentReference } from './DetachmentReference'
+import { StartRoster } from '../../rosters/ReferenceRosterActions'
 
 export function FactionDetachment() {
   const params = useParams({ strict: false })
@@ -17,6 +18,7 @@ export function FactionDetachment() {
         slug={params.detachmentId ?? ''}
         detachmentId={detachmentId}
         faction={faction}
+        action={detachmentId ? <StartRoster faction={faction} detachmentId={detachmentId} /> : null}
         afterHero={
           <Breadcrumb>
             <BreadcrumbList className="eyebrow gap-1 text-info">

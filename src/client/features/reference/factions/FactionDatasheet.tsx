@@ -19,6 +19,8 @@ import { changeDetail } from '../../../catalogueChanges'
 import { useDateFormatting } from '../../../dates'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
 import { CollectionToggle } from './CollectionToggle'
+import { AddToRoster } from '../../rosters/ReferenceRosterActions'
+import { SimulateDatasheet } from '../../simulator/SimulateDatasheet'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from '../../../components/Keyword'
 import { ProfileRules } from '../../rosters/ProfileRules'
 import { RuleText } from '../../../components/RuleText'
@@ -56,6 +58,8 @@ export function FactionDatasheet() {
             {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
             {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
             <CollectionToggle entryId={sheet.id} name={sheet.name} />
+            <AddToRoster faction={faction} entryId={sheet.id} name={sheet.name} />
+            <SimulateDatasheet catalogueId={faction.id} entryId={sheet.id} />
           </div>
         }
       >

@@ -66,7 +66,7 @@ import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { survivingUnits } from './builder/pricePlaceholder'
-import { canAddCopy, unitLimitMessage, pickEditor, usePicks } from './builder/usePicks'
+import { canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
@@ -129,6 +129,8 @@ type Props = {
    * `onSave`'s: the one thing a visitor cannot do here is keep the list.
    */
   guest?: { onDraftChange: (draft: RosterDraft) => boolean; onSave: () => void }
+  /** A datasheet a reference page asked to add, once this roster's limits say whether it can. */
+  requested?: { entryId: string; onSettled: () => void }
 }
 
 export type FrozenRoster = {
@@ -167,6 +169,7 @@ export function ListBuilder({
   battle,
   resolvePersistedRoster = true,
   guest,
+  requested,
 }: Props) {
   const navigate = useNavigate()
   const path = useRouterState({ select: (state) => state.location.href.split('#', 1)[0] ?? state.location.pathname })
@@ -486,27 +489,48 @@ export function ListBuilder({
    * step of one: duplicating an attached character adds a pick to a unit that was
    * already there, and dropping the unit it joined leaves it standing on its own.
    */
-  const reporting = useRef<'roster_unit_added' | 'roster_unit_removed' | 'roster_unit_duplicated' | null>(null)
+  const reporting = useRef<{
+    event: 'roster_unit_added' | 'roster_unit_removed' | 'roster_unit_duplicated'
+    reference?: 'datasheet'
+  } | null>(null)
   useLayoutEffect(() => {
     editor.current = edit
-    const event = reporting.current
-    if (!event) return
+    const report = reporting.current
+    if (!report) return
     reporting.current = null
-    posthog.capture(event, { unit_count: attachedUnitCount(picks) })
+    posthog.capture(report.event, { unit_count: attachedUnitCount(picks), ...(report.reference ? { reference: report.reference } : {}) })
   }, [edit, picks])
   const drop = useCallback(
     (index: number) => {
       editor.current.drop(index)
       setReminders((current) => remindersAfterUnitRemoved(current, index))
-      reporting.current = 'roster_unit_removed'
+      reporting.current = { event: 'roster_unit_removed' }
       setSelected(null)
     },
     [setSelected],
   )
   const add = useCallback((entryId: string) => {
     editor.current.add(entryId)
-    reporting.current = 'roster_unit_added'
+    reporting.current = { event: 'roster_unit_added' }
   }, [])
+  const [requestRefusal, setRequestRefusal] = useState<string | null>(null)
+  const requestHandled = useRef(false)
+  const requestedHeld = requested ? (held[requested.entryId] ?? 0) : 0
+  const limitsKnown = Boolean(priced) && !pricePending && !priceFailed
+  useEffect(() => {
+    if (!requested || !editable || requestHandled.current) return
+    const outcome = requestedUnit(requested.entryId, requestedHeld, limitsKnown ? unitLimits : null)
+    if (outcome.kind === 'pending') return
+    requestHandled.current = true
+    if (outcome.kind === 'add') {
+      editor.current.add(requested.entryId)
+      reporting.current = { event: 'roster_unit_added', reference: 'datasheet' }
+    } else {
+      setRequestRefusal(outcome.message)
+      posthog.capture('roster_unit_add_refused', { reason: outcome.reason, reference: 'datasheet' })
+    }
+    requested.onSettled()
+  }, [editable, limitsKnown, requested, requestedHeld, unitLimits])
   const inspect = useCallback(
     (previewCatalogueId: string, entryId: string, unitName: string) => {
       const nextPreview = { catalogueId: previewCatalogueId, entryId, name: unitName }
@@ -521,7 +545,7 @@ export function ListBuilder({
   const duplicate = useCallback((index: number) => {
     editor.current.duplicate(index)
     setReminders((current) => remindersAfterUnitInserted(current, index + 1))
-    reporting.current = 'roster_unit_duplicated'
+    reporting.current = { event: 'roster_unit_duplicated' }
   }, [])
   const join = useCallback((index: number, targetKey: number | undefined) => {
     editor.current.join(index, targetKey)
@@ -954,6 +978,12 @@ export function ListBuilder({
         {shareProblem ? (
           <p role="alert" className="mt-1 text-xs text-destructive">
             Could not share the link: {shareProblem}
+          </p>
+        ) : null}
+        {requestRefusal ? (
+          <p role="alert" className="mt-1 flex items-center gap-1.5 text-xs text-discarded">
+            <TriangleAlert className="size-3 shrink-0" aria-hidden />
+            The unit was not added. {requestRefusal}
           </p>
         ) : null}
         {savedId && !frozen ? <RosterDataChanges rosterId={savedId} /> : null}

@@ -5,6 +5,7 @@ import type { RosterPick } from '../../core/roster'
 import {
   collection,
   datasheet,
+  datasheetOfferedBy,
   factionDatasheets,
   homeRosters,
   loadoutDatasheets,
@@ -29,6 +30,14 @@ export const unitsQuery = (catalogueId: string, battleSize?: number, waivedRules
     queryFn: () =>
       units({ data: { catalogueId, query: '', ...(battleSize === undefined ? {} : { battleSize }), waivedRules: [...waivedRules] } }),
     enabled: Boolean(catalogueId),
+    staleTime: Infinity,
+  })
+
+export const datasheetOfferedByQuery = (entryId: string, catalogueIds: readonly string[]) =>
+  queryOptions({
+    queryKey: ['datasheet-offered-by', entryId, catalogueIds],
+    queryFn: () => datasheetOfferedBy({ data: { entryId, catalogueIds: [...catalogueIds] } }),
+    enabled: Boolean(entryId && catalogueIds.length),
     staleTime: Infinity,
   })
 

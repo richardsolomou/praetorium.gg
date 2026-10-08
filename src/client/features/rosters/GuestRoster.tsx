@@ -72,10 +72,12 @@ export function useGuestDraft(hinted: boolean) {
 
 export function GuestRoster({
   guest,
+  requested,
   onStart,
   onDiscard,
 }: {
   guest: GuestDraft | null
+  requested?: Parameters<typeof ListBuilder>[0]['requested']
   onStart: (guest: GuestDraft) => void
   onDiscard: () => void
 }) {
@@ -167,6 +169,7 @@ export function GuestRoster({
           source: guest.draft.source ?? 'editable',
         }}
         initialFaction={faction}
+        requested={requested}
         guest={{
           onDraftChange: ({ id: _saved, ...draft }) => {
             const kept = writeGuestDraft({ ...guest, draft })

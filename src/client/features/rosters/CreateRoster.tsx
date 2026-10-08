@@ -1,39 +1,20 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { DEFAULT_PLAYER_DEFAULTS } from '../../../core/playerDefaults'
-import { saveRoster } from '../../../server/functions'
-import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
+import { playerDefaultsQuery } from '../../queries'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { EMPTY_SETUP } from './guestDraft'
-import { RosterSetupDialog, type RosterSetup, type RosterSetupFactionOption } from './RosterSetupDialog'
+import { useNewRoster } from './newRoster'
+import { RosterSetupDialog, type RosterSetupFactionOption } from './RosterSetupDialog'
 
 export function CreateRoster({ factionOptions }: { factionOptions: RosterSetupFactionOption[] }) {
   const [open, setOpen] = useState(false)
   const { data: defaults = DEFAULT_PLAYER_DEFAULTS } = useQuery(playerDefaultsQuery())
   const initial = { ...EMPTY_SETUP, visibility: defaults.rosterVisibility, limit: defaults.battleSize }
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
-  const create = useMutation({
-    onMutate: () => posthog.capture('roster_creation_submitted'),
-    onError: () => posthog.capture('roster_creation_failed', { reason: 'request' }),
-    mutationFn: (setup: RosterSetup) =>
-      saveRoster({
-        data: {
-          ...setup,
-          picks: [],
-          prep: null,
-          source: 'editable',
-        },
-      }),
-    onSuccess: async ({ id }) => {
-      await invalidateSavedRosters(queryClient)
-      await navigate({ to: '/rosters/$id', params: { id } })
-    },
-  })
+  const create = useNewRoster()
 
   return (
     <>
@@ -56,8 +37,8 @@ export function CreateRoster({ factionOptions }: { factionOptions: RosterSetupFa
         factionOptions={factionOptions}
         value={initial}
         hasUnits={false}
-        pending={create.isPending}
-        onSave={(setup) => create.mutate(setup)}
+        pending={create.pending}
+        onSave={(setup) => create.start(setup)}
       />
     </>
   )

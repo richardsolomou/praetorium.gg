@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decodeSimulatorState, encodeSimulatorState, type SimulatorState } from './simulatorState'
+import { datasheetMatchup, decodeSimulatorState, encodeSimulatorState, type SimulatorState } from './simulatorState'
 
 const state: SimulatorState = {
   v: 1,
@@ -70,4 +70,16 @@ it('retains both sides’ weapon profiles while the optimized side defends', () 
     ],
   }
   expect(decodeSimulatorState(encodeSimulatorState(withProfiles))?.sides).toEqual(withProfiles.sides)
+})
+
+describe('a datasheet opened in the simulator', () => {
+  const unit = { catalogueId: 'necrons', pick: { entryId: 'immortals', catalogueId: 'necrons' }, rules: {} }
+
+  it('attacks with the unit and leaves the defender to choose', () => {
+    expect(decodeSimulatorState(datasheetMatchup('necrons', 'immortals', 'attacker'))?.sides).toEqual([unit, null])
+  })
+
+  it('defends with the unit and leaves the attacker to choose', () => {
+    expect(decodeSimulatorState(datasheetMatchup('necrons', 'immortals', 'defender'))?.sides).toEqual([null, unit])
+  })
 })

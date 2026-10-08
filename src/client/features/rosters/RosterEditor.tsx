@@ -28,11 +28,22 @@ type Props = {
   frozen?: FrozenRoster
   variants?: ListBuilderProps['variants']
   differences?: ListBuilderProps['differences']
+  requested?: ListBuilderProps['requested']
 }
 
 const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true }
 
-export function RosterEditor({ roster, faction, editable, battle, resolvePersistedRoster = true, frozen, variants, differences }: Props) {
+export function RosterEditor({
+  roster,
+  faction,
+  editable,
+  battle,
+  resolvePersistedRoster = true,
+  frozen,
+  variants,
+  differences,
+  requested,
+}: Props) {
   return (
     <main className="flex h-full w-full min-w-0 max-w-full flex-col overflow-x-hidden">
       <ListBuilder
@@ -46,6 +57,7 @@ export function RosterEditor({ roster, faction, editable, battle, resolvePersist
         frozen={frozen}
         variants={variants}
         differences={differences}
+        requested={requested}
       />
     </main>
   )

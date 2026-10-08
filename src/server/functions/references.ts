@@ -8,7 +8,7 @@ import { describeDatasheetAbilities } from '../datasheetDescriptions'
 import { datacardJoinOutcome } from '../datasheetJoin'
 import { detachmentReference } from '../detachmentReference'
 import { unitsIn } from '../cataloguePicker'
-import { pickerUnitsFor } from '../pickerUnits'
+import { booksOffering, pickerUnitsFor } from '../pickerUnits'
 import { detachmentsOffering } from '../factionReferences'
 
 import { gameReferencesFor } from '../gameReferences'
@@ -24,6 +24,7 @@ import { selectedBattleDetachmentData } from '../battleDetachmentData'
 import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
 import {
   combatLoadoutSchema,
+  datasheetOfferedBySchema,
   datasheetSchema,
   datasheetSlugSchema,
   detachmentRulesSchema,
@@ -113,6 +114,18 @@ export const units = createServerFn({ method: 'GET' })
       const loaded = await instance.catalogueFor(data.catalogueId)
       if (!loaded) return []
       return pickerUnitsFor(loaded, await instance.rulesFor(), data.catalogueId, data.query, data.battleSize, data.waivedRules)
+    }),
+  )
+
+/** Which of these books' pickers list a datasheet, so a reference page offers only rosters that can take it. */
+export const datasheetOfferedBy = createServerFn({ method: 'GET' })
+  .validator(datasheetOfferedBySchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      cacheUntilSnapshotChanges()
+      const instance = app()
+      const loaded = await instance.catalogueFor(data.catalogueIds[0]!)
+      return loaded ? booksOffering(loaded, await instance.rulesFor(), data.entryId, data.catalogueIds) : []
     }),
   )
 
