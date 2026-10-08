@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "project": "praetorium",
+  "concepts": [
+    {
+      "name": "battle",
+      "definition": "One game between seated players: its table shape is fixed at creation, its armies are frozen copies of saved rosters, and its score, phase, round, missions and casualties are folded from its command log."
+    },
+    {
+      "name": "command log",
+      "definition": "The append-only sequence of commands a battle persists; score, phase, round, missions and casualties are folded from it, undo appends a command rather than deleting one, and a submission names the expectedSeq it extends."
+    },
+    {
+      "name": "catalogue",
+      "definition": "The community rules data rosters are priced and validated against and the public reference is drawn from: BSData definitions, MFM points, Game Datacards rules and missions, and Battlemaster terrain, read only from a verified catalogue snapshot."
+    },
+    {
+      "name": "catalogue snapshot",
+      "definition": "An immutable, checksummed package of every pinned catalogue source with its manifest, provenance and change history; the release pins one in catalogue/lock.json and current.json points at the latest verified one."
+    },
+    {
+      "name": "correction patch",
+      "definition": "An authored source correction in catalogue/patches/, minimal and source-pinned with verified provenance, applied during materialization; a stale one fails the build and leaves the previous output intact."
+    },
+    {
+      "name": "roster",
+      "definition": "A player's saved army list: RosterPick choices for one faction, detachment and battle size that rebuild, price and validate against the current catalogue, with private, unlisted or public visibility."
+    },
+    {
+      "name": "loadout",
+      "definition": "The equipment chosen for a unit's models within the option groups its datasheet offers; choices apply before nested weapon spreads and model allocations."
+    },
+    {
+      "name": "frozen army",
+      "definition": "The copy of a roster attached to a battle: selections, cards, unit keys, model counts and supported wound values frozen on the server after an ownership, price and legality recheck, so later saved-roster edits or deletion cannot rewrite the battle."
+    },
+    {
+      "name": "league",
+      "definition": "An organizer's recurring competition that runs registration, sealed rosters and entrant-started battles as a series of league events; it generates no pairings, schedules or standings."
+    },
+    {
+      "name": "league event",
+      "definition": "One registration cycle of a league: its entrants, assignments, teams and sealed rosters belong to it, at most one is open at a time, and reveal closes it irreversibly."
+    },
+    {
+      "name": "sealed roster",
+      "definition": "A league entrant's roster, repriced, validated and frozen at submission into the league event; saved-roster edits never change it, and only a deliberate replacement before reveal or an organizer unseal after it does."
+    },
+    {
+      "name": "audience",
+      "definition": "Who may watch a player's battles: anyone, friends or nobody. A battle takes the narrowest preference of everyone seated in it; a player with no preference is public."
+    },
+    {
+      "name": "practice opponent",
+      "definition": "A seat backed by an account without credentials, played from a seated player's roster; battles with one are excluded from feeds, standings and service records."
+    },
+    {
+      "name": "player",
+      "definition": "A person using Praetorium through an account: their profile, rosters, seats and record; a practice opponent is a player whose account has no credentials."
+    },
+    {
+      "name": "account",
+      "definition": "The sign-in identity in the account store: user, sign-in methods, sessions and two-factor settings; every player has exactly one."
+    },
+    {
+      "name": "faction",
+      "definition": "A playable army book from the catalogue with its datasheets, detachments and rules; library books that other books import are not factions."
+    },
+    {
+      "name": "datasheet",
+      "definition": "A unit's catalogue record: characteristic profiles, abilities, keywords, composition, wargear options and points, joined from the catalogue's sources."
+    },
+    {
+      "name": "detachment",
+      "definition": "A rule set a roster buys within its faction; each one bought adds its detachment points, enhancements and stratagems, and the roster chooses one force disposition among those they offer."
+    },
+    {
+      "name": "unit",
+      "definition": "One datasheet selection in a roster with its model count, loadout and enhancement; in a battle, a frozen army's unit carries wounds and destruction."
+    },
+    {
+      "name": "wargear",
+      "definition": "The equipment a datasheet offers, priced or free, that a loadout chooses."
+    },
+    {
+      "name": "enhancement",
+      "definition": "A detachment upgrade given to an eligible character unit, priced and limited by the force's construction rules."
+    },
+    {
+      "name": "stratagem",
+      "definition": "A detachment or core rule a side spends command points on during a battle; Praetorium records its use and does not adjudicate its target."
+    },
+    {
+      "name": "mission pack",
+      "definition": "A published set of missions, twists, deployments and terrain layouts from Game Datacards that a battle plays."
+    },
+    {
+      "name": "force disposition",
+      "definition": "The one disposition a roster chooses among those its bought detachments offer; a battle snapshot and an export keep only the chosen one."
+    },
+    {
+      "name": "side",
+      "definition": "One half of a battle's table: one or two seated players sharing turns, command points, victory points, missions and stratagems."
+    },
+    {
+      "name": "turn",
+      "definition": "One side's part of a battle round, folded from the command log; reminders and prompts are scoped to it."
+    },
+    {
+      "name": "round",
+      "definition": "A battle round in which each side takes one turn; round boundaries belong to no phase or turn."
+    },
+    {
+      "name": "ability",
+      "definition": "A named rule on a datasheet, wargear profile or detachment, joined from the catalogue's sources; Praetorium shows its text and models only the effects it supports."
+    },
+    {
+      "name": "mission",
+      "definition": "A scoring objective a battle plays from its mission pack: a primary mission the table shares or a secondary mission a side holds, scored through the command log."
+    },
+    {
+      "name": "seat",
+      "definition": "A player's place on a side of a battle; creation seats the whole table at once, reads never take a seat, and seated players operate the battle."
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { siteCard } from '../../client/linkPreview'
-import { previewResponse } from '../../server/previewImage'
+import { siteCard } from '../../../client/linkPreview'
+import { previewResponse } from '../../../server/previewImage'
 
 const DAY_SECONDS = 86_400
 

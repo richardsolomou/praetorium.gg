@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { app } from '../../server/app'
-import { combatLoadoutCandidates } from '../../server/combatLoadouts'
-import { requireMutationOrigin } from '../../server/mutationOrigin'
-import { combatLoadoutSchema } from '../../server/schemas'
+import { app } from '../../../server/app'
+import { combatLoadoutCandidates } from '../../../server/combatLoadouts'
+import { requireMutationOrigin } from '../../../server/mutationOrigin'
+import { combatLoadoutSchema } from '../../../server/schemas'
 
 export const Route = createFileRoute('/api/simulator/optimize')({
   server: {

@@ -6,7 +6,12 @@ export default defineConfig({
   assetsInclude: ['**/*.wasm'],
   test: {
     environment: 'node',
-    include: ['src/**/*.integration.test.ts', 'scripts/**/*.integration.test.ts', 'mobile/src/**/*.integration.test.ts'],
+    include: [
+      'src/**/*.integration.test.ts',
+      'scripts/**/*.integration.test.ts',
+      'mobile/src/**/*.integration.test.ts',
+      'spacetimedb/src/**/*.integration.test.ts',
+    ],
     pool: 'forks',
   },
 })

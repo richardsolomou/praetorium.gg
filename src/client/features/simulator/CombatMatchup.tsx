@@ -64,7 +64,7 @@ export type CombatantSnapshot = {
   companions?: readonly CombatMember[]
 }
 type Phase = CombatOptions['phase']
-type Scope = Phase | 'all'
+type PhaseScope = Phase | 'all'
 export type CombatRequest = Record<Phase, CombatInput | null> & { sequenceError?: string }
 type CombatPhaseAnswer = { result?: CombatResult; error?: string } | null
 export type CombatAnswer = Record<Phase, CombatPhaseAnswer> & { combined?: CombatPhaseAnswer }
@@ -295,7 +295,7 @@ export function CombatMatchup({
       : null
   }
   const modifierChoiceHasEffect = (
-    scope: Scope,
+    scope: PhaseScope,
     source: 'attack' | 'weapon' | 'target' | 'feelNoPain',
     field: string,
     candidate: unknown,
@@ -339,7 +339,12 @@ export function CombatMatchup({
       return JSON.stringify(current) !== JSON.stringify(next)
     })
   }
-  const modifierHasEffect = (scope: Scope, source: 'attack' | 'weapon' | 'target' | 'feelNoPain', field: string, onlyPhase?: Phase) => {
+  const modifierHasEffect = (
+    scope: PhaseScope,
+    source: 'attack' | 'weapon' | 'target' | 'feelNoPain',
+    field: string,
+    onlyPhase?: Phase,
+  ) => {
     const selected =
       source === 'weapon'
         ? adjustments.weapons?.[scope]?.[field as keyof WeaponAdjustment]
@@ -350,7 +355,7 @@ export function CombatMatchup({
             : adjustments[scope]?.[field as keyof Omit<CombatOptions, 'phase'>]
     return modifierChoiceHasEffect(scope, source, field, selected, onlyPhase)
   }
-  const noEffectReason = (scope: Scope, source: 'attack' | 'weapon' | 'target' | 'feelNoPain', field: string, candidate?: unknown) => {
+  const noEffectReason = (scope: PhaseScope, source: 'attack' | 'weapon' | 'target' | 'feelNoPain', field: string, candidate?: unknown) => {
     const affected = scope === 'all' ? phases.map(([phase]) => phase) : [scope]
     const active = affected.flatMap((phase) => (scenarios[phase] ? [scenarios[phase]] : []))
     if (
@@ -500,20 +505,26 @@ export function CombatMatchup({
     }),
     [optimizationKey],
   )
-  const change = <K extends keyof CombatOptions>(scope: Scope, name: K, value: CombatOptions[K] | undefined) =>
+  const change = <K extends keyof CombatOptions>(scope: PhaseScope, name: K, value: CombatOptions[K] | undefined) =>
     setAdjustments((current) => ({ ...current, [scope]: { ...current[scope], [name]: value } }))
-  const changeWeapon = <K extends keyof WeaponAdjustment>(scope: Scope, name: K, value: WeaponAdjustment[K]) =>
+  const changeWeapon = <K extends keyof WeaponAdjustment>(scope: PhaseScope, name: K, value: WeaponAdjustment[K]) =>
     setAdjustments((current) => ({ ...current, weapons: { ...current.weapons, [scope]: { ...current.weapons?.[scope], [name]: value } } }))
   const changeTarget = <K extends keyof TargetAdjustment>(name: K, value: TargetAdjustment[K]) =>
     setAdjustments((current) => ({ ...current, target: { ...current.target, [name]: value } }))
-  const weaponAdjustment = (scope: Scope) => adjustments.weapons?.[scope] ?? {}
-  const activeCount = (scope: Scope) =>
+  const weaponAdjustment = (scope: PhaseScope) => adjustments.weapons?.[scope] ?? {}
+  const activeCount = (scope: PhaseScope) =>
     [...Object.values(adjustments[scope] ?? {}), ...Object.values(weaponAdjustment(scope))].filter(
       (value) => value !== undefined && value !== 'direct',
     ).length
   const phaseSummary = (phase: Phase) => {
     const applied: string[] = []
-    const add = (scope: Scope, source: 'attack' | 'weapon' | 'target' | 'feelNoPain', field: string, label: string, value: unknown) => {
+    const add = (
+      scope: PhaseScope,
+      source: 'attack' | 'weapon' | 'target' | 'feelNoPain',
+      field: string,
+      label: string,
+      value: unknown,
+    ) => {
       if (value === undefined || value === null) return
       if (modifierHasEffect(scope, source, field, phase)) applied.push(label)
     }

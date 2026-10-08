@@ -13,10 +13,10 @@ export type Award = {
   group: string | null
   cumulative: boolean
   criteria: string | null
-  trigger: Trigger
+  trigger: AwardTrigger
 }
 
-export type Trigger = {
+export type AwardTrigger = {
   timing: string | null
   phase: string | null
   playerTurn: string | null

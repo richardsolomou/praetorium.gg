@@ -1,0 +1,29 @@
+{
+  "name": "praetorium",
+  "language": "typescript",
+  "ignore": ["src/components/ui", "src/spacetime/generated", "drizzle-auth", "patches"],
+  "wellKnown": [
+    "Praetorium",
+    "Warhammer",
+    "Games Workshop",
+    "BSData",
+    "Game Datacards",
+    "Battlemaster",
+    "SpacetimeDB",
+    "Better Auth",
+    "Expo",
+    "App Store Connect",
+    "Google Play",
+    "Dokploy",
+    "Cloudflare",
+    "Discord",
+    "PostHog",
+    "Git",
+    "Markdown",
+    "React Query",
+    "Play Console"
+  ],
+  "test": "pnpm exec vitest run -t {filter}",
+  "testMatch": "Tests +[1-9][0-9]* passed",
+  "testJson": "pnpm exec vitest run -t {filter} --reporter=json --outputFile={out}"
+}

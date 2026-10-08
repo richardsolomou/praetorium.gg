@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { Route as battleImage } from '../routes/api/previews.battles.$token'
-import { Route as rosterImage } from '../routes/api/previews.rosters.$id'
-import { Route as playerImage } from '../routes/api/previews.users.$userId'
-import { Route as datasheetImage } from '../routes/api/previews.datasheets.$catalogueId.$slug'
-import { Route as detachmentImage } from '../routes/api/previews.detachments.$catalogueId.$slug'
+import { Route as battleImage } from '../routes/api/previews/battles.$token'
+import { Route as rosterImage } from '../routes/api/previews/rosters.$id'
+import { Route as playerImage } from '../routes/api/previews/users.$userId'
+import { Route as datasheetImage } from '../routes/api/previews/datasheets.$catalogueId.$slug'
+import { Route as detachmentImage } from '../routes/api/previews/detachments.$catalogueId.$slug'
 
 const { service } = vi.hoisted(() => ({
   service: {
