@@ -35,6 +35,25 @@ test('a squad grows from its unit editor', async ({ page }) => {
   await page.screenshot({ path: 'test-results/unit-editor-model-count.png', fullPage: true })
 })
 
+test('a squad jumps straight to a chosen size', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Immortals')
+  await page.locator('[data-unit="Immortals"]').click({ position: { x: 4, y: 4 } })
+  const total = page.locator('[data-stat="points"]')
+  await expect(total).toHaveText(/^\d+\/2000$/)
+  const startingPoints = Number((await total.innerText()).split('/')[0])
+
+  await page.getByRole('combobox', { name: 'Immortals models' }).click()
+  await page.getByRole('option', { name: '10', exact: true }).click()
+  await expect(page.getByLabel('Immortals models')).toHaveText('10')
+  await expect(page.getByRole('button', { name: 'More models in Immortals' })).toBeDisabled()
+  await expect.poll(async () => Number((await total.innerText()).split('/')[0])).toBeGreaterThan(startingPoints)
+
+  await page.getByRole('combobox', { name: 'Immortals models' }).press('Enter')
+  await page.getByRole('option', { name: '7', exact: true }).press('Enter')
+  await expect(page.getByLabel('Immortals models')).toHaveText('7')
+})
+
 test('loadout controls keep their shape while resized constraints load', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')

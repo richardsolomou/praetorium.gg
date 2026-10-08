@@ -1,8 +1,10 @@
 import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Select as SelectPrimitive } from '@base-ui/react/select'
+import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
 import type { OnboardingTarget } from '../onboardingTargets'
 
-/** Minus, the number, plus, for counts changed one at a time. */
+/** Minus, the number, plus; given choices, the number also picks a count directly. */
 export function Stepper({
   label,
   count,
@@ -11,6 +13,8 @@ export function Stepper({
   onboarding,
   onAdd,
   onRemove,
+  choices,
+  onChoose,
 }: {
   label: string
   count: number | null
@@ -19,13 +23,34 @@ export function Stepper({
   onboarding?: OnboardingTarget
   onAdd?: () => void
   onRemove?: () => void
+  choices?: readonly number[]
+  onChoose?: (count: number) => void
 }) {
   return (
     <span data-onboarding={onboarding} className="grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
       <CountButton label={`Fewer ${label}`} decrease onClick={onRemove} />
-      <span className="readout text-center text-sm tabular-nums" aria-label={countLabel} aria-busy={loading}>
-        {loading ? <span aria-hidden className="inline-block h-4 w-5 animate-pulse bg-muted align-middle" /> : (count ?? '—')}
-      </span>
+      {count !== null && !loading && choices?.length && onChoose ? (
+        <Select value={count} onValueChange={(chosen) => chosen !== null && chosen !== count && onChoose(chosen)}>
+          {/* The generated trigger always appends a chevron, which leaves no room in the stepper's narrow middle cell. */}
+          <SelectPrimitive.Trigger
+            aria-label={countLabel}
+            className="readout flex h-6 w-8 items-center justify-center rounded-sm border border-edge-strong text-sm transition-colors outline-none hover:bg-input/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <SelectValue className="flex-none">{count}</SelectValue>
+          </SelectPrimitive.Trigger>
+          <SelectContent className="min-w-16">
+            {choices.map((choice) => (
+              <SelectItem key={choice} value={choice} className="readout">
+                {choice}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <span className="readout text-center text-sm leading-6" aria-label={countLabel} aria-busy={loading}>
+          {loading ? <span aria-hidden className="inline-block h-4 w-5 animate-pulse bg-muted align-middle" /> : (count ?? '—')}
+        </span>
+      )}
       <CountButton label={`More ${label}`} onClick={onAdd} />
     </span>
   )

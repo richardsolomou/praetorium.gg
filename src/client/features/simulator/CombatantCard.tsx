@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { MAX_COMBAT_MODELS } from '../../../core/combat'
+import { modelCountChoices } from '../../../core/unitSize'
 import { FactionLabel, FactionMark } from '../../components/FactionMark'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { combatLoadoutsQuery, combatUnitsQuery, factionIndexQuery, loadoutDatasheetsQuery } from '../../queries'
@@ -294,6 +295,12 @@ export function CombatantCard({
                                 : edit.resize(pickIndex, (count) => Math.min(maximum, nextSize(count, 1)))
                           : undefined
                       }
+                      choices={
+                        unit && unit.entryId === pick?.entryId
+                          ? modelCountChoices(battleUnit ? { min: 1, max: maximum } : { ...unit.size, max: maximum })
+                          : undefined
+                      }
+                      onChoose={(count) => (battleUnit ? combatant.setHealth({ models: count }) : edit.resize(pickIndex, () => count))}
                     />
                   ) : (
                     <span
