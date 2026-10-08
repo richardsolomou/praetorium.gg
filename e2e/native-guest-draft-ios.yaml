@@ -1,0 +1,64 @@
+appId: gg.praetorium
+---
+- extendedWaitUntil:
+    visible: Rosters
+    timeout: 30000
+- tapOn: Rosters
+- extendedWaitUntil:
+    visible: Build a roster
+    timeout: 30000
+- tapOn: 'Pick a faction\s*'
+- tapOn: Search factions…
+- inputText: Necrons
+# The option's accessibility frame runs past the list, so tap its first row rather than its centre.
+- tapOn:
+    text: Necrons
+    below: XENOS
+    point: 50%,5%
+- scrollUntilVisible:
+    element:
+      text: Select Awakened Dynasty
+    direction: DOWN
+    centerElement: true
+- tapOn: Select Awakened Dynasty
+- scrollUntilVisible:
+    element:
+      text: '(?i)Take and Hold\s*'
+    direction: DOWN
+    centerElement: true
+- tapOn: '(?i)Take and Hold\s*'
+- scrollUntilVisible:
+    element:
+      text: Start building
+    direction: DOWN
+    centerElement: true
+- tapOn: Start building
+- tapOn: Add units
+- tapOn: Add a unit
+- inputText: Necron Warriors
+- tapOn: Add Necron Warriors
+- tapOn: Empty the picker filter
+- tapOn: Add a unit
+- inputText: Immortals
+- tapOn: Add Immortals
+- tapOn: Close
+- takeScreenshot: native-guest-draft-built
+- tapOn: Save roster
+- extendedWaitUntil:
+    visible: Save your roster
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: Continue with Google
+    direction: DOWN
+    centerElement: true
+- tapOn: Continue with Google
+- tapOn:
+    text: Continue
+    optional: true
+- extendedWaitUntil:
+    visible: NECRON WARRIORS
+    timeout: 30000
+- assertVisible: IMMORTALS
+- assertNotVisible: Save the roster you started?
+- takeScreenshot: native-guest-draft-saved
