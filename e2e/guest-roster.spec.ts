@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { uniqueName } from './account'
+import { signUp, uniqueName } from './account'
 import { add } from './builder.harness'
 
 /** A visitor starts a Necrons list on the builder, with no account behind them. */
@@ -30,8 +30,8 @@ function recordSaves(page: Page) {
  * Trying the builder is the one thing a visitor may make here.
  *
  * The list is priced by the same server functions an account's list is, and it is
- * kept in the tab rather than anywhere else, so the only request that ever stores it
- * is the one made after the visitor has signed up.
+ * kept in the browser rather than anywhere else, so the only request that ever stores
+ * it is the one made after the visitor has signed up.
  */
 test('a visitor builds and prices a list without saving it', async ({ page }) => {
   const saves = recordSaves(page)
@@ -44,21 +44,36 @@ test('a visitor builds and prices a list without saving it', async ({ page }) =>
   expect(saves).toEqual([])
 })
 
-test("a visitor's list survives a reload of its tab", async ({ page }) => {
+const DRAFT_KEY = 'praetorium.guest-draft'
+
+test("a visitor's list survives a reload and a new tab", async ({ page, context }) => {
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
   // Edits are kept once they settle, so the reload waits for the stored draft to hold the unit.
-  await expect
-    .poll(() => page.evaluate(() => sessionStorage.getItem('praetorium.workspace-state:/rosters:guest-draft') ?? ''))
-    .toContain('"picks":[{')
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) ?? '', DRAFT_KEY)).toContain('"picks":[{')
 
   // The server cannot see the draft, only the cookie saying there is one, so its frame is the builder rather than the setup.
   const firstFrame = await (await page.request.get('/rosters')).text()
   expect(firstFrame).toContain('data-roster-builder')
   expect(firstFrame).not.toContain('aria-label="Create roster"')
   await page.reload()
-
   await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
+
+  const later = await context.newPage()
+  await later.goto('/rosters')
+  await expect(later.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
+})
+
+test("a visitor's list follows an edit made in another tab", async ({ page, context }) => {
+  await startGuestRoster(page)
+  await add(page, 'Necron Warriors')
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) ?? '', DRAFT_KEY)).toContain('"picks":[{')
+  const other = await context.newPage()
+  await other.goto('/rosters')
+  await other.waitForLoadState('networkidle')
+  await add(other, 'Immortals')
+
+  await expect(page.locator('[data-unit="Immortals"]').first()).toBeVisible()
 })
 
 test('a guest builder stays in the mobile viewport when storage refuses the draft', async ({ page }) => {
@@ -72,7 +87,7 @@ test('a guest builder stays in the mobile viewport when storage refuses the draf
   await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await page.evaluate(() => {
-    Object.defineProperty(sessionStorage, 'setItem', {
+    Object.defineProperty(localStorage, 'setItem', {
       value: () => {
         throw new DOMException('Storage full', 'QuotaExceededError')
       },
@@ -107,18 +122,47 @@ test('signing up keeps the list a visitor built', async ({ page }) => {
   expect(saves).toHaveLength(1)
 })
 
+test('signing in later asks before saving a list left on the device', async ({ page }) => {
+  const saves = recordSaves(page)
+  await startGuestRoster(page)
+  await add(page, 'Necron Warriors')
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) ?? '', DRAFT_KEY)).toContain('"picks":[{')
+  await signUp(page, uniqueName('Returning'))
+
+  await page.goto('/rosters')
+  await expect(page.getByRole('heading', { name: 'Save the roster you started?' })).toBeVisible()
+  expect(saves).toEqual([])
+  await page.getByRole('button', { name: 'Save it' }).click()
+  await page.waitForURL(/\/rosters\/[^/]+$/)
+  await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
+})
+
+test('a list left on the device can be discarded after signing in', async ({ page }) => {
+  await startGuestRoster(page)
+  await add(page, 'Necron Warriors')
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) ?? '', DRAFT_KEY)).toContain('"picks":[{')
+  await signUp(page, uniqueName('Returning'))
+
+  await page.goto('/rosters')
+  await page.getByRole('button', { name: 'Discard it' }).click()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
+})
+
 test("a visitor's list for an army the data no longer holds can be started again", async ({ page }) => {
   await page.goto('/rosters')
   await page.waitForLoadState('networkidle')
-  await page.evaluate(() =>
-    sessionStorage.setItem(
-      'praetorium.workspace-state:/rosters:guest-draft',
-      JSON.stringify({
-        version: 1,
-        id: 'guest-missing-army',
-        draft: { name: '', catalogueId: 'no-such-faction', detachmentIds: [], disposition: null, limit: 2000, picks: [], prep: null },
-      }),
-    ),
+  await page.evaluate(
+    (key) =>
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          version: 1,
+          id: 'guest-missing-army',
+          draft: { name: '', catalogueId: 'no-such-faction', detachmentIds: [], disposition: null, limit: 2000, picks: [], prep: null },
+        }),
+      ),
+    DRAFT_KEY,
   )
   await page.reload()
 
@@ -171,7 +215,7 @@ test('saving a guest roster does not discard it when browser storage is unavaila
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
   await page.evaluate(() =>
-    Object.defineProperty(sessionStorage, 'setItem', {
+    Object.defineProperty(localStorage, 'setItem', {
       value: () => {
         throw new DOMException('Storage unavailable', 'QuotaExceededError')
       },

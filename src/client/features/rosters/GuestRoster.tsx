@@ -15,10 +15,12 @@ import {
   EMPTY_SETUP,
   GUEST_PATH,
   type GuestDraft,
+  guestSaveRequested,
   markGuestDraft,
   newGuestDraft,
   readGuestDraft,
   setGuestDraftOpen,
+  watchGuestDraft,
   writeGuestDraft,
 } from './guestDraft'
 import { ListBuilder } from './ListBuilder'
@@ -30,26 +32,39 @@ const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabl
 /**
  * A visitor's list, read once the page is in the browser, the only place it lives.
  *
- * The server cannot see session storage, so it draws the page as if there were no
- * draft, which is what almost every visit is; a visitor coming back to one moves on
- * to it as soon as the page mounts.
+ * The server cannot see browser storage, so it draws the page from the cookie hint;
+ * a visitor coming back to a list moves on to it as soon as the page mounts. Another
+ * tab's edit or claim replaces this tab's copy, and `revision` counts those so the
+ * builder can start again from the list that is now kept.
  */
 export function useGuestDraft(hinted: boolean) {
   const router = useRouter()
-  const [state, setState] = useState<{ ready: boolean; guest: GuestDraft | null }>({ ready: false, guest: null })
+  const [state, setState] = useState<{ ready: boolean; guest: GuestDraft | null; revision: number }>({
+    ready: false,
+    guest: null,
+    revision: 0,
+  })
   useEffect(() => {
     const guest = readGuestDraft()
     setGuestDraftOpen(Boolean(guest))
-    setState({ ready: true, guest })
+    setState((current) => ({ ...current, ready: true, guest }))
     // A cookie from another tab, or a draft from before there was one, is set right for the next refresh.
     if (Boolean(guest) !== hinted) {
       markGuestDraft(Boolean(guest))
       void router.invalidate()
     }
   }, [hinted, router])
+  useEffect(
+    () =>
+      watchGuestDraft((guest) => {
+        setGuestDraftOpen(Boolean(guest))
+        setState((current) => ({ ready: true, guest, revision: current.revision + 1 }))
+      }),
+    [],
+  )
   const set = (guest: GuestDraft | null) => {
     setGuestDraftOpen(Boolean(guest))
-    setState({ ready: true, guest })
+    setState((current) => ({ ...current, ready: true, guest }))
     void router.invalidate()
   }
   return [state, set] as const
@@ -77,7 +92,7 @@ export function GuestRoster({
         <PageHeader
           eyebrow="Roster builder"
           title="Build a roster"
-          description="Pick an army and start adding units. Sign up when you want to keep the list."
+          description="Pick an army and start adding units. This device keeps your list until you sign in to save it."
           actions={
             <Link to="/sign-in" search={{ next: GUEST_PATH }} className={buttonVariants({ variant: 'outline' })}>
               Sign in
@@ -167,17 +182,22 @@ export function GuestRoster({
   )
 }
 
+const unitCount = (guest: GuestDraft) => attachedUnitCount(guest.draft.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo })))
+
 /**
  * Saving a visitor's list to the account they have just signed in to.
  *
- * The list is sent under the id it was built with, so a claim that reloads halfway,
- * or runs in two tabs, updates the one row rather than making another. The draft is
- * kept until the save has landed, and only then forgotten.
+ * Arriving from the save prompt saves it at once; a list found on the device later,
+ * perhaps left by someone else, is saved only when the player says so. The list is
+ * sent under the id it was built with, so a claim that reloads halfway, or runs in
+ * two tabs, updates the one row rather than making another. The draft is kept until
+ * the save has landed, and only then forgotten.
  */
 export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDiscard: () => void }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const started = useRef(false)
+  const [confirming, setConfirming] = useState(() => !guestSaveRequested(guest))
   const claim = useMutation({
     onError: () => posthog.capture('guest_roster_save_failed', { reason: 'request' }),
     mutationFn: async (draft: GuestDraft) => {
@@ -185,20 +205,46 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
       return saveRoster({ data: { ...claimInput(draft), visibility: defaults.rosterVisibility } })
     },
     onSuccess: async ({ id }, draft) => {
-      posthog.capture('guest_roster_saved', {
-        unit_count: attachedUnitCount(draft.draft.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
-      })
+      posthog.capture('guest_roster_saved', { unit_count: unitCount(draft) })
       clearGuestDraft()
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id }, replace: true })
     },
   })
   useEffect(() => {
-    if (started.current) return
+    if (confirming || started.current) return
     started.current = true
     claim.mutate(guest)
-  }, [claim, guest, navigate])
+  }, [claim, confirming, guest])
 
+  const discard = (
+    <Button
+      variant="outline"
+      onClick={() => {
+        clearGuestDraft()
+        onDiscard()
+      }}
+    >
+      Discard it
+    </Button>
+  )
+  if (confirming) {
+    const units = unitCount(guest)
+    return (
+      <PageState
+        headingLevel={1}
+        eyebrow="Roster builder"
+        title="Save the roster you started?"
+        explanation={`${units ? `You built a roster with ${units} ${units === 1 ? 'unit' : 'units'}` : 'You started a roster'} on this device before signing in. Save it to your rosters, or discard it.`}
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button onClick={() => setConfirming(false)}>Save it</Button>
+            {discard}
+          </div>
+        }
+      />
+    )
+  }
   if (!claim.isError) return <BuilderFrame />
   return (
     <PageState
@@ -211,15 +257,7 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
           <Button disabled={claim.isPending} onClick={() => claim.mutate(guest)}>
             Try again
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              clearGuestDraft()
-              onDiscard()
-            }}
-          >
-            Discard it
-          </Button>
+          {discard}
         </div>
       }
     />

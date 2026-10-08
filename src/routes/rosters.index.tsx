@@ -28,7 +28,7 @@ export const Route = createFileRoute('/rosters/')({
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
     // A visitor's page is the roster setup, which offers every faction.
     if (!me) await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
-    // Whether this tab holds a visitor's list, so the first frame is the builder or the claim it becomes.
+    // Whether this browser holds a visitor's list, so the first frame is the builder or the claim it becomes.
     return { guestDraft: requestCookie(GUEST_DRAFT_COOKIE) === '1', sort: keptRosterSort(requestCookie(ROSTER_SORT_COOKIE)) }
   },
   head: ({ match }) =>
@@ -45,16 +45,16 @@ export const Route = createFileRoute('/rosters/')({
  * A player's library, or for a visitor the builder in its place.
  *
  * A visitor has no lists to read, so the page they reach is the one they can use:
- * the builder, with the list kept in the tab. Signing up comes back here, and a
- * player arriving with a visitor's list still in the tab has it saved first.
+ * the builder, with the list kept on the device. Signing up comes back here, and a
+ * player arriving with a visitor's list still on the device has it saved first.
  */
 function RosterLibraryRoute() {
   const search = Route.useSearch()
   const { guestDraft: hinted, sort } = Route.useLoaderData()
   const { data: me } = useQuery(meQuery())
-  const [{ ready, guest }, setGuest] = useGuestDraft(hinted)
+  const [{ ready, guest, revision }, setGuest] = useGuestDraft(hinted)
   if (!ready && hinted) return <BuilderFrame />
-  if (me && guest) return <ClaimGuestRoster guest={guest} onDiscard={() => setGuest(null)} />
+  if (me && guest) return <ClaimGuestRoster key={guest.id} guest={guest} onDiscard={() => setGuest(null)} />
   if (me) return <RosterLibraryPage search={search} sort={sort} />
-  return <GuestRoster guest={guest} onStart={setGuest} onDiscard={() => setGuest(null)} />
+  return <GuestRoster key={revision} guest={guest} onStart={setGuest} onDiscard={() => setGuest(null)} />
 }

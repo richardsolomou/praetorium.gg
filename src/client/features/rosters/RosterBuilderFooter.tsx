@@ -105,7 +105,7 @@ export function RosterBuilderFooter({
         </span>
       </div>
       {onSave && hasUnits ? (
-        <p className="mt-1 text-right text-2xs text-dim">Create a free account or sign in to keep this roster.</p>
+        <p className="mt-1 text-right text-2xs text-dim">Kept on this device. Create a free account or sign in to save it.</p>
       ) : null}
       {editable && saveFailed ? (
         <div
