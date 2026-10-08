@@ -28,8 +28,14 @@ test('reserve choices over the points limit are disabled with the reason beside 
   await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
   await chooseBattlefield(page)
   await setupStep(page, 'Reserves')
+  // Each side's reserves read as one line until they are opened.
+  const reserves = page.getByRole('region', { name: 'Reserves' })
+  await reserves
+    .getByRole('button', { name: /^Change reserves for / })
+    .first()
+    .click()
 
-  const army = page.locator('article').first()
+  const army = reserves.locator('article').first()
   await expect(army.getByText('0/500 reserve points')).toBeVisible()
   await army.getByRole('button', { name: 'Start Monolith in Strategic reserves', exact: true }).click()
   await expect(army.getByText('420/500 reserve points')).toBeVisible()
