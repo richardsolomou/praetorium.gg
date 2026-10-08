@@ -37,6 +37,7 @@ import {
   type RosterReminder,
 } from '../../../core/reminders'
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
+import { modelCountChoices } from '../../../core/unitSize'
 import type { Datasheet } from '../../../contracts/catalogue'
 import { copyRoster, exportRoster, saveRoster } from '../../../server/functions'
 import { shareLink } from '../../nativeBridge'
@@ -1149,6 +1150,8 @@ export function ListBuilder({
                                 edit.resize(selected, (models) => optimisticUnit.size.options?.find((size) => size > models) ?? models + 1)
                             : undefined
                         }
+                        choices={modelCountChoices(optimisticUnit.size)}
+                        onChoose={(models) => selected !== null && edit.resize(selected, () => models)}
                       />
                     ) : (
                       <span className="chip normal-case">{modelCount(optimisticUnit.size.models)}</span>

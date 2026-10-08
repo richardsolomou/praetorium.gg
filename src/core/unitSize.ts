@@ -35,6 +35,20 @@ export function modelCountOf(selection: Selection, index: CatalogueIndex): numbe
 /** Whether the data lets a player change how many models this unit fields. */
 export const isResizable = (size: UnitSize) => size.path.length > 0 && size.max > size.min
 
+/** Beyond this a list is a scroll rather than a choice, and some data states no upper bound at all. */
+const LISTED_MODEL_COUNTS = 30
+
+/** The model counts a player can pick directly; empty when there is nothing to choose or too much to list. */
+export function modelCountChoices({ min, max, options }: { min: number; max: number; options?: readonly number[] }): number[] {
+  const span = max - min + 1
+  const choices = options
+    ? options.filter((count) => count >= min && count <= max)
+    : span <= LISTED_MODEL_COUNTS
+      ? Array.from({ length: span }, (_, offset) => min + offset)
+      : []
+  return choices.length > 1 ? choices : []
+}
+
 export function sizeOf(base: Selection, index: CatalogueIndex): UnitSize {
   const { models, groups } = survey(base, index, [])
   const total = models + groups.reduce((sum, group) => sum + group.total, 0)

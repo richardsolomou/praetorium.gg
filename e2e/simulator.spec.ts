@@ -381,6 +381,10 @@ test('shared weapon modes count every carrier and indirect shooting applies its 
   await expect(melee).toHaveAttribute('aria-busy', 'false')
   await expect(melee).not.toContainText('could not be matched')
   await melee.screenshot({ path: 'test-results/simulator-shared-weapon-modes.png' })
+  await page.getByRole('combobox', { name: 'Attacker models', exact: true }).click()
+  await page.getByRole('option', { name: '6', exact: true }).click()
+  await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('6')
+  await expect(page.getByRole('button', { name: 'More attacker models', exact: true })).toBeDisabled()
 
   await chooseCombatUnit(page, 'Attacker', 'Death Guard', 'Plagueburst Crawler')
   await modifierTab(page, 'Shooting')
@@ -1668,7 +1672,7 @@ for (const width of [320, 690, 1024]) {
       }
       if (side === 'Attacker') await expect(actions.getByRole('button', { name: 'Optimize', exact: true })).toBeEnabled()
       for (const row of await card.locator('[data-combat-member]').all()) {
-        const picker = await row.getByRole('combobox').boundingBox()
+        const picker = await row.getByRole('combobox', { name: / unit$/ }).boundingBox()
         const loadout = row.getByRole('button', { name: /loadout/i })
         await expect(loadout).toBeEnabled()
         const gear = await loadout.boundingBox()
