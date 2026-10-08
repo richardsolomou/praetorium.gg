@@ -24,6 +24,8 @@ Before submission, check [Apple's SDK minimums](https://developer.apple.com/news
 
 The iOS delivery workflow passes the GitHub App Store Connect key to EAS for builds and metadata sync. It does not need a separate App Store Connect key stored in Expo.
 
+The embedded Watch application uses `gg.praetorium.watch` and its own App Store provisioning profile, sharing the phone's distribution certificate. `mobile/app.json` declares `PraetoriumWatch` to EAS before prebuild so managed builds collect both targets' credentials. Run the API-key-authenticated `credentials:configure-build` command above for every new signable target before merging; frozen delivery cannot create a missing profile. EAS applies the remote build number to both targets. The Watch target includes its own privacy manifest for local UserDefaults preferences.
+
 ## Build and upload
 
 Run the repository gate first:

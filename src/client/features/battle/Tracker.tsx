@@ -32,6 +32,8 @@ import type { Command } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView } from '../../../core/battleView'
 import { remindersDueAt, reminderTimingLabel, type ReminderTiming, type RosterReminder } from '../../../core/reminders'
+import { setNativeWatchBattle, useNativeWatchBattleAvailability } from '../../nativeBridge'
+import { watchBattle } from './watchBattle'
 import { BattleMenu } from './BattleMenu'
 import { ReminderDialog } from './ReminderDialog'
 import { DrawDialog, type DrawSelection, type WhenDrawn } from './DrawDialog'
@@ -267,6 +269,43 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     [cardsByKey],
   )
   const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(key), [cardsByKey])
+  const watchAvailable = useNativeWatchBattleAvailability()
+  useEffect(() => {
+    if (!watchAvailable) return
+    let current = true
+    const publish = () => {
+      const held = queryClient.getQueryData(battleQuery(view.token).queryKey)
+      if (!current || document.visibilityState !== 'visible' || held?.kind !== 'battle' || held.view.seq !== view.seq) return
+      setNativeWatchBattle(
+        watchBattle(
+          view,
+          clock,
+          missions,
+          referenceFor,
+          reminderPrompts,
+          queryClient.getQueryState(battleQuery(view.token).queryKey)?.dataUpdatedAt ?? 0,
+        ),
+      )
+    }
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return
+      void queryClient.refetchQueries({ queryKey: battleQuery(view.token).queryKey, exact: true, type: 'active' }).then(publish)
+    }
+    publish()
+    const timer = window.setInterval(refresh, 15_000)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      current = false
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [view, clock, missions, referenceFor, reminderPrompts, queryClient, watchAvailable])
+  useEffect(
+    () => () => {
+      setNativeWatchBattle(null)
+    },
+    [],
+  )
   const activeMissionActionReminders = useMemo(
     () => (active?.isViewer ? missionActionReminders(active, referenceFor) : EMPTY_REMINDERS),
     [active, referenceFor],

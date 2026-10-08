@@ -8,6 +8,7 @@ import {
   setNativeBattleActive,
   setNativeHistoryBack,
   setNativeNavigation,
+  setNativeWatchBattle,
   shareLink,
 } from './nativeBridge'
 
@@ -106,5 +107,23 @@ describe('native push requests', () => {
     })
 
     await expect(requestNativePush(true)).resolves.toBeNull()
+  })
+})
+
+describe('watch capability', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('leaves older shells usable without a watch module', () => {
+    const postMessage = vi.fn()
+    vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 3, capabilities: [] }, ReactNativeWebView: { postMessage } })
+    expect(setNativeWatchBattle(null)).toBe(false)
+    expect(postMessage).not.toHaveBeenCalled()
+  })
+
+  it('sends a clear only to a shell that declares watch support', () => {
+    const postMessage = vi.fn()
+    vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 3, capabilities: ['watch-battle'] }, ReactNativeWebView: { postMessage } })
+    setNativeWatchBattle(null)
+    expect(JSON.parse(postMessage.mock.calls[0]![0])).toEqual({ version: 3, type: 'native-watch-battle', snapshot: null })
   })
 })

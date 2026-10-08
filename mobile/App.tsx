@@ -1,3 +1,4 @@
+import { isWatchCompanionAvailable, publishWatchBattle, subscribeWatchAvailability } from './src/watchCompanion'
 import { offlineReferenceDataScript, readOfflineReference, storeOfflineReference } from './src/offlineReferenceStorage'
 import { appSnapshotScript, storeAppSnapshot } from './src/appSnapshotStorage'
 import { APP_URL } from './src/navigation'
@@ -37,7 +38,13 @@ import {
 } from './src/appShellState'
 import { appStateChanged, initialAppLifecycle, WEB_RESUME_SCRIPT } from './src/lifecycle'
 import { initialLaunch } from './src/initialLaunch'
-import { NATIVE_BRIDGE_SCRIPT, nativePushAnswerScript, parseNativeActionRequest, type NativeActionRequest } from './src/nativeActions'
+import {
+  NATIVE_BRIDGE_SCRIPT,
+  nativeWatchCapabilityScript,
+  nativePushAnswerScript,
+  parseNativeActionRequest,
+  type NativeActionRequest,
+} from './src/nativeActions'
 import { applicationNavigationScript, classifyNavigation, externalOpenStrategies, isMainFrameHttpError } from './src/navigation'
 import {
   NATIVE_AUTH_CALLBACK_URL,
@@ -130,6 +137,11 @@ function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
 
 function AppShell() {
   const webView = useRef<WebView>(null)
+  const [watchAvailable, setWatchAvailable] = useState(isWatchCompanionAvailable)
+  useEffect(() => subscribeWatchAvailability(setWatchAvailable), [])
+  useEffect(() => {
+    webView.current?.injectJavaScript(nativeWatchCapabilityScript(watchAvailable))
+  }, [watchAvailable])
   const [referenceCacheScript, setReferenceCacheScript] = useState(() => {
     try {
       return offlineReferenceDataScript()
@@ -293,6 +305,9 @@ function AppShell() {
   const handleNativeAction = useCallback(
     async (action: NativeActionRequest) => {
       switch (action.kind) {
+        case 'watch-battle':
+          await publishWatchBattle(action.snapshot)
+          break
         case 'app-snapshot': {
           let saved = false
           try {
@@ -555,7 +570,8 @@ function AppShell() {
           allowsLinkPreview={false}
           setBuiltInZoomControls={false}
           setSupportMultipleWindows
-          injectedJavaScriptBeforeContentLoaded={`${snapshotScript.current}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}`}
+          injectedJavaScriptBeforeContentLoaded={`${snapshotScript.current}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}`}
+          onLoad={() => webView.current?.injectJavaScript(nativeWatchCapabilityScript(isWatchCompanionAvailable()))}
           onMessage={({ nativeEvent }) => {
             try {
               const message = JSON.parse(nativeEvent.data) as { type?: unknown; path?: unknown }
@@ -585,7 +601,7 @@ function AppShell() {
           containerStyle={styles.webView}
           originWhitelist={['*']}
           applicationNameForUserAgent={NATIVE_USER_AGENT}
-          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${snapshotScript.current}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeAuthCompletionScript()}`}
+          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${snapshotScript.current}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}\n${nativeAuthCompletionScript()}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures={false}
@@ -601,6 +617,7 @@ function AppShell() {
             commitShell(webNavigationStarted(shellRef.current, Platform.OS, nativeEvent.loading))
           }}
           onLoad={({ nativeEvent }) => {
+            webView.current?.injectJavaScript(nativeWatchCapabilityScript(isWatchCompanionAvailable()))
             mainFrameUrl.current = nativeEvent.url
             finishWebLoad(nativeEvent.url)
           }}

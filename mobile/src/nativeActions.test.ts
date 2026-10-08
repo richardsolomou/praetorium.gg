@@ -1,5 +1,6 @@
+import demo from '../../mobile/watch/demo-battle.json'
 import { describe, expect, it, vi } from 'vitest'
-import { NATIVE_BRIDGE_SCRIPT, nativePushAnswerScript, parseNativeActionRequest } from './nativeActions'
+import { NATIVE_BRIDGE_SCRIPT, nativePushAnswerScript, nativeWatchCapabilityScript, parseNativeActionRequest } from './nativeActions'
 
 describe('parseNativeActionRequest', () => {
   it('accepts an account snapshot and its explicit removal', () => {
@@ -208,5 +209,44 @@ describe('NATIVE_BRIDGE_SCRIPT', () => {
 
   it('removes executable embedded content before printing', () => {
     expect(NATIVE_BRIDGE_SCRIPT).toContain("querySelectorAll('script, iframe')")
+  })
+})
+
+describe('watch bridge', () => {
+  it('updates watch availability without duplicating or removing other capabilities', () => {
+    const events: unknown[] = []
+    const window = {
+      PraetoriumNative: { bridgeVersion: 3, capabilities: ['share', 'watch-battle'] },
+      dispatchEvent: (event: unknown) => events.push(event),
+    }
+    for (const enabled of [true, false]) {
+      // oxlint-disable-next-line typescript/no-implied-eval -- Execute the fixed capability update as the WebView does.
+      new Function('window', 'CustomEvent', nativeWatchCapabilityScript(enabled))(
+        window,
+        class {
+          constructor(readonly type: string) {}
+        },
+      )
+    }
+    expect({ capabilities: window.PraetoriumNative.capabilities, events }).toEqual({
+      capabilities: ['share'],
+      events: [{ type: 'praetorium-native-capabilities' }, { type: 'praetorium-native-capabilities' }],
+    })
+  })
+  it('accepts a bounded live battle snapshot', () => {
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-watch-battle', snapshot: demo }))).toEqual({
+      kind: 'watch-battle',
+      snapshot: demo,
+    })
+  })
+
+  it('clears the watch when leaving a live battle', () => {
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-watch-battle', snapshot: null }))).toEqual({
+      kind: 'watch-battle',
+      snapshot: null,
+    })
+  })
+  it('rejects malformed watch snapshots', () => {
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-watch-battle', snapshot: { version: 1 } }))).toBeNull()
   })
 })

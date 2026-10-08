@@ -16,3 +16,5 @@ credentials.json
 /ios
 
 .screenshots/
+/watch/.build/
+/watch/.swiftpm/
