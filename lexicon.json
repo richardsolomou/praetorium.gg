@@ -53,6 +53,66 @@
     {
       "name": "practice opponent",
       "definition": "A seat backed by an account without credentials, played from a seated player's roster; battles with one are excluded from feeds, standings and service records."
+    },
+    {
+      "name": "player",
+      "definition": "A person using Praetorium through an account: their profile, rosters, seats and record; a practice opponent is a player whose account has no credentials."
+    },
+    {
+      "name": "account",
+      "definition": "The sign-in identity in the account store: user, sign-in methods, sessions and two-factor settings; every player has exactly one."
+    },
+    {
+      "name": "faction",
+      "definition": "A playable army book from the catalogue with its datasheets, detachments and rules; library books that other books import are not factions."
+    },
+    {
+      "name": "datasheet",
+      "definition": "A unit's catalogue record: characteristic profiles, abilities, keywords, composition, wargear options and points, joined from the catalogue's sources."
+    },
+    {
+      "name": "detachment",
+      "definition": "A rule set a roster buys within its faction; each one bought adds its detachment points, enhancements and stratagems, and the roster chooses one force disposition among those they offer."
+    },
+    {
+      "name": "unit",
+      "definition": "One datasheet selection in a roster with its model count, loadout and enhancement; in a battle, a frozen army's unit carries wounds and destruction."
+    },
+    {
+      "name": "wargear",
+      "definition": "The equipment a datasheet offers, priced or free, that a loadout chooses."
+    },
+    {
+      "name": "enhancement",
+      "definition": "A detachment upgrade given to an eligible character unit, priced and limited by the force's construction rules."
+    },
+    {
+      "name": "stratagem",
+      "definition": "A detachment or core rule a side spends command points on during a battle; Praetorium records its use and does not adjudicate its target."
+    },
+    {
+      "name": "mission pack",
+      "definition": "A published set of missions, twists, deployments and terrain layouts from Game Datacards that a battle plays."
+    },
+    {
+      "name": "force disposition",
+      "definition": "The one disposition a roster chooses among those its bought detachments offer; a battle snapshot and an export keep only the chosen one."
+    },
+    {
+      "name": "side",
+      "definition": "One half of a battle's table: one or two seated players sharing turns, command points, victory points, missions and stratagems."
+    },
+    {
+      "name": "turn",
+      "definition": "One side's part of a battle round, folded from the command log; reminders and prompts are scoped to it."
+    },
+    {
+      "name": "round",
+      "definition": "A battle round in which each side takes one turn; round boundaries belong to no phase or turn."
+    },
+    {
+      "name": "ability",
+      "definition": "A named rule on a datasheet, wargear profile or detachment, joined from the catalogue's sources; Praetorium shows its text and models only the effects it supports."
     }
   ]
 }

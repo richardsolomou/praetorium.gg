@@ -40,3 +40,17 @@ The versioned, read-only public reference API over the active catalogue snapshot
   trust: visitor
 
 ## invariants
+
+- rate-limited reference reads: A reference read beyond a client's per-minute allowance is refused with 429.
+  over: the reference reads referenceRateLimit admits, keyed by the address the edge forwards
+  via: rate limits individual reference reads
+  because: the reference API is public and unauthenticated; without a per-client allowance one caller can exhaust the catalogue search and compile work every reader shares
+  crossing: visitor -> verified catalogue
+  refuted: referenceRateLimit admitted one read past the allowance -> rate limits individual reference reads failed (2026-10-08)
+  kinds: budget
+  checklist: bounded-admission declared as rate-limited reference reads
+  checklist: fair-admission dismissed: each client has its own allowance; there is no shared queue to order
+  checklist: rate-budget declared as rate-limited reference reads
+  checklist: memory-budget dismissed: the bucket table's own bound is tested by bounds unique rate-limit buckets and recovers after the window, outside this bullet
+  checklist: execution-budget dismissed: each read is a bounded lookup over the loaded snapshot
+  checklist: circuit-breaker-policy dismissed: reads call no downstream dependency

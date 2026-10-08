@@ -34,3 +34,16 @@ The TanStack Start server functions the browser and native shell call; each one 
   checklist: canonical-encoding dismissed: origins are compared as parsed URL origins by ras-stack, not as encoded identities
   checklist: identity-continuity dismissed: the check does not change who the caller is
   checklist: separation-of-duties dismissed: there is no approval step
+- live-session push devices: A push device is registered only for the player of a live session, from a same-origin request.
+  over: the registration requests registerPushDeviceRequest receives with a live, an ended and a cross-origin session
+  via: refuses a request whose cookie belongs to a session that has ended
+  because: a push token routes that player's notices to a phone; a stale cookie or a foreign page registering one would send a player's battle and league notices to someone else's device
+  crossing: player -> product store
+  refuted: registerPushDeviceRequest skipped requireUser -> refuses a request whose cookie belongs to a session that has ended failed (2026-10-08)
+  kinds: credential
+  checklist: capability-authorization declared as live-session push devices
+  checklist: revalidated-permission dismissed: registration runs in the request that carries the session
+  checklist: message-authenticity dismissed: the session cookie is checked by Better Auth, not as a signed message here
+  checklist: encrypted-storage dismissed: push tokens are delivery addresses stored for the push adapter, not secrets this bullet protects
+  checklist: key-rotation-compatibility dismissed: no key is held here
+  checklist: separation-of-duties dismissed: there is no approval step
