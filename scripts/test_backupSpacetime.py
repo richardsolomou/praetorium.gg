@@ -7,9 +7,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from backupSpacetime import Config, archive, publish, resume, run
+from backupSpacetime import BackupConfig, archive, publish, resume, run_command
 
-CONFIG = Config(
+CONFIG = BackupConfig(
     "spacetime-production",
     "spacetime-data",
     "spacetime-identity",
@@ -67,7 +67,7 @@ class ArchiveTest(unittest.TestCase):
                 "container",
                 {"data": Path(directory), "identity": Path(directory)},
             ),
-        ), patch("backupSpacetime.run", side_effect=command), patch(
+        ), patch("backupSpacetime.run_command", side_effect=command), patch(
             "backupSpacetime.subprocess.run", side_effect=subprocess_run
         ):
             try:
@@ -266,20 +266,20 @@ class ConfigTest(unittest.TestCase):
 
 class ResumeTest(unittest.TestCase):
     def test_watchdog_does_not_retry_a_removed_container(self):
-        with patch("backupSpacetime.run", return_value="") as command:
+        with patch("backupSpacetime.run_command", return_value="") as command:
             resume("abcdef123456")
         self.assertEqual(command.call_count, 1)
 
     def test_watchdog_leaves_a_running_container_alone(self):
         with patch(
-            "backupSpacetime.run", side_effect=["abcdef123456", "false"]
+            "backupSpacetime.run_command", side_effect=["abcdef123456", "false"]
         ) as command:
             resume("abcdef123456")
         self.assertEqual(command.call_count, 2)
 
     def test_watchdog_resumes_a_paused_container(self):
         with patch(
-            "backupSpacetime.run", side_effect=["abcdef123456", "true", ""]
+            "backupSpacetime.run_command", side_effect=["abcdef123456", "true", ""]
         ) as command:
             resume("abcdef123456")
         self.assertEqual(
@@ -320,13 +320,13 @@ class CopyIntegrationTest(unittest.TestCase):
                 elif args[:2] == ["docker", "inspect"]:
                     return str(paused).lower()
                 elif args[0] == "tar":
-                    return run(args, **kwargs)
+                    return run_command(args, **kwargs)
                 return ""
 
             with patch(
                 "backupSpacetime.container_volumes",
                 return_value=("container", {"data": source, "identity": identity}),
-            ), patch("backupSpacetime.run", side_effect=command), patch(
+            ), patch("backupSpacetime.run_command", side_effect=command), patch(
                 "backupSpacetime.subprocess.run", side_effect=execute
             ):
                 archive(CONFIG, work)

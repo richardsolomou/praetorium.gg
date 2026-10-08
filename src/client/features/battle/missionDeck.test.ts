@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { missionCardsByKey, primaryCards, secondaryCards } from './missionDeck'
 
-type References = Parameters<typeof primaryCards>[0]
+type GameReferences = Parameters<typeof primaryCards>[0]
 
 const card = (key: string) => ({ key, name: key, text: null, awards: [], whenDrawn: null })
 const pack = (id: string, missionCards: (ReturnType<typeof card> | null)[]) => ({
@@ -12,7 +12,7 @@ const pack = (id: string, missionCards: (ReturnType<typeof card> | null)[]) => (
 })
 
 const references = (packs: ReturnType<typeof pack>[], secondaries: ReturnType<typeof card>[] = []) =>
-  ({ packs, secondaries }) as unknown as References
+  ({ packs, secondaries }) as unknown as GameReferences
 
 describe('the mission deck', () => {
   it('gathers the primaries the packs print', () => {

@@ -18,7 +18,7 @@ from urllib.parse import urlencode
 
 
 @dataclasses.dataclass(frozen=True)
-class Config:
+class BackupConfig:
     service: str
     data_volume: str
     identity_volume: str
@@ -59,14 +59,14 @@ class Config:
             raise ValueError("Backup volumes must differ")
 
 
-def run(args, *, timeout=30):
+def run_command(args, *, timeout=30):
     return subprocess.run(
         args, check=True, text=True, capture_output=True, timeout=timeout
     ).stdout.strip()
 
 
 def container_volumes(config):
-    containers = run(
+    containers = run_command(
         [
             "docker",
             "ps",
@@ -81,7 +81,7 @@ def container_volumes(config):
     if len(containers) != 1:
         raise RuntimeError("Backup requires exactly one running SpacetimeDB container")
     container = containers[0]
-    (inspected,) = json.loads(run(["docker", "inspect", container]))
+    (inspected,) = json.loads(run_command(["docker", "inspect", container]))
     if inspected["State"]["Paused"]:
         raise RuntimeError("SpacetimeDB is already paused")
     volumes = {}
@@ -109,7 +109,7 @@ def container_volumes(config):
 def archive(config, work):
     container, volumes = container_volumes(config)
     size = sum(
-        int(run(["du", "--summarize", "--bytes", str(source)]).split()[0])
+        int(run_command(["du", "--summarize", "--bytes", str(source)]).split()[0])
         for source in volumes.values()
     )
     if shutil.disk_usage(work).free < size * 3 + 512 * 1024 * 1024:
@@ -134,7 +134,7 @@ def archive(config, work):
             copied.check_returncode()
     watchdog = f"spacetime-backup-resume-{uuid.uuid4().hex}"
     # A separate systemd timer resumes the container even if this process is killed.
-    run(
+    run_command(
         [
             "systemd-run",
             "--quiet",
@@ -153,7 +153,7 @@ def archive(config, work):
     )
     started = time.monotonic()
     try:
-        run(["docker", "pause", container], timeout=2)
+        run_command(["docker", "pause", container], timeout=2)
         for kind, source in volumes.items():
             remaining = 5 - (time.monotonic() - started)
             if remaining <= 0:
@@ -176,7 +176,7 @@ def archive(config, work):
                 timeout=remaining,
             )
         if (
-            run(
+            run_command(
                 ["docker", "inspect", container, "--format", "{{.State.Paused}}"],
                 timeout=2,
             )
@@ -188,14 +188,14 @@ def archive(config, work):
     finally:
         # Do not cancel recovery if the Docker daemon cannot resume the container.
         if (
-            run(
+            run_command(
                 ["docker", "inspect", container, "--format", "{{.State.Paused}}"],
                 timeout=2,
             )
             == "true"
         ):
-            run(["docker", "unpause", container], timeout=2)
-        run(["systemctl", "stop", f"{watchdog}.timer"])
+            run_command(["docker", "unpause", container], timeout=2)
+        run_command(["systemctl", "stop", f"{watchdog}.timer"])
         subprocess.run(
             ["systemctl", "stop", f"{watchdog}.service"],
             capture_output=True,
@@ -203,7 +203,7 @@ def archive(config, work):
         )
     print(f"SpacetimeDB backup freeze: {time.monotonic() - started:.3f}s", flush=True)
     for kind in volumes:
-        run(
+        run_command(
             [
                 "tar",
                 "--create",
@@ -314,7 +314,7 @@ def publish(config, work):
 
 def main():
     signal.signal(signal.SIGTERM, cancelled)
-    config = Config(**json.loads(Path(sys.argv[1]).read_text()))
+    config = BackupConfig(**json.loads(Path(sys.argv[1]).read_text()))
     workspace = Path("/var/lib/praetorium-spacetime-backup") / config.service
     workspace.mkdir(mode=0o700, parents=True, exist_ok=True)
     with Path(f"/run/lock/{config.service}-backup.lock").open("w") as lock:
@@ -334,15 +334,15 @@ def cancelled(_signal, _frame):
 def resume(container):
     if not re.fullmatch(r"[0-9a-f]{12,64}", container):
         raise ValueError("Invalid backup container ID")
-    existing = run(
+    existing = run_command(
         ["docker", "ps", "--all", "--filter", f"id={container}", "--format", "{{.ID}}"]
     )
     if (
         existing
-        and run(["docker", "inspect", container, "--format", "{{.State.Paused}}"])
+        and run_command(["docker", "inspect", container, "--format", "{{.State.Paused}}"])
         == "true"
     ):
-        run(["docker", "unpause", container])
+        run_command(["docker", "unpause", container])
 
 
 if __name__ == "__main__":

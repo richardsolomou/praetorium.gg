@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
-export type Step = {
+export type RailStep = {
   name: string
   detail: string
   complete: boolean
@@ -10,7 +10,7 @@ export type Step = {
 }
 
 type Props = {
-  steps: Step[]
+  steps: RailStep[]
   at: number
   onGo: (step: number) => void
 }

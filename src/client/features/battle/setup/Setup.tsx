@@ -24,7 +24,7 @@ import { SideDispositionChoice } from './SideDispositionChoice'
 import { ReservesStep } from './ReservesStep'
 import { SecondariesStep } from './SecondariesStep'
 import { SidePlayers } from '../PlayerName'
-import { StepRail, type Step } from './StepRail'
+import { StepRail, type RailStep } from './StepRail'
 import { MissionDetailsDialog, type MissionDetails } from '../MissionCards'
 import { CARD_NAME, tint } from '../battleTints'
 import { TableStrip } from './TableStrip'
@@ -139,7 +139,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
    */
   const reachable = (step: number) => step <= at || [...Array(step).keys()].every((before) => blockedAt(before) === null)
 
-  const steps: Step[] = [
+  const steps: RailStep[] = [
     {
       name: 'Setup',
       detail: `${view.settings.limit === null ? 'Choose armies' : `${view.settings.limit} points`} · ${attached}/${view.players.length} armies`,

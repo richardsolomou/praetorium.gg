@@ -1,6 +1,6 @@
 import { routeSlug } from '../core/slug'
 import { compareText } from '../core/text'
-import type { Mission, MissionCard, Award, Trigger } from './rulesCards'
+import type { Mission, MissionCard, Award, AwardTrigger } from './rulesCards'
 import { english, type MissionPack } from './missionPacks'
 import { actionsIn } from './missionActions'
 import { criteriaKey } from './missionCriteria'
@@ -15,14 +15,14 @@ const roundOf = (period: string) =>
     period as 'firstBattleRound'
   ]
 
-function triggers(when: string | null, periods: unknown): Trigger[] {
+function triggers(when: string | null, periods: unknown): AwardTrigger[] {
   if (!when) return []
   const normalized = when.toLowerCase().replaceAll('’', "'").replace(/\.$/, '')
   const rounds = Array.isArray(periods)
     ? periods.flatMap((period) => (typeof period === 'string' ? [roundOf(period)] : [])).filter(Boolean)
     : []
   const range = { roundMin: rounds.length ? Math.min(...rounds) : null, roundMax: rounds.length ? Math.max(...rounds) : null }
-  const base = { ...range, phase: null, playerTurn: null } satisfies Omit<Trigger, 'timing'>
+  const base = { ...range, phase: null, playerTurn: null } satisfies Omit<AwardTrigger, 'timing'>
   if (normalized === 'end of your command phase (or the end of your turn in the fifth battle round)') {
     return [
       { ...base, timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMax: 4 },

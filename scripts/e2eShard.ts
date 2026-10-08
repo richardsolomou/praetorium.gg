@@ -14,15 +14,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-type Spec = { title: string; tests?: { results?: { status: string; duration: number }[] }[] }
-type Suite = { title: string; file: string; specs?: Spec[]; suites?: Suite[] }
+type SpecReport = { title: string; tests?: { results?: { status: string; duration: number }[] }[] }
+type Suite = { title: string; file: string; specs?: SpecReport[]; suites?: Suite[] }
 type Report = { suites: Suite[] }
 export type Durations = Record<string, number>
 
 const durationsFile = path.join(import.meta.dirname, '..', 'e2e', 'durations.json')
 
 function specsOf(report: Report) {
-  const specs: { title: string; spec: Spec }[] = []
+  const specs: { title: string; spec: SpecReport }[] = []
   const walk = (suite: Suite, titlePath: string[]) => {
     for (const spec of suite.specs ?? []) specs.push({ title: [...titlePath, spec.title].join(' › '), spec })
     for (const child of suite.suites ?? []) walk(child, [...titlePath, child.title])
