@@ -1,4 +1,4 @@
-import { expect, test, type Locator } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import {
   advance,
   advanceButton,
@@ -572,7 +572,7 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
   const url = await createBattle(alice, { opponent: bobName })
   await bob.goto(url)
   await attachRoster(alice, aliceRoster)
-  await setupStep(bob, 'Setup')
+  await setupStep(bob, 'Armies')
   await attachRoster(bob, bobRoster)
   // The battlefield follows from both dispositions, so the host has to have seen both armies.
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
@@ -703,7 +703,8 @@ test('a card names its own condition, and what their turn owed is asked as the t
           await expect(button).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
         }).toPass({ timeout: 10_000 })
       }
-      const prep = alice.getByRole('group', { name: 'Secondary play' }).first().locator('..')
+      await alice.getByRole('button', { name: `Change secondaries for ${aliceName}` }).click()
+      const prep = alice.getByRole('group', { name: 'Secondary play' }).locator('..')
       await press(prep.getByRole('button', { name: 'Fixed' }))
       for (const card of ['Assassination', 'Engage on All Fronts']) {
         await press(prep.getByRole('button', { name: new RegExp(`^(Select|Remove) ${card}$`, 'i') }))
@@ -762,8 +763,11 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
     hostRoster: aliceRoster,
     guestRoster: bobRoster,
     beforeStart: async () => {
-      const chooseFixed = async (side: number) => {
-        const prep = alice.getByRole('group', { name: 'Secondary play' }).nth(side).locator('..')
+      // Any player at the table can choose either side's secondaries.
+      const chooseFixed = async (page: Page, name: string, side: number) => {
+        await setupStep(page, 'Secondaries')
+        await page.getByRole('button', { name: `Change secondaries for ${name}` }).click()
+        const prep = page.getByRole('group', { name: 'Secondary play' }).nth(side).locator('..')
         const fixed = prep.getByRole('button', { name: 'Fixed' })
         const press = async (button: Locator) => {
           await expect(async () => {
@@ -779,15 +783,17 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
         await press(prep.getByRole('button', { name: /^(Select|Remove) Bring It Down$/ }))
         await expect(prep).toHaveAttribute('data-secondary-deck-ready', 'true')
       }
-      await chooseFixed(0)
-      await chooseFixed(1)
+      await chooseFixed(alice, aliceName, 0)
+      await chooseFixed(alice, bobName, 1)
       await alice.reload()
       await setupStep(alice, 'Secondaries')
+      // A finished fixed hand reads as one line on every device.
+      const hands = alice.getByRole('region', { name: 'Secondaries' }).locator('[data-secondary-deck-ready="true"]')
+      await expect(hands).toHaveCount(2)
       for (const side of [0, 1]) {
-        const prep = alice.getByRole('group', { name: 'Secondary play' }).nth(side).locator('..')
-        await expect(prep.getByRole('button', { name: 'Fixed' })).toHaveAttribute('aria-pressed', 'true')
-        await expect(prep.getByRole('button', { name: 'Remove Engage on All Fronts' })).toHaveAttribute('aria-pressed', 'true')
-        await expect(prep.getByRole('button', { name: 'Remove Bring It Down' })).toHaveAttribute('aria-pressed', 'true')
+        await expect(hands.nth(side)).toContainText(/Fixed/i)
+        await expect(hands.nth(side)).toContainText(/Engage on All Fronts/i)
+        await expect(hands.nth(side)).toContainText(/Bring It Down/i)
       }
       await alice.screenshot({ path: 'test-results/opponent-secondary-setup.png', fullPage: true })
     },

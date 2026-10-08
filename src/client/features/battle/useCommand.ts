@@ -23,6 +23,24 @@ function explain(result: SubmitResult, setup: boolean) {
 }
 
 /**
+ * What survives in the queue after a command comes back stale or refused.
+ *
+ * Work built from the same or an older screen is dropped rather than resent against a
+ * history its player never saw, while work built from a newer realtime screen stays.
+ * A failed automatic background write is the exception: it records facts the armies
+ * already settle, so the player's own commands queued behind it are kept.
+ */
+export function afterFailedCommand<T extends Pick<QueuedCommand, 'basedOn' | 'background'>>(
+  queued: readonly T[],
+  failed: Pick<QueuedCommand, 'basedOn' | 'background'>,
+  authoritativeSeq: number,
+): { kept: T[]; dropped: T[] } {
+  if (failed.background) return { kept: [...queued], dropped: [] }
+  const kept = queued.filter((candidate) => candidate.basedOn !== failed.basedOn && candidate.basedOn >= authoritativeSeq)
+  return { kept, dropped: queued.filter((candidate) => !kept.includes(candidate)) }
+}
+
+/**
  * Sends commands sequentially against the latest history this device has seen.
  *
  * Every response carries the authoritative screen. Refusals remain visible, setup
@@ -61,11 +79,8 @@ export function useCommand(token: string, seq: number) {
           if (result.outcome === 'appended' && !item.background) requestNativeHaptic()
           if (result.outcome !== 'appended') {
             const authoritativeSeq = screen?.kind === 'battle' ? screen.view.seq : item.basedOn
-            const kept: QueuedCommand[] = []
-            for (const candidate of queued.current) {
-              if (candidate.basedOn !== item.basedOn && candidate.basedOn >= authoritativeSeq) kept.push(candidate)
-              else candidate.complete?.(false)
-            }
+            const { kept, dropped } = afterFailedCommand(queued.current, item, authoritativeSeq)
+            for (const candidate of dropped) candidate.complete?.(false)
             queued.current = kept
           }
         } catch (error) {

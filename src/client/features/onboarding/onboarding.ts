@@ -440,9 +440,10 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/battles',
     title: 'Bring the armies',
     description:
-      'Choose a saved list for each player you control, including practice opponents. Lists must match their share of the points and pass legality checks. Use the table’s Next button when ready.',
+      'Choose a saved list for each player you control, including practice opponents. Lists must match their share of the points and pass legality checks. The guide moves on once every army is chosen.',
     placement: 'bottom',
     next: 'battle-setup-mission',
+    nextLabel: 'Next',
   },
   'battle-setup-mission': {
     task: 'battle',
@@ -451,9 +452,10 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/battles',
     title: 'Read your primary mission',
     description:
-      'Your army’s Force Disposition and its opponent determine the primary mission. Read each side’s card, settle any allied disposition choice, and choose an optional twist before Next.',
+      'Your army’s Force Disposition and its opponent determine the primary mission. Read each side’s card, settle any allied disposition choice, and change the twist if you play one.',
     placement: 'bottom',
     next: 'battle-setup-battlefield',
+    nextLabel: 'Next',
   },
   'battle-setup-battlefield': {
     task: 'battle',
@@ -461,9 +463,10 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'battle',
     href: '/battles',
     title: 'Set the battlefield',
-    description: 'Choose the deployment and terrain layout for this matchup, then arrange the table and continue.',
+    description: 'Choose the deployment and terrain layout for this matchup, then arrange the table.',
     placement: 'bottom',
     next: 'battle-setup-defender',
+    nextLabel: 'Next',
   },
   'battle-setup-defender': {
     task: 'battle',
@@ -474,6 +477,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     description: 'Resolve the roll-off at the table and record who defends. The defender deploys first.',
     placement: 'bottom',
     next: 'battle-setup-secondaries',
+    nextLabel: 'Next',
   },
   'battle-setup-secondaries': {
     task: 'battle',
@@ -481,10 +485,10 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'battle',
     href: '/battles',
     title: 'Choose secondary missions',
-    description:
-      'Choose fixed cards for the game or tactical cards drawn during play. Resolve the choices for both sides before continuing.',
+    description: 'Tactical cards drawn during play are the default. Change your side to fixed cards to choose two for the whole game.',
     placement: 'bottom',
     next: 'battle-setup-reserves',
+    nextLabel: 'Next',
   },
   'battle-setup-reserves': {
     task: 'battle',
@@ -493,9 +497,10 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/battles',
     title: 'Set reserves and transports',
     description:
-      'Record which units start on the battlefield, in reserves, or embarked in a transport. Check the printed passenger restrictions at the table as well as the app’s capacity checks.',
+      'Every unit starts on the battlefield unless your side changes it. Record units held in reserves or embarked in a transport, and check printed passenger restrictions at the table.',
     placement: 'bottom',
     next: 'battle-setup-deploy',
+    nextLabel: 'Next',
   },
   'battle-setup-deploy': {
     task: 'battle',
@@ -506,6 +511,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     description: 'Alternate deploying units from the defender. Move the models on the table; Praetorium does not record their positions.',
     placement: 'bottom',
     next: 'battle-setup-first',
+    nextLabel: 'Next',
   },
   'battle-setup-first': {
     task: 'battle',
@@ -516,6 +522,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     description: 'After deployment, resolve the roll-off and record which side takes the first turn.',
     placement: 'bottom',
     next: 'battle-setup-begin',
+    nextLabel: 'Next',
   },
   'battle-setup-begin': {
     task: 'battle',
@@ -523,7 +530,8 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'battle',
     href: '/battles',
     title: 'Resolve pre-battle rules',
-    description: 'Resolve Scouts and other pre-battle abilities at the table, then Start battle opens the first Command phase.',
+    description:
+      'Resolve Scouts and other pre-battle abilities at the table. Start battle is enabled once nothing is left, and opens the first Command phase.',
     placement: 'bottom',
     next: 'battle-live-score',
   },

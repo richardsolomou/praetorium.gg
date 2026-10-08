@@ -6,10 +6,12 @@ import { CHOOSABLE, CHOSEN, SetupNote, SetupPanel } from './chrome'
 export function TwistChoice({
   twists,
   chosenId,
+  disabled,
   onChoose,
 }: {
   twists: readonly Twist[]
   chosenId: string | null
+  disabled: boolean
   onChoose: (id: string | null) => void
 }) {
   if (!twists.length) return null
@@ -25,6 +27,7 @@ export function TwistChoice({
           <Button
             variant="outline"
             aria-pressed={chosenId === null}
+            disabled={disabled}
             className={`h-auto justify-start px-3 py-2 text-left text-sm font-bold whitespace-normal uppercase ${
               chosenId === null ? CHOSEN : CHOOSABLE
             }`}
@@ -39,6 +42,7 @@ export function TwistChoice({
               <Button
                 variant="outline"
                 aria-pressed={chosenId === twist.id}
+                disabled={disabled}
                 className={`h-auto w-full justify-start py-2 pr-9 pl-3 text-left text-sm font-bold whitespace-normal uppercase ${
                   chosenId === twist.id ? CHOSEN : CHOOSABLE
                 }`}

@@ -186,23 +186,34 @@ export async function createBattle(
   return page.url()
 }
 
-/** Retry an SSR-visible setup control until its command-derived active section changes. */
-async function moveSetup(active: Locator, from: string, action: () => Promise<void>) {
+/** Presses a choice until the shared answer shows it, unless the table has already answered. */
+async function pressUntilChosen(choice: Locator, button: Locator) {
   await expect(async () => {
-    if ((await active.innerText().catch(() => from)) !== from) return
-    await action()
-    await expect.poll(() => active.innerText().catch(() => from), { timeout: 1_000 }).not.toBe(from)
+    if ((await choice.locator('button[aria-pressed="true"]').count()) > 0) return
+    await button.click({ timeout: 1_000 })
+    await expect(choice.locator('button[aria-pressed="true"]')).not.toHaveCount(0, { timeout: 1_000 })
   }).toPass({ timeout: 20_000 })
 }
 
-/**
- * Records the roll-off and walks on to the last section, which is where the battle begins.
- *
- * The roll-off is recorded a section before the battle starts, because what a unit does
- * before the first turn is resolved starting with whoever is taking it — and it has to
- * be recorded, since nothing may be left behind unsettled.
- */
+/** Tests that are not about deployment order use the first side as the defender, unless one was chosen. */
+export async function chooseDefender(page: Page) {
+  const choice = page.getByRole('group', { name: 'Defender', exact: true })
+  await pressUntilChosen(choice, choice.getByRole('button').first())
+}
+
+/** Allied sides whose armies brought different Force Dispositions play the first one offered. */
+async function settleDispositions(page: Page) {
+  const asked = page.getByRole('group', { name: /^Force Disposition for / })
+  for (let at = 0; at < (await asked.count()); at += 1) {
+    const group = asked.nth(at)
+    const first = group.getByRole('button').first()
+    if (await first.isEnabled()) await pressUntilChosen(group, first)
+  }
+}
+
+/** Records the first-turn roll-off, and a defender if nobody has, the last answers setup asks for before Start battle. */
 export async function recordFirstTurn(page: Page, firstSide?: string) {
+  await chooseDefender(page)
   await setupStep(page, 'First turn')
   const choice = page.getByRole('group', { name: 'First turn' })
   const side = firstSide ? choice.getByRole('button', { name: firstSide }) : choice.getByRole('button').first()
@@ -211,60 +222,18 @@ export async function recordFirstTurn(page: Page, firstSide?: string) {
     await side.click({ timeout: 1_000 })
     await expect(side).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
   }).toPass({ timeout: 20_000 })
-  await setupStep(page, 'Pre-battle rules')
 }
 
-/** Setup shows one section at a time, and the section is shared, so a helper walks to the one it needs. */
+/** Setup is one page; a helper brings the section it needs into view. */
 export async function setupStep(page: Page, label: string) {
-  // By `data-step` rather than by accessible name: a chip is named by its section and
-  // the line under it, so a section whose blurb happens to name another one — "Choose
-  // the armies first" under Mission — matches two chips and the locator refuses.
-  const chip = page.locator(`nav[aria-label="Setup sections"] button[data-step="${label}"]`)
-  const active = page.locator('[aria-current="step"]')
-  for (let guard = 0; guard < 8; guard += 1) {
-    if ((await chip.getAttribute('aria-current')) === 'step') return
-    if (await chip.isEnabled()) {
-      await expect(async () => {
-        if ((await chip.getAttribute('aria-current')) === 'step') return
-        await chip.click({ timeout: 1_000 })
-        await expect(chip).toHaveAttribute('aria-current', 'step', { timeout: 1_000 })
-      }).toPass({ timeout: 20_000 })
-      return
-    }
-    const previous = await active.innerText()
-    const next = page.getByRole('button', { name: 'Next', exact: true })
-    // An allied side whose two armies brought different Force Dispositions has to say
-    // which one it plays before the matchup is settled. Tests that are not about that
-    // choice take the first card offered.
-    if (/mission/i.test(previous) && !(await next.isEnabled())) {
-      await expect(async () => {
-        if (await next.isEnabled()) return
-        const asked = page.getByRole('group', { name: /^Force Disposition for / })
-        for (let at = 0; at < (await asked.count()); at += 1) {
-          await asked.nth(at).getByRole('button').first().click({ timeout: 1_000 })
-        }
-        await expect(next).toBeEnabled({ timeout: 1_000 })
-      }).toPass({ timeout: 20_000 })
-    }
-    // Tests that are not about deployment order use the first side as their deterministic default.
-    if (/defender/i.test(previous) && !(await next.isEnabled())) {
-      await expect(async () => {
-        if (await next.isEnabled()) return
-        await page.getByRole('group', { name: 'Defender' }).getByRole('button').first().click({ timeout: 1_000 })
-        await expect(next).toBeEnabled({ timeout: 1_000 })
-      }).toPass({ timeout: 20_000 })
-    }
-    await moveSetup(active, previous, async () => {
-      await expect(next).toBeEnabled({ timeout: 1_000 })
-      await next.click({ timeout: 1_000 })
-    })
-  }
-  throw new Error(`Setup never reached the ${label} step`)
+  const section = page.getByRole('region', { name: label, exact: true })
+  await section.scrollIntoViewIfNeeded()
+  await expect(section).toBeInViewport()
 }
 
 /** Attaches a saved list to a seat: your own by default, or a named one such as a practice opponent's. */
 export async function attachRoster(page: Page, name: string, { forPlayer }: { forPlayer?: string } = {}) {
-  await setupStep(page, 'Setup')
+  await setupStep(page, 'Armies')
   const chooser = forPlayer
     ? page.getByRole('button', { name: new RegExp(`roster for ${forPlayer}$`) })
     : page.getByRole('button', { name: /^(Choose|Change) roster/ }).first()
@@ -285,22 +254,25 @@ export async function attachRoster(page: Page, name: string, { forPlayer }: { fo
     if (await dialog.isHidden()) break
   }
   await expect(dialog).toBeHidden()
-  await expect(page.getByRole('region', { name: 'Setup' }).getByText(name, { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Armies' }).getByText(name, { exact: true }).first()).toBeVisible()
 }
 
 export async function chooseBattlefield(page: Page) {
   const battlefieldStep = page.locator('nav[aria-label="Setup sections"] button[data-step="Battlefield"]')
   if ((await battlefieldStep.getAttribute('data-complete')) === 'true') return
+  await settleDispositions(page)
   await setupStep(page, 'Battlefield')
   const selected = page.getByRole('button', { name: /^Selected layout/ })
   // By position, not by name: which layouts a matchup offers follows the pinned rules data.
-  const chosen = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
-  await page
-    .getByRole('button', { name: /^Select layout / })
-    .first()
-    .click()
-  await chosen
-  await expect(selected).toBeVisible()
+  // A choice that loses a race with the other device redraws without it, so press again.
+  await expect(async () => {
+    if (await selected.isVisible()) return
+    await page
+      .getByRole('button', { name: /^Select layout / })
+      .first()
+      .click({ timeout: 2_000 })
+    await expect(selected).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 30_000 })
 }
 
 /**
@@ -524,12 +496,10 @@ export async function setupBattle(
   const url = await createBattle(host, { opponent })
   await guest.goto(url)
   await attachRoster(host, hostRoster)
-  await setupStep(guest, 'Setup')
   await expect(guest.getByText(hostRoster, { exact: true }).first()).toBeVisible()
   await attachRoster(guest, guestRoster)
   await expect(host.getByText(guestRoster, { exact: true }).first()).toBeVisible()
-  // Cards are chosen while the battle is still being set up, not once it is running,
-  // and the wizard only reaches that step once the battlefield is settled.
+  // Cards are chosen while the battle is still being set up, not once it is running.
   if (beforeStart) {
     await chooseBattlefield(host)
     await setupStep(host, 'Secondaries')

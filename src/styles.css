@@ -162,7 +162,7 @@ html[data-native-app='true'] [data-mobile-app-header-spacer] {
     bottom: 4rem;
   }
 
-  html[data-native-app='true'] [data-setup-next],
+  html[data-native-app='true'] [data-setup-bar],
   html[data-native-app='true'] [data-replay-timeline] {
     bottom: 4rem;
   }
@@ -231,7 +231,7 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
 
   html:not([data-native-app='true']) [data-turn-control],
   html:not([data-native-app='true']) [data-pane='loadout'],
-  html:not([data-native-app='true']) [data-setup-next] {
+  html:not([data-native-app='true']) [data-setup-bar] {
     bottom: calc(4rem + env(safe-area-inset-bottom));
   }
 
@@ -245,6 +245,11 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
 }
 
 html:has([data-replay-timeline]) [data-web-app-footer] {
+  padding-bottom: 5rem;
+}
+
+/* The setup bar is fixed over the page's end, so the footer leaves room for it. */
+html:has([data-setup-bar]) [data-web-app-footer] {
   padding-bottom: 5rem;
 }
 
@@ -280,7 +285,7 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 @media (max-width: 1023px) {
   html[data-native-shell='true'] [data-turn-control],
   html[data-native-shell='true'] [data-pane='loadout'],
-  html[data-native-shell='true'] [data-setup-next] {
+  html[data-native-shell='true'] [data-setup-bar] {
     bottom: 0;
   }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BattleView } from '../core/battleView'
-import { canWritePrep, facingSides, missionCardsReady, type SideMission, sideName, sides } from './sides'
+import { canWritePrep, facingSides, fixedHandShort, missionCardsReady, type SideMission, sideName, sides } from './sides'
 
 type ViewPlayer = BattleView['players'][number]
 
@@ -265,5 +265,25 @@ describe('the mission a side is held to', () => {
     expect(missionCardsReady(ready!)).toBe(false)
     ready!.secondaries.push({ key: 'b', name: 'B', points: 0, rounds: [], status: 'active', secret: false, revealed: true })
     expect(missionCardsReady(ready!)).toBe(true)
+  })
+})
+
+describe('a fixed hand short of its cards', () => {
+  const card = (key: string) => ({ key, name: key, points: 0, rounds: [], status: 'active' as const, secret: false, revealed: true })
+
+  it('is short with no fixed cards chosen', () => {
+    expect(fixedHandShort({ secondaryMode: 'fixed', secondaries: [] })).toBe(true)
+  })
+
+  it('is short with one fixed card chosen', () => {
+    expect(fixedHandShort({ secondaryMode: 'fixed', secondaries: [card('a')] })).toBe(true)
+  })
+
+  it('is complete with both fixed cards chosen', () => {
+    expect(fixedHandShort({ secondaryMode: 'fixed', secondaries: [card('a'), card('b')] })).toBe(false)
+  })
+
+  it('is never short for a tactical side', () => {
+    expect(fixedHandShort({ secondaryMode: 'tactical', secondaries: [] })).toBe(false)
   })
 })

@@ -8,13 +8,23 @@ import { FIXED_SECONDARIES, isKotcLimit, SECONDARY_MODES } from '../../../../cor
 import { detachmentRulesQuery, gameReferencesQuery } from '../../../queries'
 import { primaryCards, secondaryCards } from '../missionDeck'
 import { armyRulesRequest, sideStratagems } from '../sideRules'
-import { canWritePrep } from '../../../sides'
+import { canWritePrep, sideName } from '../../../sides'
 import type { SendCommand } from '../useCommand'
 import { MissionName, type ReferenceCard } from '../MissionCards'
 import { CHOOSABLE, CHOSEN } from './chrome'
 import type { Side } from '../../../sides'
 
-type Props = { view: BattleView; side: Side; missionId: string | null; send: SendCommand; pending: boolean }
+type Props = {
+  view: BattleView
+  side: Side
+  missionId: string | null
+  send: SendCommand
+  pending: boolean
+  /** Whether this device shows the choice itself rather than its one-line summary. */
+  open: boolean
+  /** Opens the choice. */
+  onOpen: () => void
+}
 
 /**
  * The one card decision a side actually makes: how its secondaries are drawn.
@@ -27,7 +37,7 @@ type Props = { view: BattleView; side: Side; missionId: string | null; send: Sen
  * its own detachment. The pool and choices target the side captain, while any seated
  * player may record them from the device at the table.
  */
-export function Prep({ view, side, missionId, send, pending }: Props) {
+export function Prep({ view, side, missionId, send, pending, open, onOpen }: Props) {
   const captain = side.captain
   const tacticalOnly = isKotcLimit(view.settings.limit)
   const writes = canWritePrep(view)
@@ -94,6 +104,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
   // What the armies bring is not a decision, so it is recorded as soon as it is known —
   // and both the matchup and an ally's list can settle later than the first army's
   // stratagems do, so this stays live rather than firing once.
+  const armiesIn = view.players.every((player) => player.roster)
   const recorded = captain.stratagems.map((stratagem) => stratagem.key).join()
   const wanted = stratagems.map((stratagem) => stratagem.key).join()
   useEffect(() => {
@@ -102,6 +113,8 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     // reason to wait as an unanswered one for the stratagems: writing here without it
     // sends an empty tactical deck, which is refused, which leaves this asking again.
     if (!writes || !rules || !references || pending) return
+    // Written once every army is in, so a player still choosing a list is not racing these writes.
+    if (!armiesIn) return
     // Compared against what would be sent, so a pool already written is left alone
     // and a pool an arriving ally changes is rewritten exactly once.
     const wrongStratagems = pooled && wanted.length > 0 && wanted !== recorded
@@ -109,12 +122,13 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     const missingDeck = deck.length > 0 && !captain.secondaryDeckReady
     const invalidMode = tacticalOnly && storedMode !== 'tactical'
     if (!wrongStratagems && !wrongPrimary && !missingDeck && !invalidMode) return
-    // Any seated device may settle the derived cards and the side's choices.
+    // Any seated device may settle the derived cards, so an absent player cannot hold setup up.
     save({}, { background: true })
     // A stale automatic write redraws at a newer sequence, where the still-missing
     // fact retries instead of remaining blocked behind the command another device won.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    armiesIn,
     rules,
     references,
     pooled,
@@ -132,14 +146,25 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     view.seq,
   ])
 
-  if (!writes) {
+  if (!writes || !open) {
     return (
-      <div data-secondary-deck-ready={deckReady} className="space-y-1">
-        <p className="text-sm font-bold uppercase">{mode === 'fixed' ? 'Fixed cards' : 'Tactical cards'}</p>
-        <p className="text-xs text-dim">
-          {mode === 'fixed' ? 'Chosen now and played for the whole battle.' : 'Drawn at random or selected as the battle runs.'}
+      <div data-secondary-deck-ready={deckReady} className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-sm">
+          <span className="font-bold uppercase">{mode === 'fixed' ? 'Fixed' : 'Tactical'}</span>
+          <span className="text-dim">
+            {' · '}
+            {mode === 'fixed'
+              ? chosen.length
+                ? chosen.map((secondary) => secondary.name).join(', ')
+                : `${chosen.length} of ${FIXED_SECONDARIES} chosen`
+              : 'drawn as the battle runs'}
+          </span>
         </p>
-        <p className="text-xs text-dim">Only players at the table can choose how this side draws its cards.</p>
+        {writes ? (
+          <Button variant="outline" size="sm" className="shrink-0" aria-label={`Change secondaries for ${sideName(side)}`} onClick={onOpen}>
+            Change
+          </Button>
+        ) : null}
       </div>
     )
   }

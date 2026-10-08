@@ -191,6 +191,11 @@ export function canWritePrep(view: Pick<BattleView, 'players' | 'viewerId'>): bo
   return view.players.some((player) => player.id === view.viewerId)
 }
 
+/** A fixed hand short of its cards, which is the side's own to finish rather than cards still being recorded. */
+export function fixedHandShort(side: Pick<Side, 'secondaryMode' | 'secondaries'>): boolean {
+  return side.secondaryMode === 'fixed' && side.secondaries.length < FIXED_SECONDARIES
+}
+
 export function missionCardsReady(
   side: Pick<Side, 'mission' | 'primaryCard' | 'secondaryMode' | 'secondaryDeckReady' | 'secondaries'>,
 ): boolean {

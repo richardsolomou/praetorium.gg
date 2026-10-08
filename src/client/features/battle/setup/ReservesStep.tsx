@@ -16,12 +16,21 @@ import {
 } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
 import { RuleText } from '../../../components/RuleText'
-import type { Army, Side } from '../../../sides'
+import { type Army, type Side, sideName } from '../../../sides'
 import { formationLabel, SetupNote, SetupSidePanel } from './chrome'
 import { reserveSections, reserveUnitLabel } from './reservesModel'
 
 type FormationCommand = Extract<Command, { kind: 'set-unit-formation' }>
-type Props = { view: BattleView; sides: Side[]; send: (command: Command) => void; problem: string | null }
+type Props = {
+  view: BattleView
+  sides: Side[]
+  send: (command: Command) => void
+  /** The latest refusal, which belongs to `sentFrom` when that row sent the refused move. */
+  problem: string | null
+  /** The unit row that sent the latest move, owned by the page so a move elsewhere clears it. */
+  sentFrom: string | null
+  onSent: (row: string) => void
+}
 /** Everything a unit row needs to judge and send a move, and to say why one was refused. */
 type Moves = {
   view: BattleView
@@ -31,13 +40,19 @@ type Moves = {
   refusalFor: (row: string) => string | null
 }
 
-/** Where every unit starts: on the battlefield, or held back to arrive later. */
-export function ReservesStep({ view, sides, send, problem }: Props) {
-  const [sentFrom, setSentFrom] = useState<string | null>(null)
+/**
+ * Where every unit starts: on the battlefield, or held back to arrive later.
+ *
+ * Each side reads as one line until someone opens it, because most armies start
+ * everything on the table and the default needs no answer. Setting the table is often
+ * done from one device, so nobody has to hand a phone across it.
+ */
+export function ReservesStep({ view, sides, send, problem, sentFrom, onSent }: Props) {
+  const [opened, setOpened] = useState<number[]>([])
   const moves: Moves = {
     view,
     move: (row, command) => {
-      setSentFrom(row)
+      onSent(row)
       send(command)
     },
     refusalFor: (row) => (row === sentFrom ? problem : null),
@@ -45,25 +60,40 @@ export function ReservesStep({ view, sides, send, problem }: Props) {
   const redeploy = view.firstPlayerId !== null
   return (
     <div data-onboarding="battle-setup-reserves" className="space-y-4">
-      <div>
-        {/* Setting the table is often done from one device, so nobody has to hand a phone across it. */}
-        <SetupNote>
-          {redeploy
-            ? 'If an army rule lets you redeploy a unit after the first-turn roll, record that move here. It does not count towards the limit.'
-            : 'Anyone at the table can set each army’s reserves. Check special transport space costs and passenger restrictions on its datasheet.'}
-        </SetupNote>
-      </div>
+      <SetupNote>
+        {redeploy
+          ? 'If an army rule lets you redeploy a unit after the first-turn roll, record that move here. It does not count towards the limit.'
+          : 'Anyone at the table can set each army’s reserves. Check special transport space costs and passenger restrictions on its datasheet.'}
+      </SetupNote>
       <div className="grid gap-3 lg:grid-cols-2">
         {sides.map((side) => (
-          <ReserveSide key={side.index} side={side} moves={moves} />
+          <ReserveSide
+            key={side.index}
+            side={side}
+            moves={moves}
+            open={opened.includes(side.index)}
+            onOpen={() => setOpened((current) => [...current, side.index])}
+            onClose={() => setOpened((current) => current.filter((index) => index !== side.index))}
+          />
         ))}
       </div>
-      {problem && sentFrom === null ? <p className="text-sm text-destructive">{problem}</p> : null}
     </div>
   )
 }
 
-function ReserveSide({ side, moves }: { side: Side; moves: Moves }) {
+function ReserveSide({
+  side,
+  moves,
+  open,
+  onOpen,
+  onClose,
+}: {
+  side: Side
+  moves: Moves
+  open: boolean
+  onOpen: () => void
+  onClose: () => void
+}) {
   const totals = side.armies.length > 1 ? strategicReserveSideTotals(side.armies) : null
   return (
     <SetupSidePanel side={side} className="space-y-3">
@@ -72,10 +102,45 @@ function ReserveSide({ side, moves }: { side: Side; moves: Moves }) {
           {totals.points}/{totals.limit} reserve points shared
         </span>
       ) : null}
-      {side.armies.map((army) => (
-        <ArmySetup key={army.playerId} army={army} multiple={side.armies.length > 1} moves={moves} />
-      ))}
+      {open
+        ? side.armies.map((army) => <ArmySetup key={army.playerId} army={army} multiple={side.armies.length > 1} moves={moves} />)
+        : side.armies.map((army) => <ArmySummary key={army.playerId} army={army} multiple={side.armies.length > 1} />)}
+      <div className="flex justify-end">
+        {open ? (
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Done
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" aria-label={`Change reserves for ${sideName(side)}`} onClick={onOpen}>
+            Change
+          </Button>
+        )}
+      </div>
     </SetupSidePanel>
+  )
+}
+
+/** Where an army's units start, counted the way the rows are: a character and the unit he joined are one. */
+function ArmySummary({ army, multiple }: { army: Army; multiple: boolean }) {
+  const units = reserveSections(army.units).flatMap((section) => section.units)
+  const onTable = units.filter((unit) => unit.host.formation === 'battlefield').length
+  const embarked = units.filter((unit) => unit.host.formation === 'embarked').length
+  const held = units.length - onTable - embarked
+  const reserveLimit = army.roster?.built?.strategicReserveLimit
+  const parts = [`${onTable} on the battlefield`, ...(held ? [`${held} in reserves`] : []), ...(embarked ? [`${embarked} embarked`] : [])]
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <span className="min-w-0">
+        <span className="block break-words text-xs font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
+        {multiple ? <span className="block text-3xs text-dim">{army.playerName}</span> : null}
+        <span className="block text-sm text-bone">{parts.join(' · ')}</span>
+      </span>
+      {multiple || reserveLimit === undefined ? null : (
+        <span className="chip shrink-0">
+          {strategicReservePoints(army.units)}/{reserveLimit} reserve points
+        </span>
+      )}
+    </div>
   )
 }
 
