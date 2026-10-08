@@ -1,5 +1,21 @@
 # praetorium
 
+## 0.109.0
+
+### Minor Changes
+
+- c6f631c: Let AI assistants estimate combat between two units through the MCP and browser agent tools.
+- a3d1e83: Invite spectators who have not played yet to build an army or start their own battle.
+
+### Patch Changes
+
+- c7841b7: Report why a battle action was refused with a stable code in telemetry and agent tool results.
+- 75a3327: Keep a roster built without an account on this device across tabs, reloads and sign-in, and ask before saving one found after signing in later.
+- 2073e6e: Limit The Sanguinor, Chaos Spawn and Khorne Lord of Skulls to the copies their datasheets allow.
+- 2fcac78: Restore live updates, search, and offline downloads in Firefox before 124 and Safari before 17.4.
+- f3cac0a: Pick a squad's model count directly from its number in the roster editor and simulator instead of stepping one model at a time.
+- 678fbf0: Report a realtime service outage once when it persists through retries instead of hiding it.
+
 ## 0.108.1
 
 ### Patch Changes
