@@ -28,7 +28,7 @@ Release notices use one compact sentence and a manual Refresh action, centred at
 
 ## Rosters
 
-The builder has one picker and one loadout instance, moved by `src/client/features/rosters/builder/Pane.tsx` between desktop columns and compact panes. Reserve the desktop workspace before hydration. Edit squad size on the roster card, not in a second control.
+The builder has one picker and one loadout instance, moved by `src/client/features/rosters/builder/Pane.tsx` between desktop columns and compact panes. Reserve the desktop workspace before hydration. Edit squad size on the roster card, not in a second control. Its stepper's count also picks any listed size directly; `modelCountChoices` in `src/core/unitSize.ts` decides which counts are listed, and the simulator's model controls reuse it.
 
 Loadouts group equipment by model and weapon choice. Keep required/default equipment readable after replacement, paired weapons under one counter, and alternate profiles under their weapon. Selection styling must not shift content. Display each option and equipped item once. `loadoutModel.ts`, `LoadoutControls.tsx`, `ModelCard.tsx`, and `Loadout.tsx` own this flow.
 
@@ -36,13 +36,15 @@ Use the same roster cards for libraries, choosers, editable lists, read-only lis
 
 Library variants remain grouped with their base and show concise differences from the saved base. Filters and tabs that represent destinations live in the URL. Variant navigation stays disabled while edits are unsaved. The library's legality and changed-list counts use the domain decisions in [Catalogue data](catalogue-data.md#data-updates).
 
-A visitor draft uses the same builder. The session cookie hints its layout for SSR without storing the list. Storage failure keeps the open builder usable and warns about reload loss. Claiming the draft after sign-in follows the saved flow. Save keeps the roster context on the authentication page and allows returning to the draft. If storage rejects the latest draft, keep the player in the builder rather than navigating into authentication and losing it.
+A visitor draft uses the same builder. A cookie hints its layout for SSR without storing the list. Another tab's edit or claim replaces the open copy. Storage failure keeps the open builder usable and warns about reload loss. Claiming the draft after sign-in follows the saved flow. Save keeps the roster context on the authentication page and allows returning to the draft. If storage rejects the latest draft, keep the player in the builder rather than navigating into authentication and losing it.
 
 ## Battles and leagues
 
 Render battle controls by side, not seat. Allies share a panel and resources. Keep one scoreboard and one phase-control instance across layouts. Missions and stratagems remain visible together, stacking when the panel is narrow.
 
 Required prompts open one at a time. Minimize preserves local answers and exposes a persistent return control; battle-changing controls remain in place but disabled until parked dialogs are resumed or closed. Undo must preserve answers when the same battle moment returns, without leaking them into another hand or prompt. Personal reminders precede shared prompts without becoming shared commands.
+
+Readers without a seat get one in-flow invitation to build an army or start a battle, chosen from onboarding progress; it never covers the scoreboard or timeline, leads finished battles, stays out of the native application, and stays dismissed in that browser. Accounts that have played a battle do not see it.
 
 The army window uses independently expandable loadouts in its scroll flow, with pinned unit cards and return-to-card collapse behavior. Players, spectators, and replay use the same frozen loadout view; only seated players receive casualty controls. Army and simulator dialogs fill the compact screen above the application tabs. Replay preserves the report's reading position while scrubbing.
 

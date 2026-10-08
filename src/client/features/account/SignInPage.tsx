@@ -4,7 +4,7 @@ import { classifyAuthCallbackFailure } from 'ras-stack/auth/client'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { posthog } from 'posthog-js'
 import { useEffect, useState } from 'react'
-import { readGuestDraft, GUEST_PATH } from '../rosters/guestDraft'
+import { readGuestDraft, GUEST_PATH, requestGuestSave } from '../rosters/guestDraft'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -46,7 +46,13 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
   const githubAuthAvailable = useGithubAuthAvailability()
   const providers = options?.providers.filter((provider) => provider !== 'github' || githubAuthAvailable) ?? []
 
+  // Arriving signed in then saves the list without asking whose it is.
+  const keepRoster = () => {
+    if (savingRoster) requestGuestSave()
+  }
+
   const authenticate = async () => {
+    keepRoster()
     posthog.capture('account_authentication_started', {
       method: 'email',
       action: joining ? 'create' : 'sign_in',
@@ -108,7 +114,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
           <h1 className="mt-1 text-3xl">{savingRoster ? 'Save your roster' : joining ? 'Make an account' : 'Welcome back'}</h1>
           <p className="mt-3 text-sm text-dim">
             {savingRoster
-              ? 'Your roster is ready. Create a free account or sign in to save it and keep building.'
+              ? 'Create a free account or sign in to save your roster. Until then it stays on this device.'
               : 'Save your army lists, start games with friends and pick up battles already in progress.'}
           </p>
           {savingRoster ? (
@@ -227,6 +233,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
                       variant="outline"
                       className="h-11 w-full text-base"
                       onClick={async () => {
+                        keepRoster()
                         posthog.capture('account_authentication_started', {
                           method: provider,
                           action: joining ? 'create' : 'sign_in',

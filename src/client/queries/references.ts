@@ -1,4 +1,5 @@
 import { TERRAIN_GEOMETRY_VERSION } from '../../contracts/terrainReference'
+import { anySignal } from '../abortSignals'
 export { terrainMatchupIds } from '../../contracts/terrainReference'
 import { referenceRead, offlineSearch } from '../offline/runtime'
 import { queryOptions } from '@tanstack/react-query'
@@ -60,7 +61,7 @@ export const globalSearchQuery = (query: string) =>
       const saved = offlineSearch(query, client)
       if (saved && !navigator.onLine) return saved
       try {
-        return await globalSearch({ data: { query }, signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]) })
+        return await globalSearch({ data: { query }, signal: anySignal([signal, AbortSignal.timeout(5_000)]) })
       } catch (error) {
         if (saved) return saved
         throw error

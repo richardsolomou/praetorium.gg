@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { LoadoutScoring, LoadoutSpace, OptionEstimate, ProfileOdds } from '../../../core/combatLoadouts'
-import type { CombatRequest } from './CombatMatchup'
+import type { CombatRequest } from '../../../core/combatMatchup'
 
 export type LoadoutOddsRequest = { kind: 'loadouts'; space: LoadoutSpace; scoring: LoadoutScoring; expected: CombatRequest }
 export type LoadoutOdds = {

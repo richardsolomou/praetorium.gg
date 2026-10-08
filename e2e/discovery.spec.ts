@@ -35,7 +35,7 @@ const guides = [
   {
     slug: 'build-an-army',
     title: 'How to build and check a Warhammer 40,000 army list',
-    fact: 'A visitor’s draft stays in the current browser tab.',
+    fact: 'A visitor’s draft stays on this device.',
     action: 'Open the army builder',
     to: '/rosters',
   },

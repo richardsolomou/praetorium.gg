@@ -65,10 +65,7 @@ export function referenceUnits(
   battleSize?: number,
   detachment?: string,
 ) {
-  const wanted = faction.trim().toLocaleLowerCase()
-  const foundFaction = referenceFactions(corpus).find((candidate) =>
-    [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted),
-  )
+  const foundFaction = referenceFaction(corpus, faction)
   if (!foundFaction) return null
   const book = loaded.factions.find((entry) => entry.id === foundFaction.id)
   const displayName = book ? factionDisplayName(book.name, rules?.factionNames) : foundFaction.name
@@ -77,13 +74,7 @@ export function referenceUnits(
   const units = unitsIn(loaded, foundFaction.id, '', { restrictions, battleSize }).map((unit) =>
     unitReference(unit, canonicalById.get(unit.id)),
   )
-  const selectedDetachment = detachment
-    ? corpus.catalogue.detachments.find(
-        (candidate) =>
-          candidate.catalogueId === foundFaction.id &&
-          [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === detachment.toLocaleLowerCase()),
-      )
-    : null
+  const selectedDetachment = detachment ? referenceDetachment(corpus, foundFaction.id, detachment) : null
   if (detachment && !selectedDetachment) return null
   return {
     faction: foundFaction,
@@ -94,8 +85,33 @@ export function referenceUnits(
   }
 }
 
-function unitReference(unit: UnitSummary, sheet: CanonicalDatasheet | undefined) {
+/** A faction by the id, URL slug, or display name an agent read from the reference. */
+export function referenceFaction(corpus: ReferenceCorpus, faction: string) {
+  const wanted = faction.trim().toLocaleLowerCase()
+  return referenceFactions(corpus).find((candidate) =>
+    [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted),
+  )
+}
+
+export function referenceDetachment(corpus: ReferenceCorpus, factionId: string, detachment: string) {
+  const wanted = detachment.trim().toLocaleLowerCase()
+  return corpus.catalogue.detachments.find(
+    (candidate) =>
+      candidate.catalogueId === factionId &&
+      [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted),
+  )
+}
+
+/** Where a datasheet is read: its canonical page and the id get_reference_record accepts. */
+export function datasheetCitation(sheet: CanonicalDatasheet | undefined) {
   const route = sheet?.referenceRoute ?? (sheet ? { catalogueId: sheet.catalogueId, slug: sheet.slug } : null)
+  return {
+    url: route ? `/factions/${route.catalogueId}/datasheets/${route.slug}` : null,
+    referenceId: route ? `datasheet:${route.catalogueId}:${route.slug}` : null,
+  }
+}
+
+function unitReference(unit: UnitSummary, sheet: CanonicalDatasheet | undefined) {
   return {
     ...unit,
     keywords: sheet?.keywords ?? [],
@@ -105,8 +121,7 @@ function unitReference(unit: UnitSummary, sheet: CanonicalDatasheet | undefined)
     canSupport: sheet?.attachments.filter((relationship) => relationship.kind === 'support').map((relationship) => relationship.name) ?? [],
     canBeLedBy: sheet?.leaders.map((relationship) => relationship.name) ?? [],
     canBeSupportedBy: sheet?.supporters.map((relationship) => relationship.name) ?? [],
-    url: route ? `/factions/${route.catalogueId}/datasheets/${route.slug}` : null,
-    referenceId: route ? `datasheet:${route.catalogueId}:${route.slug}` : null,
+    ...datasheetCitation(sheet),
   }
 }
 

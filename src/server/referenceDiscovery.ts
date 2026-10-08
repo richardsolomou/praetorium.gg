@@ -89,7 +89,7 @@ export async function referenceLlms(request: Request) {
   const revisions = corpus ? Object.entries(corpus.catalogue.revisions).map(([source, revision]) => `- ${source}: ${revision}`) : []
   const body = `# Praetorium
 
-Praetorium is a free Warhammer 40,000 army builder, combat simulator, battle tracker, and community-data reference. Visitors can build a draft and simulate a matchup without an account; sign in to keep rosters, import lists, or play battles. Reference answers come from verified immutable snapshots and never from generated summaries.
+Praetorium is a free Warhammer 40,000 army builder, combat simulator, battle tracker, and community-data reference. Visitors can build a draft and simulate a matchup without an account; drafts stay on this device across visits. Sign in to save rosters to your account, open them on other devices, import lists, or play battles. Reference answers come from verified immutable snapshots and never from generated summaries.
 
 ## Agent interfaces
 
@@ -98,7 +98,7 @@ Praetorium is a free Warhammer 40,000 army builder, combat simulator, battle tra
 - [Reference index](${origin}/api/reference/v1/): discover kinds, mission packs, rule documents, factions, and active revisions
 - [Search](${origin}/api/reference/v1/search?q=movement): search missions, deployments, terrain, rules, detachments, and datasheets
 - [Factions](${origin}/api/reference/v1/factions): discover available factions
-- [MCP](${origin}/mcp): public reference tools with optional account sign-in for rosters and battles
+- [MCP](${origin}/mcp): public reference and combat simulator tools with optional account sign-in for rosters and battles
 
 For roster planning, read \`/api/reference/v1/factions/{catalogueId}/units\` once to get compact unit-size costs, composition, attachment relationships, limits, keywords, links, and optional detachment rules instead of reading every datasheet. API reads return JSON by default. Send \`Accept: text/markdown\` or add \`format=markdown\` for compact source-faithful text. Search results include canonical page URLs, source revisions, attribution, and cursor pagination.
 

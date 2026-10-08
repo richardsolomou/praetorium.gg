@@ -1,4 +1,5 @@
-import { expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type { Command } from '../core/battle'
 import { SpacetimeOperator } from './spacetimeOperator'
 
 it('sends a session revocation to the selected database with the operator credential', async () => {
@@ -105,4 +106,57 @@ it('reads only the requested roster ids for an owner', async () => {
   expect(await operator.rostersByIds('user-1', ['first', 'second'])).toEqual([])
   const [url, init] = request.mock.calls[0] as unknown as [URL, RequestInit]
   expect([url.pathname, init.body]).toEqual(['/v1/database/preview-42/call/rosters_by_ids', '["user-1",["first","second"]]'])
+})
+
+describe('battle submission refusals', () => {
+  const snapshot = {
+    battle: { id: 'battle-1', token: 'token-1', createdAt: 0 },
+    seats: [
+      { id: 'alice', side: 0, automated: false },
+      { id: 'bob', side: 1, automated: false },
+    ],
+    log: [],
+  }
+  const product = (reason: string) => {
+    const request = vi.fn(async (url: URL | RequestInfo, _init?: RequestInit) =>
+      Response.json(
+        JSON.stringify(
+          (url as URL).pathname.endsWith('/battle_for_operator') ? snapshot : { result: { outcome: 'refused', reason }, log: snapshot.log },
+        ),
+      ),
+    )
+    return { request, operator: new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request) }
+  }
+  const input = (command: Command) => ({ battleId: 'battle-1', userId: 'alice', expectedSeq: 0, command, now: 0 })
+
+  it('codes a domain refusal from the log the product database refused it against', async () => {
+    const { operator } = product('the battle is not running')
+    expect((await operator.submit(input({ kind: 'advance' }))).result).toEqual({
+      outcome: 'refused',
+      code: 'battle-not-running',
+      reason: 'the battle is not running',
+    })
+  })
+
+  it('sends a rules refusal message to the product database and keeps its code', async () => {
+    const { operator, request } = product('choose a deployment')
+    const { result } = await operator.submit(input({ kind: 'set-setup-step', step: 1 }), () => ({
+      code: 'missing-deployment',
+      message: 'choose a deployment',
+    }))
+    const [, init] = request.mock.calls[1] as unknown as [URL, RequestInit]
+    expect([JSON.parse(init.body as string).at(-1), result]).toEqual([
+      'choose a deployment',
+      { outcome: 'refused', code: 'missing-deployment', reason: 'choose a deployment' },
+    ])
+  })
+
+  it('marks a refusal this release cannot reproduce as unclassified', async () => {
+    const { operator } = product('a rule from another release')
+    expect((await operator.submit(input({ kind: 'set-setup-step', step: 1 }))).result).toEqual({
+      outcome: 'refused',
+      code: 'unclassified',
+      reason: 'a rule from another release',
+    })
+  })
 })

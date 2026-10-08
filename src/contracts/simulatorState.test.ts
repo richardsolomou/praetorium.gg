@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decodeSimulatorState, encodeSimulatorState, type SimulatorState } from './simulatorUrl'
+import { decodeSimulatorState, encodeSimulatorState, type SimulatorState } from './simulatorState'
 
 const state: SimulatorState = {
   v: 1,

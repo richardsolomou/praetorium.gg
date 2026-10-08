@@ -1151,6 +1151,29 @@ describe('the limit on how many of a datasheet a roster may hold', () => {
     expect(rosterLimit(index.definitions.get('grunt')!, index)).toBeNull()
   })
 
+  const parentCapped = () =>
+    indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'hero',
+          name: 'Hero',
+          type: 'model',
+          constraints: [{ id: 'hero-max', type: 'max', value: 1, field: 'selections', scope: 'parent', shared: true }],
+        },
+      ],
+    })
+
+  it('reads a datasheet’s own parent-scoped maximum as a cap on the force holding it', () => {
+    const index = parentCapped()
+    expect(rosterLimit(index.definitions.get('hero')!, index, { roster: [{ id: 'hero' }] })).toBe(1)
+  })
+
+  it('refuses a force exceeding a datasheet’s own parent-scoped maximum', () => {
+    expect(evaluate([{ id: 'hero' }, { id: 'hero' }], parentCapped()).errors.map((error) => error.message)).toContain(
+      'allows at most 1, has 2',
+    )
+  })
+
   it('follows a modifier that lowers it for a smaller game', () => {
     const index = indexOf({
       sharedSelectionEntries: [

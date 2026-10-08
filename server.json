@@ -3,7 +3,7 @@
   "name": "io.github.richardsolomou/praetorium",
   "title": "Praetorium",
   "description": "Public Warhammer 40K rules, datasheets, points and missions; sign in to manage rosters and battles.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "websiteUrl": "https://praetorium.gg",
   "repository": { "url": "https://github.com/richardsolomou/praetorium.gg", "source": "github", "id": "1323286162" },
   "remotes": [{ "type": "streamable-http", "url": "https://praetorium.gg/mcp" }]

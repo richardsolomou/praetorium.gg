@@ -25,9 +25,10 @@ Important count/identity meanings:
 - `roster_imported` means parsing. `roster_import_saved` and `guest_roster_saved` mean the request succeeded; uncertain-response retries can repeat a guest completion. Use unique people for conversion.
 - Roster `unit_count` counts attached character/bodyguard as one fielded unit through `attachedUnitCount`. Request metrics and import `pick_count` count payload picks instead.
 - `detachment_rules_covered` requires every selected detachment to resolve to supported Game Datacards semantics, including imported options. Missing selections remain uncovered.
-- `battle_command_submitted` includes kind/outcome, not the command payload. Appended `set-setup-step` commands measure reached setup steps.
+- `battle_command_submitted` includes kind/outcome, not the command payload. A refused command adds `reason`, a `RefusalCode` from `src/core/battle.ts`, never the refusal message, which can name units, cards, and numbers; read it with `command`, since codes are shared across command kinds. `unclassified` is a refusal the server's rules did not reproduce, expected only while releases overlap. Stale outcomes carry no reason because a sequence mismatch is their only cause. Appended `set-setup-step` commands measure reached setup steps.
 - Onboarding stores/captures reading-tour answers, skips, and welcome; domain-derived progress does not emit a duplicate completion event.
 - Simulator open/completion/failure are bounded per mounted session/matchup, with `source` identifying standalone, roster, or battle.
+- `spectator_invite_shown`, `spectator_invite_followed`, and `spectator_invite_dismissed` measure the invitation a battle shows a reader without a seat; `offer` and `action` name the roster or battle step. Measure conversion as unique people from `spectator_invite_followed` to `guest_roster_started`, `account_created`, or `battle_creation_submitted`. A battle finishing while watched moves the invitation and can repeat `shown`.
 
 Browser events receive bounded `feature` and `surface` at the send boundary. Public player guides use the bounded `guides` feature. Detail route parameters never enter `feature`; `surface` distinguishes web and native WebView. Web vitals use the measured `$current_url`, since later SPA navigation can change `$pathname`. Historical queries must use that measured path. Server/native-shell events do not inherit these browser properties.
 
@@ -35,7 +36,7 @@ Browser events receive bounded `feature` and `surface` at the send boundary. Pub
 
 Custom properties exclude names, emails, images, opaque tokens/IDs, search text, unit/list contents, command payloads, rules prose, and error messages. Use bounded enums, booleans, counts, durations, and outcomes. Source-normalized faction/detachment labels are allowed roster dimensions; catalogue IDs are not.
 
-Exception tracking may carry stack traces; manual captures add only an operation label. Expected realtime/network recovery and supported retry statuses are excluded. Unexpected connection errors report once per mounted outage and reset only after a sustained applied subscription. Read `src/client/networkErrors.ts`, `src/client/realtimeErrors.ts`, and their callers for classification; keep sibling paths consistent.
+Exception tracking may carry stack traces; manual captures add only an operation label. Expected realtime/network recovery and supported retry statuses are excluded. Unexpected connection errors, and service HTTP 5xx responses that persist for five consecutive attempts, report once per mounted outage and reset only after a sustained applied subscription. Read `src/client/networkErrors.ts`, `src/client/realtimeErrors.ts`, and their callers for classification; keep sibling paths consistent.
 
 ## Source maps
 

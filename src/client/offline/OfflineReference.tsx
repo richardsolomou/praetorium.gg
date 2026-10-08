@@ -6,6 +6,7 @@ import { requestNativeOfflineSave, supportsNativeOffline } from '../nativeBridge
 import { referenceData } from './runtime'
 import { applyReferenceData, savedReferenceData } from './referenceData'
 import { downloadReference, offlineAppVersion, offlineReferenceVersion } from './download'
+import { anySignal } from '../abortSignals'
 
 const RECHECK_MS = 5 * 60_000
 export function OfflineReference() {
@@ -40,7 +41,7 @@ export function OfflineReference() {
           abort.signal.throwIfAborted()
           if (data) applyReferenceData(client, data)
         }
-        const signal = AbortSignal.any([abort.signal, AbortSignal.timeout(15_000)])
+        const signal = anySignal([abort.signal, AbortSignal.timeout(15_000)])
         const [manifest, version] = await Promise.all([offlineReferenceVersion(signal), offlineAppVersion(signal)])
         abort.signal.throwIfAborted()
         if (referenceData()?.revision === manifest.revision && referenceData()?.appRevision === version.revision) return

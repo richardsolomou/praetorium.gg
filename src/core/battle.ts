@@ -208,20 +208,20 @@ export function embarkedModelCount(units: readonly Pick<UnitState, 'embarkedIn' 
   return units.reduce((models, unit) => models + (unit.embarkedIn === transportKey ? unit.alive : 0), 0)
 }
 
-function embarkedCapacityError(units: readonly UnitState[], unit: UnitState, nextAlive: number): string | null {
+function embarkedCapacityError(units: readonly UnitState[], unit: UnitState, nextAlive: number): Refusal | null {
   if (!unit.embarkedIn || nextAlive <= unit.alive) return null
   const transport = units.find((candidate) => candidate.key === unit.embarkedIn)
   const capacity = transportCapacity(transport?.transportRule, transport?.wargear)
-  if (capacity === null) return 'this transport has no known model capacity'
+  if (capacity === null) return refuse('transport-capacity-unknown', 'this transport has no known model capacity')
   return embarkedModelCount(units, unit.embarkedIn) - unit.alive + nextAlive > capacity
-    ? `this transport can carry at most ${capacity} models`
+    ? refuse('transport-full', `this transport can carry at most ${capacity} models`)
     : null
 }
 
 export const canTransport = (unit: Pick<UnitState, 'transport' | 'group'>): boolean => unit.transport === true || unit.group === 'transport'
 
 export function strategicReserveSideTotals(
-  armies: readonly { units: readonly ReserveUnit[]; roster: { built?: { strategicReserveLimit?: number } | null } | null }[],
+  armies: readonly { units: readonly ReserveUnit[]; roster: ReserveRoster }[],
 ): { points: number; limit: number } | null {
   const limits = armies.map((army) => army.roster?.built?.strategicReserveLimit)
   if (limits.some((limit) => limit === undefined)) return null
@@ -231,7 +231,61 @@ export function strategicReserveSideTotals(
   }
 }
 
-function strategicReserveSideError(state: BattleState, player: PlayerState, changed?: readonly ReserveUnit[]): string | null {
+/** The fields of an army that its formations are judged against, shared by the battle state and its view. */
+type FormationArmy = { side: number; units: readonly UnitState[]; roster: ReserveRoster }
+type ReserveRoster = { built?: { strategicReserveLimit?: number } | null } | null
+type FormationTable = Pick<BattleState, 'status' | 'firstPlayerId'> & { players: readonly FormationArmy[] }
+
+/**
+ * Why one of the army's units cannot move to a formation, or null when it can.
+ *
+ * `validate` refuses `set-unit-formation` with this, and the setup screen asks it of
+ * the battle view to disable what the server would refuse.
+ */
+export function unitFormationRefusal(
+  state: FormationTable,
+  player: FormationArmy,
+  command: Pick<Extract<Command, { kind: 'set-unit-formation' }>, 'unitKey' | 'formation' | 'transportKey'>,
+): Refusal | null {
+  const attached = attachedUnits(player.units, command.unitKey)
+  if (command.formation === 'embarked') {
+    if (!command.transportKey) return refuse('invalid-transport', 'choose a transport for the embarked unit')
+    const transport = player.units.find((unit) => unit.key === command.transportKey)
+    if (!transport || !canTransport(transport) || transport.attachedTo || transport.destroyed || transport.formation === 'embarked')
+      return refuse('invalid-transport', 'choose a transport in this army')
+    if (attached.some((unit) => unit.key === transport.key || canTransport(unit)))
+      return refuse('invalid-transport', 'a transport cannot embark in another transport')
+    if (attached.some((unit) => unit.destroyed)) return refuse('invalid-transport', 'a destroyed unit cannot embark')
+    const capacity = transportCapacity(transport.transportRule, transport.wargear)
+    if (capacity === null) return refuse('transport-capacity-unknown', 'this transport has no known model capacity')
+    const aboard = embarkedModelCount(player.units, transport.key) - embarkedModelCount(attached, transport.key)
+    if (aboard + attached.reduce((models, unit) => models + unit.alive, 0) > capacity)
+      return refuse('transport-full', `this transport can carry at most ${capacity} models`)
+  } else if (command.transportKey) {
+    return refuse('invalid-transport', 'only an embarked unit can name a transport')
+  }
+  // Asked of the whole attached unit, because a deployment ability needs every
+  // model in it: a character who can deep strike cannot take a bodyguard unit
+  // that cannot with him.
+  if (
+    !['battlefield', 'strategic-reserves', 'embarked'].includes(command.formation) &&
+    !attached.every((unit) => unit.formationOptions?.includes(command.formation))
+  ) {
+    return refuse('formation-unsupported', 'the roster data does not support that formation')
+  }
+  if (state.status !== 'setup') return null
+  const keys = new Set(attached.map((unit) => unit.key))
+  const redeployed =
+    Boolean(state.firstPlayerId) &&
+    command.formation === 'strategic-reserves' &&
+    attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
+  const changed = player.units.map((unit) =>
+    keys.has(unit.key) ? changedFormation(unit, command.formation, redeployed, command.transportKey) : unit,
+  )
+  return strategicReserveSideError(state, player, changed)
+}
+
+function strategicReserveSideError(state: FormationTable, player: FormationArmy, changed?: readonly ReserveUnit[]): Refusal | null {
   const armies = state.players.filter((candidate) => candidate.side === player.side)
   const totals = strategicReserveSideTotals(armies)
   if (!totals) return null
@@ -240,7 +294,10 @@ function strategicReserveSideError(state: BattleState, player: PlayerState, chan
   // stay legal so the table can repair the setup one unit at a time.
   if (changed && points <= totals.points) return null
   return points > totals.limit
-    ? `no more than ${totals.limit} points of this ${armies.length > 1 ? 'side' : 'army'} can start in strategic reserves`
+    ? refuse(
+        'reserves-over-limit',
+        armies.length > 1 ? `over this side's ${totals.limit} pt reserve limit` : `over the ${totals.limit} pt reserve limit`,
+      )
     : null
 }
 
@@ -687,8 +744,120 @@ export type Command =
   | { kind: 'reopen-battle' }
   | { kind: 'undo'; target: number }
 
-/** `stale` carries the sequence the caller should have had; `refused` carries the domain reason. */
-export type SubmitResult = { outcome: 'appended'; seq: number } | { outcome: 'stale'; seq: number } | { outcome: 'refused'; reason: string }
+/**
+ * Why a command was refused, as a stable name that carries no unit, card, number, or player text.
+ *
+ * Telemetry and agents may read it where the message may not travel. `unclassified`
+ * is a product database refusal this release's rules do not reproduce.
+ */
+export type RefusalCode =
+  | 'advance-not-requested'
+  | 'advance-requested'
+  | 'battle-not-over'
+  | 'battle-not-running'
+  | 'battle-not-started'
+  | 'battle-over'
+  | 'battle-started'
+  | 'below-zero'
+  | 'card-already-drawn'
+  | 'card-not-in-deck'
+  | 'cards-owed'
+  | 'cards-settled'
+  | 'clock-unchanged'
+  | 'concession-required'
+  | 'cp-gain-limit'
+  | 'deployment-mismatch'
+  | 'disposition-not-brought'
+  | 'draw-limit'
+  | 'draw-unreviewed'
+  | 'formation-unsupported'
+  | 'hand-acknowledged'
+  | 'invalid-amount'
+  | 'invalid-detachments'
+  | 'invalid-draw'
+  | 'invalid-prep'
+  | 'invalid-roster'
+  | 'invalid-settlement'
+  | 'invalid-sides'
+  | 'invalid-transport'
+  | 'league-sealed'
+  | 'matchup-not-in-pack'
+  | 'missing-deployment'
+  | 'missing-disposition'
+  | 'missing-player'
+  | 'missing-roster'
+  | 'missing-terrain'
+  | 'mission-cards-mismatch'
+  | 'mission-cards-unprepared'
+  | 'no-active-secondaries'
+  | 'no-roster'
+  | 'no-secret'
+  | 'not-end-of-turn'
+  | 'not-enough-cp'
+  | 'not-seated'
+  | 'not-tactical'
+  | 'not-your-turn'
+  | 'nothing-discarded'
+  | 'nothing-to-acknowledge'
+  | 'nothing-to-settle'
+  | 'nothing-to-undo'
+  | 'out-of-range'
+  | 'practice-concession'
+  | 'reserves-over-limit'
+  | 'roster-format-mismatch'
+  | 'roster-size-mismatch'
+  | 'score-by-name'
+  | 'score-cap-battle'
+  | 'score-cap-card'
+  | 'score-cap-round'
+  | 'scoring-reviewed'
+  | 'scoring-unreviewed'
+  | 'seat-count-mismatch'
+  | 'secondary-history-full'
+  | 'secondary-not-active'
+  | 'secret-chosen'
+  | 'secret-owed'
+  | 'secret-revealed'
+  | 'secret-unrevealed'
+  | 'settlement-owed'
+  | 'stratagem-limit'
+  | 'stratagem-wrong-phase'
+  | 'stratagem-wrong-turn'
+  | 'tactical-hand-unreviewed'
+  | 'terrain-geometry-missing'
+  | 'terrain-mismatch'
+  | 'too-few-seats'
+  | 'too-many-players'
+  | 'transport-capacity-unknown'
+  | 'transport-full'
+  | 'undo-not-latest'
+  | 'unit-unchanged'
+  | 'unknown-command'
+  | 'unknown-deployment'
+  | 'unknown-player'
+  | 'unknown-secondary'
+  | 'unknown-setup-step'
+  | 'unknown-stratagem'
+  | 'unknown-terrain'
+  | 'unknown-unit'
+  | 'unnamed-card'
+  | 'unsupported-battle-size'
+  | 'unsupported-player-count'
+  | 'wounds-unknown'
+  | 'wrong-settlement-turn'
+  | 'unclassified'
+
+export type Refusal = { code: RefusalCode; message: string }
+
+export function refuse(code: RefusalCode, message: string): Refusal {
+  return { code, message }
+}
+
+/** `stale` carries the sequence the caller should have had; `refused` carries the domain reason as a code and a message. */
+export type SubmitResult =
+  | { outcome: 'appended'; seq: number }
+  | { outcome: 'stale'; seq: number }
+  | { outcome: 'refused'; code: RefusalCode; reason: string }
 
 export type LoggedCommand = { seq: number; by: PlayerId; at: number; command: Command }
 
@@ -935,64 +1104,79 @@ export function emptyBattle(
   }
 }
 
+/** Why `by` may not run `command` against `state`, as the message a player reads, or null when they may. */
+export function validate(state: BattleState, by: PlayerId, command: Command): string | null {
+  return commandRefusal(state, by, command)?.message ?? null
+}
+
 /**
  * Why `by` may not run `command` against `state`, or null when they may.
  *
  * Every rule about turn order, ownership and legality lives here. The server
  * calls it before appending; the UI calls it to decide what to render enabled.
  */
-export function validate(state: BattleState, by: PlayerId, command: Command): string | null {
+export function commandRefusal(state: BattleState, by: PlayerId, command: Command): Refusal | null {
   const actor = state.players.find((candidate) => candidate.id === by)
-  if (!actor) return 'you are not in this battle'
+  if (!actor) return refuse('not-seated', 'you are not in this battle')
   if ('playerId' in command && command.playerId && !state.players.some((candidate) => candidate.id === command.playerId)) {
-    return 'that player is not in this battle'
+    return refuse('unknown-player', 'that player is not in this battle')
   }
   const player = targetArmy(state, actor, command)
 
   switch (command.kind) {
     case 'configure-battle': {
-      if (state.status !== 'setup') return 'the battle has started'
-      if (state.leagueToken && command.limit !== state.settings.limit) return 'league roster battle size is sealed'
-      if (state.leagueToken && (command.teamBattle ?? false) !== state.settings.teamBattle) return 'league battle sides are sealed'
-      if (state.leagueToken && battleCapacity(command) !== battleCapacity(state.settings)) return 'league battle seats are sealed'
+      if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
+      if (state.leagueToken && command.limit !== state.settings.limit) return refuse('league-sealed', 'league roster battle size is sealed')
+      if (state.leagueToken && (command.teamBattle ?? false) !== state.settings.teamBattle)
+        return refuse('league-sealed', 'league battle sides are sealed')
+      if (state.leagueToken && battleCapacity(command) !== battleCapacity(state.settings))
+        return refuse('league-sealed', 'league battle seats are sealed')
       if (command.playerCount !== undefined && command.playerCount !== 2 && command.playerCount !== 3 && command.playerCount !== 4)
-        return 'choose a supported player count'
-      if (battleCapacity(command) > PLAYERS_PER_BATTLE !== Boolean(command.teamBattle)) return 'choose matching battle sides and seats'
-      if (battleCapacity(command) < state.players.length) return 'choose enough seats for every player'
-      if (command.limit !== null && !GAME_SIZES.some((size) => size.limit === command.limit)) return 'choose a supported battle size'
+        return refuse('unsupported-player-count', 'choose a supported player count')
+      if (battleCapacity(command) > PLAYERS_PER_BATTLE !== Boolean(command.teamBattle))
+        return refuse('seat-count-mismatch', 'choose matching battle sides and seats')
+      if (battleCapacity(command) < state.players.length) return refuse('too-few-seats', 'choose enough seats for every player')
+      if (command.limit !== null && !GAME_SIZES.some((size) => size.limit === command.limit))
+        return refuse('unsupported-battle-size', 'choose a supported battle size')
       return null
     }
     case 'reset-setup':
-      if (state.leagueToken) return 'league rosters are sealed'
-      return state.status === 'setup' ? null : 'the battle has started'
+      if (state.leagueToken) return refuse('league-sealed', 'league rosters are sealed')
+      return state.status === 'setup' ? null : refuse('battle-started', 'the battle has started')
     case 'set-setup-step':
-      if (state.status !== 'setup') return 'the battle has started'
-      return Number.isInteger(command.step) && command.step >= 0 && command.step <= SETUP_STEP_MAX ? null : 'choose a setup section'
+      if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
+      return Number.isInteger(command.step) && command.step >= 0 && command.step <= SETUP_STEP_MAX
+        ? null
+        : refuse('unknown-setup-step', 'choose a setup section')
     case 'set-attacker':
-      if (state.status !== 'setup') return 'the battle has started'
-      return state.players.some((candidate) => candidate.id === command.attackerId) ? null : 'that attacker is not in this battle'
+      if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
+      return state.players.some((candidate) => candidate.id === command.attackerId)
+        ? null
+        : refuse('unknown-player', 'that attacker is not in this battle')
     case 'set-first-turn':
-      if (state.status !== 'setup') return 'the battle has started'
-      return state.players.some((candidate) => candidate.id === command.firstPlayerId) ? null : 'that player is not in this battle'
+      if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
+      return state.players.some((candidate) => candidate.id === command.firstPlayerId)
+        ? null
+        : refuse('unknown-player', 'that player is not in this battle')
     case 'set-side-disposition': {
-      if (state.status !== 'setup') return 'the battle has started'
+      if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
       // Only a card one of the side's own armies brought. The side chooses between
       // them; it does not get to play something nobody at the table wrote down.
       const brought = state.players.some(
         (candidate) => candidate.side === command.side && candidate.roster?.built?.disposition === command.disposition,
       )
-      return brought ? null : 'that force disposition is not one this side brought'
+      return brought ? null : refuse('disposition-not-brought', 'that force disposition is not one this side brought')
     }
     case 'attach-roster': {
-      if (state.leagueToken) return 'league rosters are sealed'
-      if (state.status === 'finished') return 'the battle is over'
+      if (state.leagueToken) return refuse('league-sealed', 'league rosters are sealed')
+      if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
       // Correcting a list mid-battle stays allowed; bringing a different set of cards with it does not.
-      if (state.status === 'playing' && command.prep) return 'cards are settled before the battle begins'
+      if (state.status === 'playing' && command.prep) return refuse('cards-settled', 'cards are settled before the battle begins')
       const name = command.roster.name.trim()
-      if (!name) return 'name your army'
-      if (name.length > ROSTER_NAME_MAX_LENGTH) return 'that name is too long'
-      if (!command.roster.text.trim()) return 'paste your list'
-      if (command.roster.text.length > ROSTER_MAX_LENGTH) return 'that list is too long'
+      if (!name) return refuse('invalid-roster', 'name your army')
+      if (name.length > ROSTER_NAME_MAX_LENGTH) return refuse('invalid-roster', 'that name is too long')
+      if (!command.roster.text.trim()) return refuse('invalid-roster', 'paste your list')
+      if (command.roster.text.length > ROSTER_MAX_LENGTH) return refuse('invalid-roster', 'that list is too long')
       const built = command.roster.built
       if (
         (state.status !== 'setup' || !state.settings.sizeFromRosters) &&
@@ -1000,10 +1184,10 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
         built &&
         built.limit !== rosterLimit(state, player)
       )
-        return 'that roster does not match the battle size'
+        return refuse('roster-size-mismatch', 'that roster does not match the battle size')
       if (built?.detachmentPointBudget !== undefined) {
         const detachmentError = detachmentPointsError(built.detachments ?? [], built.detachmentPointBudget)
-        if (detachmentError) return 'invalid detachment combination'
+        if (detachmentError) return refuse('invalid-detachments', 'invalid detachment combination')
       }
       if (command.prep) {
         const prepError = validatePrep(command.prep)
@@ -1012,23 +1196,23 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       return null
     }
     case 'detach-roster': {
-      if (state.leagueToken) return 'league rosters are sealed'
+      if (state.leagueToken) return refuse('league-sealed', 'league rosters are sealed')
       // Correcting a list mid-battle stays allowed, because a corrected list is still
       // an army. Taking one away is not: the units on the table would have nothing
       // behind them, so a seat is only emptied while the table is being set.
-      if (state.status !== 'setup') return 'the battle has started'
-      if (!player.roster) return 'that seat has no army'
+      if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
+      if (!player.roster) return refuse('no-roster', 'that seat has no army')
       return null
     }
     case 'lock-league-rosters':
-      if (state.status !== 'setup') return 'the battle has started'
-      if (state.leagueToken) return 'league rosters are already sealed'
-      return state.players.every((candidate) => candidate.roster) ? null : 'every player needs a sealed roster'
+      if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
+      if (state.leagueToken) return refuse('league-sealed', 'league rosters are already sealed')
+      return state.players.every((candidate) => candidate.roster) ? null : refuse('missing-roster', 'every player needs a sealed roster')
     case 'begin-battle': {
-      if (state.status !== 'setup') return 'the battle has started'
+      if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
       const requiredPlayers = battleCapacity(state.settings)
-      if (state.players.length < requiredPlayers) return 'waiting for an opponent'
-      if (state.players.length > requiredPlayers) return 'too many players are seated'
+      if (state.players.length < requiredPlayers) return refuse('missing-player', 'waiting for an opponent')
+      if (state.players.length > requiredPlayers) return refuse('too-many-players', 'too many players are seated')
       const sideSizes = [...new Set(state.players.map((candidate) => candidate.side))].map(
         (side) => state.players.filter((candidate) => candidate.side === side).length,
       )
@@ -1038,11 +1222,15 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
         (requiredPlayers === 3 && sideSizes.toSorted((left, right) => left - right).join(',') !== '1,2') ||
         (requiredPlayers === 4 && sideSizes.some((size) => size !== 2))
       )
-        return 'players must be seated on two valid sides'
+        return refuse('invalid-sides', 'players must be seated on two valid sides')
       if (state.players.some((candidate) => !candidate.roster))
-        return state.settings.teamBattle ? 'every army needs a list' : 'both armies need a list'
-      if (state.settings.sizeFromRosters && state.settings.limit === null) return 'choose matching roster formats for each side'
-      if (!state.players.some((candidate) => candidate.id === command.firstPlayerId)) return 'that player is not in this battle'
+        return state.settings.teamBattle
+          ? refuse('missing-roster', 'every army needs a list')
+          : refuse('missing-roster', 'both armies need a list')
+      if (state.settings.sizeFromRosters && state.settings.limit === null)
+        return refuse('roster-format-mismatch', 'choose matching roster formats for each side')
+      if (!state.players.some((candidate) => candidate.id === command.firstPlayerId))
+        return refuse('unknown-player', 'that player is not in this battle')
       // A side of allies plays one Force Disposition, and it decides the primary each
       // side is set. Starting without it would hand the answer to whichever seat is first.
       if (
@@ -1050,14 +1238,14 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
           (candidate) => sideDispositionChoices(state, candidate.side).length > 1 && !sideDisposition(state, candidate.side),
         )
       )
-        return 'each side must choose the force disposition it plays'
+        return refuse('missing-disposition', 'each side must choose the force disposition it plays')
       if (command.attackerId && !state.players.some((candidate) => candidate.id === command.attackerId))
-        return 'that attacker is not in this battle'
+        return refuse('unknown-player', 'that attacker is not in this battle')
       if (
         state.settings.limit !== null &&
         state.players.some((candidate) => candidate.roster?.built && candidate.roster.built.limit !== rosterLimit(state, candidate))
       ) {
-        return 'every roster must match the battle size'
+        return refuse('roster-size-mismatch', 'every roster must match the battle size')
       }
       for (const candidate of state.players) {
         const reserveError = strategicReserveSideError(state, candidate)
@@ -1066,126 +1254,132 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       return null
     }
     case 'adjust-cp': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (!Number.isInteger(command.delta) || command.delta === 0) return 'command points move in whole steps'
-      if (player.cp + command.delta < 0) return 'not enough command points'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!Number.isInteger(command.delta) || command.delta === 0) return refuse('invalid-amount', 'command points move in whole steps')
+      if (player.cp + command.delta < 0) return refuse('not-enough-cp', 'not enough command points')
       if (command.delta > 0 && (player.bonusCpByRound[state.round - 1] ?? 0) + command.delta > 1) {
-        return 'a side can gain at most 1 additional command point per battle round'
+        return refuse('cp-gain-limit', 'a side can gain at most 1 additional command point per battle round')
       }
       return null
     }
     case 'resolve-tactical-hand': {
-      if (state.status !== 'playing') return 'the battle is not running'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       if (state.phase !== 'end' || !sameSide(state, state.activePlayerId, player.id))
-        return 'resolve tactical missions at the end of your turn'
-      if (player.secondaryMode !== 'tactical') return 'only tactical secondaries are resolved each turn'
+        return refuse('not-end-of-turn', 'resolve tactical missions at the end of your turn')
+      if (player.secondaryMode !== 'tactical') return refuse('not-tactical', 'only tactical secondaries are resolved each turn')
       const active = player.secondaries.filter(
         (secondary) => secondary.key !== player.secretSecondary && player.secondaryStatus[secondary.key] === 'active',
       )
-      if (!active.length) return 'there are no active tactical secondaries to resolve'
+      if (!active.length) return refuse('no-active-secondaries', 'there are no active tactical secondaries to resolve')
       const keys = command.keys ?? []
-      if (keys.some((key) => !active.some((secondary) => secondary.key === key))) return 'that secondary is not active'
-      if (command.gainCp && !keys.length) return 'discard a secondary to gain a command point'
+      if (keys.some((key) => !active.some((secondary) => secondary.key === key)))
+        return refuse('secondary-not-active', 'that secondary is not active')
+      if (command.gainCp && !keys.length) return refuse('nothing-discarded', 'discard a secondary to gain a command point')
       if (command.gainCp && (player.bonusCpByRound[state.round - 1] ?? 0) >= 1) {
-        return 'a side can gain at most 1 additional command point per battle round'
+        return refuse('cp-gain-limit', 'a side can gain at most 1 additional command point per battle round')
       }
       return null
     }
     case 'score': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (!Number.isInteger(command.delta) || command.delta === 0) return 'victory points move in whole steps'
-      if (player[command.category] + command.delta < 0) return 'that would go below zero'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!Number.isInteger(command.delta) || command.delta === 0) return refuse('invalid-amount', 'victory points move in whole steps')
+      if (player[command.category] + command.delta < 0) return refuse('below-zero', 'that would go below zero')
       // Once secondaries are named, they are scored by name: two ways of adding to
       // the same total is how a breakdown stops adding up.
-      if (command.category === 'secondary' && player.secondaries.length) return 'score the secondary by name'
+      if (command.category === 'secondary' && player.secondaries.length) return refuse('score-by-name', 'score the secondary by name')
       return null
     }
     case 'correct-player': {
-      if (state.status === 'setup') return 'the battle has not started'
+      if (state.status === 'setup') return refuse('battle-not-started', 'the battle has not started')
       const namedTarget = state.players.find((candidate) => candidate.id === command.playerId)
-      if (!namedTarget) return 'that player is not in this battle'
+      if (!namedTarget) return refuse('unknown-player', 'that player is not in this battle')
       const target = sideCaptain(state, namedTarget.side)
-      if (!Number.isInteger(command.delta) || command.delta === 0) return 'corrections move in whole steps'
-      if (target[command.resource] + command.delta < 0) return 'that would go below zero'
+      if (!Number.isInteger(command.delta) || command.delta === 0) return refuse('invalid-amount', 'corrections move in whole steps')
+      if (target[command.resource] + command.delta < 0) return refuse('below-zero', 'that would go below zero')
       return null
     }
     case 'settle-opponent-turn': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (!state.pendingSettlement) return 'there is no previous turn to settle'
-      if (secretSettlementActionPlayerId(state)) return 'reveal the secret mission before settling the previous turn'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!state.pendingSettlement) return refuse('nothing-to-settle', 'there is no previous turn to settle')
+      if (secretSettlementActionPlayerId(state))
+        return refuse('secret-unrevealed', 'reveal the secret mission before settling the previous turn')
       return null
     }
     case 'request-advance': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
-      if (state.completionPending) return 'settle the final turn before completing the battle'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!sameSide(state, state.activePlayerId, player.id)) return refuse('not-your-turn', 'it is not your turn')
+      if (state.completionPending) return refuse('settlement-owed', 'settle the final turn before completing the battle')
       const owed = sideOwes(state, player)
-      if (owed === 'settlement') return 'settle the previous turn before ending the command phase'
-      if (owed === 'cards') return 'draw every card owed before ending the command phase'
+      if (owed === 'settlement') return refuse('settlement-owed', 'settle the previous turn before ending the command phase')
+      if (owed === 'cards') return refuse('cards-owed', 'draw every card owed before ending the command phase')
       if (state.phase === 'command' && player.secondariesToReview.length && !state.drawAcknowledged) {
-        return 'review the new secondary missions before ending the command phase'
+        return refuse('draw-unreviewed', 'review the new secondary missions before ending the command phase')
       }
-      if (state.advanceRequested) return 'the phase is already waiting to advance'
+      if (state.advanceRequested) return refuse('advance-requested', 'the phase is already waiting to advance')
       return null
     }
     case 'cancel-advance': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
-      if (!state.advanceRequested) return 'the phase is not waiting to advance'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!sameSide(state, state.activePlayerId, player.id)) return refuse('not-your-turn', 'it is not your turn')
+      if (!state.advanceRequested) return refuse('advance-not-requested', 'the phase is not waiting to advance')
       return null
     }
     case 'acknowledge-scoring': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
-      if (!state.advanceRequested) return 'the phase is not waiting for scoring'
-      if (state.scoringAcknowledged) return 'scoring has already been reviewed'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!sameSide(state, state.activePlayerId, player.id)) return refuse('not-your-turn', 'it is not your turn')
+      if (!state.advanceRequested) return refuse('advance-not-requested', 'the phase is not waiting for scoring')
+      if (state.scoringAcknowledged) return refuse('scoring-reviewed', 'scoring has already been reviewed')
       return null
     }
     case 'advance': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!sameSide(state, state.activePlayerId, player.id)) return refuse('not-your-turn', 'it is not your turn')
       const owed = sideOwes(state, player)
-      if (owed === 'settlement') return 'settle the previous turn before ending the command phase'
-      if (owed === 'cards') return 'draw every card owed before ending the command phase'
-      if (owed === 'secret') return 'reveal or discard the secret mission before ending the turn'
+      if (owed === 'settlement') return refuse('settlement-owed', 'settle the previous turn before ending the command phase')
+      if (owed === 'cards') return refuse('cards-owed', 'draw every card owed before ending the command phase')
+      if (owed === 'secret') return refuse('secret-owed', 'reveal or discard the secret mission before ending the turn')
       if (state.phase === 'command' && player.secondariesToReview.length && !state.drawAcknowledged) {
-        return 'review the new secondary missions before ending the command phase'
+        return refuse('draw-unreviewed', 'review the new secondary missions before ending the command phase')
       }
       const due = scoringDue(state, player)
-      if (due.length && !state.advanceRequested) return 'review mission scoring before ending the phase'
-      if (due.length && !state.scoringAcknowledged) return 'finish mission scoring before ending the phase'
+      if (due.length && !state.advanceRequested) return refuse('scoring-unreviewed', 'review mission scoring before ending the phase')
+      if (due.length && !state.scoringAcknowledged) return refuse('scoring-unreviewed', 'finish mission scoring before ending the phase')
       const unresolvedTactical =
         state.phase === 'end' &&
         player.secondaryMode === 'tactical' &&
         player.secondaries.some(
           (secondary) => secondary.key !== player.secretSecondary && player.secondaryStatus[secondary.key] === 'active',
         )
-      if (unresolvedTactical && !state.advanceRequested) return 'review the tactical hand before ending the turn'
+      if (unresolvedTactical && !state.advanceRequested)
+        return refuse('tactical-hand-unreviewed', 'review the tactical hand before ending the turn')
       return null
     }
     case 'end-battle': {
-      if (state.status !== 'playing') return 'the battle is not running'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       // Older logs also hold battles called early; replay still applies them, but a new one only ends by concession.
-      if (command.reason !== 'conceded') return 'a battle ends after its last turn or by concession'
-      if (!command.concededBy) return 'choose who conceded'
+      if (command.reason !== 'conceded') return refuse('concession-required', 'a battle ends after its last turn or by concession')
+      if (!command.concededBy) return refuse('concession-required', 'choose who conceded')
       const concedingPlayer = state.players.find((candidate) => candidate.id === command.concededBy)
-      if (!concedingPlayer) return 'that player is not in this battle'
-      if (concedingPlayer.automated) return 'a practice opponent cannot concede'
+      if (!concedingPlayer) return refuse('unknown-player', 'that player is not in this battle')
+      if (concedingPlayer.automated) return refuse('practice-concession', 'a practice opponent cannot concede')
       return null
     }
     case 'reopen-battle':
-      return state.status === 'finished' ? null : 'the battle is not over'
+      return state.status === 'finished' ? null : refuse('battle-not-over', 'the battle is not over')
     case 'set-unit': {
-      if (state.status !== 'playing') return 'the battle is not running'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      if (!unit) return 'that is not one of your units'
-      if (unit.destroyed === command.destroyed) return command.destroyed ? 'the unit is already lost' : 'the unit is already standing'
+      if (!unit) return refuse('unknown-unit', 'that is not one of your units')
+      if (unit.destroyed === command.destroyed)
+        return command.destroyed
+          ? refuse('unit-unchanged', 'the unit is already lost')
+          : refuse('unit-unchanged', 'the unit is already standing')
       return command.destroyed ? null : embarkedCapacityError(player.units, unit, unit.models)
     }
     case 'deploy-unit': {
-      if (state.status === 'finished') return 'the battle is over'
+      if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
       const attached = attachedUnits(player.units, command.unitKey)
-      if (!attached.length) return 'that is not one of your units'
+      if (!attached.length) return refuse('unknown-unit', 'that is not one of your units')
       if (state.status === 'setup' && !command.deployed) {
         const keys = new Set(attached.map((unit) => unit.key))
         const changed = player.units.map((unit) => (keys.has(unit.key) ? changedFormation(unit, 'strategic-reserves') : unit))
@@ -1195,168 +1389,139 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       return null
     }
     case 'set-unit-formation': {
-      if (state.status === 'finished') return 'the battle is over'
-      const attached = attachedUnits(player.units, command.unitKey)
-      if (!attached.length) return namesAnotherArmy(command, actor) ? 'that is not one of their units' : 'that is not one of your units'
-      if (command.formation === 'embarked') {
-        if (!command.transportKey) return 'choose a transport for the embarked unit'
-        const transport = player.units.find((unit) => unit.key === command.transportKey)
-        if (!transport || !canTransport(transport) || transport.attachedTo || transport.destroyed || transport.formation === 'embarked')
-          return 'choose a transport in this army'
-        if (attached.some((unit) => unit.key === transport.key || canTransport(unit)))
-          return 'a transport cannot embark in another transport'
-        if (attached.some((unit) => unit.destroyed)) return 'a destroyed unit cannot embark'
-        const capacity = transportCapacity(transport.transportRule, transport.wargear)
-        if (capacity === null) return 'this transport has no known model capacity'
-        const aboard = embarkedModelCount(player.units, transport.key) - embarkedModelCount(attached, transport.key)
-        if (aboard + attached.reduce((models, unit) => models + unit.alive, 0) > capacity)
-          return `this transport can carry at most ${capacity} models`
-      } else if (command.transportKey) {
-        return 'only an embarked unit can name a transport'
-      }
-      // Asked of the whole attached unit, because a deployment ability needs every
-      // model in it: a character who can deep strike cannot take a bodyguard unit
-      // that cannot with him.
-      if (
-        !['battlefield', 'strategic-reserves', 'embarked'].includes(command.formation) &&
-        !attached.every((unit) => unit.formationOptions?.includes(command.formation))
-      ) {
-        return 'the roster data does not support that formation'
-      }
-      if (state.status === 'setup') {
-        const keys = new Set(attached.map((unit) => unit.key))
-        const redeployed =
-          Boolean(state.firstPlayerId) &&
-          command.formation === 'strategic-reserves' &&
-          attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
-        const changed = player.units.map((unit) =>
-          keys.has(unit.key) ? changedFormation(unit, command.formation, redeployed, command.transportKey) : unit,
-        )
-        const reserveError = strategicReserveSideError(state, player, changed)
-        if (reserveError) return reserveError
-      }
-      return null
+      if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
+      if (!attachedUnits(player.units, command.unitKey).length)
+        return namesAnotherArmy(command, actor)
+          ? refuse('unknown-unit', 'that is not one of their units')
+          : refuse('unknown-unit', 'that is not one of your units')
+      return unitFormationRefusal(state, player, command)
     }
     // The bonus is for a painted army, settled before the battle and paid as it begins.
     case 'set-painted':
-      return state.status === 'setup' ? null : 'the battle ready bonus is set before the battle begins'
+      return state.status === 'setup' ? null : refuse('battle-started', 'the battle ready bonus is set before the battle begins')
     case 'wound-unit': {
-      if (state.status !== 'playing') return 'the battle is not running'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      if (!unit) return 'that is not one of your units'
-      if (!Number.isInteger(command.delta) || command.delta === 0) return 'models come off in whole numbers'
-      if (unit.alive + command.delta < 0) return 'there are not that many models left'
-      if (unit.alive + command.delta > unit.models) return 'that is more models than the unit has'
+      if (!unit) return refuse('unknown-unit', 'that is not one of your units')
+      if (!Number.isInteger(command.delta) || command.delta === 0) return refuse('invalid-amount', 'models come off in whole numbers')
+      if (unit.alive + command.delta < 0) return refuse('out-of-range', 'there are not that many models left')
+      if (unit.alive + command.delta > unit.models) return refuse('out-of-range', 'that is more models than the unit has')
       return embarkedCapacityError(player.units, unit, unit.alive + command.delta)
     }
     case 'damage-unit': {
-      if (state.status !== 'playing') return 'the battle is not running'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      if (!unit) return 'that is not one of your units'
+      if (!unit) return refuse('unknown-unit', 'that is not one of your units')
       // Refused rather than guessed at: a unit whose models do not share a wounds
       // characteristic has no single number to count against, and inventing one
       // would put a squad's sergeant and his veterans on the same track.
       const left = unitWoundsLeft(unit)
-      if (left === null || !unit.wounds) return 'the datasheet does not give this unit a single wounds characteristic'
-      if (!Number.isInteger(command.delta) || command.delta === 0) return 'wounds come off in whole numbers'
-      if (left + command.delta < 0) return 'there are not that many wounds left'
-      if (left + command.delta > unit.models * unit.wounds) return 'that is more wounds than the unit has'
+      if (left === null || !unit.wounds)
+        return refuse('wounds-unknown', 'the datasheet does not give this unit a single wounds characteristic')
+      if (!Number.isInteger(command.delta) || command.delta === 0) return refuse('invalid-amount', 'wounds come off in whole numbers')
+      if (left + command.delta < 0) return refuse('out-of-range', 'there are not that many wounds left')
+      if (left + command.delta > unit.models * unit.wounds) return refuse('out-of-range', 'that is more wounds than the unit has')
       return embarkedCapacityError(player.units, unit, Math.ceil((left + command.delta) / unit.wounds))
     }
     case 'set-deployment':
     case 'set-battlefield': {
       // The battlefield is shared, so either player may set it, and only before the
       // first turn — moving the deployment zones mid-battle is not a thing.
-      if (state.status !== 'setup') return 'the battle has started'
+      if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
       return null
     }
     case 'set-prep': {
-      if (state.status === 'finished') return 'the battle is over'
-      if (state.status === 'playing' && !canRepairPlayingPrep(player, command)) return 'cards are settled before the battle begins'
+      if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
+      if (state.status === 'playing' && !canRepairPlayingPrep(player, command))
+        return refuse('cards-settled', 'cards are settled before the battle begins')
       if (isKotcLimit(state.settings.limit) && command.secondaryMode !== 'tactical')
-        return 'King of the Colosseum requires tactical secondaries'
+        return refuse('not-tactical', 'King of the Colosseum requires tactical secondaries')
       return validatePrep(command)
     }
     case 'use-stratagem': {
-      if (state.status !== 'playing') return 'the battle is not running'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       const stratagem = player.stratagems.find((candidate) => candidate.key === command.key)
-      if (!stratagem) return 'that is not one of your stratagems'
+      if (!stratagem) return refuse('unknown-stratagem', 'that is not one of your stratagems')
       return stratagemRefusal(state, player, stratagem, command.cp)
     }
     case 'use-new-orders': {
-      if (state.status !== 'playing') return 'the battle is not running'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       const stratagem = player.stratagems.find((candidate) => candidate.key === command.stratagemKey)
-      if (!stratagem || !isNewOrders(stratagem)) return 'New Orders is not in your stratagems'
+      if (!stratagem || !isNewOrders(stratagem)) return refuse('unknown-stratagem', 'New Orders is not in your stratagems')
       const refusal = stratagemRefusal(state, player, stratagem, command.cp)
       if (refusal) return refusal
-      if (player.secondaryMode !== 'tactical') return 'New Orders requires tactical secondary missions'
+      if (player.secondaryMode !== 'tactical') return refuse('not-tactical', 'New Orders requires tactical secondary missions')
       if (
         !player.secondaries.some(
           (secondary) => secondary.key === command.secondaryKey && player.secondaryStatus[secondary.key] === 'active',
         )
       ) {
-        return 'choose an active secondary mission'
+        return refuse('secondary-not-active', 'choose an active secondary mission')
       }
-      if (!command.secondary.name.trim()) return 'name the replacement secondary'
-      if (!player.secondaryDeck?.some((secondary) => secondary.key === command.secondary.key)) return 'that secondary is not in your deck'
-      if (player.secondaries.some((secondary) => secondary.key === command.secondary.key)) return 'that secondary has already been drawn'
-      if (player.secondaries.length >= SECONDARY_HISTORY_MAX) return 'the secondary history is full'
+      if (!command.secondary.name.trim()) return refuse('unnamed-card', 'name the replacement secondary')
+      if (!player.secondaryDeck?.some((secondary) => secondary.key === command.secondary.key))
+        return refuse('card-not-in-deck', 'that secondary is not in your deck')
+      if (player.secondaries.some((secondary) => secondary.key === command.secondary.key))
+        return refuse('card-already-drawn', 'that secondary has already been drawn')
+      if (player.secondaries.length >= SECONDARY_HISTORY_MAX) return refuse('secondary-history-full', 'the secondary history is full')
       return null
     }
     case 'score-secondary': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (!mayNameSecondary(state, by, player, command.key)) return 'that is not one of your secondaries'
-      if (!Number.isInteger(command.delta) || command.delta === 0) return 'victory points move in whole steps'
-      if ((player.scored[command.key] ?? 0) + command.delta < 0) return 'that would go below zero'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!mayNameSecondary(state, by, player, command.key)) return refuse('unknown-secondary', 'that is not one of your secondaries')
+      if (!Number.isInteger(command.delta) || command.delta === 0) return refuse('invalid-amount', 'victory points move in whole steps')
+      if ((player.scored[command.key] ?? 0) + command.delta < 0) return refuse('below-zero', 'that would go below zero')
       return null
     }
     case 'score-settlement': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (!command.scores.length) return 'record at least one score'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!command.scores.length) return refuse('invalid-settlement', 'record at least one score')
       // Naming a round is only ever answering the turn that is waiting to be settled.
       // Anything else is a second way to say which round a score belongs to.
       if (command.round !== undefined && command.round !== state.round) {
         const pending = state.pendingSettlement
         if (!pending || pending.playerId !== player.id || pending.round !== command.round) {
-          return 'that is not the turn waiting to be settled'
+          return refuse('wrong-settlement-turn', 'that is not the turn waiting to be settled')
         }
       }
       const keys = new Set<string>()
       for (const score of command.scores) {
-        if (!Number.isInteger(score.delta) || score.delta <= 0) return 'victory points move in positive whole steps'
+        if (!Number.isInteger(score.delta) || score.delta <= 0)
+          return refuse('invalid-amount', 'victory points move in positive whole steps')
         if (score.category === 'primary') {
-          if (keys.has('primary')) return 'record primary scoring once per settlement'
+          if (keys.has('primary')) return refuse('invalid-settlement', 'record primary scoring once per settlement')
           keys.add('primary')
           continue
         }
-        if (keys.has(score.key)) return 'record each secondary once per settlement'
+        if (keys.has(score.key)) return refuse('invalid-settlement', 'record each secondary once per settlement')
         keys.add(score.key)
-        if (!mayNameSecondary(state, by, player, score.key)) return 'that is not one of your secondaries'
+        if (!mayNameSecondary(state, by, player, score.key)) return refuse('unknown-secondary', 'that is not one of your secondaries')
       }
       return null
     }
     case 'set-secondary-status': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (!mayNameSecondary(state, by, player, command.key)) return 'that is not one of your secondaries'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!mayNameSecondary(state, by, player, command.key)) return refuse('unknown-secondary', 'that is not one of your secondaries')
       return null
     }
     case 'draw-secondary': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (player.secondaryMode !== 'tactical') return 'only tactical missions are drawn'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (player.secondaryMode !== 'tactical') return refuse('not-tactical', 'only tactical missions are drawn')
       if (player.secondariesDrawnThisTurn.length >= secondaryDrawTarget(player)) {
-        return 'you have already drawn your secondaries this turn'
+        return refuse('draw-limit', 'you have already drawn your secondaries this turn')
       }
-      if (!command.secondary.name.trim()) return 'name the secondary'
+      if (!command.secondary.name.trim()) return refuse('unnamed-card', 'name the secondary')
       if (player.secondaryDeck && !player.secondaryDeck.some((secondary) => secondary.key === command.secondary.key)) {
-        return 'that secondary is not in your deck'
+        return refuse('card-not-in-deck', 'that secondary is not in your deck')
       }
-      if (player.secondaries.some((secondary) => secondary.key === command.secondary.key)) return 'that secondary has already been drawn'
-      if (player.secondaries.length >= SECONDARY_HISTORY_MAX) return 'the secondary history is full'
+      if (player.secondaries.some((secondary) => secondary.key === command.secondary.key))
+        return refuse('card-already-drawn', 'that secondary has already been drawn')
+      if (player.secondaries.length >= SECONDARY_HISTORY_MAX) return refuse('secondary-history-full', 'the secondary history is full')
       return null
     }
     case 'draw-secondaries': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (player.secondaryMode !== 'tactical') return 'only tactical missions are drawn'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (player.secondaryMode !== 'tactical') return refuse('not-tactical', 'only tactical missions are drawn')
       const remaining = (player.secondaryDeck ?? []).filter(
         (candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key),
       ).length
@@ -1365,63 +1530,67 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
         remaining,
         SECONDARY_HISTORY_MAX - player.secondaries.length,
       )
-      if (!command.secondaries.length || command.secondaries.length !== refill) return 'draw every card owed for this turn together'
+      if (!command.secondaries.length || command.secondaries.length !== refill)
+        return refuse('invalid-draw', 'draw every card owed for this turn together')
       const keys = new Set<string>()
       for (const secondary of command.secondaries) {
-        if (!secondary.name.trim()) return 'name the secondary'
-        if (keys.has(secondary.key)) return 'draw each secondary once'
+        if (!secondary.name.trim()) return refuse('unnamed-card', 'name the secondary')
+        if (keys.has(secondary.key)) return refuse('invalid-draw', 'draw each secondary once')
         keys.add(secondary.key)
         if (player.secondaryDeck && !player.secondaryDeck.some((candidate) => candidate.key === secondary.key)) {
-          return 'that secondary is not in your deck'
+          return refuse('card-not-in-deck', 'that secondary is not in your deck')
         }
-        if (player.secondaries.some((candidate) => candidate.key === secondary.key)) return 'that secondary has already been drawn'
+        if (player.secondaries.some((candidate) => candidate.key === secondary.key))
+          return refuse('card-already-drawn', 'that secondary has already been drawn')
       }
-      if (player.secondaries.length + command.secondaries.length > SECONDARY_HISTORY_MAX) return 'the secondary history is full'
+      if (player.secondaries.length + command.secondaries.length > SECONDARY_HISTORY_MAX)
+        return refuse('secondary-history-full', 'the secondary history is full')
       return null
     }
     case 'acknowledge-draw': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
-      if (sideOwes(state, player) === 'cards') return 'draw every card owed before taking the turn'
-      if (!player.secondariesToReview.length) return 'there is no new hand to acknowledge'
-      if (state.drawAcknowledged) return 'the hand has already been acknowledged'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!sameSide(state, state.activePlayerId, player.id)) return refuse('not-your-turn', 'it is not your turn')
+      if (sideOwes(state, player) === 'cards') return refuse('cards-owed', 'draw every card owed before taking the turn')
+      if (!player.secondariesToReview.length) return refuse('nothing-to-acknowledge', 'there is no new hand to acknowledge')
+      if (state.drawAcknowledged) return refuse('hand-acknowledged', 'the hand has already been acknowledged')
       return null
     }
     case 'select-secret': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (player.secretSecondary) return 'you already have a secret mission'
-      if (!command.secondary.name.trim()) return 'name the secret mission'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (player.secretSecondary) return refuse('secret-chosen', 'you already have a secret mission')
+      if (!command.secondary.name.trim()) return refuse('unnamed-card', 'name the secret mission')
       if (player.secondaryDeck && !player.secondaryDeck.some((secondary) => secondary.key === command.secondary.key)) {
-        return 'that secondary is not in your deck'
+        return refuse('card-not-in-deck', 'that secondary is not in your deck')
       }
-      if (player.secondaries.some((secondary) => secondary.key === command.secondary.key)) return 'that secondary has already been selected'
+      if (player.secondaries.some((secondary) => secondary.key === command.secondary.key))
+        return refuse('card-already-drawn', 'that secondary has already been selected')
       return null
     }
     case 'reveal-secret': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (!player.secretSecondary) return 'you have no secret mission'
-      if (player.secretRevealed) return 'the secret mission is already revealed'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!player.secretSecondary) return refuse('no-secret', 'you have no secret mission')
+      if (player.secretRevealed) return refuse('secret-revealed', 'the secret mission is already revealed')
       return null
     }
     case 'pause-clock': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (state.clockPaused) return 'the timer is already paused'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (state.clockPaused) return refuse('clock-unchanged', 'the timer is already paused')
       return null
     }
     case 'resume-clock': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (!state.clockPaused) return 'the timer is already running'
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!state.clockPaused) return refuse('clock-unchanged', 'the timer is already running')
       return null
     }
     case 'undo': {
-      if (!state.undoable) return 'there is nothing to undo'
-      if (state.undoable.seq !== command.target) return 'only the last action can be undone'
+      if (!state.undoable) return refuse('nothing-to-undo', 'there is nothing to undo')
+      if (state.undoable.seq !== command.target) return refuse('undo-not-latest', 'only the last action can be undone')
       return null
     }
     // A new command kind breaks this assignment rather than being quietly allowed.
     default: {
       const unhandled: never = command
-      return `unknown command ${JSON.stringify(unhandled)}`
+      return refuse('unknown-command', `unknown command ${JSON.stringify(unhandled)}`)
     }
   }
 }
@@ -1982,16 +2151,19 @@ function limitReached(player: PlayerState, stratagem: Stratagem, state: BattleSt
 
 export const isNewOrders = (stratagem: Pick<Stratagem, 'name'>) => stratagem.name.trim().toLocaleLowerCase() === 'new orders'
 
-function stratagemRefusal(state: BattleState, player: PlayerState, stratagem: Stratagem, overriddenCost?: number): string | null {
-  if (stratagem.phases?.length && !stratagem.phases.includes(state.phase)) return `${stratagem.name} cannot be used in this phase`
-  if (stratagem.turn === 'your-turn' && !sameSide(state, state.activePlayerId, player.id)) return `${stratagem.name} is used on your turn`
+function stratagemRefusal(state: BattleState, player: PlayerState, stratagem: Stratagem, overriddenCost?: number): Refusal | null {
+  if (stratagem.phases?.length && !stratagem.phases.includes(state.phase))
+    return refuse('stratagem-wrong-phase', `${stratagem.name} cannot be used in this phase`)
+  if (stratagem.turn === 'your-turn' && !sameSide(state, state.activePlayerId, player.id))
+    return refuse('stratagem-wrong-turn', `${stratagem.name} is used on your turn`)
   if (stratagem.turn === 'opponent-turn' && sameSide(state, state.activePlayerId, player.id)) {
-    return `${stratagem.name} is used on your opponent’s turn`
+    return refuse('stratagem-wrong-turn', `${stratagem.name} is used on your opponent’s turn`)
   }
   const cost = overriddenCost ?? stratagem.cp
-  if (!Number.isInteger(cost) || cost < 0 || cost > STRATAGEM_CP_MAX) return 'that is not a possible cost'
-  if (player.cp < cost) return 'not enough command points'
-  if (limitReached(player, stratagem, state)) return `${stratagem.name} has been used this ${stratagem.limit.replace('-', ' ')}`
+  if (!Number.isInteger(cost) || cost < 0 || cost > STRATAGEM_CP_MAX) return refuse('invalid-amount', 'that is not a possible cost')
+  if (player.cp < cost) return refuse('not-enough-cp', 'not enough command points')
+  if (limitReached(player, stratagem, state))
+    return refuse('stratagem-limit', `${stratagem.name} has been used this ${stratagem.limit.replace('-', ' ')}`)
   return null
 }
 
@@ -2260,29 +2432,29 @@ function inferBattleSize(state: BattleState) {
   state.settings.limit = rosterBattleFormat(state).limit
 }
 
-function validatePrep(prep: BattlePrep): string | null {
-  if (prep.stratagems.length > STRATAGEMS_MAX) return `that is more than ${STRATAGEMS_MAX} stratagems`
-  if (prep.stratagems.some((stratagem) => !stratagem.name.trim())) return 'name every stratagem'
+function validatePrep(prep: BattlePrep): Refusal | null {
+  if (prep.stratagems.length > STRATAGEMS_MAX) return refuse('invalid-prep', `that is more than ${STRATAGEMS_MAX} stratagems`)
+  if (prep.stratagems.some((stratagem) => !stratagem.name.trim())) return refuse('invalid-prep', 'name every stratagem')
   if (prep.stratagems.some((stratagem) => stratagem.cp < 0 || stratagem.cp > STRATAGEM_CP_MAX)) {
-    return `a stratagem costs between 0 and ${STRATAGEM_CP_MAX} command points`
+    return refuse('invalid-prep', `a stratagem costs between 0 and ${STRATAGEM_CP_MAX} command points`)
   }
-  if (prep.secondaries.length > FIXED_SECONDARIES) return `that is more than ${FIXED_SECONDARIES} secondaries`
-  if (prep.secondaries.some((secondary) => !secondary.name.trim())) return 'name every secondary'
+  if (prep.secondaries.length > FIXED_SECONDARIES) return refuse('invalid-prep', `that is more than ${FIXED_SECONDARIES} secondaries`)
+  if (prep.secondaries.some((secondary) => !secondary.name.trim())) return refuse('invalid-prep', 'name every secondary')
   if (new Set(prep.secondaries.map((secondary) => secondary.key)).size !== prep.secondaries.length) {
-    return 'the selected secondaries contain duplicates'
+    return refuse('invalid-prep', 'the selected secondaries contain duplicates')
   }
-  if ((prep.secondaryDeck?.length ?? 0) > 60) return 'that secondary deck is too large'
-  if (prep.secondaryDeck?.some((secondary) => !secondary.name.trim())) return 'name every secondary in the deck'
+  if ((prep.secondaryDeck?.length ?? 0) > 60) return refuse('invalid-prep', 'that secondary deck is too large')
+  if (prep.secondaryDeck?.some((secondary) => !secondary.name.trim())) return refuse('invalid-prep', 'name every secondary in the deck')
   if (prep.secondaryDeck && new Set(prep.secondaryDeck.map((secondary) => secondary.key)).size !== prep.secondaryDeck.length) {
-    return 'the secondary deck contains duplicates'
+    return refuse('invalid-prep', 'the secondary deck contains duplicates')
   }
-  if (prep.secondaryMode === 'tactical' && !prep.secondaryDeck?.length) return 'choose a tactical secondary deck'
+  if (prep.secondaryMode === 'tactical' && !prep.secondaryDeck?.length) return refuse('invalid-prep', 'choose a tactical secondary deck')
   if (
     prep.secondaryDeck &&
     prep.secondaries.some((secondary) => !prep.secondaryDeck?.some((candidate) => candidate.key === secondary.key))
   ) {
-    return 'a selected secondary is not in the deck'
+    return refuse('invalid-prep', 'a selected secondary is not in the deck')
   }
-  if (prep.primary && !prep.primary.name.trim()) return 'name the primary mission'
+  if (prep.primary && !prep.primary.name.trim()) return refuse('invalid-prep', 'name the primary mission')
   return null
 }

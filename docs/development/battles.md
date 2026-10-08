@@ -16,7 +16,7 @@
 
 ## Command log
 
-Persist commands, not a second score, phase, round, mission, or casualty state. Every command kind must be covered by both `validate` and `apply`. Repository submission reads, validates, and appends atomically.
+Persist commands, not a second score, phase, round, mission, or casualty state. Every command kind must be covered by both `commandRefusal` and `apply`; every refusal pairs a stable `RefusalCode` with its player-facing message, including the server's rules-dependent refusals in `service.ts`. Repository submission reads, validates, and appends atomically. The product module returns only the message, so `SpacetimeOperator.submit` derives the code by folding the log the module refused against.
 
 `expectedSeq` covers the whole log. A mismatch returns `stale`; never automatically resend with a newer sequence. `useCommand` serializes taps and installs the returned screen before the next command. A stale/refused command discards queued work based on that sequence while preserving work built from a newer realtime screen.
 
@@ -42,7 +42,7 @@ One wound state drives models, current-model damage, and destruction. `wound-uni
 
 Personal roster reminders are owner-only. Strip them from opponent, spectator, shared, and revealed-event reads. Their dismissals are bounded local state, not commands or shared prompts; destroyed-unit reminders stop until the unit is restored unless the player enables “Show while unit is destroyed”. First-round-only triggers match round 1, and “Any phase” matches each named phase boundary. Round reminders use either side’s turn: start before the first turn’s Command phase prompts, and end at the end of the second turn before passing to the next round.
 
-Starting Strategic Reserves use one allowance per side, shared by allies. Deep Strike changes ingress, not membership in that allowance. Source-backed exemptions and post-deployment redeployments are separate. Check formations and battle start against frozen facts; incomplete source facts must not invent restrictions.
+Starting Strategic Reserves use one allowance per side, shared by allies. Deep Strike changes ingress, not membership in that allowance. Source-backed exemptions and post-deployment redeployments are separate. Check formations and battle start against frozen facts; incomplete source facts must not invent restrictions. `unitFormationRefusal` is the formation authority for `validate` and the setup controls, which disable each move it refuses and show its reason beside the control.
 
 Transport assignments name a unit in the same frozen army and clear when formation changes. Count joined leaders, existing passengers, and restored models against supported printed capacity and wargear conditions. Refuse an unreadable capacity; leave prose-only passenger restrictions and special space costs for the table.
 

@@ -659,7 +659,7 @@ export function rosterLimit(definition: Definition, index: CatalogueIndex, optio
   }
 
   for (const constraint of sourcesOf(node).flatMap((source) => source.constraints ?? []))
-    consider(constraint, constraint.shared === false ? node.id : node.target.id)
+    consider(ownLimit(constraint, node, root), constraint.shared === false ? node.id : node.target.id)
   /*
    * Most of the caps are here rather than on the datasheet: every unit carries a
    * category named after itself, and the number sits on that. Without reading them
@@ -1200,6 +1200,19 @@ function rootEntry(node: Node): Node {
   return current
 }
 
+/**
+ * A datasheet's maximum on its own selections in `parent` caps the force holding it, as
+ * BattleScribe reads it. `resolveScope` answers `parent` with the datasheet itself, which
+ * conditions rely on but which makes such a cap count nothing.
+ */
+function ownLimit(constraint: Constraint, node: Node, root: Node): Constraint {
+  if (constraint.scope !== 'parent' || constraint.type !== 'max' || constraint.field !== 'selections' || constraint.childId)
+    return constraint
+  let parent = node.parent
+  while (parent && isGroup(parent)) parent = parent.parent
+  return !parent || parent.force || parent === root ? { ...constraint, scope: 'force' } : constraint
+}
+
 function violations(node: Node, root: Node, index: CatalogueIndex, census: Census): EvaluationError[] {
   if (node === root) return []
   const errors: EvaluationError[] = []
@@ -1229,7 +1242,7 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
   }
   // A non-shared entry constraint identifies its link rather than every link to the target.
   for (const constraint of sourcesOf(node).flatMap((source) => source.constraints ?? []))
-    check(constraint, constraint.shared === false ? node.id : node.target.id)
+    check(ownLimit(constraint, node, root), constraint.shared === false ? node.id : node.target.id)
   for (const categoryId of linkedCategories(node)) {
     const category = index.categories.get(categoryId)
     if (!category) continue

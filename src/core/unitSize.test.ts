@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 import { buildUnit } from './roster'
-import { modelCountOf, unitSize } from './unitSize'
+import { modelCountChoices, modelCountOf, unitSize } from './unitSize'
 
 const PTS = 'cost-pts'
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }] } }
@@ -244,5 +244,27 @@ describe('how many models a unit may field', () => {
   it('treats a lone character as one model', () => {
     const index = indexOf({ sharedSelectionEntries: [{ id: 'captain', name: 'Captain', type: 'model' }] })
     expect(unitSize('captain', index)).toMatchObject({ min: 1, max: 1, models: 1 })
+  })
+})
+
+describe('which model counts a player can pick directly', () => {
+  it('offers only the sizes a fixed composition allows', () => {
+    expect(modelCountChoices({ min: 10, max: 20, options: [10, 20] })).toEqual([10, 20])
+  })
+
+  it('drops fixed sizes beyond a lower ceiling', () => {
+    expect(modelCountChoices({ min: 5, max: 10, options: [5, 10, 15] })).toEqual([5, 10])
+  })
+
+  it('lists every count in a free range', () => {
+    expect(modelCountChoices({ min: 5, max: 10 })).toEqual([5, 6, 7, 8, 9, 10])
+  })
+
+  it('offers nothing for a fixed-size unit', () => {
+    expect(modelCountChoices({ min: 5, max: 5 })).toEqual([])
+  })
+
+  it('offers nothing for a range too wide to list', () => {
+    expect(modelCountChoices({ min: 4, max: Number.MAX_SAFE_INTEGER })).toEqual([])
   })
 })

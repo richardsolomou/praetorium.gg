@@ -1,4 +1,5 @@
 import { AGENT_INPUT_MAX_BYTES, type AgentToolDescriptor } from '../../../contracts/agentTools'
+import { anySignal } from '../../abortSignals'
 
 export type ToolResult = { content: { type: 'text'; text: string }[]; isError?: boolean }
 export type WebMcpTool = {
@@ -39,7 +40,7 @@ export async function installWebMcp(context: ModelContext, descriptors: AgentToo
         inputSchema: tool.inputSchema,
         annotations: { readOnlyHint: tool.readOnly, consequentialHint: !tool.readOnly, untrustedContentHint: true },
         execute: async (input, options) => {
-          const signal = options?.signal ? AbortSignal.any([handlers.signal, options.signal]) : handlers.signal
+          const signal = options?.signal ? anySignal([handlers.signal, options.signal]) : handlers.signal
           if (signal.aborted) return failure('Request cancelled.')
           if (!tool.readOnly && writing) return failure('Another change is awaiting approval or being saved. Ask again after it finishes.')
           if (!tool.readOnly) writing = true

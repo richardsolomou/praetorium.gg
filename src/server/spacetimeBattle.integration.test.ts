@@ -36,10 +36,13 @@ it.skipIf(!url || !database || !token)('serializes concurrent battle commands an
     expect((await feed('friends')).battles.some((row) => row.battle.id === battleId)).toBe(false)
 
     const refused = await operator.submit({ ...input, userId: 'outsider', expectedSeq: 1 })
-    expect(refused.result).toEqual({ outcome: 'refused', reason: 'you are not in this battle' })
+    expect(refused.result).toEqual({ outcome: 'refused', code: 'not-seated', reason: 'you are not in this battle' })
 
-    const externallyRefused = await operator.submit({ ...input, expectedSeq: 1 }, () => 'rules unavailable')
-    expect(externallyRefused.result).toEqual({ outcome: 'refused', reason: 'rules unavailable' })
+    const externallyRefused = await operator.submit({ ...input, expectedSeq: 1 }, () => ({
+      code: 'missing-deployment',
+      message: 'choose a deployment',
+    }))
+    expect(externallyRefused.result).toEqual({ outcome: 'refused', code: 'missing-deployment', reason: 'choose a deployment' })
     expect((await operator.battleForOperator(battleId)).log).toHaveLength(1)
     expect(await operator.deleteBattle(battleId, opponentId)).toBe(false)
     expect(await operator.deleteBattle(battleId, creatorId)).toBe(true)

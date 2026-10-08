@@ -247,6 +247,48 @@ if (!mcpRecordBody.result?.structuredContent?.data?.setups?.length) {
   throw new Error('MCP structured mission omitted matchup setup references')
 }
 
+async function simulateCombat(id: number, attacker: object, defender: object) {
+  const response = await request('/mcp', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json, text/event-stream',
+      'Content-Type': 'application/json',
+      'MCP-Protocol-Version': '2025-06-18',
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id,
+      method: 'tools/call',
+      params: { name: 'simulate_combat', arguments: { attacker, defender } },
+    }),
+  })
+  return (await response.json()) as {
+    result?: {
+      isError?: boolean
+      structuredContent?: {
+        refused?: string[]
+        shootingThenMelee?: { status?: string }
+        attacker?: { units?: { url?: string | null }[] }
+        simulatorUrl?: string
+      }
+    }
+  }
+}
+const marines = { faction: 'space-marines' }
+const mcpCombat = await simulateCombat(7, { ...marines, unit: 'intercessor-squad' }, { ...marines, unit: 'terminator-squad' })
+if (
+  mcpCombat.result?.isError ||
+  mcpCombat.result?.structuredContent?.shootingThenMelee?.status !== 'estimated' ||
+  !mcpCombat.result.structuredContent.attacker?.units?.[0]?.url ||
+  !mcpCombat.result.structuredContent.simulatorUrl?.startsWith('/simulator?s=')
+) {
+  throw new Error('MCP combat simulator did not estimate a known matchup with citations')
+}
+const mcpRefusal = await simulateCombat(8, { ...marines, unit: 'no-such-unit' }, { ...marines, unit: 'terminator-squad' })
+if (!mcpRefusal.result?.isError || !mcpRefusal.result.structuredContent?.refused?.some((reason) => reason.includes('no-such-unit'))) {
+  throw new Error('MCP combat simulator did not refuse an unknown unit by name')
+}
+
 const mcpResources = await request('/mcp', {
   method: 'POST',
   headers: {

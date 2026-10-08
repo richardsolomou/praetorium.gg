@@ -10,6 +10,8 @@ import {
   isKotcLimit,
   type PlayerId,
   reduceBattle,
+  refuse,
+  type Refusal,
   type Secondary,
   scoringTarget,
   sideCaptain,
@@ -1165,7 +1167,7 @@ function resolvedMissionForSide(state: BattleState, rules: BattleReadRules, side
   return missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId)
 }
 
-function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: LoadedRules): string | null {
+function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: LoadedRules): Refusal | null {
   // A matchup is between the two sides, so it is read off each side's captain. Taking
   // the first two seats instead held while side 0 was always one player, and put a 2v1
   // whose pair opened the battle into a matchup between its own allies.
@@ -1177,7 +1179,7 @@ function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: Load
     missionFor(rules, two ?? null, one ?? null, state.settings.missionPackId),
   ]
   if (one && two && state.settings.missionPackId && missions.some((mission) => !mission)) {
-    return 'the selected mission pack does not contain this matchup'
+    return refuse('matchup-not-in-pack', 'the selected mission pack does not contain this matchup')
   }
   const sides = [...new Set(state.players.map((player) => player.side))].toSorted((left, right) => left - right)
   const primaries = rules.primaries ?? []
@@ -1200,20 +1202,22 @@ function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: Load
     }
     return completeDeck(player.secondaryDeck, expectedSecondaries)
   })
-  if (!prepared) return 'every side must prepare its mission cards'
+  if (!prepared) return refuse('mission-cards-unprepared', 'every side must prepare its mission cards')
   const deploymentId = state.deploymentId
-  if (!deploymentId) return 'choose a deployment'
-  if (!rules.deployments.some((deployment) => deployment.id === deploymentId)) return 'that deployment is not available'
+  if (!deploymentId) return refuse('missing-deployment', 'choose a deployment')
+  if (!rules.deployments.some((deployment) => deployment.id === deploymentId))
+    return refuse('unknown-deployment', 'that deployment is not available')
   const kotc = isKotcLimit(state.settings.limit)
   if (!kotc && missions.some((mission) => mission?.deploymentIds.length && !mission.deploymentIds.includes(deploymentId)))
-    return 'that deployment does not match the mission'
-  if (!state.settings.terrainLayoutId) return kotc ? 'choose the Colosseum battlefield' : null
+    return refuse('deployment-mismatch', 'that deployment does not match the mission')
+  if (!state.settings.terrainLayoutId) return kotc ? refuse('missing-terrain', 'choose the Colosseum battlefield') : null
   const terrain = rules.terrainLayouts.find((layout) => layout.id === state.settings.terrainLayoutId)
-  if (!terrain) return 'that terrain layout is not available'
+  if (!terrain) return refuse('unknown-terrain', 'that terrain layout is not available')
   const matchups = kotc ? new Set([KOTC_MATCHUP_ID]) : one && two ? new Set([`${one}-vs-${two}`, `${two}-vs-${one}`]) : new Set<string>()
-  if (matchups.size && !matchups.has(terrain.matchupId)) return 'that terrain layout does not match the armies'
-  if (terrain.deploymentId && terrain.deploymentId !== state.deploymentId) return 'that terrain layout does not match the deployment'
-  if (!terrain.geometry) return 'exact terrain data is not available yet'
+  if (matchups.size && !matchups.has(terrain.matchupId)) return refuse('terrain-mismatch', 'that terrain layout does not match the armies')
+  if (terrain.deploymentId && terrain.deploymentId !== state.deploymentId)
+    return refuse('terrain-mismatch', 'that terrain layout does not match the deployment')
+  if (!terrain.geometry) return refuse('terrain-geometry-missing', 'exact terrain data is not available yet')
   return null
 }
 
@@ -1226,7 +1230,7 @@ function repairPrepReferenceError(
   by: PlayerId,
   command: Extract<Command, { kind: 'set-prep' }>,
   rules: LoadedRules,
-): string | null {
+): Refusal | null {
   const player = commandArmy(state, by, command)
   if (!player) return null
   const ownDisposition = sideDisposition(state, player.side)
@@ -1242,7 +1246,7 @@ function repairPrepReferenceError(
     !expectedSecondaries.size ||
     !completeDeck(command.secondaryDeck, expectedSecondaries)
   ) {
-    return 'those mission cards do not match this battle'
+    return refuse('mission-cards-mismatch', 'those mission cards do not match this battle')
   }
   return null
 }
@@ -1258,7 +1262,7 @@ function scoringCapError(
   by: PlayerId,
   command: Extract<Command, { kind: 'score' } | { kind: 'score-secondary' } | { kind: 'score-settlement' }>,
   rules: LoadedRules,
-): string | null {
+): Refusal | null {
   const target = scoringTarget(state, by, command)
   if (!target) return null
   const deltas =
@@ -1296,7 +1300,8 @@ function scoringCapError(
           ? [[command.key, command.delta] as const]
           : []
     for (const [key, delta] of byCard) {
-      if ((target.scored[key] ?? 0) + delta > cardCap) return `that would score past the ${cardCap} VP cap for one fixed secondary mission`
+      if ((target.scored[key] ?? 0) + delta > cardCap)
+        return refuse('score-cap-card', `that would score past the ${cardCap} VP cap for one fixed secondary mission`)
     }
   }
   for (const category of ['primary', 'secondary'] as const) {
@@ -1307,8 +1312,10 @@ function scoringCapError(
     const roundSoFar = (category === 'primary' ? target.primaryByRound : target.secondaryByRound)[round - 1] ?? 0
     const gameSoFar = category === 'primary' ? target.primary : target.secondary
     const label = category === 'primary' ? 'primary mission' : 'secondary missions'
-    if (roundCap !== null && roundSoFar + delta > roundCap) return `that would score past ${named} ${roundCap} VP cap for ${label}`
-    if (gameCap !== null && gameSoFar + delta > gameCap) return `that would score past the battle’s ${gameCap} VP cap for ${label}`
+    if (roundCap !== null && roundSoFar + delta > roundCap)
+      return refuse('score-cap-round', `that would score past ${named} ${roundCap} VP cap for ${label}`)
+    if (gameCap !== null && gameSoFar + delta > gameCap)
+      return refuse('score-cap-battle', `that would score past the battle’s ${gameCap} VP cap for ${label}`)
   }
   return null
 }

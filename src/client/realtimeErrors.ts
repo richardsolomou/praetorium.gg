@@ -9,11 +9,21 @@ export class RealtimeHttpError extends Error {
   }
 }
 
+/** A service-side refusal that persisted through retries, unlike a single deploy or backup interruption. */
+export class RealtimeOutageError extends Error {
+  constructor(cause: RealtimeHttpError, attempts: number) {
+    super(`${cause.message} on ${attempts} consecutive attempts`, { cause })
+  }
+}
+
+export function isRealtimeServiceUnavailable(error: unknown): error is RealtimeHttpError {
+  return error instanceof RealtimeHttpError && error.status >= 500
+}
+
 export function isExpectedRealtimeDisconnect(error: unknown): boolean {
   if (typeof Event !== 'undefined' && error instanceof Event && error.type === 'error') return true
-  if (error instanceof RealtimeHttpError) {
-    return error.status === 401 || error.status === 408 || error.status === 429 || error.status >= 500
-  }
+  if (isRealtimeServiceUnavailable(error)) return true
+  if (error instanceof RealtimeHttpError) return error.status === 401 || error.status === 408 || error.status === 429
   if (isFetchNetworkFailure(error)) return true
   if (typeof error !== 'object' || error === null) return false
   const { name, message } = error as { name?: unknown; message?: unknown }

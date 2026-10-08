@@ -6,12 +6,13 @@ import {
   type OfflineReferenceVersion,
   type OfflineAppVersion,
 } from '../../contracts/offlineReference'
+import { anySignal } from '../abortSignals'
 
 async function fetchManifest(url: string, signal: AbortSignal) {
   const response = await fetch(url, {
     credentials: 'omit',
     cache: 'no-store',
-    signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
+    signal: anySignal([signal, AbortSignal.timeout(30_000)]),
   })
   if (!response.ok) throw new Error('The saved app manifest is unavailable')
   return response.json()
@@ -47,7 +48,7 @@ export async function referenceBundle(
   previous?: OfflineReferenceData | null,
 ): Promise<OfflineReferenceBundle> {
   if (previous?.revision === version.revision) return previous
-  const downloadSignal = AbortSignal.any([signal, AbortSignal.timeout(60_000)])
+  const downloadSignal = anySignal([signal, AbortSignal.timeout(60_000)])
   const response = await fetch(version.bundle, { credentials: 'omit', signal: downloadSignal })
   if (!response.ok || !response.body) throw new Error('The reference bundle is unavailable')
   const reader = response.body.pipeThrough(new DecompressionStream('gzip')).getReader()
@@ -81,7 +82,7 @@ export async function referenceBundle(
 }
 
 async function resource(url: string, signal: AbortSignal) {
-  const response = await fetch(url, { credentials: 'omit', signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]) })
+  const response = await fetch(url, { credentials: 'omit', signal: anySignal([signal, AbortSignal.timeout(30_000)]) })
   if (!response.ok) throw new Error('The app could not be downloaded. Please try again.')
   const blob = await response.blob()
   if (blob.size > 5_000_000) throw new Error('Reference asset exceeds the download limit')
@@ -101,7 +102,7 @@ export async function downloadReference(
 ) {
   const bundle = await referenceBundle(manifest, signal, previous)
   const saved: OfflineReferenceData = { ...bundle, version: 1, savedAt: Date.now(), appRevision: version.revision, css: '', logo: '' }
-  const cssResponse = await fetch(version.css, { credentials: 'omit', signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]) })
+  const cssResponse = await fetch(version.css, { credentials: 'omit', signal: anySignal([signal, AbortSignal.timeout(30_000)]) })
   if (!cssResponse.ok) throw new Error('The app styles could not be downloaded.')
   let css = await cssResponse.text()
   for (const match of css.matchAll(/url\(["']?([^"')]+)["']?\)/g)) {
@@ -112,7 +113,7 @@ export async function downloadReference(
   saved.logo = await resource('/logo.svg', signal)
   const scriptResponse = await fetch(version.script, {
     credentials: 'omit',
-    signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
+    signal: anySignal([signal, AbortSignal.timeout(30_000)]),
   })
   if (!scriptResponse.ok) throw new Error('The offline app is unavailable. Please try again.')
   const script = await scriptResponse.text()

@@ -5,7 +5,7 @@ import { chooseCombatUnit, closeCombatBreakdown } from './combat'
 
 test.use({ viewport: { width: 1440, height: 1100 } })
 
-test('the army guide example keeps a five-model Immortals draft through reload', async ({ page }, testInfo) => {
+test('the army guide example keeps a five-model Immortals draft through reload and a new tab', async ({ page }, testInfo) => {
   await page.goto('/rosters')
   const setup = page.getByRole('region', { name: 'Create roster' })
   await setup.getByRole('combobox', { name: 'Faction' }).click()
@@ -16,14 +16,16 @@ test('the army guide example keeps a five-model Immortals draft through reload',
   await setup.getByRole('button', { name: 'Start building' }).click()
   await add(page, 'Immortals')
   await expect(page.locator('[data-stat="points"]')).not.toHaveText(/^0\//)
-  await expect
-    .poll(() => page.evaluate(() => sessionStorage.getItem('praetorium.workspace-state:/rosters:guest-draft')))
-    .toContain('"picks":[{')
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).toContain('"picks":[{')
   await page.reload()
   await expect(page.locator('[data-unit="Immortals"]').first()).toBeVisible()
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('5')
   await page.locator('[data-roster-builder]').screenshot({ path: testInfo.outputPath('build-an-army.png') })
+  const reopened = await page.context().newPage()
+  await reopened.goto('/rosters')
+  await expect(reopened.locator('[data-unit="Immortals"]')).toHaveCount(1)
+  await reopened.close()
 })
 
 test('the import guide example preserves units from a complete text export', async ({ page }, testInfo) => {

@@ -12,7 +12,9 @@ The account-free `/simulator`, isolated roster experiments, and read-only battle
 | Source clauses and applied effects                      | `src/core/combatRuleCompiler.ts`, `combatRules.ts`, `combatMortalRules.ts`              |
 | User overrides                                          | `src/core/combatAdjustments.ts`                                                         |
 | Contextual projection and legal search                  | `src/server/combatUnits.ts`, `combatLoadouts.ts`                                        |
-| Shared interface, workers, and URL state                | `src/client/features/simulator`                                                         |
+| Matchup assembly and phase resolution                   | `src/core/combatMatchup.ts`                                                             |
+| Shared interface, workers, and URL state                | `src/client/features/simulator`, `src/contracts/simulatorState.ts`                      |
+| Agent tool                                              | `src/server/combatTools.ts`, [Agent reference](agent-reference.md#mcp)                  |
 
 ## Interface and context
 

@@ -18,8 +18,8 @@ export const PRODUCT_GUIDES = [
         text: 'The builder updates points and checks supported catalogue restrictions as you edit. Review any unit, detachment or force disposition errors before taking the list to a game. If a restriction cannot be evaluated, Praetorium reports the missing information rather than claiming the list is legal.',
       },
       {
-        title: 'Save the list before leaving',
-        text: 'A visitor’s draft stays in the current browser tab. Use the builder’s save action and sign in or create an account to keep it. Saved lists update as you edit and can be shared, printed or exported from their roster actions.',
+        title: 'Save the list to your account',
+        text: 'A visitor’s draft stays on this device. Use Save roster and sign in or create an account to keep it with your saved lists and open it on other devices. Browser storage can be cleared, so save important lists to your account. Saved lists update as you edit and can be shared, printed or exported from their roster actions.',
       },
     ],
     questions: [
@@ -30,7 +30,7 @@ export const PRODUCT_GUIDES = [
       {
         question: 'Do I need an account to build an army?',
         answer:
-          'No. You can build a list as a visitor. An account is required to keep it across sessions, import a roster or play a battle. Save the visitor draft before closing its tab.',
+          'No. You can build a list as a visitor. The draft stays on this device across visits. An account is required to save it to your library, open it on another device, import a roster or play a battle.',
       },
       {
         question: 'Does validation cover every rule?',
@@ -43,7 +43,7 @@ export const PRODUCT_GUIDES = [
       steps: [
         'Choose Necrons, Strike Force, Awakened Dynasty and Take and Hold, then select Start building.',
         'Search for Immortals and add one unit. Open its card: the initial squad has five models. Review its points and loadout before adding the rest of the army.',
-        'Reload the same tab to check that the draft returns. This is a first unit, not a complete army: resolve the builder’s validation messages and use Save roster before closing the tab.',
+        'Reload the page or reopen Rosters in another tab on the same device to check that the draft returns. This is a first unit, not a complete army: resolve the builder’s validation messages and use Save roster to keep it with your account.',
       ],
       image: '/guides/build-an-army.png',
       imageAlt: 'A visitor’s Necrons draft with an Immortals unit, model controls and loadout panel.',
