@@ -10,7 +10,7 @@ Write for a player building an army or playing Warhammer 40,000. Name the game t
 
 `src/client/features/shell` owns the shared web and native navigation. Phones use a Home/search/account utility bar and bottom application tabs; immersive roster screens omit the utility bar. Native wide layouts use a rail, while the website uses its desktop header. Read `src/styles.css` for the breakpoints and safe-area dimensions rather than duplicating them in components.
 
-`nativeTabs.ts` preserves each section's URL, route state, and scroll position for the browser session. Tapping the current section returns to its top. Home selects no tab. More holds secondary destinations without repeating the dedicated tabs.
+`nativeTabs.ts` preserves each section's URL, route state, and scroll position for the browser session. Tapping the current section returns to its top. Home selects no tab. More holds secondary destinations without repeating the dedicated tabs. Scroll-restoration browser tests must first confirm an interactive control and then use player input such as a wheel gesture; `window.scrollTo` does not cancel the restoration retries and can race with them.
 
 Compact roster panes use browser history and stop above the application tabs. Closing a datasheet returns to the picker or roster that opened it; returning to the picker must leave its Close button usable. Verify the full picker → datasheet → picker → roster sequence. Required battle prompts leave application navigation reachable. At intermediate website widths, compact panes remain modal dialogs. [Mobile](mobile.md#shell-boundaries) owns native Back behavior.
 

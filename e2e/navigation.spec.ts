@@ -1161,16 +1161,15 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   const sections = page.getByRole('navigation', { name: 'Application sections' })
 
   await page.goto('/factions/dark-angels/datasheets/deathwing-terminator-squad')
+  const search = page.getByPlaceholder('Search everything…')
+  await retryUntilVisible(search, () => page.getByRole('button', { name: 'Search Praetorium' }).click())
+  await page.keyboard.press('Escape')
+  await expect(search).toHaveCount(0)
   const viewportHeight = await page.evaluate(() => window.innerHeight)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeGreaterThan(viewportHeight)
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        window.scrollTo(0, 600)
-        return window.scrollY
-      }),
-    )
-    .toBeGreaterThan(0)
+  await page.mouse.move(195, 300)
+  await page.mouse.wheel(0, 600)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
   const factionScroll = await page.evaluate(() => window.scrollY)
   // The missions tab lands on the current pack, so its memory is that redirect.
   await sections.getByRole('link', { name: 'Missions' }).click()
