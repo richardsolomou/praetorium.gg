@@ -27,6 +27,7 @@ import { TurnTimes } from './TurnTimes'
 import { tint } from './battleTints'
 import { Fact } from '../../components/Fact'
 import { BattlefieldFact } from './BattlefieldFact'
+import { SpectatorInvite } from './SpectatorInvite'
 
 type Props = {
   view: BattleView
@@ -145,6 +146,10 @@ export function Spectator({
 
         {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
         <Scoreboard view={view} clock={clock} sides={table} outcome={view.status === 'finished' ? battleOutcome(table, view) : null} />
+        {/* A finished game is when a reader is most likely to want their own, so it leads there and waits beside the facts while play goes on. */}
+        {currentView.status === 'finished' ? (
+          <SpectatorInvite view={currentView} className="mx-auto max-w-7xl rounded-lg border border-primary/40 bg-panel p-3" />
+        ) : null}
 
         <div className="mx-auto grid max-w-7xl items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]">
           {table.map((side) => (
@@ -165,6 +170,7 @@ export function Spectator({
               <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
               <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
             </dl>
+            {currentView.status === 'finished' ? null : <SpectatorInvite view={currentView} className="border-t border-edge pt-3" />}
             {/* A review of the whole game, so it waits for the game to end rather than crowding a live one. */}
             {currentView.status === 'finished' ? (
               <div className="border-t border-edge pt-3">

@@ -44,6 +44,8 @@ Render battle controls by side, not seat. Allies share a panel and resources. Ke
 
 Required prompts open one at a time. Minimize preserves local answers and exposes a persistent return control; battle-changing controls remain in place but disabled until parked dialogs are resumed or closed. Undo must preserve answers when the same battle moment returns, without leaking them into another hand or prompt. Personal reminders precede shared prompts without becoming shared commands.
 
+Readers without a seat get one in-flow invitation to build an army or start a battle, chosen from onboarding progress; it never covers the scoreboard or timeline, leads finished battles, stays out of the native application, and stays dismissed in that browser. Accounts that have played a battle do not see it.
+
 The army window uses independently expandable loadouts in its scroll flow, with pinned unit cards and return-to-card collapse behavior. Players, spectators, and replay use the same frozen loadout view; only seated players receive casualty controls. Army and simulator dialogs fill the compact screen above the application tabs. Replay preserves the report's reading position while scrubbing.
 
 League entrants and organizers share one event page. Its next-action card and progress use the same state decision. Organizer controls sit beside the entries or settings they affect; reveal uses the domain checklist. Sealing requires choosing a list and confirming it by name. Touch controls meet a 44-pixel target. [Leagues](leagues.md) owns access, sealing, and reveal rules.

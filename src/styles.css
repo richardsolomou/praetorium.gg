@@ -116,6 +116,11 @@ html[data-native-app='true'] [data-native-app-tabs] {
   display: flex;
 }
 
+/* Drawn by the server before the browser knows it is the application, which never shows it. */
+html[data-native-app='true'] [data-spectator-invite] {
+  display: none;
+}
+
 html:has([data-battle-prompt]) [data-native-app-tabs] {
   z-index: 60;
 }
