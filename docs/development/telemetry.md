@@ -35,7 +35,7 @@ Browser events receive bounded `feature` and `surface` at the send boundary. Det
 
 Custom properties exclude names, emails, images, opaque tokens/IDs, search text, unit/list contents, command payloads, rules prose, and error messages. Use bounded enums, booleans, counts, durations, and outcomes. Source-normalized faction/detachment labels are allowed roster dimensions; catalogue IDs are not.
 
-Exception tracking may carry stack traces; manual captures add only an operation label. Expected realtime/network recovery and supported retry statuses are excluded. Unexpected connection errors report once per mounted outage and reset only after a sustained applied subscription. Read `src/client/networkErrors.ts`, `src/client/realtimeErrors.ts`, and their callers for classification; keep sibling paths consistent.
+Exception tracking may carry stack traces; manual captures add only an operation label. Expected realtime/network recovery and supported retry statuses are excluded. Unexpected connection errors, and service HTTP 5xx responses that persist for five consecutive attempts, report once per mounted outage and reset only after a sustained applied subscription. Read `src/client/networkErrors.ts`, `src/client/realtimeErrors.ts`, and their callers for classification; keep sibling paths consistent.
 
 ## Source maps
 
