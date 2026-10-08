@@ -83,3 +83,25 @@ it('uses a timer after painting when idle callbacks are unavailable', () => {
   vi.runAllTimers()
   expect(work).toHaveBeenCalledOnce()
 })
+
+it('keeps bulk warming out of the first ten seconds after painting', () => {
+  const work = vi.fn()
+  afterInitialScreen(router, work, 10_000)
+  frame()
+  frame()
+  vi.advanceTimersByTime(9_999)
+  expect(window.requestIdleCallback).not.toHaveBeenCalled()
+  vi.advanceTimersByTime(1)
+  idle()
+  expect(work).toHaveBeenCalledOnce()
+})
+
+it('cancels bulk warming during the delay', () => {
+  const work = vi.fn()
+  const cancel = afterInitialScreen(router, work, 10_000)
+  frame()
+  frame()
+  cancel()
+  vi.runAllTimers()
+  expect(window.requestIdleCallback).not.toHaveBeenCalled()
+})

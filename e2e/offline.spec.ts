@@ -1,6 +1,23 @@
 import { expect, test } from '@playwright/test'
 import { signUp, uniqueName } from './account'
 
+for (const path of ['/', '/guides/compare-loadouts']) {
+  test(`${path} paints before downloading the offline application`, async ({ page }) => {
+    test.setTimeout(240_000)
+    await page.goto(path)
+    await expect(page.locator('main h1')).toBeVisible()
+    await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.revision), { timeout: 180_000 }).toBeTruthy()
+    const downloads = await page.evaluate(() =>
+      performance
+        .getEntriesByType('resource')
+        .filter((entry) => /\/assets\/(reference-[a-f0-9]+\.bin|offline-app-[a-f0-9]+\.js)$/.test(entry.name))
+        .map((entry) => entry.startTime),
+    )
+    expect(downloads).toHaveLength(2)
+    expect(Math.min(...downloads)).toBeGreaterThanOrEqual(10_000)
+  })
+}
+
 test('saved application pages load same-origin telemetry scripts when connected', async ({ page, context }) => {
   test.setTimeout(240_000)
   await page.goto('/rules')

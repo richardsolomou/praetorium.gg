@@ -73,10 +73,14 @@ export function OfflineReference() {
       if (document.visibilityState === 'visible') void refresh(true)
     }
     const disconnect = () => controller?.abort()
-    const cancelInitial = afterInitialScreen(router, () => {
-      ready = true
-      void refresh()
-    })
+    const cancelInitial = afterInitialScreen(
+      router,
+      () => {
+        ready = true
+        void refresh()
+      },
+      10_000,
+    )
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') void refresh()
     }, RECHECK_MS)

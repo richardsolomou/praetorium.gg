@@ -6,16 +6,14 @@ import { breadcrumbMeta, pageHead } from '../client/linkPreview'
 export const Route = createFileRoute('/rules/$documentId')({
   loader: async ({ context, location, params }) => {
     const index = await context.queryClient.query({ ...ruleIndexQuery(), staleTime: 'static' })
-    const known = index?.documents.some((document) => document.slug === params.documentId)
-    // A document only the child route needs is checked there, against its section.
-    if (!known && location.pathname === `/rules/${params.documentId}`) throw notFound()
-    return { document: index?.documents.find((document) => document.slug === params.documentId) ?? null }
+    const document = index?.documents.find((candidate) => candidate.slug === params.documentId) ?? null
+    if (!document && location.pathname.split('/').filter(Boolean).length === 2) throw notFound()
+    return { document }
   },
   head: ({ loaderData, match, matches }) => {
     if (!loaderData?.document) return {}
     const { document } = loaderData
     const path = `/rules/${document.slug}`
-    // Breadcrumbs and links are not replaced by a child's, so only the page itself writes them.
     const leaf = matches.at(-1)?.routeId === match.routeId
     const head = pageHead(match.context.origin, {
       title: document.title,
@@ -43,7 +41,7 @@ export const Route = createFileRoute('/rules/$documentId')({
 
 function RuleDocumentPage() {
   const { documentId } = Route.useParams()
-  const path = useRouterState({ select: (state) => state.location.pathname })
-  if (path !== `/rules/${documentId}`) return <Outlet />
+  const leaf = useRouterState({ select: (state) => state.matches.at(-1)?.routeId === Route.id })
+  if (!leaf) return <Outlet />
   return <RuleContents documentId={documentId} />
 }

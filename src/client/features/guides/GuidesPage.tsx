@@ -59,6 +59,32 @@ export function GuidePage({ guide }: { guide: ProductGuide }) {
               </li>
             ))}
           </ol>
+          <section aria-labelledby="worked-example" className="space-y-5 border-t border-edge pt-7">
+            <h2 id="worked-example" className="font-display text-2xl">
+              Worked example: {guide.example.title}
+            </h2>
+            <ol aria-label="Example steps" className="list-decimal space-y-3 pl-5 text-sm leading-relaxed text-dim">
+              {guide.example.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+            <figure className="space-y-3">
+              <a href={guide.example.image} className="block overflow-hidden rounded border border-edge hover:border-info">
+                <img
+                  src={guide.example.image}
+                  alt={guide.example.imageAlt}
+                  width={guide.example.imageWidth}
+                  height={guide.example.imageHeight}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-auto w-full"
+                />
+              </a>
+              <figcaption className="text-xs leading-relaxed text-dim">
+                {guide.example.caption} Open the screenshot to see the controls.
+              </figcaption>
+            </figure>
+          </section>
           <Link to={guide.action.to} className={buttonVariants({ variant: 'outline' })}>
             {guide.action.label}
           </Link>

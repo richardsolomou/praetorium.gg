@@ -73,7 +73,14 @@ for (const guide of guides) {
       await expect(page).toHaveTitle(`${guide.title} — Praetorium`)
       await expect(page.getByRole('heading', { level: 1, name: guide.title })).toBeVisible()
       await expect(page.locator('main')).toContainText(guide.fact)
-      await expect(page.getByRole('list', { name: 'Steps' }).getByRole('listitem')).toHaveCount(4)
+      await expect(page.getByRole('list', { name: 'Steps', exact: true }).getByRole('listitem')).toHaveCount(4)
+      await expect(page.getByRole('heading', { name: /^Worked example:/ })).toBeVisible()
+      await expect(page.getByRole('list', { name: 'Example steps' }).getByRole('listitem')).not.toHaveCount(0)
+      const image = page.locator('main figure img')
+      await image.scrollIntoViewIfNeeded()
+      await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+      await expect(image).toHaveAttribute('alt', /\S/)
+      await expect(page.locator('main figure a')).toHaveAttribute('href', `/guides/${guide.slug}.png`)
       await expect(page.getByRole('heading', { name: 'Common questions' })).toBeVisible()
       await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(`/guides/${guide.slug}`, baseURL).href)
       expect(
@@ -91,6 +98,7 @@ for (const guide of guides) {
         },
       ])
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+      await page.evaluate(() => window.scrollTo(0, 0))
       await page.screenshot({ path: testInfo.outputPath(`${guide.slug}-${width}.png`), fullPage: true })
       await page.getByRole('link', { name: guide.action, exact: true }).click()
       await expect(page).toHaveURL(new URL(guide.to, baseURL).href)
@@ -127,4 +135,24 @@ test('guides can be discovered from the home page, sitemap and agent text', asyn
 
 test('unknown guides return a real 404', async ({ request }) => {
   expect((await request.get('/guides/not-a-guide')).status()).toBe(404)
+})
+
+for (const path of ['/rules/not-a-document', '/rules/%24documentId', '/rules/%24documentId/', '/rules/not-a-document/not-a-section']) {
+  test(`${path} returns a real rules 404`, async ({ page }, testInfo) => {
+    const response = await page.goto(path)
+    expect(response?.status()).toBe(404)
+    await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
+    if (path === '/rules/%24documentId') await page.screenshot({ path: testInfo.outputPath('invalid-rules.png') })
+  })
+}
+
+test('rules documents still link to readable sections', async ({ page }) => {
+  const response = await page.goto('/rules/core-rules')
+  expect(response?.status()).toBe(200)
+  await expect(page.getByRole('heading', { level: 1, name: 'Core Rules', exact: true })).toBeVisible()
+  await page.locator('main a[href="/rules/core-rules/moving"]').click()
+  await expect(page).toHaveURL('/rules/core-rules/moving')
+  await expect(page.getByRole('heading', { level: 1, name: '03. Moving', exact: true })).toBeVisible()
+  const section = await page.goto('/rules/core-rules/moving')
+  expect(section?.status()).toBe(200)
 })

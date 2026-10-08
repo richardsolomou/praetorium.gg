@@ -38,6 +38,19 @@ export const PRODUCT_GUIDES = [
           'No. Validation uses verified community data and supports the restrictions that data can represent. Read any warnings and check unresolved restrictions against your game’s rules and event requirements.',
       },
     ],
+    example: {
+      title: 'Try a five-model Immortals draft',
+      steps: [
+        'Choose Necrons, Strike Force, Awakened Dynasty and Take and Hold, then select Start building.',
+        'Search for Immortals and add one unit. Open its card: the initial squad has five models. Review its points and loadout before adding the rest of the army.',
+        'Reload the same tab to check that the draft returns. This is a first unit, not a complete army: resolve the builder’s validation messages and use Save roster before closing the tab.',
+      ],
+      image: '/guides/build-an-army.png',
+      imageAlt: 'A visitor’s Necrons draft with an Immortals unit, model controls and loadout panel.',
+      imageWidth: 1440,
+      imageHeight: 1045,
+      caption: 'The roster and its loadout share one workspace; points update as you change the unit.',
+    },
     action: { to: '/rosters', label: 'Open the army builder' },
   },
   {
@@ -79,6 +92,19 @@ export const PRODUCT_GUIDES = [
         answer: 'No. Unknown units and unapplied choices are shown for review before you accept an incomplete import.',
       },
     ],
+    example: {
+      title: 'Copy an Immortals list into a second roster',
+      steps: [
+        'Create a Necrons roster with Awakened Dynasty and add one Immortals unit. In Roster actions, choose Export GW text and copy the complete export.',
+        'Return to Rosters, choose Import roster and paste that export into Roster text. Keep the title, faction, detachment, battle size and equipment lines together.',
+        'Choose Import pasted roster, then open the saved list and check that it contains one Immortals unit. Compare its model count and equipment with the original; do not judge a successful import by its title alone.',
+      ],
+      image: '/guides/import-a-roster.png',
+      imageAlt: 'The Import roster dialog containing a complete Games Workshop text export for an Immortals example list.',
+      imageWidth: 756,
+      imageHeight: 498,
+      caption: 'Paste the complete text export. The imported list is checked against the current catalogue.',
+    },
     action: { to: '/rosters', label: 'Open Rosters to import' },
   },
   {
@@ -120,6 +146,21 @@ export const PRODUCT_GUIDES = [
           'Praetorium reports unsupported calculations rather than inventing an effect. Review those messages before relying on an estimate.',
       },
     ],
+    example: {
+      title: 'Compare gauss blasters and tesla carbines',
+      steps: [
+        'Choose Immortals as Attacker and Necron Warriors as Defender. Keep both model counts and the defender’s equipment unchanged throughout the comparison.',
+        'Read the shooting result for the initial gauss blasters. Open the attacker’s Loadout and select Tesla carbine. The shooting result now shows five tesla carbines.',
+        'Compare the shooting destruction probability and average models lost before and after the change, with the same effects active. Use Breakdown for the full distribution; a higher average does not necessarily mean a higher chance to destroy the whole unit.',
+        'Keep the resulting standalone link and reload it. The five-model tesla carbine loadout returns, so you can repeat the comparison against another defender without rebuilding it.',
+      ],
+      image: '/guides/compare-loadouts.png',
+      imageAlt: 'The combat simulator comparing five Immortals with tesla carbines against Necron Warriors.',
+      imageWidth: 1440,
+      imageHeight: 1100,
+      caption:
+        'This is an example matchup, not a fixed damage prediction. Results follow the selected models, equipment, effects and current data.',
+    },
     action: { to: '/simulator', label: 'Open the combat simulator' },
   },
   {
@@ -162,6 +203,19 @@ export const PRODUCT_GUIDES = [
           'No. It tracks games with friends and practice opponents, and supports league registration with sealed rosters. It does not arrange opponents or tournament pairings.',
       },
     ],
+    example: {
+      title: 'Learn the tracker with a practice turn',
+      steps: [
+        'Save a test army, then create a 1v1 battle against Practice Opponent. In Setup, select that saved list for each side while learning the controls.',
+        'Choose the battlefield and secondary missions, record the first turn and start the battle. Complete the opening mission prompt to reach the command phase.',
+        'Select End the command phase and complete any reminder. The scoreboard advances to movement phase while staying in round one. Continue through the phases to practise recording scores and corrections before a game with friends.',
+      ],
+      image: '/guides/track-a-battle.png',
+      imageAlt: 'A practice battle scoreboard showing round one and movement phase after the command phase ends.',
+      imageWidth: 1440,
+      imageHeight: 90,
+      caption: 'A practice opponent lets one signed-in player operate both sides. Practice games do not affect standings.',
+    },
     action: { to: '/battles', label: 'Open Battles' },
   },
 ] as const

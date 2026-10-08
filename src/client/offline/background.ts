@@ -1,6 +1,6 @@
 import type { AnyRouter } from '@tanstack/react-router'
 
-export function afterInitialScreen(router: Pick<AnyRouter, 'state' | 'subscribe'>, work: () => void) {
+export function afterInitialScreen(router: Pick<AnyRouter, 'state' | 'subscribe'>, work: () => void, delayMs = 0) {
   let cancelled = false
   let frame = 0
   let idle = 0
@@ -23,8 +23,12 @@ export function afterInitialScreen(router: Pick<AnyRouter, 'state' | 'subscribe'
           if (router.state.isLoading) schedule()
           else work()
         }
-        if (window.requestIdleCallback) idle = window.requestIdleCallback(run, { timeout: 2_000 })
-        else timer = setTimeout(run, 0)
+        const waitForIdle = () => {
+          if (window.requestIdleCallback) idle = window.requestIdleCallback(run, { timeout: 2_000 })
+          else timer = setTimeout(run, 0)
+        }
+        if (delayMs) timer = setTimeout(waitForIdle, delayMs)
+        else waitForIdle()
       })
     })
   }
