@@ -199,3 +199,38 @@ test('a failed unit-limit check can be retried without losing the roster', async
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
 })
+
+test('a visitor draft built on the retired Marine codex opens and prices on the current book', async ({ page }) => {
+  const retired = (entry: string) => `profile-unit-e0af-67df-9d63-8fb8-${entry}`
+  await page.goto('/rosters')
+  await page.evaluate(
+    ({ captain, intercessors }) => {
+      sessionStorage.setItem(
+        'praetorium.workspace-state:/rosters:guest-draft',
+        JSON.stringify({
+          version: 1,
+          id: crypto.randomUUID(),
+          draft: {
+            name: '',
+            catalogueId: 'e0af-67df-9d63-8fb8',
+            detachmentIds: ['profile-detachment-option-e0af-67df-9d63-8fb8-f367-3240-47c1-7e1a'],
+            disposition: 'priority-assets',
+            limit: 1000,
+            waivedRules: [],
+            optionalRules: [],
+            borrowedDetachmentId: null,
+            visibility: 'private',
+            picks: [{ entryId: captain }, { entryId: intercessors }],
+            prep: null,
+            source: 'editable',
+          },
+        }),
+      )
+    },
+    { captain: retired('024a-3fea-7765-4e82'), intercessors: retired('34c7-75dd-fcff-ec94') },
+  )
+  await page.reload()
+  await expect(page.locator('[data-unit="Captain"]')).toBeVisible()
+  await expect(page.locator('[data-unit="Intercessor Squad"]')).toContainText(/\d+ pts/)
+  await expect(page.getByText(/This army is not available|Army book replaced|no longer available/)).toHaveCount(0)
+})

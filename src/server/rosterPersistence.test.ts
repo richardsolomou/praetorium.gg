@@ -35,4 +35,19 @@ describe('rosterFromRow', () => {
   it('treats existing unnamed rows as automatic', () => {
     expect(rosterFromRow({ ...row, name: '', automaticName: null }).automaticName).toBe(true)
   })
+
+  it('reads a list saved against the retired Marine codex under current ids', () => {
+    expect(
+      rosterFromRow({
+        ...row,
+        catalogueId: 'a603-5039-f08d-e841',
+        detachmentId: '["profile-detachment-option-a603-5039-f08d-e841-f367-3240-47c1-7e1a"]',
+        picks: '[{"entryId":"profile-unit-a603-5039-f08d-e841-5302-e1f9-0338-76f9"}]',
+      }),
+    ).toMatchObject({
+      catalogueId: '4029-9237-e8db-af55',
+      detachmentIds: ['d2dc-693e-b491-b16d'],
+      picks: [{ entryId: '984d-c25b-86dd-9970' }],
+    })
+  })
 })

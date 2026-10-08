@@ -25,7 +25,6 @@ const REVOCATIONS_FORMAT = 'praetorium.catalogue-revocations.v1'
 const PROVENANCE_FORMAT = 'praetorium.catalogue-provenance.v1'
 export const MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
 const MAX_EXTRACTED_BYTES = 1024 * 1024 * 1024
-const marineCodexFiles = new Set(catalogueSources.marineCodex.files ?? [])
 
 type SnapshotManifest = {
   format: typeof FORMAT | typeof COMPLETE_FORMAT | typeof LEGACY_FORMAT
@@ -157,7 +156,6 @@ export function distributableCatalogueFile(name: string) {
   if (name === 'revision.json' || name === 'provenance.json' || name === '.snapshot.json' || name === '.snapshot-manifest.json')
     return false
   if (name.startsWith('definitions/')) return /^definitions\/[^/]+\.json$/.test(name)
-  if (name.startsWith('marineCodex/')) return marineCodexFiles.has(name.slice('marineCodex/'.length))
   if (name.startsWith('rules/')) return false
   if (name.startsWith('datacards/11th/gdc/combatpatrol/') || name.startsWith('datacards/11th/gdc/layouts/')) return false
   if (name.startsWith('datacards/11th/gdc/')) {
@@ -167,14 +165,13 @@ export function distributableCatalogueFile(name: string) {
   return true
 }
 
-function provenance(revisions: Record<string, string>, sources: readonly SnapshotSourceName[]) {
+function provenance(revisions: Record<string, string>, sources: readonly (typeof SNAPSHOT_SOURCE_NAMES)[number][]) {
   return {
     format: PROVENANCE_FORMAT,
     policySha256: sha256(encoded(rawRevocations)),
     modifications:
       'Praetorium selects the source paths its product and verification checks consume, packages the materialized sources including any pinned corrections, and compiles a canonical catalogue with field provenance.',
     sources: sources.map((name) => {
-      if (name === 'rules') throw new Error('legacy rules cannot be packed into a new snapshot')
       const source = catalogueSources[name]
       return {
         name,
@@ -195,7 +192,6 @@ function packedSnapshot(directory: string, disabled = new Set([...disabledCatalo
   for (const name of filesUnder(directory).filter(distributableCatalogueFile)) {
     const source = name.split('/')[0] ?? ''
     if ((SNAPSHOT_SOURCE_NAMES as readonly string[]).includes(source) && disabled.has(source as SnapshotSourceName)) continue
-    if (disabled.has('marineCodex') && name.startsWith('definitions/') && marineCodexFiles.has(name.slice('definitions/'.length))) continue
     if (name.startsWith('canonical/') && CANONICAL_CATALOGUE_SOURCE_NAMES.some((dependency) => disabled.has(dependency))) {
       continue
     }

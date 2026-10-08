@@ -1,10 +1,11 @@
 import { FORMAT_RULE_IDS, OPTIONAL_RULE_IDS, type FormatRuleId, type OptionalRuleId } from '../core/battle'
 import { picksSchema, savedPrepSchema } from './schemas'
 import type { SpacetimeOperator } from './spacetimeOperator'
+import { currentRosterIds } from '../core/retiredCatalogueIds'
 
 export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOperator['roster']>>>, includePrep = false) {
   const prep = includePrep && row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null
-  return {
+  return currentRosterIds({
     id: row.id,
     name: row.name,
     automaticName: row.automaticName ?? !row.name,
@@ -28,7 +29,7 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOpera
     baseRosterId: row.baseRosterId,
     visibility: row.visibility,
     source: row.source,
-  }
+  })
 }
 
 export function optionalRulesFrom(value: string | null): OptionalRuleId[] {

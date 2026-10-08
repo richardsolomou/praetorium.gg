@@ -28,26 +28,22 @@ for (const width of [1440, 390]) {
     const melee = page.getByRole('region', { name: 'Melee results' })
     const loadout = page.getByRole('dialog')
     await attacker.getByRole('button', { name: 'Loadout', exact: true }).click()
-    for (const [name, count] of [
-      ['Terminator Sergeant with Storm Shield and Thunder Hammer', 1],
-      ['Terminator with Storm Shield and Thunder Hammer', 2],
-    ] as const) {
-      for (let selected = 1; selected <= count; selected++) {
-        await loadout.getByRole('button', { name: `More ${name}`, exact: true }).click()
-        await expect(loadout.getByLabel(`${name} count`, { exact: true })).toHaveText(String(selected))
-      }
+    const claws = 'Assault Terminator w/ Twin Lightning Claws'
+    for (let selected = 1; selected <= 2; selected++) {
+      await loadout.getByRole('button', { name: `More ${claws}`, exact: true }).click()
+      await expect(loadout.getByLabel(`${claws} count`, { exact: true })).toHaveText(String(selected))
     }
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-thunder-hammers-${width}.png` })
     await loadout.getByRole('button', { name: 'Close', exact: true }).click()
-    await expect(melee.getByRole('heading', { name: '3× Thunder Hammer', exact: true })).toBeVisible()
+    await expect(melee.getByRole('heading', { name: '2× Thunder Hammer', exact: true })).toBeVisible()
     await expect(melee.getByRole('heading', { name: '2× Twin Lightning Claws', exact: true })).toBeVisible()
     await expect(melee.getByRole('alert')).toHaveCount(0)
     await page.reload()
-    await expect(melee.getByRole('heading', { name: '3× Thunder Hammer', exact: true })).toBeVisible()
+    await expect(melee.getByRole('heading', { name: '2× Thunder Hammer', exact: true })).toBeVisible()
     await attacker.getByRole('button', { name: 'Loadout', exact: true }).click()
-    await expect(loadout.getByLabel('Terminator Sergeant with Storm Shield and Thunder Hammer count', { exact: true })).toHaveText('1')
-    await expect(loadout.getByLabel('Terminator with Storm Shield and Thunder Hammer count', { exact: true })).toHaveText('2')
+    await expect(loadout.getByLabel('Assault Terminator w/ Twin Lightning Claws count', { exact: true })).toHaveText('2')
+    await expect(loadout.getByLabel('Assault Terminator w/ Thunder Hammer & Storm Shield count', { exact: true })).toHaveText('2')
     await noOverflow(page)
   })
 }
@@ -145,10 +141,10 @@ test('the unit picker keeps only distinct faction contexts', async ({ page }) =>
   await search.fill('Assault Intercessor Squad')
   await expect(page.getByRole('option', { name: /^Assault Intercessor Squad, / })).toHaveCount(1)
   await page.getByRole('listbox').screenshot({ path: 'test-results/simulator-assault-intercessor-choices.png' })
-  await search.fill('Sternguard Veteran Squad')
-  await expect(page.getByRole('option', { name: /^Sternguard Veteran Squad, / })).toHaveCount(2)
-  await expect(page.getByRole('option', { name: /^Sternguard Veteran Squad, Black Templars,/ })).toBeVisible()
-  await expect(page.getByRole('option', { name: /^Sternguard Veteran Squad, Space Marines,/ })).toBeVisible()
+  await search.fill('Impulsor')
+  await expect(page.getByRole('option', { name: /^Impulsor, / })).toHaveCount(2)
+  await expect(page.getByRole('option', { name: /^Impulsor, Black Templars,/ })).toBeVisible()
+  await expect(page.getByRole('option', { name: /^Impulsor, Space Marines,/ })).toBeVisible()
 })
 
 test('weapon switches leave profiles visible and shared modifiers can be overridden by phase', async ({ page }) => {
@@ -166,7 +162,7 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
   await expect(page.getByRole('region', { name: 'Combined estimate' }).locator('[data-combat-wipe]')).toHaveText(/^\d+\.\d%$/)
   const startingShooting = Number(await shootingDamage.textContent())
   const startingMelee = Number(await meleeDamage.textContent())
-  const boltRifle = page.getByRole('switch', { name: 'Include Bolt Rifle – Focused Fire in shooting calculation' })
+  const boltRifle = page.getByRole('switch', { name: 'Include ➤ Bolt Rifle - Focused Fire in shooting calculation' })
   expect(
     await boltRifle.evaluate((switchElement) => {
       const card = switchElement.closest('[data-weapon-card]')
@@ -424,7 +420,7 @@ test('shared weapon modes count every carrier and indirect shooting applies its 
 test('current army rules exclude retired vows and apply plague choices to the relevant combatant', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/simulator')
-  await chooseCombatUnit(page, 'Attacker', 'Black Templars', 'Sternguard Veteran Squad')
+  await chooseCombatUnit(page, 'Attacker', 'Black Templars', 'Sword Brethren Squad')
   await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
   const attackerRules = page.getByRole('region', { name: 'Attacker rules', exact: true })
   await expect(attackerRules).not.toContainText('Templar Vows')
@@ -519,7 +515,7 @@ for (const width of [1440, 390, 860, 1024]) {
     const shooting = page.getByRole('region', { name: 'Shooting results' })
     const melee = page.getByRole('region', { name: 'Melee results' })
     await expect(await estimate(page, 'Shooting')).toContainText('2.22')
-    await expect(shooting).toContainText('5× Bolt Rifle – Focused Fire')
+    await expect(shooting).toContainText('5× ➤ Bolt Rifle - Focused Fire')
     await expect(melee).toContainText('5× Knives and Fists')
     for (const [results, phase] of [
       [shooting, 'Shooting'],
@@ -543,7 +539,7 @@ for (const width of [1440, 390, 860, 1024]) {
       await expect(results.locator('summary')).toHaveCount(0)
     }
     await expect(
-      shooting.getByRole('heading', { name: '5× Bolt Rifle – Focused Fire', exact: true }).locator('..').locator('.eyebrow'),
+      shooting.getByRole('heading', { name: '5× ➤ Bolt Rifle - Focused Fire', exact: true }).locator('..').locator('.eyebrow'),
     ).toHaveText(['Range', 'A', 'BS', 'S', 'AP', 'D'])
     await expect(page.getByText('Evaluated profiles and weapon rules included.', { exact: false })).toHaveCount(0)
     await expect(page.getByText('Each phase starts against the full defending unit.', { exact: true })).toHaveCount(0)
@@ -620,7 +616,9 @@ for (const width of [1440, 390, 860, 1024]) {
 
     await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
     const loadout = page.getByRole('dialog')
-    const mode = loadout.getByRole('button', { name: 'More Bolt Rifle – Saturation', exact: true }).first()
+    const mode = loadout
+      .getByRole('group', { name: 'Intercessor Squad Weapon 1' })
+      .getByRole('button', { name: 'Select Plasma pistol', exact: true })
     await expect(mode).toBeVisible()
     const heading = loadout.getByRole('heading', { name: 'Attacker · Intercessor Squad' })
     await noOverflow(page)
@@ -645,12 +643,11 @@ for (const width of [1440, 390, 860, 1024]) {
     await expect(loadout.getByText('Select a unit from the roster to see its loadout.')).toHaveCount(0)
     await page.screenshot({ path: `test-results/simulator-loadout-updating-${width}.png`, fullPage: true })
     releaseLoadout()
-    await expect(loadout.getByLabel('Bolt Rifle – Saturation count', { exact: true }).first()).toHaveText('1')
-    await expect(mode).toBeDisabled()
+    await expect(mode).toHaveAttribute('aria-pressed', 'true')
     await page.unrouteAll({ behavior: 'wait' })
     await loadout.getByRole('button', { name: 'Close', exact: true }).click()
     await expect(melee).toHaveAttribute('aria-busy', 'false')
-    await expect(shooting).toContainText('Bolt Rifle – Saturation')
+    await expect(shooting).toContainText('Plasma pistol')
     await expect(melee).toContainText('5× Knives and Fists')
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-melee-${width}.png`, fullPage: true })
@@ -660,11 +657,11 @@ for (const width of [1440, 390, 860, 1024]) {
     await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('10')
     await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('5')
     await expect(melee).toContainText('10× Knives and Fists')
-    await expect(melee).not.toContainText('Bolt Rifle – Saturation')
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect(shooting).toContainText('10× Bolt Rifle – Focused Fire')
+    await expect(shooting).not.toContainText('Plasma pistol')
+    await expect(shooting).toContainText('10× ➤ Bolt Rifle - Focused Fire')
     await page.getByRole('region', { name: 'Defender', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
-    await expect(loadout.getByLabel('Bolt Rifle – Saturation count', { exact: true }).first()).toHaveText('1')
+    await expect(mode).toHaveAttribute('aria-pressed', 'true')
     await loadout.getByRole('button', { name: 'Close', exact: true }).click()
     for (let removed = 0; removed < 5; removed++) await page.getByRole('button', { name: 'Fewer attacker models' }).click()
     await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')
@@ -673,7 +670,7 @@ for (const width of [1440, 390, 860, 1024]) {
     await swap.click()
     await openCombatControls(page)
     await expect(melee).toHaveAttribute('aria-busy', 'false')
-    await expect(shooting).toContainText('Bolt Rifle – Saturation')
+    await expect(shooting).toContainText('Plasma pistol')
     await expect(melee).toContainText('5× Knives and Fists')
     const withMode = Number(await (await estimate(page, 'Shooting')).locator('.readout').first().textContent())
     expect(withMode).toBeGreaterThan(0)
@@ -870,7 +867,7 @@ for (const width of [1440, 390]) {
       '—',
     ])
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect(shooting).toContainText('5× Bolt Rifle')
+    await expect(shooting).toContainText('5× ➤ Bolt Rifle - Focused Fire')
     await expect(shooting).not.toContainText('Particle caster')
     await page.evaluate(() => window.scrollTo(0, 0))
     await page.screenshot({ path: `test-results/simulator-wraith-defender-${width}.png`, fullPage: true })
@@ -1602,14 +1599,14 @@ for (const width of [1440, 390]) {
     const defender = page.getByRole('region', { name: 'Defender', exact: true })
     await defender.getByRole('button', { name: 'Loadout', exact: true }).click()
     const loadout = page.getByRole('dialog')
-    await loadout.getByRole('button', { name: 'Select Power Fist', exact: true }).click()
+    await loadout.getByRole('button', { name: 'Select Master-crafted power weapon', exact: true }).click()
     await loadout.getByRole('button', { name: 'Close', exact: true }).click()
     await choose(page, 'Defender add attached unit', 'Intercessor Squad')
     await expect(defender.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Intercessor Squad')
     await expect(defender.getByLabel('Defender Captain loadout', { exact: true })).toBeEnabled()
     await expect(defender).toContainText('6 models')
     await defender.getByLabel('Defender Captain loadout', { exact: true }).click()
-    await expect(page.getByRole('dialog').getByRole('button', { name: 'Select Power Fist', exact: true })).toHaveAttribute(
+    await expect(page.getByRole('dialog').getByRole('button', { name: 'Select Master-crafted power weapon', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -1626,7 +1623,7 @@ for (const width of [1440, 390]) {
     await expect(defender.getByRole('button', { name: 'Loadout', exact: true })).toBeEnabled()
     await page.reload()
     await defender.getByRole('button', { name: 'Loadout', exact: true }).click()
-    await expect(page.getByRole('dialog').getByRole('button', { name: 'Select Power Fist', exact: true })).toHaveAttribute(
+    await expect(page.getByRole('dialog').getByRole('button', { name: 'Select Master-crafted power weapon', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true',
     )

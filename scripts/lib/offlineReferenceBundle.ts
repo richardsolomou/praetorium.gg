@@ -8,12 +8,7 @@ import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
 import { factionsFor, factionIndexFor, detachmentsOffering } from '../../src/server/factionReferences'
 import { unitsIn } from '../../src/server/cataloguePicker'
 import { detachmentReference } from '../../src/server/detachmentReference'
-import {
-  referenceDatasheetBySlug,
-  referenceDatasheetIsLive,
-  referenceRuleIndex,
-  referenceRuleSection,
-} from '../../src/server/referenceCatalogue'
+import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../../src/server/referenceCatalogue'
 import { gameReferencesFor } from '../../src/server/gameReferences'
 import { compiledGlobalSearchIndex } from '../../src/server/globalSearch'
 import { terrainMatchupIds, TERRAIN_GEOMETRY_VERSION } from '../../src/contracts/terrainReference'
@@ -63,14 +58,7 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
     )
     put(['faction-datasheets', faction.id, ''], units)
     for (const unit of units)
-      put(
-        ['datasheet-slug', faction.id, unit.slug],
-        referenceDatasheetBySlug(
-          sources,
-          { catalogueId: faction.id, slug: unit.slug },
-          { live: referenceDatasheetIsLive(catalogue, faction.id) },
-        ),
-      )
+      put(['datasheet-slug', faction.id, unit.slug], referenceDatasheetBySlug(sources, { catalogueId: faction.id, slug: unit.slug }))
     for (const detachment of faction.detachments)
       if (detachment.referenceRoute?.catalogueId === faction.slug)
         put(['detachment-detail', faction.id, detachment.slug], detachmentReference(catalogue, rules, faction.id, detachment.slug))

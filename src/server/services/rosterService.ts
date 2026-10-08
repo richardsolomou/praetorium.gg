@@ -7,6 +7,7 @@ import type { RosterReminder } from '../../core/reminders'
 import type { RepositoryPort } from '../spacetimeRepository'
 import { picksSchema } from '../schemas'
 import { detachmentIds, optionalRulesFrom, rosterFromRow, waivedRulesFrom } from '../rosterPersistence'
+import { currentRosterIds } from '../../core/retiredCatalogueIds'
 
 type SavedPrep = {
   stratagems: Stratagem[]
@@ -25,7 +26,7 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
       'unitCount' in row
         ? row.unitCount
         : attachedUnitCount(picksSchema.parse(JSON.parse(row.picks)).map((unit, key) => ({ key, attachedTo: unit.attachedTo })))
-    return {
+    return currentRosterIds({
       id: row.id,
       name: row.name,
       automaticName: row.automaticName ?? !row.name,
@@ -42,7 +43,7 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       unitCount,
-    }
+    })
   })
 }
 

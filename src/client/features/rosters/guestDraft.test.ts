@@ -27,6 +27,13 @@ describe("a visitor's draft", () => {
     expect(readGuestDraft()).toEqual(draft)
   })
 
+  it('reads a draft built on the retired Marine codex under current ids', () => {
+    stubSessionStorage()
+    const draft = newGuestDraft({ ...setup, catalogueId: 'e0af-67df-9d63-8fb8' })
+    writeGuestDraft({ ...draft, draft: { ...draft.draft, picks: [{ entryId: 'profile-unit-e0af-67df-9d63-8fb8-34c7-75dd-fcff-ec94' }] } })
+    expect(readGuestDraft()?.draft).toMatchObject({ catalogueId: 'e0af-67df-9d63-8fb7', picks: [{ entryId: '85b1-eb9a-17a6-e5be' }] })
+  })
+
   it('starts private, whatever the setup asked for', () => {
     expect(newGuestDraft(setup).draft.visibility).toBe('private')
   })

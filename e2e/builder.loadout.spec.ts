@@ -253,9 +253,9 @@ test('a unit that leads nothing is offered no one to lead', async ({ page }) => 
 })
 
 test('a tank is armed but not crowned', async ({ page }) => {
-  // The pintle mounts sit in the same uncapped group as the guns the tank always has,
-  // and were never offered; the Warlord entry sits under an upgrade only a couple of
-  // detachments unlock, and was offered to every vehicle in the game.
+  // The pintle mounts are optional extras on a tank that always has its guns; the
+  // Warlord entry sits under an upgrade only a couple of detachments unlock, and was
+  // offered to every vehicle in the game.
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
   await add(page, 'Land Raider Redeemer')
@@ -264,9 +264,10 @@ test('a tank is armed but not crowned', async ({ page }) => {
     .getByRole('button', { name: /^Land Raider Redeemer/ })
     .click()
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  for (const weapon of ['Hunter-killer Missile', 'Multi-melta', 'Storm Bolter']) {
-    await expect(loadout.getByRole('button', { name: `More ${weapon}` })).toHaveCount(0)
-    await expect(loadout).toContainText(`This model can be equipped with 1 ${weapon}.`)
+  await expect(loadout.getByRole('heading', { name: '2× Flamestorm Cannon', exact: true })).toBeVisible()
+  for (const weapon of ['Hunter-killer missile', 'Multi-melta', 'Storm bolter']) {
+    await expect(loadout.getByRole('button', { name: `More ${weapon}`, exact: true })).toBeEnabled()
+    await expect(loadout.getByRole('button', { name: `Fewer ${weapon}`, exact: true })).toBeDisabled()
   }
   await expect(page.getByRole('button', { name: /Land Raider Redeemer Warlord/ })).toHaveCount(0)
 
@@ -495,8 +496,8 @@ test('the attachment menu stays inside the unopened three-column roster', async 
   await attachButton.click()
   const targets = page.getByRole('menu')
   await expect(targets.getByRole('menuitem', { name: 'Intercessor Squad', exact: true })).toBeVisible()
-  await expect(targets.getByRole('menuitem', { name: 'Assault Intercessor Squad', exact: true })).toHaveCount(0)
-  await expect(targets.getByRole('menuitem', { name: 'Hellblaster Squad', exact: true })).toHaveCount(0)
+  await expect(targets.getByRole('menuitem', { name: 'Assault Intercessor Squad', exact: true })).toBeVisible()
+  await expect(targets.getByRole('menuitem', { name: 'Hellblaster Squad', exact: true })).toBeVisible()
   await targets.getByRole('menuitem', { name: 'Intercessor Squad', exact: true }).click()
   await expect(ancient).toContainText('Supporting')
   await expect(ancient).toContainText('Intercessor Squad')
@@ -694,56 +695,37 @@ test('a squad can take the heavy weapon its datasheet offers', async ({ page }) 
 
 test('a composite heavy weapon keeps the model armed and can be put back', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Dark Angels', /Unforgiven Task Force/)
+  await openBuilder(page, 'Dark Angels', /Wrath of the Rock/)
   await add(page, 'Deathwing Terminator Squad')
-  await page
-    .locator('[data-unit="Deathwing Terminator Squad"]')
-    .getByRole('button', { name: /^Deathwing Terminator Squad/ })
-    .click()
+  const card = page.locator('[data-unit="Deathwing Terminator Squad"]')
+  await card.getByRole('button', { name: /^Deathwing Terminator Squad/ }).click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  const terminators = loadout.locator('section').filter({ has: page.getByLabel('Deathwing Terminator models') })
+  const heavy = 'Deathwing Terminator w/ Heavy Weapon'
   const cyclone = 'Cyclone Missile Launcher & Storm Bolter'
-
-  await expect(terminators.getByLabel('Storm Bolter and Power Fist count', { exact: true })).toHaveText('4')
-  await waitForRosterSave(page, () => terminators.getByRole('button', { name: `More ${cyclone}` }).click())
-  await expect(terminators.getByLabel(`${cyclone} count`)).toHaveText('1')
-  await expect(terminators.getByLabel('Power Fist count', { exact: true })).toHaveText('1')
-  await expect(page.locator('[data-unit="Deathwing Terminator Squad"]').getByText('4x Power Fist')).toBeVisible()
-  const firingProfiles = terminators.getByRole('region', { name: 'cyclone missile launcher profiles', exact: true })
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: `More ${heavy}`, exact: true }).click())
+  await expect(loadout.getByLabel(`${heavy} count`, { exact: true })).toHaveText('1')
+  await expect(loadout.getByLabel(`${cyclone} count`, { exact: true })).toHaveText('1')
+  await expect(loadout.getByRole('button', { name: `Fewer ${cyclone}`, exact: true })).toBeDisabled()
+  const firingProfiles = loadout.getByRole('region', { name: 'cyclone missile launcher profiles', exact: true }).first()
   await expect(firingProfiles.getByRole('heading', { name: 'Frag', exact: true })).toBeVisible()
   await expect(firingProfiles.getByRole('heading', { name: 'Krak', exact: true })).toBeVisible()
-  await expect(terminators.getByRole('heading', { name: /^5× Storm Bolter$/i })).toHaveCount(0)
 
-  await waitForRosterSave(page, () => terminators.getByRole('button', { name: 'More Chainfist', exact: true }).click())
-  await expect(terminators.getByLabel('Chainfist count', { exact: true })).toHaveText('1')
-  await expect(terminators.getByLabel(`${cyclone} count`)).toHaveText('1')
-  await expect(terminators.getByLabel('Power Fist count', { exact: true })).toHaveText('0')
-  await expect(page.locator('[data-unit="Deathwing Terminator Squad"]').getByText('3x Power Fist')).toBeVisible()
-  await waitForRosterSave(page, () => terminators.getByRole('button', { name: 'Fewer Chainfist', exact: true }).click())
-  await expect(terminators.getByLabel('Chainfist count', { exact: true })).toHaveText('0')
-  await expect(terminators.getByLabel('Power Fist count', { exact: true })).toHaveText('1')
-  await expect(page.locator('[data-unit="Deathwing Terminator Squad"]').getByText('4x Power Fist')).toBeVisible()
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plasma cannon', exact: true }).click())
+  await expect(loadout.getByLabel('Plasma cannon count', { exact: true })).toHaveText('1')
+  await expect(loadout.getByLabel(`${cyclone} count`, { exact: true })).toHaveText('0')
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: `More ${cyclone}`, exact: true }).click())
+  await expect(loadout.getByLabel(`${cyclone} count`, { exact: true })).toHaveText('1')
+  await expect(loadout.getByLabel('Plasma cannon count', { exact: true })).toHaveText('0')
 
-  await waitForRosterSave(page, () => terminators.getByRole('button', { name: `Fewer ${cyclone}` }).click())
-  await expect(terminators.getByLabel(`${cyclone} count`)).toHaveText('0')
-  await expect(terminators.getByLabel('Storm Bolter and Power Fist count', { exact: true })).toHaveText('4')
-
-  await waitForRosterSave(page, () => terminators.getByRole('button', { name: `More ${cyclone}` }).click())
-  await waitForRosterSave(page, () => terminators.getByRole('button', { name: 'More Storm Bolter and Power Fist', exact: true }).click())
-  await expect(terminators.getByLabel(`${cyclone} count`)).toHaveText('0')
-  await expect(terminators.getByLabel('Storm Bolter and Power Fist count', { exact: true })).toHaveText('4')
   await page.reload()
-  await page
-    .locator('[data-unit="Deathwing Terminator Squad"]')
-    .getByRole('button', { name: /^Deathwing Terminator Squad/ })
-    .click()
-  await expect(terminators.getByLabel(`${cyclone} count`)).toHaveText('0')
-  await expect(terminators.getByLabel('Storm Bolter and Power Fist count', { exact: true })).toHaveText('4')
+  await card.getByRole('button', { name: /^Deathwing Terminator Squad/ }).click()
+  await expect(loadout.getByLabel(`${heavy} count`, { exact: true })).toHaveText('1')
+  await expect(loadout.getByLabel(`${cyclone} count`, { exact: true })).toHaveText('1')
   await page.screenshot({ path: 'test-results/deathwing-restored-loadout.png', fullPage: true })
 })
 
-test('a profiled character loadout shows its printed melee weapon', async ({ page }) => {
+test('a character loadout shows its default melee weapon', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
   await add(page, 'Captain')
@@ -753,15 +735,12 @@ test('a profiled character loadout shows its printed melee weapon', async ({ pag
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByRole('group', { name: 'Captain Master-crafted Power Weapon' })).toBeVisible()
-  await expect(loadout.getByRole('button', { name: 'Select Master-crafted Power Weapon', exact: true })).toHaveAttribute(
+  const melee = loadout.getByRole('group', { name: 'Captain Melee Weapon' })
+  await expect(melee.getByRole('button', { name: 'Select Power fist', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(melee.getByRole('button', { name: 'Select Master-crafted power weapon', exact: true })).toHaveAttribute(
     'aria-pressed',
-    'true',
+    'false',
   )
-  await expect(
-    loadout.getByText("This model's Master-crafted Bolter and Heavy Bolt Pistol can be replaced", { exact: false }),
-  ).toBeVisible()
-  await expect(loadout.getByRole('button', { name: /Select This model's Master-crafted Bolter/ })).toHaveCount(0)
 })
 
 test('independent weapon choices are edited separately when the catalogue stores their combinations', async ({ page }) => {
@@ -868,7 +847,7 @@ test('Cadian Shock Troops can take their full special weapon allowance', async (
 })
 
 test('Legends are never offered', async ({ page }) => {
-  await openBuilder(page, 'Dark Angels', /Unforgiven Task Force/)
+  await openBuilder(page, 'Dark Angels', /Wrath of the Rock/)
   await page.getByLabel('Add a unit').fill('Land Speeder')
   await expect(page.getByRole('button', { name: 'Add Land Speeder', exact: true })).toBeVisible()
   const legend = page.getByRole('button', { name: 'Add Land Speeder Typhoon [Legends]', exact: true })
@@ -888,25 +867,9 @@ test('Crucible variants are never offered', async ({ page }) => {
 test('a chapter reaches the whole Codex range, not just its own datasheets', async ({ page }) => {
   // Dark Angels state twenty-seven datasheets of their own and field two hundred
   // and forty-nine, the rest imported from the Space Marines book.
-  await openBuilder(page, 'Dark Angels', /Unforgiven Task Force/)
+  await openBuilder(page, 'Dark Angels', /Wrath of the Rock/)
   await add(page, 'Intercessor Squad')
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
-})
-
-test('the Intercessor grenade launcher remains an instruction until it has a selectable choice', async ({ page }) => {
-  await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
-  await add(page, 'Intercessor Squad')
-  await page
-    .locator('[data-unit="Intercessor Squad"]')
-    .getByRole('button', { name: /^Intercessor Squad/ })
-    .click()
-
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByRole('button', { name: 'Select Bolt Rifle w/ Grenade Launcher' })).toHaveCount(0)
-  await expect(loadout).toContainText('For every 5 models in this unit, 1 Intercessor model can be equipped with 1 Grenade Launcher.')
-  await expect(loadout.getByRole('button', { name: 'More Bolt Rifle – Saturation' })).toHaveCount(2)
-  await shot(loadout, 'test-results/intercessor-grenade-launcher.png')
 })
 
 test('a selected multi-weapon option is not repeated in the equipped summary', async ({ page }) => {
@@ -919,26 +882,11 @@ test('a selected multi-weapon option is not repeated in the equipped summary', a
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByRole('group', { name: 'Impulsor Storm Bolters' })).toBeVisible()
+  await waitForRosterSave(page, () =>
+    loadout.getByRole('group', { name: 'Impulsor Sponsons' }).getByRole('button', { name: 'Select Storm Bolters', exact: true }).click(),
+  )
   const equipped = loadout.locator('section').filter({ hasText: 'Equipped ranged weapons' })
   await expect(equipped.getByText('2× Storm bolter', { exact: true })).toHaveCount(0)
-})
-
-test('a printed Marine default appears once across the full loadout', async ({ page }) => {
-  await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
-  await add(page, 'Sternguard Veteran Squad')
-  await page
-    .locator('[data-unit="Sternguard Veteran Squad"]')
-    .getByRole('button', { name: 'Sternguard Veteran Squad', exact: true })
-    .click()
-
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByText('Ceramite Fists', { exact: true })).toHaveCount(1)
-  await expect(loadout.getByText('Artificer Firearm - Purgatus', { exact: true })).toHaveCount(2)
-  await expect(loadout.getByText('Weapon Options', { exact: true })).toHaveCount(0)
-  await expect(loadout.getByText('The Sternguard Veteran Sergeant can have their Chainsword replaced', { exact: false })).toBeVisible()
-  await page.screenshot({ path: 'test-results/sternguard-default-loadout.png', fullPage: true })
 })
 
 /**
@@ -1283,7 +1231,7 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
 
 test('removing one loadout does not choose another piece of the same model as its replacement', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Black Templars', /Companions of Vehemence/)
+  await openBuilder(page, 'Black Templars', /Marshal's Household/)
   await add(page, 'Crusader Squad')
   await page
     .locator('[data-unit="Crusader Squad"]')

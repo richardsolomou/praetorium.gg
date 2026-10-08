@@ -607,7 +607,7 @@ test('Cursed Legion does not modify Immortals without an eligible leader', async
 
 test('a supplement imports shared Space Marine units and its detachment group', async ({ page }) => {
   await signUp(page, 'Richard')
-  await createRoster(page, { faction: 'Black Templars', detachment: /Companions of Vehemence/ })
+  await createRoster(page, { faction: 'Black Templars', detachment: /Marshal's Household/ })
   await add(page, 'Intercessor Squad')
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
   await add(page, 'Crusader Squad')

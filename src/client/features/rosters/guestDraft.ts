@@ -4,6 +4,7 @@ import { setRosterCookie } from './rosterCookie'
 import type { RosterDraft } from './rosterDraft'
 import type { RosterSetup } from './RosterSetupDialog'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
+import { currentRosterIds } from '../../../core/retiredCatalogueIds'
 
 /** Where a visitor's list is built, and so where every piece of its tab state is kept. */
 export const GUEST_PATH = '/rosters'
@@ -65,7 +66,7 @@ export function newGuestDraft(setup: RosterSetup): GuestDraft {
 export function readGuestDraft(): GuestDraft | null {
   const stored = readWorkspaceState<GuestDraft>(GUEST_PATH, NAME)
   if (!stored || stored.version !== VERSION || typeof stored.id !== 'string' || !stored.draft?.catalogueId) return null
-  return stored
+  return { ...stored, draft: currentRosterIds(stored.draft) }
 }
 
 /** Tells the server whether this tab holds a list, so a refresh draws the page it will become. */

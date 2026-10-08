@@ -3,8 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, expect, it } from 'vitest'
-import { catalogueSources } from '../../src/server/catalogueSources'
-import { applyPatches, overlayMarineCodex } from './cataloguePatches'
+import { applyPatches } from './cataloguePatches'
 
 let root: string
 let patches: string
@@ -40,24 +39,4 @@ it('applies additions and dependent corrections in filename order', () => {
   applyPatches(root, patches, 'definitions')
 
   expect(JSON.parse(fs.readFileSync(path.join(root, 'definitions', 'unit.json'), 'utf8'))).toEqual({ name: 'Corrected' })
-})
-
-it('rejects a Marine overlay collision with an upstream catalogue', () => {
-  fs.mkdirSync(path.join(root, 'marineCodex'))
-  const files = catalogueSources.marineCodex.files!
-  for (const file of files) fs.writeFileSync(path.join(root, 'marineCodex', file), '{}')
-  fs.writeFileSync(path.join(root, 'definitions', files[0]!), '{"id":"upstream"}')
-
-  expect(() => overlayMarineCodex(root, files)).toThrow('conflicts with BSData')
-  expect(JSON.parse(fs.readFileSync(path.join(root, 'definitions', files[0]!), 'utf8'))).toEqual({ id: 'upstream' })
-})
-
-it('rejects a Marine overlay missing a pinned file', () => {
-  fs.mkdirSync(path.join(root, 'marineCodex'))
-
-  expect(() => overlayMarineCodex(root, catalogueSources.marineCodex.files)).toThrow('is missing')
-})
-
-it('rejects an incomplete Marine file inventory', () => {
-  expect(() => overlayMarineCodex(root, ['Imperium - Space Marines (11e).json'])).toThrow('file list is incomplete')
 })

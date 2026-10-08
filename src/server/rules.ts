@@ -185,9 +185,7 @@ export function loadRules(
  * a book and the rest of the app knows a faction by the name it shows a player.
  */
 export const rulesFaction = (rules: Pick<LoadedRules, 'factionKeys'> | null | undefined, factionSlug: string) =>
-  rules?.factionKeys?.get(factionSlug) ??
-  (factionSlug.endsWith('-11e') ? rules?.factionKeys?.get(factionSlug.slice(0, -4)) : undefined) ??
-  factionSlug
+  rules?.factionKeys?.get(factionSlug) ?? factionSlug
 
 export function hasDetachmentSemantics(
   rules: Pick<LoadedRules, 'byDetachment' | 'factionKeys' | 'factionParents'>,

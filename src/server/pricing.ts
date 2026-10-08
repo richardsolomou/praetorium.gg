@@ -22,7 +22,6 @@ import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
-import { isProfiledDetachment, profiledDetachmentMatchesCards, profiledDetachmentPoints } from './catalogueProfileRules'
 import { contextualUnitLimit, groupOfEntry, unitsIn } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
 import { detachmentPoints } from './detachmentPoints'
@@ -412,17 +411,8 @@ function calculateRoster(
   const rulesId = rulesFaction(rules, factionSlug)
   const references = rules?.detachmentReferences.get(rulesId)
   const details = rules?.detachmentDetails.get(rulesId)
-  const detailFor = (option: (typeof chosen)[number]) => {
-    const detail = detachmentNamed(details, option.name)
-    return !isProfiledDetachment(loaded, option.id) || profiledDetachmentMatchesCards(loaded, option.id, detail) ? detail : undefined
-  }
-  const referenceFor = (option: (typeof chosen)[number]) =>
-    isProfiledDetachment(loaded, option.id) && !detailFor(option)
-      ? {
-          points: profiledDetachmentPoints(loaded, option.id),
-          dispositions: option.disposition ? [option.disposition] : [],
-        }
-      : detachmentNamed(references, option.name)
+  const detailFor = (option: (typeof chosen)[number]) => detachmentNamed(details, option.name)
+  const referenceFor = (option: (typeof chosen)[number]) => detachmentNamed(references, option.name)
   const allowedDispositions = [
     ...new Set(
       chosen.flatMap((option) => {

@@ -283,8 +283,6 @@ describe('force disposition', () => {
       ],
     })
     loaded.index.costTypes.set('dp', { id: 'dp', name: 'Detachment Points' })
-    loaded.profiledDetachmentIds.add('one')
-    loaded.profiledDetachmentIds.add('three')
     expect(
       calculateRosterPrice(
         { catalogueId: 'cat', detachmentIds: ['one', 'three'], disposition: null, limit: 2_000, units: [] },
@@ -323,7 +321,6 @@ describe('force disposition', () => {
     loaded.index.costTypes.set('dp', { id: 'dp', name: 'Detachment Points' })
     const inherited = loaded.detachments.get('cat-1')!.options[0]!
     loaded.detachments.get('cat')!.options.push(inherited)
-    loaded.profiledDetachmentIds.add('assault')
 
     expect(
       calculateRosterPrice(

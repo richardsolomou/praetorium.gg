@@ -29,7 +29,7 @@ export type UnitSummary = {
 
 export type PickerUnit = UnitSummary & { search: DatasheetSearchFields | null }
 
-export type CanonicalSourceName = 'definitions' | 'marineCodex' | 'points' | 'rules' | 'datacards' | 'battlemaster'
+export type CanonicalSourceName = 'definitions' | 'points' | 'rules' | 'datacards' | 'battlemaster'
 
 export type CanonicalFieldResolution = {
   sources: CanonicalSourceName[]
@@ -42,7 +42,7 @@ export type CanonicalDatasheet = Omit<Datasheet, 'profiles'> & {
   attribution: string | null
   profiles: StructuredDatasheetProfile[]
   provenance: {
-    definitions: { revision: string; entryId: string; source?: 'definitions' | 'marineCodex' }
+    definitions: { revision: string; entryId: string }
     datacards: { revision: string; resolution: 'external-reference' | 'normalized-name' } | null
     rules: { revision: string; unitId: string; resolution: 'external-reference' } | null
     fields: {
@@ -86,7 +86,7 @@ export type CanonicalDetachment = {
   keywordRules: { name: string; description: string }[]
   attribution: string
   provenance: {
-    definitions: { revision: string; detachmentId: string; source?: 'definitions' | 'marineCodex' }
+    definitions: { revision: string; detachmentId: string }
     datacards: { revision: string }
   }
 }
@@ -108,7 +108,7 @@ export type CanonicalCatalogueIssue = {
 
 export type CanonicalCatalogue = {
   format: 'praetorium.canonical-catalogue.v1'
-  compilerVersion: 1 | 2
+  compilerVersion: 1 | 3
   revisions: Record<string, string>
   datasheets: CanonicalDatasheet[]
   detachments: CanonicalDetachment[]

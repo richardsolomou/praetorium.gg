@@ -6,6 +6,7 @@ import {
   createRoster,
   desktopContext,
   PRACTICE_OPPONENT,
+  retryUntilVisible,
   signUp,
   waitForRosterSave,
 } from './account'
@@ -69,7 +70,8 @@ test('an imported roster with disagreeing dispositions asks for one before battl
   await signUp(page, 'Bob')
 
   await page.goto('/rosters')
-  await page.getByRole('button', { name: 'Import roster' }).click()
+  // The button answers only once the page has hydrated.
+  await retryUntilVisible(page.getByLabel('Roster text'), () => page.getByRole('button', { name: 'Import roster' }).click())
   await page.getByLabel('Roster text').fill(`HLHOTD 2K - C'tan (1995 Points)
 
 Necrons

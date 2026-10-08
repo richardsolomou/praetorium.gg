@@ -24,7 +24,7 @@ Important count/identity meanings:
 - `roster_created` can mean an empty saved row or claimed guest draft; require `roster_unit_added` to measure building.
 - `roster_imported` means parsing. `roster_import_saved` and `guest_roster_saved` mean the request succeeded; uncertain-response retries can repeat a guest completion. Use unique people for conversion.
 - Roster `unit_count` counts attached character/bodyguard as one fielded unit through `attachedUnitCount`. Request metrics and import `pick_count` count payload picks instead.
-- `detachment_rules_covered` requires every selected detachment to resolve to supported Game Datacards semantics or described profile-backed rules/stratagems, including imported options. Missing selections and undescribed profiles remain uncovered.
+- `detachment_rules_covered` requires every selected detachment to resolve to supported Game Datacards semantics, including imported options. Missing selections remain uncovered.
 - `battle_command_submitted` includes kind/outcome, not the command payload. Appended `set-setup-step` commands measure reached setup steps.
 - Onboarding stores/captures reading-tour answers, skips, and welcome; domain-derived progress does not emit a duplicate completion event.
 - Simulator open/completion/failure are bounded per mounted session/matchup, with `source` identifying standalone, roster, or battle.

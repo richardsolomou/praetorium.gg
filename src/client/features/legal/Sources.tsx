@@ -4,7 +4,7 @@ const linkClass = 'text-info hover:text-parchment'
 
 export function Sources() {
   return (
-    <LegalPage title="Data sources" updated="2 October 2026">
+    <LegalPage title="Data sources" updated="8 October 2026">
       <LegalSection title="Community data">
         <p>Praetorium uses rules and reference data from these community projects:</p>
         <LegalLinks>
@@ -12,13 +12,6 @@ export function Sources() {
             Faction entries, constraints, modifiers, and costs from{' '}
             <a href="https://github.com/BSData/wh40k-11e" className={linkClass}>
               BSData
-            </a>
-            .
-          </li>
-          <li>
-            Provisional Space Marines codex records from{' '}
-            <a href="https://github.com/richardsolomou/wh40k-11e" className={linkClass}>
-              the pinned community fork
             </a>
             .
           </li>

@@ -9,6 +9,8 @@ import {
   leagueBattleOptionsSchema,
   priceSchema,
   datasheetSchema,
+  detachmentRulesSchema,
+  factionSchema,
   favouriteDetachmentSchema,
   saveRosterSchema,
   savedRosterDatasheetSchema,
@@ -267,5 +269,55 @@ describe('saved roster input', () => {
         prep: { stratagems: [], secondaries: [], reminders: [reminder], remindersEnabled: false },
       }).prep,
     ).toMatchObject({ reminders: [reminder], remindersEnabled: false })
+  })
+})
+
+describe('a roster sent with retired Marine codex ids', () => {
+  const retired = {
+    catalogueId: 'e0af-67df-9d63-8fb8',
+    detachmentIds: ['profile-detachment-option-e0af-67df-9d63-8fb8-f367-3240-47c1-7e1a'],
+    disposition: null,
+    limit: 2_000,
+  }
+  const current = { catalogueId: 'e0af-67df-9d63-8fb7', detachmentIds: ['d2dc-693e-b491-b16d'] }
+  const captain = {
+    retired: {
+      entryId: 'profile-unit-e0af-67df-9d63-8fb8-024a-3fea-7765-4e82',
+      toggles: { 'profile-warlord-e0af-67df-9d63-8fb8-024a-3fea-7765-4e82': 1 },
+    },
+    current: { entryId: '91e3-a419-8c58-98f5', toggles: { 'a89c-b01e-ffab-8ebb': 1 } },
+  }
+
+  it('is priced against current ids, as a stale guest draft or open tab sends it', () => {
+    expect(priceSchema.parse({ ...retired, units: [captain.retired] })).toMatchObject({ ...current, units: [captain.current] })
+  })
+
+  it('is saved under current ids', () => {
+    expect(
+      saveRosterSchema.parse({
+        ...retired,
+        name: '',
+        borrowedDetachmentId: retired.detachmentIds[0],
+        picks: [captain.retired],
+        prep: null,
+      }),
+    ).toMatchObject({ ...current, borrowedDetachmentId: current.detachmentIds[0], picks: [captain.current] })
+  })
+
+  it("reads a battle army's stratagems from its current book", () => {
+    expect(detachmentRulesSchema.parse({ catalogueId: retired.catalogueId, detachmentNames: ['Gladius Task Force'] }).catalogueId).toBe(
+      current.catalogueId,
+    )
+  })
+
+  it("names a battle army's current faction", () => {
+    expect(factionSchema.parse({ catalogueId: retired.catalogueId }).catalogueId).toBe(current.catalogueId)
+  })
+
+  it('opens the current datasheet for a loadout or simulation', () => {
+    expect(datasheetSchema.parse({ catalogueId: retired.catalogueId, entryId: captain.retired.entryId })).toMatchObject({
+      catalogueId: current.catalogueId,
+      entryId: captain.current.entryId,
+    })
   })
 })

@@ -1,6 +1,5 @@
 import { routeSlug } from '../core/slug'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { isProfiledDetachment, profiledDetachmentCards } from './catalogueProfileRules'
 import { detachmentNamed } from './factionReferences'
 import { factionDisplayName } from './factionNames'
 import { rosterDetachments } from './rosterDetachments'
@@ -32,14 +31,7 @@ export function rosterTelemetryProperties(data: RosterTelemetryInput, loaded: Lo
     ...(data.detachmentIds.length
       ? {
           detachment_rules_covered:
-            chosen.length === data.detachmentIds.length &&
-            chosen.every((candidate) => {
-              if (isProfiledDetachment(loaded, candidate.id)) {
-                const cards = profiledDetachmentCards(loaded, candidate.id)
-                return cards.rules.length > 0 || cards.stratagems.length > 0
-              }
-              return Boolean(detachmentNamed(semantics, candidate.name))
-            }),
+            chosen.length === data.detachmentIds.length && chosen.every((candidate) => Boolean(detachmentNamed(semantics, candidate.name))),
         }
       : {}),
     limit: data.limit,

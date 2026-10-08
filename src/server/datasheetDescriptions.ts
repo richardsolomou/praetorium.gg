@@ -6,8 +6,6 @@ import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from './rulesSource'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { factionContentOf } from './factionNames'
-import { profiledArmyRulesFor } from './catalogueProfileRules'
-import { datacardOf } from './datasheetJoin'
 
 export function describeDatasheetAbilities(
   loaded: LoadedCatalogue,
@@ -35,29 +33,13 @@ export function describeDatasheetAbilitiesWithContributions(
   const factionAbilityNames = factionContent
     ? new Set([...factionContent.armyRules.map((rule) => routeSlug(rule.name)), ...[...factionContent.factionAbilityNames].map(routeSlug)])
     : null
-  const profileArmyRules = faction ? profiledArmyRulesFor(loaded, catalogueId) : []
-  if (profileArmyRules.length && factionAbilityNames) {
-    for (const rule of profileArmyRules) factionAbilityNames.add(routeSlug(rule.name))
-  }
-  const profiledRuleNames = new Set(profileArmyRules.map((rule) => routeSlug(rule.name)))
   const upgradeNames = new Set(detachmentDetails.flatMap((detachment) => detachment.upgrades.map((upgrade) => routeSlug(upgrade.name))))
   const referenceAbilities = options.reference ? detachmentAbilitiesIn(loaded, catalogueId, sheet.id) : null
   const sourceAbilities = referenceAbilities?.abilities ?? sheet.abilities
-  const candidateAbilities: typeof sourceAbilities = profileArmyRules.length
-    ? [
-        ...sourceAbilities.filter((ability) => ability.kind !== 'faction' || !profiledRuleNames.has(routeSlug(ability.name))),
-        ...profileArmyRules.map((rule) => ({
-          id: `profile-army-rule:${routeSlug(rule.name)}`,
-          name: rule.name,
-          description: rule.description,
-          kind: 'faction' as const,
-        })),
-      ]
-    : sourceAbilities
-  const visibleAbilities = candidateAbilities.filter(
+  const visibleAbilities = sourceAbilities.filter(
     (ability) => ability.kind !== 'faction' || !factionAbilityNames || factionAbilityNames.has(routeSlug(ability.name)),
   )
-  const filteredFactionAbility = visibleAbilities.length !== candidateAbilities.length
+  const filteredFactionAbility = visibleAbilities.length !== sourceAbilities.length
   // An army rule is printed on the datasheet by name alone. Its own faction's card is
   // asked first: the Deathwatch and the Space Marines each state Oath of Moment.
   const armyRule = (name: string) =>
@@ -127,8 +109,6 @@ export function describeDatasheetAbilitiesWithContributions(
   const suppliedDetachmentDescriptions = detachments.some((detachment) =>
     [...detachment.rules, ...detachment.enhancements].some((entry) => entry.description),
   )
-  const printedAbilities =
-    loaded.profiledSupplementIds.has(catalogueId) && datacardOf(loaded, catalogueId, sheet.id)?.details.abilities !== undefined
   return {
     datasheet: {
       ...sheet,
@@ -156,7 +136,7 @@ export function describeDatasheetAbilitiesWithContributions(
       attribution: supplied || suppliedDetachmentDescriptions ? DATACARDS_ATTRIBUTION : null,
     },
     contributions: {
-      datacards: filteredFactionAbility || supplied || printedAbilities,
+      datacards: filteredFactionAbility || supplied,
       rules: rulesContributeAbilities,
     },
   }

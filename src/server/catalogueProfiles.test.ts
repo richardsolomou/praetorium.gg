@@ -1,98 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { contextualAbilityNamesIn, datasheetIn, datasheetViewsIn } from './catalogue'
-import { bookOf, card, profileOperationCases, withCards } from './catalogue.fixtures'
+import { bookOf, profileOperationCases } from './catalogue.fixtures'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { deploymentRules } from './rosterDeployment'
 
 describe('the profile modifiers on a datasheet', () => {
-  it('uses current card stats and weapons for an older catalogue entry', () => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'lion',
-          name: "Lion El'Jonson",
-          type: 'unit',
-          profiles: [
-            {
-              id: 'lion-stats',
-              name: "Lion El'Jonson",
-              typeName: 'Unit',
-              characteristics: [
-                { name: 'T', $text: '9' },
-                { name: 'W', $text: '10' },
-                { name: 'InSv', $text: '3+' },
-              ],
-            },
-            {
-              id: 'lion-gun',
-              name: '➤ Arma Luminis - bolt',
-              typeName: 'Ranged Weapons',
-              characteristics: [
-                { name: 'Range', $text: '12"' },
-                { name: 'S', $text: '4' },
-                { name: 'Keywords', $text: 'Pistol' },
-              ],
-            },
-          ],
-        },
-      ],
-    })
-    book.profiledSupplementIds.add('cat')
-    book.factionContents.set(
-      'test-catalogue',
-      withCards(
-        'Test catalogue',
-        new Map([
-          [
-            "Lion El'Jonson",
-            card({
-              profiles: [
-                { name: "Lion El'Jonson", type: 'Unit', values: { T: '10', W: '16' } },
-                {
-                  name: 'Arma Luminis – Bolt',
-                  type: 'Ranged Weapons',
-                  values: { Range: '18"', S: '6', Keywords: 'CLOSE-QUARTERS' },
-                },
-              ],
-            }),
-          ],
-        ]),
-      ),
-    )
-
-    const profiles = datasheetIn(book, 'cat', 'lion')?.profiles
-    expect(profiles?.[0]?.values).toEqual([
-      { name: 'T', value: '10' },
-      { name: 'W', value: '16' },
-      { name: 'InSv', value: '3+' },
-    ])
-    expect(profiles?.[1]?.values).toEqual([
-      { name: 'Range', value: '18"' },
-      { name: 'S', value: '6' },
-      { name: 'Keywords', value: 'CLOSE-QUARTERS' },
-    ])
-    expect(datasheetIn(book, 'cat', 'lion', { selections: [{ id: 'lion' }] })?.profiles).toEqual(profiles)
-  })
-
-  it('keeps catalogue stats for a faction without a new parent codex', () => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'unit',
-          name: 'Unit',
-          type: 'unit',
-          profiles: [{ id: 'stats', name: 'Unit', typeName: 'Unit', characteristics: [{ name: 'T', $text: '4' }] }],
-        },
-      ],
-    })
-    book.factionContents.set(
-      'test-catalogue',
-      withCards('Test catalogue', new Map([['Unit', card({ profiles: [{ name: 'Unit', type: 'Unit', values: { T: '5' } }] })]])),
-    )
-
-    expect(datasheetIn(book, 'cat', 'unit')?.profiles[0]?.values[0]?.value).toBe('4')
-  })
-
   it('shows an unconditional weapon ability granted by the selected detachment', () => {
     const categoryEntries = ['Necrons', 'Vehicle', 'Mounted', 'Titanic'].map((name) => ({
       id: name.toLocaleLowerCase(),

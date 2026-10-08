@@ -21,7 +21,7 @@ import { combatLoadoutSpace } from '../combatLoadouts'
 import { currentUserId } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { selectedBattleDetachmentData } from '../battleDetachmentData'
-import { referenceDatasheetBySlug, referenceDatasheetIsLive, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
+import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
 import {
   combatLoadoutSchema,
   datasheetSchema,
@@ -298,9 +298,7 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
       const catalogue = await app().catalogueFor(data.catalogueId)
       const rules = await app().rulesFor()
       const canonical = await app().canonicalCatalogueFor()
-      return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data, {
-        live: referenceDatasheetIsLive(catalogue, data.catalogueId),
-      })
+      return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data)
     }),
   )
 

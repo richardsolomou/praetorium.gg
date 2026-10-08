@@ -5,6 +5,7 @@ import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { ability, bookOf, card, categories, points, withCards } from './catalogue.fixtures'
 import {
+  CANONICAL_CATALOGUE_COMPILER_VERSION,
   CANONICAL_CATALOGUE_FORMAT,
   compileCanonicalCatalogue,
   compileCanonicalCatalogueFromSnapshot,
@@ -55,22 +56,6 @@ function catalogue() {
 }
 
 describe('canonical catalogue', () => {
-  it('attributes an overlaid Marine datasheet to its own pinned revision', () => {
-    const loaded = catalogue()
-    loaded.marineCodexCatalogueIds = new Set(['cat'])
-
-    const sheet = compileCanonicalCatalogue(loaded, { ...revisions, marineCodex: 'marine-revision' }).datasheets[0]
-    expect({
-      provenance: sheet?.provenance.definitions,
-      identity: sheet?.provenance.fields.identity,
-      attribution: sheet?.attribution,
-    }).toEqual({
-      provenance: { revision: 'marine-revision', entryId: 'squad', source: 'marineCodex' },
-      identity: { sources: ['marineCodex'], strategy: 'single-source' },
-      attribution: `Provisional Space Marines codex data from richardsolomou/wh40k-11e. ${DATACARDS_ATTRIBUTION}`,
-    })
-  })
-
   it('prints MFM copy tiers and attributes their points to the pinned source', () => {
     const loaded = catalogue()
     loaded.mfm = new Map([
@@ -100,21 +85,6 @@ describe('canonical catalogue', () => {
       provenance: { sources: ['points'], strategy: 'single-source' },
     })
   })
-  it('attributes a newer card profile when older sources disagree', () => {
-    const loaded = catalogue()
-    loaded.profiledSupplementIds.add('cat')
-    loaded.factionContents
-      .get('test-catalogue')!
-      .datasheetDetails.set('Squad', card({ profiles: [{ name: 'Squad', type: 'Unit', values: { T: '10' } }] }))
-    const compiled = compileCanonicalCatalogue(loaded, revisions)
-
-    expect(compiled.datasheets[0]?.profiles[0]?.values[0]?.value).toBe('10')
-    expect(compiled.datasheets[0]?.provenance.fields.profiles).toEqual({
-      sources: ['definitions', 'datacards'],
-      strategy: 'source-priority',
-    })
-  })
-
   it('compiles upstream labels into one typed datasheet with provenance', () => {
     const compiled = compileCanonicalCatalogue(catalogue(), revisions)
 
@@ -397,7 +367,7 @@ describe('canonical catalogue', () => {
         slug: 'vanguard',
         rules: [{ name: 'Shadow Masters', description: 'Remain concealed.' }],
         provenance: {
-          definitions: { revision: 'definitions-revision', detachmentId: 'vanguard', source: 'definitions' },
+          definitions: { revision: 'definitions-revision', detachmentId: 'vanguard' },
           datacards: { revision: 'datacards-revision' },
         },
       }),
@@ -424,12 +394,12 @@ describe('canonical catalogue', () => {
   })
 
   it.each([
-    { scenario: 'uses a current local projection', localRevision: 'definitions-revision', compilerVersion: 2, expected: 101 },
-    { scenario: 'ignores a local projection from another snapshot', localRevision: 'older-revision', compilerVersion: 2, expected: 100 },
+    { scenario: 'uses a current local projection', localRevision: 'definitions-revision', compilerVersion: 3, expected: 101 },
+    { scenario: 'ignores a local projection from another snapshot', localRevision: 'older-revision', compilerVersion: 3, expected: 100 },
     {
       scenario: 'ignores a local projection from an older compiler',
       localRevision: 'definitions-revision',
-      compilerVersion: 1,
+      compilerVersion: 2,
       expected: 100,
     },
   ])('$scenario', ({ localRevision, compilerVersion, expected }) => {
@@ -464,7 +434,7 @@ describe('canonical catalogue', () => {
     }
   })
 
-  it('recompiles an older packaged catalogue from its verified sources in production', () => {
+  it('recompiles an older packaged catalogue that names a retired source from its verified sources in production', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-compiler-'))
     try {
       const source = catalogue()
@@ -475,8 +445,15 @@ describe('canonical catalogue', () => {
         path.join(root, 'canonical', 'catalogue.json'),
         JSON.stringify({
           ...packaged,
-          compilerVersion: 1,
-          datasheets: packaged.datasheets.map((sheet) => ({ ...sheet, points: 999 })),
+          compilerVersion: 2,
+          datasheets: packaged.datasheets.map((sheet) => ({
+            ...sheet,
+            points: 999,
+            provenance: {
+              ...sheet.provenance,
+              fields: { ...sheet.provenance.fields, identity: { sources: ['marineCodex'], strategy: 'single-source' } },
+            },
+          })),
         }),
       )
       vi.stubEnv('PRAETORIUM_LOCAL_DEV', 'false')
@@ -486,7 +463,7 @@ describe('canonical catalogue', () => {
         () => null,
       )
       expect({ compilerVersion: result?.compilerVersion, points: result?.datasheets[0]?.points }).toEqual({
-        compilerVersion: 2,
+        compilerVersion: 3,
         points: 100,
       })
     } finally {
@@ -561,7 +538,7 @@ describe('canonical catalogue', () => {
       fs.mkdirSync(path.join(root, 'canonical'))
       fs.writeFileSync(
         path.join(root, 'canonical', 'catalogue.json'),
-        `${JSON.stringify({ format: CANONICAL_CATALOGUE_FORMAT, compilerVersion: 1 })}\n`,
+        `${JSON.stringify({ format: CANONICAL_CATALOGUE_FORMAT, compilerVersion: CANONICAL_CATALOGUE_COMPILER_VERSION })}\n`,
       )
 
       expect(() => loadCanonicalCatalogue(root)).toThrow()

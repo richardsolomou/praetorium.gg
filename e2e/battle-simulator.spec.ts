@@ -109,7 +109,7 @@ for (const width of [1440, 390, 900]) {
     const damage = (await estimate(simulator, 'Shooting')).locator('.readout').first()
     await expect(damage).toHaveText(/^\d+\.\d+$/)
     if (width < 860) await page.screenshot({ path: 'test-results/battle-simulator-fullscreen-phone.png' })
-    await expect(shooting).toContainText('4× Bolt Rifle – Focused Fire')
+    await expect(shooting).toContainText('4× ➤ Bolt Rifle - Focused Fire')
     await expect(simulator.getByRole('region', { name: 'Melee results' })).toContainText('4× Knives and Fists')
     const baseline = Number(await damage.textContent())
     await simulator.getByRole('tab', { name: /^Shooting/ }).click()

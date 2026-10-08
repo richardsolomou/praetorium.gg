@@ -35,3 +35,15 @@ it('refuses to serve a snapshot naming a source this code does not know', () => 
 it('reads the same snapshot as history, passing over the source nothing reads', () => {
   expect(historicalSnapshotSources(installedWithRetiredSource())).toEqual(['definitions'])
 })
+
+it('reads a published snapshot that still carries the retired Marine codex source', () => {
+  const directory = installedWithRetiredSource()
+  fs.mkdirSync(path.join(directory, 'marineCodex'))
+  fs.writeFileSync(path.join(directory, 'marineCodex', 'book.json'), '{}')
+  fs.writeFileSync(
+    path.join(directory, '.snapshot-manifest.json'),
+    JSON.stringify({ format: 'praetorium.catalogue.v3', revisions: {}, sources: ['definitions', 'marineCodex'], files: {} }),
+  )
+
+  expect(historicalSnapshotSources(directory)).toEqual(['definitions', 'marineCodex'])
+})

@@ -653,3 +653,43 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(duplicated).toContainText('Private')
   await guestContext.close()
 })
+
+test('a list saved on the retired Marine codex opens on the current Space Marines book', async ({ page }) => {
+  const { email } = await signUp(page, 'Provisional')
+  const user = await withAuthSql(
+    (database) => database.prepare('SELECT id FROM user WHERE email = ? LIMIT 1').get(email) as { id: string } | undefined,
+  )
+  if (!user) throw new Error('The signed-up player is missing.')
+  const id = crypto.randomUUID()
+  // The row as the provisional codex saved it: book, detachment, units and Warlord under its ids.
+  const retired = (entry: string) => `profile-unit-e0af-67df-9d63-8fb8-${entry}`
+  const saved = await (
+    await productOperator()
+  ).saveRoster({
+    id,
+    userId: user.id,
+    name: 'Provisional Gladius',
+    catalogueId: 'e0af-67df-9d63-8fb8',
+    detachmentId: JSON.stringify(['profile-detachment-option-e0af-67df-9d63-8fb8-f367-3240-47c1-7e1a']),
+    disposition: 'priority-assets',
+    limit: 1000,
+    picks: JSON.stringify([
+      { entryId: retired('024a-3fea-7765-4e82'), toggles: { [`profile-warlord-e0af-67df-9d63-8fb8-024a-3fea-7765-4e82`]: 1 } },
+      { entryId: retired('34c7-75dd-fcff-ec94') },
+    ]),
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    visibility: 'private',
+    source: 'editable',
+    now: Date.now(),
+  })
+  expect(saved).toBe('inserted')
+
+  await page.goto(`/rosters/${id}`)
+  const roster = page.locator('main')
+  await expect(roster.locator('[data-unit="Captain"]').first()).toBeVisible()
+  await expect(roster.locator('[data-unit="Intercessor Squad"]').first()).toBeVisible()
+  await expect(roster.getByText('Gladius Task Force').first()).toBeVisible()
+  await expect(roster.getByText(/Army book replaced|no longer available/)).toHaveCount(0)
+})

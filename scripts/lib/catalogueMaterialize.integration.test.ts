@@ -10,7 +10,6 @@ import { materializeCatalogue } from './catalogueMaterialize'
 
 let root: string
 let directory: string
-const marineFiles = catalogueSources.marineCodex.files!
 const catalogKey = 'pinned catalog'
 const id = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
 const owner = '01234567-89ab-cdef-0123-456789abcdef'
@@ -32,9 +31,6 @@ function downloads() {
     const target = String(url)
     if (target.includes(`/${catalogueSources.definitions.repository}/zip/`))
       return new Response(archive({ 'unit.json': '{"name":"Unit"}\n' }))
-    if (target.includes(`/${catalogueSources.marineCodex.repository}/zip/`)) {
-      return new Response(archive(Object.fromEntries(marineFiles.map((name, index) => [name, JSON.stringify({ id: `marine-${index}` })]))))
-    }
     if (target.includes(`/${catalogueSources.points.repository}/zip/`))
       return new Response(archive({ 'data/points.yaml': 'points: 100\n' }))
     if (target.includes(`/${catalogueSources.datacards.repository}/zip/`)) {
@@ -66,11 +62,11 @@ afterEach(() => {
   fs.rmSync(root, { recursive: true, force: true })
 })
 
-it('builds from the committed pins and retains Marine source ids in the overlay', async () => {
+it('builds from the committed pins', async () => {
   const config = sources()
   await materializeCatalogue(directory, config, { patchesDirectory: path.join(root, 'patches') })
 
-  expect(JSON.parse(fs.readFileSync(path.join(directory, 'definitions', marineFiles[0]!), 'utf8'))).toEqual({ id: 'marine-0' })
+  expect(JSON.parse(fs.readFileSync(path.join(directory, 'definitions', 'unit.json'), 'utf8'))).toEqual({ name: 'Unit' })
   expect(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))).toEqual(
     Object.fromEntries(Object.entries(config).map(([name, source]) => [name, source.revision])),
   )
@@ -80,7 +76,7 @@ it('builds from the committed pins and retains Marine source ids in the overlay'
       .mock.calls.map(([url]) => (typeof url === 'string' ? url : url instanceof URL ? url.href : url.url))
       .filter((url) => url.includes('codeload.github.com')),
   ).toEqual(
-    ['definitions', 'marineCodex', 'points', 'datacards', 'icons'].map((name) => {
+    ['definitions', 'points', 'datacards', 'icons'].map((name) => {
       const source = config[name as keyof typeof config]
       return `https://codeload.github.com/${'repository' in source ? source.repository : ''}/zip/${source.revision}`
     }),
@@ -100,7 +96,7 @@ it('omits disabled sources without fetching or retaining old files', async () =>
   const download = vi.fn()
   vi.stubGlobal('fetch', download)
   await materializeCatalogue(directory, sources(), {
-    disabled: new Set(['definitions', 'marineCodex', 'points', 'datacards', 'battlemaster', 'icons']),
+    disabled: new Set(['definitions', 'points', 'datacards', 'battlemaster', 'icons']),
     patchesDirectory: path.join(root, 'patches'),
   })
 

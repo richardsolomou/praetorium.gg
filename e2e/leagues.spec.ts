@@ -393,7 +393,7 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await signUp(page, ownerName)
   const rosterName = await createRoster(page, {
     faction: 'Black Templars',
-    detachment: /Companions of Vehemence/,
+    detachment: /Marshal's Household/,
     name: 'Templar roster',
   })
   await page.getByLabel('Add a unit').fill('Captain')
@@ -417,7 +417,7 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
   const roster = chooser.locator(`[data-roster="${rosterName}"]`)
   await expect(roster.getByText('Black Templars', { exact: true })).toBeVisible()
-  await expect(roster.getByText('Companions of Vehemence', { exact: true })).toBeVisible()
+  await expect(roster.getByText("Marshal's Household", { exact: true })).toBeVisible()
   await expect(chooser.getByRole('button', { name: 'Choose a list to seal' })).toBeDisabled()
   await roster.click()
   await expect(roster).toHaveAttribute('aria-pressed', 'true')

@@ -368,7 +368,7 @@ function datasheetDocument(sheet: CanonicalDatasheet): ReferenceDocument {
 function revisionsForDatasheet(sheet: CanonicalDatasheet) {
   return Object.fromEntries(
     [
-      [sheet.provenance.definitions.source ?? 'definitions', sheet.provenance.definitions.revision],
+      ['definitions', sheet.provenance.definitions.revision],
       ['datacards', sheet.provenance.datacards?.revision],
       ['rules', sheet.provenance.rules?.revision],
     ].filter((entry): entry is [string, string] => Boolean(entry[1])),
@@ -384,7 +384,7 @@ function detachmentDocument(detachment: CanonicalDetachment): ReferenceDocument 
     faction: detachment.faction,
     url,
     revisions: {
-      [detachment.provenance.definitions.source ?? 'definitions']: detachment.provenance.definitions.revision,
+      definitions: detachment.provenance.definitions.revision,
       datacards: detachment.provenance.datacards.revision,
     },
     attribution: [detachment.attribution],

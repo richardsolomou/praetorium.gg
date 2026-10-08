@@ -476,14 +476,6 @@ describe('the picker', () => {
     expect(unitsIn(book, 'cat', '', { factionCards: true }).map((unit) => unit.name)).toEqual(["Transcendent C'tan"])
   })
 
-  it('lists profiled datasheets even when older faction cards exist', () => {
-    const book = bookOf({ selectionEntries: [{ id: 'intercessors', name: 'Intercessor Squad', type: 'unit', costs: points(85) }] })
-    book.factionContents.set('test-catalogue', withCards('Test catalogue', ['Intercessor Squad']))
-    book.profiledCatalogueIds.add('cat')
-
-    expect(unitsIn(book, 'cat', '', { factionCards: true }).map((unit) => unit.name)).toEqual(['Intercessor Squad'])
-  })
-
   it('shelves every datasheet by its primary category', () => {
     const book = bookOf({
       selectionEntries: [

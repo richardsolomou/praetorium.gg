@@ -52,9 +52,6 @@ Maintenance, catalogue publishing, verification and deployment entry points an o
 - compare catalogue coverage: CI compares catalogue coverage between two code revisions on one verified snapshot
   handler: scripts/compareCatalogueCoverage.ts
   trust: operator
-- compare projected profiles: CI compares projected datasheet profiles between two code revisions
-  handler: scripts/compareProjectedProfiles.ts
-  trust: operator
 - compile catalogue: an operator compiles the canonical catalogue from the materialized sources
   handler: scripts/compileCatalogue.ts
   trust: operator
@@ -90,9 +87,6 @@ Maintenance, catalogue publishing, verification and deployment entry points an o
   trust: operator
 - parallel catalogue coverage: an operator splits catalogue coverage across processes by faction
   handler: scripts/parallelCatalogueCoverage.ts
-  trust: operator
-- project catalogue profiles: CI projects datasheet profiles for comparison
-  handler: scripts/projectCatalogueProfiles.ts
   trust: operator
 - seed preview: a preview deployment or contributor seeds demonstration accounts, rosters and battles
   handler: scripts/seedPreview.ts
