@@ -5,6 +5,8 @@ it.each([
   new Event('error'),
   { code: 11, message: 'connection closed' },
   Object.assign(new Error(''), { name: 'UnauthorizedError' }),
+  new Error('Failed to verify token: '),
+  new Error('Failed to verify token: Unauthorized'),
   new TypeError('Failed to fetch'),
   new TypeError('NetworkError when attempting to fetch resource.'),
   new TypeError('Load failed'),

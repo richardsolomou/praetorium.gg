@@ -28,5 +28,6 @@ export function isExpectedRealtimeDisconnect(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) return false
   const { name, message } = error as { name?: unknown; message?: unknown }
   if (name === 'UnauthorizedError') return true
-  return typeof message === 'string' && message.includes('connection closed')
+  if (typeof message !== 'string') return false
+  return message.includes('connection closed') || message.startsWith('Failed to verify token')
 }
