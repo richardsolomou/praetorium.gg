@@ -3,6 +3,7 @@ import { referenceData } from '../offline/runtime'
 import { catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedCount } from '../../server/functions'
 import type { ReferenceLink } from '../../contracts/catalogueChanges'
 import { SSR_STALE_TIME } from './shared'
+import { anySignal } from '../abortSignals'
 
 /**
  * One page of data updates, every faction's or the one a slug names, from the newest or from
@@ -23,7 +24,7 @@ export const referenceChangesQuery = (link: ReferenceLink) =>
     queryFn: async ({ signal }) => {
       if (referenceData() && !navigator.onLine) return []
       try {
-        return await referenceChanges({ data: link, signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) })
+        return await referenceChanges({ data: link, signal: anySignal([signal, AbortSignal.timeout(5000)]) })
       } catch (error) {
         if (referenceData()) return []
         throw error
