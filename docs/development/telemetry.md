@@ -31,7 +31,7 @@ Important count/identity meanings:
 - `spectator_invite_shown`, `spectator_invite_followed`, and `spectator_invite_dismissed` measure the invitation a battle shows a reader without a seat; `offer` and `action` name the roster or battle step. Measure conversion as unique people from `spectator_invite_followed` to `guest_roster_started`, `account_created`, or `battle_creation_submitted`. A battle finishing while watched moves the invitation and can repeat `shown`.
 - `reference` (`datasheet` or `detachment`) marks flows begun on a reference page: `roster_add_started`, `roster_creation_started`/`submitted`/`failed`, `guest_roster_started`, the requested `roster_unit_added` or `roster_unit_add_refused`, and `combat_simulator_opened`. Measure reference conversion with these, not pageviews of the destination.
 
-Browser events receive bounded `feature` and `surface` at the send boundary. Detail route parameters never enter `feature`; `surface` distinguishes web and native WebView. Web vitals use the measured `$current_url`, since later SPA navigation can change `$pathname`. Historical queries must use that measured path. Server/native-shell events do not inherit these browser properties.
+Browser events receive bounded `feature` and `surface` at the send boundary. Public player guides use the bounded `guides` feature. Detail route parameters never enter `feature`; `surface` distinguishes web and native WebView. Web vitals use the measured `$current_url`, since later SPA navigation can change `$pathname`. Historical queries must use that measured path. Server/native-shell events do not inherit these browser properties.
 
 ## Privacy boundary
 
@@ -58,6 +58,8 @@ The browser anonymous identity links at sign-in; server completions use the auth
 - [Player retention](https://us.posthog.com/project/548119/dashboard/2162148)
 
 These use the project's internal/test-account filters. The meaningful-activity action excludes pageviews, authentication, administration, loading/pricing, errors, and MCP traffic. Funnels use ordered unique people; retention uses observed weekly returns, with recent/current cohorts incomplete. Inspect the saved insight for its current window rather than copying dashboard configuration here.
+
+Acquisition views retain the product funnels and use the production host filter. Initial channel type is first acquisition, not the channel of a later visit; keep unknown attribution visible. Guide attribution begins with a `/guides/` pageview and uses that step’s pathname, followed by the existing meaningful-activity action. This measures subsequent use, not causation or saved-roster conversion. Recent journeys may not have exhausted their conversion window.
 
 ## Verification
 

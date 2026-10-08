@@ -10,7 +10,7 @@ export const PRAETORIUM_GUIDE = {
   ],
   boundaries: [
     'Praetorium does not provide matchmaking, chat, tournament pairings, locations, or rules written by this project.',
-    'Build a visitor roster and use the standalone combat simulator without an account. Visitor drafts stay in the current browser tab; sign in to save them. An account is required to import rosters or play battles.',
+    'Build a visitor roster and use the standalone combat simulator without an account. Visitor drafts stay on this device across visits; sign in to save them to your account or open them on other devices. An account is required to import rosters or play battles.',
     'Public guides, reference pages, public battles, profiles, and leaderboards can be read without an account.',
     'The combat simulator estimates supported effects for the chosen matchup; players determine range, visibility, and activated effects. Unsupported calculations remain explicit.',
     'Battle visibility is the narrowest setting chosen by anyone seated at the table. Watching never grants a seat or controls.',
