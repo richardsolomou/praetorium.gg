@@ -36,7 +36,7 @@ Use the same roster cards for libraries, choosers, editable lists, read-only lis
 
 Library variants remain grouped with their base and show concise differences from the saved base. Filters and tabs that represent destinations live in the URL. Variant navigation stays disabled while edits are unsaved. The library's legality and changed-list counts use the domain decisions in [Catalogue data](catalogue-data.md#data-updates).
 
-A visitor draft uses the same builder. The session cookie hints its layout for SSR without storing the list. Storage failure keeps the open builder usable and warns about reload loss. Claiming the draft after sign-in follows the saved flow. Save keeps the roster context on the authentication page and allows returning to the draft. If storage rejects the latest draft, keep the player in the builder rather than navigating into authentication and losing it.
+A visitor draft uses the same builder. A cookie hints its layout for SSR without storing the list. Another tab's edit or claim replaces the open copy. Storage failure keeps the open builder usable and warns about reload loss. Claiming the draft after sign-in follows the saved flow. Save keeps the roster context on the authentication page and allows returning to the draft. If storage rejects the latest draft, keep the player in the builder rather than navigating into authentication and losing it.
 
 ## Battles and leagues
 

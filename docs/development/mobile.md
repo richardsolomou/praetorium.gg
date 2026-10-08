@@ -33,7 +33,7 @@ The shell keeps a pending proof in SecureStore and submits it as a top-level Web
 
 Callback delivery waits for the remounted document, confirms the destination loaded, then consumes the receipt and removes the proof. Restart and transport failure retain retryable state; invalid or expired receipts clear it. Only the proof-bound exchange and consume endpoints accept WKWebView's missing or null `Origin`; ordinary mutations keep their origin checks.
 
-Remounting clears `sessionStorage`, so an unsaved visitor roster does not survive system-provider sign-in. Email sign-in stays in the document. Provider linking transfers the existing session through Better Auth's single-use token; failure between token consumption and callback requires restarting the link flow.
+Remounting clears `sessionStorage`; an unsaved visitor roster lives in `localStorage` and survives system-provider sign-in. Email sign-in stays in the document. Provider linking transfers the existing session through Better Auth's single-use token; failure between token consumption and callback requires restarting the link flow.
 
 ## Saved application data
 

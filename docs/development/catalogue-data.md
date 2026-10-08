@@ -116,7 +116,7 @@ Saved rows contain `RosterPick` choices and rebuild against the current catalogu
 
 Variants are independent saved lists in a flat `baseRosterId` group, copied from the server's saved row. Saves cannot change that identity. Automatic names update with edits; manual names stay chosen. Battle/league snapshots and exports freeze the name they received.
 
-Visitors keep tab-local drafts. Claim retries update the same draft ID rather than creating another list. New record IDs are server-minted except that idempotent claim boundary; share tokens have their own longer format.
+A visitor keeps one draft in browser storage, shared by its tabs and surviving reloads and native sign-in remounts. A claim submitted from the save prompt runs on arrival within an hour; a draft found later asks the signed-in player to save or discard it, so another person's leftover list never enters an account unasked. Claim retries and concurrent tabs update the same draft ID rather than creating another list. New record IDs are server-minted except that idempotent claim boundary; share tokens have their own longer format.
 
 Imports accept supported text exports, not `.ros`/`.rosz`. Unknown factions refuse; unmatched units or choices are reported for confirmation, never silently dropped or substituted. `importMismatch.ts` owns the explanation. Treat fixed equipment and named models as already placed; equipment, enhancement, Warlord, size, and attachment mismatches need their distinct reasons. Export current choices, including only the selected force disposition.
 
