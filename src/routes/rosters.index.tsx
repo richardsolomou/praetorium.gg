@@ -8,6 +8,7 @@ import { GUEST_DRAFT_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCooki
 import { requestCookie } from '../server/requestCookie'
 import { RosterLibraryPage, type RosterLibrarySearch } from '../client/features/rosters/RosterLibraryPage'
 import { factionIndexQuery, meQuery } from '../client/queries'
+import { pageHead } from '../client/linkPreview'
 
 export const Route = createFileRoute('/rosters/')({
   validateSearch: (search: Record<string, unknown>): RosterLibrarySearch => {
@@ -30,6 +31,13 @@ export const Route = createFileRoute('/rosters/')({
     // Whether this tab holds a visitor's list, so the first frame is the builder or the claim it becomes.
     return { guestDraft: requestCookie(GUEST_DRAFT_COOKIE) === '1', sort: keptRosterSort(requestCookie(ROSTER_SORT_COOKIE)) }
   },
+  head: ({ match }) =>
+    pageHead(match.context.origin, {
+      title: 'Warhammer 40,000 army builder',
+      description:
+        'Build free Warhammer 40,000 army lists, check points and legality, compare variants, and share, print or export your saved rosters.',
+      path: '/rosters',
+    }),
   component: RosterLibraryRoute,
 })
 

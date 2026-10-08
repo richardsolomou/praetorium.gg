@@ -1,14 +1,18 @@
 export const PRAETORIUM_GUIDE = {
-  product: 'Praetorium is a free and open source Warhammer 40,000 army builder and battle tracker.',
+  product: 'Praetorium is a free and open source Warhammer 40,000 army builder, combat simulator and battle tracker.',
   capabilities: [
     'Build, import, validate, save, share, print, and export catalogue-backed rosters.',
+    'Compare shooting and melee, equipment alternatives, and destruction probabilities in the free combat simulator.',
+    'Read public workflow guides at /guides for army building, roster imports, combat comparisons, and battle tracking.',
     'Set up and track 1v1, 2v1, and 2v2 battles, including missions, phases, command points, scoring, casualties, undo, and corrections.',
     'Run public or private league registration with sealed roster reveal.',
     'Watch live or finished public battles and read public leaderboards, profiles, and rosters.',
   ],
   boundaries: [
     'Praetorium does not provide matchmaking, chat, tournament pairings, locations, or rules written by this project.',
-    'An account is required to play. Public reference pages, public battles, profiles, and leaderboards can be read without one.',
+    'Build a visitor roster and use the standalone combat simulator without an account. Visitor drafts stay in the current browser tab; sign in to save them. An account is required to import rosters or play battles.',
+    'Public guides, reference pages, public battles, profiles, and leaderboards can be read without an account.',
+    'The combat simulator estimates supported effects for the chosen matchup; players determine range, visibility, and activated effects. Unsupported calculations remain explicit.',
     'Battle visibility is the narrowest setting chosen by anyone seated at the table. Watching never grants a seat or controls.',
     'The MCP reference tools are public. Optional account sign-in adds tools for saved rosters and battles, including edits and battle actions.',
     'Supported browser assistants can use the same capabilities through WebMCP. Browser account writes require the player to review and approve the proposed change on the page; assistants must never approve their own changes.',

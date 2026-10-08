@@ -73,7 +73,13 @@ export async function referenceGuideResponse(request: Request) {
   if (limited) return limited
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
-  return referenceResponse(request, corpus.revision, 'guide', PRAETORIUM_GUIDE, praetoriumGuideMarkdown())
+  return referenceResponse(
+    request,
+    corpus.revision,
+    `guide:${JSON.stringify(PRAETORIUM_GUIDE)}`,
+    PRAETORIUM_GUIDE,
+    praetoriumGuideMarkdown(),
+  )
 }
 
 export async function referenceUnitsResponse(request: Request, catalogueId: string) {
