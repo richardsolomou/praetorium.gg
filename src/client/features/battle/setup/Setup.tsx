@@ -272,7 +272,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
           }
           needed={Boolean(owed.length || sizeProblem)}
         >
-          <ArmiesStep view={view} sides={table} send={send} attachSavedRoster={attachSavedRoster} pending={pending} problem={problem} />
+          <ArmiesStep view={view} sides={table} send={send} attachSavedRoster={attachSavedRoster} pending={busy} problem={problem} />
           <div data-onboarding="battle-setup-size">
             {formatOpen ? (
               <SetupPanel className="grid gap-4 sm:grid-cols-2">

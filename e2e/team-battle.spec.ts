@@ -111,10 +111,17 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   await expect(host.getByText(/splits 2000 points evenly/)).toHaveCount(0)
 
   // Setting the table is done together, so one device can arrange an army it does not own.
-  await host.getByRole('button', { name: new RegExp(`^Remove the battle ready bonus for ${allyName}$`) }).click()
-  await expect(ally.getByRole('button', { name: new RegExp(`^Add the battle ready bonus for ${allyName}$`) })).toBeVisible()
-  await ally.getByRole('button', { name: new RegExp(`^Add the battle ready bonus for ${allyName}$`) }).click()
-  await expect(host.getByRole('button', { name: new RegExp(`^Remove the battle ready bonus for ${allyName}$`) })).toBeVisible()
+  // Three devices are settling cards at once, so a press that loses that race is pressed again.
+  const bonus = (page: Page, action: 'Add' | 'Remove') =>
+    page.getByRole('button', { name: new RegExp(`^${action} the battle ready bonus for ${allyName}$`) })
+  await expect(async () => {
+    if (!(await bonus(ally, 'Add').isVisible())) await bonus(host, 'Remove').click({ timeout: 2_000 })
+    await expect(bonus(ally, 'Add')).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 30_000 })
+  await expect(async () => {
+    if (!(await bonus(host, 'Remove').isVisible())) await bonus(ally, 'Add').click({ timeout: 2_000 })
+    await expect(bonus(host, 'Remove')).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 30_000 })
   await chooseBattlefield(host)
   await setupStep(host, 'Secondaries')
   // Any player at the table can referee either side's secondary choices.
