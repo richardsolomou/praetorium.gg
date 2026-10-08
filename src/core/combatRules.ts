@@ -76,6 +76,21 @@ export function combatRuleHasSharedDefence(rule: CombatRule, choice: number) {
   )
 }
 
+/** Each rule once by source, with the player's choice by rule id or its default, as the matchup applies it. */
+export function combatRuleSelections(rules: readonly CombatRule[], selections: Readonly<Record<string, number>>) {
+  const sources = new Map<string, CombatRule>()
+  for (const rule of rules) if (!sources.has(combatRuleKey(rule))) sources.set(combatRuleKey(rule), rule)
+  const all = [...sources.values()]
+  const choices = Object.fromEntries(all.map((rule) => [combatRuleKey(rule), selections[rule.id] ?? combatRuleDefault(rule)]))
+  return {
+    rules: all,
+    choices,
+    active: (subset: readonly CombatRule[]) => activeCombatRules(subset, choices),
+    sharedDefenceSources: (subset: readonly CombatRule[]) =>
+      subset.filter((rule) => combatRuleHasSharedDefence(rule, choices[combatRuleKey(rule)]!)).map((rule) => rule.source),
+  }
+}
+
 const both: Phase[] = ['ranged', 'melee']
 const plain = (value: string) =>
   value

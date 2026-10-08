@@ -8,7 +8,7 @@ import { CombatantCard } from './CombatantCard'
 import { CombatMatchup } from './CombatMatchup'
 import { CombatBuffControls } from './CombatBuffControls'
 import { type CombatRoster, useCombatant } from './useCombatant'
-import { decodeSimulatorState, encodeSimulatorState, type MatchupSettings, type SimulatorState } from './simulatorUrl'
+import { decodeSimulatorState, encodeSimulatorState, type MatchupSettings, type SimulatorState } from '../../../contracts/simulatorState'
 
 /** The standalone page keeps its matchup in the URL, so a link reopens the same calculation. */
 export function CombatSimulator({ shared, onShare }: { shared?: string; onShare: (shared: string | undefined) => void }) {

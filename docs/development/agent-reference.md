@@ -31,13 +31,15 @@ JSON is default; `Accept: text/markdown` or `format=markdown` selects Markdown. 
 
 Account tools require Better Auth OAuth: `mcp:read` for owned-roster/battle reads, `mcp:write` for supported writes. Use the site's ownership, legality, and expected-sequence checks. Resource-bound bearer tokens authorize calls; browser cookies do not. Discovery supports protected-resource/authorization metadata, client metadata and dynamic registration, and refresh tokens through `offline_access`.
 
+`simulate_combat` ([`combatTools.ts`](../../src/server/combatTools.ts)) runs the standalone simulator's flow for two full-strength units: the same evaluated combatants, rule defaults, matchup assembly, and exact calculation, with no detachment, default loadouts, and no optimization. It refuses unknown units, illegal sizes or attachments, unsupported phases, and work above `COMBAT_TOOL_MAX_WORK`, which bounds synchronous server calculation far below the browser worker's limit. Recognized combat rules the compiler cannot apply are returned as `notCalculated`. Results cite each datasheet and link to `/simulator` with the same state, so the page reproduces the estimate.
+
 Accept one bounded JSON-RPC message, never batches. SQLite migrations must create OAuth storage before serving. Preserve the pinned provider patch for wrapped uniqueness errors during concurrent startup. Anonymous MCP telemetry rules belong to [Telemetry](telemetry.md#runtime-boundaries).
 
 Publish registry changes from the root with `mcp-publisher login github` and `mcp-publisher publish`; keep registry and server versions aligned.
 
 ## WebMCP
 
-Supported browsers register the full agent surface through `document.modelContext`: the fourteen MCP tools plus tool equivalents of both resources and both prompts. [`AgentTools`](../../src/server/agentTools.ts) owns shared schemas and handlers; [`referenceAgentContext.ts`](../../src/server/referenceAgentContext.ts) owns resource text and prompt instructions. Keep MCP OAuth separate from browser sessions; `/mcp` still requires bearer tokens for account access.
+Supported browsers register the full agent surface through `document.modelContext`: the fifteen MCP tools plus tool equivalents of both resources and both prompts. [`AgentTools`](../../src/server/agentTools.ts) owns shared schemas and handlers; [`referenceAgentContext.ts`](../../src/server/referenceAgentContext.ts) owns resource text and prompt instructions. Keep MCP OAuth separate from browser sessions; `/mcp` still requires bearer tokens for account access.
 
 [`WebMcp`](../../src/client/features/agents/WebMcp.tsx) registers public tools throughout the application and account tools for a signed-in, non-impersonated player. Registration aborts on account changes and unmount. Server calls bind the expected account to the current session, validate bounded input, enforce mutation origin and request limits, and reuse the existing ownership, legality, and battle-sequence checks. Saved-roster tools operate on saved data; they do not edit an unsaved browser draft.
 

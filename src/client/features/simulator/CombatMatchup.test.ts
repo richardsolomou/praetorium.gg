@@ -1,7 +1,8 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it } from 'vitest'
-import { CombatMatchup, combatOutcomeEvent, type CombatAnswer, type CombatantSnapshot } from './CombatMatchup'
+import type { CombatAnswer, CombatantSnapshot } from '../../../core/combatMatchup'
+import { CombatMatchup, combatOutcomeEvent } from './CombatMatchup'
 
 it('records a partial estimate as a completion with its available phase', () => {
   const answer = { ranged: { result: {} }, melee: { error: 'unsupported weapon details' } } as CombatAnswer

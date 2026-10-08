@@ -5,7 +5,7 @@ import { estimateKey, type LoadoutScoring, type OutcomePriority } from '../../..
 import { HoverTooltip } from '../../components/HoverTooltip'
 import type { OptionNote } from '../rosters/builder/LoadoutControls'
 import type { LoadoutOdds } from './useLoadoutOdds'
-import type { CombatRequest } from './CombatMatchup'
+import type { CombatRequest } from '../../../core/combatMatchup'
 
 type Phase = 'ranged' | 'melee'
 const titles: Record<Phase, string> = { ranged: 'Shooting', melee: 'Melee' }
